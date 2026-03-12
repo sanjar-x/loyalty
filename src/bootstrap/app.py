@@ -30,6 +30,11 @@ async def lifespan(app: FastAPI):
     )
     if not broker.is_worker_process:
         logger.info("Запуск TaskIQ брокера в рамках API...")
+        container = getattr(app.state, "dishka_container", None)
+        if container:
+            from dishka.integrations.taskiq import setup_dishka as setup_dishka_taskiq
+            setup_dishka_taskiq(container=container, broker=broker)
+
         await broker.startup()
         if broker.write_conn:
             logger.info("Инициализация бизнес-топологии RabbitMQ...")
