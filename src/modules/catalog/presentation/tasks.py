@@ -1,41 +1,12 @@
 import uuid
+
 import structlog
 from dishka.integrations.taskiq import FromDishka
 
 from src.bootstrap.taskiq import broker
-from src.modules.catalog.application.commands.confirm_brand_logo import (
-    ConfirmBrandLogoUploadCommand,
-    ConfirmBrandLogoUploadHandler,
-)
 from src.modules.catalog.application.services.media_processor import BrandLogoProcessor
 
 logger = structlog.get_logger(__name__)
-
-
-@broker.task(
-    queue="catalog_confirm_brand_logo",
-    exchange="taskiq_rpc_exchange",
-    routing_key="catalog.command.confirm_brand_logo",
-)
-async def confirm_brand_logo_task(
-    payload: dict,
-    handler: FromDishka[ConfirmBrandLogoUploadHandler],
-) -> dict:
-    """
-    TaskIQ обработчик для конкретной команды ConfirmBrandLogoUpload.
-    """
-    logger.info("Начата фоновая обработка команды", command="ConfirmBrandLogoUpload")
-
-    try:
-        command = ConfirmBrandLogoUploadCommand(**payload)
-        await handler.handle(command)
-
-        logger.info("Команда ConfirmBrandLogoUpload успешно обработана")
-        return {"status": "success"}
-
-    except Exception as e:
-        logger.error("Сбой при фоновой обработке команды", error=str(e))
-        raise
 
 
 @broker.task(
@@ -57,5 +28,7 @@ async def process_brand_logo_task(
         await processor.process(brand_id=brand_id, raw_object_key=raw_object_key)
         return {"status": "success"}
     except Exception as e:
-        logger.exception("Критическая ошибка при процессинге логотипа", brand_id=str(brand_id))
+        logger.exception(
+            "Критическая ошибка при процессинге логотипа", brand_id=str(brand_id)
+        )
         return {"status": "error", "message": str(e)}

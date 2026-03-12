@@ -25,7 +25,7 @@ class ConfirmBrandLogoUploadHandler:
         self,
         brand_repo: IBrandRepository,
         uow: IUnitOfWork,
-        storage_facade: IStorageFacade,  # ИСПРАВЛЕНО: Зависим от Фасада
+        storage_facade: IStorageFacade,
         publisher: IEventPublisher,
     ):
         self._brand_repo = brand_repo
