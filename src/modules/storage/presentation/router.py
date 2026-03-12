@@ -1,4 +1,4 @@
-# src\modules\catalog\presentation\router.py
+# src\modules\storage\presentation\router.py
 from typing import Any
 
 from dishka.integrations.fastapi import FromDishka, inject
