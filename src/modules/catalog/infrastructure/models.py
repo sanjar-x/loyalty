@@ -49,14 +49,12 @@ class ProductStatus(enum.StrEnum):
 
 class MediaProcessingStatus(str, enum.Enum):
     """
-    Жизненный цикл обработки медиафайла (независимо от самой сущности).
+    State Machine (FSM) для асинхронной загрузки файлов (Claim Check Pattern).
     """
-
-    PENDING = "PENDING"  # Ожидаем загрузки сырого файла фронтендом в S3
-    PROCESSING = "PROCESSING"  # Файл загружен, TaskIQ воркер обрабатывает изображение
-    COMPLETED = "COMPLETED"  # Обработка завершена, файл доступен по logo_url
-    FAILED = "FAILED"  # Ошибка обработки (битый файл и т.д.)
-
+    PENDING_UPLOAD = "PENDING_UPLOAD"  # Выдан Presigned URL, ждем загрузки от фронтенда
+    PROCESSING = "PROCESSING"          # Фронт подтвердил загрузку, TaskIQ воркер обрабатывает
+    COMPLETED = "COMPLETED"            # Обработка (ресайз/WebP) завершена успешно
+    FAILED = "FAILED"                  # Ошибка (неверный формат, битый файл
 
 class MediaType(enum.StrEnum):
     IMAGE = "image"
@@ -84,6 +82,7 @@ class SupplierType(enum.StrEnum):
 # ==========================================
 
 
+
 class Brand(Base):
     """Модель бренда для группировки товаров (например, Nike, Adidas)."""
 
@@ -99,17 +98,36 @@ class Brand(Base):
         default=uuid.uuid7,
         comment="Первичный ключ (UUIDv7 для сортировки по времени)",
     )
+
     name: Mapped[str] = mapped_column(String(255), comment="Название бренда")
     slug: Mapped[str] = mapped_column(
         String(255), index=True, comment="URL-идентификатор для роутинга"
     )
-    logo_status: Mapped[MediaProcessingStatus | None] = mapped_column(
-        Enum(MediaProcessingStatus, native_enum=False, length=20),
+
+    # ==========================================
+    # ИНТЕГРАЦИЯ СО STORAGE (CLAIM CHECK PATTERN)
+    # ==========================================
+
+    # 1. Ссылка на физический файл в реестре модуля Storage
+    logo_file_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
         nullable=True,
-        comment="Статус фоновой обработки логотипа",
+        index=True,
+        comment="Soft-link на storage_objects.id (Модуль Storage)"
     )
+
+    # 2. Состояние конечного автомата
+    logo_status: Mapped[MediaProcessingStatus | None] = mapped_column(
+        Enum(MediaProcessingStatus, native_enum=False, length=30),
+        nullable=True,
+        comment="FSM: Текущий этап загрузки/обработки логотипа"
+    )
+
+    # 3. Read Model (Денормализация) для быстрых HTTP GET запросов
     logo_url: Mapped[str | None] = mapped_column(
-        String(1024), nullable=True, comment="URL в S3"
+        String(1024),
+        nullable=True,
+        comment="Кэш публичного URL из модуля Storage (заполняется после COMPLETED)"
     )
 
 
@@ -382,8 +400,9 @@ class Product(Base):
 
 class MediaAsset(Base):
     """
-    Сущность: Медиа-актив.
-    Управляет всем визуальным контентом товара с привязкой к цветам и ролям.
+    Сущность: Медиа-актив товара (Бизнес-контекст).
+    Описывает, КАК файл используется в каталоге (роль, порядок, привязка к цвету).
+    Сами физические данные файла лежат в модуле Storage (StorageObject).
     """
 
     __tablename__ = "media_assets"
@@ -408,13 +427,33 @@ class MediaAsset(Base):
         server_default=MediaRole.GALLERY.name,
     )
     sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
-    storage_path: Mapped[str] = mapped_column(String(1024))
-    is_external: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
-    product: Mapped["Product"] = relationship("Product")
+
+    # Мягкая связь (Soft Link) с модулем Storage
+    storage_object_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        index=True,
+        nullable=True,
+        comment="Ссылка на storage_objects.id (Единый реестр файлов)"
+    )
+
+    is_external: Mapped[bool] = mapped_column(
+        Boolean, 
+        server_default=text("false"),
+        comment="Флаг внешнего ресурса (не управляемого нашим S3)"
+    )
+    external_url: Mapped[str | None] = mapped_column(
+        String(1024),
+        nullable=True,
+        comment="Прямая ссылка (например, youtube.com/...), если is_external = true"
+    )
+
+    # Навигационные свойства (Relationship)
+    product: Mapped["Product"] = relationship("Product")  # или back_populates если добавишь в Product
     color_attribute: Mapped["AttributeValue"] = relationship("AttributeValue")
 
     __table_args__ = (
-        Index("product_id", "attribute_value_id"),
+        Index("ix_media_assets_product_attr", "product_id", "attribute_value_id"),
+        # Бизнес-правило: У одного цвета может быть только одна ГЛАВНАЯ картинка
         Index(
             "uix_media_single_main_per_color",
             "product_id",
@@ -424,7 +463,6 @@ class MediaAsset(Base):
             postgresql_nulls_not_distinct=True,
         ),
     )
-
 
 # ==========================================
 # 5. VARIATIONS (SKU И СВЯЗИ АТРИБУТОВ)
