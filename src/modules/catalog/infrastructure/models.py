@@ -47,6 +47,17 @@ class ProductStatus(enum.StrEnum):
     ARCHIVED = "archived"
 
 
+class MediaProcessingStatus(str, enum.Enum):
+    """
+    Жизненный цикл обработки медиафайла (независимо от самой сущности).
+    """
+
+    PENDING = "PENDING"  # Ожидаем загрузки сырого файла фронтендом в S3
+    PROCESSING = "PROCESSING"  # Файл загружен, TaskIQ воркер обрабатывает изображение
+    COMPLETED = "COMPLETED"  # Обработка завершена, файл доступен по logo_url
+    FAILED = "FAILED"  # Ошибка обработки (битый файл и т.д.)
+
+
 class MediaType(enum.StrEnum):
     IMAGE = "image"
     VIDEO = "video"
@@ -91,6 +102,11 @@ class Brand(Base):
     name: Mapped[str] = mapped_column(String(255), comment="Название бренда")
     slug: Mapped[str] = mapped_column(
         String(255), index=True, comment="URL-идентификатор для роутинга"
+    )
+    logo_status: Mapped[MediaProcessingStatus | None] = mapped_column(
+        Enum(MediaProcessingStatus, native_enum=False, length=20),
+        nullable=True,
+        comment="Статус фоновой обработки логотипа",
     )
     logo_url: Mapped[str | None] = mapped_column(
         String(1024), nullable=True, comment="URL в S3"

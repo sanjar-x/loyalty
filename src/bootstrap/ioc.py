@@ -5,7 +5,7 @@ from structlog import BoundLogger
 from src.bootstrap.config import Settings, settings
 from src.infrastructure.cache.provider import CacheProvider
 from src.infrastructure.database.provider import DatabaseProvider
-from src.modules.catalog.providers import CategoryProvider
+from src.modules.catalog.presentation.dependencies import CategoryProvider
 
 logger: BoundLogger = structlog.get_logger(__name__)
 
