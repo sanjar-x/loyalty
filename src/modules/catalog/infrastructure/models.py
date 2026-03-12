@@ -51,10 +51,12 @@ class MediaProcessingStatus(str, enum.Enum):
     """
     State Machine (FSM) для асинхронной загрузки файлов (Claim Check Pattern).
     """
+
     PENDING_UPLOAD = "PENDING_UPLOAD"  # Выдан Presigned URL, ждем загрузки от фронтенда
-    PROCESSING = "PROCESSING"          # Фронт подтвердил загрузку, TaskIQ воркер обрабатывает
-    COMPLETED = "COMPLETED"            # Обработка (ресайз/WebP) завершена успешно
-    FAILED = "FAILED"                  # Ошибка (неверный формат, битый файл
+    PROCESSING = "PROCESSING"  # Фронт подтвердил загрузку, TaskIQ воркер обрабатывает
+    COMPLETED = "COMPLETED"  # Обработка (ресайз/WebP) завершена успешно
+    FAILED = "FAILED"  # Ошибка (неверный формат, битый файл
+
 
 class MediaType(enum.StrEnum):
     IMAGE = "image"
@@ -82,7 +84,6 @@ class SupplierType(enum.StrEnum):
 # ==========================================
 
 
-
 class Brand(Base):
     """Модель бренда для группировки товаров (например, Nike, Adidas)."""
 
@@ -103,31 +104,28 @@ class Brand(Base):
     slug: Mapped[str] = mapped_column(
         String(255), index=True, comment="URL-идентификатор для роутинга"
     )
-
-    # ==========================================
-    # ИНТЕГРАЦИЯ СО STORAGE (CLAIM CHECK PATTERN)
-    # ==========================================
-
-    # 1. Ссылка на физический файл в реестре модуля Storage
     logo_file_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         nullable=True,
         index=True,
-        comment="Soft-link на storage_objects.id (Модуль Storage)"
+        comment="Soft-link на storage_objects.id (Модуль Storage)",
     )
 
-    # 2. Состояние конечного автомата
     logo_status: Mapped[MediaProcessingStatus | None] = mapped_column(
         Enum(MediaProcessingStatus, native_enum=False, length=30),
         nullable=True,
-        comment="FSM: Текущий этап загрузки/обработки логотипа"
+        comment="FSM: Текущий этап загрузки/обработки логотипа",
     )
 
-    # 3. Read Model (Денормализация) для быстрых HTTP GET запросов
     logo_url: Mapped[str | None] = mapped_column(
         String(1024),
         nullable=True,
-        comment="Кэш публичного URL из модуля Storage (заполняется после COMPLETED)"
+        comment="Кэш публичного URL из модуля Storage",
+    )
+    logo_draft_key: Mapped[str | None] = mapped_column(
+        String(1024),
+        nullable=True,
+        comment="Временный путь в S3 (до создания StorageObject воркером)",
     )
 
 
@@ -433,22 +431,24 @@ class MediaAsset(Base):
         UUID(as_uuid=True),
         index=True,
         nullable=True,
-        comment="Ссылка на storage_objects.id (Единый реестр файлов)"
+        comment="Ссылка на storage_objects.id (Единый реестр файлов)",
     )
 
     is_external: Mapped[bool] = mapped_column(
-        Boolean, 
+        Boolean,
         server_default=text("false"),
-        comment="Флаг внешнего ресурса (не управляемого нашим S3)"
+        comment="Флаг внешнего ресурса (не управляемого нашим S3)",
     )
     external_url: Mapped[str | None] = mapped_column(
         String(1024),
         nullable=True,
-        comment="Прямая ссылка (например, youtube.com/...), если is_external = true"
+        comment="Прямая ссылка (например, youtube.com/...), если is_external = true",
     )
 
     # Навигационные свойства (Relationship)
-    product: Mapped["Product"] = relationship("Product")  # или back_populates если добавишь в Product
+    product: Mapped["Product"] = relationship(
+        "Product"
+    )  # или back_populates если добавишь в Product
     color_attribute: Mapped["AttributeValue"] = relationship("AttributeValue")
 
     __table_args__ = (
@@ -463,6 +463,7 @@ class MediaAsset(Base):
             postgresql_nulls_not_distinct=True,
         ),
     )
+
 
 # ==========================================
 # 5. VARIATIONS (SKU И СВЯЗИ АТРИБУТОВ)

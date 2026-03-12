@@ -57,8 +57,3 @@ async def shutdown_event(state) -> None:
     if hasattr(state, "dishka_container"):
         await state.dishka_container.close()
         logger.info("DI-контейнер Dishka успешно закрыт")
-
-
-# 3. Регистрация задач (Task Discovery)
-# Чтобы воркер при старте узнал о существующих задачах, их нужно импортировать в его контекст.
-# Если у тебя появятся таски в модуле `order` или `catalog`, раскомментируй соответствующие импорты.

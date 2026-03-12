@@ -96,6 +96,23 @@ class ConflictError(AppException):
         )
 
 
+class ValidationError(AppException):
+    """Ошибка валидации данных (в том числе бизнес-правил)."""
+
+    def __init__(
+        self,
+        message: str = "Ошибка валидации данных",
+        error_code: str = "VALIDATION_ERROR",
+        details: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_400_BAD_REQUEST,  # Или 422
+            error_code=error_code,
+            details=details,
+        )
+
+
 class UnprocessableEntityError(AppException):
     def __init__(
         self,

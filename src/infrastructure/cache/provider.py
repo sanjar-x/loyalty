@@ -1,4 +1,5 @@
-from typing import AsyncIterable
+# src/infrastructure/cache/provider.py
+from collections.abc import AsyncIterable
 
 import redis.asyncio as redis
 import structlog
@@ -13,7 +14,7 @@ logger = structlog.get_logger(__name__)
 
 class CacheProvider(Provider):
     @provide(scope=Scope.APP)
-    async def provide_redis_client(self) -> AsyncIterable[redis.Redis]:
+    async def redis_client(self) -> AsyncIterable[redis.Redis]:
         logger.info("Инициализация пула соединений Redis...", url=settings.redis_url)
 
         pool = redis.ConnectionPool.from_url(
@@ -35,7 +36,4 @@ class CacheProvider(Provider):
         await client.close()
         await pool.disconnect()
 
-    @provide(scope=Scope.APP)
-    def provide_cache_service(self, client: redis.Redis) -> ICacheService:
-        logger.debug("Инициализация RedisService")
-        return RedisService(client)
+    cache_service = provide(RedisService, scope=Scope.APP, provides=ICacheService)
