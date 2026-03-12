@@ -7,10 +7,11 @@ from dishka import Provider, Scope, provide
 
 from src.bootstrap.config import Settings
 from src.infrastructure.storage.factory import S3ClientFactory
-from src.modules.storage.domain.interfaces import IStorageRepository
+from src.modules.storage.domain.interfaces import IBlobStorage, IStorageRepository
 from src.modules.storage.infrastructure.repository import StorageObjectRepository
 from src.modules.storage.infrastructure.service import S3StorageService
-from src.shared.interfaces.storage import IS3torageService
+from src.modules.storage.presentation.fasade import StorageFacade
+from src.shared.interfaces.storage import IStorageFacade
 
 logger = structlog.get_logger(__name__)
 
@@ -30,7 +31,6 @@ class StorageProvider(Provider):
         async for client in factory.create_client():
             yield client
 
-    # Здесь для красоты и idiomatic Dishka можно использовать атрибут класса:
     storage_repo = provide(
         StorageObjectRepository, scope=Scope.REQUEST, provides=IStorageRepository
     )
@@ -38,9 +38,12 @@ class StorageProvider(Provider):
     @provide(scope=Scope.REQUEST)
     def storage_service(
         self, client: AioBaseClient, settings: Settings
-    ) -> IS3torageService:
-        # Снова просим Dishka прокинуть Settings в аргументы
+    ) -> IBlobStorage:
         return S3StorageService(
             s3_client=client,
             bucket_name=settings.S3_BUCKET_NAME,
         )
+
+    storage_facade = provide(
+        StorageFacade, scope=Scope.REQUEST, provides=IStorageFacade
+    )

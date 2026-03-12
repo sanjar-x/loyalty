@@ -67,11 +67,6 @@ class S3StorageService(IBlobStorage):
         data_stream: AsyncIterator[bytes],
         content_type: str = "application/octet-stream",
     ) -> str:
-        """
-        Умная загрузка через Multipart Upload.
-        Читает AsyncIterator, собирает чанки по 5MB (ограничение S3) и отправляет их.
-        Минимизирует использование оперативной памяти.
-        """
         upload_id = None
         parts = []
         part_number = 1
