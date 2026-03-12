@@ -48,7 +48,6 @@ class ProductStatus(enum.StrEnum):
     ARCHIVED = "archived"
 
 
-
 class MediaType(enum.StrEnum):
     IMAGE = "image"
     VIDEO = "video"
@@ -112,11 +111,6 @@ class Brand(Base):
         String(1024),
         nullable=True,
         comment="Кэш публичного URL из модуля Storage",
-    )
-    logo_draft_key: Mapped[str | None] = mapped_column(
-        String(1024),
-        nullable=True,
-        comment="Временный путь в S3 (до создания StorageObject воркером)",
     )
 
 

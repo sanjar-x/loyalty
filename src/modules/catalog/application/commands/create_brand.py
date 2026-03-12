@@ -24,7 +24,7 @@ class CreateBrandCommand:
 @dataclass(frozen=True)
 class CreateBrandResult:
     brand_id: uuid.UUID
-    presigned_post: dict
+    presigned_upload_url: str
     object_key: str
 
 
@@ -46,19 +46,21 @@ class CreateBrandHandler:
                 raise BrandSlugConflictError(slug=command.slug)
 
             brand = Brand.create(name=command.name, slug=command.slug)
+            brand.init_logo_upload()
             brand = await self._brand_repo.add(brand)
             await self._uow.commit()
 
-        upload_data = await self._storage_facade.request_upload(
+        upload_data = await self._storage_facade.request_direct_upload(
             module="catalog",
             entity_id=brand.id,
             filename=command.logo_filename,
+            content_type=command.logo_content_type,
         )
 
         self._logger.info("Инициировано создание бренда", brand_id=str(brand.id))
 
         return CreateBrandResult(
             brand_id=brand.id,
-            presigned_post=upload_data.url_data,
+            presigned_upload_url=str(upload_data.url_data),
             object_key=upload_data.object_key,
         )

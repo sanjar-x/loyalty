@@ -148,6 +148,26 @@ class S3StorageService(IBlobStorage):
                 details={"key": object_name},
             )
 
+    async def generate_presigned_put_url(
+        self, object_name: str, content_type: str, expiration: int = 3600
+    ) -> str:
+        try:
+            return await self._client.generate_presigned_url(
+                "put_object",
+                Params={
+                    "Bucket": self._bucket,
+                    "Key": object_name,
+                    "ContentType": content_type,
+                },
+                ExpiresIn=expiration,
+            )
+        except ClientError as e:
+            logger.error(f"Ошибка генерации presigned put url: {e}")
+            raise ServiceUnavailableError(
+                message="Не удалось сгенерировать прямую ссылку для загрузки файла.",
+                details={"key": object_name},
+            )
+
     async def object_exists(self, object_name: str) -> bool:
         try:
             await self._client.head_object(Bucket=self._bucket, Key=object_name)
@@ -224,6 +244,9 @@ class S3StorageService(IBlobStorage):
             raise ServiceUnavailableError(
                 message="Не удалось удалить файл.", details={"key": object_name}
             )
+
+    async def delete_file(self, object_name: str) -> None:
+        await self.delete_object(object_name)
 
     async def delete_objects(self, object_names: List[str]) -> List[str]:
         failed_keys = []

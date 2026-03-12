@@ -88,3 +88,16 @@ class BrandSlugConflictError(ConflictError):
             error_code="BRAND_SLUG_CONFLICT",
             details={"slug": slug},
         )
+
+
+class InvalidLogoStateException(UnprocessableEntityError):
+    def __init__(self, brand_id: uuid.UUID, current_status: str, expected_status: str):
+        super().__init__(
+            message=f"Недопустимое состояние загрузки логотипа. Текущее: {current_status}, ожидалось: {expected_status}.",
+            error_code="INVALID_LOGO_STATE",
+            details={
+                "brand_id": str(brand_id),
+                "current_status": current_status,
+                "expected_status": expected_status,
+            },
+        )

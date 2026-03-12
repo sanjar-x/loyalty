@@ -22,6 +22,27 @@ class Brand:
             logo_status=MediaProcessingStatus.PENDING_UPLOAD,
         )
 
+    def init_logo_upload(self) -> None:
+        self.logo_status = MediaProcessingStatus.PENDING_UPLOAD
+
+    def confirm_logo_upload(self) -> None:
+        if self.logo_status != MediaProcessingStatus.PENDING_UPLOAD:
+            from src.modules.catalog.domain.exceptions import InvalidLogoStateException
+
+            raise InvalidLogoStateException(
+                brand_id=self.id,
+                current_status=self.logo_status,
+                expected_status=MediaProcessingStatus.PENDING_UPLOAD,
+            )
+        self.logo_status = MediaProcessingStatus.PROCESSING
+
+    def complete_logo_processing(self) -> None:
+        self.logo_status = MediaProcessingStatus.COMPLETED
+
+    def fail_logo_processing(self) -> None:
+        self.logo_status = MediaProcessingStatus.FAILED
+
+
 @dataclass
 class Category:
     id: uuid.UUID

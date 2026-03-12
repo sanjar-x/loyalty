@@ -35,3 +35,16 @@ class CategoryTreeResponse(BaseModel):
     children: list["CategoryTreeResponse"]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class BrandCreateRequest(BaseModel):
+    name: str = Field(..., max_length=255)
+    slug: str = Field(..., max_length=255)
+    logo_filename: str
+    logo_content_type: str
+
+
+class BrandCreateResponse(BaseModel):
+    brand_id: uuid.UUID
+    presigned_upload_url: str
+    object_key: str

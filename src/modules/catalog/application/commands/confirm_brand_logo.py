@@ -53,7 +53,7 @@ class ConfirmBrandLogoUploadHandler:
             )
 
             # 2. Обновляем статус
-            brand.logo_status = MediaProcessingStatus.PROCESSING
+            brand.confirm_logo_upload()
             await self._brand_repo.update(brand)
 
             # 3. Формируем событие, забирая точный S3-ключ из метаданных фасада
