@@ -60,6 +60,8 @@ class Settings(BaseSettings):
     S3_REGION: str
     S3_BUCKET_NAME: str
 
+    RABBITMQ_URL: str
+
     @computed_field
     @property
     def redis_url(self) -> str:

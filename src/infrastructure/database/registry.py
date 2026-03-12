@@ -1,4 +1,5 @@
 from src.infrastructure.database.base import Base
+from src.infrastructure.database.models import OutboxEvent
 from src.modules.catalog.infrastructure.models import (
     SKU,
     Attribute,
@@ -22,4 +23,5 @@ __all__ = [
     "MediaAsset",
     "SKU",
     "SKUAttributeValueLink",
+    "OutboxEvent",
 ]
