@@ -8,6 +8,7 @@ from src.bootstrap.config import Settings, settings
 from src.infrastructure.broker.provider import BrokerProvider
 from src.infrastructure.cache.provider import CacheProvider
 from src.infrastructure.database.provider import DatabaseProvider
+from src.infrastructure.security.provider import SecurityProvider
 from src.modules.catalog.presentation.dependencies import (
     BrandProvider,
     CategoryProvider,
@@ -30,6 +31,7 @@ def create_container() -> AsyncContainer:
         BrokerProvider(),
         DatabaseProvider(),
         CacheProvider(),
+        SecurityProvider(),
         StorageProvider(),
         CategoryProvider(),
         BrandProvider(),
