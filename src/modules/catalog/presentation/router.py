@@ -12,6 +12,7 @@ from src.modules.catalog.application.commands.confirm_brand_logo import (
 from src.modules.catalog.application.commands.create_brand import (
     CreateBrandCommand,
     CreateBrandHandler,
+    LogoMetadata,
 )
 from src.modules.catalog.application.commands.create_category import (
     CreateCategoryCommand,
@@ -83,11 +84,18 @@ async def create_brand(
     request: BrandCreateRequest,
     handler: FromDishka[CreateBrandHandler],
 ) -> BrandCreateResponse:
+    logo_meta = None
+    if request.logo:
+        logo_meta = LogoMetadata(
+            filename=request.logo.filename,
+            content_type=request.logo.content_type,
+            size=request.logo.size,
+        )
+
     command = CreateBrandCommand(
         name=request.name,
         slug=request.slug,
-        logo_filename=request.logo_filename,
-        logo_content_type=request.logo_content_type,
+        logo=logo_meta,
     )
     result = await handler.handle(command)
     return BrandCreateResponse(

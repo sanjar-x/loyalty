@@ -3,6 +3,12 @@ import uuid
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class LogoMetadataRequest(BaseModel):
+    filename: str
+    content_type: str
+    size: int | None = None
+
+
 class CategoryCreateRequest(BaseModel):
     """Схема входящего запроса на создание категории."""
 
@@ -40,11 +46,10 @@ class CategoryTreeResponse(BaseModel):
 class BrandCreateRequest(BaseModel):
     name: str = Field(..., max_length=255)
     slug: str = Field(..., max_length=255)
-    logo_filename: str
-    logo_content_type: str
+    logo: LogoMetadataRequest | None = None
 
 
 class BrandCreateResponse(BaseModel):
     brand_id: uuid.UUID
-    presigned_upload_url: str
-    object_key: str
+    presigned_upload_url: str | None = None
+    object_key: str | None = None

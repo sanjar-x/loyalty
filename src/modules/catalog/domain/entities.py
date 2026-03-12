@@ -11,7 +11,9 @@ class Brand:
     id: uuid.UUID
     name: str
     slug: str
-    logo_status: MediaProcessingStatus
+    logo_status: MediaProcessingStatus | None = None
+    logo_file_id: uuid.UUID | None = None
+    logo_url: str | None = None
 
     @classmethod
     def create(cls, name: str, slug: str) -> "Brand":
@@ -19,7 +21,7 @@ class Brand:
             id=uuid.uuid4(),
             name=name,
             slug=slug,
-            logo_status=MediaProcessingStatus.PENDING_UPLOAD,
+            logo_status=None,
         )
 
     def init_logo_upload(self) -> None:
@@ -31,12 +33,14 @@ class Brand:
 
             raise InvalidLogoStateException(
                 brand_id=self.id,
-                current_status=self.logo_status,
+                current_status=str(self.logo_status) if self.logo_status else "None",
                 expected_status=MediaProcessingStatus.PENDING_UPLOAD,
             )
         self.logo_status = MediaProcessingStatus.PROCESSING
 
-    def complete_logo_processing(self) -> None:
+    def complete_logo_processing(self, file_id: uuid.UUID, url: str) -> None:
+        self.logo_file_id = file_id
+        self.logo_url = url
         self.logo_status = MediaProcessingStatus.COMPLETED
 
     def fail_logo_processing(self) -> None:

@@ -3,7 +3,6 @@ import io
 import uuid
 
 import structlog
-from PIL import Image
 
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.modules.storage.domain.interfaces import IBlobStorage
@@ -46,11 +45,8 @@ class BrandLogoProcessor:
                 buffer.seek(0)
 
                 # 2. Обработка Pillow
-                with Image.open(buffer) as img:
-                    img.thumbnail((512, 512))
-                    output_buffer = io.BytesIO()
-                    img.save(output_buffer, format="WEBP", quality=85)
-                    output_buffer.seek(0)
+                # TODO: Implement Pillow processing
+                output_buffer = io.BytesIO()
 
                 # 3. Загружаем обработанный файл
                 public_key = f"public/brands/{brand_id}/logo.webp"
@@ -68,7 +64,7 @@ class BrandLogoProcessor:
                 await self._blob_storage.delete_file(raw_object_key)
 
                 # 5. Регистрируем в Storage Facade
-                await self._storage_facade.register_processed_media(
+                file_id = await self._storage_facade.register_processed_media(
                     module="catalog",
                     entity_id=brand_id,
                     object_key=public_key,
@@ -77,7 +73,7 @@ class BrandLogoProcessor:
                 )
 
                 # 6. Обновляем статус бренда
-                brand.complete_logo_processing()
+                brand.complete_logo_processing(file_id=file_id, url=public_key)
                 await self._brand_repo.update(brand)
                 await self._uow.commit()
 
