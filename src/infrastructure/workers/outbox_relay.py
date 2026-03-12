@@ -64,21 +64,20 @@ async def run_outbox_relay(batch_size: int = 50, poll_interval: float = 2.0):
                 await session.commit()
 
                 # I/O Операции (Вне транзакции БД)
-                # Выполняем конкурентную публикацию итерации (размер батча задан)
-                tasks = []
-                for event in events:
-                    tasks.append(
-                        publisher.publish_raw(
-                            exchange_name=event.exchange,
-                            routing_key=event.routing_key,
-                            payload=event.payload,
-                            event_type=event.event_type,
-                            event_id=str(event.id),
-                            occurred_on=event.created_at,
-                        )
-                    )
+                # Формируем батч сырых данных для мультиплексирования через 1 AMQP канал
+                events_data = [
+                    {
+                        "exchange_name": event.exchange,
+                        "routing_key": event.routing_key,
+                        "payload": event.payload,
+                        "event_type": event.event_type,
+                        "event_id": str(event.id),
+                        "occurred_on": event.created_at,
+                    }
+                    for event in events
+                ]
 
-                results = await asyncio.gather(*tasks, return_exceptions=True)
+                results = await publisher.publish_raw_batch(events_data)
 
                 for event, result in zip(events, results):
                     if isinstance(result, Exception):

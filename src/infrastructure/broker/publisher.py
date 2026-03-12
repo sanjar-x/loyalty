@@ -45,10 +45,7 @@ class RabbitMQPublisher(IEventPublisher):
     ) -> None:
         import asyncio
 
-        tasks = [
-            self.publish(exchange_name, routing_key, event)
-            for event in events
-        ]
+        tasks = [self.publish(exchange_name, routing_key, event) for event in events]
         await asyncio.gather(*tasks)
 
     async def publish_raw(
@@ -86,7 +83,7 @@ class RabbitMQPublisher(IEventPublisher):
             )
 
             async with self._pool.acquire() as channel:
-                exchange = await channel.get_exchange(exchange_name)
+                exchange = await channel.get_exchange(exchange_name, ensure=False)
                 await exchange.publish(message, routing_key=routing_key)
 
             self._logger.debug(
@@ -105,3 +102,57 @@ class RabbitMQPublisher(IEventPublisher):
                 error=str(e),
             )
             raise
+
+    async def publish_raw_batch(
+        self, events_data: list[dict[str, Any]]
+    ) -> list[Exception | None]:
+        """
+        Массовая конкурентная публикация сырых данных через ОДИН AMQP-канал.
+        Снижает Lock Contention в пуле каналов.
+        """
+        import asyncio
+
+        async with self._pool.acquire() as channel:
+            tasks = []
+
+            async def _publish(ev_data: dict[str, Any]) -> None:
+                try:
+                    payload = ev_data["payload"]
+                    if isinstance(payload, dict):
+                        body = orjson.dumps(payload)
+                    elif isinstance(payload, str):
+                        body = payload.encode("utf-8")
+                    else:
+                        body = payload
+
+                    message = Message(
+                        body=body,
+                        message_id=ev_data["event_id"],
+                        type=ev_data["event_type"],
+                        content_type="application/json",
+                        delivery_mode=DeliveryMode.PERSISTENT,
+                        timestamp=ev_data["occurred_on"],
+                        app_id="fastapi",
+                        headers={
+                            "event_type": ev_data["event_type"],
+                            "module_source": ev_data["event_type"].split(".")[0],
+                        },
+                    )
+                    # ensure=False убирает лишние сетевые I/O запросы
+                    exchange = await channel.get_exchange(
+                        ev_data["exchange_name"], ensure=False
+                    )
+                    await exchange.publish(message, routing_key=ev_data["routing_key"])
+                except Exception as e:
+                    self._logger.error(
+                        "Сбой при публикации сырого батча в RabbitMQ",
+                        event_id=ev_data.get("event_id"),
+                        error=str(e),
+                    )
+                    raise e
+
+            for ev in events_data:
+                tasks.append(_publish(ev))
+
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            return [res if isinstance(res, Exception) else None for res in results]

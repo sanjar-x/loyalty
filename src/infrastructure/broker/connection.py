@@ -79,6 +79,8 @@ class ConnectionManager:
         self._logger.warning(
             "Успешное автоматическое переподключение к RabbitMQ (L4/L7)"
         )
+        # Пересоздаем Exchange так как aio_pika не делает этого для закрытых каналов
+        asyncio.create_task(setup_rabbitmq_topology(connection))
 
     def _on_close(
         self, sender: Optional[AbstractConnection], exc: Optional[BaseException]
