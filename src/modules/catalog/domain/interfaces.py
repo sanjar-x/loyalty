@@ -3,8 +3,9 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Any, Generic, TypeVar
 
-T = TypeVar("T")
+from src.modules.catalog.domain.entities import Brand as DomainBrand
 
+T = TypeVar("T")
 
 class ICatalogRepository(Generic[T], ABC):
     @abstractmethod
@@ -28,7 +29,7 @@ class ICatalogRepository(Generic[T], ABC):
         pass
 
 
-class IBrandRepository(ICatalogRepository[Any]):
+class IBrandRepository(ICatalogRepository[DomainBrand]):
     """Репозиторий брендов."""
 
     @abstractmethod

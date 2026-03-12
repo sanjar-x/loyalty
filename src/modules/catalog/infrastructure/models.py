@@ -22,6 +22,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.infrastructure.database.base import Base
+from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 
 
 class AttributeDataType(enum.StrEnum):
@@ -46,16 +47,6 @@ class ProductStatus(enum.StrEnum):
     PUBLISHED = "published"
     ARCHIVED = "archived"
 
-
-class MediaProcessingStatus(str, enum.Enum):
-    """
-    State Machine (FSM) для асинхронной загрузки файлов (Claim Check Pattern).
-    """
-
-    PENDING_UPLOAD = "PENDING_UPLOAD"  # Выдан Presigned URL, ждем загрузки от фронтенда
-    PROCESSING = "PROCESSING"  # Фронт подтвердил загрузку, TaskIQ воркер обрабатывает
-    COMPLETED = "COMPLETED"  # Обработка (ресайз/WebP) завершена успешно
-    FAILED = "FAILED"  # Ошибка (неверный формат, битый файл
 
 
 class MediaType(enum.StrEnum):

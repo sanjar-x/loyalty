@@ -4,9 +4,9 @@ from dataclasses import dataclass
 
 import structlog
 
+from src.modules.catalog.domain.entities import Brand
 from src.modules.catalog.domain.exceptions import BrandSlugConflictError
 from src.modules.catalog.domain.interfaces import IBrandRepository
-from src.modules.catalog.infrastructure.models import MediaProcessingStatus
 from src.shared.interfaces.storage import IStorageFacade
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -45,13 +45,8 @@ class CreateBrandHandler:
             if await self._brand_repo.check_slug_exists(command.slug):
                 raise BrandSlugConflictError(slug=command.slug)
 
-            new_brand_data = {
-                "name": command.name,
-                "slug": command.slug,
-                "logo_status": MediaProcessingStatus.PENDING_UPLOAD,
-            }
-
-            brand = await self._brand_repo.add(new_brand_data)
+            brand = Brand.create(name=command.name, slug=command.slug)
+            brand = await self._brand_repo.add(brand)
             await self._uow.commit()
 
         upload_data = await self._storage_facade.request_upload(

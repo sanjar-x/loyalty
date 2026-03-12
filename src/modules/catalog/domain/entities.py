@@ -3,7 +3,7 @@ import uuid
 
 from attr import dataclass
 
-from src.modules.catalog.infrastructure.models import MediaProcessingStatus
+from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 
 
 @dataclass

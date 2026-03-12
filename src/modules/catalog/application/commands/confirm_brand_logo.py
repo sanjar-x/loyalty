@@ -7,7 +7,7 @@ import structlog
 from src.modules.catalog.domain.events import BrandLogoUploadConfirmedEvent
 from src.modules.catalog.domain.exceptions import BrandNotFoundError
 from src.modules.catalog.domain.interfaces import IBrandRepository
-from src.modules.catalog.infrastructure.models import MediaProcessingStatus
+from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 from src.shared.interfaces.broker import IEventPublisher
 from src.shared.interfaces.storage import IStorageFacade
 from src.shared.interfaces.uow import IUnitOfWork
@@ -54,6 +54,7 @@ class ConfirmBrandLogoUploadHandler:
 
             # 2. Обновляем статус
             brand.logo_status = MediaProcessingStatus.PROCESSING
+            await self._brand_repo.update(brand)
 
             # 3. Формируем событие, забирая точный S3-ключ из метаданных фасада
             event = BrandLogoUploadConfirmedEvent(
