@@ -11,6 +11,12 @@ class IEventPublisher(Protocol):
         """Публикация события в брокер."""
         ...
 
+    async def publish_batch(
+        self, exchange_name: str, routing_key: str, events: list[IntegrationEvent]
+    ) -> None:
+        """Массовая публикация событий в брокер."""
+        ...
+
     async def publish_raw(
         self,
         exchange_name: str,

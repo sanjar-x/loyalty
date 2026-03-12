@@ -64,10 +64,11 @@ async def run_outbox_relay(batch_size: int = 50, poll_interval: float = 2.0):
                 await session.commit()
 
                 # I/O Операции (Вне транзакции БД)
+                # Выполняем конкурентную публикацию итерации (размер батча задан)
+                tasks = []
                 for event in events:
-                    try:
-                        # 2. Публикуем событие напрямую как raw payload
-                        await publisher.publish_raw(
+                    tasks.append(
+                        publisher.publish_raw(
                             exchange_name=event.exchange,
                             routing_key=event.routing_key,
                             payload=event.payload,
@@ -75,17 +76,23 @@ async def run_outbox_relay(batch_size: int = 50, poll_interval: float = 2.0):
                             event_id=str(event.id),
                             occurred_on=event.created_at,
                         )
-                        event.status = OutboxEventStatus.PUBLISHED
-                        logger.debug(
-                            "Событие успешно опубликовано", event_id=str(event.id)
-                        )
-                    except Exception as e:
+                    )
+
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                for event, result in zip(events, results):
+                    if isinstance(result, Exception):
                         event.status = OutboxEventStatus.FAILED
-                        event.error = str(e)
+                        event.error = str(result)
                         logger.error(
                             "Ошибка публикации события",
                             event_id=str(event.id),
-                            error=str(e),
+                            error=str(result),
+                        )
+                    else:
+                        event.status = OutboxEventStatus.PUBLISHED
+                        logger.debug(
+                            "Событие успешно опубликовано", event_id=str(event.id)
                         )
                     event.processed_at = datetime.now()
 

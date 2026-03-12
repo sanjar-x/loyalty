@@ -37,3 +37,23 @@ class OutboxEventPublisher(IEventPublisher):
             exchange=exchange_name,
             routing_key=routing_key,
         )
+
+    async def publish_batch(
+        self, exchange_name: str, routing_key: str, events: list[IntegrationEvent]
+    ) -> None:
+        outbox_events = [
+            OutboxEvent(
+                event_type=event.event_type,
+                exchange=exchange_name,
+                routing_key=routing_key,
+                payload=event.model_dump(mode="json"),
+            )
+            for event in events
+        ]
+        self._session.add_all(outbox_events)
+        self._logger.debug(
+            "Пакет событий добавлен в Transactional Outbox (БД)",
+            count=len(events),
+            exchange=exchange_name,
+            routing_key=routing_key,
+        )

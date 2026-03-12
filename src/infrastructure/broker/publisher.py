@@ -5,6 +5,7 @@ import orjson
 import structlog
 from aio_pika import DeliveryMode, Message
 from aio_pika.abc import AbstractChannel
+from aio_pika.pool import Pool
 
 from src.shared.events import IntegrationEvent
 from src.shared.interfaces.broker import IEventPublisher
@@ -19,8 +20,8 @@ class RabbitMQPublisher(IEventPublisher):
     и внедрен через DI-контейнер (Scope.REQUEST).
     """
 
-    def __init__(self, channel: AbstractChannel):
-        self._channel = channel
+    def __init__(self, channel_pool: Pool[AbstractChannel]):
+        self._pool = channel_pool
         self._logger = logger.bind(component="rabbitmq_publisher")
 
     async def publish(
@@ -38,6 +39,17 @@ class RabbitMQPublisher(IEventPublisher):
             event_id=str(event.event_id),
             occurred_on=event.occurred_on,
         )
+
+    async def publish_batch(
+        self, exchange_name: str, routing_key: str, events: list[IntegrationEvent]
+    ) -> None:
+        import asyncio
+
+        tasks = [
+            self.publish(exchange_name, routing_key, event)
+            for event in events
+        ]
+        await asyncio.gather(*tasks)
 
     async def publish_raw(
         self,
@@ -73,8 +85,9 @@ class RabbitMQPublisher(IEventPublisher):
                 },
             )
 
-            exchange = await self._channel.get_exchange(exchange_name)
-            await exchange.publish(message, routing_key=routing_key)
+            async with self._pool.acquire() as channel:
+                exchange = await channel.get_exchange(exchange_name)
+                await exchange.publish(message, routing_key=routing_key)
 
             self._logger.debug(
                 "Integration Event успешно опубликован в RabbitMQ",
