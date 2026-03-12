@@ -49,19 +49,18 @@ class CreateBrandHandler:
             new_brand_data = {
                 "name": command.name,
                 "slug": command.slug,
-                "logo_status": MediaProcessingStatus.PENDING_UPLOAD,  # Используем Enum!
+                "logo_status": MediaProcessingStatus.PENDING_UPLOAD,
             }
 
             brand = await self._brand_repo.add(new_brand_data)
+            await self._uow.commit()
             object_key = f"temp/brands/{brand.id}/logo_upload"
 
-            # 4. Генерация ссылки
             presigned_data = await self._storage_service.get_presigned_upload_url(
                 object_name=object_key,
                 expiration=3600,
             )
 
-            await self._uow.commit()
             self._logger.info("Инициировано создание бренда", brand_id=str(brand.id))
 
             return CreateBrandResult(
