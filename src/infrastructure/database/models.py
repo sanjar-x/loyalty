@@ -12,6 +12,7 @@ from src.infrastructure.database.base import Base
 
 class OutboxEventStatus(str, enum.Enum):
     PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
     PUBLISHED = "PUBLISHED"
     FAILED = "FAILED"
 

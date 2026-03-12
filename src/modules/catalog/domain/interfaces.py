@@ -4,8 +4,10 @@ from abc import ABC, abstractmethod
 from typing import Any, Generic, TypeVar
 
 from src.modules.catalog.domain.entities import Brand as DomainBrand
+from src.modules.catalog.domain.entities import Category as DomainCategory
 
 T = TypeVar("T")
+
 
 class ICatalogRepository(Generic[T], ABC):
     @abstractmethod
@@ -37,11 +39,11 @@ class IBrandRepository(ICatalogRepository[DomainBrand]):
         pass
 
 
-class ICategoryRepository(ICatalogRepository[Any]):
+class ICategoryRepository(ICatalogRepository[DomainCategory]):
     """Репозиторий категорий."""
 
     @abstractmethod
-    async def get_all_ordered(self) -> list[Any]:
+    async def get_all_ordered(self) -> list[DomainCategory]:
         """Получить иерархическое дерево категорий."""
         pass
 

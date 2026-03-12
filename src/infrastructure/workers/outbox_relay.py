@@ -30,64 +30,58 @@ async def run_outbox_relay(batch_size: int = 50, poll_interval: float = 2.0):
                 session = await request_container.get(AsyncSession)
                 publisher = await request_container.get(RabbitMQPublisher)
 
-                # 1. Читаем партию (Batch) событий, нуждающихся в публикации
+                # Транзакция 1: SELECT FOR UPDATE SKIP LOCKED и немедленный перевод в PROCESSING
                 stmt = (
                     select(OutboxEvent)
                     .where(OutboxEvent.status == OutboxEventStatus.PENDING)
                     .order_by(OutboxEvent.created_at.asc())
                     .limit(batch_size)
-                    .with_for_update(
-                        skip_locked=True
-                    )  # Блокировка от конкурентных воркеров
+                    .with_for_update(skip_locked=True)
                 )
 
                 result = await session.execute(stmt)
                 events = result.scalars().all()
 
                 if not events:
-                    # Если событий нет - ждем
                     await asyncio.sleep(poll_interval)
                     continue
 
                 for event in events:
+                    event.status = OutboxEventStatus.PROCESSING
+
+                # Коммитим Транзакцию 1: снимаем эксклюзивные локи БД!
+                # Строки теперь заблокированы логически (status = PROCESSING)
+                await session.commit()
+
+                # I/O Операции (Вне транзакции БД)
+                for event in events:
                     try:
-                        # 2. Восстанавливаем IntegrationEvent и публикуем
-                        # Мы обходим строгую типизацию IntegrationEvent,
-                        # так как мы уже имеем готовый payload
-                        class _MockEvent:
-                            event_id = event.id
-                            event_type = event.event_type
-                            occurred_on = event.created_at
-
-                            def model_dump(self, **kwargs):
-                                return event.payload
-
-                        await publisher.publish(
+                        # 2. Публикуем событие напрямую как raw payload
+                        await publisher.publish_raw(
                             exchange_name=event.exchange,
                             routing_key=event.routing_key,
-                            event=_MockEvent(),
-                        )
-
-                        # 3. Обновляем статус в случае успеха
-                        event.status = OutboxEventStatus.PUBLISHED
-                        event.processed_at = datetime.now()
-                        logger.debug(
-                            "Событие Outbox успешно опубликовано",
+                            payload=event.payload,
+                            event_type=event.event_type,
                             event_id=str(event.id),
+                            occurred_on=event.created_at,
                         )
-
+                        event.status = OutboxEventStatus.PUBLISHED
+                        logger.debug(
+                            "Событие успешно опубликовано", event_id=str(event.id)
+                        )
                     except Exception as e:
-                        # 4. Обработка ошибки публикации
+                        event.status = OutboxEventStatus.FAILED
+                        event.error = str(e)
                         logger.error(
-                            "Ошибка при публикации события Outbox",
+                            "Ошибка публикации события",
                             event_id=str(event.id),
                             error=str(e),
                         )
-                        event.status = OutboxEventStatus.FAILED
-                        event.error = str(e)
-                        event.processed_at = datetime.now()
+                    event.processed_at = datetime.now()
 
-                # Коммитим партию (освобождаем блокировки FOR UPDATE)
+                # Транзакция 2: Сохраняем итоговые статусы (PUBLISHED или FAILED)
+                for event in events:
+                    session.add(event)
                 await session.commit()
 
             # Небольшая пауза между батчами, если они идут потоком

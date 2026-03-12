@@ -18,6 +18,9 @@ class UnitOfWork(IUnitOfWork):
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         if exc_type:
             await self.rollback()
+        # Сессия (AsyncSession) управляется DI-контейнером (Dishka Scope.REQUEST).
+        # Она будет автоматически закрыта при завершении обработки запроса.
+        # Поэтому мы не вызываем await self._session.close() здесь.
 
     async def flush(self) -> None:
         await self._session.flush()

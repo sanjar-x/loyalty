@@ -1,5 +1,6 @@
 import enum
 
+
 class MediaProcessingStatus(str, enum.Enum):
     """
     State Machine (FSM) для асинхронной загрузки файлов (Claim Check Pattern).

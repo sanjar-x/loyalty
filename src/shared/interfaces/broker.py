@@ -1,4 +1,5 @@
-from typing import Awaitable, Callable, Protocol
+from datetime import datetime
+from typing import Any, Awaitable, Callable, Protocol
 
 from src.shared.events import IntegrationEvent
 
@@ -8,6 +9,18 @@ class IEventPublisher(Protocol):
         self, exchange_name: str, routing_key: str, event: IntegrationEvent
     ) -> None:
         """Публикация события в брокер."""
+        ...
+
+    async def publish_raw(
+        self,
+        exchange_name: str,
+        routing_key: str,
+        payload: dict[str, Any] | str | bytes,
+        event_type: str,
+        event_id: str,
+        occurred_on: datetime | None = None,
+    ) -> None:
+        """Публикация сырых данных в брокер, минуя строгую типизацию IntegrationEvent."""
         ...
 
 

@@ -1,26 +1,25 @@
 # src/modules/catalog/infrastructure/repositories/base.py
 import uuid
+from abc import abstractmethod
 from typing import Any, Generic, TypeVar
 
-from sqlalchemy import Result, delete, insert, inspect
-from sqlalchemy import update as sa_update
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.interfaces import ICatalogRepository
 from src.shared.interfaces.entities import IBase
 
 ModelType = TypeVar("ModelType", bound=IBase)
+EntityType = TypeVar("EntityType")
 
 
-class BaseRepository(Generic[ModelType], ICatalogRepository[ModelType]):
+class BaseRepository(Generic[EntityType, ModelType], ICatalogRepository[EntityType]):
     """
-    Высокопроизводительный базовый репозиторий.
-    Умеет принимать как ORM-модели, так и сырые словари (dict).
+    Базовый репозиторий, реализующий Data Mapper Pattern.
+    Принимает и возвращает только доменные сущности (EntityType).
     """
 
     model: type[ModelType]
-    _insertable_keys: frozenset[str]
-    _updatable_keys: frozenset[str]
 
     def __init_subclass__(
         cls, model_class: type[ModelType] | None = None, **kwargs: Any
@@ -28,49 +27,44 @@ class BaseRepository(Generic[ModelType], ICatalogRepository[ModelType]):
         super().__init_subclass__(**kwargs)
         if model_class:
             cls.model = model_class
-            mapper = inspect(model_class)
-            valid_columns = {col.key for col in mapper.columns}
-
-            cls._insertable_keys = frozenset(valid_columns)
-            cls._updatable_keys = frozenset(valid_columns - {"id", "created_at"})
 
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def add(self, data: ModelType | dict[str, Any]) -> ModelType:
-        if isinstance(data, dict):
-            insert_data = {k: v for k, v in data.items() if k in self._insertable_keys}
-            statement = insert(self.model).values(insert_data).returning(self.model)
-            result = await self._session.execute(statement)
-            return result.scalar_one()
-        else:
-            self._session.add(data)
-            await self._session.flush()
-            return data
+    @abstractmethod
+    def _to_domain(self, orm: ModelType) -> EntityType:
+        pass
 
-    async def get(self, id: uuid.UUID) -> ModelType | None:
-        return await self._session.get(self.model, id)
+    @abstractmethod
+    def _to_orm(self, entity: EntityType, orm: ModelType | None = None) -> ModelType:
+        pass
 
-    async def update(self, data: ModelType | dict[str, Any]) -> ModelType:
-        if isinstance(data, dict):
-            obj_id = data.get("id")
-            if not obj_id:
-                raise ValueError("Словарь должен содержать 'id' для обновления.")
+    async def add(self, data: EntityType) -> EntityType:
+        orm = self._to_orm(data)
+        self._session.add(orm)
+        # Flush нужен только для получения БД-идентификаторов (PK) до коммита
+        await self._session.flush()
+        return self._to_domain(orm)
 
-            update_data = {k: v for k, v in data.items() if k in self._updatable_keys}
-            statement = (
-                sa_update(self.model)
-                .where(self.model.id == obj_id)
-                .values(update_data)
-                .returning(self.model)
-            )
-            result: Result = await self._session.execute(statement)
-            return result.scalar_one()
-        else:
-            await self._session.flush()
-            return data
+    async def get(self, id: uuid.UUID) -> EntityType | None:
+        orm = await self._session.get(self.model, id)
+        if orm:
+            return self._to_domain(orm)
+        return None
+
+    async def update(self, data: EntityType) -> EntityType:
+        entity_id = getattr(data, "id", None)
+        if not entity_id:
+            raise ValueError("Для обновления у доменной сущности должен быть id")
+
+        orm = await self._session.get(self.model, entity_id)
+        if not orm:
+            raise ValueError(f"Сущность с id {entity_id} не найдена в БД")
+
+        orm = self._to_orm(data, orm)
+        return self._to_domain(orm)
 
     async def delete(self, id: uuid.UUID) -> None:
         statement = delete(self.model).where(self.model.id == id)
         await self._session.execute(statement)
-        await self._session.flush()
+        # Flush удален; управление транзакцией - в UoW

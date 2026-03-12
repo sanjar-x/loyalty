@@ -1,3 +1,6 @@
+from datetime import datetime
+from typing import Any
+
 import orjson
 import structlog
 from aio_pika import DeliveryMode, Message
@@ -26,41 +29,57 @@ class RabbitMQPublisher(IEventPublisher):
         """
         Публикация Integration Event в RabbitMQ с гарантией доставки (Confirms).
         """
-        try:
-            # 1. Быстрая сериализация payload
-            message_body = orjson.dumps(event.model_dump(mode="json"))
+        message_body = orjson.dumps(event.model_dump(mode="json"))
+        await self.publish_raw(
+            exchange_name=exchange_name,
+            routing_key=routing_key,
+            payload=message_body,
+            event_type=event.event_type,
+            event_id=str(event.event_id),
+            occurred_on=event.occurred_on,
+        )
 
-            # 2. Формирование AMQP сообщения с полным набором метаданных для DDD/EDA
+    async def publish_raw(
+        self,
+        exchange_name: str,
+        routing_key: str,
+        payload: dict[str, Any] | str | bytes,
+        event_type: str,
+        event_id: str,
+        occurred_on: datetime | None = None,
+    ) -> None:
+        """
+        Публикация сырых данных напрямую в RabbitMQ.
+        """
+        try:
+            if isinstance(payload, dict):
+                message_body = orjson.dumps(payload)
+            elif isinstance(payload, str):
+                message_body = payload.encode("utf-8")
+            else:
+                message_body = payload
+
             message = Message(
                 body=message_body,
-                message_id=str(event.event_id),
-                type=event.event_type,
+                message_id=event_id,
+                type=event_type,
                 content_type="application/json",
                 delivery_mode=DeliveryMode.PERSISTENT,
-                timestamp=event.occurred_on,
-                app_id="fastapi",  # Идентификатор источника
+                timestamp=occurred_on,
+                app_id="fastapi",
                 headers={
-                    "event_type": event.event_type,
-                    "module_source": event.event_type.split(".")[
-                        0
-                    ],  # Например: "catalog" из "catalog.category_created"
-                    # Здесь в будущем можно добавить "x-correlation-id" или "x-trace-id" для OpenTelemetry
+                    "event_type": event_type,
+                    "module_source": event_type.split(".")[0],
                 },
             )
 
-            # 3. Получаем ссылку на обменник (БЕЗ declare!).
-            # Ожидается, что инфраструктура/топология поднята заранее.
             exchange = await self._channel.get_exchange(exchange_name)
-
-            # 4. Отправляем сообщение.
-            # Так как канал настроен с publisher_confirms=True, этот await
-            # "отвиснет" только тогда, когда брокер вернет ACK (записал на диск).
             await exchange.publish(message, routing_key=routing_key)
 
             self._logger.debug(
                 "Integration Event успешно опубликован в RabbitMQ",
-                event_id=str(event.event_id),
-                event_type=event.event_type,
+                event_id=event_id,
+                event_type=event_type,
                 exchange=exchange_name,
                 routing_key=routing_key,
             )
@@ -68,8 +87,8 @@ class RabbitMQPublisher(IEventPublisher):
         except Exception as e:
             self._logger.error(
                 "Сбой при публикации Integration Event в RabbitMQ",
-                event_id=str(event.event_id),
-                event_type=event.event_type,
+                event_id=event_id,
+                event_type=event_type,
                 error=str(e),
             )
             raise
