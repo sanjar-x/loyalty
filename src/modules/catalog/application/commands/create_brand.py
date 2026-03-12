@@ -6,9 +6,7 @@ import structlog
 
 from src.modules.catalog.domain.exceptions import BrandSlugConflictError
 from src.modules.catalog.domain.interfaces import IBrandRepository
-from src.modules.catalog.infrastructure.models import (
-    MediaProcessingStatus,  # Добавлен импорт Enum
-)
+from src.modules.catalog.infrastructure.models import MediaProcessingStatus
 from src.shared.interfaces.storage import IS3torageService
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -48,22 +46,14 @@ class CreateBrandHandler:
             if await self._brand_repo.check_slug_exists(command.slug):
                 raise BrandSlugConflictError(slug=command.slug)
 
-            # Используем uuid4 для brand_id
-            brand_id = uuid.uuid4()
-
-            # 2. ДЕТЕРМИНИРОВАННЫЙ КЛЮЧ
-            # Мы не сохраняем его в БД, поэтому он всегда вычисляется одинаково:
-            object_key = f"temp/brands/{brand_id}/logo_upload"
-
-            # 3. Подготовка DTO строго по полям модели Brand
             new_brand_data = {
-                "id": brand_id,
                 "name": command.name,
                 "slug": command.slug,
                 "logo_status": MediaProcessingStatus.PENDING_UPLOAD,  # Используем Enum!
             }
 
             brand = await self._brand_repo.add(new_brand_data)
+            object_key = f"temp/brands/{brand.id}/logo_upload"
 
             # 4. Генерация ссылки
             presigned_data = await self._storage_service.get_presigned_upload_url(
@@ -72,7 +62,7 @@ class CreateBrandHandler:
             )
 
             await self._uow.commit()
-            self._logger.info("Инициировано создание бренда", brand_id=str(brand_id))
+            self._logger.info("Инициировано создание бренда", brand_id=str(brand.id))
 
             return CreateBrandResult(
                 brand_id=brand.id, presigned_post=presigned_data, object_key=object_key
