@@ -1,9 +1,9 @@
 # src/infrastructure/workers/outbox_relay.py
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bootstrap.ioc import create_container
@@ -30,10 +30,20 @@ async def run_outbox_relay(batch_size: int = 50, poll_interval: float = 2.0):
                 session = await request_container.get(AsyncSession)
                 publisher = await request_container.get(RabbitMQPublisher)
 
-                # Транзакция 1: SELECT FOR UPDATE SKIP LOCKED и немедленный перевод в PROCESSING
+                # Транзакция 1: SELECT FOR UPDATE SKIP LOCKED и в PROCESSING
+                # Берем PENDING события + зависшие PROCESSING события (старше 5 минут)
+                five_mins_ago = datetime.now() - timedelta(minutes=5)
                 stmt = (
                     select(OutboxEvent)
-                    .where(OutboxEvent.status == OutboxEventStatus.PENDING)
+                    .where(
+                        or_(
+                            OutboxEvent.status == OutboxEventStatus.PENDING,
+                            (
+                                (OutboxEvent.status == OutboxEventStatus.PROCESSING)
+                                & (OutboxEvent.updated_at < five_mins_ago)
+                            ),
+                        )
+                    )
                     .order_by(OutboxEvent.created_at.asc())
                     .limit(batch_size)
                     .with_for_update(skip_locked=True)

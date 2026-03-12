@@ -4,7 +4,7 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.shared.exceptions import ConflictError
+from src.shared.exceptions import ConflictError, UnprocessableEntityError
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -30,6 +30,15 @@ class UnitOfWork(IUnitOfWork):
             await self._session.commit()
         except IntegrityError as e:
             await self.rollback()
+            sqlstate = getattr(e.orig, "sqlstate", None)
+
+            if sqlstate == "23503":  # foreign_key_violation
+                raise UnprocessableEntityError(
+                    message="Ошибка бизнес-логики",
+                    error_code="FOREIGN_KEY_VIOLATION",
+                ) from e
+
+            # default to ConflictError (e.g. 23505 unique_violation)
             raise ConflictError(
                 message="Конфликт! Запись уже существует или нарушает ограничения БД.",
                 error_code="DB_INTEGRITY_ERROR",

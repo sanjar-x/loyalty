@@ -29,5 +29,8 @@ class OutboxEvent(Base):
         Enum(OutboxEventStatus), default=OutboxEventStatus.PENDING, index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
     processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     error: Mapped[str | None] = mapped_column(String, nullable=True)
