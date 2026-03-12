@@ -1033,6 +1033,7 @@ dev = [
     { name = "aio-pika" },
     { name = "orjson" },
     { name = "pyclean" },
+    { name = "taskiq" },
     { name = "taskiq-aio-pika" },
 ]
 
@@ -1100,6 +1101,7 @@ dev = [
     { name = "aio-pika", specifier = ">=9.6.1" },
     { name = "orjson", specifier = ">=3.11.7" },
     { name = "pyclean", specifier = ">=3.5.0" },
+    { name = "taskiq", specifier = ">=0.12.1" },
     { name = "taskiq-aio-pika", specifier = ">=0.6.0" },
 ]
 

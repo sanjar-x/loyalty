@@ -2,30 +2,12 @@ import structlog
 from dishka.async_container import AsyncContainer
 from dishka.integrations.taskiq import setup_dishka
 from taskiq.events import TaskiqEvents
-from taskiq_aio_pika import AioPikaBroker
 
-from src.bootstrap.config import settings
+# Обязательно импортируем все файлы tasks.py, чтобы декораторы @broker.task отработали
 from src.bootstrap.ioc import create_container
+from src.bootstrap.taskiq import broker
 
 logger = structlog.get_logger(__name__)
-
-# Инициализируем настройки
-
-# 1. Настройка брокера TaskIQ
-# Создаем выделенный exchange и queue, чтобы отделить фоновые задачи (RPC)
-# от доменных событий (Pub/Sub), которые ходят через кастомный RabbitMQPublisher.
-broker = AioPikaBroker(
-    url=settings.RABBITMQ_URL,  # ty:ignore[unresolved-attribute]
-    exchange_name="taskiq_rpc_exchange",
-    queue_name="taskiq_background_jobs",
-    # Ограничиваем количество одновременно обрабатываемых задач (защита от OOM)
-    qos=10,
-    # TaskIQ сам поднимет эту часть топологии при старте воркера
-    declare_exchange=True,
-    declare_queue=True,
-).with_middlewares(
-    # Здесь можно добавить встроенные мидлвари TaskIQ (например, для метрик или логирования)
-)
 
 
 # 2. Интеграция с IoC (Dishka)

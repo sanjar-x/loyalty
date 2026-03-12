@@ -67,5 +67,6 @@ dev = [
     "aio-pika>=9.6.1",
     "orjson>=3.11.7",
     "pyclean>=3.5.0",
+    "taskiq>=0.12.1",
     "taskiq-aio-pika>=0.6.0",
 ]

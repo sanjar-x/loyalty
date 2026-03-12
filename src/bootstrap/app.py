@@ -13,6 +13,8 @@ from src.api.router import router
 from src.bootstrap.config import settings
 from src.bootstrap.ioc import create_container
 from src.bootstrap.logger import setup_logging
+from src.bootstrap.taskiq import broker
+from src.infrastructure.broker.connection import setup_rabbitmq_topology
 
 setup_logging()
 
@@ -26,7 +28,16 @@ async def lifespan(app: FastAPI):
         version=settings.VERSION,
         environment=settings.ENVIRONMENT,
     )
+    if not broker.is_worker_process:
+        logger.info("Запуск TaskIQ брокера в рамках API...")
+        await broker.startup()
+        if broker.write_conn:
+            logger.info("Инициализация бизнес-топологии RabbitMQ...")
+            await setup_rabbitmq_topology(broker.write_conn)
     yield
+    if not broker.is_worker_process:
+        logger.info("Остановка TaskIQ брокера...")
+        await broker.shutdown()
     logger.info("Остановка Enterprise API. Очистка ресурсов...")
 
 
