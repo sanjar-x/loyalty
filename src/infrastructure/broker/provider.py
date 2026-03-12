@@ -25,7 +25,7 @@ class BrokerProvider(Provider):
 
         pool = Pool(get_channel, max_size=10)
         yield pool
-        await pool.close()
+        pool.close()
 
     @provide(scope=Scope.REQUEST)
     def get_rabbitmq_publisher(self, pool: Pool[AbstractChannel]) -> RabbitMQPublisher:

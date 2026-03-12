@@ -1,6 +1,4 @@
-# src/modules/catalog/presentation/tasks.py
 import structlog
-from dishka import AsyncContainer
 from dishka.integrations.taskiq import FromDishka
 
 from src.bootstrap.taskiq import broker
@@ -13,41 +11,26 @@ logger = structlog.get_logger(__name__)
 
 
 @broker.task(
-    queue="taskiq_background_jobs",
+    queue="catalog_confirm_brand_logo",
     exchange="taskiq_rpc_exchange",
-    routing_key="catalog.command.process",
+    routing_key="catalog.command.confirm_brand_logo",
 )
-async def process_catalog_command(
-    command_type: str,
+async def confirm_brand_logo_task(
     payload: dict,
-    container: FromDishka[AsyncContainer],
+    handler: FromDishka[ConfirmBrandLogoUploadHandler],
 ) -> dict:
     """
-    Универсальный TaskIQ обработчик команд для модуля Catalog.
-    Извлекает подходящий CommandHandler из DI-контейнера и делегирует ему работу.
+    TaskIQ обработчик для конкретной команды ConfirmBrandLogoUpload.
     """
-    logger.info(
-        "Начата фоновая обработка команды",
-        command_type=command_type,
-        payload=payload,
-    )
+    logger.info("Начата фоновая обработка команды", command="ConfirmBrandLogoUpload")
 
     try:
-        if command_type == "ConfirmBrandLogoUploadCommand":
-            handler = await container.get(ConfirmBrandLogoUploadHandler)
-            command = ConfirmBrandLogoUploadCommand(**payload)
-            await handler.handle(command)
-            logger.info("Команда успешно обработана", command_type=command_type)
-            return {"status": "success", "command_type": command_type}
+        command = ConfirmBrandLogoUploadCommand(**payload)
+        await handler.handle(command)
 
-        else:
-            logger.error("Неизвестный тип команды", command_type=command_type)
-            return {"status": "error", "reason": "Unknown command_type"}
+        logger.info("Команда ConfirmBrandLogoUpload успешно обработана")
+        return {"status": "success"}
 
     except Exception as e:
-        logger.error(
-            "Сбой при фоновой обработке команды",
-            command_type=command_type,
-            error=str(e),
-        )
+        logger.error("Сбой при фоновой обработке команды", error=str(e))
         raise
