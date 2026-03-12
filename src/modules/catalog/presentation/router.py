@@ -27,6 +27,7 @@ from src.modules.catalog.presentation.schemas import (
     CategoryCreateRequest,
     CategoryCreateResponse,
     CategoryTreeResponse,
+    ConfirmLogoRequest,
 )
 
 category_router = APIRouter(prefix="/categories", tags=["Categories"])
@@ -113,8 +114,11 @@ async def create_brand(
 @inject
 async def confirm_logo_upload(
     brand_id: uuid.UUID,
+    request: ConfirmLogoRequest,
     handler: FromDishka[ConfirmBrandLogoUploadHandler],
 ) -> dict:
-    command = ConfirmBrandLogoUploadCommand(brand_id=brand_id)
+    command = ConfirmBrandLogoUploadCommand(
+        brand_id=brand_id, object_key=request.object_key
+    )
     await handler.handle(command)
     return {"message": "Запрос на обработку логотипа принят"}

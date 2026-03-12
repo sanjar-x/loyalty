@@ -85,19 +85,15 @@ class StorageFacade(IStorageFacade):
         return storage_obj.id
 
     async def verify_module_upload(
-        self, module: str, entity_id: str | uuid.UUID
+        self, module: str, entity_id: str | uuid.UUID, object_key: str
     ) -> Dict[str, Any]:
-        prefix = f"temp/{module}/{entity_id}/"
+        # Делаем простую проверку существования / метаданных вместо list_objects
+        metadata = await self._blob_storage.get_object_metadata(object_key)
 
-        list_response = await self._blob_storage.list_objects(prefix=prefix, limit=1)
-
-        if not list_response.get("objects"):
-            self._logger.error("Файл не найден при верификации", prefix=prefix)
+        if not metadata:
+            self._logger.error("Файл не найден при верификации", object_key=object_key)
             raise ValidationError(message="Файл не был загружен в хранилище.")
 
-        actual_object_key = list_response["objects"][0]["key"]
-        metadata = await self._blob_storage.get_object_metadata(actual_object_key)
-
-        metadata["object_key"] = actual_object_key
+        metadata["object_key"] = object_key
 
         return metadata

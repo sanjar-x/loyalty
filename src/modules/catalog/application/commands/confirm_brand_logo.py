@@ -5,7 +5,10 @@ from dataclasses import dataclass
 import structlog
 
 from src.modules.catalog.domain.events import BrandLogoUploadConfirmedEvent
-from src.modules.catalog.domain.exceptions import BrandNotFoundError
+from src.modules.catalog.domain.exceptions import (
+    BrandNotFoundError,
+    InvalidLogoStateException,
+)
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 from src.shared.interfaces.broker import IEventPublisher
@@ -18,6 +21,7 @@ logger = structlog.get_logger(__name__)
 @dataclass(frozen=True)
 class ConfirmBrandLogoUploadCommand:
     brand_id: uuid.UUID
+    object_key: str
 
 
 class ConfirmBrandLogoUploadHandler:
@@ -41,15 +45,25 @@ class ConfirmBrandLogoUploadHandler:
                 raise BrandNotFoundError(brand_id=command.brand_id)
 
             # Идемпотентность
-            if brand.logo_status != MediaProcessingStatus.PENDING_UPLOAD:
-                self._logger.warning(
+            if brand.logo_status in (
+                MediaProcessingStatus.PROCESSING,
+                MediaProcessingStatus.COMPLETED,
+            ):
+                self._logger.info(
                     "Бренд уже обрабатывается или активен", brand_id=str(brand.id)
                 )
                 return
+            elif brand.logo_status == MediaProcessingStatus.FAILED:
+                # Требуется повторная загрузка с фронтенда (S3 ключ мог протухнуть)
+                raise InvalidLogoStateException(
+                    brand_id=command.brand_id,
+                    current_status=str(brand.logo_status),
+                    expected_status=MediaProcessingStatus.PENDING_UPLOAD,
+                )
 
-            # 1. ДЕЛЕГИРУЕМ ВЕРИФИКАЦИЮ (Каталог ничего не знает про list_objects и S3!)
+            # 1. ДЕЛЕГИРУЕМ ВЕРИФИКАЦИЮ
             metadata = await self._storage_facade.verify_module_upload(
-                module="catalog", entity_id=brand.id
+                module="catalog", entity_id=brand.id, object_key=command.object_key
             )
 
             # 2. Обновляем статус
@@ -68,8 +82,8 @@ class ConfirmBrandLogoUploadHandler:
             )
 
             await self._publisher.publish(
-                exchange_name="catalog.events",
-                routing_key="brand.logo.uploaded",
+                exchange_name="taskiq_rpc_exchange",
+                routing_key="catalog.command.process_brand_logo",
                 event=event,
             )
 

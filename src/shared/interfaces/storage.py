@@ -52,10 +52,10 @@ class IStorageFacade(Protocol):
         ...
 
     async def verify_module_upload(
-        self, module: str, entity_id: str | uuid.UUID
+        self, module: str, entity_id: str | uuid.UUID, object_key: str
     ) -> Dict[str, Any]:
         """
-        Проверяет, был ли загружен файл для конкретной сущности.
-        Возвращает метаданные файла, где 'object_key' — точный путь найденного файла.
+        Проверяет, был ли загружен файл для конкретной сущности по точному ключу.
+        Возвращает метаданные файла.
         """
         ...

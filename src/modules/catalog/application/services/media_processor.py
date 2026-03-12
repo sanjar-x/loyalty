@@ -37,53 +37,57 @@ class BrandLogoProcessor:
                 self._logger.error("Бренд не найден", brand_id=str(brand_id))
                 return
 
-            try:
-                # 1. Загружаем сырой файл
-                buffer = io.BytesIO()
-                async for chunk in self._blob_storage.download_stream(raw_object_key):
-                    buffer.write(chunk)
-                buffer.seek(0)
+        try:
+            # 1. Загружаем сырой файл вне транзакции
+            buffer = io.BytesIO()
+            async for chunk in self._blob_storage.download_stream(raw_object_key):
+                buffer.write(chunk)
+            buffer.seek(0)
 
-                # 2. Обработка Pillow
-                # TODO: Implement Pillow processing
-                output_buffer = io.BytesIO()
+            # 2. Обработка Pillow
+            # TODO: Implement Pillow processing
+            output_buffer = io.BytesIO()
 
-                # 3. Загружаем обработанный файл
-                public_key = f"public/brands/{brand_id}/logo.webp"
+            # 3. Загружаем обработанный файл
+            public_key = f"public/brands/{brand_id}/logo.webp"
 
-                async def stream_gen():
-                    yield output_buffer.getvalue()
+            async def stream_gen():
+                yield output_buffer.getvalue()
 
-                await self._blob_storage.upload_stream(
-                    object_name=public_key,
-                    data_stream=stream_gen(),
-                    content_type="image/webp",
-                )
+            await self._blob_storage.upload_stream(
+                object_name=public_key,
+                data_stream=stream_gen(),
+                content_type="image/webp",
+            )
 
-                # 4. Удаляем временный файл
-                await self._blob_storage.delete_file(raw_object_key)
+            # 4. Удаляем временный файл
+            await self._blob_storage.delete_file(raw_object_key)
 
-                # 5. Регистрируем в Storage Facade
-                file_id = await self._storage_facade.register_processed_media(
-                    module="catalog",
-                    entity_id=brand_id,
-                    object_key=public_key,
-                    content_type="image/webp",
-                    size=len(output_buffer.getvalue()),
-                )
+            # 5. Регистрируем в Storage Facade (содержит собственный UoW)
+            file_id = await self._storage_facade.register_processed_media(
+                module="catalog",
+                entity_id=brand_id,
+                object_key=public_key,
+                content_type="image/webp",
+                size=len(output_buffer.getvalue()),
+            )
 
-                # 6. Обновляем статус бренда
-                brand.complete_logo_processing(file_id=file_id, url=public_key)
-                await self._brand_repo.update(brand)
-                await self._uow.commit()
+            # 6. Обновляем статус бренда в отдельной малой транзакции
+            async with self._uow:
+                brand = await self._brand_repo.get(brand_id)
+                if brand:
+                    brand.complete_logo_processing(file_id=file_id, url=public_key)
+                    await self._brand_repo.update(brand)
+                    await self._uow.commit()
 
-                self._logger.info("Логотип успешно обработан", brand_id=str(brand_id))
+            self._logger.info("Логотип успешно обработан", brand_id=str(brand_id))
 
-            except Exception:
-                self._logger.exception(
-                    "Ошибка обработки логотипа", brand_id=str(brand_id)
-                )
-                brand.fail_logo_processing()
-                await self._brand_repo.update(brand)
-                await self._uow.commit()
-                raise
+        except Exception:
+            self._logger.exception("Ошибка обработки логотипа", brand_id=str(brand_id))
+            async with self._uow:
+                brand = await self._brand_repo.get(brand_id)
+                if brand:
+                    brand.fail_logo_processing()
+                    await self._brand_repo.update(brand)
+                    await self._uow.commit()
+            raise
