@@ -8,9 +8,9 @@ from src.modules.catalog.domain.events import BrandLogoUploadConfirmedEvent
 from src.modules.catalog.domain.exceptions import BrandNotFoundError
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.modules.catalog.infrastructure.models import MediaProcessingStatus
+from src.modules.storage.domain.interfaces import IBlobStorage
 from src.shared.exceptions import ValidationError
 from src.shared.interfaces.broker import IEventPublisher
-from src.shared.interfaces.storage import IS3torageService
 from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
@@ -26,11 +26,11 @@ class ConfirmBrandLogoUploadHandler:
         self,
         brand_repo: IBrandRepository,
         uow: IUnitOfWork,
-        storage_service: IS3torageService,
+        storage_service: IBlobStorage,
         publisher: IEventPublisher,
     ):
         self._brand_repo: IBrandRepository = brand_repo
-        self._storage_service: IS3torageService = storage_service
+        self._storage_service: IBlobStorage = storage_service
         self._publisher: IEventPublisher = publisher
         self._uow: IUnitOfWork = uow
         self._logger = logger.bind(handler="ConfirmBrandLogoUploadHandler")

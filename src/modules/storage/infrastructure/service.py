@@ -1,16 +1,18 @@
+# src\infrastructure\storage\service.py
 import logging
-from typing import Any, AsyncIterator, Dict, List, Optional
+from collections.abc import AsyncIterator
+from typing import Any, Dict, List, Optional
 
 from aiobotocore.client import AioBaseClient
 from botocore.exceptions import ClientError
 
+from src.modules.storage.domain.interfaces import IBlobStorage
 from src.shared.exceptions import NotFoundError, ServiceUnavailableError
-from src.shared.interfaces.storage import IS3torageService
 
 logger = logging.getLogger(__name__)
 
 
-class S3StorageService(IS3torageService):
+class S3StorageService(IBlobStorage):
     def __init__(self, s3_client: AioBaseClient, bucket_name: str):
         self._client: AioBaseClient = s3_client
         self._bucket = bucket_name

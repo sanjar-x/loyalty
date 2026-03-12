@@ -1,3 +1,4 @@
+# src\infrastructure\storage\factory.py
 from collections.abc import AsyncGenerator
 from typing import Any, Optional
 

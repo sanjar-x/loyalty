@@ -7,7 +7,7 @@ import structlog
 from src.modules.catalog.domain.exceptions import BrandSlugConflictError
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.modules.catalog.infrastructure.models import MediaProcessingStatus
-from src.shared.interfaces.storage import IS3torageService
+from src.modules.storage.domain.interfaces import IBlobStorage
 from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
@@ -33,7 +33,7 @@ class CreateBrandHandler:
         self,
         brand_repo: IBrandRepository,
         uow: IUnitOfWork,
-        storage_service: IS3torageService,
+        storage_service: IBlobStorage,
     ):
         self._brand_repo = brand_repo
         self._uow = uow
