@@ -45,19 +45,7 @@ class CreateBrandHandler:
             if await self._brand_repo.check_slug_exists(command.slug):
                 raise BrandSlugConflictError(slug=command.slug)
 
-            # 1. Генерируем ID бренда на уровне Application
-            brand_id = uuid.uuid4()
-
-            # 2. Делегируем работу с хранилищем Фасаду! Каталог не знает путей S3.
-            upload_data = await self._storage_facade.request_upload(
-                module="catalog",
-                entity_id=brand_id,
-                filename=command.logo_filename,
-            )
-
-            # 3. Создаем сущность
             new_brand_data = {
-                "id": brand_id,
                 "name": command.name,
                 "slug": command.slug,
                 "logo_status": MediaProcessingStatus.PENDING_UPLOAD,
@@ -66,10 +54,16 @@ class CreateBrandHandler:
             brand = await self._brand_repo.add(new_brand_data)
             await self._uow.commit()
 
-            self._logger.info("Инициировано создание бренда", brand_id=str(brand_id))
+        upload_data = await self._storage_facade.request_upload(
+            module="catalog",
+            entity_id=brand.id,
+            filename=command.logo_filename,
+        )
 
-            return CreateBrandResult(
-                brand_id=brand.id,
-                presigned_post=upload_data.url_data,
-                object_key=upload_data.object_key,
-            )
+        self._logger.info("Инициировано создание бренда", brand_id=str(brand.id))
+
+        return CreateBrandResult(
+            brand_id=brand.id,
+            presigned_post=upload_data.url_data,
+            object_key=upload_data.object_key,
+        )

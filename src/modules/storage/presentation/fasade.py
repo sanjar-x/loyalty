@@ -13,7 +13,7 @@ logger = structlog.get_logger(__name__)
 
 class StorageFacade(IStorageFacade):
     def __init__(self, blob_storage: IBlobStorage):
-        self._blob_storage = blob_storage
+        self._blob_storage: IBlobStorage = blob_storage
         self._logger = logger.bind(component="StorageFacade")
 
     async def request_upload(
