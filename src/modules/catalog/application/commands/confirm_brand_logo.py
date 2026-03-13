@@ -4,14 +4,13 @@ from dataclasses import dataclass
 
 import structlog
 
-from src.modules.catalog.domain.events import BrandLogoUploadConfirmedEvent
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
     InvalidLogoStateException,
 )
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.modules.catalog.domain.value_objects import MediaProcessingStatus
-from src.shared.interfaces.broker import IEventPublisher
+from src.modules.catalog.presentation.tasks import process_brand_logo_task
 from src.shared.interfaces.storage import IStorageFacade
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -30,11 +29,9 @@ class ConfirmBrandLogoUploadHandler:
         brand_repo: IBrandRepository,
         uow: IUnitOfWork,
         storage_facade: IStorageFacade,
-        publisher: IEventPublisher,
     ):
         self._brand_repo = brand_repo
         self._storage_facade = storage_facade
-        self._publisher = publisher
         self._uow = uow
         self._logger = logger.bind(handler="ConfirmBrandLogoUploadHandler")
 
@@ -71,25 +68,17 @@ class ConfirmBrandLogoUploadHandler:
             await self._brand_repo.update(brand)
 
             # 3. Формируем событие, забирая точный S3-ключ из метаданных фасада
-            event = BrandLogoUploadConfirmedEvent(
-                payload={
-                    "brand_id": brand.id,
-                    "object_key": metadata["object_key"],
-                    "content_type": metadata.get(
-                        "content_type", "application/octet-stream"
-                    ),
-                }
-            )
-
-            await self._publisher.publish(
-                exchange_name="taskiq_rpc_exchange",
-                routing_key="catalog.command.process_brand_logo",
-                event=event,
-            )
-
+            # Коммитим транзакцию ДО отправки задачи в брокер
             await self._uow.commit()
 
-            self._logger.info(
-                "Бренд переведен в PROCESSING, задача отправлена",
-                brand_id=str(brand.id),
-            )
+        # Транзакция закрыта. Теперь безопасно вызываем воркер.
+        # 4. Прямой вызов TaskIQ через метод .kiq()
+        await process_brand_logo_task.kiq(  # type: ignore
+            brand_id=brand.id,
+            raw_object_key=metadata["object_key"],
+        )
+
+        self._logger.info(
+            "Бренд переведен в PROCESSING, задача отправлена напрямую в TaskIQ",
+            brand_id=str(brand.id),
+        )
