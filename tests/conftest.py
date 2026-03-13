@@ -1,7 +1,7 @@
-import asyncio
 import contextvars
 from collections.abc import AsyncIterable
 
+import aioboto3
 import pytest
 import redis.asyncio as redis
 from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
@@ -18,12 +18,9 @@ from testcontainers.redis import RedisContainer
 
 from src.bootstrap.config import Settings
 
-
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+# ==========================================
+# 1. Эфемерная Инфраструктура (Testcontainers)
+# ==========================================
 
 
 @pytest.fixture(scope="session")
@@ -34,10 +31,7 @@ def postgres_container():
 
 @pytest.fixture(scope="session")
 def db_url(postgres_container) -> str:
-    url = postgres_container.get_connection_url()
-    # testcontainers python returns postgresql+asyncpg://...
-    # we can use it directly
-    return url
+    return postgres_container.get_connection_url()
 
 
 @pytest.fixture(scope="session")
@@ -70,6 +64,11 @@ def minio_container():
         yield minio
 
 
+# ==========================================
+# 2. Настройки и Подготовка Среды
+# ==========================================
+
+
 @pytest.fixture(scope="session")
 def test_settings(db_url, redis_url, rabbitmq_url, minio_container) -> Settings:
     return Settings(
@@ -77,12 +76,12 @@ def test_settings(db_url, redis_url, rabbitmq_url, minio_container) -> Settings:
         ENVIRONMENT="test",
         DEBUG=True,
         SECRET_KEY=SecretStr("test-secret"),
-        PGHOST="localhost",  # overwritten by database_url below
+        PGHOST="localhost",
         PGPORT=5432,
         PGUSER="postgres",
         PGPASSWORD=SecretStr("postgres"),
         PGDATABASE="postgres",
-        REDISHOST="localhost",  # overwritten by redis_url below
+        REDISHOST="localhost",
         REDISPORT=6379,
         S3_ENDPOINT_URL=minio_container.get_url(),
         S3_ACCESS_KEY="minioadmin",
@@ -97,31 +96,36 @@ test_session_var = contextvars.ContextVar("test_session_var")
 
 
 class TestOverridesProvider(Provider):
+    """
+    Провайдер-заглушка для тестов.
+    Используем override=True, чтобы Dishka не ругался на дублирование провайдеров.
+    """
+
     def __init__(self, db_url: str, redis_url: str, settings: Settings):
         super().__init__()
         self.db_url = db_url
         self.redis_url = redis_url
         self.test_settings = settings
 
-    @provide(scope=Scope.APP)
+    @provide(scope=Scope.APP, override=True)
     def settings(self) -> Settings:
         return self.test_settings
 
-    @provide(scope=Scope.APP)
+    @provide(scope=Scope.APP, override=True)
     async def engine(self) -> AsyncIterable[AsyncEngine]:
         from sqlalchemy.pool import NullPool
 
-        # using NullPool to prevent connection leaks across test runs
+        # NullPool обязателен в тестах, чтобы не исчерпать соединения Testcontainers
         engine = create_async_engine(url=self.db_url, poolclass=NullPool)
         yield engine
         await engine.dispose()
 
-    @provide(scope=Scope.REQUEST)
+    @provide(scope=Scope.REQUEST, override=True)
     async def session(self) -> AsyncSession:
-        # returns the session bound to the nested transaction
+        # Извлекаем сессию, привязанную к транзакции текущего теста
         return test_session_var.get()
 
-    @provide(scope=Scope.APP)
+    @provide(scope=Scope.APP, override=True)
     async def redis_client(self) -> AsyncIterable[redis.Redis]:
         pool = redis.ConnectionPool.from_url(self.redis_url)
         client = redis.Redis(connection_pool=pool)
@@ -130,11 +134,18 @@ class TestOverridesProvider(Provider):
         await pool.disconnect()
 
 
+# ==========================================
+# 4. Инициализация IoC и БД (Session Scope)
+# ==========================================
+
+
 @pytest.fixture(scope="session")
 async def app_container(
     db_url, redis_url, test_settings
 ) -> AsyncIterable[AsyncContainer]:
-    # Import actual providers
+    # Импортируем реальные провайдеры приложения
+    from src.bootstrap.ioc import ConfigProvider
+
     from src.infrastructure.cache.provider import CacheProvider
     from src.infrastructure.database.provider import DatabaseProvider
     from src.infrastructure.security.provider import SecurityProvider
@@ -144,17 +155,18 @@ async def app_container(
     )
     from src.modules.storage.presentation.dependencies import StorageProvider
 
-    # TestOverridesProvider overrides DatabaseProvider's engine/session, CacheProvider's redis_client, and Settings
+    # Собираем контейнер с перезаписью (TestOverridesProvider накладывается поверх)
     container = make_async_container(
-        TestOverridesProvider(
-            db_url=db_url, redis_url=redis_url, settings=test_settings
-        ),
+        ConfigProvider(),
         DatabaseProvider(),
         CacheProvider(),
         SecurityProvider(),
         StorageProvider(),
         CategoryProvider(),
         BrandProvider(),
+        TestOverridesProvider(
+            db_url=db_url, redis_url=redis_url, settings=test_settings
+        ),
     )
     yield container
     await container.close()
@@ -162,11 +174,74 @@ async def app_container(
 
 @pytest.fixture(scope="session")
 async def test_engine(app_container: AsyncContainer) -> AsyncEngine:
+    """
+    Достает движок из DI и создает все таблицы (один раз за запуск тестов).
+    """
     engine = await app_container.get(AsyncEngine)
-    # import models to register with Base
+
+    # Подтягиваем все модели, чтобы Алхимия увидела их метадату
+    import src.infrastructure.database.models  # noqa
+
+    import src.modules.catalog.infrastructure.models  # noqa
+    import src.modules.storage.infrastructure.models  # noqa
     from src.infrastructure.database.base import Base
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     return engine
+
+
+@pytest.fixture(scope="session", autouse=True)
+async def setup_infrastructure(test_engine: AsyncEngine, test_settings: Settings):
+    """
+    Хук, который автоматически подготавливает всю инфраструктуру (БД и S3)
+    до запуска первого теста.
+    """
+    # 1. БД уже готова (test_engine запрошен в аргументах)
+
+    # 2. Инициализируем S3 Bucket в MinIO
+    session = aioboto3.Session()
+    async with session.client(
+        "s3",
+        endpoint_url=test_settings.S3_ENDPOINT_URL,
+        aws_access_key_id=test_settings.S3_ACCESS_KEY,
+        aws_secret_access_key=test_settings.S3_SECRET_KEY,
+    ) as s3_client:
+        try:
+            await s3_client.create_bucket(Bucket=test_settings.S3_BUCKET_NAME)
+        except Exception:
+            pass  # Бакет уже существует
+
+    return True
+
+
+# ==========================================
+# 5. Изоляция Тестов (Function Scope)
+# ==========================================
+
+
+@pytest.fixture(scope="function")
+async def db_session(test_engine: AsyncEngine) -> AsyncIterable[AsyncSession]:
+    """
+    Изолированная сессия с использованием Nested Transactions (SAVEPOINT).
+    Тест пишет в БД, а после его завершения делается мгновенный ROLLBACK.
+    """
+    async with test_engine.connect() as conn:
+        # Открываем главную транзакцию
+        transaction = await conn.begin()
+        # Открываем вложенную транзакцию (SAVEPOINT)
+        nested = await conn.begin_nested()
+
+        async with AsyncSession(bind=conn, expire_on_commit=False) as session:
+            # Кладем сессию в ContextVar, чтобы Dishka мог ее инжектить
+            token = test_session_var.set(session)
+
+            yield session  # 🚀 Здесь выполняется сам тест
+
+            # Очищаем ContextVar после выполнения
+            test_session_var.reset(token)
+
+        # Откатываем все изменения теста (таблицы остаются чистыми)
+        await nested.rollback()
+        await transaction.rollback()

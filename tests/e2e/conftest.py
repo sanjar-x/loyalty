@@ -1,3 +1,4 @@
+# tests/e2e/conftest.py
 from unittest.mock import patch
 
 import pytest

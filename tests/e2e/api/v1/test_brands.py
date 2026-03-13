@@ -3,10 +3,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from dishka import AsyncContainer
 from httpx import AsyncClient
-from src.modules.storage.presentation.fasade import PresignedUploadData
 
 from src.modules.catalog.presentation.tasks import process_brand_logo_task
-from src.shared.interfaces.storage import IStorageFacade
+from src.shared.interfaces.storage import IStorageFacade, PresignedUploadData
 
 
 @pytest.mark.asyncio

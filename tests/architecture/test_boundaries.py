@@ -1,3 +1,4 @@
+# tests/architecture/test_boundaries.py
 from pytest_archon import archrule
 
 
@@ -19,7 +20,7 @@ def test_domain_layer_dependencies():
 def test_application_layer_dependencies():
     """
     Application слой управляет Use Cases.
-    Он может зависеть от Domain, но не от Infrastructure (использует порты) или Presentation.
+    Он может зависеть от Domain, но не от Infrastructure (использует порты).
     """
     rule = (
         archrule("application_independence")
