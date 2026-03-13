@@ -1,7 +1,6 @@
 import uuid
 from unittest.mock import AsyncMock, patch
 
-import pytest
 from dishka import AsyncContainer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +14,6 @@ from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.storage import IStorageFacade
 
 
-@pytest.mark.asyncio
 async def test_process_brand_logo_task(
     app_container: AsyncContainer, db_session: AsyncSession
 ):

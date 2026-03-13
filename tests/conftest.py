@@ -1,6 +1,8 @@
+import asyncio
 import contextvars
 import warnings
 from collections.abc import AsyncIterable
+from unittest.mock import AsyncMock
 
 import pytest
 import redis.asyncio as redis
@@ -12,94 +14,78 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
     create_async_engine,
 )
-from testcontainers.minio import MinioContainer
-from testcontainers.postgres import PostgresContainer
-from testcontainers.rabbitmq import RabbitMqContainer
-from testcontainers.redis import RedisContainer
 
 from src.bootstrap.config import Settings
+from src.shared.interfaces.blob_storage import IBlobStorage
 
 warnings.filterwarnings(
     "ignore", category=DeprecationWarning, message=".*wait_container_is_ready.*"
 )
 
 
-@pytest.fixture(scope="session")
-def postgres_container():
-    with PostgresContainer("postgres:18-alpine", driver="asyncpg") as postgres:
-        yield postgres
+# ==========================================
+# 0. Изоляция Event Loop (Решение проблемы с зависанием БД)
+# ==========================================
+@pytest.fixture(scope="session", autouse=True)
+def event_loop():
+    """
+    Принудительно создаем один Event Loop для всей тестовой сессии.
+    Это решает проблему "Task pending" и "InterfaceError", когда
+    движок БД и тесты пытаются работать в разных циклах.
+    """
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+# ==========================================
+# 1. URL-адреса для подключения...
+# ==========================================
+# 1. URL-адреса для подключения к локальным контейнерам
+# ==========================================
 
 
 @pytest.fixture(scope="session")
-def db_url(postgres_container) -> str:
-    return postgres_container.get_connection_url()
+def db_url() -> str:
+    return "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/postgres"
 
 
 @pytest.fixture(scope="session")
-def redis_container():
-    with RedisContainer("redis:8.4-alpine") as container:
-        yield container
+def redis_url() -> str:
+    return "redis://:password@127.0.0.1:6379/0"
 
 
 @pytest.fixture(scope="session")
-def redis_url(redis_container) -> str:
-    host = redis_container.get_container_host_ip()
-    port = redis_container.get_exposed_port(redis_container.port)
-    password = redis_container.password
-    auth = f":{password}@" if password else ""
-    return f"redis://{auth}{host}:{port}/0"
+def rabbitmq_url() -> str:
+    return "amqp://admin:password@127.0.0.1:5672/"
 
 
 @pytest.fixture(scope="session")
-def rabbitmq_container():
-    with RabbitMqContainer("rabbitmq:3-alpine") as rabbitmq:
-        yield rabbitmq
-
-
-@pytest.fixture(scope="session")
-def rabbitmq_url(rabbitmq_container) -> str:
-    host = rabbitmq_container.get_container_host_ip()
-    exposed_port = rabbitmq_container.get_exposed_port(rabbitmq_container.port)
-    user = rabbitmq_container.username
-    password = rabbitmq_container.password
-    vhost = rabbitmq_container.vhost
-    vhost_path = vhost.lstrip("/")
-    return f"amqp://{user}:{password}@{host}:{exposed_port}/{vhost_path}"
-
-
-@pytest.fixture(scope="session")
-def minio_container():
-    with MinioContainer(
-        image="minio/minio:latest", access_key="minioadmin", secret_key="minioadmin"
-    ) as minio:
-        yield minio
-
-
-@pytest.fixture(scope="session")
-def test_settings(db_url, redis_url, rabbitmq_url, minio_container) -> Settings:
-    minio_config = minio_container.get_config()
-    minio_endpoint = f"http://{minio_config['endpoint']}"
-
+def test_settings(db_url, redis_url, rabbitmq_url) -> Settings:
     return Settings(
         PROJECT_NAME="Enterprise API - Test",
         ENVIRONMENT="test",
         DEBUG=True,
         SECRET_KEY=SecretStr("test-secret"),
-        PGHOST="localhost",
+        PGHOST="127.0.0.1",
         PGPORT=5432,
         PGUSER="postgres",
         PGPASSWORD=SecretStr("postgres"),
         PGDATABASE="postgres",
-        REDISHOST="localhost",
+        REDISHOST="127.0.0.1",
         REDISPORT=6379,
-        S3_ENDPOINT_URL=minio_endpoint,
-        S3_ACCESS_KEY=minio_config["access_key"],
-        S3_SECRET_KEY=minio_config["secret_key"],
+        S3_ENDPOINT_URL="http://127.0.0.1:9000",
+        S3_ACCESS_KEY="admin",
+        S3_SECRET_KEY="password",
         S3_REGION="us-east-1",
         S3_BUCKET_NAME="test-bucket",
         RABBITMQ_URL=rabbitmq_url,
     )
 
+
+# ==========================================
+# 2. Провайдеры Dishka
+# ==========================================
 
 test_session_var = contextvars.ContextVar("test_session_var")
 
@@ -135,9 +121,14 @@ class TestOverridesProvider(Provider):
         await client.close()
         await pool.disconnect()
 
+    # 👇 ДОБАВЛЕНО: Заглушка для стораджа, чтобы воркеры не падали при старте
+    @provide(scope=Scope.APP, override=True)
+    async def blob_storage(self) -> IBlobStorage:
+        return AsyncMock(spec=IBlobStorage)
+
 
 # ==========================================
-# 4. Инициализация IoC и БД (Session Scope)
+# 3. Инициализация IoC и БД (Session Scope)
 # ==========================================
 
 
@@ -173,10 +164,7 @@ async def app_container(
 async def test_engine(app_container: AsyncContainer) -> AsyncEngine:
     engine = await app_container.get(AsyncEngine)
 
-    import src.infrastructure.database.models  # noqa
-    import src.modules.catalog.infrastructure.models  # noqa
-    import src.modules.storage.infrastructure.models  # noqa
-    from src.infrastructure.database.base import Base
+    from src.infrastructure.database.registry import Base
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -187,12 +175,10 @@ async def test_engine(app_container: AsyncContainer) -> AsyncEngine:
 @pytest.fixture(scope="session")
 async def setup_infrastructure(test_engine: AsyncEngine, test_settings: Settings):
     """
-    Создает бакет в MinIO при запуске тестов.
+    Создает бакет в MinIO при запуске тестов (если его нет).
     """
-    # Вызываем get_session, чтобы получить объект сессии
     session = get_session()
 
-    # Используем session.create_client (а не просто .client)
     async with session.create_client(
         "s3",
         endpoint_url=test_settings.S3_ENDPOINT_URL,
@@ -210,7 +196,7 @@ async def setup_infrastructure(test_engine: AsyncEngine, test_settings: Settings
 
 
 # ==========================================
-# 5. Изоляция Тестов (Function Scope)
+# 4. Изоляция Тестов (Function Scope)
 # ==========================================
 
 

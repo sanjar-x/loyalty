@@ -1,6 +1,5 @@
 from unittest.mock import AsyncMock, patch
 
-import pytest
 from dishka import AsyncContainer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +13,6 @@ from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 from src.shared.interfaces.storage import IStorageFacade, PresignedUploadData
 
 
-@pytest.mark.asyncio
 async def test_create_brand_handler_without_logo(
     app_container: AsyncContainer, db_session: AsyncSession
 ):
@@ -36,7 +34,6 @@ async def test_create_brand_handler_without_logo(
     assert orm_brand.logo_status is None
 
 
-@pytest.mark.asyncio
 async def test_create_brand_handler_with_logo_calls_facade(
     app_container: AsyncContainer, db_session: AsyncSession
 ):

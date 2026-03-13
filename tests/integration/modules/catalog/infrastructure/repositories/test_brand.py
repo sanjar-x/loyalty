@@ -1,4 +1,3 @@
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.entities import Brand
@@ -6,7 +5,6 @@ from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 from src.modules.catalog.infrastructure.repositories.brand import BrandRepository
 
 
-@pytest.mark.asyncio
 async def test_brand_repository_add_and_get(db_session: AsyncSession):
     # Arrange
     repository = BrandRepository(session=db_session)
@@ -26,7 +24,6 @@ async def test_brand_repository_add_and_get(db_session: AsyncSession):
     assert fetched_brand.logo_status == MediaProcessingStatus.PENDING_UPLOAD
 
 
-@pytest.mark.asyncio
 async def test_brand_repository_check_slug_exists(db_session: AsyncSession):
     # Arrange
     repository = BrandRepository(session=db_session)

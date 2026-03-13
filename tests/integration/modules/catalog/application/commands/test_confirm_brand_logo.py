@@ -1,6 +1,5 @@
 from unittest.mock import AsyncMock, patch
 
-import pytest
 from dishka import AsyncContainer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +15,6 @@ from src.modules.catalog.infrastructure.repositories.brand import BrandRepositor
 from src.shared.interfaces.storage import IStorageFacade
 
 
-@pytest.mark.asyncio
 async def test_confirm_brand_logo_upload_handler(
     app_container: AsyncContainer, db_session: AsyncSession
 ):

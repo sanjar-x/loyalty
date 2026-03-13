@@ -1,13 +1,11 @@
 import uuid
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.entities import Category
 from src.modules.catalog.infrastructure.repositories.category import CategoryRepository
 
 
-@pytest.mark.asyncio
 async def test_category_repository_add_and_get_all_ordered(db_session: AsyncSession):
     # Arrange
     repository = CategoryRepository(session=db_session)
@@ -46,7 +44,6 @@ async def test_category_repository_add_and_get_all_ordered(db_session: AsyncSess
     assert categories[1].id == child_category.id
 
 
-@pytest.mark.asyncio
 async def test_category_repository_check_slug_exists(db_session: AsyncSession):
     # Arrange
     repository = CategoryRepository(session=db_session)
