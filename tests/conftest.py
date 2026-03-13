@@ -1,9 +1,9 @@
 import contextvars
 from collections.abc import AsyncIterable
 
-import aioboto3
 import pytest
 import redis.asyncio as redis
+from aiobotocore.session import get_session
 from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
 from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import (
@@ -201,7 +201,8 @@ async def setup_infrastructure(test_engine: AsyncEngine, test_settings: Settings
     # 1. БД уже готова (test_engine запрошен в аргументах)
 
     # 2. Инициализируем S3 Bucket в MinIO
-    session = aioboto3.Session()
+
+    session = get_session
     async with session.client(
         "s3",
         endpoint_url=test_settings.S3_ENDPOINT_URL,

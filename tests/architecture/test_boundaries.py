@@ -1,48 +1,96 @@
 # tests/architecture/test_boundaries.py
+import pytest
 from pytest_archon import archrule
 
+pytestmark = pytest.mark.architecture
 
-def test_domain_layer_dependencies():
+
+def test_domain_layer_is_pure():
     """
-    Доменный слой не должен зависеть ни от каких других слоев.
-    (Clean Architecture: Dependency Rule)
+    [Clean Architecture] Правило чистого Домена:
+    Слой Domain является ядром. Он НЕ ИМЕЕТ ПРАВА ничего знать о внешних слоях:
+    Application, Infrastructure, Presentation или глобальных настройках (Bootstrap).
     """
-    rule = (
+    (
         archrule("domain_independence")
-        .match("src.modules.*.domain*")
-        .should_not_import("src.modules.*.application*")
-        .should_not_import("src.modules.*.infrastructure*")
-        .should_not_import("src.modules.*.presentation*")
+        .match("src.modules.*.domain.*")
+        .should_not_import("src.modules.*.application.*")
+        .should_not_import("src.modules.*.infrastructure.*")
+        .should_not_import("src.modules.*.presentation.*")
+        .should_not_import("src.api.*")
+        .should_not_import("src.bootstrap.*")
+        .check("src")
     )
-    rule.check("src")
 
 
-def test_application_layer_dependencies():
+def test_application_layer_boundaries():
     """
-    Application слой управляет Use Cases.
-    Он может зависеть от Domain, но не от Infrastructure (использует порты).
+    [Clean Architecture] Правило слоя Application (Use Cases / CQRS):
+    Слой Application управляет бизнес-процессами. Он может импортировать Domain,
+    но НЕ ДОЛЖЕН зависеть от деталей реализации (Infrastructure) и (Presentation).
     """
-    rule = (
+    (
         archrule("application_independence")
-        .match("src.modules.*.application*")
-        .should_not_import("src.modules.*.infrastructure*")
-        .should_not_import("src.modules.*.presentation*")
+        .match("src.modules.*.application.*")
+        .should_not_import("src.modules.*.infrastructure.*")
+        .should_not_import("src.modules.*.presentation.*")
+        .should_not_import("src.api.*")
+        .check("src")
     )
-    rule.check("src")
 
 
-def test_module_isolation():
+def test_infrastructure_does_not_import_presentation():
     """
-    Модули не должны напрямую ходить в инфраструктуру или домен друг друга.
-    Например, catalog модуль не должен импортировать напрямую storage/infrastructure.
+    [Clean Architecture] Правило слоя Infrastructure:
+    Инфраструктура (репозитории, S3 адаптеры, модели БД) не должна зависеть
+    от веб-роутеров (Presentation) и глобальных эндпоинтов (API).
     """
-    rule = (
-        archrule("catalog_isolation_from_storage")
-        .match("src.modules.catalog*")
-        # Разрешено общаться только через shared/interfaces или фасады
-        .should_not_import("src.modules.storage.infrastructure*")
-        .should_not_import("src.modules.storage.domain*")
-        .should_not_import("src.modules.storage.application.commands*")
-        .should_not_import("src.modules.storage.application.queries*")
+    (
+        archrule("infrastructure_independence")
+        .match("src.modules.*.infrastructure.*")
+        .should_not_import("src.modules.*.presentation.*")
+        .should_not_import("src.api.*")
+        .check("src")
     )
-    rule.check("src")
+
+
+def test_modular_monolith_strict_isolation():
+    """
+    [Modular Monolith] Правило изоляции модулей:
+    Модули (Catalog, Storage) должны быть слабо связаны.
+    Общение между ними допускается ТОЛЬКО через публичные интерфейсы (shared/interfaces)
+    или публичные фасады (presentation.facade.
+    """
+    (
+        archrule("storage_internals_are_private_from_catalog")
+        .match("src.modules.catalog.*")
+        .should_not_import("src.modules.storage.infrastructure.*")
+        .should_not_import("src.modules.storage.domain.*")
+        .should_not_import("src.modules.storage.application.*")
+        .check("src")
+    )
+
+    (
+        archrule("catalog_internals_are_private_from_storage")
+        .match("src.modules.storage.*")
+        .should_not_import("src.modules.catalog.infrastructure.*")
+        .should_not_import("src.modules.catalog.domain.*")
+        .should_not_import("src.modules.catalog.application.*")
+        .should_not_import("src.modules.catalog.presentation.*")
+        .check("src")
+    )
+
+
+def test_shared_kernel_is_independent():
+    """
+    [DDD] Правило Shared Kernel (Общее ядро):
+    Папка src/shared/ содержит общие интерфейсы и абстракции (IUnitOfWork, порты).
+    Она является фундаментом и НЕ ДОЛЖНА зависеть ни от одного конкретного бизнес-модуля.
+    """
+    (
+        archrule("shared_kernel_independence")
+        .match("src.shared.*")
+        .should_not_import("src.modules.catalog.*")
+        .should_not_import("src.modules.storage.*")
+        .check("src")
+    )
