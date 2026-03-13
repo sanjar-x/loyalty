@@ -1,13 +1,13 @@
 # src\infrastructure\storage\service.py
 import logging
 from collections.abc import AsyncIterator
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from aiobotocore.client import AioBaseClient
 from botocore.exceptions import ClientError
 
-from src.modules.storage.domain.interfaces import IBlobStorage
 from src.shared.exceptions import NotFoundError, ServiceUnavailableError
+from src.shared.interfaces.blob_storage import IBlobStorage
 
 logger = logging.getLogger(__name__)
 
@@ -182,7 +182,7 @@ class S3StorageService(IBlobStorage):
                 message="Ошибка при проверке существования файла."
             )
 
-    async def get_object_metadata(self, object_name: str) -> Dict[str, Any]:
+    async def get_object_metadata(self, object_name: str) -> dict[str, Any]:
         try:
             response = await self._client.head_object(
                 Bucket=self._bucket, Key=object_name
@@ -202,9 +202,9 @@ class S3StorageService(IBlobStorage):
         self,
         prefix: str = "",
         limit: int = 1000,
-        continuation_token: Optional[str] = None,
+        continuation_token: str | None = None,
     ) -> dict:
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "Bucket": self._bucket,
             "Prefix": prefix,
             "MaxKeys": limit,
@@ -217,12 +217,14 @@ class S3StorageService(IBlobStorage):
 
             objects = []
             for obj in response.get("Contents", []):
-                objects.append({
-                    "key": obj["Key"],
-                    "size": obj["Size"],
-                    "last_modified": obj["LastModified"],
-                    "etag": obj.get("ETag", "").strip('"'),
-                })
+                objects.append(
+                    {
+                        "key": obj["Key"],
+                        "size": obj["Size"],
+                        "last_modified": obj["LastModified"],
+                        "etag": obj.get("ETag", "").strip('"'),
+                    }
+                )
 
             return {
                 "objects": objects,
@@ -248,7 +250,7 @@ class S3StorageService(IBlobStorage):
     async def delete_file(self, object_name: str) -> None:
         await self.delete_object(object_name)
 
-    async def delete_objects(self, object_names: List[str]) -> List[str]:
+    async def delete_objects(self, object_names: list[str]) -> list[str]:
         failed_keys = []
         chunk_size = 1000
 

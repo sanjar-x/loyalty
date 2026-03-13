@@ -7,10 +7,11 @@ from dishka import Provider, Scope, provide
 
 from src.bootstrap.config import Settings
 from src.infrastructure.storage.factory import S3ClientFactory
-from src.modules.storage.domain.interfaces import IBlobStorage, IStorageRepository
+from src.modules.storage.domain.interfaces import IStorageRepository
 from src.modules.storage.infrastructure.repository import StorageObjectRepository
 from src.modules.storage.infrastructure.service import S3StorageService
-from src.modules.storage.presentation.fasade import StorageFacade
+from src.modules.storage.presentation.facade import StorageFacade
+from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.storage import IStorageFacade
 
 logger = structlog.get_logger(__name__)

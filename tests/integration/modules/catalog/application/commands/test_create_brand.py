@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from dishka import AsyncContainer
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.modules.storage.presentation.fasade import PresignedUploadData
 
 from src.modules.catalog.application.commands.create_brand import (
     CreateBrandCommand,
@@ -12,7 +11,7 @@ from src.modules.catalog.application.commands.create_brand import (
 )
 from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
-from src.shared.interfaces.storage import IStorageFacade
+from src.shared.interfaces.storage import IStorageFacade, PresignedUploadData
 
 
 @pytest.mark.asyncio

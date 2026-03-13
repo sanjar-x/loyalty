@@ -5,7 +5,7 @@ import uuid
 import structlog
 
 from src.modules.catalog.domain.interfaces import IBrandRepository
-from src.modules.storage.domain.interfaces import IBlobStorage
+from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.storage import IStorageFacade
 from src.shared.interfaces.uow import IUnitOfWork
 

@@ -79,3 +79,7 @@ dev = [
     "pytest-cov>=7.0.0",
     "testcontainers[minio,postgres,rabbitmq,redis]>=4.14.1",
 ]
+[tool.pytest.ini_options]
+markers = [
+    "architecture: mark test as an architecture boundary test"
+]

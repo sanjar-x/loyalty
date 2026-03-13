@@ -1,68 +1,23 @@
 # src/modules/storage/domain/interfaces.py
+
+
 import uuid
-from collections.abc import AsyncIterator
-from typing import Any, Dict, List, Optional, Protocol, Sequence
+from typing import Optional, Protocol, Sequence
 
-from src.modules.storage.infrastructure.models import StorageObject
-
-
-class IBlobStorage(Protocol):
-    """
-    Доменный контракт для работы с бинарным (объектным) хранилищем.
-    """
-
-    def download_stream(
-        self, object_name: str, chunk_size: int = 65536
-    ) -> AsyncIterator[bytes]: ...
-    async def get_presigned_url(
-        self, object_name: str, expiration: int = 3600
-    ) -> str: ...
-
-    async def get_presigned_upload_url(
-        self, object_name: str, expiration: int = 3600
-    ) -> dict: ...
-
-    async def generate_presigned_put_url(
-        self, object_name: str, content_type: str, expiration: int = 3600
-    ) -> str: ...
-
-    async def upload_stream(
-        self,
-        object_name: str,
-        data_stream: AsyncIterator[bytes],
-        content_type: str = "application/octet-stream",
-    ) -> str: ...
-
-    async def object_exists(self, object_name: str) -> bool: ...
-
-    async def get_object_metadata(self, object_name: str) -> Dict[str, Any]: ...
-
-    async def list_objects(
-        self,
-        prefix: str = "",
-        limit: int = 1000,
-        continuation_token: Optional[str] = None,
-    ) -> dict: ...
-
-    async def delete_object(self, object_name: str) -> None: ...
-    async def delete_file(self, object_name: str) -> None: ...
-
-    async def delete_objects(self, object_names: List[str]) -> List[str]: ...
-
-    async def copy_object(self, source_name: str, dest_name: str) -> None: ...
+from pydantic import BaseModel
 
 
 class IStorageRepository(Protocol):
     """Доменный контракт для работы с хранилищем метаданных файлов."""
 
-    async def add(self, storage_object: StorageObject) -> None: ...
-    async def get_by_id(self, object_id: uuid.UUID) -> Optional[StorageObject]: ...
+    async def add(self, storage_object: BaseModel) -> None: ...
+    async def get_by_id(self, object_id: uuid.UUID) -> Optional[BaseModel]: ...
     async def get_active_by_key(
         self, bucket_name: str, object_key: str
-    ) -> Optional[StorageObject]: ...
+    ) -> Optional[BaseModel]: ...
     async def get_all_versions(
         self, bucket_name: str, object_key: str
-    ) -> Sequence[StorageObject]: ...
+    ) -> Sequence[BaseModel]: ...
     async def deactivate_previous_versions(
         self, bucket_name: str, object_key: str
     ) -> None: ...

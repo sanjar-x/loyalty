@@ -1,13 +1,14 @@
 # src/modules/storage/presentation/facade.py
 import uuid
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 
 from src.bootstrap.config import Settings
-from src.modules.storage.domain.interfaces import IBlobStorage, IStorageRepository
+from src.modules.storage.domain.interfaces import IStorageRepository
 from src.modules.storage.infrastructure.models import StorageObject
 from src.shared.exceptions import ValidationError
+from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.storage import IStorageFacade, PresignedUploadData
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -86,7 +87,7 @@ class StorageFacade(IStorageFacade):
 
     async def verify_module_upload(
         self, module: str, entity_id: str | uuid.UUID, object_key: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         # Делаем простую проверку существования / метаданных вместо list_objects
         metadata = await self._blob_storage.get_object_metadata(object_key)
 

@@ -4,7 +4,7 @@ import pytest
 from dishka import AsyncContainer
 from httpx import AsyncClient
 
-from src.modules.catalog.presentation.tasks import process_brand_logo_task
+from src.modules.catalog.application.tasks import process_brand_logo_task
 from src.shared.interfaces.storage import IStorageFacade, PresignedUploadData
 
 

@@ -6,12 +6,12 @@ from dishka import AsyncContainer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.services.media_processor import BrandLogoProcessor
+from src.modules.catalog.application.tasks import process_brand_logo_task
 from src.modules.catalog.domain.entities import Brand
 from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 from src.modules.catalog.infrastructure.repositories.brand import BrandRepository
-from src.modules.catalog.presentation.tasks import process_brand_logo_task
-from src.modules.storage.domain.interfaces import IBlobStorage
+from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.storage import IStorageFacade
 
 
@@ -59,6 +59,7 @@ async def test_process_brand_logo_task(
 
     # Check DB
     orm_brand = await db_session.get(OrmBrand, brand.id)
+    assert orm_brand is not None
     assert orm_brand.logo_status == MediaProcessingStatus.COMPLETED
     assert orm_brand.logo_file_id == mock_file_id
     assert orm_brand.logo_url == f"public/brands/{brand.id}/logo.webp"

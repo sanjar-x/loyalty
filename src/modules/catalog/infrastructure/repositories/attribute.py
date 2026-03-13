@@ -1,55 +1,25 @@
-# src/modules/catalog/infrastructure/repositories/catalog_repos.py
-from sqlalchemy import Sequence, select
+# src/modules/catalog/infrastructure/repositories/attribute.py
+from typing import Any
 
-from src.modules.catalog.domain.interfaces import (
-    IAttributeRepository,
-    IBrandRepository,
-    ICategoryRepository,
-    IProductRepository,
-)
-from src.modules.catalog.infrastructure.models import (
-    Attribute,
-    Brand,
-    Category,
-    Product,
-)
+from src.modules.catalog.domain.interfaces import IAttributeRepository
+from src.modules.catalog.infrastructure.models import Attribute
 from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
 
-class CategoryRepository(
-    BaseRepository[Category], ICategoryRepository, model_class=Category
-):
-    async def get_all_ordered(self) -> Sequence[Category]:
-        statement = select(self.model).order_by(
-            self.model.level.asc(), self.model.sort_order.asc()
-        )
-        result = await self._session.execute(statement)
-        return result.scalars().all()
-
-
-class BrandRepository(BaseRepository[Brand], IBrandRepository, model_class=Brand):
-    async def get_by_slug(self, slug: str) -> Brand | None:
-        statement = select(self.model).where(self.model.slug == slug)
-        result = await self._session.execute(statement)
-        return result.scalar_one_or_none()
-
-
 class AttributeRepository(
-    BaseRepository[Attribute], IAttributeRepository, model_class=Attribute
+    BaseRepository[Any, Attribute], IAttributeRepository, model_class=Attribute
 ):
     """
-    Для атрибутов пока хватает базового CRUD (add, get, update, delete),
-    который уже реализован в BaseSQLAlchemyRepository.
+    Репозиторий атрибутов.
+    Пока использует Any в качестве доменной модели, так как она еще не реализована.
     """
 
-    pass
+    def _to_domain(self, orm: Attribute) -> Any:
+        # TODO: Заменить Any на DomainAttribute, когда он будет создан
+        return orm
 
-
-class ProductRepository(
-    BaseRepository[Product], IProductRepository, model_class=Product
-):
-    """
-    Будущие методы (get_by_slug, get_with_skus) будут добавляться сюда.
-    """
-
-    pass
+    def _to_orm(self, entity: Any, orm: Attribute | None = None) -> Attribute:
+        # TODO: Полноценный маппинг
+        if orm is None:
+            orm = Attribute()
+        return orm

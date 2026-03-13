@@ -8,11 +8,11 @@ from src.modules.catalog.application.commands.confirm_brand_logo import (
     ConfirmBrandLogoUploadCommand,
     ConfirmBrandLogoUploadHandler,
 )
+from src.modules.catalog.application.tasks import process_brand_logo_task
 from src.modules.catalog.domain.entities import Brand
 from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 from src.modules.catalog.infrastructure.repositories.brand import BrandRepository
-from src.modules.catalog.presentation.tasks import process_brand_logo_task
 from src.shared.interfaces.storage import IStorageFacade
 
 
@@ -63,4 +63,5 @@ async def test_confirm_brand_logo_upload_handler(
 
             # Check DB
             orm_brand = await db_session.get(OrmBrand, brand.id)
+            assert orm_brand is not None
             assert orm_brand.logo_status == MediaProcessingStatus.PROCESSING

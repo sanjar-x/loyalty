@@ -1,4 +1,5 @@
 import contextvars
+import warnings
 from collections.abc import AsyncIterable
 
 import pytest
@@ -18,6 +19,10 @@ from testcontainers.redis import RedisContainer
 
 from src.bootstrap.config import Settings
 
+warnings.filterwarnings(
+    "ignore", category=DeprecationWarning, message=".*wait_container_is_ready.*"
+)
+
 # ==========================================
 # 1. Эфемерная Инфраструктура (Testcontainers)
 # ==========================================
@@ -25,7 +30,7 @@ from src.bootstrap.config import Settings
 
 @pytest.fixture(scope="session")
 def postgres_container():
-    with PostgresContainer("postgres:16-alpine", driver="asyncpg") as postgres:
+    with PostgresContainer("postgres:18-alpine", driver="asyncpg") as postgres:
         yield postgres
 
 
@@ -36,7 +41,7 @@ def db_url(postgres_container) -> str:
 
 @pytest.fixture(scope="session")
 def redis_container():
-    with RedisContainer("redis:7-alpine") as redis_container:
+    with RedisContainer("redis:8.4-alpine") as redis_container:
         yield redis_container
 
 
@@ -49,7 +54,7 @@ def redis_url(redis_container) -> str:
 
 @pytest.fixture(scope="session")
 def rabbitmq_container():
-    with RabbitMqContainer("rabbitmq:3-management-alpine") as rabbitmq:
+    with RabbitMqContainer("rabbitmq:4.2.4-management-alpine") as rabbitmq:
         yield rabbitmq
 
 
@@ -192,7 +197,7 @@ async def test_engine(app_container: AsyncContainer) -> AsyncEngine:
     return engine
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 async def setup_infrastructure(test_engine: AsyncEngine, test_settings: Settings):
     """
     Хук, который автоматически подготавливает всю инфраструктуру (БД и S3)

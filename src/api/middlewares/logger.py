@@ -51,10 +51,12 @@ class AccessLoggerMiddleware:
                 process_time_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
                 existing_headers = list(message.get("headers", []))
-                existing_headers.extend([
-                    (b"x-process-time-ms", str(process_time_ms).encode("latin1")),
-                    (b"x-request-id", request_id.encode("latin1")),
-                ])
+                existing_headers.extend(
+                    [
+                        (b"x-process-time-ms", str(process_time_ms).encode("latin1")),
+                        (b"x-request-id", request_id.encode("latin1")),
+                    ]
+                )
                 message["headers"] = existing_headers
 
             await send(message)

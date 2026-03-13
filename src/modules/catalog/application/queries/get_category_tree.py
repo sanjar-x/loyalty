@@ -2,18 +2,13 @@
 import json
 from typing import Any
 
-from pydantic import TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.infrastructure.models import Category
-from src.modules.catalog.presentation.schemas import CategoryTreeResponse
 from src.shared.interfaces.cache import ICacheService
 
 CACHE_KEY = "catalog:category_tree"
-
-
-TreeAdapter = TypeAdapter(list[CategoryTreeResponse])
 
 
 class GetCategoryTreeHandler:
@@ -54,7 +49,16 @@ class GetCategoryTreeHandler:
                 if parent is not None:
                     parent["children"].append(cat_dict)
 
-        tree_dicts = TreeAdapter.dump_python(roots, mode="json")
+        for root in roots:
+            root["id"] = str(root["id"])
+            if root["parent_id"] is not None:
+                root["parent_id"] = str(root["parent_id"])
+            for child in root["children"]:
+                child["id"] = str(child["id"])
+                if child["parent_id"] is not None:
+                    child["parent_id"] = str(child["parent_id"])
+
+        tree_dicts = roots
 
         await self._cache.set(CACHE_KEY, json.dumps(tree_dicts))
 

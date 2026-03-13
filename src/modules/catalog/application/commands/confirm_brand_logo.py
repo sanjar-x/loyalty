@@ -4,13 +4,13 @@ from dataclasses import dataclass
 
 import structlog
 
+from src.modules.catalog.application.tasks import process_brand_logo_task
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
     InvalidLogoStateException,
 )
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.modules.catalog.domain.value_objects import MediaProcessingStatus
-from src.modules.catalog.presentation.tasks import process_brand_logo_task
 from src.shared.interfaces.storage import IStorageFacade
 from src.shared.interfaces.uow import IUnitOfWork
 

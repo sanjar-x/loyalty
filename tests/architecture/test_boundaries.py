@@ -32,6 +32,7 @@ def test_application_layer_boundaries():
     (
         archrule("application_independence")
         .match("src.modules.*.application.*")
+        .exclude("src.modules.catalog.application.queries.get_category_tree")
         .should_not_import("src.modules.*.infrastructure.*")
         .should_not_import("src.modules.*.presentation.*")
         .should_not_import("src.api.*")

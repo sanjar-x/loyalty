@@ -22,11 +22,13 @@ def _get_shared_processors() -> Iterable[Processor]:
 
     if settings.ENVIRONMENT == "dev" or settings.DEBUG:
         processors.append(
-            structlog.processors.CallsiteParameterAdder({
-                structlog.processors.CallsiteParameter.FILENAME,
-                structlog.processors.CallsiteParameter.FUNC_NAME,
-                structlog.processors.CallsiteParameter.LINENO,
-            })
+            structlog.processors.CallsiteParameterAdder(
+                {
+                    structlog.processors.CallsiteParameter.FILENAME,
+                    structlog.processors.CallsiteParameter.FUNC_NAME,
+                    structlog.processors.CallsiteParameter.LINENO,
+                }
+            )
         )
 
     processors.append(structlog.processors.UnicodeDecoder())
