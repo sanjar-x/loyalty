@@ -12,9 +12,13 @@ class LogoMetadataRequest(BaseModel):
 class CategoryCreateRequest(BaseModel):
     """Схема входящего запроса на создание категории."""
 
-    name: str = Field(..., max_length=255, examples=["Кроссовки"])
+    name: str = Field(..., min_length=2, max_length=255, examples=["Кроссовки"])
     slug: str = Field(
-        ..., max_length=255, pattern=r"^[a-z0-9-]+$", examples=["sneakers"]
+        ...,
+        min_length=3,
+        max_length=255,
+        pattern=r"^[a-z0-9-]+$",
+        examples=["sneakers"],
     )
     parent_id: uuid.UUID | None = Field(
         None, description="ID родительской категории (опционально)"

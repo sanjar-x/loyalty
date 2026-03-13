@@ -11,6 +11,7 @@ from src.modules.catalog.application.commands.create_category import (
 from src.modules.catalog.application.queries.get_category_tree import (
     GetCategoryTreeHandler,
 )
+from src.modules.catalog.application.services.media_processor import BrandLogoProcessor
 from src.modules.catalog.domain.interfaces import IBrandRepository, ICategoryRepository
 from src.modules.catalog.infrastructure.repositories import (
     BrandRepository,
@@ -34,3 +35,4 @@ class BrandProvider(Provider):
     confirm_brand_logo_handler = provide(
         ConfirmBrandLogoUploadHandler, scope=Scope.REQUEST
     )
+    brand_logo_processor = provide(BrandLogoProcessor, scope=Scope.REQUEST)

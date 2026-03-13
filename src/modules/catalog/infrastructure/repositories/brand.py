@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.entities import Brand as DomainBrand
 from src.modules.catalog.domain.interfaces import IBrandRepository
+from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 
 
@@ -24,6 +25,8 @@ class BrandRepository(IBrandRepository):
             name=orm.name,
             slug=orm.slug,
             logo_status=orm.logo_status or MediaProcessingStatus.PENDING_UPLOAD,
+            logo_file_id=orm.logo_file_id,
+            logo_url=orm.logo_url,
         )
 
     def _to_orm(self, domain: DomainBrand, orm: OrmBrand | None = None) -> OrmBrand:
@@ -33,10 +36,12 @@ class BrandRepository(IBrandRepository):
         orm.name = domain.name
         orm.slug = domain.slug
         orm.logo_status = domain.logo_status
+        orm.logo_file_id = domain.logo_file_id
+        orm.logo_url = domain.logo_url
         return orm
 
-    async def add(self, entity: DomainBrand) -> DomainBrand:
-        orm = self._to_orm(entity)
+    async def add(self, data: DomainBrand) -> DomainBrand:
+        orm = self._to_orm(data)
         self._session.add(orm)
         await self._session.flush()
         return self._to_domain(orm)
@@ -47,11 +52,11 @@ class BrandRepository(IBrandRepository):
             return self._to_domain(orm)
         return None
 
-    async def update(self, entity: DomainBrand) -> DomainBrand:
-        orm = await self._session.get(OrmBrand, entity.id)
+    async def update(self, data: DomainBrand) -> DomainBrand:
+        orm = await self._session.get(OrmBrand, data.id)
         if not orm:
-            raise ValueError(f"Brand with id {entity.id} not found in DB")
-        orm = self._to_orm(entity, orm)
+            raise ValueError(f"Brand with id {data.id} not found in DB")
+        orm = self._to_orm(data, orm)
         await self._session.flush()
         return self._to_domain(orm)
 

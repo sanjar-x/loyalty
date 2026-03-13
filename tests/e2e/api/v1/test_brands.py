@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.tasks import process_brand_logo_task
 
@@ -9,11 +10,18 @@ from src.modules.catalog.application.tasks import process_brand_logo_task
 pytestmark = pytest.mark.asyncio
 
 
-async def test_create_brand_e2e_success(async_client: AsyncClient):
+async def test_create_brand_e2e_success(
+    async_client: AsyncClient,
+    db_session: AsyncSession,
+):
     payload = {
         "name": "E2E Brand",
         "slug": "e2e-brand",
-        "logo": {"filename": "test.png", "content_type": "image/png", "size": 1024},
+        "logo": {
+            "filename": "test.png",
+            "content_type": "image/png",
+            "size": 1024,
+        },
     }
 
     # Делаем реальный запрос. FastAPI сам достанет IStorageFacade из Dishka
@@ -23,11 +31,15 @@ async def test_create_brand_e2e_success(async_client: AsyncClient):
     assert response.status_code == 201
     data = response.json()
     assert "brand_id" in data
-    assert data["object_key"].startswith("catalog/e2e-brand/")
-    assert "url" in data["upload_data"]  # Проверяем, что реальный URL сгенерирован
+    assert data["object_key"].startswith("raw_uploads/catalog/")
+    assert (
+        data["presigned_upload_url"] is not None
+    )  # Проверяем, что реальный URL сгенерирован
 
 
-async def test_confirm_brand_logo_e2e_success(async_client: AsyncClient):
+async def test_confirm_brand_logo_e2e_success(
+    async_client: AsyncClient, db_session: AsyncSession
+):
     # 1. Создаем бренд (реальный запрос)
     create_payload = {
         "name": "Brand Confirm",

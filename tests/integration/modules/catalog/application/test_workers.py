@@ -18,10 +18,11 @@ async def test_process_brand_logo_task(
     app_container: AsyncContainer, db_session: AsyncSession
 ):
     # Arrange
-    blob_storage = await app_container.get(IBlobStorage)
-    facade = await app_container.get(IStorageFacade)
-    processor = await app_container.get(BrandLogoProcessor)
-    repo = BrandRepository(db_session)
+    async with app_container() as request_container:
+        blob_storage = await request_container.get(IBlobStorage)
+        facade = await request_container.get(IStorageFacade)
+        processor = await request_container.get(BrandLogoProcessor)
+        repo = BrandRepository(db_session)
 
     brand = Brand.create(name="Worker Brand", slug="worker-brand")
     brand.init_logo_upload()

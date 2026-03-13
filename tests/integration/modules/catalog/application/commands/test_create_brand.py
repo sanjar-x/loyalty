@@ -17,11 +17,12 @@ async def test_create_brand_handler_without_logo(
     app_container: AsyncContainer, db_session: AsyncSession
 ):
     # Arrange
-    handler = await app_container.get(CreateBrandHandler)
-    command = CreateBrandCommand(name="TestBrand", slug="testbrand", logo=None)
+    async with app_container() as request_container:
+        handler = await request_container.get(CreateBrandHandler)
+        command = CreateBrandCommand(name="TestBrand", slug="testbrand", logo=None)
 
-    # Act
-    result = await handler.handle(command)
+        # Act
+        result = await handler.handle(command)
 
     # Assert
     assert result.brand_id is not None
@@ -38,8 +39,9 @@ async def test_create_brand_handler_with_logo_calls_facade(
     app_container: AsyncContainer, db_session: AsyncSession
 ):
     # Arrange
-    handler = await app_container.get(CreateBrandHandler)
-    facade = await app_container.get(IStorageFacade)
+    async with app_container() as request_container:
+        handler = await request_container.get(CreateBrandHandler)
+        facade = await request_container.get(IStorageFacade)
 
     command = CreateBrandCommand(
         name="TestBrandWithLogo",

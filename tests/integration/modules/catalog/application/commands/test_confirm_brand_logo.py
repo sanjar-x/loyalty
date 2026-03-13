@@ -19,9 +19,10 @@ async def test_confirm_brand_logo_upload_handler(
     app_container: AsyncContainer, db_session: AsyncSession
 ):
     # Arrange
-    handler = await app_container.get(ConfirmBrandLogoUploadHandler)
-    facade = await app_container.get(IStorageFacade)
-    repo = BrandRepository(db_session)
+    async with app_container() as request_container:
+        handler = await request_container.get(ConfirmBrandLogoUploadHandler)
+        facade = await request_container.get(IStorageFacade)
+        repo = BrandRepository(db_session)
 
     # Create brand in DB
     brand = Brand.create(name="ConfirmTest", slug="confirm-test")
