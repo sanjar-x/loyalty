@@ -5,7 +5,6 @@ from dishka.dependency_source.composite import CompositeDependencySource
 from structlog import BoundLogger
 
 from src.bootstrap.config import Settings, settings
-from src.infrastructure.broker.provider import BrokerProvider
 from src.infrastructure.cache.provider import CacheProvider
 from src.infrastructure.database.provider import DatabaseProvider
 from src.infrastructure.security.provider import SecurityProvider
@@ -28,7 +27,6 @@ def create_container() -> AsyncContainer:
     logger.info("Инициализация IoC контейнера Dishka...")
     return make_async_container(
         ConfigProvider(),
-        BrokerProvider(),
         DatabaseProvider(),
         CacheProvider(),
         SecurityProvider(),

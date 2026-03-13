@@ -1,8 +1,8 @@
-# src\modules\catalog\presentation\router.py
+# src/modules/catalog/presentation/router.py
 import uuid
 from typing import Any
 
-from dishka.integrations.fastapi import FromDishka, inject
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, status
 
 from src.modules.catalog.application.commands.confirm_brand_logo import (
@@ -30,7 +30,11 @@ from src.modules.catalog.presentation.schemas import (
     ConfirmLogoRequest,
 )
 
-category_router = APIRouter(prefix="/categories", tags=["Categories"])
+category_router = APIRouter(
+    prefix="/categories",
+    tags=["Categories"],
+    route_class=DishkaRoute,
+)
 
 
 @category_router.post(
@@ -40,7 +44,7 @@ category_router = APIRouter(prefix="/categories", tags=["Categories"])
     summary="Создать новую категорию",
     description="Создает категорию.",
 )
-@inject
+# Декоратора @inject больше нет
 async def create_category(
     request: CategoryCreateRequest,
     handler: FromDishka[CreateCategoryHandler],
@@ -52,7 +56,6 @@ async def create_category(
         sort_order=request.sort_order,
     )
     category = await handler.handle(command)
-
     return CategoryCreateResponse(id=category.id, message="Категория успешно создана")
 
 
@@ -63,7 +66,7 @@ async def create_category(
     summary="Получить дерево категорий",
     description="Возвращает полный каталог в виде вложенного дерева",
 )
-@inject
+# Декоратора @inject больше нет
 async def get_category_tree(
     handler: FromDishka[GetCategoryTreeHandler],
 ) -> Any:
@@ -71,7 +74,11 @@ async def get_category_tree(
     return roots
 
 
-brand_router = APIRouter(prefix="/brands", tags=["Brands"])
+brand_router = APIRouter(
+    prefix="/brands",
+    tags=["Brands"],
+    route_class=DishkaRoute,
+)
 
 
 @brand_router.post(
@@ -80,7 +87,6 @@ brand_router = APIRouter(prefix="/brands", tags=["Brands"])
     response_model=BrandCreateResponse,
     summary="Создать новый бренд",
 )
-@inject
 async def create_brand(
     request: BrandCreateRequest,
     handler: FromDishka[CreateBrandHandler],
@@ -111,7 +117,6 @@ async def create_brand(
     status_code=status.HTTP_202_ACCEPTED,
     summary="Подтвердить загрузку логотипа",
 )
-@inject
 async def confirm_logo_upload(
     brand_id: uuid.UUID,
     request: ConfirmLogoRequest,
