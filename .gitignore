@@ -9,6 +9,41 @@ wheels/
 
 # Virtual environments
 .venv
+venv/
+env/
 
+# Environments and Secrets (ОЧЕНЬ ВАЖНО)
+.env
+.env.*
+!.env.example
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing, Type Checking, and Linting
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Logs and Data
+*.log
+logs/
+*.sqlite3
+*.db
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Trashes
+Thumbs.db
+ehthumbs.db
+
+# Docker (если будете делать локальные сборки)
+.dockerignore
 deploy/docker/*
-.vscode

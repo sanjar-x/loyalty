@@ -2,6 +2,7 @@
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.domain.entities import Category
 from src.modules.catalog.domain.exceptions import (
     CategoryMaxDepthError,
     CategoryNotFoundError,
@@ -59,16 +60,16 @@ class CreateCategoryHandler:
                 level = parent.level + 1
                 full_slug = f"{parent.full_slug}/{command.slug}"
 
-            new_category_data = {
-                "name": command.name,
-                "slug": command.slug,
-                "full_slug": full_slug,
-                "level": level,
-                "parent_id": command.parent_id,
-                "sort_order": command.sort_order,
-            }
+            category = Category.create(
+                name=command.name,
+                slug=command.slug,
+                parent_id=command.parent_id,
+                level=level,
+                full_slug=full_slug,
+                sort_order=command.sort_order,
+            )
 
-            category = await self._category_repo.add(new_category_data)
+            category = await self._category_repo.add(category)
             await self._uow.commit()
             await self._cache.delete(CACHE_KEY)
 

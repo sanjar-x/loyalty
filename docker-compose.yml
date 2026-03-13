@@ -1,0 +1,104 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: postgres
+    networks:
+      - dev_net
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      TZ: UTC
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  redis:
+    image: redis:8.4-alpine
+    container_name: redis
+    networks:
+      - dev_net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    command: >
+      redis-server --requirepass password --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -a password ping | grep PONG" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  rabbitmq:
+    image: rabbitmq:4.2.4-management-alpine
+    container_name: rabbitmq
+    networks:
+      - dev_net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password
+    ports:
+      - "127.0.0.1:5672:5672" # Порт для подключения приложений (AMQP)
+      - "127.0.0.1:15672:15672" # Порт для веб-интерфейса управления
+    volumes:
+      - rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD-SHELL", "rabbitmq-diagnostics -q ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    networks:
+      - dev_net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    command: server /data --console-address ":9001"
+    ports:
+      - "127.0.0.1:9000:9000" # Порт API (S3)
+      - "127.0.0.1:9001:9001" # Порт для веб-консоли MinIO
+    volumes:
+      - minio:/data
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  dev_net:
+    driver: bridge
+
+volumes:
+  postgres:
+  redis:
+  rabbitmq:
+  minio:
