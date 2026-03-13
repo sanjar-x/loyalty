@@ -79,7 +79,7 @@ class StorageObjectRepository:
             .values(is_latest=False)
         )
         result = await self._session.execute(stmt)
-        
+
         if result.rowcount > 0:
             self._logger.debug(
                 "Старые версии файла деактивированы",
@@ -94,4 +94,6 @@ class StorageObjectRepository:
         Делает файл недоступным как 'активный', но сохраняет запись в БД.
         """
         await self.deactivate_previous_versions(bucket_name, object_key)
-        self._logger.info("Файл помечен как удаленный", bucket_name=bucket_name, object_key=object_key)
+        self._logger.info(
+            "Файл помечен как удаленный", bucket_name=bucket_name, object_key=object_key
+        )

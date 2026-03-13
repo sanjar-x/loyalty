@@ -3,7 +3,7 @@ import uuid
 import structlog
 from dishka.integrations.taskiq import FromDishka
 
-from src.bootstrap.taskiq import broker
+from src.bootstrap.broker import broker
 from src.modules.catalog.application.services.media_processor import BrandLogoProcessor
 
 logger = structlog.get_logger(__name__)

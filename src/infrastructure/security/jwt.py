@@ -26,13 +26,11 @@ class JwtTokenProvider(ITokenProvider):
         else:
             expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
-        to_encode.update(
-            {
-                "exp": expire,
-                "iat": now,
-                "jti": str(uuid.uuid4()),
-            }
-        )
+        to_encode.update({
+            "exp": expire,
+            "iat": now,
+            "jti": str(uuid.uuid4()),
+        })
 
         encoded_jwt: str = jwt.encode(
             to_encode,
