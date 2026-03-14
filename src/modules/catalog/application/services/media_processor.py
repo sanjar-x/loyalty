@@ -2,13 +2,18 @@ import io
 import uuid
 
 import structlog
+from PIL import Image
 
+from src.bootstrap.config import Settings
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.storage import IStorageFacade
 from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
+
+MAX_LOGO_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_LOGO_DIMENSION = 800
 
 
 class BrandLogoProcessor:
@@ -18,11 +23,13 @@ class BrandLogoProcessor:
         storage_facade: IStorageFacade,
         blob_storage: IBlobStorage,
         uow: IUnitOfWork,
+        settings: Settings,
     ):
         self._brand_repo = brand_repo
         self._storage_facade = storage_facade
         self._blob_storage = blob_storage
         self._uow = uow
+        self._settings = settings
         self._logger = logger.bind(service="BrandLogoProcessor")
 
     async def process(self, brand_id: uuid.UUID) -> None:
@@ -50,16 +57,24 @@ class BrandLogoProcessor:
             async for chunk in self._blob_storage.download_stream(raw_object_key):
                 buffer.write(chunk)
                 total_size += len(chunk)
+                if total_size > MAX_LOGO_SIZE_BYTES:
+                    raise ValueError(f"Файл превышает лимит {MAX_LOGO_SIZE_BYTES} байт")
             buffer.seek(0)
             log.info("Файл успешно загружен в буфер", size_bytes=total_size)
 
-            # 2. Обработка Pillow
-            # TODO: Реализовать ресайз и оптимизацию
-            log.debug("Выполнение обработки изображения (Pillow)...")
+            # 2. Конвертация в WebP с ресайзом через Pillow
+            log.debug("Конвертация изображения в WebP (Pillow)...")
             output_buffer = io.BytesIO()
-            # Имитируем запись обработанных данных (пока просто копируем)
-            output_buffer.write(buffer.getvalue())
+            with Image.open(buffer) as img:
+                img = img.convert("RGBA")
+                img.thumbnail(
+                    (MAX_LOGO_DIMENSION, MAX_LOGO_DIMENSION),
+                    Image.Resampling.LANCZOS,
+                )
+                img.save(output_buffer, format="WEBP", quality=85)
+            output_buffer.seek(0)
             processed_size = len(output_buffer.getvalue())
+            log.info("Изображение конвертировано", processed_size=processed_size)
 
             # 3. Загружаем обработанный файл
             public_key = f"public/brands/{brand_id}/logo.webp"
@@ -92,11 +107,12 @@ class BrandLogoProcessor:
             file_id = brand.logo_file_id
 
             # 6. Обновляем статус бренда
+            logo_url = f"{self._settings.S3_PUBLIC_BASE_URL}/{public_key}"
             log.debug("Обновление статуса бренда в БД...")
             async with self._uow:
                 brand = await self._brand_repo.get(brand_id)
                 if brand:
-                    brand.complete_logo_processing(file_id=file_id, url=public_key)
+                    brand.complete_logo_processing(file_id=file_id, url=logo_url)
                     await self._brand_repo.update(brand)
                     await self._uow.commit()
                     log.info("Статус бренда обновлен на SUCCESS")

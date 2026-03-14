@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     S3_SECRET_KEY: str
     S3_REGION: str
     S3_BUCKET_NAME: str
+    S3_PUBLIC_BASE_URL: str
 
     RABBITMQ_URL: str
 

@@ -46,33 +46,32 @@ class CreateBrandHandler:
         self._logger = logger.bind(handler="CreateBrandHandler")
 
     async def handle(self, command: CreateBrandCommand) -> CreateBrandResult:
+        upload_data = None
+        if command.logo:
+            upload_data = await self._storage_facade.reserve_upload_slot(
+                module="catalog",
+                entity_id=uuid.uuid4(),
+                filename=command.logo.filename,
+                content_type=command.logo.content_type,
+            )
+
         async with self._uow:
             if await self._brand_repo.check_slug_exists(command.slug):
                 raise BrandSlugConflictError(slug=command.slug)
 
             brand = Brand.create(name=command.name, slug=command.slug)
-
             brand = await self._brand_repo.add(brand)
-            await self._uow.commit()
 
-        upload_url = None
-
-        if command.logo:
-            upload_data = await self._storage_facade.reserve_upload_slot(
-                module="catalog",
-                entity_id=brand.id,
-                filename=command.logo.filename,
-                content_type=command.logo.content_type,
-            )
-            upload_url = str(upload_data.url_data)
-            async with self._uow:
-                brand.init_logo_upload(file_id=uuid.UUID(upload_data.object_key))
+            if upload_data:
+                assert upload_data.file_id is not None
+                brand.init_logo_upload(file_id=upload_data.file_id)
                 await self._brand_repo.update(brand)
-                await self._uow.commit()
+
+            await self._uow.commit()
 
         self._logger.info("Инициировано создание бренда", brand_id=str(brand.id))
 
         return CreateBrandResult(
             brand_id=brand.id,
-            presigned_upload_url=upload_url,
+            presigned_upload_url=str(upload_data.url_data) if upload_data else None,
         )

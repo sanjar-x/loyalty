@@ -79,6 +79,7 @@ def test_settings(db_url, redis_url, rabbitmq_url) -> Settings:
         S3_SECRET_KEY="password",
         S3_REGION="us-east-1",
         S3_BUCKET_NAME="test-bucket",
+        S3_PUBLIC_BASE_URL="http://127.0.0.1:9000/test-bucket",
         RABBITMQ_URL=rabbitmq_url,
     )
 

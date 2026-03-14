@@ -41,6 +41,7 @@ class ConfirmBrandLogoUploadHandler:
             # 1. ДЕЛЕГИРУЕМ ВЕРИФИКАЦИЮ
             if not brand.logo_file_id:
                 from src.shared.exceptions import ValidationError
+
                 raise ValidationError(message="Бренд ожидает загрузку.")
 
             await self._storage_facade.verify_upload(file_id=brand.logo_file_id)
@@ -54,8 +55,18 @@ class ConfirmBrandLogoUploadHandler:
 
         # Транзакция закрыта. Теперь безопасно вызываем воркер.
         # 4. Прямой вызов TaskIQ через метод .kiq()
-        # raw_object_key не передаем, воркер возьмет его из StorageObject
-        await process_brand_logo_task.kiq(brand_id=brand.id)  # type: ignore
+        try:
+            await process_brand_logo_task.kiq(brand_id=brand.id)  # type: ignore
+        except Exception:
+            self._logger.exception(
+                "Не удалось поставить задачу в брокер, откат статуса бренда",
+                brand_id=str(brand.id),
+            )
+            async with self._uow:
+                brand.revert_logo_upload()
+                await self._brand_repo.update(brand)
+                await self._uow.commit()
+            raise
 
         self._logger.info(
             "Бренд переведен в PROCESSING, задача отправлена в TaskIQ",

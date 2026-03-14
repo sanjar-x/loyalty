@@ -25,9 +25,9 @@ class StorageObjectRepository:
         """Добавление новой записи (версии) объекта."""
         self._session.add(storage_object)
 
-    async def get_by_id(self, object_id: uuid.UUID) -> Optional[StorageObject]:
+    async def get_by_key(self, key: uuid.UUID) -> Optional[StorageObject]:
         """Получение метаданных по внутреннему UUID (используется другими модулями)."""
-        return await self._session.get(StorageObject, object_id)
+        return await self._session.get(StorageObject, key)
 
     async def get_active_by_key(
         self, bucket_name: str, object_key: str

@@ -8,6 +8,7 @@ from typing import Any, Dict, Protocol
 class PresignedUploadData:
     url_data: dict | str
     object_key: str
+    file_id: uuid.UUID | None = None
 
 
 class IStorageFacade(Protocol):

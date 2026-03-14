@@ -59,7 +59,7 @@ async def test_process_brand_logo_task(
             )
 
             # Assert
-            assert result == {"status": "success"}
+            assert result == {"status": "success", "brand_id": str(brand.id)}
             assert mock_update.called
 
     # Check DB
@@ -67,4 +67,4 @@ async def test_process_brand_logo_task(
     assert orm_brand is not None
     assert orm_brand.logo_status == MediaProcessingStatus.COMPLETED
     assert orm_brand.logo_file_id == file_id
-    assert orm_brand.logo_url == f"public/brands/{brand.id}/logo.webp"
+    assert orm_brand.logo_url == f"http://127.0.0.1:9000/test-bucket/public/brands/{brand.id}/logo.webp"

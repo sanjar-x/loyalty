@@ -82,13 +82,12 @@ class StorageFacade(IStorageFacade):
             await self._storage_repo.add(storage_obj)
             await self._uow.commit()
 
-        self._logger.info("Файл зарегистрирован", object_id=str(storage_obj.id))
+        self._logger.info("Файл зарегистрирован", object_key=str(storage_obj.id))
         return storage_obj.id
 
     async def verify_module_upload(
         self, module: str, entity_id: str | uuid.UUID, object_key: str
     ) -> dict[str, Any]:
-        # Делаем простую проверку существования / метаданных вместо list_objects
         metadata = await self._blob_storage.get_object_metadata(object_key)
 
         if not metadata:
@@ -131,11 +130,15 @@ class StorageFacade(IStorageFacade):
             file_id=str(storage_obj.id),
         )
 
-        return PresignedUploadData(url_data=url_str, object_key=str(storage_obj.id))
+        return PresignedUploadData(
+            url_data=url_str,
+            object_key=object_key,
+            file_id=storage_obj.id,
+        )
 
     async def verify_upload(self, file_id: uuid.UUID) -> dict[str, Any]:
         async with self._uow:
-            storage_obj = await self._storage_repo.get_by_id(file_id)
+            storage_obj = await self._storage_repo.get_by_key(file_id)
 
         if not storage_obj:
             raise ValidationError(message="Запись о файле не найдена.")
@@ -156,17 +159,15 @@ class StorageFacade(IStorageFacade):
         content_type: str,
     ) -> None:
         async with self._uow:
-            storage_obj = await self._storage_repo.get_by_id(file_id)
+            storage_obj = await self._storage_repo.get_by_key(file_id)
             if not storage_obj:
                 raise ValidationError(message="Запись о файле не найдена.")
 
             storage_obj.object_key = object_key
             storage_obj.size_bytes = size_bytes
             storage_obj.content_type = content_type
-            storage_obj.last_modified_in_s3 = (
-                None  # Сбросим, так как это новый физический файл
-            )
+            storage_obj.last_modified_in_s3 = None
 
             await self._uow.commit()
 
-        self._logger.info("Метаданные файла обновлены", object_id=str(file_id))
+        self._logger.info("Метаданные файла обновлены", file_id=str(file_id))

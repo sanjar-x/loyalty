@@ -14,6 +14,8 @@ logger = structlog.get_logger(__name__)
     queue="catalog_process_brand_logo",
     exchange="taskiq_rpc_exchange",
     routing_key="catalog.command.process_brand_logo",
+    max_retries=3,
+    retry_on_error=True,
 )
 @inject
 async def process_brand_logo_task(
@@ -47,5 +49,4 @@ async def process_brand_logo_task(
             duration_sec=round(execution_time, 3),
         )
 
-        # Мы возвращаем ошибку в словаре для RPC, но TaskIQ также увидит исключение
-        return {"status": "error", "message": str(e), "brand_id": str(brand_id)}
+        raise

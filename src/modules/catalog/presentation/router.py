@@ -106,9 +106,7 @@ async def create_brand(
     )
     result = await handler.handle(command)
     return BrandCreateResponse(
-        brand_id=result.brand_id,
-        presigned_upload_url=result.presigned_upload_url,
-        object_key=result.object_key,
+        brand_id=result.brand_id, presigned_upload_url=result.presigned_upload_url
     )
 
 
@@ -122,8 +120,6 @@ async def confirm_logo_upload(
     request: ConfirmLogoRequest,
     handler: FromDishka[ConfirmBrandLogoUploadHandler],
 ) -> dict:
-    command = ConfirmBrandLogoUploadCommand(
-        brand_id=brand_id, object_key=request.object_key
-    )
+    command = ConfirmBrandLogoUploadCommand(brand_id=brand_id)
     await handler.handle(command)
     return {"message": "Запрос на обработку логотипа принят"}
