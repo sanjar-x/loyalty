@@ -85,18 +85,19 @@ class StorageFacade(IStorageFacade):
         self._logger.info("Файл зарегистрирован", object_key=str(storage_obj.id))
         return storage_obj.id
 
+    async def _check_file_in_s3(self, object_key: str) -> dict[str, Any]:
+        """Проверяет наличие файла в S3 и возвращает его метаданные."""
+        metadata = await self._blob_storage.get_object_metadata(object_key)
+        if not metadata:
+            self._logger.error("Файл не найден в S3", object_key=object_key)
+            raise ValidationError(message="Файл не был загружен в хранилище.")
+        metadata["object_key"] = object_key
+        return metadata
+
     async def verify_module_upload(
         self, module: str, entity_id: str | uuid.UUID, object_key: str
     ) -> dict[str, Any]:
-        metadata = await self._blob_storage.get_object_metadata(object_key)
-
-        if not metadata:
-            self._logger.error("Файл не найден при верификации", object_key=object_key)
-            raise ValidationError(message="Файл не был загружен в хранилище.")
-
-        metadata["object_key"] = object_key
-
-        return metadata
+        return await self._check_file_in_s3(object_key)
 
     async def reserve_upload_slot(
         self,
@@ -143,13 +144,7 @@ class StorageFacade(IStorageFacade):
         if not storage_obj:
             raise ValidationError(message="Запись о файле не найдена.")
 
-        metadata = await self._blob_storage.get_object_metadata(storage_obj.object_key)
-        if not metadata:
-            self._logger.error("Файл не найден в S3", object_key=storage_obj.object_key)
-            raise ValidationError(message="Файл не был загружен в хранилище.")
-
-        metadata["object_key"] = storage_obj.object_key
-        return metadata
+        return await self._check_file_in_s3(storage_obj.object_key)
 
     async def update_object_metadata(
         self,
