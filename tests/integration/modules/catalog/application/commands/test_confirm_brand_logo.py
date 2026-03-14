@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import AsyncMock, patch
 
 from dishka import AsyncContainer
@@ -25,11 +26,12 @@ async def test_confirm_brand_logo_upload_handler(
         repo = BrandRepository(db_session)
 
     # Create brand in DB
+    file_id = uuid.uuid4()
     brand = Brand.create(name="ConfirmTest", slug="confirm-test")
-    brand.init_logo_upload()  # set PENDING_UPLOAD
+    brand.init_logo_upload(file_id=file_id)  # set PENDING_UPLOAD
     brand = await repo.add(brand)
 
-    command = ConfirmBrandLogoUploadCommand(brand_id=brand.id, object_key="test-key")
+    command = ConfirmBrandLogoUploadCommand(brand_id=brand.id)
 
     mock_metadata = {
         "object_key": "verified-test-key",
@@ -39,7 +41,7 @@ async def test_confirm_brand_logo_upload_handler(
 
     with patch.object(
         facade,
-        "verify_module_upload",
+        "verify_upload",
         new_callable=AsyncMock,
         return_value=mock_metadata,
     ) as mock_verify:
@@ -51,14 +53,10 @@ async def test_confirm_brand_logo_upload_handler(
 
             # Assert
             # Verify Mock called
-            mock_verify.assert_called_once_with(
-                module="catalog", entity_id=brand.id, object_key="test-key"
-            )
+            mock_verify.assert_called_once_with(file_id=brand.logo_file_id)
 
             # Verify TaskIQ task sent
-            mock_kiq.assert_called_once_with(
-                brand_id=brand.id, raw_object_key="verified-test-key"
-            )
+            mock_kiq.assert_called_once_with(brand_id=brand.id)
 
             # Check DB
             orm_brand = await db_session.get(OrmBrand, brand.id)

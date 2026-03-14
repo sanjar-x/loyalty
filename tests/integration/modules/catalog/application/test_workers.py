@@ -24,13 +24,17 @@ async def test_process_brand_logo_task(
         processor = await request_container.get(BrandLogoProcessor)
         repo = BrandRepository(db_session)
 
-    brand = Brand.create(name="Worker Brand", slug="worker-brand")
-    brand.init_logo_upload()
-    brand.confirm_logo_upload()  # processing
+    file_id = uuid.uuid4()
+    brand = Brand.create(
+        name="Worker Brand",
+        slug="worker-brand",
+        logo_file_id=file_id,
+        logo_status=MediaProcessingStatus.PROCESSING,
+    )
     brand = await repo.add(brand)
 
-    # Upload dummy raw file to MinIO testcontainer directly
-    raw_key = f"catalog/raw/{brand.id}/dummy.png"
+    # Upload dummy raw file
+    raw_key = f"raw_uploads/catalog/{brand.id}/dummy.png"
 
     async def dummy_stream():
         yield b"dummy image content"
@@ -39,26 +43,28 @@ async def test_process_brand_logo_task(
         object_name=raw_key, data_stream=dummy_stream(), content_type="image/png"
     )
 
-    mock_file_id = uuid.uuid4()
-
-    # Mock Storage Facade so we don't have to deal with nested UoW issues in test
+    # Mock Storage Facade verify and update
     with patch.object(
         facade,
-        "register_processed_media",
+        "verify_upload",
         new_callable=AsyncMock,
-        return_value=mock_file_id,
+        return_value={"object_key": raw_key},
     ):
-        # Act
-        result = await process_brand_logo_task(
-            brand_id=brand.id, raw_object_key=raw_key, processor=processor
-        )
+        with patch.object(
+            facade, "update_object_metadata", new_callable=AsyncMock
+        ) as mock_update:
+            # Act
+            result = await process_brand_logo_task(
+                brand_id=brand.id, processor=processor
+            )
 
-    # Assert
-    assert result == {"status": "success"}
+            # Assert
+            assert result == {"status": "success"}
+            assert mock_update.called
 
     # Check DB
     orm_brand = await db_session.get(OrmBrand, brand.id)
     assert orm_brand is not None
     assert orm_brand.logo_status == MediaProcessingStatus.COMPLETED
-    assert orm_brand.logo_file_id == mock_file_id
+    assert orm_brand.logo_file_id == file_id
     assert orm_brand.logo_url == f"public/brands/{brand.id}/logo.webp"

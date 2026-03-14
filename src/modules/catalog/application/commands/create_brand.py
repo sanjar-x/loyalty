@@ -31,7 +31,6 @@ class CreateBrandCommand:
 class CreateBrandResult:
     brand_id: uuid.UUID
     presigned_upload_url: str | None = None
-    object_key: str | None = None
 
 
 class CreateBrandHandler:
@@ -53,29 +52,27 @@ class CreateBrandHandler:
 
             brand = Brand.create(name=command.name, slug=command.slug)
 
-            if command.logo:
-                brand.init_logo_upload()
-
             brand = await self._brand_repo.add(brand)
             await self._uow.commit()
 
         upload_url = None
-        object_key = None
 
         if command.logo:
-            upload_data = await self._storage_facade.request_direct_upload(
+            upload_data = await self._storage_facade.reserve_upload_slot(
                 module="catalog",
                 entity_id=brand.id,
                 filename=command.logo.filename,
                 content_type=command.logo.content_type,
             )
             upload_url = str(upload_data.url_data)
-            object_key = upload_data.object_key
+            async with self._uow:
+                brand.init_logo_upload(file_id=uuid.UUID(upload_data.object_key))
+                await self._brand_repo.update(brand)
+                await self._uow.commit()
 
         self._logger.info("Инициировано создание бренда", brand_id=str(brand.id))
 
         return CreateBrandResult(
             brand_id=brand.id,
             presigned_upload_url=upload_url,
-            object_key=object_key,
         )

@@ -16,15 +16,23 @@ class Brand:
     logo_url: str | None = None
 
     @classmethod
-    def create(cls, name: str, slug: str) -> "Brand":
+    def create(
+        cls,
+        name: str,
+        slug: str,
+        logo_file_id: uuid.UUID | None = None,
+        logo_status: MediaProcessingStatus | None = None,
+    ) -> "Brand":
         return cls(
             id=uuid.uuid4(),
             name=name,
             slug=slug,
-            logo_status=None,
+            logo_file_id=logo_file_id,
+            logo_status=logo_status,
         )
 
-    def init_logo_upload(self) -> None:
+    def init_logo_upload(self, file_id: uuid.UUID) -> None:
+        self.logo_file_id = file_id
         self.logo_status = MediaProcessingStatus.PENDING_UPLOAD
 
     def confirm_logo_upload(self) -> None:

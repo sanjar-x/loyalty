@@ -98,3 +98,75 @@ class StorageFacade(IStorageFacade):
         metadata["object_key"] = object_key
 
         return metadata
+
+    async def reserve_upload_slot(
+        self,
+        module: str,
+        entity_id: str | uuid.UUID,
+        filename: str,
+        content_type: str,
+        expire_in: int = 300,
+    ) -> PresignedUploadData:
+        file_ext = filename.split(".")[-1] if "." in filename else "bin"
+        object_key = f"raw_uploads/{module}/{entity_id}/upload_raw.{file_ext}"
+
+        url_str = await self._blob_storage.generate_presigned_put_url(
+            object_name=object_key, content_type=content_type, expiration=expire_in
+        )
+
+        storage_obj = StorageObject(
+            bucket_name=self._settings.S3_BUCKET_NAME,
+            object_key=object_key,
+            content_type=content_type,
+            owner_module=module,
+        )
+
+        async with self._uow:
+            await self._storage_repo.add(storage_obj)
+            await self._uow.commit()
+
+        self._logger.info(
+            "Зарезервирован слот для загрузки",
+            object_key=object_key,
+            file_id=str(storage_obj.id),
+        )
+
+        return PresignedUploadData(url_data=url_str, object_key=str(storage_obj.id))
+
+    async def verify_upload(self, file_id: uuid.UUID) -> dict[str, Any]:
+        async with self._uow:
+            storage_obj = await self._storage_repo.get_by_id(file_id)
+
+        if not storage_obj:
+            raise ValidationError(message="Запись о файле не найдена.")
+
+        metadata = await self._blob_storage.get_object_metadata(storage_obj.object_key)
+        if not metadata:
+            self._logger.error("Файл не найден в S3", object_key=storage_obj.object_key)
+            raise ValidationError(message="Файл не был загружен в хранилище.")
+
+        metadata["object_key"] = storage_obj.object_key
+        return metadata
+
+    async def update_object_metadata(
+        self,
+        file_id: uuid.UUID,
+        object_key: str,
+        size_bytes: int,
+        content_type: str,
+    ) -> None:
+        async with self._uow:
+            storage_obj = await self._storage_repo.get_by_id(file_id)
+            if not storage_obj:
+                raise ValidationError(message="Запись о файле не найдена.")
+
+            storage_obj.object_key = object_key
+            storage_obj.size_bytes = size_bytes
+            storage_obj.content_type = content_type
+            storage_obj.last_modified_in_s3 = (
+                None  # Сбросим, так как это новый физический файл
+            )
+
+            await self._uow.commit()
+
+        self._logger.info("Метаданные файла обновлены", object_id=str(file_id))

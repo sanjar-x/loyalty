@@ -38,6 +38,37 @@ class IStorageFacade(Protocol):
         """
         ...
 
+    async def reserve_upload_slot(
+        self,
+        module: str,
+        entity_id: str | uuid.UUID,
+        filename: str,
+        content_type: str,
+        expire_in: int = 300,
+    ) -> PresignedUploadData:
+        """
+        Резервирует место для загрузки: создает StorageObject в БД и генерирует URL.
+        """
+        ...
+
+    async def verify_upload(self, file_id: uuid.UUID) -> Dict[str, Any]:
+        """
+        Проверяет наличие файла в S3 по его внутреннему ID.
+        """
+        ...
+
+    async def update_object_metadata(
+        self,
+        file_id: uuid.UUID,
+        object_key: str,
+        size_bytes: int,
+        content_type: str,
+    ) -> None:
+        """
+        Обновляет метаданные существующего объекта (например, после обработки).
+        """
+        ...
+
     async def register_processed_media(
         self,
         module: str,

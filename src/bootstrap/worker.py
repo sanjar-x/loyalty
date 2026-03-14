@@ -4,30 +4,29 @@ from dishka.async_container import AsyncContainer
 from dishka.integrations.taskiq import setup_dishka
 from taskiq.events import TaskiqEvents
 
-import src.modules.catalog.presentation.tasks  # noqa
-from src.bootstrap.ioc import create_container
-from src.bootstrap.taskiq import broker
+from src.bootstrap.broker import broker
+from src.bootstrap.container import create_container
 
 logger = structlog.get_logger(__name__)
+
+# 1. Инициализируем контейнер и интеграцию ДО импорта задач.
+# Это критично, чтобы DishkaMiddleware успел подхватить задачи при их регистрации.
+container: AsyncContainer = create_container()
+setup_dishka(container=container, broker=broker)
+
+# 2. Теперь импортируем задачи.
+import src.modules.catalog.application.tasks  # noqa
+import src.modules.storage.presentation.tasks  # noqa
 
 
 @broker.on_event(TaskiqEvents.WORKER_STARTUP)
 async def startup_event(state) -> None:
     """
-    Хук жизненного цикла воркера. Вызывается при старте процесса `taskiq worker`.
+    Хук жизненного цикла воркера.
     """
-    logger.info("Инициализация TaskIQ Worker'а...")
-
-    # Собираем тот же самый DI-контейнер, что и для FastAPI.
-    container: AsyncContainer = create_container()
-
-    # Интегрируем Dishka с брокером.
-    setup_dishka(container=container, broker=broker)
-
-    # Сохраняем контейнер в State брокера для Graceful Shutdown
+    logger.info("TaskIQ Worker запущен и готов к работе")
+    # Сохраняем контейнер в State для корректного закрытия
     state.dishka_container = container
-
-    logger.info("DI-контейнер Dishka успешно интегрирован в TaskIQ")
 
 
 @broker.on_event(TaskiqEvents.WORKER_SHUTDOWN)

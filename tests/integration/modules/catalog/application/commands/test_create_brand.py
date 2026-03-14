@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import AsyncMock, patch
 
 from dishka import AsyncContainer
@@ -49,14 +50,15 @@ async def test_create_brand_handler_with_logo_calls_facade(
         logo=LogoMetadata(filename="logo.png", content_type="image/png"),
     )
 
+    file_id = uuid.uuid4()
     expected_upload_data = PresignedUploadData(
         url_data={"url": "https://s3/test", "fields": {}},
-        object_key="catalog/testbrand-logo/logo.png",
+        object_key=str(file_id),
     )
 
     with patch.object(
         facade,
-        "request_direct_upload",
+        "reserve_upload_slot",
         new_callable=AsyncMock,
         return_value=expected_upload_data,
     ) as mock_upload:

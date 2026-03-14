@@ -34,7 +34,6 @@ class S3ClientFactory:
             connect_timeout=5.0,
             read_timeout=60.0,
             retries={"max_attempts": 3, "mode": "standard"},
-            connector_args={"force_close": True},
         )
 
         client_ctx = self._session.create_client(
