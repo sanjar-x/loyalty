@@ -60,7 +60,7 @@ def test_brand_confirm_logo_upload_raises_error_when_invalid_state():
         brand.confirm_logo_upload()
 
     assert (
-        exc_info.value.details["expected_status"]
+        exc_info.value.details["expected_status"]  # ty:ignore[not-subscriptable]
         == MediaProcessingStatus.PENDING_UPLOAD
     )
 

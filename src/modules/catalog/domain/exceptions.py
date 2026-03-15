@@ -93,7 +93,7 @@ class BrandSlugConflictError(ConflictError):
 class InvalidLogoStateException(UnprocessableEntityError):
     def __init__(self, brand_id: uuid.UUID, current_status: str, expected_status: str):
         super().__init__(
-            message=f"Недопустимое состояние загрузки логотипа. Текущее: {current_status}, ожидалось: {expected_status}.",
+            message=f"Недопустимое состояние загрузки. Текущее: {current_status}, ожидалось: {expected_status}.",  # noqa: E501
             error_code="INVALID_LOGO_STATE",
             details={
                 "brand_id": str(brand_id),

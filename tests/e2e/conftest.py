@@ -1,5 +1,6 @@
 # tests/e2e/conftest.py
 from collections.abc import AsyncIterable
+from types import AsyncGeneratorType
 from unittest.mock import patch
 
 import pytest
@@ -13,7 +14,7 @@ pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture(scope="session")
-async def fastapi_app(app_container: AsyncContainer) -> FastAPI:
+async def fastapi_app(app_container: AsyncContainer) -> AsyncGeneratorType:
     with patch("src.bootstrap.web.create_container", return_value=app_container):
         app = create_app()
         yield app

@@ -1,11 +1,13 @@
+from types import AsyncGeneratorType
+
 import pytest
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from tests.conftest import test_session_var
 
 
 @pytest.fixture(scope="function")
-async def db_session(test_engine: AsyncEngine) -> AsyncSession:
+async def db_session(test_engine: AsyncEngine) -> AsyncGeneratorType:
     """
     Creates a nested transaction for each test. Everything committed within the
     test will be rolled back at the end, ensuring database purity.
