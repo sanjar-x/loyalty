@@ -8,20 +8,20 @@
 
 ## 1. ER-Model
 
-### 1.1 Tables (10 tables, 2 modules)
+### 1.1 Tables (11 tables, 2 modules)
 
-**Identity module (9 tables):**
+**Identity module (10 tables):**
 
 | Table | PK | Key Columns | Constraints |
 |---|---|---|---|
 | `identities` | `id` UUID v7 | `type` (ENUM: LOCAL, OIDC), `is_active`, `created_at`, `updated_at` | — |
-| `local_credentials` | `identity_id` UUID (PK + FK → identities) | `email` (UQ), `password_hash` (Argon2id), `created_at`, `updated_at` | Shared PK 1:1 |
+| `local_credentials` | `identity_id` UUID (PK + FK → identities) | `email` (UQ), `password_hash` (Argon2id/Bcrypt), `created_at`, `updated_at` | Shared PK 1:1 |
 | `linked_accounts` | `id` UUID v7 | `identity_id` FK, `provider`, `provider_sub_id`, `provider_email` (NULL) | UQ(`provider`, `provider_sub_id`) |
 | `roles` | `id` UUID v7 | `name` (UQ), `description`, `is_system` (bool), `created_at`, `updated_at` | — |
 | `permissions` | `id` UUID v7 | `codename` (UQ), `resource`, `action`, `description`, `created_at` | — |
 | `identity_roles` | PK(`identity_id`, `role_id`) | `assigned_at`, `assigned_by` (NULL) | FK → identities, roles |
 | `role_permissions` | PK(`role_id`, `permission_id`) | — | FK → roles, permissions |
-| `role_hierarchy` | PK(`parent_role_id`, `child_role_id`) | — | FK → roles (self-ref), CHECK `parent ≠ child` |
+| `role_hierarchy` | PK(`parent_role_id`, `child_role_id`) | — | FK → roles (self-ref), CHECK (`parent_role_id != child_role_id`) |
 | `sessions` | `id` UUID v7 | `identity_id` FK, `refresh_token_hash` (UQ, SHA-256), `ip_address` (INET), `user_agent`, `is_revoked`, `created_at`, `expires_at` | IX(`identity_id`, `is_revoked`) |
 | `session_roles` | PK(`session_id`, `role_id`) | — | FK → sessions, roles |
 
@@ -31,12 +31,17 @@
 |---|---|---|---|
 | `users` | `id` UUID (PK + FK → identities) | `profile_email` (NULL), `first_name`, `last_name`, `phone`, `created_at`, `updated_at` | Shared PK 1:1 |
 
+> **Note on timestamps:** Join tables `role_permissions` and `session_roles` intentionally omit timestamps — they are immutable associations (delete + re-insert on change). `identity_roles` has `assigned_at` because audit trail of role assignment time is required.
+
 ### 1.2 Domain Entities
+
+All domain entities use `@dataclass` from `attr` and inherit from `AggregateRoot` (matching the existing codebase pattern in `src/modules/catalog/domain/entities.py`). Entities that emit domain events inherit `AggregateRoot` and call `self.add_domain_event(...)`.
 
 **Identity (Aggregate Root):**
 
 ```python
-class Identity:
+@dataclass
+class Identity(AggregateRoot):
     id: uuid.UUID           # UUIDv7
     type: IdentityType      # LOCAL | OIDC
     is_active: bool
@@ -49,9 +54,24 @@ class Identity:
     def ensure_active(self) -> None: ... # raise IdentityDeactivatedError if not active
 ```
 
+**LocalCredentials (Entity, owned by Identity):**
+
+```python
+@dataclass
+class LocalCredentials:
+    identity_id: uuid.UUID   # PK + FK → Identity
+    email: str
+    password_hash: str        # Argon2id (new) or Bcrypt (legacy, transparent rehash)
+    created_at: datetime
+    updated_at: datetime
+```
+
+> `LocalCredentials` is NOT an Aggregate Root — it is created/managed within `RegisterHandler` and `LoginHandler` as part of Identity operations. It is a separate entity (not a value object) because it has its own table and lifecycle.
+
 **Session:**
 
 ```python
+@dataclass
 class Session:
     id: uuid.UUID
     identity_id: uuid.UUID
@@ -74,18 +94,21 @@ class Session:
 **Role, Permission, LinkedAccount:**
 
 ```python
+@dataclass
 class Role:
     id: uuid.UUID
     name: str
     description: str | None
     is_system: bool
 
+@dataclass
 class Permission:
     id: uuid.UUID
     codename: str       # "brands:create"
     resource: str       # "brands"
     action: str         # "create"
 
+@dataclass
 class LinkedAccount:
     id: uuid.UUID
     identity_id: uuid.UUID
@@ -97,7 +120,8 @@ class LinkedAccount:
 **User (Aggregate Root, user module):**
 
 ```python
-class User:
+@dataclass
+class User(AggregateRoot):
     id: uuid.UUID           # == identity.id (Shared PK)
     profile_email: str | None
     first_name: str
@@ -114,43 +138,49 @@ class User:
 
 ## 2. CQRS Handlers & API Endpoints
 
-### 2.1 Commands (10)
+### 2.1 Commands (14)
 
-| Command | Handler | Description |
-|---|---|---|
-| `RegisterCommand` | `RegisterHandler` | Create identity + local_credentials, emit `IdentityRegisteredEvent` |
-| `LoginCommand` | `LoginHandler` | Verify credentials, create session with role snapshot, return tokens |
-| `LoginOIDCCommand` | `LoginOIDCHandler` | Validate OIDC token via `IOIDCProvider`, create/link identity |
-| `RefreshTokenCommand` | `RefreshTokenHandler` | Rotate refresh token, issue new access token |
-| `LogoutCommand` | `LogoutHandler` | Revoke session, delete Redis cache key |
-| `LogoutAllCommand` | `LogoutAllHandler` | Revoke all sessions for identity |
-| `AssignRoleCommand` | `AssignRoleHandler` | Admin: assign role to identity, emit `RoleAssignmentChangedEvent` |
-| `RevokeRoleCommand` | `RevokeRoleHandler` | Admin: revoke role, emit `RoleAssignmentChangedEvent` |
-| `DeactivateIdentityCommand` | `DeactivateIdentityHandler` | Deactivate identity, revoke all sessions, emit event |
-| `AnonymizeUserCommand` | `AnonymizeUserHandler` | GDPR: anonymize PII in user module |
+| Command | Module | Handler | Description |
+|---|---|---|---|
+| `RegisterCommand` | identity | `RegisterHandler` | Create identity + local_credentials, emit `IdentityRegisteredEvent` |
+| `LoginCommand` | identity | `LoginHandler` | Verify credentials (with transparent Argon2id rehash), create session with role snapshot, return tokens |
+| `LoginOIDCCommand` | identity | `LoginOIDCHandler` | Validate OIDC token via `IOIDCProvider`, create/link identity |
+| `RefreshTokenCommand` | identity | `RefreshTokenHandler` | Rotate refresh token, issue new access token |
+| `LogoutCommand` | identity | `LogoutHandler` | Revoke session, delete Redis cache key |
+| `LogoutAllCommand` | identity | `LogoutAllHandler` | Revoke all sessions for identity |
+| `CreateRoleCommand` | identity | `CreateRoleHandler` | Admin: create custom role (non-system), validate name uniqueness |
+| `DeleteRoleCommand` | identity | `DeleteRoleHandler` | Admin: delete custom role. Raises `SystemRoleModificationError` if `is_system=True`. Cascades: removes from `identity_roles`, `role_permissions`, `role_hierarchy`, `session_roles` |
+| `AssignRoleCommand` | identity | `AssignRoleHandler` | Admin: assign role to identity, update `session_roles` for active sessions, emit `RoleAssignmentChangedEvent` |
+| `RevokeRoleCommand` | identity | `RevokeRoleHandler` | Admin: revoke role, update `session_roles` for active sessions, emit `RoleAssignmentChangedEvent` |
+| `DeactivateIdentityCommand` | identity | `DeactivateIdentityHandler` | Deactivate identity, revoke all sessions, emit `IdentityDeactivatedEvent` |
+| `UpdateProfileCommand` | user | `UpdateProfileHandler` | Update user PII fields (first_name, last_name, phone, profile_email). Validates via `User.update_profile()` |
+| `AnonymizeUserCommand` | user | `AnonymizeUserHandler` | GDPR: anonymize PII via `User.anonymize()`. Called by `AnonymizeUserConsumer` on `IdentityDeactivatedEvent` |
+| `CreateUserCommand` | user | `CreateUserHandler` | Internal consumer: creates `User` row on `IdentityRegisteredEvent`. Not exposed via API |
 
-### 2.2 Queries (5)
+### 2.2 Queries (7)
 
-| Query | Handler | Description |
-|---|---|---|
-| `GetSessionPermissionsQuery` | `GetSessionPermissionsHandler` | CTE → effective permissions for session |
-| `GetMySessionsQuery` | `GetMySessionsHandler` | List active sessions for current identity |
-| `ListRolesQuery` | `ListRolesHandler` | Admin: list all roles with permissions |
-| `ListPermissionsQuery` | `ListPermissionsHandler` | Admin: list all permissions |
-| `GetIdentityRolesQuery` | `GetIdentityRolesHandler` | Admin: roles assigned to identity |
+| Query | Module | Handler | Description |
+|---|---|---|---|
+| `GetSessionPermissionsQuery` | identity | `GetSessionPermissionsHandler` | CTE → effective permissions for session |
+| `GetMySessionsQuery` | identity | `GetMySessionsHandler` | List active sessions for current identity |
+| `ListRolesQuery` | identity | `ListRolesHandler` | Admin: list all roles with permissions |
+| `ListPermissionsQuery` | identity | `ListPermissionsHandler` | Admin: list all permissions |
+| `GetIdentityRolesQuery` | identity | `GetIdentityRolesHandler` | Admin: roles assigned to identity |
+| `GetMyProfileQuery` | user | `GetMyProfileHandler` | Return current user's PII (first_name, last_name, phone, profile_email) |
+| `GetUserByIdentityQuery` | user | `GetUserByIdentityHandler` | Internal: used by `get_current_user_id` backward compat |
 
 ### 2.3 API Endpoints (16)
 
 **Auth endpoints (`/auth`):**
 
-| Method | Path | Handler | Auth |
-|---|---|---|---|
-| POST | `/auth/register` | `RegisterCommand` | Public |
-| POST | `/auth/login` | `LoginCommand` | Public |
-| POST | `/auth/login/oidc` | `LoginOIDCCommand` | Public |
-| POST | `/auth/refresh` | `RefreshTokenCommand` | Refresh Token |
-| POST | `/auth/logout` | `LogoutCommand` | Access Token |
-| POST | `/auth/logout/all` | `LogoutAllCommand` | Access Token |
+| Method | Path | Handler | Auth | Rate Limit |
+|---|---|---|---|---|
+| POST | `/auth/register` | `RegisterCommand` | Public | 3 req/min per IP |
+| POST | `/auth/login` | `LoginCommand` | Public | 5 req/min per IP |
+| POST | `/auth/login/oidc` | `LoginOIDCCommand` | Public | 5 req/min per IP |
+| POST | `/auth/refresh` | `RefreshTokenCommand` | Refresh Token | 10 req/min per IP |
+| POST | `/auth/logout` | `LogoutCommand` | Access Token | — |
+| POST | `/auth/logout/all` | `LogoutAllCommand` | Access Token | — |
 
 **User endpoints (`/users`):**
 
@@ -158,8 +188,12 @@ class User:
 |---|---|---|---|
 | GET | `/users/me` | `GetMyProfileQuery` | `users:read` |
 | PATCH | `/users/me` | `UpdateProfileCommand` | `users:update` |
-| DELETE | `/users/me` | `AnonymizeUserCommand` | `users:delete` |
+| DELETE | `/users/me` | `DeactivateIdentityCommand` | `users:delete` |
 | GET | `/users/me/sessions` | `GetMySessionsQuery` | Access Token |
+
+> **`DELETE /users/me` flow:** The user module router calls `DeactivateIdentityCommand` (identity module) which deactivates the identity and revokes all sessions. This emits `IdentityDeactivatedEvent`, which triggers `AnonymizeUserConsumer` (user module) via Outbox Relay to anonymize PII. This maintains module isolation — the router only calls identity module commands, and PII cleanup happens asynchronously via events.
+
+> **`users:delete` permission scope:** This permission is scoped to self-deletion only (`/users/me`). Admin-level user management (deactivating other users) requires `identities:manage` permission via `/admin/identities/{id}/deactivate`.
 
 **Admin endpoints (`/admin`):**
 
@@ -187,7 +221,19 @@ JOIN role_permissions rp ON rp.role_id = rt.role_id
 JOIN permissions p ON p.id = rp.permission_id;
 ```
 
-### 2.5 Cross-Module Register Flow
+### 2.5 Session-Role Activation Model (NIST Compliance)
+
+**Design decision:** `session_roles` is a NIST-compliant activation snapshot created at login time, BUT it is **dynamically updated** when roles change.
+
+**Flow:**
+1. **Login:** `session_roles` populated with all roles from `identity_roles` at login time (NIST Session-Role Activation).
+2. **Role assignment/revocation:** `AssignRoleHandler` / `RevokeRoleHandler` update `session_roles` for ALL active (non-revoked, non-expired) sessions of the affected identity, then emit `RoleAssignmentChangedEvent`.
+3. **Cache invalidation:** `RoleAssignmentChangedEvent` consumer deletes `perms:{session_id}` keys from Redis for all active sessions.
+4. **Next request:** CTE query runs against updated `session_roles` → result cached with TTL 300s.
+
+This approach satisfies NIST (permissions always resolved through `session_roles`, not `identity_roles`) while ensuring admin role changes take effect without requiring re-login.
+
+### 2.6 Cross-Module Register Flow
 
 ```
 POST /auth/register
@@ -200,6 +246,20 @@ POST /auth/register
       → UoW.commit()
 ```
 
+### 2.7 Cross-Module Delete Flow
+
+```
+DELETE /users/me
+  → identity module router (dependencies.py: RequirePermission("users:delete"))
+    → DeactivateIdentityCommand (identity module)
+      → Identity.deactivate() + revoke all sessions
+      → UoW.commit() + OutboxMessage("IdentityDeactivatedEvent")
+  → Outbox Relay picks up event
+    → AnonymizeUserConsumer (user module)
+      → User.anonymize() → PII replaced with "[DELETED]"
+      → UoW.commit()
+```
+
 ---
 
 ## 3. File Structure & Infrastructure
@@ -209,10 +269,10 @@ POST /auth/register
 ```
 src/modules/identity/
 ├── domain/
-│   ├── entities.py          # Identity (AR), Session, Role, Permission, LinkedAccount
+│   ├── entities.py          # Identity (AR), LocalCredentials, Session, Role, Permission, LinkedAccount
 │   ├── value_objects.py     # RefreshToken, IdentityType, PermissionCode
-│   ├── exceptions.py        # InvalidCredentialsError, SessionExpiredError, etc.
-│   ├── events.py            # IdentityRegisteredEvent, IdentityDeactivatedEvent, etc.
+│   ├── exceptions.py        # InvalidCredentialsError, SessionExpiredError, InsufficientPermissionsError, etc.
+│   ├── events.py            # IdentityRegisteredEvent, IdentityDeactivatedEvent, RoleAssignmentChangedEvent
 │   └── interfaces.py        # IIdentityRepository, ISessionRepository, IRoleRepository, IPermissionRepository, ILinkedAccountRepository
 ├── application/
 │   ├── commands/
@@ -222,6 +282,8 @@ src/modules/identity/
 │   │   ├── refresh_token.py
 │   │   ├── logout.py
 │   │   ├── logout_all.py
+│   │   ├── create_role.py
+│   │   ├── delete_role.py
 │   │   ├── assign_role.py
 │   │   ├── revoke_role.py
 │   │   └── deactivate_identity.py
@@ -232,7 +294,7 @@ src/modules/identity/
 │       ├── list_permissions.py
 │       └── get_identity_roles.py
 ├── infrastructure/
-│   ├── models.py            # All ORM models (9 tables)
+│   ├── models.py            # All ORM models (10 tables)
 │   ├── repositories/
 │   │   ├── identity_repository.py
 │   │   ├── session_repository.py
@@ -257,7 +319,8 @@ src/modules/user/
 │   │   ├── anonymize_user.py
 │   │   └── create_user.py   # Consumer for IdentityRegisteredEvent
 │   └── queries/
-│       └── get_my_profile.py
+│       ├── get_my_profile.py
+│       └── get_user_by_identity.py
 ├── infrastructure/
 │   ├── models.py            # UserModel
 │   ├── repositories/
@@ -301,6 +364,27 @@ class IOIDCProvider(Protocol):
     async def get_authorization_url(self, state: str) -> str: ...
 ```
 
+**IPasswordHasher Protocol (extended):**
+
+```python
+class IPasswordHasher(Protocol):
+    def hash(self, password: str) -> str: ...
+    def verify(self, plain_password: str, hashed_password: str) -> bool: ...
+    def needs_rehash(self, hashed_password: str) -> bool: ...
+```
+
+**ITokenProvider Protocol (extended):**
+
+```python
+class ITokenProvider(Protocol):
+    def create_access_token(self, payload_data: dict[str, Any], expires_minutes: int | None = None) -> str: ...
+    def decode_access_token(self, token: str) -> dict[str, Any]: ...
+    def create_refresh_token(self) -> tuple[str, str]: ...
+        """Returns (opaque_token, sha256_hash)."""
+```
+
+> **Backward compatibility:** Existing `create_access_token` and `decode_access_token` signatures are preserved. `LoginHandler` constructs the payload dict `{"sub": identity_id, "sid": session_id}` and passes it to `create_access_token`. `create_refresh_token` is a new method. `jti` generation uses `uuid.uuid4()` (matching existing `JwtTokenProvider` behavior).
+
 ### 3.3 PermissionResolver (Infrastructure)
 
 Located at `src/infrastructure/security/authorization.py` — cross-cutting concern.
@@ -313,6 +397,20 @@ Located at `src/infrastructure/security/authorization.py` — cross-cutting conc
 3. Miss → execute CTE query → cache result with TTL 300s → return
 ```
 
+**Constructor receives `async_sessionmaker` (not `AsyncSession`):**
+
+```python
+class PermissionResolver:
+    def __init__(
+        self,
+        redis: RedisService,
+        session_factory: async_sessionmaker[AsyncSession],
+        cache_ttl: int = 300,
+    ) -> None: ...
+```
+
+> **Scope:** Registered at APP scope in Dishka. Uses `async_sessionmaker` to create short-lived sessions per-query (not request-scoped `AsyncSession`). This is the same pattern used by `DLQMiddleware` in `src/bootstrap/worker.py`.
+
 ### 3.4 RequirePermission (FastAPI Dependency)
 
 ```python
@@ -321,10 +419,11 @@ Located at `src/infrastructure/security/authorization.py` — cross-cutting conc
 class RequirePermission:
     def __init__(self, codename: str): ...
 
+    @inject
     async def __call__(
         self,
         auth_context: AuthContext = Depends(get_auth_context),
-        resolver: IPermissionResolver = FromDishka[IPermissionResolver],
+        resolver: FromDishka[IPermissionResolver],
     ) -> AuthContext:
         if not await resolver.has_permission(auth_context.session_id, codename):
             raise InsufficientPermissionsError()
@@ -360,18 +459,23 @@ Existing endpoints continue using `get_current_user_id` without changes.
 - Scoped to REQUEST
 
 **Infrastructure Providers** (in `src/bootstrap/container.py`):
-- `IPermissionResolver` → `PermissionResolver` (APP scope, uses Redis + SessionFactory)
+- `IPermissionResolver` → `PermissionResolver` (APP scope, receives `async_sessionmaker` + `RedisService`)
+- `IPasswordHasher` → `Argon2PasswordHasher` (APP scope)
+- `ITokenProvider` → `JwtTokenProvider` (APP scope, extended with `create_refresh_token`)
+
+> **Container registration:** New providers are added to `create_container()` in `src/bootstrap/container.py` following the existing pattern of `make_async_container(DatabaseProvider(), CacheProvider(), SecurityProvider(), ...)`.
 
 ### 3.7 JWT Configuration
 
 **Access Token payload:**
 
 ```json
-{"sub": "identity_id", "sid": "session_id", "iat": ..., "exp": ..., "jti": "..."}
+{"sub": "identity_id", "sid": "session_id", "iat": ..., "exp": ..., "jti": "uuid4"}
 ```
 
 - Lifetime: 15 minutes
-- Algorithm: HS256
+- Algorithm: HS256, whitelist `algorithms=["HS256"]` on decode
+- `jti`: `uuid.uuid4()` (matching existing `JwtTokenProvider` convention)
 
 **Refresh Token:**
 
@@ -390,18 +494,43 @@ SESSION_PERMISSIONS_CACHE_TTL: int = 300
 MAX_ACTIVE_SESSIONS_PER_IDENTITY: int = 5
 ```
 
+> **Breaking change:** Existing `ACCESS_TOKEN_EXPIRE_MINUTES` defaults to `60 * 24 * 7` (7 days). The new default is 15 minutes. This is intentional: the new architecture uses short-lived access tokens + long-lived refresh tokens (30 days) for security. Existing tokens will expire naturally. No migration needed — clients must implement the `/auth/refresh` flow.
+
 ---
 
 ## 4. Seed Data, Migrations & Domain Events
 
-### 4.1 Alembic Migration (table creation order)
+### 4.1 Password Hashing Migration (Bcrypt → Argon2id)
+
+**Current state:** Codebase uses `BcryptPasswordHasher` via `pwdlib` (`src/infrastructure/security/password.py`).
+
+**Target state:** Argon2id (OWASP recommendation) with transparent rehash.
+
+**Migration strategy (zero-downtime):**
+
+1. New `Argon2PasswordHasher` implements `IPasswordHasher` with `needs_rehash()` method.
+2. `needs_rehash()` returns `True` if hash starts with `$2b$` (Bcrypt prefix) instead of `$argon2id$`.
+3. `LoginHandler` checks `needs_rehash()` after successful password verification:
+   ```python
+   if hasher.verify(password, credentials.password_hash):
+       if hasher.needs_rehash(credentials.password_hash):
+           credentials.password_hash = hasher.hash(password)
+           # save updated hash within same UoW
+   ```
+4. All new registrations use Argon2id immediately.
+5. Existing Bcrypt hashes remain valid until user next logs in → transparent rehash.
+6. `pwdlib` supports both Bcrypt and Argon2id hashers simultaneously.
+
+**No data migration needed.** Rehash happens organically on login. Inactive accounts retain Bcrypt hashes indefinitely (acceptable).
+
+### 4.2 Alembic Migration (table creation order)
 
 Single migration `2026/03/create_iam_tables.py`, tables created in FK-dependency order:
 
 1. `permissions` — no FK
 2. `roles` — no FK
 3. `role_permissions` — FK → roles, permissions
-4. `role_hierarchy` — FK → roles (self-ref), CHECK parent ≠ child
+4. `role_hierarchy` — FK → roles (self-ref), CHECK (`parent_role_id != child_role_id`)
 5. `identities` — no FK
 6. `local_credentials` — FK → identities (PK=FK)
 7. `linked_accounts` — FK → identities
@@ -409,7 +538,7 @@ Single migration `2026/03/create_iam_tables.py`, tables created in FK-dependency
 9. `session_roles` — FK → sessions, roles
 10. `users` — FK → identities (Shared PK)
 
-### 4.2 Seed Data (data migration)
+### 4.3 Seed Data (data migration)
 
 Separate migration `seed_iam_roles_permissions.py` with idempotent `INSERT ... ON CONFLICT DO NOTHING`.
 
@@ -438,13 +567,15 @@ Separate migration `seed_iam_roles_permissions.py` with idempotent `INSERT ... O
 | `roles:manage` | roles | manage |
 | `identities:manage` | identities | manage |
 
+> **`orders:delete` omitted intentionally.** Orders are immutable audit records in e-commerce — they should never be deleted. Order cancellation is a state transition (`orders:update`), not a deletion.
+
 **Roles (3, `is_system=True`):**
 
 | name | permissions |
 |---|---|
 | `super_admin` | all 20 permissions |
 | `manager` | `brands:*`, `categories:*`, `products:*`, `orders:*`, `users:read` |
-| `customer` | `brands:read`, `categories:read`, `products:read`, `orders:create`, `orders:read`, `users:read`, `users:update` |
+| `customer` | `brands:read`, `categories:read`, `products:read`, `orders:create`, `orders:read`, `users:read`, `users:update`, `users:delete` |
 
 **Role Hierarchy:**
 
@@ -454,7 +585,7 @@ super_admin → manager → customer
 
 `super_admin` inherits all permissions of `manager`; `manager` inherits all permissions of `customer` via recursive CTE.
 
-### 4.3 Domain Events (Transactional Outbox)
+### 4.4 Domain Events (Transactional Outbox)
 
 | Event | Source | Consumer | Description |
 |---|---|---|---|
@@ -483,12 +614,14 @@ register_event_handler("IdentityDeactivatedEvent", _handle_identity_deactivated)
 register_event_handler("RoleAssignmentChangedEvent", _handle_role_assignment_changed)
 ```
 
-### 4.4 Cache Invalidation Strategy
+### 4.5 Cache Invalidation Strategy
 
 **On `RoleAssignmentChangedEvent`:**
-1. Find all active `session_id` for `identity_id`
-2. Delete `perms:{session_id}` keys from Redis
-3. Next request triggers CTE → result cached with TTL 300s
+1. Find all active `session_id` for `identity_id` (non-revoked, non-expired)
+2. Delete `perms:{session_id}` keys from Redis for each session
+3. Next request triggers CTE against updated `session_roles` → result cached with TTL 300s
+
+> **Note:** `AssignRoleHandler` / `RevokeRoleHandler` update `session_roles` rows synchronously (within the same UoW), THEN emit `RoleAssignmentChangedEvent` for cache invalidation. The event only handles cache clearing, not data mutation.
 
 **On logout / revoke_session:**
 - Delete `perms:{session_id}` from Redis
@@ -510,10 +643,11 @@ Pure tests, no DB or framework dependencies:
 | `test_session_revoke` | `Session.revoke()` → `is_revoked=True` |
 | `test_session_is_expired` | `Session.is_expired()` → True after 30 days |
 | `test_refresh_token_rotate` | `Session.rotate_refresh_token()` → new token, old hash replaced |
-| `test_refresh_token_reuse_detection` | Reuse of old token → `SecurityBreachError` |
+| `test_refresh_token_reuse_detection` | Reuse of old token → `RefreshTokenReuseError` |
 | `test_role_hierarchy_cycle_prevention` | Cannot create cycle `A → B → A` |
-| `test_permission_code_format` | `PermissionCode("brands:create")` — format validation |
+| `test_permission_code_format` | `PermissionCode("brands:create")` — format validation `resource:action` |
 | `test_user_anonymize` | `User.anonymize()` → PII replaced with `"[DELETED]"`, email → None |
+| `test_local_credentials_entity` | `LocalCredentials` creation with email + password_hash |
 
 ### 5.2 Integration Tests (infrastructure layer)
 
@@ -529,6 +663,8 @@ With testcontainers (PostgreSQL + Redis):
 | `test_permission_resolver_cache_invalidation` | After `RoleAssignmentChangedEvent` → key deleted |
 | `test_user_repository_shared_pk` | `User.id == Identity.id` constraint |
 | `test_outbox_identity_registered` | `IdentityRegisteredEvent` in `outbox_messages` after commit |
+| `test_password_rehash_bcrypt_to_argon2` | Login with Bcrypt hash → transparent rehash to Argon2id |
+| `test_session_roles_updated_on_role_change` | `AssignRoleHandler` updates `session_roles` for active sessions |
 
 ### 5.3 E2E Tests (presentation layer)
 
@@ -544,6 +680,8 @@ Full HTTP cycle via `httpx.AsyncClient`:
 | `test_insufficient_permissions_403` | Customer attempts POST `/admin/roles` → 403 |
 | `test_logout_invalidates_session` | POST `/auth/logout` → session revoked, subsequent request → 401 |
 | `test_gdpr_anonymize_user` | DELETE `/users/me` → PII deleted, identity deactivated |
+| `test_create_and_delete_role` | POST `/admin/roles` → DELETE `/admin/roles/{id}` → 200 |
+| `test_delete_system_role_returns_403` | DELETE `/admin/roles/{system_role_id}` → 403 |
 
 ### 5.4 Architecture Tests (pytest-archon)
 
@@ -569,7 +707,7 @@ assert_not_imported("src.modules.user.infrastructure", by="src.modules.user.doma
 # src/modules/identity/domain/exceptions.py
 
 class IdentityError(Exception): ...
-class InvalidCredentialsError(IdentityError): ...        # Unified: wrong email OR password
+class InvalidCredentialsError(IdentityError): ...        # Unified: wrong email OR password (user enumeration protection)
 class IdentityAlreadyExistsError(IdentityError): ...     # Email already registered
 class IdentityDeactivatedError(IdentityError): ...       # Account is deactivated
 class SessionExpiredError(IdentityError): ...             # Refresh token expired (> 30 days)
@@ -577,7 +715,8 @@ class SessionRevokedError(IdentityError): ...             # Session revoked (log
 class RefreshTokenReuseError(IdentityError): ...          # Reuse detected → defensive revocation
 class MaxSessionsExceededError(IdentityError): ...        # > 5 active sessions
 class RoleHierarchyCycleError(IdentityError): ...         # Cycle in role hierarchy
-class SystemRoleModificationError(IdentityError): ...     # Cannot modify is_system=True roles
+class SystemRoleModificationError(IdentityError): ...     # Cannot modify/delete is_system=True roles
+class InsufficientPermissionsError(IdentityError): ...    # RequirePermission check failed
 ```
 
 ### 6.2 Exception → HTTP Mapping
@@ -601,9 +740,10 @@ class SystemRoleModificationError(IdentityError): ...     # Cannot modify is_sys
 |---|---|
 | Timing-safe comparison | `hmac.compare_digest()` for refresh token hash verification |
 | Argon2id parameters | `time_cost=3, memory_cost=65536 (64MB), parallelism=4` (OWASP recommendation) |
+| Transparent rehash | Bcrypt → Argon2id on next login via `needs_rehash()` (see Section 4.1) |
 | JWT algorithm | HS256, whitelist `algorithms=["HS256"]` on decode |
 | Refresh token | `secrets.token_urlsafe(32)`, SHA-256 hash stored, never plain text |
-| Rate limiting | `/auth/login` — 5 req/min per IP |
+| Rate limiting | `/auth/register` 3 req/min, `/auth/login` 5 req/min, `/auth/refresh` 10 req/min per IP |
 | Session limit | Max 5 active sessions per identity, 429 on exceed (no auto-eviction) |
 | CORS | From existing `Settings.cors_origins`, `credentials=True` |
 | User enumeration protection | `InvalidCredentialsError` does not distinguish email-not-found vs wrong-password |
@@ -616,6 +756,7 @@ logger.info("identity.registered", identity_id=..., email=...)
 logger.info("identity.login.success", identity_id=..., ip=..., user_agent=...)
 logger.info("session.refreshed", session_id=..., identity_id=...)
 logger.info("session.revoked", session_id=..., reason="logout|reuse_detection")
+logger.info("password.rehashed", identity_id=..., from_algo="bcrypt", to_algo="argon2id")
 
 # Security events (warning/error)
 logger.warning("identity.login.failed", email=..., ip=..., reason="invalid_credentials")
