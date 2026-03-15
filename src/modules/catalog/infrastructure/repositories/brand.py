@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.entities import Brand as DomainBrand
 from src.modules.catalog.domain.interfaces import IBrandRepository
-from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 
 
@@ -24,7 +23,7 @@ class BrandRepository(IBrandRepository):
             id=orm.id,
             name=orm.name,
             slug=orm.slug,
-            logo_status=orm.logo_status or MediaProcessingStatus.PENDING_UPLOAD,
+            logo_status=orm.logo_status,
             logo_file_id=orm.logo_file_id,
             logo_url=orm.logo_url,
         )
