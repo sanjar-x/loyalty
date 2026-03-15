@@ -1,14 +1,27 @@
 # src/modules/catalog/application/queries/get_category_tree.py
-import json
-from typing import Any
+"""
+Query Handler: дерево категорий.
 
-from sqlalchemy import select
+Строгий CQRS — не использует IUnitOfWork, доменные агрегаты
+и репозитории. Работает напрямую с AsyncSession + raw SQL,
+возвращает Pydantic Read Models.
+"""
+import json
+import uuid
+
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.modules.catalog.infrastructure.models import Category
+from src.modules.catalog.application.queries.read_models import CategoryNode
 from src.shared.interfaces.cache import ICacheService
 
 CACHE_KEY = "catalog:category_tree"
+
+_CATEGORY_TREE_SQL = text(
+    "SELECT id, name, slug, full_slug, level, sort_order, parent_id "
+    "FROM categories "
+    "ORDER BY level, sort_order"
+)
 
 
 class GetCategoryTreeHandler:
@@ -16,44 +29,38 @@ class GetCategoryTreeHandler:
         self._session = session
         self._cache = cache
 
-    async def handle(self) -> list[dict[str, Any]]:
+    async def handle(self) -> list[CategoryNode]:
         cached_data = await self._cache.get(CACHE_KEY)
         if cached_data:
-            return json.loads(cached_data)
+            return [CategoryNode.model_validate(c) for c in json.loads(cached_data)]
 
-        stmt = select(
-            Category.id,
-            Category.name,
-            Category.slug,
-            Category.full_slug,
-            Category.level,
-            Category.sort_order,
-            Category.parent_id,
-        ).order_by(Category.level, Category.sort_order)
-
-        result = await self._session.execute(stmt)
+        result = await self._session.execute(_CATEGORY_TREE_SQL)
         rows = result.mappings().all()
 
-        categories_map = {}
+        nodes_map: dict[uuid.UUID, CategoryNode] = {}
         for row in rows:
-            cat_dict = dict(row)
-            cat_dict["id"] = str(cat_dict["id"])
-            if cat_dict["parent_id"] is not None:
-                cat_dict["parent_id"] = str(cat_dict["parent_id"])
-            cat_dict["children"] = []
-            categories_map[cat_dict["id"]] = cat_dict
+            node = CategoryNode(
+                id=row["id"],
+                name=row["name"],
+                slug=row["slug"],
+                full_slug=row["full_slug"],
+                level=row["level"],
+                sort_order=row["sort_order"],
+                parent_id=row["parent_id"],
+            )
+            nodes_map[node.id] = node
 
-        roots = []
-        for cat_dict in categories_map.values():
-            if cat_dict["parent_id"] is None:
-                roots.append(cat_dict)
+        roots: list[CategoryNode] = []
+        for node in nodes_map.values():
+            if node.parent_id is None:
+                roots.append(node)
             else:
-                parent = categories_map.get(cat_dict["parent_id"])
+                parent = nodes_map.get(node.parent_id)
                 if parent is not None:
-                    parent["children"].append(cat_dict)
+                    parent.children.append(node)
 
-        tree_dicts = roots
+        # Кэшируем сериализованный результат
+        cache_payload = [n.model_dump(mode="json") for n in roots]
+        await self._cache.set(CACHE_KEY, json.dumps(cache_payload), ttl=300)
 
-        await self._cache.set(CACHE_KEY, json.dumps(tree_dicts), ttl=300)
-
-        return tree_dicts
+        return roots

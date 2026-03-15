@@ -32,9 +32,20 @@ class Brand(AggregateRoot):
             logo_status=logo_status,
         )
 
-    def init_logo_upload(self, file_id: uuid.UUID) -> None:
-        self.logo_file_id = file_id
+    def init_logo_upload(self, object_key: str, content_type: str) -> None:
+        """Инициирует загрузку логотипа и генерирует BrandCreatedEvent."""
         self.logo_status = MediaProcessingStatus.PENDING_UPLOAD
+
+        from src.modules.catalog.domain.events import BrandCreatedEvent
+
+        self.add_domain_event(
+            BrandCreatedEvent(
+                brand_id=self.id,
+                object_key=object_key,
+                content_type=content_type,
+                aggregate_id=str(self.id),
+            )
+        )
 
     def confirm_logo_upload(self) -> None:
         if self.logo_status != MediaProcessingStatus.PENDING_UPLOAD:
@@ -47,7 +58,6 @@ class Brand(AggregateRoot):
             )
         self.logo_status = MediaProcessingStatus.PROCESSING
 
-        # Генерируем доменное событие вместо прямого вызова брокера
         from src.modules.catalog.domain.events import BrandLogoConfirmedEvent
 
         self.add_domain_event(
@@ -57,8 +67,7 @@ class Brand(AggregateRoot):
             )
         )
 
-    def complete_logo_processing(self, file_id: uuid.UUID, url: str) -> None:
-        self.logo_file_id = file_id
+    def complete_logo_processing(self, url: str) -> None:
         self.logo_url = url
         self.logo_status = MediaProcessingStatus.COMPLETED
 

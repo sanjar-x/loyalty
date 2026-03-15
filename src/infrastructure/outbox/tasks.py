@@ -27,6 +27,19 @@ logger = structlog.get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 
+async def _handle_brand_created(payload: dict) -> None:
+    """Регистрирует StorageObject в модуле Storage через consumer."""
+    from src.modules.storage.application.consumers.brand_events import (
+        handle_brand_created_event,
+    )
+
+    await handle_brand_created_event.kiq(  # type: ignore[call-overload]
+        brand_id=payload["brand_id"],
+        object_key=payload["object_key"],
+        content_type=payload["content_type"],
+    )
+
+
 async def _handle_brand_logo_confirmed(payload: dict) -> None:
     """Отправляет задачу обработки логотипа бренда в TaskIQ."""
     from src.modules.catalog.application.tasks import process_brand_logo_task
@@ -35,8 +48,24 @@ async def _handle_brand_logo_confirmed(payload: dict) -> None:
     await process_brand_logo_task.kiq(brand_id=brand_id)  # type: ignore[call-overload]
 
 
+async def _handle_brand_logo_processed(payload: dict) -> None:
+    """Регистрирует обработанный файл в модуле Storage."""
+    from src.modules.storage.application.consumers.brand_events import (
+        handle_brand_logo_processed_event,
+    )
+
+    await handle_brand_logo_processed_event.kiq(  # type: ignore[call-overload]
+        brand_id=payload["brand_id"],
+        object_key=payload["object_key"],
+        content_type=payload["content_type"],
+        size_bytes=payload["size_bytes"],
+    )
+
+
 # Регистрируем маппинг: event_type → handler
+register_event_handler("BrandCreatedEvent", _handle_brand_created)
 register_event_handler("BrandLogoConfirmedEvent", _handle_brand_logo_confirmed)
+register_event_handler("BrandLogoProcessedEvent", _handle_brand_logo_processed)
 
 
 # ---------------------------------------------------------------------------

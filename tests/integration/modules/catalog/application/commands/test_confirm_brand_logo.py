@@ -9,12 +9,13 @@ from src.modules.catalog.application.commands.confirm_brand_logo import (
     ConfirmBrandLogoUploadCommand,
     ConfirmBrandLogoUploadHandler,
 )
+from src.modules.catalog.application.constants import raw_logo_key
 from src.modules.catalog.domain.entities import Brand
 from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 from src.modules.catalog.infrastructure.repositories.brand import BrandRepository
 from src.infrastructure.database.models.outbox import OutboxMessage
-from src.shared.interfaces.storage import IStorageFacade
+from src.shared.interfaces.blob_storage import IBlobStorage
 
 
 async def test_confirm_brand_logo_upload_handler(
@@ -23,34 +24,30 @@ async def test_confirm_brand_logo_upload_handler(
     # Arrange
     async with app_container() as request_container:
         handler = await request_container.get(ConfirmBrandLogoUploadHandler)
-        facade = await request_container.get(IStorageFacade)
+        blob_storage = await request_container.get(IBlobStorage)
         repo = BrandRepository(db_session)
 
     # Create brand in DB
-    file_id = uuid.uuid4()
     brand = Brand.create(name="ConfirmTest", slug="confirm-test")
-    brand.init_logo_upload(file_id=file_id)  # set PENDING_UPLOAD
+    object_key = raw_logo_key(brand.id)
+    brand.init_logo_upload(object_key=object_key, content_type="image/png")
+    brand.clear_domain_events()  # не нужны события от init
     brand = await repo.add(brand)
 
     command = ConfirmBrandLogoUploadCommand(brand_id=brand.id)
 
-    mock_metadata = {
-        "object_key": "verified-test-key",
-        "size": 1024,
-        "content_type": "image/png",
-    }
-
+    # Mock IBlobStorage.object_exists → файл загружен
     with patch.object(
-        facade,
-        "verify_upload",
+        blob_storage,
+        "object_exists",
         new_callable=AsyncMock,
-        return_value=mock_metadata,
-    ) as mock_verify:
+        return_value=True,
+    ) as mock_exists:
         # Act
         await handler.handle(command)
 
-        # Assert — верификация загрузки вызвана
-        mock_verify.assert_called_once_with(file_id=brand.logo_file_id)
+        # Assert — верификация загрузки вызвана с детерминированным ключом
+        mock_exists.assert_called_once_with(object_key)
 
     # Assert — статус бренда обновлён в БД
     orm_brand = await db_session.get(OrmBrand, brand.id)

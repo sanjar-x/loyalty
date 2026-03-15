@@ -106,7 +106,9 @@ async def create_brand(
     )
     result = await handler.handle(command)
     return BrandCreateResponse(
-        brand_id=result.brand_id, presigned_upload_url=result.presigned_upload_url
+        brand_id=result.brand_id,
+        presigned_upload_url=result.presigned_upload_url,
+        object_key=result.object_key,
     )
 
 

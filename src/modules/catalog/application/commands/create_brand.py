@@ -4,10 +4,12 @@ from dataclasses import dataclass
 
 import structlog
 
+from src.bootstrap.config import Settings
+from src.modules.catalog.application.constants import raw_logo_key
 from src.modules.catalog.domain.entities import Brand
 from src.modules.catalog.domain.exceptions import BrandSlugConflictError
 from src.modules.catalog.domain.interfaces import IBrandRepository
-from src.shared.interfaces.storage import IStorageFacade
+from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
@@ -31,6 +33,7 @@ class CreateBrandCommand:
 class CreateBrandResult:
     brand_id: uuid.UUID
     presigned_upload_url: str | None = None
+    object_key: str | None = None
 
 
 class CreateBrandHandler:
@@ -38,23 +41,16 @@ class CreateBrandHandler:
         self,
         brand_repo: IBrandRepository,
         uow: IUnitOfWork,
-        storage_facade: IStorageFacade,
+        blob_storage: IBlobStorage,
+        settings: Settings,
     ):
         self._brand_repo = brand_repo
         self._uow = uow
-        self._storage_facade = storage_facade
+        self._blob_storage = blob_storage
+        self._settings = settings
         self._logger = logger.bind(handler="CreateBrandHandler")
 
     async def handle(self, command: CreateBrandCommand) -> CreateBrandResult:
-        upload_data = None
-        if command.logo:
-            upload_data = await self._storage_facade.reserve_upload_slot(
-                module="catalog",
-                entity_id=uuid.uuid4(),
-                filename=command.logo.filename,
-                content_type=command.logo.content_type,
-            )
-
         async with self._uow:
             if await self._brand_repo.check_slug_exists(command.slug):
                 raise BrandSlugConflictError(slug=command.slug)
@@ -62,17 +58,34 @@ class CreateBrandHandler:
             brand = Brand.create(name=command.name, slug=command.slug)
             brand = await self._brand_repo.add(brand)
 
-            if upload_data:
-                if upload_data.file_id is None:
-                    raise RuntimeError("reserve_upload_slot вернул upload_data без file_id")
-                brand.init_logo_upload(file_id=upload_data.file_id)
+            presigned_url: str | None = None
+            object_key: str | None = None
+
+            if command.logo:
+                # Детерминированный ключ — не зависит от модуля Storage
+                object_key = raw_logo_key(brand.id)
+
+                # Stateless: генерация URL без записи в БД
+                presigned_url = await self._blob_storage.generate_presigned_put_url(
+                    object_name=object_key,
+                    content_type=command.logo.content_type,
+                )
+
+                # Агрегат генерирует BrandCreatedEvent через Outbox
+                brand.init_logo_upload(
+                    object_key=object_key,
+                    content_type=command.logo.content_type,
+                )
                 await self._brand_repo.update(brand)
 
+            # Регистрируем агрегат — UoW запишет события в Outbox
+            self._uow.register_aggregate(brand)
             await self._uow.commit()
 
-        self._logger.info("Инициировано создание бренда", brand_id=str(brand.id))
+        self._logger.info("Бренд создан", brand_id=str(brand.id))
 
         return CreateBrandResult(
             brand_id=brand.id,
-            presigned_upload_url=str(upload_data.url_data) if upload_data else None,
+            presigned_upload_url=presigned_url,
+            object_key=object_key,
         )

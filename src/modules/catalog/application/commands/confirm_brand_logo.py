@@ -4,11 +4,12 @@ from dataclasses import dataclass
 
 import structlog
 
+from src.modules.catalog.application.constants import raw_logo_key
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
 )
 from src.modules.catalog.domain.interfaces import IBrandRepository
-from src.shared.interfaces.storage import IStorageFacade
+from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
@@ -24,10 +25,10 @@ class ConfirmBrandLogoUploadHandler:
         self,
         brand_repo: IBrandRepository,
         uow: IUnitOfWork,
-        storage_facade: IStorageFacade,
+        blob_storage: IBlobStorage,
     ):
         self._brand_repo = brand_repo
-        self._storage_facade = storage_facade
+        self._blob_storage = blob_storage
         self._uow = uow
         self._logger = logger.bind(handler="ConfirmBrandLogoUploadHandler")
 
@@ -37,13 +38,13 @@ class ConfirmBrandLogoUploadHandler:
             if not brand:
                 raise BrandNotFoundError(brand_id=command.brand_id)
 
-            # 1. Верификация загрузки
-            if not brand.logo_file_id:
+            # 1. Верификация: файл загружен в S3 по детерминированному ключу
+            object_key = raw_logo_key(brand.id)
+            exists = await self._blob_storage.object_exists(object_key)
+            if not exists:
                 from src.shared.exceptions import ValidationError
 
-                raise ValidationError(message="Бренд ожидает загрузку.")
-
-            await self._storage_facade.verify_upload(file_id=brand.logo_file_id)
+                raise ValidationError(message="Файл не был загружен в хранилище.")
 
             # 2. Обновляем статус (внутри генерируется BrandLogoConfirmedEvent)
             brand.confirm_logo_upload()

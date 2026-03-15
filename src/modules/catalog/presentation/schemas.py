@@ -56,6 +56,7 @@ class BrandCreateRequest(BaseModel):
 class BrandCreateResponse(BaseModel):
     brand_id: uuid.UUID
     presigned_upload_url: str | None = None
+    object_key: str | None = None
 
 
 class ConfirmLogoRequest(BaseModel):

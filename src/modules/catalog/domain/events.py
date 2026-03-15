@@ -12,6 +12,19 @@ import uuid
 from src.shared.interfaces.entities import DomainEvent
 
 
+class BrandCreatedEvent(DomainEvent):
+    """
+    Бренд создан с запросом на загрузку логотипа.
+    Модуль Storage создаёт запись StorageObject асинхронно.
+    """
+
+    brand_id: uuid.UUID
+    object_key: str
+    content_type: str
+    aggregate_type: str = "Brand"
+    event_type: str = "BrandCreatedEvent"
+
+
 class BrandLogoConfirmedEvent(DomainEvent):
     """
     Загрузка логотипа подтверждена — требуется обработка (ресайз/WebP).
@@ -21,3 +34,17 @@ class BrandLogoConfirmedEvent(DomainEvent):
     brand_id: uuid.UUID
     aggregate_type: str = "Brand"
     event_type: str = "BrandLogoConfirmedEvent"
+
+
+class BrandLogoProcessedEvent(DomainEvent):
+    """
+    Логотип обработан — модуль Storage регистрирует итоговый файл.
+    Генерируется воркером после успешного ресайза и загрузки в S3.
+    """
+
+    brand_id: uuid.UUID
+    object_key: str
+    content_type: str
+    size_bytes: int
+    aggregate_type: str = "Brand"
+    event_type: str = "BrandLogoProcessedEvent"

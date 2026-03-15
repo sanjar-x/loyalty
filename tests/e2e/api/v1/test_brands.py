@@ -1,6 +1,10 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.shared.interfaces.blob_storage import IBlobStorage
 
 # Достаточно указать один раз на весь файл
 pytestmark = pytest.mark.asyncio
@@ -20,17 +24,14 @@ async def test_create_brand_e2e_success(
         },
     }
 
-    # Делаем реальный запрос. FastAPI сам достанет IStorageFacade из Dishka
-    # и сгенерирует настоящий URL для MinIO!
+    # IBlobStorage.generate_presigned_put_url — stateless, работает напрямую с S3
     response = await async_client.post("/api/v1/catalog/brands", json=payload)
 
     assert response.status_code == 201
     data = response.json()
     assert "brand_id" in data
-    assert data["object_key"].startswith("raw_uploads/catalog/")
-    assert (
-        data["presigned_upload_url"] is not None
-    )  # Проверяем, что реальный URL сгенерирован
+    assert data["object_key"].startswith("raw_uploads/catalog/brands/")
+    assert data["presigned_upload_url"] is not None
 
 
 async def test_confirm_brand_logo_e2e_success(
@@ -45,11 +46,9 @@ async def test_confirm_brand_logo_e2e_success(
     create_res = await async_client.post("/api/v1/catalog/brands", json=create_payload)
     brand_data = create_res.json()
     brand_id = brand_data["brand_id"]
-    object_key = brand_data["object_key"]
 
-    # 2. Подтверждаем загрузку — TaskIQ больше не вызывается напрямую,
-    #    событие записывается в Outbox атомарно с транзакцией
-    confirm_payload = {"object_key": object_key}
+    # 2. Подтверждаем загрузку — событие записывается в Outbox атомарно
+    confirm_payload = {}
     response = await async_client.post(
         f"/api/v1/catalog/brands/{brand_id}/logo/confirm", json=confirm_payload
     )
