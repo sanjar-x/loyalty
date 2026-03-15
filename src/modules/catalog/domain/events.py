@@ -8,43 +8,47 @@
 """
 
 import uuid
+from dataclasses import dataclass
 
 from src.shared.interfaces.entities import DomainEvent
 
 
+@dataclass
 class BrandCreatedEvent(DomainEvent):
     """
     Бренд создан с запросом на загрузку логотипа.
-    Модуль Storage создаёт запись StorageObject асинхронно.
+    Модуль Storage создаёт запись StorageFile асинхронно.
     """
 
-    brand_id: uuid.UUID
-    object_key: str
-    content_type: str
+    brand_id: uuid.UUID = None  # type: ignore[assignment]
+    object_key: str = ""
+    content_type: str = ""
     aggregate_type: str = "Brand"
     event_type: str = "BrandCreatedEvent"
 
 
+@dataclass
 class BrandLogoConfirmedEvent(DomainEvent):
     """
     Загрузка логотипа подтверждена — требуется обработка (ресайз/WebP).
     Генерируется в Brand.confirm_logo_upload().
     """
 
-    brand_id: uuid.UUID
+    brand_id: uuid.UUID | None = None
     aggregate_type: str = "Brand"
     event_type: str = "BrandLogoConfirmedEvent"
 
 
+@dataclass
 class BrandLogoProcessedEvent(DomainEvent):
     """
     Логотип обработан — модуль Storage регистрирует итоговый файл.
     Генерируется воркером после успешного ресайза и загрузки в S3.
     """
 
-    brand_id: uuid.UUID
-    object_key: str
-    content_type: str
-    size_bytes: int
+    brand_id: uuid.UUID | None = None
+    object_key: str = ""
+    content_type: str = ""
+    size_bytes: int = 0
     aggregate_type: str = "Brand"
     event_type: str = "BrandLogoProcessedEvent"

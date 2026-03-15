@@ -8,6 +8,8 @@ from fastapi import Request
 from starlette.datastructures import State
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from src.shared.context import set_request_id
+
 logger: Any = structlog.get_logger("api.access")
 
 
@@ -32,6 +34,8 @@ class AccessLoggerMiddleware:
             ip: str = request.client.host if request.client else "unknown"
         else:
             ip: str = ip.split(",")[0].strip()
+
+        set_request_id(request_id)
 
         structlog.contextvars.bind_contextvars(
             request_id=request_id,

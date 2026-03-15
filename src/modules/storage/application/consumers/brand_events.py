@@ -3,7 +3,7 @@
 Consumer модуля Storage для Integration Events модуля Catalog.
 
 Слушает события из RabbitMQ (через Outbox Relay) и создаёт/обновляет
-записи StorageObject в БД модуля Storage.
+записи StorageFile в БД модуля Storage.
 
 Все обработчики ИДЕМПОТЕНТНЫ (At-Least-Once гарантия Outbox).
 """
@@ -11,9 +11,9 @@ Consumer модуля Storage для Integration Events модуля Catalog.
 from dishka.integrations.taskiq import FromDishka, inject
 
 from src.bootstrap.broker import broker
-from src.bootstrap.config import Settings
+from src.modules.storage.domain.entities import StorageFile
 from src.modules.storage.domain.interfaces import IStorageRepository
-from src.modules.storage.infrastructure.models import StorageObject
+from src.shared.interfaces.config import IStorageConfig
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -32,11 +32,11 @@ async def handle_brand_created_event(
     content_type: str,
     storage_repo: FromDishka[IStorageRepository],
     uow: FromDishka[IUnitOfWork],
-    settings: FromDishka[Settings],
+    settings: FromDishka[IStorageConfig],
     logger: FromDishka[ILogger],
 ) -> dict:
     """
-    Реакция на BrandCreatedEvent: создаёт запись StorageObject.
+    Реакция на BrandCreatedEvent: создаёт запись StorageFile.
 
     Идемпотентность: если запись с таким object_key уже существует,
     пропускаем (дубликат от Outbox Relay).
@@ -49,20 +49,20 @@ async def handle_brand_created_event(
             object_key=object_key,
         )
         if existing:
-            log.info("StorageObject уже существует, пропуск (идемпотентность)")
+            log.info("StorageFile уже существует, пропуск (идемпотентность)")
             return {"status": "skipped", "reason": "already_exists"}
 
-        storage_obj = StorageObject(
+        storage_file = StorageFile.create(
             bucket_name=settings.S3_BUCKET_NAME,
             object_key=object_key,
             content_type=content_type,
             owner_module="catalog",
         )
-        await storage_repo.add(storage_obj)
+        await storage_repo.add(storage_file)
         await uow.commit()
 
-    log.info("StorageObject создан для бренда", file_id=str(storage_obj.id))
-    return {"status": "created", "file_id": str(storage_obj.id)}
+    log.info("StorageFile создан для бренда", file_id=str(storage_file.id))
+    return {"status": "created", "file_id": str(storage_file.id)}
 
 
 @broker.task(
@@ -80,7 +80,7 @@ async def handle_brand_logo_processed_event(
     size_bytes: int,
     storage_repo: FromDishka[IStorageRepository],
     uow: FromDishka[IUnitOfWork],
-    settings: FromDishka[Settings],
+    settings: FromDishka[IStorageConfig],
     logger: FromDishka[ILogger],
 ) -> dict:
     """
@@ -99,21 +99,22 @@ async def handle_brand_logo_processed_event(
         if existing:
             existing.size_bytes = size_bytes
             existing.content_type = content_type
+            await storage_repo.update(existing)
             await uow.commit()
-            log.info("StorageObject обновлён (идемпотентность)")
+            log.info("StorageFile обновлён (идемпотентность)")
             return {"status": "updated", "file_id": str(existing.id)}
 
-        storage_obj = StorageObject(
+        storage_file = StorageFile.create(
             bucket_name=settings.S3_BUCKET_NAME,
             object_key=object_key,
             content_type=content_type,
             size_bytes=size_bytes,
             owner_module="catalog",
         )
-        await storage_repo.add(storage_obj)
+        await storage_repo.add(storage_file)
         await uow.commit()
 
     log.info(
-        "StorageObject создан для обработанного логотипа", file_id=str(storage_obj.id)
+        "StorageFile создан для обработанного логотипа", file_id=str(storage_file.id)
     )
-    return {"status": "created", "file_id": str(storage_obj.id)}
+    return {"status": "created", "file_id": str(storage_file.id)}

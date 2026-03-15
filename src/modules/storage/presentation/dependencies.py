@@ -1,7 +1,6 @@
 # src/modules/storage/presentation/dependencies.py
 from collections.abc import AsyncIterable
 
-import structlog
 from aiobotocore.client import AioBaseClient
 from dishka import Provider, Scope, provide
 
@@ -13,8 +12,6 @@ from src.modules.storage.infrastructure.service import S3StorageService
 from src.modules.storage.presentation.facade import StorageFacade
 from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.storage import IStorageFacade
-
-logger = structlog.get_logger(__name__)
 
 
 class StorageProvider(Provider):

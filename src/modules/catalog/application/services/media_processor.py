@@ -3,11 +3,11 @@ import uuid
 
 from PIL import Image
 
-from src.bootstrap.config import Settings
 from src.modules.catalog.application.constants import public_logo_key, raw_logo_key
 from src.modules.catalog.domain.events import BrandLogoProcessedEvent
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.shared.interfaces.blob_storage import IBlobStorage
+from src.shared.interfaces.config import IStorageConfig
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -21,7 +21,7 @@ class BrandLogoProcessor:
         brand_repo: IBrandRepository,
         blob_storage: IBlobStorage,
         uow: IUnitOfWork,
-        settings: Settings,
+        settings: IStorageConfig,
         logger: ILogger,
     ):
         self._brand_repo = brand_repo

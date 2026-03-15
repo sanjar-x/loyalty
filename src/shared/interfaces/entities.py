@@ -1,9 +1,8 @@
 # src/shared/interfaces/entities.py
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Protocol
-
-from pydantic import BaseModel, Field
 
 
 class IBase(Protocol):
@@ -21,15 +20,16 @@ class IBase(Protocol):
 # ---------------------------------------------------------------------------
 
 
-class DomainEvent(BaseModel):
+@dataclass
+class DomainEvent:
     """
     Базовый класс доменного события.
-    Все события сериализуются в JSON через .model_dump(mode='json')
+    Все события сериализуются через dataclasses.asdict()
     и записываются в таблицу outbox_messages атомарно с бизнес-транзакцией.
     """
 
-    event_id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    occurred_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    event_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    occurred_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Подклассы ОБЯЗАНЫ переопределить эти поля
     aggregate_type: str = ""

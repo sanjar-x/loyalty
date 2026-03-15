@@ -2,7 +2,6 @@
 import uuid
 from dataclasses import dataclass
 
-from src.bootstrap.config import Settings
 from src.modules.catalog.application.constants import raw_logo_key
 from src.modules.catalog.domain.entities import Brand
 from src.modules.catalog.domain.exceptions import BrandSlugConflictError
@@ -39,13 +38,11 @@ class CreateBrandHandler:
         brand_repo: IBrandRepository,
         uow: IUnitOfWork,
         blob_storage: IBlobStorage,
-        settings: Settings,
         logger: ILogger,
     ):
         self._brand_repo = brand_repo
         self._uow = uow
         self._blob_storage = blob_storage
-        self._settings = settings
         self._logger = logger.bind(handler="CreateBrandHandler")
 
     async def handle(self, command: CreateBrandCommand) -> CreateBrandResult:

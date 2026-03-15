@@ -1,7 +1,5 @@
-# src\shared\exceptions.py
+# src/shared/exceptions.py
 from typing import Any
-
-from fastapi import status
 
 
 class AppException(Exception):
@@ -10,7 +8,7 @@ class AppException(Exception):
     def __init__(
         self,
         message: str,
-        status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
+        status_code: int = 500,
         error_code: str = "INTERNAL_ERROR",
         details: dict[str, Any] | None = None,
     ):
@@ -30,7 +28,7 @@ class NotFoundError(AppException):
     ):
         super().__init__(
             message=message,
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             error_code=error_code,
             details=details,
         )
@@ -45,7 +43,7 @@ class BadRequestError(AppException):
     ):
         super().__init__(
             message=message,
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=400,
             error_code=error_code,
             details=details,
         )
@@ -60,7 +58,7 @@ class UnauthorizedError(AppException):
     ):
         super().__init__(
             message=message,
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=401,
             error_code=error_code,
             details=details,
         )
@@ -75,7 +73,7 @@ class ForbiddenError(AppException):
     ):
         super().__init__(
             message=message,
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=403,
             error_code=error_code,
             details=details,
         )
@@ -90,7 +88,7 @@ class ConflictError(AppException):
     ):
         super().__init__(
             message=message,
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=409,
             error_code=error_code,
             details=details,
         )
@@ -107,7 +105,7 @@ class ValidationError(AppException):
     ):
         super().__init__(
             message=message,
-            status_code=status.HTTP_400_BAD_REQUEST,  # Или 422
+            status_code=400,
             error_code=error_code,
             details=details,
         )
@@ -120,9 +118,7 @@ class UnprocessableEntityError(AppException):
         error_code: str = "UNPROCESSABLE_ENTITY",
         details: dict[str, Any] | None = None,
     ):
-        super().__init__(
-            message, status.HTTP_422_UNPROCESSABLE_ENTITY, error_code, details
-        )
+        super().__init__(message, 422, error_code, details)
 
 
 class ServiceUnavailableError(AppException):
@@ -134,7 +130,7 @@ class ServiceUnavailableError(AppException):
     ):
         super().__init__(
             message=message,
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=503,
             error_code=error_code,
             details=details,
         )

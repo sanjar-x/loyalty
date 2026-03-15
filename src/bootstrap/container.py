@@ -5,6 +5,7 @@ from structlog import BoundLogger
 
 from src.bootstrap.config import Settings, settings
 from src.infrastructure.cache.provider import CacheProvider
+from src.shared.interfaces.config import IStorageConfig
 from src.infrastructure.database.provider import DatabaseProvider
 from src.infrastructure.logging.provider import LoggingProvider
 from src.infrastructure.security.provider import SecurityProvider
@@ -21,6 +22,10 @@ class ConfigProvider(Provider):
     @provide(scope=Scope.APP)
     def get_settings(self) -> Settings:
         return settings
+
+    @provide(scope=Scope.APP)
+    def get_storage_config(self, s: Settings) -> IStorageConfig:
+        return s
 
 
 def create_container() -> AsyncContainer:

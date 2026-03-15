@@ -1,7 +1,10 @@
 # src/infrastructure/database/uow.py
 from __future__ import annotations
 
+import dataclasses
+from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 import structlog
 from sqlalchemy.exc import IntegrityError
@@ -87,6 +90,20 @@ class UnitOfWork(IUnitOfWork):
             )
 
     @staticmethod
+    def _serialize_event_payload(event: DomainEvent) -> dict[str, Any]:
+        """Сериализация dataclass-события в JSON-совместимый dict."""
+        raw = dataclasses.asdict(event)
+        result: dict[str, Any] = {}
+        for key, value in raw.items():
+            if isinstance(value, UUID):
+                result[key] = str(value)
+            elif isinstance(value, datetime):
+                result[key] = value.isoformat()
+            else:
+                result[key] = value
+        return result
+
+    @staticmethod
     def _map_event_to_outbox(event: DomainEvent) -> OutboxMessage:
         """Маппинг доменного события → ORM-запись в таблице outbox_messages."""
         from src.shared.context import get_request_id
@@ -97,6 +114,6 @@ class UnitOfWork(IUnitOfWork):
             aggregate_type=event.aggregate_type,
             aggregate_id=event.aggregate_id,
             event_type=event.event_type,
-            payload=event.model_dump(mode="json"),
+            payload=UnitOfWork._serialize_event_payload(event),
             correlation_id=correlation_id if correlation_id != "UNKNOWN" else None,
         )
