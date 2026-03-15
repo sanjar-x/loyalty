@@ -3,6 +3,7 @@ from collections.abc import AsyncIterable
 
 import structlog
 from dishka import Provider, Scope, provide
+from dishka.dependency_source.composite import CompositeDependencySource
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -65,4 +66,6 @@ class DatabaseProvider(Provider):
         async with maker() as session:
             yield session
 
-    uow = provide(UnitOfWork, scope=Scope.REQUEST, provides=IUnitOfWork)
+    uow: CompositeDependencySource = provide(
+        source=UnitOfWork, scope=Scope.REQUEST, provides=IUnitOfWork
+    )

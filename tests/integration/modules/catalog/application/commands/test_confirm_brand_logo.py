@@ -1,10 +1,10 @@
-import uuid
 from unittest.mock import AsyncMock, patch
 
 from dishka import AsyncContainer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.infrastructure.database.models.outbox import OutboxMessage
 from src.modules.catalog.application.commands.confirm_brand_logo import (
     ConfirmBrandLogoUploadCommand,
     ConfirmBrandLogoUploadHandler,
@@ -14,7 +14,6 @@ from src.modules.catalog.domain.entities import Brand
 from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 from src.modules.catalog.infrastructure.repositories.brand import BrandRepository
-from src.infrastructure.database.models.outbox import OutboxMessage
 from src.shared.interfaces.blob_storage import IBlobStorage
 
 

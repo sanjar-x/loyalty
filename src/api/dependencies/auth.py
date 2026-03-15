@@ -37,15 +37,15 @@ async def get_current_user_id(
             error_code="MISSING_TOKEN",
         )
 
-    payload: dict[str, Any] = token_provider.decode_access_token(credentials.credentials)
+    payload: dict[str, Any] = token_provider.decode_access_token(
+        credentials.credentials
+    )
     user_id: str | None = payload.get("sub")
     if not user_id:
         raise UnauthorizedError(
             message="Невалидный токен: отсутствует sub.",
             error_code="INVALID_TOKEN_PAYLOAD",
         )
-
-    # Привязываем user_id к контексту — все последующие логи включат это поле
     structlog.contextvars.bind_contextvars(user_id=user_id)
 
     return user_id

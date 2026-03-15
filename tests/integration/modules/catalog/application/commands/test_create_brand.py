@@ -4,6 +4,7 @@ from dishka import AsyncContainer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.infrastructure.database.models.outbox import OutboxMessage
 from src.modules.catalog.application.commands.create_brand import (
     CreateBrandCommand,
     CreateBrandHandler,
@@ -12,7 +13,6 @@ from src.modules.catalog.application.commands.create_brand import (
 from src.modules.catalog.application.constants import raw_logo_key
 from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
-from src.infrastructure.database.models.outbox import OutboxMessage
 from src.shared.interfaces.blob_storage import IBlobStorage
 
 

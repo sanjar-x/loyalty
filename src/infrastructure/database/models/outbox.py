@@ -24,15 +24,13 @@ class OutboxMessage(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        comment="PK (UUIDv4, т.к. uuid7 опционален)",
+        comment="Первичный ключ (UUIDv7 для сортировки по времени)",
     )
-
     aggregate_type: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
         comment="Тип агрегата-источника (Brand, Order, ...)",
     )
-
     aggregate_id: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
@@ -69,12 +67,10 @@ class OutboxMessage(Base):
         String(64),
         nullable=True,
         default=None,
-        comment="ID корреляции для сквозной трассировки (HTTP request_id → Outbox → TaskIQ)",
+        comment="ID корреляции для трассировки (HTTP request_id → Outbox → TaskIQ)",
     )
 
     __table_args__ = (
-        # Критический индекс для Relay-воркера:
-        # WHERE processed_at IS NULL ORDER BY created_at ASC
         Index(
             "ix_outbox_processed_created",
             "processed_at",

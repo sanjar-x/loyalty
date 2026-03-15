@@ -36,20 +36,24 @@ def register_event_handler(event_type: str, handler: EventHandler) -> None:
 # ---------------------------------------------------------------------------
 
 # SQL с FOR UPDATE SKIP LOCKED — несколько воркеров не блокируют друг друга
-_FETCH_UNPROCESSED_SQL = text("""
+_FETCH_UNPROCESSED_SQL = text(
+    text="""
     SELECT id, event_type, payload, correlation_id
     FROM outbox_messages
     WHERE processed_at IS NULL
     ORDER BY created_at ASC
     LIMIT :batch_size
     FOR UPDATE SKIP LOCKED
-""")
+"""
+)
 
-_MARK_PROCESSED_SQL = text("""
+_MARK_PROCESSED_SQL = text(
+    text="""
     UPDATE outbox_messages
     SET processed_at = NOW()
     WHERE id = ANY(:ids)
-""")
+"""
+)
 
 
 async def relay_outbox_batch(
@@ -83,8 +87,6 @@ async def relay_outbox_batch(
                 correlation_id = getattr(row, "correlation_id", None) or (
                     "relay-" + uuid.uuid4().hex[:12]
                 )
-
-                # Привязываем correlation_id для сквозной трассировки
                 structlog.contextvars.bind_contextvars(
                     correlation_id=correlation_id,
                     event_id=str(event_id),
@@ -98,7 +100,6 @@ async def relay_outbox_batch(
                         event_type=event_type,
                         event_id=str(event_id),
                     )
-                    # Помечаем как обработанное, чтобы не застревать
                     processed_ids.append(event_id)
                     continue
 
@@ -117,11 +118,7 @@ async def relay_outbox_batch(
                         event_type=event_type,
                         event_id=str(event_id),
                     )
-                    # При ошибке — откатываем всю транзакцию,
-                    # чтобы блокировки снялись и события стали доступны снова
                     raise
-
-            # Маркируем успешно отправленные события
             if processed_ids:
                 await session.execute(
                     _MARK_PROCESSED_SQL,

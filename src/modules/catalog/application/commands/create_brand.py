@@ -60,23 +60,18 @@ class CreateBrandHandler:
             object_key: str | None = None
 
             if command.logo:
-                # Детерминированный ключ — не зависит от модуля Storage
                 object_key = raw_logo_key(brand.id)
 
-                # Stateless: генерация URL без записи в БД
                 presigned_url = await self._blob_storage.generate_presigned_put_url(
                     object_name=object_key,
                     content_type=command.logo.content_type,
                 )
-
-                # Агрегат генерирует BrandCreatedEvent через Outbox
                 brand.init_logo_upload(
                     object_key=object_key,
                     content_type=command.logo.content_type,
                 )
                 await self._brand_repo.update(brand)
 
-            # Регистрируем агрегат — UoW запишет события в Outbox
             self._uow.register_aggregate(brand)
             await self._uow.commit()
 

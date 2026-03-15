@@ -1,7 +1,7 @@
 # src/bootstrap/logger.py
 import logging
 import sys
-from typing import Iterable
+from typing import Any, Iterable, TextIO
 
 import structlog
 from structlog.types import Processor
@@ -72,7 +72,9 @@ def setup_logging() -> None:
         ],
     )
 
-    handler = logging.StreamHandler(stream=sys.stdout)
+    handler: logging.StreamHandler[TextIO | Any] = logging.StreamHandler(
+        stream=sys.stdout
+    )
     handler.setFormatter(formatter)
 
     root_logger = logging.getLogger()

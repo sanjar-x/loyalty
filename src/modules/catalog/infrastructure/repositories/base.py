@@ -42,7 +42,6 @@ class BaseRepository(Generic[EntityType, ModelType], ICatalogRepository[EntityTy
     async def add(self, data: EntityType) -> EntityType:
         orm = self._to_orm(data)
         self._session.add(orm)
-        # Flush нужен только для получения БД-идентификаторов (PK) до коммита
         await self._session.flush()
         return self._to_domain(orm)
 

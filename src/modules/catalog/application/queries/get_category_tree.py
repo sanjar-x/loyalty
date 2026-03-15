@@ -6,6 +6,7 @@ Query Handler: дерево категорий.
 и репозитории. Работает напрямую с AsyncSession + raw SQL,
 возвращает Pydantic Read Models.
 """
+
 import json
 import uuid
 
@@ -59,7 +60,6 @@ class GetCategoryTreeHandler:
                 if parent is not None:
                     parent.children.append(node)
 
-        # Кэшируем сериализованный результат
         cache_payload = [n.model_dump(mode="json") for n in roots]
         await self._cache.set(CACHE_KEY, json.dumps(cache_payload), ttl=300)
 

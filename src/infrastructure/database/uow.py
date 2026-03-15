@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 
 class UnitOfWork(IUnitOfWork):
     def __init__(self, session: AsyncSession):
-        self._session = session
+        self._session: AsyncSession = session
         self._aggregates: list[AggregateRoot] = []
 
     async def __aenter__(self) -> "UnitOfWork":

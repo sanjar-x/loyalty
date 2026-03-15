@@ -1,5 +1,3 @@
-import uuid
-
 import pytest
 
 from src.modules.catalog.domain.entities import Brand

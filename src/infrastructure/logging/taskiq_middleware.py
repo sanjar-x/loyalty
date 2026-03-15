@@ -36,7 +36,5 @@ class LoggingTaskiqMiddleware(TaskiqMiddleware):
         )
         return message
 
-    async def post_execute(
-        self, message: TaskiqMessage, result: TaskiqResult
-    ) -> None:
+    async def post_execute(self, message: TaskiqMessage, result: TaskiqResult) -> None:
         structlog.contextvars.clear_contextvars()

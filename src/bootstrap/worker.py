@@ -24,9 +24,10 @@
 
 Защита от автоформаттеров:
     Импорты задач помечены # noqa для подавления E402 (import not at top of file).
-    Директива type: ignore[import] добавлена там, где задачи не экспортируют публичный API.
+    Директива type: ignore[import] добавлена там, где задачи не экспортируют API.
     Не удалять эти комментарии при «чистке» кода.
 """
+
 import structlog
 from dishka.async_container import AsyncContainer
 from dishka.integrations.taskiq import setup_dishka

@@ -1,10 +1,6 @@
-from unittest.mock import AsyncMock, patch
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.shared.interfaces.blob_storage import IBlobStorage
 
 # Достаточно указать один раз на весь файл
 pytestmark = pytest.mark.asyncio

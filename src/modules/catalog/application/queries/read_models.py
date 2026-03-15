@@ -6,6 +6,7 @@ Read Models (DTO) для Query-обработчиков модуля Catalog.
 Используются напрямую Query Handler'ами без участия доменных агрегатов,
 репозиториев или Unit of Work.
 """
+
 from __future__ import annotations
 
 import uuid

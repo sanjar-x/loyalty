@@ -1,6 +1,3 @@
-import uuid
-from unittest.mock import AsyncMock, patch
-
 from dishka import AsyncContainer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,9 +38,7 @@ async def test_process_brand_logo_task(
     )
 
     # Act — вызываем задачу напрямую (без брокера)
-    result = await process_brand_logo_task(
-        brand_id=brand.id, processor=processor
-    )
+    result = await process_brand_logo_task(brand_id=brand.id, processor=processor)  # ty:ignore[missing-argument]
 
     # Assert
     assert result == {"status": "success", "brand_id": str(brand.id)}
@@ -52,4 +47,7 @@ async def test_process_brand_logo_task(
     orm_brand = await db_session.get(OrmBrand, brand.id)
     assert orm_brand is not None
     assert orm_brand.logo_status == MediaProcessingStatus.COMPLETED
-    assert orm_brand.logo_url == f"http://127.0.0.1:9000/test-bucket/public/brands/{brand.id}/logo.webp"
+    assert (
+        orm_brand.logo_url
+        == f"http://127.0.0.1:9000/test-bucket/public/brands/{brand.id}/logo.webp"
+    )

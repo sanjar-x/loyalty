@@ -29,9 +29,7 @@ class DomainEvent(BaseModel):
     """
 
     event_id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    occurred_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    occurred_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Подклассы ОБЯЗАНЫ переопределить эти поля
     aggregate_type: str = ""

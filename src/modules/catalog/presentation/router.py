@@ -44,7 +44,6 @@ category_router = APIRouter(
     summary="Создать новую категорию",
     description="Создает категорию.",
 )
-# Декоратора @inject больше нет
 async def create_category(
     request: CategoryCreateRequest,
     handler: FromDishka[CreateCategoryHandler],
@@ -66,7 +65,6 @@ async def create_category(
     summary="Получить дерево категорий",
     description="Возвращает полный каталог в виде вложенного дерева",
 )
-# Декоратора @inject больше нет
 async def get_category_tree(
     handler: FromDishka[GetCategoryTreeHandler],
 ) -> Any:

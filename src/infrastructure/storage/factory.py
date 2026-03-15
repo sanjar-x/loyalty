@@ -22,10 +22,10 @@ class S3ClientFactory:
         region: str,
         endpoint_url: Optional[str] = None,
     ) -> None:
-        self._access_key = access_key
-        self._secret_key = secret_key
-        self._region = region
-        self._endpoint_url = endpoint_url
+        self._access_key: str = access_key
+        self._secret_key: str = secret_key
+        self._region: str = region
+        self._endpoint_url: str | None = endpoint_url
         self._session: AioSession = get_session()
 
     async def create_client(self) -> AsyncGenerator[AioBaseClient, None]:

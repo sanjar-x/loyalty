@@ -30,7 +30,6 @@ async def process_brand_logo_task(
     start_time = time.perf_counter()
 
     try:
-        # Передаем выполнение в доменный сервис
         await processor.process(brand_id=brand_id)
 
         execution_time = time.perf_counter() - start_time
@@ -40,7 +39,6 @@ async def process_brand_logo_task(
 
     except Exception as e:
         execution_time = time.perf_counter() - start_time
-        # exception() автоматически запишет stack trace
         log.exception(
             "Критическая ошибка выполнения задачи",
             error_type=type(e).__name__,

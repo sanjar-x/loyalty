@@ -25,10 +25,10 @@ class ConfirmBrandLogoUploadHandler:
         blob_storage: IBlobStorage,
         logger: ILogger,
     ):
-        self._brand_repo = brand_repo
-        self._blob_storage = blob_storage
-        self._uow = uow
-        self._logger = logger.bind(handler="ConfirmBrandLogoUploadHandler")
+        self._brand_repo: IBrandRepository = brand_repo
+        self._blob_storage: IBlobStorage = blob_storage
+        self._uow: IUnitOfWork = uow
+        self._logger: ILogger = logger.bind(handler="ConfirmBrandLogoUploadHandler")
 
     async def handle(self, command: ConfirmBrandLogoUploadCommand) -> None:
         async with self._uow:
@@ -36,22 +36,18 @@ class ConfirmBrandLogoUploadHandler:
             if not brand:
                 raise BrandNotFoundError(brand_id=command.brand_id)
 
-            # 1. Верификация: файл загружен в S3 по детерминированному ключу
-            object_key = raw_logo_key(brand.id)
-            exists = await self._blob_storage.object_exists(object_key)
+            object_key: str = raw_logo_key(brand.id)
+            exists: bool = await self._blob_storage.object_exists(object_key)
             if not exists:
                 from src.shared.exceptions import ValidationError
 
                 raise ValidationError(message="Файл не был загружен в хранилище.")
 
-            # 2. Обновляем статус (внутри генерируется BrandLogoConfirmedEvent)
             brand.confirm_logo_upload()
             await self._brand_repo.update(brand)
 
-            # 3. Регистрируем агрегат — UoW извлечёт события и запишет в Outbox
             self._uow.register_aggregate(brand)
 
-            # 4. Атомарный коммит: бизнес-данные + Outbox в одной транзакции
             await self._uow.commit()
 
         self._logger.info(
