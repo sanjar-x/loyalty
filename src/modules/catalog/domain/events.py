@@ -43,7 +43,7 @@ class BrandLogoConfirmedEvent(DomainEvent):
 class BrandLogoProcessedEvent(DomainEvent):
     """
     Логотип обработан — модуль Storage регистрирует итоговый файл.
-    Генерируется воркером после успешного ресайза и загрузки в S3.
+    Генерируется в Brand.complete_logo_processing().
     """
 
     brand_id: uuid.UUID | None = None

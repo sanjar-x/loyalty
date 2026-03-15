@@ -4,7 +4,6 @@ import uuid
 from PIL import Image
 
 from src.modules.catalog.application.constants import public_logo_key, raw_logo_key
-from src.modules.catalog.domain.events import BrandLogoProcessedEvent
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.config import IStorageConfig
@@ -113,15 +112,11 @@ class BrandLogoProcessor:
                 log.warning("brand_not_found_at_finalization")
                 return
 
-            brand.complete_logo_processing(url=logo_url)
-            brand.add_domain_event(
-                BrandLogoProcessedEvent(
-                    brand_id=brand_id,
-                    object_key=object_key,
-                    content_type="image/webp",
-                    size_bytes=size_bytes,
-                    aggregate_id=str(brand_id),
-                )
+            brand.complete_logo_processing(
+                url=logo_url,
+                object_key=object_key,
+                content_type="image/webp",
+                size_bytes=size_bytes,
             )
             await self._brand_repo.update(brand)
             self._uow.register_aggregate(brand)

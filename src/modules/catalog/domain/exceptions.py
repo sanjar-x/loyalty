@@ -90,6 +90,15 @@ class BrandSlugConflictError(ConflictError):
         )
 
 
+class LogoFileNotUploadedError(UnprocessableEntityError):
+    def __init__(self, brand_id: uuid.UUID):
+        super().__init__(
+            message="Файл логотипа не был загружен в хранилище.",
+            error_code="LOGO_FILE_NOT_UPLOADED",
+            details={"brand_id": str(brand_id)},
+        )
+
+
 class InvalidLogoStateException(UnprocessableEntityError):
     def __init__(self, brand_id: uuid.UUID, current_status: str, expected_status: str):
         super().__init__(

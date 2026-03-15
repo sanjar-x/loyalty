@@ -67,12 +67,45 @@ class Brand(AggregateRoot):
             )
         )
 
-    def complete_logo_processing(self, url: str) -> None:
+    def complete_logo_processing(
+        self, url: str, object_key: str, content_type: str, size_bytes: int
+    ) -> None:
+        if self.logo_status != MediaProcessingStatus.PROCESSING:
+            from src.modules.catalog.domain.exceptions import InvalidLogoStateException
+
+            raise InvalidLogoStateException(
+                brand_id=self.id,
+                current_status=str(self.logo_status) if self.logo_status else "None",
+                expected_status=MediaProcessingStatus.PROCESSING,
+            )
         self.logo_url = url
         self.logo_status = MediaProcessingStatus.COMPLETED
 
+        from src.modules.catalog.domain.events import BrandLogoProcessedEvent
+
+        self.add_domain_event(
+            BrandLogoProcessedEvent(
+                brand_id=self.id,
+                object_key=object_key,
+                content_type=content_type,
+                size_bytes=size_bytes,
+                aggregate_id=str(self.id),
+            )
+        )
+
     def fail_logo_processing(self) -> None:
+        if self.logo_status != MediaProcessingStatus.PROCESSING:
+            from src.modules.catalog.domain.exceptions import InvalidLogoStateException
+
+            raise InvalidLogoStateException(
+                brand_id=self.id,
+                current_status=str(self.logo_status) if self.logo_status else "None",
+                expected_status=MediaProcessingStatus.PROCESSING,
+            )
         self.logo_status = MediaProcessingStatus.FAILED
+
+
+MAX_CATEGORY_DEPTH = 3
 
 
 @dataclass
@@ -86,21 +119,43 @@ class Category(AggregateRoot):
     sort_order: int
 
     @classmethod
-    def create(
+    def create_root(
         cls,
         name: str,
         slug: str,
-        parent_id: uuid.UUID | None,
-        level: int,
-        full_slug: str,
-        sort_order: int,
+        sort_order: int = 0,
     ) -> "Category":
         return cls(
             id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
-            parent_id=parent_id,
+            parent_id=None,
             name=name,
             slug=slug,
-            full_slug=full_slug,
-            level=level,
+            full_slug=slug,
+            level=0,
+            sort_order=sort_order,
+        )
+
+    @classmethod
+    def create_child(
+        cls,
+        name: str,
+        slug: str,
+        parent: "Category",
+        sort_order: int = 0,
+    ) -> "Category":
+        if parent.level >= MAX_CATEGORY_DEPTH:
+            from src.modules.catalog.domain.exceptions import CategoryMaxDepthError
+
+            raise CategoryMaxDepthError(
+                max_depth=MAX_CATEGORY_DEPTH, current_level=parent.level
+            )
+
+        return cls(
+            id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
+            parent_id=parent.id,
+            name=name,
+            slug=slug,
+            full_slug=f"{parent.full_slug}/{slug}",
+            level=parent.level + 1,
             sort_order=sort_order,
         )

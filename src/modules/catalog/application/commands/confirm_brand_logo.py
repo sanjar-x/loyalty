@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from src.modules.catalog.application.constants import raw_logo_key
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
+    LogoFileNotUploadedError,
 )
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.shared.interfaces.blob_storage import IBlobStorage
@@ -39,9 +40,7 @@ class ConfirmBrandLogoUploadHandler:
             object_key: str = raw_logo_key(brand.id)
             exists: bool = await self._blob_storage.object_exists(object_key)
             if not exists:
-                from src.shared.exceptions import ValidationError
-
-                raise ValidationError(message="Файл не был загружен в хранилище.")
+                raise LogoFileNotUploadedError(brand_id=brand.id)
 
             brand.confirm_logo_upload()
             await self._brand_repo.update(brand)
