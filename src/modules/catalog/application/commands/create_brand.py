@@ -2,17 +2,14 @@
 import uuid
 from dataclasses import dataclass
 
-import structlog
-
 from src.bootstrap.config import Settings
 from src.modules.catalog.application.constants import raw_logo_key
 from src.modules.catalog.domain.entities import Brand
 from src.modules.catalog.domain.exceptions import BrandSlugConflictError
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.shared.interfaces.blob_storage import IBlobStorage
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
-
-logger = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -43,6 +40,7 @@ class CreateBrandHandler:
         uow: IUnitOfWork,
         blob_storage: IBlobStorage,
         settings: Settings,
+        logger: ILogger,
     ):
         self._brand_repo = brand_repo
         self._uow = uow

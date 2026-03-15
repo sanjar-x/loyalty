@@ -2,17 +2,14 @@
 import uuid
 from typing import Any
 
-import structlog
-
 from src.bootstrap.config import Settings
 from src.modules.storage.domain.interfaces import IStorageRepository
 from src.modules.storage.infrastructure.models import StorageObject
 from src.shared.exceptions import ValidationError
 from src.shared.interfaces.blob_storage import IBlobStorage
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.storage import IStorageFacade, PresignedUploadData
 from src.shared.interfaces.uow import IUnitOfWork
-
-logger = structlog.get_logger(__name__)
 
 
 class StorageFacade(IStorageFacade):
@@ -22,6 +19,7 @@ class StorageFacade(IStorageFacade):
         storage_repo: IStorageRepository,
         uow: IUnitOfWork,
         settings: Settings,
+        logger: ILogger,
     ):
         self._blob_storage: IBlobStorage = blob_storage
         self._storage_repo: IStorageRepository = storage_repo

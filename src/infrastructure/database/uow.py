@@ -89,10 +89,14 @@ class UnitOfWork(IUnitOfWork):
     @staticmethod
     def _map_event_to_outbox(event: DomainEvent) -> OutboxMessage:
         """Маппинг доменного события → ORM-запись в таблице outbox_messages."""
+        from src.shared.context import get_request_id
+
+        correlation_id = get_request_id()
         return OutboxMessage(
             id=event.event_id,
             aggregate_type=event.aggregate_type,
             aggregate_id=event.aggregate_id,
             event_type=event.event_type,
             payload=event.model_dump(mode="json"),
+            correlation_id=correlation_id if correlation_id != "UNKNOWN" else None,
         )

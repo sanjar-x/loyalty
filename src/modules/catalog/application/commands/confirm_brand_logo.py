@@ -2,17 +2,14 @@
 import uuid
 from dataclasses import dataclass
 
-import structlog
-
 from src.modules.catalog.application.constants import raw_logo_key
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
 )
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.shared.interfaces.blob_storage import IBlobStorage
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
-
-logger = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -26,6 +23,7 @@ class ConfirmBrandLogoUploadHandler:
         brand_repo: IBrandRepository,
         uow: IUnitOfWork,
         blob_storage: IBlobStorage,
+        logger: ILogger,
     ):
         self._brand_repo = brand_repo
         self._blob_storage = blob_storage

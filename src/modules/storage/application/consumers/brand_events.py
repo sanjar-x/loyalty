@@ -7,18 +7,15 @@ Consumer модуля Storage для Integration Events модуля Catalog.
 
 Все обработчики ИДЕМПОТЕНТНЫ (At-Least-Once гарантия Outbox).
 """
-import uuid
 
-import structlog
 from dishka.integrations.taskiq import FromDishka, inject
 
 from src.bootstrap.broker import broker
 from src.bootstrap.config import Settings
 from src.modules.storage.domain.interfaces import IStorageRepository
 from src.modules.storage.infrastructure.models import StorageObject
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
-
-logger = structlog.get_logger(__name__)
 
 
 @broker.task(
@@ -36,6 +33,7 @@ async def handle_brand_created_event(
     storage_repo: FromDishka[IStorageRepository],
     uow: FromDishka[IUnitOfWork],
     settings: FromDishka[Settings],
+    logger: FromDishka[ILogger],
 ) -> dict:
     """
     Реакция на BrandCreatedEvent: создаёт запись StorageObject.
@@ -83,6 +81,7 @@ async def handle_brand_logo_processed_event(
     storage_repo: FromDishka[IStorageRepository],
     uow: FromDishka[IUnitOfWork],
     settings: FromDishka[Settings],
+    logger: FromDishka[ILogger],
 ) -> dict:
     """
     Реакция на BrandLogoProcessedEvent: регистрирует обработанный файл.
@@ -114,5 +113,7 @@ async def handle_brand_logo_processed_event(
         await storage_repo.add(storage_obj)
         await uow.commit()
 
-    log.info("StorageObject создан для обработанного логотипа", file_id=str(storage_obj.id))
+    log.info(
+        "StorageObject создан для обработанного логотипа", file_id=str(storage_obj.id)
+    )
     return {"status": "created", "file_id": str(storage_obj.id)}

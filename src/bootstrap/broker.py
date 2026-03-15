@@ -3,6 +3,7 @@ import structlog
 from taskiq_aio_pika import AioPikaBroker
 
 from src.bootstrap.config import settings
+from src.infrastructure.logging.taskiq_middleware import LoggingTaskiqMiddleware
 
 logger = structlog.get_logger(__name__)
 
@@ -14,4 +15,4 @@ broker = AioPikaBroker(
     qos=10,
     declare_exchange=True,
     declare_queue=True,
-)
+).with_middlewares(LoggingTaskiqMiddleware())

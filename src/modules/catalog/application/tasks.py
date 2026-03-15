@@ -1,13 +1,11 @@
 import time
 import uuid
 
-import structlog
 from dishka.integrations.taskiq import FromDishka, inject
 
 from src.bootstrap.broker import broker
 from src.modules.catalog.application.services.media_processor import BrandLogoProcessor
-
-logger = structlog.get_logger(__name__)
+from src.shared.interfaces.logger import ILogger
 
 
 @broker.task(
@@ -21,11 +19,11 @@ logger = structlog.get_logger(__name__)
 async def process_brand_logo_task(
     brand_id: uuid.UUID,
     processor: FromDishka[BrandLogoProcessor],
+    logger: FromDishka[ILogger],
 ) -> dict:
     """
     TaskIQ воркер для обработки (ресайз/WebP) логотипа бренда.
     """
-    # Привязываем контекст задачи к логгеру, чтобы не передавать brand_id вручную в каждый вызов
     log = logger.bind(task="process_brand_logo", brand_id=str(brand_id))
 
     log.info("Воркер принял задачу в обработку")

@@ -1,15 +1,15 @@
-# src\infrastructure\storage\service.py
-import logging
+# src/modules/storage/infrastructure/service.py
 from collections.abc import AsyncIterator
 from typing import Any
 
+import structlog
 from aiobotocore.client import AioBaseClient
 from botocore.exceptions import ClientError
 
 from src.shared.exceptions import NotFoundError, ServiceUnavailableError
 from src.shared.interfaces.blob_storage import IBlobStorage
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class S3StorageService(IBlobStorage):
@@ -24,7 +24,12 @@ class S3StorageService(IBlobStorage):
                 message=f"Объект '{object_name}' не найден в хранилище.",
                 details={"bucket": self._bucket, "key": object_name},
             )
-        logger.error(f"S3 ClientError для объекта {object_name}: {e}")
+        logger.error(
+            "s3_client_error",
+            object_name=object_name,
+            error_code=error_code,
+            error=str(e),
+        )
         raise ServiceUnavailableError(
             message="Ошибка взаимодействия с сервисом хранения данных.",
             details={"error_code": error_code},
@@ -55,7 +60,9 @@ class S3StorageService(IBlobStorage):
                 ExpiresIn=expiration,
             )
         except ClientError as e:
-            logger.error(f"Ошибка генерации presigned URL: {e}")
+            logger.error(
+                "s3_presigned_url_error", object_name=object_name, error=str(e)
+            )
             raise ServiceUnavailableError(
                 message="Не удалось сгенерировать ссылку на файл.",
                 details={"key": object_name},
@@ -115,19 +122,30 @@ class S3StorageService(IBlobStorage):
                 UploadId=upload_id,
                 MultipartUpload={"Parts": parts},
             )
-            logger.debug(f"Файл {object_name} успешно загружен (Multipart).")
+            logger.debug(
+                "s3_multipart_upload_completed",
+                object_name=object_name,
+                total_parts=len(parts),
+            )
             return object_name
 
         except Exception as e:
             # В случае ошибки - обязательно очищаем "мусорные" куски с сервера S3
-            logger.error(f"Ошибка загрузки потока для {object_name}: {e}")
+            logger.error(
+                "s3_upload_stream_error", object_name=object_name, error=str(e)
+            )
             if upload_id:
                 try:
                     await self._client.abort_multipart_upload(
                         Bucket=self._bucket, Key=object_name, UploadId=upload_id
                     )
                 except Exception as abort_err:
-                    logger.error(f"Не удалось отменить Multipart Upload: {abort_err}")
+                    logger.error(
+                        "s3_abort_multipart_error",
+                        object_name=object_name,
+                        upload_id=upload_id,
+                        error=str(abort_err),
+                    )
 
             raise ServiceUnavailableError(
                 message="Ошибка при загрузке файла в хранилище.",
@@ -142,7 +160,9 @@ class S3StorageService(IBlobStorage):
                 Bucket=self._bucket, Key=object_name, ExpiresIn=expiration
             )
         except ClientError as e:
-            logger.error(f"Ошибка генерации presigned upload url: {e}")
+            logger.error(
+                "s3_presigned_upload_url_error", object_name=object_name, error=str(e)
+            )
             raise ServiceUnavailableError(
                 message="Не удалось сгенерировать ссылку для загрузки файла.",
                 details={"key": object_name},
@@ -162,7 +182,9 @@ class S3StorageService(IBlobStorage):
                 ExpiresIn=expiration,
             )
         except ClientError as e:
-            logger.error(f"Ошибка генерации presigned put url: {e}")
+            logger.error(
+                "s3_presigned_put_url_error", object_name=object_name, error=str(e)
+            )
             raise ServiceUnavailableError(
                 message="Не удалось сгенерировать прямую ссылку для загрузки файла.",
                 details={"key": object_name},
@@ -177,7 +199,9 @@ class S3StorageService(IBlobStorage):
             if error_code in ("404", "NoSuchKey", "NotFound"):
                 return False
 
-            logger.error(f"Ошибка при проверке existence для {object_name}: {e}")
+            logger.error(
+                "s3_object_exists_error", object_name=object_name, error=str(e)
+            )
             raise ServiceUnavailableError(
                 message="Ошибка при проверке существования файла."
             )
@@ -233,7 +257,7 @@ class S3StorageService(IBlobStorage):
                 "key_count": response.get("KeyCount", 0),
             }
         except ClientError as e:
-            logger.error(f"Ошибка получения списка файлов: {e}")
+            logger.error("s3_list_objects_error", prefix=prefix, error=str(e))
             raise ServiceUnavailableError(
                 message="Ошибка при получении списка файлов из хранилища."
             )
@@ -242,7 +266,9 @@ class S3StorageService(IBlobStorage):
         try:
             await self._client.delete_object(Bucket=self._bucket, Key=object_name)
         except ClientError as e:
-            logger.error(f"Ошибка при удалении {object_name}: {e}")
+            logger.error(
+                "s3_delete_object_error", object_name=object_name, error=str(e)
+            )
             raise ServiceUnavailableError(
                 message="Не удалось удалить файл.", details={"key": object_name}
             )
@@ -271,7 +297,7 @@ class S3StorageService(IBlobStorage):
 
             return failed_keys
         except ClientError as e:
-            logger.error(f"Ошибка batch удалении: {e}")
+            logger.error("s3_batch_delete_error", count=len(object_names), error=str(e))
             raise ServiceUnavailableError(
                 message="Ошибка при пакетном удалении файлов."
             )

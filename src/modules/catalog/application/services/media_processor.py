@@ -1,7 +1,6 @@
 import io
 import uuid
 
-import structlog
 from PIL import Image
 
 from src.bootstrap.config import Settings
@@ -9,9 +8,8 @@ from src.modules.catalog.application.constants import public_logo_key, raw_logo_
 from src.modules.catalog.domain.events import BrandLogoProcessedEvent
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.shared.interfaces.blob_storage import IBlobStorage
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
-
-logger = structlog.get_logger(__name__)
 
 MAX_LOGO_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 UPLOAD_CHUNK_SIZE = 64 * 1024  # 64 KB
@@ -24,6 +22,7 @@ class BrandLogoProcessor:
         blob_storage: IBlobStorage,
         uow: IUnitOfWork,
         settings: Settings,
+        logger: ILogger,
     ):
         self._brand_repo = brand_repo
         self._blob_storage = blob_storage
@@ -56,7 +55,7 @@ class BrandLogoProcessor:
             await self._mark_failed(brand_id, log)
             raise
 
-    async def _download_raw(self, key: str, log: structlog.stdlib.BoundLogger) -> bytes:
+    async def _download_raw(self, key: str, log: ILogger) -> bytes:
         buf = io.BytesIO()
         total = 0
 
@@ -72,7 +71,7 @@ class BrandLogoProcessor:
         return buf.getvalue()
 
     @staticmethod
-    def _convert_to_webp(raw_data: bytes, log: structlog.stdlib.BoundLogger) -> bytes:
+    def _convert_to_webp(raw_data: bytes, log: ILogger) -> bytes:
         output = io.BytesIO()
 
         with Image.open(io.BytesIO(raw_data)) as img:
@@ -88,9 +87,7 @@ class BrandLogoProcessor:
         )
         return result
 
-    async def _upload_processed(
-        self, key: str, data: bytes, log: structlog.stdlib.BoundLogger
-    ) -> None:
+    async def _upload_processed(self, key: str, data: bytes, log: ILogger) -> None:
         async def chunked_stream():
             for offset in range(0, len(data), UPLOAD_CHUNK_SIZE):
                 yield data[offset : offset + UPLOAD_CHUNK_SIZE]
@@ -108,7 +105,7 @@ class BrandLogoProcessor:
         logo_url: str,
         object_key: str,
         size_bytes: int,
-        log: structlog.stdlib.BoundLogger,
+        log: ILogger,
     ) -> None:
         async with self._uow:
             brand = await self._brand_repo.get_for_update(brand_id)
@@ -131,9 +128,7 @@ class BrandLogoProcessor:
             await self._uow.commit()
             log.info("brand_status_completed")
 
-    async def _mark_failed(
-        self, brand_id: uuid.UUID, log: structlog.stdlib.BoundLogger
-    ) -> None:
+    async def _mark_failed(self, brand_id: uuid.UUID, log: ILogger) -> None:
         try:
             async with self._uow:
                 brand = await self._brand_repo.get(brand_id)

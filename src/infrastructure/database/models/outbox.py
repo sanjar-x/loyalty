@@ -65,6 +65,13 @@ class OutboxMessage(Base):
         comment="Момент успешной публикации в брокер (NULL = не обработано)",
     )
 
+    correlation_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        default=None,
+        comment="ID корреляции для сквозной трассировки (HTTP request_id → Outbox → TaskIQ)",
+    )
+
     __table_args__ = (
         # Критический индекс для Relay-воркера:
         # WHERE processed_at IS NULL ORDER BY created_at ASC

@@ -37,7 +37,7 @@ def register_event_handler(event_type: str, handler: EventHandler) -> None:
 
 # SQL с FOR UPDATE SKIP LOCKED — несколько воркеров не блокируют друг друга
 _FETCH_UNPROCESSED_SQL = text("""
-    SELECT id, event_type, payload
+    SELECT id, event_type, payload, correlation_id
     FROM outbox_messages
     WHERE processed_at IS NULL
     ORDER BY created_at ASC
@@ -80,6 +80,16 @@ async def relay_outbox_batch(
                 event_id = row.id
                 event_type = row.event_type
                 payload = row.payload
+                correlation_id = getattr(row, "correlation_id", None) or (
+                    "relay-" + uuid.uuid4().hex[:12]
+                )
+
+                # Привязываем correlation_id для сквозной трассировки
+                structlog.contextvars.bind_contextvars(
+                    correlation_id=correlation_id,
+                    event_id=str(event_id),
+                    event_type=event_type,
+                )
 
                 handler = _EVENT_HANDLERS.get(event_type)
                 if handler is None:

@@ -35,6 +35,7 @@ class AccessLoggerMiddleware:
 
         structlog.contextvars.bind_contextvars(
             request_id=request_id,
+            correlation_id=request_id,
             ip=ip,
             method=request.method,
             path=request.url.path,
@@ -42,18 +43,19 @@ class AccessLoggerMiddleware:
 
         start_time = time.perf_counter()
         status_code = 500
+        duration_ms = 0.0
 
         async def send_wrapper(message: Message) -> None:
-            nonlocal status_code
+            nonlocal status_code, duration_ms
 
             if message["type"] == "http.response.start":
                 status_code = message.get("status", 500)
-                process_time_ms = round((time.perf_counter() - start_time) * 1000, 2)
+                duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
                 existing_headers = list(message.get("headers", []))
                 existing_headers.extend(
                     [
-                        (b"x-process-time-ms", str(process_time_ms).encode("latin1")),
+                        (b"x-process-time-ms", str(duration_ms).encode("latin1")),
                         (b"x-request-id", request_id.encode("latin1")),
                     ]
                 )
@@ -66,11 +68,13 @@ class AccessLoggerMiddleware:
 
         except Exception as e:
             status_code = 500
+            duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
             logger.exception("Unhandled exception during request processing")
             raise e
 
         finally:
-            process_time_ms = round((time.perf_counter() - start_time) * 1000, 2)
+            if not duration_ms:
+                duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
             if status_code >= 500:
                 log_method = logger.error
@@ -82,5 +86,5 @@ class AccessLoggerMiddleware:
             log_method(
                 "HTTP Request Handled",
                 status=status_code,
-                duration_ms=process_time_ms,
+                duration_ms=duration_ms,
             )
