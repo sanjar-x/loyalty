@@ -65,11 +65,6 @@ class Brand(AggregateRoot):
     def fail_logo_processing(self) -> None:
         self.logo_status = MediaProcessingStatus.FAILED
 
-    def revert_logo_upload(self) -> None:
-        if self.logo_status != MediaProcessingStatus.PROCESSING:
-            return
-        self.logo_status = MediaProcessingStatus.PENDING_UPLOAD
-
 
 @dataclass
 class Category(AggregateRoot):

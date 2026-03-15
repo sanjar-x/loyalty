@@ -1,10 +1,6 @@
-from unittest.mock import AsyncMock, patch
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.modules.catalog.application.tasks import process_brand_logo_task
 
 # Достаточно указать один раз на весь файл
 pytestmark = pytest.mark.asyncio
@@ -51,16 +47,12 @@ async def test_confirm_brand_logo_e2e_success(
     brand_id = brand_data["brand_id"]
     object_key = brand_data["object_key"]
 
-    # 2. Мокаем только фоновую задачу TaskIQ
-    with patch.object(
-        process_brand_logo_task, "kiq", new_callable=AsyncMock
-    ) as mock_task:
-        confirm_payload = {"object_key": object_key}
-        response = await async_client.post(
-            f"/api/v1/catalog/brands/{brand_id}/logo/confirm", json=confirm_payload
-        )
+    # 2. Подтверждаем загрузку — TaskIQ больше не вызывается напрямую,
+    #    событие записывается в Outbox атомарно с транзакцией
+    confirm_payload = {"object_key": object_key}
+    response = await async_client.post(
+        f"/api/v1/catalog/brands/{brand_id}/logo/confirm", json=confirm_payload
+    )
 
     assert response.status_code == 202
     assert response.json() == {"message": "Запрос на обработку логотипа принят"}
-    # Проверяем, что таска действительно вызвалась
-    mock_task.assert_called_once()

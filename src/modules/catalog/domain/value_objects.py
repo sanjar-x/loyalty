@@ -3,10 +3,11 @@ import enum
 
 class MediaProcessingStatus(str, enum.Enum):
     """
-    State Machine (FSM) для асинхронной загрузки файлов (Claim Check Pattern).
+    Доменный конечный автомат (FSM) статусов обработки медиафайлов.
+    Описывает исключительно бизнес-состояния жизненного цикла файла.
     """
 
-    PENDING_UPLOAD = "PENDING_UPLOAD"  # Выдан Presigned URL, ждем загрузки от фронтенда
-    PROCESSING = "PROCESSING"  # Фронт подтвердил загрузку, TaskIQ воркер обрабатывает
-    COMPLETED = "COMPLETED"  # Обработка (ресайз/WebP) завершена успешно
-    FAILED = "FAILED"  # Ошибка (неверный формат, битый файл)
+    PENDING_UPLOAD = "PENDING_UPLOAD"  # Ожидается загрузка оригинала файла клиентом
+    PROCESSING = "PROCESSING"  # Файл загружен, ожидается завершение фоновой обработки (ресайз, оптимизация)
+    COMPLETED = "COMPLETED"  # Обработка успешно завершена, медиа готово к использованию
+    FAILED = "FAILED"  # Бизнес-ошибка обработки (например, поврежденный файл или неверный формат)

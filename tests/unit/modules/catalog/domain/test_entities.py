@@ -3,6 +3,7 @@ import uuid
 import pytest
 
 from src.modules.catalog.domain.entities import Brand
+from src.modules.catalog.domain.events import BrandLogoConfirmedEvent
 from src.modules.catalog.domain.exceptions import InvalidLogoStateException
 from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 
@@ -28,6 +29,26 @@ def test_brand_confirm_logo_upload_changes_status_to_processing():
 
     # Assert
     assert brand.logo_status == MediaProcessingStatus.PROCESSING
+
+
+def test_brand_confirm_logo_upload_emits_domain_event():
+    """confirm_logo_upload() должен сгенерировать BrandLogoConfirmedEvent."""
+    # Arrange
+    brand = Brand.create(name="Apple", slug="apple")
+    brand.init_logo_upload(file_id=uuid.uuid4())
+
+    # Act
+    brand.confirm_logo_upload()
+
+    # Assert
+    events = brand.domain_events
+    assert len(events) == 1
+    event = events[0]
+    assert isinstance(event, BrandLogoConfirmedEvent)
+    assert event.brand_id == brand.id
+    assert event.aggregate_type == "Brand"
+    assert event.aggregate_id == str(brand.id)
+    assert event.event_type == "BrandLogoConfirmedEvent"
 
 
 def test_brand_confirm_logo_upload_raises_error_when_invalid_state():
@@ -72,3 +93,18 @@ def test_brand_fail_logo_processing_sets_failed():
 
     # Assert
     assert brand.logo_status == MediaProcessingStatus.FAILED
+
+
+def test_brand_clear_domain_events():
+    """clear_domain_events() очищает накопленные события."""
+    # Arrange
+    brand = Brand.create(name="Apple", slug="apple")
+    brand.init_logo_upload(file_id=uuid.uuid4())
+    brand.confirm_logo_upload()
+    assert len(brand.domain_events) == 1
+
+    # Act
+    brand.clear_domain_events()
+
+    # Assert
+    assert len(brand.domain_events) == 0
