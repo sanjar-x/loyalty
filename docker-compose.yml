@@ -58,8 +58,8 @@ services:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: password
     ports:
-      - "127.0.0.1:5672:5672" # Порт для подключения приложений (AMQP)
-      - "127.0.0.1:15672:15672" # Порт для веб-интерфейса управления
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     volumes:
       - rabbitmq:/var/lib/rabbitmq
     healthcheck:
