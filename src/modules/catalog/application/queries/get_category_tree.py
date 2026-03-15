@@ -37,6 +37,9 @@ class GetCategoryTreeHandler:
         categories_map = {}
         for row in rows:
             cat_dict = dict(row)
+            cat_dict["id"] = str(cat_dict["id"])
+            if cat_dict["parent_id"] is not None:
+                cat_dict["parent_id"] = str(cat_dict["parent_id"])
             cat_dict["children"] = []
             categories_map[cat_dict["id"]] = cat_dict
 
@@ -49,17 +52,8 @@ class GetCategoryTreeHandler:
                 if parent is not None:
                     parent["children"].append(cat_dict)
 
-        for root in roots:
-            root["id"] = str(root["id"])
-            if root["parent_id"] is not None:
-                root["parent_id"] = str(root["parent_id"])
-            for child in root["children"]:
-                child["id"] = str(child["id"])
-                if child["parent_id"] is not None:
-                    child["parent_id"] = str(child["parent_id"])
-
         tree_dicts = roots
 
-        await self._cache.set(CACHE_KEY, json.dumps(tree_dicts))
+        await self._cache.set(CACHE_KEY, json.dumps(tree_dicts), ttl=300)
 
         return tree_dicts

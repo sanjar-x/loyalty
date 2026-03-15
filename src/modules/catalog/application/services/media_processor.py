@@ -110,7 +110,7 @@ class BrandLogoProcessor:
             logo_url = f"{self._settings.S3_PUBLIC_BASE_URL}/{public_key}"
             log.debug("Обновление статуса бренда в БД...")
             async with self._uow:
-                brand = await self._brand_repo.get(brand_id)
+                brand = await self._brand_repo.get_for_update(brand_id)
                 if brand:
                     brand.complete_logo_processing(file_id=file_id, url=logo_url)
                     await self._brand_repo.update(brand)

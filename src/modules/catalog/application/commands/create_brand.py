@@ -63,7 +63,8 @@ class CreateBrandHandler:
             brand = await self._brand_repo.add(brand)
 
             if upload_data:
-                assert upload_data.file_id is not None
+                if upload_data.file_id is None:
+                    raise RuntimeError("reserve_upload_slot вернул upload_data без file_id")
                 brand.init_logo_upload(file_id=upload_data.file_id)
                 await self._brand_repo.update(brand)
 

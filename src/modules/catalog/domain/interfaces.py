@@ -38,6 +38,11 @@ class IBrandRepository(ICatalogRepository[DomainBrand]):
     async def check_slug_exists(self, slug: str) -> bool:
         pass
 
+    @abstractmethod
+    async def get_for_update(self, id: uuid.UUID) -> DomainBrand | None:
+        """Получить бренд с пессимистической блокировкой (SELECT FOR UPDATE)."""
+        pass
+
 
 class ICategoryRepository(ICatalogRepository[DomainCategory]):
     """Репозиторий категорий."""

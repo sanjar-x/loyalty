@@ -12,10 +12,10 @@ class RedisService(ICacheService):
     def __init__(self, client: redis.Redis):
         self._client = client
 
-    async def set(self, key: str, value: str) -> None:
+    async def set(self, key: str, value: str, ttl: int = 0) -> None:
         try:
             logger.debug("Redis SET", key=key, value=value)
-            await self._client.set(key, value)
+            await self._client.set(key, value, ex=ttl if ttl > 0 else None)
         except RedisError as e:
             logger.warning("Ошибка записи в Redis (SET)", key=key, error=str(e))
 

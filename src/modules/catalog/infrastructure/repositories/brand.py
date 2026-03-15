@@ -77,3 +77,11 @@ class BrandRepository(IBrandRepository):
         statement = select(OrmBrand.id).where(OrmBrand.slug == slug).limit(1)
         result = await self._session.execute(statement)
         return result.first() is not None
+
+    async def get_for_update(self, id: uuid.UUID) -> DomainBrand | None:
+        statement = (
+            select(OrmBrand).where(OrmBrand.id == id).with_for_update()
+        )
+        result = await self._session.execute(statement)
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
