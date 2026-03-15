@@ -126,7 +126,7 @@ class BrandLogoProcessor:
     async def _mark_failed(self, brand_id: uuid.UUID, log: ILogger) -> None:
         try:
             async with self._uow:
-                brand = await self._brand_repo.get(brand_id)
+                brand = await self._brand_repo.get_for_update(brand_id)
                 if not brand:
                     return
                 brand.fail_logo_processing()

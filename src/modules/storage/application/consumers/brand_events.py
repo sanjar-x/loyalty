@@ -24,6 +24,7 @@ from src.shared.interfaces.uow import IUnitOfWork
     routing_key="storage.consumers.brand_created",
     max_retries=3,
     retry_on_error=True,
+    timeout=30,  # 30 секунд: лёгкая БД-операция
 )
 @inject
 async def handle_brand_created_event(
@@ -71,6 +72,7 @@ async def handle_brand_created_event(
     routing_key="storage.consumers.brand_logo_processed",
     max_retries=3,
     retry_on_error=True,
+    timeout=30,  # 30 секунд: лёгкая БД-операция
 )
 @inject
 async def handle_brand_logo_processed_event(

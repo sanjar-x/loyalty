@@ -14,6 +14,7 @@ from src.shared.interfaces.logger import ILogger
     routing_key="catalog.command.process_brand_logo",
     max_retries=3,
     retry_on_error=True,
+    timeout=300,  # 5 минут: download + convert + upload
 )
 @inject
 async def process_brand_logo_task(

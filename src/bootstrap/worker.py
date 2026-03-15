@@ -31,10 +31,14 @@
 import structlog
 from dishka.async_container import AsyncContainer
 from dishka.integrations.taskiq import setup_dishka
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import AsyncAdaptedQueuePool
 from taskiq.events import TaskiqEvents
 
 from src.bootstrap.broker import broker
+from src.bootstrap.config import settings
 from src.bootstrap.container import create_container
+from src.infrastructure.logging.dlq_middleware import DLQMiddleware
 
 logger = structlog.get_logger(__name__)
 
@@ -42,6 +46,20 @@ logger = structlog.get_logger(__name__)
 # Это критично, чтобы DishkaMiddleware успел подхватить задачи при их регистрации.
 container: AsyncContainer = create_container()
 setup_dishka(container=container, broker=broker)
+
+# 1.1 DLQ Middleware: сохраняет проваленные задачи в БД.
+# Используем отдельный engine, чтобы не зависеть от Dishka request-scoped session.
+_dlq_engine = create_async_engine(
+    url=settings.database_url,
+    poolclass=AsyncAdaptedQueuePool,
+    pool_size=2,
+    max_overflow=1,
+    pool_pre_ping=True,
+)
+_dlq_session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
+    bind=_dlq_engine, autoflush=False, expire_on_commit=False
+)
+broker.add_middlewares(DLQMiddleware(session_factory=_dlq_session_factory))
 
 # 2. Теперь импортируем задачи.
 import src.infrastructure.outbox.tasks  # noqa

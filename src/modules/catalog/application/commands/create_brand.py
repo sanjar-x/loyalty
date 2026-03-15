@@ -46,25 +46,31 @@ class CreateBrandHandler:
         self._logger = logger.bind(handler="CreateBrandHandler")
 
     async def handle(self, command: CreateBrandCommand) -> CreateBrandResult:
+        # 1. Pre-compute вне транзакции: S3 I/O не должен держать DB-соединение
+        brand_id = uuid.uuid4()
+        presigned_url: str | None = None
+        object_key: str | None = None
+
+        if command.logo:
+            object_key = raw_logo_key(brand_id)
+            presigned_url = await self._blob_storage.generate_presigned_put_url(
+                object_name=object_key,
+                content_type=command.logo.content_type,
+            )
+
+        # 2. Транзакция — только БД-операции
         async with self._uow:
             if await self._brand_repo.check_slug_exists(command.slug):
                 raise BrandSlugConflictError(slug=command.slug)
 
-            brand = Brand.create(name=command.name, slug=command.slug)
+            brand = Brand.create(
+                name=command.name, slug=command.slug, brand_id=brand_id
+            )
             brand = await self._brand_repo.add(brand)
 
-            presigned_url: str | None = None
-            object_key: str | None = None
-
             if command.logo:
-                object_key = raw_logo_key(brand.id)
-
-                presigned_url = await self._blob_storage.generate_presigned_put_url(
-                    object_name=object_key,
-                    content_type=command.logo.content_type,
-                )
                 brand.init_logo_upload(
-                    object_key=object_key,
+                    object_key=object_key,  # type: ignore[arg-type]
                     content_type=command.logo.content_type,
                 )
                 await self._brand_repo.update(brand)

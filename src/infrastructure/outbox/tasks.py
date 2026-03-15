@@ -2,8 +2,8 @@
 """
 TaskIQ-задачи для Outbox Relay и Pruning.
 
-Relay: периодический поллинг outbox_messages (каждые 2 секунды).
-Pruning: ежесуточная очистка обработанных записей старше 7 дней.
+Relay: периодический поллинг outbox_messages (каждую минуту через Beat).
+Pruning: ежесуточная очистка обработанных записей старше 7 дней (03:00 UTC).
 """
 
 import uuid
@@ -27,38 +27,66 @@ logger = structlog.get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 
-async def _handle_brand_created(payload: dict) -> None:
-    """Регистрирует StorageObject в модуле Storage через consumer."""
+def _build_labels(correlation_id: str | None) -> dict[str, str]:
+    """Формирует labels для сквозной трассировки HTTP → Outbox → TaskIQ."""
+    if correlation_id:
+        return {"correlation_id": correlation_id}
+    return {}
+
+
+async def _handle_brand_created(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    """Регистрирует StorageFile в модуле Storage через consumer."""
     from src.modules.storage.application.consumers.brand_events import (
         handle_brand_created_event,
     )
 
-    await handle_brand_created_event.kiq(  # type: ignore[call-overload]
-        brand_id=payload["brand_id"],
-        object_key=payload["object_key"],
-        content_type=payload["content_type"],
+    await (
+        handle_brand_created_event
+        .kicker()
+        .with_labels(**_build_labels(correlation_id))
+        .kiq(
+            brand_id=payload["brand_id"],
+            object_key=payload["object_key"],
+            content_type=payload["content_type"],
+        )  # ty:ignore[no-matching-overload]
     )
 
 
-async def _handle_brand_logo_confirmed(payload: dict) -> None:
+async def _handle_brand_logo_confirmed(
+    payload: dict, correlation_id: str | None = None
+) -> None:
     """Отправляет задачу обработки логотипа бренда в TaskIQ."""
     from src.modules.catalog.application.tasks import process_brand_logo_task
 
     brand_id = uuid.UUID(payload["brand_id"])
-    await process_brand_logo_task.kiq(brand_id=brand_id)  # type: ignore[call-overload]
+    await (
+        process_brand_logo_task
+        .kicker()
+        .with_labels(**_build_labels(correlation_id))
+        .kiq(brand_id=brand_id)  # ty:ignore[no-matching-overload]
+    )
 
 
-async def _handle_brand_logo_processed(payload: dict) -> None:
+async def _handle_brand_logo_processed(
+    payload: dict, correlation_id: str | None = None
+) -> None:
     """Регистрирует обработанный файл в модуле Storage."""
     from src.modules.storage.application.consumers.brand_events import (
         handle_brand_logo_processed_event,
     )
 
-    await handle_brand_logo_processed_event.kiq(  # type: ignore[call-overload]
-        brand_id=payload["brand_id"],
-        object_key=payload["object_key"],
-        content_type=payload["content_type"],
-        size_bytes=payload["size_bytes"],
+    await (
+        handle_brand_logo_processed_event
+        .kicker()
+        .with_labels(**_build_labels(correlation_id))
+        .kiq(
+            brand_id=payload["brand_id"],
+            object_key=payload["object_key"],
+            content_type=payload["content_type"],
+            size_bytes=payload["size_bytes"],
+        )  # ty:ignore[no-matching-overload]
     )
 
 
@@ -79,6 +107,8 @@ register_event_handler("BrandLogoProcessedEvent", _handle_brand_logo_processed)
     routing_key="infrastructure.outbox.relay",
     max_retries=0,
     retry_on_error=False,
+    timeout=55,  # 55 секунд: меньше интервала cron (1 мин)
+    schedule=[{"cron": "* * * * *", "schedule_id": "outbox_relay_every_minute"}],
 )
 @inject
 async def outbox_relay_task(
@@ -86,7 +116,7 @@ async def outbox_relay_task(
 ) -> dict:
     """
     Периодическая задача: забирает батч из Outbox и публикует в брокер.
-    Запускается через TaskIQ Beat каждые 2 секунды.
+    Запускается через TaskIQ Scheduler (Beat) каждую минуту.
     """
     try:
         processed = await relay_outbox_batch(
@@ -110,6 +140,8 @@ async def outbox_relay_task(
     routing_key="infrastructure.outbox.pruning",
     max_retries=1,
     retry_on_error=True,
+    timeout=120,  # 2 минуты: DELETE может быть тяжёлым
+    schedule=[{"cron": "0 3 * * *", "schedule_id": "outbox_pruning_daily_3am"}],
 )
 @inject
 async def outbox_pruning_task(
@@ -117,7 +149,7 @@ async def outbox_pruning_task(
 ) -> dict:
     """
     Ежесуточная задача: удаляет обработанные Outbox-записи старше 7 дней.
-    Запускается через TaskIQ Beat раз в сутки (ночью).
+    Запускается через TaskIQ Scheduler (Beat) ежесуточно в 03:00 UTC.
     """
     deleted = await prune_processed_messages(session_factory=session_factory)
     return {"status": "success", "deleted": deleted}

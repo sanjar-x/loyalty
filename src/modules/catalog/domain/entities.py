@@ -21,11 +21,12 @@ class Brand(AggregateRoot):
         cls,
         name: str,
         slug: str,
+        brand_id: uuid.UUID | None = None,
         logo_file_id: uuid.UUID | None = None,
         logo_status: MediaProcessingStatus | None = None,
     ) -> "Brand":
         return cls(
-            id=uuid.uuid4(),
+            id=brand_id or uuid.uuid4(),
             name=name,
             slug=slug,
             logo_file_id=logo_file_id,
