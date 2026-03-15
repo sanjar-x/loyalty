@@ -226,6 +226,7 @@ JOIN permissions p ON p.id = rp.permission_id;
 **Design decision:** `session_roles` is a NIST-compliant activation snapshot created at login time, BUT it is **dynamically updated** when roles change.
 
 **Flow:**
+
 1. **Login:** `session_roles` populated with all roles from `identity_roles` at login time (NIST Session-Role Activation).
 2. **Role assignment/revocation:** `AssignRoleHandler` / `RevokeRoleHandler` update `session_roles` for ALL active (non-revoked, non-expired) sessions of the affected identity, then emit `RoleAssignmentChangedEvent`.
 3. **Cache invalidation:** `RoleAssignmentChangedEvent` consumer deletes `perms:{session_id}` keys from Redis for all active sessions.
@@ -451,14 +452,17 @@ Existing endpoints continue using `get_current_user_id` without changes.
 ### 3.6 Dishka Integration
 
 **IdentityProvider** registers:
+
 - `IIdentityRepository`, `ISessionRepository`, `IRoleRepository`, `IPermissionRepository`, `ILinkedAccountRepository`
 - Scoped to REQUEST
 
 **UserProvider** registers:
+
 - `IUserRepository`
 - Scoped to REQUEST
 
 **Infrastructure Providers** (in `src/bootstrap/container.py`):
+
 - `IPermissionResolver` → `PermissionResolver` (APP scope, receives `async_sessionmaker` + `RedisService`)
 - `IPasswordHasher` → `Argon2PasswordHasher` (APP scope)
 - `ITokenProvider` → `JwtTokenProvider` (APP scope, extended with `create_refresh_token`)
@@ -511,12 +515,14 @@ MAX_ACTIVE_SESSIONS_PER_IDENTITY: int = 5
 1. New `Argon2PasswordHasher` implements `IPasswordHasher` with `needs_rehash()` method.
 2. `needs_rehash()` returns `True` if hash starts with `$2b$` (Bcrypt prefix) instead of `$argon2id$`.
 3. `LoginHandler` checks `needs_rehash()` after successful password verification:
+
    ```python
    if hasher.verify(password, credentials.password_hash):
        if hasher.needs_rehash(credentials.password_hash):
            credentials.password_hash = hasher.hash(password)
            # save updated hash within same UoW
    ```
+
 4. All new registrations use Argon2id immediately.
 5. Existing Bcrypt hashes remain valid until user next logs in → transparent rehash.
 6. `pwdlib` supports both Bcrypt and Argon2id hashers simultaneously.
@@ -617,6 +623,7 @@ register_event_handler("RoleAssignmentChangedEvent", _handle_role_assignment_cha
 ### 4.5 Cache Invalidation Strategy
 
 **On `RoleAssignmentChangedEvent`:**
+
 1. Find all active `session_id` for `identity_id` (non-revoked, non-expired)
 2. Delete `perms:{session_id}` keys from Redis for each session
 3. Next request triggers CTE against updated `session_roles` → result cached with TTL 300s
@@ -624,6 +631,7 @@ register_event_handler("RoleAssignmentChangedEvent", _handle_role_assignment_cha
 > **Note:** `AssignRoleHandler` / `RevokeRoleHandler` update `session_roles` rows synchronously (within the same UoW), THEN emit `RoleAssignmentChangedEvent` for cache invalidation. The event only handles cache clearing, not data mutation.
 
 **On logout / revoke_session:**
+
 - Delete `perms:{session_id}` from Redis
 - Set `session.is_revoked = True`
 
