@@ -1,6 +1,11 @@
-# src\shared\interfaces\uow.py
+# src/shared/interfaces/uow.py
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from src.shared.interfaces.entities import AggregateRoot
 
 
 class IUnitOfWork(ABC):
@@ -22,4 +27,15 @@ class IUnitOfWork(ABC):
 
     @abstractmethod
     async def rollback(self) -> None:
+        pass
+
+    @abstractmethod
+    def register_aggregate(self, aggregate: AggregateRoot) -> None:
+        """
+        Регистрирует агрегат для сбора доменных событий при commit().
+
+        Вызывается в Command Handler'е после мутации агрегата,
+        чтобы UoW мог извлечь накопленные события и записать их
+        в Outbox-таблицу атомарно с бизнес-транзакцией.
+        """
         pass

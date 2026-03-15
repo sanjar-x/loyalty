@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 import structlog
 
-from src.modules.catalog.application.tasks import process_brand_logo_task
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
 )
@@ -38,7 +37,7 @@ class ConfirmBrandLogoUploadHandler:
             if not brand:
                 raise BrandNotFoundError(brand_id=command.brand_id)
 
-            # 1. ДЕЛЕГИРУЕМ ВЕРИФИКАЦИЮ
+            # 1. Верификация загрузки
             if not brand.logo_file_id:
                 from src.shared.exceptions import ValidationError
 
@@ -46,29 +45,17 @@ class ConfirmBrandLogoUploadHandler:
 
             await self._storage_facade.verify_upload(file_id=brand.logo_file_id)
 
-            # 2. Обновляем статус
+            # 2. Обновляем статус (внутри генерируется BrandLogoConfirmedEvent)
             brand.confirm_logo_upload()
             await self._brand_repo.update(brand)
 
-            # 3. Коммитим транзакцию ДО отправки задачи в брокер
+            # 3. Регистрируем агрегат — UoW извлечёт события и запишет в Outbox
+            self._uow.register_aggregate(brand)
+
+            # 4. Атомарный коммит: бизнес-данные + Outbox в одной транзакции
             await self._uow.commit()
 
-        # Транзакция закрыта. Теперь безопасно вызываем воркер.
-        # 4. Прямой вызов TaskIQ через метод .kiq()
-        try:
-            await process_brand_logo_task.kiq(brand_id=brand.id)  # type: ignore
-        except Exception:
-            self._logger.exception(
-                "Не удалось поставить задачу в брокер, откат статуса бренда",
-                brand_id=str(brand.id),
-            )
-            async with self._uow:
-                brand.revert_logo_upload()
-                await self._brand_repo.update(brand)
-                await self._uow.commit()
-            raise
-
         self._logger.info(
-            "Бренд переведен в PROCESSING, задача отправлена в TaskIQ",
+            "Бренд переведен в PROCESSING, событие записано в Outbox",
             brand_id=str(brand.id),
         )

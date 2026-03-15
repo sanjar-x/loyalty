@@ -1,13 +1,14 @@
-# domain/entities/brand.py
+# src/modules/catalog/domain/entities.py
 import uuid
 
 from attr import dataclass
 
 from src.modules.catalog.domain.value_objects import MediaProcessingStatus
+from src.shared.interfaces.entities import AggregateRoot
 
 
 @dataclass
-class Brand:
+class Brand(AggregateRoot):
     id: uuid.UUID
     name: str
     slug: str
@@ -46,6 +47,16 @@ class Brand:
             )
         self.logo_status = MediaProcessingStatus.PROCESSING
 
+        # Генерируем доменное событие вместо прямого вызова брокера
+        from src.modules.catalog.domain.events import BrandLogoConfirmedEvent
+
+        self.add_domain_event(
+            BrandLogoConfirmedEvent(
+                brand_id=self.id,
+                aggregate_id=str(self.id),
+            )
+        )
+
     def complete_logo_processing(self, file_id: uuid.UUID, url: str) -> None:
         self.logo_file_id = file_id
         self.logo_url = url
@@ -61,7 +72,7 @@ class Brand:
 
 
 @dataclass
-class Category:
+class Category(AggregateRoot):
     id: uuid.UUID
     parent_id: uuid.UUID | None
     name: str

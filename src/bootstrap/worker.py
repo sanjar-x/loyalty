@@ -43,6 +43,7 @@ container: AsyncContainer = create_container()
 setup_dishka(container=container, broker=broker)
 
 # 2. Теперь импортируем задачи.
+import src.infrastructure.outbox.tasks  # noqa
 import src.modules.catalog.application.tasks  # noqa
 import src.modules.storage.presentation.tasks  # noqa
 

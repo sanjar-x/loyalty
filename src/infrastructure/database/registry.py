@@ -1,4 +1,5 @@
 from src.infrastructure.database.base import Base
+from src.infrastructure.database.models.outbox import OutboxMessage
 from src.modules.catalog.infrastructure.models import (
     SKU,
     Attribute,
@@ -13,6 +14,7 @@ from src.modules.catalog.infrastructure.models import (
 
 __all__ = [
     "Base",
+    "OutboxMessage",
     "Brand",
     "Category",
     "Attribute",
