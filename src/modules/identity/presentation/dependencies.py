@@ -10,7 +10,7 @@ get_current_user_id: Backward-compatible wrapper returning identity_id as uuid.U
 import uuid
 
 import structlog
-from dishka.integrations.fastapi import FromDishka
+from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -22,6 +22,7 @@ from src.shared.interfaces.security import IPermissionResolver, ITokenProvider
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 
+@inject
 async def get_auth_context(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     token_provider: FromDishka[ITokenProvider] = ...,  # type: ignore[assignment]
@@ -58,17 +59,10 @@ async def get_auth_context(
 
 
 class RequirePermission:
-    """
-    Parameterized FastAPI dependency for permission checks.
-
-    Usage:
-        @router.post("/brands", dependencies=[Depends(RequirePermission("brands:create"))])
-        async def create_brand(...): ...
-    """
-
     def __init__(self, codename: str) -> None:
         self._codename = codename
 
+    @inject
     async def __call__(
         self,
         auth: AuthContext = Depends(get_auth_context),

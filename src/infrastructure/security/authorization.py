@@ -13,7 +13,7 @@ import structlog
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.infrastructure.cache.redis import RedisService
+from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.security import IPermissionResolver
 
 logger = structlog.get_logger(__name__)
@@ -38,7 +38,7 @@ _PERMISSIONS_CTE = text("""
 class PermissionResolver(IPermissionResolver):
     def __init__(
         self,
-        redis: RedisService,
+        redis: ICacheService,
         session_factory: async_sessionmaker[AsyncSession],
         cache_ttl: int = 300,
     ) -> None:

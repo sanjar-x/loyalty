@@ -2,6 +2,7 @@
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 
+from src.bootstrap.config import settings
 from src.modules.identity.application.commands.assign_role import AssignRoleHandler
 from src.modules.identity.application.commands.create_role import CreateRoleHandler
 from src.modules.identity.application.commands.deactivate_identity import (
@@ -9,7 +10,6 @@ from src.modules.identity.application.commands.deactivate_identity import (
 )
 from src.modules.identity.application.commands.delete_role import DeleteRoleHandler
 from src.modules.identity.application.commands.login import LoginHandler
-from src.modules.identity.application.commands.login_oidc import LoginOIDCHandler
 from src.modules.identity.application.commands.logout import LogoutHandler
 from src.modules.identity.application.commands.logout_all import LogoutAllHandler
 from src.modules.identity.application.commands.refresh_token import RefreshTokenHandler
@@ -35,6 +35,9 @@ from src.modules.identity.domain.interfaces import (
     IRoleRepository,
     ISessionRepository,
 )
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.security import IPasswordHasher, ITokenProvider
+from src.shared.interfaces.uow import IUnitOfWork
 from src.modules.identity.infrastructure.repositories.identity_repository import (
     IdentityRepository,
 )
@@ -74,12 +77,30 @@ class IdentityProvider(Provider):
     register_handler: CompositeDependencySource = provide(
         RegisterHandler, scope=Scope.REQUEST
     )
-    login_handler: CompositeDependencySource = provide(
-        LoginHandler, scope=Scope.REQUEST
-    )
-    login_oidc_handler: CompositeDependencySource = provide(
-        LoginOIDCHandler, scope=Scope.REQUEST
-    )
+
+    @provide(scope=Scope.REQUEST)
+    def login_handler(
+        self,
+        identity_repo: IIdentityRepository,
+        session_repo: ISessionRepository,
+        role_repo: IRoleRepository,
+        uow: IUnitOfWork,
+        hasher: IPasswordHasher,
+        token_provider: ITokenProvider,
+        logger: ILogger,
+    ) -> LoginHandler:
+        return LoginHandler(
+            identity_repo=identity_repo,
+            session_repo=session_repo,
+            role_repo=role_repo,
+            uow=uow,
+            hasher=hasher,
+            token_provider=token_provider,
+            logger=logger,
+            max_sessions=settings.MAX_ACTIVE_SESSIONS_PER_IDENTITY,
+            refresh_token_days=settings.REFRESH_TOKEN_EXPIRE_DAYS,
+        )
+
     refresh_token_handler: CompositeDependencySource = provide(
         RefreshTokenHandler, scope=Scope.REQUEST
     )
