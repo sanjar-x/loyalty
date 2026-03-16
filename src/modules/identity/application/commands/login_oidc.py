@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from src.modules.identity.domain.entities import Identity, Session
 from src.modules.identity.domain.events import IdentityRegisteredEvent
+from src.modules.identity.domain.exceptions import InvalidCredentialsError
 from src.modules.identity.domain.interfaces import (
     IIdentityRepository,
     ILinkedAccountRepository,
@@ -69,8 +70,9 @@ class LoginOIDCHandler:
 
             if linked:
                 identity = await self._identity_repo.get(linked.identity_id)
-                if identity:
-                    identity.ensure_active()
+                if identity is None:
+                    raise InvalidCredentialsError()
+                identity.ensure_active()
             else:
                 # 3. Create new identity + linked account
                 identity = Identity.register(IdentityType.OIDC)
@@ -104,8 +106,7 @@ class LoginOIDCHandler:
                 )
                 is_new = True
 
-            # 4. Create session — identity is guaranteed non-None at this point
-            assert identity is not None, "Identity must be set in if or else branch"
+            # 4. Create session — identity is narrowed to Identity in both branches
             role_ids = await self._role_repo.get_identity_role_ids(identity.id)
             raw_refresh, _ = self._token_provider.create_refresh_token()
 
@@ -128,6 +129,7 @@ class LoginOIDCHandler:
                 self._uow.register_aggregate(identity)
             await self._uow.commit()
 
+        assert identity is not None
         return LoginOIDCResult(
             access_token=access_token,
             refresh_token=raw_refresh,
