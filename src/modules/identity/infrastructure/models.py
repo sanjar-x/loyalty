@@ -23,12 +23,12 @@ from src.modules.identity.domain.value_objects import IdentityType
 
 class IdentityModel(Base):
     __tablename__ = "identities"
-    __table_args__ = (
-        {"comment": "Authentication identities (root entity for IAM)"},
-    )
+    __table_args__ = ({"comment": "Authentication identities (root entity for IAM)"},)
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
         comment="PK (UUIDv7)",
     )
     type: Mapped[str] = mapped_column(
@@ -37,32 +37,41 @@ class IdentityModel(Base):
         comment="Authentication method: LOCAL or OIDC",
     )
     is_active: Mapped[bool] = mapped_column(
-        Boolean, server_default=text("true"), nullable=False,
+        Boolean,
+        server_default=text("true"),
+        nullable=False,
         comment="Whether identity can authenticate",
     )
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False,
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False,
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     credentials: Mapped["LocalCredentialsModel | None"] = relationship(
-        back_populates="identity", uselist=False, cascade="all, delete-orphan",
+        back_populates="identity",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
     sessions: Mapped[list["SessionModel"]] = relationship(
-        back_populates="identity", cascade="all, delete-orphan",
+        back_populates="identity",
+        cascade="all, delete-orphan",
     )
     linked_accounts: Mapped[list["LinkedAccountModel"]] = relationship(
-        back_populates="identity", cascade="all, delete-orphan",
+        back_populates="identity",
+        cascade="all, delete-orphan",
     )
 
 
 class LocalCredentialsModel(Base):
     __tablename__ = "local_credentials"
-    __table_args__ = (
-        {"comment": "Local auth credentials (email + password hash)"},
-    )
+    __table_args__ = ({"comment": "Local auth credentials (email + password hash)"},)
 
     identity_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -71,18 +80,26 @@ class LocalCredentialsModel(Base):
         comment="PK + FK → identities (Shared PK 1:1)",
     )
     email: Mapped[str] = mapped_column(
-        String(320), unique=True, nullable=False,
+        String(320),
+        unique=True,
+        nullable=False,
         comment="Login email (unique across system)",
     )
     password_hash: Mapped[str] = mapped_column(
-        String(255), nullable=False,
+        String(255),
+        nullable=False,
         comment="Argon2id (new) or Bcrypt (legacy) hash",
     )
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False,
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False,
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     identity: Mapped["IdentityModel"] = relationship(back_populates="credentials")
@@ -91,17 +108,22 @@ class LocalCredentialsModel(Base):
 class LinkedAccountModel(Base):
     __tablename__ = "linked_accounts"
     __table_args__ = (
-        UniqueConstraint("provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"),
+        UniqueConstraint(
+            "provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"
+        ),
         {"comment": "External OIDC provider accounts linked to identities"},
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
     )
     identity_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("identities.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        nullable=False,
+        index=True,
     )
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     provider_sub_id: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -112,53 +134,66 @@ class LinkedAccountModel(Base):
 
 class RoleModel(Base):
     __tablename__ = "roles"
-    __table_args__ = (
-        {"comment": "RBAC role definitions"},
-    )
+    __table_args__ = ({"comment": "RBAC role definitions"},)
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
     )
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_system: Mapped[bool] = mapped_column(
-        Boolean, server_default=text("false"), nullable=False,
+        Boolean,
+        server_default=text("false"),
+        nullable=False,
         comment="System roles cannot be modified or deleted",
     )
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False,
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False,
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     permissions: Mapped[list["PermissionModel"]] = relationship(
-        secondary="role_permissions", back_populates="roles",
+        secondary="role_permissions",
+        back_populates="roles",
     )
 
 
 class PermissionModel(Base):
     __tablename__ = "permissions"
-    __table_args__ = (
-        {"comment": "RBAC permissions (resource:action codenames)"},
-    )
+    __table_args__ = ({"comment": "RBAC permissions (resource:action codenames)"},)
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
     )
     codename: Mapped[str] = mapped_column(
-        String(100), unique=True, nullable=False,
+        String(100),
+        unique=True,
+        nullable=False,
         comment="Permission codename in resource:action format",
     )
     resource: Mapped[str] = mapped_column(String(50), nullable=False)
     action: Mapped[str] = mapped_column(String(50), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False,
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
 
     roles: Mapped[list["RoleModel"]] = relationship(
-        secondary="role_permissions", back_populates="permissions",
+        secondary="role_permissions",
+        back_populates="permissions",
     )
 
 
@@ -213,10 +248,13 @@ class IdentityRoleModel(Base):
         primary_key=True,
     )
     assigned_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False,
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
     assigned_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True,
+        UUID(as_uuid=True),
+        nullable=True,
         comment="Identity ID of admin who assigned this role",
     )
 
@@ -229,7 +267,9 @@ class SessionModel(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
     )
     identity_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -237,23 +277,34 @@ class SessionModel(Base):
         nullable=False,
     )
     refresh_token_hash: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False,
+        String(64),
+        unique=True,
+        nullable=False,
         comment="SHA-256 hash of opaque refresh token",
     )
     ip_address: Mapped[str | None] = mapped_column(
-        INET(), nullable=True, comment="Client IP at session creation",
+        INET(),
+        nullable=True,
+        comment="Client IP at session creation",
     )
     user_agent: Mapped[str | None] = mapped_column(
-        String(500), nullable=True, comment="Client User-Agent",
+        String(500),
+        nullable=True,
+        comment="Client User-Agent",
     )
     is_revoked: Mapped[bool] = mapped_column(
-        Boolean, server_default=text("false"), nullable=False,
+        Boolean,
+        server_default=text("false"),
+        nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False,
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
     expires_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=False,
+        TIMESTAMP(timezone=True),
+        nullable=False,
         comment="Refresh token expiry (created_at + REFRESH_TOKEN_EXPIRE_DAYS)",
     )
 
