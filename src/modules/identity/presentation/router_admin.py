@@ -20,11 +20,6 @@ from src.modules.identity.application.commands.revoke_role import (
     RevokeRoleCommand,
     RevokeRoleHandler,
 )
-from src.modules.identity.application.queries.get_identity_roles import (
-    GetIdentityRolesHandler,
-    GetIdentityRolesQuery,
-    IdentityRoleInfo,
-)
 from src.modules.identity.application.queries.list_permissions import (
     ListPermissionsHandler,
     PermissionInfo,

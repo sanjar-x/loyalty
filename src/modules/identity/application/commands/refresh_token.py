@@ -1,6 +1,5 @@
 # src/modules/identity/application/commands/refresh_token.py
 import hashlib
-import uuid
 from dataclasses import dataclass
 
 from src.modules.identity.domain.exceptions import RefreshTokenReuseError
