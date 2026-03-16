@@ -1,20 +1,28 @@
 # src/infrastructure/security/provider.py
 from dishka import Provider, Scope, provide
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from src.infrastructure.cache.redis import RedisService
+from src.infrastructure.security.authorization import PermissionResolver
 from src.infrastructure.security.jwt import JwtTokenProvider
-from src.infrastructure.security.password import BcryptPasswordHasher
-from src.shared.interfaces.security import IPasswordHasher, ITokenProvider
+from src.infrastructure.security.password import Argon2PasswordHasher
+from src.shared.interfaces.security import (
+    IPasswordHasher,
+    IPermissionResolver,
+    ITokenProvider,
+)
 
 
 class SecurityProvider(Provider):
-    """
-    DI Провайдер для инициализации инфраструктурных сервисов безопасности.
-    Позволяет бизнес-логике зависеть только от абстрактных интерфейсов
-    (IPasswordHasher, ITokenProvider).
-    """
-
     token_provider = provide(JwtTokenProvider, scope=Scope.APP, provides=ITokenProvider)
-
     password_hasher = provide(
-        BcryptPasswordHasher, scope=Scope.APP, provides=IPasswordHasher
+        Argon2PasswordHasher, scope=Scope.APP, provides=IPasswordHasher
     )
+
+    @provide(scope=Scope.APP)
+    def permission_resolver(
+        self,
+        redis: RedisService,
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> IPermissionResolver:
+        return PermissionResolver(redis=redis, session_factory=session_factory)

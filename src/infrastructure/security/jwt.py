@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -40,6 +42,16 @@ class JwtTokenProvider(ITokenProvider):
             algorithm=settings.ALGORITHM,
         )
         return encoded_jwt
+
+    def create_refresh_token(self) -> tuple[str, str]:
+        """
+        Generate opaque refresh token.
+        Returns (raw_token, sha256_hash).
+        Raw token is sent to client; hash is stored in DB.
+        """
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        return raw_token, token_hash
 
     def decode_access_token(self, token: str) -> dict[str, Any]:
         try:
