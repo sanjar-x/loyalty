@@ -5,7 +5,6 @@ from structlog import BoundLogger
 
 from src.bootstrap.config import Settings, settings
 from src.infrastructure.cache.provider import CacheProvider
-from src.shared.interfaces.config import IStorageConfig
 from src.infrastructure.database.provider import DatabaseProvider
 from src.infrastructure.logging.provider import LoggingProvider
 from src.infrastructure.security.provider import SecurityProvider
@@ -13,7 +12,10 @@ from src.modules.catalog.presentation.dependencies import (
     BrandProvider,
     CategoryProvider,
 )
+from src.modules.identity.infrastructure.provider import IdentityProvider
 from src.modules.storage.presentation.dependencies import StorageProvider
+from src.modules.user.infrastructure.provider import UserProvider
+from src.shared.interfaces.config import IStorageConfig
 
 logger: BoundLogger = structlog.get_logger(__name__)
 
@@ -39,4 +41,6 @@ def create_container() -> AsyncContainer:
         StorageProvider(),
         CategoryProvider(),
         BrandProvider(),
+        IdentityProvider(),
+        UserProvider(),
     )

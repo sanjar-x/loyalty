@@ -81,6 +81,36 @@ def test_modular_monolith_strict_isolation():
         .check("src")
     )
 
+    # Identity module is private from other modules
+    (
+        archrule("identity_internals_are_private_from_catalog")
+        .match("src.modules.catalog.*")
+        .should_not_import("src.modules.identity.*")
+        .check("src")
+    )
+
+    (
+        archrule("identity_internals_are_private_from_storage")
+        .match("src.modules.storage.*")
+        .should_not_import("src.modules.identity.*")
+        .check("src")
+    )
+
+    # User module is private from other modules
+    (
+        archrule("user_internals_are_private_from_catalog")
+        .match("src.modules.catalog.*")
+        .should_not_import("src.modules.user.*")
+        .check("src")
+    )
+
+    (
+        archrule("user_internals_are_private_from_storage")
+        .match("src.modules.storage.*")
+        .should_not_import("src.modules.user.*")
+        .check("src")
+    )
+
 
 def test_shared_kernel_is_independent():
     """
@@ -93,5 +123,60 @@ def test_shared_kernel_is_independent():
         .match("src.shared.*")
         .should_not_import("src.modules.catalog.*")
         .should_not_import("src.modules.storage.*")
+        .should_not_import("src.modules.identity.*")
+        .should_not_import("src.modules.user.*")
+        .check("src")
+    )
+
+
+def test_identity_user_module_isolation():
+    """
+    [Modular Monolith] Identity ↔ User module isolation:
+    Modules communicate only via domain events (Outbox Relay).
+    Direct imports between modules are forbidden.
+    """
+    (
+        archrule("identity_does_not_import_user")
+        .match("src.modules.identity.*")
+        .should_not_import("src.modules.user.*")
+        .check("src")
+    )
+
+    (
+        archrule("user_does_not_import_identity")
+        .match("src.modules.user.*")
+        .should_not_import("src.modules.identity.*")
+        .check("src")
+    )
+
+
+def test_identity_domain_layer_is_pure():
+    """
+    [Clean Architecture] Identity domain has zero framework imports.
+    """
+    (
+        archrule("identity_domain_independence")
+        .match("src.modules.identity.domain.*")
+        .should_not_import("sqlalchemy.*")
+        .should_not_import("fastapi.*")
+        .should_not_import("dishka.*")
+        .should_not_import("redis.*")
+        .should_not_import("taskiq.*")
+        .check("src")
+    )
+
+
+def test_user_domain_layer_is_pure():
+    """
+    [Clean Architecture] User domain has zero framework imports.
+    """
+    (
+        archrule("user_domain_independence")
+        .match("src.modules.user.domain.*")
+        .should_not_import("sqlalchemy.*")
+        .should_not_import("fastapi.*")
+        .should_not_import("dishka.*")
+        .should_not_import("redis.*")
+        .should_not_import("taskiq.*")
         .check("src")
     )

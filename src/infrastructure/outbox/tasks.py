@@ -97,6 +97,72 @@ register_event_handler("BrandLogoProcessedEvent", _handle_brand_logo_processed)
 
 
 # ---------------------------------------------------------------------------
+# IAM Event Handlers
+# ---------------------------------------------------------------------------
+
+
+async def _handle_identity_registered(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    """Dispatches CreateUserConsumer to create User row (Shared PK)."""
+    from src.modules.user.application.consumers.identity_events import (
+        create_user_on_identity_registered,
+    )
+
+    await (
+        create_user_on_identity_registered
+        .kicker()
+        .with_labels(**_build_labels(correlation_id))
+        .kiq(
+            identity_id=payload["identity_id"],
+            email=payload["email"],
+        )  # ty:ignore[no-matching-overload]
+    )
+
+
+async def _handle_identity_deactivated(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    """Dispatches AnonymizeUserConsumer to anonymize PII (GDPR)."""
+    from src.modules.user.application.consumers.identity_events import (
+        anonymize_user_on_identity_deactivated,
+    )
+
+    await (
+        anonymize_user_on_identity_deactivated
+        .kicker()
+        .with_labels(**_build_labels(correlation_id))
+        .kiq(
+            identity_id=payload["identity_id"],
+        )  # ty:ignore[no-matching-overload]
+    )
+
+
+async def _handle_role_assignment_changed(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    """Dispatches cache invalidation for affected identity's sessions."""
+    from src.modules.identity.application.consumers.role_events import (
+        invalidate_permissions_cache_on_role_change,
+    )
+
+    await (
+        invalidate_permissions_cache_on_role_change
+        .kicker()
+        .with_labels(**_build_labels(correlation_id))
+        .kiq(
+            identity_id=payload["identity_id"],
+        )  # ty:ignore[no-matching-overload]
+    )
+
+
+# Register IAM event mappings
+register_event_handler("IdentityRegisteredEvent", _handle_identity_registered)
+register_event_handler("IdentityDeactivatedEvent", _handle_identity_deactivated)
+register_event_handler("RoleAssignmentChangedEvent", _handle_role_assignment_changed)
+
+
+# ---------------------------------------------------------------------------
 # TaskIQ: Outbox Relay (периодический поллинг)
 # ---------------------------------------------------------------------------
 

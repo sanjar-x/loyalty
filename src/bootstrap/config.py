@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
 
     SECRET_KEY: SecretStr
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
 
     # IAM RBAC settings
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30

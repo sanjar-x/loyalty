@@ -66,6 +66,8 @@ import src.infrastructure.outbox.tasks  # noqa
 import src.modules.catalog.application.tasks  # noqa
 import src.modules.storage.application.consumers.brand_events  # noqa
 import src.modules.storage.presentation.tasks  # noqa
+import src.modules.identity.application.consumers.role_events  # noqa
+import src.modules.user.application.consumers.identity_events  # noqa
 
 
 @broker.on_event(TaskiqEvents.WORKER_STARTUP)
