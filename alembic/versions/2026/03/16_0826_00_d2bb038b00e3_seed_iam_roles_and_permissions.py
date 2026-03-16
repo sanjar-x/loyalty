@@ -9,8 +9,9 @@ Create Date: 2026-03-16 08:26:00.276459
 import uuid
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "d2bb038b00e3"
@@ -48,17 +49,33 @@ PERMISSIONS = [
 
 # Permission codenames assigned to each role
 MANAGER_PERMS = [
-    "brands:create", "brands:read", "brands:update", "brands:delete",
-    "categories:create", "categories:read", "categories:update", "categories:delete",
-    "products:create", "products:read", "products:update", "products:delete",
-    "orders:create", "orders:read", "orders:update",
+    "brands:create",
+    "brands:read",
+    "brands:update",
+    "brands:delete",
+    "categories:create",
+    "categories:read",
+    "categories:update",
+    "categories:delete",
+    "products:create",
+    "products:read",
+    "products:update",
+    "products:delete",
+    "orders:create",
+    "orders:read",
+    "orders:update",
     "users:read",
 ]
 
 CUSTOMER_PERMS = [
-    "brands:read", "categories:read", "products:read",
-    "orders:create", "orders:read",
-    "users:read", "users:update", "users:delete",
+    "brands:read",
+    "categories:read",
+    "products:read",
+    "orders:create",
+    "orders:read",
+    "users:read",
+    "users:update",
+    "users:delete",
 ]
 
 
