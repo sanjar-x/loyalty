@@ -1,5 +1,6 @@
 # src/infrastructure/security/provider.py
 from dishka import Provider, Scope, provide
+from dishka.dependency_source.composite import CompositeDependencySource
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.infrastructure.cache.redis import RedisService
@@ -14,8 +15,10 @@ from src.shared.interfaces.security import (
 
 
 class SecurityProvider(Provider):
-    token_provider = provide(JwtTokenProvider, scope=Scope.APP, provides=ITokenProvider)
-    password_hasher = provide(
+    token_provider: CompositeDependencySource = provide(
+        JwtTokenProvider, scope=Scope.APP, provides=ITokenProvider
+    )
+    password_hasher: CompositeDependencySource = provide(
         Argon2PasswordHasher, scope=Scope.APP, provides=IPasswordHasher
     )
 

@@ -13,10 +13,12 @@ class Argon2PasswordHasher(IPasswordHasher):
     """
 
     def __init__(self) -> None:
-        self._password_hash = PasswordHash((
-            Argon2Hasher(),  # Primary hasher (new registrations)
-            BcryptHasher(),  # Legacy hasher (existing passwords)
-        ))
+        self._password_hash = PasswordHash(
+            hashers=(
+                Argon2Hasher(),
+                BcryptHasher(),
+            )
+        )
 
     def hash(self, password: str) -> str:
         """Hash with Argon2id (primary hasher)."""
@@ -28,4 +30,4 @@ class Argon2PasswordHasher(IPasswordHasher):
 
     def needs_rehash(self, hashed_password: str) -> bool:
         """True if hash is Bcrypt (legacy) and should be rehashed to Argon2id."""
-        return self._password_hash.is_deprecated(hashed_password)
+        return hashed_password.startswith(("$2a$", "$2b$", "$2y$"))

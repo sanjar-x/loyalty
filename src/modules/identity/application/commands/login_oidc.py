@@ -59,6 +59,7 @@ class LoginOIDCHandler:
         user_info = await self._oidc.validate_token(command.provider_token)
 
         is_new = False
+        identity: Identity | None = None
         async with self._uow:
             # 2. Find existing linked account
             linked = await self._linked_repo.get_by_provider(
@@ -103,7 +104,8 @@ class LoginOIDCHandler:
                 )
                 is_new = True
 
-            # 4. Create session
+            # 4. Create session — identity is guaranteed non-None at this point
+            assert identity is not None, "Identity must be set in if or else branch"
             role_ids = await self._role_repo.get_identity_role_ids(identity.id)
             raw_refresh, _ = self._token_provider.create_refresh_token()
 
