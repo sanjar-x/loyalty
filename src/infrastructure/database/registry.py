@@ -11,10 +11,24 @@ from src.modules.catalog.infrastructure.models import (
     Product,
     SKUAttributeValueLink,
 )
+from src.modules.identity.infrastructure.models import (
+    IdentityModel,
+    IdentityRoleModel,
+    LinkedAccountModel,
+    LocalCredentialsModel,
+    PermissionModel,
+    RoleHierarchyModel,
+    RoleModel,
+    RolePermissionModel,
+    SessionModel,
+    SessionRoleModel,
+)
+from src.modules.user.infrastructure.models import UserModel
 
 __all__ = [
     "Base",
     "OutboxMessage",
+    # Catalog
     "Brand",
     "Category",
     "Attribute",
@@ -24,4 +38,17 @@ __all__ = [
     "MediaAsset",
     "SKU",
     "SKUAttributeValueLink",
+    # Identity
+    "IdentityModel",
+    "LocalCredentialsModel",
+    "LinkedAccountModel",
+    "RoleModel",
+    "PermissionModel",
+    "RolePermissionModel",
+    "RoleHierarchyModel",
+    "IdentityRoleModel",
+    "SessionModel",
+    "SessionRoleModel",
+    # User
+    "UserModel",
 ]
