@@ -1,0 +1,278 @@
+# src/modules/identity/infrastructure/models.py
+import uuid
+from datetime import datetime
+
+from sqlalchemy import (
+    TIMESTAMP,
+    Boolean,
+    CheckConstraint,
+    Enum,
+    ForeignKey,
+    Index,
+    String,
+    UniqueConstraint,
+    func,
+    text,
+)
+from sqlalchemy.dialects.postgresql import INET, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from src.infrastructure.database.base import Base
+from src.modules.identity.domain.value_objects import IdentityType
+
+
+class IdentityModel(Base):
+    __tablename__ = "identities"
+    __table_args__ = (
+        {"comment": "Authentication identities (root entity for IAM)"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+        comment="PK (UUIDv7)",
+    )
+    type: Mapped[str] = mapped_column(
+        Enum(IdentityType, native_enum=False, length=10),
+        nullable=False,
+        comment="Authentication method: LOCAL or OIDC",
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("true"), nullable=False,
+        comment="Whether identity can authenticate",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False,
+    )
+
+    credentials: Mapped["LocalCredentialsModel | None"] = relationship(
+        back_populates="identity", uselist=False, cascade="all, delete-orphan",
+    )
+    sessions: Mapped[list["SessionModel"]] = relationship(
+        back_populates="identity", cascade="all, delete-orphan",
+    )
+    linked_accounts: Mapped[list["LinkedAccountModel"]] = relationship(
+        back_populates="identity", cascade="all, delete-orphan",
+    )
+
+
+class LocalCredentialsModel(Base):
+    __tablename__ = "local_credentials"
+    __table_args__ = (
+        {"comment": "Local auth credentials (email + password hash)"},
+    )
+
+    identity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("identities.id", ondelete="CASCADE"),
+        primary_key=True,
+        comment="PK + FK → identities (Shared PK 1:1)",
+    )
+    email: Mapped[str] = mapped_column(
+        String(320), unique=True, nullable=False,
+        comment="Login email (unique across system)",
+    )
+    password_hash: Mapped[str] = mapped_column(
+        String(255), nullable=False,
+        comment="Argon2id (new) or Bcrypt (legacy) hash",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False,
+    )
+
+    identity: Mapped["IdentityModel"] = relationship(back_populates="credentials")
+
+
+class LinkedAccountModel(Base):
+    __tablename__ = "linked_accounts"
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"),
+        {"comment": "External OIDC provider accounts linked to identities"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+    )
+    identity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("identities.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    provider: Mapped[str] = mapped_column(String(50), nullable=False)
+    provider_sub_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    provider_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+
+    identity: Mapped["IdentityModel"] = relationship(back_populates="linked_accounts")
+
+
+class RoleModel(Base):
+    __tablename__ = "roles"
+    __table_args__ = (
+        {"comment": "RBAC role definitions"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+    )
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    is_system: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("false"), nullable=False,
+        comment="System roles cannot be modified or deleted",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False,
+    )
+
+    permissions: Mapped[list["PermissionModel"]] = relationship(
+        secondary="role_permissions", back_populates="roles",
+    )
+
+
+class PermissionModel(Base):
+    __tablename__ = "permissions"
+    __table_args__ = (
+        {"comment": "RBAC permissions (resource:action codenames)"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+    )
+    codename: Mapped[str] = mapped_column(
+        String(100), unique=True, nullable=False,
+        comment="Permission codename in resource:action format",
+    )
+    resource: Mapped[str] = mapped_column(String(50), nullable=False)
+    action: Mapped[str] = mapped_column(String(50), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False,
+    )
+
+    roles: Mapped[list["RoleModel"]] = relationship(
+        secondary="role_permissions", back_populates="permissions",
+    )
+
+
+class RolePermissionModel(Base):
+    __tablename__ = "role_permissions"
+
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    permission_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("permissions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+
+class RoleHierarchyModel(Base):
+    __tablename__ = "role_hierarchy"
+    __table_args__ = (
+        CheckConstraint(
+            "parent_role_id != child_role_id",
+            name="ck_role_hierarchy_no_self_ref",
+        ),
+        {"comment": "Role inheritance: parent inherits all child permissions via CTE"},
+    )
+
+    parent_role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    child_role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+
+class IdentityRoleModel(Base):
+    __tablename__ = "identity_roles"
+
+    identity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("identities.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    assigned_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False,
+    )
+    assigned_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True,
+        comment="Identity ID of admin who assigned this role",
+    )
+
+
+class SessionModel(Base):
+    __tablename__ = "sessions"
+    __table_args__ = (
+        Index("ix_sessions_identity_revoked", "identity_id", "is_revoked"),
+        {"comment": "Authentication sessions with refresh token rotation"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+    )
+    identity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("identities.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    refresh_token_hash: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False,
+        comment="SHA-256 hash of opaque refresh token",
+    )
+    ip_address: Mapped[str | None] = mapped_column(
+        INET(), nullable=True, comment="Client IP at session creation",
+    )
+    user_agent: Mapped[str | None] = mapped_column(
+        String(500), nullable=True, comment="Client User-Agent",
+    )
+    is_revoked: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("false"), nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False,
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False,
+        comment="Refresh token expiry (created_at + REFRESH_TOKEN_EXPIRE_DAYS)",
+    )
+
+    identity: Mapped["IdentityModel"] = relationship(back_populates="sessions")
+    activated_roles: Mapped[list["SessionRoleModel"]] = relationship(
+        cascade="all, delete-orphan",
+    )
+
+
+class SessionRoleModel(Base):
+    __tablename__ = "session_roles"
+
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("sessions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
