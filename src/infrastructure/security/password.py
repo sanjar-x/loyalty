@@ -1,20 +1,31 @@
+# src/infrastructure/security/password.py
 from pwdlib import PasswordHash
+from pwdlib.hashers.argon2 import Argon2Hasher
 from pwdlib.hashers.bcrypt import BcryptHasher
 
 from src.shared.interfaces.security import IPasswordHasher
 
 
-class BcryptPasswordHasher(IPasswordHasher):
+class Argon2PasswordHasher(IPasswordHasher):
     """
-    Автоматически обрабатывает параметры безопасности и генерацию соли (Salt).
-    Использует Bcrypt под капотом.
+    Primary: Argon2id (OWASP recommendation).
+    Backward-compatible: verifies legacy Bcrypt hashes and flags for rehash.
     """
 
-    def __init__(self):
-        self._password_hash = PasswordHash((BcryptHasher(),))
+    def __init__(self) -> None:
+        self._password_hash = PasswordHash((
+            Argon2Hasher(),  # Primary hasher (new registrations)
+            BcryptHasher(),  # Legacy hasher (existing passwords)
+        ))
 
     def hash(self, password: str) -> str:
+        """Hash with Argon2id (primary hasher)."""
         return self._password_hash.hash(password)
 
     def verify(self, plain_password: str, hashed_password: str) -> bool:
+        """Verify against both Argon2id and Bcrypt hashes."""
         return self._password_hash.verify(plain_password, hashed_password)
+
+    def needs_rehash(self, hashed_password: str) -> bool:
+        """True if hash is Bcrypt (legacy) and should be rehashed to Argon2id."""
+        return self._password_hash.is_deprecated(hashed_password)
