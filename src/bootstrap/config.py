@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     SECRET_KEY: SecretStr
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
 
+    # IAM RBAC settings
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    SESSION_PERMISSIONS_CACHE_TTL: int = 300
+    MAX_ACTIVE_SESSIONS_PER_IDENTITY: int = 5
+
     CORS_ORIGINS: Annotated[list[str] | str, BeforeValidator(parse_cors)] = []
 
     SYSTEM_USER_ID: uuid.UUID = uuid.UUID(int=0)
