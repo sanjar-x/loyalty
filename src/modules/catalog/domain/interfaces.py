@@ -43,6 +43,11 @@ class IBrandRepository(ICatalogRepository[DomainBrand]):
         """Получить бренд с пессимистической блокировкой (SELECT FOR UPDATE)."""
         pass
 
+    @abstractmethod
+    async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
+        """Check if slug is taken by another brand (excluding given ID)."""
+        pass
+
 
 class ICategoryRepository(ICatalogRepository[DomainCategory]):
     """Репозиторий категорий."""

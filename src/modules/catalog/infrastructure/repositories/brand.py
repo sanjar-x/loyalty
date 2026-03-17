@@ -77,6 +77,15 @@ class BrandRepository(IBrandRepository):
         result = await self._session.execute(statement)
         return result.first() is not None
 
+    async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
+        statement = (
+            select(OrmBrand.id)
+            .where(OrmBrand.slug == slug, OrmBrand.id != exclude_id)
+            .limit(1)
+        )
+        result = await self._session.execute(statement)
+        return result.first() is not None
+
     async def get_for_update(self, id: uuid.UUID) -> DomainBrand | None:
         statement = select(OrmBrand).where(OrmBrand.id == id).with_for_update()
         result = await self._session.execute(statement)
