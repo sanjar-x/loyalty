@@ -1,6 +1,6 @@
 import uuid
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class LogoMetadataRequest(BaseModel):
@@ -80,6 +80,12 @@ class BrandUpdateRequest(BaseModel):
     slug: str | None = Field(
         None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$"
     )
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> "BrandUpdateRequest":
+        if self.name is None and self.slug is None:
+            raise ValueError("At least one field (name or slug) must be provided")
+        return self
 
 
 class BrandListResponse(BaseModel):

@@ -1,4 +1,4 @@
-# src/modules/catalog/providers.py
+# src/modules/catalog/presentation/dependencies.py
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 

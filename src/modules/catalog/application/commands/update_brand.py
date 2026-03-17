@@ -1,6 +1,7 @@
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.domain.entities import Brand
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
     BrandSlugConflictError,
@@ -39,7 +40,9 @@ class UpdateBrandHandler:
 
     async def handle(self, command: UpdateBrandCommand) -> UpdateBrandResult:
         async with self._uow:
-            brand = await self._brand_repo.get_for_update(command.brand_id)
+            brand: Brand | None = await self._brand_repo.get_for_update(
+                command.brand_id
+            )
             if brand is None:
                 raise BrandNotFoundError(brand_id=command.brand_id)
 
@@ -51,6 +54,7 @@ class UpdateBrandHandler:
 
             brand.update(name=command.name, slug=command.slug)
             await self._brand_repo.update(brand)
+            self._uow.register_aggregate(brand)
             await self._uow.commit()
 
         self._logger.info("Бренд обновлён", brand_id=str(brand.id))
