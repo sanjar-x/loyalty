@@ -24,7 +24,9 @@ class InMemoryBlobStorage:
     async def get_presigned_url(self, object_name: str, expiration: int = 3600) -> str:
         return f"https://fake-s3.test/{object_name}?expires={expiration}"
 
-    async def get_presigned_upload_url(self, object_name: str, expiration: int = 3600) -> dict:
+    async def get_presigned_upload_url(
+        self, object_name: str, expiration: int = 3600
+    ) -> dict:
         return {
             "url": f"https://fake-s3.test/{object_name}",
             "fields": {"key": object_name},
@@ -33,9 +35,7 @@ class InMemoryBlobStorage:
     async def generate_presigned_put_url(
         self, object_name: str, content_type: str, expiration: int = 3600
     ) -> str:
-        return (
-            f"https://fake-s3.test/{object_name}?content_type={content_type}&expires={expiration}"
-        )
+        return f"https://fake-s3.test/{object_name}?content_type={content_type}&expires={expiration}"
 
     async def upload_stream(
         self,
