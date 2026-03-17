@@ -15,7 +15,7 @@ class AppException(Exception):
         self.message: str = message
         self.status_code: int = status_code
         self.error_code: str = error_code
-        self.details: dict[str, Any] | None = details or {}
+        self.details: dict[str, Any] = details or {}
         super().__init__(self.message)
 
 

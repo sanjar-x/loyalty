@@ -1,6 +1,8 @@
 # tests/unit/modules/storage/application/consumers/test_brand_events.py
 """Tests for Storage module brand event consumers."""
 
+from collections.abc import Callable
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -13,11 +15,13 @@ from src.modules.storage.application.consumers.brand_events import (
 )
 from src.modules.storage.domain.entities import StorageFile
 
-# Unwrap TaskIQ + Dishka decorators to get the raw async function
-handle_brand_created_event = _handle_brand_created_task.original_func.__dishka_orig_func__
-handle_brand_logo_processed_event = (
-    _handle_brand_logo_processed_task.original_func.__dishka_orig_func__
-)
+
+def _unwrap_dishka_task(task: Any) -> Callable[..., Any]:
+    return cast(Callable[..., Any], getattr(task.original_func, "__dishka_orig_func__"))
+
+
+handle_brand_created_event = _unwrap_dishka_task(_handle_brand_created_task)
+handle_brand_logo_processed_event = _unwrap_dishka_task(_handle_brand_logo_processed_task)
 
 pytestmark = pytest.mark.asyncio
 

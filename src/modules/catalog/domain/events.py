@@ -20,7 +20,7 @@ class BrandCreatedEvent(DomainEvent):
     Модуль Storage создаёт запись StorageFile асинхронно.
     """
 
-    brand_id: uuid.UUID = None  # type: ignore[assignment]
+    brand_id: uuid.UUID | None = None
     object_key: str = ""
     content_type: str = ""
     aggregate_type: str = "Brand"

@@ -89,10 +89,8 @@ def test_brand_confirm_logo_upload_raises_error_when_invalid_state():
     with pytest.raises(InvalidLogoStateException) as exc_info:
         brand.confirm_logo_upload()
 
-    assert (
-        exc_info.value.details["expected_status"]  # ty:ignore[not-subscriptable]
-        == MediaProcessingStatus.PENDING_UPLOAD
-    )
+    assert exc_info.value.details is not None
+    assert exc_info.value.details["expected_status"] == MediaProcessingStatus.PENDING_UPLOAD
 
 
 def test_brand_complete_logo_processing_sets_completed():

@@ -2,12 +2,18 @@
 """Tests for Outbox TaskIQ tasks: _build_labels, event handler registrations,
 outbox_relay_task, and outbox_pruning_task."""
 
+from collections.abc import Callable
+from typing import Any, cast
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.infrastructure.outbox.tasks import _build_labels, outbox_pruning_task, outbox_relay_task
 from src.infrastructure.outbox.relay import _EVENT_HANDLERS
+from src.infrastructure.outbox.tasks import (
+    _build_labels,
+    outbox_pruning_task,
+    outbox_relay_task,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -50,8 +56,14 @@ class TestEventHandlerRegistrations:
 # Unwrap TaskIQ + Dishka decorators to get the raw async functions
 # ---------------------------------------------------------------------------
 
-_relay_fn = outbox_relay_task.original_func.__dishka_orig_func__
-_pruning_fn = outbox_pruning_task.original_func.__dishka_orig_func__
+
+def _unwrap_dishka_task(task: Any) -> Callable[..., Any]:
+    """Unwrap TaskIQ + Dishka decorators: task.original_func.__dishka_orig_func__"""
+    return cast(Callable[..., Any], getattr(task.original_func, "__dishka_orig_func__"))
+
+
+_relay_fn = _unwrap_dishka_task(outbox_relay_task)
+_pruning_fn = _unwrap_dishka_task(outbox_pruning_task)
 
 
 # ---------------------------------------------------------------------------

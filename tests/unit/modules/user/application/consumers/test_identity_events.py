@@ -1,4 +1,6 @@
 import uuid
+from collections.abc import Callable
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -11,9 +13,13 @@ from src.modules.user.application.consumers.identity_events import (
 
 pytestmark: MarkDecorator = pytest.mark.asyncio
 
-# Unwrap the actual async functions underneath @broker.task + @inject decorators
-_create_user_fn = create_user_on_identity_registered.original_func.__dishka_orig_func__
-_anonymize_user_fn = anonymize_user_on_identity_deactivated.original_func.__dishka_orig_func__
+
+def _unwrap_dishka_task(task: Any) -> Callable[..., Any]:
+    return cast(Callable[..., Any], getattr(task.original_func, "__dishka_orig_func__"))
+
+
+_create_user_fn = _unwrap_dishka_task(create_user_on_identity_registered)
+_anonymize_user_fn = _unwrap_dishka_task(anonymize_user_on_identity_deactivated)
 
 
 def make_uow():

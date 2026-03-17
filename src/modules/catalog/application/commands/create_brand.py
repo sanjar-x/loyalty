@@ -66,9 +66,9 @@ class CreateBrandHandler:
             brand = Brand.create(name=command.name, slug=command.slug, brand_id=brand_id)
             brand = await self._brand_repo.add(brand)
 
-            if command.logo:
+            if command.logo and object_key:
                 brand.init_logo_upload(
-                    object_key=object_key,  # type: ignore[arg-type]
+                    object_key=object_key,
                     content_type=command.logo.content_type,
                 )
                 await self._brand_repo.update(brand)

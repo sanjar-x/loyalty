@@ -112,7 +112,7 @@ async def get_category_tree(
     handler: FromDishka[GetCategoryTreeHandler],
 ) -> list[CategoryTreeResponse]:
     roots: list[CategoryNode] = await handler.handle()
-    return roots
+    return [CategoryTreeResponse.model_validate(r, from_attributes=True) for r in roots]
 
 
 @category_router.get(

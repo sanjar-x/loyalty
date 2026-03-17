@@ -6,18 +6,23 @@ from tests.factories.user_mothers import UserMothers
 
 
 class TestUser:
-    def _make_user(self, **kwargs) -> User:
-        defaults = {
-            "id": uuid.uuid4(),
-            "profile_email": "user@example.com",
-            "first_name": "John",
-            "last_name": "Doe",
-            "phone": "+1234567890",
-            "created_at": datetime.now(UTC),
-            "updated_at": datetime.now(UTC),
-        }
-        defaults.update(kwargs)
-        return User(**defaults)  # ty:ignore[invalid-argument-type]
+    def _make_user(
+        self,
+        first_name: str = "John",
+        last_name: str = "Doe",
+        phone: str | None = "+1234567890",
+        profile_email: str | None = "user@example.com",
+    ) -> User:
+        now = datetime.now(UTC)
+        return User(
+            id=uuid.uuid4(),
+            profile_email=profile_email,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+            created_at=now,
+            updated_at=now,
+        )
 
     def test_create_from_identity(self):
         identity_id = uuid.uuid4()

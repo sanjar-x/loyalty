@@ -2,7 +2,7 @@ import functools
 import io
 import uuid
 
-import anyio
+from anyio import to_thread
 from PIL import Image
 
 from src.modules.catalog.application.constants import public_logo_key, raw_logo_key
@@ -40,13 +40,15 @@ class BrandLogoProcessor:
 
         try:
             raw_data = await self._download_raw(raw_key, log)
-            processed_data = await anyio.to_thread.run_sync(
+            processed_data = await to_thread.run_sync(
                 functools.partial(self._convert_to_webp, raw_data, log)
             )
             await self._upload_processed(pub_key, processed_data, log)
 
             logo_url = f"{self._settings.S3_PUBLIC_BASE_URL}/{pub_key}"
-            await self._finalize_brand(brand_id, logo_url, pub_key, len(processed_data), log)
+            await self._finalize_brand(
+                brand_id, logo_url, pub_key, len(processed_data), log
+            )
 
             await self._blob_storage.delete_file(raw_key)
             log.info("brand_logo_processing_completed")
@@ -63,7 +65,9 @@ class BrandLogoProcessor:
         async for chunk in self._blob_storage.download_stream(key):
             total += len(chunk)
             if total > MAX_LOGO_SIZE_BYTES:
-                raise ValueError(f"Logo file exceeds size limit: {total} > {MAX_LOGO_SIZE_BYTES}")
+                raise ValueError(
+                    f"Logo file exceeds size limit: {total} > {MAX_LOGO_SIZE_BYTES}"
+                )
             buf.write(chunk)
 
         log.info("raw_logo_downloaded", size_bytes=total)
@@ -74,7 +78,9 @@ class BrandLogoProcessor:
         output = io.BytesIO()
 
         with Image.open(io.BytesIO(raw_data)) as img:
-            img.convert("RGBA").save(output, format="WEBP", lossless=True, method=6, quality=100)
+            img.convert("RGBA").save(
+                output, format="WEBP", lossless=True, method=6, quality=100
+            )
 
         result = output.getvalue()
         log.info(

@@ -81,11 +81,15 @@ class TestRoleAssignmentChangedEvent:
 
     def test_raises_value_error_when_identity_id_is_none(self):
         with pytest.raises(ValueError, match="identity_id is required"):
-            RoleAssignmentChangedEvent(identity_id=None, role_id=uuid.uuid4(), action="assigned")
+            RoleAssignmentChangedEvent(
+                identity_id=None, role_id=uuid.uuid4(), action="assigned"
+            )
 
     def test_raises_value_error_when_role_id_is_none(self):
         with pytest.raises(ValueError, match="role_id is required"):
-            RoleAssignmentChangedEvent(identity_id=uuid.uuid4(), role_id=None, action="assigned")
+            RoleAssignmentChangedEvent(
+                identity_id=uuid.uuid4(), role_id=None, action="assigned"
+            )
 
     def test_auto_sets_aggregate_id(self):
         identity_id = uuid.uuid4()

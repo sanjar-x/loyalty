@@ -10,8 +10,7 @@ Outbox Relay: читает необработанные события из та
 from __future__ import annotations
 
 import uuid
-from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, Protocol
 
 import structlog
 from sqlalchemy import text
@@ -23,7 +22,10 @@ logger = structlog.get_logger(__name__)
 # Реестр обработчиков событий: event_type → async callable(payload)
 # Relay вызывает соответствующий handler для публикации в брокер.
 # ---------------------------------------------------------------------------
-EventHandler = Callable[[dict[str, Any], str | None], Awaitable[None]]
+
+
+class EventHandler(Protocol):
+    async def __call__(self, payload: dict[str, Any], *, correlation_id: str | None = None) -> None: ...
 _EVENT_HANDLERS: dict[str, EventHandler] = {}
 
 
@@ -96,7 +98,9 @@ async def relay_outbox_batch(
     for row in rows:
         event_id = row.id
         event_type = row.event_type
-        correlation_id = getattr(row, "correlation_id", None) or ("relay-" + uuid.uuid4().hex[:12])
+        correlation_id = getattr(row, "correlation_id", None) or (
+            "relay-" + uuid.uuid4().hex[:12]
+        )
 
         structlog.contextvars.bind_contextvars(
             correlation_id=correlation_id,

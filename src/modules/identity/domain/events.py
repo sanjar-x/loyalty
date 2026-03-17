@@ -20,9 +20,9 @@ class IdentityRegisteredEvent(DomainEvent):
     Consumer: user module → CreateUserConsumer (creates User row with Shared PK).
     """
 
-    identity_id: uuid.UUID = None  # type: ignore[assignment]
+    identity_id: uuid.UUID | None = None
     email: str = ""
-    registered_at: datetime = None  # type: ignore[assignment]
+    registered_at: datetime | None = None
     aggregate_type: str = "Identity"
     event_type: str = "IdentityRegisteredEvent"
 
@@ -42,9 +42,9 @@ class IdentityDeactivatedEvent(DomainEvent):
     Consumer: user module → AnonymizeUserConsumer (GDPR PII cleanup).
     """
 
-    identity_id: uuid.UUID = None  # type: ignore[assignment]
+    identity_id: uuid.UUID | None = None
     reason: str = ""
-    deactivated_at: datetime = None  # type: ignore[assignment]
+    deactivated_at: datetime | None = None
     aggregate_type: str = "Identity"
     event_type: str = "IdentityDeactivatedEvent"
 
@@ -64,8 +64,8 @@ class RoleAssignmentChangedEvent(DomainEvent):
     Consumer: cache invalidation (delete perms:{session_id} keys from Redis).
     """
 
-    identity_id: uuid.UUID = None  # type: ignore[assignment]
-    role_id: uuid.UUID = None  # type: ignore[assignment]
+    identity_id: uuid.UUID | None = None
+    role_id: uuid.UUID | None = None
     action: str = ""  # "assigned" | "revoked"
     aggregate_type: str = "Identity"
     event_type: str = "RoleAssignmentChangedEvent"
