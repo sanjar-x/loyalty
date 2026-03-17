@@ -52,36 +52,36 @@ class BrandRepository(IBrandRepository):
         orm.logo_url = domain.logo_url
         return orm
 
-    async def add(self, brand: DomainBrand) -> DomainBrand:
+    async def add(self, entity: DomainBrand) -> DomainBrand:
         """Persist a new brand and return the refreshed domain entity."""
-        orm = self._to_orm(brand)
+        orm = self._to_orm(entity)
         self._session.add(orm)
         await self._session.flush()
         return self._to_domain(orm)
 
-    async def get(self, brand_id: uuid.UUID) -> DomainBrand | None:
+    async def get(self, entity_id: uuid.UUID) -> DomainBrand | None:
         """Retrieve a brand by primary key, or ``None`` if not found."""
-        orm = await self._session.get(OrmBrand, brand_id)
+        orm = await self._session.get(OrmBrand, entity_id)
         if orm:
             return self._to_domain(orm)
         return None
 
-    async def update(self, brand: DomainBrand) -> DomainBrand:
+    async def update(self, entity: DomainBrand) -> DomainBrand:
         """Merge updated domain state into the existing ORM row.
 
         Raises:
             ValueError: If the brand row does not exist.
         """
-        orm = await self._session.get(OrmBrand, brand.id)
+        orm = await self._session.get(OrmBrand, entity.id)
         if not orm:
-            raise ValueError(f"Brand with id {brand.id} not found in DB")
-        orm = self._to_orm(brand, orm)
+            raise ValueError(f"Brand with id {entity.id} not found in DB")
+        orm = self._to_orm(entity, orm)
         await self._session.flush()
         return self._to_domain(orm)
 
-    async def delete(self, brand_id: uuid.UUID) -> None:
+    async def delete(self, entity_id: uuid.UUID) -> None:
         """Delete a brand row by primary key."""
-        statement = delete(OrmBrand).where(OrmBrand.id == brand_id)
+        statement = delete(OrmBrand).where(OrmBrand.id == entity_id)
         await self._session.execute(statement)
 
     async def get_by_slug(self, slug: str) -> DomainBrand | None:
@@ -99,10 +99,14 @@ class BrandRepository(IBrandRepository):
         result = await self._session.execute(statement)
         return result.first() is not None
 
-    async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
+    async def check_slug_exists_excluding(
+        self, slug: str, exclude_id: uuid.UUID
+    ) -> bool:
         """Return ``True`` if the slug is taken by a brand other than *exclude_id*."""
         statement = (
-            select(OrmBrand.id).where(OrmBrand.slug == slug, OrmBrand.id != exclude_id).limit(1)
+            select(OrmBrand.id)
+            .where(OrmBrand.slug == slug, OrmBrand.id != exclude_id)
+            .limit(1)
         )
         result = await self._session.execute(statement)
         return result.first() is not None
