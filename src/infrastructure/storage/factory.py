@@ -1,13 +1,12 @@
 # src\infrastructure\storage\factory.py
 from collections.abc import AsyncGenerator
-from typing import Any
 
 import structlog
 from aiobotocore.client import AioBaseClient
 from aiobotocore.config import AioConfig
 from aiobotocore.session import AioSession, get_session
 
-logger: Any = structlog.get_logger(__name__)
+logger: structlog.BoundLogger = structlog.get_logger(__name__)
 
 
 class S3ClientFactory:

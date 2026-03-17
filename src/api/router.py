@@ -1,7 +1,8 @@
 # src/api/router.py
 from fastapi import APIRouter
 
-from src.modules.catalog.presentation.router import brand_router, category_router
+from src.modules.catalog.presentation.router_brands import brand_router
+from src.modules.catalog.presentation.router_categories import category_router
 from src.modules.identity.presentation.router_account import identity_account_router
 from src.modules.identity.presentation.router_admin import admin_router
 from src.modules.identity.presentation.router_auth import auth_router
