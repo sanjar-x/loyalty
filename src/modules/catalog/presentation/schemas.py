@@ -1,6 +1,6 @@
 import uuid
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class LogoMetadataRequest(BaseModel):
@@ -61,3 +61,37 @@ class BrandCreateResponse(BaseModel):
 
 class ConfirmLogoRequest(BaseModel):
     pass
+
+
+class BrandResponse(BaseModel):
+    """Brand detail response."""
+
+    id: uuid.UUID
+    name: str
+    slug: str
+    logo_url: str | None = None
+    logo_status: str | None = None
+
+
+class BrandUpdateRequest(BaseModel):
+    """Partial update request — all fields optional (PATCH semantics)."""
+
+    name: str | None = Field(None, min_length=1, max_length=255)
+    slug: str | None = Field(
+        None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$"
+    )
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> "BrandUpdateRequest":
+        if self.name is None and self.slug is None:
+            raise ValueError("At least one field (name or slug) must be provided")
+        return self
+
+
+class BrandListResponse(BaseModel):
+    """Paginated brand list response."""
+
+    items: list[BrandResponse]
+    total: int
+    offset: int
+    limit: int

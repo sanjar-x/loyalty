@@ -198,3 +198,31 @@ def test_category_deep_nested_builds_chain():
     assert categories[0].level == 0
     assert categories[1].level == 1
     assert categories[2].level == 2
+
+
+def test_brand_update_name_only():
+    brand = Brand.create(name="Old Name", slug="old-slug")
+    brand.update(name="New Name")
+    assert brand.name == "New Name"
+    assert brand.slug == "old-slug"  # unchanged
+
+
+def test_brand_update_slug_only():
+    brand = Brand.create(name="Apple", slug="old-slug")
+    brand.update(slug="new-slug")
+    assert brand.slug == "new-slug"
+    assert brand.name == "Apple"  # unchanged
+
+
+def test_brand_update_both_fields():
+    brand = Brand.create(name="Old", slug="old")
+    brand.update(name="New", slug="new")
+    assert brand.name == "New"
+    assert brand.slug == "new"
+
+
+def test_brand_update_no_args_changes_nothing():
+    brand = Brand.create(name="Apple", slug="apple")
+    brand.update()
+    assert brand.name == "Apple"
+    assert brand.slug == "apple"
