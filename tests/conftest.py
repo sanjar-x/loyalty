@@ -2,6 +2,7 @@
 import asyncio
 import contextvars
 import warnings
+from asyncio.events import AbstractEventLoop
 from collections.abc import AsyncIterable
 
 import pytest
@@ -39,7 +40,7 @@ test_session_var: contextvars.ContextVar[AsyncSession] = contextvars.ContextVar(
 @pytest.fixture(scope="session", autouse=True)
 def event_loop():
     """Single event loop for entire test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
+    loop: AbstractEventLoop = asyncio.new_event_loop()
     yield loop
     loop.close()
 
