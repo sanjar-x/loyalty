@@ -15,9 +15,7 @@ from src.modules.catalog.application.queries.read_models import BrandReadModel
 from src.modules.catalog.domain.exceptions import BrandNotFoundError
 
 _GET_BRAND_SQL = text(
-    "SELECT id, name, slug, logo_url, logo_status "
-    "FROM brands "
-    "WHERE id = :brand_id"
+    "SELECT id, name, slug, logo_url, logo_status FROM brands WHERE id = :brand_id"
 )
 
 

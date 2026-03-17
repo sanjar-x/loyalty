@@ -61,3 +61,31 @@ class BrandCreateResponse(BaseModel):
 
 class ConfirmLogoRequest(BaseModel):
     pass
+
+
+class BrandResponse(BaseModel):
+    """Brand detail response."""
+
+    id: uuid.UUID
+    name: str
+    slug: str
+    logo_url: str | None = None
+    logo_status: str | None = None
+
+
+class BrandUpdateRequest(BaseModel):
+    """Partial update request — all fields optional (PATCH semantics)."""
+
+    name: str | None = Field(None, min_length=1, max_length=255)
+    slug: str | None = Field(
+        None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$"
+    )
+
+
+class BrandListResponse(BaseModel):
+    """Paginated brand list response."""
+
+    items: list[BrandResponse]
+    total: int
+    offset: int
+    limit: int

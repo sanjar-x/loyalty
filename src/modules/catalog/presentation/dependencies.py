@@ -9,6 +9,10 @@ from src.modules.catalog.application.commands.create_brand import CreateBrandHan
 from src.modules.catalog.application.commands.create_category import (
     CreateCategoryHandler,
 )
+from src.modules.catalog.application.commands.delete_brand import DeleteBrandHandler
+from src.modules.catalog.application.commands.update_brand import UpdateBrandHandler
+from src.modules.catalog.application.queries.get_brand import GetBrandHandler
+from src.modules.catalog.application.queries.list_brands import ListBrandsHandler
 from src.modules.catalog.application.queries.get_category_tree import (
     GetCategoryTreeHandler,
 )
@@ -41,6 +45,18 @@ class BrandProvider(Provider):
     )
     confirm_brand_logo_handler: CompositeDependencySource = provide(
         ConfirmBrandLogoUploadHandler, scope=Scope.REQUEST
+    )
+    get_brand_handler: CompositeDependencySource = provide(
+        GetBrandHandler, scope=Scope.REQUEST
+    )
+    list_brands_handler: CompositeDependencySource = provide(
+        ListBrandsHandler, scope=Scope.REQUEST
+    )
+    update_brand_handler: CompositeDependencySource = provide(
+        UpdateBrandHandler, scope=Scope.REQUEST
+    )
+    delete_brand_handler: CompositeDependencySource = provide(
+        DeleteBrandHandler, scope=Scope.REQUEST
     )
     brand_logo_processor: CompositeDependencySource = provide(
         BrandLogoProcessor, scope=Scope.REQUEST
