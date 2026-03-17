@@ -1,4 +1,9 @@
-# src/infrastructure/cache/provider.py
+"""Dishka dependency provider for Redis cache infrastructure.
+
+Manages the Redis connection pool lifecycle and registers the cache
+service implementation in the IoC container.
+"""
+
 from collections.abc import AsyncIterable
 
 import redis.asyncio as redis
@@ -16,9 +21,19 @@ logger = structlog.get_logger(__name__)
 
 
 class CacheProvider(Provider):
+    """Dishka provider that supplies Redis client and cache service bindings."""
+
     @provide(scope=Scope.APP)
     async def redis_client(self) -> AsyncIterable[redis.Redis]:
-        logger.info("Инициализация пула соединений Redis...", url=settings.redis_url)
+        """Create and yield a Redis client backed by a connection pool.
+
+        The connection pool is initialized on first use and torn down when
+        the application scope is disposed.
+
+        Yields:
+            redis.Redis: An async Redis client instance.
+        """
+        logger.info("Initializing Redis connection pool...", url=settings.redis_url)
 
         pool: ConnectionPool = redis.ConnectionPool.from_url(
             url=settings.redis_url,
@@ -36,7 +51,7 @@ class CacheProvider(Provider):
 
         yield client
 
-        logger.info("Закрытие пула соединений Redis...")
+        logger.info("Closing Redis connection pool...")
         await client.close()
         await pool.disconnect()
 

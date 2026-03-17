@@ -1,4 +1,11 @@
-# src/modules/identity/application/commands/login.py
+"""Command handler for local email/password authentication.
+
+Implements the full login flow: credential verification, identity status
+check, transparent password rehash (Bcrypt to Argon2id), session limit
+enforcement, token generation, and session creation with NIST RBAC role
+activation.
+"""
+
 import uuid
 from dataclasses import dataclass
 
@@ -19,6 +26,15 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 @dataclass(frozen=True)
 class LoginCommand:
+    """Command to authenticate with email and password.
+
+    Attributes:
+        email: The user's email address.
+        password: The user's plaintext password.
+        ip_address: Client IP address for session tracking.
+        user_agent: Client User-Agent header for session tracking.
+    """
+
     email: str
     password: str
     ip_address: str
@@ -27,12 +43,22 @@ class LoginCommand:
 
 @dataclass(frozen=True)
 class LoginResult:
+    """Result of a successful login.
+
+    Attributes:
+        access_token: Short-lived JWT access token.
+        refresh_token: Opaque refresh token for token rotation.
+        identity_id: The authenticated identity's UUID.
+    """
+
     access_token: str
     refresh_token: str
     identity_id: uuid.UUID
 
 
 class LoginHandler:
+    """Handles local email/password login with session creation."""
+
     def __init__(
         self,
         identity_repo: IIdentityRepository,
@@ -56,15 +82,28 @@ class LoginHandler:
         self._refresh_token_days = refresh_token_days
 
     async def handle(self, command: LoginCommand) -> LoginResult:
+        """Execute the login command.
+
+        Args:
+            command: The login command with credentials and client info.
+
+        Returns:
+            A result containing access and refresh tokens.
+
+        Raises:
+            InvalidCredentialsError: If email is not found or password is wrong.
+            IdentityDeactivatedError: If the identity is deactivated.
+            MaxSessionsExceededError: If the session limit is reached.
+        """
         async with self._uow:
-            # 1. Find identity by email (unified error for enumeration protection)
+            # Find identity by email (unified error for enumeration protection)
             result = await self._identity_repo.get_by_email(command.email)
             if result is None:
                 raise InvalidCredentialsError()
 
             identity, credentials = result
 
-            # 2. Verify password
+            # Verify password
             if not self._hasher.verify(command.password, credentials.password_hash):
                 self._logger.warning(
                     "identity.login.failed",
@@ -74,10 +113,10 @@ class LoginHandler:
                 )
                 raise InvalidCredentialsError()
 
-            # 3. Ensure identity is active
+            # Ensure identity is active
             identity.ensure_active()
 
-            # 4. Transparent Argon2id rehash (Bcrypt → Argon2id)
+            # Transparent Argon2id rehash (Bcrypt -> Argon2id migration)
             if self._hasher.needs_rehash(credentials.password_hash):
                 credentials.password_hash = self._hasher.hash(command.password)
                 await self._identity_repo.update_credentials(credentials)
@@ -88,7 +127,7 @@ class LoginHandler:
                     to_algo="argon2id",
                 )
 
-            # 5. Check session limit
+            # Check session limit
             active_count = await self._session_repo.count_active(identity.id)
             if active_count >= self._max_sessions:
                 self._logger.warning(
@@ -98,13 +137,13 @@ class LoginHandler:
                 )
                 raise MaxSessionsExceededError(max_sessions=self._max_sessions)
 
-            # 6. Generate tokens
+            # Generate tokens
             raw_refresh, _ = self._token_provider.create_refresh_token()
 
-            # 7. Get role IDs for session activation (NIST)
+            # Get role IDs for session activation (NIST RBAC)
             role_ids = await self._role_repo.get_identity_role_ids(identity.id)
 
-            # 8. Create session
+            # Create session
             session = Session.create(
                 identity_id=identity.id,
                 refresh_token=raw_refresh,
@@ -116,7 +155,7 @@ class LoginHandler:
             await self._session_repo.add(session)
             await self._session_repo.add_session_roles(session.id, role_ids)
 
-            # 9. Create access token
+            # Create access token
             access_token = self._token_provider.create_access_token(
                 payload_data={
                     "sub": str(identity.id),

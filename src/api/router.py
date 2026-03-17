@@ -1,4 +1,10 @@
-# src/api/router.py
+"""Root API router that aggregates all module-level routers.
+
+This module acts as the single entry point for all versioned API routes.
+Each bounded-context module registers its own sub-router here, grouped
+under an appropriate URL prefix.
+"""
+
 from fastapi import APIRouter
 
 from src.modules.catalog.presentation.router_brands import brand_router

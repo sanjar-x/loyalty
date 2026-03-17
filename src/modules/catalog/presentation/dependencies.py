@@ -1,4 +1,11 @@
-# src/modules/catalog/presentation/dependencies.py
+"""
+Dishka IoC providers for the Catalog bounded context.
+
+Registers repository implementations, command/query handlers, and
+application services into the request-scoped DI container.  These
+providers are consumed by the FastAPI router layer via ``FromDishka``.
+"""
+
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 
@@ -35,6 +42,8 @@ from src.modules.catalog.infrastructure.repositories import (
 
 
 class CategoryProvider(Provider):
+    """DI provider for category-related repositories and handlers."""
+
     category_repo: CompositeDependencySource = provide(
         CategoryRepository, scope=Scope.REQUEST, provides=ICategoryRepository
     )
@@ -59,6 +68,8 @@ class CategoryProvider(Provider):
 
 
 class BrandProvider(Provider):
+    """DI provider for brand-related repositories, handlers, and services."""
+
     brand_repo: CompositeDependencySource = provide(
         BrandRepository, scope=Scope.REQUEST, provides=IBrandRepository
     )

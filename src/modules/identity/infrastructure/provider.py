@@ -1,4 +1,10 @@
-# src/modules/identity/infrastructure/provider.py
+"""Dishka dependency injection provider for the Identity module.
+
+Registers all repository implementations, command handlers, and query handlers
+at REQUEST scope. The LoginHandler factory method injects configuration values
+from application settings.
+"""
+
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 
@@ -56,7 +62,9 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 
 class IdentityProvider(Provider):
-    # --- Repositories (REQUEST scope) ---
+    """Dishka provider that wires all Identity module dependencies."""
+
+    # Repositories (REQUEST scope)
     identity_repo: CompositeDependencySource = provide(
         IdentityRepository, scope=Scope.REQUEST, provides=IIdentityRepository
     )
@@ -73,7 +81,7 @@ class IdentityProvider(Provider):
         LinkedAccountRepository, scope=Scope.REQUEST, provides=ILinkedAccountRepository
     )
 
-    # --- Command Handlers (REQUEST scope) ---
+    # Command handlers (REQUEST scope)
     register_handler: CompositeDependencySource = provide(RegisterHandler, scope=Scope.REQUEST)
 
     @provide(scope=Scope.REQUEST)
@@ -87,6 +95,20 @@ class IdentityProvider(Provider):
         token_provider: ITokenProvider,
         logger: ILogger,
     ) -> LoginHandler:
+        """Create a LoginHandler with configuration-driven session limits.
+
+        Args:
+            identity_repo: Identity repository.
+            session_repo: Session repository.
+            role_repo: Role repository.
+            uow: Unit of work.
+            hasher: Password hasher.
+            token_provider: Token provider.
+            logger: Structured logger.
+
+        Returns:
+            A configured LoginHandler instance.
+        """
         return LoginHandler(
             identity_repo=identity_repo,
             session_repo=session_repo,
@@ -112,7 +134,7 @@ class IdentityProvider(Provider):
         DeactivateIdentityHandler, scope=Scope.REQUEST
     )
 
-    # --- Query Handlers (REQUEST scope) ---
+    # Query handlers (REQUEST scope)
     get_session_permissions_handler: CompositeDependencySource = provide(
         GetSessionPermissionsHandler, scope=Scope.REQUEST
     )

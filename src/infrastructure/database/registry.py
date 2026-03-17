@@ -1,3 +1,10 @@
+"""ORM model registry for Alembic auto-generation.
+
+Importing this module ensures that all ORM models across every bounded-context
+module are registered with the shared ``Base.metadata``, so Alembic's
+``--autogenerate`` can detect schema changes.
+"""
+
 from src.infrastructure.database.base import Base
 from src.infrastructure.database.models.outbox import OutboxMessage
 from src.modules.catalog.infrastructure.models import (

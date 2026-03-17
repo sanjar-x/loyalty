@@ -1,4 +1,10 @@
-# src/modules/identity/infrastructure/repositories/role_repository.py
+"""SQLAlchemy implementation of the Role repository.
+
+Maps between RoleModel/IdentityRoleModel ORM objects and domain Role
+entities using the Data Mapper pattern. Also handles identity-role
+association management.
+"""
+
 import uuid
 
 from sqlalchemy import delete, insert, select
@@ -13,10 +19,20 @@ from src.modules.identity.infrastructure.models import (
 
 
 class RoleRepository(IRoleRepository):
+    """Concrete repository for Role persistence and identity-role associations."""
+
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     def _to_domain(self, orm: RoleModel) -> Role:
+        """Map a RoleModel ORM instance to a domain entity.
+
+        Args:
+            orm: The ORM model instance.
+
+        Returns:
+            The corresponding domain entity.
+        """
         return Role(
             id=orm.id,
             name=orm.name,
@@ -25,6 +41,14 @@ class RoleRepository(IRoleRepository):
         )
 
     async def add(self, role: Role) -> Role:
+        """Persist a new role.
+
+        Args:
+            role: The domain role to persist.
+
+        Returns:
+            The persisted role.
+        """
         orm = RoleModel(
             id=role.id,
             name=role.name,
@@ -36,25 +60,59 @@ class RoleRepository(IRoleRepository):
         return self._to_domain(orm)
 
     async def get(self, role_id: uuid.UUID) -> Role | None:
+        """Retrieve a role by its UUID.
+
+        Args:
+            role_id: The role's UUID.
+
+        Returns:
+            The role if found, or None.
+        """
         orm = await self._session.get(RoleModel, role_id)
         return self._to_domain(orm) if orm else None
 
     async def get_by_name(self, name: str) -> Role | None:
+        """Retrieve a role by its unique name.
+
+        Args:
+            name: The role name.
+
+        Returns:
+            The role if found, or None.
+        """
         stmt = select(RoleModel).where(RoleModel.name == name)
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
     async def delete(self, role_id: uuid.UUID) -> None:
+        """Delete a role by its UUID.
+
+        Args:
+            role_id: The role's UUID.
+        """
         stmt = delete(RoleModel).where(RoleModel.id == role_id)
         await self._session.execute(stmt)
 
     async def get_all(self) -> list[Role]:
+        """Retrieve all roles ordered by name.
+
+        Returns:
+            List of all roles.
+        """
         stmt = select(RoleModel).order_by(RoleModel.name)
         result = await self._session.execute(stmt)
         return [self._to_domain(orm) for orm in result.scalars().all()]
 
     async def get_identity_role_ids(self, identity_id: uuid.UUID) -> list[uuid.UUID]:
+        """Retrieve role IDs assigned to an identity.
+
+        Args:
+            identity_id: The identity to query.
+
+        Returns:
+            List of assigned role UUIDs.
+        """
         stmt = select(IdentityRoleModel.role_id).where(IdentityRoleModel.identity_id == identity_id)
         result = await self._session.execute(stmt)
         return [row[0] for row in result.all()]
@@ -65,6 +123,13 @@ class RoleRepository(IRoleRepository):
         role_id: uuid.UUID,
         assigned_by: uuid.UUID | None = None,
     ) -> None:
+        """Assign a role to an identity by inserting an identity_roles row.
+
+        Args:
+            identity_id: The identity to assign the role to.
+            role_id: The role to assign.
+            assigned_by: The admin identity who performed the assignment, if any.
+        """
         stmt = insert(IdentityRoleModel).values(
             identity_id=identity_id,
             role_id=role_id,
@@ -77,6 +142,12 @@ class RoleRepository(IRoleRepository):
         identity_id: uuid.UUID,
         role_id: uuid.UUID,
     ) -> None:
+        """Revoke a role from an identity by deleting the identity_roles row.
+
+        Args:
+            identity_id: The identity to revoke the role from.
+            role_id: The role to revoke.
+        """
         stmt = delete(IdentityRoleModel).where(
             IdentityRoleModel.identity_id == identity_id,
             IdentityRoleModel.role_id == role_id,

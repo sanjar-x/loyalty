@@ -1,4 +1,9 @@
-# src/modules/identity/application/commands/logout_all.py
+"""Command handler for logging out all sessions of an identity.
+
+Revokes every active session for the identity and invalidates
+permissions cache entries for each revoked session.
+"""
+
 import uuid
 from dataclasses import dataclass
 
@@ -10,10 +15,18 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 @dataclass(frozen=True)
 class LogoutAllCommand:
+    """Command to revoke all sessions for an identity.
+
+    Attributes:
+        identity_id: The identity whose sessions should be revoked.
+    """
+
     identity_id: uuid.UUID
 
 
 class LogoutAllHandler:
+    """Handles bulk session revocation with cache invalidation."""
+
     def __init__(
         self,
         session_repo: ISessionRepository,
@@ -27,6 +40,14 @@ class LogoutAllHandler:
         self._logger = logger.bind(handler="LogoutAllHandler")
 
     async def handle(self, command: LogoutAllCommand) -> None:
+        """Execute the logout-all command.
+
+        Revokes all active sessions for the identity and invalidates
+        the permissions cache for each.
+
+        Args:
+            command: The logout-all command.
+        """
         async with self._uow:
             revoked_ids = await self._session_repo.revoke_all_for_identity(
                 command.identity_id,

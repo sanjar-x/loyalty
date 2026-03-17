@@ -1,4 +1,15 @@
-# src/api/middlewares/logger.py
+"""ASGI middleware that produces structured access logs for every HTTP request.
+
+Responsibilities:
+- Generates or propagates a unique ``request_id`` for distributed tracing.
+- Extracts the real client IP from ``X-Forwarded-For`` when behind a proxy.
+- Binds contextual fields (request_id, IP, method, path) to structlog so
+  that all downstream log entries include them automatically.
+- Injects ``X-Process-Time-Ms`` and ``X-Request-ID`` response headers.
+- Emits a single access-log line at the appropriate severity based on
+  the final HTTP status code.
+"""
+
 import re
 import time
 import uuid
@@ -14,10 +25,27 @@ logger: structlog.BoundLogger = structlog.get_logger("api.access")
 
 
 class AccessLoggerMiddleware:
-    def __init__(self, app: ASGIApp):
+    """ASGI middleware that logs every HTTP request with timing and context."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        """Initialise the middleware.
+
+        Args:
+            app: The next ASGI application in the middleware stack.
+        """
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """ASGI entry point.
+
+        Non-HTTP scopes (e.g. ``lifespan``, ``websocket``) are passed
+        through without any logging.
+
+        Args:
+            scope: The ASGI connection scope.
+            receive: The ASGI receive callable.
+            send: The ASGI send callable.
+        """
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -28,6 +56,18 @@ class AccessLoggerMiddleware:
         await self.dispatch(request, receive, send)
 
     async def dispatch(self, request: Request, receive: Receive, send: Send) -> None:
+        """Process a single HTTP request with logging and timing.
+
+        The method resolves the request ID and client IP, binds them to
+        the structlog context, wraps the ``send`` callable to capture the
+        response status code and inject custom headers, and finally emits
+        a single access-log entry.
+
+        Args:
+            request: The parsed Starlette ``Request`` object.
+            receive: The ASGI receive callable.
+            send: The ASGI send callable.
+        """
         raw_request_id = request.headers.get("X-Request-ID", "")
         if raw_request_id and re.match(r"^[a-zA-Z0-9\-]{1,64}$", raw_request_id):
             request_id = raw_request_id
@@ -56,6 +96,7 @@ class AccessLoggerMiddleware:
         duration_ms = 0.0
 
         async def send_wrapper(message: Message) -> None:
+            """Intercept the response start message to capture status and inject headers."""
             nonlocal status_code, duration_ms
 
             if message["type"] == "http.response.start":

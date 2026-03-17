@@ -1,31 +1,32 @@
-# src/bootstrap/worker.py
-"""
-Точка входа TaskIQ-воркера.
+"""TaskIQ worker entry point.
 
-ВАЖНО: Порядок инициализации в этом модуле критичен и не должен меняться.
+IMPORTANT: The initialisation order in this module is critical and must
+not be changed.
 
-Схема зависимостей при старте воркера:
-    1. broker          — создаётся в src/bootstrap/broker.py (импортируется вверху)
-    2. container       — DI-контейнер Dishka (create_container())
-    3. setup_dishka()  — регистрирует DishkaMiddleware на брокере
-    4. import tasks    — задачи регистрируются через @broker.task() декоратор
+Dependency graph at worker startup:
+    1. ``broker``        -- created in ``src/bootstrap/broker.py`` (imported above).
+    2. ``container``     -- Dishka DI container (``create_container()``).
+    3. ``setup_dishka()``-- registers ``DishkaMiddleware`` on the broker.
+    4. ``import tasks``  -- tasks register themselves via the ``@broker.task()``
+       decorator.
 
-Почему именно такой порядок?
-    @broker.task() при импорте немедленно вызывает broker.register_task().
-    DishkaMiddleware должна быть уже установлена на брокере в этот момент,
-    иначе зависимости (FromDishka[...]) не будут разрешаться при выполнении задач,
-    и воркер упадёт с ошибкой в runtime при первом же вызове.
+Why this exact order?
+    ``@broker.task()`` calls ``broker.register_task()`` at import time.
+    ``DishkaMiddleware`` must already be attached to the broker at that
+    point; otherwise ``FromDishka[...]`` dependencies will not resolve at
+    execution time and the worker will crash with a runtime error.
 
-Что сломается при нарушении порядка:
-    - Если переместить импорты tasks выше setup_dishka():
-      задачи зарегистрируются без middleware → AttributeError/KeyError при выполнении.
-    - Если убрать # noqa: E402 и запустить isort/ruff --fix:
-      автоформаттер поднимет импорты tasks наверх → та же проблема.
+What breaks if the order is violated:
+    - Moving task imports above ``setup_dishka()``: tasks register without
+      the middleware, leading to ``AttributeError`` / ``KeyError`` at
+      execution time.
+    - Removing the ``# noqa`` markers and letting isort / ruff ``--fix``
+      hoist the task imports to the top: same problem.
 
-Защита от автоформаттеров:
-    Импорты задач помечены # noqa для подавления E402 (import not at top of file).
-    Директива type: ignore[import] добавлена там, где задачи не экспортируют API.
-    Не удалять эти комментарии при «чистке» кода.
+Auto-formatter protection:
+    Task imports are annotated with ``# noqa`` to suppress E402 (module-
+    level import not at top of file).  Do NOT remove these markers during
+    code cleanup.
 """
 
 import structlog
@@ -42,13 +43,13 @@ from src.infrastructure.logging.dlq_middleware import DLQMiddleware
 
 logger = structlog.get_logger(__name__)
 
-# 1. Инициализируем контейнер и интеграцию ДО импорта задач.
-# Это критично, чтобы DishkaMiddleware успел подхватить задачи при их регистрации.
+# 1. Initialise the container and DI integration BEFORE importing tasks.
+# This is critical so that DishkaMiddleware is in place when tasks register.
 container: AsyncContainer = create_container()
 setup_dishka(container=container, broker=broker)
 
-# 1.1 DLQ Middleware: сохраняет проваленные задачи в БД.
-# Используем отдельный engine, чтобы не зависеть от Dishka request-scoped session.
+# 1.1 DLQ Middleware: persists failed tasks to the database.
+# Uses a dedicated engine to avoid depending on the Dishka request-scoped session.
 _dlq_engine = create_async_engine(
     url=settings.database_url,
     poolclass=AsyncAdaptedQueuePool,
@@ -61,7 +62,7 @@ _dlq_session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
 )
 broker.add_middlewares(DLQMiddleware(session_factory=_dlq_session_factory))
 
-# 2. Теперь импортируем задачи.
+# 2. Now import tasks so they register with the broker.
 import src.infrastructure.outbox.tasks  # noqa
 import src.modules.catalog.application.tasks  # noqa
 import src.modules.storage.application.consumers.brand_events  # noqa
@@ -72,20 +73,30 @@ import src.modules.user.application.consumers.identity_events  # noqa
 
 @broker.on_event(TaskiqEvents.WORKER_STARTUP)
 async def startup_event(state) -> None:
+    """Handle the worker startup lifecycle event.
+
+    Stores the DI container in the worker state so that it can be
+    properly closed during shutdown.
+
+    Args:
+        state: The TaskIQ worker state object.
     """
-    Хук жизненного цикла воркера.
-    """
-    logger.info("TaskIQ Worker запущен и готов к работе")
-    # Сохраняем контейнер в State для корректного закрытия
+    logger.info("TaskIQ Worker started and ready to process tasks")
+    # Persist the container in state for graceful shutdown.
     state.dishka_container = container
 
 
 @broker.on_event(TaskiqEvents.WORKER_SHUTDOWN)
 async def shutdown_event(state) -> None:
+    """Handle the worker graceful-shutdown lifecycle event.
+
+    Closes the Dishka DI container and releases all managed resources
+    (database pools, cache connections, etc.).
+
+    Args:
+        state: The TaskIQ worker state object.
     """
-    Graceful shutdown воркера.
-    """
-    logger.info("Остановка TaskIQ Worker'а...")
+    logger.info("Shutting down TaskIQ Worker...")
     if hasattr(state, "dishka_container"):
         await state.dishka_container.close()
-        logger.info("DI-контейнер Dishka успешно закрыт")
+        logger.info("Dishka DI container closed successfully")

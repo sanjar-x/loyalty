@@ -1,4 +1,9 @@
-# src/modules/identity/presentation/router_auth.py
+"""Authentication API endpoints for the Identity module.
+
+Provides public endpoints for registration, login, token refresh, and
+logout operations. All endpoints use Dishka for dependency injection.
+"""
+
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Request, status
 
@@ -47,6 +52,15 @@ async def register(
     body: RegisterRequest,
     handler: FromDishka[RegisterHandler],
 ) -> RegisterResponse:
+    """Register a new identity with email and password.
+
+    Args:
+        body: The registration request payload.
+        handler: The register command handler.
+
+    Returns:
+        The new identity's UUID and a confirmation message.
+    """
     command = RegisterCommand(email=body.email, password=body.password)
     result = await handler.handle(command)
     return RegisterResponse(identity_id=result.identity_id)
@@ -62,6 +76,16 @@ async def login(
     request: Request,
     handler: FromDishka[LoginHandler],
 ) -> TokenResponse:
+    """Authenticate with email and password, returning a token pair.
+
+    Args:
+        body: The login request payload.
+        request: The FastAPI request (for extracting client IP and User-Agent).
+        handler: The login command handler.
+
+    Returns:
+        An access/refresh token pair.
+    """
     command = LoginCommand(
         email=body.email,
         password=body.password,
@@ -85,6 +109,16 @@ async def refresh_token(
     request: Request,
     handler: FromDishka[RefreshTokenHandler],
 ) -> TokenResponse:
+    """Rotate the refresh token and obtain a new access/refresh token pair.
+
+    Args:
+        body: The refresh token request payload.
+        request: The FastAPI request (for extracting client IP and User-Agent).
+        handler: The refresh token command handler.
+
+    Returns:
+        A new access/refresh token pair.
+    """
     command = RefreshTokenCommand(
         refresh_token=body.refresh_token,
         ip_address=request.client.host if request.client else "unknown",
@@ -106,6 +140,15 @@ async def logout(
     auth: AuthContext = Depends(get_auth_context),
     handler: FromDishka[LogoutHandler] = ...,  # type: ignore[assignment]
 ) -> MessageResponse:
+    """Revoke the current session.
+
+    Args:
+        auth: The authenticated context from the JWT.
+        handler: The logout command handler.
+
+    Returns:
+        A confirmation message.
+    """
     await handler.handle(LogoutCommand(session_id=auth.session_id))
     return MessageResponse(message="Logged out successfully")
 
@@ -119,5 +162,14 @@ async def logout_all(
     auth: AuthContext = Depends(get_auth_context),
     handler: FromDishka[LogoutAllHandler] = ...,  # type: ignore[assignment]
 ) -> MessageResponse:
+    """Revoke all sessions for the authenticated identity.
+
+    Args:
+        auth: The authenticated context from the JWT.
+        handler: The logout-all command handler.
+
+    Returns:
+        A confirmation message.
+    """
     await handler.handle(LogoutAllCommand(identity_id=auth.identity_id))
     return MessageResponse(message="All sessions logged out")

@@ -1,9 +1,9 @@
 """
-Query Handler: список категорий с пагинацией.
+Query handler: paginated category listing.
 
-Строгий CQRS — не использует IUnitOfWork, доменные агрегаты
-и репозитории. Работает напрямую с AsyncSession + raw SQL,
-возвращает Pydantic Read Model.
+Strict CQRS read side — does not use IUnitOfWork, domain aggregates, or
+repositories. Queries the database directly via AsyncSession + raw SQL
+and returns a Pydantic read model.
 """
 
 from dataclasses import dataclass
@@ -28,15 +28,32 @@ _COUNT_CATEGORIES_SQL = text("SELECT count(*) FROM categories")
 
 @dataclass(frozen=True)
 class ListCategoriesQuery:
+    """Pagination parameters for category listing.
+
+    Attributes:
+        offset: Number of records to skip.
+        limit: Maximum number of records to return.
+    """
+
     offset: int = 0
     limit: int = 20
 
 
 class ListCategoriesHandler:
+    """Fetch a paginated list of categories."""
+
     def __init__(self, session: AsyncSession):
         self._session = session
 
     async def handle(self, query: ListCategoriesQuery) -> CategoryListReadModel:
+        """Retrieve a paginated category list.
+
+        Args:
+            query: Pagination parameters.
+
+        Returns:
+            Paginated list read model with items and total count.
+        """
         count_result = await self._session.execute(_COUNT_CATEGORIES_SQL)
         total: int = count_result.scalar_one()
 

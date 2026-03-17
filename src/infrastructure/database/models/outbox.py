@@ -1,4 +1,10 @@
-# src/infrastructure/database/models/outbox.py
+"""Transactional Outbox ORM model for reliable domain event delivery.
+
+Each row represents a domain event that must be published to the
+message broker. The relay worker polls for unprocessed rows and
+dispatches them, guaranteeing at-least-once delivery.
+"""
+
 import uuid
 from datetime import datetime
 
@@ -10,12 +16,21 @@ from src.infrastructure.database.base import Base
 
 
 class OutboxMessage(Base):
-    """
-    Transactional Outbox: запись доменного события для гарантированной
-    доставки в брокер сообщений (RabbitMQ).
+    """ORM model for the transactional outbox pattern.
 
-    Записывается атомарно в одной транзакции с бизнес-данными.
-    Relay-воркер читает необработанные записи и публикует их в брокер.
+    Written atomically in the same transaction as business data.
+    The relay worker reads unprocessed rows and publishes them
+    to the message broker (RabbitMQ).
+
+    Attributes:
+        id: Primary key (UUID, sortable by creation time).
+        aggregate_type: Source aggregate type (e.g., Brand, Order).
+        aggregate_id: Source aggregate identifier.
+        event_type: Domain event name (e.g., BrandLogoConfirmedEvent).
+        payload: Serialized event body as JSON.
+        created_at: Timestamp when the event was written to the outbox.
+        processed_at: Timestamp of successful publication (NULL = pending).
+        correlation_id: Trace correlation ID (HTTP request_id -> Outbox -> TaskIQ).
     """
 
     __tablename__ = "outbox_messages"
@@ -24,50 +39,50 @@ class OutboxMessage(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        comment="Первичный ключ (UUIDv7 для сортировки по времени)",
+        comment="Primary key (UUIDv7 for time-based sorting)",
     )
     aggregate_type: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
-        comment="Тип агрегата-источника (Brand, Order, ...)",
+        comment="Source aggregate type (Brand, Order, ...)",
     )
     aggregate_id: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
-        comment="ID агрегата-источника",
+        comment="Source aggregate ID",
     )
 
     event_type: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
-        comment="Название доменного события (BrandLogoConfirmedEvent, ...)",
+        comment="Domain event name (BrandLogoConfirmedEvent, ...)",
     )
 
     payload: Mapped[dict] = mapped_column(
         JSONB,
         nullable=False,
-        comment="Сериализованное тело события (.model_dump(mode='json'))",
+        comment="Serialized event body",
     )
 
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
         server_default=func.now(),
-        comment="Момент записи события в Outbox",
+        comment="Timestamp when the event was written to the outbox",
     )
 
     processed_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=True,
         default=None,
-        comment="Момент успешной публикации в брокер (NULL = не обработано)",
+        comment="Timestamp of successful broker publication (NULL = pending)",
     )
 
     correlation_id: Mapped[str | None] = mapped_column(
         String(64),
         nullable=True,
         default=None,
-        comment="ID корреляции для трассировки (HTTP request_id → Outbox → TaskIQ)",
+        comment="Trace correlation ID (HTTP request_id -> Outbox -> TaskIQ)",
     )
 
     __table_args__ = (

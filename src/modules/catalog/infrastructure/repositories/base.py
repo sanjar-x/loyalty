@@ -1,4 +1,11 @@
-# src/modules/catalog/infrastructure/repositories/base.py
+"""
+Base repository implementing the Data Mapper pattern for catalog aggregates.
+
+Provides generic CRUD operations that convert between SQLAlchemy ORM models
+and domain entities.  Concrete repositories inherit from :class:`BaseRepository`
+and supply the ``_to_domain`` / ``_to_orm`` mapping methods.
+"""
+
 import uuid
 from abc import abstractmethod
 from typing import Any, Generic, TypeVar
@@ -14,9 +21,14 @@ EntityType = TypeVar("EntityType")
 
 
 class BaseRepository(Generic[EntityType, ModelType], ICatalogRepository[EntityType]):
-    """
-    Базовый репозиторий, реализующий Data Mapper Pattern.
-    Принимает и возвращает только доменные сущности (EntityType).
+    """Generic Data Mapper repository.
+
+    Accepts and returns only domain entities (``EntityType``).
+    Subclasses declare the ORM model via the ``model_class`` class argument
+    and implement the ``_to_domain`` / ``_to_orm`` mapping hooks.
+
+    Args:
+        session: SQLAlchemy async session scoped to the current request.
     """
 
     model: type[ModelType]
@@ -31,37 +43,50 @@ class BaseRepository(Generic[EntityType, ModelType], ICatalogRepository[EntityTy
 
     @abstractmethod
     def _to_domain(self, orm: ModelType) -> EntityType:
-        pass
+        """Convert an ORM model instance to a domain entity."""
 
     @abstractmethod
     def _to_orm(self, entity: EntityType, orm: ModelType | None = None) -> ModelType:
-        pass
+        """Convert a domain entity to an ORM model instance.
+
+        Args:
+            entity: Domain entity to map.
+            orm: Existing ORM instance to update in-place, or ``None``
+                to create a new one.
+        """
 
     async def add(self, entity: EntityType) -> EntityType:
+        """Persist a new domain entity and return the refreshed copy."""
         orm = self._to_orm(entity)
         self._session.add(orm)
         await self._session.flush()
         return self._to_domain(orm)
 
     async def get(self, entity_id: uuid.UUID) -> EntityType | None:
+        """Retrieve a domain entity by primary key, or ``None``."""
         orm = await self._session.get(self.model, entity_id)
         if orm:
             return self._to_domain(orm)
         return None
 
     async def update(self, entity: EntityType) -> EntityType:
+        """Merge updated domain state into the corresponding ORM row.
+
+        Raises:
+            ValueError: If the entity has no ``id`` or the row is missing.
+        """
         pk = getattr(entity, "id", None)
         if not pk:
-            raise ValueError("Для обновления у доменной сущности должен быть id")
+            raise ValueError("Domain entity must have an id for updates")
 
         orm = await self._session.get(self.model, pk)
         if not orm:
-            raise ValueError(f"Сущность с id {pk} не найдена в БД")
+            raise ValueError(f"Entity with id {pk} not found in the database")
 
         orm = self._to_orm(entity, orm)
         return self._to_domain(orm)
 
     async def delete(self, entity_id: uuid.UUID) -> None:
+        """Delete a row by primary key.  Transaction control is in the UoW."""
         statement = delete(self.model).where(self.model.id == entity_id)
         await self._session.execute(statement)
-        # Flush удален; управление транзакцией - в UoW

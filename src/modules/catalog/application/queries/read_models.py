@@ -1,10 +1,11 @@
 # src/modules/catalog/application/queries/read_models.py
 """
-Read Models (DTO) для Query-обработчиков модуля Catalog.
+Read models (DTOs) for Catalog query handlers.
 
-Эти модели не содержат бизнес-логики — только данные для чтения.
-Используются напрямую Query Handler'ами без участия доменных агрегатов,
-репозиториев или Unit of Work.
+These models carry no business logic — only data for the read side.
+Used directly by query handlers without involving domain aggregates,
+repositories, or the Unit of Work. Part of the application layer
+(CQRS read side).
 """
 
 from __future__ import annotations
@@ -15,7 +16,18 @@ from pydantic import BaseModel
 
 
 class CategoryNode(BaseModel):
-    """Плоский узел дерева категорий (Read Model)."""
+    """Recursive tree node for the category hierarchy read model.
+
+    Attributes:
+        id: Category UUID.
+        name: Display name.
+        slug: URL-safe identifier.
+        full_slug: Materialized path.
+        level: Tree depth (0 = root).
+        sort_order: Ordering among siblings.
+        parent_id: Parent UUID, or None for roots.
+        children: Nested child nodes populated during tree assembly.
+    """
 
     id: uuid.UUID
     name: str

@@ -1,4 +1,9 @@
-# src/modules/identity/domain/exceptions.py
+"""Domain exceptions for the Identity module.
+
+Each exception maps to a specific HTTP status code and machine-readable error
+code, enabling consistent API error responses across the identity bounded context.
+"""
+
 from src.shared.exceptions import (
     AppException,
     ConflictError,
@@ -9,7 +14,10 @@ from src.shared.exceptions import (
 
 
 class InvalidCredentialsError(UnauthorizedError):
-    """Unified error for wrong email OR wrong password (user enumeration protection)."""
+    """Raised when email or password verification fails.
+
+    Uses a unified message to prevent user enumeration attacks.
+    """
 
     def __init__(self) -> None:
         super().__init__(
@@ -19,7 +27,7 @@ class InvalidCredentialsError(UnauthorizedError):
 
 
 class IdentityAlreadyExistsError(ConflictError):
-    """Email already registered."""
+    """Raised when attempting to register with an already-registered email."""
 
     def __init__(self) -> None:
         super().__init__(
@@ -29,7 +37,7 @@ class IdentityAlreadyExistsError(ConflictError):
 
 
 class IdentityDeactivatedError(ForbiddenError):
-    """Identity account is deactivated."""
+    """Raised when a deactivated identity attempts to authenticate."""
 
     def __init__(self) -> None:
         super().__init__(
@@ -39,7 +47,7 @@ class IdentityDeactivatedError(ForbiddenError):
 
 
 class SessionExpiredError(UnauthorizedError):
-    """Refresh token expired (> 30 days)."""
+    """Raised when a refresh token has expired (past its TTL)."""
 
     def __init__(self) -> None:
         super().__init__(
@@ -49,7 +57,7 @@ class SessionExpiredError(UnauthorizedError):
 
 
 class SessionRevokedError(UnauthorizedError):
-    """Session was revoked (logout or reuse detection)."""
+    """Raised when a revoked session is used (logout or reuse detection)."""
 
     def __init__(self) -> None:
         super().__init__(
@@ -59,7 +67,11 @@ class SessionRevokedError(UnauthorizedError):
 
 
 class RefreshTokenReuseError(UnauthorizedError):
-    """Reuse of old refresh token detected — all sessions revoked."""
+    """Raised when a previously rotated refresh token is reused.
+
+    This indicates a potential token theft; all sessions for the identity
+    should be revoked.
+    """
 
     def __init__(self) -> None:
         super().__init__(
@@ -69,7 +81,13 @@ class RefreshTokenReuseError(UnauthorizedError):
 
 
 class MaxSessionsExceededError(AppException):
-    """Exceeded maximum active sessions per identity (default: 5). HTTP 429."""
+    """Raised when the maximum number of active sessions per identity is reached.
+
+    Returns HTTP 429 (Too Many Requests).
+
+    Args:
+        max_sessions: The configured session limit that was exceeded.
+    """
 
     def __init__(self, max_sessions: int) -> None:
         super().__init__(
@@ -81,7 +99,12 @@ class MaxSessionsExceededError(AppException):
 
 
 class RoleHierarchyCycleError(UnprocessableEntityError):
-    """Attempt to create a cycle in role hierarchy."""
+    """Raised when a role hierarchy operation would create a cycle.
+
+    Args:
+        parent_role_id: The parent role in the attempted assignment.
+        child_role_id: The child role in the attempted assignment.
+    """
 
     def __init__(self, parent_role_id: str, child_role_id: str) -> None:
         super().__init__(
@@ -95,7 +118,11 @@ class RoleHierarchyCycleError(UnprocessableEntityError):
 
 
 class SystemRoleModificationError(ForbiddenError):
-    """Cannot modify or delete system roles (is_system=True)."""
+    """Raised when attempting to modify or delete a system role (is_system=True).
+
+    Args:
+        role_name: Name of the system role that was targeted.
+    """
 
     def __init__(self, role_name: str) -> None:
         super().__init__(
@@ -106,7 +133,11 @@ class SystemRoleModificationError(ForbiddenError):
 
 
 class InsufficientPermissionsError(ForbiddenError):
-    """RequirePermission check failed — session lacks required permission."""
+    """Raised when a session lacks the required permission for an operation.
+
+    Args:
+        codename: The permission codename that was required, if available.
+    """
 
     def __init__(self, codename: str | None = None) -> None:
         super().__init__(

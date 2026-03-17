@@ -1,9 +1,7 @@
-# src/infrastructure/logging/dlq_middleware.py
-"""
-Dead Letter Queue (DLQ) Middleware для TaskIQ.
+"""Dead Letter Queue (DLQ) middleware for TaskIQ.
 
-Перехватывает задачи, исчерпавшие все retry-попытки, и сохраняет
-их в таблицу failed_tasks для последующего анализа и ручного повтора.
+Intercepts tasks that have exhausted all retry attempts and persists
+them to the ``failed_tasks`` table for later inspection and manual replay.
 """
 
 from __future__ import annotations
@@ -20,26 +18,36 @@ logger = structlog.get_logger(__name__)
 
 
 class DLQMiddleware(TaskiqMiddleware):
-    """
-    Middleware: сохраняет проваленные задачи в БД (Dead Letter Queue).
+    """Middleware that saves permanently failed tasks to the database.
 
-    Срабатывает только когда задача завершилась ошибкой и все
-    retry-попытки исчерпаны.
+    Activates only when a task finishes with an error and all retry
+    attempts have been exhausted.
     """
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+        """Initialize the DLQ middleware with a database session factory.
+
+        Args:
+            session_factory: An async session factory for creating DB sessions.
+        """
         super().__init__()
         self._session_factory = session_factory
 
     async def post_execute(self, message: TaskiqMessage, result: TaskiqResult) -> None:
+        """Persist a failed task to the DLQ table after retries are exhausted.
+
+        Args:
+            message: The TaskIQ message that was executed.
+            result: The execution result containing error information.
+        """
         if not result.is_err:
             return
 
-        # Определяем retry-контекст из labels (SimpleRetryMiddleware convention)
+        # Determine retry context from labels (SimpleRetryMiddleware convention)
         retry_count = int(message.labels.get("_retries", 0))
         max_retries = int(message.labels.get("max_retries", 0))
 
-        # Если ещё есть retry-попытки — пропускаем
+        # Skip if there are remaining retry attempts
         if retry_count < max_retries:
             return
 
@@ -54,7 +62,7 @@ class DLQMiddleware(TaskiqMiddleware):
         )
 
         logger.error(
-            "DLQ: задача исчерпала retry-попытки",
+            "DLQ: task exhausted all retry attempts",
             task_name=message.task_name,
             task_id=message.task_id,
             retry_count=retry_count,
@@ -73,7 +81,7 @@ class DLQMiddleware(TaskiqMiddleware):
                 session.add(failed)
         except Exception:
             logger.exception(
-                "DLQ: не удалось сохранить проваленную задачу в БД",
+                "DLQ: failed to persist failed task to database",
                 task_name=message.task_name,
                 task_id=message.task_id,
             )

@@ -1,5 +1,8 @@
-# src/modules/identity/presentation/router_account.py
-"""Account management endpoints owned by the identity module."""
+"""Account management API endpoints for the Identity module.
+
+Provides self-service endpoints for authenticated users to manage their
+own account: deactivation (GDPR) and session listing.
+"""
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends
@@ -37,6 +40,18 @@ async def delete_my_account(
     auth: AuthContext = Depends(get_auth_context),
     handler: FromDishka[DeactivateIdentityHandler] = ...,  # type: ignore[assignment]
 ) -> MessageResponse:
+    """Deactivate the authenticated user's account.
+
+    Triggers identity deactivation, session revocation, and downstream
+    GDPR PII anonymization via domain events.
+
+    Args:
+        auth: The authenticated context from the JWT.
+        handler: The deactivate identity command handler.
+
+    Returns:
+        A message confirming account deactivation.
+    """
     command = DeactivateIdentityCommand(
         identity_id=auth.identity_id,
         reason="user_request",
@@ -54,6 +69,17 @@ async def get_my_sessions(
     auth: AuthContext = Depends(get_auth_context),
     handler: FromDishka[GetMySessionsHandler] = ...,  # type: ignore[assignment]
 ) -> list[SessionInfo]:
+    """List the authenticated user's active sessions.
+
+    Returns all non-revoked sessions, marking the current one.
+
+    Args:
+        auth: The authenticated context from the JWT.
+        handler: The get-my-sessions query handler.
+
+    Returns:
+        List of active session summaries.
+    """
     query = GetMySessionsQuery(
         identity_id=auth.identity_id,
         current_session_id=auth.session_id,

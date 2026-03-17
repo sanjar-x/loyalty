@@ -1,8 +1,7 @@
-# src/api/dependencies/auth.py
-"""
-FastAPI-зависимость для аутентификации и привязки user_id к контексту логирования.
+"""FastAPI dependency for authentication and binding user_id to the logging context.
 
-Использование в защищённых маршрутах:
+Usage in protected routes::
+
     @router.get("/protected")
     async def protected_route(user_id: str = Depends(get_current_user_id)):
         ...
@@ -25,15 +24,26 @@ async def get_current_user_id(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     token_provider: FromDishka[ITokenProvider] = ...,  # type: ignore[assignment]
 ) -> str:
-    """
-    Извлекает user_id из JWT и привязывает его к structlog-контексту.
+    """Extract the user ID from a JWT and bind it to the structlog context.
 
-    После вызова этой зависимости все логи в рамках запроса
-    автоматически содержат поле user_id.
+    After this dependency resolves, every log entry emitted during the
+    request will automatically include the ``user_id`` field.
+
+    Args:
+        credentials: Bearer token credentials extracted by the HTTPBearer
+            security scheme.  ``None`` when the header is missing.
+        token_provider: DI-injected token provider used to decode JWTs.
+
+    Returns:
+        The ``sub`` (subject) claim from the JWT, representing the user ID.
+
+    Raises:
+        UnauthorizedError: If the authorization token is missing or the
+            token payload does not contain a ``sub`` claim.
     """
     if not credentials:
         raise UnauthorizedError(
-            message="Отсутствует токен авторизации.",
+            message="Authorization token is missing.",
             error_code="MISSING_TOKEN",
         )
 
@@ -41,7 +51,7 @@ async def get_current_user_id(
     user_id: str | None = payload.get("sub")
     if not user_id:
         raise UnauthorizedError(
-            message="Невалидный токен: отсутствует sub.",
+            message="Invalid token: missing sub claim.",
             error_code="INVALID_TOKEN_PAYLOAD",
         )
     structlog.contextvars.bind_contextvars(user_id=user_id)

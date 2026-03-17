@@ -1,4 +1,10 @@
-# src/modules/catalog/presentation/router_categories.py
+"""
+FastAPI router for Category CRUD and tree endpoints.
+
+All mutating endpoints require the ``catalog:manage`` permission.
+Delegates to application-layer command/query handlers via Dishka DI.
+"""
+
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
@@ -52,8 +58,8 @@ category_router = APIRouter(
     "",
     status_code=status.HTTP_201_CREATED,
     response_model=CategoryCreateResponse,
-    summary="Создать новую категорию",
-    description="Создает категорию.",
+    summary="Create a new category",
+    description="Creates a category in the hierarchy.",
     dependencies=[Depends(dependency=RequirePermission(codename="catalog:manage"))],
 )
 async def create_category(
@@ -67,15 +73,15 @@ async def create_category(
         sort_order=request.sort_order,
     )
     category: CreateCategoryResult = await handler.handle(command)
-    return CategoryCreateResponse(id=category.id, message="Категория успешно создана")
+    return CategoryCreateResponse(id=category.id, message="Category created successfully")
 
 
 @category_router.get(
     "/tree",
     status_code=status.HTTP_200_OK,
     response_model=list[CategoryTreeResponse],
-    summary="Получить дерево категорий",
-    description="Возвращает полный каталог в виде вложенного дерева",
+    summary="Get the category tree",
+    description="Returns the full catalog as a nested tree",
 )
 async def get_category_tree(
     handler: FromDishka[GetCategoryTreeHandler],
@@ -88,7 +94,7 @@ async def get_category_tree(
     "",
     status_code=status.HTTP_200_OK,
     response_model=CategoryListResponse,
-    summary="Получить список категорий",
+    summary="List categories (paginated)",
 )
 async def list_categories(
     handler: FromDishka[ListCategoriesHandler],
@@ -120,7 +126,7 @@ async def list_categories(
     path="/{category_id}",
     status_code=status.HTTP_200_OK,
     response_model=CategoryResponse,
-    summary="Получить категорию по ID",
+    summary="Get category by ID",
 )
 async def get_category(
     category_id: uuid.UUID,
@@ -142,7 +148,7 @@ async def get_category(
     "/{category_id}",
     status_code=status.HTTP_200_OK,
     response_model=CategoryResponse,
-    summary="Обновить категорию",
+    summary="Update a category",
     dependencies=[Depends(dependency=RequirePermission(codename="catalog:manage"))],
 )
 async def update_category(
@@ -171,7 +177,7 @@ async def update_category(
 @category_router.delete(
     path="/{category_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Удалить категорию",
+    summary="Delete a category",
     dependencies=[Depends(dependency=RequirePermission(codename="catalog:manage"))],
 )
 async def delete_category(

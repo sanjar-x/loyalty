@@ -1,9 +1,9 @@
 """
-Query Handler: список брендов с пагинацией.
+Query handler: paginated brand listing.
 
-Строгий CQRS — не использует IUnitOfWork, доменные агрегаты
-и репозитории. Работает напрямую с AsyncSession + raw SQL,
-возвращает Pydantic Read Model.
+Strict CQRS read side — does not use IUnitOfWork, domain aggregates, or
+repositories. Queries the database directly via AsyncSession + raw SQL
+and returns a Pydantic read model.
 """
 
 from dataclasses import dataclass
@@ -28,15 +28,32 @@ _COUNT_BRANDS_SQL = text("SELECT count(*) FROM brands")
 
 @dataclass(frozen=True)
 class ListBrandsQuery:
+    """Pagination parameters for brand listing.
+
+    Attributes:
+        offset: Number of records to skip.
+        limit: Maximum number of records to return.
+    """
+
     offset: int = 0
     limit: int = 20
 
 
 class ListBrandsHandler:
+    """Fetch a paginated list of brands."""
+
     def __init__(self, session: AsyncSession):
         self._session = session
 
     async def handle(self, query: ListBrandsQuery) -> BrandListReadModel:
+        """Retrieve a paginated brand list.
+
+        Args:
+            query: Pagination parameters.
+
+        Returns:
+            Paginated list read model with items and total count.
+        """
         count_result = await self._session.execute(_COUNT_BRANDS_SQL)
         total = count_result.scalar_one()
 

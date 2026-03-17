@@ -1,4 +1,11 @@
-# src/modules/catalog/infrastructure/repositories/category.py
+"""
+Category repository — Data Mapper implementation.
+
+Extends :class:`BaseRepository` with tree-specific operations such as
+slug uniqueness within a parent, child existence checks, and bulk
+``full_slug`` prefix updates for subtree renames.
+"""
+
 import uuid
 
 from sqlalchemy import func, select, update
@@ -14,7 +21,14 @@ class CategoryRepository(
     ICategoryRepository,
     model_class=OrmCategory,
 ):
+    """Data Mapper repository for the Category aggregate.
+
+    Inherits generic CRUD from :class:`BaseRepository` and adds
+    category-tree-aware queries required by the domain interfaces.
+    """
+
     def _to_domain(self, orm: OrmCategory) -> DomainCategory:
+        """Map an ORM Category row to a domain Category entity."""
         return DomainCategory(
             id=orm.id,
             parent_id=orm.parent_id,
@@ -26,6 +40,7 @@ class CategoryRepository(
         )
 
     def _to_orm(self, entity: DomainCategory, orm: OrmCategory | None = None) -> OrmCategory:
+        """Map a domain Category entity to an ORM row (create or update)."""
         if orm is None:
             orm = OrmCategory()
         orm.id = entity.id
@@ -38,12 +53,14 @@ class CategoryRepository(
         return orm
 
     async def get_all_ordered(self) -> list[DomainCategory]:
+        """Return all categories ordered by level then sort_order."""
         statement = select(self.model).order_by(self.model.level.asc(), self.model.sort_order.asc())
         result = await self._session.execute(statement)
         orms = result.scalars().all()
         return [self._to_domain(orm) for orm in orms]
 
     async def check_slug_exists(self, slug: str, parent_id: uuid.UUID | None) -> bool:
+        """Return ``True`` if a sibling with this slug already exists."""
         statement = select(
             select(self.model)
             .where(self.model.slug == slug, self.model.parent_id == parent_id)
@@ -53,6 +70,7 @@ class CategoryRepository(
         return result.scalar()
 
     async def get_for_update(self, category_id: uuid.UUID) -> DomainCategory | None:
+        """Retrieve a category with a ``SELECT … FOR UPDATE`` row lock."""
         statement = select(self.model).where(self.model.id == category_id).with_for_update()
         result = await self._session.execute(statement)
         orm = result.scalar_one_or_none()
@@ -61,6 +79,7 @@ class CategoryRepository(
     async def check_slug_exists_excluding(
         self, slug: str, parent_id: uuid.UUID | None, exclude_id: uuid.UUID
     ) -> bool:
+        """Return ``True`` if the slug is taken by a sibling other than *exclude_id*."""
         statement = select(
             select(self.model)
             .where(
@@ -74,6 +93,7 @@ class CategoryRepository(
         return bool(result.scalar())
 
     async def has_children(self, category_id: uuid.UUID) -> bool:
+        """Return ``True`` if the category has at least one child."""
         statement = select(
             select(self.model.id).where(self.model.parent_id == category_id).limit(1).exists()
         )
@@ -81,6 +101,11 @@ class CategoryRepository(
         return bool(result.scalar())
 
     async def update_descendants_full_slug(self, old_prefix: str, new_prefix: str) -> None:
+        """Bulk-rename the ``full_slug`` prefix for all descendant categories.
+
+        Executes a single ``UPDATE … SET full_slug = concat(...)`` to
+        efficiently propagate a parent slug change down the subtree.
+        """
         statement = (
             update(self.model)
             .where(self.model.full_slug.like(f"{old_prefix}/%"))

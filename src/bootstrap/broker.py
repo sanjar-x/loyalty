@@ -1,4 +1,10 @@
-# src/bootstrap/taskiq.py
+"""TaskIQ message broker configuration.
+
+Creates and configures the AioPikaBroker instance backed by RabbitMQ.
+This broker is shared by the web process (for task submission) and the
+worker process (for task execution).
+"""
+
 import structlog
 from taskiq_aio_pika import AioPikaBroker
 

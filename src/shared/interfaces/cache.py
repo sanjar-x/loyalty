@@ -1,18 +1,49 @@
-# src/shared/interfaces/cache.py
+"""
+Cache service port (Hexagonal Architecture).
+
+Defines the ``ICacheService`` protocol for key-value caching.
+The concrete implementation (Redis) lives in the infrastructure layer.
+
+Typical usage:
+    class MyHandler:
+        def __init__(self, cache: ICacheService) -> None:
+            self._cache = cache
+
+        async def run(self) -> str | None:
+            return await self._cache.get("my-key")
+"""
+
 from typing import Protocol
 
 
 class ICacheService(Protocol):
-    """Контракт сервиса кэширования."""
+    """Contract for key-value cache operations."""
 
     async def set(self, key: str, value: str, ttl: int = 0) -> None:
-        """Сохранить значение. ttl — время жизни в секундах (0 = без истечения)."""
+        """Store a value under the given key.
+
+        Args:
+            key: Cache key.
+            value: String value to store.
+            ttl: Time-to-live in seconds. 0 means no expiration.
+        """
         ...
 
     async def get(self, key: str) -> str | None:
-        """Получить значение по ключу."""
+        """Retrieve a value by key.
+
+        Args:
+            key: Cache key.
+
+        Returns:
+            The stored string, or None if the key does not exist or has expired.
+        """
         ...
 
     async def delete(self, key: str) -> None:
-        """Удалить значение по ключу."""
+        """Remove a key from the cache.
+
+        Args:
+            key: Cache key to delete.
+        """
         ...

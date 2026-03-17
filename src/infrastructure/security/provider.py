@@ -1,4 +1,9 @@
-# src/infrastructure/security/provider.py
+"""Dishka dependency provider for security infrastructure.
+
+Registers token provider, password hasher, and permission resolver
+bindings in the IoC container.
+"""
+
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -15,6 +20,8 @@ from src.shared.interfaces.security import (
 
 
 class SecurityProvider(Provider):
+    """Dishka provider for security-related interface bindings."""
+
     token_provider: CompositeDependencySource = provide(
         JwtTokenProvider, scope=Scope.APP, provides=ITokenProvider
     )
@@ -28,4 +35,13 @@ class SecurityProvider(Provider):
         redis: ICacheService,
         session_factory: async_sessionmaker[AsyncSession],
     ) -> IPermissionResolver:
+        """Create the permission resolver with cache-aside strategy.
+
+        Args:
+            redis: The cache service for permission lookups.
+            session_factory: An async session factory for CTE fallback queries.
+
+        Returns:
+            An ``IPermissionResolver`` backed by Redis and PostgreSQL.
+        """
         return PermissionResolver(redis=redis, session_factory=session_factory)

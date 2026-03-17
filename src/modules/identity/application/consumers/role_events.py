@@ -1,10 +1,9 @@
-# src/modules/identity/application/consumers/role_events.py
-"""
-Consumer: Invalidate Redis permission cache when roles change.
+"""Consumer for invalidating Redis permission cache on role changes.
 
-Triggered by RoleAssignmentChangedEvent via Outbox Relay.
-session_roles are already updated synchronously by AssignRoleHandler/RevokeRoleHandler.
-This consumer only handles cache clearing — next request triggers fresh CTE.
+Triggered by RoleAssignmentChangedEvent via the Outbox Relay. The
+session_roles table is already updated synchronously by the command handlers
+(AssignRoleHandler / RevokeRoleHandler). This consumer only handles cache
+clearing -- the next request triggers a fresh CTE-based permission resolution.
 """
 
 import uuid
@@ -38,6 +37,19 @@ async def invalidate_permissions_cache_on_role_change(
     cache: FromDishka[ICacheService],
     session_factory: FromDishka[async_sessionmaker[AsyncSession]],
 ) -> dict:
+    """Invalidate cached permissions for all active sessions of an identity.
+
+    Called asynchronously when a role assignment changes. Queries active
+    session IDs and deletes their corresponding Redis cache entries.
+
+    Args:
+        identity_id: String UUID of the affected identity.
+        cache: Cache service for deleting permission entries.
+        session_factory: Async SQLAlchemy session factory for querying sessions.
+
+    Returns:
+        A dict with "status" and "sessions_invalidated" count.
+    """
     identity_uuid = uuid.UUID(identity_id)
 
     async with session_factory() as session:

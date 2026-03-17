@@ -1,4 +1,10 @@
-# src/modules/catalog/presentation/router_brands.py
+"""
+FastAPI router for Brand CRUD and logo management endpoints.
+
+All mutating endpoints require the ``catalog:manage`` permission.
+Delegates to application-layer command/query handlers via Dishka DI.
+"""
+
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
@@ -52,7 +58,7 @@ brand_router = APIRouter(
     path="",
     status_code=status.HTTP_201_CREATED,
     response_model=BrandCreateResponse,
-    summary="Создать новый бренд",
+    summary="Create a new brand",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def create_brand(
@@ -84,7 +90,7 @@ async def create_brand(
     path="",
     status_code=status.HTTP_200_OK,
     response_model=BrandListResponse,
-    summary="Получить список брендов",
+    summary="List brands (paginated)",
 )
 async def list_brands(
     handler: FromDishka[ListBrandsHandler],
@@ -114,7 +120,7 @@ async def list_brands(
     path="/{brand_id}",
     status_code=status.HTTP_200_OK,
     response_model=BrandResponse,
-    summary="Получить бренд по ID",
+    summary="Get brand by ID",
 )
 async def get_brand(
     brand_id: uuid.UUID,
@@ -134,7 +140,7 @@ async def get_brand(
     path="/{brand_id}",
     status_code=status.HTTP_200_OK,
     response_model=BrandResponse,
-    summary="Обновить бренд",
+    summary="Update a brand",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_brand(
@@ -160,7 +166,7 @@ async def update_brand(
 @brand_router.delete(
     path="/{brand_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Удалить бренд",
+    summary="Delete a brand",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_brand(
@@ -174,7 +180,7 @@ async def delete_brand(
 @brand_router.post(
     path="/{brand_id}/logo/confirm",
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Подтвердить загрузку логотипа",
+    summary="Confirm logo upload",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def confirm_logo_upload(
@@ -183,4 +189,4 @@ async def confirm_logo_upload(
 ) -> dict:
     command = ConfirmBrandLogoUploadCommand(brand_id=brand_id)
     await handler.handle(command)
-    return {"message": "Запрос на обработку логотипа принят"}
+    return {"message": "Logo processing request accepted"}

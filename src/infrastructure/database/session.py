@@ -1,7 +1,8 @@
-# src/infrastructure/database/session.py
-"""
-DEPRECATED: Use DatabaseProvider via Dishka DI instead.
-This module exists only for backward compatibility during migration.
+"""DEPRECATED: Direct session import is no longer supported.
+
+Use ``DatabaseProvider`` via Dishka DI to inject ``AsyncSession`` or
+``async_sessionmaker`` instead. This module exists only as a guard
+during migration.
 """
 
 raise ImportError(

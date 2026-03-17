@@ -1,3 +1,10 @@
+"""Application settings loaded from environment variables.
+
+All configuration values are validated at startup via Pydantic Settings.
+A cached singleton is exposed as ``settings`` for convenient import
+throughout the codebase.
+"""
+
 import uuid
 from functools import lru_cache
 from typing import Annotated, Any, Literal
@@ -9,6 +16,20 @@ from sqlalchemy.engine import URL
 
 
 def parse_cors(v: Any) -> list[str] | str:
+    """Parse the CORS_ORIGINS value from the environment.
+
+    Accepts either a comma-separated string or a JSON list.
+
+    Args:
+        v: The raw value from the environment variable.
+
+    Returns:
+        A list of allowed origin strings, or the original list if
+        already provided as one.
+
+    Raises:
+        ValueError: If the value is neither a string nor a list.
+    """
     if isinstance(v, str) and not v.startswith("["):
         return [i.strip() for i in v.split(",") if i.strip()]
     elif isinstance(v, list):
@@ -17,6 +38,13 @@ def parse_cors(v: Any) -> list[str] | str:
 
 
 class Settings(BaseSettings):
+    """Central configuration object for the application.
+
+    Values are populated from environment variables (or an ``.env`` file)
+    and validated by Pydantic on construction.  Computed fields derive
+    connection URLs from individual host/port/credentials settings.
+    """
+
     PROJECT_NAME: str = "Enterprise API"
     VERSION: str = "1.0.0"
     ENVIRONMENT: Literal["dev", "test", "prod"] = "dev"
@@ -47,6 +75,7 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def database_url(self) -> URL:
+        """Build an async PostgreSQL connection URL from individual settings."""
         return URL.create(
             drivername="postgresql+asyncpg",
             username=self.PGUSER,
@@ -74,6 +103,7 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def redis_url(self) -> str:
+        """Build a Redis connection URL from individual settings."""
         credentials = ""
         if self.REDISPASSWORD:
             credentials = f"{self.REDISUSER}:{self.REDISPASSWORD.get_secret_value()}@"
@@ -90,6 +120,11 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    """Return the cached application settings singleton.
+
+    Returns:
+        The validated ``Settings`` instance.
+    """
     return Settings()  # ty:ignore[missing-argument]
 
 

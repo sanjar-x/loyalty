@@ -1,15 +1,13 @@
-# src/infrastructure/logging/taskiq_middleware.py
-"""
-TaskIQ Middleware для привязки trace-контекста к фоновым задачам.
+"""TaskIQ middleware for binding trace context to background tasks.
 
-Решает проблему: фоновые задачи (TaskIQ) выполняются вне HTTP-запроса,
-AccessLoggerMiddleware не вызывается → structlog contextvars пуст.
+Background tasks (TaskIQ) execute outside of HTTP requests, so the
+``AccessLoggerMiddleware`` never fires and structlog's contextvars are
+empty. This middleware:
 
-Данный middleware:
-1. Извлекает correlation_id из labels задачи (если передан из Relay)
-2. Генерирует task_trace_id если correlation_id отсутствует
-3. Привязывает контекст в structlog.contextvars для всех дочерних логов
-4. Очищает контекст после выполнения задачи
+1. Extracts ``correlation_id`` from the task labels (if forwarded by the relay).
+2. Generates a ``task_trace_id`` when no correlation_id is present.
+3. Binds the context into ``structlog.contextvars`` for all downstream logs.
+4. Clears the context after task execution completes.
 """
 
 from __future__ import annotations
@@ -21,9 +19,17 @@ from taskiq import TaskiqMessage, TaskiqMiddleware, TaskiqResult
 
 
 class LoggingTaskiqMiddleware(TaskiqMiddleware):
-    """Middleware: привязка trace-контекста к каждой выполняемой задаче."""
+    """Middleware that binds trace context to every executed task."""
 
     async def pre_execute(self, message: TaskiqMessage) -> TaskiqMessage:
+        """Bind correlation and task identifiers before task execution.
+
+        Args:
+            message: The incoming TaskIQ message.
+
+        Returns:
+            The unmodified message, after context has been bound.
+        """
         correlation_id = message.labels.get("correlation_id", "task-" + uuid.uuid4().hex[:12])
 
         structlog.contextvars.clear_contextvars()
@@ -35,4 +41,10 @@ class LoggingTaskiqMiddleware(TaskiqMiddleware):
         return message
 
     async def post_execute(self, message: TaskiqMessage, result: TaskiqResult) -> None:
+        """Clear structlog contextvars after task execution.
+
+        Args:
+            message: The executed TaskIQ message.
+            result: The task execution result.
+        """
         structlog.contextvars.clear_contextvars()

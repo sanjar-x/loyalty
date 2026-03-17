@@ -1,4 +1,15 @@
-# src/bootstrap/logger.py
+"""Structured logging configuration using structlog.
+
+Sets up a dual-mode logging pipeline:
+- **Development** (``ENVIRONMENT=dev`` or ``DEBUG=True``): coloured console
+  output with call-site information (file, function, line number).
+- **Production**: machine-readable JSON lines written to stdout for
+  ingestion by a log aggregator.
+
+Third-party loggers (uvicorn, FastAPI) are reconfigured to propagate
+through the same pipeline so that all output is uniformly formatted.
+"""
+
 import logging
 import sys
 from collections.abc import Iterable
@@ -11,6 +22,15 @@ from src.bootstrap.config import settings
 
 
 def _get_shared_processors() -> Iterable[Processor]:
+    """Return the ordered list of structlog processors shared by all formatters.
+
+    These processors run before the final renderer, regardless of
+    whether the log event originates from structlog or the stdlib
+    ``logging`` module.
+
+    Returns:
+        An iterable of structlog processors.
+    """
     processors: list[Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_logger_name,
@@ -37,6 +57,13 @@ def _get_shared_processors() -> Iterable[Processor]:
 
 
 def _configure_third_party_loggers() -> None:
+    """Redirect third-party library loggers through the structlog pipeline.
+
+    Uvicorn and FastAPI loggers have their handlers removed and
+    propagation enabled so that their output is captured by the root
+    logger.  ``uvicorn.access`` is silenced entirely to avoid duplicate
+    access logs (the application emits its own via middleware).
+    """
     for _log in ["uvicorn", "uvicorn.error", "fastapi"]:
         logger_instance = logging.getLogger(_log)
         logger_instance.handlers.clear()
@@ -48,6 +75,13 @@ def _configure_third_party_loggers() -> None:
 
 
 def setup_logging() -> None:
+    """Initialise the application-wide logging configuration.
+
+    Must be called once at process startup, before any loggers are used.
+    Configures structlog, selects the appropriate renderer based on the
+    current environment, and attaches a single ``StreamHandler`` to the
+    root logger.
+    """
     shared_processors = list(_get_shared_processors())
 
     structlog.configure(

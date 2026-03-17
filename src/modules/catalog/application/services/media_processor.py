@@ -1,3 +1,12 @@
+"""
+Brand logo processing service.
+
+Downloads a raw logo from S3, converts it to WebP format using Pillow,
+uploads the processed result, and transitions the Brand aggregate's
+logo FSM to COMPLETED. Runs as a background task via TaskIQ.
+Part of the application layer.
+"""
+
 import functools
 import io
 import uuid
@@ -17,6 +26,18 @@ UPLOAD_CHUNK_SIZE = 64 * 1024  # 64 KB
 
 
 class BrandLogoProcessor:
+    """Orchestrate the download-convert-upload pipeline for brand logos.
+
+    The processing pipeline:
+    1. Download raw logo from S3 (with size limit enforcement).
+    2. Convert to lossless WebP in a worker thread (CPU-bound).
+    3. Upload the processed file to the public S3 prefix.
+    4. Transition the Brand FSM to COMPLETED and persist.
+    5. Delete the raw upload to reclaim storage.
+
+    On failure, the Brand FSM transitions to FAILED.
+    """
+
     def __init__(
         self,
         brand_repo: IBrandRepository,
@@ -32,6 +53,15 @@ class BrandLogoProcessor:
         self._log = logger.bind(service="BrandLogoProcessor")
 
     async def process(self, brand_id: uuid.UUID) -> None:
+        """Run the full logo processing pipeline for a brand.
+
+        Args:
+            brand_id: UUID of the brand whose logo should be processed.
+
+        Raises:
+            ValueError: If the raw logo exceeds ``MAX_LOGO_SIZE_BYTES``.
+            Exception: Re-raised after marking the brand as FAILED.
+        """
         log = self._log.bind(brand_id=str(brand_id))
         log.info("brand_logo_processing_started")
 

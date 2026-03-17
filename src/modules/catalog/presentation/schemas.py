@@ -1,3 +1,11 @@
+"""
+Pydantic request/response schemas for the Catalog API.
+
+All schemas inherit from :class:`CamelModel` to provide automatic
+camelCase ↔ snake_case field aliasing.  These DTOs belong to the
+presentation layer and carry no business logic.
+"""
+
 import uuid
 
 from pydantic import ConfigDict, Field, model_validator
@@ -6,15 +14,17 @@ from src.shared.schemas import CamelModel
 
 
 class LogoMetadataRequest(CamelModel):
+    """Client-supplied metadata for a brand logo upload."""
+
     filename: str = Field(..., max_length=255)
     content_type: str = Field(..., pattern=r"^image/(jpeg|png|webp|gif|svg\+xml)$")
     size: int | None = None
 
 
 class CategoryCreateRequest(CamelModel):
-    """Схема входящего запроса на создание категории."""
+    """Request body for creating a new category."""
 
-    name: str = Field(..., min_length=2, max_length=255, examples=["Кроссовки"])
+    name: str = Field(..., min_length=2, max_length=255, examples=["Sneakers"])
     slug: str = Field(
         ...,
         min_length=3,
@@ -22,19 +32,19 @@ class CategoryCreateRequest(CamelModel):
         pattern=r"^[a-z0-9-]+$",
         examples=["sneakers"],
     )
-    parent_id: uuid.UUID | None = Field(None, description="ID родительской категории (опционально)")
-    sort_order: int = Field(0, description="Порядок сортировки при выводе")
+    parent_id: uuid.UUID | None = Field(None, description="Parent category ID (optional)")
+    sort_order: int = Field(0, description="Display ordering among siblings")
 
 
 class CategoryCreateResponse(CamelModel):
-    """Схема ответа при успешном создании."""
+    """Response returned after successful category creation."""
 
     id: uuid.UUID
     message: str
 
 
 class CategoryTreeResponse(CamelModel):
-    """Схема для вывода категории в дереве (рекурсивная)."""
+    """Recursive tree node for the category hierarchy response."""
 
     id: uuid.UUID
     name: str
@@ -83,12 +93,16 @@ class CategoryListResponse(CamelModel):
 
 
 class BrandCreateRequest(CamelModel):
+    """Request body for creating a new brand, with optional logo metadata."""
+
     name: str = Field(..., min_length=1, max_length=255)
     slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$")
     logo: LogoMetadataRequest | None = None
 
 
 class BrandCreateResponse(CamelModel):
+    """Response after brand creation, including an optional presigned upload URL."""
+
     brand_id: uuid.UUID
     presigned_upload_url: str | None = None
     object_key: str | None = None

@@ -1,4 +1,19 @@
-# src/modules/catalog/infrastructure/models.py
+"""
+ORM models for the Catalog bounded context.
+
+Maps domain concepts to PostgreSQL tables via SQLAlchemy declarative mappings.
+These models belong to the infrastructure layer and must never leak into the
+domain or application layers — repositories translate between ORM and domain
+entities using the Data Mapper pattern.
+
+Sections:
+    1. Enumerations — database-level enums for product status, media, etc.
+    2. Taxonomy & Dictionaries — Brand, Category, Attribute, AttributeValue.
+    3. Rules — CategoryAttributeRule (governance matrix).
+    4. Core Domain — Supplier, Product, MediaAsset.
+    5. Variations — SKU and SKU ↔ AttributeValue link table.
+"""
+
 import enum
 import uuid
 from datetime import datetime
@@ -26,6 +41,8 @@ from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 
 
 class AttributeDataType(enum.StrEnum):
+    """Allowed primitive types for catalog attribute values."""
+
     STRING = "string"
     INTEGER = "integer"
     FLOAT = "float"
@@ -33,6 +50,8 @@ class AttributeDataType(enum.StrEnum):
 
 
 class AttributeUIType(enum.StrEnum):
+    """Widget hints for rendering an attribute filter on the storefront."""
+
     TEXT_BUTTON = "text_button"
     COLOR_SWATCH = "color_swatch"
     DROPDOWN = "dropdown"
@@ -41,6 +60,11 @@ class AttributeUIType(enum.StrEnum):
 
 
 class ProductStatus(enum.StrEnum):
+    """Lifecycle states of a product listing.
+
+    DRAFT → ENRICHING → READY_FOR_REVIEW → PUBLISHED → ARCHIVED.
+    """
+
     DRAFT = "draft"
     ENRICHING = "enriching"
     READY_FOR_REVIEW = "ready_for_review"
@@ -49,6 +73,8 @@ class ProductStatus(enum.StrEnum):
 
 
 class MediaType(enum.StrEnum):
+    """Discriminator for media asset file types."""
+
     IMAGE = "image"
     VIDEO = "video"
     MODEL_3D = "model_3d"
@@ -56,6 +82,8 @@ class MediaType(enum.StrEnum):
 
 
 class MediaRole(enum.StrEnum):
+    """Semantic role a media asset plays within a product gallery."""
+
     MAIN = "main"
     HOVER = "hover"
     GALLERY = "gallery"
@@ -65,56 +93,69 @@ class MediaRole(enum.StrEnum):
 
 
 class SupplierType(enum.StrEnum):
+    """Classification of suppliers by logistics origin."""
+
     CROSS_BORDER = "cross_border"
     LOCAL = "local"
 
 
-# ==========================================
-# 2. TAXONOMY & DICTIONARIES (СПРАВОЧНИКИ)
-# ==========================================
+# ---------------------------------------------------------------------------
+# 2. TAXONOMY & DICTIONARIES
+# ---------------------------------------------------------------------------
 
 
 class Brand(Base):
-    """Модель бренда для группировки товаров (например, Nike, Adidas)."""
+    """ORM model for product brands (e.g. Nike, Adidas).
+
+    The ``logo_status`` column tracks the logo processing FSM
+    (PENDING_UPLOAD → PROCESSING → COMPLETED | FAILED).
+    """
 
     __tablename__ = "brands"
     __table_args__ = (
         Index("uix_brands_name", "name", unique=True),
-        {"comment": "Справочник брендов каталога"},
+        {"comment": "Brand directory for the catalog"},
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid7,
-        comment="Первичный ключ (UUIDv7 для сортировки по времени)",
+        comment="Primary key (UUIDv7 for time-sortable ordering)",
     )
 
-    name: Mapped[str] = mapped_column(String(255), comment="Название бренда")
+    name: Mapped[str] = mapped_column(String(255), comment="Brand display name")
     slug: Mapped[str] = mapped_column(
-        String(255), index=True, comment="URL-идентификатор для роутинга"
+        String(255), index=True, comment="URL-safe identifier for routing"
     )
     logo_file_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         nullable=True,
         index=True,
-        comment="Soft-link на storage_objects.id (Модуль Storage)",
+        comment="Soft-link to storage_objects.id (Storage module)",
     )
 
     logo_status: Mapped[MediaProcessingStatus | None] = mapped_column(
         Enum(MediaProcessingStatus, native_enum=False, length=30),
         nullable=True,
-        comment="FSM: Текущий этап загрузки/обработки логотипа",
+        comment="FSM: current stage of logo upload/processing",
     )
 
     logo_url: Mapped[str | None] = mapped_column(
         String(1024),
         nullable=True,
-        comment="Кэш публичного URL из модуля Storage",
+        comment="Cached public URL from the Storage module",
     )
 
 
 class Category(Base):
+    """ORM model for the hierarchical product category tree.
+
+    Uses a self-referential foreign key (``parent_id``) for the adjacency
+    list pattern and a ``full_slug`` materialized path for efficient subtree
+    lookups.
+    """
+
     __tablename__ = "categories"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
@@ -155,6 +196,12 @@ class Category(Base):
 
 
 class Attribute(Base):
+    """ORM model for the EAV attribute dictionary.
+
+    Stores multilingual names and descriptions as JSONB, along with
+    data-type and UI-widget hints used by the storefront filter UI.
+    """
+
     __tablename__ = "attributes"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -196,7 +243,11 @@ class Attribute(Base):
 
 
 class AttributeValue(Base):
-    """Справочник конкретных вариантов (Красный, 42, Хлопок)."""
+    """ORM model for concrete attribute options (e.g. Red, 42, Cotton).
+
+    Each value belongs to exactly one :class:`Attribute` and carries
+    multilingual labels, search aliases, and optional grouping metadata.
+    """
 
     __tablename__ = "attribute_values"
 
@@ -228,13 +279,17 @@ class AttributeValue(Base):
     )
 
 
-# ==========================================
-# 3. RULES (ПРАВИЛА И СВЯЗИ)
-# ==========================================
+# ---------------------------------------------------------------------------
+# 3. RULES
+# ---------------------------------------------------------------------------
 
 
 class CategoryAttributeRule(Base):
-    """Модель Governance: как атрибуты ведут себя в конкретной категории."""
+    """Governance model: controls which attributes apply to a category.
+
+    Acts as a many-to-many link between :class:`Category` and
+    :class:`Attribute`, with a ``sort_order`` for display ordering.
+    """
 
     __tablename__ = "category_attribute_rules"
 
@@ -253,12 +308,18 @@ class CategoryAttributeRule(Base):
     __table_args__ = (Index("uix_cat_attr_rule", "category_id", "attribute_id", unique=True),)
 
 
-# ==========================================
-# 4. CORE DOMAIN (ЯДРО КАТАЛОГА)
-# ==========================================
+# ---------------------------------------------------------------------------
+# 4. CORE DOMAIN
+# ---------------------------------------------------------------------------
 
 
 class Supplier(Base):
+    """ORM model for product suppliers.
+
+    Classifies suppliers as ``CROSS_BORDER`` or ``LOCAL`` to support
+    differentiated logistics and compliance rules.
+    """
+
     __tablename__ = "suppliers"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
@@ -269,6 +330,13 @@ class Supplier(Base):
 
 
 class Product(Base):
+    """ORM model for the central product entity.
+
+    Carries multilingual content (JSONB), lifecycle status, soft-delete
+    timestamp, and optimistic-locking ``version`` column. Related SKUs,
+    media assets, and attribute values hang off this model.
+    """
+
     __tablename__ = "products"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
@@ -309,7 +377,7 @@ class Product(Base):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         server_default=func.now(),
-        comment="Дата и время создания записи",
+        comment="Record creation timestamp",
     )
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -354,10 +422,11 @@ class Product(Base):
 
 
 class MediaAsset(Base):
-    """
-    Сущность: Медиа-актив товара (Бизнес-контекст).
-    Описывает, КАК файл используется в каталоге (роль, порядок, привязка к цвету).
-    Сами физические данные файла лежат в модуле Storage (StorageObject).
+    """ORM model for product media assets (business context).
+
+    Describes *how* a file is used in the catalog — its role, display
+    order, and optional colour-variant binding.  The physical file data
+    lives in the Storage module (:class:`StorageObject`).
     """
 
     __tablename__ = "media_assets"
@@ -381,32 +450,31 @@ class MediaAsset(Base):
     )
     sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
 
-    # Мягкая связь (Soft Link) с модулем Storage
+    # Soft-link to the Storage module
     storage_object_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         index=True,
         nullable=True,
-        comment="Ссылка на storage_objects.id (Единый реестр файлов)",
+        comment="Reference to storage_objects.id (unified file registry)",
     )
 
     is_external: Mapped[bool] = mapped_column(
         Boolean,
         server_default=text("false"),
-        comment="Флаг внешнего ресурса (не управляемого нашим S3)",
+        comment="True when the resource is hosted externally (not in our S3)",
     )
     external_url: Mapped[str | None] = mapped_column(
         String(1024),
         nullable=True,
-        comment="Прямая ссылка (например, youtube.com/...), если is_external = true",
+        comment="Direct URL (e.g. youtube.com/...) when is_external is true",
     )
 
-    # Навигационные свойства (Relationship)
-    product: Mapped[Product] = relationship("Product")  # или back_populates если добавишь в Product
+    product: Mapped[Product] = relationship("Product")
     color_attribute: Mapped[AttributeValue] = relationship("AttributeValue")
 
     __table_args__ = (
         Index("ix_media_assets_product_attr", "product_id", "attribute_value_id"),
-        # Бизнес-правило: У одного цвета может быть только одна ГЛАВНАЯ картинка
+        # Business rule: each colour variant may have at most one MAIN image
         Index(
             "uix_media_single_main_per_color",
             "product_id",
@@ -418,12 +486,19 @@ class MediaAsset(Base):
     )
 
 
-# ==========================================
-# 5. VARIATIONS (SKU И СВЯЗИ АТРИБУТОВ)
-# ==========================================
+# ---------------------------------------------------------------------------
+# 5. VARIATIONS
+# ---------------------------------------------------------------------------
 
 
 class SKU(Base):
+    """ORM model for Stock Keeping Units (product variants).
+
+    Each SKU represents a unique combination of attribute values
+    (e.g. size + colour) for a parent :class:`Product`.  Carries
+    pricing, an activation flag, and optimistic-locking ``version``.
+    """
+
     __tablename__ = "skus"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
@@ -442,11 +517,11 @@ class SKU(Base):
     price: Mapped[int] = mapped_column(
         Integer,
         server_default=text("0"),
-        comment="Базовая цена в минимальных единицах валюты",
+        comment="Base price in smallest currency units (e.g. kopecks)",
     )
 
     compare_at_price: Mapped[int | None] = mapped_column(
-        Integer, comment="Старая цена (для зачеркивания)"
+        Integer, comment="Previous price for strikethrough display"
     )
 
     currency: Mapped[str] = mapped_column(String(3), server_default=text("'RUB'"))
@@ -485,8 +560,10 @@ class SKU(Base):
 
 
 class SKUAttributeValueLink(Base):
-    """
-    Сущность: Матрица вариаций (M2M мост между SKU и EAV).
+    """Many-to-many bridge between :class:`SKU` and EAV attribute values.
+
+    Each row pins one attribute value (e.g. "Red") to a specific SKU.
+    A unique constraint ensures a SKU can hold only one value per attribute.
     """
 
     __tablename__ = "sku_attribute_values"

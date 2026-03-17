@@ -1,4 +1,9 @@
-# src/modules/storage/infrastructure/models.py
+"""Storage ORM models.
+
+Defines the SQLAlchemy ORM model for the ``storage_objects`` table, which
+serves as a centralized registry of all files in the system. Metadata is
+kept in sync with the S3-compatible object storage.
+"""
 
 import uuid
 from datetime import datetime
@@ -19,75 +24,79 @@ from src.infrastructure.database.base import Base
 
 
 class StorageObject(Base):
-    """
-    Централизованный реестр всех файлов системы.
-    Синхронизировано с метаданными S3-совместимого хранилища.
+    """ORM model for the centralized file metadata registry.
+
+    Each row represents one version of an object stored in an
+    S3-compatible bucket. A partial unique index ensures that only
+    one active (``is_latest=True``) record exists per bucket/key pair.
     """
 
     __tablename__ = "storage_objects"
 
-    # 1. Идентификация
+    # -- Identification --
+
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid7,
-        comment="Внутренний ID объекта в нашей БД",
+        comment="Internal object ID in the database",
     )
     bucket_name: Mapped[str] = mapped_column(
         String(255),
         index=True,
-        comment="Название бакета в S3",
+        comment="S3 bucket name",
     )
-    # Полный путь к файлу в бакете (например, 'brands/123/logo.webp')
     object_key: Mapped[str] = mapped_column(
         String(1024),
-        comment="Полный путь к файлу в бакете",
+        comment="Full path to the file within the bucket (e.g. 'brands/123/logo.webp')",
     )
 
-    # 2. Версионирование (Если бакет поддерживает versioning)
+    # -- Versioning (when bucket versioning is enabled) --
+
     version_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, comment="ID версии S3 объекта"
+        String(255), nullable=True, comment="S3 object version ID"
     )
     is_latest: Mapped[bool] = mapped_column(
         Boolean,
         server_default=text("true"),
-        comment="Является ли эта версия актуальной",
+        comment="Whether this version is the current active one",
     )
 
-    # 3. Физические характеристики
+    # -- Physical characteristics --
+
     size_bytes: Mapped[int] = mapped_column(
-        BigInteger, server_default=text("0"), comment="Размер файла в байтах"
+        BigInteger, server_default=text("0"), comment="File size in bytes"
     )
-    # (полезно для проверки целостности)
     etag: Mapped[str | None] = mapped_column(
         String(64),
         nullable=True,
-        comment="MD5 хэш файла от S3",
+        comment="MD5 hash returned by S3 (useful for integrity checks)",
     )
 
-    # 4. Метаданные контента (HTTP Headers)  (например, 'image/jpeg', 'application/pdf')
+    # -- Content metadata (HTTP headers) --
+
     content_type: Mapped[str] = mapped_column(
         String(255),
         index=True,
-        comment="MIME-тип",
+        comment="MIME type (e.g. 'image/jpeg', 'application/pdf')",
     )
     content_encoding: Mapped[str | None] = mapped_column(String(255))
     cache_control: Mapped[str | None] = mapped_column(String(255))
 
-    # 5. Системные поля
+    # -- System fields --
+
     owner_module: Mapped[str | None] = mapped_column(
         String(100),
         index=True,
-        comment="Имя модуля-владельца (например, 'catalog', 'users'). Для аудита.",
+        comment="Owning module name (e.g. 'catalog', 'users') for auditing",
     )
 
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
     )
-    # Это поле мы обновляем, если файл перезаписали (и сменился ETag)
     last_modified_in_s3: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True),
-        comment="Время последней модификации на стороне самого S3",
+        comment="Last modification timestamp on the S3 side (updated when ETag changes)",
     )
 
     __table_args__ = (

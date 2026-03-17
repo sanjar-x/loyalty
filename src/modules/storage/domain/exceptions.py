@@ -1,3 +1,6 @@
-# src/modules/storage/domain/exceptions.py
+"""Storage domain exceptions.
 
-# Импортируем ваши базовые классы (предположим, они лежат в src.shared.exceptions)
+Placeholder module for storage-specific domain exception classes.
+Custom exceptions should extend the shared base classes defined in
+``src.shared.exceptions``.
+"""

@@ -1,9 +1,7 @@
-# src/modules/identity/domain/events.py
-"""
-Domain events for the Identity module.
+"""Domain events for the Identity module.
 
-Events are emitted by aggregates, serialized via dataclasses.asdict(),
-and persisted atomically with business data via Transactional Outbox.
+Events are emitted by aggregates, serialized via ``dataclasses.asdict()``,
+and persisted atomically with business data via the Transactional Outbox pattern.
 """
 
 import uuid
@@ -15,9 +13,17 @@ from src.shared.interfaces.entities import DomainEvent
 
 @dataclass
 class IdentityRegisteredEvent(DomainEvent):
-    """
-    Identity registered (local auth).
-    Consumer: user module → CreateUserConsumer (creates User row with Shared PK).
+    """Emitted when a new identity is registered (local or OIDC).
+
+    Consumed by the User module (``CreateUserConsumer``) to create a User row
+    with a shared primary key.
+
+    Attributes:
+        identity_id: The newly registered identity's UUID.
+        email: The email address used during registration.
+        registered_at: Timestamp of registration (defaults to now).
+        aggregate_type: Aggregate type identifier for outbox routing.
+        event_type: Event type identifier for outbox routing.
     """
 
     identity_id: uuid.UUID | None = None
@@ -37,9 +43,16 @@ class IdentityRegisteredEvent(DomainEvent):
 
 @dataclass
 class IdentityDeactivatedEvent(DomainEvent):
-    """
-    Identity deactivated (all sessions revoked).
-    Consumer: user module → AnonymizeUserConsumer (GDPR PII cleanup).
+    """Emitted when an identity is deactivated (all sessions revoked).
+
+    Consumed by the User module (``AnonymizeUserConsumer``) for GDPR PII cleanup.
+
+    Attributes:
+        identity_id: The deactivated identity's UUID.
+        reason: Human-readable deactivation reason.
+        deactivated_at: Timestamp of deactivation (defaults to now).
+        aggregate_type: Aggregate type identifier for outbox routing.
+        event_type: Event type identifier for outbox routing.
     """
 
     identity_id: uuid.UUID | None = None
@@ -59,9 +72,17 @@ class IdentityDeactivatedEvent(DomainEvent):
 
 @dataclass
 class RoleAssignmentChangedEvent(DomainEvent):
-    """
-    Role assigned or revoked for an identity.
-    Consumer: cache invalidation (delete perms:{session_id} keys from Redis).
+    """Emitted when a role is assigned to or revoked from an identity.
+
+    Consumed by cache invalidation logic to delete ``perms:{session_id}``
+    keys from Redis.
+
+    Attributes:
+        identity_id: The affected identity's UUID.
+        role_id: The role that was assigned or revoked.
+        action: Either "assigned" or "revoked".
+        aggregate_type: Aggregate type identifier for outbox routing.
+        event_type: Event type identifier for outbox routing.
     """
 
     identity_id: uuid.UUID | None = None

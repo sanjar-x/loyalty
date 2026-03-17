@@ -1,9 +1,9 @@
-# src/infrastructure/security/authorization.py
-"""
-Cache-Aside permission resolver.
-1. Check Redis SET `perms:{session_id}`
-2. Hit  → return frozenset from cache
-3. Miss → execute CTE query → cache with TTL → return
+"""Cache-aside permission resolver with Redis and PostgreSQL fallback.
+
+Resolution flow:
+1. Check Redis SET ``perms:{session_id}``
+2. Cache hit -> return frozenset from cache
+3. Cache miss -> execute recursive CTE query -> cache with TTL -> return
 """
 
 import json
@@ -36,20 +36,53 @@ _PERMISSIONS_CTE = text("""
 
 
 class PermissionResolver(IPermissionResolver):
+    """Cache-aside permission resolver using Redis and a recursive CTE fallback.
+
+    Permissions for a session are cached in Redis with a configurable TTL.
+    On cache miss, a recursive CTE traverses the role hierarchy to resolve
+    the full set of permission codenames.
+    """
+
     def __init__(
         self,
         redis: ICacheService,
         session_factory: async_sessionmaker[AsyncSession],
         cache_ttl: int = 300,
     ) -> None:
+        """Initialize the resolver with cache and database access.
+
+        Args:
+            redis: The cache service for permission lookups.
+            session_factory: An async session factory for CTE fallback queries.
+            cache_ttl: Time-to-live in seconds for cached permission sets.
+        """
         self._redis = redis
         self._session_factory = session_factory
         self._cache_ttl = cache_ttl
 
     def _build_cache_key(self, session_id: uuid.UUID) -> str:
+        """Build the Redis cache key for a given session.
+
+        Args:
+            session_id: The session UUID.
+
+        Returns:
+            A formatted cache key string.
+        """
         return f"perms:{session_id}"
 
     async def get_permissions(self, session_id: uuid.UUID) -> frozenset[str]:
+        """Resolve all permission codenames for the given session.
+
+        Checks Redis first; on cache miss, falls back to a recursive CTE
+        query and caches the result.
+
+        Args:
+            session_id: The session UUID to resolve permissions for.
+
+        Returns:
+            A frozenset of permission codename strings.
+        """
         key = self._build_cache_key(session_id)
 
         # 1. Try cache
@@ -75,10 +108,24 @@ class PermissionResolver(IPermissionResolver):
         return permissions
 
     async def has_permission(self, session_id: uuid.UUID, codename: str) -> bool:
+        """Check whether a session holds a specific permission.
+
+        Args:
+            session_id: The session UUID.
+            codename: The permission codename to check.
+
+        Returns:
+            True if the permission is present, False otherwise.
+        """
         permissions = await self.get_permissions(session_id)
         return codename in permissions
 
     async def invalidate(self, session_id: uuid.UUID) -> None:
+        """Invalidate the cached permission set for a session.
+
+        Args:
+            session_id: The session UUID whose cache entry should be removed.
+        """
         key = self._build_cache_key(session_id)
         await self._redis.delete(key)
         logger.info("permissions.cache_invalidated", session_id=str(session_id))

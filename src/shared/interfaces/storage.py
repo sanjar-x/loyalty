@@ -1,4 +1,19 @@
-# src/shared/interfaces/storage.py
+"""
+Storage facade port (Hexagonal Architecture).
+
+Defines ``IStorageFacade``, the public API of the Storage module exposed
+to other bounded contexts. Encapsulates blob storage (S3) operations and
+database bookkeeping behind a single protocol.
+
+Typical usage:
+    class CreateBrandHandler:
+        def __init__(self, storage: IStorageFacade) -> None:
+            self._storage = storage
+
+        async def run(self) -> PresignedUploadData:
+            return await self._storage.request_direct_upload(...)
+"""
+
 import uuid
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -6,23 +21,40 @@ from typing import Any, Protocol
 
 @dataclass(frozen=True)
 class PresignedUploadData:
+    """Result of a presigned upload request.
+
+    Attributes:
+        url_data: Presigned URL string (PUT) or dict with url + fields (POST).
+        object_key: Full S3 key where the file will be stored.
+        file_id: Database ID of the reserved ``StorageObject``, if applicable.
+    """
+
     url_data: dict | str
     object_key: str
     file_id: uuid.UUID | None = None
 
 
 class IStorageFacade(Protocol):
-    """
-    Публичный API модуля Storage (Facade Pattern).
-    Скрывает под собой работу с IBlobStorage (S3) и БД (IStorageRepository).
+    """Public API of the Storage module (Facade pattern).
+
+    Hides the internal blob storage (S3) and database (IStorageRepository)
+    details behind a unified interface for other bounded contexts.
     """
 
     async def request_upload(
         self, module: str, entity_id: str | uuid.UUID, filename: str
     ) -> PresignedUploadData:
-        """
-        Запрашивает временную ссылку для прямой загрузки файла (Direct-to-S3).
-        Вся логика путей (prefixes) инкапсулирована внутри.
+        """Generate a presigned POST URL for direct-to-S3 multipart upload.
+
+        All path-prefix logic is encapsulated internally.
+
+        Args:
+            module: Owning module name (e.g. ``"catalog"``).
+            entity_id: Identifier of the owning entity.
+            filename: Original client filename.
+
+        Returns:
+            Presigned upload data with URL and fields.
         """
         ...
 
@@ -34,8 +66,17 @@ class IStorageFacade(Protocol):
         content_type: str,
         expire_in: int = 300,
     ) -> PresignedUploadData:
-        """
-        Запрашивает временную ссылку для прямой PUT загрузки файла в S3 (Direct-to-S3).
+        """Generate a presigned PUT URL for direct single-request upload.
+
+        Args:
+            module: Owning module name.
+            entity_id: Identifier of the owning entity.
+            filename: Original client filename.
+            content_type: Expected MIME type of the upload.
+            expire_in: URL validity in seconds.
+
+        Returns:
+            Presigned upload data with PUT URL.
         """
         ...
 
@@ -47,14 +88,35 @@ class IStorageFacade(Protocol):
         content_type: str,
         expire_in: int = 300,
     ) -> PresignedUploadData:
-        """
-        Резервирует место для загрузки: создает StorageObject в БД и генерирует URL.
+        """Reserve a database slot and generate a presigned upload URL.
+
+        Creates a ``StorageObject`` record in ``pending`` state before
+        returning the presigned URL, enabling upload verification later.
+
+        Args:
+            module: Owning module name.
+            entity_id: Identifier of the owning entity.
+            filename: Original client filename.
+            content_type: Expected MIME type of the upload.
+            expire_in: URL validity in seconds.
+
+        Returns:
+            Presigned upload data including the reserved ``file_id``.
         """
         ...
 
     async def verify_upload(self, file_id: uuid.UUID) -> dict[str, Any]:
-        """
-        Проверяет наличие файла в S3 по его внутреннему ID.
+        """Verify that a previously reserved upload exists in S3.
+
+        Args:
+            file_id: Internal database ID of the storage object.
+
+        Returns:
+            Metadata dict for the verified object.
+
+        Raises:
+            NotFoundError: If the storage object record does not exist.
+            BadRequestError: If the file is not found in S3.
         """
         ...
 
@@ -65,8 +127,13 @@ class IStorageFacade(Protocol):
         size_bytes: int,
         content_type: str,
     ) -> None:
-        """
-        Обновляет метаданные существующего объекта (например, после обработки).
+        """Update metadata of an existing storage object after processing.
+
+        Args:
+            file_id: Internal database ID of the storage object.
+            object_key: New or confirmed S3 key.
+            size_bytes: File size in bytes.
+            content_type: Updated MIME type.
         """
         ...
 
@@ -78,16 +145,31 @@ class IStorageFacade(Protocol):
         content_type: str,
         size: int,
     ) -> uuid.UUID:
-        """
-        Регистрирует метаданные обработанного файла в БД и возвращает ID файла.
+        """Register a processed media file's metadata in the database.
+
+        Args:
+            module: Owning module name.
+            entity_id: Identifier of the owning entity.
+            object_key: Final S3 key of the processed file.
+            content_type: MIME type of the processed file.
+            size: File size in bytes.
+
+        Returns:
+            UUID of the newly created storage record.
         """
         ...
 
     async def verify_module_upload(
         self, module: str, entity_id: str | uuid.UUID, object_key: str
     ) -> dict[str, Any]:
-        """
-        Проверяет, был ли загружен файл для конкретной сущности по точному ключу.
-        Возвращает метаданные файла.
+        """Verify that a specific entity's upload exists in S3.
+
+        Args:
+            module: Owning module name.
+            entity_id: Identifier of the owning entity.
+            object_key: Exact S3 key to verify.
+
+        Returns:
+            Metadata dict for the verified object.
         """
         ...

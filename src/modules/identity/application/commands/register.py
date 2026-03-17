@@ -1,4 +1,10 @@
-# src/modules/identity/application/commands/register.py
+"""Command handler for local identity registration.
+
+Creates a new identity with local email/password credentials, assigns
+the default 'customer' role, and emits an IdentityRegisteredEvent for
+cross-module consumers (e.g. User module).
+"""
+
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -15,16 +21,31 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 @dataclass(frozen=True)
 class RegisterCommand:
+    """Command to register a new identity with email and password.
+
+    Attributes:
+        email: The email address for the new identity.
+        password: The plaintext password (will be hashed with Argon2id).
+    """
+
     email: str
     password: str
 
 
 @dataclass(frozen=True)
 class RegisterResult:
+    """Result of a successful registration.
+
+    Attributes:
+        identity_id: The UUID of the newly created identity.
+    """
+
     identity_id: uuid.UUID
 
 
 class RegisterHandler:
+    """Handles new identity registration with credential creation."""
+
     def __init__(
         self,
         identity_repo: IIdentityRepository,
@@ -40,18 +61,29 @@ class RegisterHandler:
         self._logger = logger.bind(handler="RegisterHandler")
 
     async def handle(self, command: RegisterCommand) -> RegisterResult:
+        """Execute the register command.
+
+        Args:
+            command: The registration command with email and password.
+
+        Returns:
+            A result containing the new identity's UUID.
+
+        Raises:
+            IdentityAlreadyExistsError: If the email is already registered.
+        """
         async with self._uow:
-            # 1. Check email uniqueness
+            # Check email uniqueness
             if await self._identity_repo.email_exists(command.email):
                 raise IdentityAlreadyExistsError()
 
-            # 2. Create identity
+            # Create identity
             identity = Identity.register(IdentityType.LOCAL)
 
-            # 3. Hash password (Argon2id)
+            # Hash password (Argon2id)
             password_hash = self._hasher.hash(command.password)
 
-            # 4. Create credentials
+            # Create credentials
             now = datetime.now(UTC)
             credentials = LocalCredentials(
                 identity_id=identity.id,
@@ -61,11 +93,11 @@ class RegisterHandler:
                 updated_at=now,
             )
 
-            # 5. Persist
+            # Persist identity and credentials
             await self._identity_repo.add(identity)
             await self._identity_repo.add_credentials(credentials)
 
-            # 6. Assign default 'customer' role
+            # Assign default 'customer' role
             customer_role = await self._role_repo.get_by_name("customer")
             if customer_role:
                 await self._role_repo.assign_to_identity(
@@ -73,7 +105,7 @@ class RegisterHandler:
                     role_id=customer_role.id,
                 )
 
-            # 7. Emit IdentityRegisteredEvent (for user module)
+            # Emit IdentityRegisteredEvent (consumed by User module)
             identity.add_domain_event(
                 IdentityRegisteredEvent(
                     identity_id=identity.id,

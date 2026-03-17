@@ -1,4 +1,10 @@
-# src/modules/identity/infrastructure/models.py
+"""SQLAlchemy ORM models for the Identity module.
+
+Maps domain concepts to PostgreSQL tables using the Data Mapper pattern.
+These models are infrastructure concerns and must never leak into the
+domain or application layers.
+"""
+
 import uuid
 from datetime import datetime
 
@@ -22,6 +28,8 @@ from src.modules.identity.domain.value_objects import IdentityType
 
 
 class IdentityModel(Base):
+    """ORM model for the ``identities`` table (root entity for IAM)."""
+
     __tablename__ = "identities"
     __table_args__ = ({"comment": "Authentication identities (root entity for IAM)"},)
 
@@ -70,6 +78,8 @@ class IdentityModel(Base):
 
 
 class LocalCredentialsModel(Base):
+    """ORM model for the ``local_credentials`` table (email + password hash)."""
+
     __tablename__ = "local_credentials"
     __table_args__ = ({"comment": "Local auth credentials (email + password hash)"},)
 
@@ -77,7 +87,7 @@ class LocalCredentialsModel(Base):
         UUID(as_uuid=True),
         ForeignKey("identities.id", ondelete="CASCADE"),
         primary_key=True,
-        comment="PK + FK → identities (Shared PK 1:1)",
+        comment="PK + FK -> identities (Shared PK 1:1)",
     )
     email: Mapped[str] = mapped_column(
         String(320),
@@ -106,6 +116,8 @@ class LocalCredentialsModel(Base):
 
 
 class LinkedAccountModel(Base):
+    """ORM model for the ``linked_accounts`` table (external OIDC providers)."""
+
     __tablename__ = "linked_accounts"
     __table_args__ = (
         UniqueConstraint("provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"),
@@ -131,6 +143,8 @@ class LinkedAccountModel(Base):
 
 
 class RoleModel(Base):
+    """ORM model for the ``roles`` table (RBAC role definitions)."""
+
     __tablename__ = "roles"
     __table_args__ = ({"comment": "RBAC role definitions"},)
 
@@ -166,6 +180,8 @@ class RoleModel(Base):
 
 
 class PermissionModel(Base):
+    """ORM model for the ``permissions`` table (resource:action codenames)."""
+
     __tablename__ = "permissions"
     __table_args__ = ({"comment": "RBAC permissions (resource:action codenames)"},)
 
@@ -196,6 +212,8 @@ class PermissionModel(Base):
 
 
 class RolePermissionModel(Base):
+    """ORM model for the ``role_permissions`` association table."""
+
     __tablename__ = "role_permissions"
 
     role_id: Mapped[uuid.UUID] = mapped_column(
@@ -211,6 +229,8 @@ class RolePermissionModel(Base):
 
 
 class RoleHierarchyModel(Base):
+    """ORM model for the ``role_hierarchy`` table (role inheritance via CTE)."""
+
     __tablename__ = "role_hierarchy"
     __table_args__ = (
         CheckConstraint(
@@ -233,6 +253,8 @@ class RoleHierarchyModel(Base):
 
 
 class IdentityRoleModel(Base):
+    """ORM model for the ``identity_roles`` association table."""
+
     __tablename__ = "identity_roles"
 
     identity_id: Mapped[uuid.UUID] = mapped_column(
@@ -258,6 +280,8 @@ class IdentityRoleModel(Base):
 
 
 class SessionModel(Base):
+    """ORM model for the ``sessions`` table (refresh token rotation)."""
+
     __tablename__ = "sessions"
     __table_args__ = (
         Index("ix_sessions_identity_revoked", "identity_id", "is_revoked"),
@@ -313,6 +337,8 @@ class SessionModel(Base):
 
 
 class SessionRoleModel(Base):
+    """ORM model for the ``session_roles`` table (NIST session-role activation)."""
+
     __tablename__ = "session_roles"
 
     session_id: Mapped[uuid.UUID] = mapped_column(

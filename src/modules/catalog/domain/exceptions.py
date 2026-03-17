@@ -1,72 +1,90 @@
-# src/modules/catalog/domain/exceptions.py
+"""
+Catalog domain exceptions.
+
+Each exception maps to a specific business-rule violation within the
+Catalog bounded context. The presentation layer translates these into
+HTTP error responses via the global exception handler.
+"""
+
 import uuid
 
-# Импортируем ваши базовые классы (предположим, они лежат в src.shared.exceptions)
 from src.shared.exceptions import (
     ConflictError,
     NotFoundError,
     UnprocessableEntityError,
 )
 
-# ==========================================
-# CATEGORY AGGREGATE EXCEPTIONS
-# ==========================================
+# ---------------------------------------------------------------------------
+# Category aggregate exceptions
+# ---------------------------------------------------------------------------
 
 
 class CategoryNotFoundError(NotFoundError):
+    """Raised when a category lookup yields no result."""
+
     def __init__(self, category_id: uuid.UUID | str):
         super().__init__(
-            message=f"Категория с ID {category_id} не найдена.",
+            message=f"Category with ID {category_id} not found.",
             error_code="CATEGORY_NOT_FOUND",
             details={"category_id": str(category_id)},
         )
 
 
 class CategorySlugConflictError(ConflictError):
+    """Raised when a category slug collides at the same parent level."""
+
     def __init__(self, slug: str, parent_id: uuid.UUID | None):
         super().__init__(
-            message=f"Категория с URL '{slug}' уже существует на этом уровне.",
+            message=f"Category with slug '{slug}' already exists at this level.",
             error_code="CATEGORY_SLUG_CONFLICT",
             details={"slug": slug, "parent_id": str(parent_id) if parent_id else None},
         )
 
 
 class CategoryMaxDepthError(UnprocessableEntityError):
+    """Raised when creating a child would exceed the maximum tree depth."""
+
     def __init__(self, max_depth: int, current_level: int):
         super().__init__(
-            message=f"Достигнута максимальная глубина дерева ({max_depth}).",
+            message=f"Maximum category tree depth ({max_depth}) reached.",
             error_code="CATEGORY_MAX_DEPTH_REACHED",
             details={"max_depth": max_depth, "current_level": current_level},
         )
 
 
 class CategoryHasChildrenError(ConflictError):
+    """Raised when attempting to delete a category that still has children."""
+
     def __init__(self, category_id: uuid.UUID):
         super().__init__(
-            message="Невозможно удалить категорию, у которой есть дочерние категории.",
+            message="Cannot delete a category that has child categories.",
             error_code="CATEGORY_HAS_CHILDREN",
             details={"category_id": str(category_id)},
         )
 
 
-# ==========================================
-# PRODUCT & SKU AGGREGATE EXCEPTIONS
-# ==========================================
+# ---------------------------------------------------------------------------
+# Product & SKU aggregate exceptions
+# ---------------------------------------------------------------------------
 
 
 class ProductNotFoundError(NotFoundError):
+    """Raised when a product lookup yields no result."""
+
     def __init__(self, product_id: uuid.UUID | str):
         super().__init__(
-            message=f"Товар с ID {product_id} не найден.",
+            message=f"Product with ID {product_id} not found.",
             error_code="PRODUCT_NOT_FOUND",
             details={"product_id": str(product_id)},
         )
 
 
 class SKUOutOfStockError(ConflictError):
+    """Raised when a stock reservation exceeds available inventory."""
+
     def __init__(self, sku_id: uuid.UUID, requested: int, available: int):
         super().__init__(
-            message="Недостаточно товара на складе для выполнения операции.",
+            message="Insufficient stock to fulfill the operation.",
             error_code="SKU_OUT_OF_STOCK",
             details={
                 "sku_id": str(sku_id),
@@ -76,42 +94,50 @@ class SKUOutOfStockError(ConflictError):
         )
 
 
-# ==========================================
-# BRAND AGGREGATE EXCEPTIONS
-# ==========================================
+# ---------------------------------------------------------------------------
+# Brand aggregate exceptions
+# ---------------------------------------------------------------------------
 
 
 class BrandNotFoundError(NotFoundError):
+    """Raised when a brand lookup yields no result."""
+
     def __init__(self, brand_id: uuid.UUID | str):
         super().__init__(
-            message=f"Бренд с ID {brand_id} не найден.",
+            message=f"Brand with ID {brand_id} not found.",
             error_code="BRAND_NOT_FOUND",
             details={"brand_id": str(brand_id)},
         )
 
 
 class BrandSlugConflictError(ConflictError):
+    """Raised when a brand slug collides with an existing brand."""
+
     def __init__(self, slug: str):
         super().__init__(
-            message=f"Бренд с URL-идентификатором '{slug}' уже существует.",
+            message=f"Brand with slug '{slug}' already exists.",
             error_code="BRAND_SLUG_CONFLICT",
             details={"slug": slug},
         )
 
 
 class LogoFileNotUploadedError(UnprocessableEntityError):
+    """Raised when a logo confirmation is attempted but the file is not in S3."""
+
     def __init__(self, brand_id: uuid.UUID):
         super().__init__(
-            message="Файл логотипа не был загружен в хранилище.",
+            message="Logo file has not been uploaded to storage.",
             error_code="LOGO_FILE_NOT_UPLOADED",
             details={"brand_id": str(brand_id)},
         )
 
 
 class InvalidLogoStateException(UnprocessableEntityError):
+    """Raised when a logo FSM transition is attempted from an invalid state."""
+
     def __init__(self, brand_id: uuid.UUID, current_status: str, expected_status: str):
         super().__init__(
-            message=f"Недопустимое состояние загрузки. Текущее: {current_status}, ожидалось: {expected_status}.",
+            message=f"Invalid logo state. Current: {current_status}, expected: {expected_status}.",
             error_code="INVALID_LOGO_STATE",
             details={
                 "brand_id": str(brand_id),

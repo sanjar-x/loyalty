@@ -1,4 +1,9 @@
-# src/infrastructure/database/provider.py
+"""Dishka dependency provider for the async SQLAlchemy database stack.
+
+Manages the lifecycle of the ``AsyncEngine``, ``async_sessionmaker``,
+per-request ``AsyncSession``, and ``IUnitOfWork`` binding.
+"""
+
 from collections.abc import AsyncIterable
 
 import structlog
@@ -29,9 +34,18 @@ DBA_CONNECT_ARGS = {
 
 
 class DatabaseProvider(Provider):
+    """Dishka provider that supplies the async database engine, session factory, and UoW."""
+
     @provide(scope=Scope.APP)
     async def engine(self) -> AsyncIterable[AsyncEngine]:
-        logger.info("Инициализация пула соединений с БД (AsyncEngine)...")
+        """Create and yield an ``AsyncEngine`` with a connection pool.
+
+        The engine is disposed when the application scope shuts down.
+
+        Yields:
+            AsyncEngine: A configured SQLAlchemy async engine.
+        """
+        logger.info("Initializing database connection pool (AsyncEngine)...")
         engine = create_async_engine(
             url=settings.database_url,
             echo=settings.DEBUG,
@@ -48,11 +62,20 @@ class DatabaseProvider(Provider):
 
         yield engine
 
-        logger.info("Закрытие пула соединений с БД (Engine Dispose)...")
+        logger.info("Disposing database connection pool (Engine Dispose)...")
         await engine.dispose()
 
     @provide(scope=Scope.APP)
     def sessionmaker(self, engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+        """Build an ``async_sessionmaker`` bound to the engine.
+
+        Args:
+            engine: The application-scoped async engine.
+
+        Returns:
+            A session factory configured with ``autoflush=False`` and
+            ``expire_on_commit=False``.
+        """
         return async_sessionmaker(
             bind=engine,
             autoflush=False,
@@ -61,6 +84,14 @@ class DatabaseProvider(Provider):
 
     @provide(scope=Scope.REQUEST)
     async def session(self, maker: async_sessionmaker[AsyncSession]) -> AsyncIterable[AsyncSession]:
+        """Provide a per-request ``AsyncSession``.
+
+        Args:
+            maker: The application-scoped session factory.
+
+        Yields:
+            AsyncSession: A new session that is closed at the end of the request.
+        """
         async with maker() as session:
             yield session
 

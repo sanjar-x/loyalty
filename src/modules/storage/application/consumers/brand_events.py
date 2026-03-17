@@ -1,11 +1,11 @@
-# src/modules/storage/application/consumers/brand_events.py
-"""
-Consumer модуля Storage для Integration Events модуля Catalog.
+"""Consumer handlers for Catalog module integration events.
 
-Слушает события из RabbitMQ (через Outbox Relay) и создаёт/обновляет
-записи StorageFile в БД модуля Storage.
+Listens to events published via the Outbox Relay through RabbitMQ and
+creates or updates ``StorageFile`` records in the Storage module's
+database.
 
-Все обработчики ИДЕМПОТЕНТНЫ (At-Least-Once гарантия Outbox).
+All handlers are **idempotent** to support at-least-once delivery
+guarantees provided by the Outbox pattern.
 """
 
 from dishka.integrations.taskiq import FromDishka, inject
@@ -24,7 +24,7 @@ from src.shared.interfaces.uow import IUnitOfWork
     routing_key="storage.consumers.brand_created",
     max_retries=3,
     retry_on_error=True,
-    timeout=30,  # 30 секунд: лёгкая БД-операция
+    timeout=30,  # 30 seconds: lightweight DB operation
 )
 @inject
 async def handle_brand_created_event(
@@ -36,11 +36,22 @@ async def handle_brand_created_event(
     settings: FromDishka[IStorageConfig],
     logger: FromDishka[ILogger],
 ) -> dict:
-    """
-    Реакция на BrandCreatedEvent: создаёт запись StorageFile.
+    """Handle a ``BrandCreatedEvent`` by creating a ``StorageFile`` record.
 
-    Идемпотентность: если запись с таким object_key уже существует,
-    пропускаем (дубликат от Outbox Relay).
+    Idempotency: if a record with the given ``object_key`` already exists
+    the handler skips creation (duplicate delivery from Outbox Relay).
+
+    Args:
+        brand_id: Identifier of the newly created brand.
+        object_key: S3 object key associated with the brand.
+        content_type: MIME type of the uploaded file.
+        storage_repo: Storage repository for file metadata persistence.
+        uow: Unit of Work for transactional consistency.
+        settings: Storage configuration (bucket name, etc.).
+        logger: Structured logger instance.
+
+    Returns:
+        A dict with ``status`` indicating ``"created"`` or ``"skipped"``.
     """
     log = logger.bind(brand_id=brand_id, object_key=object_key)
 
@@ -50,7 +61,7 @@ async def handle_brand_created_event(
             object_key=object_key,
         )
         if existing:
-            log.info("StorageFile уже существует, пропуск (идемпотентность)")
+            log.info("StorageFile already exists, skipping (idempotency)")
             return {"status": "skipped", "reason": "already_exists"}
 
         storage_file = StorageFile.create(
@@ -62,7 +73,7 @@ async def handle_brand_created_event(
         await storage_repo.add(storage_file)
         await uow.commit()
 
-    log.info("StorageFile создан для бренда", file_id=str(storage_file.id))
+    log.info("StorageFile created for brand", file_id=str(storage_file.id))
     return {"status": "created", "file_id": str(storage_file.id)}
 
 
@@ -72,7 +83,7 @@ async def handle_brand_created_event(
     routing_key="storage.consumers.brand_logo_processed",
     max_retries=3,
     retry_on_error=True,
-    timeout=30,  # 30 секунд: лёгкая БД-операция
+    timeout=30,  # 30 seconds: lightweight DB operation
 )
 @inject
 async def handle_brand_logo_processed_event(
@@ -85,11 +96,24 @@ async def handle_brand_logo_processed_event(
     settings: FromDishka[IStorageConfig],
     logger: FromDishka[ILogger],
 ) -> dict:
-    """
-    Реакция на BrandLogoProcessedEvent: регистрирует обработанный файл.
+    """Handle a ``BrandLogoProcessedEvent`` by registering the processed file.
 
-    Идемпотентность: если запись с таким object_key уже существует,
-    обновляем метаданные (размер, content_type).
+    Idempotency: if a record with the given ``object_key`` already exists
+    the handler updates its metadata (size, content type) instead of
+    creating a duplicate.
+
+    Args:
+        brand_id: Identifier of the brand whose logo was processed.
+        object_key: S3 object key of the processed logo.
+        content_type: MIME type of the processed file.
+        size_bytes: Size of the processed file in bytes.
+        storage_repo: Storage repository for file metadata persistence.
+        uow: Unit of Work for transactional consistency.
+        settings: Storage configuration (bucket name, etc.).
+        logger: Structured logger instance.
+
+    Returns:
+        A dict with ``status`` indicating ``"created"`` or ``"updated"``.
     """
     log = logger.bind(brand_id=brand_id, object_key=object_key)
 
@@ -103,7 +127,7 @@ async def handle_brand_logo_processed_event(
             existing.content_type = content_type
             await storage_repo.update(existing)
             await uow.commit()
-            log.info("StorageFile обновлён (идемпотентность)")
+            log.info("StorageFile updated (idempotency)")
             return {"status": "updated", "file_id": str(existing.id)}
 
         storage_file = StorageFile.create(
@@ -116,5 +140,5 @@ async def handle_brand_logo_processed_event(
         await storage_repo.add(storage_file)
         await uow.commit()
 
-    log.info("StorageFile создан для обработанного логотипа", file_id=str(storage_file.id))
+    log.info("StorageFile created for processed logo", file_id=str(storage_file.id))
     return {"status": "created", "file_id": str(storage_file.id)}

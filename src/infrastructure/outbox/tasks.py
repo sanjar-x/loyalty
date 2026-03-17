@@ -1,9 +1,7 @@
-# src/infrastructure/outbox/tasks.py
-"""
-TaskIQ-задачи для Outbox Relay и Pruning.
+"""TaskIQ scheduled tasks for Outbox Relay and Pruning.
 
-Relay: периодический поллинг outbox_messages (каждую минуту через Beat).
-Pruning: ежесуточная очистка обработанных записей старше 7 дней (03:00 UTC).
+Relay: polls ``outbox_messages`` every minute via TaskIQ Beat.
+Pruning: daily cleanup of processed records older than 7 days (03:00 UTC).
 """
 
 import uuid
@@ -23,19 +21,26 @@ logger = structlog.get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Регистрация обработчиков событий (event_type → TaskIQ dispatch)
+# Event handler registration (event_type -> TaskIQ dispatch)
 # ---------------------------------------------------------------------------
 
 
 def _build_labels(correlation_id: str | None) -> dict[str, str]:
-    """Формирует labels для сквозной трассировки HTTP → Outbox → TaskIQ."""
+    """Build TaskIQ labels for end-to-end tracing (HTTP -> Outbox -> TaskIQ).
+
+    Args:
+        correlation_id: The correlation ID from the outbox event, if available.
+
+    Returns:
+        A labels dict containing the correlation_id, or an empty dict.
+    """
     if correlation_id:
         return {"correlation_id": correlation_id}
     return {}
 
 
 async def _handle_brand_created(payload: dict, correlation_id: str | None = None) -> None:
-    """Регистрирует StorageFile в модуле Storage через consumer."""
+    """Register a StorageFile in the Storage module via consumer."""
     from src.modules.storage.application.consumers.brand_events import (
         handle_brand_created_event,
     )
@@ -52,7 +57,7 @@ async def _handle_brand_created(payload: dict, correlation_id: str | None = None
 
 
 async def _handle_brand_logo_confirmed(payload: dict, correlation_id: str | None = None) -> None:
-    """Отправляет задачу обработки логотипа бренда в TaskIQ."""
+    """Dispatch the brand logo processing task to TaskIQ."""
     from src.modules.catalog.application.tasks import process_brand_logo_task
 
     brand_id = uuid.UUID(payload["brand_id"])
@@ -64,7 +69,7 @@ async def _handle_brand_logo_confirmed(payload: dict, correlation_id: str | None
 
 
 async def _handle_brand_logo_processed(payload: dict, correlation_id: str | None = None) -> None:
-    """Регистрирует обработанный файл в модуле Storage."""
+    """Register a processed file in the Storage module."""
     from src.modules.storage.application.consumers.brand_events import (
         handle_brand_logo_processed_event,
     )
@@ -81,14 +86,14 @@ async def _handle_brand_logo_processed(payload: dict, correlation_id: str | None
     )
 
 
-# Регистрируем маппинг: event_type → handler
+# Register Catalog event mappings
 register_event_handler("BrandCreatedEvent", _handle_brand_created)
 register_event_handler("BrandLogoConfirmedEvent", _handle_brand_logo_confirmed)
 register_event_handler("BrandLogoProcessedEvent", _handle_brand_logo_processed)
 
 
 # ---------------------------------------------------------------------------
-# IAM Event Handlers
+# IAM event handlers
 # ---------------------------------------------------------------------------
 
 
@@ -145,7 +150,7 @@ register_event_handler("RoleAssignmentChangedEvent", _handle_role_assignment_cha
 
 
 # ---------------------------------------------------------------------------
-# TaskIQ: Outbox Relay (периодический поллинг)
+# TaskIQ: Outbox Relay (periodic polling)
 # ---------------------------------------------------------------------------
 
 
@@ -155,16 +160,22 @@ register_event_handler("RoleAssignmentChangedEvent", _handle_role_assignment_cha
     routing_key="infrastructure.outbox.relay",
     max_retries=0,
     retry_on_error=False,
-    timeout=55,  # 55 секунд: меньше интервала cron (1 мин)
+    timeout=55,  # 55 seconds: shorter than the cron interval (1 min)
     schedule=[{"cron": "* * * * *", "schedule_id": "outbox_relay_every_minute"}],
 )
 @inject
 async def outbox_relay_task(
     session_factory: FromDishka[async_sessionmaker[AsyncSession]],
 ) -> dict:
-    """
-    Периодическая задача: забирает батч из Outbox и публикует в брокер.
-    Запускается через TaskIQ Scheduler (Beat) каждую минуту.
+    """Periodic task: fetch an outbox batch and publish events to the broker.
+
+    Triggered by TaskIQ Scheduler (Beat) every minute.
+
+    Args:
+        session_factory: Injected async session factory.
+
+    Returns:
+        A dict with status and the number of processed events.
     """
     try:
         processed = await relay_outbox_batch(
@@ -173,12 +184,12 @@ async def outbox_relay_task(
         )
         return {"status": "success", "processed": processed}
     except Exception:
-        logger.exception("Outbox Relay: критическая ошибка в цикле поллинга")
+        logger.exception("Outbox Relay: critical error in polling cycle")
         return {"status": "error", "processed": 0}
 
 
 # ---------------------------------------------------------------------------
-# TaskIQ: Outbox Pruning (ежесуточная очистка)
+# TaskIQ: Outbox Pruning (daily cleanup)
 # ---------------------------------------------------------------------------
 
 
@@ -188,16 +199,22 @@ async def outbox_relay_task(
     routing_key="infrastructure.outbox.pruning",
     max_retries=1,
     retry_on_error=True,
-    timeout=120,  # 2 минуты: DELETE может быть тяжёлым
+    timeout=120,  # 2 minutes: DELETE may be heavy
     schedule=[{"cron": "0 3 * * *", "schedule_id": "outbox_pruning_daily_3am"}],
 )
 @inject
 async def outbox_pruning_task(
     session_factory: FromDishka[async_sessionmaker[AsyncSession]],
 ) -> dict:
-    """
-    Ежесуточная задача: удаляет обработанные Outbox-записи старше 7 дней.
-    Запускается через TaskIQ Scheduler (Beat) ежесуточно в 03:00 UTC.
+    """Daily task: delete processed outbox records older than 7 days.
+
+    Triggered by TaskIQ Scheduler (Beat) daily at 03:00 UTC.
+
+    Args:
+        session_factory: Injected async session factory.
+
+    Returns:
+        A dict with status and the number of deleted records.
     """
     deleted = await prune_processed_messages(session_factory=session_factory)
     return {"status": "success", "deleted": deleted}

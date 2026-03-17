@@ -1,4 +1,8 @@
-# src/modules/identity/application/commands/create_role.py
+"""Command handler for creating a new custom RBAC role.
+
+Validates uniqueness of the role name and persists a new non-system role.
+"""
+
 import uuid
 from dataclasses import dataclass
 
@@ -11,16 +15,31 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 @dataclass(frozen=True)
 class CreateRoleCommand:
+    """Command to create a new custom role.
+
+    Attributes:
+        name: Unique role name (lowercase, underscores).
+        description: Optional human-readable description.
+    """
+
     name: str
     description: str | None = None
 
 
 @dataclass(frozen=True)
 class CreateRoleResult:
+    """Result of a successful role creation.
+
+    Attributes:
+        role_id: The UUID of the newly created role.
+    """
+
     role_id: uuid.UUID
 
 
 class CreateRoleHandler:
+    """Handles creation of new custom RBAC roles."""
+
     def __init__(
         self,
         role_repo: IRoleRepository,
@@ -32,6 +51,17 @@ class CreateRoleHandler:
         self._logger = logger.bind(handler="CreateRoleHandler")
 
     async def handle(self, command: CreateRoleCommand) -> CreateRoleResult:
+        """Execute the create role command.
+
+        Args:
+            command: The create role command.
+
+        Returns:
+            A result containing the new role's UUID.
+
+        Raises:
+            ConflictError: If a role with the same name already exists.
+        """
         async with self._uow:
             existing = await self._role_repo.get_by_name(command.name)
             if existing:

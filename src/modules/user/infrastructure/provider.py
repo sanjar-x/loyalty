@@ -1,4 +1,9 @@
-# src/modules/user/infrastructure/provider.py
+"""Dishka dependency injection provider for the User module.
+
+Registers all User module repositories, command handlers, and query handlers
+in the DI container at REQUEST scope.
+"""
+
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 
@@ -16,12 +21,18 @@ from src.modules.user.infrastructure.repositories.user_repository import (
 
 
 class UserProvider(Provider):
-    # --- Repository (REQUEST scope) ---
+    """Dishka provider that wires all User module dependencies.
+
+    All dependencies are registered at REQUEST scope, meaning a new
+    instance is created for each incoming request or task execution.
+    """
+
+    # Repository
     user_repo: CompositeDependencySource = provide(
         UserRepository, scope=Scope.REQUEST, provides=IUserRepository
     )
 
-    # --- Command Handlers (REQUEST scope) ---
+    # Command handlers
     create_user_handler: CompositeDependencySource = provide(CreateUserHandler, scope=Scope.REQUEST)
     update_profile_handler: CompositeDependencySource = provide(
         UpdateProfileHandler, scope=Scope.REQUEST
@@ -30,7 +41,7 @@ class UserProvider(Provider):
         AnonymizeUserHandler, scope=Scope.REQUEST
     )
 
-    # --- Query Handlers (REQUEST scope) ---
+    # Query handlers
     get_my_profile_handler: CompositeDependencySource = provide(
         GetMyProfileHandler, scope=Scope.REQUEST
     )

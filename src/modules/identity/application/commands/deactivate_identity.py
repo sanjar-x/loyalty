@@ -1,4 +1,10 @@
-# src/modules/identity/application/commands/deactivate_identity.py
+"""Command handler for deactivating an identity.
+
+Marks the identity as inactive, revokes all sessions, emits an
+IdentityDeactivatedEvent (for GDPR PII cleanup), and invalidates
+the permissions cache for all revoked sessions.
+"""
+
 import uuid
 from dataclasses import dataclass
 
@@ -13,11 +19,20 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 @dataclass(frozen=True)
 class DeactivateIdentityCommand:
+    """Command to deactivate an identity.
+
+    Attributes:
+        identity_id: The identity to deactivate.
+        reason: Human-readable deactivation reason.
+    """
+
     identity_id: uuid.UUID
     reason: str = "user_request"
 
 
 class DeactivateIdentityHandler:
+    """Handles identity deactivation with session revocation and cache cleanup."""
+
     def __init__(
         self,
         identity_repo: IIdentityRepository,
@@ -33,15 +48,24 @@ class DeactivateIdentityHandler:
         self._logger = logger.bind(handler="DeactivateIdentityHandler")
 
     async def handle(self, command: DeactivateIdentityCommand) -> None:
+        """Execute the deactivate identity command.
+
+        If the identity is not found, this is a no-op. Otherwise, deactivates
+        the identity, revokes all active sessions, and invalidates cached
+        permissions.
+
+        Args:
+            command: The deactivate identity command.
+        """
         async with self._uow:
             identity = await self._identity_repo.get(command.identity_id)
             if identity is None:
                 return
 
-            # 1. Deactivate identity (emits IdentityDeactivatedEvent)
+            # Deactivate identity (emits IdentityDeactivatedEvent)
             identity.deactivate(reason=command.reason)
 
-            # 2. Revoke all sessions
+            # Revoke all sessions
             revoked_ids = await self._session_repo.revoke_all_for_identity(
                 command.identity_id,
             )
@@ -49,7 +73,7 @@ class DeactivateIdentityHandler:
             self._uow.register_aggregate(identity)
             await self._uow.commit()
 
-        # 3. Invalidate permissions cache
+        # Invalidate permissions cache (outside transaction)
         for session_id in revoked_ids:
             await self._permission_resolver.invalidate(session_id)
 

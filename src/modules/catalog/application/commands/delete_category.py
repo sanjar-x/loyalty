@@ -1,3 +1,11 @@
+"""
+Command handler: delete a category.
+
+Verifies the category exists and has no children before removing it.
+Invalidates the category tree cache on success. Part of the
+application layer (CQRS write side).
+"""
+
 import contextlib
 import uuid
 from dataclasses import dataclass
@@ -15,10 +23,25 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 @dataclass(frozen=True)
 class DeleteCategoryCommand:
+    """Input for deleting a category.
+
+    Attributes:
+        category_id: UUID of the category to delete.
+    """
+
     category_id: uuid.UUID
 
 
 class DeleteCategoryHandler:
+    """Delete a leaf category (one with no children).
+
+    Attributes:
+        _category_repo: Category repository port.
+        _uow: Unit of Work for transactional writes.
+        _cache: Cache service for tree cache invalidation.
+        _logger: Structured logger with handler context.
+    """
+
     def __init__(
         self,
         category_repo: ICategoryRepository,
@@ -32,6 +55,15 @@ class DeleteCategoryHandler:
         self._logger = logger.bind(handler="DeleteCategoryHandler")
 
     async def handle(self, command: DeleteCategoryCommand) -> None:
+        """Execute the delete-category command.
+
+        Args:
+            command: Category deletion parameters.
+
+        Raises:
+            CategoryNotFoundError: If the category does not exist.
+            CategoryHasChildrenError: If the category still has children.
+        """
         async with self._uow:
             category = await self._category_repo.get(command.category_id)
             if category is None:
@@ -48,4 +80,4 @@ class DeleteCategoryHandler:
         with contextlib.suppress(Exception):
             await self._cache.delete(CATEGORY_TREE_CACHE_KEY)
 
-        self._logger.info("Категория удалена", category_id=str(command.category_id))
+        self._logger.info("Category deleted", category_id=str(command.category_id))

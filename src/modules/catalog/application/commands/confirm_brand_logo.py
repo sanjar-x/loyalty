@@ -1,4 +1,11 @@
-# src/modules/catalog/application/commands/confirm_brand_logo.py
+"""
+Command handler: confirm brand logo upload.
+
+Verifies the raw logo file exists in S3, transitions the Brand's logo
+FSM to PROCESSING, and emits a domain event to trigger background
+image processing. Part of the application layer (CQRS write side).
+"""
+
 import uuid
 from dataclasses import dataclass
 
@@ -15,10 +22,18 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 @dataclass(frozen=True)
 class ConfirmBrandLogoUploadCommand:
+    """Input for confirming a logo upload.
+
+    Attributes:
+        brand_id: UUID of the brand whose logo upload is being confirmed.
+    """
+
     brand_id: uuid.UUID
 
 
 class ConfirmBrandLogoUploadHandler:
+    """Confirm that a brand logo has been uploaded and trigger processing."""
+
     def __init__(
         self,
         brand_repo: IBrandRepository,
@@ -32,6 +47,16 @@ class ConfirmBrandLogoUploadHandler:
         self._logger: ILogger = logger.bind(handler="ConfirmBrandLogoUploadHandler")
 
     async def handle(self, command: ConfirmBrandLogoUploadCommand) -> None:
+        """Execute the confirm-logo-upload command.
+
+        Args:
+            command: Logo confirmation parameters.
+
+        Raises:
+            BrandNotFoundError: If the brand does not exist.
+            LogoFileNotUploadedError: If the raw logo file is not in S3.
+            InvalidLogoStateException: If the logo FSM is not in PENDING_UPLOAD.
+        """
         async with self._uow:
             brand = await self._brand_repo.get(command.brand_id)
             if not brand:
@@ -50,6 +75,6 @@ class ConfirmBrandLogoUploadHandler:
             await self._uow.commit()
 
         self._logger.info(
-            "Бренд переведен в PROCESSING, событие записано в Outbox",
+            "Brand transitioned to PROCESSING, event written to Outbox",
             brand_id=str(brand.id),
         )

@@ -1,4 +1,10 @@
-# src/modules/user/infrastructure/models.py
+"""SQLAlchemy ORM models for the User module.
+
+Defines the ``UserModel`` table mapping for user profile data (PII).
+This model is GDPR-isolated from authentication data and uses a shared
+primary key (1:1) with the ``identities`` table.
+"""
+
 import uuid
 from datetime import datetime
 
@@ -10,7 +16,21 @@ from src.infrastructure.database.base import Base
 
 
 class UserModel(Base):
-    """User profile (PII). Shared PK 1:1 with identities."""
+    """ORM model for the ``users`` table.
+
+    Stores user profile PII with a shared primary key referencing the
+    ``identities`` table. All PII fields are designed to be independently
+    anonymizable for GDPR compliance.
+
+    Attributes:
+        id: Primary key and foreign key to ``identities.id`` (shared PK 1:1).
+        profile_email: Optional display email (may differ from login email).
+        first_name: User's first name, defaults to empty string.
+        last_name: User's last name, defaults to empty string.
+        phone: Optional phone number.
+        created_at: Server-generated creation timestamp.
+        updated_at: Server-generated last-update timestamp with auto-refresh.
+    """
 
     __tablename__ = "users"
     __table_args__ = ({"comment": "User PII (GDPR-isolated from auth data)"},)

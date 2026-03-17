@@ -1,10 +1,10 @@
 # src/modules/catalog/application/queries/get_category_tree.py
 """
-Query Handler: дерево категорий.
+Query handler: full category tree.
 
-Строгий CQRS — не использует IUnitOfWork, доменные агрегаты
-и репозитории. Работает напрямую с AsyncSession + raw SQL,
-возвращает Pydantic Read Models.
+Strict CQRS read side — does not use IUnitOfWork, domain aggregates, or
+repositories. Queries the database directly via AsyncSession + raw SQL,
+assembles the tree in-memory, and caches the result in Redis for 5 minutes.
 """
 
 import json
@@ -25,11 +25,18 @@ _CATEGORY_TREE_SQL = text(
 
 
 class GetCategoryTreeHandler:
+    """Fetch the full category tree as nested CategoryNode objects."""
+
     def __init__(self, session: AsyncSession, cache: ICacheService):
         self._session = session
         self._cache = cache
 
     async def handle(self) -> list[CategoryNode]:
+        """Retrieve the category tree, using Redis cache when available.
+
+        Returns:
+            List of root ``CategoryNode`` objects with nested children.
+        """
         cached_data = await self._cache.get(CATEGORY_TREE_CACHE_KEY)
         if cached_data:
             return [CategoryNode.model_validate(c) for c in json.loads(cached_data)]

@@ -1,4 +1,11 @@
-# src/modules/catalog/application/commands/create_category.py
+"""
+Command handler: create a new category.
+
+Creates either a root or child category after validating slug uniqueness
+at the target parent level. Invalidates the category tree cache on success.
+Part of the application layer (CQRS write side).
+"""
+
 import contextlib
 import uuid
 from dataclasses import dataclass
@@ -16,6 +23,15 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 @dataclass(frozen=True)
 class CreateCategoryCommand:
+    """Input for creating a new category.
+
+    Attributes:
+        name: Display name of the category.
+        slug: URL-safe identifier, unique within the parent level.
+        parent_id: Parent category UUID, or None for a root category.
+        sort_order: Display ordering among siblings.
+    """
+
     name: str
     slug: str
     parent_id: uuid.UUID | None = None
@@ -24,6 +40,18 @@ class CreateCategoryCommand:
 
 @dataclass(frozen=True)
 class CreateCategoryResult:
+    """Output of category creation.
+
+    Attributes:
+        id: UUID of the newly created category.
+        name: Display name.
+        slug: URL-safe identifier.
+        full_slug: Materialized path (e.g. ``"electronics/phones"``).
+        level: Depth in the tree (0 = root).
+        sort_order: Display ordering.
+        parent_id: Parent category UUID, or None.
+    """
+
     id: uuid.UUID
     name: str
     slug: str
@@ -34,7 +62,13 @@ class CreateCategoryResult:
 
 
 class CreateCategoryHandler:
-    """Обработчик команды. Содержит только логику создания."""
+    """Create a new root or child category.
+
+    Attributes:
+        _category_repo: Category repository port.
+        _uow: Unit of Work for transactional writes.
+        _cache: Cache service for tree cache invalidation.
+    """
 
     def __init__(self, category_repo: ICategoryRepository, uow: IUnitOfWork, cache: ICacheService):
         self._category_repo: ICategoryRepository = category_repo
@@ -42,6 +76,19 @@ class CreateCategoryHandler:
         self._cache: ICacheService = cache
 
     async def handle(self, command: CreateCategoryCommand) -> CreateCategoryResult:
+        """Execute the create-category command.
+
+        Args:
+            command: Category creation parameters.
+
+        Returns:
+            Result containing the new category's state.
+
+        Raises:
+            CategorySlugConflictError: If the slug collides at the target level.
+            CategoryNotFoundError: If the specified parent does not exist.
+            CategoryMaxDepthError: If the parent is already at max depth.
+        """
         async with self._uow:
             is_slug_taken = await self._category_repo.check_slug_exists(
                 slug=command.slug, parent_id=command.parent_id

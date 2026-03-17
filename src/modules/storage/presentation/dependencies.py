@@ -1,4 +1,10 @@
-# src/modules/storage/presentation/dependencies.py
+"""Storage dependency injection providers.
+
+Configures the Dishka DI container with all providers required by the
+Storage module: S3 client factory, blob storage service, repository,
+and the storage facade.
+"""
+
 from collections.abc import AsyncIterable
 
 from aiobotocore.client import AioBaseClient
@@ -15,8 +21,22 @@ from src.shared.interfaces.storage import IStorageFacade
 
 
 class StorageProvider(Provider):
+    """Dishka provider that wires all Storage module dependencies.
+
+    Registers the S3 client factory (app-scoped), per-request S3 client,
+    repository, blob storage service, and the storage facade.
+    """
+
     @provide(scope=Scope.APP)
     def s3_factory(self, settings: Settings) -> S3ClientFactory:
+        """Create a singleton S3 client factory from application settings.
+
+        Args:
+            settings: Application configuration containing S3 credentials.
+
+        Returns:
+            A configured ``S3ClientFactory`` instance.
+        """
         return S3ClientFactory(
             access_key=settings.S3_ACCESS_KEY.get_secret_value(),
             secret_key=settings.S3_SECRET_KEY.get_secret_value(),
@@ -26,6 +46,14 @@ class StorageProvider(Provider):
 
     @provide(scope=Scope.REQUEST)
     async def s3_client(self, factory: S3ClientFactory) -> AsyncIterable[AioBaseClient]:
+        """Yield a per-request S3 client from the factory.
+
+        Args:
+            factory: The application-scoped S3 client factory.
+
+        Yields:
+            An ``AioBaseClient`` instance for S3 operations.
+        """
         async for client in factory.create_client():
             yield client
 
@@ -35,6 +63,15 @@ class StorageProvider(Provider):
 
     @provide(scope=Scope.REQUEST)
     def storage_service(self, client: AioBaseClient, settings: Settings) -> IBlobStorage:
+        """Create a per-request S3 storage service.
+
+        Args:
+            client: The S3 client for this request.
+            settings: Application configuration containing the bucket name.
+
+        Returns:
+            An ``S3StorageService`` implementing ``IBlobStorage``.
+        """
         return S3StorageService(
             s3_client=client,
             bucket_name=settings.S3_BUCKET_NAME,

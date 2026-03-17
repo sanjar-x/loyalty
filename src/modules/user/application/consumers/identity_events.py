@@ -1,9 +1,10 @@
-# src/modules/user/application/consumers/identity_events.py
-"""
-Consumers for cross-module events from identity → user.
+"""TaskIQ consumers for cross-module Identity events.
 
-- IdentityRegisteredEvent → CreateUserHandler (creates User with Shared PK)
-- IdentityDeactivatedEvent → AnonymizeUserHandler (GDPR: PII cleanup)
+Handles events published by the Identity bounded context that require
+a reaction in the User module:
+
+- IdentityRegisteredEvent: Creates a User with a shared primary key.
+- IdentityDeactivatedEvent: Anonymizes user PII for GDPR compliance.
 """
 
 import uuid
@@ -34,7 +35,21 @@ async def create_user_on_identity_registered(
     user_repo: FromDishka[IUserRepository],
     uow: FromDishka[IUnitOfWork],
 ) -> dict:
-    """Create User row with Shared PK when identity registers."""
+    """Create a User record when an identity registers.
+
+    Listens for IdentityRegisteredEvent via the message broker and creates
+    a new User aggregate with a shared primary key. The operation is
+    idempotent: if the user already exists, creation is skipped.
+
+    Args:
+        identity_id: String representation of the Identity UUID.
+        email: The email address from the registration event.
+        user_repo: Injected User repository.
+        uow: Injected Unit of Work for transactional consistency.
+
+    Returns:
+        A status dict indicating ``"success"`` or ``"skipped"``.
+    """
     identity_uuid = uuid.UUID(identity_id)
 
     existing = await user_repo.get(identity_uuid)
@@ -69,7 +84,20 @@ async def anonymize_user_on_identity_deactivated(
     user_repo: FromDishka[IUserRepository],
     uow: FromDishka[IUnitOfWork],
 ) -> dict:
-    """GDPR: Anonymize user PII when identity is deactivated."""
+    """Anonymize user PII when an identity is deactivated.
+
+    Listens for IdentityDeactivatedEvent via the message broker and
+    performs GDPR-compliant anonymization of all personal data. The
+    operation is idempotent: if the user is not found, it is skipped.
+
+    Args:
+        identity_id: String representation of the Identity UUID.
+        user_repo: Injected User repository.
+        uow: Injected Unit of Work for transactional consistency.
+
+    Returns:
+        A status dict indicating ``"success"`` or ``"skipped"``.
+    """
     identity_uuid = uuid.UUID(identity_id)
 
     user = await user_repo.get(identity_uuid)

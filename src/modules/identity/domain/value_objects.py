@@ -1,10 +1,20 @@
-# src/modules/identity/domain/value_objects.py
+"""Value objects for the Identity module.
+
+Contains immutable, side-effect-free types that carry domain meaning
+without identity. Value objects are compared by structural equality.
+"""
+
 import enum
 from dataclasses import dataclass
 
 
 class IdentityType(str, enum.Enum):
-    """Type of identity authentication method."""
+    """Authentication method used by an identity.
+
+    Attributes:
+        LOCAL: Email and password authentication.
+        OIDC: External OpenID Connect provider authentication.
+    """
 
     LOCAL = "LOCAL"
     OIDC = "OIDC"
@@ -12,14 +22,23 @@ class IdentityType(str, enum.Enum):
 
 @dataclass(frozen=True, slots=True)
 class PermissionCode:
-    """
-    Value object for permission codename in 'resource:action' format.
-    Validates format on creation. Immutable and hashable.
+    """Immutable value object for a permission codename in 'resource:action' format.
+
+    Validates the format on creation and provides typed access to the
+    resource and action components. Hashable for use in sets and as dict keys.
+
+    Attributes:
+        _value: The raw codename string (e.g. "orders:read").
     """
 
     _value: str
 
     def __post_init__(self) -> None:
+        """Validate that the codename follows the 'resource:action' format.
+
+        Raises:
+            ValueError: If the codename is not in 'resource:action' format.
+        """
         parts = self._value.split(":")
         if len(parts) != 2 or not parts[0] or not parts[1]:
             raise ValueError(
@@ -28,11 +47,14 @@ class PermissionCode:
 
     @property
     def resource(self) -> str:
+        """Return the resource portion of the codename."""
         return self._value.split(":")[0]
 
     @property
     def action(self) -> str:
+        """Return the action portion of the codename."""
         return self._value.split(":")[1]
 
     def __str__(self) -> str:
+        """Return the raw codename string."""
         return self._value

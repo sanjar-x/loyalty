@@ -1,10 +1,9 @@
-# src/modules/identity/presentation/dependencies.py
-"""
-FastAPI dependencies for authentication and authorization.
+"""FastAPI dependencies for authentication and authorization.
 
-get_auth_context: Extracts AuthContext (identity_id + session_id) from JWT.
-RequirePermission: Callable dependency that checks session permissions via Cache-Aside.
-get_current_user_id: Backward-compatible wrapper returning identity_id as uuid.UUID.
+Provides:
+- ``get_auth_context``: Extracts AuthContext (identity_id + session_id) from JWT.
+- ``RequirePermission``: Callable dependency that checks session permissions via cache-aside.
+- ``get_current_user_id``: Backward-compatible wrapper returning identity_id as uuid.UUID.
 """
 
 import uuid
@@ -27,9 +26,21 @@ async def get_auth_context(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     token_provider: FromDishka[ITokenProvider] = ...,  # type: ignore[assignment]
 ) -> AuthContext:
-    """
-    Extract AuthContext from JWT Bearer token.
-    Token payload must contain 'sub' (identity_id) and 'sid' (session_id).
+    """Extract AuthContext from a JWT Bearer token.
+
+    Decodes the access token and extracts the ``sub`` (identity_id) and
+    ``sid`` (session_id) claims. Binds both to structlog context variables
+    for downstream request logging.
+
+    Args:
+        credentials: The HTTP Bearer token credentials, if present.
+        token_provider: JWT token provider for decoding.
+
+    Returns:
+        An AuthContext containing the identity and session identifiers.
+
+    Raises:
+        UnauthorizedError: If the token is missing or has invalid payload.
     """
     if not credentials:
         raise UnauthorizedError(
@@ -59,6 +70,17 @@ async def get_auth_context(
 
 
 class RequirePermission:
+    """FastAPI dependency that enforces a specific permission on the session.
+
+    Usage as a route dependency::
+
+        @router.get("/protected", dependencies=[Depends(RequirePermission("orders:read"))])
+        async def protected_route(...): ...
+
+    Args:
+        codename: The required permission codename (e.g. "orders:read").
+    """
+
     def __init__(self, codename: str) -> None:
         self._codename = codename
 
@@ -68,6 +90,18 @@ class RequirePermission:
         auth: AuthContext = Depends(get_auth_context),
         resolver: FromDishka[IPermissionResolver] = ...,  # type: ignore[assignment]
     ) -> AuthContext:
+        """Check that the session has the required permission.
+
+        Args:
+            auth: The authenticated context from the JWT.
+            resolver: Permission resolver (cache-aside with Redis).
+
+        Returns:
+            The AuthContext if the permission check passes.
+
+        Raises:
+            InsufficientPermissionsError: If the session lacks the permission.
+        """
         if not await resolver.has_permission(auth.session_id, self._codename):
             raise InsufficientPermissionsError(codename=self._codename)
         return auth
@@ -76,5 +110,12 @@ class RequirePermission:
 async def get_current_user_id(
     auth: AuthContext = Depends(get_auth_context),
 ) -> uuid.UUID:
-    """Backward-compatible dependency: returns identity_id as uuid.UUID."""
+    """Backward-compatible dependency that returns the identity_id as a UUID.
+
+    Args:
+        auth: The authenticated context from the JWT.
+
+    Returns:
+        The identity's UUID.
+    """
     return auth.identity_id

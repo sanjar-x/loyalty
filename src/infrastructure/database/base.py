@@ -1,4 +1,8 @@
-# src/infrastructure/database/base.py
+"""SQLAlchemy declarative base with consistent naming conventions.
+
+Defines the shared ``Base`` class and ``MetaData`` used by all ORM models
+across every bounded-context module.
+"""
 
 from sqlalchemy import MetaData
 from sqlalchemy.orm import DeclarativeBase
@@ -15,9 +19,17 @@ metadata = MetaData(naming_convention=convention)
 
 
 class Base(DeclarativeBase):
+    """Project-wide SQLAlchemy declarative base.
+
+    All ORM models inherit from this class to share a single ``MetaData``
+    instance with unified naming conventions for indexes, constraints,
+    and foreign keys.
+    """
+
     metadata = metadata
 
     def __repr__(self) -> str:
+        """Return a developer-friendly representation of the model instance."""
         columns = ", ".join(
             [f"{k}={v!r}" for k, v in self.__dict__.items() if not k.startswith("_")]
         )

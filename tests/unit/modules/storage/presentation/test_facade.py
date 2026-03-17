@@ -112,7 +112,7 @@ class TestVerifyUpload:
         facade, blob_storage, storage_repo, uow, *_ = _make_facade()
         storage_repo.get_by_key = AsyncMock(return_value=None)
 
-        with pytest.raises(ValidationError, match="Запись о файле не найдена"):
+        with pytest.raises(ValidationError, match="File record not found"):
             await facade.verify_upload(file_id=uuid.uuid4())
 
 
@@ -148,7 +148,7 @@ class TestUpdateObjectMetadata:
         facade, blob_storage, storage_repo, uow, *_ = _make_facade()
         storage_repo.get_by_key = AsyncMock(return_value=None)
 
-        with pytest.raises(ValidationError, match="Запись о файле не найдена"):
+        with pytest.raises(ValidationError, match="File record not found"):
             await facade.update_object_metadata(
                 file_id=uuid.uuid4(),
                 object_key="some-key.png",

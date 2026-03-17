@@ -1,8 +1,7 @@
-# src/infrastructure/database/models/failed_task.py
-"""
-Dead Letter Queue (DLQ): запись о задаче, исчерпавшей все retry-попытки.
+"""Dead Letter Queue (DLQ) ORM model for permanently failed tasks.
 
-Позволяет инспектировать и вручную повторять проваленные задачи.
+Stores tasks that have exhausted all retry attempts so they can be
+inspected and manually retried by operators.
 """
 
 import uuid
@@ -16,49 +15,62 @@ from src.infrastructure.database.base import Base
 
 
 class FailedTask(Base):
+    """ORM model representing a task that exhausted all retry attempts.
+
+    Attributes:
+        id: Primary key (UUID).
+        task_name: The TaskIQ task name.
+        task_id: The TaskIQ message ID.
+        args: Serialized task arguments.
+        labels: Task labels (correlation_id, etc.).
+        error_message: Full error traceback text.
+        retry_count: Number of retry attempts executed.
+        failed_at: Timestamp of the final failure.
+    """
+
     __tablename__ = "failed_tasks"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
-        comment="Первичный ключ",
+        comment="Primary key",
     )
     task_name: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
-        comment="Имя задачи TaskIQ",
+        comment="TaskIQ task name",
     )
     task_id: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
-        comment="ID сообщения TaskIQ",
+        comment="TaskIQ message ID",
     )
     args: Mapped[dict] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
-        comment="Аргументы задачи",
+        comment="Task arguments",
     )
     labels: Mapped[dict] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
-        comment="Labels задачи (correlation_id и др.)",
+        comment="Task labels (correlation_id, etc.)",
     )
     error_message: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        comment="Текст ошибки",
+        comment="Error message text",
     )
     retry_count: Mapped[int] = mapped_column(
         nullable=False,
         default=0,
-        comment="Количество выполненных retry-попыток",
+        comment="Number of retry attempts executed",
     )
     failed_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
         server_default=func.now(),
-        comment="Время окончательного провала",
+        comment="Timestamp of the final failure",
     )

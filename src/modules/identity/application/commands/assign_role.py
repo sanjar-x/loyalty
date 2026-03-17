@@ -1,4 +1,10 @@
-# src/modules/identity/application/commands/assign_role.py
+"""Command handler for assigning a role to an identity.
+
+Validates that both identity and role exist, inserts the identity-role
+association, propagates the role to all active sessions (NIST compliance),
+and emits a RoleAssignmentChangedEvent for cache invalidation.
+"""
+
 import uuid
 from dataclasses import dataclass
 
@@ -15,12 +21,27 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 @dataclass(frozen=True)
 class AssignRoleCommand:
+    """Command to assign a role to an identity.
+
+    Attributes:
+        identity_id: The target identity's UUID.
+        role_id: The role to assign.
+        assigned_by: The admin identity performing the assignment, if any.
+    """
+
     identity_id: uuid.UUID
     role_id: uuid.UUID
     assigned_by: uuid.UUID | None = None
 
 
 class AssignRoleHandler:
+    """Handles role assignment for an identity.
+
+    Ensures both the identity and role exist, creates the association,
+    updates session-level role activations for all active sessions, and
+    emits a domain event for downstream cache invalidation.
+    """
+
     def __init__(
         self,
         identity_repo: IIdentityRepository,
@@ -36,8 +57,16 @@ class AssignRoleHandler:
         self._logger = logger.bind(handler="AssignRoleHandler")
 
     async def handle(self, command: AssignRoleCommand) -> None:
+        """Execute the role assignment command.
+
+        Args:
+            command: The assign role command.
+
+        Raises:
+            NotFoundError: If the identity or role does not exist.
+        """
         async with self._uow:
-            # 1. Validate identity exists
+            # Validate identity exists
             identity = await self._identity_repo.get(command.identity_id)
             if identity is None:
                 raise NotFoundError(
@@ -45,7 +74,7 @@ class AssignRoleHandler:
                     error_code="IDENTITY_NOT_FOUND",
                 )
 
-            # 2. Validate role exists
+            # Validate role exists
             role = await self._role_repo.get(command.role_id)
             if role is None:
                 raise NotFoundError(
@@ -53,21 +82,21 @@ class AssignRoleHandler:
                     error_code="ROLE_NOT_FOUND",
                 )
 
-            # 3. Assign role to identity
+            # Assign role to identity
             await self._role_repo.assign_to_identity(
                 identity_id=command.identity_id,
                 role_id=command.role_id,
                 assigned_by=command.assigned_by,
             )
 
-            # 4. Update session_roles for ALL active sessions (NIST compliance)
+            # Update session_roles for all active sessions (NIST compliance)
             active_session_ids = await self._session_repo.get_active_session_ids(
                 command.identity_id,
             )
             for sid in active_session_ids:
                 await self._session_repo.add_session_roles(sid, [command.role_id])
 
-            # 5. Emit RoleAssignmentChangedEvent (for cache invalidation)
+            # Emit RoleAssignmentChangedEvent for cache invalidation
             identity.add_domain_event(
                 RoleAssignmentChangedEvent(
                     identity_id=command.identity_id,

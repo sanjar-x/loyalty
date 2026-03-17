@@ -1,4 +1,9 @@
-# src/modules/identity/application/commands/login_oidc.py
+"""Command handler for OIDC (OpenID Connect) provider authentication.
+
+Validates the provider token, links or creates an identity, assigns a default
+role for new identities, and creates a session with token pair.
+"""
+
 import uuid
 from dataclasses import dataclass
 
@@ -19,6 +24,14 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 @dataclass(frozen=True)
 class LoginOIDCCommand:
+    """Command to authenticate via an external OIDC provider.
+
+    Attributes:
+        provider_token: The token issued by the OIDC provider.
+        ip_address: Client IP address for session tracking.
+        user_agent: Client User-Agent header for session tracking.
+    """
+
     provider_token: str
     ip_address: str
     user_agent: str
@@ -26,6 +39,15 @@ class LoginOIDCCommand:
 
 @dataclass(frozen=True)
 class LoginOIDCResult:
+    """Result of a successful OIDC login.
+
+    Attributes:
+        access_token: Short-lived JWT access token.
+        refresh_token: Opaque refresh token for token rotation.
+        identity_id: The authenticated identity's UUID.
+        is_new_identity: True if a new identity was created during this login.
+    """
+
     access_token: str
     refresh_token: str
     identity_id: uuid.UUID
@@ -33,6 +55,8 @@ class LoginOIDCResult:
 
 
 class LoginOIDCHandler:
+    """Handles OIDC-based authentication with automatic identity provisioning."""
+
     def __init__(
         self,
         oidc_provider: IOIDCProvider,
@@ -56,13 +80,28 @@ class LoginOIDCHandler:
         self._refresh_token_days = refresh_token_days
 
     async def handle(self, command: LoginOIDCCommand) -> LoginOIDCResult:
-        # 1. Validate token with OIDC provider
+        """Execute the OIDC login command.
+
+        Validates the provider token, resolves or creates the identity,
+        and issues a session with access and refresh tokens.
+
+        Args:
+            command: The OIDC login command.
+
+        Returns:
+            A result containing tokens and identity information.
+
+        Raises:
+            InvalidCredentialsError: If the linked identity no longer exists.
+            IdentityDeactivatedError: If the identity is deactivated.
+        """
+        # Validate token with OIDC provider
         user_info = await self._oidc.validate_token(command.provider_token)
 
         is_new = False
         identity: Identity | None = None
         async with self._uow:
-            # 2. Find existing linked account
+            # Find existing linked account
             linked = await self._linked_repo.get_by_provider(
                 provider=user_info.provider,
                 provider_sub_id=user_info.sub,
@@ -74,7 +113,7 @@ class LoginOIDCHandler:
                     raise InvalidCredentialsError()
                 identity.ensure_active()
             else:
-                # 3. Create new identity + linked account
+                # Create new identity and linked account
                 identity = Identity.register(IdentityType.OIDC)
                 await self._identity_repo.add(identity)
 
@@ -106,7 +145,7 @@ class LoginOIDCHandler:
                 )
                 is_new = True
 
-            # 4. Create session — identity is narrowed to Identity in both branches
+            # Create session
             role_ids = await self._role_repo.get_identity_role_ids(identity.id)
             raw_refresh, _ = self._token_provider.create_refresh_token()
 

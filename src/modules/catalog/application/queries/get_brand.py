@@ -1,9 +1,9 @@
 """
-Query Handler: получить бренд по ID.
+Query handler: retrieve a single brand by ID.
 
-Строгий CQRS — не использует IUnitOfWork, доменные агрегаты
-и репозитории. Работает напрямую с AsyncSession + raw SQL,
-возвращает Pydantic Read Model.
+Strict CQRS read side — does not use IUnitOfWork, domain aggregates, or
+repositories. Queries the database directly via AsyncSession + raw SQL
+and returns a Pydantic read model.
 """
 
 import uuid
@@ -20,10 +20,23 @@ _GET_BRAND_SQL = text(
 
 
 class GetBrandHandler:
+    """Fetch a single brand by its UUID."""
+
     def __init__(self, session: AsyncSession):
         self._session = session
 
     async def handle(self, brand_id: uuid.UUID) -> BrandReadModel:
+        """Retrieve a brand read model.
+
+        Args:
+            brand_id: UUID of the brand to retrieve.
+
+        Returns:
+            Brand read model with current state.
+
+        Raises:
+            BrandNotFoundError: If no brand with this ID exists.
+        """
         result = await self._session.execute(_GET_BRAND_SQL, {"brand_id": brand_id})
         row = result.mappings().first()
 

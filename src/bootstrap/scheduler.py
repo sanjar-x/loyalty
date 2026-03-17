@@ -1,16 +1,17 @@
-# src/bootstrap/scheduler.py
-"""
-Точка входа TaskIQ Scheduler (Beat).
+"""TaskIQ Scheduler (Beat) entry point.
 
-Scheduler периодически отправляет запланированные задачи в брокер.
-Запуск: taskiq scheduler src.bootstrap.scheduler:scheduler
+The scheduler periodically dispatches scheduled tasks to the broker.
 
-ВАЖНО: Запускать только ОДИН экземпляр Scheduler!
-Несколько экземпляров приведут к дублированию задач.
+Launch command::
 
-Задачи, которые планируются через Beat:
-  - outbox_relay_task   — каждую минуту (поллинг Outbox-таблицы)
-  - outbox_pruning_task — ежесуточно в 03:00 UTC (очистка старых записей)
+    taskiq scheduler src.bootstrap.scheduler:scheduler
+
+IMPORTANT: Run exactly ONE scheduler instance.  Multiple instances will
+cause duplicate task dispatches.
+
+Tasks dispatched via Beat:
+- ``outbox_relay_task``   -- every minute (polls the Outbox table).
+- ``outbox_pruning_task`` -- daily at 03:00 UTC (prunes stale records).
 """
 
 import structlog
@@ -24,11 +25,11 @@ from src.bootstrap.container import create_container
 
 logger = structlog.get_logger(__name__)
 
-# Инициализируем DI-контейнер (аналогично worker.py)
+# Initialise the DI container (mirrors worker.py setup).
 container: AsyncContainer = create_container()
 setup_dishka(container=container, broker=broker)
 
-# Импортируем задачи для регистрации schedule-лейблов
+# Import tasks so that their schedule labels are registered with the broker.
 import src.infrastructure.outbox.tasks  # noqa: E402, F401
 
 scheduler = TaskiqScheduler(

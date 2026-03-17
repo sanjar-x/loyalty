@@ -1,4 +1,10 @@
-# src\bootstrap\app.py
+"""FastAPI application factory and lifespan management.
+
+This module is the composition root for the web process.  It wires
+together middleware, exception handlers, routers, and the DI container,
+then exposes ``create_app()`` for the ASGI server.
+"""
+
 from contextlib import asynccontextmanager
 
 import structlog
@@ -22,30 +28,51 @@ logger: BoundLogger = structlog.get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Manage application startup and shutdown lifecycle events.
+
+    On startup the TaskIQ broker is connected (when running outside a
+    worker process).  On shutdown the broker, DI container, and all
+    connection pools are closed gracefully.
+
+    Args:
+        app: The FastAPI application instance.
+
+    Yields:
+        Control back to the ASGI server for the duration of the
+        application's lifetime.
+    """
     logger.info(
-        "Запуск Enterprise API",
+        "Starting Enterprise API",
         version=settings.VERSION,
         environment=settings.ENVIRONMENT,
     )
 
     if not broker.is_worker_process:
-        logger.info("Запуск TaskIQ брокера в рамках API...")
+        logger.info("Starting TaskIQ broker within the API process...")
         await broker.startup()
 
     yield
 
     if not broker.is_worker_process:
-        logger.info("Остановка TaskIQ брокера...")
+        logger.info("Shutting down TaskIQ broker...")
         await broker.shutdown()
 
     if hasattr(app.state, "dishka_container"):
-        logger.info("Закрытие IoC контейнера и пулов соединений...")
+        logger.info("Closing IoC container and connection pools...")
         await app.state.dishka_container.close()
 
-    logger.info("Остановка Enterprise API. Очистка ресурсов завершена.")
+    logger.info("Enterprise API stopped. Resource cleanup complete.")
 
 
 def create_app() -> FastAPI:
+    """Build and fully configure the FastAPI application.
+
+    Assembles middleware (CORS, access logging), exception handlers,
+    API routers, a health-check endpoint, and the Dishka DI container.
+
+    Returns:
+        A ready-to-serve ``FastAPI`` application instance.
+    """
     app = FastAPI(
         title=settings.PROJECT_NAME,
         version=settings.VERSION,
@@ -71,6 +98,7 @@ def create_app() -> FastAPI:
 
     @app.get("/health", tags=["System"])
     async def health_check() -> dict[str, str]:
+        """Return a simple health-check response."""
         return {"status": "ok", "environment": settings.ENVIRONMENT}
 
     container = create_container()

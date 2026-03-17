@@ -1,10 +1,8 @@
-# src/infrastructure/outbox/relay.py
-"""
-Outbox Relay: читает необработанные события из таблицы outbox_messages
-и публикует их в RabbitMQ через TaskIQ.
+"""Outbox Relay: polls unprocessed events and publishes them to the broker.
 
-Паттерн: Polling Publisher с FOR UPDATE SKIP LOCKED для конкурентной
-безопасности (несколько Relay-воркеров могут работать параллельно).
+Implements the Polling Publisher pattern with ``FOR UPDATE SKIP LOCKED``
+for concurrency safety -- multiple relay workers can run in parallel
+without blocking each other.
 """
 
 from __future__ import annotations
@@ -19,12 +17,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 logger = structlog.get_logger(__name__)
 
 # ---------------------------------------------------------------------------
-# Реестр обработчиков событий: event_type → async callable(payload)
-# Relay вызывает соответствующий handler для публикации в брокер.
+# Event handler registry: event_type -> async callable(payload)
 # ---------------------------------------------------------------------------
 
 
 class EventHandler(Protocol):
+    """Protocol for outbox event handler callables."""
+
     async def __call__(
         self, payload: dict[str, Any], *, correlation_id: str | None = None
     ) -> None: ...
@@ -34,15 +33,20 @@ _EVENT_HANDLERS: dict[str, EventHandler] = {}
 
 
 def register_event_handler(event_type: str, handler: EventHandler) -> None:
-    """Регистрирует обработчик для типа события."""
+    """Register a handler for a specific event type.
+
+    Args:
+        event_type: The domain event type string (e.g., "BrandCreatedEvent").
+        handler: An async callable that dispatches the event to the broker.
+    """
     _EVENT_HANDLERS[event_type] = handler
 
 
 # ---------------------------------------------------------------------------
-# Core Relay Logic
+# Core relay logic
 # ---------------------------------------------------------------------------
 
-# SQL с FOR UPDATE SKIP LOCKED — несколько воркеров не блокируют друг друга
+# SQL with FOR UPDATE SKIP LOCKED -- multiple workers do not block each other
 _FETCH_UNPROCESSED_SQL = text("""
     SELECT id, event_type, payload, correlation_id
     FROM outbox_messages
@@ -52,7 +56,7 @@ _FETCH_UNPROCESSED_SQL = text("""
     FOR UPDATE SKIP LOCKED
 """)
 
-# Блокировка одного события для per-event обработки
+# Lock a single event for per-event processing
 _LOCK_SINGLE_EVENT_SQL = text("""
     SELECT id, event_type, payload, correlation_id
     FROM outbox_messages
@@ -77,14 +81,19 @@ async def relay_outbox_batch(
     session_factory: async_sessionmaker[AsyncSession],
     batch_size: int = 100,
 ) -> int:
-    """
-    Забирает пачку необработанных событий из Outbox и отправляет в брокер.
+    """Fetch a batch of unprocessed outbox events and dispatch them to the broker.
 
-    Per-event изоляция: каждое событие обрабатывается в своей транзакции.
-    Сбой одного события не влияет на остальные в батче.
-    Возвращает количество успешно обработанных событий.
+    Each event is processed in its own transaction (per-event isolation),
+    so a failure in one event does not affect the rest of the batch.
+
+    Args:
+        session_factory: An async session factory for database access.
+        batch_size: Maximum number of events to process in one batch.
+
+    Returns:
+        The number of successfully processed events.
     """
-    # 1. Получаем список ID для обработки (короткая транзакция)
+    # 1. Fetch event IDs to process (short-lived transaction)
     async with session_factory() as session, session.begin():
         result = await session.execute(
             _FETCH_UNPROCESSED_SQL,
@@ -95,7 +104,7 @@ async def relay_outbox_batch(
     if not rows:
         return 0
 
-    # 2. Обрабатываем каждое событие в отдельной транзакции
+    # 2. Process each event in its own transaction
     processed = 0
     failed = 0
 
@@ -112,20 +121,20 @@ async def relay_outbox_batch(
 
         try:
             async with session_factory() as session, session.begin():
-                # Re-lock: проверяем, что событие ещё не обработано
+                # Re-lock: verify the event has not been processed by another worker
                 locked = await session.execute(
                     _LOCK_SINGLE_EVENT_SQL,
                     {"event_id": event_id},
                 )
                 event = locked.fetchone()
                 if event is None:
-                    # Событие уже обработано другим воркером
+                    # Already processed by another worker
                     continue
 
                 handler = _EVENT_HANDLERS.get(event.event_type)
                 if handler is None:
                     logger.warning(
-                        "Outbox Relay: неизвестный event_type, пропуск",
+                        "Outbox Relay: unknown event_type, skipping",
                         event_type=event.event_type,
                         event_id=str(event_id),
                     )
@@ -144,21 +153,21 @@ async def relay_outbox_batch(
                 processed += 1
 
                 logger.debug(
-                    "Outbox Relay: событие отправлено в брокер",
+                    "Outbox Relay: event dispatched to broker",
                     event_type=event.event_type,
                     event_id=str(event_id),
                 )
         except Exception:
             failed += 1
             logger.exception(
-                "Outbox Relay: ошибка обработки события, пропуск",
+                "Outbox Relay: error processing event, skipping",
                 event_type=event_type,
                 event_id=str(event_id),
             )
             continue
 
     logger.info(
-        "Outbox Relay: батч обработан",
+        "Outbox Relay: batch processed",
         processed=processed,
         failed=failed,
         total_in_batch=len(rows),
@@ -167,7 +176,7 @@ async def relay_outbox_batch(
 
 
 # ---------------------------------------------------------------------------
-# Pruning: очистка обработанных записей старше N дней
+# Pruning: remove processed records older than N days
 # ---------------------------------------------------------------------------
 
 _PRUNE_SQL = text("""
@@ -180,14 +189,20 @@ _PRUNE_SQL = text("""
 async def prune_processed_messages(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> int:
-    """
-    Удаляет обработанные Outbox-записи старше 7 дней.
-    Предотвращает разрастание таблицы и замедление vacuum в PostgreSQL.
+    """Delete processed outbox records older than 7 days.
+
+    Prevents table bloat and keeps PostgreSQL vacuum efficient.
+
+    Args:
+        session_factory: An async session factory for database access.
+
+    Returns:
+        The number of deleted rows.
     """
     async with session_factory() as session, session.begin():
         result = await session.execute(_PRUNE_SQL)
         deleted = result.rowcount
 
     if deleted:
-        logger.info("Outbox Pruning: удалено старых записей", count=deleted)
+        logger.info("Outbox Pruning: old records deleted", count=deleted)
     return deleted
