@@ -1,7 +1,8 @@
 # src/bootstrap/logger.py
 import logging
 import sys
-from typing import Any, Iterable, TextIO
+from collections.abc import Iterable
+from typing import Any, TextIO
 
 import structlog
 from structlog.types import Processor
@@ -50,8 +51,7 @@ def setup_logging() -> None:
     shared_processors = list(_get_shared_processors())
 
     structlog.configure(
-        processors=shared_processors
-        + [structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
+        processors=shared_processors + [structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
         logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
@@ -72,9 +72,7 @@ def setup_logging() -> None:
         ],
     )
 
-    handler: logging.StreamHandler[TextIO | Any] = logging.StreamHandler(
-        stream=sys.stdout
-    )
+    handler: logging.StreamHandler[TextIO | Any] = logging.StreamHandler(stream=sys.stdout)
     handler.setFormatter(formatter)
 
     root_logger = logging.getLogger()

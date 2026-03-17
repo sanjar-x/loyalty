@@ -7,7 +7,7 @@ Create Date: 2026-03-16 08:26:00.276459
 """
 
 import uuid
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 
@@ -15,9 +15,9 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "d2bb038b00e3"
-down_revision: Union[str, Sequence[str], None] = "f788d1919523"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "f788d1919523"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 # Stable UUIDs for system roles (deterministic for idempotent seeding)
 SUPER_ADMIN_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
@@ -132,9 +132,7 @@ def upgrade() -> None:
     # 3. Assign all permissions to super_admin
     for perm_id in perm_ids.values():
         op.execute(
-            role_permissions_table.insert().values(
-                role_id=SUPER_ADMIN_ID, permission_id=perm_id
-            )
+            role_permissions_table.insert().values(role_id=SUPER_ADMIN_ID, permission_id=perm_id)
         )
 
     # 4. Assign manager permissions
@@ -160,9 +158,7 @@ def upgrade() -> None:
         )
     )
     op.execute(
-        role_hierarchy_table.insert().values(
-            parent_role_id=MANAGER_ID, child_role_id=CUSTOMER_ID
-        )
+        role_hierarchy_table.insert().values(parent_role_id=MANAGER_ID, child_role_id=CUSTOMER_ID)
     )
 
 

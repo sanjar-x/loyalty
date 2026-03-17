@@ -40,9 +40,7 @@ class UpdateBrandHandler:
 
     async def handle(self, command: UpdateBrandCommand) -> UpdateBrandResult:
         async with self._uow:
-            brand: Brand | None = await self._brand_repo.get_for_update(
-                command.brand_id
-            )
+            brand: Brand | None = await self._brand_repo.get_for_update(command.brand_id)
             if brand is None:
                 raise BrandNotFoundError(brand_id=command.brand_id)
 

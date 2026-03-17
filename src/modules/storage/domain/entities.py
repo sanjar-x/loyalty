@@ -1,7 +1,8 @@
 # src/modules/storage/domain/entities.py
 import uuid
-from dataclasses import dataclass
 from datetime import datetime
+
+from attr import dataclass
 
 
 @dataclass
@@ -30,7 +31,7 @@ class StorageFile:
         content_type: str,
         size_bytes: int = 0,
         owner_module: str | None = None,
-    ) -> "StorageFile":
+    ) -> StorageFile:
         return cls(
             id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
             bucket_name=bucket_name,

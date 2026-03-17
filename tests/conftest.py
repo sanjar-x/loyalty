@@ -32,9 +32,7 @@ warnings.filterwarnings(
 # 0. Event Loop Isolation
 # ==========================================
 
-test_session_var: contextvars.ContextVar[AsyncSession] = contextvars.ContextVar(
-    "test_session_var"
-)
+test_session_var: contextvars.ContextVar[AsyncSession] = contextvars.ContextVar("test_session_var")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -95,8 +93,8 @@ def test_settings(db_url, redis_url, rabbitmq_url) -> Settings:
         REDISHOST="127.0.0.1",
         REDISPORT=6379,
         S3_ENDPOINT_URL="http://127.0.0.1:9000",
-        S3_ACCESS_KEY="admin",
-        S3_SECRET_KEY="password",
+        S3_ACCESS_KEY=SecretStr("admin"),
+        S3_SECRET_KEY=SecretStr("password"),
         S3_REGION="us-east-1",
         S3_BUCKET_NAME="test-bucket",
         S3_PUBLIC_BASE_URL="http://127.0.0.1:9000/test-bucket",
@@ -159,9 +157,7 @@ class TestOverridesProvider(Provider):
 
 
 @pytest.fixture(scope="session")
-async def app_container(
-    db_url, redis_url, test_settings
-) -> AsyncIterable[AsyncContainer]:
+async def app_container(db_url, redis_url, test_settings) -> AsyncIterable[AsyncContainer]:
     from src.infrastructure.cache.provider import CacheProvider
     from src.infrastructure.database.provider import DatabaseProvider
     from src.infrastructure.logging.provider import LoggingProvider
@@ -184,9 +180,7 @@ async def app_container(
         BrandProvider(),
         IdentityProvider(),
         UserProvider(),
-        TestOverridesProvider(
-            db_url=db_url, redis_url=redis_url, settings=test_settings
-        ),
+        TestOverridesProvider(db_url=db_url, redis_url=redis_url, settings=test_settings),
     )
     yield container
     await container.close()
@@ -201,9 +195,7 @@ async def test_engine(app_container: AsyncContainer) -> AsyncEngine:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
     except Exception as e:
-        pytest.exit(
-            f"Database unreachable: {e}. Start containers: docker compose up -d"
-        )
+        pytest.exit(f"Database unreachable: {e}. Start containers: docker compose up -d")
 
     from src.infrastructure.database.registry import Base
 
@@ -241,9 +233,7 @@ async def setup_infrastructure(test_engine: AsyncEngine, test_settings: Settings
 
 
 @pytest.fixture(scope="function")
-async def db_session(
-    test_engine: AsyncEngine, setup_infrastructure
-) -> AsyncIterable[AsyncSession]:
+async def db_session(test_engine: AsyncEngine, setup_infrastructure) -> AsyncIterable[AsyncSession]:
     """Nested transaction per test — automatic rollback ensures pristine state."""
     async with test_engine.connect() as conn:
         transaction = await conn.begin()

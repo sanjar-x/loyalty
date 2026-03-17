@@ -62,7 +62,6 @@ class BrandRepository(IBrandRepository):
     async def delete(self, id: uuid.UUID) -> None:
         statement = delete(OrmBrand).where(OrmBrand.id == id)
         await self._session.execute(statement)
-        await self._session.flush()
 
     async def get_by_slug(self, slug: str) -> DomainBrand | None:
         statement = select(OrmBrand).where(OrmBrand.slug == slug).limit(1)
@@ -77,13 +76,9 @@ class BrandRepository(IBrandRepository):
         result = await self._session.execute(statement)
         return result.first() is not None
 
-    async def check_slug_exists_excluding(
-        self, slug: str, exclude_id: uuid.UUID
-    ) -> bool:
+    async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
         statement = (
-            select(OrmBrand.id)
-            .where(OrmBrand.slug == slug, OrmBrand.id != exclude_id)
-            .limit(1)
+            select(OrmBrand.id).where(OrmBrand.slug == slug, OrmBrand.id != exclude_id).limit(1)
         )
         result = await self._session.execute(statement)
         return result.first() is not None

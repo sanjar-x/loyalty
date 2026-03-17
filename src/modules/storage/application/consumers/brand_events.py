@@ -116,7 +116,5 @@ async def handle_brand_logo_processed_event(
         await storage_repo.add(storage_file)
         await uow.commit()
 
-    log.info(
-        "StorageFile создан для обработанного логотипа", file_id=str(storage_file.id)
-    )
+    log.info("StorageFile создан для обработанного логотипа", file_id=str(storage_file.id))
     return {"status": "created", "file_id": str(storage_file.id)}

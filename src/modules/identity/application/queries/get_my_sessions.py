@@ -4,10 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.modules.identity.infrastructure.models import SessionModel
 
 
 class SessionInfo(BaseModel):
@@ -26,31 +24,29 @@ class GetMySessionsQuery:
     current_session_id: uuid.UUID
 
 
+_MY_SESSIONS_SQL = text(
+    "SELECT id, ip_address, user_agent, is_revoked, created_at, expires_at "
+    "FROM sessions "
+    "WHERE identity_id = :identity_id AND is_revoked = false "
+    "ORDER BY created_at DESC"
+)
+
+
 class GetMySessionsHandler:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def handle(self, query: GetMySessionsQuery) -> list[SessionInfo]:
-        stmt = (
-            select(SessionModel)
-            .where(
-                SessionModel.identity_id == query.identity_id,
-                SessionModel.is_revoked.is_(False),
-            )
-            .order_by(SessionModel.created_at.desc())
-        )
-        result = await self._session.execute(stmt)
-        rows = result.scalars().all()
-
+        result = await self._session.execute(_MY_SESSIONS_SQL, {"identity_id": query.identity_id})
         return [
             SessionInfo(
-                id=row.id,
-                ip_address=row.ip_address,
-                user_agent=row.user_agent,
-                is_revoked=row.is_revoked,
-                created_at=row.created_at,
-                expires_at=row.expires_at,
-                is_current=(row.id == query.current_session_id),
+                id=row["id"],
+                ip_address=str(row["ip_address"]) if row["ip_address"] else None,
+                user_agent=row["user_agent"],
+                is_revoked=row["is_revoked"],
+                created_at=row["created_at"],
+                expires_at=row["expires_at"],
+                is_current=(row["id"] == query.current_session_id),
             )
-            for row in rows
+            for row in result.mappings().all()
         ]

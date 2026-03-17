@@ -17,3 +17,6 @@ def raw_logo_key(brand_id: uuid.UUID) -> str:
 def public_logo_key(brand_id: uuid.UUID) -> str:
     """Ключ обработанного логотипа бренда (публичный)."""
     return f"public/brands/{brand_id}/logo.webp"
+
+
+CATEGORY_TREE_CACHE_KEY = "catalog:category_tree"

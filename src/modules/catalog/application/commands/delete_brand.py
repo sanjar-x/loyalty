@@ -29,6 +29,7 @@ class DeleteBrandHandler:
             if brand is None:
                 raise BrandNotFoundError(brand_id=command.brand_id)
 
+            self._uow.register_aggregate(brand)
             await self._brand_repo.delete(command.brand_id)
             await self._uow.commit()
 

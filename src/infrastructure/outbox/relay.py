@@ -10,6 +10,7 @@ Outbox Relay: читает необработанные события из та
 from __future__ import annotations
 
 import uuid
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import structlog
@@ -22,7 +23,7 @@ logger = structlog.get_logger(__name__)
 # Реестр обработчиков событий: event_type → async callable(payload)
 # Relay вызывает соответствующий handler для публикации в брокер.
 # ---------------------------------------------------------------------------
-EventHandler = Any  # Callable[[dict, str | None], Awaitable[None]]
+EventHandler = Callable[[dict[str, Any], str | None], Awaitable[None]]
 _EVENT_HANDLERS: dict[str, EventHandler] = {}
 
 
@@ -78,13 +79,12 @@ async def relay_outbox_batch(
     Возвращает количество успешно обработанных событий.
     """
     # 1. Получаем список ID для обработки (короткая транзакция)
-    async with session_factory() as session:
-        async with session.begin():
-            result = await session.execute(
-                _FETCH_UNPROCESSED_SQL,
-                {"batch_size": batch_size},
-            )
-            rows = result.fetchall()
+    async with session_factory() as session, session.begin():
+        result = await session.execute(
+            _FETCH_UNPROCESSED_SQL,
+            {"batch_size": batch_size},
+        )
+        rows = result.fetchall()
 
     if not rows:
         return 0
@@ -96,9 +96,7 @@ async def relay_outbox_batch(
     for row in rows:
         event_id = row.id
         event_type = row.event_type
-        correlation_id = getattr(row, "correlation_id", None) or (
-            "relay-" + uuid.uuid4().hex[:12]
-        )
+        correlation_id = getattr(row, "correlation_id", None) or ("relay-" + uuid.uuid4().hex[:12])
 
         structlog.contextvars.bind_contextvars(
             correlation_id=correlation_id,
@@ -107,44 +105,43 @@ async def relay_outbox_batch(
         )
 
         try:
-            async with session_factory() as session:
-                async with session.begin():
-                    # Re-lock: проверяем, что событие ещё не обработано
-                    locked = await session.execute(
-                        _LOCK_SINGLE_EVENT_SQL,
-                        {"event_id": event_id},
+            async with session_factory() as session, session.begin():
+                # Re-lock: проверяем, что событие ещё не обработано
+                locked = await session.execute(
+                    _LOCK_SINGLE_EVENT_SQL,
+                    {"event_id": event_id},
+                )
+                event = locked.fetchone()
+                if event is None:
+                    # Событие уже обработано другим воркером
+                    continue
+
+                handler = _EVENT_HANDLERS.get(event.event_type)
+                if handler is None:
+                    logger.warning(
+                        "Outbox Relay: неизвестный event_type, пропуск",
+                        event_type=event.event_type,
+                        event_id=str(event_id),
                     )
-                    event = locked.fetchone()
-                    if event is None:
-                        # Событие уже обработано другим воркером
-                        continue
-
-                    handler = _EVENT_HANDLERS.get(event.event_type)
-                    if handler is None:
-                        logger.warning(
-                            "Outbox Relay: неизвестный event_type, пропуск",
-                            event_type=event.event_type,
-                            event_id=str(event_id),
-                        )
-                        await session.execute(
-                            _MARK_SINGLE_PROCESSED_SQL,
-                            {"event_id": event_id},
-                        )
-                        processed += 1
-                        continue
-
-                    await handler(event.payload, correlation_id=correlation_id)
                     await session.execute(
                         _MARK_SINGLE_PROCESSED_SQL,
                         {"event_id": event_id},
                     )
                     processed += 1
+                    continue
 
-                    logger.debug(
-                        "Outbox Relay: событие отправлено в брокер",
-                        event_type=event.event_type,
-                        event_id=str(event_id),
-                    )
+                await handler(event.payload, correlation_id=correlation_id)
+                await session.execute(
+                    _MARK_SINGLE_PROCESSED_SQL,
+                    {"event_id": event_id},
+                )
+                processed += 1
+
+                logger.debug(
+                    "Outbox Relay: событие отправлено в брокер",
+                    event_type=event.event_type,
+                    event_id=str(event_id),
+                )
         except Exception:
             failed += 1
             logger.exception(
@@ -181,10 +178,9 @@ async def prune_processed_messages(
     Удаляет обработанные Outbox-записи старше 7 дней.
     Предотвращает разрастание таблицы и замедление vacuum в PostgreSQL.
     """
-    async with session_factory() as session:
-        async with session.begin():
-            result = await session.execute(_PRUNE_SQL)
-            deleted = result.rowcount
+    async with session_factory() as session, session.begin():
+        result = await session.execute(_PRUNE_SQL)
+        deleted = result.rowcount
 
     if deleted:
         logger.info("Outbox Pruning: удалено старых записей", count=deleted)

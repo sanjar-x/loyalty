@@ -8,7 +8,7 @@ and persisted atomically with business data via Transactional Outbox.
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.shared.interfaces.entities import DomainEvent
 
@@ -27,9 +27,11 @@ class IdentityRegisteredEvent(DomainEvent):
     event_type: str = "IdentityRegisteredEvent"
 
     def __post_init__(self) -> None:
+        if self.identity_id is None:
+            raise ValueError("identity_id is required")
         if self.registered_at is None:
-            self.registered_at = datetime.now(timezone.utc)
-        if self.identity_id is not None and not self.aggregate_id:
+            self.registered_at = datetime.now(UTC)
+        if not self.aggregate_id:
             self.aggregate_id = str(self.identity_id)
 
 
@@ -47,9 +49,11 @@ class IdentityDeactivatedEvent(DomainEvent):
     event_type: str = "IdentityDeactivatedEvent"
 
     def __post_init__(self) -> None:
+        if self.identity_id is None:
+            raise ValueError("identity_id is required")
         if self.deactivated_at is None:
-            self.deactivated_at = datetime.now(timezone.utc)
-        if self.identity_id is not None and not self.aggregate_id:
+            self.deactivated_at = datetime.now(UTC)
+        if not self.aggregate_id:
             self.aggregate_id = str(self.identity_id)
 
 
@@ -67,5 +71,9 @@ class RoleAssignmentChangedEvent(DomainEvent):
     event_type: str = "RoleAssignmentChangedEvent"
 
     def __post_init__(self) -> None:
-        if self.identity_id is not None and not self.aggregate_id:
+        if self.identity_id is None:
+            raise ValueError("identity_id is required")
+        if self.role_id is None:
+            raise ValueError("role_id is required")
+        if not self.aggregate_id:
             self.aggregate_id = str(self.identity_id)

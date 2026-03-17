@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from src.modules.catalog.domain.entities import Category
 from src.modules.identity.domain.entities import Role, Session
@@ -80,7 +80,7 @@ class SessionBuilder:
             expires_days=self._expires_days,
         )
         if self._expired:
-            session.expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
+            session.expires_at = datetime.now(UTC) - timedelta(hours=1)
         if self._is_revoked:
             session.revoke()
         return session, self._refresh_token
@@ -108,14 +108,9 @@ class CategoryBuilder:
         return self
 
     def build(self) -> Category:
-        slug = (
-            self._slug
-            or f"{self._name.lower().replace(' ', '-')}-{uuid.uuid4().hex[:6]}"
-        )
+        slug = self._slug or f"{self._name.lower().replace(' ', '-')}-{uuid.uuid4().hex[:6]}"
         if self._parent is None:
-            return Category.create_root(
-                name=self._name, slug=slug, sort_order=self._sort_order
-            )
+            return Category.create_root(name=self._name, slug=slug, sort_order=self._sort_order)
         return Category.create_child(
             name=self._name, slug=slug, parent=self._parent, sort_order=self._sort_order
         )

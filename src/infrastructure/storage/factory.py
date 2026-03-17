@@ -1,6 +1,6 @@
 # src\infrastructure\storage\factory.py
 from collections.abc import AsyncGenerator
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from aiobotocore.client import AioBaseClient
@@ -20,7 +20,7 @@ class S3ClientFactory:
         access_key: str,
         secret_key: str,
         region: str,
-        endpoint_url: Optional[str] = None,
+        endpoint_url: str | None = None,
     ) -> None:
         self._access_key: str = access_key
         self._secret_key: str = secret_key
@@ -28,7 +28,7 @@ class S3ClientFactory:
         self._endpoint_url: str | None = endpoint_url
         self._session: AioSession = get_session()
 
-    async def create_client(self) -> AsyncGenerator[AioBaseClient, None]:
+    async def create_client(self) -> AsyncGenerator[AioBaseClient]:
         config = AioConfig(
             max_pool_connections=1,
             connect_timeout=5.0,
@@ -47,9 +47,7 @@ class S3ClientFactory:
 
         try:
             async with client_ctx as client:
-                logger.debug(
-                    "S3 клиент (ephemeral) успешно создан для текущего контекста."
-                )
+                logger.debug("S3 клиент (ephemeral) успешно создан для текущего контекста.")
                 yield client
 
         except Exception as e:

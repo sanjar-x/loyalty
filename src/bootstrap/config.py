@@ -46,11 +46,14 @@ class Settings(BaseSettings):
 
     @computed_field
     @property
-    def database_url(self) -> str | URL:
-        password: str = self.PGPASSWORD.get_secret_value()
-        return (
-            f"postgresql+asyncpg://{self.PGUSER}:{password}"
-            f"@{self.PGHOST}:{self.PGPORT}/{self.PGDATABASE}"
+    def database_url(self) -> URL:
+        return URL.create(
+            drivername="postgresql+asyncpg",
+            username=self.PGUSER,
+            password=self.PGPASSWORD.get_secret_value(),
+            host=self.PGHOST,
+            port=self.PGPORT,
+            database=self.PGDATABASE,
         )
 
     REDISHOST: str
@@ -60,8 +63,8 @@ class Settings(BaseSettings):
     REDISDATABASE: int = 0
 
     S3_ENDPOINT_URL: str
-    S3_ACCESS_KEY: str
-    S3_SECRET_KEY: str
+    S3_ACCESS_KEY: SecretStr
+    S3_SECRET_KEY: SecretStr
     S3_REGION: str
     S3_BUCKET_NAME: str
     S3_PUBLIC_BASE_URL: str

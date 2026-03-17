@@ -55,9 +55,7 @@ class RoleRepository(IRoleRepository):
         return [self._to_domain(orm) for orm in result.scalars().all()]
 
     async def get_identity_role_ids(self, identity_id: uuid.UUID) -> list[uuid.UUID]:
-        stmt = select(IdentityRoleModel.role_id).where(
-            IdentityRoleModel.identity_id == identity_id
-        )
+        stmt = select(IdentityRoleModel.role_id).where(IdentityRoleModel.identity_id == identity_id)
         result = await self._session.execute(stmt)
         return [row[0] for row in result.all()]
 

@@ -27,6 +27,27 @@ class CategoryNode(BaseModel):
     children: list[CategoryNode] = []
 
 
+class CategoryReadModel(BaseModel):
+    """Read model for a single category (flat, no children)."""
+
+    id: uuid.UUID
+    name: str
+    slug: str
+    full_slug: str
+    level: int
+    sort_order: int
+    parent_id: uuid.UUID | None = None
+
+
+class CategoryListReadModel(BaseModel):
+    """Paginated category list read model."""
+
+    items: list[CategoryReadModel]
+    total: int
+    offset: int
+    limit: int
+
+
 class BrandReadModel(BaseModel):
     """Read model for a single brand."""
 

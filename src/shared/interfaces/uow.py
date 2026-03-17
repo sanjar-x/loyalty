@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 class IUnitOfWork(ABC):
     @abstractmethod
-    async def __aenter__(self) -> "IUnitOfWork":
+    async def __aenter__(self) -> IUnitOfWork:
         pass
 
     @abstractmethod

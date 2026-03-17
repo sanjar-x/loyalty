@@ -3,10 +3,8 @@ import uuid
 from dataclasses import dataclass
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.modules.identity.infrastructure.models import IdentityRoleModel, RoleModel
 
 
 class IdentityRoleInfo(BaseModel):
@@ -20,23 +18,28 @@ class GetIdentityRolesQuery:
     identity_id: uuid.UUID
 
 
+_IDENTITY_ROLES_SQL = text(
+    "SELECT r.id AS role_id, r.name AS role_name, r.is_system "
+    "FROM roles r "
+    "JOIN identity_roles ir ON ir.role_id = r.id "
+    "WHERE ir.identity_id = :identity_id "
+    "ORDER BY r.name"
+)
+
+
 class GetIdentityRolesHandler:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def handle(self, query: GetIdentityRolesQuery) -> list[IdentityRoleInfo]:
-        stmt = (
-            select(RoleModel)
-            .join(IdentityRoleModel, IdentityRoleModel.role_id == RoleModel.id)
-            .where(IdentityRoleModel.identity_id == query.identity_id)
-            .order_by(RoleModel.name)
+        result = await self._session.execute(
+            _IDENTITY_ROLES_SQL, {"identity_id": query.identity_id}
         )
-        result = await self._session.execute(stmt)
         return [
             IdentityRoleInfo(
-                role_id=role.id,
-                role_name=role.name,
-                is_system=role.is_system,
+                role_id=row["role_id"],
+                role_name=row["role_name"],
+                is_system=row["is_system"],
             )
-            for role in result.scalars().all()
+            for row in result.mappings().all()
         ]

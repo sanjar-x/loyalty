@@ -63,9 +63,7 @@ class CreateBrandHandler:
             if await self._brand_repo.check_slug_exists(command.slug):
                 raise BrandSlugConflictError(slug=command.slug)
 
-            brand = Brand.create(
-                name=command.name, slug=command.slug, brand_id=brand_id
-            )
+            brand = Brand.create(name=command.name, slug=command.slug, brand_id=brand_id)
             brand = await self._brand_repo.add(brand)
 
             if command.logo:

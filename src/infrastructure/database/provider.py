@@ -20,7 +20,7 @@ logger = structlog.get_logger(__name__)
 
 DBA_CONNECT_ARGS = {
     "server_settings": {
-        "application_name": "loyality",
+        "application_name": "enterprise_api",
         "statement_timeout": "30000",
         "idle_in_transaction_session_timeout": "60000",
         "timezone": "UTC",
@@ -60,9 +60,7 @@ class DatabaseProvider(Provider):
         )
 
     @provide(scope=Scope.REQUEST)
-    async def session(
-        self, maker: async_sessionmaker[AsyncSession]
-    ) -> AsyncIterable[AsyncSession]:
+    async def session(self, maker: async_sessionmaker[AsyncSession]) -> AsyncIterable[AsyncSession]:
         async with maker() as session:
             yield session
 

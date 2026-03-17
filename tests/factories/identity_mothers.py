@@ -2,7 +2,7 @@
 """Object Mothers for Identity module domain entities."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.modules.identity.domain.entities import (
     Identity,
@@ -47,8 +47,8 @@ class IdentityMothers:
             identity_id=identity.id,
             email=email,
             password_hash=password_hash,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         return identity, creds
 
@@ -103,7 +103,7 @@ class SessionMothers:
             role_ids=[],
             expires_days=30,
         )
-        session.expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
+        session.expires_at = datetime.now(UTC) - timedelta(hours=1)
         return session
 
     @staticmethod

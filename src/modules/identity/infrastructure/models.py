@@ -54,16 +54,16 @@ class IdentityModel(Base):
         nullable=False,
     )
 
-    credentials: Mapped["LocalCredentialsModel | None"] = relationship(
+    credentials: Mapped[LocalCredentialsModel | None] = relationship(
         back_populates="identity",
         uselist=False,
         cascade="all, delete-orphan",
     )
-    sessions: Mapped[list["SessionModel"]] = relationship(
+    sessions: Mapped[list[SessionModel]] = relationship(
         back_populates="identity",
         cascade="all, delete-orphan",
     )
-    linked_accounts: Mapped[list["LinkedAccountModel"]] = relationship(
+    linked_accounts: Mapped[list[LinkedAccountModel]] = relationship(
         back_populates="identity",
         cascade="all, delete-orphan",
     )
@@ -102,15 +102,13 @@ class LocalCredentialsModel(Base):
         nullable=False,
     )
 
-    identity: Mapped["IdentityModel"] = relationship(back_populates="credentials")
+    identity: Mapped[IdentityModel] = relationship(back_populates="credentials")
 
 
 class LinkedAccountModel(Base):
     __tablename__ = "linked_accounts"
     __table_args__ = (
-        UniqueConstraint(
-            "provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"
-        ),
+        UniqueConstraint("provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"),
         {"comment": "External OIDC provider accounts linked to identities"},
     )
 
@@ -129,7 +127,7 @@ class LinkedAccountModel(Base):
     provider_sub_id: Mapped[str] = mapped_column(String(255), nullable=False)
     provider_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
 
-    identity: Mapped["IdentityModel"] = relationship(back_populates="linked_accounts")
+    identity: Mapped[IdentityModel] = relationship(back_populates="linked_accounts")
 
 
 class RoleModel(Base):
@@ -161,7 +159,7 @@ class RoleModel(Base):
         nullable=False,
     )
 
-    permissions: Mapped[list["PermissionModel"]] = relationship(
+    permissions: Mapped[list[PermissionModel]] = relationship(
         secondary="role_permissions",
         back_populates="roles",
     )
@@ -191,7 +189,7 @@ class PermissionModel(Base):
         nullable=False,
     )
 
-    roles: Mapped[list["RoleModel"]] = relationship(
+    roles: Mapped[list[RoleModel]] = relationship(
         secondary="role_permissions",
         back_populates="permissions",
     )
@@ -308,8 +306,8 @@ class SessionModel(Base):
         comment="Refresh token expiry (created_at + REFRESH_TOKEN_EXPIRE_DAYS)",
     )
 
-    identity: Mapped["IdentityModel"] = relationship(back_populates="sessions")
-    activated_roles: Mapped[list["SessionRoleModel"]] = relationship(
+    identity: Mapped[IdentityModel] = relationship(back_populates="sessions")
+    activated_roles: Mapped[list[SessionRoleModel]] = relationship(
         cascade="all, delete-orphan",
     )
 

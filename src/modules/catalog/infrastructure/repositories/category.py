@@ -1,7 +1,7 @@
 # src/modules/catalog/infrastructure/repositories/category.py
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 
 from src.modules.catalog.domain.entities import Category as DomainCategory
 from src.modules.catalog.domain.interfaces import ICategoryRepository
@@ -25,9 +25,7 @@ class CategoryRepository(
             sort_order=orm.sort_order,
         )
 
-    def _to_orm(
-        self, entity: DomainCategory, orm: OrmCategory | None = None
-    ) -> OrmCategory:
+    def _to_orm(self, entity: DomainCategory, orm: OrmCategory | None = None) -> OrmCategory:
         if orm is None:
             orm = OrmCategory()
         orm.id = entity.id
@@ -40,9 +38,7 @@ class CategoryRepository(
         return orm
 
     async def get_all_ordered(self) -> list[DomainCategory]:
-        statement = select(self.model).order_by(
-            self.model.level.asc(), self.model.sort_order.asc()
-        )
+        statement = select(self.model).order_by(self.model.level.asc(), self.model.sort_order.asc())
         result = await self._session.execute(statement)
         orms = result.scalars().all()
         return [self._to_domain(orm) for orm in orms]
@@ -55,3 +51,44 @@ class CategoryRepository(
         )
         result = await self._session.execute(statement)
         return result.scalar()
+
+    async def get_for_update(self, id: uuid.UUID) -> DomainCategory | None:
+        statement = select(self.model).where(self.model.id == id).with_for_update()
+        result = await self._session.execute(statement)
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
+    async def check_slug_exists_excluding(
+        self, slug: str, parent_id: uuid.UUID | None, exclude_id: uuid.UUID
+    ) -> bool:
+        statement = select(
+            select(self.model)
+            .where(
+                self.model.slug == slug,
+                self.model.parent_id == parent_id,
+                self.model.id != exclude_id,
+            )
+            .exists()
+        )
+        result = await self._session.execute(statement)
+        return bool(result.scalar())
+
+    async def has_children(self, id: uuid.UUID) -> bool:
+        statement = select(
+            select(self.model.id).where(self.model.parent_id == id).limit(1).exists()
+        )
+        result = await self._session.execute(statement)
+        return bool(result.scalar())
+
+    async def update_descendants_full_slug(self, old_prefix: str, new_prefix: str) -> None:
+        statement = (
+            update(self.model)
+            .where(self.model.full_slug.like(f"{old_prefix}/%"))
+            .values(
+                full_slug=func.concat(
+                    new_prefix,
+                    func.substr(self.model.full_slug, len(old_prefix) + 1),
+                )
+            )
+        )
+        await self._session.execute(statement)

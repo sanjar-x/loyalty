@@ -55,13 +55,9 @@ async def test_register_raises_conflict_on_duplicate_email(
 ):
     async with app_container() as request:
         handler = await request.get(RegisterHandler)
-        await handler.handle(
-            RegisterCommand(email="dupe@example.com", password="S3cure!Pass")
-        )
+        await handler.handle(RegisterCommand(email="dupe@example.com", password="S3cure!Pass"))
 
     with pytest.raises(IdentityAlreadyExistsError):
         async with app_container() as request:
             handler = await request.get(RegisterHandler)
-            await handler.handle(
-                RegisterCommand(email="dupe@example.com", password="S3cure!Pass")
-            )
+            await handler.handle(RegisterCommand(email="dupe@example.com", password="S3cure!Pass"))

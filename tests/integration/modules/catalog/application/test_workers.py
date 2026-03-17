@@ -29,9 +29,7 @@ def _create_test_png() -> bytes:
     return buf.getvalue()
 
 
-async def test_process_brand_logo_task(
-    app_container: AsyncContainer, db_session: AsyncSession
-):
+async def test_process_brand_logo_task(app_container: AsyncContainer, db_session: AsyncSession):
     # Arrange — resolve processor and blob storage from the DI container
     async with app_container() as request_container:
         blob_storage = await request_container.get(IBlobStorage)

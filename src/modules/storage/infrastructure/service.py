@@ -39,9 +39,7 @@ class S3StorageService(IBlobStorage):
         self, object_name: str, chunk_size: int = 65536
     ) -> AsyncIterator[bytes]:
         try:
-            response = await self._client.get_object(
-                Bucket=self._bucket, Key=object_name
-            )
+            response = await self._client.get_object(Bucket=self._bucket, Key=object_name)
             stream = response["Body"]
 
             while True:
@@ -60,9 +58,7 @@ class S3StorageService(IBlobStorage):
                 ExpiresIn=expiration,
             )
         except ClientError as e:
-            logger.error(
-                "s3_presigned_url_error", object_name=object_name, error=str(e)
-            )
+            logger.error("s3_presigned_url_error", object_name=object_name, error=str(e))
             raise ServiceUnavailableError(
                 message="Не удалось сгенерировать ссылку на файл.",
                 details={"key": object_name},
@@ -131,9 +127,7 @@ class S3StorageService(IBlobStorage):
 
         except Exception as e:
             # В случае ошибки - обязательно очищаем "мусорные" куски с сервера S3
-            logger.error(
-                "s3_upload_stream_error", object_name=object_name, error=str(e)
-            )
+            logger.error("s3_upload_stream_error", object_name=object_name, error=str(e))
             if upload_id:
                 try:
                     await self._client.abort_multipart_upload(
@@ -152,17 +146,13 @@ class S3StorageService(IBlobStorage):
                 details={"key": object_name, "error": str(e)},
             )
 
-    async def get_presigned_upload_url(
-        self, object_name: str, expiration: int = 3600
-    ) -> dict:
+    async def get_presigned_upload_url(self, object_name: str, expiration: int = 3600) -> dict:
         try:
             return await self._client.generate_presigned_post(
                 Bucket=self._bucket, Key=object_name, ExpiresIn=expiration
             )
         except ClientError as e:
-            logger.error(
-                "s3_presigned_upload_url_error", object_name=object_name, error=str(e)
-            )
+            logger.error("s3_presigned_upload_url_error", object_name=object_name, error=str(e))
             raise ServiceUnavailableError(
                 message="Не удалось сгенерировать ссылку для загрузки файла.",
                 details={"key": object_name},
@@ -182,9 +172,7 @@ class S3StorageService(IBlobStorage):
                 ExpiresIn=expiration,
             )
         except ClientError as e:
-            logger.error(
-                "s3_presigned_put_url_error", object_name=object_name, error=str(e)
-            )
+            logger.error("s3_presigned_put_url_error", object_name=object_name, error=str(e))
             raise ServiceUnavailableError(
                 message="Не удалось сгенерировать прямую ссылку для загрузки файла.",
                 details={"key": object_name},
@@ -199,18 +187,12 @@ class S3StorageService(IBlobStorage):
             if error_code in ("404", "NoSuchKey", "NotFound"):
                 return False
 
-            logger.error(
-                "s3_object_exists_error", object_name=object_name, error=str(e)
-            )
-            raise ServiceUnavailableError(
-                message="Ошибка при проверке существования файла."
-            )
+            logger.error("s3_object_exists_error", object_name=object_name, error=str(e))
+            raise ServiceUnavailableError(message="Ошибка при проверке существования файла.")
 
     async def get_object_metadata(self, object_name: str) -> dict[str, Any]:
         try:
-            response = await self._client.head_object(
-                Bucket=self._bucket, Key=object_name
-            )
+            response = await self._client.head_object(Bucket=self._bucket, Key=object_name)
             return {
                 "content_length": response.get("ContentLength"),
                 "content_type": response.get("ContentType"),
@@ -266,9 +248,7 @@ class S3StorageService(IBlobStorage):
         try:
             await self._client.delete_object(Bucket=self._bucket, Key=object_name)
         except ClientError as e:
-            logger.error(
-                "s3_delete_object_error", object_name=object_name, error=str(e)
-            )
+            logger.error("s3_delete_object_error", object_name=object_name, error=str(e))
             raise ServiceUnavailableError(
                 message="Не удалось удалить файл.", details={"key": object_name}
             )
@@ -298,9 +278,7 @@ class S3StorageService(IBlobStorage):
             return failed_keys
         except ClientError as e:
             logger.error("s3_batch_delete_error", count=len(object_names), error=str(e))
-            raise ServiceUnavailableError(
-                message="Ошибка при пакетном удалении файлов."
-            )
+            raise ServiceUnavailableError(message="Ошибка при пакетном удалении файлов.")
 
     async def copy_object(self, source_name: str, dest_name: str) -> None:
         try:

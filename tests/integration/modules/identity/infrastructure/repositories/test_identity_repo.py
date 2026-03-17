@@ -14,9 +14,7 @@ from src.modules.identity.domain.value_objects import IdentityType
 from src.modules.identity.infrastructure.models import IdentityModel
 
 
-async def test_add_identity_persists_to_db(
-    app_container: AsyncContainer, db_session: AsyncSession
-):
+async def test_add_identity_persists_to_db(app_container: AsyncContainer, db_session: AsyncSession):
     async with app_container() as request:
         repo = await request.get(IIdentityRepository)
         identity = Identity.register(IdentityType.LOCAL)
@@ -50,9 +48,7 @@ async def test_email_exists_returns_true_for_existing(
     """Register via handler to get credentials, then check email_exists."""
     async with app_container() as request:
         handler = await request.get(RegisterHandler)
-        await handler.handle(
-            RegisterCommand(email="exists@example.com", password="S3cure!Pass")
-        )
+        await handler.handle(RegisterCommand(email="exists@example.com", password="S3cure!Pass"))
 
     async with app_container() as request:
         repo = await request.get(IIdentityRepository)

@@ -16,8 +16,8 @@ from src.modules.identity.infrastructure.repositories.session_repository import 
 
 __all__ = [
     "IdentityRepository",
-    "SessionRepository",
-    "RoleRepository",
-    "PermissionRepository",
     "LinkedAccountRepository",
+    "PermissionRepository",
+    "RoleRepository",
+    "SessionRepository",
 ]

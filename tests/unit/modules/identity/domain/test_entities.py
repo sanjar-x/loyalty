@@ -1,6 +1,6 @@
 import hashlib
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -78,8 +78,8 @@ class TestLocalCredentials:
             identity_id=uuid.uuid4(),
             email="user@example.com",
             password_hash="$argon2id$hashed",
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         assert creds.email == "user@example.com"
 
@@ -134,7 +134,7 @@ class TestSession:
             role_ids=[],
             expires_days=30,
         )
-        session.expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
+        session.expires_at = datetime.now(UTC) - timedelta(hours=1)
         assert session.is_expired() is True
 
     def test_rotate_refresh_token(self):
@@ -186,7 +186,7 @@ class TestSession:
             role_ids=[],
             expires_days=30,
         )
-        session.expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
+        session.expires_at = datetime.now(UTC) - timedelta(hours=1)
         with pytest.raises(SessionExpiredError):
             session.ensure_valid()
 

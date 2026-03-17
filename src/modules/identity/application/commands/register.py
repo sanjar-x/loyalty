@@ -1,7 +1,7 @@
 # src/modules/identity/application/commands/register.py
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.modules.identity.domain.entities import Identity, LocalCredentials
 from src.modules.identity.domain.events import IdentityRegisteredEvent
@@ -43,7 +43,7 @@ class RegisterHandler:
         async with self._uow:
             # 1. Check email uniqueness
             if await self._identity_repo.email_exists(command.email):
-                raise IdentityAlreadyExistsError(email=command.email)
+                raise IdentityAlreadyExistsError()
 
             # 2. Create identity
             identity = Identity.register(IdentityType.LOCAL)
@@ -52,7 +52,7 @@ class RegisterHandler:
             password_hash = self._hasher.hash(command.password)
 
             # 4. Create credentials
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             credentials = LocalCredentials(
                 identity_id=identity.id,
                 email=command.email,

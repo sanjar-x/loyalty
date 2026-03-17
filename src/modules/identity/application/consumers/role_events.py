@@ -11,14 +11,17 @@ import uuid
 
 import structlog
 from dishka.integrations.taskiq import FromDishka, inject
-from sqlalchemy import select
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.bootstrap.broker import broker
-from src.infrastructure.cache.redis import RedisService
-from src.modules.identity.infrastructure.models import SessionModel
+from src.shared.interfaces.cache import ICacheService
 
 logger = structlog.get_logger(__name__)
+
+_ACTIVE_SESSIONS_SQL = text(
+    "SELECT id FROM sessions WHERE identity_id = :identity_id AND is_revoked = false"
+)
 
 
 @broker.task(
@@ -32,25 +35,19 @@ logger = structlog.get_logger(__name__)
 @inject
 async def invalidate_permissions_cache_on_role_change(
     identity_id: str,
-    redis: FromDishka[RedisService],
+    cache: FromDishka[ICacheService],
     session_factory: FromDishka[async_sessionmaker[AsyncSession]],
 ) -> dict:
     identity_uuid = uuid.UUID(identity_id)
 
     async with session_factory() as session:
-        # Find all active (non-revoked, non-expired) sessions for this identity
-        stmt = select(SessionModel.id).where(
-            SessionModel.identity_id == identity_uuid,
-            SessionModel.is_revoked.is_(False),
-        )
-        result = await session.execute(stmt)
+        result = await session.execute(_ACTIVE_SESSIONS_SQL, {"identity_id": identity_uuid})
         session_ids = [row[0] for row in result.all()]
 
-    # Delete permission cache keys
     deleted_count = 0
     for sid in session_ids:
         cache_key = f"perms:{sid}"
-        await redis.delete(cache_key)
+        await cache.delete(cache_key)
         deleted_count += 1
 
     logger.info(

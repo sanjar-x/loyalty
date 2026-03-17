@@ -1,7 +1,7 @@
 # src/shared/interfaces/storage.py
 import uuid
 from dataclasses import dataclass
-from typing import Any, Dict, Protocol
+from typing import Any, Protocol
 
 
 @dataclass(frozen=True)
@@ -52,7 +52,7 @@ class IStorageFacade(Protocol):
         """
         ...
 
-    async def verify_upload(self, file_id: uuid.UUID) -> Dict[str, Any]:
+    async def verify_upload(self, file_id: uuid.UUID) -> dict[str, Any]:
         """
         Проверяет наличие файла в S3 по его внутреннему ID.
         """
@@ -85,7 +85,7 @@ class IStorageFacade(Protocol):
 
     async def verify_module_upload(
         self, module: str, entity_id: str | uuid.UUID, object_key: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Проверяет, был ли загружен файл для конкретной сущности по точному ключу.
         Возвращает метаданные файла.

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.modules.user.domain.entities import User
 from tests.factories.user_mothers import UserMothers
@@ -13,8 +13,8 @@ class TestUser:
             "first_name": "John",
             "last_name": "Doe",
             "phone": "+1234567890",
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
+            "updated_at": datetime.now(UTC),
         }
         defaults.update(kwargs)
         return User(**defaults)  # ty:ignore[invalid-argument-type]

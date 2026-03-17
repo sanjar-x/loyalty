@@ -1,6 +1,6 @@
 # src/modules/storage/infrastructure/repository.py
 import uuid
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 import structlog
 from sqlalchemy import select, update
@@ -86,14 +86,12 @@ class StorageObjectRepository:
         orm.cache_control = storage_file.cache_control
         orm.last_modified_in_s3 = storage_file.last_modified_in_s3
 
-    async def get_by_key(self, key: uuid.UUID) -> Optional[StorageFile]:
+    async def get_by_key(self, key: uuid.UUID) -> StorageFile | None:
         """Получение метаданных по внутреннему UUID (используется другими модулями)."""
         orm = await self._session.get(StorageObject, key)
         return self._to_domain(orm) if orm else None
 
-    async def get_active_by_key(
-        self, bucket_name: str, object_key: str
-    ) -> Optional[StorageFile]:
+    async def get_active_by_key(self, bucket_name: str, object_key: str) -> StorageFile | None:
         """Получение актуальной версии файла по его S3 пути."""
         stmt = select(StorageObject).where(
             StorageObject.bucket_name == bucket_name,
@@ -104,9 +102,7 @@ class StorageObjectRepository:
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
-    async def get_all_versions(
-        self, bucket_name: str, object_key: str
-    ) -> Sequence[StorageFile]:
+    async def get_all_versions(self, bucket_name: str, object_key: str) -> Sequence[StorageFile]:
         """Получение истории всех версий конкретного файла."""
         stmt = (
             select(StorageObject)
@@ -119,9 +115,7 @@ class StorageObjectRepository:
         result = await self._session.execute(stmt)
         return [self._to_domain(orm) for orm in result.scalars().all()]
 
-    async def deactivate_previous_versions(
-        self, bucket_name: str, object_key: str
-    ) -> None:
+    async def deactivate_previous_versions(self, bucket_name: str, object_key: str) -> None:
         """
         Инвалидация старых версий перед добавлением новой.
         Критически важно вызывать перед session.flush(), чтобы не нарушить

@@ -1,6 +1,6 @@
 # src/modules/user/domain/entities.py
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from attr import dataclass
 
@@ -29,8 +29,8 @@ class User(AggregateRoot):
         cls,
         identity_id: uuid.UUID,
         profile_email: str | None = None,
-    ) -> "User":
-        now = datetime.now(timezone.utc)
+    ) -> User:
+        now = datetime.now(UTC)
         return cls(
             id=identity_id,  # Shared PK
             profile_email=profile_email,
@@ -45,7 +45,7 @@ class User(AggregateRoot):
         for field, value in kwargs.items():
             if field in _UPDATABLE_FIELDS:
                 setattr(self, field, value)
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(UTC)
 
     def anonymize(self) -> None:
         """GDPR: replace all PII with '[DELETED]'."""
@@ -53,4 +53,4 @@ class User(AggregateRoot):
         self.last_name = "[DELETED]"
         self.phone = None
         self.profile_email = None
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(UTC)

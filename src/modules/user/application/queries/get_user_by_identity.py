@@ -2,14 +2,16 @@
 import uuid
 from dataclasses import dataclass
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.modules.user.infrastructure.models import UserModel
 
 
 @dataclass(frozen=True)
 class GetUserByIdentityQuery:
     identity_id: uuid.UUID
+
+
+_GET_USER_ID_SQL = text("SELECT id FROM users WHERE id = :identity_id")
 
 
 class GetUserByIdentityHandler:
@@ -20,5 +22,6 @@ class GetUserByIdentityHandler:
 
     async def handle(self, query: GetUserByIdentityQuery) -> uuid.UUID | None:
         """Returns user_id if user exists, None otherwise."""
-        orm = await self._session.get(UserModel, query.identity_id)
-        return orm.id if orm else None
+        result = await self._session.execute(_GET_USER_ID_SQL, {"identity_id": query.identity_id})
+        row = result.mappings().first()
+        return row["id"] if row else None

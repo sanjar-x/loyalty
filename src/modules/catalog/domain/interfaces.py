@@ -44,9 +44,7 @@ class IBrandRepository(ICatalogRepository[DomainBrand]):
         pass
 
     @abstractmethod
-    async def check_slug_exists_excluding(
-        self, slug: str, exclude_id: uuid.UUID
-    ) -> bool:
+    async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
         """Check if slug is taken by another brand (excluding given ID)."""
         pass
 
@@ -61,6 +59,28 @@ class ICategoryRepository(ICatalogRepository[DomainCategory]):
 
     @abstractmethod
     async def check_slug_exists(self, slug: str, parent_id: uuid.UUID | None) -> bool:
+        pass
+
+    @abstractmethod
+    async def get_for_update(self, id: uuid.UUID) -> DomainCategory | None:
+        """Получить категорию с пессимистической блокировкой (SELECT FOR UPDATE)."""
+        pass
+
+    @abstractmethod
+    async def check_slug_exists_excluding(
+        self, slug: str, parent_id: uuid.UUID | None, exclude_id: uuid.UUID
+    ) -> bool:
+        """Check if slug is taken by another category at the same parent level."""
+        pass
+
+    @abstractmethod
+    async def has_children(self, id: uuid.UUID) -> bool:
+        """Check if category has any child categories."""
+        pass
+
+    @abstractmethod
+    async def update_descendants_full_slug(self, old_prefix: str, new_prefix: str) -> None:
+        """Bulk-update full_slug for all descendants when a parent's slug changes."""
         pass
 
 

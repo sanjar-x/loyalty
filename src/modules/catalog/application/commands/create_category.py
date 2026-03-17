@@ -1,7 +1,9 @@
 # src/modules/catalog/application/commands/create_category.py
+import contextlib
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.application.constants import CATEGORY_TREE_CACHE_KEY
 from src.modules.catalog.domain.entities import Category
 from src.modules.catalog.domain.exceptions import (
     CategoryNotFoundError,
@@ -10,8 +12,6 @@ from src.modules.catalog.domain.exceptions import (
 from src.modules.catalog.domain.interfaces import ICategoryRepository
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.uow import IUnitOfWork
-
-CACHE_KEY = "catalog:category_tree"
 
 
 @dataclass(frozen=True)
@@ -36,9 +36,7 @@ class CreateCategoryResult:
 class CreateCategoryHandler:
     """Обработчик команды. Содержит только логику создания."""
 
-    def __init__(
-        self, category_repo: ICategoryRepository, uow: IUnitOfWork, cache: ICacheService
-    ):
+    def __init__(self, category_repo: ICategoryRepository, uow: IUnitOfWork, cache: ICacheService):
         self._category_repo: ICategoryRepository = category_repo
         self._uow: IUnitOfWork = uow
         self._cache: ICacheService = cache
@@ -49,9 +47,7 @@ class CreateCategoryHandler:
                 slug=command.slug, parent_id=command.parent_id
             )
             if is_slug_taken:
-                raise CategorySlugConflictError(
-                    slug=command.slug, parent_id=command.parent_id
-                )
+                raise CategorySlugConflictError(slug=command.slug, parent_id=command.parent_id)
 
             if command.parent_id is not None:
                 parent = await self._category_repo.get(command.parent_id)
@@ -72,15 +68,18 @@ class CreateCategoryHandler:
                 )
 
             category = await self._category_repo.add(category)
+            self._uow.register_aggregate(category)
             await self._uow.commit()
-            await self._cache.delete(CACHE_KEY)
 
-            return CreateCategoryResult(
-                id=category.id,
-                name=category.name,
-                slug=category.slug,
-                full_slug=category.full_slug,
-                level=category.level,
-                sort_order=category.sort_order,
-                parent_id=category.parent_id,
-            )
+        with contextlib.suppress(Exception):
+            await self._cache.delete(CATEGORY_TREE_CACHE_KEY)
+
+        return CreateCategoryResult(
+            id=category.id,
+            name=category.name,
+            slug=category.slug,
+            full_slug=category.full_slug,
+            level=category.level,
+            sort_order=category.sort_order,
+            parent_id=category.parent_id,
+        )

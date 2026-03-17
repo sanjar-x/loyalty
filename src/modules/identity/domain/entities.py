@@ -2,7 +2,7 @@
 import hashlib
 import hmac
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from attr import dataclass
 
@@ -28,8 +28,8 @@ class Identity(AggregateRoot):
     updated_at: datetime
 
     @classmethod
-    def register(cls, identity_type: IdentityType) -> "Identity":
-        now = datetime.now(timezone.utc)
+    def register(cls, identity_type: IdentityType) -> Identity:
+        now = datetime.now(UTC)
         return cls(
             id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
             type=identity_type,
@@ -40,7 +40,7 @@ class Identity(AggregateRoot):
 
     def deactivate(self, reason: str) -> None:
         self.is_active = False
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(UTC)
         self.add_domain_event(
             IdentityDeactivatedEvent(
                 identity_id=self.id,
@@ -88,8 +88,8 @@ class Session:
         user_agent: str,
         role_ids: list[uuid.UUID],
         expires_days: int = 30,
-    ) -> "Session":
-        now = datetime.now(timezone.utc)
+    ) -> Session:
+        now = datetime.now(UTC)
         token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
         return cls(
             id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
@@ -107,7 +107,7 @@ class Session:
         self.is_revoked = True
 
     def is_expired(self) -> bool:
-        return datetime.now(timezone.utc) >= self.expires_at
+        return datetime.now(UTC) >= self.expires_at
 
     def rotate_refresh_token(self, new_token: str) -> str:
         new_hash = hashlib.sha256(new_token.encode()).hexdigest()

@@ -60,8 +60,8 @@ def create_app() -> FastAPI:
             CORSMiddleware,  # ty:ignore[invalid-argument-type]
             allow_origins=settings.CORS_ORIGINS,
             allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
         )
 
     app.add_middleware(AccessLoggerMiddleware)  # ty:ignore[invalid-argument-type]
@@ -70,7 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(router=router, prefix=settings.API_V1_STR)
 
     @app.get("/health", tags=["System"])
-    async def health_check():
+    async def health_check() -> dict[str, str]:
         return {"status": "ok", "environment": settings.ENVIRONMENT}
 
     container = create_container()

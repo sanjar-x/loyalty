@@ -1,20 +1,17 @@
 import uuid
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-from pydantic.alias_generators import to_camel
+from pydantic import ConfigDict, Field, model_validator
 
-
-class CamelModel(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+from src.shared.schemas import CamelModel
 
 
 class LogoMetadataRequest(CamelModel):
-    filename: str
-    content_type: str
+    filename: str = Field(..., max_length=255)
+    content_type: str = Field(..., pattern=r"^image/(jpeg|png|webp|gif|svg\+xml)$")
     size: int | None = None
 
 
-class CategoryCreateRequest(BaseModel):
+class CategoryCreateRequest(CamelModel):
     """Схема входящего запроса на создание категории."""
 
     name: str = Field(..., min_length=2, max_length=255, examples=["Кроссовки"])
@@ -25,20 +22,18 @@ class CategoryCreateRequest(BaseModel):
         pattern=r"^[a-z0-9-]+$",
         examples=["sneakers"],
     )
-    parent_id: uuid.UUID | None = Field(
-        None, description="ID родительской категории (опционально)"
-    )
+    parent_id: uuid.UUID | None = Field(None, description="ID родительской категории (опционально)")
     sort_order: int = Field(0, description="Порядок сортировки при выводе")
 
 
-class CategoryCreateResponse(BaseModel):
+class CategoryCreateResponse(CamelModel):
     """Схема ответа при успешном создании."""
 
     id: uuid.UUID
     message: str
 
 
-class CategoryTreeResponse(BaseModel):
+class CategoryTreeResponse(CamelModel):
     """Схема для вывода категории в дереве (рекурсивная)."""
 
     id: uuid.UUID
@@ -47,28 +42,59 @@ class CategoryTreeResponse(BaseModel):
     full_slug: str
     level: int
     sort_order: int
-    children: list["CategoryTreeResponse"]
+    children: list[CategoryTreeResponse]
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class BrandCreateRequest(BaseModel):
-    name: str = Field(..., max_length=255)
-    slug: str = Field(..., max_length=255)
+class CategoryResponse(CamelModel):
+    """Single category detail response."""
+
+    id: uuid.UUID
+    name: str
+    slug: str
+    full_slug: str
+    level: int
+    sort_order: int
+    parent_id: uuid.UUID | None = None
+
+
+class CategoryUpdateRequest(CamelModel):
+    """Partial update request — all fields optional (PATCH semantics)."""
+
+    name: str | None = Field(None, min_length=2, max_length=255)
+    slug: str | None = Field(None, min_length=3, max_length=255, pattern=r"^[a-z0-9-]+$")
+    sort_order: int | None = None
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> CategoryUpdateRequest:
+        if self.name is None and self.slug is None and self.sort_order is None:
+            raise ValueError("At least one field (name, slug, or sortOrder) must be provided")
+        return self
+
+
+class CategoryListResponse(CamelModel):
+    """Paginated category list response."""
+
+    items: list[CategoryResponse]
+    total: int
+    offset: int
+    limit: int
+
+
+class BrandCreateRequest(CamelModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$")
     logo: LogoMetadataRequest | None = None
 
 
-class BrandCreateResponse(BaseModel):
+class BrandCreateResponse(CamelModel):
     brand_id: uuid.UUID
     presigned_upload_url: str | None = None
     object_key: str | None = None
 
 
-class ConfirmLogoRequest(BaseModel):
-    pass
-
-
-class BrandResponse(BaseModel):
+class BrandResponse(CamelModel):
     """Brand detail response."""
 
     id: uuid.UUID
@@ -78,22 +104,20 @@ class BrandResponse(BaseModel):
     logo_status: str | None = None
 
 
-class BrandUpdateRequest(BaseModel):
+class BrandUpdateRequest(CamelModel):
     """Partial update request — all fields optional (PATCH semantics)."""
 
     name: str | None = Field(None, min_length=1, max_length=255)
-    slug: str | None = Field(
-        None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$"
-    )
+    slug: str | None = Field(None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$")
 
     @model_validator(mode="after")
-    def at_least_one_field(self) -> "BrandUpdateRequest":
+    def at_least_one_field(self) -> BrandUpdateRequest:
         if self.name is None and self.slug is None:
             raise ValueError("At least one field (name or slug) must be provided")
         return self
 
 
-class BrandListResponse(BaseModel):
+class BrandListResponse(CamelModel):
     """Paginated brand list response."""
 
     items: list[BrandResponse]

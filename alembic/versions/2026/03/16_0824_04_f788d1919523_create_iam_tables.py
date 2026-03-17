@@ -6,19 +6,19 @@ Create Date: 2026-03-16 08:24:04.971591
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
-from sqlalchemy import MetaData  # noqa: F401
+from sqlalchemy import MetaData
 from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "f788d1919523"
-down_revision: Union[str, Sequence[str], None] = "b7c8d9e0f1a2"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "b7c8d9e0f1a2"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -140,9 +140,7 @@ def upgrade() -> None:
             name=op.f("fk_identity_roles_role_id_roles"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint(
-            "identity_id", "role_id", name=op.f("pk_identity_roles")
-        ),
+        sa.PrimaryKeyConstraint("identity_id", "role_id", name=op.f("pk_identity_roles")),
     )
     op.create_table(
         "linked_accounts",
@@ -158,9 +156,7 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_linked_accounts")),
-        sa.UniqueConstraint(
-            "provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"
-        ),
+        sa.UniqueConstraint("provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"),
         comment="External OIDC provider accounts linked to identities",
     )
     op.create_index(
@@ -231,9 +227,7 @@ def upgrade() -> None:
             name=op.f("fk_role_hierarchy_parent_role_id_roles"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint(
-            "parent_role_id", "child_role_id", name=op.f("pk_role_hierarchy")
-        ),
+        sa.PrimaryKeyConstraint("parent_role_id", "child_role_id", name=op.f("pk_role_hierarchy")),
         comment="Role inheritance: parent inherits all child permissions via CTE",
     )
     op.create_table(
@@ -252,9 +246,7 @@ def upgrade() -> None:
             name=op.f("fk_role_permissions_role_id_roles"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint(
-            "role_id", "permission_id", name=op.f("pk_role_permissions")
-        ),
+        sa.PrimaryKeyConstraint("role_id", "permission_id", name=op.f("pk_role_permissions")),
     )
     op.create_table(
         "sessions",
@@ -278,9 +270,7 @@ def upgrade() -> None:
             nullable=True,
             comment="Client User-Agent",
         ),
-        sa.Column(
-            "is_revoked", sa.Boolean(), server_default=sa.text("false"), nullable=False
-        ),
+        sa.Column("is_revoked", sa.Boolean(), server_default=sa.text("false"), nullable=False),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -300,9 +290,7 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_sessions")),
-        sa.UniqueConstraint(
-            "refresh_token_hash", name=op.f("uq_sessions_refresh_token_hash")
-        ),
+        sa.UniqueConstraint("refresh_token_hash", name=op.f("uq_sessions_refresh_token_hash")),
         comment="Authentication sessions with refresh token rotation",
     )
     op.create_index(
@@ -325,12 +313,8 @@ def upgrade() -> None:
             nullable=True,
             comment="Display email (may differ from login email in local_credentials)",
         ),
-        sa.Column(
-            "first_name", sa.String(length=100), server_default="", nullable=False
-        ),
-        sa.Column(
-            "last_name", sa.String(length=100), server_default="", nullable=False
-        ),
+        sa.Column("first_name", sa.String(length=100), server_default="", nullable=False),
+        sa.Column("last_name", sa.String(length=100), server_default="", nullable=False),
         sa.Column("phone", sa.String(length=20), nullable=True),
         sa.Column(
             "created_at",

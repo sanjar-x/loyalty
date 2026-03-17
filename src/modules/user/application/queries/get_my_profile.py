@@ -3,10 +3,10 @@ import uuid
 from dataclasses import dataclass
 
 from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.user.domain.exceptions import UserNotFoundError
-from src.modules.user.infrastructure.models import UserModel
 
 
 class UserProfile(BaseModel):
@@ -22,19 +22,25 @@ class GetMyProfileQuery:
     user_id: uuid.UUID
 
 
+_GET_PROFILE_SQL = text(
+    "SELECT id, profile_email, first_name, last_name, phone FROM users WHERE id = :user_id"
+)
+
+
 class GetMyProfileHandler:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def handle(self, query: GetMyProfileQuery) -> UserProfile:
-        orm = await self._session.get(UserModel, query.user_id)
-        if orm is None:
+        result = await self._session.execute(_GET_PROFILE_SQL, {"user_id": query.user_id})
+        row = result.mappings().first()
+        if row is None:
             raise UserNotFoundError(query.user_id)
 
         return UserProfile(
-            id=orm.id,
-            profile_email=orm.profile_email,
-            first_name=orm.first_name,
-            last_name=orm.last_name,
-            phone=orm.phone,
+            id=row["id"],
+            profile_email=row["profile_email"],
+            first_name=row["first_name"],
+            last_name=row["last_name"],
+            phone=row["phone"],
         )

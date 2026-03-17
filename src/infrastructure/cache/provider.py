@@ -30,7 +30,8 @@ class CacheProvider(Provider):
         client: Redis[bytes] = redis.Redis(connection_pool=pool)
 
         logger.info(
-            f"Соединение с Redis успешно установлено (Ping {await client.ping()})"
+            "Redis connection established",
+            ping=await client.ping(),
         )
 
         yield client

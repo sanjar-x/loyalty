@@ -41,9 +41,7 @@ async def test_add_session_persists_with_hashed_token(
     assert result.identity_id == identity.id
 
 
-async def test_revoke_all_for_identity(
-    app_container: AsyncContainer, db_session: AsyncSession
-):
+async def test_revoke_all_for_identity(app_container: AsyncContainer, db_session: AsyncSession):
     async with app_container() as request:
         identity_repo = await request.get(IIdentityRepository)
         session_repo = await request.get(ISessionRepository)

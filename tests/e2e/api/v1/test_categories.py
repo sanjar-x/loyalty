@@ -5,9 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 pytestmark = pytest.mark.asyncio
 
 
-async def test_create_category_e2e_success(
-    async_client: AsyncClient, db_session: AsyncSession
-):
+async def test_create_category_e2e_success(async_client: AsyncClient, db_session: AsyncSession):
     payload = {"name": "Computers", "slug": "computers", "parent_id": None}
     response = await async_client.post("/api/v1/catalog/categories", json=payload)
 

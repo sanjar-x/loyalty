@@ -51,9 +51,7 @@ async def test_category_repository_check_slug_exists(db_session: AsyncSession):
 
     # Act
     exists_same_level = await repository.check_slug_exists(slug="books", parent_id=None)
-    exists_other_level = await repository.check_slug_exists(
-        slug="books", parent_id=uuid.uuid4()
-    )
+    exists_other_level = await repository.check_slug_exists(slug="books", parent_id=uuid.uuid4())
     not_exists = await repository.check_slug_exists(slug="magazines", parent_id=None)
 
     # Assert

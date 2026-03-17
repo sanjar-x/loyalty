@@ -21,11 +21,10 @@ class InvalidCredentialsError(UnauthorizedError):
 class IdentityAlreadyExistsError(ConflictError):
     """Email already registered."""
 
-    def __init__(self, email: str) -> None:
+    def __init__(self) -> None:
         super().__init__(
             message="Email already registered",
             error_code="IDENTITY_ALREADY_EXISTS",
-            details={"email": email},
         )
 
 

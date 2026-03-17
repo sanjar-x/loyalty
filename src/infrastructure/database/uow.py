@@ -23,7 +23,7 @@ class UnitOfWork(IUnitOfWork):
         self._session: AsyncSession = session
         self._aggregates: list[AggregateRoot] = []
 
-    async def __aenter__(self) -> "UnitOfWork":
+    async def __aenter__(self) -> UnitOfWork:
         self._aggregates.clear()
         return self
 

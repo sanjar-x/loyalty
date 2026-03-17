@@ -12,16 +12,12 @@ class BrandMothers:
     @staticmethod
     def without_logo() -> Brand:
         """Brand with no logo — simplest valid state."""
-        return Brand.create(
-            name="Test Brand", slug=f"test-brand-{uuid.uuid4().hex[:6]}"
-        )
+        return Brand.create(name="Test Brand", slug=f"test-brand-{uuid.uuid4().hex[:6]}")
 
     @staticmethod
     def with_pending_logo() -> Brand:
         """Brand with logo in PENDING_UPLOAD state."""
-        brand = Brand.create(
-            name="Logo Brand", slug=f"logo-brand-{uuid.uuid4().hex[:6]}"
-        )
+        brand = Brand.create(name="Logo Brand", slug=f"logo-brand-{uuid.uuid4().hex[:6]}")
         brand.init_logo_upload(
             object_key=f"raw_uploads/catalog/brands/{brand.id}/logo_raw",
             content_type="image/png",

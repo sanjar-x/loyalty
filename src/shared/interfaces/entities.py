@@ -1,7 +1,7 @@
 # src/shared/interfaces/entities.py
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Protocol
 
 
@@ -29,12 +29,17 @@ class DomainEvent:
     """
 
     event_id: uuid.UUID = field(default_factory=uuid.uuid4)
-    occurred_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    occurred_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     # Подклассы ОБЯЗАНЫ переопределить эти поля
     aggregate_type: str = ""
     aggregate_id: str = ""
     event_type: str = ""
+
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        super().__init_subclass__(**kwargs)
+        if cls.aggregate_type == "" or cls.event_type == "":
+            raise TypeError(f"{cls.__name__} must override 'aggregate_type' and 'event_type'")
 
 
 class AggregateRoot:

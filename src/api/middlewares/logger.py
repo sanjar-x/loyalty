@@ -1,4 +1,5 @@
 # src/api/middlewares/logger.py
+import re
 import time
 import uuid
 from typing import Any
@@ -28,12 +29,18 @@ class AccessLoggerMiddleware:
         await self.dispatch(request, receive, send)
 
     async def dispatch(self, request: Request, receive: Receive, send: Send) -> None:
-        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
-        ip: str = request.headers.get("X-Forwarded-For", "")
-        if not ip:
-            ip: str = request.client.host if request.client else "unknown"
+        raw_request_id = request.headers.get("X-Request-ID", "")
+        if raw_request_id and re.match(r"^[a-zA-Z0-9\-]{1,64}$", raw_request_id):
+            request_id = raw_request_id
         else:
-            ip: str = ip.split(",")[0].strip()
+            request_id = uuid.uuid4().hex
+
+        forwarded = request.headers.get("X-Forwarded-For", "")
+        ip: str
+        if forwarded:
+            ip = forwarded.split(",")[0].strip()
+        else:
+            ip = request.client.host if request.client else "unknown"
 
         set_request_id(request_id)
 
@@ -54,9 +61,7 @@ class AccessLoggerMiddleware:
 
             if message["type"] == "http.response.start":
                 status_code = message.get("status", 500)
-                duration_ms = round(
-                    number=(time.perf_counter() - start_time) * 1000, ndigits=2
-                )
+                duration_ms = round(number=(time.perf_counter() - start_time) * 1000, ndigits=2)
 
                 existing_headers = list(message.get("headers", []))
                 existing_headers.extend(
@@ -72,11 +77,11 @@ class AccessLoggerMiddleware:
         try:
             await self.app(request.scope, receive, send_wrapper)
 
-        except Exception as e:
+        except Exception:
             status_code = 500
             duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
             logger.exception("Unhandled exception during request processing")
-            raise e
+            raise
 
         finally:
             if not duration_ms:

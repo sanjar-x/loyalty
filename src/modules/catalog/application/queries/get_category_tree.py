@@ -13,10 +13,9 @@ import uuid
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.catalog.application.constants import CATEGORY_TREE_CACHE_KEY
 from src.modules.catalog.application.queries.read_models import CategoryNode
 from src.shared.interfaces.cache import ICacheService
-
-CACHE_KEY = "catalog:category_tree"
 
 _CATEGORY_TREE_SQL = text(
     "SELECT id, name, slug, full_slug, level, sort_order, parent_id "
@@ -31,7 +30,7 @@ class GetCategoryTreeHandler:
         self._cache = cache
 
     async def handle(self) -> list[CategoryNode]:
-        cached_data = await self._cache.get(CACHE_KEY)
+        cached_data = await self._cache.get(CATEGORY_TREE_CACHE_KEY)
         if cached_data:
             return [CategoryNode.model_validate(c) for c in json.loads(cached_data)]
 
@@ -61,6 +60,6 @@ class GetCategoryTreeHandler:
                     parent.children.append(node)
 
         cache_payload = [n.model_dump(mode="json") for n in roots]
-        await self._cache.set(CACHE_KEY, json.dumps(cache_payload), ttl=300)
+        await self._cache.set(CATEGORY_TREE_CACHE_KEY, json.dumps(cache_payload), ttl=300)
 
         return roots

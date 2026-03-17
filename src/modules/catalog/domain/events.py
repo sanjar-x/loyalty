@@ -26,6 +26,12 @@ class BrandCreatedEvent(DomainEvent):
     aggregate_type: str = "Brand"
     event_type: str = "BrandCreatedEvent"
 
+    def __post_init__(self) -> None:
+        if self.brand_id is None:
+            raise ValueError("brand_id is required for BrandCreatedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.brand_id)
+
 
 @dataclass
 class BrandLogoConfirmedEvent(DomainEvent):
@@ -37,6 +43,12 @@ class BrandLogoConfirmedEvent(DomainEvent):
     brand_id: uuid.UUID | None = None
     aggregate_type: str = "Brand"
     event_type: str = "BrandLogoConfirmedEvent"
+
+    def __post_init__(self) -> None:
+        if self.brand_id is None:
+            raise ValueError("brand_id is required for BrandLogoConfirmedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.brand_id)
 
 
 @dataclass
@@ -52,3 +64,9 @@ class BrandLogoProcessedEvent(DomainEvent):
     size_bytes: int = 0
     aggregate_type: str = "Brand"
     event_type: str = "BrandLogoProcessedEvent"
+
+    def __post_init__(self) -> None:
+        if self.brand_id is None:
+            raise ValueError("brand_id is required for BrandLogoProcessedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.brand_id)

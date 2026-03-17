@@ -24,9 +24,7 @@ class LoggingTaskiqMiddleware(TaskiqMiddleware):
     """Middleware: привязка trace-контекста к каждой выполняемой задаче."""
 
     async def pre_execute(self, message: TaskiqMessage) -> TaskiqMessage:
-        correlation_id = message.labels.get(
-            "correlation_id", "task-" + uuid.uuid4().hex[:12]
-        )
+        correlation_id = message.labels.get("correlation_id", "task-" + uuid.uuid4().hex[:12])
 
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(

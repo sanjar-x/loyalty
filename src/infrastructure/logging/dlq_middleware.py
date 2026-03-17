@@ -61,17 +61,16 @@ class DLQMiddleware(TaskiqMiddleware):
         )
 
         try:
-            async with self._session_factory() as session:
-                async with session.begin():
-                    failed = FailedTask(
-                        task_name=message.task_name,
-                        task_id=message.task_id,
-                        args={"args": list(message.args), "kwargs": message.kwargs},
-                        labels=dict(message.labels),
-                        error_message=error_text,
-                        retry_count=retry_count,
-                    )
-                    session.add(failed)
+            async with self._session_factory() as session, session.begin():
+                failed = FailedTask(
+                    task_name=message.task_name,
+                    task_id=message.task_id,
+                    args={"args": list(message.args), "kwargs": message.kwargs},
+                    labels=dict(message.labels),
+                    error_message=error_text,
+                    retry_count=retry_count,
+                )
+                session.add(failed)
         except Exception:
             logger.exception(
                 "DLQ: не удалось сохранить проваленную задачу в БД",

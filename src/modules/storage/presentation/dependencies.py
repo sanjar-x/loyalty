@@ -18,8 +18,8 @@ class StorageProvider(Provider):
     @provide(scope=Scope.APP)
     def s3_factory(self, settings: Settings) -> S3ClientFactory:
         return S3ClientFactory(
-            access_key=settings.S3_ACCESS_KEY,
-            secret_key=settings.S3_SECRET_KEY,
+            access_key=settings.S3_ACCESS_KEY.get_secret_value(),
+            secret_key=settings.S3_SECRET_KEY.get_secret_value(),
             region=settings.S3_REGION,
             endpoint_url=settings.S3_ENDPOINT_URL,
         )
@@ -34,14 +34,10 @@ class StorageProvider(Provider):
     )
 
     @provide(scope=Scope.REQUEST)
-    def storage_service(
-        self, client: AioBaseClient, settings: Settings
-    ) -> IBlobStorage:
+    def storage_service(self, client: AioBaseClient, settings: Settings) -> IBlobStorage:
         return S3StorageService(
             s3_client=client,
             bucket_name=settings.S3_BUCKET_NAME,
         )
 
-    storage_facade = provide(
-        StorageFacade, scope=Scope.REQUEST, provides=IStorageFacade
-    )
+    storage_facade = provide(StorageFacade, scope=Scope.REQUEST, provides=IStorageFacade)

@@ -82,10 +82,11 @@ def test_infrastructure_does_not_import_presentation():
 
 # Rule 5: Modular Monolith Cross-Module Isolation
 # Allowed cross-module presentation dependency:
-#   user.presentation → identity.presentation  (composite profile/session router)
-#   user.presentation → identity.application   (deactivate, sessions queries)
+#   user.presentation → identity.presentation  (profile router uses auth deps)
+#   catalog.presentation → identity.presentation  (catalog router uses RequirePermission)
 ALLOWED_CROSS_MODULE = {
     ("user", "identity"): {"src.modules.user.presentation.*"},
+    ("catalog", "identity"): {"src.modules.catalog.presentation.*"},
 }
 
 
@@ -97,9 +98,7 @@ def test_module_isolation(source: str, target: str):
     """Modules MUST NOT directly import each other's internals."""
     excludes = ALLOWED_CROSS_MODULE.get((source, target), set())
     for layer in ["domain", "application", "infrastructure"]:
-        rule = archrule(f"{source}_cannot_import_{target}_{layer}").match(
-            f"src.modules.{source}.*"
-        )
+        rule = archrule(f"{source}_cannot_import_{target}_{layer}").match(f"src.modules.{source}.*")
         for exc in excludes:
             rule = rule.exclude(exc)
         (rule.should_not_import(f"src.modules.{target}.{layer}.*").check("src"))

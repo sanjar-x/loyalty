@@ -6,9 +6,7 @@ from src.modules.catalog.infrastructure.models import Product
 from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
 
-class ProductRepository(
-    BaseRepository[Any, Product], IProductRepository, model_class=Product
-):
+class ProductRepository(BaseRepository[Any, Product], IProductRepository, model_class=Product):
     def _to_domain(self, orm: Product) -> Any:
         return orm
 

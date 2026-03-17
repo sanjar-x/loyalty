@@ -14,9 +14,7 @@ from src.modules.user.application.commands.create_user import (
 from src.modules.user.infrastructure.models import UserModel
 
 
-async def _seed_identity(
-    app_container: AsyncContainer, db_session: AsyncSession
-) -> Identity:
+async def _seed_identity(app_container: AsyncContainer, db_session: AsyncSession) -> Identity:
     """Create an Identity row to satisfy the users.id FK constraint."""
     async with app_container() as request:
         repo = await request.get(IIdentityRepository)
@@ -43,9 +41,7 @@ async def test_create_user_from_identity_event(
     assert orm.id == identity.id  # Shared PK with Identity
 
 
-async def test_create_user_is_idempotent(
-    app_container: AsyncContainer, db_session: AsyncSession
-):
+async def test_create_user_is_idempotent(app_container: AsyncContainer, db_session: AsyncSession):
     """CreateUserHandler should be idempotent — skip if user already exists."""
     identity = await _seed_identity(app_container, db_session)
 

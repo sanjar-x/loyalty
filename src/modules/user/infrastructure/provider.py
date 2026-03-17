@@ -22,9 +22,7 @@ class UserProvider(Provider):
     )
 
     # --- Command Handlers (REQUEST scope) ---
-    create_user_handler: CompositeDependencySource = provide(
-        CreateUserHandler, scope=Scope.REQUEST
-    )
+    create_user_handler: CompositeDependencySource = provide(CreateUserHandler, scope=Scope.REQUEST)
     update_profile_handler: CompositeDependencySource = provide(
         UpdateProfileHandler, scope=Scope.REQUEST
     )

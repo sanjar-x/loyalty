@@ -2,10 +2,8 @@
 import uuid
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.modules.identity.infrastructure.models import PermissionModel
 
 
 class PermissionInfo(BaseModel):
@@ -16,20 +14,24 @@ class PermissionInfo(BaseModel):
     description: str | None
 
 
+_LIST_PERMISSIONS_SQL = text(
+    "SELECT id, codename, resource, action, description FROM permissions ORDER BY codename"
+)
+
+
 class ListPermissionsHandler:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def handle(self) -> list[PermissionInfo]:
-        stmt = select(PermissionModel).order_by(PermissionModel.codename)
-        result = await self._session.execute(stmt)
+        result = await self._session.execute(_LIST_PERMISSIONS_SQL)
         return [
             PermissionInfo(
-                id=p.id,
-                codename=p.codename,
-                resource=p.resource,
-                action=p.action,
-                description=p.description,
+                id=row["id"],
+                codename=row["codename"],
+                resource=row["resource"],
+                action=row["action"],
+                description=row["description"],
             )
-            for p in result.scalars().all()
+            for row in result.mappings().all()
         ]

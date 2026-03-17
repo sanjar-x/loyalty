@@ -74,9 +74,7 @@ class IdentityProvider(Provider):
     )
 
     # --- Command Handlers (REQUEST scope) ---
-    register_handler: CompositeDependencySource = provide(
-        RegisterHandler, scope=Scope.REQUEST
-    )
+    register_handler: CompositeDependencySource = provide(RegisterHandler, scope=Scope.REQUEST)
 
     @provide(scope=Scope.REQUEST)
     def login_handler(
@@ -104,24 +102,12 @@ class IdentityProvider(Provider):
     refresh_token_handler: CompositeDependencySource = provide(
         RefreshTokenHandler, scope=Scope.REQUEST
     )
-    logout_handler: CompositeDependencySource = provide(
-        LogoutHandler, scope=Scope.REQUEST
-    )
-    logout_all_handler: CompositeDependencySource = provide(
-        LogoutAllHandler, scope=Scope.REQUEST
-    )
-    create_role_handler: CompositeDependencySource = provide(
-        CreateRoleHandler, scope=Scope.REQUEST
-    )
-    delete_role_handler: CompositeDependencySource = provide(
-        DeleteRoleHandler, scope=Scope.REQUEST
-    )
-    assign_role_handler: CompositeDependencySource = provide(
-        AssignRoleHandler, scope=Scope.REQUEST
-    )
-    revoke_role_handler: CompositeDependencySource = provide(
-        RevokeRoleHandler, scope=Scope.REQUEST
-    )
+    logout_handler: CompositeDependencySource = provide(LogoutHandler, scope=Scope.REQUEST)
+    logout_all_handler: CompositeDependencySource = provide(LogoutAllHandler, scope=Scope.REQUEST)
+    create_role_handler: CompositeDependencySource = provide(CreateRoleHandler, scope=Scope.REQUEST)
+    delete_role_handler: CompositeDependencySource = provide(DeleteRoleHandler, scope=Scope.REQUEST)
+    assign_role_handler: CompositeDependencySource = provide(AssignRoleHandler, scope=Scope.REQUEST)
+    revoke_role_handler: CompositeDependencySource = provide(RevokeRoleHandler, scope=Scope.REQUEST)
     deactivate_identity_handler: CompositeDependencySource = provide(
         DeactivateIdentityHandler, scope=Scope.REQUEST
     )
@@ -133,9 +119,7 @@ class IdentityProvider(Provider):
     get_my_sessions_handler: CompositeDependencySource = provide(
         GetMySessionsHandler, scope=Scope.REQUEST
     )
-    list_roles_handler: CompositeDependencySource = provide(
-        ListRolesHandler, scope=Scope.REQUEST
-    )
+    list_roles_handler: CompositeDependencySource = provide(ListRolesHandler, scope=Scope.REQUEST)
     list_permissions_handler: CompositeDependencySource = provide(
         ListPermissionsHandler, scope=Scope.REQUEST
     )

@@ -38,9 +38,7 @@ async def test_register_returns_409_when_email_exists(
     assert response.status_code == 409
 
 
-async def test_login_returns_200_with_tokens(
-    async_client: AsyncClient, db_session: AsyncSession
-):
+async def test_login_returns_200_with_tokens(async_client: AsyncClient, db_session: AsyncSession):
     email = f"login-{uuid.uuid4().hex[:8]}@test.com"
     await async_client.post(
         "/api/v1/auth/register",

@@ -58,9 +58,7 @@ async def validation_exception_handler(
     )
 
 
-async def http_exception_handler(
-    request: Request, exc: StarletteHTTPException
-) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """
     Перехватывает стандартные ошибки HTTP
     Гарантирует, что фронтенд всегда получит наш стандартный JSON-формат.

@@ -22,9 +22,7 @@ class IIdentityRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_email(
-        self, email: str
-    ) -> tuple[Identity, LocalCredentials] | None:
+    async def get_by_email(self, email: str) -> tuple[Identity, LocalCredentials] | None:
         """Get identity with local credentials by email. Returns None if not found."""
         pass
 
@@ -75,16 +73,12 @@ class ISessionRepository(ABC):
         pass
 
     @abstractmethod
-    async def add_session_roles(
-        self, session_id: uuid.UUID, role_ids: list[uuid.UUID]
-    ) -> None:
+    async def add_session_roles(self, session_id: uuid.UUID, role_ids: list[uuid.UUID]) -> None:
         """Insert session_roles rows (NIST session-role activation)."""
         pass
 
     @abstractmethod
-    async def remove_session_role(
-        self, session_id: uuid.UUID, role_id: uuid.UUID
-    ) -> None:
+    async def remove_session_role(self, session_id: uuid.UUID, role_id: uuid.UUID) -> None:
         """Remove a role from session_roles."""
         pass
 
@@ -126,9 +120,7 @@ class IRoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def revoke_from_identity(
-        self, identity_id: uuid.UUID, role_id: uuid.UUID
-    ) -> None:
+    async def revoke_from_identity(self, identity_id: uuid.UUID, role_id: uuid.UUID) -> None:
         """Delete identity_roles row."""
         pass
 

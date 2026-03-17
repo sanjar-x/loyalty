@@ -1,6 +1,6 @@
 # src/modules/identity/infrastructure/repositories/session_repository.py
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -75,7 +75,7 @@ class SessionRepository(ISessionRepository):
         await self._session.execute(stmt)
 
     async def revoke_all_for_identity(self, identity_id: uuid.UUID) -> list[uuid.UUID]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = select(SessionModel.id).where(
             SessionModel.identity_id == identity_id,
             SessionModel.is_revoked.is_(False),
@@ -86,16 +86,14 @@ class SessionRepository(ISessionRepository):
 
         if session_ids:
             update_stmt = (
-                update(SessionModel)
-                .where(SessionModel.id.in_(session_ids))
-                .values(is_revoked=True)
+                update(SessionModel).where(SessionModel.id.in_(session_ids)).values(is_revoked=True)
             )
             await self._session.execute(update_stmt)
 
         return session_ids
 
     async def count_active(self, identity_id: uuid.UUID) -> int:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = (
             select(func.count())
             .select_from(SessionModel)
@@ -109,7 +107,7 @@ class SessionRepository(ISessionRepository):
         return result.scalar() or 0
 
     async def get_active_session_ids(self, identity_id: uuid.UUID) -> list[uuid.UUID]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = select(SessionModel.id).where(
             SessionModel.identity_id == identity_id,
             SessionModel.is_revoked.is_(False),

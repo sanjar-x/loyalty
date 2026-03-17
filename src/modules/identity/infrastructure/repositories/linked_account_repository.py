@@ -51,8 +51,6 @@ class LinkedAccountRepository(ILinkedAccountRepository):
         self,
         identity_id: uuid.UUID,
     ) -> list[LinkedAccount]:
-        stmt = select(LinkedAccountModel).where(
-            LinkedAccountModel.identity_id == identity_id
-        )
+        stmt = select(LinkedAccountModel).where(LinkedAccountModel.identity_id == identity_id)
         result = await self._session.execute(stmt)
         return [self._to_domain(orm) for orm in result.scalars().all()]

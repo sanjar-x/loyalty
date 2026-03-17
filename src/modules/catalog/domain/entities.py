@@ -24,7 +24,7 @@ class Brand(AggregateRoot):
         brand_id: uuid.UUID | None = None,
         logo_file_id: uuid.UUID | None = None,
         logo_status: MediaProcessingStatus | None = None,
-    ) -> "Brand":
+    ) -> Brand:
         return cls(
             id=brand_id or uuid.uuid4(),
             name=name,
@@ -132,7 +132,7 @@ class Category(AggregateRoot):
         name: str,
         slug: str,
         sort_order: int = 0,
-    ) -> "Category":
+    ) -> Category:
         return cls(
             id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
             parent_id=None,
@@ -148,15 +148,13 @@ class Category(AggregateRoot):
         cls,
         name: str,
         slug: str,
-        parent: "Category",
+        parent: Category,
         sort_order: int = 0,
-    ) -> "Category":
+    ) -> Category:
         if parent.level >= MAX_CATEGORY_DEPTH:
             from src.modules.catalog.domain.exceptions import CategoryMaxDepthError
 
-            raise CategoryMaxDepthError(
-                max_depth=MAX_CATEGORY_DEPTH, current_level=parent.level
-            )
+            raise CategoryMaxDepthError(max_depth=MAX_CATEGORY_DEPTH, current_level=parent.level)
 
         return cls(
             id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
@@ -167,3 +165,30 @@ class Category(AggregateRoot):
             level=parent.level + 1,
             sort_order=sort_order,
         )
+
+    def update(
+        self,
+        name: str | None = None,
+        slug: str | None = None,
+        sort_order: int | None = None,
+    ) -> str | None:
+        """Update category details. Returns old full_slug if slug changed (for descendant cascade), None otherwise."""
+        old_full_slug: str | None = None
+
+        if name is not None:
+            self.name = name
+
+        if sort_order is not None:
+            self.sort_order = sort_order
+
+        if slug is not None and slug != self.slug:
+            old_full_slug = self.full_slug
+            self.slug = slug
+            # Recompute own full_slug: replace last segment
+            if self.parent_id is None:
+                self.full_slug = slug
+            else:
+                parent_prefix = self.full_slug.rsplit("/", 1)[0]
+                self.full_slug = f"{parent_prefix}/{slug}"
+
+        return old_full_slug

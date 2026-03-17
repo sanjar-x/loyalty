@@ -40,6 +40,15 @@ class CategoryMaxDepthError(UnprocessableEntityError):
         )
 
 
+class CategoryHasChildrenError(ConflictError):
+    def __init__(self, category_id: uuid.UUID):
+        super().__init__(
+            message="Невозможно удалить категорию, у которой есть дочерние категории.",
+            error_code="CATEGORY_HAS_CHILDREN",
+            details={"category_id": str(category_id)},
+        )
+
+
 # ==========================================
 # PRODUCT & SKU AGGREGATE EXCEPTIONS
 # ==========================================
@@ -102,7 +111,7 @@ class LogoFileNotUploadedError(UnprocessableEntityError):
 class InvalidLogoStateException(UnprocessableEntityError):
     def __init__(self, brand_id: uuid.UUID, current_status: str, expected_status: str):
         super().__init__(
-            message=f"Недопустимое состояние загрузки. Текущее: {current_status}, ожидалось: {expected_status}.",  # noqa: E501
+            message=f"Недопустимое состояние загрузки. Текущее: {current_status}, ожидалось: {expected_status}.",
             error_code="INVALID_LOGO_STATE",
             details={
                 "brand_id": str(brand_id),
