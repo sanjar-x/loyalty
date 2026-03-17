@@ -4,7 +4,7 @@ Provides:
 - ``get_auth_context``: Extracts AuthContext (identity_id + session_id) from JWT.
 - ``RequirePermission``: Callable dependency that checks session permissions via cache-aside.
 - ``get_current_user_id``: Backward-compatible wrapper returning identity_id as uuid.UUID.
-"""
+"""  # noqa: E501
 
 import uuid
 
@@ -79,7 +79,7 @@ class RequirePermission:
 
     Args:
         codename: The required permission codename (e.g. "orders:read").
-    """
+    """  # noqa: E501
 
     def __init__(self, codename: str) -> None:
         self._codename = codename

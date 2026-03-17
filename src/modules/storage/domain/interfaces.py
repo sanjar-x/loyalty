@@ -47,7 +47,9 @@ class IStorageRepository(Protocol):
         """
         ...
 
-    async def get_active_by_key(self, bucket_name: str, object_key: str) -> StorageFile | None:
+    async def get_active_by_key(
+        self, bucket_name: str, object_key: str
+    ) -> StorageFile | None:
         """Retrieve the current active version of a file by its S3 path.
 
         Args:
@@ -59,7 +61,9 @@ class IStorageRepository(Protocol):
         """
         ...
 
-    async def get_all_versions(self, bucket_name: str, object_key: str) -> Sequence[StorageFile]:
+    async def get_all_versions(
+        self, bucket_name: str, object_key: str
+    ) -> Sequence[StorageFile]:
         """Retrieve all versions of a file, ordered newest first.
 
         Args:
@@ -71,7 +75,9 @@ class IStorageRepository(Protocol):
         """
         ...
 
-    async def deactivate_previous_versions(self, bucket_name: str, object_key: str) -> None:
+    async def deactivate_previous_versions(
+        self, bucket_name: str, object_key: str
+    ) -> None:
         """Mark all existing versions of a file as inactive.
 
         Must be called before flushing a new active version to avoid

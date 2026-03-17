@@ -34,7 +34,7 @@ DBA_CONNECT_ARGS = {
 
 
 class DatabaseProvider(Provider):
-    """Dishka provider that supplies the async database engine, session factory, and UoW."""
+    """Dishka provider that supplies the async database engine, session factory."""
 
     @provide(scope=Scope.APP)
     async def engine(self) -> AsyncIterable[AsyncEngine]:

@@ -96,7 +96,7 @@ class AccessLoggerMiddleware:
         duration_ms = 0.0
 
         async def send_wrapper(message: Message) -> None:
-            """Intercept the response start message to capture status and inject headers."""
+            """Intercept the response start message to capture status."""
             nonlocal status_code, duration_ms
 
             if message["type"] == "http.response.start":
