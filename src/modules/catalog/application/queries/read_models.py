@@ -25,3 +25,22 @@ class CategoryNode(BaseModel):
     sort_order: int
     parent_id: uuid.UUID | None = None
     children: list[CategoryNode] = []
+
+
+class BrandReadModel(BaseModel):
+    """Read model for a single brand."""
+
+    id: uuid.UUID
+    name: str
+    slug: str
+    logo_url: str | None = None
+    logo_status: str | None = None
+
+
+class BrandListReadModel(BaseModel):
+    """Paginated brand list read model."""
+
+    items: list[BrandReadModel]
+    total: int
+    offset: int
+    limit: int
