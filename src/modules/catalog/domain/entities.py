@@ -33,6 +33,13 @@ class Brand(AggregateRoot):
             logo_status=logo_status,
         )
 
+    def update(self, name: str | None = None, slug: str | None = None) -> None:
+        """Update brand details. Logo fields are managed separately via FSM methods."""
+        if name is not None:
+            self.name = name
+        if slug is not None:
+            self.slug = slug
+
     def init_logo_upload(self, object_key: str, content_type: str) -> None:
         """Инициирует загрузку логотипа и генерирует BrandCreatedEvent."""
         self.logo_status = MediaProcessingStatus.PENDING_UPLOAD
