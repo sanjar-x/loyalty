@@ -20,7 +20,7 @@ async def test_register_returns_201_with_identity_id(
     )
     assert response.status_code == 201
     data = response.json()
-    assert "identity_id" in data
+    assert "identityId" in data
 
 
 async def test_register_returns_409_when_email_exists(
@@ -50,8 +50,8 @@ async def test_login_returns_200_with_tokens(async_client: AsyncClient, db_sessi
     )
     assert response.status_code == 200
     data = response.json()
-    assert "access_token" in data
-    assert "refresh_token" in data
+    assert "accessToken" in data
+    assert "refreshToken" in data
 
 
 async def test_login_returns_401_for_wrong_password(

@@ -5,12 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.shared.interfaces.blob_storage import IBlobStorage
 
-# Достаточно указать один раз на весь файл
 pytestmark = pytest.mark.asyncio
 
 
 async def test_create_brand_e2e_success(
-    async_client: AsyncClient,
+    admin_client: AsyncClient,
     db_session: AsyncSession,
 ):
     payload = {
@@ -18,39 +17,37 @@ async def test_create_brand_e2e_success(
         "slug": "e2e-brand",
         "logo": {
             "filename": "test.png",
-            "content_type": "image/png",
+            "contentType": "image/png",
             "size": 1024,
         },
     }
 
-    # IBlobStorage.generate_presigned_put_url — stateless, работает напрямую с S3
-    response = await async_client.post("/api/v1/catalog/brands", json=payload)
+    response = await admin_client.post("/api/v1/catalog/brands", json=payload)
 
     assert response.status_code == 201
     data = response.json()
-    assert "brand_id" in data
-    assert data["object_key"].startswith("raw_uploads/catalog/brands/")
-    assert data["presigned_upload_url"] is not None
+    assert "brandId" in data
+    assert data["objectKey"].startswith("raw_uploads/catalog/brands/")
+    assert data["presignedUploadUrl"] is not None
 
 
 async def test_confirm_brand_logo_e2e_success(
-    async_client: AsyncClient,
+    admin_client: AsyncClient,
     db_session: AsyncSession,
     app_container: AsyncContainer,
 ):
-    # 1. Создаем бренд (реальный запрос)
+    # 1. Create brand
     create_payload = {
         "name": "Brand Confirm",
         "slug": "brand-confirm",
-        "logo": {"filename": "test.png", "content_type": "image/png", "size": 100},
+        "logo": {"filename": "test.png", "contentType": "image/png", "size": 100},
     }
-    create_res = await async_client.post("/api/v1/catalog/brands", json=create_payload)
+    create_res = await admin_client.post("/api/v1/catalog/brands", json=create_payload)
     brand_data = create_res.json()
-    brand_id = brand_data["brand_id"]
-    object_key = brand_data["object_key"]
+    brand_id = brand_data["brandId"]
+    object_key = brand_data["objectKey"]
 
     # 2. Simulate client-side upload: seed InMemoryBlobStorage with the raw file
-    #    (in production the client uploads directly to S3 via presigned URL)
     blob_storage = await app_container.get(IBlobStorage)
 
     async def _dummy_stream():
@@ -60,10 +57,9 @@ async def test_confirm_brand_logo_e2e_success(
         object_name=object_key, data_stream=_dummy_stream(), content_type="image/png"
     )
 
-    # 3. Подтверждаем загрузку — событие записывается в Outbox атомарно
-    confirm_payload = {}
-    response = await async_client.post(
-        f"/api/v1/catalog/brands/{brand_id}/logo/confirm", json=confirm_payload
+    # 3. Confirm upload
+    response = await admin_client.post(
+        f"/api/v1/catalog/brands/{brand_id}/logo/confirm", json={}
     )
 
     assert response.status_code == 202

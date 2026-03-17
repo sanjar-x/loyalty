@@ -1,10 +1,13 @@
 # tests/e2e/conftest.py
+import json
 import uuid
 from collections.abc import AsyncIterable
 from types import AsyncGeneratorType
 from unittest.mock import patch
 
+import jwt
 import pytest
+import redis.asyncio as aioredis
 from dishka import AsyncContainer
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -50,10 +53,49 @@ async def authenticated_client(
         json={"email": email, "password": password},
     )
     tokens = login_resp.json()
-    access_token = tokens["access_token"]
+    access_token = tokens["accessToken"]
 
     # Return client with auth header set
     async_client.headers["Authorization"] = f"Bearer {access_token}"
     yield async_client
     # Clean up header after test
     async_client.headers.pop("Authorization", None)
+
+
+@pytest.fixture
+async def admin_client(
+    async_client: AsyncClient, db_session: AsyncSession, app_container: AsyncContainer
+) -> AsyncGeneratorType:
+    """Register a user, login, inject catalog:manage into Redis cache, return authed client."""
+    email = f"admin-{uuid.uuid4().hex[:8]}@test.com"
+    password = "S3cure!AdminPass"
+
+    # 1. Register
+    await async_client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": password},
+    )
+
+    # 2. Login
+    login_resp = await async_client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": password},
+    )
+    tokens = login_resp.json()
+    access_token = tokens["accessToken"]
+
+    # 3. Decode JWT to extract session_id (sid), then seed Redis cache
+    #    PermissionResolver checks Redis first (Cache-Aside pattern),
+    #    so a cache hit bypasses the DB query entirely.
+    payload = jwt.decode(access_token, options={"verify_signature": False})
+    session_id = payload["sid"]
+    cache_key = f"perms:{session_id}"
+
+    redis_client: aioredis.Redis = await app_container.get(aioredis.Redis)
+    await redis_client.set(cache_key, json.dumps(["catalog:manage"]), ex=300)
+
+    async_client.headers["Authorization"] = f"Bearer {access_token}"
+    yield async_client
+    # Clean up
+    async_client.headers.pop("Authorization", None)
+    await redis_client.delete(cache_key)
