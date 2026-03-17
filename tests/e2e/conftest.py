@@ -54,6 +54,6 @@ async def authenticated_client(
 
     # Return client with auth header set
     async_client.headers["Authorization"] = f"Bearer {access_token}"
-    yield async_client  # type: ignore[misc]
+    yield async_client
     # Clean up header after test
     async_client.headers.pop("Authorization", None)
