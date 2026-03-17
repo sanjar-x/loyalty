@@ -70,6 +70,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "cloc>=0.2.5",
     "httpx>=0.28.1",
     "locust>=2.43.3",
     "mypy>=1.19.1",
