@@ -44,9 +44,7 @@ async def test_list_roles_returns_role_with_permissions(
 async def test_list_roles_empty_permissions(
     app_container: AsyncContainer, db_session: AsyncSession
 ):
-    role = RoleModel(
-        id=uuid.uuid4(), name="empty_role", description=None, is_system=False
-    )
+    role = RoleModel(id=uuid.uuid4(), name="empty_role", description=None, is_system=False)
     db_session.add(role)
     await db_session.flush()
 
@@ -58,13 +56,13 @@ async def test_list_roles_empty_permissions(
     assert matched[0].permissions == []
 
 
-async def test_list_roles_ordered_by_name(
-    app_container: AsyncContainer, db_session: AsyncSession
-):
-    db_session.add_all([
-        RoleModel(id=uuid.uuid4(), name="zz_last_role", is_system=False),
-        RoleModel(id=uuid.uuid4(), name="aa_first_role", is_system=False),
-    ])
+async def test_list_roles_ordered_by_name(app_container: AsyncContainer, db_session: AsyncSession):
+    db_session.add_all(
+        [
+            RoleModel(id=uuid.uuid4(), name="zz_last_role", is_system=False),
+            RoleModel(id=uuid.uuid4(), name="aa_first_role", is_system=False),
+        ]
+    )
     await db_session.flush()
 
     handler = ListRolesHandler(session=db_session)

@@ -10,25 +10,19 @@ from src.shared.interfaces.entities import DomainEvent
 
 class TestDomainEventInitSubclass:
     def test_rejects_subclass_without_aggregate_type(self):
-        with pytest.raises(
-            TypeError, match="must override 'aggregate_type' and 'event_type'"
-        ):
+        with pytest.raises(TypeError, match="must override 'aggregate_type' and 'event_type'"):
 
             class BadEvent(DomainEvent):
                 event_type: str = "SomeEvent"
 
     def test_rejects_subclass_without_event_type(self):
-        with pytest.raises(
-            TypeError, match="must override 'aggregate_type' and 'event_type'"
-        ):
+        with pytest.raises(TypeError, match="must override 'aggregate_type' and 'event_type'"):
 
             class BadEvent(DomainEvent):
                 aggregate_type: str = "SomeAggregate"
 
     def test_rejects_subclass_with_both_empty(self):
-        with pytest.raises(
-            TypeError, match="must override 'aggregate_type' and 'event_type'"
-        ):
+        with pytest.raises(TypeError, match="must override 'aggregate_type' and 'event_type'"):
 
             class BadEvent(DomainEvent):
                 pass

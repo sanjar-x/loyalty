@@ -103,22 +103,24 @@ async def test_get_my_sessions_marks_current_session(
     db_session.add(identity)
     await db_session.flush()
 
-    db_session.add_all([
-        SessionModel(
-            id=current_id,
-            identity_id=identity_id,
-            refresh_token_hash=_token_hash("current"),
-            is_revoked=False,
-            expires_at=now + timedelta(days=30),
-        ),
-        SessionModel(
-            id=other_id,
-            identity_id=identity_id,
-            refresh_token_hash=_token_hash("other"),
-            is_revoked=False,
-            expires_at=now + timedelta(days=30),
-        ),
-    ])
+    db_session.add_all(
+        [
+            SessionModel(
+                id=current_id,
+                identity_id=identity_id,
+                refresh_token_hash=_token_hash("current"),
+                is_revoked=False,
+                expires_at=now + timedelta(days=30),
+            ),
+            SessionModel(
+                id=other_id,
+                identity_id=identity_id,
+                refresh_token_hash=_token_hash("other"),
+                is_revoked=False,
+                expires_at=now + timedelta(days=30),
+            ),
+        ]
+    )
     await db_session.flush()
 
     handler = GetMySessionsHandler(session=db_session)

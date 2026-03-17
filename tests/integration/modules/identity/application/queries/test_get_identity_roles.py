@@ -68,10 +68,12 @@ async def test_get_identity_roles_multiple_roles_ordered(
     db_session.add_all([identity, role_a, role_b])
     await db_session.flush()
 
-    db_session.add_all([
-        IdentityRoleModel(identity_id=identity_id, role_id=role_a_id),
-        IdentityRoleModel(identity_id=identity_id, role_id=role_b_id),
-    ])
+    db_session.add_all(
+        [
+            IdentityRoleModel(identity_id=identity_id, role_id=role_a_id),
+            IdentityRoleModel(identity_id=identity_id, role_id=role_b_id),
+        ]
+    )
     await db_session.flush()
 
     handler = GetIdentityRolesHandler(session=db_session)

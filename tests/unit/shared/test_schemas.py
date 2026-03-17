@@ -24,11 +24,13 @@ class TestCamelModel:
         assert m.last_name == "Doe"
 
     def test_accepts_camel_case_input(self):
-        m = SampleModel.model_validate({
-            "firstName": "Jane",
-            "lastName": "Doe",
-            "isActive": False,
-        })
+        m = SampleModel.model_validate(
+            {
+                "firstName": "Jane",
+                "lastName": "Doe",
+                "isActive": False,
+            }
+        )
         assert m.first_name == "Jane"
         assert m.last_name == "Doe"
         assert m.is_active is False
