@@ -35,9 +35,6 @@ from src.modules.identity.domain.interfaces import (
     IRoleRepository,
     ISessionRepository,
 )
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.security import IPasswordHasher, ITokenProvider
-from src.shared.interfaces.uow import IUnitOfWork
 from src.modules.identity.infrastructure.repositories.identity_repository import (
     IdentityRepository,
 )
@@ -53,6 +50,9 @@ from src.modules.identity.infrastructure.repositories.role_repository import (
 from src.modules.identity.infrastructure.repositories.session_repository import (
     SessionRepository,
 )
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.security import IPasswordHasher, ITokenProvider
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 class IdentityProvider(Provider):
