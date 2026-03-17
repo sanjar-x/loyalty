@@ -28,9 +28,8 @@ async def test_broker_has_configured_url(rabbitmq_url: str):
 
 async def test_broker_task_registration():
     """Verify that importing task modules registers tasks on the broker."""
-    from src.bootstrap.broker import broker
-
     import src.infrastructure.outbox.tasks  # noqa: F401
+    from src.bootstrap.broker import broker
 
     tasks = broker.get_all_tasks()
     assert len(tasks) > 0

@@ -48,9 +48,7 @@ async def test_dlq_middleware_creation():
         pool_size=1,
         max_overflow=0,
     )
-    session_factory = async_sessionmaker(
-        bind=engine, autoflush=False, expire_on_commit=False
-    )
+    session_factory = async_sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
     middleware = DLQMiddleware(session_factory=session_factory)
     assert middleware is not None
@@ -61,7 +59,6 @@ async def test_dlq_middleware_creation():
 async def test_outbox_tasks_register_schedule_labels():
     """Verify outbox tasks declare schedule labels for the scheduler."""
     import src.infrastructure.outbox.tasks  # noqa: F401
-
     from src.bootstrap.broker import broker
 
     tasks = broker.get_all_tasks()

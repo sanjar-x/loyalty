@@ -3,7 +3,7 @@ from types import AsyncGeneratorType
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
-from tests.conftest import test_session_var
+from tests.conftest import _db_session_var
 
 
 @pytest.fixture(scope="function")
@@ -23,11 +23,11 @@ async def db_session(test_engine: AsyncEngine) -> AsyncGeneratorType:
         session = maker()
 
         # Set the contextvar so Dishka TestOverridesProvider injects THIS session
-        token = test_session_var.set(session)
+        token = _db_session_var.set(session)
 
         yield session
 
-        test_session_var.reset(token)
+        _db_session_var.reset(token)
 
         await session.close()
         await transaction.rollback()

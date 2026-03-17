@@ -59,7 +59,7 @@ class TestEventHandlerRegistrations:
 
 def _unwrap_dishka_task(task: Any) -> Callable[..., Any]:
     """Unwrap TaskIQ + Dishka decorators: task.original_func.__dishka_orig_func__"""
-    return cast(Callable[..., Any], getattr(task.original_func, "__dishka_orig_func__"))
+    return cast(Callable[..., Any], task.original_func.__dishka_orig_func__)
 
 
 _relay_fn = _unwrap_dishka_task(outbox_relay_task)

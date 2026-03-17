@@ -37,9 +37,7 @@ async def get_current_user_id(
             error_code="MISSING_TOKEN",
         )
 
-    payload: dict[str, Any] = token_provider.decode_access_token(
-        credentials.credentials
-    )
+    payload: dict[str, Any] = token_provider.decode_access_token(credentials.credentials)
     user_id: str | None = payload.get("sub")
     if not user_id:
         raise UnauthorizedError(

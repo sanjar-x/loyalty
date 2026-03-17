@@ -39,28 +39,28 @@ class BrandRepository(IBrandRepository):
         orm.logo_url = domain.logo_url
         return orm
 
-    async def add(self, data: DomainBrand) -> DomainBrand:
-        orm = self._to_orm(data)
+    async def add(self, brand: DomainBrand) -> DomainBrand:
+        orm = self._to_orm(brand)
         self._session.add(orm)
         await self._session.flush()
         return self._to_domain(orm)
 
-    async def get(self, id: uuid.UUID) -> DomainBrand | None:
-        orm = await self._session.get(OrmBrand, id)
+    async def get(self, brand_id: uuid.UUID) -> DomainBrand | None:
+        orm = await self._session.get(OrmBrand, brand_id)
         if orm:
             return self._to_domain(orm)
         return None
 
-    async def update(self, data: DomainBrand) -> DomainBrand:
-        orm = await self._session.get(OrmBrand, data.id)
+    async def update(self, brand: DomainBrand) -> DomainBrand:
+        orm = await self._session.get(OrmBrand, brand.id)
         if not orm:
-            raise ValueError(f"Brand with id {data.id} not found in DB")
-        orm = self._to_orm(data, orm)
+            raise ValueError(f"Brand with id {brand.id} not found in DB")
+        orm = self._to_orm(brand, orm)
         await self._session.flush()
         return self._to_domain(orm)
 
-    async def delete(self, id: uuid.UUID) -> None:
-        statement = delete(OrmBrand).where(OrmBrand.id == id)
+    async def delete(self, brand_id: uuid.UUID) -> None:
+        statement = delete(OrmBrand).where(OrmBrand.id == brand_id)
         await self._session.execute(statement)
 
     async def get_by_slug(self, slug: str) -> DomainBrand | None:
@@ -83,8 +83,8 @@ class BrandRepository(IBrandRepository):
         result = await self._session.execute(statement)
         return result.first() is not None
 
-    async def get_for_update(self, id: uuid.UUID) -> DomainBrand | None:
-        statement = select(OrmBrand).where(OrmBrand.id == id).with_for_update()
+    async def get_for_update(self, brand_id: uuid.UUID) -> DomainBrand | None:
+        statement = select(OrmBrand).where(OrmBrand.id == brand_id).with_for_update()
         result = await self._session.execute(statement)
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None

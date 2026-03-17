@@ -46,11 +46,11 @@ class PermissionResolver(IPermissionResolver):
         self._session_factory = session_factory
         self._cache_ttl = cache_ttl
 
-    def _cache_key(self, session_id: uuid.UUID) -> str:
+    def _build_cache_key(self, session_id: uuid.UUID) -> str:
         return f"perms:{session_id}"
 
     async def get_permissions(self, session_id: uuid.UUID) -> frozenset[str]:
-        key = self._cache_key(session_id)
+        key = self._build_cache_key(session_id)
 
         # 1. Try cache
         cached = await self._redis.get(key)
@@ -79,6 +79,6 @@ class PermissionResolver(IPermissionResolver):
         return codename in permissions
 
     async def invalidate(self, session_id: uuid.UUID) -> None:
-        key = self._cache_key(session_id)
+        key = self._build_cache_key(session_id)
         await self._redis.delete(key)
         logger.info("permissions.cache_invalidated", session_id=str(session_id))

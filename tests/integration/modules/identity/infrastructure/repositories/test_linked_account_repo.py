@@ -15,7 +15,9 @@ from src.modules.identity.infrastructure.repositories.linked_account_repository 
 )
 
 
-def _make_account(identity_id: uuid.UUID, provider: str = "google", sub: str = "sub-123") -> LinkedAccount:
+def _make_account(
+    identity_id: uuid.UUID, provider: str = "google", sub: str = "sub-123"
+) -> LinkedAccount:
     return LinkedAccount(
         id=uuid.uuid4(),
         identity_id=identity_id,

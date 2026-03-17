@@ -14,7 +14,7 @@ from src.modules.identity.application.consumers.role_events import (
 
 
 def _unwrap_dishka_task(task: Any) -> Callable[..., Any]:
-    return cast(Callable[..., Any], getattr(task.original_func, "__dishka_orig_func__"))
+    return cast(Callable[..., Any], task.original_func.__dishka_orig_func__)
 
 
 invalidate_permissions_cache_on_role_change = _unwrap_dishka_task(_invalidate_task)

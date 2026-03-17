@@ -52,8 +52,8 @@ class CategoryRepository(
         result = await self._session.execute(statement)
         return result.scalar()
 
-    async def get_for_update(self, id: uuid.UUID) -> DomainCategory | None:
-        statement = select(self.model).where(self.model.id == id).with_for_update()
+    async def get_for_update(self, category_id: uuid.UUID) -> DomainCategory | None:
+        statement = select(self.model).where(self.model.id == category_id).with_for_update()
         result = await self._session.execute(statement)
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
@@ -73,9 +73,9 @@ class CategoryRepository(
         result = await self._session.execute(statement)
         return bool(result.scalar())
 
-    async def has_children(self, id: uuid.UUID) -> bool:
+    async def has_children(self, category_id: uuid.UUID) -> bool:
         statement = select(
-            select(self.model.id).where(self.model.parent_id == id).limit(1).exists()
+            select(self.model.id).where(self.model.parent_id == category_id).limit(1).exists()
         )
         result = await self._session.execute(statement)
         return bool(result.scalar())

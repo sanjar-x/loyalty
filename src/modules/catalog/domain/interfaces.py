@@ -11,22 +11,22 @@ T = TypeVar("T")
 
 class ICatalogRepository(Generic[T], ABC):
     @abstractmethod
-    async def add(self, data: T) -> T:
+    async def add(self, entity: T) -> T:
         """Создать новую запись."""
         pass
 
     @abstractmethod
-    async def get(self, id: uuid.UUID) -> T | None:
+    async def get(self, entity_id: uuid.UUID) -> T | None:
         """Получить запись по ID."""
         pass
 
     @abstractmethod
-    async def update(self, data: T) -> T:
+    async def update(self, entity: T) -> T:
         """Обновить существующую запись."""
         pass
 
     @abstractmethod
-    async def delete(self, id: uuid.UUID) -> None:
+    async def delete(self, entity_id: uuid.UUID) -> None:
         """Удалить запись."""
         pass
 
@@ -39,7 +39,7 @@ class IBrandRepository(ICatalogRepository[DomainBrand]):
         pass
 
     @abstractmethod
-    async def get_for_update(self, id: uuid.UUID) -> DomainBrand | None:
+    async def get_for_update(self, brand_id: uuid.UUID) -> DomainBrand | None:
         """Получить бренд с пессимистической блокировкой (SELECT FOR UPDATE)."""
         pass
 
@@ -62,7 +62,7 @@ class ICategoryRepository(ICatalogRepository[DomainCategory]):
         pass
 
     @abstractmethod
-    async def get_for_update(self, id: uuid.UUID) -> DomainCategory | None:
+    async def get_for_update(self, category_id: uuid.UUID) -> DomainCategory | None:
         """Получить категорию с пессимистической блокировкой (SELECT FOR UPDATE)."""
         pass
 
@@ -74,7 +74,7 @@ class ICategoryRepository(ICatalogRepository[DomainCategory]):
         pass
 
     @abstractmethod
-    async def has_children(self, id: uuid.UUID) -> bool:
+    async def has_children(self, category_id: uuid.UUID) -> bool:
         """Check if category has any child categories."""
         pass
 

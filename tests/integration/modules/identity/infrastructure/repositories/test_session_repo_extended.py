@@ -128,7 +128,9 @@ async def test_add_session_roles(db_session: AsyncSession):
     await role_repo.add(role1)
     await role_repo.add(role2)
 
-    sess = await _create_session(session_repo, identity.id, token="roles-test", db_session=db_session)
+    sess = await _create_session(
+        session_repo, identity.id, token="roles-test", db_session=db_session
+    )
 
     await session_repo.add_session_roles(sess.id, [role1.id, role2.id])
     await db_session.flush()
@@ -157,7 +159,9 @@ async def test_remove_session_role(db_session: AsyncSession):
     role = Role(id=uuid.uuid4(), name="removable", description=None, is_system=False)
     await role_repo.add(role)
 
-    sess = await _create_session(session_repo, identity.id, token="remove-role", db_session=db_session)
+    sess = await _create_session(
+        session_repo, identity.id, token="remove-role", db_session=db_session
+    )
 
     await session_repo.add_session_roles(sess.id, [role.id])
     await db_session.flush()

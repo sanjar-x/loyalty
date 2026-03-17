@@ -17,7 +17,7 @@ from src.modules.storage.domain.entities import StorageFile
 
 
 def _unwrap_dishka_task(task: Any) -> Callable[..., Any]:
-    return cast(Callable[..., Any], getattr(task.original_func, "__dishka_orig_func__"))
+    return cast(Callable[..., Any], task.original_func.__dishka_orig_func__)
 
 
 handle_brand_created_event = _unwrap_dishka_task(_handle_brand_created_task)
@@ -85,7 +85,7 @@ class TestHandleBrandCreatedEvent:
         )
         storage_repo.get_active_by_key = AsyncMock(return_value=existing_file)
 
-        result = await handle_brand_created_event(  # noqa: F841
+        result = await handle_brand_created_event(
             brand_id="brand-123",
             object_key="logos/brand-123/logo.png",
             content_type="image/png",

@@ -69,9 +69,6 @@ class InMemoryBlobStorage:
         self._objects.pop(object_name, None)
         self._metadata.pop(object_name, None)
 
-    async def delete_file(self, object_name: str) -> None:
-        await self.delete_object(object_name)
-
     async def delete_objects(self, object_names: list[str]) -> list[str]:
         deleted = []
         for name in object_names:

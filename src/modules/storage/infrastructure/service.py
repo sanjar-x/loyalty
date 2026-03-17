@@ -90,26 +90,26 @@ class S3StorageService(IBlobStorage):
                     part_data = buffer[:min_part_size]
                     buffer = buffer[min_part_size:]
 
-                    res = await self._client.upload_part(
+                    upload_result = await self._client.upload_part(
                         Bucket=self._bucket,
                         Key=object_name,
                         PartNumber=part_number,
                         UploadId=upload_id,
                         Body=part_data,
                     )
-                    parts.append({"PartNumber": part_number, "ETag": res["ETag"]})
+                    parts.append({"PartNumber": part_number, "ETag": upload_result["ETag"]})
                     part_number += 1
 
             # Отправка остатков (хвоста), даже если он меньше 5MB
             if buffer or part_number == 1:
-                res = await self._client.upload_part(
+                upload_result = await self._client.upload_part(
                     Bucket=self._bucket,
                     Key=object_name,
                     PartNumber=part_number,
                     UploadId=upload_id,
                     Body=buffer,
                 )
-                parts.append({"PartNumber": part_number, "ETag": res["ETag"]})
+                parts.append({"PartNumber": part_number, "ETag": upload_result["ETag"]})
 
             # Завершение сборки файла на стороне S3
             await self._client.complete_multipart_upload(
@@ -222,13 +222,13 @@ class S3StorageService(IBlobStorage):
             response = await self._client.list_objects_v2(**kwargs)
 
             objects = []
-            for obj in response.get("Contents", []):
+            for s3_item in response.get("Contents", []):
                 objects.append(
                     {
-                        "key": obj["Key"],
-                        "size": obj["Size"],
-                        "last_modified": obj["LastModified"],
-                        "etag": obj.get("ETag", "").strip('"'),
+                        "key": s3_item["Key"],
+                        "size": s3_item["Size"],
+                        "last_modified": s3_item["LastModified"],
+                        "etag": s3_item.get("ETag", "").strip('"'),
                     }
                 )
 
@@ -252,9 +252,6 @@ class S3StorageService(IBlobStorage):
             raise ServiceUnavailableError(
                 message="Не удалось удалить файл.", details={"key": object_name}
             )
-
-    async def delete_file(self, object_name: str) -> None:
-        await self.delete_object(object_name)
 
     async def delete_objects(self, object_names: list[str]) -> list[str]:
         failed_keys = []

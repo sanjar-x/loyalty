@@ -205,17 +205,6 @@ class TestListObjectsError:
             await service.list_objects(prefix="uploads/")
 
 
-class TestDeleteFile:
-    async def test_delete_file_delegates(self):
-        """delete_file is a thin wrapper that delegates to delete_object."""
-        service, client = _make_service()
-        client.delete_object = AsyncMock(return_value={})
-
-        await service.delete_file("file.png")
-
-        client.delete_object.assert_awaited_once_with(Bucket="test-bucket", Key="file.png")
-
-
 class TestHandleClientErrorNon404:
     async def test_handle_client_error_non_404(self):
         """Non-404 codes (e.g. 403) in _handle_client_error should raise

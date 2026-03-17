@@ -32,7 +32,7 @@ warnings.filterwarnings(
 # 0. Event Loop Isolation
 # ==========================================
 
-test_session_var: contextvars.ContextVar[AsyncSession] = contextvars.ContextVar("test_session_var")
+_db_session_var: contextvars.ContextVar[AsyncSession] = contextvars.ContextVar("_db_session_var")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -128,7 +128,7 @@ class TestOverridesProvider(Provider):
 
     @provide(scope=Scope.REQUEST, override=True)
     async def session(self) -> AsyncSession:
-        return test_session_var.get()
+        return _db_session_var.get()
 
     @provide(scope=Scope.APP, override=True)
     async def redis_client(self) -> AsyncIterable[redis.Redis]:
@@ -246,9 +246,9 @@ async def db_session(test_engine: AsyncEngine, setup_infrastructure) -> AsyncIte
         )
         session = maker()
 
-        token = test_session_var.set(session)
+        token = _db_session_var.set(session)
         yield session
-        test_session_var.reset(token)
+        _db_session_var.reset(token)
 
         await session.close()
         await transaction.rollback()
