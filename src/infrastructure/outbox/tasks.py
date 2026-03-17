@@ -43,8 +43,7 @@ async def _handle_brand_created(
     )
 
     await (
-        handle_brand_created_event
-        .kicker()
+        handle_brand_created_event.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
             brand_id=payload["brand_id"],
@@ -62,8 +61,7 @@ async def _handle_brand_logo_confirmed(
 
     brand_id = uuid.UUID(payload["brand_id"])
     await (
-        process_brand_logo_task
-        .kicker()
+        process_brand_logo_task.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(brand_id=brand_id)  # ty:ignore[no-matching-overload]
     )
@@ -78,8 +76,7 @@ async def _handle_brand_logo_processed(
     )
 
     await (
-        handle_brand_logo_processed_event
-        .kicker()
+        handle_brand_logo_processed_event.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
             brand_id=payload["brand_id"],
@@ -110,8 +107,7 @@ async def _handle_identity_registered(
     )
 
     await (
-        create_user_on_identity_registered
-        .kicker()
+        create_user_on_identity_registered.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
             identity_id=payload["identity_id"],
@@ -129,8 +125,7 @@ async def _handle_identity_deactivated(
     )
 
     await (
-        anonymize_user_on_identity_deactivated
-        .kicker()
+        anonymize_user_on_identity_deactivated.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
             identity_id=payload["identity_id"],
@@ -147,8 +142,7 @@ async def _handle_role_assignment_changed(
     )
 
     await (
-        invalidate_permissions_cache_on_role_change
-        .kicker()
+        invalidate_permissions_cache_on_role_change.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
             identity_id=payload["identity_id"],
