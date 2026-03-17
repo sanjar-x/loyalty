@@ -5,6 +5,7 @@ Consumers for cross-module events from identity → user.
 - IdentityRegisteredEvent → CreateUserHandler (creates User with Shared PK)
 - IdentityDeactivatedEvent → AnonymizeUserHandler (GDPR: PII cleanup)
 """
+
 import uuid
 
 import structlog

@@ -13,9 +13,7 @@ class UserModel(Base):
     """User profile (PII). Shared PK 1:1 with identities."""
 
     __tablename__ = "users"
-    __table_args__ = (
-        {"comment": "User PII (GDPR-isolated from auth data)"},
-    )
+    __table_args__ = ({"comment": "User PII (GDPR-isolated from auth data)"},)
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

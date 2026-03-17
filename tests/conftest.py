@@ -1,47 +1,66 @@
+# tests/conftest.py
 import asyncio
 import contextvars
 import warnings
 from collections.abc import AsyncIterable
-from unittest.mock import AsyncMock
 
 import pytest
 import redis.asyncio as redis
-from aiobotocore.session import get_session
 from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
 from pydantic import SecretStr
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
+    async_sessionmaker,
     create_async_engine,
 )
 
 from src.bootstrap.config import Settings
 from src.shared.interfaces.blob_storage import IBlobStorage
+from src.shared.interfaces.config import IStorageConfig
+from src.shared.interfaces.security import IOIDCProvider
+from tests.fakes.blob_storage import InMemoryBlobStorage
+from tests.fakes.oidc_provider import StubOIDCProvider
 
 warnings.filterwarnings(
     "ignore", category=DeprecationWarning, message=".*wait_container_is_ready.*"
 )
 
+# ==========================================
+# 0. Event Loop Isolation
+# ==========================================
 
-# ==========================================
-# 0. Изоляция Event Loop (Решение проблемы с зависанием БД)
-# ==========================================
+test_session_var: contextvars.ContextVar[AsyncSession] = contextvars.ContextVar(
+    "test_session_var"
+)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def event_loop():
-    """
-    Принудительно создаем один Event Loop для всей тестовой сессии.
-    Это решает проблему "Task pending" и "InterfaceError", когда
-    движок БД и тесты пытаются работать в разных циклах.
-    """
+    """Single event loop for entire test session."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
 
 # ==========================================
-# 1. URL-адреса для подключения...
+# 0.1. ContextVar Isolation (autouse)
 # ==========================================
-# 1. URL-адреса для подключения к локальным контейнерам
+
+
+@pytest.fixture(autouse=True)
+def _reset_context_vars():
+    """Reset request_id ContextVar per test to prevent cross-test contamination."""
+    from src.shared.context import _request_id_var
+
+    token = _request_id_var.set("test-request-id")
+    yield
+    _request_id_var.reset(token)
+
+
+# ==========================================
+# 1. Connection URLs
 # ==========================================
 
 
@@ -85,10 +104,8 @@ def test_settings(db_url, redis_url, rabbitmq_url) -> Settings:
 
 
 # ==========================================
-# 2. Провайдеры Dishka
+# 2. Dishka Test Overrides Provider
 # ==========================================
-
-test_session_var = contextvars.ContextVar("test_session_var")
 
 
 class TestOverridesProvider(Provider):
@@ -122,14 +139,21 @@ class TestOverridesProvider(Provider):
         await client.close()
         await pool.disconnect()
 
-    # 👇 ДОБАВЛЕНО: Заглушка для стораджа, чтобы воркеры не падали при старте
     @provide(scope=Scope.APP, override=True)
     async def blob_storage(self) -> IBlobStorage:
-        return AsyncMock(spec=IBlobStorage)
+        return InMemoryBlobStorage()
+
+    @provide(scope=Scope.APP, override=True)
+    async def oidc_provider(self) -> IOIDCProvider:
+        return StubOIDCProvider()
+
+    @provide(scope=Scope.APP, override=True)
+    async def storage_config(self) -> IStorageConfig:
+        return self.test_settings
 
 
 # ==========================================
-# 3. Инициализация IoC и БД (Session Scope)
+# 3. IoC Container & DB Initialization (Session Scope)
 # ==========================================
 
 
@@ -139,6 +163,7 @@ async def app_container(
 ) -> AsyncIterable[AsyncContainer]:
     from src.infrastructure.cache.provider import CacheProvider
     from src.infrastructure.database.provider import DatabaseProvider
+    from src.infrastructure.logging.provider import LoggingProvider
     from src.infrastructure.security.provider import SecurityProvider
     from src.modules.catalog.presentation.dependencies import (
         BrandProvider,
@@ -150,6 +175,7 @@ async def app_container(
 
     container = make_async_container(
         DatabaseProvider(),
+        LoggingProvider(),
         CacheProvider(),
         SecurityProvider(),
         StorageProvider(),
@@ -169,6 +195,15 @@ async def app_container(
 async def test_engine(app_container: AsyncContainer) -> AsyncEngine:
     engine = await app_container.get(AsyncEngine)
 
+    # Fail-fast DB connectivity check
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception as e:
+        pytest.exit(
+            f"Database unreachable: {e}. Start containers: docker compose up -d"
+        )
+
     from src.infrastructure.database.registry import Base
 
     async with engine.begin() as conn:
@@ -180,11 +215,10 @@ async def test_engine(app_container: AsyncContainer) -> AsyncEngine:
 
 @pytest.fixture(scope="session")
 async def setup_infrastructure(test_engine: AsyncEngine, test_settings: Settings):
-    """
-    Создает бакет в MinIO при запуске тестов (если его нет).
-    """
-    session = get_session()
+    """Create MinIO bucket for tests (if not exists)."""
+    from aiobotocore.session import get_session
 
+    session = get_session()
     async with session.create_client(
         "s3",
         endpoint_url=test_settings.S3_ENDPOINT_URL,
@@ -194,15 +228,14 @@ async def setup_infrastructure(test_engine: AsyncEngine, test_settings: Settings
     ) as s3_client:
         try:
             await s3_client.create_bucket(Bucket=test_settings.S3_BUCKET_NAME)
-        except Exception as e:
-            # В тестах бакет может уже существовать, игнорируем
-            print(f"Bucket creation info: {e}")
+        except Exception:
+            pass  # Bucket already exists
 
     return True
 
 
 # ==========================================
-# 4. Изоляция Тестов (Function Scope)
+# 4. Test Isolation (Function Scope)
 # ==========================================
 
 
@@ -210,16 +243,41 @@ async def setup_infrastructure(test_engine: AsyncEngine, test_settings: Settings
 async def db_session(
     test_engine: AsyncEngine, setup_infrastructure
 ) -> AsyncIterable[AsyncSession]:
-    # setup_infrastructure добавлен в аргументы, чтобы гарантировать
-    # создание бакета и таблиц перед первым тестом
+    """Nested transaction per test — automatic rollback ensures pristine state."""
     async with test_engine.connect() as conn:
         transaction = await conn.begin()
-        nested = await conn.begin_nested()
+        await conn.begin_nested()
 
-        async with AsyncSession(bind=conn, expire_on_commit=False) as session:
-            token = test_session_var.set(session)
-            yield session
-            test_session_var.reset(token)
+        maker = async_sessionmaker(
+            bind=conn,
+            expire_on_commit=False,
+            join_transaction_mode="create_savepoint",
+        )
+        session = maker()
 
-        await nested.rollback()
+        token = test_session_var.set(session)
+        yield session
+        test_session_var.reset(token)
+
+        await session.close()
         await transaction.rollback()
+
+
+# ==========================================
+# 5. Redis Isolation (Function Scope)
+# ==========================================
+
+
+@pytest.fixture()
+async def _flush_redis(app_container: AsyncContainer):
+    """Flush Redis after each test for cache isolation.
+
+    Not autouse at root level — applied as autouse in integration/e2e conftest
+    to avoid triggering DI container creation for unit/architecture tests.
+    """
+    yield
+    try:
+        redis_client = await app_container.get(redis.Redis)
+        await redis_client.flushdb()
+    except Exception:
+        pass

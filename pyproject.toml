@@ -81,6 +81,13 @@ dev = [
     "testcontainers[minio,postgres,rabbitmq,redis]>=4.14.1",
 ]
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 markers = [
-    "architecture: mark test as an architecture boundary test"
+    "architecture: Fitness functions and boundary enforcement",
+    "unit: Domain-layer pure logic, zero I/O",
+    "integration: Application + Infrastructure with real database",
+    "e2e: Presentation-layer HTTP round-trips",
+    "load: Resilience and threshold testing (Locust)",
 ]
+filterwarnings = ["ignore::DeprecationWarning:dishka.*"]
+testpaths = ["tests"]

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.modules.identity.domain.entities import Session
 from src.modules.identity.domain.interfaces import ISessionRepository
@@ -12,7 +13,7 @@ from src.modules.identity.infrastructure.models import SessionModel, SessionRole
 
 class SessionRepository(ISessionRepository):
     def __init__(self, session: AsyncSession) -> None:
-        self._session = session
+        self._session: AsyncSession = session
 
     def _to_domain(self, orm: SessionModel) -> Session:
         role_ids = [sr.role_id for sr in orm.activated_roles]
@@ -43,14 +44,20 @@ class SessionRepository(ISessionRepository):
         return session
 
     async def get(self, session_id: uuid.UUID) -> Session | None:
-        stmt = select(SessionModel).where(SessionModel.id == session_id)
+        stmt = (
+            select(SessionModel)
+            .options(selectinload(SessionModel.activated_roles))
+            .where(SessionModel.id == session_id)
+        )
         result = await self._session.execute(stmt)
         orm = result.unique().scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
     async def get_by_refresh_token_hash(self, token_hash: str) -> Session | None:
-        stmt = select(SessionModel).where(
-            SessionModel.refresh_token_hash == token_hash
+        stmt = (
+            select(SessionModel)
+            .options(selectinload(SessionModel.activated_roles))
+            .where(SessionModel.refresh_token_hash == token_hash)
         )
         result = await self._session.execute(stmt)
         orm = result.unique().scalar_one_or_none()
@@ -67,9 +74,7 @@ class SessionRepository(ISessionRepository):
         )
         await self._session.execute(stmt)
 
-    async def revoke_all_for_identity(
-        self, identity_id: uuid.UUID
-    ) -> list[uuid.UUID]:
+    async def revoke_all_for_identity(self, identity_id: uuid.UUID) -> list[uuid.UUID]:
         now = datetime.now(timezone.utc)
         stmt = select(SessionModel.id).where(
             SessionModel.identity_id == identity_id,
@@ -103,9 +108,7 @@ class SessionRepository(ISessionRepository):
         result = await self._session.execute(stmt)
         return result.scalar() or 0
 
-    async def get_active_session_ids(
-        self, identity_id: uuid.UUID
-    ) -> list[uuid.UUID]:
+    async def get_active_session_ids(self, identity_id: uuid.UUID) -> list[uuid.UUID]:
         now = datetime.now(timezone.utc)
         stmt = select(SessionModel.id).where(
             SessionModel.identity_id == identity_id,

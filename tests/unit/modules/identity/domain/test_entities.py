@@ -21,6 +21,7 @@ from src.modules.identity.domain.exceptions import (
     SessionExpiredError,
 )
 from src.modules.identity.domain.value_objects import IdentityType
+from tests.factories.identity_mothers import IdentityMothers
 
 
 class TestIdentity:
@@ -59,6 +60,16 @@ class TestIdentity:
         identity.deactivate(reason="test")
         with pytest.raises(IdentityDeactivatedError):
             identity.ensure_active()
+
+    def test_register_oidc_type(self):
+        identity = IdentityMothers.active_oidc()
+        assert identity.type == IdentityType.OIDC
+        assert identity.is_active is True
+
+    def test_deactivated_mother_has_cleared_events(self):
+        identity = IdentityMothers.deactivated()
+        assert identity.is_active is False
+        assert len(identity.domain_events) == 0
 
 
 class TestLocalCredentials:
@@ -239,3 +250,7 @@ class TestLinkedAccount:
             provider_email="user@gmail.com",
         )
         assert account.provider == "google"
+
+    def test_ensure_valid_passes_when_fresh(self):
+        _, session, _ = IdentityMothers.with_session()
+        session.ensure_valid()  # should not raise

@@ -29,6 +29,8 @@ class IdentityRegisteredEvent(DomainEvent):
     def __post_init__(self) -> None:
         if self.registered_at is None:
             self.registered_at = datetime.now(timezone.utc)
+        if self.identity_id is not None and not self.aggregate_id:
+            self.aggregate_id = str(self.identity_id)
 
 
 @dataclass
@@ -47,6 +49,8 @@ class IdentityDeactivatedEvent(DomainEvent):
     def __post_init__(self) -> None:
         if self.deactivated_at is None:
             self.deactivated_at = datetime.now(timezone.utc)
+        if self.identity_id is not None and not self.aggregate_id:
+            self.aggregate_id = str(self.identity_id)
 
 
 @dataclass
@@ -61,3 +65,7 @@ class RoleAssignmentChangedEvent(DomainEvent):
     action: str = ""  # "assigned" | "revoked"
     aggregate_type: str = "Identity"
     event_type: str = "RoleAssignmentChangedEvent"
+
+    def __post_init__(self) -> None:
+        if self.identity_id is not None and not self.aggregate_id:
+            self.aggregate_id = str(self.identity_id)

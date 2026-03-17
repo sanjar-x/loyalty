@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from src.modules.user.domain.entities import User
+from tests.factories.user_mothers import UserMothers
 
 
 class TestUser:
@@ -16,7 +17,7 @@ class TestUser:
             "updated_at": datetime.now(timezone.utc),
         }
         defaults.update(kwargs)
-        return User(**defaults)
+        return User(**defaults)  # ty:ignore[invalid-argument-type]
 
     def test_create_from_identity(self):
         identity_id = uuid.uuid4()
@@ -59,3 +60,21 @@ class TestUser:
         user.anonymize()
         user.anonymize()  # should not raise
         assert user.first_name == "[DELETED]"
+
+    def test_create_from_identity_uses_shared_pk(self):
+        identity_id = uuid.uuid4()
+        user = UserMothers.active(identity_id=identity_id)
+        assert user.id == identity_id
+
+    def test_update_profile_partial_fields(self):
+        user = UserMothers.with_profile(first_name="John", last_name="Doe")
+        user.update_profile(first_name="Jane")
+        assert user.first_name == "Jane"
+        assert user.last_name == "Doe"  # unchanged
+
+    def test_anonymized_mother_replaces_pii(self):
+        user = UserMothers.anonymized()
+        assert user.first_name == "[DELETED]"
+        assert user.last_name == "[DELETED]"
+        assert user.phone is None
+        assert user.profile_email is None

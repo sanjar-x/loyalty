@@ -6,6 +6,7 @@ Triggered by RoleAssignmentChangedEvent via Outbox Relay.
 session_roles are already updated synchronously by AssignRoleHandler/RevokeRoleHandler.
 This consumer only handles cache clearing — next request triggers fresh CTE.
 """
+
 import uuid
 
 import structlog
