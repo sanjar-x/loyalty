@@ -145,3 +145,112 @@ class InvalidLogoStateException(UnprocessableEntityError):
                 "expected_status": expected_status,
             },
         )
+
+
+# ---------------------------------------------------------------------------
+# AttributeGroup aggregate exceptions
+# ---------------------------------------------------------------------------
+
+
+class AttributeGroupNotFoundError(NotFoundError):
+    """Raised when an attribute group lookup yields no result."""
+
+    def __init__(self, group_id: uuid.UUID | str):
+        super().__init__(
+            message=f"Attribute group with ID {group_id} not found.",
+            error_code="ATTRIBUTE_GROUP_NOT_FOUND",
+            details={"group_id": str(group_id)},
+        )
+
+
+class AttributeGroupCodeConflictError(ConflictError):
+    """Raised when an attribute group code collides with an existing group."""
+
+    def __init__(self, code: str):
+        super().__init__(
+            message=f"Attribute group with code '{code}' already exists.",
+            error_code="ATTRIBUTE_GROUP_CODE_CONFLICT",
+            details={"code": code},
+        )
+
+
+class AttributeGroupHasAttributesError(ConflictError):
+    """Raised when attempting to delete a group that still has attributes."""
+
+    def __init__(self, group_id: uuid.UUID):
+        super().__init__(
+            message="Cannot delete attribute group that still contains attributes.",
+            error_code="ATTRIBUTE_GROUP_HAS_ATTRIBUTES",
+            details={"group_id": str(group_id)},
+        )
+
+
+class AttributeGroupCannotDeleteGeneralError(UnprocessableEntityError):
+    """Raised when attempting to delete the protected 'general' group."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="The 'general' attribute group cannot be deleted.",
+            error_code="ATTRIBUTE_GROUP_CANNOT_DELETE_GENERAL",
+            details={"code": "general"},
+        )
+
+
+# ---------------------------------------------------------------------------
+# Attribute aggregate exceptions
+# ---------------------------------------------------------------------------
+
+
+class AttributeNotFoundError(NotFoundError):
+    """Raised when an attribute lookup yields no result."""
+
+    def __init__(self, attribute_id: uuid.UUID | str):
+        super().__init__(
+            message=f"Attribute with ID {attribute_id} not found.",
+            error_code="ATTRIBUTE_NOT_FOUND",
+            details={"attribute_id": str(attribute_id)},
+        )
+
+
+class AttributeCodeConflictError(ConflictError):
+    """Raised when an attribute code collides with an existing attribute."""
+
+    def __init__(self, code: str):
+        super().__init__(
+            message=f"Attribute with code '{code}' already exists.",
+            error_code="ATTRIBUTE_CODE_CONFLICT",
+            details={"code": code},
+        )
+
+
+class AttributeSlugConflictError(ConflictError):
+    """Raised when an attribute slug collides with an existing attribute."""
+
+    def __init__(self, slug: str):
+        super().__init__(
+            message=f"Attribute with slug '{slug}' already exists.",
+            error_code="ATTRIBUTE_SLUG_CONFLICT",
+            details={"slug": slug},
+        )
+
+
+class AttributeHasCategoryBindingsError(ConflictError):
+    """Raised when attempting to delete an attribute bound to categories."""
+
+    def __init__(self, attribute_id: uuid.UUID):
+        super().__init__(
+            message="Cannot delete attribute that is bound to one or more categories.",
+            error_code="ATTRIBUTE_HAS_CATEGORY_BINDINGS",
+            details={"attribute_id": str(attribute_id)},
+        )
+
+
+class AttributeDataTypeChangeError(UnprocessableEntityError):
+    """Raised when attempting to change an attribute's data type after creation."""
+
+    def __init__(self, attribute_id: uuid.UUID):
+        super().__init__(
+            message="Cannot change data type of an existing attribute.",
+            error_code="ATTRIBUTE_DATA_TYPE_CHANGE_NOT_ALLOWED",
+            details={"attribute_id": str(attribute_id)},
+        )

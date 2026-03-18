@@ -2,7 +2,7 @@
 """
 Read models (DTOs) for Catalog query handlers.
 
-These models carry no business logic — only data for the read side.
+These models carry no business logic -- only data for the read side.
 Used directly by query handlers without involving domain aggregates,
 repositories, or the Unit of Work. Part of the application layer
 (CQRS read side).
@@ -11,6 +11,7 @@ repositories, or the Unit of Work. Part of the application layer
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -74,6 +75,29 @@ class BrandListReadModel(BaseModel):
     """Paginated brand list read model."""
 
     items: list[BrandReadModel]
+    total: int
+    offset: int
+    limit: int
+
+
+# ---------------------------------------------------------------------------
+# AttributeGroup read models
+# ---------------------------------------------------------------------------
+
+
+class AttributeGroupReadModel(BaseModel):
+    """Read model for a single attribute group."""
+
+    id: uuid.UUID
+    code: str
+    name_i18n: dict[str, Any]
+    sort_order: int
+
+
+class AttributeGroupListReadModel(BaseModel):
+    """Paginated attribute group list read model."""
+
+    items: list[AttributeGroupReadModel]
     total: int
     offset: int
     limit: int

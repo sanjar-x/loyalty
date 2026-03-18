@@ -3,7 +3,7 @@
 
 import uuid
 
-from src.modules.catalog.domain.entities import Brand, Category
+from src.modules.catalog.domain.entities import AttributeGroup, Brand, Category
 
 
 class BrandMothers:
@@ -11,7 +11,7 @@ class BrandMothers:
 
     @staticmethod
     def without_logo() -> Brand:
-        """Brand with no logo — simplest valid state."""
+        """Brand with no logo -- simplest valid state."""
         return Brand.create(name="Test Brand", slug=f"test-brand-{uuid.uuid4().hex[:6]}")
 
     @staticmethod
@@ -95,3 +95,47 @@ class CategoryMothers:
             )
             categories.append(child)
         return categories
+
+
+class AttributeGroupMothers:
+    """Pre-built AttributeGroup aggregate configurations."""
+
+    @staticmethod
+    def general() -> AttributeGroup:
+        """The default 'general' group that always exists."""
+        return AttributeGroup.create(
+            code="general",
+            name_i18n={"en": "General", "ru": "Общие"},
+            sort_order=0,
+        )
+
+    @staticmethod
+    def physical() -> AttributeGroup:
+        """Physical characteristics group."""
+        return AttributeGroup.create(
+            code=f"physical-{uuid.uuid4().hex[:6]}",
+            name_i18n={"en": "Physical Characteristics", "ru": "Физические характеристики"},
+            sort_order=1,
+        )
+
+    @staticmethod
+    def technical() -> AttributeGroup:
+        """Technical specifications group."""
+        return AttributeGroup.create(
+            code=f"technical-{uuid.uuid4().hex[:6]}",
+            name_i18n={"en": "Technical", "ru": "Технические"},
+            sort_order=2,
+        )
+
+    @staticmethod
+    def custom(
+        code: str | None = None,
+        name_i18n: dict[str, str] | None = None,
+        sort_order: int = 0,
+    ) -> AttributeGroup:
+        """Custom group with overridable fields."""
+        return AttributeGroup.create(
+            code=code or f"custom-{uuid.uuid4().hex[:6]}",
+            name_i18n=name_i18n or {"en": "Custom Group"},
+            sort_order=sort_order,
+        )

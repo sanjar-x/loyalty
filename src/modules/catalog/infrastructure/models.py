@@ -3,15 +3,15 @@ ORM models for the Catalog bounded context.
 
 Maps domain concepts to PostgreSQL tables via SQLAlchemy declarative mappings.
 These models belong to the infrastructure layer and must never leak into the
-domain or application layers — repositories translate between ORM and domain
+domain or application layers -- repositories translate between ORM and domain
 entities using the Data Mapper pattern.
 
 Sections:
-    1. Enumerations — database-level enums for product status, media, etc.
-    2. Taxonomy & Dictionaries — Brand, Category, Attribute, AttributeValue.
-    3. Rules — CategoryAttributeRule (governance matrix).
-    4. Core Domain — Supplier, Product, MediaAsset.
-    5. Variations — SKU and SKU ↔ AttributeValue link table.
+    1. Enumerations -- database-level enums for product status, media, etc.
+    2. Taxonomy & Dictionaries -- Brand, Category, AttributeGroup, Attribute, AttributeValue.
+    3. Rules -- CategoryAttributeRule (governance matrix).
+    4. Core Domain -- Supplier, Product, MediaAsset.
+    5. Variations -- SKU and SKU <-> AttributeValue link table.
 """
 
 import enum
@@ -39,6 +39,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.infrastructure.database.base import Base
 from src.modules.catalog.domain.value_objects import (
     AttributeDataType,
+    AttributeLevel,
     AttributeUIType,
     MediaProcessingStatus,
 )
@@ -143,9 +144,7 @@ class Category(Base):
 
     __tablename__ = "categories"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     parent_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("categories.id", ondelete="CASCADE"), index=True
     )
@@ -153,9 +152,7 @@ class Category(Base):
     level: Mapped[int] = mapped_column(Integer, server_default=text("0"), index=True)
     name: Mapped[str] = mapped_column(String(255))
     slug: Mapped[str] = mapped_column(String(255), index=True)
-    sort_order: Mapped[int] = mapped_column(
-        Integer, server_default=text("0"), index=True
-    )
+    sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"), index=True)
 
     children: Mapped[list[Category]] = relationship(
         "Category", back_populates="parent", cascade="all, delete-orphan"
@@ -184,11 +181,56 @@ class Category(Base):
     )
 
 
+class AttributeGroup(Base):
+    """ORM model for attribute groups (logical sections for organizing attributes).
+
+    Groups provide visual and semantic grouping of attributes in the admin UI
+    and on the product card (e.g. "Physical characteristics", "Technical").
+    The "general" group always exists and cannot be deleted.
+    """
+
+    __tablename__ = "attribute_groups"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid7,
+        comment="Primary key (UUIDv7)",
+    )
+    code: Mapped[str] = mapped_column(
+        String(100),
+        comment="Machine-readable unique code (e.g. 'general', 'physical')",
+    )
+    name_i18n: Mapped[dict[str, Any]] = mapped_column(
+        MutableDict.as_mutable(sqltype=JSONB),
+        server_default=text("'{}'::jsonb"),
+        comment="Multilingual display name",
+    )
+    sort_order: Mapped[int] = mapped_column(
+        Integer,
+        server_default=text("0"),
+        comment="Display ordering among groups (lower = first)",
+    )
+
+    attributes: Mapped[list[Attribute]] = relationship("Attribute", back_populates="group")
+
+    __table_args__ = (
+        Index("uix_attribute_groups_code", "code", unique=True),
+        Index(
+            "ix_attribute_groups_name_i18n_gin",
+            "name_i18n",
+            postgresql_using="gin",
+        ),
+    )
+
+
 class Attribute(Base):
     """ORM model for the EAV attribute dictionary.
 
-    Stores multilingual names and descriptions as JSONB, along with
-    data-type and UI-widget hints used by the storefront filter UI.
+    Stores multilingual names/descriptions as JSONB, data-type and UI-widget
+    hints, behavior flags (filterable, searchable, comparable, etc.),
+    validation rules, and product/variant level.
+    Each attribute belongs to exactly one :class:`AttributeGroup`.
     """
 
     __tablename__ = "attributes"
@@ -198,6 +240,13 @@ class Attribute(Base):
     )
     code: Mapped[str] = mapped_column(String(100))
     slug: Mapped[str] = mapped_column(String(255))
+
+    group_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("attribute_groups.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+        comment="FK to attribute_groups; NULL when group is deleted without reassignment",
+    )
 
     name_i18n: Mapped[dict[str, Any]] = mapped_column(
         MutableDict.as_mutable(sqltype=JSONB), server_default=text("'{}'::jsonb")
@@ -214,7 +263,42 @@ class Attribute(Base):
         server_default=AttributeUIType.TEXT_BUTTON.name,
     )
     is_dictionary: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    level: Mapped[AttributeLevel] = mapped_column(
+        Enum(AttributeLevel, name="attribute_level_enum"),
+        server_default=AttributeLevel.PRODUCT.name,
+        comment="Product-level or variant-level attribute",
+    )
 
+    # Behavior flags
+    is_filterable: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("false"), comment="Available as filter on storefront"
+    )
+    is_searchable: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("false"), comment="Participates in full-text search"
+    )
+    search_weight: Mapped[int] = mapped_column(
+        Integer, server_default=text("5"), comment="Search ranking priority (1-10)"
+    )
+    is_comparable: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("false"), comment="Shown in product comparison table"
+    )
+    is_visible_on_card: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("false"), comment="Shown on product detail page"
+    )
+    is_visible_in_catalog: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("false"), comment="Shown in catalog listing preview"
+    )
+
+    # Validation rules (type-specific constraints stored as JSONB)
+    validation_rules: Mapped[dict[str, Any] | None] = mapped_column(
+        MutableDict.as_mutable(JSONB),
+        nullable=True,
+        comment="Type-specific validation constraints (e.g. min_length, max_value)",
+    )
+
+    group: Mapped[AttributeGroup | None] = relationship(
+        "AttributeGroup", back_populates="attributes"
+    )
     values: Mapped[list[AttributeValue]] = relationship(
         "AttributeValue", back_populates="attribute", cascade="all, delete-orphan"
     )
@@ -228,6 +312,7 @@ class Attribute(Base):
         Index("uix_attributes_code", "code", unique=True),
         Index("uix_attributes_slug", "slug", unique=True),
         Index("ix_attributes_name_i18n_gin", "name_i18n", postgresql_using="gin"),
+        Index("ix_attributes_filterable", "is_filterable", postgresql_where=text("is_filterable = true")),
     )
 
 
@@ -240,9 +325,7 @@ class AttributeValue(Base):
 
     __tablename__ = "attribute_values"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     attribute_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("attributes.id", ondelete="CASCADE"), index=True
     )
@@ -266,9 +349,7 @@ class AttributeValue(Base):
         Index("uix_attr_val_code", "attribute_id", "code", unique=True),
         Index("uix_attr_val_slug", "attribute_id", "slug", unique=True),
         Index("ix_attr_val_value_i18n_gin", "value_i18n", postgresql_using="gin"),
-        Index(
-            "ix_attr_val_search_aliases_gin", "search_aliases", postgresql_using="gin"
-        ),
+        Index("ix_attr_val_search_aliases_gin", "search_aliases", postgresql_using="gin"),
     )
 
 
@@ -286,9 +367,7 @@ class CategoryAttributeRule(Base):
 
     __tablename__ = "category_attribute_rules"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     category_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("categories.id", ondelete="CASCADE"), index=True
     )
@@ -297,16 +376,10 @@ class CategoryAttributeRule(Base):
     )
     sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
 
-    category: Mapped[Category] = relationship(
-        "Category", back_populates="attribute_rules"
-    )
-    attribute: Mapped[Attribute] = relationship(
-        "Attribute", back_populates="category_rules"
-    )
+    category: Mapped[Category] = relationship("Category", back_populates="attribute_rules")
+    attribute: Mapped[Attribute] = relationship("Attribute", back_populates="category_rules")
 
-    __table_args__ = (
-        Index("uix_cat_attr_rule", "category_id", "attribute_id", unique=True),
-    )
+    __table_args__ = (Index("uix_cat_attr_rule", "category_id", "attribute_id", unique=True),)
 
 
 # ---------------------------------------------------------------------------
@@ -323,13 +396,9 @@ class Supplier(Base):
 
     __tablename__ = "suppliers"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     name: Mapped[str] = mapped_column(String(255))
-    type: Mapped[SupplierType] = mapped_column(
-        Enum(SupplierType, name="supplier_type_enum")
-    )
+    type: Mapped[SupplierType] = mapped_column(Enum(SupplierType, name="supplier_type_enum"))
     region: Mapped[str | None] = mapped_column(String(255))
     products: Mapped[list[Product]] = relationship("Product", back_populates="supplier")
 
@@ -344,9 +413,7 @@ class Product(Base):
 
     __tablename__ = "products"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     primary_category_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("categories.id", ondelete="RESTRICT"), index=True
     )
@@ -370,9 +437,7 @@ class Product(Base):
         MutableDict.as_mutable(JSONB), server_default=text("'{}'::jsonb")
     )
     source_url: Mapped[str | None] = mapped_column(String(1024))
-    tags: Mapped[list[str]] = mapped_column(
-        ARRAY(String), server_default=text("'{}'::varchar[]")
-    )
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String), server_default=text("'{}'::varchar[]"))
 
     status: Mapped[ProductStatus] = mapped_column(
         Enum(ProductStatus, name="product_status_enum"),
@@ -392,9 +457,7 @@ class Product(Base):
         TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     published_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
-    deleted_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), index=True
-    )
+    deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), index=True)
     supplier: Mapped[Supplier] = relationship("Supplier", back_populates="products")
     skus: Mapped[list[SKU]] = relationship(
         "SKU", back_populates="product", cascade="all, delete-orphan"
@@ -435,16 +498,14 @@ class Product(Base):
 class MediaAsset(Base):
     """ORM model for product media assets (business context).
 
-    Describes *how* a file is used in the catalog — its role, display
+    Describes *how* a file is used in the catalog -- its role, display
     order, and optional colour-variant binding.  The physical file data
     lives in the Storage module (:class:`StorageObject`).
     """
 
     __tablename__ = "media_assets"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     product_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("products.id", ondelete="CASCADE"), index=True
     )
@@ -514,9 +575,7 @@ class SKU(Base):
 
     __tablename__ = "skus"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     product_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("products.id", ondelete="CASCADE"), index=True
     )
@@ -547,9 +606,7 @@ class SKU(Base):
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    deleted_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), index=True
-    )
+    deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), index=True)
 
     product: Mapped[Product] = relationship("Product", back_populates="skus")
     attribute_values: Mapped[list[SKUAttributeValueLink]] = relationship(
@@ -585,12 +642,8 @@ class SKUAttributeValueLink(Base):
 
     __tablename__ = "sku_attribute_values"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
-    sku_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("skus.id", ondelete="CASCADE"), index=True
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
+    sku_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("skus.id", ondelete="CASCADE"), index=True)
     attribute_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("attributes.id", ondelete="CASCADE"), index=True
     )
@@ -603,8 +656,6 @@ class SKUAttributeValueLink(Base):
     attribute_value: Mapped[AttributeValue] = relationship("AttributeValue")
 
     __table_args__ = (
-        UniqueConstraint(
-            "sku_id", "attribute_id", name="uix_sku_single_attribute_value"
-        ),
+        UniqueConstraint("sku_id", "attribute_id", name="uix_sku_single_attribute_value"),
         Index("ix_sku_attr_val_lookup", "attribute_value_id", "sku_id"),
     )

@@ -2,11 +2,12 @@
 Pydantic request/response schemas for the Catalog API.
 
 All schemas inherit from :class:`CamelModel` to provide automatic
-camelCase ↔ snake_case field aliasing.  These DTOs belong to the
+camelCase <-> snake_case field aliasing.  These DTOs belong to the
 presentation layer and carry no business logic.
 """
 
 import uuid
+from typing import Any
 
 from pydantic import ConfigDict, Field, model_validator
 
@@ -70,7 +71,7 @@ class CategoryResponse(CamelModel):
 
 
 class CategoryUpdateRequest(CamelModel):
-    """Partial update request — all fields optional (PATCH semantics)."""
+    """Partial update request -- all fields optional (PATCH semantics)."""
 
     name: str | None = Field(None, min_length=2, max_length=255)
     slug: str | None = Field(None, min_length=3, max_length=255, pattern=r"^[a-z0-9-]+$")
@@ -119,7 +120,7 @@ class BrandResponse(CamelModel):
 
 
 class BrandUpdateRequest(CamelModel):
-    """Partial update request — all fields optional (PATCH semantics)."""
+    """Partial update request -- all fields optional (PATCH semantics)."""
 
     name: str | None = Field(None, min_length=1, max_length=255)
     slug: str | None = Field(None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$")
@@ -135,6 +136,72 @@ class BrandListResponse(CamelModel):
     """Paginated brand list response."""
 
     items: list[BrandResponse]
+    total: int
+    offset: int
+    limit: int
+
+
+# ---------------------------------------------------------------------------
+# AttributeGroup schemas
+# ---------------------------------------------------------------------------
+
+
+class AttributeGroupCreateRequest(CamelModel):
+    """Request body for creating a new attribute group."""
+
+    code: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        pattern=r"^[a-z0-9_]+$",
+        examples=["physical"],
+        description="Machine-readable unique code",
+    )
+    name_i18n: dict[str, str] = Field(
+        ...,
+        min_length=1,
+        examples=[{"en": "Physical Characteristics", "ru": "Физические характеристики"}],
+        description="Multilingual display name (at least one language required)",
+    )
+    sort_order: int = Field(0, description="Display ordering among groups")
+
+
+class AttributeGroupCreateResponse(CamelModel):
+    """Response after attribute group creation."""
+
+    group_id: uuid.UUID
+
+
+class AttributeGroupResponse(CamelModel):
+    """Single attribute group detail response."""
+
+    id: uuid.UUID
+    code: str
+    name_i18n: dict[str, Any]
+    sort_order: int
+
+
+class AttributeGroupUpdateRequest(CamelModel):
+    """Partial update request -- code is immutable and cannot be changed."""
+
+    name_i18n: dict[str, str] | None = Field(
+        None,
+        min_length=1,
+        description="Multilingual display name (at least one language required)",
+    )
+    sort_order: int | None = None
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> AttributeGroupUpdateRequest:
+        if self.name_i18n is None and self.sort_order is None:
+            raise ValueError("At least one field (nameI18n or sortOrder) must be provided")
+        return self
+
+
+class AttributeGroupListResponse(CamelModel):
+    """Paginated attribute group list response."""
+
+    items: list[AttributeGroupResponse]
     total: int
     offset: int
     limit: int

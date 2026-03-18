@@ -1,10 +1,10 @@
 """
 Catalog domain events.
 
-Events are emitted by Brand and Category aggregates during business
-operations, serialized to JSON via ``dataclasses.asdict()``, and stored
-atomically in the Outbox table. The infrastructure layer relays them
-to downstream consumers (Storage module, background tasks).
+Events are emitted by Brand, Category, AttributeGroup, and Attribute
+aggregates during business operations, serialized to JSON via
+``dataclasses.asdict()``, and stored atomically in the Outbox table.
+The infrastructure layer relays them to downstream consumers.
 
 Typical usage:
     brand.add_domain_event(BrandCreatedEvent(brand_id=brand.id, ...))
@@ -90,3 +90,121 @@ class BrandLogoProcessedEvent(DomainEvent):
             raise ValueError("brand_id is required for BrandLogoProcessedEvent")
         if not self.aggregate_id:
             self.aggregate_id = str(self.brand_id)
+
+
+# ---------------------------------------------------------------------------
+# AttributeGroup events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class AttributeGroupCreatedEvent(DomainEvent):
+    """Emitted when a new attribute group is created."""
+
+    group_id: uuid.UUID | None = None
+    code: str = ""
+    aggregate_type: str = "AttributeGroup"
+    event_type: str = "AttributeGroupCreatedEvent"
+
+    def __post_init__(self) -> None:
+        if self.group_id is None:
+            raise ValueError("group_id is required for AttributeGroupCreatedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.group_id)
+
+
+@dataclass
+class AttributeGroupUpdatedEvent(DomainEvent):
+    """Emitted when an attribute group is updated."""
+
+    group_id: uuid.UUID | None = None
+    aggregate_type: str = "AttributeGroup"
+    event_type: str = "AttributeGroupUpdatedEvent"
+
+    def __post_init__(self) -> None:
+        if self.group_id is None:
+            raise ValueError("group_id is required for AttributeGroupUpdatedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.group_id)
+
+
+@dataclass
+class AttributeGroupDeletedEvent(DomainEvent):
+    """Emitted when an attribute group is deleted."""
+
+    group_id: uuid.UUID | None = None
+    code: str = ""
+    aggregate_type: str = "AttributeGroup"
+    event_type: str = "AttributeGroupDeletedEvent"
+
+    def __post_init__(self) -> None:
+        if self.group_id is None:
+            raise ValueError("group_id is required for AttributeGroupDeletedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.group_id)
+
+
+# ---------------------------------------------------------------------------
+# Attribute events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class AttributeCreatedEvent(DomainEvent):
+    """Emitted when a new attribute is created.
+
+    Attributes:
+        attribute_id: UUID of the newly created attribute.
+        code: Machine-readable attribute code.
+    """
+
+    attribute_id: uuid.UUID | None = None
+    code: str = ""
+    aggregate_type: str = "Attribute"
+    event_type: str = "AttributeCreatedEvent"
+
+    def __post_init__(self) -> None:
+        if self.attribute_id is None:
+            raise ValueError("attribute_id is required for AttributeCreatedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.attribute_id)
+
+
+@dataclass
+class AttributeUpdatedEvent(DomainEvent):
+    """Emitted when an attribute is updated.
+
+    Attributes:
+        attribute_id: UUID of the updated attribute.
+    """
+
+    attribute_id: uuid.UUID | None = None
+    aggregate_type: str = "Attribute"
+    event_type: str = "AttributeUpdatedEvent"
+
+    def __post_init__(self) -> None:
+        if self.attribute_id is None:
+            raise ValueError("attribute_id is required for AttributeUpdatedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.attribute_id)
+
+
+@dataclass
+class AttributeDeletedEvent(DomainEvent):
+    """Emitted when an attribute is deleted.
+
+    Attributes:
+        attribute_id: UUID of the deleted attribute.
+        code: Code of the deleted attribute.
+    """
+
+    attribute_id: uuid.UUID | None = None
+    code: str = ""
+    aggregate_type: str = "Attribute"
+    event_type: str = "AttributeDeletedEvent"
+
+    def __post_init__(self) -> None:
+        if self.attribute_id is None:
+            raise ValueError("attribute_id is required for AttributeDeletedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.attribute_id)

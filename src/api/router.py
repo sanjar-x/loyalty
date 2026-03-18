@@ -7,6 +7,9 @@ under an appropriate URL prefix.
 
 from fastapi import APIRouter
 
+from src.modules.catalog.presentation.router_attribute_groups import (
+    attribute_group_router,
+)
 from src.modules.catalog.presentation.router_brands import brand_router
 from src.modules.catalog.presentation.router_categories import category_router
 from src.modules.identity.presentation.router_account import identity_account_router
@@ -17,6 +20,7 @@ from src.modules.user.presentation.router import user_router
 router = APIRouter()
 router.include_router(category_router, prefix="/catalog")
 router.include_router(brand_router, prefix="/catalog")
+router.include_router(attribute_group_router, prefix="/catalog")
 router.include_router(auth_router)
 router.include_router(admin_router)
 router.include_router(user_router)

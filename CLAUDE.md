@@ -34,7 +34,7 @@ User describes task
   ├── Decompose into micro-tasks
   ├── TodoWrite([MT-1..N] × 4 agents)    ← loop's exit condition
   └── Start loop ───────────────────────────────────────────┐
-                                                             │
+                                                            │
   ┌─────────────── FOR EACH MICRO-TASK ───────────────┐     │
   │                                                   │     │
   │  @senior-architect  →  plan                       │     │
@@ -48,7 +48,7 @@ User describes task
   │         │                                         │     │
   │  Mark all 4 todos COMPLETED → next micro-task     │     │
   └───────────────────────────────────────────────────┘     │
-                                                             │
+                                                            │
   EXIT when TodoRead shows 0 PENDING ◄──────────────────────┘
 ```
 
