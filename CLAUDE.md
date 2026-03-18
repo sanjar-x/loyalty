@@ -1,12 +1,73 @@
-# CLAUDE.md
+# Enterprise API — Claude Code Configuration
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+E-commerce async REST API built with FastAPI, following DDD / Clean Architecture / CQRS / Modular Monolith patterns.
 
-## AI Agent Orchestration & Plugin Rules
+**Stack:** Python 3.14 · FastAPI · SQLAlchemy 2.1 (async) · Alembic · Dishka DI ·
+TaskIQ · RabbitMQ · Redis · MinIO/S3 · PostgreSQL · structlog · Pydantic v2 · uv · Ruff · mypy (strict)
 
-This section defines the operational pipeline for multi-agent development in this project. All agents and sessions MUST follow these rules to prevent context degradation, ensure quality, and maximize parallelism.
+**Bounded contexts:** `catalog` · `identity` · `user` · `storage`
 
-### 1. Development Lifecycle Pipeline
+---
+
+## 1. 🤖 Agent Pipeline — HOW TO START ANY WORK
+
+Every task, feature, or change **must** start with `@senior-pm`. No exceptions.
+
+### Agents
+
+| Agent | Model | Responsibility |
+|---|---|---|
+| `@senior-pm` | opus | Researches via Context7, breaks task into micro-tasks, writes TodoWrite list, runs loop |
+| `@senior-architect` | opus | Writes implementation plan per micro-task (no code) |
+| `@senior-backend` | opus | Implements the plan layer by layer, runs ruff/mypy/pytest |
+| `@senior-reviewer` | opus | Audits + fixes all violations, signs off |
+| `@senior-qa` | sonnet | Writes and runs unit/arch/integration/e2e test suite |
+
+### Pipeline Loop
+
+```
+User describes task
+       │
+       ▼
+  @senior-pm
+  ├── Context7 research (mandatory)
+  ├── Decompose into micro-tasks
+  ├── TodoWrite([MT-1..N] × 4 agents)    ← loop's exit condition
+  └── Start loop ───────────────────────────────────────────┐
+                                                             │
+  ┌─────────────── FOR EACH MICRO-TASK ───────────────┐     │
+  │                                                   │     │
+  │  @senior-architect  →  plan                       │     │
+  │         │                                         │     │
+  │  @senior-backend    →  implement                  │     │
+  │         │                                         │     │
+  │  @senior-reviewer   →  fix + approve              │     │
+  │         │              └─ BLOCKED → back to BE    │     │
+  │  @senior-qa         →  test + approve             │     │
+  │         │              └─ BLOCKED → back to BE    │     │
+  │         │                                         │     │
+  │  Mark all 4 todos COMPLETED → next micro-task     │     │
+  └───────────────────────────────────────────────────┘     │
+                                                             │
+  EXIT when TodoRead shows 0 PENDING ◄──────────────────────┘
+```
+
+### How to invoke
+
+```
+# Start a new feature:
+@senior-pm Нужно добавить поддержку Product в модуль catalog
+
+# Check progress:
+@senior-pm покажи статус задач
+
+# Resume after interruption:
+@senior-pm продолжи с последней незавершённой задачи
+```
+
+---
+
+## 2. 📋 Development Lifecycle
 
 Every implementation chunk follows this strict sequence:
 
@@ -14,127 +75,204 @@ Every implementation chunk follows this strict sequence:
 Plan → Brainstorm → Implement (subagent-driven) → Review → Update CLAUDE.md
 ```
 
-| Phase | Skill / Plugin | Trigger |
+| Phase | Tool / Agent | Trigger |
 |---|---|---|
-| **Plan** | `superpowers:writing-plans` | Any multi-step task or new feature (≥3 files or ≥2 layers touched) |
-| **Brainstorm** | `superpowers:brainstorming` | Before any creative work — new features, components, architectural decisions |
-| **Implement** | `superpowers:executing-plans` or `superpowers:subagent-driven-development` | When a written plan exists with independent tasks |
-| **Review** | `superpowers:requesting-code-review` + `code-review:code-review` | After implementation, before any git commit |
-| **Update Context** | `claude-md-management:revise-claude-md` | After each completed chunk to capture new patterns, modules, or conventions |
+| **Plan** | `@senior-pm` + `superpowers:writing-plans` | Any multi-step task (≥3 files or ≥2 layers) |
+| **Brainstorm** | `superpowers:brainstorming` | New features, components, architectural decisions |
+| **Implement** | `@senior-backend` via pipeline | When architect's plan exists |
+| **Parallel tasks** | `superpowers:subagent-driven-development` | 2+ independent tasks with no shared state |
+| **Review** | `@senior-reviewer` + `superpowers:requesting-code-review` | After every implementation |
+| **Update context** | `claude-md-management:revise-claude-md` | After each completed chunk |
 
-### 2. Superpowers — Chunk Execution Rules
+**Plans live in** `docs/superpowers/plans/YYYY-MM-DD-<feature>.md` — not in conversation (survives compaction).
 
-**When to use `superpowers:executing-plans`:**
+**Subagent parallelism** — within a single micro-task these can run in parallel:
+- Domain layer (step 1) + Application layer (step 2): no shared state, safe to parallelize
+- Unit tests (after step 2) + Integration tests (after step 3): independent suites
 
-- A written plan exists in `docs/superpowers/plans/`
-- The plan has checkbox (`- [ ]`) steps to track
-- Work spans multiple files across different layers (domain, application, infrastructure, presentation)
-**When to use `superpowers:subagent-driven-development`:**
-- The plan contains 2+ independent tasks with no shared state
-- Tasks can be worked on in parallel without sequential dependencies
-- Example: domain entities + ORM models can be built in parallel subagents with worktree isolation
-**When to use `superpowers:writing-plans`:**
-- Before touching code on any feature that spans ≥3 files or ≥2 architectural layers
-- When requirements are ambiguous and need decomposition
-- Plans go in `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`
-**Mandatory rules:**
-- Never skip the planning phase for non-trivial work — even "simple" CRUD touches 4 layers in this architecture
-- Use `superpowers:verification-before-completion` before claiming any chunk is done
-- Use `superpowers:test-driven-development` when implementing domain logic or command handlers
-- Subagents MUST use `isolation: "worktree"` when editing files to prevent conflicts
+**Subagents MUST use** `isolation: "worktree"` when editing files to prevent conflicts.
 
-### 3. Context7 — Dynamic Knowledge Retrieval
+---
 
-**Mandatory triggers — query Context7 BEFORE writing code when:**
+## 3. 🔍 Context7 — Dynamic Knowledge Retrieval
 
-- Integrating or updating any external library (SQLAlchemy, FastAPI, Dishka, TaskIQ, Pydantic, Alembic, pytest, attrs, structlog, PyJWT, pwdlib, aiobotocore)
-- Implementing a pattern you haven't used in this codebase before
+**Query Context7 BEFORE writing code when:**
+
+- Integrating or updating any external library: SQLAlchemy, FastAPI, Dishka, TaskIQ, Pydantic, Alembic, pytest, attrs, structlog, PyJWT, pwdlib, aiobotocore
+- Implementing a pattern not used in this codebase before
 - Writing infrastructure-layer code that depends on library-specific APIs
 - Debugging a library-related error
 
-**How to use:**
-
+**Workflow:**
 1. `resolve-library-id` — find the Context7-compatible library ID
-2. `query-docs` — retrieve up-to-date docs with a specific query (e.g., "SQLAlchemy async session factory pattern", "Dishka provider scope lifecycle")
-3. Apply the retrieved patterns — never rely on memorized APIs that may be outdated
+2. `query-docs` — retrieve up-to-date docs with a specific query
+   - e.g. `"SQLAlchemy async session factory pattern"`, `"Dishka provider scope lifecycle"`
+3. Apply retrieved patterns — **never rely on memorized APIs that may be outdated**
 
-**What NOT to query:**
-
-- Pure domain logic (entities, value objects, events) — these have zero library imports
+**Do NOT query Context7 for:**
+- Pure domain logic (entities, value objects, events) — zero library imports
 - Project-internal patterns already documented in this CLAUDE.md
 
-### 4. Code Review — Mandatory Quality Gates
+---
 
-**Before any git commit, ALL of the following must pass:**
+## 4. ✅ Quality Gates — Mandatory Before Every Commit
 
-1. **Lint & Format:** `uv run ruff check --fix . && uv run ruff format .`
-2. **Type Check:** `uv run mypy .` (for modified modules at minimum)
-3. **Unit Tests:** `uv run pytest tests/unit/ -v` (must pass, no skips on modified modules)
-4. **Architecture Tests:** `uv run pytest tests/architecture/ -v` (boundary violations = hard block)
-5. **Agent Code Review:** Invoke `superpowers:requesting-code-review` or the `code-review:code-review` skill
-**Code review checklist (from Context7 agent patterns):**
+All of the following must pass before `git commit`:
 
-- Clean Architecture violations: no infrastructure imports in domain/application layers
-- Cross-module boundary violations: no direct imports between modules (except allowed `user.presentation → identity.presentation`)
-- Domain entity purity: attrs dataclasses only, no SQLAlchemy/Pydantic in domain
-- UoW discipline: all writes go through `IUnitOfWork`, aggregates registered before commit
-- Data Mapper integrity: ORM models never leak into domain; repositories map between them
-- Security: no hardcoded secrets, proper input validation at presentation layer
-- CQRS separation: commands mutate state, queries are read-only
-**Review severity levels:**
+```bash
+uv run ruff check --fix .             # 1. Lint + format
+uv run ruff format .
+uv run mypy .                         # 2. Type check (modified modules minimum)
+uv run pytest tests/unit/ -v          # 3. Unit tests (no skips on modified modules)
+uv run pytest tests/architecture/ -v  # 4. Architecture tests (violations = hard block)
+```
 
-- **CRITICAL** (must fix): Security vulnerabilities, architecture violations, data corruption risks
-- **MAJOR** (should fix): Missing error handling, CQRS violations, missing UoW registration
-- **MINOR** (nice to fix): Naming inconsistencies, missing type hints on new code
+Then invoke `@senior-reviewer` or `superpowers:requesting-code-review`.
 
-### 6. Feature Dev & Engineering — Code Generation Rules
+**Code review checklist:**
 
-**When to use `feature-dev:feature-dev`:**
+- [ ] Clean Architecture: no infrastructure imports in domain/application layers
+- [ ] Cross-module boundaries: no direct imports between modules (only `user.presentation → identity.presentation` allowed)
+- [ ] Domain entity purity: `attrs` only, no SQLAlchemy/Pydantic in domain
+- [ ] UoW discipline: all writes through `IUnitOfWork`, aggregates registered before commit
+- [ ] Data Mapper: ORM models never leak into domain; repositories map between layers
+- [ ] Security: no hardcoded secrets, proper input validation at presentation layer
+- [ ] CQRS: commands mutate state + return None/ID; queries are read-only + return DTOs
+- [ ] Type coverage: all new public functions and methods have full annotations
 
-- Implementing a new bounded context module from scratch
-- Adding a new aggregate root with full CQRS stack (entity → commands/queries → repository → router)
-**Implementation order within a module (always follow this sequence):**
+**Review severity:**
+- 🔴 **CRITICAL** (must fix): Security vulnerabilities, architecture violations, data corruption risk
+- 🟠 **MAJOR** (must fix): Missing error handling, CQRS violations, missing UoW registration
+- 🟡 **MINOR** (fix if quick): Naming, missing docstrings, suboptimal queries
 
-1. Domain layer first — entities, value objects, events, exceptions, repository interfaces
-2. Application layer — command/query handlers (import only from domain)
-3. Infrastructure layer — ORM models, repository implementations, Dishka providers
-4. Presentation layer — Pydantic schemas, FastAPI routers, DI dependencies
-5. Bootstrap integration — register providers in container, mount routers in web.py
-6. Tests — unit (domain + application), integration (repositories), e2e (API endpoints), architecture (boundaries)
+---
 
-**Subagent parallelism opportunities within this sequence:**
+## 5. 🏗️ Architecture Rules
 
-- Steps 1-2 can run in parallel (domain has no deps, application imports only domain interfaces)
-- Step 3 depends on steps 1-2 (implements domain interfaces)
-- Steps 4-5 depend on step 3
-- Step 6 can partially parallelize (unit tests after step 2, integration after step 3)
+### Layer dependency (arrows = allowed import direction)
 
-### 7. Plugin Development — Extension Rules
+```
+Presentation → Application → Domain ← Infrastructure
+```
 
-**When to use `plugin-dev:*` skills:**
+### Invariants — enforced by `@senior-reviewer` and `tests/architecture/`
 
-- Creating new hooks for automated validation (e.g., architecture boundary checks on every edit)
-- Adding new slash commands for repeated workflows
-- Building custom agents for project-specific tasks
+1. **Domain purity** — entities never import SQLAlchemy, FastAPI, Pydantic, Redis, or any infra library
+2. **No cross-module imports** — modules communicate only via domain events through the transactional outbox
+3. **CQRS** — `CommandHandler` (write, returns None/ID) and `QueryHandler` (read, returns DTO) are always separate classes
+4. **Unit of Work** — all writes go through `IUnitOfWork.commit()` — never `session.commit()` directly
+5. **Data Mapper** — repositories translate between `attrs` domain entities and SQLAlchemy ORM models; ORM models never appear in domain or application layers
+6. **Dependency injection** — constructor injection via Dishka; no `container.resolve()` in business logic
+7. **One aggregate per transaction** — never modify two aggregate roots in a single UoW commit
+8. **Events before commit** — domain events raised inside domain methods, persisted in outbox atomically
 
-**Project-specific hook opportunities:**
+### Implementation order within a module (always follow this sequence)
+
+1. **Domain** — entities, value objects, events, exceptions, repository interfaces
+2. **Application** — command/query DTOs and handlers (imports only from domain + shared)
+3. **Infrastructure** — ORM models, repository implementations, Dishka providers
+4. **Presentation** — Pydantic schemas, FastAPI routers, DI dependencies
+5. **Bootstrap** — register providers in `container.py`, mount routers in `web.py`
+6. **Tests** — unit (domain + application), integration (repositories), e2e (API), architecture (boundaries)
+
+---
+
+## 6. 🧪 Testing
+
+### Test categories
+
+| Marker | Scope | Speed | Infrastructure |
+|---|---|---|---|
+| `unit` | Domain + application logic | ~6 s | None |
+| `architecture` | Import boundary enforcement | ~1 s | None |
+| `integration` | Real DB + Redis + RabbitMQ | ~30 s | testcontainers |
+| `e2e` | Full HTTP round-trips | ~15 s | testcontainers |
+
+### Commands
+
+```bash
+# Fast — always run first (no Docker needed)
+uv run pytest tests/unit/ tests/architecture/ -v
+
+# Full suite
+uv run pytest tests/ -v
+
+# With coverage (must not decrease from 88% baseline)
+uv run pytest tests/ --cov=src --cov-report=term-missing
+```
+
+### Architecture fitness tests enforce at CI time
+
+- Domain layer has zero infrastructure imports
+- Application layer imports only from domain
+- No direct cross-module imports
+- ORM models never appear in domain or application layers
+
+```bash
+uv run pytest tests/architecture/ -v
+```
+
+---
+
+## 7. 🔧 Dev Commands
+
+```bash
+uv run ruff check --fix .                          # lint
+uv run ruff format .                               # format
+uv run mypy .                                      # type check
+uv run alembic revision --autogenerate -m "desc"   # create migration
+uv run alembic upgrade head                        # apply migrations
+docker compose up -d                               # start infrastructure
+uv run uvicorn src.bootstrap.web:create_app --factory --reload --host 0.0.0.0 --port 8000
+```
+
+---
+
+## 8. 🔌 Hooks — Automation Opportunities
+
+Project-specific hooks to implement via `plugin-dev:*` skills:
 
 - `PostToolUse` on `Write|Edit` → run `ruff check` on the modified file
 - `PreToolUse` on `Bash(git commit*)` → verify lint + type check + tests pass
-- Architecture boundary validation hook → prevent cross-module imports at edit time
+- Architecture boundary validation → prevent cross-module imports at edit time
 
-### 8. Context Window Protection
+---
 
-**Rules to prevent context degradation (from Context7 best practices):**
+## 9. 🧠 Context Window Protection
 
-- Store all persistent rules in this CLAUDE.md — conversation context is ephemeral
+- Store all persistent rules here in CLAUDE.md — conversation context is ephemeral
 - Use `/compact` proactively when working on large chunks (>20 file operations)
 - Delegate research and exploration to subagents — keeps main context clean
 - Use `superpowers:subagent-driven-development` for parallel work instead of sequential exploration
 - Track context usage via `/context` command when sessions run long
-- Plans live in `docs/superpowers/plans/` (not in conversation) so they survive compaction
-- After compaction, critical decisions persist here in CLAUDE.md, not in conversation history
+- Plans live in `docs/superpowers/plans/` — they survive compaction; conversation history does not
+- After compaction, all critical decisions must be captured here, not in conversation history
 
-## Project Overview
+---
 
-E-commerce — async REST API built with FastAPI, following DDD / Clean Architecture / CQRS / Modular Monolith patterns.
+## 10. 📁 Project Structure
+
+```
+src/
+├── api/                          # HTTP layer — routers, middleware, exceptions
+├── bootstrap/                    # Composition root — DI container, app factory, config
+├── infrastructure/               # DB, cache, outbox, security, storage, logging
+├── modules/
+│   ├── catalog/                  # Brands, categories, products
+│   ├── identity/                 # Auth, sessions, roles, permissions
+│   ├── user/                     # User profiles
+│   └── storage/                  # File management, media processing
+└── shared/                       # Base exceptions, schemas, cross-module interfaces
+
+.claude/
+└── agents/
+    ├── senior-pm.md              # opus  — task decomposition + loop orchestration
+    ├── senior-architect.md       # opus  — implementation planning
+    ├── senior-backend.md         # sonnet — code implementation
+    ├── senior-reviewer.md        # opus  — code audit + fixes
+    └── senior-qa.md              # sonnet — test suite
+
+docs/
+└── superpowers/
+    └── plans/                    # YYYY-MM-DD-<feature>.md — persistent plans
+```
