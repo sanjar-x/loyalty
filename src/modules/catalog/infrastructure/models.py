@@ -42,6 +42,7 @@ from src.modules.catalog.domain.value_objects import (
     AttributeLevel,
     AttributeUIType,
     MediaProcessingStatus,
+    RequirementLevel,
 )
 
 
@@ -271,22 +272,30 @@ class Attribute(Base):
 
     # Behavior flags
     is_filterable: Mapped[bool] = mapped_column(
-        Boolean, server_default=text("false"), comment="Available as filter on storefront"
+        Boolean,
+        server_default=text("false"),
+        comment="Available as filter on storefront",
     )
     is_searchable: Mapped[bool] = mapped_column(
-        Boolean, server_default=text("false"), comment="Participates in full-text search"
+        Boolean,
+        server_default=text("false"),
+        comment="Participates in full-text search",
     )
     search_weight: Mapped[int] = mapped_column(
         Integer, server_default=text("5"), comment="Search ranking priority (1-10)"
     )
     is_comparable: Mapped[bool] = mapped_column(
-        Boolean, server_default=text("false"), comment="Shown in product comparison table"
+        Boolean,
+        server_default=text("false"),
+        comment="Shown in product comparison table",
     )
     is_visible_on_card: Mapped[bool] = mapped_column(
         Boolean, server_default=text("false"), comment="Shown on product detail page"
     )
     is_visible_in_catalog: Mapped[bool] = mapped_column(
-        Boolean, server_default=text("false"), comment="Shown in catalog listing preview"
+        Boolean,
+        server_default=text("false"),
+        comment="Shown in catalog listing preview",
     )
 
     # Validation rules (type-specific constraints stored as JSONB)
@@ -312,7 +321,11 @@ class Attribute(Base):
         Index("uix_attributes_code", "code", unique=True),
         Index("uix_attributes_slug", "slug", unique=True),
         Index("ix_attributes_name_i18n_gin", "name_i18n", postgresql_using="gin"),
-        Index("ix_attributes_filterable", "is_filterable", postgresql_where=text("is_filterable = true")),
+        Index(
+            "ix_attributes_filterable",
+            "is_filterable",
+            postgresql_where=text("is_filterable = true"),
+        ),
     )
 
 
@@ -362,7 +375,8 @@ class CategoryAttributeRule(Base):
     """Governance model: controls which attributes apply to a category.
 
     Acts as a many-to-many link between :class:`Category` and
-    :class:`Attribute`, with a ``sort_order`` for display ordering.
+    :class:`Attribute` with sort ordering, requirement level,
+    optional behavior-flag overrides, and filter settings.
     """
 
     __tablename__ = "category_attribute_rules"
@@ -375,6 +389,21 @@ class CategoryAttributeRule(Base):
         ForeignKey("attributes.id", ondelete="CASCADE"), index=True
     )
     sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    requirement_level: Mapped[RequirementLevel] = mapped_column(
+        Enum(RequirementLevel, name="requirement_level_enum"),
+        server_default=RequirementLevel.OPTIONAL.name,
+        comment="Required / recommended / optional",
+    )
+    flag_overrides: Mapped[dict[str, Any] | None] = mapped_column(
+        MutableDict.as_mutable(JSONB),
+        nullable=True,
+        comment="Per-category behavior-flag overrides (e.g. is_filterable, search_weight)",
+    )
+    filter_settings: Mapped[dict[str, Any] | None] = mapped_column(
+        MutableDict.as_mutable(JSONB),
+        nullable=True,
+        comment="Per-category filter config (e.g. filter_type, thresholds)",
+    )
 
     category: Mapped[Category] = relationship("Category", back_populates="attribute_rules")
     attribute: Mapped[Attribute] = relationship("Attribute", back_populates="category_rules")
@@ -461,6 +490,9 @@ class Product(Base):
     supplier: Mapped[Supplier] = relationship("Supplier", back_populates="products")
     skus: Mapped[list[SKU]] = relationship(
         "SKU", back_populates="product", cascade="all, delete-orphan"
+    )
+    product_attribute_values: Mapped[list[ProductAttributeValueModel]] = relationship(
+        "ProductAttributeValueModel", back_populates="product", cascade="all, delete-orphan"
     )
 
     __mapper_args__ = {
@@ -658,4 +690,39 @@ class SKUAttributeValueLink(Base):
     __table_args__ = (
         UniqueConstraint("sku_id", "attribute_id", name="uix_sku_single_attribute_value"),
         Index("ix_sku_attr_val_lookup", "attribute_value_id", "sku_id"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# 6. PRODUCT ATTRIBUTE VALUES
+# ---------------------------------------------------------------------------
+
+
+class ProductAttributeValueModel(Base):
+    """Bridge between Product and EAV attribute values.
+
+    Each row assigns one attribute value to a product.
+    Unique constraint ensures one value per attribute per product.
+    """
+
+    __tablename__ = "product_attribute_values"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True
+    )
+    attribute_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("attributes.id", ondelete="CASCADE"), index=True
+    )
+    attribute_value_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("attribute_values.id", ondelete="RESTRICT"), index=True
+    )
+
+    product: Mapped[Product] = relationship("Product", back_populates="product_attribute_values")
+    attribute: Mapped[Attribute] = relationship("Attribute")
+    attribute_value: Mapped[AttributeValue] = relationship("AttributeValue")
+
+    __table_args__ = (
+        UniqueConstraint("product_id", "attribute_id", name="uix_product_single_attribute_value"),
+        Index("ix_product_attr_val_lookup", "attribute_value_id", "product_id"),
     )

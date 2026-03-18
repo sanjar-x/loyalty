@@ -1,0 +1,105 @@
+"""
+FastAPI router for storefront read-only endpoints.
+
+Serves pre-processed attribute data for the frontend: filters, product
+card attributes, comparison attributes, and product creation form.
+All endpoints are public (no auth required) and read-only.
+"""
+
+import uuid
+
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
+from fastapi import APIRouter, status
+
+from src.modules.catalog.application.queries.storefront import (
+    StorefrontCardAttributesHandler,
+    StorefrontComparisonAttributesHandler,
+    StorefrontFilterableAttributesHandler,
+    StorefrontFormAttributesHandler,
+)
+from src.modules.catalog.presentation.schemas import (
+    StorefrontCardResponse,
+    StorefrontComparisonResponse,
+    StorefrontFilterListResponse,
+    StorefrontFormResponse,
+)
+
+storefront_router = APIRouter(
+    prefix="/storefront/categories/{category_id}",
+    tags=["Storefront"],
+    route_class=DishkaRoute,
+)
+
+
+@storefront_router.get(
+    path="/filters",
+    status_code=status.HTTP_200_OK,
+    response_model=StorefrontFilterListResponse,
+    summary="Get filterable attributes for a category",
+    description=(
+        "Returns all attributes bound to this category where the effective "
+        "is_filterable flag is True (with binding overrides applied). "
+        "Dictionary attributes include their values with translations."
+    ),
+)
+async def get_filterable_attributes(
+    category_id: uuid.UUID,
+    handler: FromDishka[StorefrontFilterableAttributesHandler],
+) -> StorefrontFilterListResponse:
+    result = await handler.handle(category_id)
+    return StorefrontFilterListResponse.model_validate(result, from_attributes=True)
+
+
+@storefront_router.get(
+    path="/card-attributes",
+    status_code=status.HTTP_200_OK,
+    response_model=StorefrontCardResponse,
+    summary="Get attributes for a product card (grouped)",
+    description=(
+        "Returns all attributes where the effective is_visible_on_card flag is True, "
+        "grouped by attribute group and ordered by group sort_order then binding sort_order."
+    ),
+)
+async def get_card_attributes(
+    category_id: uuid.UUID,
+    handler: FromDishka[StorefrontCardAttributesHandler],
+) -> StorefrontCardResponse:
+    result = await handler.handle(category_id)
+    return StorefrontCardResponse.model_validate(result, from_attributes=True)
+
+
+@storefront_router.get(
+    path="/comparison-attributes",
+    status_code=status.HTTP_200_OK,
+    response_model=StorefrontComparisonResponse,
+    summary="Get comparable attributes for a category",
+    description=(
+        "Returns all attributes where the effective is_comparable flag is True, "
+        "ordered by binding sort_order."
+    ),
+)
+async def get_comparison_attributes(
+    category_id: uuid.UUID,
+    handler: FromDishka[StorefrontComparisonAttributesHandler],
+) -> StorefrontComparisonResponse:
+    result = await handler.handle(category_id)
+    return StorefrontComparisonResponse.model_validate(result, from_attributes=True)
+
+
+@storefront_router.get(
+    path="/form-attributes",
+    status_code=status.HTTP_200_OK,
+    response_model=StorefrontFormResponse,
+    summary="Get attributes for product creation form",
+    description=(
+        "Returns ALL attributes bound to this category, grouped by attribute group, "
+        "with requirement levels, display types, validation rules, and all values "
+        "for dictionary attributes. Used by the admin panel to render the product form."
+    ),
+)
+async def get_form_attributes(
+    category_id: uuid.UUID,
+    handler: FromDishka[StorefrontFormAttributesHandler],
+) -> StorefrontFormResponse:
+    result = await handler.handle(category_id)
+    return StorefrontFormResponse.model_validate(result, from_attributes=True)

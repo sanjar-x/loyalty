@@ -1,0 +1,137 @@
+{
+  "pipeline": {
+    "run_id": "20260318-121109",
+    "agent": "context-analyst",
+    "step": 1,
+    "total_steps": 10,
+    "timestamp": "2026-03-18T12:11:09Z",
+    "prev_agent": null,
+    "next_agent": "competitive-intel",
+    "artifacts_dir": ".claude/pipeline-runs/current/artifacts",
+    "input_artifacts": [],
+    "output_artifact": "context-brief.json"
+  },
+  "original_topic": "Продукты (Products) — CRUD, варианты, атрибуты EAV, категории, ценообразование",
+  "domain": "catalog",
+  "related_domains": ["pricing", "inventory", "storage", "search"],
+  "task_type": "new_feature",
+  "entities": {
+    "business_objects": [
+      "Product",
+      "ProductVariant (SKU)",
+      "ProductAttributeValue (EAV pivot)",
+      "SKUAttributeValueLink",
+      "MediaAsset",
+      "ProductCategoryAssignment",
+      "Price (base_price, sale_price, currency)",
+      "Brand (existing)",
+      "Category (existing)",
+      "Attribute (existing)",
+      "AttributeValue (existing)",
+      "CategoryAttributeBinding (existing)",
+      "AttributeGroup (existing)",
+      "Supplier (ORM exists, domain entity missing)"
+    ],
+    "user_roles": [
+      "admin (catalog manager)",
+      "customer (storefront consumer)",
+      "supplier (product owner)"
+    ],
+    "external_systems": [
+      "Storage module (MinIO/S3 via IStorageRepository)",
+      "PostgreSQL (JSONB for i18n, EAV attributes, tags)",
+      "Redis (cache layer)",
+      "RabbitMQ (domain events via transactional outbox)"
+    ]
+  },
+  "key_questions": [
+    "Является ли Product единственным агрегатным корнем, содержащим SKU как дочерние сущности, или SKU — отдельный агрегат?",
+    "Должна ли цена храниться на уровне SKU (как в текущей ORM-модели) или нужен отдельный Price value object в домене?",
+    "Какие переходы статусов допустимы в жизненном цикле продукта (DRAFT -> ENRICHING -> READY_FOR_REVIEW -> PUBLISHED -> ARCHIVED) и можно ли откатиться назад?",
+    "Поддерживает ли система несколько категорий для одного продукта (multi-category) или только primary_category_id?",
+    "Как реализовать soft-delete продуктов — через поле deleted_at (как в ORM) или через статус ARCHIVED?",
+    "Нужен ли optimistic locking (version column) на уровне доменной сущности Product, или только в ORM?",
+    "Как валидировать EAV-атрибуты продукта при сохранении — через CategoryAttributeBinding (required/recommended/optional) или отдельный сервис валидации?",
+    "Нужен ли Supplier как доменная сущность (сейчас есть только ORM-модель) или достаточно supplier_id как FK?",
+    "Как генерировать variant_hash для SKU — какой алгоритм хеширования комбинации атрибутов?",
+    "Какие доменные события должен эмитировать Product (ProductCreated, ProductPublished, ProductArchived, SKUAdded, PriceChanged)?"
+  ],
+  "existing_system": {
+    "stack": "Python 3.14 / FastAPI / SQLAlchemy 2.1 (async) / Alembic / Dishka DI / PostgreSQL / Redis / RabbitMQ / MinIO / attrs / Pydantic v2 / structlog",
+    "relevant_models": [
+      "Product (ORM: products table — id, slug, title_i18n, description_i18n, status, brand_id, primary_category_id, supplier_id, attributes JSONB, tags, version, soft-delete via deleted_at)",
+      "SKU (ORM: skus table — id, product_id, sku_code, variant_hash, price, compare_at_price, currency, is_active, version, soft-delete)",
+      "SKUAttributeValueLink (ORM: sku_attribute_values — sku_id, attribute_id, attribute_value_id, unique per sku+attribute)",
+      "MediaAsset (ORM: media_assets — product_id, attribute_value_id, media_type, role, sort_order, storage_object_id)",
+      "Supplier (ORM: suppliers — id, name, type, region)",
+      "Brand (domain + ORM: complete CRUD with logo FSM)",
+      "Category (domain + ORM: hierarchical tree, max depth 3)",
+      "Attribute (domain + ORM: EAV definition with data_type, ui_type, level PRODUCT/VARIANT)",
+      "AttributeValue (domain + ORM: dictionary values for attributes)",
+      "CategoryAttributeBinding (domain + ORM: governs which attributes apply to categories)",
+      "AttributeGroup (domain + ORM: logical grouping of attributes)"
+    ],
+    "relevant_apis": [
+      "/catalog/brands/ (full CRUD)",
+      "/catalog/categories/ (full CRUD + tree)",
+      "/catalog/attribute-groups/ (full CRUD)",
+      "/catalog/attributes/ (full CRUD)",
+      "/catalog/attribute-values/ (full CRUD)",
+      "/catalog/category-bindings/ (bind/unbind/update)",
+      "/catalog/storefront/ (filters, card, comparison, form endpoints)"
+    ],
+    "constraints": [
+      "Domain layer must use only attrs + stdlib (no SQLAlchemy, FastAPI, Pydantic imports)",
+      "One aggregate per transaction — cannot modify Product + SKU in separate UoW commits",
+      "Cross-module communication via transactional outbox only (no direct imports between modules)",
+      "Data Mapper pattern — ORM models never leak into domain; repos map between layers",
+      "CQRS — separate CommandHandler and QueryHandler classes",
+      "All writes through IUnitOfWork.commit()",
+      "Pydantic schemas at presentation layer boundary only",
+      "Constructor injection via Dishka DI",
+      "Product ORM already has optimistic locking via version_id_col",
+      "SKU ORM already has optimistic locking via version_id_col",
+      "ProductStatus enum already defined in ORM: DRAFT, ENRICHING, READY_FOR_REVIEW, PUBLISHED, ARCHIVED",
+      "MediaType/MediaRole enums already defined in ORM",
+      "Supplier ORM model exists but no domain entity or repository interface",
+      "IProductRepository interface exists but is empty (placeholder)"
+    ],
+    "tech_debt": [
+      "Product/SKU/MediaAsset/Supplier have ORM models but NO domain entities — domain layer gap",
+      "IProductRepository is a placeholder with no methods beyond generic ICatalogRepository[Any]",
+      "No ProductAttributeValue domain entity or ORM model for product-level EAV (attributes stored as flat JSONB)",
+      "Product.attributes is a flat JSONB field — may need structured EAV table for product-level attributes",
+      "No domain events defined for Product lifecycle (created, published, archived, etc.)",
+      "No read models for Product in read_models.py",
+      "No presentation schemas for Product API endpoints",
+      "No routers for Product CRUD",
+      "No DI provider for Product-related handlers",
+      "Supplier has ORM model but no domain entity, no repository interface, no CRUD endpoints"
+    ]
+  },
+  "search_keywords": [
+    "product catalog CRUD API DDD",
+    "EAV entity attribute value ecommerce",
+    "product variants SKU management",
+    "product lifecycle state machine",
+    "ecommerce pricing model base price sale price",
+    "product category assignment multi-category",
+    "product media gallery management",
+    "SQLAlchemy product aggregate repository pattern",
+    "CQRS product read model query",
+    "product soft delete archived status",
+    "FastAPI product endpoints REST API",
+    "product attribute validation EAV",
+    "variant hash SKU combination",
+    "optimistic locking version column",
+    "Shopify product API design"
+  ],
+  "complexity_estimate": "high",
+  "recommended_research_depth": {
+    "market_leaders": 4,
+    "open_source": 3,
+    "api_docs": 4,
+    "expert_articles": 3,
+    "standards": 2
+  }
+}

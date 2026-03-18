@@ -49,7 +49,7 @@ class AttributeGroupRepository(IAttributeGroupRepository):
             orm = OrmAttributeGroup()
         orm.id = domain.id
         orm.code = domain.code
-        orm.name_i18n = domain.name_i18n  # type: ignore[assignment]
+        orm.name_i18n = domain.name_i18n
         orm.sort_order = domain.sort_order
         return orm
 

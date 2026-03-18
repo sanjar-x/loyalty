@@ -7,7 +7,6 @@ and category binding checks for delete guards.
 """
 
 import uuid
-from typing import Any
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,9 +54,7 @@ class AttributeRepository(IAttributeRepository):
             validation_rules=dict(orm.validation_rules) if orm.validation_rules else None,
         )
 
-    def _to_orm(
-        self, domain: DomainAttribute, orm: OrmAttribute | None = None
-    ) -> OrmAttribute:
+    def _to_orm(self, domain: DomainAttribute, orm: OrmAttribute | None = None) -> OrmAttribute:
         """Map a domain Attribute entity to an ORM row (create or update)."""
         if orm is None:
             orm = OrmAttribute()

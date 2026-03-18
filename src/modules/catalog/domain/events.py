@@ -208,3 +208,135 @@ class AttributeDeletedEvent(DomainEvent):
             raise ValueError("attribute_id is required for AttributeDeletedEvent")
         if not self.aggregate_id:
             self.aggregate_id = str(self.attribute_id)
+
+
+# ---------------------------------------------------------------------------
+# AttributeValue events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class AttributeValueAddedEvent(DomainEvent):
+    """Emitted when a new value is added to a dictionary attribute.
+
+    Attributes:
+        attribute_id: UUID of the parent attribute.
+        value_id: UUID of the newly added value.
+        code: Machine-readable value code.
+    """
+
+    attribute_id: uuid.UUID | None = None
+    value_id: uuid.UUID | None = None
+    code: str = ""
+    aggregate_type: str = "Attribute"
+    event_type: str = "AttributeValueAddedEvent"
+
+    def __post_init__(self) -> None:
+        if self.attribute_id is None:
+            raise ValueError("attribute_id is required for AttributeValueAddedEvent")
+        if self.value_id is None:
+            raise ValueError("value_id is required for AttributeValueAddedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.attribute_id)
+
+
+@dataclass
+class AttributeValueUpdatedEvent(DomainEvent):
+    """Emitted when an attribute value is updated.
+
+    Attributes:
+        attribute_id: UUID of the parent attribute.
+        value_id: UUID of the updated value.
+    """
+
+    attribute_id: uuid.UUID | None = None
+    value_id: uuid.UUID | None = None
+    aggregate_type: str = "Attribute"
+    event_type: str = "AttributeValueUpdatedEvent"
+
+    def __post_init__(self) -> None:
+        if self.attribute_id is None:
+            raise ValueError("attribute_id is required for AttributeValueUpdatedEvent")
+        if self.value_id is None:
+            raise ValueError("value_id is required for AttributeValueUpdatedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.attribute_id)
+
+
+@dataclass
+class AttributeValueDeletedEvent(DomainEvent):
+    """Emitted when an attribute value is deleted.
+
+    Attributes:
+        attribute_id: UUID of the parent attribute.
+        value_id: UUID of the deleted value.
+        code: Code of the deleted value.
+    """
+
+    attribute_id: uuid.UUID | None = None
+    value_id: uuid.UUID | None = None
+    code: str = ""
+    aggregate_type: str = "Attribute"
+    event_type: str = "AttributeValueDeletedEvent"
+
+    def __post_init__(self) -> None:
+        if self.attribute_id is None:
+            raise ValueError("attribute_id is required for AttributeValueDeletedEvent")
+        if self.value_id is None:
+            raise ValueError("value_id is required for AttributeValueDeletedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.attribute_id)
+
+
+# ---------------------------------------------------------------------------
+# CategoryAttributeBinding events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class AttributeBoundToCategoryEvent(DomainEvent):
+    """Emitted when an attribute is bound to a category."""
+
+    category_id: uuid.UUID | None = None
+    attribute_id: uuid.UUID | None = None
+    binding_id: uuid.UUID | None = None
+    aggregate_type: str = "CategoryAttributeBinding"
+    event_type: str = "AttributeBoundToCategoryEvent"
+
+    def __post_init__(self) -> None:
+        if self.binding_id is None:
+            raise ValueError("binding_id is required for AttributeBoundToCategoryEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.binding_id)
+
+
+@dataclass
+class CategoryAttributeBindingUpdatedEvent(DomainEvent):
+    """Emitted when a category-attribute binding is updated."""
+
+    binding_id: uuid.UUID | None = None
+    aggregate_type: str = "CategoryAttributeBinding"
+    event_type: str = "CategoryAttributeBindingUpdatedEvent"
+
+    def __post_init__(self) -> None:
+        if self.binding_id is None:
+            raise ValueError("binding_id is required for CategoryAttributeBindingUpdatedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.binding_id)
+
+
+@dataclass
+class AttributeUnboundFromCategoryEvent(DomainEvent):
+    """Emitted when an attribute is unbound from a category."""
+
+    category_id: uuid.UUID | None = None
+    attribute_id: uuid.UUID | None = None
+    binding_id: uuid.UUID | None = None
+    aggregate_type: str = "CategoryAttributeBinding"
+    event_type: str = "AttributeUnboundFromCategoryEvent"
+
+    def __post_init__(self) -> None:
+        if self.binding_id is None:
+            raise ValueError("binding_id is required for AttributeUnboundFromCategoryEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.binding_id)

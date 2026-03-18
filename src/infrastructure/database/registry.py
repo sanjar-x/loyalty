@@ -16,6 +16,7 @@ from src.modules.catalog.infrastructure.models import (
     CategoryAttributeRule,
     MediaAsset,
     Product,
+    ProductAttributeValueModel,
     SKUAttributeValueLink,
 )
 from src.modules.identity.infrastructure.models import (
@@ -45,6 +46,7 @@ __all__ = [
     "MediaAsset",
     "SKU",
     "SKUAttributeValueLink",
+    "ProductAttributeValueModel",
     # Identity
     "IdentityModel",
     "LocalCredentialsModel",

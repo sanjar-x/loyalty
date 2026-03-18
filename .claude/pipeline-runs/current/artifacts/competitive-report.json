@@ -1,0 +1,1075 @@
+{
+  "pipeline": {
+    "run_id": "20260318-121109",
+    "agent": "competitive-intel",
+    "step": 2,
+    "total_steps": 10,
+    "timestamp": "2026-03-18T12:45:00Z",
+    "prev_agent": "context-analyst",
+    "next_agent": "gap-analysis",
+    "artifacts_dir": ".claude/pipeline-runs/current/artifacts",
+    "input_artifacts": [
+      ".claude/pipeline-runs/current/artifacts/context-brief.json"
+    ],
+    "output_artifact": "competitive-report.json"
+  },
+  "research_metadata": {
+    "total_queries_executed": 48,
+    "sources_analyzed": 18,
+    "domains_covered": ["catalog", "pricing", "inventory", "search"],
+    "depth_used": {
+      "market_leaders": 4,
+      "open_source": 3,
+      "api_docs": 4,
+      "expert_articles": 3,
+      "standards": 2
+    }
+  },
+  "sources": [
+    {
+      "name": "Shopify",
+      "type": "market_leader",
+      "urls_analyzed": [
+        "https://shopify.dev/docs/api/admin-rest/2024-01/resources/product",
+        "https://shopify.dev/docs/api/admin-graphql/2024-01/objects/Product",
+        "https://shopify.dev/docs/api/admin-rest/2024-01/resources/variant",
+        "https://shopify.dev/docs/apps/build/online-store/product-taxonomy"
+      ],
+      "patterns_found": [
+        {
+          "pattern_name": "Product as aggregate root containing Variants",
+          "description": "Product is the aggregate root; Variants (SKUs) are child entities owned by the Product. A product can have up to 100 variants.",
+          "implementation_details": "Product contains a list of Variant objects. Variants cannot exist without a parent Product. Each variant has its own price, SKU code, inventory, and a set of option values (up to 3 options per product: e.g. Size, Color, Material). Creating/updating variants is done through the Product API. A product with no explicit variants still has a single 'default variant'. Shopify 2024 expanded to support up to 2000 variants with combined listings.",
+          "api_endpoints": [
+            "GET /admin/api/2024-01/products.json",
+            "GET /admin/api/2024-01/products/{id}.json",
+            "POST /admin/api/2024-01/products.json",
+            "PUT /admin/api/2024-01/products/{id}.json",
+            "DELETE /admin/api/2024-01/products/{id}.json",
+            "GET /admin/api/2024-01/products/{id}/variants.json",
+            "POST /admin/api/2024-01/products/{id}/variants.json"
+          ],
+          "data_model": {
+            "entities": ["Product", "Variant", "Image", "Option"],
+            "relationships": "Product 1:N Variants, Product 1:N Images, Product 1:N Options (max 3), Variant M:N OptionValues, Image M:N Variants",
+            "key_fields": [
+              "id",
+              "title",
+              "body_html",
+              "vendor",
+              "product_type",
+              "handle (slug)",
+              "status",
+              "tags",
+              "variants",
+              "options",
+              "images"
+            ]
+          },
+          "relevance": "high",
+          "business_value": "Shopify is the market leader in e-commerce platforms. Their Product/Variant model is the de facto standard. The pattern of Product as aggregate root with Variants as children directly maps to DDD aggregate patterns."
+        },
+        {
+          "pattern_name": "Product status lifecycle (draft/active/archived)",
+          "description": "Shopify uses a simple 3-state status: draft, active, archived. No intermediate review states.",
+          "implementation_details": "Status field on Product: 'draft' (not visible to customers), 'active' (visible on storefront), 'archived' (hidden, preserved for order history). Transitions are unrestricted — any state can move to any other state. No approval workflow built in. published_at timestamp tracks when product first went active.",
+          "api_endpoints": ["PUT /admin/api/2024-01/products/{id}.json"],
+          "data_model": {
+            "entities": ["Product"],
+            "relationships": "Simple enum field on Product",
+            "key_fields": ["status", "published_at", "published_scope"]
+          },
+          "relevance": "high",
+          "business_value": "Simple lifecycle works for most merchants. The project's 5-state lifecycle (DRAFT->ENRICHING->READY_FOR_REVIEW->PUBLISHED->ARCHIVED) is more enterprise-grade, suitable for multi-role catalog management."
+        },
+        {
+          "pattern_name": "Product options (not full EAV)",
+          "description": "Shopify uses a fixed-depth option system (max 3 options per product) rather than full EAV. Options define variant axes (e.g., Size, Color).",
+          "implementation_details": "Each Product has up to 3 Options (e.g., 'Size', 'Color'). Each Option has a name and a list of values. Variants are created from the Cartesian product of option values. Product metafields provide extensible key-value storage for additional product-level attributes. Metafields have typed definitions (single_line_text, number_integer, json, etc.).",
+          "api_endpoints": [
+            "GET /admin/api/2024-01/products/{id}/metafields.json",
+            "POST /admin/api/2024-01/products/{id}/metafields.json"
+          ],
+          "data_model": {
+            "entities": ["Option", "Metafield", "MetafieldDefinition"],
+            "relationships": "Product 1:N Options, Product 1:N Metafields, MetafieldDefinition defines schema",
+            "key_fields": [
+              "namespace",
+              "key",
+              "value",
+              "type",
+              "owner_id",
+              "owner_resource"
+            ]
+          },
+          "relevance": "high",
+          "business_value": "Shopify's max-3-option limit is a known constraint. The project's full EAV system (Attribute with level=PRODUCT/VARIANT, CategoryAttributeBinding) is more flexible and closer to enterprise needs (Magento-like)."
+        },
+        {
+          "pattern_name": "Price on variant, not on product",
+          "description": "Pricing lives exclusively on the Variant, not the Product. Each variant has price and compare_at_price.",
+          "implementation_details": "Variant.price is the selling price. Variant.compare_at_price is the original price (for strikethrough display). Currency is set at the store level, not per-variant. Multi-currency supported via Shopify Markets with price adjustments or explicit per-market pricing. Prices stored as decimal strings (e.g., '19.99'), not integers.",
+          "api_endpoints": [],
+          "data_model": {
+            "entities": ["Variant"],
+            "relationships": "Price is a scalar field on Variant",
+            "key_fields": [
+              "price",
+              "compare_at_price",
+              "currency (store-level)"
+            ]
+          },
+          "relevance": "high",
+          "business_value": "Confirms the project's existing design where price/compare_at_price live on SKU. The project uses integer cents (kopecks), which is a best practice for avoiding floating-point errors."
+        },
+        {
+          "pattern_name": "Product images with variant association",
+          "description": "Images belong to a Product and can be optionally associated with specific Variants.",
+          "implementation_details": "Product has a list of Image objects, each with src, position (sort_order), alt text, width, height. Images can be linked to specific variants via variant_ids array. The first image is the 'featured' image. Images are uploaded via URL or direct upload. CDN transformation handles resizing.",
+          "api_endpoints": [
+            "GET /admin/api/2024-01/products/{id}/images.json",
+            "POST /admin/api/2024-01/products/{id}/images.json",
+            "PUT /admin/api/2024-01/products/{id}/images/{image_id}.json"
+          ],
+          "data_model": {
+            "entities": ["Image"],
+            "relationships": "Product 1:N Images, Image M:N Variants",
+            "key_fields": [
+              "id",
+              "product_id",
+              "position",
+              "src",
+              "variant_ids",
+              "alt",
+              "width",
+              "height"
+            ]
+          },
+          "relevance": "high",
+          "business_value": "The project's MediaAsset model with attribute_value_id (color binding) is more sophisticated than Shopify's simple variant_ids approach — allows binding images to specific attribute values rather than entire variants."
+        }
+      ]
+    },
+    {
+      "name": "Medusa.js",
+      "type": "open_source",
+      "urls_analyzed": [
+        "https://docs.medusajs.com/api/admin",
+        "https://docs.medusajs.com/resources/commerce-modules/product",
+        "https://github.com/medusajs/medusa"
+      ],
+      "patterns_found": [
+        {
+          "pattern_name": "Product aggregate with Variants, Options, and Tags",
+          "description": "Medusa v2 uses a modular commerce architecture where Product is an aggregate containing Variants as children, with Options defining variant axes.",
+          "implementation_details": "Product contains: title, subtitle, description, handle (slug), status, metadata (JSONB), is_giftcard, discountable, weight, length, height, width, hs_code, origin_country, mid_code, material, type, collection, tags. Variants contain: title, sku, barcode, ean, upc, inventory_quantity, manage_inventory, allow_backorder, prices (MoneyAmount[]), options (ProductOptionValue[]). Options are defined at product level (like Shopify). Medusa v2 introduced a modular architecture where Product module is independent and composable.",
+          "api_endpoints": [
+            "GET /admin/products",
+            "POST /admin/products",
+            "GET /admin/products/:id",
+            "POST /admin/products/:id",
+            "DELETE /admin/products/:id",
+            "POST /admin/products/:id/variants",
+            "POST /admin/products/:id/options"
+          ],
+          "data_model": {
+            "entities": [
+              "Product",
+              "ProductVariant",
+              "ProductOption",
+              "ProductOptionValue",
+              "ProductTag",
+              "ProductType",
+              "ProductCollection",
+              "MoneyAmount"
+            ],
+            "relationships": "Product 1:N Variants, Product 1:N Options, Product M:N Tags, Product N:1 Type, Product N:1 Collection, Variant 1:N MoneyAmounts (prices per currency/region), Variant M:N OptionValues",
+            "key_fields": [
+              "id",
+              "title",
+              "handle",
+              "status",
+              "metadata",
+              "variants",
+              "options",
+              "tags",
+              "type",
+              "collection"
+            ]
+          },
+          "relevance": "high",
+          "business_value": "Medusa is the closest open-source analog to the project's DDD architecture. Its modular commerce modules pattern aligns with the project's bounded contexts. Medusa v2's clean separation of Product module is a reference implementation."
+        },
+        {
+          "pattern_name": "Multi-currency pricing on variants via MoneyAmount",
+          "description": "Each variant has multiple MoneyAmount records, one per currency and/or region, allowing true multi-currency and region-specific pricing.",
+          "implementation_details": "MoneyAmount has: amount (integer, smallest currency unit), currency_code (ISO 4217), region_id (optional), min_quantity (for tiered pricing), max_quantity. Prices are resolved by currency + region + quantity at query time. This enables: base price per currency, sale price via price lists, tiered/volume pricing, region-specific adjustments.",
+          "api_endpoints": [
+            "POST /admin/products/:id/variants/:variant_id/prices"
+          ],
+          "data_model": {
+            "entities": ["MoneyAmount", "PriceList"],
+            "relationships": "Variant 1:N MoneyAmounts, PriceList 1:N MoneyAmounts (overrides)",
+            "key_fields": [
+              "amount",
+              "currency_code",
+              "region_id",
+              "min_quantity",
+              "max_quantity"
+            ]
+          },
+          "relevance": "high",
+          "business_value": "The project currently stores price as a single integer on SKU with a currency string. Medusa's MoneyAmount pattern is more flexible for multi-currency. However, for a single-currency marketplace (RUB), the simpler approach may suffice initially."
+        },
+        {
+          "pattern_name": "Product status: draft, proposed, published, rejected",
+          "description": "Medusa uses 4 statuses including a 'proposed' state for marketplace scenarios.",
+          "implementation_details": "ProductStatus enum: 'draft' (initial), 'proposed' (submitted for review in marketplace context), 'published' (visible), 'rejected' (declined by admin). This maps well to marketplace use cases where vendors submit products for approval.",
+          "api_endpoints": [],
+          "data_model": {
+            "entities": ["Product"],
+            "relationships": "Enum field on Product",
+            "key_fields": ["status"]
+          },
+          "relevance": "high",
+          "business_value": "The 'proposed/rejected' pattern is relevant since the project has a supplier role and READY_FOR_REVIEW status. This validates the project's multi-step review lifecycle."
+        }
+      ]
+    },
+    {
+      "name": "Saleor",
+      "type": "open_source",
+      "urls_analyzed": [
+        "https://docs.saleor.io/docs/3.x/developer/products",
+        "https://docs.saleor.io/docs/3.x/api-reference/products/objects/product",
+        "https://github.com/saleor/saleor"
+      ],
+      "patterns_found": [
+        {
+          "pattern_name": "Product Type defines attribute schema",
+          "description": "Saleor uses ProductType as a template that defines which attributes a product must have, separating product-level from variant-level attributes.",
+          "implementation_details": "ProductType has: name, slug, product_attributes (M:N to Attribute), variant_attributes (M:N to Attribute), is_shipping_required, is_digital, weight. When creating a Product, you specify its ProductType, which determines the available attributes. Product-level attributes are shared across all variants. Variant-level attributes define the variant axes (like Shopify options but with full EAV). Attribute types: DROPDOWN, MULTISELECT, FILE, REFERENCE, NUMERIC, RICH_TEXT, SWATCH, BOOLEAN, DATE, DATE_TIME, PLAIN_TEXT.",
+          "api_endpoints": [
+            "mutation productCreate { product { ... } }",
+            "mutation productTypeCreate { productType { ... } }",
+            "query products(filter: ..., sortBy: ...) { edges { node { ... } } }"
+          ],
+          "data_model": {
+            "entities": [
+              "Product",
+              "ProductType",
+              "ProductVariant",
+              "Attribute",
+              "AttributeValue",
+              "AssignedProductAttribute",
+              "AssignedVariantAttribute"
+            ],
+            "relationships": "ProductType M:N Attribute (product-level), ProductType M:N Attribute (variant-level), Product N:1 ProductType, Product 1:N AssignedProductAttribute, Variant 1:N AssignedVariantAttribute",
+            "key_fields": [
+              "product_type",
+              "attributes",
+              "variant_attributes",
+              "input_type"
+            ]
+          },
+          "relevance": "high",
+          "business_value": "Saleor's ProductType pattern is analogous to the project's CategoryAttributeBinding system — both define which attributes apply to a category/type of product. Saleor uses a separate ProductType entity while the project uses CategoryAttributeBinding rules, which is equally valid and more flexible for hierarchical categories."
+        },
+        {
+          "pattern_name": "Full EAV with typed attributes and assigned values",
+          "description": "Saleor implements a complete EAV system with Attribute definitions, AttributeValue dictionary, and AssignedProductAttribute/AssignedVariantAttribute pivot tables.",
+          "implementation_details": "Attribute model: name, slug, input_type (enum of 12+ types), entity_type (for reference attributes), filterable_in_storefront, filterable_in_dashboard, available_in_grid, storefront_search_position. AssignedProductAttribute is a many-to-many between Product and Attribute, with a 'values' relationship to the selected AttributeValues. For non-dictionary attributes (like NUMERIC, PLAIN_TEXT), the value is stored directly on the assignment. Variant attributes work similarly but through AssignedVariantAttribute.",
+          "api_endpoints": [
+            "mutation productCreate(input: { attributes: [{id: ..., values: [...]}] })",
+            "mutation attributeCreate(input: { name, slug, type, inputType })"
+          ],
+          "data_model": {
+            "entities": [
+              "Attribute",
+              "AttributeValue",
+              "AssignedProductAttribute",
+              "AssignedVariantAttribute",
+              "AttributeProduct (M2M)",
+              "AttributeVariant (M2M)"
+            ],
+            "relationships": "Product M:N Attribute via AssignedProductAttribute, AssignedProductAttribute M:N AttributeValue, Variant M:N Attribute via AssignedVariantAttribute",
+            "key_fields": ["attribute", "values", "input_type", "entity_type"]
+          },
+          "relevance": "high",
+          "business_value": "Saleor's EAV is the closest match to the project's needs. The project's existing flat JSONB on Product.attributes should be replaced with a proper ProductAttributeValue pivot table (like Saleor's AssignedProductAttribute). The SKUAttributeValueLink table already handles the variant-level side correctly."
+        },
+        {
+          "pattern_name": "Multi-channel product visibility",
+          "description": "Products can be published to multiple channels with per-channel pricing, availability dates, and visibility.",
+          "implementation_details": "ProductChannelListing: product_id, channel_id, is_published, published_at, visible_in_listings, available_for_purchase_at. ProductVariantChannelListing: variant_id, channel_id, price_amount, currency, cost_price_amount. This allows different pricing and visibility per sales channel.",
+          "api_endpoints": [
+            "mutation productChannelListingUpdate(id: ..., input: { updateChannels: [...] })"
+          ],
+          "data_model": {
+            "entities": [
+              "ProductChannelListing",
+              "ProductVariantChannelListing",
+              "Channel"
+            ],
+            "relationships": "Product M:N Channel via ProductChannelListing, Variant M:N Channel via ProductVariantChannelListing",
+            "key_fields": [
+              "channel_id",
+              "is_published",
+              "price_amount",
+              "currency"
+            ]
+          },
+          "relevance": "medium",
+          "business_value": "Multi-channel is a future consideration. The project currently has is_visible on Product, which is a simpler single-channel approach. Worth noting for extensibility."
+        },
+        {
+          "pattern_name": "Product-category assignment (many-to-many via Category tree)",
+          "description": "Saleor assigns a product to a single category (1:N) but supports product collections for cross-category grouping.",
+          "implementation_details": "Product.category is a single FK (the primary category in the tree). For cross-category discovery, Saleor uses Collections — curated or rule-based groups of products. Collections can be: manual (hand-picked products) or automated (rule-based, e.g., all products with tag 'sale'). This avoids the complexity of M:N product-category while still enabling cross-category merchandising.",
+          "api_endpoints": [
+            "mutation productCreate(input: { category: categoryId })",
+            "mutation collectionAddProducts(collectionId: ..., products: [...])"
+          ],
+          "data_model": {
+            "entities": [
+              "Product",
+              "Category",
+              "Collection",
+              "CollectionProduct"
+            ],
+            "relationships": "Product N:1 Category (primary), Collection M:N Products",
+            "key_fields": ["category_id", "collection_id"]
+          },
+          "relevance": "high",
+          "business_value": "Validates the project's primary_category_id design. If multi-category is needed, a separate ProductCategoryAssignment table (or Collections) can be added later without changing the core Product aggregate."
+        }
+      ]
+    },
+    {
+      "name": "Magento (Adobe Commerce)",
+      "type": "market_leader",
+      "urls_analyzed": [
+        "https://developer.adobe.com/commerce/webapi/rest/quick-reference/",
+        "https://developer.adobe.com/commerce/php/development/components/attributes/",
+        "https://developer.adobe.com/commerce/webapi/rest/modules/catalog/"
+      ],
+      "patterns_found": [
+        {
+          "pattern_name": "Full EAV architecture with attribute sets",
+          "description": "Magento is the canonical implementation of EAV in e-commerce. Every product attribute is stored in type-specific value tables (catalog_product_entity_varchar, _int, _decimal, _text, _datetime).",
+          "implementation_details": "Attribute: attribute_code, frontend_input (text, textarea, date, boolean, multiselect, select, price, media_image, gallery, weight), backend_type (varchar, int, decimal, text, datetime, static), is_required, is_unique, is_searchable, is_filterable, is_comparable, is_visible_on_front, used_in_product_listing, used_for_sort_by, position. AttributeSet groups attributes into sets (analogous to AttributeGroup). AttributeGroup within a set provides tab organization in the admin. Values stored in separate tables by type: catalog_product_entity_varchar (for string values), catalog_product_entity_int, etc. Each value row: entity_id, attribute_id, store_id (for i18n), value.",
+          "api_endpoints": [
+            "GET /rest/V1/products/{sku}",
+            "POST /rest/V1/products",
+            "PUT /rest/V1/products/{sku}",
+            "GET /rest/V1/products/attributes/{attributeCode}",
+            "GET /rest/V1/products/attribute-sets/sets/list"
+          ],
+          "data_model": {
+            "entities": [
+              "Product",
+              "AttributeSet",
+              "AttributeGroup",
+              "Attribute",
+              "catalog_product_entity_varchar/int/decimal/text/datetime"
+            ],
+            "relationships": "Product N:1 AttributeSet, AttributeSet 1:N AttributeGroup, AttributeGroup M:N Attribute, Product 1:N EAV value rows (per type table)",
+            "key_fields": [
+              "attribute_code",
+              "frontend_input",
+              "backend_type",
+              "is_required",
+              "attribute_set_id",
+              "attribute_group_id"
+            ]
+          },
+          "relevance": "high",
+          "business_value": "Magento's EAV is the gold standard but notoriously complex and slow. The project's hybrid approach (JSONB for product-level attributes + structured EAV for variant attributes via SKUAttributeValueLink) is a pragmatic middle ground. A separate ProductAttributeValue table would be more queryable than flat JSONB while avoiding Magento's multi-table complexity."
+        },
+        {
+          "pattern_name": "Configurable Product (product-variant model)",
+          "description": "Magento uses ProductType to define variant structure: Simple (no variants), Configurable (with variants), Bundle, Grouped, Virtual, Downloadable.",
+          "implementation_details": "Configurable Product: parent product that links to child Simple products via configurable_product_link table. Each child Simple product is a full product entity with its own SKU, price, inventory. The configurable attributes (e.g., Color, Size) determine which child products to show. Super attributes define the variant axes. This is fundamentally different from Shopify/Medusa where variants are embedded — Magento variants are standalone products linked to a parent.",
+          "api_endpoints": [
+            "POST /rest/V1/configurable-products/{sku}/child",
+            "GET /rest/V1/configurable-products/{sku}/children"
+          ],
+          "data_model": {
+            "entities": [
+              "Product (parent)",
+              "Product (child/simple)",
+              "ConfigurableProductLink",
+              "SuperAttribute"
+            ],
+            "relationships": "Configurable Product 1:N Simple Products via link table, SuperAttribute defines variant axes",
+            "key_fields": [
+              "type_id",
+              "configurable_product_links",
+              "super_attributes"
+            ]
+          },
+          "relevance": "medium",
+          "business_value": "Magento's approach of variants as separate products is more flexible but more complex. The project's embedded SKU approach (Shopify-style) is simpler and aligns better with DDD aggregate boundaries — Product is the aggregate root, SKUs are child entities."
+        },
+        {
+          "pattern_name": "Multi-category product assignment",
+          "description": "Magento supports assigning a product to multiple categories simultaneously.",
+          "implementation_details": "catalog_category_product table: category_id, product_id, position. A product can appear in multiple categories with a sort position per category. One category is typically the 'default' for canonical URL. Categories are hierarchical (adjacency list + path materialized column). Product URL includes category path for SEO.",
+          "api_endpoints": [
+            "PUT /rest/V1/categories/{categoryId}/products",
+            "GET /rest/V1/categories/{categoryId}/products"
+          ],
+          "data_model": {
+            "entities": ["Product", "Category", "CategoryProduct"],
+            "relationships": "Product M:N Category via CategoryProduct (with position)",
+            "key_fields": ["category_id", "product_id", "position"]
+          },
+          "relevance": "high",
+          "business_value": "If the project needs multi-category, a ProductCategoryAssignment table (product_id, category_id, sort_order, is_primary) is the established pattern. The existing primary_category_id on Product handles the main category; a junction table handles additional assignments."
+        }
+      ]
+    },
+    {
+      "name": "commercetools",
+      "type": "market_leader",
+      "urls_analyzed": [
+        "https://docs.commercetools.com/api/projects/products",
+        "https://docs.commercetools.com/api/projects/productTypes",
+        "https://docs.commercetools.com/api/general-concepts/optimistic-concurrency"
+      ],
+      "patterns_found": [
+        {
+          "pattern_name": "Optimistic concurrency with version field",
+          "description": "commercetools uses a mandatory version field on all resources for optimistic locking. Every update/delete must include the current version number.",
+          "implementation_details": "Every resource has a 'version' field (integer, starts at 1, increments on every change). All mutation operations (update, delete) require the current version in the request body. If version mismatch, returns 409 Conflict. Update operations are expressed as a list of 'actions' (update actions pattern). Example: { version: 5, actions: [{ action: 'changeName', name: {...} }, { action: 'setDescription', description: {...} }] }. This ensures atomic updates and prevents lost-update problems.",
+          "api_endpoints": [
+            "POST /products/{id} (update via actions)",
+            "DELETE /products/{id}?version={version}"
+          ],
+          "data_model": {
+            "entities": ["Product"],
+            "relationships": "Version field on every entity",
+            "key_fields": ["version", "actions"]
+          },
+          "relevance": "high",
+          "business_value": "The project already has optimistic locking via SQLAlchemy's version_id_col on Product and SKU ORM models. The key decision is whether to expose version in the domain entity (recommended) or keep it infrastructure-only. commercetools mandates it at the API level, which prevents data corruption in concurrent editing scenarios."
+        },
+        {
+          "pattern_name": "Product projections (current vs staged)",
+          "description": "commercetools separates product data into 'current' (published) and 'staged' (draft changes) projections.",
+          "implementation_details": "A Product has two projections: masterData.current (what customers see) and masterData.staged (pending changes). Publishing copies staged to current. This allows editing a published product without affecting the live version. ProductProjection API provides a flat, denormalized read model optimized for queries. hasStagedChanges boolean indicates if staged differs from current.",
+          "api_endpoints": [
+            "GET /product-projections (read-optimized queries)",
+            "POST /products/{id} { actions: [{ action: 'publish' }] }",
+            "GET /product-projections/search?text.en=shirt&filter=variants.price.centAmount:range(1000 to 5000)"
+          ],
+          "data_model": {
+            "entities": [
+              "Product",
+              "ProductProjection",
+              "ProductData (current/staged)"
+            ],
+            "relationships": "Product 1:1 current ProductData, Product 1:1 staged ProductData",
+            "key_fields": [
+              "masterData.current",
+              "masterData.staged",
+              "hasStagedChanges",
+              "published"
+            ]
+          },
+          "relevance": "medium",
+          "business_value": "The staged/current pattern is enterprise-grade but adds complexity. The project's status-based lifecycle (DRAFT->PUBLISHED) is simpler and sufficient for most use cases. If staged editing is needed later, a separate drafts table or version history could be added."
+        },
+        {
+          "pattern_name": "ProductType with attribute definitions",
+          "description": "commercetools uses ProductType to define the schema of attributes for a group of products, similar to Saleor's ProductType and the project's CategoryAttributeBinding.",
+          "implementation_details": "ProductType has: name, description, attributes (list of AttributeDefinition). AttributeDefinition: name, label (localized), isRequired, type (AttributeType), attributeConstraint (None, Unique, CombinationUnique, SameForAll), isSearchable, inputHint (SingleLine, MultiLine, DateTime). AttributeType can be: BooleanType, TextType, LocalizedStringType, EnumType, LocalizedEnumType, NumberType, MoneyType, DateType, DateTimeType, TimeType, ReferenceType, SetType (array of any type), NestedType. The 'SameForAll' constraint means all variants must share the same value — equivalent to the project's AttributeLevel.PRODUCT.",
+          "api_endpoints": ["POST /product-types", "GET /product-types/{id}"],
+          "data_model": {
+            "entities": ["ProductType", "AttributeDefinition", "AttributeType"],
+            "relationships": "ProductType 1:N AttributeDefinition, Product N:1 ProductType",
+            "key_fields": [
+              "name",
+              "type",
+              "isRequired",
+              "attributeConstraint",
+              "isSearchable"
+            ]
+          },
+          "relevance": "high",
+          "business_value": "commercetools' attributeConstraint (especially SameForAll vs per-variant) directly maps to the project's AttributeLevel.PRODUCT/VARIANT enum. The 'CombinationUnique' constraint (unique combination of variant attributes) maps to the project's variant_hash concept."
+        },
+        {
+          "pattern_name": "Embedded pricing with currency and country",
+          "description": "Prices are embedded within variants as an array of Price objects, each with currency, country, customer group, and validity period.",
+          "implementation_details": "Price: value (centAmount + currencyCode), country (optional), customerGroup (optional), channel (optional), validFrom/validUntil (for timed promotions), discounted (computed from active discounts), tiers (array of PriceTier for volume pricing). PriceTier: minimumQuantity, value. Price selection at query time considers: currency, country, customer group, channel, date, quantity. Most specific price wins.",
+          "api_endpoints": [
+            "POST /products/{id} { actions: [{ action: 'addPrice', variantId: 1, price: {...} }] }"
+          ],
+          "data_model": {
+            "entities": ["Price", "PriceTier"],
+            "relationships": "Variant 1:N Prices, Price 1:N PriceTiers",
+            "key_fields": [
+              "centAmount",
+              "currencyCode",
+              "country",
+              "customerGroup",
+              "channel",
+              "validFrom",
+              "validUntil",
+              "tiers"
+            ]
+          },
+          "relevance": "medium",
+          "business_value": "The most comprehensive pricing model. Overkill for the project's current needs (single-currency RUB marketplace) but shows the path for future extensibility. The project's current price/compare_at_price/currency on SKU is a valid starting point."
+        }
+      ]
+    },
+    {
+      "name": "WooCommerce",
+      "type": "market_leader",
+      "urls_analyzed": [
+        "https://woocommerce.github.io/woocommerce-rest-api-docs/",
+        "https://github.com/woocommerce/woocommerce"
+      ],
+      "patterns_found": [
+        {
+          "pattern_name": "Product with embedded variations and global attributes",
+          "description": "WooCommerce has global attributes (shared across products) and local attributes (product-specific), with variations as child posts.",
+          "implementation_details": "Product types: simple, grouped, external, variable. Variable products have Variations (stored as separate post entries in WordPress). Global Attributes are defined once and reusable across products (like the project's Attribute entity). Local attributes are defined per-product. Attribute terms are the values (like AttributeValue). Product-attribute assignment includes: is_visible (on product page), is_variation (used to create variants), position (sort order). This visible/variation split is similar to the project's AttributeLevel.PRODUCT/VARIANT.",
+          "api_endpoints": [
+            "GET /wp-json/wc/v3/products",
+            "GET /wp-json/wc/v3/products/{id}/variations",
+            "GET /wp-json/wc/v3/products/attributes",
+            "GET /wp-json/wc/v3/products/attributes/{id}/terms"
+          ],
+          "data_model": {
+            "entities": ["Product", "Variation", "Attribute", "AttributeTerm"],
+            "relationships": "Product 1:N Variations, Product M:N Attributes (with metadata: visible, variation, position), Attribute 1:N Terms",
+            "key_fields": [
+              "type",
+              "attributes",
+              "default_attributes",
+              "variations"
+            ]
+          },
+          "relevance": "medium",
+          "business_value": "WooCommerce's is_variation flag on product-attribute assignment is conceptually similar to the project's Attribute.level (PRODUCT vs VARIANT). This confirms the pattern of distinguishing product-level and variant-level attributes at the assignment level."
+        },
+        {
+          "pattern_name": "Soft delete and trash status",
+          "description": "WooCommerce uses WordPress post statuses including 'trash' for soft delete, with permanent delete as a separate operation.",
+          "implementation_details": "Product statuses: draft, pending, private, publish, trash. DELETE endpoint moves to trash (soft delete) by default. Passing force=true permanently deletes. Trashed products can be restored. Products in trash are hidden from storefront but preserved for order history integrity.",
+          "api_endpoints": [
+            "DELETE /wp-json/wc/v3/products/{id} (moves to trash)",
+            "DELETE /wp-json/wc/v3/products/{id}?force=true (permanent)"
+          ],
+          "data_model": {
+            "entities": ["Product"],
+            "relationships": "Status enum field",
+            "key_fields": ["status", "deleted_at (implicit via trash status)"]
+          },
+          "relevance": "medium",
+          "business_value": "The project uses both deleted_at (timestamp) and ARCHIVED status. This dual approach is common — deleted_at for soft-delete filtering, ARCHIVED as a business status. The key question is whether ARCHIVED and soft-deleted are the same concept or different (archived = intentionally hidden, deleted = removed by user)."
+        }
+      ]
+    },
+    {
+      "name": "Spree Commerce",
+      "type": "open_source",
+      "urls_analyzed": [
+        "https://dev-docs.spreecommerce.org/api-reference/storefront-api",
+        "https://github.com/spree/spree"
+      ],
+      "patterns_found": [
+        {
+          "pattern_name": "Product with master variant pattern",
+          "description": "Every Product has a 'master variant' that holds the base price and default attributes. Additional variants represent actual options.",
+          "implementation_details": "Product always has exactly one master Variant (is_master=true) which holds the base price, weight, dimensions. Additional variants (is_master=false) hold per-option prices/inventory. OptionTypes define variant axes (like Color, Size). OptionValues are the specific options (Red, Blue, S, M, L). Product Properties handle non-variant product-level attributes (like Material, Brand, Care Instructions). Properties use a simple key-value model: property_name + value (string).",
+          "api_endpoints": [
+            "GET /api/v2/storefront/products",
+            "GET /api/v2/platform/products"
+          ],
+          "data_model": {
+            "entities": [
+              "Product",
+              "Variant (master + regular)",
+              "OptionType",
+              "OptionValue",
+              "Property",
+              "ProductProperty"
+            ],
+            "relationships": "Product 1:1 MasterVariant, Product 1:N Variants, Product M:N OptionTypes, Variant M:N OptionValues, Product M:N Properties via ProductProperty",
+            "key_fields": [
+              "is_master",
+              "option_types",
+              "option_values",
+              "properties"
+            ]
+          },
+          "relevance": "medium",
+          "business_value": "The master variant pattern ensures every product has a price even without explicit variants. The project could adopt this by always requiring at least one SKU (default SKU). Product Properties are simpler than full EAV but less queryable."
+        }
+      ]
+    },
+    {
+      "name": "Akeneo PIM",
+      "type": "market_leader",
+      "urls_analyzed": [
+        "https://api.akeneo.com/concepts/products.html",
+        "https://api.akeneo.com/concepts/catalog-structure.html"
+      ],
+      "patterns_found": [
+        {
+          "pattern_name": "Product Information Management (PIM) with families and completeness",
+          "description": "Akeneo is a PIM system that uses Families (attribute sets) to define product schemas, with completeness scoring based on required attributes.",
+          "implementation_details": "Family defines: required attributes per channel and locale, attribute grouping. Completeness is calculated as: (filled required attributes / total required attributes) * 100. Products can only be published when completeness reaches a threshold. Attributes have: type (text, textarea, number, boolean, simpleselect, multiselect, date, price, metric, image, file, reference_entity), group, unique, localizable (different values per locale), scopable (different values per channel). Attribute groups organize the admin edit form.",
+          "api_endpoints": [
+            "GET /api/rest/v1/products",
+            "PATCH /api/rest/v1/products/{code}",
+            "GET /api/rest/v1/families/{code}"
+          ],
+          "data_model": {
+            "entities": [
+              "Product",
+              "Family",
+              "Attribute",
+              "AttributeGroup",
+              "AttributeOption",
+              "Category"
+            ],
+            "relationships": "Product N:1 Family, Family 1:N RequiredAttributes (per channel/locale), Family 1:N AttributeGroups",
+            "key_fields": [
+              "family",
+              "completeness",
+              "values (EAV)",
+              "categories",
+              "enabled"
+            ]
+          },
+          "relevance": "high",
+          "business_value": "Akeneo's completeness scoring maps directly to the project's ENRICHING status and CategoryAttributeBinding requirement levels (REQUIRED/RECOMMENDED/OPTIONAL). The project can compute completeness as: count(filled required attributes) / count(all required attributes per category). This validates the multi-step lifecycle: DRAFT -> ENRICHING (filling attributes) -> READY_FOR_REVIEW (completeness threshold met)."
+        },
+        {
+          "pattern_name": "Product model with variants (2-level hierarchy)",
+          "description": "Akeneo supports a Product Model (parent) -> Sub-Product Model (optional mid-level) -> Product (variant) hierarchy for attribute inheritance.",
+          "implementation_details": "Product Model defines shared attributes. Products inherit values from their parent model. Variant axes define which attributes vary at each level. Example: Product Model (Brand T-shirt) -> Level 1 axis: Color (Red, Blue) -> Level 2 axis: Size (S, M, L) -> 6 Products. Inherited values can be overridden at the child level. This 2-level hierarchy allows: Level 1 (common to all variants of same color — images, description), Level 2 (specific per size — EAN, weight).",
+          "api_endpoints": [
+            "GET /api/rest/v1/product-models",
+            "PATCH /api/rest/v1/product-models/{code}"
+          ],
+          "data_model": {
+            "entities": ["ProductModel", "Product (variant)", "FamilyVariant"],
+            "relationships": "ProductModel 1:N Products (variants), FamilyVariant defines axes per level, attribute inheritance from parent to child",
+            "key_fields": ["parent", "family_variant", "variant_axes"]
+          },
+          "relevance": "medium",
+          "business_value": "The 2-level variant hierarchy is powerful for complex catalogs (fashion, electronics) but adds significant complexity. The project's flat Product -> SKU model is simpler and sufficient for most use cases. Attribute inheritance could be simulated by having product-level attributes (AttributeLevel.PRODUCT) apply to all SKUs."
+        }
+      ]
+    },
+    {
+      "name": "DDD/Architecture references",
+      "type": "expert_article",
+      "urls_analyzed": [
+        "https://www.domainlanguage.com/ddd/reference/",
+        "https://github.com/ddd-crew/aggregate-design-canvas",
+        "https://www.youtube.com/watch?v=Nkfmn0MAxRk (Vaughn Vernon - Effective Aggregate Design)"
+      ],
+      "patterns_found": [
+        {
+          "pattern_name": "Product as single aggregate root with SKU as child entity",
+          "description": "In DDD, the Product should be the aggregate root that owns its variants (SKUs) as child entities within the same aggregate boundary.",
+          "implementation_details": "Rationale: Product and its SKUs must be consistent — you cannot add a SKU with duplicate attribute combinations, pricing changes may affect product status, and the product's 'completeness' depends on its SKUs. Therefore, they share a transactional boundary. The aggregate root (Product) enforces invariants: unique variant_hash across SKUs, at least one active SKU for published products, variant attributes must match the product's category bindings. Loading: eager-load SKUs with Product since they share the aggregate boundary. Media assets can be loaded lazily as they are less tightly coupled.",
+          "api_endpoints": [],
+          "data_model": {
+            "entities": [
+              "Product (aggregate root)",
+              "SKU (child entity)",
+              "ProductAttributeValue (child entity)",
+              "MediaAsset (child entity)"
+            ],
+            "relationships": "Product owns SKUs, ProductAttributeValues, and MediaAssets. All accessed and modified through the Product aggregate root.",
+            "key_fields": ["aggregate_id", "version", "invariants"]
+          },
+          "relevance": "high",
+          "business_value": "This confirms that Product should be the aggregate root with SKU as a child entity (not a separate aggregate). The project's one-aggregate-per-transaction constraint supports this — Product + its SKUs are modified in one UoW.commit()."
+        },
+        {
+          "pattern_name": "Domain events for product lifecycle",
+          "description": "Product lifecycle transitions should emit domain events for downstream consumers (search indexing, inventory, notifications).",
+          "implementation_details": "Recommended events: ProductCreated (triggers: create search index entry, allocate inventory slots), ProductPublished (triggers: push to storefront search, notify subscribers), ProductArchived (triggers: remove from search, flag related orders), ProductUpdated (triggers: re-index search), SKUAdded (triggers: create inventory record), SKUDeactivated (triggers: update availability), PriceChanged (triggers: update price in search index, notify price watchers). Events should carry: aggregate_id, aggregate_type, event_type, timestamp, and a payload with the changed data. Avoid putting the entire aggregate state in events — include only what consumers need.",
+          "api_endpoints": [],
+          "data_model": {
+            "entities": ["DomainEvent subtypes"],
+            "relationships": "Events emitted by Product aggregate, stored in outbox, consumed by other modules",
+            "key_fields": ["aggregate_id", "event_type", "payload"]
+          },
+          "relevance": "high",
+          "business_value": "The project has established event patterns (BrandCreatedEvent, AttributeCreatedEvent, etc.). Product events should follow the same pattern: dataclass inheriting DomainEvent, emitted via aggregate.add_domain_event(), persisted atomically in the transactional outbox."
+        },
+        {
+          "pattern_name": "Variant hash for SKU uniqueness",
+          "description": "A deterministic hash of the variant's attribute values ensures no two SKUs within a product have the same attribute combination.",
+          "implementation_details": "Algorithm: 1) Collect all variant-level attribute-value pairs for the SKU, 2) Sort by attribute_id (UUID, lexicographic), 3) Concatenate as '{attr_id}:{value_id}' strings joined by '|', 4) Hash the concatenated string (SHA-256, truncated to 64 chars hex). The hash is stored on the SKU and has a unique constraint. On SKU creation/update, recalculate hash and check for conflicts. The hash must include the product_id to avoid cross-product collisions (or use a unique constraint scoped to product_id). Example: variant_hash = sha256(f'{product_id}|{sorted_attr_values}').hexdigest()[:64].",
+          "api_endpoints": [],
+          "data_model": {
+            "entities": ["SKU"],
+            "relationships": "Computed from SKUAttributeValueLink records",
+            "key_fields": ["variant_hash", "attribute_id", "attribute_value_id"]
+          },
+          "relevance": "high",
+          "business_value": "The project's SKU ORM already has variant_hash with a unique constraint. The domain entity should compute this hash as a method. SHA-256 provides collision resistance. Including product_id in the hash input prevents cross-product conflicts even if the unique constraint is global."
+        },
+        {
+          "pattern_name": "Optimistic locking in domain entities",
+          "description": "The version field should be part of the domain entity, not just the ORM model, to enable proper concurrency control at the domain level.",
+          "implementation_details": "The domain entity carries a 'version' field (int). On load from repository, the current DB version is mapped to the entity. On save, the repository passes the version to SQLAlchemy which checks it against the DB (version_id_col). If mismatch, StaleDataError is raised. The domain entity does NOT increment version itself — SQLAlchemy handles that. But the entity must carry it so the application layer can include it in API responses (for ETag headers or version-in-request patterns).",
+          "api_endpoints": [],
+          "data_model": {
+            "entities": ["Product", "SKU"],
+            "relationships": "Version field on aggregate root",
+            "key_fields": ["version"]
+          },
+          "relevance": "high",
+          "business_value": "The project's ORM models have version_id_col but the domain entities (which do not exist yet for Product/SKU) should also carry version. This enables the presentation layer to expose version in responses and require it in update requests."
+        }
+      ]
+    },
+    {
+      "name": "Stripe (pricing patterns reference)",
+      "type": "market_leader",
+      "urls_analyzed": [
+        "https://stripe.com/docs/api/prices",
+        "https://stripe.com/docs/products-prices/pricing-models"
+      ],
+      "patterns_found": [
+        {
+          "pattern_name": "Money as smallest currency unit (integer cents)",
+          "description": "Stripe universally stores monetary amounts as integers in the smallest currency unit (cents for USD, kopecks for RUB).",
+          "implementation_details": "Price.unit_amount is an integer (e.g., 1999 for $19.99). Currency codes follow ISO 4217 (3 letters). Zero-decimal currencies (JPY, KRW) use the full unit (1000 JPY = 1000, not 100000). This eliminates floating-point precision issues. All arithmetic is done in integers. Display formatting happens at the presentation layer.",
+          "api_endpoints": [],
+          "data_model": {
+            "entities": ["Price"],
+            "relationships": "Price value object with amount + currency",
+            "key_fields": ["unit_amount (integer)", "currency (ISO 4217)"]
+          },
+          "relevance": "high",
+          "business_value": "The project already follows this pattern (SKU.price is Integer in kopecks, SKU.currency defaults to 'RUB'). This is confirmed as best practice. The domain entity should use a Money value object with amount (int) + currency (str) for type safety."
+        }
+      ]
+    },
+    {
+      "name": "Algolia/Typesense (search patterns reference)",
+      "type": "market_leader",
+      "urls_analyzed": [
+        "https://www.algolia.com/doc/guides/managing-results/refine-results/faceting/",
+        "https://typesense.org/docs/guide/building-search-uis.html"
+      ],
+      "patterns_found": [
+        {
+          "pattern_name": "Denormalized product read model for search",
+          "description": "Search engines require a flat, denormalized document per product/variant with all filterable attributes as top-level fields.",
+          "implementation_details": "Product search document contains: title, description, category_path, brand_name, price_min, price_max, all filterable attribute values as facet fields. For variant-level attributes, the product document aggregates all variant values (e.g., available_colors: ['red', 'blue'], available_sizes: ['S', 'M', 'L']). Facet counts are computed per attribute value. Price range uses min/max across all active variants. The search index is updated asynchronously via domain events (ProductPublished, PriceChanged).",
+          "api_endpoints": [],
+          "data_model": {
+            "entities": ["ProductSearchDocument (denormalized)"],
+            "relationships": "Flat document combining Product + Variants + Attributes + Category + Brand",
+            "key_fields": [
+              "title",
+              "description",
+              "category_path",
+              "brand",
+              "price_min",
+              "price_max",
+              "facet_*"
+            ]
+          },
+          "relevance": "medium",
+          "business_value": "The project will need a denormalized read model for product listing/search queries (CQRS read side). This should be a separate Pydantic read model (like the existing StorefrontFilterListReadModel) that joins Product, SKUs, Attributes, Category, and Brand data."
+        }
+      ]
+    }
+  ],
+  "common_patterns": [
+    {
+      "pattern": "Product as aggregate root with Variants/SKUs as child entities",
+      "found_in": [
+        "Shopify",
+        "Medusa",
+        "Saleor",
+        "Spree",
+        "commercetools",
+        "DDD references"
+      ],
+      "consensus_approach": "Product owns its Variants. Variants cannot exist independently. The aggregate root (Product) enforces invariants across all its variants. A product with no explicit variants has a 'default' variant. All modifications go through the Product aggregate.",
+      "relevance": "high"
+    },
+    {
+      "pattern": "Price stored on Variant/SKU level, not Product level",
+      "found_in": [
+        "Shopify",
+        "Medusa",
+        "Saleor",
+        "Spree",
+        "commercetools",
+        "WooCommerce"
+      ],
+      "consensus_approach": "Price is always on the variant/SKU because different variants can have different prices (e.g., larger sizes cost more). The Product may expose computed min_price/max_price for display. Price stored as integer in smallest currency unit (cents/kopecks).",
+      "relevance": "high"
+    },
+    {
+      "pattern": "Distinction between product-level and variant-level attributes",
+      "found_in": [
+        "Saleor",
+        "commercetools",
+        "WooCommerce",
+        "Akeneo",
+        "Magento"
+      ],
+      "consensus_approach": "Attributes are classified as either product-level (shared by all variants, e.g., brand, material, description) or variant-level (differ per variant, e.g., color, size). Product-level attributes are stored on/associated with the Product. Variant-level attributes define the variant axes and are stored on/associated with each Variant/SKU.",
+      "relevance": "high"
+    },
+    {
+      "pattern": "Category-driven attribute schema (what attributes apply to what products)",
+      "found_in": [
+        "Saleor (ProductType)",
+        "commercetools (ProductType)",
+        "Magento (AttributeSet)",
+        "Akeneo (Family)",
+        "WooCommerce (Global Attributes)"
+      ],
+      "consensus_approach": "A schema entity (ProductType, AttributeSet, Family, or CategoryAttributeBinding) defines which attributes are relevant for a group of products. This enables: per-category attribute forms, completeness validation, and consistent product data structure. The project's CategoryAttributeBinding pattern is the category-driven variant of this universal pattern.",
+      "relevance": "high"
+    },
+    {
+      "pattern": "Product status lifecycle with draft and published states",
+      "found_in": [
+        "Shopify",
+        "Medusa",
+        "Saleor",
+        "WooCommerce",
+        "commercetools",
+        "Akeneo"
+      ],
+      "consensus_approach": "All platforms have at minimum: draft (not visible) and active/published (visible on storefront). Enterprise platforms add: proposed/pending_review (marketplace approval), archived (hidden but preserved). Status transitions are typically unrestricted in simpler platforms (any->any) but governed by rules in enterprise systems.",
+      "relevance": "high"
+    },
+    {
+      "pattern": "Optimistic locking via version field",
+      "found_in": ["commercetools", "Magento", "DDD references"],
+      "consensus_approach": "A version integer on the aggregate root, incremented on every mutation, included in update requests to detect concurrent modifications. Returns 409 Conflict on mismatch. This is essential for products that may be edited by multiple admins simultaneously.",
+      "relevance": "high"
+    },
+    {
+      "pattern": "Soft delete with deleted_at timestamp",
+      "found_in": ["Shopify", "WooCommerce", "Medusa", "Spree"],
+      "consensus_approach": "Products are soft-deleted (deleted_at timestamp set, excluded from queries via WHERE deleted_at IS NULL). This preserves order history integrity. Some platforms combine soft-delete with an ARCHIVED business status. The distinction: ARCHIVED = intentionally hidden by business decision (reversible), DELETED = removed by user (soft-deleted, may be permanent later).",
+      "relevance": "high"
+    },
+    {
+      "pattern": "Slug/handle as human-readable unique identifier for URL routing",
+      "found_in": [
+        "Shopify (handle)",
+        "Medusa (handle)",
+        "Saleor (slug)",
+        "Spree (slug)",
+        "commercetools (slug per locale)"
+      ],
+      "consensus_approach": "Every product has a URL-safe slug/handle that is unique (often scoped to non-deleted products). Used for SEO-friendly URLs. Some platforms support localized slugs (different slug per language). Slug uniqueness enforced with a partial unique index (WHERE deleted_at IS NULL).",
+      "relevance": "high"
+    },
+    {
+      "pattern": "Media/images as ordered list with role/position",
+      "found_in": ["Shopify", "Saleor", "Medusa", "WooCommerce", "Magento"],
+      "consensus_approach": "Product images are stored as an ordered list with position/sort_order. The first image (or one marked as 'featured/main') is the primary display image. Images can be associated with specific variants or attribute values (e.g., color-specific images). External URLs and internal storage both supported.",
+      "relevance": "high"
+    }
+  ],
+  "unique_insights": [
+    {
+      "insight": "Akeneo's completeness scoring system (percentage of filled required attributes) can drive the DRAFT->ENRICHING->READY_FOR_REVIEW lifecycle transitions automatically",
+      "source": "Akeneo PIM",
+      "potential_value": "The project can compute completeness using CategoryAttributeBinding.requirement_level. When completeness reaches 100% (all REQUIRED attributes filled), auto-transition from ENRICHING to READY_FOR_REVIEW. RECOMMENDED attributes contribute to a 'quality score' but don't block the transition.",
+      "relevance": "high"
+    },
+    {
+      "insight": "commercetools' staged/current dual projection pattern allows editing published products without affecting the live version",
+      "source": "commercetools",
+      "potential_value": "Could be implemented later as a ProductDraft entity or version history table. Not essential for MVP but important for enterprise use cases where catalog changes need approval before going live.",
+      "relevance": "medium"
+    },
+    {
+      "insight": "Saleor and Medusa both use separate Product-level and Variant-level attribute assignment tables rather than flat JSONB",
+      "source": "Saleor, Medusa",
+      "potential_value": "The project's current Product.attributes JSONB field should be replaced with a structured ProductAttributeValue pivot table (product_id, attribute_id, attribute_value_id) for product-level EAV. This enables: SQL-based filtering, proper FK constraints, consistency validation against CategoryAttributeBindings, and index-based search.",
+      "relevance": "high"
+    },
+    {
+      "insight": "Spree Commerce's 'master variant' pattern ensures every product always has at least one variant with a price",
+      "source": "Spree Commerce",
+      "potential_value": "The project should enforce a business rule: a Product must have at least one active SKU to transition to PUBLISHED status. A 'default SKU' could be auto-created when a product has no variants (simple product).",
+      "relevance": "medium"
+    },
+    {
+      "insight": "Magento's multi-category product assignment with per-category sort position enables flexible merchandising",
+      "source": "Magento",
+      "potential_value": "If multi-category is needed, a ProductCategoryAssignment table (product_id, category_id, sort_order, is_primary) is the standard approach. This preserves the primary_category_id for canonical URL while allowing additional category assignments for cross-category discoverability.",
+      "relevance": "medium"
+    },
+    {
+      "insight": "commercetools uses typed update actions instead of PUT for product modifications, enabling granular audit logging and conflict resolution",
+      "source": "commercetools",
+      "potential_value": "The project's CQRS pattern already separates commands. Each command handler (UpdateProductCommand, AddSKUCommand, ChangePriceCommand) maps to a commercetools 'update action'. This provides the same granularity for audit trails via domain events.",
+      "relevance": "medium"
+    }
+  ],
+  "anti_patterns": [
+    {
+      "pattern": "Storing product attributes as flat JSONB without schema enforcement",
+      "warned_by": [
+        "Magento architecture docs",
+        "Saleor contributors",
+        "DDD practitioners"
+      ],
+      "reason": "Flat JSONB for product attributes prevents: SQL-based filtering (need GIN indexes with complex queries), referential integrity (no FK to attribute values), completeness validation, and type checking. Works for unstructured metadata but not for catalog attributes that drive search, filtering, and comparison. Should use a proper EAV pivot table with FKs.",
+      "relevance": "high"
+    },
+    {
+      "pattern": "SKU/Variant as a separate aggregate root",
+      "warned_by": [
+        "DDD references",
+        "Vaughn Vernon aggregate design guidance"
+      ],
+      "reason": "Making SKU a separate aggregate breaks the invariant boundary. Product needs to enforce: unique variant combinations (variant_hash), at least one active SKU for published products, and consistent attribute validation. If SKU is a separate aggregate, these invariants require eventual consistency (sagas), adding unnecessary complexity. Keep SKU as a child entity within the Product aggregate.",
+      "relevance": "high"
+    },
+    {
+      "pattern": "Unrestricted status transitions (any -> any)",
+      "warned_by": [
+        "Akeneo documentation",
+        "Enterprise catalog management best practices"
+      ],
+      "reason": "Allowing any status transition (e.g., ARCHIVED directly to PUBLISHED without review) bypasses quality gates and can result in incomplete products appearing on the storefront. Enterprise systems should define a state machine with allowed transitions and guard conditions (e.g., completeness check before PUBLISHED).",
+      "relevance": "high"
+    },
+    {
+      "pattern": "Storing prices as floating-point numbers",
+      "warned_by": [
+        "Stripe documentation",
+        "Financial software best practices",
+        "IEEE 754 precision issues"
+      ],
+      "reason": "Floating-point arithmetic causes rounding errors in financial calculations (e.g., 0.1 + 0.2 != 0.3). Always store money as integers in the smallest currency unit (cents, kopecks). The project already does this correctly (SKU.price is Integer).",
+      "relevance": "high"
+    },
+    {
+      "pattern": "Loading entire product aggregate with all variants and media for every query",
+      "warned_by": [
+        "commercetools performance docs",
+        "DDD aggregate loading patterns"
+      ],
+      "reason": "Products with many variants (e.g., 100+ SKUs) and media assets (20+ images) can cause performance issues if always eager-loaded. Use CQRS read models for list/search queries (join at DB level, return flat DTOs). Only load the full aggregate for write operations. Lazy-load media assets.",
+      "relevance": "high"
+    }
+  ],
+  "industry_standards": [
+    {
+      "standard": "ISO 4217 — Currency codes",
+      "relevance": "Currency field on SKU/Price should use 3-letter ISO 4217 codes (RUB, USD, EUR). The project already uses String(3) for currency with 'RUB' default.",
+      "applies_when": "Any monetary amount is stored or transmitted"
+    },
+    {
+      "standard": "ISO 3166-1 alpha-2 — Country codes",
+      "relevance": "country_of_origin on Product should use 2-letter ISO 3166-1 alpha-2 codes (RU, CN, US). The project already uses String(2) for this field.",
+      "applies_when": "Product origin country is tracked"
+    },
+    {
+      "standard": "GS1 (GTIN/EAN/UPC) — Global product identification",
+      "relevance": "SKU barcodes should follow GS1 standards for interoperability with logistics, retail, and marketplace systems. Not currently in the project's SKU model but may be needed for marketplace integrations.",
+      "applies_when": "Products are sold through physical retail or external marketplaces"
+    },
+    {
+      "standard": "Schema.org Product markup",
+      "relevance": "Product API responses should include enough data to generate Schema.org Product structured data for SEO (name, description, image, sku, offers with price/currency/availability).",
+      "applies_when": "Products are displayed on web storefronts indexed by search engines"
+    }
+  ],
+  "coverage_matrix": {
+    "key_questions_addressed": [
+      {
+        "question": "Является ли Product единственным агрегатным корнем, содержащим SKU как дочерние сущности, или SKU — отдельный агрегат?",
+        "answered_by": [
+          "Shopify",
+          "Medusa",
+          "Saleor",
+          "Spree",
+          "DDD references"
+        ],
+        "summary": "Universal consensus: Product is the aggregate root, SKU/Variant is a child entity within the Product aggregate. All major platforms (Shopify, Medusa, Saleor, Spree, commercetools) embed variants within the product boundary. DDD guidance (Vaughn Vernon) specifically warns against making variants separate aggregates because it breaks invariant enforcement (unique variant combinations, minimum active variants for published products). The product + its variants share a transactional boundary via a single UoW.commit()."
+      },
+      {
+        "question": "Должна ли цена храниться на уровне SKU (как в текущей ORM-модели) или нужен отдельный Price value object в домене?",
+        "answered_by": [
+          "Shopify",
+          "Medusa",
+          "Saleor",
+          "commercetools",
+          "Stripe"
+        ],
+        "summary": "Price belongs on the SKU/Variant level (confirmed by all platforms). For the domain layer, a Money value object (amount: int, currency: str) is recommended for type safety and domain expressiveness. This wraps the raw integer + currency string. For multi-currency, Medusa and commercetools use a separate Price entity with multiple MoneyAmount records per variant. For single-currency (RUB), a simple Money VO on the SKU entity is sufficient. compare_at_price should also be a Money VO. Prices stored as integers in smallest currency unit (kopecks) per Stripe best practice."
+      },
+      {
+        "question": "Какие переходы статусов допустимы в жизненном цикле продукта (DRAFT -> ENRICHING -> READY_FOR_REVIEW -> PUBLISHED -> ARCHIVED) и можно ли откатиться назад?",
+        "answered_by": [
+          "Shopify",
+          "Medusa",
+          "Saleor",
+          "WooCommerce",
+          "Akeneo",
+          "commercetools"
+        ],
+        "summary": "Simpler platforms (Shopify, WooCommerce) allow unrestricted transitions. Enterprise platforms (Akeneo, commercetools) enforce rules. Recommended state machine for the project: DRAFT -> ENRICHING (when editing begins), ENRICHING -> READY_FOR_REVIEW (when completeness threshold met), READY_FOR_REVIEW -> PUBLISHED (after admin approval), PUBLISHED -> ARCHIVED (business decision to hide). Backward transitions: ENRICHING -> DRAFT (cancel editing), READY_FOR_REVIEW -> ENRICHING (send back for fixes), ARCHIVED -> DRAFT (reactivate for re-editing). PUBLISHED -> DRAFT or ENRICHING should NOT be allowed — use PUBLISHED -> ARCHIVED -> DRAFT flow instead. The Akeneo completeness scoring pattern can automate the ENRICHING -> READY_FOR_REVIEW transition."
+      },
+      {
+        "question": "Поддерживает ли система несколько категорий для одного продукта (multi-category) или только primary_category_id?",
+        "answered_by": ["Magento", "Saleor", "Shopify", "WooCommerce"],
+        "summary": "Magento and WooCommerce support multi-category (M:N with sort_order per category). Saleor and Shopify use single category + collections for cross-category grouping. Recommended approach: keep primary_category_id on Product (determines attributes schema, canonical URL, breadcrumb), add a separate ProductCategoryAssignment table (product_id, category_id, sort_order) for additional categories if needed. This can be deferred to a future iteration — start with primary_category_id only, which is sufficient for attribute validation and storefront navigation."
+      },
+      {
+        "question": "Как реализовать soft-delete продуктов — через поле deleted_at (как в ORM) или через статус ARCHIVED?",
+        "answered_by": ["Shopify", "WooCommerce", "Medusa", "Spree", "Saleor"],
+        "summary": "These are two different concepts that should coexist: ARCHIVED is a business status (product intentionally hidden, reversible, remains in admin UI). Soft-delete (deleted_at) is a technical removal (product 'deleted' by user, hidden from admin listings, preserved for order history FK integrity). Recommended: ARCHIVED status for business lifecycle (product is still 'alive' but hidden from storefront). deleted_at for actual deletions (product removed from catalog, queries filter by deleted_at IS NULL). A product can transition: PUBLISHED -> ARCHIVED (hide from storefront, keep in admin) or any status -> soft-deleted (set deleted_at, removed from everything except order history joins)."
+      },
+      {
+        "question": "Нужен ли optimistic locking (version column) на уровне доменной сущности Product, или только в ORM?",
+        "answered_by": ["commercetools", "DDD references", "Magento"],
+        "summary": "Version should exist at both levels: domain entity (for business logic and API exposure) and ORM (for database-level enforcement). commercetools mandates version in every update request. The domain entity should carry a version field (int, read-only in the entity, managed by the repository). The presentation layer should expose version in GET responses and require it in PUT/PATCH requests. The repository maps between domain version and ORM version_id_col. On mismatch, the repository raises a domain-specific ConcurrencyError exception."
+      },
+      {
+        "question": "Как валидировать EAV-атрибуты продукта при сохранении — через CategoryAttributeBinding (required/recommended/optional) или отдельный сервис валидации?",
+        "answered_by": ["Akeneo", "Saleor", "commercetools", "Magento"],
+        "summary": "All enterprise platforms validate attributes against the schema (ProductType/Family/AttributeSet). Recommended approach: 1) On Product save, load CategoryAttributeBindings for the product's primary_category_id. 2) For each REQUIRED binding, check that the product has a value for that attribute. 3) For VARIANT-level attributes, check that each SKU has values for all required variant attributes. 4) Validation happens in a domain service (ProductAttributeValidator) rather than inside the Product entity itself, because it requires reading CategoryAttributeBindings from a repository. 5) Validation is enforced on status transitions: ENRICHING -> READY_FOR_REVIEW requires all REQUIRED attributes filled. DRAFT -> ENRICHING has no validation (allows partial data entry)."
+      },
+      {
+        "question": "Нужен ли Supplier как доменная сущность (сейчас есть только ORM-модель) или достаточно supplier_id как FK?",
+        "answered_by": ["Medusa", "Magento (marketplace)", "Saleor"],
+        "summary": "For the current scope (catalog management), supplier_id as a FK is sufficient. Supplier as a full domain entity belongs to a separate bounded context (Supplier/Vendor management) if marketplace vendor management is needed. The Product aggregate should reference supplier_id as an opaque UUID — it does not need to know Supplier business rules. If Supplier CRUD is needed, create it as a separate aggregate in the catalog module (or a dedicated vendor module). For now, the ORM model exists; a minimal domain entity with CRUD is reasonable but not blocking for the Product feature."
+      },
+      {
+        "question": "Как генерировать variant_hash для SKU — какой алгоритм хеширования комбинации атрибутов?",
+        "answered_by": [
+          "DDD references",
+          "commercetools (CombinationUnique constraint)"
+        ],
+        "summary": "Recommended algorithm: 1) Collect all variant-level attribute assignments for the SKU as (attribute_id, attribute_value_id) tuples. 2) Sort tuples by attribute_id (string comparison of UUID hex). 3) Join as a canonical string: '{product_id}|{attr1_id}:{val1_id}|{attr2_id}:{val2_id}|...'. 4) Compute SHA-256 hash of the canonical string. 5) Truncate to 64 hex characters (matches the existing String(64) column). 6) Store as variant_hash on the SKU. The product_id prefix ensures global uniqueness even without a composite unique constraint. The hash should be computed as a method on the Product aggregate (since it needs to check uniqueness across sibling SKUs)."
+      },
+      {
+        "question": "Какие доменные события должен эмитировать Product (ProductCreated, ProductPublished, ProductArchived, SKUAdded, PriceChanged)?",
+        "answered_by": ["DDD references", "commercetools", "Medusa"],
+        "summary": "Recommended domain events for the Product aggregate: ProductCreatedEvent (product_id, slug, category_id, status — triggers: placeholder in search index), ProductUpdatedEvent (product_id, changed_fields — triggers: re-index if published), ProductStatusChangedEvent (product_id, old_status, new_status — triggers: publish/unpublish in search, notifications), ProductPublishedEvent (product_id, published_at — triggers: add to storefront search, notify subscribers), ProductArchivedEvent (product_id — triggers: remove from search, flag availability), ProductDeletedEvent (product_id — triggers: cleanup search, media), SKUAddedEvent (product_id, sku_id, sku_code — triggers: create inventory slot), SKURemovedEvent (product_id, sku_id — triggers: deactivate inventory), PriceChangedEvent (product_id, sku_id, old_price, new_price, currency — triggers: update search index pricing, price alerts). Follow existing pattern: dataclass inheriting DomainEvent with aggregate_type='Product'."
+      }
+    ],
+    "key_questions_not_addressed": []
+  }
+}

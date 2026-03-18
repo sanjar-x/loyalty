@@ -8,6 +8,8 @@ identity. Part of the domain layer -- zero infrastructure imports.
 import enum
 from typing import Any
 
+from attrs import frozen
+
 DEFAULT_SEARCH_WEIGHT = 5
 """Default search weight for new attributes."""
 
@@ -166,3 +168,168 @@ def _validate_numeric_rules(rules: dict[str, Any]) -> None:
         raise ValueError("max_value must be a number")
     if min_val is not None and max_val is not None and min_val > max_val:
         raise ValueError("min_value cannot exceed max_value")
+
+
+class RequirementLevel(str, enum.Enum):
+    """How mandatory an attribute is within a specific category.
+
+    Used by category-attribute bindings to indicate whether the
+    attribute must be filled, is recommended, or entirely optional.
+
+    Members:
+        REQUIRED: Attribute must have a value; blocks completeness.
+        RECOMMENDED: Attribute is desired; affects completeness score.
+        OPTIONAL: Attribute is available but does not affect completeness.
+    """
+
+    REQUIRED = "required"
+    RECOMMENDED = "recommended"
+    OPTIONAL = "optional"
+
+
+class ProductStatus(str, enum.Enum):
+    """Lifecycle states for a product listing.
+
+    Describes the FSM transitions a product passes through from
+    initial creation to publication and eventual archival. The allowed
+    transitions are enforced by the Product aggregate root (MT-2):
+
+        DRAFT -> ENRICHING
+        ENRICHING -> DRAFT
+        ENRICHING -> READY_FOR_REVIEW
+        READY_FOR_REVIEW -> ENRICHING
+        READY_FOR_REVIEW -> PUBLISHED
+        PUBLISHED -> ARCHIVED
+        ARCHIVED -> DRAFT
+
+    Values use lowercase strings matching the ORM ProductStatus enum
+    (see infrastructure/models.py) to enable simple string-based
+    mapping in repositories without a translation table.
+
+    Members:
+        DRAFT: Initial state; product data is incomplete.
+        ENRICHING: Content team is actively filling in attributes.
+        READY_FOR_REVIEW: Content is complete; awaiting approval.
+        PUBLISHED: Product is live on the storefront.
+        ARCHIVED: Product has been taken off sale.
+    """
+
+    DRAFT = "draft"
+    ENRICHING = "enriching"
+    READY_FOR_REVIEW = "ready_for_review"
+    PUBLISHED = "published"
+    ARCHIVED = "archived"
+
+
+# Context7: verified @frozen does not generate order methods by default in attrs.
+# Custom __lt__/__le__/__gt__/__ge__ are therefore safe to define without conflict.
+# Context7: verified __attrs_post_init__ in @frozen classes must only READ fields,
+# never assign -- our validation only reads self.amount and self.currency, so safe.
+@frozen
+class Money:
+    """Immutable value object representing a monetary amount.
+
+    Stores the amount in the smallest currency units (e.g. kopecks for RUB,
+    cents for USD) to avoid floating-point rounding errors. Currency is
+    validated to be exactly 3 characters per ISO 4217; full whitelist
+    validation is deferred to the presentation layer.
+
+    Ordering comparisons are only meaningful within the same currency.
+    Comparing instances with different currencies raises ``ValueError``
+    to prevent silent currency confusion.
+
+    Attributes:
+        amount: Non-negative integer in smallest currency units (e.g. kopecks).
+        currency: 3-character ISO 4217 currency code (e.g. "RUB", "USD").
+
+    Raises:
+        ValueError: If ``amount`` is negative at construction time.
+        ValueError: If ``currency`` is not exactly 3 characters at construction time.
+        ValueError: If ordering comparison is attempted between instances with
+            different ``currency`` values.
+    """
+
+    amount: int
+    currency: str
+
+    def __attrs_post_init__(self) -> None:
+        """Validate field values after attrs-generated __init__ runs."""
+        if self.amount < 0:
+            raise ValueError("Money amount must be non-negative")
+        if len(self.currency) != 3:
+            raise ValueError("Currency must be a 3-character ISO code")
+
+    def _check_currency(self, other: Money) -> None:
+        """Assert both instances share the same currency.
+
+        Args:
+            other: The Money instance being compared against.
+
+        Raises:
+            ValueError: If ``self.currency != other.currency``.
+        """
+        if self.currency != other.currency:
+            raise ValueError(
+                f"Cannot compare Money with different currencies: "
+                f"{self.currency} vs {other.currency}"
+            )
+
+    def __lt__(self, other: Money) -> bool:
+        """Return True if this amount is strictly less than *other*.
+
+        Args:
+            other: Money instance to compare against (must share currency).
+
+        Returns:
+            True if ``self.amount < other.amount``.
+
+        Raises:
+            ValueError: If currencies differ.
+        """
+        self._check_currency(other)
+        return self.amount < other.amount
+
+    def __le__(self, other: Money) -> bool:
+        """Return True if this amount is less than or equal to *other*.
+
+        Args:
+            other: Money instance to compare against (must share currency).
+
+        Returns:
+            True if ``self.amount <= other.amount``.
+
+        Raises:
+            ValueError: If currencies differ.
+        """
+        self._check_currency(other)
+        return self.amount <= other.amount
+
+    def __gt__(self, other: Money) -> bool:
+        """Return True if this amount is strictly greater than *other*.
+
+        Args:
+            other: Money instance to compare against (must share currency).
+
+        Returns:
+            True if ``self.amount > other.amount``.
+
+        Raises:
+            ValueError: If currencies differ.
+        """
+        self._check_currency(other)
+        return self.amount > other.amount
+
+    def __ge__(self, other: Money) -> bool:
+        """Return True if this amount is greater than or equal to *other*.
+
+        Args:
+            other: Money instance to compare against (must share currency).
+
+        Returns:
+            True if ``self.amount >= other.amount``.
+
+        Raises:
+            ValueError: If currencies differ.
+        """
+        self._check_currency(other)
+        return self.amount >= other.amount

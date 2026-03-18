@@ -1,10 +1,45 @@
 {
   "permissions": {
     "allow": [
+      "Bash(bash:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(uv run:*)",
+      "Bash(uv:*)",
+      "Bash(mkdir:*)",
+      "Bash(echo:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(git:*)",
+      "Command(.claude/hooks/*)",
       "mcp__plugin_context7_context7__resolve-library-id",
       "mcp__plugin_context7_context7__query-docs",
-      "mcp__context7__resolve-library-id"
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Skill(update-config)",
+      "Bash(npx ctx7@latest library \"claude code\" \"custom agents subagents hooks SubagentStop configuration frontmatter\")",
+      "Bash(npx ctx7@latest library \"anthropic claude\" \"claude code CLI custom agents subagent hooks\")",
+      "Bash(npx ctx7@latest docs /anthropics/claude-code \"custom agents subagents configuration frontmatter YAML tools model description hooks SubagentStop SubagentStart agent markdown files\")",
+      "Bash(npx ctx7@latest docs /websites/code_claude \"custom agents subagents hooks SubagentStop SubagentStart agent_type payload schema stdin JSON\")",
+      "Bash(py:*)",
+      "Bash(for mt:*)",
+      "Bash(do)",
+      "Bash(done)"
     ]
   },
-  "outputStyle": "default"
+  "hooks": {
+    "SubagentStop": [
+      {
+        "matcher": "context-analyst|competitive-intel|gap-analysis|prd-writer|review-qa|senior-pm|senior-architect|senior-backend|senior-reviewer|senior-qa",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/on-agent-stop.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
 }

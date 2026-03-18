@@ -8,6 +8,7 @@ HTTP error responses via the global exception handler.
 
 import uuid
 
+from src.modules.catalog.domain.value_objects import ProductStatus
 from src.shared.exceptions import (
     ConflictError,
     NotFoundError,
@@ -90,6 +91,167 @@ class SKUOutOfStockError(ConflictError):
                 "sku_id": str(sku_id),
                 "requested_quantity": requested,
                 "available_quantity": available,
+            },
+        )
+
+
+class InvalidStatusTransitionError(UnprocessableEntityError):
+    """Raised when a product status transition violates the FSM rules.
+
+    Args:
+        current_status: The product's current status at the time of the
+            attempted transition.
+        target_status: The requested target status that is not allowed.
+        allowed_transitions: The list of valid target statuses from the
+            current status.
+    """
+
+    def __init__(
+        self,
+        current_status: ProductStatus,
+        target_status: ProductStatus,
+        allowed_transitions: list[ProductStatus],
+    ) -> None:
+        super().__init__(
+            message=(
+                f"Cannot transition from '{current_status.value}' to '{target_status.value}'."
+            ),
+            error_code="INVALID_STATUS_TRANSITION",
+            details={
+                "current_status": current_status.value,
+                "target_status": target_status.value,
+                "allowed_transitions": [s.value for s in allowed_transitions],
+            },
+        )
+
+
+class ProductSlugConflictError(ConflictError):
+    """Raised when a product slug collides with an existing product.
+
+    Args:
+        slug: The slug value that caused the conflict.
+    """
+
+    def __init__(self, slug: str) -> None:
+        super().__init__(
+            message=f"Product with slug '{slug}' already exists.",
+            error_code="PRODUCT_SLUG_CONFLICT",
+            details={"slug": slug},
+        )
+
+
+class SKUNotFoundError(NotFoundError):
+    """Raised when a SKU lookup within a product yields no result.
+
+    Args:
+        sku_id: The SKU identifier that was not found.
+    """
+
+    def __init__(self, sku_id: uuid.UUID | str) -> None:
+        super().__init__(
+            message=f"SKU with ID {sku_id} not found.",
+            error_code="SKU_NOT_FOUND",
+            details={"sku_id": str(sku_id)},
+        )
+
+
+class SKUCodeConflictError(ConflictError):
+    """Raised when a SKU code collides within the same product.
+
+    Args:
+        sku_code: The SKU code that caused the conflict.
+        product_id: The product that already owns a SKU with this code.
+    """
+
+    def __init__(self, sku_code: str, product_id: uuid.UUID) -> None:
+        super().__init__(
+            message=f"SKU with code '{sku_code}' already exists for this product.",
+            error_code="SKU_CODE_CONFLICT",
+            details={"sku_code": sku_code, "product_id": str(product_id)},
+        )
+
+
+class DuplicateVariantCombinationError(ConflictError):
+    """Raised when a new SKU would duplicate an existing variant combination.
+
+    The variant combination is identified by a SHA-256 hash of the sorted
+    (attribute_id, attribute_value_id) pairs.
+
+    Args:
+        product_id: The product on which the collision occurred.
+        variant_hash: The computed SHA-256 hash that collided.
+    """
+
+    def __init__(self, product_id: uuid.UUID, variant_hash: str) -> None:
+        super().__init__(
+            message="A variant with the same attribute combination already exists.",
+            error_code="DUPLICATE_VARIANT_COMBINATION",
+            details={"product_id": str(product_id), "variant_hash": variant_hash},
+        )
+
+
+class DuplicateProductAttributeError(ConflictError):
+    """Raised when an attribute is assigned to a product more than once.
+
+    Args:
+        product_id: The product to which the attribute is being assigned.
+        attribute_id: The attribute that is already assigned to the product.
+    """
+
+    def __init__(self, product_id: uuid.UUID, attribute_id: uuid.UUID) -> None:
+        super().__init__(
+            message="Attribute is already assigned to this product.",
+            error_code="DUPLICATE_PRODUCT_ATTRIBUTE",
+            details={"product_id": str(product_id), "attribute_id": str(attribute_id)},
+        )
+
+
+class ProductAttributeValueNotFoundError(NotFoundError):
+    """Raised when a product attribute value assignment is not found.
+
+    Args:
+        product_id: The product whose attribute value was looked up.
+        attribute_id: The attribute whose value was not found on the product.
+    """
+
+    def __init__(self, product_id: uuid.UUID | str, attribute_id: uuid.UUID | str) -> None:
+        super().__init__(
+            message="Product attribute value not found.",
+            error_code="PRODUCT_ATTRIBUTE_VALUE_NOT_FOUND",
+            details={"product_id": str(product_id), "attribute_id": str(attribute_id)},
+        )
+
+
+class ConcurrencyError(ConflictError):
+    """Raised when an optimistic locking version mismatch is detected.
+
+    This is typically triggered when the infrastructure layer catches
+    ``sqlalchemy.orm.exc.StaleDataError`` during a flush and re-raises it
+    as this domain exception.
+
+    Args:
+        entity_type: Human-readable entity type name, e.g. ``"Product"`` or
+            ``"SKU"``.
+        entity_id: The UUID of the entity that has the version mismatch.
+        expected_version: The version the caller assumed was current.
+        actual_version: The version found in the database at flush time.
+    """
+
+    def __init__(
+        self,
+        entity_type: str,
+        entity_id: uuid.UUID,
+        expected_version: int,
+        actual_version: int,
+    ) -> None:
+        super().__init__(
+            message=f"Concurrent modification detected for {entity_type} {entity_id}.",
+            error_code="CONCURRENCY_ERROR",
+            details={
+                "entity_type": entity_type,
+                "entity_id": str(entity_id),
+                "expected_version": expected_version,
+                "actual_version": actual_version,
             },
         )
 
@@ -253,4 +415,83 @@ class AttributeDataTypeChangeError(UnprocessableEntityError):
             message="Cannot change data type of an existing attribute.",
             error_code="ATTRIBUTE_DATA_TYPE_CHANGE_NOT_ALLOWED",
             details={"attribute_id": str(attribute_id)},
+        )
+
+
+# ---------------------------------------------------------------------------
+# AttributeValue exceptions
+# ---------------------------------------------------------------------------
+
+
+class AttributeValueNotFoundError(NotFoundError):
+    """Raised when an attribute value lookup yields no result."""
+
+    def __init__(self, value_id: uuid.UUID | str):
+        super().__init__(
+            message=f"Attribute value with ID {value_id} not found.",
+            error_code="ATTRIBUTE_VALUE_NOT_FOUND",
+            details={"value_id": str(value_id)},
+        )
+
+
+class AttributeValueCodeConflictError(ConflictError):
+    """Raised when a value code collides within the same attribute."""
+
+    def __init__(self, code: str, attribute_id: uuid.UUID):
+        super().__init__(
+            message=f"Attribute value with code '{code}' already exists for this attribute.",
+            error_code="ATTRIBUTE_VALUE_CODE_CONFLICT",
+            details={"code": code, "attribute_id": str(attribute_id)},
+        )
+
+
+class AttributeValueSlugConflictError(ConflictError):
+    """Raised when a value slug collides within the same attribute."""
+
+    def __init__(self, slug: str, attribute_id: uuid.UUID):
+        super().__init__(
+            message=f"Attribute value with slug '{slug}' already exists for this attribute.",
+            error_code="ATTRIBUTE_VALUE_SLUG_CONFLICT",
+            details={"slug": slug, "attribute_id": str(attribute_id)},
+        )
+
+
+class AttributeNotDictionaryError(UnprocessableEntityError):
+    """Raised when trying to add values to a non-dictionary attribute."""
+
+    def __init__(self, attribute_id: uuid.UUID):
+        super().__init__(
+            message="Values can only be added to dictionary attributes (is_dictionary=True).",
+            error_code="ATTRIBUTE_NOT_DICTIONARY",
+            details={"attribute_id": str(attribute_id)},
+        )
+
+
+# ---------------------------------------------------------------------------
+# CategoryAttributeBinding exceptions
+# ---------------------------------------------------------------------------
+
+
+class CategoryAttributeBindingNotFoundError(NotFoundError):
+    """Raised when a category-attribute binding lookup yields no result."""
+
+    def __init__(self, binding_id: uuid.UUID | str):
+        super().__init__(
+            message=f"Category-attribute binding with ID {binding_id} not found.",
+            error_code="CATEGORY_ATTRIBUTE_BINDING_NOT_FOUND",
+            details={"binding_id": str(binding_id)},
+        )
+
+
+class CategoryAttributeBindingAlreadyExistsError(ConflictError):
+    """Raised when a binding for the same category+attribute pair already exists."""
+
+    def __init__(self, category_id: uuid.UUID, attribute_id: uuid.UUID):
+        super().__init__(
+            message="This attribute is already bound to this category.",
+            error_code="CATEGORY_ATTRIBUTE_BINDING_ALREADY_EXISTS",
+            details={
+                "category_id": str(category_id),
+                "attribute_id": str(attribute_id),
+            },
         )

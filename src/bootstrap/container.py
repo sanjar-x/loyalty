@@ -17,8 +17,13 @@ from src.infrastructure.logging.provider import LoggingProvider
 from src.infrastructure.security.provider import SecurityProvider
 from src.modules.catalog.presentation.dependencies import (
     AttributeGroupProvider,
+    AttributeProvider,
+    AttributeValueProvider,
     BrandProvider,
+    CategoryAttributeBindingProvider,
     CategoryProvider,
+    ProductProvider,
+    StorefrontCatalogProvider,
 )
 from src.modules.identity.infrastructure.provider import IdentityProvider
 from src.modules.storage.presentation.dependencies import StorageProvider
@@ -33,35 +38,17 @@ class ConfigProvider(Provider):
 
     @provide(scope=Scope.APP)
     def get_settings(self) -> Settings:
-        """Provide the global ``Settings`` singleton.
-
-        Returns:
-            The application settings instance.
-        """
+        """Provide the global ``Settings`` singleton."""
         return settings
 
     @provide(scope=Scope.APP)
     def get_storage_config(self, s: Settings) -> IStorageConfig:
-        """Provide the storage configuration interface.
-
-        Args:
-            s: The application settings (implements ``IStorageConfig``).
-
-        Returns:
-            The storage configuration, backed by the same settings object.
-        """
+        """Provide the storage configuration interface."""
         return s
 
 
 def create_container() -> AsyncContainer:
-    """Assemble and return the fully-configured Dishka IoC container.
-
-    All infrastructure and module providers are registered here so that
-    any ``FromDishka[...]`` dependency can be resolved at request time.
-
-    Returns:
-        A ready-to-use ``AsyncContainer`` instance.
-    """
+    """Assemble and return the fully-configured Dishka IoC container."""
     logger.info("Initialising Dishka IoC container...")
     return make_async_container(
         ConfigProvider(),
@@ -73,6 +60,11 @@ def create_container() -> AsyncContainer:
         CategoryProvider(),
         BrandProvider(),
         AttributeGroupProvider(),
+        AttributeProvider(),
+        AttributeValueProvider(),
+        CategoryAttributeBindingProvider(),
+        StorefrontCatalogProvider(),
+        ProductProvider(),
         IdentityProvider(),
         UserProvider(),
     )

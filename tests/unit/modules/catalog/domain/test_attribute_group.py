@@ -50,9 +50,7 @@ class TestAttributeGroupCreate:
         assert group.sort_order == 0
 
     def test_create_raises_on_empty_name_i18n(self):
-        with pytest.raises(
-            ValueError, match="name_i18n must contain at least one language entry"
-        ):
+        with pytest.raises(ValueError, match="name_i18n must contain at least one language entry"):
             AttributeGroup.create(code="test", name_i18n={})
 
 
@@ -88,9 +86,7 @@ class TestAttributeGroupUpdate:
 
     def test_update_raises_on_empty_name_i18n(self):
         group = AttributeGroupMothers.physical()
-        with pytest.raises(
-            ValueError, match="name_i18n must contain at least one language entry"
-        ):
+        with pytest.raises(ValueError, match="name_i18n must contain at least one language entry"):
             group.update(name_i18n={})
 
 
