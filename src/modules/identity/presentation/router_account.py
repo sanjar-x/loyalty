@@ -1,0 +1,87 @@
+"""Account management API endpoints for the Identity module.
+
+Provides self-service endpoints for authenticated users to manage their
+own account: deactivation (GDPR) and session listing.
+"""
+
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
+from fastapi import APIRouter, Depends
+
+from src.modules.identity.application.commands.deactivate_identity import (
+    DeactivateIdentityCommand,
+    DeactivateIdentityHandler,
+)
+from src.modules.identity.application.queries.get_my_sessions import (
+    GetMySessionsHandler,
+    GetMySessionsQuery,
+    SessionInfo,
+)
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    get_auth_context,
+)
+from src.modules.identity.presentation.schemas import MessageResponse
+from src.shared.interfaces.auth import AuthContext
+
+identity_account_router = APIRouter(
+    prefix="/users",
+    tags=["Account Management"],
+    route_class=DishkaRoute,
+)
+
+
+@identity_account_router.delete(
+    "/me",
+    response_model=MessageResponse,
+    summary="Delete my account (GDPR)",
+    dependencies=[Depends(RequirePermission("users:delete"))],
+)
+async def delete_my_account(
+    auth: AuthContext = Depends(get_auth_context),
+    handler: FromDishka[DeactivateIdentityHandler] = ...,  # type: ignore[assignment]
+) -> MessageResponse:
+    """Deactivate the authenticated user's account.
+
+    Triggers identity deactivation, session revocation, and downstream
+    GDPR PII anonymization via domain events.
+
+    Args:
+        auth: The authenticated context from the JWT.
+        handler: The deactivate identity command handler.
+
+    Returns:
+        A message confirming account deactivation.
+    """
+    command = DeactivateIdentityCommand(
+        identity_id=auth.identity_id,
+        reason="user_request",
+    )
+    await handler.handle(command)
+    return MessageResponse(message="Account deactivated. PII will be anonymized.")
+
+
+@identity_account_router.get(
+    "/me/sessions",
+    response_model=list[SessionInfo],
+    summary="List my active sessions",
+)
+async def get_my_sessions(
+    auth: AuthContext = Depends(get_auth_context),
+    handler: FromDishka[GetMySessionsHandler] = ...,  # type: ignore[assignment]
+) -> list[SessionInfo]:
+    """List the authenticated user's active sessions.
+
+    Returns all non-revoked sessions, marking the current one.
+
+    Args:
+        auth: The authenticated context from the JWT.
+        handler: The get-my-sessions query handler.
+
+    Returns:
+        List of active session summaries.
+    """
+    query = GetMySessionsQuery(
+        identity_id=auth.identity_id,
+        current_session_id=auth.session_id,
+    )
+    return await handler.handle(query)
