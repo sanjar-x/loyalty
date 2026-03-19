@@ -1,0 +1,29 @@
+@config '../../tailwind.config.js';
+@import 'tailwindcss';
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
+:root {
+  color-scheme: light;
+}
+
+* {
+  font-family: 'Inter', sans-serif;
+}
+
+html,
+body {
+  min-height: 100%;
+  width: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #ffffff;
+  color: #22252b;
+}
+
+* {
+  box-sizing: border-box;
+}

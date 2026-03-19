@@ -1,0 +1,85 @@
+.page {
+  animation: fadeIn 220ms ease-out;
+}
+
+.title {
+  margin: 0 0 22px;
+  color: #2d2d2d;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 44px;
+  letter-spacing: -1px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.sideCard {
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #f0f0f0;
+  padding: 10px;
+}
+
+.sideNav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sideLink {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  border-radius: 14px;
+  padding: 0 14px;
+  color: #111111;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-decoration: none;
+}
+
+.sideLink:hover {
+  background: #f4f3f1;
+}
+
+.sideLinkActive {
+  background: #f4f3f1;
+}
+
+.sideLinkActive::before {
+  content: '';
+  position: absolute;
+  /* sideCard has 10px padding; offset so the bar sits on the card border */
+  left: -10px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 999px;
+  background: #111111;
+  pointer-events: none;
+}
+
+.contentCard {
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #f0f0f0;
+  padding: 18px 20px;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
