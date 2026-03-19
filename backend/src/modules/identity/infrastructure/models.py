@@ -239,6 +239,9 @@ class RolePermissionModel(Base):
     """ORM model for the ``role_permissions`` association table."""
 
     __tablename__ = "role_permissions"
+    __table_args__ = (
+        Index("ix_role_permissions_role_id", "role_id"),
+    )
 
     role_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -280,6 +283,10 @@ class IdentityRoleModel(Base):
     """ORM model for the ``identity_roles`` association table."""
 
     __tablename__ = "identity_roles"
+    __table_args__ = (
+        Index("ix_identity_roles_identity_id", "identity_id"),
+        Index("ix_identity_roles_role_id", "role_id"),
+    )
 
     identity_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -382,7 +389,10 @@ class StaffInvitationModel(Base):
     """ORM model for the ``staff_invitations`` table."""
 
     __tablename__ = "staff_invitations"
-    __table_args__ = ({"comment": "Staff member invitations with token-based acceptance"},)
+    __table_args__ = (
+        Index("ix_staff_invitations_email_status", "email", "status"),
+        {"comment": "Staff member invitations with token-based acceptance"},
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

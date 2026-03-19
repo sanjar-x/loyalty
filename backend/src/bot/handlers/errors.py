@@ -1,9 +1,13 @@
 """Global error handler and fallback for unrecognised messages."""
 
+import contextlib
+
 import structlog
 from aiogram import Router
 from aiogram.filters import StateFilter
 from aiogram.types import ErrorEvent, Message
+
+from src.bot.keyboards.reply import main_menu_kb
 
 logger = structlog.get_logger(__name__)
 
@@ -22,20 +26,18 @@ async def global_error_handler(event: ErrorEvent) -> bool:
     # Try to inform the user
     update = event.update
     if update.message:
-        try:
+        with contextlib.suppress(Exception):
             await update.message.answer(
-                "Произошла ошибка. Попробуйте позже или напишите /start"
+                "😔 Что-то пошло не так. Мы уже разбираемся!\n"
+                "Попробуйте ещё раз или напишите /start",
+                reply_markup=main_menu_kb(),
             )
-        except Exception:
-            pass
     elif update.callback_query:
-        try:
+        with contextlib.suppress(Exception):
             await update.callback_query.answer(
-                "Произошла ошибка. Попробуйте позже.",
+                "😔 Произошла ошибка. Попробуйте позже.",
                 show_alert=True,
             )
-        except Exception:
-            pass
 
     return True  # error handled
 
@@ -49,10 +51,10 @@ async def fallback_handler(message: Message) -> None:
     """
     if message.text and message.text.startswith("/"):
         await message.answer(
-            "Неизвестная команда.\n"
-            "Список доступных команд: /help"
+            "🤔 Неизвестная команда.\nСписок доступных команд: /help",
         )
     else:
         await message.answer(
-            "Не совсем понял вас. Воспользуйтесь /help для списка команд."
+            "Не совсем понял вас. Воспользуйтесь меню 👇",
+            reply_markup=main_menu_kb(),
         )

@@ -50,7 +50,7 @@ class LoginRequest(CamelModel):
     """
 
     email: EmailStr
-    password: str = Field(..., min_length=1, max_length=128)
+    password: str = Field(..., min_length=8, max_length=128)
 
 
 class TokenResponse(CamelModel):
@@ -85,6 +85,23 @@ class LoginOIDCRequest(CamelModel):
     """
 
     provider_token: str
+
+
+# ---------------------------------------------------------------------------
+# Account Management schemas
+# ---------------------------------------------------------------------------
+
+
+class ChangePasswordRequest(CamelModel):
+    """Request payload for changing password.
+
+    Attributes:
+        current_password: The current password for verification.
+        new_password: The new password (8-128 characters).
+    """
+
+    current_password: str = Field(..., min_length=8, max_length=128)
+    new_password: str = Field(..., min_length=8, max_length=128)
 
 
 # ---------------------------------------------------------------------------
@@ -449,8 +466,8 @@ class AcceptInvitationRequest(CamelModel):
     """Request to accept a staff invitation."""
 
     password: str = Field(..., min_length=8, max_length=128)
-    first_name: str = ""
-    last_name: str = ""
+    first_name: str = Field("", max_length=100)
+    last_name: str = Field("", max_length=100)
 
 
 # ---------------------------------------------------------------------------

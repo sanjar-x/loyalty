@@ -100,6 +100,15 @@ class Settings(BaseSettings):
 
     RABBITMQ_URL: str
 
+    # -- Telegram Bot --------------------------------------------------------
+    BOT_TOKEN: SecretStr
+    BOT_ADMIN_IDS: list[int] = []
+    BOT_WEBHOOK_URL: str = ""
+    BOT_WEBHOOK_SECRET: str = ""
+    THROTTLE_RATE: float = 0.5
+    FSM_STATE_TTL: int | None = None
+    FSM_DATA_TTL: int | None = None
+
     @computed_field
     @property
     def redis_url(self) -> str:

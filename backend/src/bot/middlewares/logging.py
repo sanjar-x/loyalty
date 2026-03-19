@@ -1,7 +1,8 @@
 """Outer middleware that logs every incoming Telegram update with timing."""
 
 import time
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 import structlog
 from aiogram import BaseMiddleware

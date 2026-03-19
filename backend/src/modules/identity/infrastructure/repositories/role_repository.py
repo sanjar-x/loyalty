@@ -122,6 +122,15 @@ class RoleRepository(IRoleRepository):
         result = await self._session.execute(stmt)
         return [row[0] for row in result.all()]
 
+    async def is_role_assigned(self, identity_id: uuid.UUID, role_id: uuid.UUID) -> bool:
+        """Check if a role is already assigned to an identity."""
+        stmt = select(IdentityRoleModel.identity_id).where(
+            IdentityRoleModel.identity_id == identity_id,
+            IdentityRoleModel.role_id == role_id,
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
     async def assign_to_identity(
         self,
         identity_id: uuid.UUID,
@@ -169,16 +178,20 @@ class RoleRepository(IRoleRepository):
         await self._session.execute(stmt)
 
     async def count_identities_with_role(self, role_name: str) -> int:
-        """Count active identities that have a role with the given name."""
+        """Count active identities that have a role with the given name.
+
+        Uses FOR UPDATE on identity_roles rows to serialize concurrent
+        operations that depend on this count (e.g. last-admin protection).
+        """
         stmt = (
-            select(func.count())
-            .select_from(IdentityRoleModel)
+            select(IdentityRoleModel.identity_id)
             .join(RoleModel, RoleModel.id == IdentityRoleModel.role_id)
             .join(IdentityModel, IdentityModel.id == IdentityRoleModel.identity_id)
             .where(RoleModel.name == role_name, IdentityModel.is_active.is_(True))
+            .with_for_update(of=IdentityRoleModel)
         )
         result = await self._session.execute(stmt)
-        return result.scalar() or 0
+        return len(result.all())
 
     async def get_identity_ids_with_role(self, role_id: uuid.UUID) -> list[uuid.UUID]:
         """Get all identity IDs that have this role assigned."""

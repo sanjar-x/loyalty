@@ -6,7 +6,8 @@ long-polling.  For multi-process webhook deployments, replace with
 Redis-based throttling.
 """
 
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject

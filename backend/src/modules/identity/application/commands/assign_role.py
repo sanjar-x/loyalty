@@ -9,7 +9,10 @@ import uuid
 from dataclasses import dataclass
 
 from src.modules.identity.domain.events import RoleAssignmentChangedEvent
-from src.modules.identity.domain.exceptions import AccountTypeMismatchError
+from src.modules.identity.domain.exceptions import (
+    AccountTypeMismatchError,
+    RoleAlreadyAssignedError,
+)
 from src.modules.identity.domain.interfaces import (
     IIdentityRepository,
     IRoleRepository,
@@ -92,6 +95,10 @@ class AssignRoleHandler:
                 and role.target_account_type != identity.account_type
             ):
                 raise AccountTypeMismatchError()
+
+            # Idempotency guard — prevent duplicate assignment
+            if await self._role_repo.is_role_assigned(command.identity_id, command.role_id):
+                raise RoleAlreadyAssignedError()
 
             # Assign role to identity
             await self._role_repo.assign_to_identity(

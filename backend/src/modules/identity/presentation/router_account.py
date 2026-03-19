@@ -7,6 +7,10 @@ own account: deactivation (GDPR) and session listing.
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends
 
+from src.modules.identity.application.commands.change_password import (
+    ChangePasswordCommand,
+    ChangePasswordHandler,
+)
 from src.modules.identity.application.commands.deactivate_identity import (
     DeactivateIdentityCommand,
     DeactivateIdentityHandler,
@@ -20,7 +24,7 @@ from src.modules.identity.presentation.dependencies import (
     RequirePermission,
     get_auth_context,
 )
-from src.modules.identity.presentation.schemas import MessageResponse
+from src.modules.identity.presentation.schemas import ChangePasswordRequest, MessageResponse
 from src.shared.interfaces.auth import AuthContext
 
 identity_account_router = APIRouter(
@@ -58,6 +62,39 @@ async def delete_my_account(
     )
     await handler.handle(command)
     return MessageResponse(message="Account deactivated. PII will be anonymized.")
+
+
+@identity_account_router.put(
+    "/me/password",
+    response_model=MessageResponse,
+    summary="Change my password",
+)
+async def change_password(
+    body: ChangePasswordRequest,
+    auth: AuthContext = Depends(get_auth_context),
+    handler: FromDishka[ChangePasswordHandler] = ...,  # type: ignore[assignment]
+) -> MessageResponse:
+    """Change the authenticated user's password.
+
+    Verifies the current password, sets the new one, and revokes all
+    other sessions for security.
+
+    Args:
+        body: The password change request with current and new passwords.
+        auth: The authenticated context from the JWT.
+        handler: The change password command handler.
+
+    Returns:
+        A message confirming password change.
+    """
+    command = ChangePasswordCommand(
+        identity_id=auth.identity_id,
+        current_session_id=auth.session_id,
+        current_password=body.current_password,
+        new_password=body.new_password,
+    )
+    await handler.handle(command)
+    return MessageResponse(message="Password changed successfully. Other sessions have been revoked.")
 
 
 @identity_account_router.get(

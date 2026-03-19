@@ -60,6 +60,20 @@ class IIdentityRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_with_credentials(
+        self, identity_id: uuid.UUID,
+    ) -> tuple[Identity, LocalCredentials] | None:
+        """Retrieve an identity with its local credentials by identity ID.
+
+        Args:
+            identity_id: The identity's UUID.
+
+        Returns:
+            A tuple of (Identity, LocalCredentials) if found, or None.
+        """
+        pass
+
+    @abstractmethod
     async def add_credentials(self, credentials: LocalCredentials) -> LocalCredentials:
         """Persist new local credentials for an identity.
 
@@ -291,6 +305,19 @@ class IRoleRepository(ABC):
 
         Returns:
             List of assigned role UUIDs.
+        """
+        pass
+
+    @abstractmethod
+    async def is_role_assigned(self, identity_id: uuid.UUID, role_id: uuid.UUID) -> bool:
+        """Check if a role is already assigned to an identity.
+
+        Args:
+            identity_id: The identity to check.
+            role_id: The role to check.
+
+        Returns:
+            True if the role is already assigned.
         """
         pass
 

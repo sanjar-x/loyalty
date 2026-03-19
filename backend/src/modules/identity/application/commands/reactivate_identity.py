@@ -63,13 +63,13 @@ class ReactivateIdentityHandler:
             if identity.is_active:
                 raise IdentityAlreadyActiveError()
 
-            # 3. Reactivate
+            # 3. Reactivate and register aggregate immediately for event collection
             identity.reactivate()
+            self._uow.register_aggregate(identity)
 
             # 4. Persist reactivation state (CRITICAL)
             await self._identity_repo.update(identity)
 
-            self._uow.register_aggregate(identity)
             await self._uow.commit()
 
         self._logger.info(

@@ -68,6 +68,7 @@ class SetRolePermissionsHandler:
 
         # Privilege escalation check OUTSIDE transaction — reads Redis cache
         # without holding a DB connection, and gets a fresh snapshot
+        admin_perms: frozenset[str] = frozenset()
         if command.permission_ids:
             admin_perms = await self._permission_resolver.get_permissions(command.session_id)
 

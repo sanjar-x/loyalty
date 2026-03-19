@@ -17,6 +17,7 @@ from src.bootstrap.config import Settings
 from src.bot.handlers.registry import get_all_routers
 from src.bot.middlewares.logging import LoggingMiddleware
 from src.bot.middlewares.throttling import ThrottlingMiddleware
+from src.bot.middlewares.user_identify import UserIdentifyMiddleware
 
 logger = structlog.get_logger(__name__)
 
@@ -56,7 +57,7 @@ def create_dispatcher(
 
     Wiring order:
     1. FSM storage (Redis)
-    2. Middleware chain (outer → inner)
+    2. Middleware chain (outer -> inner)
     3. Routers (priority order)
     4. Dishka DI
     5. Lifecycle hooks
@@ -67,7 +68,9 @@ def create_dispatcher(
     # -- Middleware chain (order matters!) -------------------------------------
     # 1. Logging — outermost, captures everything
     dp.update.outer_middleware(LoggingMiddleware())
-    # 2. Throttling — after logging, before handlers
+    # 2. User identification — extracts telegram_user + locale for all updates
+    dp.update.outer_middleware(UserIdentifyMiddleware())
+    # 3. Throttling — after logging, before handlers
     dp.message.middleware(ThrottlingMiddleware(throttle_rate=settings.THROTTLE_RATE))
 
     # -- Routers --------------------------------------------------------------

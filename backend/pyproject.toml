@@ -66,6 +66,8 @@ dependencies = [
     "watchfiles>=1.1.1",
     "websockets>=16.0",
     "zstandard>=0.25.0",
+    "aiogram>=3.26.0",
+    "cachetools>=7.0.5",
 ]
 
 [dependency-groups]

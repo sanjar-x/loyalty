@@ -443,7 +443,6 @@ class StaffInvitation(AggregateRoot):
             raise InvitationExpiredError()
         now = datetime.now(UTC)
         if now > self.expires_at:
-            self.status = InvitationStatus.EXPIRED
             raise InvitationExpiredError()
         self.status = InvitationStatus.ACCEPTED
         self.accepted_at = now

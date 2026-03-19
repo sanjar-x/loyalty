@@ -120,6 +120,32 @@ class IdentityRepository(IIdentityRepository):
             self._credentials_to_domain(orm.credentials),
         )
 
+    async def get_with_credentials(
+        self,
+        identity_id: uuid.UUID,
+    ) -> tuple[Identity, LocalCredentials] | None:
+        """Retrieve an identity with its local credentials by identity ID.
+
+        Args:
+            identity_id: The identity's UUID.
+
+        Returns:
+            A tuple of (Identity, LocalCredentials) if found, or None.
+        """
+        stmt = (
+            select(IdentityModel)
+            .options(joinedload(IdentityModel.credentials))
+            .where(IdentityModel.id == identity_id)
+        )
+        result = await self._session.execute(stmt)
+        orm = result.unique().scalar_one_or_none()
+        if orm is None or orm.credentials is None:
+            return None
+        return (
+            self._identity_to_domain(orm),
+            self._credentials_to_domain(orm.credentials),
+        )
+
     async def add_credentials(self, credentials: LocalCredentials) -> LocalCredentials:
         """Persist new local credentials for an identity.
 

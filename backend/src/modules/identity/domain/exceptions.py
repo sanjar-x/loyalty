@@ -275,3 +275,13 @@ class AccountTypeMismatchError(ForbiddenError):
             message="Role is not compatible with account type",
             error_code="ACCOUNT_TYPE_MISMATCH",
         )
+
+
+class RoleAlreadyAssignedError(ConflictError):
+    """Raised when attempting to assign a role that is already assigned."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="Role is already assigned to this identity",
+            error_code="ROLE_ALREADY_ASSIGNED",
+        )
