@@ -136,16 +136,19 @@ class SystemRoleModificationError(ForbiddenError):
 class InsufficientPermissionsError(ForbiddenError):
     """Raised when a session lacks the required permission for an operation.
 
+    The required codename is stored for server-side logging but NOT
+    exposed in the HTTP response to avoid reconnaissance.
+
     Args:
-        codename: The permission codename that was required, if available.
+        codename: The permission codename that was required (logged, not exposed).
     """
 
     def __init__(self, codename: str | None = None) -> None:
         super().__init__(
             message="Insufficient permissions",
             error_code="INSUFFICIENT_PERMISSIONS",
-            details={"required_permission": codename} if codename else {},
         )
+        self.required_codename = codename
 
 
 class IdentityAlreadyDeactivatedError(ConflictError):

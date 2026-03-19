@@ -144,9 +144,9 @@ async def _handle_role_assignment_changed(payload: dict, correlation_id: str | N
 
 
 # Register IAM event mappings
-register_event_handler("IdentityRegisteredEvent", _handle_identity_registered)
-register_event_handler("IdentityDeactivatedEvent", _handle_identity_deactivated)
-register_event_handler("RoleAssignmentChangedEvent", _handle_role_assignment_changed)
+register_event_handler("identity_registered", _handle_identity_registered)
+register_event_handler("identity_deactivated", _handle_identity_deactivated)
+register_event_handler("role_assignment_changed", _handle_role_assignment_changed)
 
 
 # ---------------------------------------------------------------------------

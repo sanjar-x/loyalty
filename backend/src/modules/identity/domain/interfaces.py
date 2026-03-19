@@ -210,6 +210,20 @@ class ISessionRepository(ABC):
         """
         pass
 
+    @abstractmethod
+    async def get_active_session_ids_bulk(
+        self, identity_ids: list[uuid.UUID],
+    ) -> list[uuid.UUID]:
+        """Retrieve IDs of all active sessions for multiple identities in one query.
+
+        Args:
+            identity_ids: The identities to query.
+
+        Returns:
+            List of active session UUIDs across all given identities.
+        """
+        pass
+
 
 class IRoleRepository(ABC):
     """Repository contract for Role entity persistence."""

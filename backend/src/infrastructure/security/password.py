@@ -52,13 +52,15 @@ class Argon2PasswordHasher(IPasswordHasher):
         return self._password_hash.verify(plain_password, hashed_password)
 
     def needs_rehash(self, hashed_password: str) -> bool:
-        """Check whether a hash should be upgraded to Argon2id.
+        """Check whether a hash should be upgraded to the current Argon2id config.
+
+        Detects both legacy Bcrypt hashes and Argon2id hashes produced with
+        weaker parameters than the current configuration.
 
         Args:
             hashed_password: The stored hash to inspect.
 
         Returns:
-            True if the hash is a legacy Bcrypt hash that should be
-            rehashed to Argon2id.
+            True if the hash should be rehashed (legacy algorithm or weak params).
         """
-        return hashed_password.startswith(("$2a$", "$2b$", "$2y$"))
+        return self._password_hash.check_needs_rehash(hashed_password)

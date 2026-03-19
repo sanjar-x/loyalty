@@ -19,6 +19,8 @@ from src.modules.identity.domain.events import (
     StaffInvitedEvent,
 )
 from src.modules.identity.domain.exceptions import (
+    IdentityAlreadyActiveError,
+    IdentityAlreadyDeactivatedError,
     IdentityDeactivatedError,
     InvitationAlreadyAcceptedError,
     InvitationExpiredError,
@@ -101,7 +103,12 @@ class Identity(AggregateRoot):
             reason: Human-readable reason for deactivation.
             deactivated_by: Identity ID of the admin who initiated the deactivation.
                 None means self-deactivation.
+
+        Raises:
+            IdentityAlreadyDeactivatedError: If the identity is already deactivated.
         """
+        if not self.is_active:
+            raise IdentityAlreadyDeactivatedError()
         self.is_active = False
         self.deactivated_at = datetime.now(UTC)
         self.deactivated_by = deactivated_by
@@ -116,7 +123,13 @@ class Identity(AggregateRoot):
         )
 
     def reactivate(self) -> None:
-        """Reactivate a deactivated identity."""
+        """Reactivate a deactivated identity.
+
+        Raises:
+            IdentityAlreadyActiveError: If the identity is already active.
+        """
+        if self.is_active:
+            raise IdentityAlreadyActiveError()
         self.is_active = True
         self.deactivated_at = None
         self.deactivated_by = None
@@ -185,7 +198,7 @@ class Session:
     is_revoked: bool
     created_at: datetime
     expires_at: datetime
-    activated_roles: list[uuid.UUID]
+    activated_roles: tuple[uuid.UUID, ...]
 
     @classmethod
     def create(
@@ -221,7 +234,7 @@ class Session:
             is_revoked=False,
             created_at=now,
             expires_at=now + timedelta(days=expires_days),
-            activated_roles=list(role_ids),
+            activated_roles=tuple(role_ids),
         )
 
     def revoke(self) -> None:
@@ -286,12 +299,15 @@ class Role:
         name: Human-readable role name (unique).
         description: Optional role description.
         is_system: If True, this role cannot be modified or deleted.
+        target_account_type: Which account type this role may be assigned to.
+            None means the role is assignable to any account type.
     """
 
     id: uuid.UUID
     name: str
     description: str | None
     is_system: bool
+    target_account_type: AccountType | None = None
 
 
 @dataclass
@@ -425,11 +441,12 @@ class StaffInvitation(AggregateRoot):
             if self.status == InvitationStatus.REVOKED:
                 raise InvitationRevokedError()
             raise InvitationExpiredError()
-        if datetime.now(UTC) > self.expires_at:
+        now = datetime.now(UTC)
+        if now > self.expires_at:
             self.status = InvitationStatus.EXPIRED
             raise InvitationExpiredError()
         self.status = InvitationStatus.ACCEPTED
-        self.accepted_at = datetime.now(UTC)
+        self.accepted_at = now
         self.accepted_identity_id = identity_id
         self.add_domain_event(
             StaffInvitationAcceptedEvent(

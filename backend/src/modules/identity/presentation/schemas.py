@@ -50,7 +50,7 @@ class LoginRequest(CamelModel):
     """
 
     email: EmailStr
-    password: str = Field(..., max_length=128)
+    password: str = Field(..., min_length=1, max_length=128)
 
 
 class TokenResponse(CamelModel):
@@ -74,7 +74,7 @@ class RefreshTokenRequest(CamelModel):
         refresh_token: The current opaque refresh token.
     """
 
-    refresh_token: str
+    refresh_token: str = Field(..., min_length=1)
 
 
 class LoginOIDCRequest(CamelModel):

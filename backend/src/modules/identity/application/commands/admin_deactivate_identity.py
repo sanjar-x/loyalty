@@ -89,23 +89,18 @@ class AdminDeactivateIdentityHandler:
             if command.identity_id == command.deactivated_by:
                 raise SelfDeactivationError()
 
-            # 4. Not last admin
+            # 4. Not last admin — single query instead of N+1
+            admin_count = await self._role_repo.count_identities_with_role("admin")
             target_role_ids = await self._role_repo.get_identity_role_ids(command.identity_id)
-            target_has_admin = False
-            if target_role_ids:
-                for role_id in target_role_ids:
-                    role = await self._role_repo.get(role_id)
-                    if role is not None and role.name == "admin":
-                        target_has_admin = True
-                        break
+            admin_role = await self._role_repo.get_by_name("admin")
+            target_has_admin = admin_role is not None and admin_role.id in target_role_ids
 
-            if target_has_admin:
-                count = await self._role_repo.count_identities_with_role("admin")
-                if count <= 1:
-                    raise LastAdminProtectionError()
+            if target_has_admin and admin_count <= 1:
+                raise LastAdminProtectionError()
 
-            # 5. Deactivate
+            # 5. Deactivate and register aggregate immediately for event collection
             identity.deactivate(reason=command.reason, deactivated_by=command.deactivated_by)
+            self._uow.register_aggregate(identity)
 
             # 6. Persist deactivation state (CRITICAL)
             await self._identity_repo.update(identity)
@@ -115,7 +110,6 @@ class AdminDeactivateIdentityHandler:
                 command.identity_id,
             )
 
-            self._uow.register_aggregate(identity)
             await self._uow.commit()
 
         # 8. Invalidate permission cache OUTSIDE transaction (single round-trip)

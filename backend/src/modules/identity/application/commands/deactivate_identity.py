@@ -64,6 +64,7 @@ class DeactivateIdentityHandler:
 
             # Deactivate identity (emits IdentityDeactivatedEvent)
             identity.deactivate(reason=command.reason)
+            self._uow.register_aggregate(identity)
 
             # Persist deactivation state (Data Mapper — explicit update required)
             await self._identity_repo.update(identity)
@@ -73,7 +74,6 @@ class DeactivateIdentityHandler:
                 command.identity_id,
             )
 
-            self._uow.register_aggregate(identity)
             await self._uow.commit()
 
         # Invalidate permissions cache (outside transaction, single round-trip)

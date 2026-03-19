@@ -20,7 +20,6 @@ class SessionInfo(BaseModel):
         id: The session's UUID.
         ip_address: Client IP address at session creation, if available.
         user_agent: Client User-Agent string, if available.
-        is_revoked: Whether the session has been revoked.
         created_at: Timestamp when the session was created.
         expires_at: Timestamp when the session's refresh token expires.
         is_current: True if this is the requesting session.
@@ -29,7 +28,6 @@ class SessionInfo(BaseModel):
     id: uuid.UUID
     ip_address: str | None
     user_agent: str | None
-    is_revoked: bool
     created_at: datetime
     expires_at: datetime
     is_current: bool = False
@@ -49,9 +47,9 @@ class GetMySessionsQuery:
 
 
 _MY_SESSIONS_SQL = text(
-    "SELECT id, ip_address, user_agent, is_revoked, created_at, expires_at "
+    "SELECT id, ip_address, user_agent, created_at, expires_at "
     "FROM sessions "
-    "WHERE identity_id = :identity_id AND is_revoked = false "
+    "WHERE identity_id = :identity_id AND is_revoked = false AND expires_at > now() "
     "ORDER BY created_at DESC"
 )
 
@@ -77,7 +75,6 @@ class GetMySessionsHandler:
                 id=row["id"],
                 ip_address=str(row["ip_address"]) if row["ip_address"] else None,
                 user_agent=row["user_agent"],
-                is_revoked=row["is_revoked"],
                 created_at=row["created_at"],
                 expires_at=row["expires_at"],
                 is_current=(row["id"] == query.current_session_id),

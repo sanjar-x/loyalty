@@ -15,21 +15,10 @@ from src.modules.identity.domain.interfaces import (
     IRoleRepository,
     ISessionRepository,
 )
-from src.modules.identity.domain.value_objects import AccountType
 from src.shared.exceptions import NotFoundError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.security import IPermissionResolver
 from src.shared.interfaces.uow import IUnitOfWork
-
-_STAFF_ROLE_NAMES = frozenset(
-    {
-        "admin",
-        "content_manager",
-        "order_manager",
-        "support_specialist",
-        "review_moderator",
-    }
-)
 
 
 @dataclass(frozen=True)
@@ -97,10 +86,11 @@ class AssignRoleHandler:
                     error_code="ROLE_NOT_FOUND",
                 )
 
-            # Static Separation of Duties
-            if identity.account_type == AccountType.CUSTOMER and role.name in _STAFF_ROLE_NAMES:
-                raise AccountTypeMismatchError()
-            if identity.account_type == AccountType.STAFF and role.name == "customer":
+            # Static Separation of Duties — data-driven via role.target_account_type
+            if (
+                role.target_account_type is not None
+                and role.target_account_type != identity.account_type
+            ):
                 raise AccountTypeMismatchError()
 
             # Assign role to identity

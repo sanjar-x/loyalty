@@ -185,7 +185,7 @@ async def list_invitations(
     handler: FromDishka[ListStaffInvitationsHandler],
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    status: str | None = Query(None),
+    status: str | None = Query(None, pattern=r"^(PENDING|ACCEPTED|REVOKED|EXPIRED)$"),
 ) -> InvitationListResponse:
     """List staff invitations with optional status filter.
 

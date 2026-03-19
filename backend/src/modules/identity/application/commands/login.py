@@ -116,15 +116,15 @@ class LoginHandler:
             # Ensure identity is active
             identity.ensure_active()
 
-            # Transparent Argon2id rehash (Bcrypt -> Argon2id migration)
+            # Transparent rehash (Bcrypt → Argon2id or weak → strong params)
+            # Hash computed inline — needs_rehash is rare (once per legacy user),
+            # so the DB connection hold time is acceptable for this infrequent path
             if self._hasher.needs_rehash(credentials.password_hash):
                 credentials.password_hash = self._hasher.hash(command.password)
                 await self._identity_repo.update_credentials(credentials)
                 self._logger.info(
                     "password.rehashed",
                     identity_id=str(identity.id),
-                    from_algo="bcrypt",
-                    to_algo="argon2id",
                 )
 
             # Check session limit

@@ -31,7 +31,7 @@ class IdentityRegisteredEvent(DomainEvent):
     registered_at: datetime | None = None
     account_type: str = "CUSTOMER"
     aggregate_type: str = "Identity"
-    event_type: str = "IdentityRegisteredEvent"
+    event_type: str = "identity_registered"
 
     def __post_init__(self) -> None:
         if self.identity_id is None:
@@ -61,7 +61,7 @@ class IdentityDeactivatedEvent(DomainEvent):
     deactivated_by: uuid.UUID | None = None
     deactivated_at: datetime | None = None
     aggregate_type: str = "Identity"
-    event_type: str = "IdentityDeactivatedEvent"
+    event_type: str = "identity_deactivated"
 
     def __post_init__(self) -> None:
         if self.identity_id is None:
@@ -91,7 +91,7 @@ class RoleAssignmentChangedEvent(DomainEvent):
     role_id: uuid.UUID | None = None
     action: str = ""  # "assigned" | "revoked"
     aggregate_type: str = "Identity"
-    event_type: str = "RoleAssignmentChangedEvent"
+    event_type: str = "role_assignment_changed"
 
     def __post_init__(self) -> None:
         if self.identity_id is None:
@@ -116,7 +116,7 @@ class IdentityReactivatedEvent(DomainEvent):
     identity_id: uuid.UUID | None = None
     reactivated_at: datetime | None = None
     aggregate_type: str = "Identity"
-    event_type: str = "IdentityReactivatedEvent"
+    event_type: str = "identity_reactivated"
 
     def __post_init__(self) -> None:
         if self.identity_id is None:

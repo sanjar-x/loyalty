@@ -33,7 +33,7 @@ class SessionRepository(ISessionRepository):
         Returns:
             The corresponding domain entity.
         """
-        role_ids = [sr.role_id for sr in orm.activated_roles]
+        role_ids = tuple(sr.role_id for sr in orm.activated_roles)
         return Session(
             id=orm.id,
             identity_id=orm.identity_id,
@@ -219,3 +219,26 @@ class SessionRepository(ISessionRepository):
             SessionRoleModel.role_id == role_id,
         )
         await self._session.execute(stmt)
+
+    async def get_active_session_ids_bulk(
+        self,
+        identity_ids: list[uuid.UUID],
+    ) -> list[uuid.UUID]:
+        """Retrieve IDs of all active sessions for multiple identities in one query.
+
+        Args:
+            identity_ids: The identities to query.
+
+        Returns:
+            List of active session UUIDs across all given identities.
+        """
+        if not identity_ids:
+            return []
+        now = datetime.now(UTC)
+        stmt = select(SessionModel.id).where(
+            SessionModel.identity_id.in_(identity_ids),
+            SessionModel.is_revoked.is_(False),
+            SessionModel.expires_at > now,
+        )
+        result = await self._session.execute(stmt)
+        return [row[0] for row in result.all()]

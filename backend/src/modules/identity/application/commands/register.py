@@ -14,6 +14,7 @@ from src.modules.identity.domain.events import IdentityRegisteredEvent
 from src.modules.identity.domain.exceptions import IdentityAlreadyExistsError
 from src.modules.identity.domain.interfaces import IIdentityRepository, IRoleRepository
 from src.modules.identity.domain.value_objects import AccountType, IdentityType
+from src.shared.exceptions import ConflictError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.security import IPasswordHasher
 from src.shared.interfaces.uow import IUnitOfWork
@@ -72,16 +73,17 @@ class RegisterHandler:
         Raises:
             IdentityAlreadyExistsError: If the email is already registered.
         """
+        # Hash password OUTSIDE UoW to avoid holding a DB connection during
+        # CPU-expensive Argon2id computation (~100-500ms)
+        password_hash = self._hasher.hash(command.password)
+
         async with self._uow:
-            # Check email uniqueness
+            # Check email uniqueness (optimistic; DB constraint is the real guard)
             if await self._identity_repo.email_exists(command.email):
                 raise IdentityAlreadyExistsError()
 
             # Create identity
             identity = Identity.register(IdentityType.LOCAL, AccountType.CUSTOMER)
-
-            # Hash password (Argon2id)
-            password_hash = self._hasher.hash(command.password)
 
             # Create credentials
             now = datetime.now(UTC)
@@ -115,7 +117,13 @@ class RegisterHandler:
                 )
             )
             self._uow.register_aggregate(identity)
-            await self._uow.commit()
+
+            try:
+                await self._uow.commit()
+            except ConflictError:
+                # TOCTOU: concurrent registration with the same email passed
+                # the email_exists check but hit the DB unique constraint
+                raise IdentityAlreadyExistsError()
 
         self._logger.info(
             "identity.registered",

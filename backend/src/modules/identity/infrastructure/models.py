@@ -55,6 +55,7 @@ class IdentityModel(Base):
         Boolean,
         server_default=text("true"),
         nullable=False,
+        index=True,
         comment="Whether identity can authenticate",
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -75,6 +76,7 @@ class IdentityModel(Base):
     )
     deactivated_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
+        ForeignKey("identities.id", ondelete="SET NULL"),
         nullable=True,
         comment="Identity ID of admin who deactivated this identity (null=self)",
     )
@@ -113,9 +115,9 @@ class LocalCredentialsModel(Base):
         comment="Login email (unique across system)",
     )
     password_hash: Mapped[str] = mapped_column(
-        String(255),
+        String(512),
         nullable=False,
-        comment="Argon2id (new) or Bcrypt (legacy) hash",
+        comment="Argon2id (new) or Bcrypt (legacy) hash — 512 for non-default Argon2 params",
     )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
@@ -177,6 +179,11 @@ class RoleModel(Base):
         server_default=text("false"),
         nullable=False,
         comment="System roles cannot be modified or deleted",
+    )
+    target_account_type: Mapped[str | None] = mapped_column(
+        String(10),
+        nullable=True,
+        comment="Account type this role targets: CUSTOMER, STAFF, or NULL (any)",
     )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
@@ -291,6 +298,7 @@ class IdentityRoleModel(Base):
     )
     assigned_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
+        ForeignKey("identities.id", ondelete="SET NULL"),
         nullable=True,
         comment="Identity ID of admin who assigned this role",
     )
@@ -301,7 +309,7 @@ class SessionModel(Base):
 
     __tablename__ = "sessions"
     __table_args__ = (
-        Index("ix_sessions_identity_revoked", "identity_id", "is_revoked"),
+        Index("ix_sessions_identity_active", "identity_id", "is_revoked", "expires_at"),
         {"comment": "Authentication sessions with refresh token rotation"},
     )
 

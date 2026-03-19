@@ -37,7 +37,7 @@ class IdentityRepository(IIdentityRepository):
         return Identity(
             id=orm.id,
             type=IdentityType(orm.type),
-            account_type=AccountType(getattr(orm, "account_type", "CUSTOMER")),
+            account_type=AccountType(orm.account_type),
             is_active=orm.is_active,
             created_at=orm.created_at,
             updated_at=orm.updated_at,

@@ -11,7 +11,10 @@ from src.modules.identity.domain.entities import (
     StaffInvitation,
 )
 from src.modules.identity.domain.events import IdentityRegisteredEvent
-from src.modules.identity.domain.exceptions import InvitationNotFoundError
+from src.modules.identity.domain.exceptions import (
+    IdentityAlreadyExistsError,
+    InvitationNotFoundError,
+)
 from src.modules.identity.domain.interfaces import (
     IIdentityRepository,
     IRoleRepository,
@@ -19,6 +22,7 @@ from src.modules.identity.domain.interfaces import (
     IStaffInvitationRepository,
 )
 from src.modules.identity.domain.value_objects import AccountType
+from src.shared.exceptions import ConflictError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.security import IPasswordHasher, ITokenProvider
 from src.shared.interfaces.uow import IUnitOfWork
@@ -101,6 +105,9 @@ class AcceptStaffInvitationHandler:
             InvitationAlreadyAcceptedError: If already accepted.
             InvitationRevokedError: If revoked.
         """
+        # Hash password outside UoW to avoid holding DB connection during CPU work
+        password_hash = self._hasher.hash(command.password)
+
         async with self._uow:
             # Find invitation by token hash
             token_hash = StaffInvitation.hash_token(command.raw_token)
@@ -108,11 +115,12 @@ class AcceptStaffInvitationHandler:
             if invitation is None:
                 raise InvitationNotFoundError()
 
-            # Create identity (STAFF)
+            # Validate invitation FIRST (status + expiry) — fail fast before side effects
             identity = Identity.register_staff()
+            invitation.accept(identity.id)
+            await self._invitation_repo.update(invitation)
 
-            # Hash password
-            password_hash = self._hasher.hash(command.password)
+            # Persist identity and credentials (only after invitation is validated)
             now = datetime.now(UTC)
             credentials = LocalCredentials(
                 identity_id=identity.id,
@@ -121,25 +129,21 @@ class AcceptStaffInvitationHandler:
                 created_at=now,
                 updated_at=now,
             )
-
-            # Persist identity and credentials
             await self._identity_repo.add(identity)
             await self._identity_repo.add_credentials(credentials)
 
-            # Assign pre-defined roles
+            # Assign pre-defined roles (validate each still exists)
             for role_id in invitation.role_ids:
-                await self._role_repo.assign_to_identity(
-                    identity_id=identity.id,
-                    role_id=role_id,
-                )
+                role = await self._role_repo.get(role_id)
+                if role is not None:
+                    await self._role_repo.assign_to_identity(
+                        identity_id=identity.id,
+                        role_id=role_id,
+                    )
 
-            # Accept invitation (validates status + expiry)
-            invitation.accept(identity.id)
-            await self._invitation_repo.update(invitation)
-
-            # Create session
+            # Create session (use freshly queried roles, not stale invitation data)
             raw_refresh, _ = self._token_provider.create_refresh_token()
-            role_ids = invitation.role_ids
+            role_ids = await self._role_repo.get_identity_role_ids(identity.id)
             session = Session.create(
                 identity_id=identity.id,
                 refresh_token=raw_refresh,
@@ -169,7 +173,13 @@ class AcceptStaffInvitationHandler:
             )
             self._uow.register_aggregate(identity)
             self._uow.register_aggregate(invitation)
-            await self._uow.commit()
+
+            try:
+                await self._uow.commit()
+            except ConflictError:
+                # TOCTOU: concurrent invitation acceptance with the same email
+                # passed validation but hit the DB unique constraint
+                raise IdentityAlreadyExistsError()
 
         self._logger.info(
             "staff.invitation.accepted",

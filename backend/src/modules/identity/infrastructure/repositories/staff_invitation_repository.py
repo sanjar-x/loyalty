@@ -124,9 +124,20 @@ class StaffInvitationRepository(IStaffInvitationRepository):
         list_result = await self._session.execute(list_stmt)
         orms = list_result.scalars().all()
 
-        items = []
-        for orm in orms:
-            role_ids = await self._get_role_ids(orm.id)
-            items.append(self._to_domain(orm, role_ids))
+        if not orms:
+            return [], total
 
+        # Batch-fetch role_ids for all invitations in a single query
+        invitation_ids = [orm.id for orm in orms]
+        roles_stmt = select(
+            StaffInvitationRoleModel.invitation_id,
+            StaffInvitationRoleModel.role_id,
+        ).where(StaffInvitationRoleModel.invitation_id.in_(invitation_ids))
+        roles_result = await self._session.execute(roles_stmt)
+
+        role_map: dict[uuid.UUID, list[uuid.UUID]] = {iid: [] for iid in invitation_ids}
+        for row in roles_result.all():
+            role_map[row[0]].append(row[1])
+
+        items = [self._to_domain(orm, role_map[orm.id]) for orm in orms]
         return items, total

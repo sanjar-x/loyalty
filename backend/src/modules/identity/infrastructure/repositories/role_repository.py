@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.identity.domain.entities import Role
 from src.modules.identity.domain.interfaces import IRoleRepository
+from src.modules.identity.domain.value_objects import AccountType
 from src.modules.identity.infrastructure.models import (
     IdentityModel,
     IdentityRoleModel,
@@ -40,6 +41,7 @@ class RoleRepository(IRoleRepository):
             name=orm.name,
             description=orm.description,
             is_system=orm.is_system,
+            target_account_type=AccountType(orm.target_account_type) if orm.target_account_type else None,
         )
 
     async def add(self, role: Role) -> Role:
@@ -56,6 +58,7 @@ class RoleRepository(IRoleRepository):
             name=role.name,
             description=role.description,
             is_system=role.is_system,
+            target_account_type=role.target_account_type.value if role.target_account_type else None,
         )
         self._session.add(orm)
         await self._session.flush()

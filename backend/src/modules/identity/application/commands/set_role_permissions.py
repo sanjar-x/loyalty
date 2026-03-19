@@ -66,6 +66,11 @@ class SetRolePermissionsHandler:
         """
         affected_session_ids: list[uuid.UUID] = []
 
+        # Privilege escalation check OUTSIDE transaction — reads Redis cache
+        # without holding a DB connection, and gets a fresh snapshot
+        if command.permission_ids:
+            admin_perms = await self._permission_resolver.get_permissions(command.session_id)
+
         async with self._uow:
             # 1. Role exists
             role = await self._role_repo.get(command.role_id)
@@ -89,8 +94,7 @@ class SetRolePermissionsHandler:
                         details={"missing_ids": missing_ids},
                     )
 
-                # 3. Privilege escalation check
-                admin_perms = await self._permission_resolver.get_permissions(command.session_id)
+                # 3. Privilege escalation check (using pre-fetched admin permissions)
                 requested_codenames = {p.codename for p in existing}
                 escalation = requested_codenames - admin_perms
                 if escalation:
@@ -99,13 +103,13 @@ class SetRolePermissionsHandler:
             # 4. Full-replace permissions
             await self._role_repo.set_permissions(command.role_id, command.permission_ids)
 
-            # 5. Fetch affected session IDs INSIDE UoW block
+            # 5. Fetch affected session IDs INSIDE UoW block (single query)
             affected_identity_ids = await self._role_repo.get_identity_ids_with_role(
                 command.role_id
             )
-            for identity_id in affected_identity_ids:
-                session_ids = await self._session_repo.get_active_session_ids(identity_id)
-                affected_session_ids.extend(session_ids)
+            affected_session_ids = await self._session_repo.get_active_session_ids_bulk(
+                affected_identity_ids
+            )
 
             await self._uow.commit()
 

@@ -48,6 +48,12 @@ async def get_auth_context(
             error_code="MISSING_TOKEN",
         )
 
+    # DESIGN DECISION: This dependency validates the JWT signature and expiry
+    # but does NOT check session validity (is_revoked, is_expired) against the
+    # database. After a logout or token reuse revocation, the access token
+    # remains usable until its short-lived JWT expiry (default 15 min).
+    # This is an accepted stateless-JWT trade-off for performance. If the
+    # window is unacceptable, add a lightweight Redis blacklist check here.
     payload = token_provider.decode_access_token(credentials.credentials)
 
     sub = payload.get("sub")

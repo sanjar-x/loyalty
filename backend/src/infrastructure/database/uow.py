@@ -121,6 +121,22 @@ class UnitOfWork(IUnitOfWork):
             )
 
     @staticmethod
+    def _serialize_value(value: Any) -> Any:
+        """Recursively serialize a value for JSON compatibility.
+
+        Handles UUID, datetime, lists, and dicts at any nesting depth.
+        """
+        if isinstance(value, UUID):
+            return str(value)
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, list):
+            return [UnitOfWork._serialize_value(item) for item in value]
+        if isinstance(value, dict):
+            return {k: UnitOfWork._serialize_value(v) for k, v in value.items()}
+        return value
+
+    @staticmethod
     def _serialize_event_payload(event: DomainEvent) -> dict[str, Any]:
         """Serialize a dataclass domain event into a JSON-compatible dict.
 
@@ -128,18 +144,11 @@ class UnitOfWork(IUnitOfWork):
             event: The domain event dataclass to serialize.
 
         Returns:
-            A dictionary with UUID and datetime values converted to strings.
+            A dictionary with UUID and datetime values converted to strings
+            at any nesting depth.
         """
         raw = dataclasses.asdict(event)
-        result: dict[str, Any] = {}
-        for key, value in raw.items():
-            if isinstance(value, UUID):
-                result[key] = str(value)
-            elif isinstance(value, datetime):
-                result[key] = value.isoformat()
-            else:
-                result[key] = value
-        return result
+        return {key: UnitOfWork._serialize_value(value) for key, value in raw.items()}
 
     @staticmethod
     def _map_event_to_outbox(event: DomainEvent) -> OutboxMessage:

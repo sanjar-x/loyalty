@@ -70,13 +70,13 @@ class DeleteRoleHandler:
             if role.is_system:
                 raise SystemRoleModificationError(role_name=role.name)
 
-            # Collect affected sessions BEFORE deletion (inside UoW)
+            # Collect affected sessions BEFORE deletion (inside UoW, single query)
             affected_identity_ids = await self._role_repo.get_identity_ids_with_role(
                 command.role_id,
             )
-            for identity_id in affected_identity_ids:
-                session_ids = await self._session_repo.get_active_session_ids(identity_id)
-                affected_session_ids.extend(session_ids)
+            affected_session_ids = await self._session_repo.get_active_session_ids_bulk(
+                affected_identity_ids
+            )
 
             await self._role_repo.delete(command.role_id)
             await self._uow.commit()
