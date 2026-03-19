@@ -1,0 +1,40 @@
+.pageViewed {
+  min-height: var(--tg-viewport-stable-height, 100vh);
+  padding-top: calc(var(--tg-safe-area-top, 0px) + 15px);
+  max-width: 402px;
+  margin: 0 auto;
+  padding-bottom: calc(24px + var(--lm-footer-height, 0px));
+}
+
+.c1 {
+  /* Avoid unstable 100vh in Telegram WebApp */
+
+  background: #f4f3f1;
+}
+.c2 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  padding-top: 7px;
+  padding-left: 16px;
+  padding-bottom: 12px;
+  padding-left: 0rem !important;
+  padding-right: 0;
+  background: #ffffff;
+}
+.c3 {
+  background: #f4f3f1;
+  border-radius: 6px;
+  padding: 6px 7px;
+  margin: 0 16px;
+  margin-top: 32px;
+}
+.c4 {
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 106%;
+  text-transform: uppercase;
+  color: #f4f3f1;
+  vertical-align: middle;
+}

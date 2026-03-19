@@ -1,0 +1,104 @@
+.root {
+  padding: 12px 16px 16px;
+}
+
+.header {
+  margin-bottom: 17px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 0.87em;
+  color: #7e7e7e;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.item {
+  position: relative;
+  width: 100%;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.left {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 11px;
+}
+
+.avatar {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: #f4f3f1;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.avatarImg {
+  object-fit: contain;
+  width: 34px;
+  height: 34px;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.order {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 100%;
+  color: #000;
+  margin-bottom: 3px;
+}
+
+.date {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.21em;
+  color: #7e7e7e;
+}
+
+.points {
+  position: absolute;
+  right: 0;
+  top: 13px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.21em;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: #000;
+}
+
+.separator {
+  position: absolute;
+  left: 55px;
+  bottom: -4.5px;
+  height: 0.5px;
+  background: #cdcdcd;
+  width: calc(100% - 55px);
+  max-width: 315px;
+}
+
+.pointsNegative {
+  color: #7e7e7e;
+}

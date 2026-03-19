@@ -1,0 +1,98 @@
+.c1 {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.c2 {
+  position: absolute;
+}
+.c3 {
+  position: absolute;
+  background: #ff601d;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.c4 {
+  font-size: 10.29px;
+  font-weight: 600;
+  line-height: 1.21em;
+  color: #ffffff;
+}
+.c5 {
+  display: block;
+  width: 100%;
+}
+
+.tw1 {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.tw2 {
+  right: 15px;
+  top: 22px;
+  width: 6px;
+  height: 10.5px;
+}
+
+.tw3 {
+  right: 40px;
+  top: 20px;
+  width: 1rem;
+  height: 1rem;
+  border-color: transparent;
+}
+
+.container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 55px;
+  padding-left: 15px;
+  padding-right: 15px;
+  background: #f4f3f1;
+}
+
+.radiusAll {
+  border-radius: 1rem;
+}
+
+.radiusTop {
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+}
+
+.radiusBottom {
+  border-bottom-left-radius: 1rem;
+  border-bottom-right-radius: 1rem;
+}
+
+.text {
+  font-size: 15px;
+  line-height: 1.06em;
+  color: #000;
+  flex: 1 1 0%;
+}
+
+.fontNormal {
+  font-weight: 400;
+}
+
+.fontMedium {
+  font-weight: 500;
+}
+
+.fontSemibold {
+  font-weight: 600;
+}
+
+.link {
+  display: block;
+}

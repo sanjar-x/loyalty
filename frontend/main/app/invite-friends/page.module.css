@@ -1,0 +1,543 @@
+.page {
+  background: var(--background);
+  min-height: var(--tg-viewport-stable-height, 100vh);
+  padding-top: calc(var(--tg-safe-area-top, 0px) + 10px);
+  padding-bottom: calc(120px + var(--tg-safe-area-bottom, 0px));
+  max-width: 402px;
+  margin: 0 auto;
+}
+
+.container {
+  padding-top: 7px;
+}
+
+.hero {
+  padding: 20px 16px 8px 16px;
+}
+
+.illustration {
+  position: relative;
+  width: 100%;
+  height: 241px;
+  margin: 8px 0 12px;
+  pointer-events: none;
+}
+
+.bubbles {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.bubble {
+  position: absolute;
+  border-radius: 9999px;
+  transform: translateZ(0);
+}
+
+.b1 {
+  left: 68px;
+  top: 10px;
+}
+.b2 {
+  left: 28px;
+  top: 78px;
+}
+.b3 {
+  left: 65px;
+  top: 148px;
+}
+
+.b4 {
+  right: 54px;
+  top: 10px;
+}
+.b5 {
+  right: 24px;
+  top: 75px;
+}
+.b6 {
+  right: 67px;
+  top: 146px;
+}
+
+.centerBubble {
+  position: absolute;
+  left: 50%;
+  top: 52px;
+  transform: translateX(-50%);
+  width: 108px;
+  height: 108px;
+  border-radius: 153px;
+  background: white;
+  display: grid;
+  place-items: center;
+}
+
+.centerAvatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 153px;
+}
+
+.title {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 100%;
+  color: #111111;
+}
+
+.subtitle {
+  margin: 24px 0 0;
+  font-size: 15px;
+  line-height: 1.25;
+  color: rgba(17, 17, 17, 0.72);
+}
+
+.promoCard {
+  margin: 14px 16px 0 16px;
+  padding: 16px;
+  border-radius: 18px;
+  background: #f4f3f1;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.promoHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.promoPercent {
+  font-size: 44px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: #111111;
+}
+
+.promoUntil {
+  font-size: 14px;
+  line-height: 1.2;
+  color: rgba(17, 17, 17, 0.6);
+  padding-top: 4px;
+}
+
+.promoDescription {
+  max-width: 250px;
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.35;
+  color: rgba(17, 17, 17, 0.82);
+}
+
+.promoCopyButton {
+  margin-top: 14px;
+  width: 100%;
+  height: 48px;
+  border-radius: 16px;
+  border: 0;
+  background: #2d2d2d;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    transform 120ms ease,
+    filter 120ms ease;
+}
+
+.promoCopyButton:active {
+  transform: translateY(1px);
+  filter: brightness(0.98);
+}
+
+.section {
+  margin: 18px 16px 0 16px;
+}
+
+.sectionTitle {
+  margin: 0 0 19px;
+  font-size: 20px;
+  font-weight: 750;
+  line-height: 106%;
+  letter-spacing: -0.01em;
+  color: #111111;
+  padding-top: 10px;
+}
+
+.actions {
+  display: grid;
+  gap: 10px;
+}
+
+.linkRow {
+  position: relative;
+  width: 100%;
+}
+
+.linkInput {
+  width: 100%;
+  height: 55px;
+  padding: 0 52px 0 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: #f4f3f1;
+  color: #111111;
+  font-size: 15px;
+  line-height: 102%;
+  outline: none;
+  border: none;
+}
+
+.linkInput:focus-visible {
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.18);
+}
+
+.copyButton {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.copyButton:disabled {
+  cursor: default;
+}
+
+.copyButtonCopied {
+  background: rgba(92, 75, 255, 0.12);
+}
+
+.copyIcon {
+  width: 21px;
+  height: 21px;
+  display: block;
+}
+
+.copyButtonCopied .copyIcon {
+  color: #5c4bff;
+}
+
+.copyButton:active {
+  transform: translateY(-50%) scale(0.98);
+}
+
+.shareButton {
+  width: 100%;
+  height: 55px;
+  border-radius: 16px;
+  border: 0;
+  background: #2d2d2d;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    transform 120ms ease,
+    filter 120ms ease;
+}
+
+.shareButton:active {
+  transform: translateY(1px);
+  filter: brightness(0.98);
+}
+
+.hint {
+  min-height: 16px;
+  font-size: 12px;
+  color: rgba(17, 17, 17, 0.55);
+  display: none;
+}
+
+.skeletonBlock {
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+}
+
+.skeletonIllustration {
+  height: 241px;
+  width: 100%;
+  border-radius: 18px;
+  background: #f4f3f1;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.skeletonTitleWrap {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.skeletonTitleLine {
+  height: 26px;
+  width: 88%;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.skeletonTitleLineShort {
+  height: 26px;
+  width: 62%;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.skeletonSubtitleWrap {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.skeletonSubtitleLine {
+  height: 14px;
+  width: 100%;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.skeletonPromoPercent {
+  height: 44px;
+  width: 86px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.skeletonPromoUntil {
+  height: 14px;
+  width: 120px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+  margin-top: 6px;
+}
+
+.skeletonPromoDesc {
+  height: 14px;
+  width: 88%;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+  margin-top: 14px;
+}
+
+.skeletonPromoDescShort {
+  height: 14px;
+  width: 64%;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+  margin-top: 8px;
+}
+
+.skeletonPromoButton {
+  height: 48px;
+  width: 100%;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.06);
+  margin-top: 14px;
+}
+
+.skeletonSectionTitle {
+  height: 18px;
+  width: 220px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.06);
+  margin-bottom: 12px;
+}
+
+.skeletonInput {
+  height: 56px;
+  width: 100%;
+  border-radius: 16px;
+  background: #f4f3f1;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.skeletonShareButton {
+  height: 56px;
+  width: 100%;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.06);
+  margin-top: 10px;
+}
+
+.skeletonStatLabel {
+  height: 14px;
+  width: 160px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.skeletonStatValue {
+  height: 14px;
+  width: 40px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.skeletonAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.skeletonHistoryBody {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.skeletonHistoryName {
+  height: 14px;
+  width: 160px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.skeletonHistoryDate {
+  height: 12px;
+  width: 96px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+  margin-top: 8px;
+}
+
+.skeletonHistoryStatus {
+  height: 12px;
+  width: 72px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+  flex: 0 0 auto;
+}
+
+.statsCard {
+  margin: 12px 16px 0 16px;
+  padding: 29px 22px;
+  border-radius: 16px;
+  background: #f4f3f1;
+  border: none;
+}
+
+.statRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.statLabel {
+  font-size: 14px;
+  color: #000000;
+}
+
+.statValue {
+  font-size: 15px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.divider {
+  height: 1px;
+  background: transparent;
+  margin: 7px 0;
+}
+
+.history {
+  margin: 18px 16px 0 16px;
+}
+
+.historyTitle {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(17, 17, 17, 0.45);
+  letter-spacing: 0.02em;
+}
+
+.historyList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #ffffff;
+  border: none;
+}
+
+.historyItem {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.historyItem + .historyItem {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.userAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+}
+
+.userBody {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.userMain {
+  min-width: 0;
+}
+
+.userName {
+  font-size: 15px;
+  font-weight: 650;
+  color: #111111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.userDate {
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgba(17, 17, 17, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.userStatus {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.statusIcon {
+  color: rgba(17, 17, 17, 0.65);
+}
+
+.statusText {
+  font-size: 12px;
+  color: rgba(17, 17, 17, 0.45);
+}
