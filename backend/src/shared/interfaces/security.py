@@ -139,6 +139,14 @@ class IPermissionResolver(Protocol):
         """
         ...
 
+    async def invalidate_many(self, session_ids: list[uuid.UUID]) -> None:
+        """Delete cached permissions for multiple sessions in a single round-trip.
+
+        Args:
+            session_ids: UUIDs of the sessions whose caches should be cleared.
+        """
+        ...
+
 
 @dataclass(frozen=True)
 class OIDCUserInfo:

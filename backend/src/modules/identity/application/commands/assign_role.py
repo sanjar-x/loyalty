@@ -18,6 +18,7 @@ from src.modules.identity.domain.interfaces import (
 from src.modules.identity.domain.value_objects import AccountType
 from src.shared.exceptions import NotFoundError
 from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.security import IPermissionResolver
 from src.shared.interfaces.uow import IUnitOfWork
 
 _STAFF_ROLE_NAMES = frozenset(
@@ -60,12 +61,14 @@ class AssignRoleHandler:
         role_repo: IRoleRepository,
         session_repo: ISessionRepository,
         uow: IUnitOfWork,
+        permission_resolver: IPermissionResolver,
         logger: ILogger,
     ) -> None:
         self._identity_repo = identity_repo
         self._role_repo = role_repo
         self._session_repo = session_repo
         self._uow = uow
+        self._permission_resolver = permission_resolver
         self._logger = logger.bind(handler="AssignRoleHandler")
 
     async def handle(self, command: AssignRoleCommand) -> None:
@@ -126,9 +129,13 @@ class AssignRoleHandler:
             self._uow.register_aggregate(identity)
             await self._uow.commit()
 
+        # Synchronous cache invalidation OUTSIDE transaction (single round-trip)
+        await self._permission_resolver.invalidate_many(active_session_ids)
+
         self._logger.info(
             "role.assigned",
             identity_id=str(command.identity_id),
             role_id=str(command.role_id),
             role_name=role.name,
+            invalidated_sessions=len(active_session_ids),
         )

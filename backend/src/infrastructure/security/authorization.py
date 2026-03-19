@@ -102,8 +102,9 @@ class PermissionResolver(IPermissionResolver):
 
         permissions = frozenset(codenames)
 
-        # 3. Cache result
-        await self._redis.set(key, json.dumps(list(permissions)), ttl=self._cache_ttl)
+        # 3. Cache result (skip empty sets to avoid masking pending role assignments)
+        if permissions:
+            await self._redis.set(key, json.dumps(list(permissions)), ttl=self._cache_ttl)
 
         return permissions
 
@@ -129,3 +130,15 @@ class PermissionResolver(IPermissionResolver):
         key = self._build_cache_key(session_id)
         await self._redis.delete(key)
         logger.info("permissions.cache_invalidated", session_id=str(session_id))
+
+    async def invalidate_many(self, session_ids: list[uuid.UUID]) -> None:
+        """Invalidate cached permission sets for multiple sessions in one round-trip.
+
+        Args:
+            session_ids: The session UUIDs whose cache entries should be removed.
+        """
+        if not session_ids:
+            return
+        keys = [self._build_cache_key(sid) for sid in session_ids]
+        await self._redis.delete_many(keys)
+        logger.info("permissions.cache_bulk_invalidated", count=len(session_ids))

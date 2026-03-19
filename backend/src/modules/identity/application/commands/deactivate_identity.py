@@ -65,6 +65,9 @@ class DeactivateIdentityHandler:
             # Deactivate identity (emits IdentityDeactivatedEvent)
             identity.deactivate(reason=command.reason)
 
+            # Persist deactivation state (Data Mapper — explicit update required)
+            await self._identity_repo.update(identity)
+
             # Revoke all sessions
             revoked_ids = await self._session_repo.revoke_all_for_identity(
                 command.identity_id,
@@ -73,9 +76,8 @@ class DeactivateIdentityHandler:
             self._uow.register_aggregate(identity)
             await self._uow.commit()
 
-        # Invalidate permissions cache (outside transaction)
-        for session_id in revoked_ids:
-            await self._permission_resolver.invalidate(session_id)
+        # Invalidate permissions cache (outside transaction, single round-trip)
+        await self._permission_resolver.invalidate_many(revoked_ids)
 
         self._logger.info(
             "identity.deactivated",

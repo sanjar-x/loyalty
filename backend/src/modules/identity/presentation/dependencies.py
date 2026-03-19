@@ -58,14 +58,23 @@ async def get_auth_context(
             error_code="INVALID_TOKEN_PAYLOAD",
         )
 
+    try:
+        identity_id = uuid.UUID(sub)
+        session_id = uuid.UUID(sid)
+    except ValueError:
+        raise UnauthorizedError(
+            message="Invalid token payload: malformed sub or sid",
+            error_code="INVALID_TOKEN_PAYLOAD",
+        )
+
     structlog.contextvars.bind_contextvars(
         identity_id=sub,
         session_id=sid,
     )
 
     return AuthContext(
-        identity_id=uuid.UUID(sub),
-        session_id=uuid.UUID(sid),
+        identity_id=identity_id,
+        session_id=session_id,
     )
 
 

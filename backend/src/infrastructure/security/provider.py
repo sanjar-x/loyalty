@@ -8,6 +8,7 @@ from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from src.bootstrap.config import settings
 from src.infrastructure.security.authorization import PermissionResolver
 from src.infrastructure.security.jwt import JwtTokenProvider
 from src.infrastructure.security.password import Argon2PasswordHasher
@@ -44,4 +45,8 @@ class SecurityProvider(Provider):
         Returns:
             An ``IPermissionResolver`` backed by Redis and PostgreSQL.
         """
-        return PermissionResolver(redis=redis, session_factory=session_factory)
+        return PermissionResolver(
+            redis=redis,
+            session_factory=session_factory,
+            cache_ttl=settings.SESSION_PERMISSIONS_CACHE_TTL,
+        )

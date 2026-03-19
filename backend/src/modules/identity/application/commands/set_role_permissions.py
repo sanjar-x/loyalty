@@ -109,9 +109,8 @@ class SetRolePermissionsHandler:
 
             await self._uow.commit()
 
-        # 6. Invalidate cache OUTSIDE transaction
-        for session_id in affected_session_ids:
-            await self._permission_resolver.invalidate(session_id)
+        # 6. Invalidate cache OUTSIDE transaction (single round-trip)
+        await self._permission_resolver.invalidate_many(affected_session_ids)
 
         self._logger.info(
             "role.permissions_set",

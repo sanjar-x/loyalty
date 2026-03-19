@@ -118,9 +118,8 @@ class AdminDeactivateIdentityHandler:
             self._uow.register_aggregate(identity)
             await self._uow.commit()
 
-        # 8. Invalidate permission cache OUTSIDE transaction
-        for session_id in revoked_ids:
-            await self._permission_resolver.invalidate(session_id)
+        # 8. Invalidate permission cache OUTSIDE transaction (single round-trip)
+        await self._permission_resolver.invalidate_many(revoked_ids)
 
         self._logger.info(
             "identity.admin_deactivated",

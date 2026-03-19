@@ -68,3 +68,17 @@ class RedisService(ICacheService):
             await self._client.delete(key)
         except RedisError as e:
             logger.warning("Redis delete error (DELETE)", key=key, error=str(e))
+
+    async def delete_many(self, keys: list[str]) -> None:
+        """Delete multiple keys from Redis in a single round-trip.
+
+        Args:
+            keys: The cache keys to delete. If empty, this is a no-op.
+        """
+        if not keys:
+            return
+        try:
+            logger.debug("Redis DELETE_MANY", count=len(keys))
+            await self._client.delete(*keys)
+        except RedisError as e:
+            logger.warning("Redis delete error (DELETE_MANY)", count=len(keys), error=str(e))

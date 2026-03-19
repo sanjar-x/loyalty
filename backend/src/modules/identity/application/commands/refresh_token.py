@@ -8,7 +8,10 @@ a new access/refresh token pair.
 import hashlib
 from dataclasses import dataclass
 
-from src.modules.identity.domain.exceptions import RefreshTokenReuseError
+from src.modules.identity.domain.exceptions import (
+    InvalidCredentialsError,
+    RefreshTokenReuseError,
+)
 from src.modules.identity.domain.interfaces import (
     IIdentityRepository,
     ISessionRepository,
@@ -98,10 +101,11 @@ class RefreshTokenHandler:
             # Validate session
             session.ensure_valid()
 
-            # Verify identity is still active
+            # Verify identity exists and is still active
             identity = await self._identity_repo.get(session.identity_id)
-            if identity:
-                identity.ensure_active()
+            if identity is None:
+                raise InvalidCredentialsError()
+            identity.ensure_active()
 
             # Rotate refresh token
             new_raw, _ = self._token_provider.create_refresh_token()

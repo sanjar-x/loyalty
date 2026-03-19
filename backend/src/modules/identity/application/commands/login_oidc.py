@@ -9,7 +9,10 @@ from dataclasses import dataclass
 
 from src.modules.identity.domain.entities import Identity, Session
 from src.modules.identity.domain.events import IdentityRegisteredEvent
-from src.modules.identity.domain.exceptions import InvalidCredentialsError
+from src.modules.identity.domain.exceptions import (
+    InvalidCredentialsError,
+    MaxSessionsExceededError,
+)
 from src.modules.identity.domain.interfaces import (
     IIdentityRepository,
     ILinkedAccountRepository,
@@ -67,6 +70,7 @@ class LoginOIDCHandler:
         uow: IUnitOfWork,
         token_provider: ITokenProvider,
         logger: ILogger,
+        max_sessions: int = 5,
         refresh_token_days: int = 30,
     ) -> None:
         self._oidc = oidc_provider
@@ -77,6 +81,7 @@ class LoginOIDCHandler:
         self._uow = uow
         self._token_provider = token_provider
         self._logger = logger.bind(handler="LoginOIDCHandler")
+        self._max_sessions = max_sessions
         self._refresh_token_days = refresh_token_days
 
     async def handle(self, command: LoginOIDCCommand) -> LoginOIDCResult:
@@ -143,7 +148,18 @@ class LoginOIDCHandler:
                         aggregate_id=str(identity.id),
                     )
                 )
+                identity.ensure_active()
                 is_new = True
+
+            # Check session limit (same enforcement as local login)
+            active_count = await self._session_repo.count_active(identity.id)
+            if active_count >= self._max_sessions:
+                self._logger.warning(
+                    "max_sessions.exceeded",
+                    identity_id=str(identity.id),
+                    ip=command.ip_address,
+                )
+                raise MaxSessionsExceededError(max_sessions=self._max_sessions)
 
             # Create session
             role_ids = await self._role_repo.get_identity_role_ids(identity.id)
@@ -168,7 +184,8 @@ class LoginOIDCHandler:
                 self._uow.register_aggregate(identity)
             await self._uow.commit()
 
-        assert identity is not None
+        if identity is None:
+            raise InvalidCredentialsError()
         return LoginOIDCResult(
             access_token=access_token,
             refresh_token=raw_refresh,

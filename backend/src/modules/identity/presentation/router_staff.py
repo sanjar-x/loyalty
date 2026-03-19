@@ -3,6 +3,10 @@
 Provides endpoints for listing, viewing, deactivating, and reactivating staff
 members, as well as managing staff invitations. All endpoints require the
 ``staff:manage`` or ``staff:invite`` permission.
+
+IMPORTANT: Invitation routes (/invitations*) MUST be registered before the
+/{identity_id} catch-all to prevent FastAPI's greedy path matching from
+treating "invitations" as a UUID path parameter.
 """
 
 import uuid
@@ -64,7 +68,7 @@ staff_admin_router = APIRouter(
 
 
 # ---------------------------------------------------------------------------
-# Staff CRUD endpoints
+# Staff list (no path param — safe before /{identity_id})
 # ---------------------------------------------------------------------------
 
 
@@ -131,111 +135,8 @@ async def list_staff(
     )
 
 
-@staff_admin_router.get(
-    "/{identity_id}",
-    response_model=StaffDetailResponse,
-    summary="Get staff member detail",
-    dependencies=[Depends(RequirePermission("staff:manage"))],
-)
-async def get_staff_detail(
-    identity_id: uuid.UUID,
-    handler: FromDishka[GetStaffDetailHandler],
-) -> StaffDetailResponse:
-    """Get full detail for a single staff member.
-
-    Args:
-        identity_id: The staff member's identity UUID.
-        handler: The get-staff-detail query handler.
-
-    Returns:
-        Full staff member detail with roles.
-    """
-    result = await handler.handle(GetStaffDetailQuery(identity_id=identity_id))
-    return StaffDetailResponse(
-        identity_id=result.identity_id,
-        email=result.email,
-        auth_type=result.auth_type,
-        is_active=result.is_active,
-        first_name=result.first_name,
-        last_name=result.last_name,
-        position=result.position,
-        department=result.department,
-        roles=[
-            RoleInfoResponse(id=r.id, name=r.name, description=r.description, is_system=r.is_system)
-            for r in result.roles
-        ],
-        created_at=result.created_at,
-        deactivated_at=result.deactivated_at,
-        deactivated_by=result.deactivated_by,
-        invited_by=result.invited_by,
-    )
-
-
-@staff_admin_router.post(
-    "/{identity_id}/deactivate",
-    response_model=MessageResponse,
-    summary="Deactivate a staff member",
-    dependencies=[Depends(RequirePermission("staff:manage"))],
-)
-async def deactivate_staff(
-    identity_id: uuid.UUID,
-    body: AdminDeactivateRequest,
-    handler: FromDishka[AdminDeactivateIdentityHandler],
-    auth: AuthContext = Depends(get_auth_context),
-) -> MessageResponse:
-    """Deactivate a staff member.
-
-    Args:
-        identity_id: The target staff member's identity UUID.
-        body: The deactivation request payload.
-        handler: The admin deactivate identity command handler.
-        auth: The authenticated admin context.
-
-    Returns:
-        A confirmation message.
-    """
-    await handler.handle(
-        AdminDeactivateIdentityCommand(
-            identity_id=identity_id,
-            reason=body.reason,
-            deactivated_by=auth.identity_id,
-        )
-    )
-    return MessageResponse(message="Staff member deactivated")
-
-
-@staff_admin_router.post(
-    "/{identity_id}/reactivate",
-    response_model=MessageResponse,
-    summary="Reactivate a staff member",
-    dependencies=[Depends(RequirePermission("staff:manage"))],
-)
-async def reactivate_staff(
-    identity_id: uuid.UUID,
-    handler: FromDishka[ReactivateIdentityHandler],
-    auth: AuthContext = Depends(get_auth_context),
-) -> MessageResponse:
-    """Reactivate a deactivated staff member.
-
-    Args:
-        identity_id: The target staff member's identity UUID.
-        handler: The reactivate identity command handler.
-        auth: The authenticated admin context.
-
-    Returns:
-        A confirmation message.
-    """
-    await handler.handle(
-        ReactivateIdentityCommand(
-            identity_id=identity_id,
-            reactivated_by=auth.identity_id,
-        )
-    )
-    return MessageResponse(message="Staff member reactivated")
-
-
 # ---------------------------------------------------------------------------
-# Staff Invitation endpoints
+# Staff Invitation endpoints (MUST come before /{identity_id} catch-all)
 # ---------------------------------------------------------------------------
 
 
@@ -347,3 +248,111 @@ async def revoke_invitation(
         )
     )
     return MessageResponse(message="Invitation revoked")
+
+
+# ---------------------------------------------------------------------------
+# Staff detail + state transitions (/{identity_id} catch-all — MUST be last)
+# ---------------------------------------------------------------------------
+
+
+@staff_admin_router.get(
+    "/{identity_id}",
+    response_model=StaffDetailResponse,
+    summary="Get staff member detail",
+    dependencies=[Depends(RequirePermission("staff:manage"))],
+)
+async def get_staff_detail(
+    identity_id: uuid.UUID,
+    handler: FromDishka[GetStaffDetailHandler],
+) -> StaffDetailResponse:
+    """Get full detail for a single staff member.
+
+    Args:
+        identity_id: The staff member's identity UUID.
+        handler: The get-staff-detail query handler.
+
+    Returns:
+        Full staff member detail with roles.
+    """
+    result = await handler.handle(GetStaffDetailQuery(identity_id=identity_id))
+    return StaffDetailResponse(
+        identity_id=result.identity_id,
+        email=result.email,
+        auth_type=result.auth_type,
+        is_active=result.is_active,
+        first_name=result.first_name,
+        last_name=result.last_name,
+        position=result.position,
+        department=result.department,
+        roles=[
+            RoleInfoResponse(id=r.id, name=r.name, description=r.description, is_system=r.is_system)
+            for r in result.roles
+        ],
+        created_at=result.created_at,
+        deactivated_at=result.deactivated_at,
+        deactivated_by=result.deactivated_by,
+        invited_by=result.invited_by,
+    )
+
+
+@staff_admin_router.post(
+    "/{identity_id}/deactivate",
+    response_model=MessageResponse,
+    summary="Deactivate a staff member",
+    dependencies=[Depends(RequirePermission("staff:manage"))],
+)
+async def deactivate_staff(
+    identity_id: uuid.UUID,
+    body: AdminDeactivateRequest,
+    handler: FromDishka[AdminDeactivateIdentityHandler],
+    auth: AuthContext = Depends(get_auth_context),
+) -> MessageResponse:
+    """Deactivate a staff member.
+
+    Args:
+        identity_id: The target staff member's identity UUID.
+        body: The deactivation request payload.
+        handler: The admin deactivate identity command handler.
+        auth: The authenticated admin context.
+
+    Returns:
+        A confirmation message.
+    """
+    await handler.handle(
+        AdminDeactivateIdentityCommand(
+            identity_id=identity_id,
+            reason=body.reason,
+            deactivated_by=auth.identity_id,
+        )
+    )
+    return MessageResponse(message="Staff member deactivated")
+
+
+@staff_admin_router.post(
+    "/{identity_id}/reactivate",
+    response_model=MessageResponse,
+    summary="Reactivate a staff member",
+    dependencies=[Depends(RequirePermission("staff:manage"))],
+)
+async def reactivate_staff(
+    identity_id: uuid.UUID,
+    handler: FromDishka[ReactivateIdentityHandler],
+    auth: AuthContext = Depends(get_auth_context),
+) -> MessageResponse:
+    """Reactivate a deactivated staff member.
+
+    Args:
+        identity_id: The target staff member's identity UUID.
+        handler: The reactivate identity command handler.
+        auth: The authenticated admin context.
+
+    Returns:
+        A confirmation message.
+    """
+    await handler.handle(
+        ReactivateIdentityCommand(
+            identity_id=identity_id,
+            reactivated_by=auth.identity_id,
+        )
+    )
+    return MessageResponse(message="Staff member reactivated")

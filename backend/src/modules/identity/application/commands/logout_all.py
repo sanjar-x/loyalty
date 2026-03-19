@@ -54,9 +54,8 @@ class LogoutAllHandler:
             )
             await self._uow.commit()
 
-        # Invalidate permissions cache for all revoked sessions
-        for session_id in revoked_ids:
-            await self._permission_resolver.invalidate(session_id)
+        # Invalidate permissions cache for all revoked sessions (single round-trip)
+        await self._permission_resolver.invalidate_many(revoked_ids)
 
         self._logger.info(
             "sessions.all_revoked",
