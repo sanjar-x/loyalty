@@ -1,0 +1,288 @@
+.c1 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+.c2 {
+  display: flex;
+  flex-direction: column;
+}
+.c3 {
+  display: flex;
+  align-items: center;
+}
+.c4 {
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 15.75px;
+  color: #000000;
+  margin: 0;
+}
+.c5 {
+  display: flex;
+  flex-wrap: wrap;
+}
+.c6 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.31em;
+  color: #7b7b7b;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.sheetBody {
+  padding: 12px 22px 18px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.sizeTable {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+}
+
+.tableSuperHeader {
+  display: grid;
+  grid-template-columns: 86px 1fr 1fr 1.2fr;
+  column-gap: 34px;
+  padding: 8px 0 22px;
+  color: rgba(17, 17, 17, 0.42);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.sh {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.sh:first-child {
+  text-align: left;
+}
+
+.dark .sizeTable {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tableHeader {
+  display: grid;
+  grid-template-columns: 86px 1fr 1fr 1.2fr;
+  column-gap: 34px;
+  padding: 0 0 18px;
+  color: #111111;
+}
+
+.dark .tableHeader {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.th {
+  white-space: nowrap;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.th:first-child {
+  text-align: left;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.tableBody {
+  display: grid;
+  gap: 2px;
+}
+
+.tr {
+  display: grid;
+  grid-template-columns: 86px 1fr 1fr 1.2fr;
+  column-gap: 34px;
+  padding: 12px 0;
+}
+
+.td {
+  font-size: 30px;
+  font-weight: 500;
+  color: #111111;
+  text-align: center;
+  letter-spacing: -0.02em;
+}
+
+.td:first-child {
+  text-transform: uppercase;
+  text-align: left;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.dark .td {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.sizeHint {
+  margin: 14px 0 0;
+  font-size: 8px;
+  line-height: 1.25;
+  color: #000000;
+  text-align: center;
+}
+
+.dark .sizeHint {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+@media (max-width: 360px) {
+  .sheetBody {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .tableSuperHeader,
+  .tableHeader,
+  .tr {
+    grid-template-columns: 72px 1fr 1fr 1.1fr;
+    column-gap: 18px;
+  }
+
+  .td {
+    font-size: 26px;
+  }
+
+  .td:first-child {
+    font-size: 16px;
+  }
+}
+
+.tw1 {
+  gap: 1rem;
+}
+
+.tw2 {
+  gap: 0.5rem;
+}
+
+.tw3 {
+  gap: 0.5rem;
+}
+
+.tw4 {
+  gap: 0.25rem;
+  width: fit-content;
+}
+
+.tw5 {
+  width: 3.38px;
+  height: 5.91px;
+}
+
+.sizeButton {
+  min-width: 56px;
+  height: 48px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease,
+    opacity 150ms ease;
+}
+
+.dark {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.titleDark {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.sizesRowDark {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.sizeButtonDark {
+  border-radius: 12px;
+  border-color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.92);
+  min-width: 56px;
+}
+
+.sizeTableDark {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.tableChevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 18px;
+  line-height: 1;
+  margin-left: 2px;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.sizeDisabled {
+  background: transparent;
+  border: 1px solid #d5d5d5;
+  color: #f4f3f1;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.dark .sizeDisabled {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.35);
+  opacity: 0.6;
+}
+
+.sizeSelected {
+  background: #fff;
+  border: 2px solid #2d2d2d;
+}
+
+.dark .sizeSelected {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.98);
+}
+
+.sizeDefault {
+  background: transparent;
+  border: 1px solid #d5d5d5;
+  color: #000;
+  cursor: pointer;
+}
+
+.dark .sizeDefault {
+  border-color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.sizeDefault:hover {
+  background: #f4f3f1;
+}
+
+.dark .sizeDefault:hover {
+  background: rgba(255, 255, 255, 0.08);
+}

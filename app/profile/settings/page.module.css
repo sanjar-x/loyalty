@@ -1,0 +1,398 @@
+.page {
+  min-height: var(--tg-viewport-stable-height, 100vh);
+  background: #f4f3f1;
+  padding-bottom: calc(var(--lm-footer-height, 0px) + 16px);
+  padding-top: calc(var(--tg-safe-area-top, 0px) + 10px);
+  max-width: 402px;
+  margin: 0 auto;
+}
+
+.header {
+  padding-top: calc(var(--tg-safe-area-top, 0px) + 10px);
+  padding-bottom: 29px;
+  background: #ffffff;
+  border-radius: 0 0 25px 25px;
+}
+
+.profile {
+  margin-top: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+}
+
+.avatarWrap {
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  background: #f4f3f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.avatar {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+}
+
+.name {
+  font-size: 20px;
+  line-height: 24px;
+  font-weight: 700;
+  color: #000000;
+}
+
+@keyframes lmPulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+.skelAvatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  animation: lmPulse 1.2s ease-in-out infinite;
+}
+
+.skelName {
+  width: 140px;
+  height: 18px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.08);
+  animation: lmPulse 1.2s ease-in-out infinite;
+}
+
+.main {
+  padding: 12px 0px 0;
+}
+
+.cardWrapper {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.card {
+  background: #f4f3f1;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.row {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 14px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.row:active {
+  filter: brightness(0.99);
+  transform: scale(0.999);
+}
+
+.rowLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.rowIcon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.rowText {
+  min-width: 0;
+}
+
+.rowLabel {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.rowValue {
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 400;
+  color: #000000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowArrow {
+  width: 6px;
+  height: 11px;
+  flex: 0 0 auto;
+}
+
+.divider {
+  height: 1px;
+  background: white;
+}
+
+.sheetSaveBtn {
+  width: 100%;
+  border-radius: 14px;
+  padding: 14px 16px;
+  font-size: 16px;
+}
+
+.sheetList {
+  padding: 0 10px 10px;
+}
+
+.pickupRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 10px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pickupRow:active {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.pickupRadio {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 2px solid rgba(0, 0, 0, 0.18);
+  flex: 0 0 auto;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pickupRadioChecked {
+  border-color: #111111;
+  background: #111111;
+}
+
+.pickupRadioChecked::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+  transform: rotate(-45deg);
+}
+
+.pickupText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.pickupAddress {
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 600;
+  color: #111111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pickupMeta {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: #f4f3f1;
+}
+
+.pickupEditBtn {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  color: rgba(0, 0, 0, 0.55);
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.pickupEditBtn:active {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.pickupAddRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 10px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pickupAddRow:active {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.pickupAddIcon {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: rgba(0, 0, 0, 0.65);
+  flex: 0 0 auto;
+}
+
+.pickupAddText {
+  font-size: 15px;
+  line-height: 18px;
+  font-weight: 500;
+  color: #111111;
+}
+
+.recipientSheet {
+  padding: 10px 10px 2px;
+  height: 500px;
+}
+
+.recipientHint {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #f4f3f1;
+  color: #111111;
+}
+
+.recipientHintIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: rgba(0, 0, 0, 0.75);
+}
+
+.recipientHintText {
+  min-width: 0;
+}
+
+.recipientHintTitle {
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 700;
+}
+
+.recipientHintSub {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.recipientFields {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.field {
+  display: block;
+}
+
+.input {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: #f4f3f1;
+  border-radius: 16px;
+  padding: 16px 14px;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 500;
+  color: #111111;
+}
+
+.inputError {
+  box-shadow: 0 0 0 2px rgba(255, 59, 48, 0.18);
+  color: #d60000;
+}
+
+.input::placeholder {
+  color: rgba(0, 0, 0, 0.35);
+}
+
+.input:focus {
+  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.12);
+}
+
+.inputError:focus {
+  box-shadow: 0 0 0 2px rgba(255, 59, 48, 0.28);
+}
+
+.errorText {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: #d60000;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

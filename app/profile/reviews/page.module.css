@@ -1,0 +1,335 @@
+.page {
+  /* Avoid unstable 100vh in Telegram WebApp */
+  min-height: var(--tg-viewport-stable-height, 100vh);
+  background: #f4f3f1;
+  padding-bottom: calc(var(--lm-footer-height, 0px) + 16px);
+  padding-top: calc(var(--tg-safe-area-top, 0px) + 15px);
+  max-width: 402px;
+  margin: 0 auto;
+}
+
+.header {
+  padding-top: calc(var(--tg-safe-area-top, 0px) + 10px);
+  padding-bottom: 12px;
+  background: #ffffff;
+  border-radius: 0 0 25px 25px;
+}
+
+.title {
+  margin: 0;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 22px;
+  text-align: center;
+  color: #000000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* padding-bottom: 10px; */
+  padding-top: 10px;
+  background-color: white;
+  padding-top: calc(var(--tg-safe-area-top, 0px) + 15px);
+  padding-bottom: 5px;
+}
+
+.tabs {
+  /* margin-top: 12px; */
+  padding: 0 12px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-start;
+}
+
+.tab {
+  border: 0;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 120ms ease,
+    filter 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.tab:active {
+  transform: scale(0.98);
+  filter: brightness(0.98);
+}
+
+.tab:focus-visible {
+  outline: 2px solid rgba(0, 0, 0, 0.35);
+  outline-offset: 2px;
+}
+
+.tabActive {
+  background: #1f1f1f;
+  color: #ffffff;
+}
+
+.tabInactive {
+  background: #f1f1f1;
+  color: #111111;
+}
+
+.main {
+  /* keep content separated from header radius */
+  padding-top: 8px;
+}
+
+.list {
+  padding: 10px 0 0;
+  padding-top: 0;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 25px;
+  padding: 18px 16px;
+  margin-bottom: 10px;
+  position: relative;
+}
+
+.cardHeader {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.thumbWrap {
+  width: 85px;
+  height: 85px;
+  border-radius: 10px;
+  background: #f4f3f1;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumbWrapSmall {
+  width: 47px;
+  height: 45px;
+  border-radius: 6.85px;
+}
+
+.thumbWrapSmall .thumb {
+  width: 40px;
+  height: 40px;
+}
+
+.thumb {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+}
+
+.headerText {
+  min-width: 0;
+  flex: 1;
+}
+
+.cardTitle {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: #000000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardMeta {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  color: #8a8a8a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dot {
+  color: #b7b7b7;
+}
+
+.menuBtn {
+  border: 0;
+  background: transparent;
+  padding: 2px 6px;
+  cursor: pointer;
+  color: #b7b7b7;
+  font-size: 25px;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+  position: absolute;
+  top: 15px;
+  right: 17px;
+  font-weight: 800;
+}
+
+.menuBtn:active {
+  transform: scale(0.98);
+}
+
+.reviewLine {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reviewLineSmall {
+  margin-top: 17px;
+}
+
+.reviewDate {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  color: #8a8a8a;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.photos {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+.photo {
+  width: 84px;
+  height: 84px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #f4f3f1;
+}
+
+.reviewText {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.reviewRow {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.reviewLabel {
+  font-weight: 600;
+}
+
+.stars {
+  display: flex;
+  gap: 4px;
+}
+
+.star {
+  width: 29.94px;
+  height: 29.94px;
+  display: block;
+}
+
+.starOff {
+  opacity: 0.22;
+  filter: grayscale(1);
+}
+
+.starOn {
+  opacity: 1;
+  filter: none;
+}
+
+.deleteSheetHeader {
+  height: 12px;
+}
+
+.deleteSheetContent {
+  padding: 0 15px
+    calc(
+      18px + max(var(--ios-safe-bottom, 0px), var(--tg-safe-area-bottom, 0px))
+    );
+  display: flex;
+  flex-direction: column;
+}
+
+.deleteActionBtn {
+  width: 100%;
+  height: 56px;
+  border-radius: 16px;
+  border: 0;
+  background: transparent;
+  color: #e11d48;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.deleteSheetContent span {
+  font-weight: 500;
+}
+
+.deleteActionBtn:active {
+  transform: scale(0.99);
+  filter: brightness(0.98);
+}
+
+.deleteActionBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.deleteActionIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.deleteCancelBtn {
+  margin-top: 12px;
+  width: 100%;
+  height: 56px;
+  border-radius: 16px;
+  background: #f4f3f1;
+  color: #000000;
+  border: 0;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.deleteCancelBtn:active {
+  transform: scale(0.99);
+  filter: brightness(0.98);
+}
+
+.blackSize {
+  color: #000000;
+}
+
+.cardWrapperRight {
+  display: flex;
+  flex-direction: column;
+}

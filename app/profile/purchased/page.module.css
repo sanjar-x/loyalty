@@ -1,0 +1,150 @@
+.c1 {
+  min-height: var(--tg-viewport-stable-height, 100vh);
+  padding-bottom: calc(var(--lm-footer-height, 0px) + 18px);
+  padding-top: calc(var(--tg-safe-area-top, 0px) + 0px);
+  max-width: 402px;
+  margin: 0 auto;
+}
+.c2 {
+  background: transparent;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  /* margin-top: 10px; */
+}
+
+.filterBtn {
+  margin-left: 1rem;
+  padding: 9px 13px 10px 13px;
+  border: none;
+  border-radius: 50px;
+  background: #f4f3f1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.filterBtn:active {
+  filter: brightness(0.98);
+  transform: scale(0.99);
+}
+
+.title {
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 22px;
+  letter-spacing: 0px;
+  text-align: center;
+  vertical-align: middle;
+  color: #000000;
+  position: fixed;
+  left: 0;
+  right: 0;
+  padding: 15px 16px 10px;
+  /* top: var(--tg-safe-area-top, 0px); */
+  top: 0;
+  padding-top: calc(var(--tg-safe-area-top, 0px) + 10px);
+  z-index: 10;
+  background-color: white;
+}
+
+.filterBtn img {
+  width: 12.35px;
+  height: auto;
+}
+
+.filterBtn span {
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 106%;
+  letter-spacing: 0%;
+  color: #000000;
+}
+
+.sheetList {
+  padding: 0 14px 8px;
+}
+
+.sheetRow {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 2px;
+  cursor: pointer;
+}
+
+.sheetRow + .sheetRow {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.sheetLabel {
+  font-size: 15px;
+  font-weight: 500;
+  color: #111111;
+}
+
+.radio {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid rgba(17, 17, 17, 0.18);
+  background: transparent;
+  flex: 0 0 auto;
+}
+
+.radioChecked {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 0;
+  background: #2d2d2d;
+  flex: 0 0 auto;
+  position: relative;
+}
+
+.radioChecked::after {
+  content: "";
+  border: 2px solid #fff;
+  border-top: 0;
+  border-left: 0;
+  width: 6px;
+  height: 10px;
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  transform: rotate(45deg);
+}
+
+.sheetFooter {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.sheetBtnSecondary,
+.sheetBtnPrimary {
+  height: 44px;
+  border-radius: 14px;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sheetBtnSecondary {
+  background: #f4f3f1;
+  color: #111111;
+}
+
+.sheetBtnPrimary {
+  background: #111111;
+  color: #ffffff;
+}
+
+.sheetBtnSecondary:active,
+.sheetBtnPrimary:active {
+  transform: scale(0.99);
+  filter: brightness(0.98);
+}

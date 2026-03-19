@@ -1,0 +1,262 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  padding: 0 10px;
+}
+
+.searchWrap {
+  padding: 10px 10px 0;
+}
+
+.searchField {
+  height: 44px;
+  border-radius: 14px;
+  background: #f4f3f1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+}
+
+.searchInput {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(17, 17, 17, 0.9);
+}
+
+.searchInput::placeholder {
+  color: rgba(17, 17, 17, 0.45);
+}
+
+.row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 5px;
+  padding-top: 14px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.row:not(:last-child) {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.row:active {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.label {
+  font-size: 15px;
+  font-weight: 400;
+  color: rgba(17, 17, 17, 0.9);
+  text-transform: capitalize;
+}
+
+.radioUnselected {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid rgba(17, 17, 17, 0.18);
+  background: transparent;
+  flex: 0 0 auto;
+}
+
+.radioSelected {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 0;
+  background: #2d2d2d;
+  flex: 0 0 auto;
+  position: relative;
+}
+
+.radioSelected::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.checkUnselected {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1.33px solid #cecdcd;
+  background: transparent;
+  flex: 0 0 auto;
+  background-color: #f4f3f1;
+}
+
+.checkSelected {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 0;
+  background-color: #2d2d2d;
+  flex: 0 0 auto;
+  position: relative;
+}
+
+.checkSelected::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 4px;
+  width: 6px;
+  height: 10px;
+  border: 2px solid #ffffff;
+  border-top: 0;
+  border-left: 0;
+  transform: rotate(45deg);
+}
+
+.selectedRadio {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1.3px solid #cecdcd;
+}
+
+.selectedRadio[aria-checked="true"] {
+  background-color: red !important;
+}
+.selectedRadio::after {
+  top: 6px;
+  left: 10px;
+}
+
+.sectionLabel {
+  margin-top: 12px;
+  padding: 6px 7px;
+  background: #f4f3f1;
+  color: rgba(17, 17, 17, 0.55);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  max-height: 25px;
+}
+
+.selectedChips {
+  padding: 0 20px 2px;
+  padding-left: 12px;
+}
+
+.selectedChipsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.selectedChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #2d2d2d;
+  color: #ffffff;
+  white-space: nowrap;
+  padding-left: 13px;
+  padding-right: 8px;
+}
+
+.selectedChip:active {
+  filter: brightness(0.98);
+  transform: translateY(1px);
+}
+
+.selectedChipText {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.selectedChipX {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: #7e7e7e;
+  font-size: 14px;
+  line-height: 1;
+  color: #2d2d2d;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: 1px;
+}
+
+.selectedChipX > img {
+  width: 6px;
+  height: 6px;
+}
+
+.footerRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.cancelBtnFull {
+  width: 100%;
+  height: 57px;
+  border-radius: 16px;
+  border: 0;
+  background: #f4f3f1;
+  color: rgba(17, 17, 17, 0.9);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cancelBtn {
+  height: 52px;
+  border-radius: 16px;
+  border: 0;
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(17, 17, 17, 0.9);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.applyBtn {
+  height: 52px;
+  border-radius: 16px;
+  border: 0;
+  background: #2d2d2d;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cancelBtn:active,
+.cancelBtnFull:active,
+.applyBtn:active {
+  transform: translateY(1px);
+  filter: brightness(0.98);
+}

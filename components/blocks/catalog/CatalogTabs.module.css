@@ -1,0 +1,48 @@
+.root {
+  position: relative;
+  padding: 0 16px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.tab {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.21;
+  font-family: Inter, sans-serif;
+  color: #111111;
+}
+
+.line {
+  height: 0.5px;
+  background: #cdcdcd;
+  margin-top: 8px;
+}
+
+.indicatorWrap {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 50%;
+  display: flex;
+  justify-content: center;
+}
+
+.indicatorBar {
+  width: 82px;
+  height: 2px;
+  background: #2d2d2d;
+  transform: translateY(1px);
+}
