@@ -1,0 +1,28 @@
+.scaleOuter {
+  --scale: 1;
+}
+
+/* Desktop proportional scaling
+   - Keeps design identical on large screens
+   - Scales down on narrower desktops
+*/
+@media (min-width: 1024px) {
+  .scaleOuter {
+    container-type: inline-size;
+    /* Baseline: main content width at 1600px screen (after sidebar + paddings) */
+    --designWidth: 1312px;
+    --scale: clamp(0.75, calc(100cqw / var(--designWidth)), 1);
+  }
+}
+
+.scaleInner {
+  zoom: var(--scale);
+}
+
+@supports not (zoom: 1) {
+  .scaleInner {
+    transform: scale(var(--scale));
+    transform-origin: top left;
+    width: calc(100% / var(--scale));
+  }
+}

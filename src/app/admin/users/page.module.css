@@ -1,0 +1,479 @@
+.page {
+  animation: fadeIn 220ms ease-out;
+}
+
+.title {
+  margin: 0 0 22px;
+  color: #2d2d2d;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 44px;
+  letter-spacing: -1px;
+}
+
+.filters {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.search {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 14px;
+  border-radius: 50px;
+  background: #f4f3f1;
+  min-width: 280px;
+}
+
+.searchIcon {
+  width: 18px;
+  height: 18px;
+  color: #7e7e7e;
+  flex: 0 0 auto;
+}
+
+.searchInput {
+  border: 0;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  color: #111111;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.searchInput::placeholder {
+  color: #000000;
+}
+
+.filterSelect {
+  height: 46px;
+  padding: 0 16px;
+  border-radius: 50px;
+  border: 0;
+  background: #f4f3f1;
+  color: #111111;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%237e7e7e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+
+.filterSelect:focus {
+  outline: 2px solid #4a90d9;
+  outline-offset: -2px;
+}
+
+.resetButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 46px;
+  border: 0;
+  background: transparent;
+  color: #7e7e7e;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  color: #2d2d2d;
+}
+
+.list {
+  margin-top: 16px;
+  border-radius: 16px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.tableHeader {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(180px, 1.5fr) minmax(
+      140px,
+      1fr
+    ) minmax(100px, 0.8fr) minmax(80px, 0.5fr);
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.headerCell {
+  color: #878b93;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(180px, 1.5fr) minmax(
+      140px,
+      1fr
+    ) minmax(100px, 0.8fr) minmax(80px, 0.5fr);
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.row + .row {
+  border-top: 1px solid #f0f0f0;
+}
+
+.cell {
+  color: #111111;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emailCell {
+  color: #4a90d9;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.emailCell:hover {
+  text-decoration: underline;
+}
+
+.rolesCell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.statusDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.statusActive {
+  background-color: #429700;
+}
+
+.statusInactive {
+  background-color: #c94c4c;
+}
+
+.statusCell {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #111111;
+}
+
+.editButton {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 15px;
+  border: 0;
+  background: #f4f3f1;
+  color: #111111;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.editButton:hover {
+  background: #ededed;
+}
+
+.skeleton {
+  padding: 16px;
+}
+
+.skeletonRow {
+  height: 48px;
+  border-radius: 8px;
+  background: #f4f3f1;
+  margin-bottom: 8px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 48px 16px;
+  text-align: center;
+}
+
+.emptyTitle {
+  color: #878b93;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  margin: 0;
+}
+
+.emptyDescription {
+  color: #878b93;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  margin: 0;
+}
+
+.errorBanner {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fef2f2;
+  color: #c94c4c;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+/* Modal styles */
+.detailSection {
+  margin-top: 20px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.detailRow + .detailRow {
+  border-top: 1px solid #f0f0f0;
+}
+
+.detailLabel {
+  color: #878b93;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.detailValue {
+  color: #111111;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: right;
+}
+
+.rolesSection {
+  margin-top: 20px;
+}
+
+.rolesTitle {
+  color: #22252b;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  margin: 0 0 10px;
+}
+
+.rolesList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.roleBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f4f3f1;
+  color: #22252b;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.roleRemoveButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  background: transparent;
+  color: #878b93;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.roleRemoveButton:hover {
+  color: #c94c4c;
+  background: rgba(201, 76, 76, 0.1);
+}
+
+.addRoleRow {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.addRoleSelect {
+  flex: 1;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid #dfdfe2;
+  background: #fff;
+  color: #111111;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.addRoleButton {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 0;
+  background: #22252b;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.addRoleButton:hover {
+  opacity: 0.9;
+}
+
+.addRoleButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modalActions {
+  margin-top: 24px;
+  display: flex;
+  gap: 8px;
+}
+
+.deactivateButton {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 14px;
+  border: 0;
+  background: #c94c4c;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.deactivateButton:hover {
+  opacity: 0.9;
+}
+
+.deactivateButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.reactivateButton {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 14px;
+  border: 0;
+  background: #429700;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.reactivateButton:hover {
+  opacity: 0.9;
+}
+
+.reactivateButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modalError {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #c94c4c;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
