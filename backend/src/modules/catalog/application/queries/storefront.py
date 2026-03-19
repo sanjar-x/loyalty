@@ -1,0 +1,348 @@
+"""
+Storefront query handlers -- 4 read-only endpoints for the frontend.
+
+Pure CQRS read side: queries the ORM directly with JOIN-loaded relationships,
+applies flag-override resolution, and returns structured read models.
+
+Handlers:
+    1. StorefrontFilterableAttributesHandler -- filterable attributes + values
+    2. StorefrontCardAttributesHandler -- visible-on-card attributes grouped
+    3. StorefrontComparisonAttributesHandler -- comparable attributes
+    4. StorefrontFormAttributesHandler -- full attribute set with validation
+"""
+
+import uuid
+from collections import defaultdict
+from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+
+from src.modules.catalog.application.queries.read_models import (
+    StorefrontCardAttributeReadModel,
+    StorefrontCardGroupReadModel,
+    StorefrontCardReadModel,
+    StorefrontComparisonAttributeReadModel,
+    StorefrontComparisonReadModel,
+    StorefrontFilterAttributeReadModel,
+    StorefrontFilterListReadModel,
+    StorefrontFormAttributeReadModel,
+    StorefrontFormGroupReadModel,
+    StorefrontFormReadModel,
+    StorefrontValueReadModel,
+)
+from src.modules.catalog.infrastructure.models import (
+    Attribute as OrmAttribute,
+)
+from src.modules.catalog.infrastructure.models import (
+    AttributeGroup as OrmAttributeGroup,
+)
+from src.modules.catalog.infrastructure.models import (
+    AttributeValue as OrmAttributeValue,
+)
+from src.modules.catalog.infrastructure.models import (
+    CategoryAttributeRule as OrmRule,
+)
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+
+def _effective_bool(
+    flag_overrides: dict[str, Any] | None, flag_name: str, global_value: bool
+) -> bool:
+    """Resolve an effective boolean flag value.
+
+    If the binding's ``flag_overrides`` dict contains a key for *flag_name*,
+    that value is used. Otherwise the global attribute flag is used.
+    """
+    if flag_overrides and flag_name in flag_overrides:
+        return bool(flag_overrides[flag_name])
+    return global_value
+
+
+def _effective_display_type(filter_settings: dict[str, Any] | None, global_ui_type: str) -> str:
+    """Resolve the effective display/filter type.
+
+    If filter_settings has a ``filter_type`` key, it overrides the
+    global ``ui_type`` from the attribute.
+    """
+    if filter_settings and "filter_type" in filter_settings:
+        return str(filter_settings["filter_type"])
+    return global_ui_type
+
+
+def _values_to_read_models(values: list[OrmAttributeValue]) -> list[StorefrontValueReadModel]:
+    """Convert ORM attribute values to storefront value read models."""
+    return [
+        StorefrontValueReadModel(
+            id=v.id,
+            code=v.code,
+            slug=v.slug,
+            value_i18n=v.value_i18n,
+            meta_data=v.meta_data,
+            value_group=v.group_code,
+            sort_order=v.sort_order,
+        )
+        for v in sorted(values, key=lambda x: x.sort_order)
+    ]
+
+
+async def _load_bindings_with_attributes(
+    session: AsyncSession, category_id: uuid.UUID
+) -> list[OrmRule]:
+    """Load all bindings for a category with eagerly-loaded attribute + group + values."""
+    stmt = (
+        select(OrmRule)
+        .where(OrmRule.category_id == category_id)
+        .options(
+            joinedload(OrmRule.attribute).joinedload(OrmAttribute.group),
+            joinedload(OrmRule.attribute).selectinload(OrmAttribute.values),
+        )
+        .order_by(OrmRule.sort_order)
+    )
+    result = await session.execute(stmt)
+    return list(result.unique().scalars().all())
+
+
+# ---------------------------------------------------------------------------
+# 1. Filterable attributes
+# ---------------------------------------------------------------------------
+
+
+class StorefrontFilterableAttributesHandler:
+    """Fetch filterable attributes for a category with their values."""
+
+    def __init__(self, session: AsyncSession):
+        self._session = session
+
+    async def handle(self, category_id: uuid.UUID) -> StorefrontFilterListReadModel:
+        """Return all attributes where the effective is_filterable flag is True."""
+        rules = await _load_bindings_with_attributes(self._session, category_id)
+
+        attributes: list[StorefrontFilterAttributeReadModel] = []
+        for rule in rules:
+            attr = rule.attribute
+            if not _effective_bool(rule.flag_overrides, "is_filterable", attr.is_filterable):
+                continue
+
+            display_type = _effective_display_type(rule.filter_settings, attr.ui_type.value)
+            values = _values_to_read_models(attr.values) if attr.is_dictionary else []
+
+            attributes.append(
+                StorefrontFilterAttributeReadModel(
+                    attribute_id=attr.id,
+                    code=attr.code,
+                    slug=attr.slug,
+                    name_i18n=attr.name_i18n,
+                    data_type=attr.data_type.value,
+                    display_type=display_type,
+                    is_dictionary=attr.is_dictionary,
+                    values=values,
+                    filter_settings=dict(rule.filter_settings) if rule.filter_settings else None,
+                    sort_order=rule.sort_order,
+                )
+            )
+
+        return StorefrontFilterListReadModel(
+            category_id=category_id,
+            attributes=attributes,
+        )
+
+
+# ---------------------------------------------------------------------------
+# 2. Card attributes (grouped)
+# ---------------------------------------------------------------------------
+
+
+class StorefrontCardAttributesHandler:
+    """Fetch visible-on-card attributes for a category, grouped by attribute group."""
+
+    def __init__(self, session: AsyncSession):
+        self._session = session
+
+    async def handle(self, category_id: uuid.UUID) -> StorefrontCardReadModel:
+        """Return all attributes where the effective is_visible_on_card flag is True."""
+        rules = await _load_bindings_with_attributes(self._session, category_id)
+
+        # Group by attribute group
+        groups_map: dict[uuid.UUID | None, list[tuple[OrmRule, OrmAttribute]]] = defaultdict(list)
+        group_info: dict[uuid.UUID | None, OrmAttributeGroup | None] = {}
+
+        for rule in rules:
+            attr = rule.attribute
+            if not _effective_bool(
+                rule.flag_overrides, "is_visible_on_card", attr.is_visible_on_card
+            ):
+                continue
+
+            gid = attr.group_id
+            groups_map[gid].append((rule, attr))
+            if gid not in group_info:
+                group_info[gid] = attr.group
+
+        # Build response sorted by group sort_order
+        group_models: list[StorefrontCardGroupReadModel] = []
+        sorted_groups = sorted(
+            groups_map.items(),
+            key=lambda item: (group_info.get(item[0]) or _null_group()).sort_order,
+        )
+
+        for gid, items in sorted_groups:
+            group = group_info.get(gid)
+            card_attrs = [
+                StorefrontCardAttributeReadModel(
+                    attribute_id=attr.id,
+                    code=attr.code,
+                    slug=attr.slug,
+                    name_i18n=attr.name_i18n,
+                    data_type=attr.data_type.value,
+                    display_type=attr.ui_type.value,
+                    requirement_level=rule.requirement_level.value,
+                    sort_order=rule.sort_order,
+                )
+                for rule, attr in items
+            ]
+            group_models.append(
+                StorefrontCardGroupReadModel(
+                    group_id=gid,
+                    group_code=group.code if group else None,
+                    group_name_i18n=group.name_i18n if group else {},
+                    group_sort_order=group.sort_order if group else 0,
+                    attributes=card_attrs,
+                )
+            )
+
+        return StorefrontCardReadModel(
+            category_id=category_id,
+            groups=group_models,
+        )
+
+
+# ---------------------------------------------------------------------------
+# 3. Comparison attributes
+# ---------------------------------------------------------------------------
+
+
+class StorefrontComparisonAttributesHandler:
+    """Fetch comparable attributes for a category."""
+
+    def __init__(self, session: AsyncSession):
+        self._session = session
+
+    async def handle(self, category_id: uuid.UUID) -> StorefrontComparisonReadModel:
+        """Return all attributes where the effective is_comparable flag is True."""
+        rules = await _load_bindings_with_attributes(self._session, category_id)
+
+        attributes: list[StorefrontComparisonAttributeReadModel] = []
+        for rule in rules:
+            attr = rule.attribute
+            if not _effective_bool(rule.flag_overrides, "is_comparable", attr.is_comparable):
+                continue
+
+            attributes.append(
+                StorefrontComparisonAttributeReadModel(
+                    attribute_id=attr.id,
+                    code=attr.code,
+                    slug=attr.slug,
+                    name_i18n=attr.name_i18n,
+                    data_type=attr.data_type.value,
+                    display_type=attr.ui_type.value,
+                    sort_order=rule.sort_order,
+                )
+            )
+
+        return StorefrontComparisonReadModel(
+            category_id=category_id,
+            attributes=attributes,
+        )
+
+
+# ---------------------------------------------------------------------------
+# 4. Form attributes (full set, grouped, with validation + values)
+# ---------------------------------------------------------------------------
+
+
+class StorefrontFormAttributesHandler:
+    """Fetch the complete attribute set for a product creation form."""
+
+    def __init__(self, session: AsyncSession):
+        self._session = session
+
+    async def handle(self, category_id: uuid.UUID) -> StorefrontFormReadModel:
+        """Return ALL attributes bound to this category, grouped, with full metadata."""
+        rules = await _load_bindings_with_attributes(self._session, category_id)
+
+        # Group by attribute group
+        groups_map: dict[uuid.UUID | None, list[tuple[OrmRule, OrmAttribute]]] = defaultdict(list)
+        group_info: dict[uuid.UUID | None, OrmAttributeGroup | None] = {}
+
+        for rule in rules:
+            attr = rule.attribute
+            gid = attr.group_id
+            groups_map[gid].append((rule, attr))
+            if gid not in group_info:
+                group_info[gid] = attr.group
+
+        # Build response sorted by group sort_order
+        group_models: list[StorefrontFormGroupReadModel] = []
+        sorted_groups = sorted(
+            groups_map.items(),
+            key=lambda item: (group_info.get(item[0]) or _null_group()).sort_order,
+        )
+
+        for gid, items in sorted_groups:
+            group = group_info.get(gid)
+            form_attrs = [
+                StorefrontFormAttributeReadModel(
+                    attribute_id=attr.id,
+                    code=attr.code,
+                    slug=attr.slug,
+                    name_i18n=attr.name_i18n,
+                    description_i18n=attr.description_i18n,
+                    data_type=attr.data_type.value,
+                    display_type=attr.ui_type.value,
+                    is_dictionary=attr.is_dictionary,
+                    level=attr.level.value,
+                    requirement_level=rule.requirement_level.value,
+                    validation_rules=(
+                        dict(attr.validation_rules) if attr.validation_rules else None
+                    ),
+                    values=_values_to_read_models(attr.values) if attr.is_dictionary else [],
+                    sort_order=rule.sort_order,
+                )
+                for rule, attr in items
+            ]
+            group_models.append(
+                StorefrontFormGroupReadModel(
+                    group_id=gid,
+                    group_code=group.code if group else None,
+                    group_name_i18n=group.name_i18n if group else {},
+                    group_sort_order=group.sort_order if group else 0,
+                    attributes=form_attrs,
+                )
+            )
+
+        return StorefrontFormReadModel(
+            category_id=category_id,
+            groups=group_models,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Sentinel for null groups (attributes with no group assigned)
+# ---------------------------------------------------------------------------
+
+
+class _NullGroup:
+    """Placeholder for attributes whose group_id is NULL."""
+
+    sort_order: int = 999_999
+    code: str | None = None
+    name_i18n: dict[str, Any] = {}  # noqa: RUF012
+
+
+def _null_group() -> _NullGroup:
+    return _NullGroup()
