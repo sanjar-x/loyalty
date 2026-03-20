@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/Sanjar/Desktop/loyality/backend/.venv/Lib/site-packages/pwdlib* -name \"*.pyi\")",
+      "Bash(python -m pytest tests -k password -x -q)",
+      "Bash(npx ctx7@latest library aiogram \"logging and middleware setup\")",
+      "Bash(npx ctx7@latest docs /aiogram/aiogram \"How to configure logging and use logger in aiogram bot middleware\")",
+      "Bash(npx ctx7@latest library aiogram \"message.from_user None type handling\")",
+      "Bash(npx ctx7@latest docs /aiogram/aiogram \"message.from_user None type guard handler filter\")",
+      "Bash(MSYS_NO_PATHCONV=1 npx ctx7@latest docs /aiogram/aiogram \"message.from_user None type narrowing guard\")",
+      "Bash(MSYS_NO_PATHCONV=1 npx ctx7@latest docs /aiogram/aiogram \"BaseMiddleware __call__ signature TelegramObject\")",
+      "Bash(python -c \"import inspect; from aiogram import BaseMiddleware; print\\(inspect.getsource\\(BaseMiddleware\\)\\)\")"
+    ]
+  }
+}

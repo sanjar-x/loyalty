@@ -88,6 +88,15 @@ class StructlogAdapter(ILogger):
         """
         self._logger.error(event, **kwargs)
 
+    def critical(self, event: str, **kwargs: Any) -> None:
+        """Log a message at CRITICAL level.
+
+        Args:
+            event: The log event message.
+            **kwargs: Additional structured context.
+        """
+        self._logger.critical(event, **kwargs)
+
     def exception(self, event: str, **kwargs: Any) -> None:
         """Log a message at ERROR level with exception info.
 

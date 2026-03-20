@@ -63,4 +63,10 @@ class Argon2PasswordHasher(IPasswordHasher):
         Returns:
             True if the hash should be rehashed (legacy algorithm or weak params).
         """
-        return self._password_hash.check_needs_rehash(hashed_password)
+        for hasher in self._password_hash.hashers:
+            if hasher.identify(hashed_password):
+                return (
+                    hasher != self._password_hash.hashers[0]
+                    or hasher.check_needs_rehash(hashed_password)
+                )
+        return True
