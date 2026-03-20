@@ -493,6 +493,8 @@ class CustomerListItemResponse(CamelModel):
     last_name: str
     phone: str | None
     referral_code: str | None
+    username: str | None = None
+    auth_methods: list[str] = []
     roles: list[str]
     is_active: bool
     created_at: datetime
@@ -518,6 +520,8 @@ class CustomerDetailResponse(CamelModel):
     last_name: str
     phone: str | None
     referral_code: str | None
+    username: str | None = None
+    auth_methods: list[str] = []
     referred_by: uuid.UUID | None
     roles: list[RoleInfoResponse]
     created_at: datetime
