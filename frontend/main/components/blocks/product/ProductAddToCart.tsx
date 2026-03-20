@@ -3,12 +3,19 @@ import React from "react";
 import styles from "./ProductAddToCart.module.css";
 import cx from "clsx";
 
+interface ProductAddToCartProps {
+  onAddToCart?: () => void;
+  onBuyNow?: () => void;
+  quantity?: number;
+  onQuantityChange?: (quantity: number) => void;
+}
+
 export default function ProductAddToCart({
   onAddToCart,
   onBuyNow,
   quantity = 1,
   onQuantityChange,
-}) {
+}: ProductAddToCartProps) {
   // Keep API stable; default quantity is 1 for now.
   React.useEffect(() => {
     onQuantityChange?.(quantity);
@@ -33,19 +40,19 @@ export default function ProductAddToCart({
           className={styles.primary}
           type="button"
         >
-          {onBuyNow ? "Купить сейчас" : "В корзину"}
+          {onBuyNow ? "\u041a\u0443\u043f\u0438\u0442\u044c \u0441\u0435\u0439\u0447\u0430\u0441" : "\u0412 \u043a\u043e\u0440\u0437\u0438\u043d\u0443"}
         </button>
 
         {onQuantityChange ? (
-          <div className={styles.stepper} role="group" aria-label="Количество">
+          <div className={styles.stepper} role="group" aria-label="\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e">
             <button
               type="button"
               className={styles.stepBtn}
               onClick={dec}
               disabled={Number(quantity || 1) <= 1}
-              aria-label="Уменьшить количество"
+              aria-label="\u0423\u043c\u0435\u043d\u044c\u0448\u0438\u0442\u044c \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e"
             >
-              −
+              {"\u2212"}
             </button>
             <span className={styles.qty} aria-live="polite">
               {Number(quantity || 1)}
@@ -54,7 +61,7 @@ export default function ProductAddToCart({
               type="button"
               className={styles.stepBtn}
               onClick={inc}
-              aria-label="Увеличить количество"
+              aria-label="\u0423\u0432\u0435\u043b\u0438\u0447\u0438\u0442\u044c \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e"
             >
               +
             </button>

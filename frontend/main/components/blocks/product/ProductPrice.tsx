@@ -4,13 +4,25 @@ import Image from "next/image";
 import styles from "./ProductPrice.module.css";
 import SplitPaymentSheet from "./SplitPaymentSheet";
 
-export default function ProductPrice({ price, splitPayment, deliveryInfo }) {
-  const [isSplitOpen, setIsSplitOpen] = useState(false);
+interface SplitPaymentData {
+  amount?: string | number;
+  count?: number;
+  text?: string;
+}
+
+interface ProductPriceProps {
+  price?: string;
+  splitPayment?: SplitPaymentData;
+  deliveryInfo?: string;
+}
+
+export default function ProductPrice({ price, splitPayment, deliveryInfo }: ProductPriceProps) {
+  const [isSplitOpen, setIsSplitOpen] = useState<boolean>(false);
 
   const splitAmount = splitPayment?.amount ?? "";
-  const splitAmountText = String(splitAmount).includes("₽")
+  const splitAmountText = String(splitAmount).includes("\u20bd")
     ? String(splitAmount)
-    : `${splitAmount}₽`;
+    : `${splitAmount}\u20bd`;
 
   return (
     <div className={styles.c1}>
@@ -38,12 +50,12 @@ export default function ProductPrice({ price, splitPayment, deliveryInfo }) {
               <div className={styles.splitText}>
                 <div className={styles.splitTop}>
                   <span className={styles.splitTopText}>
-                    {splitPayment.count} × {splitAmountText}{" "}
-                    <span>в сплит</span>
+                    {splitPayment.count} \u00d7 {splitAmountText}{" "}
+                    <span>\u0432 \u0441\u043f\u043b\u0438\u0442</span>
                   </span>
                 </div>
                 <p className={styles.splitSub}>
-                  {splitPayment.text || "Без переплаты"}
+                  {splitPayment.text || "\u0411\u0435\u0437 \u043f\u0435\u0440\u0435\u043f\u043b\u0430\u0442\u044b"}
                 </p>
               </div>
             </div>
@@ -51,7 +63,7 @@ export default function ProductPrice({ price, splitPayment, deliveryInfo }) {
             <button
               type="button"
               className={styles.splitAction}
-              aria-label="Настройки"
+              aria-label="\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438"
               aria-haspopup="dialog"
               aria-expanded={isSplitOpen}
               onClick={() => setIsSplitOpen(true)}

@@ -5,7 +5,30 @@ import Link from "next/link";
 import styles from "./ProductReviews.module.css";
 import cx from "clsx";
 
-function toBrandSlug(value) {
+interface Review {
+  id: string | number;
+  avatar: string;
+  rating: number;
+  productName?: string;
+  userName: string;
+  date: string;
+  pros: string;
+  cons: string;
+}
+
+interface RatingDistribution {
+  [key: number]: number;
+}
+
+interface ProductReviewsProps {
+  brandName?: string;
+  reviews?: Review[];
+  ratingDistribution?: RatingDistribution;
+  productImages?: string[];
+  onViewAll?: () => void;
+}
+
+function toBrandSlug(value: unknown): string {
   const raw = String(value ?? "")
     .trim()
     .toLowerCase();
@@ -19,16 +42,15 @@ export default function ProductReviews({
   ratingDistribution = {},
   productImages = [],
   onViewAll,
-}) {
+}: ProductReviewsProps) {
   // Расчет общего рейтинга и количества отзывов
   const { averageRating, totalReviews } = useMemo(() => {
-    const {
-      5: r5 = 0,
-      4: r4 = 0,
-      3: r3 = 0,
-      2: r2 = 0,
-      1: r1 = 0,
-    } = ratingDistribution;
+    const dist = ratingDistribution as Record<number, number>;
+    const r5 = dist[5] ?? 0;
+    const r4 = dist[4] ?? 0;
+    const r3 = dist[3] ?? 0;
+    const r2 = dist[2] ?? 0;
+    const r1 = dist[1] ?? 0;
     const total = r5 + r4 + r3 + r2 + r1;
     const sum = r5 * 5 + r4 * 4 + r3 * 3 + r2 * 2 + r1 * 1;
     const average = total > 0 ? sum / total : 0;
@@ -39,11 +61,11 @@ export default function ProductReviews({
   }, [ratingDistribution]);
 
   // Рендер звезд
-  const renderStars = (rating, size = 12, showEmpty = true) => {
+  const renderStars = (rating: number, size: number = 12, showEmpty: boolean = true) => {
     const safeRating = Math.max(0, Math.min(5, Number(rating) || 0));
     const starsToRender = showEmpty ? 5 : safeRating;
     return (
-      <div className={styles.stars} aria-label={`Рейтинг ${safeRating} из 5`}>
+      <div className={styles.stars} aria-label={`\u0420\u0435\u0439\u0442\u0438\u043d\u0433 ${safeRating} \u0438\u0437 5`}>
         {Array.from({ length: starsToRender }, (_, i) => i + 1).map((star) => (
           <img key={star} src="/icons/product/Star.svg" alt="star" />
         ))}
@@ -53,13 +75,12 @@ export default function ProductReviews({
 
   // Рендер гистограммы рейтинга (вертикальная стопка горизонтальных баров)
   const renderRatingBars = () => {
-    const {
-      5: r5 = 0,
-      4: r4 = 0,
-      3: r3 = 0,
-      2: r2 = 0,
-      1: r1 = 0,
-    } = ratingDistribution;
+    const dist = ratingDistribution as Record<number, number>;
+    const r5 = dist[5] ?? 0;
+    const r4 = dist[4] ?? 0;
+    const r3 = dist[3] ?? 0;
+    const r2 = dist[2] ?? 0;
+    const r1 = dist[1] ?? 0;
     const maxCount = Math.max(r5, r4, r3, r2, r1);
 
     const bars = [
@@ -71,7 +92,7 @@ export default function ProductReviews({
     ];
 
     return (
-      <div className={styles.bars} aria-label="Распределение рейтингов">
+      <div className={styles.bars} aria-label="\u0420\u0430\u0441\u043f\u0440\u0435\u0434\u0435\u043b\u0435\u043d\u0438\u0435 \u0440\u0435\u0439\u0442\u0438\u043d\u0433\u043e\u0432">
         {bars.map((bar) => {
           const width = maxCount > 0 ? (bar.count / maxCount) * 100 : 0;
 
@@ -105,12 +126,12 @@ export default function ProductReviews({
     <section className={styles.outer}>
       <div className={styles.card}>
         <div className={styles.header}>
-          <h2 className={styles.title}>Отзывы на {brandName}</h2>
+          <h2 className={styles.title}>\u041e\u0442\u0437\u044b\u0432\u044b \u043d\u0430 {brandName}</h2>
           <Link
             href={reviewsHref}
             onClick={onViewAll}
             className={styles.chevron}
-            aria-label="Все отзывы"
+            aria-label="\u0412\u0441\u0435 \u043e\u0442\u0437\u044b\u0432\u044b"
           >
             <Image
               src="/icons/global/arrowBlack.svg"
@@ -134,10 +155,10 @@ export default function ProductReviews({
             <span className={styles.ratingCount}>
               {totalReviews}{" "}
               {totalReviews === 1
-                ? "отзыв"
+                ? "\u043e\u0442\u0437\u044b\u0432"
                 : totalReviews < 5
-                  ? "отзыва"
-                  : "отзывов"}
+                  ? "\u043e\u0442\u0437\u044b\u0432\u0430"
+                  : "\u043e\u0442\u0437\u044b\u0432\u043e\u0432"}
             </span>
           </div>
 
@@ -206,11 +227,11 @@ export default function ProductReviews({
 
                     <div className={styles.reviewBody}>
                       <p className={styles.reviewText}>
-                        <span className={styles.reviewLabel}>Достоинства:</span>{" "}
+                        <span className={styles.reviewLabel}>\u0414\u043e\u0441\u0442\u043e\u0438\u043d\u0441\u0442\u0432\u0430:</span>{" "}
                         {review.pros}
                       </p>
                       <p className={styles.reviewText}>
-                        <span className={styles.reviewLabel}>Недостатки:</span>{" "}
+                        <span className={styles.reviewLabel}>\u041d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043a\u0438:</span>{" "}
                         {review.cons}
                       </p>
                     </div>

@@ -1,12 +1,28 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import styles from "./BottomSheet.module.css";
 
 const ANIMATION_MS = 240;
 const UNMOUNT_DELAY_MS = ANIMATION_MS + 30;
+
+interface BottomSheetProps {
+  isTypeModule?: boolean;
+  isFilter?: boolean;
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  ariaLabel?: string;
+  header?: React.ReactNode;
+  children?: React.ReactNode;
+  footer?: React.ReactNode;
+  maxHeightOffset?: number;
+  initialFocusRef?: React.RefObject<HTMLElement | null>;
+  isReview?: boolean;
+  isPromocodePage?: boolean;
+}
 
 export default function BottomSheet({
   isTypeModule,
@@ -22,11 +38,11 @@ export default function BottomSheet({
   initialFocusRef,
   isReview,
   isPromocodePage,
-}) {
+}: BottomSheetProps) {
   const [mounted, setMounted] = useState(open);
   const [active, setActive] = useState(false);
   const titleId = useId();
-  const closeBtnRef = useRef(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
 
   useEffect(() => {
@@ -36,7 +52,7 @@ export default function BottomSheet({
   useEffect(() => {
     let frame1 = 0;
     let frame2 = 0;
-    let timer;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
     if (open) {
       // Mount first (closed), then flip to active next frame so CSS transition runs.
@@ -64,7 +80,7 @@ export default function BottomSheet({
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    const onKeyDown = (e) => {
+    const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCloseRef.current?.();
     };
 
@@ -98,7 +114,7 @@ export default function BottomSheet({
 
       <div
         className={`${styles.sheetWrap} ${active ? styles.sheetOpen : styles.sheetClosed}`}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
         style={{ minHeight: `${isTypeModule ? `80vh` : "auto"}` }}
       >
         <div

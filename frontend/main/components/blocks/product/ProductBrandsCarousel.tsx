@@ -5,12 +5,29 @@ import Link from "next/link";
 import cx from "clsx";
 import styles from "./ProductBrandsCarousel.module.css";
 
-function ImgWithFallback({ src, fallbacks, alt, className }) {
+interface Brand {
+  id?: string | number;
+  slug?: string;
+  name: string;
+  image: string;
+  imageFallbacks?: string[];
+  href?: string;
+  subtitle?: string;
+}
+
+interface ImgWithFallbackProps {
+  src: string;
+  fallbacks?: string[];
+  alt: string;
+  className?: string;
+}
+
+function ImgWithFallback({ src, fallbacks, alt, className }: ImgWithFallbackProps) {
   const sources = useMemo(
     () => [src, ...(Array.isArray(fallbacks) ? fallbacks : [])].filter(Boolean),
     [src, fallbacks],
   );
-  const [idx, setIdx] = useState(0);
+  const [idx, setIdx] = useState<number>(0);
   const current = sources[idx] || "";
 
   if (!current) return null;
@@ -27,11 +44,15 @@ function ImgWithFallback({ src, fallbacks, alt, className }) {
   );
 }
 
-export default function ProductBrandsCarousel({ brands = [] }) {
+interface ProductBrandsCarouselProps {
+  brands?: Brand[];
+}
+
+export default function ProductBrandsCarousel({ brands = [] }: ProductBrandsCarouselProps) {
   if (!Array.isArray(brands) || brands.length === 0) return null;
 
   return (
-    <section className={styles.root} aria-label="Бренды">
+    <section className={styles.root} aria-label="\u0411\u0440\u0435\u043d\u0434\u044b">
       <div className={cx(styles.row, "scrollbar-hide")}>
         {brands.map((brand) => (
           <Link
@@ -50,7 +71,7 @@ export default function ProductBrandsCarousel({ brands = [] }) {
               </span>
               <div className={styles.text}>
                 <span className={styles.name}>{brand.name}</span>
-                <span className={styles.sub}>{brand.subtitle ?? "Бренд"}</span>
+                <span className={styles.sub}>{brand.subtitle ?? "\u0411\u0440\u0435\u043d\u0434"}</span>
               </div>
             </div>
 

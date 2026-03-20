@@ -2,10 +2,30 @@
 import { cn } from "@/lib/format/cn";
 import { useRouter } from "next/navigation";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, KeyboardEvent } from "react";
 
 import styles from "./ProductCard.module.css";
 import cx from "clsx";
+import type { ProductCardData } from "@/lib/types/ui";
+
+interface ProductCardProps {
+  isPurchased?: boolean;
+  isViewed?: boolean;
+  product: ProductCardData;
+  onToggleFavorite: (id: number | string) => void;
+  variant?: "normal" | "compact";
+  hideFavoriteButton?: boolean;
+  showStars?: boolean;
+  starsInteractive?: boolean;
+  onRatingChange?: (id: number | string | undefined, value: number) => void;
+  onStarSelect?: (id: number | string | undefined, value: number) => void;
+}
+
+interface ImgState {
+  productKey: string;
+  imgSrc: string;
+  fallbackIdx: number;
+}
 
 export default function ProductCard({
   isPurchased,
@@ -18,7 +38,7 @@ export default function ProductCard({
   starsInteractive = false,
   onRatingChange,
   onStarSelect,
-}) {
+}: ProductCardProps) {
   const isCompact = variant === "compact";
   const router = useRouter();
 
@@ -39,7 +59,7 @@ export default function ProductCard({
 
   const initialImgSrc = typeof product?.image === "string" ? product.image : "";
 
-  const [imgState, setImgState] = useState(() => ({
+  const [imgState, setImgState] = useState<ImgState>(() => ({
     productKey,
     imgSrc: initialImgSrc,
     fallbackIdx: 0,
@@ -70,10 +90,10 @@ export default function ProductCard({
     if (!Number.isFinite(total) || total <= 0) return "";
     const per = Math.ceil(total / 4);
     const formatted = per.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-    return `4 × ${formatted} ₽ в сплит`;
+    return `4 \u00d7 ${formatted} \u20bd \u0432 \u0441\u043f\u043b\u0438\u0442`;
   })();
 
-  const rubIndex = installmentText.indexOf("₽");
+  const rubIndex = installmentText.indexOf("\u20bd");
 
   const pricePart = installmentText.slice(0, rubIndex + 1);
   const splitPart = installmentText.slice(rubIndex + 1).trim();
@@ -83,7 +103,7 @@ export default function ProductCard({
       product.deliveryDate.trim()) ||
     (typeof product?.deliveryText === "string" &&
       product.deliveryText.trim()) ||
-    "Доставка";
+    "\u0414\u043e\u0441\u0442\u0430\u0432\u043a\u0430";
 
   const currentRating = (() => {
     const n = Number(product?.rating ?? 0);
@@ -97,7 +117,7 @@ export default function ProductCard({
       onClick={openProduct}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => {
+      onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           openProduct();
@@ -150,7 +170,7 @@ export default function ProductCard({
         </div>
 
         {showStars && !isCompact ? (
-          <div className={styles.starsRow} aria-label="Оценка" role="group">
+          <div className={styles.starsRow} aria-label="\u041e\u0446\u0435\u043d\u043a\u0430" role="group">
             {Array.from({ length: 5 }).map((_, i) => {
               const value = i + 1;
               const isActive = value <= currentRating;
@@ -173,7 +193,7 @@ export default function ProductCard({
                   key={i}
                   type="button"
                   className={styles.starBtn}
-                  aria-label={`Оценить на ${value}`}
+                  aria-label={`\u041e\u0446\u0435\u043d\u0438\u0442\u044c \u043d\u0430 ${value}`}
                   aria-pressed={isActive}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -222,11 +242,11 @@ export default function ProductCard({
             }}
             type="button"
             className={styles.favoriteBtn}
-            aria-label="Добавить в избранное"
+            aria-label="\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0432 \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0435"
           >
             <img
               src="/icons/global/not-active-heart.svg"
-              alt="Добавить в избранное"
+              alt="\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0432 \u0438\u0437\u0431\u0440\u0430\u043d\u043d\u043e\u0435"
               className={styles.favoriteIcon}
             />
           </button>

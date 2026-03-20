@@ -3,16 +3,27 @@
 import Image from "next/image";
 import styles from "./ProductShippingOptions.module.css";
 
+interface ProductShippingOptionsProps {
+  pickupTitle?: string;
+  pickupDate?: string;
+  pickupSub?: string;
+  pickupAddress?: string;
+  deliveryTitle?: string;
+  deliveryDate?: string;
+  deliverySub?: string;
+  deliveryHint?: string;
+}
+
 export default function ProductShippingOptions({
-  pickupTitle = "Самовывоз",
-  pickupDate = "Сегодня",
-  pickupSub = "из наличия",
-  pickupAddress = "Оренбург, улица Пролетарская, 23, 2 этаж",
-  deliveryTitle = "Доставка",
-  deliveryDate = "Послезавтра",
-  deliverySub = "из наличия",
-  deliveryHint = "В пункт выдачи от 99₽",
-}) {
+  pickupTitle = "\u0421\u0430\u043c\u043e\u0432\u044b\u0432\u043e\u0437",
+  pickupDate = "\u0421\u0435\u0433\u043e\u0434\u043d\u044f",
+  pickupSub = "\u0438\u0437 \u043d\u0430\u043b\u0438\u0447\u0438\u044f",
+  pickupAddress = "\u041e\u0440\u0435\u043d\u0431\u0443\u0440\u0433, \u0443\u043b\u0438\u0446\u0430 \u041f\u0440\u043e\u043b\u0435\u0442\u0430\u0440\u0441\u043a\u0430\u044f, 23, 2 \u044d\u0442\u0430\u0436",
+  deliveryTitle = "\u0414\u043e\u0441\u0442\u0430\u0432\u043a\u0430",
+  deliveryDate = "\u041f\u043e\u0441\u043b\u0435\u0437\u0430\u0432\u0442\u0440\u0430",
+  deliverySub = "\u0438\u0437 \u043d\u0430\u043b\u0438\u0447\u0438\u044f",
+  deliveryHint = "\u0412 \u043f\u0443\u043d\u043a\u0442 \u0432\u044b\u0434\u0430\u0447\u0438 \u043e\u0442 99\u20bd",
+}: ProductShippingOptionsProps) {
   const pickupCity = String(pickupAddress || "")
     .split(",")[0]
     ?.trim();
@@ -34,7 +45,7 @@ export default function ProductShippingOptions({
                 {pickupCity ? (
                   <>
                     <span className={styles.sep} aria-hidden="true">
-                      •
+                      {"\u2022"}
                     </span>
                     <span className={styles.muted}>{pickupCity}</span>
                   </>
@@ -45,7 +56,7 @@ export default function ProductShippingOptions({
             <button
               type="button"
               className={styles.iconBtn}
-              aria-label="Навигация"
+              aria-label="\u041d\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u044f"
             >
               <Image
                 src="/icons/product/cursor.svg"

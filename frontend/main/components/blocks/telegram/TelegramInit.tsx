@@ -8,11 +8,16 @@ import {
   isBrowserDebugAuthEnabled,
 } from "@/lib/auth/browserDebugAuth";
 
+import type {
+  TelegramInitDataUnsafe,
+  TelegramWebApp,
+} from "@/lib/types/telegram";
+
 const INIT_DATA_EVENT = "lm:telegram:initdata";
 
 /* ================= Utils ================= */
 
-function compareSemver(a, b) {
+function compareSemver(a: string, b: string): number {
   const pa = String(a).split(".").map(Number);
   const pb = String(b).split(".").map(Number);
   const len = Math.max(pa.length, pb.length);
@@ -25,18 +30,18 @@ function compareSemver(a, b) {
   return 0;
 }
 
-function getTelegramWebApp() {
+function getTelegramWebApp(): TelegramWebApp | null {
   if (typeof window === "undefined") return null;
   return window.Telegram?.WebApp ?? null;
 }
 
-function isMobileTelegram(tg) {
+function isMobileTelegram(tg: TelegramWebApp | null): boolean {
   return tg?.platform === "ios" || tg?.platform === "android";
 }
 
 /* ================= Theme ================= */
 
-function applyThemeColors(tg) {
+function applyThemeColors(tg: TelegramWebApp): void {
   if (typeof document === "undefined") return;
 
   const appBg =
@@ -57,7 +62,7 @@ function applyThemeColors(tg) {
 
 /* ================= Fullscreen ================= */
 
-function requestFullscreenBestEffort(tg) {
+function requestFullscreenBestEffort(tg: TelegramWebApp): void {
   if (
     typeof tg?.version === "string" &&
     compareSemver(tg.version, "7.0") >= 0
@@ -71,6 +76,12 @@ function requestFullscreenBestEffort(tg) {
 
 /* ================= Component ================= */
 
+interface PublishInitDataParams {
+  rawInitData: string;
+  unsafe: TelegramInitDataUnsafe | null;
+  browserDebugUser?: ReturnType<typeof getBrowserDebugUser>;
+}
+
 export default function TelegramInit() {
   useEffect(() => {
     let cancelled = false;
@@ -81,11 +92,11 @@ export default function TelegramInit() {
       rawInitData,
       unsafe,
       browserDebugUser = null,
-    }) => {
+    }: PublishInitDataParams) => {
       if (cancelled || didPublishInitData) return;
 
       window.__LM_TG_INIT_DATA__ = rawInitData;
-      window.__LM_TG_INIT_DATA_UNSAFE__ = unsafe;
+      window.__LM_TG_INIT_DATA_UNSAFE__ = unsafe ?? undefined;
       window.__LM_BROWSER_DEBUG_AUTH__ = Boolean(browserDebugUser);
       window.__LM_BROWSER_DEBUG_USER__ = browserDebugUser;
 
@@ -107,7 +118,7 @@ export default function TelegramInit() {
       didPublishInitData = true;
     };
 
-    const init = (tg) => {
+    const init = (tg: TelegramWebApp) => {
       if (cancelled || !tg) return;
 
       const isMobile = isMobileTelegram(tg);
@@ -130,7 +141,7 @@ export default function TelegramInit() {
         unsafe: tg?.initDataUnsafe || null,
       });
 
-      // Faqat mobile’da
+      // Faqat mobile'da
       if (isMobile) {
         try {
           tg.expand();
@@ -157,7 +168,7 @@ export default function TelegramInit() {
       else if (isBrowserDebugAuthEnabled()) {
         publishInitData({
           rawInitData: "",
-          unsafe: { user: getBrowserDebugTelegramUser() },
+          unsafe: { user: getBrowserDebugTelegramUser() ?? undefined },
           browserDebugUser: getBrowserDebugUser(),
         });
       } else if (Date.now() - start < 2000) requestAnimationFrame(tick);

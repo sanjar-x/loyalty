@@ -5,23 +5,48 @@ import { useState } from "react";
 
 import { cn } from "@/lib/format/cn";
 import styles from "./ProductSection.module.css";
+import type { ProductCardData } from "@/lib/types/ui";
+
+interface CardProps {
+  showStars?: boolean;
+  starsInteractive?: boolean;
+  onRatingChange?: (id: number | string | undefined, value: number) => void;
+  onStarSelect?: (id: number | string | undefined, value: number) => void;
+}
+
+interface ProductSectionProps {
+  isPurchased?: boolean;
+  isViewed?: boolean;
+  title?: string;
+  products?: ProductCardData[];
+  onToggleFavorite?: (id: number | string) => void;
+  layout?: "grid" | "horizontal";
+  isLoading?: boolean;
+  skeletonCount?: number;
+  hideFavoriteButton?: boolean;
+  cardProps?: CardProps;
+  headerVariant?: "title" | "tabs";
+  tabs?: string[];
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
+}
 
 export default function ProductSection({
   isPurchased,
   isViewed,
   title = "",
   products = [],
-  onToggleFavorite = (_id) => {},
+  onToggleFavorite = (_id: number | string) => {},
   layout = "grid",
   isLoading = false,
   skeletonCount,
   hideFavoriteButton = false,
   cardProps = {},
   headerVariant = "title",
-  tabs = ["Для вас", "Похожие"],
+  tabs = ["\u0414\u043b\u044f \u0432\u0430\u0441", "\u041f\u043e\u0445\u043e\u0436\u0438\u0435"],
   activeTab,
   onTabChange,
-}) {
+}: ProductSectionProps) {
   const effectiveSkeletonCount =
     typeof skeletonCount === "number" && Number.isFinite(skeletonCount)
       ? Math.max(0, Math.trunc(skeletonCount))
@@ -38,7 +63,7 @@ export default function ProductSection({
     }
     return typeof title === "string" ? title : "";
   })();
-  const [internalTab, setInternalTab] = useState(defaultTab);
+  const [internalTab, setInternalTab] = useState<string>(defaultTab);
   const currentTab = isControlled ? activeTab : internalTab;
 
   if (isLoading) {
@@ -49,7 +74,7 @@ export default function ProductSection({
             <div className={styles.header}>
               <h2 className={styles.titleHorizontal}>{title}</h2>
               <button type="button" className={styles.allBtn} disabled>
-                <span className={styles.allText}>все</span>
+                <span className={styles.allText}>\u0432\u0441\u0435</span>
                 <img
                   className={styles.arrow}
                   src="/icons/global/arrowGrey.svg"
@@ -103,7 +128,7 @@ export default function ProductSection({
           <div className={styles.header}>
             <h2 className={styles.titleHorizontal}>{title}</h2>
             <button type="button" className={styles.allBtn}>
-              <span className={styles.allText}>все</span>
+              <span className={styles.allText}>\u0432\u0441\u0435</span>
               <img
                 className={styles.arrow}
                 src="/icons/global/arrowGrey.svg"
@@ -135,7 +160,7 @@ export default function ProductSection({
       className={`${styles.sectionGrid} ${isViewed ? `${styles.sectionGridViewed}` : ""}`}
     >
       {headerVariant === "tabs" && Array.isArray(tabs) && tabs.length ? (
-        <div className={styles.tabsHeader} role="tablist" aria-label="Раздел">
+        <div className={styles.tabsHeader} role="tablist" aria-label="\u0420\u0430\u0437\u0434\u0435\u043b">
           {tabs.map((tab) => {
             const isActive = tab === currentTab;
             return (

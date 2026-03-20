@@ -5,6 +5,17 @@ import Image from "next/image";
 import styles from "./ProductInfo.module.css";
 import cx from "clsx";
 
+interface ProductInfoProps {
+  productName?: string;
+  brand?: string;
+  brandLink?: string;
+  images?: string[];
+  currentImageIndex?: number;
+  onImageChange?: (index: number) => void;
+  theme?: "light" | "dark";
+  showThumbnails?: boolean;
+}
+
 export default function ProductInfo({
   productName,
   brand,
@@ -14,7 +25,7 @@ export default function ProductInfo({
   onImageChange,
   theme = "light",
   showThumbnails = true,
-}) {
+}: ProductInfoProps) {
   const isDark = theme === "dark";
 
   return (
@@ -56,7 +67,7 @@ export default function ProductInfo({
               >
                 <Image
                   src={image}
-                  alt={`Миниатюра ${index + 1}`}
+                  alt={`\u041c\u0438\u043d\u0438\u0430\u0442\u044e\u0440\u0430 ${index + 1}`}
                   fill
                   className={styles.c7}
                   sizes="80px"

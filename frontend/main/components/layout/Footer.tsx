@@ -10,16 +10,21 @@ import styles from "./Footer.module.css";
 const CART_STORAGE_KEY = "loyaltymarket_cart_v1";
 const CART_UPDATED_EVENT = "loyaltymarket_cart_updated";
 
-function getCartTotalQuantityFromStorage() {
+interface CartEntry {
+  quantity?: number;
+}
+
+function getCartTotalQuantityFromStorage(): number {
   try {
     const raw = localStorage.getItem(CART_STORAGE_KEY);
     if (!raw) return 0;
 
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return 0;
 
-    return parsed.reduce((sum, entry) => {
-      const x = typeof entry === "object" && entry !== null ? entry : {};
+    return (parsed as unknown[]).reduce<number>((sum, entry) => {
+      const x: CartEntry =
+        typeof entry === "object" && entry !== null ? (entry as CartEntry) : {};
       const q = typeof x.quantity === "number" ? x.quantity : 0;
       return sum + Math.max(0, q);
     }, 0);
@@ -28,7 +33,12 @@ function getCartTotalQuantityFromStorage() {
   }
 }
 
-function IconHome({ filled }) {
+interface IconProps {
+  filled: boolean;
+  className?: string;
+}
+
+function IconHome({ filled }: IconProps) {
   return filled ? (
     <svg
       width="25"
@@ -65,7 +75,7 @@ function IconHome({ filled }) {
   );
 }
 
-function IconPoizon({ filled }) {
+function IconPoizon({ filled }: IconProps) {
   return filled ? (
     <svg
       width="12"
@@ -99,7 +109,7 @@ function IconPoizon({ filled }) {
   );
 }
 
-function IconCatalog({ filled }) {
+function IconCatalog({ filled }: IconProps) {
   return filled ? (
     <svg
       width="26"
@@ -163,7 +173,7 @@ function IconCatalog({ filled }) {
   );
 }
 
-function IconFavorites({ filled }) {
+function IconFavorites({ filled }: IconProps) {
   return filled ? (
     <svg
       width="20"
@@ -200,7 +210,7 @@ function IconFavorites({ filled }) {
   );
 }
 
-function IconTrash({ filled }) {
+function IconTrash({ filled }: IconProps) {
   return !filled ? (
     <svg
       width="20"
@@ -254,7 +264,7 @@ function IconTrash({ filled }) {
   );
 }
 
-function IconProfile({ filled }) {
+function IconProfile({ filled }: IconProps) {
   return filled ? (
     <svg
       width="18"
@@ -291,7 +301,15 @@ function IconProfile({ filled }) {
   );
 }
 
-const tabs = [
+interface TabDef {
+  key: string;
+  href: string;
+  label: string;
+  Icon: React.ComponentType<IconProps>;
+  withBadge?: boolean;
+}
+
+const tabs: TabDef[] = [
   {
     key: "home",
     href: "/",
@@ -331,7 +349,7 @@ const tabs = [
   },
 ];
 
-function getActiveTab(pathname) {
+function getActiveTab(pathname: string): string {
   if (pathname === "/") return "home";
   if (pathname.startsWith("/search")) return "home";
   if (pathname.startsWith("/poizon")) return "poizon";
@@ -345,7 +363,7 @@ function getActiveTab(pathname) {
 export default function Footer() {
   const pathname = usePathname();
   const [cartCount, setCartCount] = useState(0);
-  const rootRef = React.useRef(null);
+  const rootRef = React.useRef<HTMLElement>(null);
 
   useEffect(() => {
     const el = rootRef.current;
