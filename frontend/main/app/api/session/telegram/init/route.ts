@@ -4,9 +4,9 @@ import {
   isBrowserDebugAuthEnabled,
   normalizeBrowserDebugUser,
 } from "@/lib/auth/browserDebugAuth";
-import { validateTelegramInitDataOrThrow } from "@/lib/auth/telegram";
 
 const ACCESS_COOKIE = "lm_access_token";
+const REFRESH_COOKIE = "lm_refresh_token";
 
 function getBackendBaseUrl(): string {
   const raw = process.env.BACKEND_API_BASE_URL;
@@ -16,60 +16,30 @@ function getBackendBaseUrl(): string {
   return raw.trim().replace(/\/+$/, "");
 }
 
-function getBotToken(): string {
-  const raw = process.env.TG_BOT_TOKEN;
-  return typeof raw === "string" ? raw.trim() : "";
-}
-
 function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
 }
 
-function getInitDataMaxAgeSeconds(): number {
-  const raw = process.env.TG_INITDATA_MAX_AGE_SECONDS;
-  if (typeof raw !== "string" || !raw.trim()) return 300;
-  const n = Number(raw.trim());
-  if (!Number.isFinite(n) || n <= 0) return 300;
-  return Math.floor(n);
-}
+function getCookieDomain(): string | undefined {
+  const domain = process.env.COOKIE_DOMAIN;
+  if (typeof domain !== "string") return undefined;
+  const d = domain.trim();
+  if (!d) return undefined;
 
-interface DebugMeta {
-  host: string;
-  hasInitData: boolean;
-  initDataLen: number;
-  hasDebugUser: boolean;
-  initDataMaxAgeSeconds: number;
-  browserDebugAuthEnabled: boolean;
-  localBrowserDebugAllowed: boolean;
-}
+  if (
+    d.includes("://") ||
+    d.includes("/") ||
+    d.includes(":") ||
+    d.includes(" ")
+  ) {
+    return undefined;
+  }
 
-function getDebugMeta(
-  req: NextRequest,
-  initData: string,
-  debugUser: Record<string, unknown> | null,
-): DebugMeta | undefined {
-  if (isProduction()) return undefined;
+  const normalized = d.startsWith(".") ? d.slice(1) : d;
+  if (normalized === "localhost" || normalized === "vercel.app")
+    return undefined;
 
-  const hostHeader =
-    req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
-  const host =
-    req.nextUrl?.hostname ||
-    hostHeader
-      .split(",")
-      .map((part: string) => part.trim())
-      .filter(Boolean)[0]
-      ?.split(":")[0] ||
-    "";
-
-  return {
-    host,
-    hasInitData: Boolean(initData),
-    initDataLen: typeof initData === "string" ? initData.length : 0,
-    hasDebugUser: Boolean(debugUser),
-    initDataMaxAgeSeconds: getInitDataMaxAgeSeconds(),
-    browserDebugAuthEnabled: isBrowserDebugAuthEnabled(),
-    localBrowserDebugAllowed: isLocalBrowserDebugRequest(req),
-  };
+  return d;
 }
 
 function isLocalBrowserDebugRequest(req: NextRequest): boolean {
@@ -86,9 +56,7 @@ function isLocalBrowserDebugRequest(req: NextRequest): boolean {
       ?.split(":")[0] ||
     "";
 
-  const h = String(host || "")
-    .trim()
-    .toLowerCase();
+  const h = String(host || "").trim().toLowerCase();
 
   return (
     h === "localhost" ||
@@ -98,46 +66,31 @@ function isLocalBrowserDebugRequest(req: NextRequest): boolean {
     (() => {
       const raw = process.env.BROWSER_DEBUG_AUTH_ALLOWED_HOSTS;
       if (typeof raw !== "string" || !raw.trim()) return false;
-
       const rules = raw
         .split(/[,\s]+/g)
         .map((x: string) => x.trim().toLowerCase())
         .filter(Boolean);
-
-      const hostMatchesRule = (hostVal: string, rule: string): boolean => {
-        if (!rule) return false;
-        if (rule === hostVal) return true;
-
-        if (rule.startsWith("*.")) {
-          const suffix = rule.slice(1); // ".example.com"
-          return suffix ? hostVal.endsWith(suffix) : false;
-        }
-
-        if (rule.startsWith(".")) {
-          return hostVal.endsWith(rule);
-        }
-
+      return rules.some((rule: string) => {
+        if (rule === h) return true;
+        if (rule.startsWith("*.") && h.endsWith(rule.slice(1))) return true;
+        if (rule.startsWith(".") && h.endsWith(rule)) return true;
         return false;
-      };
-
-      return rules.some((rule: string) => hostMatchesRule(h, rule));
+      });
     })()
   );
-}
-
-interface CookieOptions {
-  maxAge?: number;
-  domain?: string;
-  path?: string;
-  httpOnly?: boolean;
-  secure?: boolean;
-  sameSite?: string;
 }
 
 function serializeCookie(
   name: string,
   value: string,
-  opts: CookieOptions,
+  opts: {
+    maxAge?: number;
+    domain?: string;
+    path?: string;
+    httpOnly?: boolean;
+    secure?: boolean;
+    sameSite?: string;
+  },
 ): string {
   const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
   if (opts.maxAge) parts.push(`Max-Age=${Math.floor(opts.maxAge)}`);
@@ -149,28 +102,37 @@ function serializeCookie(
   return parts.join("; ");
 }
 
-function getCookieDomain(): string | undefined {
-  const domain = process.env.COOKIE_DOMAIN;
-  if (typeof domain !== "string") return undefined;
-  const d = domain.trim();
-  if (!d) return undefined;
+function setTokenCookies(
+  res: NextResponse,
+  accessToken: string,
+  refreshToken: string,
+): void {
+  const domain = getCookieDomain();
+  const secure = isProduction();
 
-  // Reject obviously invalid cookie domain values.
-  // NOTE: "vercel.app" is a public suffix; setting cookies for it will be rejected.
-  if (
-    d.includes("://") ||
-    d.includes("/") ||
-    d.includes(":") ||
-    d.includes(" ")
-  ) {
-    return undefined;
-  }
+  res.headers.append(
+    "Set-Cookie",
+    serializeCookie(ACCESS_COOKIE, accessToken, {
+      httpOnly: true,
+      secure,
+      sameSite: "Lax",
+      path: "/",
+      domain,
+      maxAge: 900,
+    }),
+  );
 
-  const normalized = d.startsWith(".") ? d.slice(1) : d;
-  if (normalized === "localhost" || normalized === "vercel.app")
-    return undefined;
-
-  return d;
+  res.headers.append(
+    "Set-Cookie",
+    serializeCookie(REFRESH_COOKIE, refreshToken, {
+      httpOnly: true,
+      secure,
+      sameSite: "Lax",
+      path: "/",
+      domain,
+      maxAge: 60 * 60 * 24 * 7,
+    }),
+  );
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -193,97 +155,82 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const initData =
     typeof body?.initData === "string" ? (body.initData as string).trim() : "";
-  const debugUser = isLocalBrowserDebugRequest(req)
-    ? normalizeBrowserDebugUser(body?.debugUser as Record<string, unknown> | undefined)
-    : null;
 
-  let tgId: string | number | null = null;
-  let username: string | null = null;
-  let startParam: string | null = null;
-
-  if (initData) {
-    const botToken = getBotToken();
-    if (!botToken) {
-      return NextResponse.json(
-        {
-          error: "Missing TG_BOT_TOKEN",
-          debug: getDebugMeta(req, initData, debugUser),
-        },
-        { status: 500 },
-      );
-    }
-
-    let parsed: ReturnType<typeof validateTelegramInitDataOrThrow>;
-    try {
-      parsed = validateTelegramInitDataOrThrow({
-        initData,
-        botToken,
-        maxAgeSeconds: getInitDataMaxAgeSeconds(),
+  // --- Debug auth path (dev only) ---
+  if (!initData && isLocalBrowserDebugRequest(req)) {
+    const debugUser = normalizeBrowserDebugUser(
+      body?.debugUser as Record<string, unknown> | undefined,
+    );
+    if (debugUser) {
+      const debugRes = await fetch(`${backendBase}/api/v1/users/init/`, {
+        method: "POST",
+        headers: { accept: "application/json", "content-type": "application/json" },
+        body: JSON.stringify({
+          init_data: {
+            user: { username: debugUser.username, id: String(debugUser.tg_id) },
+          },
+        }),
       });
-    } catch (e) {
-      return NextResponse.json(
-        {
-          error: e instanceof Error ? e.message : "Invalid initData",
-          debug: getDebugMeta(req, initData, debugUser),
-        },
-        { status: 401 },
+
+      const debugJson = await debugRes.text().then((t) => {
+        try { return JSON.parse(t); } catch { return null; }
+      });
+
+      if (!debugRes.ok) {
+        return NextResponse.json(
+          { error: "Debug backend init failed", details: debugJson },
+          { status: 502 },
+        );
+      }
+
+      const accessToken = debugJson?.accessToken;
+      if (typeof accessToken !== "string" || !accessToken) {
+        return NextResponse.json(
+          { error: "Debug backend did not return accessToken" },
+          { status: 502 },
+        );
+      }
+
+      const res = NextResponse.json(
+        { ok: true, isNewUser: false, debug: true },
+        { status: 200 },
       );
+
+      const refreshToken =
+        typeof debugJson?.refreshToken === "string"
+          ? debugJson.refreshToken
+          : accessToken;
+
+      setTokenCookies(res, accessToken, refreshToken);
+      return res;
     }
+  }
 
-    const tgUser = parsed.user as Record<string, unknown> | undefined;
-    tgId = tgUser?.id as string | number | null;
-    if (tgId == null) {
-      return NextResponse.json(
-        { error: "Telegram user.id is missing" },
-        { status: 400 },
-      );
-    }
-
-    const parsedParams = parsed?.params as
-      | Record<string, unknown>
-      | undefined;
-    const startParamRaw = parsedParams?.start_param;
-    startParam =
-      typeof startParamRaw === "string" && startParamRaw.trim()
-        ? startParamRaw.trim()
-        : null;
-
-    const usernameRaw = tgUser?.username;
-    username =
-      typeof usernameRaw === "string" && usernameRaw.trim()
-        ? usernameRaw.trim()
-        : `tg_${String(tgId)}`;
-  } else if (debugUser) {
-    tgId = debugUser.tg_id;
-    username = debugUser.username;
-  } else {
+  // --- Production path: forward raw initData to backend IAM ---
+  if (!initData) {
     return NextResponse.json(
-      {
-        error: "initData or local debugUser is required",
-        debug: getDebugMeta(req, initData, debugUser),
-      },
+      { error: "initData is required" },
       { status: 400 },
     );
   }
 
-  const upstreamUrl = `${backendBase}/api/v1/users/init/`;
+  const upstreamUrl = `${backendBase}/api/v1/auth/telegram`;
 
-  const upstreamRes = await fetch(upstreamUrl, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      init_data: {
-        user: {
-          username,
-          id: String(tgId),
-        },
-        ...(startParam ? { start_param: startParam } : {}),
+  let upstreamRes: Response;
+  try {
+    upstreamRes = await fetch(upstreamUrl, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        authorization: `tma ${initData}`,
       },
-    }),
-  });
+    });
+  } catch (e) {
+    return NextResponse.json(
+      { error: "Backend unreachable", detail: e instanceof Error ? e.message : "unknown" },
+      { status: 502 },
+    );
+  }
 
   const text = await upstreamRes.text();
   let json: Record<string, unknown> | null = null;
@@ -296,16 +243,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!upstreamRes.ok) {
     return NextResponse.json(
       {
-        error: "Backend init failed",
+        error: "Backend auth failed",
         status: upstreamRes.status,
         details: json ?? text,
       },
-      { status: 502 },
+      { status: upstreamRes.status === 401 ? 401 : 502 },
     );
   }
 
   const accessToken = json?.accessToken;
-  const user = json?.user;
+  const refreshToken = json?.refreshToken;
+  const isNewUser = json?.isNewUser === true;
 
   if (typeof accessToken !== "string" || !accessToken) {
     return NextResponse.json(
@@ -314,19 +262,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const res = NextResponse.json({ ok: true, user }, { status: 200 });
+  if (typeof refreshToken !== "string" || !refreshToken) {
+    return NextResponse.json(
+      { error: "Backend did not return refreshToken", details: json },
+      { status: 502 },
+    );
+  }
 
-  res.headers.append(
-    "Set-Cookie",
-    serializeCookie(ACCESS_COOKIE, accessToken, {
-      httpOnly: true,
-      secure: isProduction(),
-      sameSite: "Lax",
-      path: "/",
-      domain: getCookieDomain(),
-      maxAge: 60 * 60 * 24 * 30,
-    }),
+  const res = NextResponse.json(
+    { ok: true, isNewUser },
+    { status: 200 },
   );
 
+  setTokenCookies(res, accessToken, refreshToken);
   return res;
 }
