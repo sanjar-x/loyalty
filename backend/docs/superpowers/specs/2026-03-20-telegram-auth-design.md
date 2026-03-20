@@ -105,14 +105,7 @@ class TelegramCredentials:
         return changed
 ```
 
-Factory method on Identity:
-
-```python
-@classmethod
-def register_telegram(cls) -> Identity:
-    """Create a new active customer identity authenticated via Telegram."""
-    return cls.register(IdentityType.TELEGRAM, AccountType.CUSTOMER)
-```
+No separate factory method — handler calls `Identity.register(IdentityType.TELEGRAM, AccountType.CUSTOMER)` directly (YAGNI — one call site doesn't warrant a convenience method).
 
 ### 2.3 Domain Event
 
@@ -330,6 +323,9 @@ class TelegramInitDataValidator(ITelegramInitDataValidator):
         # 2. Freshness check
         # auth_date is datetime in aiogram (pydantic coerces Unix timestamp)
         age = int((datetime.now(UTC) - parsed.auth_date).total_seconds())
+        if age < 0:
+            # Future-dated auth_date — reject (clock skew or tampering)
+            raise InitDataExpiredError(age_seconds=age, max_seconds=self._max_age)
         if age > self._max_age:
             raise InitDataExpiredError(age_seconds=age, max_seconds=self._max_age)
 
@@ -541,6 +537,9 @@ class LoginTelegramHandler:
                     )
 
             # 3. Session limit — evict oldest if needed
+            # Note: race condition between count_active() and revoke_oldest_active()
+            # is low-risk for Telegram (single-user, sequential app opens).
+            # If strict enforcement is needed later, use SELECT ... FOR UPDATE.
             active_count = await self._session_repo.count_active(identity.id)
             if active_count >= self._max_sessions:
                 evicted_id = await self._session_repo.revoke_oldest_active(
@@ -645,45 +644,68 @@ class LoginTelegramHandler:
 
 ### 4.3 Event Consumer (User module)
 
-**File:** `src/modules/user/application/consumers/telegram_customer.py`
+**File:** `src/modules/user/application/consumers/identity_events.py` — add to existing file
+
+Follows the exact pattern of `create_user_on_identity_registered`: functional `@broker.task` + `@inject`, `FromDishka` dependencies, idempotency check, `register_aggregate()`, `generate_referral_code()`.
 
 ```python
-class CreateCustomerFromTelegramConsumer:
-    """Handles TelegramIdentityCreatedEvent -> creates Customer with referral."""
+@broker.task(
+    queue="iam_events",
+    exchange="taskiq_rpc_exchange",
+    routing_key="user.telegram_identity_created",
+    max_retries=3,
+    retry_on_error=True,
+    timeout=30,
+)
+@inject
+async def create_customer_on_telegram_identity_created(
+    identity_id: str,
+    telegram_id: int,
+    customer_repo: FromDishka[ICustomerRepository],
+    uow: FromDishka[IUnitOfWork],
+    start_param: str | None = None,
+    account_type: str = "CUSTOMER",
+) -> dict:
+    """Create a Customer when a Telegram identity is provisioned.
 
-    def __init__(
-        self,
-        customer_repo: ICustomerRepository,
-        uow: IUnitOfWork,
-        logger: ILogger,
-    ) -> None:
-        self._customer_repo = customer_repo
-        self._uow = uow
-        self._logger = logger.bind(consumer="CreateCustomerFromTelegram")
+    Follows the same pattern as create_user_on_identity_registered:
+    - Idempotency check (skip if customer already exists)
+    - generate_referral_code() for consistent format
+    - register_aggregate() for outbox events
+    - Referral resolution via start_param
+    """
+    identity_uuid = uuid.UUID(identity_id)
 
-    async def handle(self, event: TelegramIdentityCreatedEvent) -> None:
-        async with self._uow:
-            referred_by: uuid.UUID | None = None
-            if event.start_param:
-                referrer = await self._customer_repo.get_by_referral_code(
-                    event.start_param
-                )
-                referred_by = referrer.id if referrer else None
+    # Idempotency: skip if customer already exists (retry safety)
+    existing = await customer_repo.get(identity_uuid)
+    if existing:
+        logger.info("customer.already_exists", identity_id=identity_id)
+        return {"status": "skipped", "reason": "already_exists"}
 
-            customer = Customer.create_from_identity(
-                identity_id=event.identity_id,
-                referral_code=secrets.token_urlsafe(6),
-                referred_by=referred_by,
-            )
-            await self._customer_repo.add(customer)
-            await self._uow.commit()
+    # Resolve referral
+    referred_by: uuid.UUID | None = None
+    if start_param:
+        referrer = await customer_repo.get_by_referral_code(start_param)
+        referred_by = referrer.id if referrer else None
 
-        self._logger.info(
-            "customer.created_from_telegram",
-            identity_id=str(event.identity_id),
-            telegram_id=event.telegram_id,
-            referred_by=str(referred_by) if referred_by else None,
-        )
+    customer = Customer.create_from_identity(
+        identity_id=identity_uuid,
+        referral_code=generate_referral_code(),
+        referred_by=referred_by,
+    )
+
+    async with uow:
+        await customer_repo.add(customer)
+        uow.register_aggregate(customer)
+        await uow.commit()
+
+    logger.info(
+        "customer.created_from_telegram",
+        identity_id=identity_id,
+        telegram_id=telegram_id,
+        referred_by=str(referred_by) if referred_by else None,
+    )
+    return {"status": "success", "type": "customer"}
 ```
 
 ---
@@ -873,6 +895,7 @@ No changes to existing tables. `IdentityType` stored as VARCHAR — `TELEGRAM` v
 | `test_expired_auth_date_raises` | InitDataExpiredError with details |
 | `test_missing_user_raises` | InitDataMissingUserError |
 | `test_start_param_extracted` | Included in TelegramUserData |
+| `test_future_auth_date_raises` | Negative age (clock skew) rejected |
 
 ### 9.2 Integration Tests (real DB)
 
@@ -903,7 +926,7 @@ No changes to existing tables. `IdentityType` stored as VARCHAR — `TELEGRAM` v
 | # | Task | Size |
 |---|------|------|
 | 1 | Value objects: `TelegramUserData`, extend `IdentityType` | S |
-| 2 | Entity: `TelegramCredentials` + `Identity.register_telegram()` | S |
+| 2 | Entity: `TelegramCredentials` | S |
 | 3 | Event: `TelegramIdentityCreatedEvent` | S |
 | 4 | Exceptions: 3 new exception classes | S |
 | 5 | Interfaces: `ITelegramCredentialsRepository`, `ITelegramInitDataValidator`, `ISessionRepository.revoke_oldest_active` | S |
@@ -913,7 +936,7 @@ No changes to existing tables. `IdentityType` stored as VARCHAR — `TELEGRAM` v
 | 9 | Repository: `TelegramCredentialsRepository` | M |
 | 10 | Session repo: `revoke_oldest_active` implementation | S |
 | 11 | Handler: `LoginTelegramHandler` | L |
-| 12 | Consumer: `CreateCustomerFromTelegramConsumer` | M |
+| 12 | Consumer: `create_customer_on_telegram_identity_created` (add to existing identity_events.py) | M |
 | 13 | Presentation: schema + router endpoint | M |
 | 14 | DI: provider wiring | S |
 | 15 | Config: new settings + .env.example | S |
@@ -939,3 +962,10 @@ S = <1h, M = 1-3h, L = 3-6h
 | Session limit | `pass` placeholder | `revoke_oldest_active()` + cache invalidation |
 | `photo_url` sync | Blind overwrite | Don't erase with None (privacy settings) |
 | `auth_date` type | `int(time.time())` | `datetime.now(UTC) - parsed.auth_date` (aiogram returns datetime) |
+| `Identity.register_telegram()` | Defined but only one call site | Removed — call `Identity.register(TELEGRAM, CUSTOMER)` directly (YAGNI) |
+| Consumer pattern | Class-based with `__init__` + `handle()` | Functional `@broker.task` + `@inject` + `FromDishka` (matches existing consumers) |
+| Consumer idempotency | Missing | Added `customer_repo.get()` check before create |
+| Consumer `register_aggregate` | Missing | Added before `uow.commit()` |
+| Consumer referral code | `secrets.token_urlsafe(6)` | `generate_referral_code()` from domain services |
+| Future `auth_date` | Accepted (negative age passes check) | Rejected — `age < 0` raises `InitDataExpiredError` |
+| Session eviction race | Not documented | Documented as known low-risk limitation |
