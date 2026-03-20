@@ -12,7 +12,7 @@ from src.modules.identity.domain.entities import (
     Role,
     Session,
 )
-from src.modules.identity.domain.value_objects import IdentityType
+from src.modules.identity.domain.value_objects import PrimaryAuthMethod
 
 
 class IdentityMothers:
@@ -21,17 +21,22 @@ class IdentityMothers:
     @staticmethod
     def active_local() -> Identity:
         """Standard active identity with LOCAL credentials."""
-        return Identity.register(IdentityType.LOCAL)
+        return Identity.register(PrimaryAuthMethod.LOCAL)
 
     @staticmethod
     def active_oidc() -> Identity:
         """Standard active identity via OIDC provider."""
-        return Identity.register(IdentityType.OIDC)
+        return Identity.register(PrimaryAuthMethod.OIDC)
+
+    @staticmethod
+    def active_telegram() -> Identity:
+        """Standard active identity via Telegram."""
+        return Identity.register(PrimaryAuthMethod.TELEGRAM)
 
     @staticmethod
     def deactivated(reason: str = "test_deactivation") -> Identity:
         """Identity that has been deactivated — ensure_active() will raise."""
-        identity = Identity.register(IdentityType.LOCAL)
+        identity = Identity.register(PrimaryAuthMethod.LOCAL)
         identity.deactivate(reason=reason)
         identity.clear_domain_events()
         return identity
@@ -42,7 +47,7 @@ class IdentityMothers:
         password_hash: str = "$argon2id$v=19$m=65536,t=3,p=4$test",
     ) -> tuple[Identity, LocalCredentials]:
         """Identity + LocalCredentials pair."""
-        identity = Identity.register(IdentityType.LOCAL)
+        identity = Identity.register(PrimaryAuthMethod.LOCAL)
         creds = LocalCredentials(
             identity_id=identity.id,
             email=email,
@@ -58,7 +63,7 @@ class IdentityMothers:
         user_agent: str = "TestAgent/1.0",
     ) -> tuple[Identity, Session, str]:
         """Identity + active Session + raw refresh token."""
-        identity = Identity.register(IdentityType.LOCAL)
+        identity = Identity.register(PrimaryAuthMethod.LOCAL)
         raw_token = f"refresh-{uuid.uuid4().hex}"
         session = Session.create(
             identity_id=identity.id,
@@ -189,20 +194,53 @@ class LinkedAccountMothers:
 
     @staticmethod
     def google(identity_id: uuid.UUID | None = None) -> LinkedAccount:
+        now = datetime.now(UTC)
         return LinkedAccount(
             id=uuid.uuid4(),
             identity_id=identity_id or uuid.uuid4(),
             provider="google",
             provider_sub_id=f"google-{uuid.uuid4().hex[:8]}",
             provider_email="user@gmail.com",
+            email_verified=True,
+            provider_metadata={"name": "Test User", "picture": ""},
+            created_at=now,
+            updated_at=now,
         )
 
     @staticmethod
     def github(identity_id: uuid.UUID | None = None) -> LinkedAccount:
+        now = datetime.now(UTC)
         return LinkedAccount(
             id=uuid.uuid4(),
             identity_id=identity_id or uuid.uuid4(),
             provider="github",
             provider_sub_id=f"github-{uuid.uuid4().hex[:8]}",
             provider_email="user@github.com",
+            email_verified=True,
+            provider_metadata={"name": "Test User", "picture": ""},
+            created_at=now,
+            updated_at=now,
+        )
+
+    @staticmethod
+    def telegram(identity_id: uuid.UUID | None = None) -> LinkedAccount:
+        now = datetime.now(UTC)
+        return LinkedAccount(
+            id=uuid.uuid4(),
+            identity_id=identity_id or uuid.uuid4(),
+            provider="telegram",
+            provider_sub_id=f"{uuid.uuid4().int % 1000000000}",
+            provider_email=None,
+            email_verified=False,
+            provider_metadata={
+                "first_name": "Test",
+                "last_name": "User",
+                "username": "testuser",
+                "language_code": "en",
+                "is_premium": False,
+                "photo_url": None,
+                "allows_write_to_pm": True,
+            },
+            created_at=now,
+            updated_at=now,
         )
