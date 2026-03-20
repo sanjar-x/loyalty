@@ -200,3 +200,62 @@ async def anonymize_user_on_identity_deactivated(
 
     logger.warning("user.not_found_for_anonymization", identity_id=identity_id)
     return {"status": "skipped", "reason": "not_found"}
+
+
+@broker.task(
+    queue="iam_events",
+    exchange="taskiq_rpc_exchange",
+    routing_key="user.telegram_identity_created",
+    max_retries=3,
+    retry_on_error=True,
+    timeout=30,
+)
+@inject
+async def create_customer_on_telegram_identity_created(
+    identity_id: str,
+    telegram_id: int,
+    customer_repo: FromDishka[ICustomerRepository],
+    uow: FromDishka[IUnitOfWork],
+    start_param: str | None = None,
+    account_type: str = "CUSTOMER",
+) -> dict:
+    """Create a Customer when a Telegram identity is provisioned.
+
+    Follows the same pattern as create_user_on_identity_registered:
+    - Idempotency check (skip if customer already exists)
+    - generate_referral_code() for consistent format
+    - register_aggregate() for outbox events
+    - Referral resolution via start_param
+    """
+    identity_uuid = uuid.UUID(identity_id)
+
+    # Idempotency: skip if customer already exists (retry safety)
+    existing = await customer_repo.get(identity_uuid)
+    if existing:
+        logger.info("customer.already_exists", identity_id=identity_id)
+        return {"status": "skipped", "reason": "already_exists"}
+
+    # Resolve referral
+    referred_by: uuid.UUID | None = None
+    if start_param:
+        referrer = await customer_repo.get_by_referral_code(start_param)
+        referred_by = referrer.id if referrer else None
+
+    customer = Customer.create_from_identity(
+        identity_id=identity_uuid,
+        referral_code=generate_referral_code(),
+        referred_by=referred_by,
+    )
+
+    async with uow:
+        await customer_repo.add(customer)
+        uow.register_aggregate(customer)
+        await uow.commit()
+
+    logger.info(
+        "customer.created_from_telegram",
+        identity_id=identity_id,
+        telegram_id=telegram_id,
+        referred_by=str(referred_by) if referred_by else None,
+    )
+    return {"status": "success", "type": "customer"}
