@@ -1,4 +1,4 @@
-interface BrowserDebugUser {
+export interface BrowserDebugUser {
   tg_id: string;
   username: string;
   id: number;
