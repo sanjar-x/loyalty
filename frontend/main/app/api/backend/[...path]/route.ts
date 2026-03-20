@@ -106,18 +106,26 @@ async function proxy(
 
     const upstreamRes = await fetch(upstreamUrl, init);
 
-    // Pass-through body + content-type
-    const contentType = upstreamRes.headers.get("content-type") || "";
     const buf = await upstreamRes.arrayBuffer();
 
-    const res = new NextResponse(buf, {
-      status: upstreamRes.status,
-      headers: {
-        "content-type": contentType,
-      },
-    });
+    // Forward a safe subset of upstream response headers
+    const safeResponseHeaders = [
+      "content-type",
+      "content-length",
+      "content-disposition",
+      "cache-control",
+      "x-total-count",
+    ];
+    const resHeaders = new Headers();
+    for (const name of safeResponseHeaders) {
+      const v = upstreamRes.headers.get(name);
+      if (v) resHeaders.set(name, v);
+    }
 
-    return res;
+    return new NextResponse(buf, {
+      status: upstreamRes.status,
+      headers: resHeaders,
+    });
   } catch (e: unknown) {
     const isAbort =
       e && typeof e === "object" && (e as { name?: string }).name === "AbortError";
@@ -183,14 +191,14 @@ async function proxy(
           }
         : undefined;
 
-    // Keep a server-side log for local debugging.
+    // Always log full details server-side for debugging.
     console.error("[api/backend] upstream fetch failed", debug);
 
     return NextResponse.json(
       {
         error: "Upstream request failed",
         hint: isAbort ? `Timeout after ${timeoutMs}ms` : undefined,
-        debug,
+        // Never send internal URLs, IPs, or ports to the client
       },
       { status: 502 },
     );

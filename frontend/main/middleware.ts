@@ -1,26 +1,56 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-function isPublicPath(pathname: string): boolean {
-  // API routes handle their own auth logic
-  if (pathname.startsWith("/api/")) return true;
-  // Static assets
-  if (pathname.startsWith("/_next/")) return true;
-  if (pathname.startsWith("/favicon")) return true;
-  return false;
-}
+/**
+ * Edge middleware for the Telegram Mini App.
+ *
+ * - Adds security headers to all responses.
+ * - Validates Origin header on session-mutation POST routes (CSRF defense-in-depth).
+ *
+ * NOTE: We do NOT redirect unauthenticated users. In a Telegram Mini App the
+ * page must load first so TelegramAuthBootstrap can capture initData from
+ * window.Telegram.WebApp and complete the auth flow.
+ */
+
+const SESSION_MUTATION_PREFIX = "/api/session/";
 
 export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
 
-  if (isPublicPath(pathname)) {
-    return NextResponse.next();
+  // CSRF defense-in-depth for session-mutation routes.
+  // SameSite=Lax blocks most cross-site POSTs, but checking Origin adds a
+  // second layer (e.g. against browser bugs or misconfigured proxies).
+  if (
+    request.method === "POST" &&
+    pathname.startsWith(SESSION_MUTATION_PREFIX)
+  ) {
+    const origin = request.headers.get("origin");
+    if (origin) {
+      const requestHost = request.nextUrl.host; // host includes port
+      try {
+        const originHost = new URL(origin).host;
+        if (originHost !== requestHost) {
+          return NextResponse.json(
+            { error: "Cross-origin request blocked" },
+            { status: 403 },
+          );
+        }
+      } catch {
+        return NextResponse.json(
+          { error: "Invalid Origin header" },
+          { status: 403 },
+        );
+      }
+    }
   }
 
-  // In a Telegram Mini App we do NOT redirect unauthenticated users.
-  // The app must load first so TelegramAuthBootstrap can capture initData
-  // from window.Telegram.WebApp and complete the auth flow.
-  // After auth completes (cookies set), subsequent requests carry the JWT.
-  return NextResponse.next();
+  const response = NextResponse.next();
+
+  // Security headers
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+
+  return response;
 }
 
 export const config = {
