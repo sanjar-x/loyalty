@@ -30,7 +30,7 @@ from src.modules.identity.domain.exceptions import (
     SessionExpiredError,
     SessionRevokedError,
 )
-from src.modules.identity.domain.value_objects import AccountType, IdentityType, InvitationStatus
+from src.modules.identity.domain.value_objects import AccountType, IdentityType, InvitationStatus, TelegramUserData
 from src.shared.interfaces.entities import AggregateRoot
 
 
@@ -346,6 +346,46 @@ class LinkedAccount:
     provider: str
     provider_sub_id: str
     provider_email: str | None
+
+
+@dataclass
+class TelegramCredentials:
+    """Telegram-specific credentials linked to an Identity.
+    Shared PK 1:1 pattern (like LocalCredentials)."""
+
+    identity_id: uuid.UUID
+    telegram_id: int
+    first_name: str
+    last_name: str | None
+    username: str | None
+    language_code: str | None
+    is_premium: bool
+    photo_url: str | None
+    allows_write_to_pm: bool
+    created_at: datetime
+    updated_at: datetime
+
+    def update_profile(self, data: TelegramUserData) -> bool:
+        """Update profile fields. Don't erase photo_url with None."""
+        changed = False
+        for field in (
+            "first_name",
+            "last_name",
+            "username",
+            "language_code",
+            "is_premium",
+            "allows_write_to_pm",
+        ):
+            new_val = getattr(data, field)
+            if getattr(self, field) != new_val:
+                setattr(self, field, new_val)
+                changed = True
+        if data.photo_url is not None and self.photo_url != data.photo_url:
+            self.photo_url = data.photo_url
+            changed = True
+        if changed:
+            self.updated_at = datetime.now(UTC)
+        return changed
 
 
 @dataclass
