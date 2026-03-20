@@ -1,9 +1,12 @@
+export const ACCESS_COOKIE_NAME = "lm_access_token";
+export const REFRESH_COOKIE_NAME = "lm_refresh_token";
+
 export function getAccessTokenCookieName(): string {
-  return "lm_access_token";
+  return ACCESS_COOKIE_NAME;
 }
 
-export async function isAuthenticated(): Promise<boolean> {
-  return false;
+export function getRefreshTokenCookieName(): string {
+  return REFRESH_COOKIE_NAME;
 }
 
 export async function logout(): Promise<void> {
