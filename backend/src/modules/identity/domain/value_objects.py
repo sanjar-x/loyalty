@@ -18,6 +18,7 @@ class IdentityType(str, enum.Enum):
 
     LOCAL = "LOCAL"
     OIDC = "OIDC"
+    TELEGRAM = "TELEGRAM"
 
 
 class AccountType(str, enum.Enum):
@@ -84,3 +85,18 @@ class PermissionCode:
     def __str__(self) -> str:
         """Return the raw codename string."""
         return self._value
+
+
+@dataclass(frozen=True, slots=True)
+class TelegramUserData:
+    """Immutable snapshot of Telegram user data from initData."""
+
+    telegram_id: int
+    first_name: str
+    last_name: str | None
+    username: str | None
+    language_code: str | None
+    is_premium: bool
+    photo_url: str | None
+    allows_write_to_pm: bool
+    start_param: str | None
