@@ -6,8 +6,6 @@ import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import BottomSheet from "@/components/ui/BottomSheet";
 import Button from "@/components/ui/Button";
-import { useGetMeQuery } from "@/lib/store/api";
-
 import styles from "./page.module.css";
 
 function asNonEmptyTrimmedString(value) {
@@ -28,11 +26,7 @@ function asSafeImageSrc(value) {
 }
 
 export default function SettingsPage() {
-  const {
-    data: me,
-    isLoading: isMeLoading,
-    isFetching: isMeFetching,
-  } = useGetMeQuery();
+  const me = null, isMeLoading = false, isMeFetching = false;
 
   const tgUnsafeUser =
     typeof window !== "undefined"

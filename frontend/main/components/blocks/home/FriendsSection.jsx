@@ -109,7 +109,7 @@ export default function FriendsSection() {
               alt="arrow"
             />
           </div>
-          <p className={styles.pointsValue}>11</p>
+          <p className={styles.pointsValue}>—</p>
         </Link>
       </div>
     </div>

@@ -5,7 +5,7 @@ import styles from './FavoriteBrandsSection.module.css';
 import cx from 'clsx';
 
 export default function FavoriteBrandsSection({
-  brands,
+  brands = [],
   onBrandClick,
 }) {
   return (

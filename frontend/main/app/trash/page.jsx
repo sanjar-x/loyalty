@@ -1,4 +1,5 @@
 "use client";
+const EMPTY_SET = new Set();
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -7,8 +8,6 @@ import { Trash2 } from "lucide-react";
 import Footer from "@/components/layout/Footer";
 import ProductSection from "@/components/blocks/product/ProductSection";
 import { useCart } from "@/components/blocks/cart/useCart";
-import { useItemFavorites } from "@/lib/hooks/useItemFavorites";
-import { useGetProductsQuery } from "@/lib/store/api";
 import BottomSheet from "@/components/ui/BottomSheet";
 import styles from "./page.module.css";
 import cn from "clsx";
@@ -168,14 +167,10 @@ export default function TrashBasketPage() {
     removeMany,
   } = useCart();
 
-  const { favoriteItemIds, toggleFavorite: toggleProductFavorite } =
-    useItemFavorites("product");
+  const favoriteItemIds = EMPTY_SET;
+  const toggleProductFavorite = () => {};
 
-  const {
-    data: forYouRaw,
-    isLoading: isForYouLoading,
-    isFetching: isForYouFetching,
-  } = useGetProductsQuery({ skip: 0, limit: 8 });
+  const forYouRaw = [], isForYouLoading = false, isForYouFetching = false;
 
   const forYouProducts = useMemo(() => {
     const rows = Array.isArray(forYouRaw) ? forYouRaw : [];

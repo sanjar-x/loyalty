@@ -1,4 +1,6 @@
 "use client";
+const EMPTY_SET = new Set();
+const NOOP = () => {};
 import React, { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Footer from "@/components/layout/Footer";
@@ -13,14 +15,6 @@ import InfoCard from "@/components/blocks/home/InfoCard";
 import ProductSection from "@/components/blocks/product/ProductSection";
 import ProductShippingOptions from "@/components/blocks/product/ProductShippingOptions";
 import ProductBrandsCarousel from "@/components/blocks/product/ProductBrandsCarousel";
-import {
-  useGetBrandsQuery,
-  useGetCategoriesWithTypesQuery,
-  useAddCartItemMutation,
-  useGetProductByIdQuery,
-  useGetProductsQuery,
-} from "@/lib/store/api";
-import { useItemFavorites } from "@/lib/hooks/useItemFavorites";
 import styles from "./page.module.css";
 import cx from "clsx";
 import {
@@ -193,22 +187,15 @@ export default function ProductPage() {
     return Number.isFinite(n) && n > 0 ? n : null;
   })();
 
-  const {
-    data: apiProduct,
-    isLoading: isProductLoading,
-    isError: isProductError,
-  } = useGetProductByIdQuery(productIdNum ?? "", {
-    skip: productIdNum == null,
-  });
-
-  const { data: categoriesWithTypes } = useGetCategoriesWithTypesQuery();
-  const { data: brands } = useGetBrandsQuery();
-  const [addCartItem] = useAddCartItemMutation();
-
-  const { favoriteItemIds, toggleFavorite } = useItemFavorites("product");
-
-  const CART_STORAGE_KEY = "loyaltymarket_cart_v1";
-  const CART_UPDATED_EVENT = "loyaltymarket_cart_updated";
+  // Static placeholders (API removed)
+  const apiProduct = null;
+  const isProductLoading = false;
+  const isProductError = false;
+  const categoriesWithTypes = [];
+  const brands = [];
+  const addCartItem = async () => {};
+  const favoriteItemIds = EMPTY_SET;
+  const toggleFavorite = NOOP;
 
   const [selectedSize, setSelectedSize] = useState(null);
   const [quantity, setQuantity] = useState(1);
@@ -294,46 +281,13 @@ export default function ProductPage() {
   }, [apiProduct]);
   const availableSizes = sizes;
 
-  const forYouParams = useMemo(() => {
-    if (!apiProduct) return null;
-    if (apiProduct.brand_id != null) {
-      return { brand_id: apiProduct.brand_id, skip: 0, limit: 12 };
-    }
-    if (apiProduct.category_id != null) {
-      return { category_id: apiProduct.category_id, skip: 0, limit: 12 };
-    }
-    return null;
-  }, [apiProduct]);
-
-  const similarParams = useMemo(() => {
-    if (!apiProduct) return null;
-    if (apiProduct.type_id != null) {
-      return { type_id: apiProduct.type_id, skip: 0, limit: 12 };
-    }
-    if (apiProduct.category_id != null) {
-      return { category_id: apiProduct.category_id, skip: 0, limit: 12 };
-    }
-    return null;
-  }, [apiProduct]);
-
-  const needForYou = recommendedTab === "Для вас";
-  const needSimilar = recommendedTab === "Похожие";
-
-  const {
-    data: forYouRaw,
-    isFetching: isForYouFetching,
-    isLoading: isForYouLoading,
-  } = useGetProductsQuery(forYouParams ?? {}, {
-    skip: !needForYou || !forYouParams,
-  });
-
-  const {
-    data: similarRaw,
-    isFetching: isSimilarFetching,
-    isLoading: isSimilarLoading,
-  } = useGetProductsQuery(similarParams ?? {}, {
-    skip: !needSimilar || !similarParams,
-  });
+  // Static placeholders for recommended products (API removed)
+  const forYouRaw = [];
+  const isForYouFetching = false;
+  const isForYouLoading = false;
+  const similarRaw = [];
+  const isSimilarFetching = false;
+  const isSimilarLoading = false;
 
   const forYouProducts = useMemo(() => {
     const list = extractProductsList(forYouRaw);
@@ -429,85 +383,11 @@ export default function ProductPage() {
   };
 
   const handleAddToCart = async () => {
-    if (productIdNum == null) return;
-    const qty = Math.max(1, Math.floor(Number(quantity || 1)));
-
-    try {
-      const image =
-        getProductPhotoCandidates(apiProduct)[0] ?? productImages?.[0] ?? "";
-      const meta = {
-        image,
-        size: selectedSize ?? "",
-        shippingText: apiProduct?.delivery
-          ? `Доставка из ${apiProduct.delivery} до РФ 0₽`
-          : "",
-        deliveryText: buildDeliveryTextFromProduct(apiProduct),
-        article: String(
-          apiProduct?.article ??
-            apiProduct?.sku ??
-            apiProduct?.vendor_code ??
-            apiProduct?.id ??
-            "",
-        ),
-      };
-      const key = "loyaltymarket_cart_meta_v1";
-      const existingRaw = localStorage.getItem(key);
-      const existing = existingRaw ? JSON.parse(existingRaw) : {};
-      const map = existing && typeof existing === "object" ? existing : {};
-      map[String(productIdNum)] = meta;
-      localStorage.setItem(key, JSON.stringify(map));
-      window.dispatchEvent(new Event("loyaltymarket_cart_meta_updated"));
-    } catch {
-      // ignore
-    }
-
-    try {
-      await addCartItem({ product_id: productIdNum, quantity: qty }).unwrap();
-    } catch (e) {
-      console.error("Не удалось добавить в корзину", e);
-    }
+    // TODO: подключить API
   };
 
   const handleBuyNow = async () => {
-    if (productIdNum == null) return;
-    const qty = Math.max(1, Math.floor(Number(quantity || 1)));
-
-    try {
-      const image =
-        getProductPhotoCandidates(apiProduct)[0] ?? productImages?.[0] ?? "";
-      const meta = {
-        image,
-        size: selectedSize ?? "",
-        shippingText: apiProduct?.delivery
-          ? `Доставка из ${apiProduct.delivery} до РФ 0₽`
-          : "",
-        deliveryText: buildDeliveryTextFromProduct(apiProduct),
-        article: String(
-          apiProduct?.article ??
-            apiProduct?.sku ??
-            apiProduct?.vendor_code ??
-            apiProduct?.id ??
-            "",
-        ),
-      };
-      const key = "loyaltymarket_cart_meta_v1";
-      const existingRaw = localStorage.getItem(key);
-      const existing = existingRaw ? JSON.parse(existingRaw) : {};
-      const map = existing && typeof existing === "object" ? existing : {};
-      map[String(productIdNum)] = meta;
-      localStorage.setItem(key, JSON.stringify(map));
-      window.dispatchEvent(new Event("loyaltymarket_cart_meta_updated"));
-    } catch {
-      // ignore
-    }
-
-    try {
-      await addCartItem({ product_id: productIdNum, quantity: qty }).unwrap();
-    } catch (e) {
-      console.error("Не удалось добавить в корзину", e);
-      return;
-    }
-    router.push("/trash");
+    // TODO: подключить API
   };
 
   const copyText = async (text) => {

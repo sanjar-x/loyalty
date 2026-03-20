@@ -1,4 +1,5 @@
 "use client";
+const EMPTY_SET = new Set();
 import React, { useMemo, useState } from "react";
 import Footer from "@/components/layout/Footer";
 import FavoriteBrandsSection from "@/components/blocks/favorites/brands/FavoriteBrandsSection";
@@ -6,8 +7,6 @@ import BrandsSearch from "@/components/blocks/favorites/brands/BrandsSearch";
 import AllBrandsList from "@/components/blocks/favorites/brands/AllBrandsList";
 import styles from "./page.module.css";
 
-import { useGetBrandsQuery } from "@/lib/store/api";
-import { useItemFavorites } from "@/lib/hooks/useItemFavorites";
 import {
   buildBackendAssetUrl,
   buildBrandLogoUrl,
@@ -50,8 +49,9 @@ function getBrandLogoCandidates(brand) {
 export default function BrandsPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: brandsData } = useGetBrandsQuery();
-  const { favoriteItemIds, toggleFavorite } = useItemFavorites("brand");
+  const brandsData = [];
+  const favoriteItemIds = EMPTY_SET;
+  const toggleFavorite = () => {};
 
   const allBrands = useMemo(() => {
     const rows = Array.isArray(brandsData) ? brandsData : [];

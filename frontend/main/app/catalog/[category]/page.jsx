@@ -4,8 +4,6 @@ import { useParams } from "next/navigation";
 import Image from "next/image";
 import SearchBar from "@/components/blocks/search/SearchBar";
 
-import { useGetCategoriesWithTypesQuery } from "@/lib/store/api";
-
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import CatalogTabs from "@/components/blocks/catalog/CatalogTabs";
@@ -34,11 +32,9 @@ export default function CategoryPage() {
   const categoryParamRaw = params?.category;
   const categoryParam = safeDecode(categoryParamRaw);
 
-  const {
-    data: categoriesWithTypes,
-    isLoading,
-    isError,
-  } = useGetCategoriesWithTypesQuery();
+  const categoriesWithTypes = [];
+  const isLoading = false;
+  const isError = false;
 
   const legacyNameByKey = {
     clothes: "Одежда",
@@ -116,7 +112,7 @@ export default function CategoryPage() {
     );
   }
 
-  if (isError || !category) {
+  if (isError) {
     return (
       <div className={styles.error}>
         <p>Категория не найдена</p>

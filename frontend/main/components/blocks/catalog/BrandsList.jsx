@@ -2,8 +2,6 @@
 import Image from "next/image";
 import { useMemo } from "react";
 
-import { useGetBrandsQuery } from "@/lib/store/api";
-
 import styles from "./BrandsList.module.css";
 
 function getLetter(name) {
@@ -37,7 +35,9 @@ function groupBrands(brands) {
 }
 
 export default function BrandsList() {
-  const { data: brandsData, isLoading } = useGetBrandsQuery();
+  // TODO: подключить API
+  const brandsData = [];
+  const isLoading = false;
 
   const groups = useMemo(() => groupBrands(brandsData), [brandsData]);
 
@@ -76,12 +76,10 @@ export default function BrandsList() {
       <div className={styles.groups}>
         {groups.map((group) => (
           <div key={group.letter} className={styles.group}>
-            {/* Буква */}
             <div className={styles.letterBar}>
               <span className={styles.letter}>{group.letter}</span>
             </div>
 
-            {/* Список брендов */}
             <div className={styles.list}>
               {group.brands.map((brand, brandIndex) => (
                 <div key={brand.id}>

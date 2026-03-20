@@ -3,7 +3,6 @@
 import Footer from "@/components/layout/Footer";
 import ProfileHeader from "@/components/blocks/profile/ProfileHeader";
 import MenuSection from "@/components/blocks/profile/ProfileMenuSection";
-import { useGetMeQuery } from "@/lib/store/api";
 import styles from "./page.module.css";
 import cx from "clsx";
 
@@ -30,7 +29,7 @@ function MenuIcon({ src, alt = "" }) {
 }
 
 export default function ProfilePage() {
-  const { data: me, isLoading, isFetching } = useGetMeQuery();
+  const me = null, isLoading = false, isFetching = false;
 
   const tgUnsafeUser =
     typeof window !== "undefined"

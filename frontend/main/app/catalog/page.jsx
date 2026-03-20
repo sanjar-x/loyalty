@@ -4,8 +4,6 @@ import Image from "next/image";
 import SearchBar from "@/components/blocks/search/SearchBar";
 import { useState } from "react";
 
-import { useGetCategoriesQuery } from "@/lib/store/api";
-
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import CatalogTabs from "@/components/blocks/catalog/CatalogTabs";
@@ -14,8 +12,8 @@ import BrandsList from "@/components/blocks/catalog/BrandsList";
 import styles from "./page.module.css";
 
 export default function CatalogPage() {
-  const { data: categoriesData, isLoading: isCategoriesLoading } =
-    useGetCategoriesQuery();
+  const categoriesData = [];
+  const isCategoriesLoading = false;
 
   const normalize = (v) =>
     String(v ?? "")

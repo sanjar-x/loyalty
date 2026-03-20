@@ -1,4 +1,5 @@
 "use client";
+const EMPTY_SET = new Set();
 
 import {
   useCallback,
@@ -9,7 +10,7 @@ import {
   Suspense,
 } from "react";
 import { useSearchParams } from "next/navigation";
-import { ListFilter, Search, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
 
 import Footer from "@/components/layout/Footer";
 import Container from "@/components/layout/Layout";
@@ -20,16 +21,6 @@ import PriceSheet from "@/components/blocks/search/PriceSheet";
 import FiltersSheet from "@/components/blocks/search/FiltersSheet";
 import { cn } from "@/lib/format/cn";
 
-import {
-  useGetBrandsQuery,
-  useGetCategoriesQuery,
-  useGetCategoriesWithTypesQuery,
-  useCreateSearchHistoryMutation,
-  useGetSearchHistoryQuery,
-  useGetSearchSuggestionsQuery,
-} from "@/lib/store/api";
-
-import { useItemFavorites } from "@/lib/hooks/useItemFavorites";
 import {
   buildBackendAssetUrl,
   buildProductPhotoUrl,
@@ -79,7 +70,8 @@ function SearchPageContent() {
   });
   const [original, setOriginal] = useState(false);
 
-  const { favoriteItemIds, toggleFavorite } = useItemFavorites("product");
+  const favoriteItemIds = EMPTY_SET;
+  const toggleFavorite = () => {};
   const onToggleFavorite = useCallback(
     (id) => toggleFavorite(id),
     [toggleFavorite],
@@ -87,17 +79,15 @@ function SearchPageContent() {
   const [baseProducts, setBaseProducts] = useState([]);
   const [isProductsLoading, setIsProductsLoading] = useState(false);
 
-  const {
-    data: searchHistoryRaw,
-    isLoading: isHistoryLoading,
-    isFetching: isHistoryFetching,
-  } = useGetSearchHistoryQuery(undefined, {
-    skip: historyCleared || normalize(query).length > 0,
-    refetchOnFocus: false,
-    refetchOnReconnect: false,
-  });
+  const searchHistoryRaw = [];
+  const isHistoryLoading = false;
+  const isHistoryFetching = false;
 
-  const [createSearchHistory] = useCreateSearchHistoryMutation();
+  const createSearchHistory = () => {};
+
+  const suggestRaw = [];
+  const isSuggestLoading = false;
+  const isSuggestFetching = false;
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => inputRef.current?.focus?.());
@@ -128,16 +118,6 @@ function SearchPageContent() {
     }, 220);
     return () => window.clearTimeout(t);
   }, [query, showSuggestions]);
-
-  const {
-    data: suggestRaw,
-    isLoading: isSuggestLoading,
-    isFetching: isSuggestFetching,
-  } = useGetSearchSuggestionsQuery(debouncedQuery, {
-    skip: !showSuggestions || !normalize(debouncedQuery),
-    refetchOnFocus: false,
-    refetchOnReconnect: false,
-  });
 
   const serverSuggestions = useMemo(() => {
     if (!Array.isArray(suggestRaw)) return [];
@@ -227,9 +207,9 @@ function SearchPageContent() {
     return Number.isFinite(n) ? n : 0;
   };
 
-  const { data: categoriesData } = useGetCategoriesQuery();
-  const { data: categoriesWithTypesData } = useGetCategoriesWithTypesQuery();
-  const { data: brandsData } = useGetBrandsQuery();
+  const categoriesData = [];
+  const categoriesWithTypesData = [];
+  const brandsData = [];
 
   const categories = useMemo(() => {
     if (!Array.isArray(categoriesData)) return [];
@@ -244,7 +224,7 @@ function SearchPageContent() {
       String(a.name).localeCompare(String(b.name)),
     );
     return [
-      
+
       ...values.map((c) => ({ value: c.id, label: c.name })),
     ];
   }, [categories]);
@@ -534,97 +514,8 @@ function SearchPageContent() {
   );
 
   useEffect(() => {
-    if (!searchKey) {
-      setBaseProducts([]);
-      setIsProductsLoading(false);
-      return;
-    }
-
-    const parsed = JSON.parse(searchKey);
-    const q = String(parsed.q || "");
-    if (!q) {
-      setBaseProducts([]);
-      setIsProductsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    const controller = new AbortController();
-
-    const run = async () => {
-      setIsProductsLoading(true);
-      const matches = [];
-
-      const limit = 100;
-      let skip = 0;
-      const maxPages = 10; // safety cap
-      const need = 60;
-
-      try {
-        for (let page = 0; page < maxPages; page++) {
-          if (cancelled) return;
-
-          const sp = new URLSearchParams();
-          sp.set("skip", String(skip));
-          sp.set("limit", String(limit));
-          if (parsed.categoryId != null)
-            sp.set("category_id", String(parsed.categoryId));
-          if (parsed.typeId != null) sp.set("type_id", String(parsed.typeId));
-          if (parsed.brandId != null)
-            sp.set("brand_id", String(parsed.brandId));
-          if (parsed.priceMin != null)
-            sp.set("price_min", String(parsed.priceMin));
-          if (parsed.priceMax != null)
-            sp.set("price_max", String(parsed.priceMax));
-
-          const res = await fetch(
-            `/api/backend/api/v1/products?${sp.toString()}`,
-            {
-              method: "GET",
-              credentials: "include",
-              signal: controller.signal,
-              headers: { accept: "application/json" },
-            },
-          );
-
-          if (!res.ok) break;
-
-          const json = await res.json();
-          const items = Array.isArray(json)
-            ? json
-            : Array.isArray(json?.items)
-              ? json.items
-              : [];
-
-          const mapped = items.map(mapProductToUiBase).filter(Boolean);
-
-          for (const p of mapped) {
-            const hay = normalize(`${p.name} ${p.brand}`);
-            if (hay.includes(q)) matches.push(p);
-            if (matches.length >= need) break;
-          }
-
-          if (matches.length >= need) break;
-          if (items.length < limit) break; // end of list
-
-          skip += limit;
-        }
-      } catch (e) {
-        // ignore abort/errors; UI will just show empty
-      } finally {
-        if (!cancelled) {
-          setBaseProducts(matches.slice(0, 60));
-          setIsProductsLoading(false);
-        }
-      }
-    };
-
-    run();
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
+    setBaseProducts([]);
+    setIsProductsLoading(false);
   }, [searchKey, mapProductToUiBase, normalize]);
 
   const productsForUi = useMemo(() => {
@@ -769,13 +660,13 @@ function SearchPageContent() {
                     role="option"
                     aria-selected="false"
                   >
-                    <button>
+                    <span>
                       <Search
                         size={18}
                         className={styles.suggestItemIcon}
                         aria-hidden="true"
                       />
-                    </button>
+                    </span>
                     {renderSuggestionLabel(label)}
                   </button>
                 ))

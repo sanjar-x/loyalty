@@ -10,13 +10,6 @@ import InviteLinkActions from "./InviteLinkActions";
 import PromoCouponCard from "./PromoCouponCard";
 import styles from "./page.module.css";
 
-import {
-  useGetMyActiveDiscountQuery,
-  useGetMyInvitedUsersQuery,
-  useGetMyReferralLinkQuery,
-  useGetMyReferralStatsQuery,
-} from "@/lib/store/api";
-
 function formatRuDateTime(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -52,26 +45,10 @@ function isExistingStatus(status) {
 }
 
 export default function InviteFriends() {
-  const {
-    data: linkData,
-    isLoading: isLinkLoading,
-    isFetching: isLinkFetching,
-  } = useGetMyReferralLinkQuery();
-  const {
-    data: invitedData,
-    isLoading: isInvitedLoading,
-    isFetching: isInvitedFetching,
-  } = useGetMyInvitedUsersQuery();
-  const {
-    data: discountData,
-    isLoading: isDiscountLoading,
-    isFetching: isDiscountFetching,
-  } = useGetMyActiveDiscountQuery();
-  const {
-    data: statsData,
-    isLoading: isStatsLoading,
-    isFetching: isStatsFetching,
-  } = useGetMyReferralStatsQuery();
+  const linkData = {}, isLinkLoading = false, isLinkFetching = false;
+  const invitedData = {}, isInvitedLoading = false, isInvitedFetching = false;
+  const discountData = {}, isDiscountLoading = false, isDiscountFetching = false;
+  const statsData = {}, isStatsLoading = false, isStatsFetching = false;
 
   const inviteUrl = linkData?.link || "";
   const stats = {

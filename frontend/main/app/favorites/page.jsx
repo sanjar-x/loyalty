@@ -8,12 +8,6 @@ import ProductSection from "@/components/blocks/product/ProductSection";
 import styles from "./page.module.css";
 
 import {
-  useGetBrandsQuery,
-  useGetProductsByIdsQuery,
-  useGetProductsQuery,
-} from "@/lib/store/api";
-import { useItemFavorites } from "@/lib/hooks/useItemFavorites";
-import {
   buildBackendAssetUrl,
   buildBrandLogoUrl,
   buildProductPhotoUrl,
@@ -53,10 +47,13 @@ function getBrandLogoCandidates(brand) {
   ]);
 }
 
+const EMPTY_SET = new Set();
+const NOOP = () => {};
+
 export default function FavoritesPage() {
-  const { data: brandsData } = useGetBrandsQuery();
-  const brandFav = useItemFavorites("brand");
-  const productFav = useItemFavorites("product");
+  const brandsData = [];
+  const brandFav = { favoriteItemIds: EMPTY_SET, toggleFavorite: NOOP };
+  const productFav = { favoriteItemIds: EMPTY_SET, toggleFavorite: NOOP };
 
   const brands = useMemo(() => {
     const rows = Array.isArray(brandsData) ? brandsData : [];
@@ -78,23 +75,10 @@ export default function FavoritesPage() {
       .filter((b) => b.id != null);
   }, [brandFav.favoriteItemIds, brandsData]);
 
-  const favoriteProductIds = useMemo(() => {
-    const ids = Array.from(productFav.favoriteItemIds);
-    // Important: keep deterministic order.
-    // RTK Query caches by serialized args; different order => cache miss => refetch/flicker.
-    return ids
-      .map((x) => {
-        const n = Number(x);
-        return Number.isFinite(n) ? n : null;
-      })
-      .filter((x) => x != null)
-      .sort((a, b) => a - b);
-  }, [productFav.favoriteItemIds]);
+  const favoriteProductIds = [];
 
-  const { data: favoriteProductsRaw, isLoading: isFavoriteProductsLoading } =
-    useGetProductsByIdsQuery(favoriteProductIds, {
-      skip: favoriteProductIds.length === 0,
-    });
+  const favoriteProductsRaw = [];
+  const isFavoriteProductsLoading = false;
 
   const formatRub = (amount) => {
     const n = Number(amount);
@@ -159,11 +143,9 @@ export default function FavoritesPage() {
       .filter(Boolean);
   }, [favoriteProductsRaw]);
 
-  const {
-    data: forYouRaw,
-    isLoading: isForYouLoading,
-    isFetching: isForYouFetching,
-  } = useGetProductsQuery({ skip: 0, limit: 8 });
+  const forYouRaw = [];
+  const isForYouLoading = false;
+  const isForYouFetching = false;
 
   const recommendedProducts = useMemo(() => {
     const rows = Array.isArray(forYouRaw) ? forYouRaw : [];
@@ -216,16 +198,7 @@ export default function FavoritesPage() {
     [productFav],
   );
 
-  const isFavoritesBootstrapping =
-    Boolean(
-      brandFav.isLoading ||
-      brandFav.isFetching ||
-      productFav.isLoading ||
-      productFav.isFetching,
-    ) &&
-    // If we already have something in-memory (cache/optimistic), don't block UI.
-    favoriteProductIds.length === 0 &&
-    !brands.some((b) => b.isFavorite);
+  const isFavoritesBootstrapping = false;
 
   const hasFavorites =
     favoriteProductIds.length > 0 || brands.some((b) => b.isFavorite);
