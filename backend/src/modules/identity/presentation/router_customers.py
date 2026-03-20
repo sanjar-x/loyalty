@@ -100,6 +100,8 @@ async def list_customers(
                 last_name=item.last_name,
                 phone=item.phone,
                 referral_code=item.referral_code,
+                username=item.username,
+                auth_methods=item.auth_methods,
                 roles=item.roles,
                 is_active=item.is_active,
                 created_at=item.created_at,

@@ -23,6 +23,8 @@ class CustomerListItem(BaseModel):
         last_name: Customer's last name.
         phone: Customer's phone number, if available.
         referral_code: Customer's unique referral code.
+        username: Customer's username, if available.
+        auth_methods: List of auth methods (e.g. 'local', 'google', 'telegram').
         roles: List of role names assigned to this identity.
         is_active: Whether the identity is currently active.
         created_at: When the identity was created.
@@ -34,6 +36,8 @@ class CustomerListItem(BaseModel):
     last_name: str
     phone: str | None
     referral_code: str | None
+    username: str | None = None
+    auth_methods: list[str] = []
     roles: list[str]
     is_active: bool
     created_at: datetime
@@ -137,7 +141,8 @@ class ListCustomersHandler:
         sort_dir = "ASC" if query.sort_order == "asc" else "DESC"
         list_sql = (
             "SELECT i.id AS identity_id, lc.email, i.is_active, "
-            "c.first_name, c.last_name, c.phone, c.referral_code, i.created_at "
+            "c.first_name, c.last_name, c.phone, c.referral_code, "
+            "c.username, i.created_at "
             "FROM identities i "
             "LEFT JOIN local_credentials lc ON lc.identity_id = i.id "
             "JOIN customers c ON c.id = i.id"
@@ -162,19 +167,36 @@ class ListCustomersHandler:
         for rr in role_rows:
             roles_by_identity.setdefault(rr["identity_id"], []).append(rr["name"])
 
-        items = [
-            CustomerListItem(
-                identity_id=row["identity_id"],
-                email=row["email"],
-                first_name=row["first_name"] or "",
-                last_name=row["last_name"] or "",
-                phone=row["phone"],
-                referral_code=row["referral_code"],
-                roles=roles_by_identity.get(row["identity_id"], []),
-                is_active=row["is_active"],
-                created_at=row["created_at"],
+        # Batch query: auth methods per customer
+        la_stmt = text(
+            "SELECT identity_id, provider FROM linked_accounts WHERE identity_id = ANY(:ids)"
+        )
+        la_result = await self._session.execute(la_stmt, {"ids": identity_ids})
+        providers_by_identity: dict[uuid.UUID, list[str]] = {}
+        for la_row in la_result.mappings():
+            providers_by_identity.setdefault(la_row["identity_id"], []).append(la_row["provider"])
+
+        items = []
+        for row in rows:
+            auth_methods: list[str] = []
+            if row["email"]:
+                auth_methods.append("local")
+            auth_methods.extend(providers_by_identity.get(row["identity_id"], []))
+
+            items.append(
+                CustomerListItem(
+                    identity_id=row["identity_id"],
+                    email=row["email"],
+                    first_name=row["first_name"] or "",
+                    last_name=row["last_name"] or "",
+                    phone=row["phone"],
+                    referral_code=row["referral_code"],
+                    username=row["username"],
+                    auth_methods=auth_methods,
+                    roles=roles_by_identity.get(row["identity_id"], []),
+                    is_active=row["is_active"],
+                    created_at=row["created_at"],
+                )
             )
-            for row in rows
-        ]
 
         return CustomerListResult(items=items, total=total, offset=query.offset, limit=query.limit)
