@@ -19,7 +19,7 @@ from src.modules.identity.domain.interfaces import (
     IRoleRepository,
     ISessionRepository,
 )
-from src.modules.identity.domain.value_objects import IdentityType
+from src.modules.identity.domain.value_objects import PrimaryAuthMethod
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.security import IOIDCProvider, ITokenProvider
 from src.shared.interfaces.uow import IUnitOfWork
@@ -119,7 +119,7 @@ class LoginOIDCHandler:
                 identity.ensure_active()
             else:
                 # Create new identity and linked account
-                identity = Identity.register(IdentityType.OIDC)
+                identity = Identity.register(PrimaryAuthMethod.OIDC)
                 await self._identity_repo.add(identity)
 
                 from src.modules.identity.domain.entities import LinkedAccount
