@@ -12,7 +12,7 @@ from sqlalchemy.orm import joinedload
 
 from src.modules.identity.domain.entities import Identity, LocalCredentials
 from src.modules.identity.domain.interfaces import IIdentityRepository
-from src.modules.identity.domain.value_objects import AccountType, IdentityType
+from src.modules.identity.domain.value_objects import AccountType, PrimaryAuthMethod
 from src.modules.identity.infrastructure.models import (
     IdentityModel,
     LocalCredentialsModel,
@@ -36,13 +36,14 @@ class IdentityRepository(IIdentityRepository):
         """
         return Identity(
             id=orm.id,
-            type=IdentityType(orm.type),
+            type=PrimaryAuthMethod(orm.primary_auth_method),
             account_type=AccountType(orm.account_type),
             is_active=orm.is_active,
             created_at=orm.created_at,
             updated_at=orm.updated_at,
             deactivated_at=orm.deactivated_at,
             deactivated_by=orm.deactivated_by,
+            token_version=orm.token_version,
         )
 
     def _credentials_to_domain(self, orm: LocalCredentialsModel) -> LocalCredentials:
@@ -73,9 +74,10 @@ class IdentityRepository(IIdentityRepository):
         """
         orm = IdentityModel(
             id=identity.id,
-            type=identity.type.value,
+            primary_auth_method=identity.type.value,
             account_type=identity.account_type.value,
             is_active=identity.is_active,
+            token_version=identity.token_version,
         )
         self._session.add(orm)
         await self._session.flush()
@@ -201,6 +203,7 @@ class IdentityRepository(IIdentityRepository):
                 deactivated_at=identity.deactivated_at,
                 deactivated_by=identity.deactivated_by,
                 updated_at=identity.updated_at,
+                token_version=identity.token_version,
             )
         )
         await self._session.execute(stmt)
