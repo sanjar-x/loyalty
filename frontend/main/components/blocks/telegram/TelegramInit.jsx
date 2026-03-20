@@ -6,7 +6,7 @@ import {
   getBrowserDebugTelegramUser,
   getBrowserDebugUser,
   isBrowserDebugAuthEnabled,
-} from "@/lib/telegram/browserDebugAuth";
+} from "@/lib/auth/browserDebugAuth";
 
 const INIT_DATA_EVENT = "lm:telegram:initdata";
 

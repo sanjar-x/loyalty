@@ -4,7 +4,7 @@ import { handoffStore } from "../_handoffStore";
 import {
   randomHandoffCode,
   validateTelegramInitDataOrThrow,
-} from "@/lib/telegram/authServer";
+} from "@/lib/auth/telegram";
 
 export async function POST(req) {
   const botToken = process.env.TG_BOT_TOKEN;

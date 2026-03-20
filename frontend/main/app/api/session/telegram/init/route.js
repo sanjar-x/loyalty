@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 import {
   isBrowserDebugAuthEnabled,
   normalizeBrowserDebugUser,
-} from "@/lib/telegram/browserDebugAuth";
-import { validateTelegramInitDataOrThrow } from "@/lib/telegram/authServer";
+} from "@/lib/auth/browserDebugAuth";
+import { validateTelegramInitDataOrThrow } from "@/lib/auth/telegram";
 
 const ACCESS_COOKIE = "lm_access_token";
 

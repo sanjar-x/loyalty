@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { handoffStore } from "../_handoffStore";
-import { signHs256Jwt } from "@/lib/telegram/authServer";
+import { signHs256Jwt } from "@/lib/auth/telegram";
 
 function getCookieDomain() {
   const domain = process.env.COOKIE_DOMAIN;

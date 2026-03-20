@@ -1,4 +1,19 @@
-const BROWSER_DEBUG_USER = Object.freeze({
+interface BrowserDebugUser {
+  tg_id: string;
+  username: string;
+  id: number;
+  registration_date: string;
+  points: number;
+  level: string;
+  [key: string]: unknown;
+}
+
+interface BrowserDebugTelegramUser {
+  id: number | string;
+  username: string;
+}
+
+const BROWSER_DEBUG_USER: Readonly<BrowserDebugUser> = Object.freeze({
   tg_id: "7427756366",
   username: "yokub_janovich",
   id: 2,
@@ -7,7 +22,7 @@ const BROWSER_DEBUG_USER = Object.freeze({
   level: "стартовый",
 });
 
-export function isBrowserDebugAuthEnabled() {
+export function isBrowserDebugAuthEnabled(): boolean {
   // Default: enabled in local dev.
   if (process.env.NODE_ENV !== "production") return true;
 
@@ -25,14 +40,19 @@ export function isBrowserDebugAuthEnabled() {
   return false;
 }
 
-export function normalizeBrowserDebugUser(value) {
+export function normalizeBrowserDebugUser(
+  value: Record<string, unknown> | null | undefined,
+): BrowserDebugUser | null {
   const source =
     value && typeof value === "object"
       ? { ...BROWSER_DEBUG_USER, ...value }
       : null;
   if (!source) return null;
 
-  const tgIdRaw = source.tg_id ?? source.tgId ?? source.telegram_id;
+  const tgIdRaw =
+    (source as Record<string, unknown>).tg_id ??
+    (source as Record<string, unknown>).tgId ??
+    (source as Record<string, unknown>).telegram_id;
   const tgId =
     typeof tgIdRaw === "number"
       ? String(tgIdRaw)
@@ -55,11 +75,13 @@ export function normalizeBrowserDebugUser(value) {
   };
 }
 
-export function getBrowserDebugUser() {
-  return normalizeBrowserDebugUser(BROWSER_DEBUG_USER);
+export function getBrowserDebugUser(): BrowserDebugUser | null {
+  return normalizeBrowserDebugUser(
+    BROWSER_DEBUG_USER as unknown as Record<string, unknown>,
+  );
 }
 
-export function getBrowserDebugTelegramUser() {
+export function getBrowserDebugTelegramUser(): BrowserDebugTelegramUser | null {
   const user = getBrowserDebugUser();
   if (!user) return null;
 

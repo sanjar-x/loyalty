@@ -2,7 +2,24 @@ import "server-only";
 
 import crypto from "node:crypto";
 
-function base64UrlEncode(buf) {
+interface JwtHeader {
+  alg: string;
+  typ: string;
+}
+
+interface ParsedInitData {
+  params: Record<string, string>;
+  user: Record<string, unknown> | null;
+  authDate: number | null;
+}
+
+interface ValidateOptions {
+  initData: string;
+  botToken: string;
+  maxAgeSeconds?: number;
+}
+
+function base64UrlEncode(buf: Buffer): string {
   return buf
     .toString("base64")
     .replace(/\+/g, "-")
@@ -10,12 +27,15 @@ function base64UrlEncode(buf) {
     .replace(/=+$/g, "");
 }
 
-function base64UrlEncodeJson(value) {
+function base64UrlEncodeJson(value: unknown): string {
   return base64UrlEncode(Buffer.from(JSON.stringify(value), "utf8"));
 }
 
-export function signHs256Jwt(payload, secret) {
-  const header = { alg: "HS256", typ: "JWT" };
+export function signHs256Jwt(
+  payload: Record<string, unknown>,
+  secret: string,
+): string {
+  const header: JwtHeader = { alg: "HS256", typ: "JWT" };
   const encodedHeader = base64UrlEncodeJson(header);
   const encodedPayload = base64UrlEncodeJson(payload);
   const data = `${encodedHeader}.${encodedPayload}`;
@@ -23,10 +43,10 @@ export function signHs256Jwt(payload, secret) {
   return `${data}.${base64UrlEncode(sig)}`;
 }
 
-export function parseTelegramInitData(initData) {
+export function parseTelegramInitData(initData: string): ParsedInitData {
   const params = Object.fromEntries(new URLSearchParams(initData).entries());
   const userRaw = params.user;
-  let user = null;
+  let user: Record<string, unknown> | null = null;
   if (typeof userRaw === "string") {
     try {
       user = JSON.parse(userRaw);
@@ -48,10 +68,10 @@ export function parseTelegramInitData(initData) {
   };
 }
 
-function parseTelegramInitDataPreservePlus(initData) {
-  const params = {};
+function parseTelegramInitDataPreservePlus(initData: string): ParsedInitData {
+  const params: Record<string, string> = {};
 
-  const decode = (value) => {
+  const decode = (value: string): string => {
     if (typeof value !== "string") return "";
     try {
       return decodeURIComponent(value);
@@ -73,7 +93,7 @@ function parseTelegramInitDataPreservePlus(initData) {
   }
 
   const userRaw = params.user;
-  let user = null;
+  let user: Record<string, unknown> | null = null;
   if (typeof userRaw === "string") {
     try {
       user = JSON.parse(userRaw);
@@ -95,8 +115,8 @@ function parseTelegramInitDataPreservePlus(initData) {
   };
 }
 
-function buildTelegramDataCheckString(params) {
-  const checkPairs = [];
+function buildTelegramDataCheckString(params: Record<string, string>): string {
+  const checkPairs: [string, string][] = [];
   for (const [k, v] of Object.entries(params || {})) {
     if (k === "hash") continue;
     checkPairs.push([k, String(v)]);
@@ -109,7 +129,7 @@ export function validateTelegramInitDataOrThrow({
   initData,
   botToken,
   maxAgeSeconds = 300,
-}) {
+}: ValidateOptions): ParsedInitData {
   if (!initData || typeof initData !== "string") {
     throw new Error("Missing initData");
   }
@@ -158,7 +178,7 @@ export function validateTelegramInitDataOrThrow({
     .update("WebAppData")
     .digest();
 
-  const verifyCandidate = (candidate) => {
+  const verifyCandidate = (candidate: ParsedInitData): boolean => {
     const receivedRaw = candidate?.params?.hash;
     if (!receivedRaw) return false;
 
@@ -195,6 +215,6 @@ export function validateTelegramInitDataOrThrow({
   throw new Error("Invalid initData signature");
 }
 
-export function randomHandoffCode() {
+export function randomHandoffCode(): string {
   return base64UrlEncode(crypto.randomBytes(32));
 }
