@@ -70,6 +70,7 @@ class LoginHandler:
         logger: ILogger,
         max_sessions: int = 5,
         refresh_token_days: int = 30,
+        idle_timeout_minutes: int = 30,
     ) -> None:
         self._identity_repo = identity_repo
         self._session_repo = session_repo
@@ -80,6 +81,7 @@ class LoginHandler:
         self._logger = logger.bind(handler="LoginHandler")
         self._max_sessions = max_sessions
         self._refresh_token_days = refresh_token_days
+        self._idle_timeout_minutes = idle_timeout_minutes
 
     async def handle(self, command: LoginCommand) -> LoginResult:
         """Execute the login command.
@@ -151,6 +153,7 @@ class LoginHandler:
                 user_agent=command.user_agent,
                 role_ids=role_ids,
                 expires_days=self._refresh_token_days,
+                idle_timeout_minutes=self._idle_timeout_minutes,
             )
             await self._session_repo.add(session)
             await self._session_repo.add_session_roles(session.id, role_ids)
@@ -160,6 +163,7 @@ class LoginHandler:
                 payload_data={
                     "sub": str(identity.id),
                     "sid": str(session.id),
+                    "tv": identity.token_version,
                 },
             )
 
