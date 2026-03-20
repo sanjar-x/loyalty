@@ -58,6 +58,7 @@ class Identity(AggregateRoot):
     updated_at: datetime
     deactivated_at: datetime | None = None
     deactivated_by: uuid.UUID | None = None
+    token_version: int = 1
 
     @classmethod
     def register(
@@ -149,6 +150,11 @@ class Identity(AggregateRoot):
         """
         if not self.is_active:
             raise IdentityDeactivatedError()
+
+    def bump_token_version(self) -> None:
+        """Increment token version to invalidate all outstanding JWTs."""
+        self.token_version += 1
+        self.updated_at = datetime.now(UTC)
 
 
 @dataclass
