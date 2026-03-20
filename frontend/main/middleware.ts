@@ -1,7 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const ACCESS_COOKIE = "lm_access_token";
-
 function isPublicPath(pathname: string): boolean {
   // API routes handle their own auth logic
   if (pathname.startsWith("/api/")) return true;

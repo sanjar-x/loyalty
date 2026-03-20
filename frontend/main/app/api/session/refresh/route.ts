@@ -33,7 +33,7 @@ function serializeCookie(
   opts: { maxAge?: number; domain?: string; path?: string; httpOnly?: boolean; secure?: boolean; sameSite?: string },
 ): string {
   const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
-  if (opts.maxAge) parts.push(`Max-Age=${Math.floor(opts.maxAge)}`);
+  if (opts.maxAge !== undefined) parts.push(`Max-Age=${Math.floor(opts.maxAge)}`);
   if (opts.domain) parts.push(`Domain=${opts.domain}`);
   if (opts.path) parts.push(`Path=${opts.path}`);
   if (opts.httpOnly) parts.push("HttpOnly");

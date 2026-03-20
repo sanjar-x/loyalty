@@ -93,7 +93,7 @@ function serializeCookie(
   },
 ): string {
   const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
-  if (opts.maxAge) parts.push(`Max-Age=${Math.floor(opts.maxAge)}`);
+  if (opts.maxAge !== undefined) parts.push(`Max-Age=${Math.floor(opts.maxAge)}`);
   if (opts.domain) parts.push(`Domain=${opts.domain}`);
   if (opts.path) parts.push(`Path=${opts.path}`);
   if (opts.httpOnly) parts.push("HttpOnly");
@@ -191,16 +191,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         );
       }
 
+      const refreshToken = debugJson?.refreshToken;
+      if (typeof refreshToken !== "string" || !refreshToken) {
+        // Debug backend does not support refresh tokens — set access token
+        // with a long Max-Age so dev sessions survive. This is dev-only.
+        const res = NextResponse.json(
+          { ok: true, isNewUser: false, debug: true },
+          { status: 200 },
+        );
+        setTokenCookies(res, accessToken, accessToken);
+        return res;
+      }
+
       const res = NextResponse.json(
         { ok: true, isNewUser: false, debug: true },
         { status: 200 },
       );
-
-      const refreshToken =
-        typeof debugJson?.refreshToken === "string"
-          ? debugJson.refreshToken
-          : accessToken;
-
       setTokenCookies(res, accessToken, refreshToken);
       return res;
     }

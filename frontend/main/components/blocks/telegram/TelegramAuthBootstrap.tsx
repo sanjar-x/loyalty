@@ -64,11 +64,14 @@ export default function TelegramAuthBootstrap(): null {
       body.debugUser = getBrowserDebugUser();
     }
 
+    const controller = new AbortController();
+
     fetch("/api/session/telegram/init", {
       method: "POST",
       headers: { "content-type": "application/json" },
       credentials: "include",
       body: JSON.stringify(body),
+      signal: controller.signal,
     })
       .then(async (res) => {
         if (!res.ok) {
@@ -83,9 +86,15 @@ export default function TelegramAuthBootstrap(): null {
         );
       })
       .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
         dispatch(initFailure(err instanceof Error ? err.message : "Auth error"));
         calledRef.current = false; // Allow retry
       });
+
+    return () => {
+      controller.abort();
+      calledRef.current = false; // Reset for StrictMode remount
+    };
   }, [dispatch, authStatus]);
 
   return null;

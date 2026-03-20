@@ -39,7 +39,10 @@ const baseQueryWithReauth: BaseQueryFn<
 > = async (args, api, extraOptions) => {
   let result = await rawBaseQuery(args, api, extraOptions);
 
-  if (result.error && result.error.status === 401) {
+  const reqUrl = typeof args === "string" ? args : args?.url;
+  const isSessionRoute = typeof reqUrl === "string" && reqUrl.startsWith("/api/session/");
+
+  if (result.error && result.error.status === 401 && !isSessionRoute) {
     // Attempt silent refresh
     const refreshResult = await rawBaseQuery(
       { url: "/api/session/refresh", method: "POST" },
