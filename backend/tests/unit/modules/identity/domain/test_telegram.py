@@ -7,15 +7,34 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.modules.identity.domain.value_objects import IdentityType, TelegramUserData
+from src.modules.identity.domain.value_objects import (
+    AuthProvider,
+    IdentityType,
+    PrimaryAuthMethod,
+    TRUSTED_EMAIL_PROVIDERS,
+    TelegramUserData,
+)
 
 
-class TestIdentityTypeTelegram:
-    def test_telegram_type_exists(self):
-        assert IdentityType.TELEGRAM == "TELEGRAM"
+class TestPrimaryAuthMethod:
+    def test_telegram_value(self):
+        assert PrimaryAuthMethod.TELEGRAM == "TELEGRAM"
+        assert PrimaryAuthMethod.TELEGRAM.value == "TELEGRAM"
 
-    def test_telegram_type_is_string(self):
-        assert isinstance(IdentityType.TELEGRAM, str)
+    def test_all_methods(self):
+        assert set(PrimaryAuthMethod) == {PrimaryAuthMethod.LOCAL, PrimaryAuthMethod.OIDC, PrimaryAuthMethod.TELEGRAM}
+
+
+class TestAuthProvider:
+    def test_values(self):
+        assert AuthProvider.TELEGRAM == "telegram"
+        assert AuthProvider.GOOGLE == "google"
+        assert AuthProvider.APPLE == "apple"
+
+    def test_trusted_email_providers(self):
+        assert AuthProvider.GOOGLE in TRUSTED_EMAIL_PROVIDERS
+        assert AuthProvider.APPLE in TRUSTED_EMAIL_PROVIDERS
+        assert AuthProvider.TELEGRAM not in TRUSTED_EMAIL_PROVIDERS
 
 
 class TestTelegramUserData:
