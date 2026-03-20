@@ -242,3 +242,33 @@ class SessionRepository(ISessionRepository):
         )
         result = await self._session.execute(stmt)
         return [row[0] for row in result.all()]
+
+    async def revoke_oldest_active(self, identity_id: uuid.UUID) -> uuid.UUID | None:
+        """Revoke the oldest active session to make room for a new one.
+
+        Args:
+            identity_id: The identity whose oldest session to revoke.
+
+        Returns:
+            The revoked session ID for cache invalidation, or None if no active session.
+        """
+        now = datetime.now(UTC)
+        stmt = (
+            select(SessionModel.id)
+            .where(
+                SessionModel.identity_id == identity_id,
+                SessionModel.is_revoked.is_(False),
+                SessionModel.expires_at > now,
+            )
+            .order_by(SessionModel.created_at.asc())
+            .limit(1)
+        )
+        session_id = (await self._session.execute(stmt)).scalar_one_or_none()
+        if session_id is None:
+            return None
+        await self._session.execute(
+            update(SessionModel)
+            .where(SessionModel.id == session_id)
+            .values(is_revoked=True)
+        )
+        return session_id
