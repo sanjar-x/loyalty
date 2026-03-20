@@ -82,7 +82,7 @@ export default function TelegramAuthBootstrap(): null {
 
     const controller = new AbortController();
 
-    fetch("/api/session/telegram/init", {
+    fetch("/api/session/auth", {
       method: "POST",
       headers: { "content-type": "application/json" },
       credentials: "include",
