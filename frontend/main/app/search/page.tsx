@@ -1,5 +1,5 @@
 "use client";
-const EMPTY_SET = new Set();
+const EMPTY_SET: Set<number | string> = new Set();
 
 import {
   useCallback,
@@ -22,26 +22,114 @@ import FiltersSheet from "@/components/blocks/search/FiltersSheet";
 import { cn } from "@/lib/format/cn";
 
 import {
+  getProductPhotoCandidates,
   buildBackendAssetUrl,
   buildProductPhotoUrl,
-} from "@/lib/format/backendAssets";
+} from "@/lib/format/product-image";
 
 import styles from "./page.module.css";
 
-function SearchPageContent() {
-  const inputRef = useRef(null);
-  const searchParams = useSearchParams();
-  const [query, setQuery] = useState("");
-  const [submittedQuery, setSubmittedQuery] = useState("");
-  const [isFocused, setIsFocused] = useState(false);
-  const [hasTyped, setHasTyped] = useState(false);
-  const blurCloseTimerRef = useRef(null);
-  const [historyCleared, setHistoryCleared] = useState(false);
+interface ApiProduct {
+  id?: number | string;
+  name?: string;
+  title?: string;
+  product_name?: string;
+  model?: string;
+  price?: number | string;
+  price_rub?: number | string;
+  amount?: number | string;
+  brand?: string | { name?: string };
+  brand_name?: string;
+  delivery?: string;
+  deliveryDate?: string;
+  delivery_date?: string;
+  image?: string;
+  image_url?: string;
+  photo?: string;
+  photo_url?: string;
+  images?: Array<string | { filename?: string; file?: string; path?: string; url?: string }>;
+  photos?: Array<string | { filename?: string; file?: string; path?: string; url?: string }>;
+  isFavorite?: boolean;
+  is_favorite?: boolean;
+  is_favourite?: boolean;
+  rating?: number;
+  installment?: unknown;
+}
 
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+interface ProductUiBase {
+  id: number | string;
+  name: string;
+  price: string;
+  image: string;
+  brand: string;
+  deliveryDate: string;
+  serverIsFavorite: boolean;
+  rating?: number;
+  installment?: unknown;
+  imageFallbacks: string[];
+}
+
+interface ProductUi extends ProductUiBase {
+  isFavorite: boolean;
+}
+
+interface SearchHistoryItem {
+  query?: string;
+  searched_at?: string;
+}
+
+interface CategoryItem {
+  id?: number | string;
+  name?: string;
+  title?: string;
+  label?: string;
+}
+
+interface CategoryWithTypes {
+  name?: string;
+  title?: string;
+  label?: string;
+  types?: Array<{ id?: number | string; name?: string; title?: string; label?: string }>;
+  items?: unknown;
+}
+
+interface BrandItem {
+  id?: number | string;
+  name?: string;
+  title?: string;
+  label?: string;
+}
+
+interface SelectOption {
+  value?: number | string;
+  label?: string;
+  kind?: string;
+}
+
+interface PriceRange {
+  min: number | null;
+  max: number | null;
+}
+
+interface DeliveryState {
+  inStock: boolean;
+  fromChina: boolean;
+}
+
+function SearchPageContent(): React.JSX.Element {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const searchParams = useSearchParams();
+  const [query, setQuery] = useState<string>("");
+  const [submittedQuery, setSubmittedQuery] = useState<string>("");
+  const [isFocused, setIsFocused] = useState<boolean>(false);
+  const [hasTyped, setHasTyped] = useState<boolean>(false);
+  const blurCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [historyCleared, setHistoryCleared] = useState<boolean>(false);
+
+  const [debouncedQuery, setDebouncedQuery] = useState<string>("");
 
   const normalize = useCallback(
-    (value) =>
+    (value: string | null | undefined): string =>
       String(value || "")
         .trim()
         .replace(/\s+/g, " ")
@@ -49,43 +137,43 @@ function SearchPageContent() {
     [],
   );
 
-  const [sortOpen, setSortOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [categoryOpen, setCategoryOpen] = useState(false);
-  const [typeOpen, setTypeOpen] = useState(false);
-  const [brandOpen, setBrandOpen] = useState(false);
-  const [priceOpen, setPriceOpen] = useState(false);
+  const [sortOpen, setSortOpen] = useState<boolean>(false);
+  const [filtersOpen, setFiltersOpen] = useState<boolean>(false);
+  const [categoryOpen, setCategoryOpen] = useState<boolean>(false);
+  const [typeOpen, setTypeOpen] = useState<boolean>(false);
+  const [brandOpen, setBrandOpen] = useState<boolean>(false);
+  const [priceOpen, setPriceOpen] = useState<boolean>(false);
 
-  const reopenFiltersAfterPickerRef = useRef(false);
+  const reopenFiltersAfterPickerRef = useRef<boolean>(false);
 
-  const [sort, setSort] = useState("popular");
-  const [categoryId, setCategoryId] = useState(null);
-  const [typeIds, setTypeIds] = useState([]);
-  const [brandIds, setBrandIds] = useState([]);
-  const [priceRange, setPriceRange] = useState({ min: null, max: null });
+  const [sort, setSort] = useState<string>("popular");
+  const [categoryId, setCategoryId] = useState<number | string | null>(null);
+  const [typeIds, setTypeIds] = useState<Array<number | string>>([]);
+  const [brandIds, setBrandIds] = useState<Array<number | string>>([]);
+  const [priceRange, setPriceRange] = useState<PriceRange>({ min: null, max: null });
 
-  const [delivery, setDelivery] = useState({
+  const [delivery, setDelivery] = useState<DeliveryState>({
     inStock: false,
     fromChina: false,
   });
-  const [original, setOriginal] = useState(false);
+  const [original, setOriginal] = useState<boolean>(false);
 
   const favoriteItemIds = EMPTY_SET;
-  const toggleFavorite = () => {};
+  const toggleFavorite = (_id: number | string): void => {};
   const onToggleFavorite = useCallback(
-    (id) => toggleFavorite(id),
+    (id: number | string) => toggleFavorite(id),
     [toggleFavorite],
   );
-  const [baseProducts, setBaseProducts] = useState([]);
-  const [isProductsLoading, setIsProductsLoading] = useState(false);
+  const [baseProducts, setBaseProducts] = useState<ProductUiBase[]>([]);
+  const [isProductsLoading, setIsProductsLoading] = useState<boolean>(false);
 
-  const searchHistoryRaw = [];
+  const searchHistoryRaw: SearchHistoryItem[] = [];
   const isHistoryLoading = false;
   const isHistoryFetching = false;
 
-  const createSearchHistory = () => {};
+  const createSearchHistory = (_params: { query: string; parameters: unknown }): void => {};
 
-  const suggestRaw = [];
+  const suggestRaw: string[] = [];
   const isSuggestLoading = false;
   const isSuggestFetching = false;
 
@@ -138,8 +226,8 @@ function SearchPageContent() {
       return (Number.isFinite(bd) ? bd : 0) - (Number.isFinite(ad) ? ad : 0);
     });
 
-    const seen = new Set();
-    const out = [];
+    const seen = new Set<string>();
+    const out: string[] = [];
     for (const it of byDate) {
       const label = String(it?.query ?? "").trim();
       if (!label) continue;
@@ -170,7 +258,7 @@ function SearchPageContent() {
     (isHistoryLoading || isHistoryFetching) &&
     (!Array.isArray(recent) || recent.length === 0);
 
-  const SuggestSkeleton = () => {
+  const SuggestSkeleton = (): React.JSX.Element => {
     const widths = [78, 64, 86, 58, 72, 90];
     return (
       <div className={styles.skelSuggestList} aria-hidden="true">
@@ -187,7 +275,7 @@ function SearchPageContent() {
     );
   };
 
-  const RecentSkeleton = () => {
+  const RecentSkeleton = (): React.JSX.Element => {
     const widths = [92, 70, 84, 60, 78, 66];
     return (
       <div className={styles.skelChips} aria-hidden="true">
@@ -202,14 +290,14 @@ function SearchPageContent() {
     );
   };
 
-  const priceToNumber = (value) => {
+  const priceToNumber = (value: string | number | null | undefined): number => {
     const n = Number(String(value || "").replace(/[^0-9]/g, ""));
     return Number.isFinite(n) ? n : 0;
   };
 
-  const categoriesData = [];
-  const categoriesWithTypesData = [];
-  const brandsData = [];
+  const categoriesData: CategoryItem[] = [];
+  const categoriesWithTypesData: CategoryWithTypes[] = [];
+  const brandsData: BrandItem[] = [];
 
   const categories = useMemo(() => {
     if (!Array.isArray(categoriesData)) return [];
@@ -219,22 +307,21 @@ function SearchPageContent() {
       .filter((c) => c.id != null && String(c.name).trim());
   }, [categoriesData]);
 
-  const categoryOptions = useMemo(() => {
+  const categoryOptions = useMemo((): SelectOption[] => {
     const values = [...categories].sort((a, b) =>
       String(a.name).localeCompare(String(b.name)),
     );
     return [
-
       ...values.map((c) => ({ value: c.id, label: c.name })),
     ];
   }, [categories]);
 
-  const typeOptions = useMemo(() => {
+  const typeOptions = useMemo((): SelectOption[] => {
     if (!categoriesWithTypesData) return [];
 
-    const items = [];
+    const items: SelectOption[] = [];
 
-    const pushCategory = (label, types) => {
+    const pushCategory = (label: string, types: Array<{ id?: number | string; name?: string; title?: string; label?: string }>) => {
       if (!label) return;
       items.push({ kind: "section", label: String(label).toUpperCase() });
       for (const t of types) {
@@ -251,8 +338,8 @@ function SearchPageContent() {
     // 2) {items:[...]}
     const root = Array.isArray(categoriesWithTypesData)
       ? categoriesWithTypesData
-      : Array.isArray(categoriesWithTypesData?.items)
-        ? categoriesWithTypesData.items
+      : Array.isArray((categoriesWithTypesData as Record<string, unknown>)?.items)
+        ? (categoriesWithTypesData as Record<string, unknown>).items as CategoryWithTypes[]
         : [];
 
     for (const c of root) {
@@ -273,7 +360,7 @@ function SearchPageContent() {
       .filter((b) => b.id != null && String(b.name).trim());
   }, [brandsData]);
 
-  const brandOptions = useMemo(() => {
+  const brandOptions = useMemo((): SelectOption[] => {
     const values = [...brandsList].sort((a, b) =>
       String(a.name).localeCompare(String(b.name)),
     );
@@ -286,7 +373,8 @@ function SearchPageContent() {
     return hit?.name ?? String(categoryId);
   }, [categories, categoryId]);
 
-  const formatNum = (n) => (n == null ? "" : Number(n).toLocaleString("ru-RU"));
+  const formatNum = (n: number | string | null | undefined): string =>
+    n == null ? "" : Number(n).toLocaleString("ru-RU");
 
   const priceLabel = useMemo(() => {
     const min = priceRange?.min ?? null;
@@ -299,14 +387,14 @@ function SearchPageContent() {
   }, [priceRange?.max, priceRange?.min]);
 
   const brandIdToName = useMemo(() => {
-    const m = new Map();
+    const m = new Map<string, string>();
     for (const b of brandsList) m.set(String(b.id), String(b.name));
     return m;
   }, [brandsList]);
 
   const typeIdToName = useMemo(() => {
-    const m = new Map();
-    const collect = (arr) => {
+    const m = new Map<string, string>();
+    const collect = (arr: SelectOption[]) => {
       for (const it of arr) {
         if (!it || typeof it !== "object") continue;
         if (it.kind === "section") continue;
@@ -332,7 +420,7 @@ function SearchPageContent() {
     return `${first} +${typeIds.length - 1}`;
   }, [typeIdToName, typeIds]);
 
-  const commitSearch = (value) => {
+  const commitSearch = (value: string): void => {
     const next = String(value || "").trim();
     if (!next) return;
 
@@ -365,7 +453,7 @@ function SearchPageContent() {
     }
   };
 
-  const renderSuggestionLabel = (label) => {
+  const renderSuggestionLabel = (label: string): React.JSX.Element => {
     const q = normalize(query);
     const hay = label;
     const hayLower = hay.toLowerCase();
@@ -388,28 +476,7 @@ function SearchPageContent() {
 
   // onToggleFavorite is memoized above
 
-  const searchKey = useMemo(() => {
-    const q = normalize(submittedQuery);
-    if (!q) return null;
-    return JSON.stringify({
-      q,
-      categoryId,
-      typeId: Array.isArray(typeIds) && typeIds.length ? typeIds[0] : null,
-      brandId: Array.isArray(brandIds) && brandIds.length ? brandIds[0] : null,
-      priceMin: priceRange?.min ?? null,
-      priceMax: priceRange?.max ?? null,
-    });
-  }, [
-    brandIds,
-    categoryId,
-    normalize,
-    priceRange?.max,
-    priceRange?.min,
-    submittedQuery,
-    typeIds,
-  ]);
-
-  const formatPrice = useCallback((value) => {
+  const formatPrice = useCallback((value: number | string | null | undefined): string => {
     if (value == null) return "";
     if (typeof value === "string") {
       const s = value.trim();
@@ -421,8 +488,9 @@ function SearchPageContent() {
     return `${Math.trunc(n).toLocaleString("ru-RU")} ₽`;
   }, []);
 
-  const getProductPhotoCandidates = useCallback((product) => {
-    const candidates = [];
+  const localGetProductPhotoCandidates = useCallback((product: ApiProduct | null | undefined): string[] => {
+    if (!product) return [];
+    const candidates: string[] = [];
 
     const rawDirect =
       (typeof product?.image === "string" ? product.image : "") ||
@@ -461,7 +529,7 @@ function SearchPageContent() {
       new Set(candidates.filter((x) => typeof x === "string" && x.trim())),
     );
 
-    const out = [];
+    const out: string[] = [];
     for (const src of uniq) {
       out.push(
         buildProductPhotoUrl(src),
@@ -475,15 +543,36 @@ function SearchPageContent() {
     return out.filter((x) => typeof x === "string" && x.trim());
   }, []);
 
+  const searchKey = useMemo(() => {
+    const q = normalize(submittedQuery);
+    if (!q) return null;
+    return JSON.stringify({
+      q,
+      categoryId,
+      typeId: Array.isArray(typeIds) && typeIds.length ? typeIds[0] : null,
+      brandId: Array.isArray(brandIds) && brandIds.length ? brandIds[0] : null,
+      priceMin: priceRange?.min ?? null,
+      priceMax: priceRange?.max ?? null,
+    });
+  }, [
+    brandIds,
+    categoryId,
+    normalize,
+    priceRange?.max,
+    priceRange?.min,
+    submittedQuery,
+    typeIds,
+  ]);
+
   const mapProductToUiBase = useCallback(
-    (p) => {
+    (p: ApiProduct | null | undefined): ProductUiBase | null => {
       if (!p || typeof p !== "object") return null;
       const id = p.id;
       if (id == null) return null;
 
       const name = p.name ?? p.title ?? p.product_name ?? p.model ?? "";
 
-      const candidates = getProductPhotoCandidates(p);
+      const candidates = localGetProductPhotoCandidates(p);
       const image = candidates[0] ?? "";
       const imageFallbacks = candidates.slice(1);
 
@@ -510,7 +599,7 @@ function SearchPageContent() {
         imageFallbacks,
       };
     },
-    [formatPrice, getProductPhotoCandidates],
+    [formatPrice, localGetProductPhotoCandidates],
   );
 
   useEffect(() => {
@@ -518,7 +607,7 @@ function SearchPageContent() {
     setIsProductsLoading(false);
   }, [searchKey, mapProductToUiBase, normalize]);
 
-  const productsForUi = useMemo(() => {
+  const productsForUi = useMemo((): ProductUi[] => {
     return baseProducts.map((p) => ({
       ...p,
       isFavorite: Boolean(p.serverIsFavorite || favoriteItemIds.has(p.id)),
@@ -526,8 +615,8 @@ function SearchPageContent() {
   }, [baseProducts, favoriteItemIds]);
 
   const priceBounds = useMemo(() => {
-    let min = null;
-    let max = null;
+    let min: number | null = null;
+    let max: number | null = null;
     for (const p of productsForUi) {
       const price = priceToNumber(p.price);
       if (!price) continue;
@@ -561,7 +650,7 @@ function SearchPageContent() {
     return base;
   }, [productsForUi, sort, submittedQuery, normalize]);
 
-  const closeTypeSheet = () => {
+  const closeTypeSheet = (): void => {
     setTypeOpen(false);
     if (reopenFiltersAfterPickerRef.current) {
       reopenFiltersAfterPickerRef.current = false;
@@ -569,7 +658,7 @@ function SearchPageContent() {
     }
   };
 
-  const closeBrandSheet = () => {
+  const closeBrandSheet = (): void => {
     setBrandOpen(false);
     if (reopenFiltersAfterPickerRef.current) {
       reopenFiltersAfterPickerRef.current = false;
@@ -578,14 +667,14 @@ function SearchPageContent() {
   };
 
   const filterCategories = useMemo(() => {
-    const set = new Set(["Одежда", "Обувь", "Аксессуары"]);
+    const set = new Set<string>(["Одежда", "Обувь", "Аксессуары"]);
     for (const opt of categoryOptions) {
       if (opt?.label) set.add(opt.label);
     }
     return Array.from(set).slice(0, 3);
   }, [categoryOptions]);
 
-  const [isSearchActivated, setSearchActivated] = useState(false);
+  const [isSearchActivated, setSearchActivated] = useState<boolean>(false);
 
   return (
     <main className={cn("tg-viewport", styles.page)}>
@@ -605,7 +694,7 @@ function SearchPageContent() {
             actionAriaLabel="Искать"
             onAction={() => commitSearch(query)}
             value={query}
-            onChange={(e) => {
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
               setQuery(e.target.value);
               setHasTyped(true);
               setSearchActivated(true);
@@ -625,7 +714,7 @@ function SearchPageContent() {
                 blurCloseTimerRef.current = null;
               }, 150);
             }}
-            onKeyDown={(e) => {
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
               if (e.key === "Enter") {
                 e.preventDefault();
                 commitSearch(query);
@@ -652,7 +741,7 @@ function SearchPageContent() {
                     key={label}
                     type="button"
                     className={styles.suggestItem}
-                    onMouseDown={(e) => {
+                    onMouseDown={(e: React.MouseEvent) => {
                       // Prevent input blur before click.
                       e.preventDefault();
                     }}
@@ -961,7 +1050,7 @@ function SearchPageContent() {
             { value: "price_desc", label: "Подороже" },
           ]}
           value={sort}
-          onApply={(v) => setSort(v)}
+          onApply={(v: string) => setSort(v)}
         />
 
         <SelectSheet
@@ -970,7 +1059,7 @@ function SearchPageContent() {
           title="Категория"
           options={categoryOptions}
           value={categoryId}
-          onApply={(v) => setCategoryId(v ?? null)}
+          onApply={(v: string | null) => setCategoryId(v ?? null)}
         />
 
         <SelectSheet
@@ -982,7 +1071,7 @@ function SearchPageContent() {
           control="check"
           showSelectedChips
           value={typeIds}
-          onApply={(v) => setTypeIds(Array.isArray(v) ? v : [])}
+          onApply={(v: Array<number | string> | unknown) => setTypeIds(Array.isArray(v) ? v : [])}
           isTypeModule={true}
         />
 
@@ -996,7 +1085,7 @@ function SearchPageContent() {
           searchable
           searchPlaceholder="Найти бренд"
           groupBy="alpha"
-          onApply={(v) => setBrandIds(Array.isArray(v) ? v : [])}
+          onApply={(v: Array<number | string> | unknown) => setBrandIds(Array.isArray(v) ? v : [])}
         />
 
         <PriceSheet
@@ -1006,7 +1095,7 @@ function SearchPageContent() {
           value={priceRange}
           minPlaceholder={priceBounds.min}
           maxPlaceholder={priceBounds.max}
-          onApply={(v) => setPriceRange(v)}
+          onApply={(v: PriceRange) => setPriceRange(v)}
         />
 
         <FiltersSheet
@@ -1026,7 +1115,14 @@ function SearchPageContent() {
             original,
           }}
           priceBounds={priceBounds}
-          onApply={(next) => {
+          onApply={(next: {
+            category?: string | null;
+            types?: string[];
+            brands?: string[];
+            priceRange?: PriceRange;
+            delivery?: DeliveryState;
+            original?: boolean;
+          }) => {
             // Пока FiltersSheet работает со строковыми значениями.
             // Сбрасываем selection на "sheet"-уровне через отдельные пикеры.
             if (next.category == null) setCategoryId(null);
@@ -1054,7 +1150,7 @@ function SearchPageContent() {
   );
 }
 
-export default function SearchPage() {
+export default function SearchPage(): React.JSX.Element {
   return (
     <Suspense fallback={<div>Загрузка...</div>}>
       <SearchPageContent />

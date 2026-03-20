@@ -8,54 +8,69 @@ import ProductSection from "@/components/blocks/product/ProductSection";
 import styles from "./page.module.css";
 
 import {
+  getProductPhotoCandidates,
   buildBackendAssetUrl,
-  buildBrandLogoUrl,
   buildProductPhotoUrl,
-} from "@/lib/format/backendAssets";
+} from "@/lib/format/product-image";
+import { getBrandLogoCandidates } from "@/lib/format/brand-image";
+import { formatRubPrice } from "@/lib/format/price";
 
-function uniqStrings(arr) {
-  const out = [];
-  const seen = new Set();
-  for (const v of arr) {
-    const s = typeof v === "string" ? v : "";
-    if (!s) continue;
-    if (seen.has(s)) continue;
-    seen.add(s);
-    out.push(s);
-  }
-  return out;
+interface ApiBrand {
+  id?: number | string;
+  name?: string;
+  logo?: string;
 }
 
-function getBrandLogoCandidates(brand) {
-  const id = brand?.id;
-  const logo = brand?.logo;
-
-  const byPath = buildBrandLogoUrl(logo);
-
-  const byId =
-    id != null
-      ? `/api/backend/api/v1/brands/${encodeURIComponent(String(id))}/logo`
-      : "";
-
-  return uniqStrings([
-    byPath,
-    byId,
-    buildBackendAssetUrl(logo),
-    buildBackendAssetUrl(logo, ["media"]),
-    buildBackendAssetUrl(logo, ["static"]),
-    buildBackendAssetUrl(logo, ["uploads"]),
-  ]);
+interface ApiProduct {
+  id?: number | string;
+  name?: string;
+  price?: number | string;
+  brand?: string | { name?: string };
+  brand_name?: string;
+  delivery?: string;
+  photos?: Array<string | { filename?: string; file?: string; path?: string; url?: string }>;
+  is_favourite?: boolean;
+  is_favorite?: boolean;
+  isFavorite?: boolean;
+  image?: string;
+  image_url?: string;
+  photo?: string;
+  photo_url?: string;
 }
 
-const EMPTY_SET = new Set();
-const NOOP = () => {};
+interface BrandUi {
+  id: number | string | undefined;
+  name: string;
+  image: string;
+  imageFallbacks: string[];
+  isFavorite: boolean;
+}
 
-export default function FavoritesPage() {
-  const brandsData = [];
-  const brandFav = { favoriteItemIds: EMPTY_SET, toggleFavorite: NOOP };
-  const productFav = { favoriteItemIds: EMPTY_SET, toggleFavorite: NOOP };
+interface ProductUi {
+  id: number | string;
+  name: string;
+  brand: string;
+  price: string;
+  image: string;
+  imageFallbacks: string[];
+  isFavorite: boolean;
+  deliveryDate: string;
+}
 
-  const brands = useMemo(() => {
+interface FavState {
+  favoriteItemIds: Set<number | string>;
+  toggleFavorite: (id: number | string) => void;
+}
+
+const EMPTY_SET: Set<number | string> = new Set();
+const NOOP = (): void => {};
+
+export default function FavoritesPage(): React.JSX.Element {
+  const brandsData: ApiBrand[] = [];
+  const brandFav: FavState = { favoriteItemIds: EMPTY_SET, toggleFavorite: NOOP };
+  const productFav: FavState = { favoriteItemIds: EMPTY_SET, toggleFavorite: NOOP };
+
+  const brands = useMemo((): BrandUi[] => {
     const rows = Array.isArray(brandsData) ? brandsData : [];
     return rows
       .map((b) => {
@@ -69,41 +84,18 @@ export default function FavoritesPage() {
           name,
           image,
           imageFallbacks,
-          isFavorite: brandFav.favoriteItemIds.has(id),
+          isFavorite: brandFav.favoriteItemIds.has(id as number | string),
         };
       })
       .filter((b) => b.id != null);
   }, [brandFav.favoriteItemIds, brandsData]);
 
-  const favoriteProductIds = [];
+  const favoriteProductIds: number[] = [];
 
-  const favoriteProductsRaw = [];
+  const favoriteProductsRaw: ApiProduct[] = [];
   const isFavoriteProductsLoading = false;
 
-  const formatRub = (amount) => {
-    const n = Number(amount);
-    if (!Number.isFinite(n)) return "";
-    const formatted = Math.round(n)
-      .toString()
-      .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-    return `${formatted} ₽`;
-  };
-
-  const getProductPhotoCandidates = (product) => {
-    const photos = Array.isArray(product?.photos) ? product.photos : [];
-    const filename = photos?.[0]?.filename;
-    const raw = typeof filename === "string" ? filename.trim() : "";
-    if (!raw) return [];
-    return [
-      buildProductPhotoUrl(raw),
-      buildBackendAssetUrl(raw, ["media"]),
-      buildBackendAssetUrl(raw, ["static"]),
-      buildBackendAssetUrl(raw, ["uploads"]),
-      buildBackendAssetUrl(raw),
-    ].filter(Boolean);
-  };
-
-  const favoriteProducts = useMemo(() => {
+  const favoriteProducts = useMemo((): ProductUi[] => {
     const rows = Array.isArray(favoriteProductsRaw) ? favoriteProductsRaw : [];
     return rows
       .map((p) => {
@@ -133,21 +125,21 @@ export default function FavoritesPage() {
           id,
           name: String(p?.name ?? ""),
           brand: String(brandName || ""),
-          price: formatRub(p?.price),
+          price: formatRubPrice(p?.price),
           image,
           imageFallbacks,
           isFavorite: Boolean(serverIsFavorite ?? true),
           deliveryDate,
         };
       })
-      .filter(Boolean);
+      .filter((p): p is ProductUi => p !== null);
   }, [favoriteProductsRaw]);
 
-  const forYouRaw = [];
+  const forYouRaw: ApiProduct[] = [];
   const isForYouLoading = false;
   const isForYouFetching = false;
 
-  const recommendedProducts = useMemo(() => {
+  const recommendedProducts = useMemo((): ProductUi[] => {
     const rows = Array.isArray(forYouRaw) ? forYouRaw : [];
     return (
       rows
@@ -174,15 +166,16 @@ export default function FavoritesPage() {
             id,
             name: String(p?.name ?? ""),
             brand: String(brandName || ""),
-            price: formatRub(p?.price),
+            price: formatRubPrice(p?.price),
             image,
             imageFallbacks,
             isFavorite: Boolean(
-              (serverIsFavorite ?? false) || productFav.favoriteItemIds.has(id),
+              (serverIsFavorite ?? false) || productFav.favoriteItemIds.has(id as number | string),
             ),
+            deliveryDate: "",
           };
         })
-        .filter(Boolean)
+        .filter((p): p is ProductUi => p !== null)
         // On Favorites page, 'Для вас' should suggest only non-favorited items.
         // Once user favorites an item, it should move into Favorites list.
         .filter((p) => !p.isFavorite)
@@ -190,11 +183,11 @@ export default function FavoritesPage() {
   }, [forYouRaw, productFav.favoriteItemIds]);
 
   const handleToggleBrandFavorite = useCallback(
-    (id) => brandFav.toggleFavorite(id),
+    (id: number | string) => brandFav.toggleFavorite(id),
     [brandFav],
   );
   const handleToggleProductFavorite = useCallback(
-    (id) => productFav.toggleFavorite(id),
+    (id: number | string) => productFav.toggleFavorite(id),
     [productFav],
   );
 

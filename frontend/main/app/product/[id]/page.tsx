@@ -1,6 +1,6 @@
 "use client";
-const EMPTY_SET = new Set();
-const NOOP = () => {};
+const EMPTY_SET: Set<number> = new Set();
+const NOOP = (): void => {};
 import React, { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Footer from "@/components/layout/Footer";
@@ -18,102 +18,139 @@ import ProductBrandsCarousel from "@/components/blocks/product/ProductBrandsCaro
 import styles from "./page.module.css";
 import cx from "clsx";
 import {
+  getProductPhotoCandidates,
   buildBackendAssetUrl,
-  buildBrandLogoUrl,
   buildProductPhotoUrl,
-} from "@/lib/format/backendAssets";
+} from "@/lib/format/product-image";
+import { getBrandLogoCandidates, buildBrandLogoUrl } from "@/lib/format/brand-image";
+import { formatRubPrice } from "@/lib/format/price";
 
-function uniqStrings(arr) {
-  const out = [];
-  const seen = new Set();
-  for (const v of arr) {
-    const s = typeof v === "string" ? v : "";
-    if (!s) continue;
-    if (seen.has(s)) continue;
-    seen.add(s);
-    out.push(s);
-  }
-  return out;
+interface ApiProduct {
+  id?: number;
+  name?: string;
+  price?: number | string;
+  brand?: string | { id?: number | string; name?: string; title?: string; logo?: string };
+  brand_name?: string;
+  brand_id?: number | string;
+  category_id?: number | string;
+  type_id?: number | string;
+  delivery?: string;
+  deliveryDate?: string;
+  delivery_date?: string;
+  deliverySub?: string;
+  delivery_sub?: string;
+  image?: string;
+  image_url?: string;
+  photo?: string;
+  photo_url?: string;
+  photos?: Array<string | { filename?: string; file?: string; path?: string; url?: string }>;
+  sizes?: Array<{ size?: string }>;
+  is_favourite?: boolean;
+  is_favorite?: boolean;
+  isFavorite?: boolean;
 }
 
-function getBrandLogoCandidates(brand) {
-  const id = brand?.id;
-  const logo =
-    brand?.logo ??
-    brand?.logo_path ??
-    brand?.logoUrl ??
-    brand?.image ??
-    brand?.image_url;
-
-  const byPath = buildBrandLogoUrl(logo);
-
-  const byId =
-    id != null
-      ? `/api/backend/api/v1/brands/${encodeURIComponent(String(id))}/logo`
-      : "";
-
-  return uniqStrings([
-    byPath,
-    byId,
-    buildBackendAssetUrl(logo),
-    buildBackendAssetUrl(logo, ["media"]),
-    buildBackendAssetUrl(logo, ["static"]),
-    buildBackendAssetUrl(logo, ["uploads"]),
-  ]);
+interface ProductCard {
+  id: number | string;
+  name: string;
+  price: string;
+  image: string;
+  imageFallbacks: string[];
+  brand: string;
+  deliveryDate: string;
+  isFavorite: boolean;
 }
 
-function formatRub(amount) {
-  const n = Number(amount);
-  if (!Number.isFinite(n)) return "—";
-  const formatted = Math.round(n)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  return `${formatted} ₽`;
+interface Review {
+  id: number;
+  userName: string;
+  avatar: string;
+  date: string;
+  rating: number;
+  productName?: string;
+  pros: string;
+  cons: string;
 }
 
-function extractProductsList(data) {
+interface InfoCardItem {
+  title: string;
+  icon: string;
+}
+
+interface BrandCarouselItem {
+  id: number | string | undefined;
+  name: string;
+  subtitle: string;
+  image: string;
+  imageFallbacks: string[];
+  href: string;
+}
+
+interface CategoryWithTypes {
+  id?: number | string;
+  name?: string;
+  types?: Array<{ id?: number | string; name?: string }>;
+}
+
+interface BrandItem {
+  id?: number | string;
+  name?: string;
+  title?: string;
+  logo?: string;
+}
+
+function extractProductsList(data: unknown): ApiProduct[] {
   if (Array.isArray(data)) return data;
   if (data && typeof data === "object") {
-    if (Array.isArray(data.items)) return data.items;
-    if (Array.isArray(data.results)) return data.results;
+    if (Array.isArray((data as Record<string, unknown>).items))
+      return (data as Record<string, unknown>).items as ApiProduct[];
+    if (Array.isArray((data as Record<string, unknown>).results))
+      return (data as Record<string, unknown>).results as ApiProduct[];
   }
   return [];
 }
 
-function getProductPhotoCandidates(product) {
-  const candidates = [];
+function mapApiProductToCard(
+  product: ApiProduct | null | undefined,
+  favoriteIds: Set<number>,
+): ProductCard | null {
+  if (!product || typeof product !== "object") return null;
+  const id = product.id;
+  if (id == null) return null;
 
-  const rawDirect =
-    (typeof product?.image === "string" ? product.image : "") ||
-    (typeof product?.image_url === "string" ? product.image_url : "") ||
-    (typeof product?.photo === "string" ? product.photo : "") ||
-    (typeof product?.photo_url === "string" ? product.photo_url : "");
-  if (rawDirect && rawDirect.trim()) candidates.push(rawDirect.trim());
+  const candidates = getProductPhotoCandidates(product);
+  const image = candidates[0] ?? "";
+  const brandName =
+    (typeof product.brand === "object" ? product.brand?.name : product.brand) ??
+    product.brand_name ??
+    "";
 
-  const photos = Array.isArray(product?.photos) ? product.photos : [];
-  const first = photos?.[0];
-  const filename =
-    typeof first === "string"
-      ? first
-      : first && typeof first === "object"
-        ? (first.filename ?? first.file ?? first.path ?? first.url)
-        : null;
+  const deliveryDate = product.delivery ? `Из ${product.delivery}` : "";
 
-  const raw = typeof filename === "string" ? filename.trim() : "";
-  if (raw) {
-    candidates.push(
-      buildProductPhotoUrl(raw),
-      buildBackendAssetUrl(raw, ["media"]),
-      buildBackendAssetUrl(raw, ["static"]),
-      buildBackendAssetUrl(raw, ["uploads"]),
-      buildBackendAssetUrl(raw),
-    );
-  }
+  const serverIsFavorite =
+    typeof product?.is_favourite === "boolean"
+      ? product.is_favourite
+      : typeof product?.is_favorite === "boolean"
+        ? product.is_favorite
+        : typeof product?.isFavorite === "boolean"
+          ? product.isFavorite
+          : null;
 
-  return candidates.filter(Boolean);
+  return {
+    id,
+    name: String(product.name ?? ""),
+    price: formatRubPrice(product.price),
+    image,
+    imageFallbacks: candidates.slice(1),
+    brand: String(brandName || ""),
+    deliveryDate: String(deliveryDate || ""),
+    isFavorite: Boolean(
+      (serverIsFavorite ?? false) || (favoriteIds?.has?.(id) ?? false),
+    ),
+  };
 }
 
-function buildDeliveryTextFromProduct(product) {
+function buildDeliveryTextFromProduct(product: ApiProduct): string {
   const deliveryRaw =
     typeof product?.delivery === "string" ? product.delivery : "";
   const delivery = deliveryRaw.trim();
@@ -141,66 +178,29 @@ function buildDeliveryTextFromProduct(product) {
   return "";
 }
 
-function mapApiProductToCard(product, favoriteIds) {
-  if (!product || typeof product !== "object") return null;
-  const id = product.id;
-  if (id == null) return null;
-
-  const candidates = getProductPhotoCandidates(product);
-  const image = candidates[0] ?? "";
-  const brandName =
-    (typeof product.brand === "object" ? product.brand?.name : product.brand) ??
-    product.brand_name ??
-    "";
-
-  const deliveryDate = product.delivery ? `Из ${product.delivery}` : "";
-
-  const serverIsFavorite =
-    typeof product?.is_favourite === "boolean"
-      ? product.is_favourite
-      : typeof product?.is_favorite === "boolean"
-        ? product.is_favorite
-        : typeof product?.isFavorite === "boolean"
-          ? product.isFavorite
-          : null;
-
-  return {
-    id,
-    name: String(product.name ?? ""),
-    price: formatRub(product.price),
-    image,
-    imageFallbacks: candidates.slice(1),
-    brand: String(brandName || ""),
-    deliveryDate: String(deliveryDate || ""),
-    isFavorite: Boolean(
-      (serverIsFavorite ?? false) || (favoriteIds?.has?.(id) ?? false),
-    ),
-  };
-}
-
-export default function ProductPage() {
+export default function ProductPage(): React.JSX.Element {
   const params = useParams();
   const router = useRouter();
   const productId = Array.isArray(params?.id) ? params.id[0] : params?.id;
-  const productIdNum = (() => {
+  const productIdNum = ((): number | null => {
     const n = Number(productId);
     return Number.isFinite(n) && n > 0 ? n : null;
   })();
 
   // Static placeholders (API removed)
-  const apiProduct = null;
+  const apiProduct: ApiProduct | null = null;
   const isProductLoading = false;
   const isProductError = false;
-  const categoriesWithTypes = [];
-  const brands = [];
-  const addCartItem = async () => {};
+  const categoriesWithTypes: CategoryWithTypes[] = [];
+  const brands: BrandItem[] = [];
+  const addCartItem = async (): Promise<void> => {};
   const favoriteItemIds = EMPTY_SET;
   const toggleFavorite = NOOP;
 
-  const [selectedSize, setSelectedSize] = useState(null);
-  const [quantity, setQuantity] = useState(1);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isArticleCopied, setIsArticleCopied] = useState(false);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState<number>(1);
+  const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
+  const [isArticleCopied, setIsArticleCopied] = useState<boolean>(false);
 
   const isFavorite = useMemo(() => {
     if (productIdNum == null) return false;
@@ -230,7 +230,7 @@ export default function ProductPage() {
 
   const resolvedType = useMemo(() => {
     const types = Array.isArray(resolvedCategory?.types)
-      ? resolvedCategory.types
+      ? resolvedCategory!.types!
       : [];
     return (
       types.find((t) => t && String(t.id) === String(apiProduct?.type_id)) ||
@@ -248,14 +248,14 @@ export default function ProductPage() {
   }, [apiProduct, brands]);
 
   const breadcrumb = useMemo(() => {
-    const items = [];
+    const items: string[] = [];
     if (resolvedCategory?.name) items.push(resolvedCategory.name);
     if (resolvedType?.name) items.push(resolvedType.name);
     if (apiProduct?.name) items.push(apiProduct.name);
     return items.length ? items : ["Товар"];
   }, [apiProduct, resolvedCategory, resolvedType]);
 
-  const infoCards = [
+  const infoCards: InfoCardItem[] = [
     { title: "Наша\n команда", icon: "/img/FriendsSection1.webp" },
     { title: "Оплата\n и сплит", icon: "/img/brokenPrice.svg" },
     { title: "Доставка \nи отслеживание", icon: "/img/FriendsSection3.webp" },
@@ -269,23 +269,23 @@ export default function ProductPage() {
     { title: "Чат\nс поддержкой", icon: "/img/FriendsSection8.webp" },
   ];
 
-  const recommendedTabs = ["Для вас", "Похожие"];
-  const [recommendedTab, setRecommendedTab] = useState(recommendedTabs[0]);
+  const recommendedTabs: string[] = ["Для вас", "Похожие"];
+  const [recommendedTab, setRecommendedTab] = useState<string>(recommendedTabs[0]);
 
   const sizes = useMemo(() => {
-    const list = Array.isArray(apiProduct?.sizes) ? apiProduct.sizes : [];
+    const list = Array.isArray(apiProduct?.sizes) ? apiProduct!.sizes! : [];
     const mapped = list
       .map((s) => (s && typeof s === "object" ? s.size : null))
-      .filter((x) => typeof x === "string" && x.trim());
+      .filter((x): x is string => typeof x === "string" && !!x.trim());
     return mapped;
   }, [apiProduct]);
   const availableSizes = sizes;
 
   // Static placeholders for recommended products (API removed)
-  const forYouRaw = [];
+  const forYouRaw: ApiProduct[] = [];
   const isForYouFetching = false;
   const isForYouLoading = false;
-  const similarRaw = [];
+  const similarRaw: ApiProduct[] = [];
   const isSimilarFetching = false;
   const isSimilarLoading = false;
 
@@ -294,7 +294,7 @@ export default function ProductPage() {
     return list
       .filter((p) => String(p?.id) !== String(productIdNum))
       .map((p) => mapApiProductToCard(p, favoriteItemIds))
-      .filter(Boolean)
+      .filter((p): p is ProductCard => p !== null)
       .slice(0, 12);
   }, [favoriteItemIds, forYouRaw, productIdNum]);
 
@@ -303,7 +303,7 @@ export default function ProductPage() {
     return list
       .filter((p) => String(p?.id) !== String(productIdNum))
       .map((p) => mapApiProductToCard(p, favoriteItemIds))
-      .filter(Boolean)
+      .filter((p): p is ProductCard => p !== null)
       .slice(0, 12);
   }, [favoriteItemIds, productIdNum, similarRaw]);
 
@@ -314,7 +314,7 @@ export default function ProductPage() {
       ? Boolean(isForYouLoading || isForYouFetching)
       : Boolean(isSimilarLoading || isSimilarFetching);
 
-  const brandsCarousel = useMemo(() => {
+  const brandsCarousel = useMemo((): BrandCarouselItem[] => {
     const b =
       resolvedBrand ??
       (apiProduct && typeof apiProduct.brand === "object"
@@ -351,7 +351,7 @@ export default function ProductPage() {
   }, [apiProduct, resolvedBrand]);
 
   // Данные для отзывов
-  const reviews = [
+  const reviews: Review[] = [
     {
       id: 1,
       userName: "Анастасия",
@@ -374,7 +374,7 @@ export default function ProductPage() {
   ];
 
   // Распределение рейтингов (для расчета среднего)
-  const ratingDistribution = {
+  const ratingDistribution: Record<number, number> = {
     5: 60,
     4: 20,
     3: 12,
@@ -382,15 +382,15 @@ export default function ProductPage() {
     1: 2,
   };
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = async (): Promise<void> => {
     // TODO: подключить API
   };
 
-  const handleBuyNow = async () => {
+  const handleBuyNow = async (): Promise<void> => {
     // TODO: подключить API
   };
 
-  const copyText = async (text) => {
+  const copyText = async (text: string | number): Promise<boolean> => {
     const value = String(text);
 
     // Modern Clipboard API (may be unavailable in some mobile/WebView contexts)
@@ -436,7 +436,7 @@ export default function ProductPage() {
     }
   };
 
-  const handleCopy = async (text) => {
+  const handleCopy = async (text: string | number): Promise<void> => {
     const ok = await copyText(text);
     if (!ok) return;
     setIsArticleCopied(true);
@@ -564,7 +564,7 @@ export default function ProductPage() {
   const brandName =
     resolvedBrand?.name ??
     (apiProduct?.brand_name ? String(apiProduct.brand_name) : "");
-  const priceText = formatRub(apiProduct?.price);
+  const priceText = formatRubPrice(apiProduct?.price);
 
   const brandQuery = String(brandName || "").trim();
   const brandSearchLink = brandQuery
@@ -631,7 +631,7 @@ export default function ProductPage() {
             <ProductSizes
               sizes={sizes}
               availableSizes={availableSizes}
-              onSizeSelect={(size) => setSelectedSize(size)}
+              onSizeSelect={(size: string) => setSelectedSize(size)}
             />
           ) : null}
         </section>
