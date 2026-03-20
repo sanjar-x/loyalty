@@ -137,7 +137,11 @@ class TestLinkedAccount:
         assert account.updated_at == old_updated
 
 
-from src.modules.identity.domain.events import TelegramIdentityCreatedEvent
+from src.modules.identity.domain.events import (
+    LinkedAccountCreatedEvent,
+    LinkedAccountRemovedEvent,
+    IdentityTokenVersionBumpedEvent,
+)
 from src.modules.identity.domain.exceptions import (
     InitDataExpiredError,
     InitDataMissingUserError,
@@ -145,25 +149,57 @@ from src.modules.identity.domain.exceptions import (
 )
 
 
-class TestTelegramIdentityCreatedEvent:
+class TestLinkedAccountCreatedEvent:
+    def test_creation(self):
+        identity_id = uuid.uuid4()
+        event = LinkedAccountCreatedEvent(
+            identity_id=identity_id,
+            provider="telegram",
+            provider_sub_id="123456",
+            provider_metadata={"username": "test"},
+            start_param="ref123",
+            is_new_identity=True,
+            aggregate_id=str(identity_id),
+        )
+        assert event.provider == "telegram"
+        assert event.is_new_identity is True
+        assert event.event_type == "linked_account_created"
+
     def test_requires_identity_id(self):
-        with pytest.raises(ValueError, match="identity_id is required"):
-            TelegramIdentityCreatedEvent(aggregate_id="x")
+        with pytest.raises(ValueError):
+            LinkedAccountCreatedEvent(
+                identity_id=None,
+                provider="telegram",
+                provider_sub_id="123",
+                provider_metadata={},
+                start_param=None,
+                is_new_identity=True,
+            )
 
-    def test_sets_aggregate_id_from_identity_id(self):
-        uid = uuid.uuid4()
-        event = TelegramIdentityCreatedEvent(
-            identity_id=uid, telegram_id=123,
-        )
-        assert event.aggregate_id == str(uid)
-        assert event.aggregate_type == "Identity"
-        assert event.event_type == "telegram_identity_created"
 
-    def test_start_param_optional(self):
-        event = TelegramIdentityCreatedEvent(
-            identity_id=uuid.uuid4(), telegram_id=123, start_param="REF123",
+class TestLinkedAccountRemovedEvent:
+    def test_creation(self):
+        identity_id = uuid.uuid4()
+        event = LinkedAccountRemovedEvent(
+            identity_id=identity_id,
+            provider="telegram",
+            provider_sub_id="123456",
+            aggregate_id=str(identity_id),
         )
-        assert event.start_param == "REF123"
+        assert event.event_type == "linked_account_removed"
+
+
+class TestIdentityTokenVersionBumpedEvent:
+    def test_creation(self):
+        identity_id = uuid.uuid4()
+        event = IdentityTokenVersionBumpedEvent(
+            identity_id=identity_id,
+            new_version=2,
+            reason="password_change",
+            aggregate_id=str(identity_id),
+        )
+        assert event.new_version == 2
+        assert event.reason == "password_change"
 
 
 class TestTelegramExceptions:

@@ -163,18 +163,53 @@ class StaffInvitationAcceptedEvent(DomainEvent):
 
 
 @dataclass
-class TelegramIdentityCreatedEvent(DomainEvent):
-    """Emitted when a new Identity is created via Telegram Mini App."""
+class LinkedAccountCreatedEvent(DomainEvent):
+    """Emitted when a new provider is linked to an Identity."""
 
     identity_id: uuid.UUID | None = None
-    telegram_id: int = 0
-    first_name: str = ""
-    last_name: str = ""
-    username: str | None = None
+    provider: str = ""
+    provider_sub_id: str = ""
+    provider_metadata: dict | None = None
     start_param: str | None = None
-    account_type: str = "CUSTOMER"
+    is_new_identity: bool = False
     aggregate_type: str = "Identity"
-    event_type: str = "telegram_identity_created"
+    event_type: str = "linked_account_created"
+
+    def __post_init__(self) -> None:
+        if self.identity_id is None:
+            raise ValueError("identity_id is required")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.identity_id)
+        if self.provider_metadata is None:
+            self.provider_metadata = {}
+
+
+@dataclass
+class LinkedAccountRemovedEvent(DomainEvent):
+    """Emitted when a provider is unlinked from an Identity."""
+
+    identity_id: uuid.UUID | None = None
+    provider: str = ""
+    provider_sub_id: str = ""
+    aggregate_type: str = "Identity"
+    event_type: str = "linked_account_removed"
+
+    def __post_init__(self) -> None:
+        if self.identity_id is None:
+            raise ValueError("identity_id is required")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.identity_id)
+
+
+@dataclass
+class IdentityTokenVersionBumpedEvent(DomainEvent):
+    """Emitted when token_version is incremented (all JWTs invalidated)."""
+
+    identity_id: uuid.UUID | None = None
+    new_version: int = 0
+    reason: str = ""
+    aggregate_type: str = "Identity"
+    event_type: str = "token_version_bumped"
 
     def __post_init__(self) -> None:
         if self.identity_id is None:
