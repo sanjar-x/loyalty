@@ -13,7 +13,7 @@ from src.modules.identity.domain.entities import Identity, LocalCredentials
 from src.modules.identity.domain.events import IdentityRegisteredEvent
 from src.modules.identity.domain.exceptions import IdentityAlreadyExistsError
 from src.modules.identity.domain.interfaces import IIdentityRepository, IRoleRepository
-from src.modules.identity.domain.value_objects import AccountType, IdentityType
+from src.modules.identity.domain.value_objects import AccountType, PrimaryAuthMethod
 from src.shared.exceptions import ConflictError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.security import IPasswordHasher
@@ -83,7 +83,7 @@ class RegisterHandler:
                 raise IdentityAlreadyExistsError()
 
             # Create identity
-            identity = Identity.register(IdentityType.LOCAL, AccountType.CUSTOMER)
+            identity = Identity.register(PrimaryAuthMethod.LOCAL, AccountType.CUSTOMER)
 
             # Create credentials
             now = datetime.now(UTC)
