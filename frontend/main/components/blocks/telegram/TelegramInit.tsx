@@ -78,7 +78,7 @@ function requestFullscreenBestEffort(tg: TelegramWebApp): void {
 
 interface PublishInitDataParams {
   rawInitData: string;
-  unsafe: TelegramInitDataUnsafe | { user?: Record<string, unknown> | null } | null;
+  unsafe: TelegramInitDataUnsafe | null;
   browserDebugUser?: ReturnType<typeof getBrowserDebugUser>;
 }
 
@@ -168,7 +168,7 @@ export default function TelegramInit() {
       else if (isBrowserDebugAuthEnabled()) {
         publishInitData({
           rawInitData: "",
-          unsafe: { user: getBrowserDebugTelegramUser() ?? undefined },
+          unsafe: { user: getBrowserDebugTelegramUser() as TelegramInitDataUnsafe["user"] },
           browserDebugUser: getBrowserDebugUser(),
         });
       } else if (Date.now() - start < 2000) requestAnimationFrame(tick);
