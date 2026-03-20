@@ -24,36 +24,52 @@ import {
  * window.Telegram.WebApp avoids this timing issue entirely.
  */
 function getInitData(): string {
-  // 1. Direct SDK access (most reliable — available synchronously after script load)
   const fromSdk = (window as any).Telegram?.WebApp?.initData;
   if (typeof fromSdk === "string" && fromSdk) return fromSdk;
 
-  // 2. Global set by TelegramProvider (fallback)
   const fromGlobal = (window as any).__LM_TG_INIT_DATA__;
   if (typeof fromGlobal === "string" && fromGlobal) return fromGlobal;
 
   return "";
 }
 
+/**
+ * Performs Telegram auth on mount and auto-recovers when session expires.
+ *
+ * In a Telegram Mini App, initData is available on every launch (signed fresh
+ * by Telegram). This means we can always re-authenticate transparently — even
+ * if cookies were lost (iOS WebView session cleanup, Android OEM quirks, etc.).
+ *
+ * Recovery flow:
+ *   authenticated → cookie lost → 401 → refresh fails → sessionExpired
+ *   → this effect re-fires → sends initData → new tokens → authenticated
+ */
 export default function TelegramAuthBootstrap(): null {
   const dispatch = useAppDispatch();
   const authStatus = useAppSelector(selectAuthStatus);
-  const calledRef = useRef(false);
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
-    // Only run once, and only if we haven't already authenticated
-    if (calledRef.current) return;
+    // A request is already in-flight — don't double-fire
+    if (inFlightRef.current) return;
+
+    // Already authenticated — nothing to do
     if (authStatus === "authenticated") return;
+
+    // Statuses that should trigger (re-)auth:
+    //   "idle"    — first mount, no auth yet
+    //   "expired" — cookies lost mid-session, RTK Query refresh failed
+    //   "error"   — previous auth attempt failed, retry
+    //   "loading" — StrictMode remount after abort
 
     const rawInitData = getInitData();
     const isDebug = isBrowserDebugAuthEnabled() && !rawInitData;
 
     if (!rawInitData && !isDebug) {
-      // Not in Telegram and not in debug mode — nothing to do
       return;
     }
 
-    calledRef.current = true;
+    inFlightRef.current = true;
     dispatch(initStart());
 
     const body: Record<string, unknown> = {};
@@ -81,19 +97,19 @@ export default function TelegramAuthBootstrap(): null {
         return res.json();
       })
       .then((data) => {
-        dispatch(
-          initSuccess({ isNewUser: data?.isNewUser === true }),
-        );
+        dispatch(initSuccess({ isNewUser: data?.isNewUser === true }));
       })
       .catch((err) => {
         if (err instanceof DOMException && err.name === "AbortError") return;
         dispatch(initFailure(err instanceof Error ? err.message : "Auth error"));
-        calledRef.current = false; // Allow retry
+      })
+      .finally(() => {
+        inFlightRef.current = false;
       });
 
     return () => {
       controller.abort();
-      calledRef.current = false; // Reset for StrictMode remount
+      inFlightRef.current = false;
     };
   }, [dispatch, authStatus]);
 
