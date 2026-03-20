@@ -2,6 +2,8 @@
 
 import { useCallback, useState } from "react";
 
+import { usePopup } from "@/lib/telegram";
+
 import styles from "./page.module.css";
 
 interface PromoCouponCardProps {
@@ -18,6 +20,7 @@ export default function PromoCouponCard({
   copyValue,
 }: PromoCouponCardProps) {
   const [copied, setCopied] = useState(false);
+  const { showAlert } = usePopup();
 
   const copyText = useCallback(async (text: string) => {
     try {
@@ -60,18 +63,14 @@ export default function PromoCouponCard({
       return;
     }
 
-    const tg = window.Telegram?.WebApp;
-    if (tg?.showPopup) {
-      try {
-        tg.showPopup({
-          message:
-            "Не удалось скопировать промокод. Попробуйте выделить и скопировать вручную.",
-        });
-      } catch {
-        // ignore
-      }
+    try {
+      await showAlert(
+        "Не удалось скопировать промокод. Попробуйте выделить и скопировать вручную.",
+      );
+    } catch {
+      // ignore
     }
-  }, [copyText, copyValue]);
+  }, [copyText, copyValue, showAlert]);
 
   return (
     <section className={styles.promoCard} aria-label="Промокод">

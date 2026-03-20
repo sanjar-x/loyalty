@@ -3,12 +3,16 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 
+import { usePopup, useLinks } from "@/lib/telegram";
+
 import styles from "./page.module.css";
 
 export default function InviteLinkActions({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
   const [hint, setHint] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const { showAlert } = usePopup();
+  const { openTelegramLink } = useLinks();
 
   const shareText = useMemo(() => `Присоединяйся к LOYALTY: ${url}`, [url]);
 
@@ -64,18 +68,14 @@ export default function InviteLinkActions({ url }: { url: string }) {
     inputRef.current?.focus?.();
     inputRef.current?.select?.();
 
-    const tg = window.Telegram?.WebApp;
-    if (tg?.showPopup) {
-      try {
-        tg.showPopup({
-          message:
-            "Не удалось скопировать. Зажмите ссылку и скопируйте вручную.",
-        });
-      } catch {
-        // ignore
-      }
+    try {
+      await showAlert(
+        "Не удалось скопировать. Зажмите ссылку и скопируйте вручную.",
+      );
+    } catch {
+      // ignore
     }
-  }, [copyText, url]);
+  }, [copyText, url, showAlert]);
 
   const onShare = useCallback(async () => {
     // Prefer native share where available; fallback to copy.
@@ -88,21 +88,18 @@ export default function InviteLinkActions({ url }: { url: string }) {
       // ignore
     }
 
-    // Telegram WebApp may provide its own APIs; we still keep this safe in browsers.
-    const tg = window.Telegram?.WebApp;
-    if (tg?.openTelegramLink) {
-      try {
-        const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(shareText)}`;
-        tg.openTelegramLink(shareUrl);
-        return;
-      } catch {
-        // ignore
-      }
+    // Telegram WebApp share via openTelegramLink.
+    try {
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(shareText)}`;
+      openTelegramLink(shareUrl);
+      return;
+    } catch {
+      // ignore
     }
 
     // Last fallback: copy link.
     await doCopy();
-  }, [doCopy, shareText, url]);
+  }, [doCopy, shareText, url, openTelegramLink]);
 
   return (
     <div className={styles.actions}>
