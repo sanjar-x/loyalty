@@ -6,20 +6,6 @@ import MenuSection from "@/components/blocks/profile/ProfileMenuSection";
 import styles from "./page.module.css";
 import cx from "clsx";
 
-interface TgUnsafeUser {
-  first_name?: string;
-  last_name?: string;
-  username?: string;
-  id?: number;
-  photo_url?: string;
-}
-
-declare global {
-  interface Window {
-    __LM_TG_INIT_DATA_UNSAFE__?: { user?: TgUnsafeUser };
-  }
-}
-
 function asNonEmptyTrimmedString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const s = value.trim();
@@ -53,7 +39,7 @@ export default function ProfilePage() {
   const isLoading = false;
   const isFetching = false;
 
-  const tgUnsafeUser: TgUnsafeUser | null =
+  const tgUnsafeUser: { first_name?: string; last_name?: string; username?: string; id?: number; photo_url?: string } | null =
     typeof window !== "undefined"
       ? (window.__LM_TG_INIT_DATA_UNSAFE__?.user ?? null)
       : null;
