@@ -160,3 +160,21 @@ class StaffInvitationAcceptedEvent(DomainEvent):
             raise ValueError("email is required for StaffInvitationAcceptedEvent")
         if not self.aggregate_id and self.invitation_id:
             self.aggregate_id = str(self.invitation_id)
+
+
+@dataclass
+class TelegramIdentityCreatedEvent(DomainEvent):
+    """Emitted when a new Identity is created via Telegram Mini App."""
+
+    identity_id: uuid.UUID | None = None
+    telegram_id: int = 0
+    start_param: str | None = None
+    account_type: str = "CUSTOMER"
+    aggregate_type: str = "Identity"
+    event_type: str = "telegram_identity_created"
+
+    def __post_init__(self) -> None:
+        if self.identity_id is None:
+            raise ValueError("identity_id is required")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.identity_id)

@@ -16,8 +16,9 @@ from src.modules.identity.domain.entities import (
     Role,
     Session,
     StaffInvitation,
+    TelegramCredentials,
 )
-from src.modules.identity.domain.value_objects import InvitationStatus
+from src.modules.identity.domain.value_objects import InvitationStatus, TelegramUserData
 
 
 class IIdentityRepository(ABC):
@@ -236,6 +237,11 @@ class ISessionRepository(ABC):
         Returns:
             List of active session UUIDs across all given identities.
         """
+        pass
+
+    @abstractmethod
+    async def revoke_oldest_active(self, identity_id: uuid.UUID) -> uuid.UUID | None:
+        """Revoke oldest active session. Returns session_id for cache invalidation."""
         pass
 
 
@@ -471,6 +477,26 @@ class ILinkedAccountRepository(ABC):
             List of linked accounts.
         """
         pass
+
+
+class ITelegramCredentialsRepository(ABC):
+    """Repository contract for TelegramCredentials entity persistence."""
+
+    @abstractmethod
+    async def add(self, credentials: TelegramCredentials) -> TelegramCredentials: ...
+
+    @abstractmethod
+    async def get_by_telegram_id(self, telegram_id: int) -> tuple[Identity, TelegramCredentials] | None: ...
+
+    @abstractmethod
+    async def update(self, credentials: TelegramCredentials) -> None: ...
+
+
+class ITelegramInitDataValidator(ABC):
+    """Contract for Telegram initData validation and parsing."""
+
+    @abstractmethod
+    def validate_and_parse(self, init_data_raw: str) -> TelegramUserData: ...
 
 
 class IStaffInvitationRepository(ABC):

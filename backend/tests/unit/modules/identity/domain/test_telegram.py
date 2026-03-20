@@ -157,3 +157,49 @@ class TestTelegramCredentials:
         )
         assert credentials.update_profile(data_new_photo) is True
         assert credentials.photo_url == "https://example.com/new_photo.jpg"
+
+
+from src.modules.identity.domain.events import TelegramIdentityCreatedEvent
+from src.modules.identity.domain.exceptions import (
+    InitDataExpiredError,
+    InitDataMissingUserError,
+    InvalidInitDataError,
+)
+
+
+class TestTelegramIdentityCreatedEvent:
+    def test_requires_identity_id(self):
+        with pytest.raises(ValueError, match="identity_id is required"):
+            TelegramIdentityCreatedEvent(aggregate_id="x")
+
+    def test_sets_aggregate_id_from_identity_id(self):
+        uid = uuid.uuid4()
+        event = TelegramIdentityCreatedEvent(
+            identity_id=uid, telegram_id=123,
+        )
+        assert event.aggregate_id == str(uid)
+        assert event.aggregate_type == "Identity"
+        assert event.event_type == "telegram_identity_created"
+
+    def test_start_param_optional(self):
+        event = TelegramIdentityCreatedEvent(
+            identity_id=uuid.uuid4(), telegram_id=123, start_param="REF123",
+        )
+        assert event.start_param == "REF123"
+
+
+class TestTelegramExceptions:
+    def test_invalid_init_data_is_401(self):
+        exc = InvalidInitDataError()
+        assert exc.status_code == 401
+        assert exc.error_code == "INVALID_INIT_DATA"
+
+    def test_init_data_expired_has_details(self):
+        exc = InitDataExpiredError(age_seconds=600, max_seconds=300)
+        assert exc.status_code == 401
+        assert exc.details == {"age_seconds": 600, "max_seconds": 300}
+
+    def test_init_data_missing_user_is_401(self):
+        exc = InitDataMissingUserError()
+        assert exc.status_code == 401
+        assert exc.error_code == "INIT_DATA_MISSING_USER"

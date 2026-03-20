@@ -285,3 +285,34 @@ class RoleAlreadyAssignedError(ConflictError):
             message="Role is already assigned to this identity",
             error_code="ROLE_ALREADY_ASSIGNED",
         )
+
+
+class InvalidInitDataError(UnauthorizedError):
+    """initData HMAC-SHA256 signature verification failed."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="Invalid or tampered Telegram initData",
+            error_code="INVALID_INIT_DATA",
+        )
+
+
+class InitDataExpiredError(UnauthorizedError):
+    """initData auth_date exceeds maximum allowed age."""
+
+    def __init__(self, age_seconds: int, max_seconds: int) -> None:
+        super().__init__(
+            message="Telegram initData expired",
+            error_code="INIT_DATA_EXPIRED",
+            details={"age_seconds": age_seconds, "max_seconds": max_seconds},
+        )
+
+
+class InitDataMissingUserError(UnauthorizedError):
+    """initData does not contain user object."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="initData does not contain user data",
+            error_code="INIT_DATA_MISSING_USER",
+        )
