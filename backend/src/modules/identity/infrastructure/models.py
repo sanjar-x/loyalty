@@ -10,6 +10,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     TIMESTAMP,
+    BigInteger,
     Boolean,
     CheckConstraint,
     Enum,
@@ -94,6 +95,11 @@ class IdentityModel(Base):
         back_populates="identity",
         cascade="all, delete-orphan",
     )
+    telegram_credentials: Mapped[TelegramCredentialsModel | None] = relationship(
+        back_populates="identity",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
 
 class LocalCredentialsModel(Base):
@@ -139,7 +145,9 @@ class LinkedAccountModel(Base):
 
     __tablename__ = "linked_accounts"
     __table_args__ = (
-        UniqueConstraint("provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"),
+        UniqueConstraint(
+            "provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"
+        ),
         {"comment": "External OIDC provider accounts linked to identities"},
     )
 
@@ -159,6 +167,77 @@ class LinkedAccountModel(Base):
     provider_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
 
     identity: Mapped[IdentityModel] = relationship(back_populates="linked_accounts")
+
+
+class TelegramCredentialsModel(Base):
+    """ORM model for the ``telegram_credentials`` table."""
+
+    __tablename__ = "telegram_credentials"
+    __table_args__ = (
+        Index("ix_telegram_credentials_telegram_id", "telegram_id", unique=True),
+        {"comment": "Telegram auth credentials (Shared PK 1:1 with identities)"},
+    )
+
+    identity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("identities.id", ondelete="CASCADE"),
+        primary_key=True,
+        comment="PK + FK -> identities (Shared PK 1:1)",
+    )
+    telegram_id: Mapped[int] = mapped_column(
+        BigInteger,
+        unique=True,
+        nullable=False,
+        comment="Telegram user ID (up to 52 significant bits)",
+    )
+    first_name: Mapped[str] = mapped_column(
+        String(100),
+        server_default="",
+        nullable=False,
+    )
+    last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    username: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        comment="Telegram username without @",
+    )
+    language_code: Mapped[str | None] = mapped_column(
+        String(10),
+        nullable=True,
+        comment="IETF language tag from Telegram",
+    )
+    is_premium: Mapped[bool] = mapped_column(
+        Boolean,
+        server_default=text("false"),
+        nullable=False,
+        comment="Telegram Premium subscription status",
+    )
+    photo_url: Mapped[str | None] = mapped_column(
+        String(512),
+        nullable=True,
+        comment="Telegram profile photo URL",
+    )
+    allows_write_to_pm: Mapped[bool] = mapped_column(
+        Boolean,
+        server_default=text("false"),
+        nullable=False,
+        comment="Whether user allows bot to send messages",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    identity: Mapped[IdentityModel] = relationship(
+        back_populates="telegram_credentials",
+    )
 
 
 class RoleModel(Base):
@@ -239,9 +318,7 @@ class RolePermissionModel(Base):
     """ORM model for the ``role_permissions`` association table."""
 
     __tablename__ = "role_permissions"
-    __table_args__ = (
-        Index("ix_role_permissions_role_id", "role_id"),
-    )
+    __table_args__ = (Index("ix_role_permissions_role_id", "role_id"),)
 
     role_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
