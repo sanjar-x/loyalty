@@ -9,7 +9,21 @@ import BottomSheet from "@/components/ui/BottomSheet";
 
 import styles from "./page.module.css";
 
-function Stars({ value = 0 }) {
+interface ReviewItem {
+  id: string;
+  name: string;
+  size: string;
+  article: string;
+  image: string;
+  rating: number;
+  reviewedAt?: string;
+  photos?: string[];
+  pros?: string;
+  cons?: string;
+  comment?: string;
+}
+
+function Stars({ value = 0 }: { value?: number }) {
   const rating = Math.max(0, Math.min(5, Math.floor(Number(value) || 0)));
 
   return (
@@ -35,7 +49,7 @@ function Stars({ value = 0 }) {
   );
 }
 
-const StarsClone = ({ rating }) => {
+const StarsClone = ({ rating }: { rating: number }) => {
   return (
     <div style={{ display: "flex", gap: "4px" }}>
       {[1, 2, 3, 4, 5].map((star) => (
@@ -55,7 +69,13 @@ const StarsClone = ({ rating }) => {
   );
 };
 
-function ReviewCard({ item, showMenu = false, onMenu }) {
+interface ReviewCardProps {
+  item: ReviewItem;
+  showMenu?: boolean;
+  onMenu?: (item: ReviewItem) => void;
+}
+
+function ReviewCard({ item, showMenu = false, onMenu }: ReviewCardProps) {
   const hasReviewDetails = Boolean(
     item?.reviewedAt ||
     (item?.photos && item.photos.length) ||
@@ -85,7 +105,7 @@ function ReviewCard({ item, showMenu = false, onMenu }) {
               <span>
                 Размер: <span className={styles.blackSize}>{item.size}</span>
               </span>
-              <span className={styles.dot}>·</span>
+              <span className={styles.dot}>&middot;</span>
               <span>
                 Артикул:{" "}
                 <span className={styles.blackSize}>{item.article}</span>
@@ -98,7 +118,7 @@ function ReviewCard({ item, showMenu = false, onMenu }) {
               <Stars value={item.rating} />
               {item.reviewedAt ? (
                 <div className={styles.reviewDate}>
-                  <span className={styles.dot}>·</span>
+                  <span className={styles.dot}>&middot;</span>
                   <span>{item.reviewedAt}</span>
                 </div>
               ) : null}
@@ -112,7 +132,7 @@ function ReviewCard({ item, showMenu = false, onMenu }) {
             aria-label="Меню"
             onClick={() => onMenu?.(item)}
           >
-            ⋮
+            &#x22EE;
           </button>
         ) : null}
       </div>
@@ -124,7 +144,7 @@ function ReviewCard({ item, showMenu = false, onMenu }) {
           <StarsClone rating={item.rating} />
           {item.reviewedAt ? (
             <div className={styles.reviewDate}>
-              <span className={styles.dot}>·</span>
+              <span className={styles.dot}>&middot;</span>
               <span>{item.reviewedAt}</span>
             </div>
           ) : null}
@@ -173,11 +193,11 @@ function ReviewCard({ item, showMenu = false, onMenu }) {
 }
 
 export default function ReviewsPage() {
-  const [tab, setTab] = useState("pending");
+  const [tab, setTab] = useState<"pending" | "reviewed">("pending");
   const [reviewMenuOpen, setReviewMenuOpen] = useState(false);
-  const [activeReviewId, setActiveReviewId] = useState(null);
+  const [activeReviewId, setActiveReviewId] = useState<string | null>(null);
 
-  const pendingItems = useMemo(
+  const pendingItems = useMemo<ReviewItem[]>(
     () => [
       {
         id: "p1",
@@ -207,7 +227,7 @@ export default function ReviewsPage() {
     [],
   );
 
-  const [reviewedItems, setReviewedItems] = useState(() => [
+  const [reviewedItems, setReviewedItems] = useState<ReviewItem[]>(() => [
     {
       id: "r1",
       name: "Джинсы Carne Bollente",

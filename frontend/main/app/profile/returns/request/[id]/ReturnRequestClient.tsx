@@ -7,47 +7,76 @@ import styles from "./page.module.css";
 
 const RETURN_REQUESTS_KEY = "lm:returnRequests";
 
-function formatRub(amount) {
+interface ReturnProductData {
+  src: string;
+  name: string;
+  size: string;
+  article: string;
+  priceRub: number;
+}
+
+interface PhotoRef {
+  url?: string;
+}
+
+interface ReturnRequestData {
+  id: string;
+  title: string;
+  no: string;
+  statusText: string;
+  statusType: string;
+  nextTitle: string;
+  nextText: string;
+  product: ReturnProductData;
+  reasonLabel: string;
+  comment: string;
+  photos: {
+    product: PhotoRef | null;
+    package: PhotoRef | null;
+    tag: PhotoRef | null;
+  };
+}
+
+function formatRub(amount: number): string {
   try {
-    return new Intl.NumberFormat("ru-RU").format(amount) + " ₽";
+    return new Intl.NumberFormat("ru-RU").format(amount) + " \u20BD";
   } catch {
-    return String(amount) + " ₽";
+    return String(amount) + " \u20BD";
   }
 }
 
-function getRequestFromStorage(id) {
+function getRequestFromStorage(id: string | undefined): Record<string, unknown> | null {
   if (!id) return null;
 
   try {
     const raw = localStorage.getItem(RETURN_REQUESTS_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(parsed)) return null;
-    return parsed.find((r) => String(r.id) === String(id)) ?? null;
+    return (parsed.find((r: Record<string, unknown>) => String(r.id) === String(id)) as Record<string, unknown>) ?? null;
   } catch {
     return null;
   }
 }
 
-function makeFallbackRequest(id) {
+function makeFallbackRequest(id: string | undefined): ReturnRequestData {
   return {
     id: id ?? "demo",
     title: "Заявка",
-    no: "—",
+    no: "\u2014",
     statusText: "На рассмотрении",
     statusType: "review",
     nextTitle: "Что дальше",
     nextText:
       "Мы проверяем вашу заявку на возврат, пожалуйста, ожидайте решения.",
     product: {
-      orderNo: "Заказ №4523464267",
       src: "/products/shoes-2.png",
       name: "Джинсы Carne Bollente",
       size: "L",
       article: "4465457",
       priceRub: 9119,
     },
-    reasonLabel: "—",
-    comment: "—",
+    reasonLabel: "\u2014",
+    comment: "\u2014",
     photos: {
       product: null,
       package: null,
@@ -56,29 +85,33 @@ function makeFallbackRequest(id) {
   };
 }
 
-function normalizeRequest(stored, id) {
+function normalizeRequest(stored: Record<string, unknown> | null, id: string | undefined): ReturnRequestData {
   const fallback = makeFallbackRequest(id);
   if (!stored || typeof stored !== "object") return fallback;
 
   return {
     ...fallback,
-    ...stored,
+    ...(stored as Partial<ReturnRequestData>),
     product: {
       ...fallback.product,
       ...(stored.product && typeof stored.product === "object"
-        ? stored.product
+        ? (stored.product as Partial<ReturnProductData>)
         : {}),
     },
     photos: {
       ...fallback.photos,
       ...(stored.photos && typeof stored.photos === "object"
-        ? stored.photos
+        ? (stored.photos as Partial<ReturnRequestData["photos"]>)
         : {}),
     },
   };
 }
 
-function PhotoThumb({ url }) {
+interface PhotoThumbProps {
+  url: string | PhotoRef | null | undefined;
+}
+
+function PhotoThumb({ url }: PhotoThumbProps) {
   const resolvedUrl =
     typeof url === "string" ? url : typeof url === "object" ? url?.url : null;
   if (!resolvedUrl) return null;
@@ -89,7 +122,11 @@ function PhotoThumb({ url }) {
   );
 }
 
-export default function ReturnRequestClient({ id }) {
+interface ReturnRequestClientProps {
+  id?: string;
+}
+
+export default function ReturnRequestClient({ id }: ReturnRequestClientProps) {
   const request = useMemo(() => {
     if (typeof window === "undefined") return makeFallbackRequest(id);
     const fromStorage = getRequestFromStorage(id);
@@ -110,7 +147,7 @@ export default function ReturnRequestClient({ id }) {
       <header className={styles.header}>
         <div className={styles.headerCenter}>
           <div className={styles.headerTitle}>{request.title}</div>
-          <div className={styles.headerNo}>№{request.no}</div>
+          <div className={styles.headerNo}>&numero;{request.no}</div>
         </div>
       </header>
 
@@ -135,7 +172,7 @@ export default function ReturnRequestClient({ id }) {
             <div className={styles.productMeta}>
               <div className={styles.productName}>{request.product.name}</div>
               <div className={styles.productSub}>
-                Размер: <span>{request.product.size}</span> &nbsp; · Артикул:{" "}
+                Размер: <span>{request.product.size}</span> &nbsp; &middot; Артикул:{" "}
                 <span>{request.product.article}</span>
               </div>
               <div className={styles.productPrice}>

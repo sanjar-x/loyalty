@@ -10,30 +10,9 @@ import InviteLinkActions from "./InviteLinkActions";
 import PromoCouponCard from "./PromoCouponCard";
 import styles from "./page.module.css";
 
-function formatRuDateTime(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return String(iso);
-  return d.toLocaleString("ru-RU", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { formatRuDateTime, formatUntilDate } from "@/lib/format/date";
 
-function formatUntilDate(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = String(d.getFullYear());
-  return `До ${dd}.${mm}.${yyyy}`;
-}
-
-function isExistingStatus(status) {
+function isExistingStatus(status: string | null | undefined): boolean {
   const s = String(status ?? "").toLowerCase();
   return (
     s.includes("уже") ||

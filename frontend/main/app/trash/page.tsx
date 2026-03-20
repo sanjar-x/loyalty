@@ -14,7 +14,7 @@ import cn from "clsx";
 import {
   buildBackendAssetUrl,
   buildProductPhotoUrl,
-} from "@/lib/format/backendAssets";
+} from "@/lib/format/product-image";
 import Header from "@/components/layout/Header";
 
 function formatRub(value) {
