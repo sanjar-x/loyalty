@@ -184,8 +184,8 @@ async def test_login_telegram_deactivated_identity_returns_403(
             UPDATE identities SET is_active = false,
             deactivated_at = now()
             WHERE id = (
-                SELECT identity_id FROM telegram_credentials
-                WHERE telegram_id = :tid
+                SELECT identity_id FROM linked_accounts
+                WHERE provider = 'telegram' AND provider_sub_id = :tid::text
             )
         """),
         {"tid": user_id},
@@ -222,8 +222,8 @@ async def test_login_telegram_session_eviction(
         text("""
             SELECT count(*) FROM sessions
             WHERE identity_id = (
-                SELECT identity_id FROM telegram_credentials
-                WHERE telegram_id = :tid
+                SELECT identity_id FROM linked_accounts
+                WHERE provider = 'telegram' AND provider_sub_id = :tid::text
             )
             AND is_revoked = false
             AND expires_at > now()
