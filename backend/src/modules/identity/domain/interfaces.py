@@ -16,7 +16,6 @@ from src.modules.identity.domain.entities import (
     Role,
     Session,
     StaffInvitation,
-    TelegramCredentials,
 )
 from src.modules.identity.domain.value_objects import InvitationStatus, TelegramUserData
 
@@ -454,7 +453,7 @@ class ILinkedAccountRepository(ABC):
         self,
         provider: str,
         provider_sub_id: str,
-    ) -> LinkedAccount | None:
+    ) -> tuple[Identity, LinkedAccount] | None:
         """Find a linked account by provider and subject identifier.
 
         Args:
@@ -462,7 +461,7 @@ class ILinkedAccountRepository(ABC):
             provider_sub_id: The provider's unique subject ID.
 
         Returns:
-            The linked account if found, or None.
+            A tuple of (Identity, LinkedAccount) if found, or None.
         """
         pass
 
@@ -478,18 +477,21 @@ class ILinkedAccountRepository(ABC):
         """
         pass
 
-
-class ITelegramCredentialsRepository(ABC):
-    """Repository contract for TelegramCredentials entity persistence."""
+    @abstractmethod
+    async def update(self, account: LinkedAccount) -> None: ...
 
     @abstractmethod
-    async def add(self, credentials: TelegramCredentials) -> TelegramCredentials: ...
+    async def get_by_identity_and_provider(self, identity_id: uuid.UUID, provider: str) -> LinkedAccount | None: ...
 
     @abstractmethod
-    async def get_by_telegram_id(self, telegram_id: int) -> tuple[Identity, TelegramCredentials] | None: ...
+    async def find_by_verified_email(self, email: str) -> tuple[Identity, LinkedAccount] | None: ...
 
     @abstractmethod
-    async def update(self, credentials: TelegramCredentials) -> None: ...
+    async def count_for_identity(self, identity_id: uuid.UUID) -> int: ...
+
+    @abstractmethod
+    async def delete(self, account_id: uuid.UUID) -> None: ...
+
 
 
 class ITelegramInitDataValidator(ABC):
