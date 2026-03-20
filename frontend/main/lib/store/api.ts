@@ -26,7 +26,7 @@ const rawBaseQuery: BaseQueryFn<
 > = async (args, api, extraOptions) => {
   const url = typeof args === "string" ? args : args?.url;
 
-  if (typeof url === "string" && url.startsWith("/api/session/")) {
+  if (typeof url === "string" && url.startsWith("/api/auth/")) {
     return appBaseQuery(args, api, extraOptions);
   }
 
@@ -46,14 +46,14 @@ const baseQueryWithReauth: BaseQueryFn<
   let result = await rawBaseQuery(args, api, extraOptions);
 
   const reqUrl = typeof args === "string" ? args : args?.url;
-  const isSessionRoute = typeof reqUrl === "string" && reqUrl.startsWith("/api/session/");
+  const isAuthRoute = typeof reqUrl === "string" && reqUrl.startsWith("/api/auth/");
 
-  if (result.error && result.error.status === 401 && !isSessionRoute) {
+  if (result.error && result.error.status === 401 && !isAuthRoute) {
     // Coalesce concurrent refresh calls into a single request
     if (!refreshPromise) {
       refreshPromise = Promise.resolve(
         rawBaseQuery(
-          { url: "/api/session/refresh", method: "POST" },
+          { url: "/api/auth/refresh", method: "POST" },
           api,
           extraOptions,
         ),

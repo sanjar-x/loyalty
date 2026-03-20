@@ -18,16 +18,16 @@ export const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    initStart(state) {
+    authStart(state) {
       state.status = "loading";
       state.error = null;
     },
-    initSuccess(state, action: PayloadAction<{ isNewUser: boolean }>) {
+    authSuccess(state, action: PayloadAction<{ isNewUser: boolean }>) {
       state.status = "authenticated";
       state.isNewUser = action.payload.isNewUser;
       state.error = null;
     },
-    initFailure(state, action: PayloadAction<string>) {
+    authFailure(state, action: PayloadAction<string>) {
       state.status = "error";
       state.error = action.payload;
     },
@@ -42,7 +42,7 @@ export const authSlice = createSlice({
   },
 });
 
-export const { initStart, initSuccess, initFailure, sessionExpired, logout } =
+export const { authStart, authSuccess, authFailure, sessionExpired, logout } =
   authSlice.actions;
 
 export const selectAuthStatus = (state: { auth: AuthState }) => state.auth.status;

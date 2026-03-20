@@ -1,17 +1,9 @@
 /**
  * Cookie name constants — single source of truth.
- * Used by both client code and server-side BFF routes (via lib/auth/server.ts).
+ * Imported by both client code and server-side BFF routes (cookie-helpers.ts).
  */
-export const ACCESS_COOKIE_NAME = "lm_access_token";
-export const REFRESH_COOKIE_NAME = "lm_refresh_token";
-
-export function getAccessTokenCookieName(): string {
-  return ACCESS_COOKIE_NAME;
-}
-
-export function getRefreshTokenCookieName(): string {
-  return REFRESH_COOKIE_NAME;
-}
+export const ACCESS_COOKIE = "lm_access_token";
+export const REFRESH_COOKIE = "lm_refresh_token";
 
 /**
  * Calls the logout BFF route to clear cookies and revoke the backend session.
@@ -21,7 +13,7 @@ export function getRefreshTokenCookieName(): string {
  */
 export async function logout(): Promise<boolean> {
   try {
-    const res = await fetch("/api/session/logout", {
+    const res = await fetch("/api/auth/logout", {
       method: "POST",
       credentials: "include",
     });

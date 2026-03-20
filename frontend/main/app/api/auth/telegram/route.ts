@@ -3,12 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   isBrowserDebugAuthEnabled,
   normalizeBrowserDebugUser,
-} from "@/lib/auth/browserDebugAuth";
+} from "@/lib/auth/debug";
 import {
   getBackendBaseUrl,
   isProduction,
   setTokenCookies,
-} from "@/lib/auth/server";
+} from "@/lib/auth/cookie-helpers";
 
 function isLocalBrowserDebugRequest(req: NextRequest): boolean {
   if (!isBrowserDebugAuthEnabled()) return false;

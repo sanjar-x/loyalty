@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-import { ACCESS_COOKIE, getBackendBaseUrl } from "@/lib/auth/server";
+import { ACCESS_COOKIE, getBackendBaseUrl } from "@/lib/auth/cookie-helpers";
 
 async function getAccessTokenFromCookies(): Promise<string> {
   try {

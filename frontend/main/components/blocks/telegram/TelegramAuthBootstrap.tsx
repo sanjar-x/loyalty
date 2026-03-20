@@ -5,12 +5,12 @@ import { useEffect, useRef } from "react";
 import {
   isBrowserDebugAuthEnabled,
   getBrowserDebugUser,
-} from "@/lib/auth/browserDebugAuth";
+} from "@/lib/auth/debug";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import {
-  initStart,
-  initSuccess,
-  initFailure,
+  authStart,
+  authSuccess,
+  authFailure,
   selectAuthStatus,
 } from "@/lib/store/authSlice";
 
@@ -70,7 +70,7 @@ export default function TelegramAuthBootstrap(): null {
     }
 
     inFlightRef.current = true;
-    dispatch(initStart());
+    dispatch(authStart());
 
     const body: Record<string, unknown> = {};
 
@@ -82,7 +82,7 @@ export default function TelegramAuthBootstrap(): null {
 
     const controller = new AbortController();
 
-    fetch("/api/session/auth", {
+    fetch("/api/auth/telegram", {
       method: "POST",
       headers: { "content-type": "application/json" },
       credentials: "include",
@@ -97,11 +97,11 @@ export default function TelegramAuthBootstrap(): null {
         return res.json();
       })
       .then((data) => {
-        dispatch(initSuccess({ isNewUser: data?.isNewUser === true }));
+        dispatch(authSuccess({ isNewUser: data?.isNewUser === true }));
       })
       .catch((err) => {
         if (err instanceof DOMException && err.name === "AbortError") return;
-        dispatch(initFailure(err instanceof Error ? err.message : "Auth error"));
+        dispatch(authFailure(err instanceof Error ? err.message : "Auth error"));
       })
       .finally(() => {
         inFlightRef.current = false;

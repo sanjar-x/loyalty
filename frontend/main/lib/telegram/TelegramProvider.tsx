@@ -25,7 +25,7 @@ import {
   isBrowserDebugAuthEnabled,
   getBrowserDebugUser,
   getBrowserDebugTelegramUser,
-} from '@/lib/auth/browserDebugAuth';
+} from '@/lib/auth/debug';
 
 // =============================================================================
 // Context value

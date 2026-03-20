@@ -1,16 +1,9 @@
 import { NextResponse } from "next/server";
 
-import {
-  ACCESS_COOKIE_NAME,
-  REFRESH_COOKIE_NAME,
-} from "./session";
+import { ACCESS_COOKIE, REFRESH_COOKIE } from "./cookies";
 
-// ---------------------------------------------------------------------------
-// Cookie names (re-exported from session.ts — the single source of truth)
-// ---------------------------------------------------------------------------
-
-export const ACCESS_COOKIE = ACCESS_COOKIE_NAME;
-export const REFRESH_COOKIE = REFRESH_COOKIE_NAME;
+// Re-export cookie names so BFF routes can import everything from one module
+export { ACCESS_COOKIE, REFRESH_COOKIE };
 
 // ---------------------------------------------------------------------------
 // Environment helpers

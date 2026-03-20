@@ -4,7 +4,7 @@ import {
   ACCESS_COOKIE,
   getBackendBaseUrl,
   clearTokenCookies,
-} from "@/lib/auth/server";
+} from "@/lib/auth/cookie-helpers";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const accessToken = req.cookies.get(ACCESS_COOKIE)?.value;

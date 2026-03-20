@@ -1,5 +1,5 @@
 import type { WebApp, WebAppUser } from "@/lib/telegram/types";
-import type { BrowserDebugUser } from "@/lib/auth/browserDebugAuth";
+import type { BrowserDebugUser } from "@/lib/auth/debug";
 
 declare global {
   interface Window {

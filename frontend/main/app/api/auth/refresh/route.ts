@@ -5,7 +5,7 @@ import {
   getBackendBaseUrl,
   setTokenCookies,
   clearTokenCookies,
-} from "@/lib/auth/server";
+} from "@/lib/auth/cookie-helpers";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value;
