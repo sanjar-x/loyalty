@@ -30,7 +30,6 @@ from src.modules.identity.infrastructure.models import (
     RolePermissionModel,
     SessionModel,
     SessionRoleModel,
-    TelegramCredentialsModel,
 )
 from src.modules.user.infrastructure.models import UserModel
 
@@ -59,7 +58,6 @@ __all__ = [
     "IdentityRoleModel",
     "SessionModel",
     "SessionRoleModel",
-    "TelegramCredentialsModel",
     # User
     "UserModel",
 ]
