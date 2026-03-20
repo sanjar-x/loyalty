@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
 const ACCESS_COOKIE = "lm_access_token";
 
-function getBackendBaseUrl() {
+function getBackendBaseUrl(): string {
   const raw = process.env.BACKEND_API_BASE_URL;
   if (!raw || typeof raw !== "string" || !raw.trim()) {
     throw new Error("Missing BACKEND_API_BASE_URL");
@@ -11,7 +11,7 @@ function getBackendBaseUrl() {
   return raw.trim().replace(/\/+$/, "");
 }
 
-async function getAccessTokenFromCookies() {
+async function getAccessTokenFromCookies(): Promise<string> {
   try {
     const cookieJar = await cookies();
     return cookieJar.get(ACCESS_COOKIE)?.value || "";
@@ -20,7 +20,7 @@ async function getAccessTokenFromCookies() {
   }
 }
 
-function filterUpstreamHeaders(reqHeaders) {
+function filterUpstreamHeaders(reqHeaders: Headers): Headers {
   const headers = new Headers();
 
   // Keep only headers that are safe and useful for server-to-server proxying.
@@ -36,8 +36,11 @@ function filterUpstreamHeaders(reqHeaders) {
   return headers;
 }
 
-async function proxy(req, ctx) {
-  let backendBase;
+async function proxy(
+  req: NextRequest,
+  ctx?: { params: Promise<{ path?: string[] }> },
+): Promise<NextResponse> {
+  let backendBase: string;
   try {
     backendBase = getBackendBaseUrl();
   } catch (e) {
@@ -53,7 +56,7 @@ async function proxy(req, ctx) {
   // percent-escapes (e.g. get_photo/1%2Ffile.png). We normalize by
   // decode -> encode exactly once per segment.
   const joinedPath = pathParts
-    .map((part) => {
+    .map((part: string) => {
       const raw = typeof part === "string" ? part : "";
       try {
         return encodeURIComponent(decodeURIComponent(raw));
@@ -90,7 +93,7 @@ async function proxy(req, ctx) {
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const init = {
+    const init: RequestInit = {
       method,
       headers: upstreamHeaders,
       signal: controller.signal,
@@ -115,19 +118,22 @@ async function proxy(req, ctx) {
     });
 
     return res;
-  } catch (e) {
-    const isAbort = e && typeof e === "object" && e.name === "AbortError";
+  } catch (e: unknown) {
+    const isAbort =
+      e && typeof e === "object" && (e as { name?: string }).name === "AbortError";
 
+    const errObj = e && typeof e === "object" ? (e as Record<string, unknown>) : null;
     const errName =
-      e && typeof e === "object" && typeof e.name === "string" ? e.name : null;
+      errObj && typeof errObj.name === "string" ? errObj.name : null;
     const errMessage =
-      e && typeof e === "object" && typeof e.message === "string"
-        ? e.message
-        : null;
+      errObj && typeof errObj.message === "string" ? errObj.message : null;
 
     const cause =
-      e && typeof e === "object" && "cause" in e && e.cause ? e.cause : null;
-    const causeObj = cause && typeof cause === "object" ? cause : null;
+      errObj && "cause" in errObj && errObj.cause ? errObj.cause : null;
+    const causeObj =
+      cause && typeof cause === "object"
+        ? (cause as Record<string, unknown>)
+        : null;
     const causeName =
       causeObj && typeof causeObj.name === "string" ? causeObj.name : null;
     const causeMessage =
@@ -193,18 +199,33 @@ async function proxy(req, ctx) {
   }
 }
 
-export async function GET(req, ctx) {
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ path?: string[] }> },
+): Promise<NextResponse> {
   return proxy(req, ctx);
 }
-export async function POST(req, ctx) {
+export async function POST(
+  req: NextRequest,
+  ctx: { params: Promise<{ path?: string[] }> },
+): Promise<NextResponse> {
   return proxy(req, ctx);
 }
-export async function PUT(req, ctx) {
+export async function PUT(
+  req: NextRequest,
+  ctx: { params: Promise<{ path?: string[] }> },
+): Promise<NextResponse> {
   return proxy(req, ctx);
 }
-export async function PATCH(req, ctx) {
+export async function PATCH(
+  req: NextRequest,
+  ctx: { params: Promise<{ path?: string[] }> },
+): Promise<NextResponse> {
   return proxy(req, ctx);
 }
-export async function DELETE(req, ctx) {
+export async function DELETE(
+  req: NextRequest,
+  ctx: { params: Promise<{ path?: string[] }> },
+): Promise<NextResponse> {
   return proxy(req, ctx);
 }

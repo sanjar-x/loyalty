@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(req) {
+export async function POST(req: NextRequest): Promise<NextResponse> {
   const token = process.env.DADATA_TOKEN;
   const secret = process.env.DADATA_SECRET;
 
@@ -11,7 +11,7 @@ export async function POST(req) {
     );
   }
 
-  let body;
+  let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
@@ -37,7 +37,7 @@ export async function POST(req) {
       ? Math.min(10, Math.max(1, Math.floor(countRaw)))
       : 5;
 
-  const headers = {
+  const headers: Record<string, string> = {
     Accept: "application/json",
     "Content-Type": "application/json",
     Authorization: `Token ${token}`,
@@ -61,7 +61,7 @@ export async function POST(req) {
   );
 
   const text = await upstream.text();
-  let json = null;
+  let json: Record<string, unknown> | null = null;
   try {
     json = text ? JSON.parse(text) : null;
   } catch {

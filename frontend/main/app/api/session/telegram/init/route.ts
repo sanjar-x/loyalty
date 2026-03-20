@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import {
   isBrowserDebugAuthEnabled,
@@ -8,7 +8,7 @@ import { validateTelegramInitDataOrThrow } from "@/lib/auth/telegram";
 
 const ACCESS_COOKIE = "lm_access_token";
 
-function getBackendBaseUrl() {
+function getBackendBaseUrl(): string {
   const raw = process.env.BACKEND_API_BASE_URL;
   if (!raw || typeof raw !== "string" || !raw.trim()) {
     throw new Error("Missing BACKEND_API_BASE_URL");
@@ -16,16 +16,16 @@ function getBackendBaseUrl() {
   return raw.trim().replace(/\/+$/, "");
 }
 
-function getBotToken() {
+function getBotToken(): string {
   const raw = process.env.TG_BOT_TOKEN;
   return typeof raw === "string" ? raw.trim() : "";
 }
 
-function isProduction() {
+function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
 }
 
-function getInitDataMaxAgeSeconds() {
+function getInitDataMaxAgeSeconds(): number {
   const raw = process.env.TG_INITDATA_MAX_AGE_SECONDS;
   if (typeof raw !== "string" || !raw.trim()) return 300;
   const n = Number(raw.trim());
@@ -33,7 +33,21 @@ function getInitDataMaxAgeSeconds() {
   return Math.floor(n);
 }
 
-function getDebugMeta(req, initData, debugUser) {
+interface DebugMeta {
+  host: string;
+  hasInitData: boolean;
+  initDataLen: number;
+  hasDebugUser: boolean;
+  initDataMaxAgeSeconds: number;
+  browserDebugAuthEnabled: boolean;
+  localBrowserDebugAllowed: boolean;
+}
+
+function getDebugMeta(
+  req: NextRequest,
+  initData: string,
+  debugUser: Record<string, unknown> | null,
+): DebugMeta | undefined {
   if (isProduction()) return undefined;
 
   const hostHeader =
@@ -42,7 +56,7 @@ function getDebugMeta(req, initData, debugUser) {
     req.nextUrl?.hostname ||
     hostHeader
       .split(",")
-      .map((part) => part.trim())
+      .map((part: string) => part.trim())
       .filter(Boolean)[0]
       ?.split(":")[0] ||
     "";
@@ -58,7 +72,7 @@ function getDebugMeta(req, initData, debugUser) {
   };
 }
 
-function isLocalBrowserDebugRequest(req) {
+function isLocalBrowserDebugRequest(req: NextRequest): boolean {
   if (!isBrowserDebugAuthEnabled()) return false;
 
   const hostHeader =
@@ -67,7 +81,7 @@ function isLocalBrowserDebugRequest(req) {
     req.nextUrl?.hostname ||
     hostHeader
       .split(",")
-      .map((part) => part.trim())
+      .map((part: string) => part.trim())
       .filter(Boolean)[0]
       ?.split(":")[0] ||
     "";
@@ -87,31 +101,44 @@ function isLocalBrowserDebugRequest(req) {
 
       const rules = raw
         .split(/[,\s]+/g)
-        .map((x) => x.trim().toLowerCase())
+        .map((x: string) => x.trim().toLowerCase())
         .filter(Boolean);
 
-      const hostMatchesRule = (host, rule) => {
+      const hostMatchesRule = (hostVal: string, rule: string): boolean => {
         if (!rule) return false;
-        if (rule === host) return true;
+        if (rule === hostVal) return true;
 
         if (rule.startsWith("*.")) {
           const suffix = rule.slice(1); // ".example.com"
-          return suffix && host.endsWith(suffix);
+          return suffix ? hostVal.endsWith(suffix) : false;
         }
 
         if (rule.startsWith(".")) {
-          return host.endsWith(rule);
+          return hostVal.endsWith(rule);
         }
 
         return false;
       };
 
-      return rules.some((rule) => hostMatchesRule(h, rule));
+      return rules.some((rule: string) => hostMatchesRule(h, rule));
     })()
   );
 }
 
-function serializeCookie(name, value, opts) {
+interface CookieOptions {
+  maxAge?: number;
+  domain?: string;
+  path?: string;
+  httpOnly?: boolean;
+  secure?: boolean;
+  sameSite?: string;
+}
+
+function serializeCookie(
+  name: string,
+  value: string,
+  opts: CookieOptions,
+): string {
   const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
   if (opts.maxAge) parts.push(`Max-Age=${Math.floor(opts.maxAge)}`);
   if (opts.domain) parts.push(`Domain=${opts.domain}`);
@@ -122,7 +149,7 @@ function serializeCookie(name, value, opts) {
   return parts.join("; ");
 }
 
-function getCookieDomain() {
+function getCookieDomain(): string | undefined {
   const domain = process.env.COOKIE_DOMAIN;
   if (typeof domain !== "string") return undefined;
   const d = domain.trim();
@@ -146,8 +173,8 @@ function getCookieDomain() {
   return d;
 }
 
-export async function POST(req) {
-  let backendBase;
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  let backendBase: string;
   try {
     backendBase = getBackendBaseUrl();
   } catch (e) {
@@ -157,7 +184,7 @@ export async function POST(req) {
     );
   }
 
-  let body;
+  let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
@@ -165,14 +192,14 @@ export async function POST(req) {
   }
 
   const initData =
-    typeof body?.initData === "string" ? body.initData.trim() : "";
+    typeof body?.initData === "string" ? (body.initData as string).trim() : "";
   const debugUser = isLocalBrowserDebugRequest(req)
     ? normalizeBrowserDebugUser(body?.debugUser)
     : null;
 
-  let tgId = null;
-  let username = null;
-  let startParam = null;
+  let tgId: string | number | null = null;
+  let username: string | null = null;
+  let startParam: string | null = null;
 
   if (initData) {
     const botToken = getBotToken();
@@ -186,7 +213,7 @@ export async function POST(req) {
       );
     }
 
-    let parsed;
+    let parsed: Record<string, unknown>;
     try {
       parsed = validateTelegramInitDataOrThrow({
         initData,
@@ -203,8 +230,8 @@ export async function POST(req) {
       );
     }
 
-    const tgUser = parsed.user;
-    tgId = tgUser?.id;
+    const tgUser = parsed.user as Record<string, unknown> | undefined;
+    tgId = tgUser?.id as string | number | null;
     if (tgId == null) {
       return NextResponse.json(
         { error: "Telegram user.id is missing" },
@@ -212,7 +239,10 @@ export async function POST(req) {
       );
     }
 
-    const startParamRaw = parsed?.params?.start_param;
+    const parsedParams = parsed?.params as
+      | Record<string, unknown>
+      | undefined;
+    const startParamRaw = parsedParams?.start_param;
     startParam =
       typeof startParamRaw === "string" && startParamRaw.trim()
         ? startParamRaw.trim()
@@ -256,7 +286,7 @@ export async function POST(req) {
   });
 
   const text = await upstreamRes.text();
-  let json = null;
+  let json: Record<string, unknown> | null = null;
   try {
     json = text ? JSON.parse(text) : null;
   } catch {

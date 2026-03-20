@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { handoffStore } from "../_handoffStore";
 import { signHs256Jwt } from "@/lib/auth/telegram";
 
-function getCookieDomain() {
+function getCookieDomain(): string | undefined {
   const domain = process.env.COOKIE_DOMAIN;
   if (typeof domain !== "string") return undefined;
   const d = domain.trim();
@@ -25,7 +25,31 @@ function getCookieDomain() {
   return d;
 }
 
-export async function POST(req) {
+interface CookieOptions {
+  maxAge?: number;
+  domain?: string;
+  path?: string;
+  httpOnly?: boolean;
+  secure?: boolean;
+  sameSite?: string;
+}
+
+function serializeCookie(
+  name: string,
+  value: string,
+  opts: CookieOptions,
+): string {
+  const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
+  if (opts.maxAge) parts.push(`Max-Age=${Math.floor(opts.maxAge)}`);
+  if (opts.domain) parts.push(`Domain=${opts.domain}`);
+  if (opts.path) parts.push(`Path=${opts.path}`);
+  if (opts.httpOnly) parts.push("HttpOnly");
+  if (opts.secure) parts.push("Secure");
+  if (opts.sameSite) parts.push(`SameSite=${opts.sameSite}`);
+  return parts.join("; ");
+}
+
+export async function POST(req: NextRequest): Promise<NextResponse> {
   const sessionSecret = process.env.SESSION_JWT_SECRET;
   if (!sessionSecret) {
     return NextResponse.json(
@@ -34,7 +58,7 @@ export async function POST(req) {
     );
   }
 
-  let body;
+  let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
@@ -48,7 +72,7 @@ export async function POST(req) {
     );
   }
 
-  const payload = handoffStore.consume(body.handoff);
+  const payload = handoffStore.consume(body.handoff as string);
   if (!payload) {
     return NextResponse.json(
       { error: "Invalid or expired handoff" },
@@ -81,15 +105,4 @@ export async function POST(req) {
   );
 
   return res;
-}
-
-function serializeCookie(name, value, opts) {
-  const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
-  if (opts.maxAge) parts.push(`Max-Age=${Math.floor(opts.maxAge)}`);
-  if (opts.domain) parts.push(`Domain=${opts.domain}`);
-  if (opts.path) parts.push(`Path=${opts.path}`);
-  if (opts.httpOnly) parts.push("HttpOnly");
-  if (opts.secure) parts.push("Secure");
-  if (opts.sameSite) parts.push(`SameSite=${opts.sameSite}`);
-  return parts.join("; ");
 }

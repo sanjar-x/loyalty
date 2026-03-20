@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { handoffStore } from "../_handoffStore";
 import {
@@ -6,7 +6,7 @@ import {
   validateTelegramInitDataOrThrow,
 } from "@/lib/auth/telegram";
 
-export async function POST(req) {
+export async function POST(req: NextRequest): Promise<NextResponse> {
   const botToken = process.env.TG_BOT_TOKEN;
   const externalAppUrl = process.env.EXTERNAL_APP_URL;
 
@@ -31,7 +31,7 @@ export async function POST(req) {
     );
   }
 
-  let body;
+  let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
@@ -45,10 +45,10 @@ export async function POST(req) {
     );
   }
 
-  let parsed;
+  let parsed: Record<string, unknown>;
   try {
     parsed = validateTelegramInitDataOrThrow({
-      initData: body.initData,
+      initData: body.initData as string,
       botToken,
       maxAgeSeconds,
     });
@@ -62,7 +62,7 @@ export async function POST(req) {
   const handoff = randomHandoffCode();
   const now = Date.now();
   handoffStore.set(handoff, {
-    user: parsed.user,
+    user: parsed.user as Record<string, unknown>,
     createdAtMs: now,
     expiresAtMs: now + 60_000,
   });

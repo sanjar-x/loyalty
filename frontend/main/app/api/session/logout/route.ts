@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 
 const ACCESS_COOKIE = "lm_access_token";
 
-function isProduction() {
+function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
 }
 
-function getCookieDomain() {
+function getCookieDomain(): string | undefined {
   const domain = process.env.COOKIE_DOMAIN;
   if (typeof domain !== "string") return undefined;
   const d = domain.trim();
@@ -28,7 +28,20 @@ function getCookieDomain() {
   return d;
 }
 
-function serializeCookie(name, value, opts) {
+interface CookieOptions {
+  maxAge?: number;
+  domain?: string;
+  path?: string;
+  httpOnly?: boolean;
+  secure?: boolean;
+  sameSite?: string;
+}
+
+function serializeCookie(
+  name: string,
+  value: string,
+  opts: CookieOptions,
+): string {
   const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
   if (opts.maxAge != null) parts.push(`Max-Age=${Math.floor(opts.maxAge)}`);
   if (opts.domain) parts.push(`Domain=${opts.domain}`);
@@ -39,7 +52,7 @@ function serializeCookie(name, value, opts) {
   return parts.join("; ");
 }
 
-export async function POST() {
+export async function POST(): Promise<NextResponse> {
   const res = NextResponse.json({ ok: true }, { status: 200 });
   res.headers.append(
     "Set-Cookie",
