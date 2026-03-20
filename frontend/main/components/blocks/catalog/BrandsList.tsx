@@ -22,20 +22,23 @@ function getLetter(name: unknown): string {
 
 function groupBrands(brands: unknown[]): BrandGroup[] {
   const rows = Array.isArray(brands) ? brands : [];
-  const sorted = [...rows].sort((a, b) =>
-    String(a?.name || "").localeCompare(String(b?.name || ""), "ru", {
+  const sorted = [...rows].sort((a, b) => {
+    const aObj = a as Record<string, unknown>;
+    const bObj = b as Record<string, unknown>;
+    return String(aObj?.name || "").localeCompare(String(bObj?.name || ""), "ru", {
       sensitivity: "base",
-    }),
-  );
+    });
+  });
 
   const map = new Map<string, BrandItem[]>();
   for (const b of sorted) {
-    const id = b?.id;
-    const name = b?.name ?? "";
+    const bObj = b as Record<string, unknown>;
+    const id = bObj?.id;
+    const name = (bObj?.name as string) ?? "";
     if (id == null || !name) continue;
     const letter = getLetter(name);
     if (!map.has(letter)) map.set(letter, []);
-    map.get(letter)!.push({ id, name });
+    map.get(letter)!.push({ id: id as string | number, name });
   }
 
   return Array.from(map.entries()).map(([letter, items]) => ({

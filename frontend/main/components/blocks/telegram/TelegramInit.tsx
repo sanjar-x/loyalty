@@ -78,7 +78,7 @@ function requestFullscreenBestEffort(tg: TelegramWebApp): void {
 
 interface PublishInitDataParams {
   rawInitData: string;
-  unsafe: TelegramInitDataUnsafe | null;
+  unsafe: TelegramInitDataUnsafe | { user?: Record<string, unknown> | null } | null;
   browserDebugUser?: ReturnType<typeof getBrowserDebugUser>;
 }
 

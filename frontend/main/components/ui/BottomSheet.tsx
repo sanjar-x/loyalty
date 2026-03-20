@@ -12,7 +12,7 @@ interface BottomSheetProps {
   isTypeModule?: boolean;
   isFilter?: boolean;
   open: boolean;
-  onClose: () => void;
+  onClose?: () => void;
   title?: string;
   ariaLabel?: string;
   header?: React.ReactNode;
