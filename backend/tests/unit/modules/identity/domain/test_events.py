@@ -20,7 +20,7 @@ class TestIdentityRegisteredEvent:
             email="test@example.com",
         )
         assert event.aggregate_type == "Identity"
-        assert event.event_type == "IdentityRegisteredEvent"
+        assert event.event_type == "identity_registered"
         assert event.email == "test@example.com"
         assert isinstance(event.registered_at, datetime)
 
@@ -43,7 +43,7 @@ class TestIdentityDeactivatedEvent:
         identity_id = uuid.uuid4()
         event = IdentityDeactivatedEvent(identity_id=identity_id, reason="user_request")
         assert event.aggregate_type == "Identity"
-        assert event.event_type == "IdentityDeactivatedEvent"
+        assert event.event_type == "identity_deactivated"
         assert event.reason == "user_request"
         assert isinstance(event.deactivated_at, datetime)
 

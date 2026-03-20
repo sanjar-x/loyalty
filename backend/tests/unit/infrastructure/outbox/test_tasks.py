@@ -45,9 +45,9 @@ class TestEventHandlerRegistrations:
             "BrandCreatedEvent",
             "BrandLogoConfirmedEvent",
             "BrandLogoProcessedEvent",
-            "IdentityRegisteredEvent",
-            "IdentityDeactivatedEvent",
-            "RoleAssignmentChangedEvent",
+            "identity_registered",
+            "identity_deactivated",
+            "role_assignment_changed",
         }
         assert expected_types.issubset(set(_EVENT_HANDLERS.keys()))
 

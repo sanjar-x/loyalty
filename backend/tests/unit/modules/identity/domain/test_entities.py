@@ -290,12 +290,17 @@ class TestPermission:
 
 class TestLinkedAccount:
     def test_create(self):
+        now = datetime.now(UTC)
         account = LinkedAccount(
             id=uuid.uuid4(),
             identity_id=uuid.uuid4(),
             provider="google",
             provider_sub_id="12345",
             provider_email="user@gmail.com",
+            email_verified=True,
+            provider_metadata={"name": "Test User"},
+            created_at=now,
+            updated_at=now,
         )
         assert account.provider == "google"
 

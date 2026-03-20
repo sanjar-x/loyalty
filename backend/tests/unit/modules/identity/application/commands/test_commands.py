@@ -63,7 +63,7 @@ from src.modules.identity.domain.exceptions import (
     SessionExpiredError,
     SystemRoleModificationError,
 )
-from src.modules.identity.domain.value_objects import IdentityType
+from src.modules.identity.domain.value_objects import AccountType, IdentityType
 from src.shared.exceptions import ConflictError, NotFoundError
 from src.shared.interfaces.security import OIDCUserInfo
 
@@ -101,6 +101,7 @@ def make_identity(
     identity = Identity(
         id=iid,
         type=identity_type,
+        account_type=AccountType.CUSTOMER,
         is_active=is_active,
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
@@ -119,6 +120,7 @@ def make_session(
     iid = identity_id or uuid.uuid4()
     now = datetime.now(UTC)
     expires_at = now - timedelta(days=1) if is_expired else now + timedelta(days=30)
+    idle_expires_at = now - timedelta(days=1) if is_expired else now + timedelta(minutes=30)
     return Session(
         id=sid,
         identity_id=iid,
@@ -129,6 +131,8 @@ def make_session(
         created_at=now,
         expires_at=expires_at,
         activated_roles=[],
+        last_active_at=now,
+        idle_expires_at=idle_expires_at,
     )
 
 
@@ -233,15 +237,19 @@ class TestLogoutAllHandler:
     async def test_logout_all_revokes_and_invalidates_all(self):
         identity_id = uuid.uuid4()
         revoked_ids = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
+        identity = make_identity(identity_id=identity_id)
 
         session_repo = AsyncMock()
         session_repo.revoke_all_for_identity.return_value = revoked_ids
+        identity_repo = AsyncMock()
+        identity_repo.get.return_value = identity
         uow = make_uow()
         permission_resolver = AsyncMock()
         logger = make_logger()
 
         handler = LogoutAllHandler(
             session_repo=session_repo,
+            identity_repo=identity_repo,
             uow=uow,
             permission_resolver=permission_resolver,
             logger=logger,
@@ -251,21 +259,23 @@ class TestLogoutAllHandler:
 
         session_repo.revoke_all_for_identity.assert_awaited_once_with(identity_id)
         uow.commit.assert_awaited_once()
-        assert permission_resolver.invalidate.await_count == 3
-        for sid in revoked_ids:
-            permission_resolver.invalidate.assert_any_await(sid)
+        permission_resolver.invalidate_many.assert_awaited_once_with(revoked_ids)
 
     async def test_logout_all_no_sessions(self):
         identity_id = uuid.uuid4()
+        identity = make_identity(identity_id=identity_id)
 
         session_repo = AsyncMock()
         session_repo.revoke_all_for_identity.return_value = []
+        identity_repo = AsyncMock()
+        identity_repo.get.return_value = identity
         uow = make_uow()
         permission_resolver = AsyncMock()
         logger = make_logger()
 
         handler = LogoutAllHandler(
             session_repo=session_repo,
+            identity_repo=identity_repo,
             uow=uow,
             permission_resolver=permission_resolver,
             logger=logger,
@@ -274,7 +284,7 @@ class TestLogoutAllHandler:
         await handler.handle(LogoutAllCommand(identity_id=identity_id))
 
         uow.commit.assert_awaited_once()
-        permission_resolver.invalidate.assert_not_awaited()
+        permission_resolver.invalidate_many.assert_awaited_once_with([])
 
 
 # ===========================================================================
@@ -302,6 +312,7 @@ class TestRefreshTokenHandler:
         token_provider.create_refresh_token.return_value = ("new-raw-token", "new-hash")
         token_provider.create_access_token.return_value = "new-access-token"
         permission_resolver = AsyncMock()
+        cache = AsyncMock()
         logger = make_logger()
 
         handler = RefreshTokenHandler(
@@ -310,6 +321,7 @@ class TestRefreshTokenHandler:
             uow=uow,
             token_provider=token_provider,
             permission_resolver=permission_resolver,
+            cache=cache,
             logger=logger,
         )
 
@@ -337,6 +349,8 @@ class TestRefreshTokenHandler:
         uow = make_uow()
         token_provider = MagicMock()
         permission_resolver = AsyncMock()
+        cache = AsyncMock()
+        cache.get.return_value = None
         logger = make_logger()
 
         handler = RefreshTokenHandler(
@@ -345,6 +359,7 @@ class TestRefreshTokenHandler:
             uow=uow,
             token_provider=token_provider,
             permission_resolver=permission_resolver,
+            cache=cache,
             logger=logger,
         )
 
@@ -371,6 +386,7 @@ class TestRefreshTokenHandler:
         uow = make_uow()
         token_provider = MagicMock()
         permission_resolver = AsyncMock()
+        cache = AsyncMock()
         logger = make_logger()
 
         handler = RefreshTokenHandler(
@@ -379,6 +395,7 @@ class TestRefreshTokenHandler:
             uow=uow,
             token_provider=token_provider,
             permission_resolver=permission_resolver,
+            cache=cache,
             logger=logger,
         )
 
@@ -408,6 +425,7 @@ class TestRefreshTokenHandler:
         uow = make_uow()
         token_provider = MagicMock()
         permission_resolver = AsyncMock()
+        cache = AsyncMock()
         logger = make_logger()
 
         handler = RefreshTokenHandler(
@@ -416,6 +434,7 @@ class TestRefreshTokenHandler:
             uow=uow,
             token_provider=token_provider,
             permission_resolver=permission_resolver,
+            cache=cache,
             logger=logger,
         )
 
@@ -447,9 +466,11 @@ class TestAssignRoleHandler:
         identity_repo.get.return_value = identity
         role_repo = AsyncMock()
         role_repo.get.return_value = role
+        role_repo.is_role_assigned = AsyncMock(return_value=False)
         session_repo = AsyncMock()
         session_repo.get_active_session_ids.return_value = active_session_ids
         uow = make_uow()
+        permission_resolver = AsyncMock()
         logger = make_logger()
 
         handler = AssignRoleHandler(
@@ -457,6 +478,7 @@ class TestAssignRoleHandler:
             role_repo=role_repo,
             session_repo=session_repo,
             uow=uow,
+            permission_resolver=permission_resolver,
             logger=logger,
         )
 
@@ -492,6 +514,9 @@ class TestAssignRoleHandler:
         uow.register_aggregate.assert_called_once_with(identity)
         uow.commit.assert_awaited_once()
 
+        # Cache invalidation
+        permission_resolver.invalidate_many.assert_awaited_once_with(active_session_ids)
+
     async def test_assign_role_identity_not_found(self):
         identity_id = uuid.uuid4()
         role_id = uuid.uuid4()
@@ -501,6 +526,7 @@ class TestAssignRoleHandler:
         role_repo = AsyncMock()
         session_repo = AsyncMock()
         uow = make_uow()
+        permission_resolver = AsyncMock()
         logger = make_logger()
 
         handler = AssignRoleHandler(
@@ -508,6 +534,7 @@ class TestAssignRoleHandler:
             role_repo=role_repo,
             session_repo=session_repo,
             uow=uow,
+            permission_resolver=permission_resolver,
             logger=logger,
         )
 
@@ -527,6 +554,7 @@ class TestAssignRoleHandler:
         role_repo.get.return_value = None
         session_repo = AsyncMock()
         uow = make_uow()
+        permission_resolver = AsyncMock()
         logger = make_logger()
 
         handler = AssignRoleHandler(
@@ -534,6 +562,7 @@ class TestAssignRoleHandler:
             role_repo=role_repo,
             session_repo=session_repo,
             uow=uow,
+            permission_resolver=permission_resolver,
             logger=logger,
         )
 
@@ -606,12 +635,18 @@ class TestDeleteRoleHandler:
 
         role_repo = AsyncMock()
         role_repo.get.return_value = role
+        role_repo.get_identity_ids_with_role.return_value = []
+        session_repo = AsyncMock()
+        session_repo.get_active_session_ids_bulk.return_value = []
         uow = make_uow()
+        permission_resolver = AsyncMock()
         logger = make_logger()
 
         handler = DeleteRoleHandler(
             role_repo=role_repo,
+            session_repo=session_repo,
             uow=uow,
+            permission_resolver=permission_resolver,
             logger=logger,
         )
 
@@ -625,12 +660,16 @@ class TestDeleteRoleHandler:
 
         role_repo = AsyncMock()
         role_repo.get.return_value = None
+        session_repo = AsyncMock()
         uow = make_uow()
+        permission_resolver = AsyncMock()
         logger = make_logger()
 
         handler = DeleteRoleHandler(
             role_repo=role_repo,
+            session_repo=session_repo,
             uow=uow,
+            permission_resolver=permission_resolver,
             logger=logger,
         )
 
@@ -645,12 +684,16 @@ class TestDeleteRoleHandler:
 
         role_repo = AsyncMock()
         role_repo.get.return_value = role
+        session_repo = AsyncMock()
         uow = make_uow()
+        permission_resolver = AsyncMock()
         logger = make_logger()
 
         handler = DeleteRoleHandler(
             role_repo=role_repo,
+            session_repo=session_repo,
             uow=uow,
+            permission_resolver=permission_resolver,
             logger=logger,
         )
 
@@ -679,6 +722,7 @@ class TestRevokeRoleHandler:
         session_repo = AsyncMock()
         session_repo.get_active_session_ids.return_value = active_session_ids
         uow = make_uow()
+        permission_resolver = AsyncMock()
         logger = make_logger()
 
         handler = RevokeRoleHandler(
@@ -686,6 +730,7 @@ class TestRevokeRoleHandler:
             role_repo=role_repo,
             session_repo=session_repo,
             uow=uow,
+            permission_resolver=permission_resolver,
             logger=logger,
         )
 
@@ -713,6 +758,9 @@ class TestRevokeRoleHandler:
         uow.register_aggregate.assert_called_once_with(identity)
         uow.commit.assert_awaited_once()
 
+        # Cache invalidation
+        permission_resolver.invalidate_many.assert_awaited_once_with(active_session_ids)
+
     async def test_revoke_role_identity_not_found_returns_silently(self):
         identity_id = uuid.uuid4()
         role_id = uuid.uuid4()
@@ -722,6 +770,7 @@ class TestRevokeRoleHandler:
         role_repo = AsyncMock()
         session_repo = AsyncMock()
         uow = make_uow()
+        permission_resolver = AsyncMock()
         logger = make_logger()
 
         handler = RevokeRoleHandler(
@@ -729,6 +778,7 @@ class TestRevokeRoleHandler:
             role_repo=role_repo,
             session_repo=session_repo,
             uow=uow,
+            permission_resolver=permission_resolver,
             logger=logger,
         )
 
@@ -781,9 +831,7 @@ class TestDeactivateIdentityHandler:
         uow.commit.assert_awaited_once()
 
         # Permissions cache invalidated for all revoked sessions
-        assert permission_resolver.invalidate.await_count == 2
-        for sid in revoked_ids:
-            permission_resolver.invalidate.assert_any_await(sid)
+        permission_resolver.invalidate_many.assert_awaited_once_with(revoked_ids)
 
     async def test_deactivate_identity_not_found_returns_silently(self):
         identity_id = uuid.uuid4()
@@ -808,7 +856,7 @@ class TestDeactivateIdentityHandler:
 
         session_repo.revoke_all_for_identity.assert_not_awaited()
         uow.commit.assert_not_awaited()
-        permission_resolver.invalidate.assert_not_awaited()
+        permission_resolver.invalidate_many.assert_not_awaited()
 
 
 # ===========================================================================
@@ -844,12 +892,17 @@ class TestLoginOIDCHandler:
         identity = make_identity(
             identity_id=identity_id, is_active=True, identity_type=IdentityType.OIDC
         )
+        now = datetime.now(UTC)
         linked = LinkedAccount(
             id=uuid.uuid4(),
             identity_id=identity_id,
             provider="google",
             provider_sub_id="google-sub-123",
             provider_email="user@example.com",
+            email_verified=True,
+            provider_metadata={},
+            created_at=now,
+            updated_at=now,
         )
         user_info = OIDCUserInfo(provider="google", sub="google-sub-123", email="user@example.com")
         role_ids = [uuid.uuid4()]
@@ -861,6 +914,7 @@ class TestLoginOIDCHandler:
         linked_account_repo = AsyncMock()
         linked_account_repo.get_by_provider.return_value = linked
         session_repo = AsyncMock()
+        session_repo.count_active.return_value = 0
         role_repo = AsyncMock()
         role_repo.get_identity_role_ids.return_value = role_ids
         uow = make_uow()
@@ -917,6 +971,7 @@ class TestLoginOIDCHandler:
         linked_account_repo = AsyncMock()
         linked_account_repo.get_by_provider.return_value = None
         session_repo = AsyncMock()
+        session_repo.count_active.return_value = 0
         role_repo = AsyncMock()
         role_repo.get_by_name.return_value = customer_role
         role_repo.get_identity_role_ids.return_value = role_ids
@@ -986,12 +1041,17 @@ class TestLoginOIDCHandler:
         identity = make_identity(
             identity_id=identity_id, is_active=False, identity_type=IdentityType.OIDC
         )
+        now = datetime.now(UTC)
         linked = LinkedAccount(
             id=uuid.uuid4(),
             identity_id=identity_id,
             provider="google",
             provider_sub_id="sub-deactivated",
             provider_email="deactivated@example.com",
+            email_verified=True,
+            provider_metadata={},
+            created_at=now,
+            updated_at=now,
         )
         user_info = OIDCUserInfo(
             provider="google", sub="sub-deactivated", email="deactivated@example.com"
@@ -1025,12 +1085,17 @@ class TestLoginOIDCHandler:
 
     async def test_login_oidc_linked_but_identity_missing(self):
         identity_id = uuid.uuid4()
+        now = datetime.now(UTC)
         linked = LinkedAccount(
             id=uuid.uuid4(),
             identity_id=identity_id,
             provider="google",
             provider_sub_id="sub-orphan",
             provider_email="orphan@example.com",
+            email_verified=True,
+            provider_metadata={},
+            created_at=now,
+            updated_at=now,
         )
         user_info = OIDCUserInfo(provider="google", sub="sub-orphan", email="orphan@example.com")
 

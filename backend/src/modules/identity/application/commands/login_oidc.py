@@ -122,7 +122,15 @@ class LoginOIDCHandler:
                 identity = Identity.register(PrimaryAuthMethod.OIDC)
                 await self._identity_repo.add(identity)
 
+                from datetime import UTC, datetime
+
                 from src.modules.identity.domain.entities import LinkedAccount
+                from src.modules.identity.domain.value_objects import TRUSTED_EMAIL_PROVIDERS, AuthProvider
+
+                now = datetime.now(UTC)
+                # Trust email verification for known OIDC providers (Google, Apple)
+                provider_enum = AuthProvider(user_info.provider) if user_info.provider in [p.value for p in AuthProvider] else None
+                email_verified = provider_enum in TRUSTED_EMAIL_PROVIDERS if provider_enum else False
 
                 linked_account = LinkedAccount(
                     id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
@@ -130,6 +138,10 @@ class LoginOIDCHandler:
                     provider=user_info.provider,
                     provider_sub_id=user_info.sub,
                     provider_email=user_info.email,
+                    email_verified=email_verified,
+                    provider_metadata={},
+                    created_at=now,
+                    updated_at=now,
                 )
                 await self._linked_repo.add(linked_account)
 

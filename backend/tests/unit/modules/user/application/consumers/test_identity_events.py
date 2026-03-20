@@ -35,9 +35,12 @@ def make_uow():
 
 class TestCreateUserOnIdentityRegistered:
     async def test_creates_user_on_registration(self):
-        """No existing user -> creates user, commits, returns success."""
+        """No existing user -> creates customer, commits, returns success."""
         user_repo = AsyncMock()
+        customer_repo = AsyncMock()
+        customer_repo.get = AsyncMock(return_value=None)
         user_repo.get = AsyncMock(return_value=None)
+        staff_repo = AsyncMock()
         uow = make_uow()
 
         identity_id = str(uuid.uuid4())
@@ -45,32 +48,37 @@ class TestCreateUserOnIdentityRegistered:
             identity_id=identity_id,
             email="test@example.com",
             user_repo=user_repo,
+            customer_repo=customer_repo,
+            staff_repo=staff_repo,
             uow=uow,
         )
 
-        assert result == {"status": "success"}
-        user_repo.add.assert_awaited_once()
-        created_user = user_repo.add.call_args[0][0]
-        assert created_user.id == uuid.UUID(identity_id)
-        assert created_user.profile_email == "test@example.com"
+        assert result["status"] == "success"
+        customer_repo.add.assert_awaited_once()
+        created_customer = customer_repo.add.call_args[0][0]
+        assert created_customer.id == uuid.UUID(identity_id)
         uow.commit.assert_awaited_once()
 
     async def test_skips_existing_user(self):
-        """User exists -> returns skipped status."""
-        existing_user = MagicMock()
+        """Customer exists -> returns skipped status."""
+        existing_customer = MagicMock()
         user_repo = AsyncMock()
-        user_repo.get = AsyncMock(return_value=existing_user)
+        customer_repo = AsyncMock()
+        customer_repo.get = AsyncMock(return_value=existing_customer)
+        staff_repo = AsyncMock()
         uow = make_uow()
 
         result = await _create_user_fn(
             identity_id=str(uuid.uuid4()),
             email="existing@example.com",
             user_repo=user_repo,
+            customer_repo=customer_repo,
+            staff_repo=staff_repo,
             uow=uow,
         )
 
         assert result == {"status": "skipped", "reason": "already_exists"}
-        user_repo.add.assert_not_awaited()
+        customer_repo.add.assert_not_awaited()
         uow.commit.assert_not_awaited()
 
 
@@ -79,37 +87,43 @@ class TestCreateUserOnIdentityRegistered:
 
 class TestAnonymizeUserOnIdentityDeactivated:
     async def test_anonymizes_user_on_deactivation(self):
-        """User found -> anonymizes, commits, returns success."""
-        user = MagicMock()
-        user.anonymize = MagicMock()
+        """Customer found -> anonymizes, commits, returns success."""
+        customer = MagicMock()
+        customer.anonymize = MagicMock()
         user_repo = AsyncMock()
-        user_repo.get = AsyncMock(return_value=user)
+        user_repo.get = AsyncMock(return_value=None)
+        customer_repo = AsyncMock()
+        customer_repo.get = AsyncMock(return_value=customer)
         uow = make_uow()
 
         identity_id = str(uuid.uuid4())
         result = await _anonymize_user_fn(
             identity_id=identity_id,
             user_repo=user_repo,
+            customer_repo=customer_repo,
             uow=uow,
         )
 
-        assert result == {"status": "success"}
-        user.anonymize.assert_called_once()
-        user_repo.update.assert_awaited_once_with(user)
+        assert result["status"] == "success"
+        customer.anonymize.assert_called_once()
+        customer_repo.update.assert_awaited_once_with(customer)
         uow.commit.assert_awaited_once()
 
     async def test_skips_missing_user(self):
-        """No user -> returns skipped status."""
+        """No customer or user -> returns skipped status."""
         user_repo = AsyncMock()
         user_repo.get = AsyncMock(return_value=None)
+        customer_repo = AsyncMock()
+        customer_repo.get = AsyncMock(return_value=None)
         uow = make_uow()
 
         result = await _anonymize_user_fn(
             identity_id=str(uuid.uuid4()),
             user_repo=user_repo,
+            customer_repo=customer_repo,
             uow=uow,
         )
 
-        assert result == {"status": "skipped", "reason": "user_not_found"}
+        assert result == {"status": "skipped", "reason": "not_found"}
         user_repo.update.assert_not_awaited()
         uow.commit.assert_not_awaited()
