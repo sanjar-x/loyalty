@@ -1,5 +1,4 @@
 import { configureStore } from "@reduxjs/toolkit";
-
 import { api } from "./api";
 
 export const makeStore = () =>
@@ -10,3 +9,7 @@ export const makeStore = () =>
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().concat(api.middleware),
   });
+
+export type AppStore = ReturnType<typeof makeStore>;
+export type RootState = ReturnType<AppStore["getState"]>;
+export type AppDispatch = AppStore["dispatch"];
