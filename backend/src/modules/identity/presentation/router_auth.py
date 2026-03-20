@@ -8,6 +8,10 @@ from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Request, status
 
 from src.modules.identity.application.commands.login import LoginCommand, LoginHandler
+from src.modules.identity.application.commands.login_telegram import (
+    LoginTelegramCommand,
+    LoginTelegramHandler,
+)
 from src.modules.identity.application.commands.logout import (
     LogoutCommand,
     LogoutHandler,
@@ -31,8 +35,10 @@ from src.modules.identity.presentation.schemas import (
     RefreshTokenRequest,
     RegisterRequest,
     RegisterResponse,
+    TelegramTokenResponse,
     TokenResponse,
 )
+from src.shared.exceptions import UnauthorizedError
 from src.shared.interfaces.auth import AuthContext
 
 auth_router = APIRouter(
@@ -96,6 +102,42 @@ async def login(
     return TokenResponse(
         access_token=result.access_token,
         refresh_token=result.refresh_token,
+    )
+
+
+@auth_router.post(
+    "/telegram",
+    response_model=TelegramTokenResponse,
+    summary="Authenticate via Telegram Mini App",
+)
+async def login_telegram(
+    request: Request,
+    handler: FromDishka[LoginTelegramHandler],
+) -> TelegramTokenResponse:
+    """Authenticate using Telegram Mini App initData.
+
+    The initData must be sent in the Authorization header:
+        Authorization: tma <raw initData string>
+    """
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.lower().startswith("tma "):
+        raise UnauthorizedError(
+            message="Expected Authorization: tma <initData>",
+            error_code="INVALID_AUTH_SCHEME",
+        )
+    init_data_raw = auth_header[4:]
+
+    command = LoginTelegramCommand(
+        init_data_raw=init_data_raw,
+        ip_address=request.client.host if request.client else "unknown",
+        user_agent=request.headers.get("user-agent", ""),
+    )
+    result = await handler.handle(command)
+
+    return TelegramTokenResponse(
+        access_token=result.access_token,
+        refresh_token=result.refresh_token,
+        is_new_user=result.is_new_user,
     )
 
 

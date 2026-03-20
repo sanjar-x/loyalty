@@ -23,6 +23,7 @@ from src.modules.identity.application.commands.deactivate_identity import (
 from src.modules.identity.application.commands.delete_role import DeleteRoleHandler
 from src.modules.identity.application.commands.invite_staff import InviteStaffHandler
 from src.modules.identity.application.commands.login import LoginHandler
+from src.modules.identity.application.commands.login_telegram import LoginTelegramHandler
 from src.modules.identity.application.commands.logout import LogoutHandler
 from src.modules.identity.application.commands.logout_all import LogoutAllHandler
 from src.modules.identity.application.commands.reactivate_identity import (
@@ -83,7 +84,10 @@ from src.modules.identity.domain.interfaces import (
     IRoleRepository,
     ISessionRepository,
     IStaffInvitationRepository,
+    ITelegramCredentialsRepository,
+    ITelegramInitDataValidator,
 )
+from src.infrastructure.security.telegram import TelegramInitDataValidator
 from src.modules.identity.infrastructure.repositories.identity_repository import (
     IdentityRepository,
 )
@@ -102,8 +106,11 @@ from src.modules.identity.infrastructure.repositories.session_repository import 
 from src.modules.identity.infrastructure.repositories.staff_invitation_repository import (
     StaffInvitationRepository,
 )
+from src.modules.identity.infrastructure.repositories.telegram_credentials_repo import (
+    TelegramCredentialsRepository,
+)
 from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.security import IPasswordHasher, ITokenProvider
+from src.shared.interfaces.security import IPasswordHasher, IPermissionResolver, ITokenProvider
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -129,6 +136,46 @@ class IdentityProvider(Provider):
     staff_invitation_repo: CompositeDependencySource = provide(
         StaffInvitationRepository, scope=Scope.REQUEST, provides=IStaffInvitationRepository
     )
+
+    # Telegram auth
+    telegram_creds_repo = provide(
+        TelegramCredentialsRepository, scope=Scope.REQUEST,
+        provides=ITelegramCredentialsRepository,
+    )
+
+    @provide(scope=Scope.REQUEST)
+    def telegram_validator(self) -> ITelegramInitDataValidator:
+        return TelegramInitDataValidator(
+            bot_token=settings.BOT_TOKEN.get_secret_value(),
+            max_age=settings.TELEGRAM_INIT_DATA_MAX_AGE,
+        )
+
+    @provide(scope=Scope.REQUEST)
+    def login_telegram_handler(
+        self,
+        telegram_validator: ITelegramInitDataValidator,
+        telegram_creds_repo: ITelegramCredentialsRepository,
+        identity_repo: IIdentityRepository,
+        session_repo: ISessionRepository,
+        role_repo: IRoleRepository,
+        uow: IUnitOfWork,
+        token_provider: ITokenProvider,
+        permission_resolver: IPermissionResolver,
+        logger: ILogger,
+    ) -> LoginTelegramHandler:
+        return LoginTelegramHandler(
+            telegram_validator=telegram_validator,
+            telegram_creds_repo=telegram_creds_repo,
+            identity_repo=identity_repo,
+            session_repo=session_repo,
+            role_repo=role_repo,
+            uow=uow,
+            token_provider=token_provider,
+            permission_resolver=permission_resolver,
+            logger=logger,
+            max_sessions=settings.MAX_ACTIVE_SESSIONS_PER_IDENTITY,
+            refresh_token_days=settings.TELEGRAM_REFRESH_TOKEN_EXPIRE_DAYS,
+        )
 
     # Command handlers (REQUEST scope)
     register_handler: CompositeDependencySource = provide(RegisterHandler, scope=Scope.REQUEST)
