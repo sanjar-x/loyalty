@@ -205,6 +205,8 @@ class Session:
     created_at: datetime
     expires_at: datetime
     activated_roles: tuple[uuid.UUID, ...]
+    last_active_at: datetime
+    idle_expires_at: datetime
 
     @classmethod
     def create(
@@ -215,6 +217,7 @@ class Session:
         user_agent: str,
         role_ids: list[uuid.UUID],
         expires_days: int = 30,
+        idle_timeout_minutes: int = 30,
     ) -> Session:
         """Create a new session with a hashed refresh token.
 
@@ -225,6 +228,7 @@ class Session:
             user_agent: Client User-Agent header value.
             role_ids: Role IDs to activate for this session.
             expires_days: Number of days until the refresh token expires.
+            idle_timeout_minutes: Minutes of inactivity before session expires.
 
         Returns:
             A new Session instance.
@@ -241,7 +245,15 @@ class Session:
             created_at=now,
             expires_at=now + timedelta(days=expires_days),
             activated_roles=tuple(role_ids),
+            last_active_at=now,
+            idle_expires_at=now + timedelta(minutes=idle_timeout_minutes),
         )
+
+    def touch(self, idle_timeout_minutes: int) -> None:
+        """Extend idle timeout on activity (refresh token use)."""
+        now = datetime.now(UTC)
+        self.last_active_at = now
+        self.idle_expires_at = now + timedelta(minutes=idle_timeout_minutes)
 
     def revoke(self) -> None:
         """Mark this session as revoked."""
@@ -284,13 +296,15 @@ class Session:
             raise RefreshTokenReuseError()
 
     def ensure_valid(self) -> None:
-        """Verify that this session is neither expired nor revoked.
+        """Verify that this session is neither expired, idle-expired, nor revoked.
 
         Raises:
-            SessionExpiredError: If the session has expired.
+            SessionExpiredError: If the session has expired (absolute or idle).
             SessionRevokedError: If the session has been revoked.
         """
         if self.is_expired():
+            raise SessionExpiredError()
+        if datetime.now(UTC) >= self.idle_expires_at:
             raise SessionExpiredError()
         if self.is_revoked:
             raise SessionRevokedError()
