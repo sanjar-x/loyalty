@@ -107,6 +107,7 @@ _CUSTOMER_UPDATABLE_FIELDS = frozenset({
     "first_name",
     "last_name",
     "phone",
+    "username",
 })
 
 
@@ -133,6 +134,7 @@ class Customer(AggregateRoot):
     profile_email: str | None
     first_name: str
     last_name: str
+    username: str | None
     phone: str | None
     referral_code: str
     referred_by: uuid.UUID | None
@@ -146,6 +148,7 @@ class Customer(AggregateRoot):
         profile_email: str | None = None,
         first_name: str = "",
         last_name: str = "",
+        username: str | None = None,
         referral_code: str | None = None,
         referred_by: uuid.UUID | None = None,
     ) -> Customer:
@@ -168,6 +171,7 @@ class Customer(AggregateRoot):
             profile_email=profile_email,
             first_name=first_name,
             last_name=last_name,
+            username=username,
             phone=None,
             referral_code=referral_code or "",
             referred_by=referred_by,
@@ -183,7 +187,8 @@ class Customer(AggregateRoot):
 
         Args:
             **kwargs: Field-value pairs to update. Accepted keys are
-                ``profile_email``, ``first_name``, ``last_name``, and ``phone``.
+                ``profile_email``, ``first_name``, ``last_name``, ``phone``,
+                and ``username``.
         """
         for field, value in kwargs.items():
             if field in _CUSTOMER_UPDATABLE_FIELDS:
@@ -196,6 +201,7 @@ class Customer(AggregateRoot):
         self.last_name = "[DELETED]"
         self.phone = None
         self.profile_email = None
+        self.username = None
         self.updated_at = datetime.now(UTC)
 
 
