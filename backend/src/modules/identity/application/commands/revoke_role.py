@@ -74,6 +74,9 @@ class RevokeRoleHandler:
                 role_id=command.role_id,
             )
 
+            identity.bump_token_version()
+            await self._identity_repo.update(identity)
+
             # Remove from session_roles for active sessions
             active_session_ids = await self._session_repo.get_active_session_ids(
                 command.identity_id,

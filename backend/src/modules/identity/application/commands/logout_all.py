@@ -7,7 +7,7 @@ permissions cache entries for each revoked session.
 import uuid
 from dataclasses import dataclass
 
-from src.modules.identity.domain.interfaces import ISessionRepository
+from src.modules.identity.domain.interfaces import IIdentityRepository, ISessionRepository
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.security import IPermissionResolver
 from src.shared.interfaces.uow import IUnitOfWork
@@ -30,11 +30,13 @@ class LogoutAllHandler:
     def __init__(
         self,
         session_repo: ISessionRepository,
+        identity_repo: IIdentityRepository,
         uow: IUnitOfWork,
         permission_resolver: IPermissionResolver,
         logger: ILogger,
     ) -> None:
         self._session_repo = session_repo
+        self._identity_repo = identity_repo
         self._uow = uow
         self._permission_resolver = permission_resolver
         self._logger = logger.bind(handler="LogoutAllHandler")
@@ -52,6 +54,10 @@ class LogoutAllHandler:
             revoked_ids = await self._session_repo.revoke_all_for_identity(
                 command.identity_id,
             )
+            identity = await self._identity_repo.get(command.identity_id)
+            if identity:
+                identity.bump_token_version()
+                await self._identity_repo.update(identity)
             await self._uow.commit()
 
         # Invalidate permissions cache for all revoked sessions (single round-trip)
