@@ -1,8 +1,9 @@
 # Telegram WebApp SDK Module — Design Spec
 
 **Date:** 2026-03-20
-**Goal:** Production-ready, enterprise-grade React module covering 100% of Telegram Web App API with full TypeScript types, a minimal Provider, and 25+ independent hooks.
+**Goal:** Production-ready, enterprise-grade React module covering 100% of Telegram Web App API with full TypeScript types, a minimal Provider, and 28+ independent hooks.
 **Location:** `lib/telegram/`
+**Source of truth:** https://core.telegram.org/bots/webapps (Bot API 9.x)
 
 ---
 
@@ -81,64 +82,253 @@ lib/telegram/
 
 ## 1. Types (`types.ts`)
 
-Complete typing of `window.Telegram.WebApp` covering Telegram Bot API 8.0+:
+Complete typing of `window.Telegram.WebApp` covering Telegram Bot API 9.x:
 
 ### Core Types
-- `WebApp` — full interface with all properties and methods (including readable state: `headerColor`, `backgroundColor`, `bottomBarColor`, `isClosingConfirmationEnabled`, `isVerticalSwipesEnabled`, `isFullscreen`, `isOrientationLocked`, `isActive`, and method `setBottomBarColor`)
-- `WebAppInitData` — parsed init data (query_id, user, receiver, chat, chat_type, chat_instance, start_param, can_send_after, auth_date, hash)
-- `WebAppUser` — id, is_bot, first_name, last_name, username, language_code, is_premium, added_to_attachment_menu, allows_write_to_pm, photo_url
-- `WebAppChat` — id, type, title, username, photo_url
-- `ThemeParams` — all 15 color properties (bg_color, text_color, hint_color, link_color, button_color, button_text_color, secondary_bg_color, header_bg_color, bottom_bar_bg_color, accent_text_color, section_bg_color, section_header_text_color, section_separator_color, subtitle_text_color, destructive_text_color)
+
+**`WebApp`** — full interface with ALL properties and methods:
+
+Properties:
+- `initData: string` — raw init data for server validation
+- `initDataUnsafe: WebAppInitData` — parsed (untrusted) init data
+- `version: string` — Bot API version supported
+- `platform: string` — platform name (6.4+)
+- `colorScheme: 'light' | 'dark'` — current color scheme
+- `themeParams: ThemeParams` — current theme colors
+- `isActive: boolean` — whether Mini App is active (8.0+)
+- `isExpanded: boolean` — whether expanded to max height
+- `viewportHeight: number` — current visible area height (px)
+- `viewportStableHeight: number` — stable viewport height (px)
+- `headerColor: string` — current header color #RRGGBB (6.1+)
+- `backgroundColor: string` — current background color #RRGGBB (6.1+)
+- `bottomBarColor: string` — current bottom bar color #RRGGBB (7.10+)
+- `isClosingConfirmationEnabled: boolean` — close confirmation state (6.2+)
+- `isVerticalSwipesEnabled: boolean` — vertical swipes state (7.7+)
+- `isFullscreen: boolean` — fullscreen state (8.0+)
+- `isOrientationLocked: boolean` — orientation lock state (8.0+)
+- `safeAreaInset: SafeAreaInset` — device safe area (8.0+)
+- `contentSafeAreaInset: ContentSafeAreaInset` — content safe area (8.0+)
+- `BackButton: BackButton` — back button control
+- `MainButton: BottomButton` — main button control
+- `SecondaryButton: BottomButton` — secondary button (7.10+)
+- `SettingsButton: SettingsButton` — settings menu item (7.0+)
+- `HapticFeedback: HapticFeedback` — haptic feedback (6.1+)
+- `CloudStorage: CloudStorage` — cloud storage (6.9+)
+- `BiometricManager: BiometricManager` — biometric auth (7.2+)
+- `Accelerometer: Accelerometer` — accelerometer (8.0+)
+- `Gyroscope: Gyroscope` — gyroscope (8.0+)
+- `DeviceOrientation: DeviceOrientation` — device orientation (8.0+)
+- `LocationManager: LocationManager` — location (8.0+)
+- `DeviceStorage: DeviceStorage` — local storage 5MB (9.0+)
+- `SecureStorage: SecureStorage` — encrypted storage 10 items (9.0+)
+
+Methods:
+- `isVersionAtLeast(version: string): boolean`
+- `setHeaderColor(color: string): void` (6.1+)
+- `setBackgroundColor(color: string): void` (6.1+)
+- `setBottomBarColor(color: string): void` (7.10+)
+- `enableClosingConfirmation(): void` (6.2+)
+- `disableClosingConfirmation(): void` (6.2+)
+- `enableVerticalSwipes(): void` (7.7+)
+- `disableVerticalSwipes(): void` (7.7+)
+- `requestFullscreen(): void` (8.0+)
+- `exitFullscreen(): void` (8.0+)
+- `lockOrientation(): void` (8.0+)
+- `unlockOrientation(): void` (8.0+)
+- `addToHomeScreen(): void` (8.0+)
+- `checkHomeScreenStatus(callback?: (status: HomeScreenStatus) => void): void` (8.0+)
+- `onEvent(eventType: EventType, handler: Function): void`
+- `offEvent(eventType: EventType, handler: Function): void`
+- `sendData(data: string): void` — max 4096 bytes, keyboard button only
+- `switchInlineQuery(query: string, chatTypes?: ChatType[]): void` (6.7+)
+- `openLink(url: string, options?: { try_instant_view?: boolean }): void` (6.1+)
+- `openTelegramLink(url: string): void` (6.1+)
+- `openInvoice(url: string, callback?: (status: InvoiceStatus) => void): void` (6.1+)
+- `shareToStory(mediaUrl: string, params?: StoryShareParams): void` (7.8+)
+- `shareMessage(msgId: number, callback?: (success: boolean) => void): void` (8.0+)
+- `setEmojiStatus(emojiId: string, params?: EmojiStatusParams, callback?: (success: boolean) => void): void` (8.0+)
+- `requestEmojiStatusAccess(callback?: (granted: boolean) => void): void` (8.0+)
+- `downloadFile(params: DownloadFileParams, callback?: (accepted: boolean) => void): void` (8.0+)
+- `showPopup(params: PopupParams, callback?: (buttonId: string | null) => void): void` (6.2+)
+- `showAlert(message: string, callback?: () => void): void` (6.2+)
+- `showConfirm(message: string, callback?: (ok: boolean) => void): void` (6.2+)
+- `showScanQrPopup(params: ScanQrPopupParams, callback?: (text: string) => void): void` (6.4+)
+- `closeScanQrPopup(): void` (6.4+)
+- `readTextFromClipboard(callback?: (text: string | null) => void): void` (6.4+)
+- `requestWriteAccess(callback?: (status: 'allowed' | 'cancelled') => void): void` (6.9+)
+- `requestContact(callback?: (status: 'sent' | 'cancelled') => void): void` (6.9+)
+- `ready(): void`
+- `expand(): void`
+- `close(): void`
+- `hideKeyboard(): void` (9.1+)
+
+**`WebAppInitData`** — parsed init data:
+- `query_id?: string` — session ID for answerWebAppQuery
+- `user?: WebAppUser`
+- `receiver?: WebAppUser` — chat partner (attachment menu only)
+- `chat?: WebAppChat` — chat data (attachment menu only)
+- `chat_type?: ChatType`
+- `chat_instance?: string` — global chat identifier
+- `start_param?: string` — startapp parameter
+- `can_send_after?: number` — seconds before message can send
+- `auth_date: number` — Unix timestamp
+- `hash: string` — HMAC-SHA256 validation hash
+- `signature?: string` — Ed25519 signature (8.0+, third-party validation)
+
+**`WebAppUser`**:
+- `id: number` — 64-bit safe
+- `is_bot?: boolean`
+- `first_name: string`
+- `last_name?: string`
+- `username?: string`
+- `language_code?: string` — IETF language tag
+- `is_premium?: boolean`
+- `added_to_attachment_menu?: boolean`
+- `allows_write_to_pm?: boolean`
+- `photo_url?: string` — .jpeg or .svg
+
+**`WebAppChat`**:
+- `id: number` — 64-bit safe
+- `type: 'group' | 'supergroup' | 'channel'`
+- `title: string`
+- `username?: string`
+- `photo_url?: string` — attachment menu only
+
+**`ThemeParams`** — all 15 color properties (optional, #RRGGBB format):
+- `bg_color`, `text_color`, `hint_color`, `link_color`
+- `button_color`, `button_text_color`
+- `secondary_bg_color` (6.1+)
+- `header_bg_color` (7.0+), `bottom_bar_bg_color` (7.10+)
+- `accent_text_color` (7.0+)
+- `section_bg_color` (7.0+), `section_header_text_color` (7.0+), `section_separator_color` (7.6+)
+- `subtitle_text_color` (7.0+), `destructive_text_color` (7.0+)
 
 ### UI Controls
-- `BottomButton` — text, color, textColor, isVisible, isActive, hasShineEffect, position, isProgressVisible, show/hide/enable/disable/showProgress/hideProgress/setText/onClick/offClick/setParams
-- `BackButton` — isVisible, show/hide/onClick/offClick
-- `SettingsButton` — isVisible, show/hide/onClick/offClick
+
+**`BottomButton`** (MainButton / SecondaryButton):
+- `type: 'main' | 'secondary'` (readonly, 7.10+)
+- `text: string`
+- `color: string`
+- `textColor: string`
+- `isVisible: boolean`
+- `isActive: boolean`
+- `hasShineEffect: boolean` (7.10+)
+- `position: BottomButtonPosition` (SecondaryButton only, 7.10+)
+- `isProgressVisible: boolean` (readonly)
+- `iconCustomEmojiId: string` (9.5+)
+- Methods: `setText`, `onClick`, `offClick`, `show`, `hide`, `enable`, `disable`, `showProgress(leaveActive?)`, `hideProgress`, `setParams(params)` (7.10+)
+
+**`BackButton`**: `isVisible`, `show`, `hide`, `onClick`, `offClick` (6.1+)
+
+**`SettingsButton`**: `isVisible`, `show`, `hide`, `onClick`, `offClick` (7.0+)
 
 ### Hardware & Sensors
-- `HapticFeedback` — impactOccurred(style), notificationOccurred(type), selectionChanged()
-- `Accelerometer` — x, y, z, isStarted, start(params, cb?), stop(cb?)
-- `Gyroscope` — same shape
-- `DeviceOrientation` — alpha, beta, gamma, absolute, isStarted, start(params, cb?), stop(cb?)
-- `BiometricManager` — isInited, isBiometricAvailable, biometricType, isAccessRequested, isAccessGranted, isBiometricTokenSaved, deviceId, init/requestAccess/authenticate/updateBiometricToken/openSettings
+
+**`HapticFeedback`** (6.1+):
+- `impactOccurred(style: HapticImpactStyle): void`
+- `notificationOccurred(type: HapticNotificationType): void`
+- `selectionChanged(): void`
+
+**`Accelerometer`** (8.0+): `x`, `y`, `z` (m/s²), `isStarted`, `start(params: { refresh_rate?: number }, cb?)`, `stop(cb?)`
+
+**`Gyroscope`** (8.0+): `x`, `y`, `z` (rad/s), `isStarted`, `start(params: { refresh_rate?: number }, cb?)`, `stop(cb?)`
+
+**`DeviceOrientation`** (8.0+): `alpha`, `beta`, `gamma` (radians), `absolute`, `isStarted`, `start(params: { refresh_rate?: number; need_absolute?: boolean }, cb?)`, `stop(cb?)`
+
+Sensor `refresh_rate`: 20-1000ms, default 1000ms.
+
+**`BiometricManager`** (7.2+):
+- Properties: `isInited`, `isBiometricAvailable`, `biometricType: BiometricType`, `isAccessRequested`, `isAccessGranted`, `isBiometricTokenSaved`, `deviceId`
+- Methods: `init(cb?)`, `requestAccess(params: { reason?: string }, cb?)`, `authenticate(params: { reason?: string }, cb?)`, `updateBiometricToken(token, cb?)`, `openSettings()`
 
 ### Location
-- `LocationManager` — isInited, isLocationAvailable, isAccessRequested, isAccessGranted, init/getLocation/openSettings
-- `LocationData` — latitude, longitude, altitude, course, speed, horizontal_accuracy, vertical_accuracy
+
+**`LocationManager`** (8.0+):
+- Properties: `isInited`, `isLocationAvailable`, `isAccessRequested`, `isAccessGranted`
+- Methods: `init(cb?)`, `getLocation(cb)`, `openSettings()`
+
+**`LocationData`**: `latitude`, `longitude`, `altitude?`, `course?`, `speed?`, `horizontal_accuracy?`, `vertical_accuracy?`, `course_accuracy?`, `speed_accuracy?` (all Float or null)
 
 ### Storage
-- `CloudStorage` — setItem/getItem/getItems/removeItem/removeItems/getKeys (callback-based)
-- `DeviceStorage` — setItem/getItem/removeItem/clear (callback-based)
-- `SecureStorage` — setItem/getItem/restoreItem/removeItem/clear (callback-based)
+
+**`CloudStorage`** (6.9+): key 1-128 chars, value 0-4096 chars, max 1024 items
+- `setItem(key, value, cb?)`, `getItem(key, cb)`, `getItems(keys, cb)`, `removeItem(key, cb?)`, `removeItems(keys, cb?)`, `getKeys(cb)`
+- Callbacks: `(error: string | null, result?) => void`
+
+**`DeviceStorage`** (9.0+): local persistent, 5MB per bot per user
+- `setItem(key, value, cb?)`, `getItem(key, cb)`, `removeItem(key, cb?)`, `clear(cb?)`
+
+**`SecureStorage`** (9.0+): encrypted (Keychain iOS / Keystore Android), max 10 items
+- `setItem(key, value, cb?)`, `getItem(key, cb)` → `(error, value, canRestore)`, `restoreItem(key, cb?)`, `removeItem(key, cb?)`, `clear(cb?)`
 
 ### Popups & Dialogs
-- `PopupParams` — title?, message, buttons[]
-- `PopupButton` — id?, type ('default'|'ok'|'close'|'cancel'|'destructive'), text?
-- `ScanQrPopupParams` — text?
+
+- `PopupParams`: `title?: string` (0-64), `message: string` (1-256), `buttons?: PopupButton[]` (1-3, defaults to `[{type:'close'}]`)
+- `PopupButton`: `id?: string` (0-64), `type?: 'default' | 'ok' | 'close' | 'cancel' | 'destructive'`, `text?: string` (0-64, required for default/destructive)
+- `ScanQrPopupParams`: `text?: string` (0-64)
 
 ### Sharing & Files
-- `StoryShareParams` — media_url, text?, widget_link?
-- `StoryWidgetLink` — url, name?
-- `DownloadFileParams` — url, file_name
-- `EmojiStatusParams` — custom_emoji_id, duration?
+
+- `StoryShareParams`: `text?: string` (0-200, 0-2048 for premium), `widget_link?: StoryWidgetLink` (premium only)
+- `StoryWidgetLink`: `url: string`, `name?: string` (0-48)
+- `DownloadFileParams`: `url: string` (HTTPS, requires Content-Disposition + CORS), `file_name: string`
+- `EmojiStatusParams`: `duration?: number` (seconds)
 
 ### Layout
-- `SafeAreaInset` — top, bottom, left, right
-- `ContentSafeAreaInset` — top, bottom, left, right
 
-### Events
-- `EventType` — union type of all 40+ event names
-- Event callback signatures for each event type
+- `SafeAreaInset`: `top`, `bottom`, `left`, `right` (px) — device notches/nav bars
+- `ContentSafeAreaInset`: `top`, `bottom`, `left`, `right` (px) — Telegram UI elements
 
-### Enums
-- `HapticImpactStyle` = 'light' | 'medium' | 'heavy' | 'rigid' | 'soft'
-- `HapticNotificationType` = 'error' | 'success' | 'warning'
-- `InvoiceStatus` = 'paid' | 'cancelled' | 'failed' | 'pending'
-- `HomeScreenStatus` = 'unsupported' | 'unknown' | 'added' | 'missed'
-- `BiometricType` = 'finger' | 'face' | 'unknown'
-- `BottomButtonPosition` = 'left' | 'right' | 'top' | 'bottom'
-- `ChatType` = 'sender' | 'private' | 'group' | 'supergroup' | 'channel'
-- `PerformanceClass` = 'LOW' | 'AVERAGE' | 'HIGH'
+### Events (complete list — 38 event types)
+
+```ts
+type EventType =
+  // Lifecycle
+  | 'activated' | 'deactivated'
+  // UI
+  | 'themeChanged' | 'viewportChanged'
+  | 'safeAreaChanged' | 'contentSafeAreaChanged'
+  | 'mainButtonClicked' | 'secondaryButtonClicked'
+  | 'backButtonClicked' | 'settingsButtonClicked'
+  // Popups & Dialogs
+  | 'invoiceClosed' | 'popupClosed'
+  | 'qrTextReceived' | 'scanQrPopupClosed'
+  | 'clipboardTextReceived'
+  // Permissions
+  | 'writeAccessRequested' | 'contactRequested'
+  // Biometric
+  | 'biometricManagerUpdated' | 'biometricAuthRequested' | 'biometricTokenUpdated'
+  // Fullscreen
+  | 'fullscreenChanged' | 'fullscreenFailed'
+  // Home Screen
+  | 'homeScreenAdded' | 'homeScreenChecked'
+  // Sensors
+  | 'accelerometerStarted' | 'accelerometerStopped'
+  | 'accelerometerChanged' | 'accelerometerFailed'
+  | 'deviceOrientationStarted' | 'deviceOrientationStopped'
+  | 'deviceOrientationChanged' | 'deviceOrientationFailed'
+  | 'gyroscopeStarted' | 'gyroscopeStopped'
+  | 'gyroscopeChanged' | 'gyroscopeFailed'
+  // Location
+  | 'locationManagerUpdated' | 'locationRequested'
+  // Share
+  | 'shareMessageSent' | 'shareMessageFailed';
+```
+
+### Type Aliases / Enums
+
+- `HapticImpactStyle` = `'light' | 'medium' | 'heavy' | 'rigid' | 'soft'`
+- `HapticNotificationType` = `'error' | 'success' | 'warning'`
+- `InvoiceStatus` = `'paid' | 'cancelled' | 'failed' | 'pending'`
+- `HomeScreenStatus` = `'unsupported' | 'unknown' | 'added' | 'missed'`
+- `BiometricType` = `'finger' | 'face' | 'unknown'`
+- `BottomButtonPosition` = `'left' | 'right' | 'top' | 'bottom'`
+- `ChatType` = `'sender' | 'private' | 'group' | 'supergroup' | 'channel'`
+- `PerformanceClass` = `'LOW' | 'AVERAGE' | 'HIGH'` (derived from User-Agent parsing, not official API)
+- `WriteAccessStatus` = `'allowed' | 'cancelled'`
+- `ContactRequestStatus` = `'sent' | 'cancelled'`
+- `FullscreenError` = `'UNSUPPORTED' | 'ALREADY_FULLSCREEN'`
+- `SensorError` = `'UNSUPPORTED'`
 
 ---
 
@@ -154,34 +344,44 @@ export function isVersionAtLeast(version: string): boolean;
 export function supportsFeature(feature: FeatureName): boolean;
 ```
 
-### Feature Version Map
+### Feature Version Map (from official docs)
 
 | Feature | Min Version |
 |---------|-------------|
 | MainButton | 6.0 |
 | BackButton | 6.1 |
 | HapticFeedback | 6.1 |
-| showPopup | 6.2 |
-| showScanQrPopup | 6.4 |
+| openLink, openTelegramLink, openInvoice | 6.1 |
+| setHeaderColor, setBackgroundColor | 6.1 |
+| showPopup, showAlert, showConfirm | 6.2 |
+| enableClosingConfirmation | 6.2 |
+| showScanQrPopup, closeScanQrPopup | 6.4 |
 | readTextFromClipboard | 6.4 |
+| platform property | 6.4 |
+| switchInlineQuery | 6.7 |
 | CloudStorage | 6.9 |
-| requestWriteAccess | 6.9 |
-| requestContact | 6.9 |
+| requestWriteAccess, requestContact | 6.9 |
 | SettingsButton | 7.0 |
-| requestFullscreen | 7.0 |
+| enableVerticalSwipes | 7.7 |
+| shareToStory | 7.8 |
 | SecondaryButton | 7.10 |
 | setBottomBarColor | 7.10 |
+| BottomButton.setParams | 7.10 |
+| BottomButton.hasShineEffect | 7.10 |
 | BiometricManager | 7.2 |
+| requestFullscreen, exitFullscreen | 8.0 |
+| lockOrientation, unlockOrientation | 8.0 |
+| isActive, isFullscreen, isOrientationLocked | 8.0 |
+| safeAreaInset, contentSafeAreaInset | 8.0 |
 | LocationManager | 8.0 |
-| Accelerometer | 8.0 |
-| Gyroscope | 8.0 |
-| DeviceOrientation | 8.0 |
-| DeviceStorage | 8.0 |
-| SecureStorage | 8.0 |
-| shareMessage | 8.0 |
-| downloadFile | 8.0 |
-| EmojiStatus | 8.0 |
-| HomeScreen | 8.0 |
+| Accelerometer, Gyroscope, DeviceOrientation | 8.0 |
+| shareMessage, downloadFile | 8.0 |
+| setEmojiStatus, requestEmojiStatusAccess | 8.0 |
+| addToHomeScreen, checkHomeScreenStatus | 8.0 |
+| DeviceStorage | 9.0 |
+| SecureStorage | 9.0 |
+| hideKeyboard | 9.1 |
+| BottomButton.iconCustomEmojiId | 9.5 |
 
 ---
 
@@ -200,6 +400,7 @@ interface TelegramContextValue {
   viewportHeight: number;
   viewportStableHeight: number;
   isExpanded: boolean;
+  isActive: boolean;
   safeAreaInset: SafeAreaInset;
   contentSafeAreaInset: ContentSafeAreaInset;
   platform: string;
@@ -220,7 +421,7 @@ interface TelegramContextValue {
 ### Fallback (outside Telegram)
 
 All values have safe defaults:
-- `webApp: null`, `user: null`, `isReady: false`
+- `webApp: null`, `user: null`, `isReady: false`, `isActive: false`
 - `colorScheme: 'light'`, `themeParams: {}` (empty)
 - `viewportHeight: window.innerHeight`, `viewportStableHeight: window.innerHeight`
 - `platform: 'unknown'`, `version: '0.0'`
@@ -232,19 +433,19 @@ All values have safe defaults:
 ### Hook Categories
 
 **A. Context Consumers** (read from TelegramProvider):
-- `useTelegram()` — main accessor for webApp, user, initData, platform
+- `useTelegram()` — main accessor for webApp, user, initData, platform, isActive
 - `useTheme()` — themeParams, colorScheme, isDark
 - `useViewport()` — viewport dimensions, safe areas, expand()
 
 **B. Button Controllers** (register callbacks, manage lifecycle):
-- `useMainButton(config)` — text, onClick, show/hide, progress, shine, icon
+- `useMainButton(config)` — text, onClick, show/hide, progress, shine, iconCustomEmojiId, setParams
 - `useSecondaryButton(config)` — same + position
 - `useBackButton(onBack)` — show/hide with callback
 - `useSettingsButton(onSettings)` — show/hide with callback
 
 **C. Imperative Wrappers** (stateless, no re-render):
 - `useHaptic()` — returns `{ impactOccurred, notificationOccurred, selectionChanged }`
-- `useClipboard()` — returns `{ readText }: Promise<string>`
+- `useClipboard()` — returns `{ readText }: Promise<string | null>`
 - `useLinks()` — returns `{ openLink, openTelegramLink, switchInlineQuery }`
 
 **D. Promise-based Dialogs** (wrap callback API in Promises):
@@ -339,7 +540,7 @@ export class TelegramTimeoutError extends Error {}
 ### Files to Replace
 | Current File | Replaced By | Reason |
 |---|---|---|
-| `lib/types/telegram.ts` (48 lines) | `lib/telegram/types.ts` (~600 lines) | Current types cover <10% of API |
+| `lib/types/telegram.ts` (48 lines) | `lib/telegram/types.ts` (~800 lines) | Current types cover <10% of API |
 | `lib/types/telegram-globals.d.ts` | Updated to import from `lib/telegram/types` | New type paths |
 | `components/blocks/telegram/TelegramInit.tsx` | `lib/telegram/TelegramProvider.tsx` | Provider replaces manual init |
 | `components/blocks/telegram/TelegramNavButtons.tsx` | `useBackButton` + `useMainButton` hooks | Hooks replace component |
@@ -387,18 +588,59 @@ After migration:
 
 ```ts
 // Types
-export type { WebApp, WebAppUser, WebAppInitData, ThemeParams, ... } from './types';
+export type { WebApp, WebAppUser, WebAppInitData, WebAppChat, ThemeParams,
+  BottomButton, BackButton, SettingsButton, HapticFeedback,
+  CloudStorage, DeviceStorage, SecureStorage,
+  BiometricManager, LocationManager, LocationData,
+  Accelerometer, Gyroscope, DeviceOrientation,
+  SafeAreaInset, ContentSafeAreaInset,
+  PopupParams, PopupButton, ScanQrPopupParams,
+  StoryShareParams, StoryWidgetLink, DownloadFileParams, EmojiStatusParams,
+  EventType, HapticImpactStyle, HapticNotificationType,
+  InvoiceStatus, HomeScreenStatus, BiometricType,
+  BottomButtonPosition, ChatType } from './types';
 
 // Core
-export { getWebApp, isTelegramEnvironment, isVersionAtLeast, supportsFeature } from './core';
+export { getWebApp, getWebAppOrThrow, isTelegramEnvironment,
+  isVersionAtLeast, supportsFeature } from './core';
+
+// Errors
+export { TelegramNotAvailableError, TelegramFeatureNotSupportedError,
+  TelegramTimeoutError } from './core';
 
 // Provider
 export { TelegramProvider, useTelegramContext } from './TelegramProvider';
 
-// Hooks
+// All 28 hooks
 export { useTelegram } from './hooks/useTelegram';
 export { useTheme } from './hooks/useTheme';
-// ... all 27 hooks
+export { useMainButton } from './hooks/useMainButton';
+export { useSecondaryButton } from './hooks/useSecondaryButton';
+export { useBackButton } from './hooks/useBackButton';
+export { useSettingsButton } from './hooks/useSettingsButton';
+export { useHaptic } from './hooks/useHaptic';
+export { usePopup } from './hooks/usePopup';
+export { useQrScanner } from './hooks/useQrScanner';
+export { useClipboard } from './hooks/useClipboard';
+export { useLocation } from './hooks/useLocation';
+export { useBiometric } from './hooks/useBiometric';
+export { useAccelerometer } from './hooks/useAccelerometer';
+export { useGyroscope } from './hooks/useGyroscope';
+export { useDeviceOrientation } from './hooks/useDeviceOrientation';
+export { useCloudStorage } from './hooks/useCloudStorage';
+export { useDeviceStorage } from './hooks/useDeviceStorage';
+export { useSecureStorage } from './hooks/useSecureStorage';
+export { useFullscreen } from './hooks/useFullscreen';
+export { useViewport } from './hooks/useViewport';
+export { useClosingConfirmation } from './hooks/useClosingConfirmation';
+export { useVerticalSwipes } from './hooks/useVerticalSwipes';
+export { useHomeScreen } from './hooks/useHomeScreen';
+export { useEmojiStatus } from './hooks/useEmojiStatus';
+export { useInvoice } from './hooks/useInvoice';
+export { useShare } from './hooks/useShare';
+export { useLinks } from './hooks/useLinks';
+export { usePlatform } from './hooks/usePlatform';
+export { usePermissions } from './hooks/usePermissions';
 ```
 
 Usage:
@@ -419,3 +661,4 @@ import { useTelegram, useMainButton, useHaptic } from '@/lib/telegram';
 7. Zero runtime errors on unsupported platform/version combinations
 8. CSS custom properties set for all 15 theme colors
 9. No duplicate Telegram-related code across codebase
+10. All 38 event types typed in EventType union
