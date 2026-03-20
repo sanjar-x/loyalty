@@ -47,7 +47,9 @@ export function middleware(request: NextRequest): NextResponse {
 
   // Security headers
   response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("X-Frame-Options", "DENY");
+  // Use SAMEORIGIN instead of DENY — Telegram's web client (web.telegram.org)
+  // may embed Mini Apps in iframes.
+  response.headers.set("X-Frame-Options", "SAMEORIGIN");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
 
   return response;

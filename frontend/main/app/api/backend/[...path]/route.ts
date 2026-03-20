@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-const ACCESS_COOKIE = "lm_access_token";
-
-function getBackendBaseUrl(): string {
-  const raw = process.env.BACKEND_API_BASE_URL;
-  if (!raw || typeof raw !== "string" || !raw.trim()) {
-    throw new Error("Missing BACKEND_API_BASE_URL");
-  }
-  return raw.trim().replace(/\/+$/, "");
-}
+import { ACCESS_COOKIE, getBackendBaseUrl } from "@/lib/auth/server";
 
 async function getAccessTokenFromCookies(): Promise<string> {
   try {

@@ -1,3 +1,7 @@
+/**
+ * Cookie name constants — single source of truth.
+ * Used by both client code and server-side BFF routes (via lib/auth/server.ts).
+ */
 export const ACCESS_COOKIE_NAME = "lm_access_token";
 export const REFRESH_COOKIE_NAME = "lm_refresh_token";
 

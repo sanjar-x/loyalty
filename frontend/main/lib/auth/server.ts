@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 
+import {
+  ACCESS_COOKIE_NAME,
+  REFRESH_COOKIE_NAME,
+} from "./session";
+
 // ---------------------------------------------------------------------------
-// Cookie names (single source of truth)
+// Cookie names (re-exported from session.ts — the single source of truth)
 // ---------------------------------------------------------------------------
 
-export const ACCESS_COOKIE = "lm_access_token";
-export const REFRESH_COOKIE = "lm_refresh_token";
+export const ACCESS_COOKIE = ACCESS_COOKIE_NAME;
+export const REFRESH_COOKIE = REFRESH_COOKIE_NAME;
 
 // ---------------------------------------------------------------------------
 // Environment helpers
