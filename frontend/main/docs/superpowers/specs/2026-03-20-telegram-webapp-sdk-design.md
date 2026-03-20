@@ -19,16 +19,16 @@
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                  React Components                │
-│     useTelegram()  useMainButton()  useHaptic()  │
+│                  React Components               │
+│     useTelegram()  useMainButton()  useHaptic() │
 ├─────────────────────────────────────────────────┤
-│              TelegramProvider (Context)           │
-│   Reactive state: user, theme, viewport, platform │
+│            TelegramProvider (Context)           │
+│ Reactive state: user, theme, viewport, platform │
 ├─────────────────────────────────────────────────┤
-│                   Core SDK (core.ts)              │
-│   getWebApp(), isVersionAtLeast(), supportsFeature() │
+│               Core SDK (core.ts)                │
+│getWebApp(), isVersionAtLeast(), supportsFeature()│
 ├─────────────────────────────────────────────────┤
-│             window.Telegram.WebApp               │
+│             window.Telegram.WebApp              │
 └─────────────────────────────────────────────────┘
 ```
 

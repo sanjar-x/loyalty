@@ -3,11 +3,9 @@ import Script from "next/script";
 import type { ReactNode } from "react";
 import type { Viewport } from "next";
 
-import TelegramInit from "@/components/blocks/telegram/TelegramInit";
+import { TelegramProvider } from "@/lib/telegram";
 import TelegramAuthBootstrap from "@/components/blocks/telegram/TelegramAuthBootstrap";
-import TelegramNavButtons from "@/components/blocks/telegram/TelegramNavButtons";
 import WebViewErrorAlert from "@/components/blocks/telegram/WebViewErrorAlert";
-import TelegramViewportManager from "./TelegramViewportManager";
 import InputFocusFix from "@/components/ios/InputFocusFix";
 import StoreProvider from "@/components/providers/StoreProvider";
 
@@ -29,13 +27,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body suppressHydrationWarning>
         <StoreProvider>
-          <TelegramInit />
-          <TelegramAuthBootstrap />
-          <TelegramNavButtons />
-          <TelegramViewportManager />
-          <InputFocusFix />
-          {children}
-          <WebViewErrorAlert />
+          <TelegramProvider>
+            <TelegramAuthBootstrap />
+            <InputFocusFix />
+            {children}
+            <WebViewErrorAlert />
+          </TelegramProvider>
         </StoreProvider>
       </body>
     </html>
