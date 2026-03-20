@@ -23,21 +23,15 @@ const BROWSER_DEBUG_USER: Readonly<BrowserDebugUser> = Object.freeze({
 });
 
 export function isBrowserDebugAuthEnabled(): boolean {
-  // Default: enabled in local dev.
-  if (process.env.NODE_ENV !== "production") return true;
+  // NEVER allow debug auth in production — regardless of env flags.
+  // This prevents accidental misconfiguration from becoming an auth bypass.
+  if (process.env.NODE_ENV === "production") return false;
 
-  // Production builds (including Vercel preview/prod) must opt-in explicitly.
-  const clientFlag = String(process.env.NEXT_PUBLIC_BROWSER_DEBUG_AUTH || "")
-    .trim()
-    .toLowerCase();
-  if (clientFlag === "1" || clientFlag === "true") return true;
-
+  // In development, check the explicit opt-in flag.
   const serverFlag = String(process.env.BROWSER_DEBUG_AUTH || "")
     .trim()
     .toLowerCase();
-  if (serverFlag === "1" || serverFlag === "true") return true;
-
-  return false;
+  return serverFlag === "1" || serverFlag === "true";
 }
 
 export function normalizeBrowserDebugUser(

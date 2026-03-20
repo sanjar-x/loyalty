@@ -43,7 +43,7 @@ export default function TelegramAuthBootstrap(): null {
   useEffect(() => {
     // Only run once, and only if we haven't already authenticated
     if (calledRef.current) return;
-    if (authStatus === "authenticated" || authStatus === "loading") return;
+    if (authStatus === "authenticated") return;
 
     const rawInitData = getInitData();
     const isDebug = isBrowserDebugAuthEnabled() && !rawInitData;

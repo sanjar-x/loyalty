@@ -3,6 +3,7 @@ import type {
   BaseQueryFn,
   FetchArgs,
   FetchBaseQueryError,
+  FetchBaseQueryMeta,
 } from "@reduxjs/toolkit/query";
 import { sessionExpired } from "./authSlice";
 
@@ -32,6 +33,11 @@ const rawBaseQuery: BaseQueryFn<
   return backendBaseQuery(args, api, extraOptions);
 };
 
+// Mutex: ensures only one refresh request flies at a time.
+// Prevents token stampede when multiple concurrent requests get 401.
+type RefreshResult = { data?: unknown; error?: FetchBaseQueryError };
+let refreshPromise: Promise<RefreshResult> | null = null;
+
 const baseQueryWithReauth: BaseQueryFn<
   string | FetchArgs,
   unknown,
@@ -43,15 +49,22 @@ const baseQueryWithReauth: BaseQueryFn<
   const isSessionRoute = typeof reqUrl === "string" && reqUrl.startsWith("/api/session/");
 
   if (result.error && result.error.status === 401 && !isSessionRoute) {
-    // Attempt silent refresh
-    const refreshResult = await rawBaseQuery(
-      { url: "/api/session/refresh", method: "POST" },
-      api,
-      extraOptions,
-    );
+    // Coalesce concurrent refresh calls into a single request
+    if (!refreshPromise) {
+      refreshPromise = Promise.resolve(
+        rawBaseQuery(
+          { url: "/api/session/refresh", method: "POST" },
+          api,
+          extraOptions,
+        ),
+      ).finally(() => {
+        refreshPromise = null;
+      });
+    }
 
-    if (refreshResult.error) {
-      // Refresh failed — session is dead
+    const refreshResult = await refreshPromise;
+
+    if (refreshResult?.error) {
       api.dispatch(sessionExpired());
       return result;
     }

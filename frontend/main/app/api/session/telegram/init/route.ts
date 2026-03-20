@@ -251,7 +251,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       {
         error: "Backend auth failed",
         status: upstreamRes.status,
-        details: json ?? text,
+        ...(isProduction() ? {} : { details: json ?? text }),
       },
       { status: upstreamRes.status === 401 ? 401 : 502 },
     );
@@ -263,14 +263,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   if (typeof accessToken !== "string" || !accessToken) {
     return NextResponse.json(
-      { error: "Backend did not return accessToken", details: json },
+      { error: "Backend did not return accessToken", ...(isProduction() ? {} : { details: json }) },
       { status: 502 },
     );
   }
 
   if (typeof refreshToken !== "string" || !refreshToken) {
     return NextResponse.json(
-      { error: "Backend did not return refreshToken", details: json },
+      { error: "Backend did not return refreshToken", ...(isProduction() ? {} : { details: json }) },
       { status: 502 },
     );
   }
