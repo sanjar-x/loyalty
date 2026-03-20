@@ -109,6 +109,9 @@ class Settings(BaseSettings):
     FSM_STATE_TTL: int | None = None
     FSM_DATA_TTL: int | None = None
 
+    TELEGRAM_INIT_DATA_MAX_AGE: int = 300
+    TELEGRAM_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
     @computed_field
     @property
     def redis_url(self) -> str:
