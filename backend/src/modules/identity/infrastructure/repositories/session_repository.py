@@ -44,6 +44,8 @@ class SessionRepository(ISessionRepository):
             created_at=orm.created_at,
             expires_at=orm.expires_at,
             activated_roles=role_ids,
+            last_active_at=orm.last_active_at,
+            idle_expires_at=orm.idle_expires_at,
         )
 
     async def add(self, session: Session) -> Session:
@@ -63,6 +65,8 @@ class SessionRepository(ISessionRepository):
             user_agent=session.user_agent or None,
             is_revoked=session.is_revoked,
             expires_at=session.expires_at,
+            last_active_at=session.last_active_at,
+            idle_expires_at=session.idle_expires_at,
         )
         self._session.add(orm)
         await self._session.flush()
@@ -116,6 +120,8 @@ class SessionRepository(ISessionRepository):
             .values(
                 refresh_token_hash=session.refresh_token_hash,
                 is_revoked=session.is_revoked,
+                last_active_at=session.last_active_at,
+                idle_expires_at=session.idle_expires_at,
             )
         )
         await self._session.execute(stmt)
