@@ -133,7 +133,7 @@ Methods:
 - `disableVerticalSwipes(): void` (7.7+)
 - `requestFullscreen(): void` (8.0+)
 - `exitFullscreen(): void` (8.0+)
-- `lockOrientation(): void` (8.0+)
+- `lockOrientation(): void` (8.0+) — locks to CURRENT mode (portrait or landscape), no parameter
 - `unlockOrientation(): void` (8.0+)
 - `addToHomeScreen(): void` (8.0+)
 - `checkHomeScreenStatus(callback?: (status: HomeScreenStatus) => void): void` (8.0+)
@@ -206,6 +206,8 @@ Methods:
 ### UI Controls
 
 **`BottomButton`** (MainButton / SecondaryButton):
+> **Chaining:** All methods on BottomButton, BackButton, SettingsButton, HapticFeedback, CloudStorage, BiometricManager, Accelerometer, Gyroscope, DeviceOrientation, LocationManager, and DeviceStorage return the parent object for method chaining. Types should return `this`.
+
 - `type: 'main' | 'secondary'` (readonly, 7.10+)
 - `text: string`
 - `color: string`
@@ -279,7 +281,7 @@ Sensor `refresh_rate`: 20-1000ms, default 1000ms.
 - `SafeAreaInset`: `top`, `bottom`, `left`, `right` (px) — device notches/nav bars
 - `ContentSafeAreaInset`: `top`, `bottom`, `left`, `right` (px) — Telegram UI elements
 
-### Events (complete list — 38 event types)
+### Events (complete list — 41 event types)
 
 ```ts
 type EventType =
@@ -312,7 +314,9 @@ type EventType =
   // Location
   | 'locationManagerUpdated' | 'locationRequested'
   // Share
-  | 'shareMessageSent' | 'shareMessageFailed';
+  | 'shareMessageSent' | 'shareMessageFailed'
+  // Emoji Status
+  | 'emojiStatusSet' | 'emojiStatusFailed' | 'emojiStatusAccessRequested';
 ```
 
 ### Type Aliases / Enums
@@ -378,6 +382,7 @@ export function supportsFeature(feature: FeatureName): boolean;
 | shareMessage, downloadFile | 8.0 |
 | setEmojiStatus, requestEmojiStatusAccess | 8.0 |
 | addToHomeScreen, checkHomeScreenStatus | 8.0 |
+| emojiStatusSet/Failed/AccessRequested events | 8.0 |
 | DeviceStorage | 9.0 |
 | SecureStorage | 9.0 |
 | hideKeyboard | 9.1 |
@@ -661,4 +666,4 @@ import { useTelegram, useMainButton, useHaptic } from '@/lib/telegram';
 7. Zero runtime errors on unsupported platform/version combinations
 8. CSS custom properties set for all 15 theme colors
 9. No duplicate Telegram-related code across codebase
-10. All 38 event types typed in EventType union
+10. All 41 event types typed in EventType union
