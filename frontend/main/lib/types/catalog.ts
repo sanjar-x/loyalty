@@ -12,7 +12,6 @@ export interface Brand {
   name: string;
   slug: string;
   logoUrl: string | null;
-  logoStatus: string;
 }
 
 export interface Category {
