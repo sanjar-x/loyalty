@@ -352,12 +352,15 @@
   // ── Языковой сервер ───────────────────────────────────
   // Pylance = hover, autocomplete, semantic highlighting
   // ty     = type checking (быстрее Pylance/mypy в 10-100x)
-  "python.languageServer": "Default",
+  "python.languageServer": "None",
 
   // ── ty — Type Checker ─────────────────────────────────
-  "ty.disableLanguageServices": true, // только type checking, без дублирования Pylance
-  "ty.diagnosticMode": "openFilesOnly", // "workspace" для проверки всех файлов
-  "ty.showSyntaxErrors": false, // синтаксис уже показывает Pylance
+  "ty.interpreter": [
+    "C:\\Users\\Sanjar\\Desktop\\loyality\\backend\\.venv\\Scripts\\python.exe"
+  ],
+  "ty.disableLanguageServices": false, // только type checking, без дублирования Pylance
+  "ty.diagnosticMode": "workspace", // "workspace" для проверки всех файлов
+  "ty.showSyntaxErrors": true, // синтаксис уже показывает Pylance
   "ty.inlayHints.variableTypes": true, // показывать типы переменных инлайн
   "ty.inlayHints.callArgumentNames": true, // показывать имена аргументов при вызове
   "ty.completions.autoImport": true, // авто-импорт в autocomplete
@@ -402,5 +405,8 @@
     "editor.guides.bracketPairs": true
   },
 
-  "python-envs.defaultEnvManager": "ms-python.python:venv"
+  "python-envs.defaultEnvManager": "ms-python.python:venv",
+  "search.useIgnoreFiles": false,
+  "extensions.autoRestart": true,
+  "ty.trace.server": "messages"
 }

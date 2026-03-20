@@ -216,6 +216,9 @@ async def create_customer_on_telegram_identity_created(
     telegram_id: int,
     customer_repo: FromDishka[ICustomerRepository],
     uow: FromDishka[IUnitOfWork],
+    first_name: str = "",
+    last_name: str = "",
+    username: str | None = None,
     start_param: str | None = None,
     account_type: str = "CUSTOMER",
 ) -> dict:
@@ -243,6 +246,8 @@ async def create_customer_on_telegram_identity_created(
 
     customer = Customer.create_from_identity(
         identity_id=identity_uuid,
+        first_name=first_name,
+        last_name=last_name,
         referral_code=generate_referral_code(),
         referred_by=referred_by,
     )

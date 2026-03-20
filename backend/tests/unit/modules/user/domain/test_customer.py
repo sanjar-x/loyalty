@@ -18,6 +18,17 @@ class TestCustomerCreate:
         assert customer.first_name == ""
         assert customer.last_name == ""
 
+    def test_create_with_profile_data(self):
+        identity_id = uuid.uuid4()
+        customer = Customer.create_from_identity(
+            identity_id=identity_id,
+            first_name="Алексей",
+            last_name="Иванов",
+            referral_code="TG123456",
+        )
+        assert customer.first_name == "Алексей"
+        assert customer.last_name == "Иванов"
+
     def test_create_with_referrer(self):
         referrer_id = uuid.uuid4()
         customer = Customer.create_from_identity(

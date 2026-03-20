@@ -57,31 +57,31 @@ class LoginTelegramHandler:
         max_sessions: int = 5,
         refresh_token_days: int = 7,
     ) -> None:
-        self._validator = telegram_validator
-        self._telegram_creds_repo = telegram_creds_repo
-        self._identity_repo = identity_repo
-        self._session_repo = session_repo
-        self._role_repo = role_repo
-        self._uow = uow
-        self._token_provider = token_provider
-        self._permission_resolver = permission_resolver
-        self._logger = logger.bind(handler="LoginTelegramHandler")
-        self._max_sessions = max_sessions
-        self._refresh_token_days = refresh_token_days
+        self._validator: ITelegramInitDataValidator = telegram_validator
+        self._telegram_creds_repo: ITelegramCredentialsRepository = telegram_creds_repo
+        self._identity_repo: IIdentityRepository = identity_repo
+        self._session_repo: ISessionRepository = session_repo
+        self._role_repo: IRoleRepository = role_repo
+        self._uow: IUnitOfWork = uow
+        self._token_provider: ITokenProvider = token_provider
+        self._permission_resolver: IPermissionResolver = permission_resolver
+        self._logger: ILogger = logger.bind(handler="LoginTelegramHandler")
+        self._max_sessions: int = max_sessions
+        self._refresh_token_days: int = refresh_token_days
 
     async def handle(self, command: LoginTelegramCommand) -> LoginTelegramResult:
         # 1. Validate initData (outside UoW)
-        telegram_user = self._validator.validate_and_parse(command.init_data_raw)
+        telegram_user: TelegramUserData = self._validator.validate_and_parse(command.init_data_raw)
 
         async with self._uow:
             # 2. Lookup by telegram_id
-            result = await self._telegram_creds_repo.get_by_telegram_id(
+            result: tuple[Identity, TelegramCredentials] | None = await self._telegram_creds_repo.get_by_telegram_id(
                 telegram_user.telegram_id
             )
-            is_new_user = result is None
+            is_new_user: bool = result is None
 
             if is_new_user:
-                identity = await self._provision_new_identity(telegram_user)
+                identity: Identity = await self._provision_new_identity(telegram_user)
             else:
                 identity, credentials = result
                 identity.ensure_active()
@@ -94,9 +94,9 @@ class LoginTelegramHandler:
                     )
 
             # 3. Session limit — evict oldest if needed
-            active_count = await self._session_repo.count_active(identity.id)
+            active_count: int = await self._session_repo.count_active(identity.id)
             if active_count >= self._max_sessions:
-                evicted_id = await self._session_repo.revoke_oldest_active(identity.id)
+                evicted_id: uuid.UUID | None = await self._session_repo.revoke_oldest_active(identity.id)
                 if evicted_id:
                     await self._permission_resolver.invalidate(evicted_id)
                     self._logger.info(
@@ -107,7 +107,7 @@ class LoginTelegramHandler:
 
             # 4. Create session + tokens
             raw_refresh, _ = self._token_provider.create_refresh_token()
-            role_ids = await self._role_repo.get_identity_role_ids(identity.id)
+            role_ids: list[uuid.UUID] = await self._role_repo.get_identity_role_ids(identity.id)
 
             session = Session.create(
                 identity_id=identity.id,
@@ -176,6 +176,9 @@ class LoginTelegramHandler:
             TelegramIdentityCreatedEvent(
                 identity_id=identity.id,
                 telegram_id=data.telegram_id,
+                first_name=data.first_name,
+                last_name=data.last_name or "",
+                username=data.username,
                 start_param=data.start_param,
                 aggregate_id=str(identity.id),
             )

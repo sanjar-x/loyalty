@@ -168,6 +168,9 @@ class TelegramIdentityCreatedEvent(DomainEvent):
 
     identity_id: uuid.UUID | None = None
     telegram_id: int = 0
+    first_name: str = ""
+    last_name: str = ""
+    username: str | None = None
     start_param: str | None = None
     account_type: str = "CUSTOMER"
     aggregate_type: str = "Identity"

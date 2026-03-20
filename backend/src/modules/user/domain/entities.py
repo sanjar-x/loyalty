@@ -102,7 +102,12 @@ class User(AggregateRoot):
         self.updated_at = datetime.now(UTC)
 
 
-_CUSTOMER_UPDATABLE_FIELDS = frozenset({"profile_email", "first_name", "last_name", "phone"})
+_CUSTOMER_UPDATABLE_FIELDS = frozenset({
+    "profile_email",
+    "first_name",
+    "last_name",
+    "phone",
+})
 
 
 @dataclass
@@ -139,6 +144,8 @@ class Customer(AggregateRoot):
         cls,
         identity_id: uuid.UUID,
         profile_email: str | None = None,
+        first_name: str = "",
+        last_name: str = "",
         referral_code: str | None = None,
         referred_by: uuid.UUID | None = None,
     ) -> Customer:
@@ -147,18 +154,20 @@ class Customer(AggregateRoot):
         Args:
             identity_id: The Identity aggregate ID to use as the shared PK.
             profile_email: Optional display email.
+            first_name: Customer's first name (from credentials provider).
+            last_name: Customer's last name (from credentials provider).
             referral_code: Unique referral code (generated in handler if not provided).
             referred_by: Customer ID of the referrer, if any.
 
         Returns:
-            A new Customer instance with default empty profile fields.
+            A new Customer instance.
         """
         now = datetime.now(UTC)
         return cls(
             id=identity_id,
             profile_email=profile_email,
-            first_name="",
-            last_name="",
+            first_name=first_name,
+            last_name=last_name,
             phone=None,
             referral_code=referral_code or "",
             referred_by=referred_by,
@@ -190,7 +199,12 @@ class Customer(AggregateRoot):
         self.updated_at = datetime.now(UTC)
 
 
-_STAFF_UPDATABLE_FIELDS = frozenset({"first_name", "last_name", "position", "department"})
+_STAFF_UPDATABLE_FIELDS = frozenset({
+    "first_name",
+    "last_name",
+    "position",
+    "department",
+})
 
 
 @dataclass
