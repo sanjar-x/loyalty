@@ -4,15 +4,22 @@ import { useCallback, useState } from "react";
 
 import styles from "./page.module.css";
 
+interface PromoCouponCardProps {
+  percent: number;
+  until: string;
+  description: string;
+  copyValue: string;
+}
+
 export default function PromoCouponCard({
   percent,
   until,
   description,
   copyValue,
-}) {
+}: PromoCouponCardProps) {
   const [copied, setCopied] = useState(false);
 
-  const copyText = useCallback(async (text) => {
+  const copyText = useCallback(async (text: string) => {
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(text);

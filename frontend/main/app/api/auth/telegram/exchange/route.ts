@@ -45,7 +45,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  let parsed: Record<string, unknown>;
+  let parsed: ReturnType<typeof validateTelegramInitDataOrThrow>;
   try {
     parsed = validateTelegramInitDataOrThrow({
       initData: body.initData as string,

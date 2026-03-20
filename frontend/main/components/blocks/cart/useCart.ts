@@ -8,6 +8,14 @@ interface CartItem {
   price: number;
   quantity: number;
   isFavorite?: boolean;
+  priceRub?: number;
+  lineTotalRub?: number;
+  deliveryText?: string;
+  shippingText?: string;
+  image?: string;
+  size?: string;
+  article?: string;
+  productId?: string | number;
 }
 
 interface UseCartReturn {

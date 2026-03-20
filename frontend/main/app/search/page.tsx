@@ -65,7 +65,7 @@ interface ProductUiBase {
   deliveryDate: string;
   serverIsFavorite: boolean;
   rating?: number;
-  installment?: unknown;
+  installment?: string;
   imageFallbacks: string[];
 }
 
@@ -101,9 +101,9 @@ interface BrandItem {
 }
 
 interface SelectOption {
-  value?: number | string;
-  label?: string;
-  kind?: string;
+  value?: string;
+  label: string;
+  kind?: "section";
 }
 
 interface PriceRange {
@@ -123,7 +123,7 @@ function SearchPageContent(): React.JSX.Element {
   const [submittedQuery, setSubmittedQuery] = useState<string>("");
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [hasTyped, setHasTyped] = useState<boolean>(false);
-  const blurCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blurCloseTimerRef = useRef<number | null>(null);
   const [historyCleared, setHistoryCleared] = useState<boolean>(false);
 
   const [debouncedQuery, setDebouncedQuery] = useState<string>("");
@@ -312,7 +312,7 @@ function SearchPageContent(): React.JSX.Element {
       String(a.name).localeCompare(String(b.name)),
     );
     return [
-      ...values.map((c) => ({ value: c.id, label: c.name })),
+      ...values.map((c) => ({ value: c.id != null ? String(c.id) : undefined, label: c.name })),
     ];
   }, [categories]);
 
@@ -329,7 +329,7 @@ function SearchPageContent(): React.JSX.Element {
         const id = t.id;
         const name = t.name ?? t.title ?? t.label ?? "";
         if (id == null || !String(name).trim()) continue;
-        items.push({ value: id, label: String(name) });
+        items.push({ value: String(id), label: String(name) });
       }
     };
 
@@ -364,7 +364,7 @@ function SearchPageContent(): React.JSX.Element {
     const values = [...brandsList].sort((a, b) =>
       String(a.name).localeCompare(String(b.name)),
     );
-    return values.map((b) => ({ value: b.id, label: b.name }));
+    return values.map((b) => ({ value: b.id != null ? String(b.id) : undefined, label: b.name }));
   }, [brandsList]);
 
   const categoryLabel = useMemo(() => {
@@ -595,7 +595,7 @@ function SearchPageContent(): React.JSX.Element {
           p.isFavorite ?? p.is_favorite ?? p.is_favourite,
         ),
         rating: p.rating,
-        installment: p.installment,
+        installment: typeof p.installment === "string" ? p.installment : undefined,
         imageFallbacks,
       };
     },
@@ -1050,7 +1050,7 @@ function SearchPageContent(): React.JSX.Element {
             { value: "price_desc", label: "Подороже" },
           ]}
           value={sort}
-          onApply={(v: string) => setSort(v)}
+          onApply={(v: string | string[] | null) => { if (typeof v === "string") setSort(v); }}
         />
 
         <SelectSheet
@@ -1058,8 +1058,8 @@ function SearchPageContent(): React.JSX.Element {
           onClose={() => setCategoryOpen(false)}
           title="Категория"
           options={categoryOptions}
-          value={categoryId}
-          onApply={(v: string | null) => setCategoryId(v ?? null)}
+          value={categoryId != null ? String(categoryId) : null}
+          onApply={(v: string | string[] | null) => setCategoryId(typeof v === "string" ? v : null)}
         />
 
         <SelectSheet
@@ -1070,8 +1070,8 @@ function SearchPageContent(): React.JSX.Element {
           multiple
           control="check"
           showSelectedChips
-          value={typeIds}
-          onApply={(v: Array<number | string> | unknown) => setTypeIds(Array.isArray(v) ? v : [])}
+          value={typeIds.map(String)}
+          onApply={(v: string | string[] | null) => setTypeIds(Array.isArray(v) ? v : [])}
           isTypeModule={true}
         />
 
@@ -1081,11 +1081,11 @@ function SearchPageContent(): React.JSX.Element {
           title="Бренд"
           options={brandOptions}
           multiple
-          value={brandIds}
+          value={brandIds.map(String)}
           searchable
           searchPlaceholder="Найти бренд"
           groupBy="alpha"
-          onApply={(v: Array<number | string> | unknown) => setBrandIds(Array.isArray(v) ? v : [])}
+          onApply={(v: string | string[] | null) => setBrandIds(Array.isArray(v) ? v : [])}
         />
 
         <PriceSheet
@@ -1093,8 +1093,8 @@ function SearchPageContent(): React.JSX.Element {
           onClose={() => setPriceOpen(false)}
           title="Цена"
           value={priceRange}
-          minPlaceholder={priceBounds.min}
-          maxPlaceholder={priceBounds.max}
+          minPlaceholder={priceBounds.min ?? undefined}
+          maxPlaceholder={priceBounds.max ?? undefined}
           onApply={(v: PriceRange) => setPriceRange(v)}
         />
 
@@ -1120,7 +1120,7 @@ function SearchPageContent(): React.JSX.Element {
             types?: string[];
             brands?: string[];
             priceRange?: PriceRange;
-            delivery?: DeliveryState;
+            delivery?: Partial<DeliveryState>;
             original?: boolean;
           }) => {
             // Пока FiltersSheet работает со строковыми значениями.
@@ -1131,7 +1131,7 @@ function SearchPageContent(): React.JSX.Element {
             if (Array.isArray(next.brands) && next.brands.length === 0)
               setBrandIds([]);
             setPriceRange(next.priceRange ?? { min: null, max: null });
-            setDelivery(next.delivery ?? { inStock: false, fromChina: false });
+            setDelivery({ inStock: next.delivery?.inStock ?? false, fromChina: next.delivery?.fromChina ?? false });
             setOriginal(Boolean(next.original));
           }}
           onOpenTypePicker={() => {

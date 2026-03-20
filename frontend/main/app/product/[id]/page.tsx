@@ -1,6 +1,6 @@
 "use client";
 const EMPTY_SET: Set<number> = new Set();
-const NOOP = (): void => {};
+const NOOP = (_id?: number | string): void => {};
 import React, { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Footer from "@/components/layout/Footer";
@@ -188,7 +188,7 @@ export default function ProductPage(): React.JSX.Element {
   })();
 
   // Static placeholders (API removed)
-  const apiProduct: ApiProduct | null = null;
+  const apiProduct = null as ApiProduct | null;
   const isProductLoading = false;
   const isProductError = false;
   const categoriesWithTypes: CategoryWithTypes[] = [];
@@ -275,8 +275,8 @@ export default function ProductPage(): React.JSX.Element {
   const sizes = useMemo(() => {
     const list = Array.isArray(apiProduct?.sizes) ? apiProduct!.sizes! : [];
     const mapped = list
-      .map((s) => (s && typeof s === "object" ? s.size : null))
-      .filter((x): x is string => typeof x === "string" && !!x.trim());
+      .map((s: { size?: string }) => (s && typeof s === "object" ? s.size : null))
+      .filter((x: string | null | undefined): x is string => typeof x === "string" && !!x.trim());
     return mapped;
   }, [apiProduct]);
   const availableSizes = sizes;

@@ -16,14 +16,14 @@ const CHECKOUT_CARD_KEY = "loyaltymarket_checkout_card_v1";
 const CHECKOUT_MODAL_ANIMATION_MS = 240;
 const CHECKOUT_MODAL_UNMOUNT_DELAY_MS = CHECKOUT_MODAL_ANIMATION_MS + 30;
 
-function useAnimatedPresence(open) {
+function useAnimatedPresence(open: boolean) {
   const [mounted, setMounted] = useState(open);
   const [active, setActive] = useState(false);
 
   useEffect(() => {
     let frame1 = 0;
     let frame2 = 0;
-    let timer;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
     if (open) {
       frame1 = requestAnimationFrame(() => {
@@ -49,12 +49,50 @@ function useAnimatedPresence(open) {
   return { mounted, active };
 }
 
-/**
- * @typedef {{ fullName: string, phoneDigits: string, email: string }} CheckoutRecipient
- * @typedef {{ passportSeries: string, passportNumber: string, issueDate: string, birthDate: string, inn: string }} CheckoutCustomsData
- * @typedef {{ last4: string, exp: string, holder: string }} CheckoutCardSaved
- * @typedef {{ numberDigits: string, exp: string, cvc: string, holder: string }} CheckoutCardDraft
- */
+interface CheckoutRecipient {
+  fullName: string;
+  phoneDigits: string;
+  email: string;
+}
+
+interface CheckoutCustomsData {
+  passportSeries: string;
+  passportNumber: string;
+  issueDate: string;
+  birthDate: string;
+  inn: string;
+}
+
+interface CheckoutCardSaved {
+  last4: string;
+  exp: string;
+  holder: string;
+}
+
+interface CheckoutCardDraft {
+  numberDigits: string;
+  exp: string;
+  cvc: string;
+  holder: string;
+}
+
+interface CheckoutCardErrors {
+  numberDigits?: string;
+  exp?: string;
+  cvc?: string;
+  holder?: string;
+}
+
+interface CheckoutRecipientErrors {
+  fullName?: string;
+  phoneDigits?: string;
+  email?: string;
+}
+
+interface CheckoutPromo {
+  code: string;
+  discountRub: number;
+}
 
 function readRecipient() {
   try {
@@ -80,7 +118,7 @@ function readRecipient() {
   }
 }
 
-function writeRecipient(value) {
+function writeRecipient(value: CheckoutRecipient) {
   try {
     localStorage.setItem(CHECKOUT_RECIPIENT_KEY, JSON.stringify(value));
   } catch {}
@@ -114,7 +152,7 @@ function readCustomsData() {
   }
 }
 
-function writeCustomsData(value) {
+function writeCustomsData(value: CheckoutCustomsData) {
   try {
     localStorage.setItem(CHECKOUT_CUSTOMS_KEY, JSON.stringify(value));
   } catch {}
@@ -144,7 +182,7 @@ function readCard() {
   }
 }
 
-function writeCard(value) {
+function writeCard(value: CheckoutCardSaved) {
   try {
     localStorage.setItem(CHECKOUT_CARD_KEY, JSON.stringify(value));
   } catch {
@@ -152,23 +190,23 @@ function writeCard(value) {
   }
 }
 
-function normalizeCardNumberDigits(input) {
+function normalizeCardNumberDigits(input: string) {
   return (input || "").replace(/\D/g, "").slice(0, 19);
 }
 
-function formatCardNumber(digits) {
+function formatCardNumber(digits: string) {
   const d = (digits || "").replace(/\D/g, "");
   return d.replace(/(.{4})/g, "$1 ").trim();
 }
 
-function normalizeExpiry(value) {
+function normalizeExpiry(value: string) {
   const digits = (value || "").replace(/\D/g, "").slice(0, 4);
   const mm = digits.slice(0, 2);
   const yy = digits.slice(2, 4);
   return yy ? `${mm}/${yy}` : mm;
 }
 
-function isValidLuhn(numberDigits) {
+function isValidLuhn(numberDigits: string) {
   const digits = (numberDigits || "").replace(/\D/g, "");
   if (digits.length < 12) return false;
   let sum = 0;
@@ -186,7 +224,7 @@ function isValidLuhn(numberDigits) {
   return sum % 10 === 0;
 }
 
-function normalizePhoneDigits(input) {
+function normalizePhoneDigits(input: string) {
   const raw = input || "";
   let digits = raw.replace(/\D/g, "");
   if (!digits) return "";
@@ -210,7 +248,7 @@ function normalizePhoneDigits(input) {
   return digits.slice(0, 10);
 }
 
-function formatPhone(digits10) {
+function formatPhone(digits10: string) {
   const d = (digits10 || "").replace(/\D/g, "").slice(0, 10);
   if (!d) return "";
   const a = d.slice(0, 3);
@@ -225,8 +263,8 @@ function formatPhone(digits10) {
   return out;
 }
 
-function validateCardDraft(draft) {
-  const errors = {};
+function validateCardDraft(draft: CheckoutCardDraft): CheckoutCardErrors {
+  const errors: CheckoutCardErrors = {};
 
   const numberDigits = normalizeCardNumberDigits(draft.numberDigits);
   if (!numberDigits) {
@@ -271,8 +309,8 @@ function validateCardDraft(draft) {
   return errors;
 }
 
-function validateRecipient(draft) {
-  const errors = {};
+function validateRecipient(draft: CheckoutRecipient): CheckoutRecipientErrors {
+  const errors: CheckoutRecipientErrors = {};
 
   const fullName = draft.fullName.trim();
   if (!fullName) {
@@ -285,7 +323,7 @@ function validateRecipient(draft) {
       if (parts.length < 2) {
         errors.fullName = "invalid";
       } else {
-        const ok = parts.every((p) => /^[А-Яа-яЁё-]+$/.test(p));
+        const ok = parts.every((p: string) => /^[А-Яа-яЁё-]+$/.test(p));
         if (!ok) errors.fullName = "invalid";
       }
     }
@@ -309,7 +347,7 @@ function validateRecipient(draft) {
   return errors;
 }
 
-function formatRub(value) {
+function formatRub(value: number) {
   try {
     return `${new Intl.NumberFormat("ru-RU").format(value)} ₽`;
   } catch {
@@ -317,7 +355,7 @@ function formatRub(value) {
   }
 }
 
-function pluralizeItemsRu(count) {
+function pluralizeItemsRu(count: number) {
   const n = Math.abs(count);
   const mod10 = n % 10;
   const mod100 = n % 100;
@@ -327,20 +365,20 @@ function pluralizeItemsRu(count) {
   return "товаров";
 }
 
-function readSelectedIds() {
+function readSelectedIds(): Set<string | number> {
   try {
     const raw = localStorage.getItem(CHECKOUT_SELECTED_KEY);
-    if (!raw) return new Set();
+    if (!raw) return new Set<string | number>();
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return new Set();
-    const ids = parsed.filter((x) => typeof x === "number");
-    return new Set(ids);
+    if (!Array.isArray(parsed)) return new Set<string | number>();
+    const ids = parsed.filter((x: unknown) => typeof x === "number") as number[];
+    return new Set<string | number>(ids);
   } catch {
-    return new Set();
+    return new Set<string | number>();
   }
 }
 
-function readPromo() {
+function readPromo(): CheckoutPromo | null {
   try {
     const raw = localStorage.getItem(CHECKOUT_PROMO_KEY);
     if (!raw) return null;
@@ -386,7 +424,7 @@ function CheckoutPageInner() {
     return "/checkout/pickup?step=search";
   }, [pickup.pickupPvzId]);
 
-  const [recipient, setRecipient] = useState(null);
+  const [recipient, setRecipient] = useState<CheckoutRecipient | null>(null);
   const [isRecipientModalOpen, setIsRecipientModalOpen] = useState(false);
   const [recipientDraft, setRecipientDraft] = useState({
     fullName: "",
@@ -409,7 +447,7 @@ function CheckoutPageInner() {
     return validateRecipient(recipientDraft);
   }, [recipientDraft, recipientSubmitAttempted]);
 
-  const [customs, setCustoms] = useState(null);
+  const [customs, setCustoms] = useState<CheckoutCustomsData | null>(null);
   const [isCustomsModalOpen, setIsCustomsModalOpen] = useState(false);
   const [customsDraft, setCustomsDraft] = useState({
     passportSeries: "",
@@ -432,7 +470,7 @@ function CheckoutPageInner() {
     setIsCustomsModalOpen(true);
   };
 
-  const [card, setCard] = useState(null);
+  const [card, setCard] = useState<CheckoutCardSaved | null>(null);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [cardDraft, setCardDraft] = useState({
     numberDigits: "",
@@ -471,8 +509,8 @@ function CheckoutPageInner() {
   const customsSheet = useAnimatedPresence(isCustomsModalOpen);
   const cardSheet = useAnimatedPresence(isCardModalOpen);
 
-  const [selectedIds, setSelectedIds] = useState(() => new Set());
-  const [promo, setPromo] = useState(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string | number>>(() => new Set());
+  const [promo, setPromo] = useState<CheckoutPromo | null>(null);
 
   // Hydrate client-only state after mount to avoid SSR/CSR text mismatches.
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -502,13 +540,13 @@ function CheckoutPageInner() {
       qty += x.quantity;
       const line = Number(x?.lineTotalRub);
       if (Number.isFinite(line)) sum += line;
-      else sum += x.priceRub * x.quantity;
+      else sum += (x.priceRub ?? x.price) * x.quantity;
     }
     return { selectedQuantity: qty, selectedSubtotalRub: sum };
   }, [selectedItems]);
 
   const groupedByDelivery = useMemo(() => {
-    const map = new Map();
+    const map = new Map<string, typeof selectedItems>();
     for (const x of selectedItems) {
       const key = x.deliveryText || "";
       const bucket = map.get(key);
@@ -708,7 +746,7 @@ function CheckoutPageInner() {
                             )}
                           </div>
                           <div className={styles.c52}>
-                            {formatRub(x.priceRub)}
+                            {formatRub(x.priceRub ?? x.price)}
                           </div>
                         </div>
                       </div>

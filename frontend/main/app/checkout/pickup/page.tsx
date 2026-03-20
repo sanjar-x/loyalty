@@ -23,18 +23,49 @@ import { useRouter, useSearchParams } from "next/navigation";
 import styles from "./page.module.css";
 import cn from "clsx";
 
-/**
- * @typedef {Object} DaDataSuggestAddressResponse
- * @property {{ value?: string, data?: { geo_lat?: (string|null), geo_lon?: (string|null), region_with_type?: string, city_with_type?: string, settlement_with_type?: string, area_with_type?: string, country?: string } }[]=} suggestions
- *
- * @typedef {{ id: string, title: string, subtitle: string, lat: (number|null), lon: (number|null) }} SuggestItem
- * @typedef {{ id: string, provider: string, address: string, deliveryText: string, priceText: string, lat: number, lon: number }} PvzPoint
- * @typedef {{ lat: number, lon: number }} LatLon
- */
+interface DaDataSuggestion {
+  value?: string;
+  data?: {
+    geo_lat?: string | null;
+    geo_lon?: string | null;
+    region_with_type?: string;
+    city_with_type?: string;
+    settlement_with_type?: string;
+    area_with_type?: string;
+    country?: string;
+  };
+}
 
-function distanceKm(a, b) {
+interface SuggestItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  lat: number | null;
+  lon: number | null;
+}
+
+interface PvzPoint {
+  id: string;
+  provider: string;
+  address: string;
+  deliveryText: string;
+  priceText: string;
+  lat: number;
+  lon: number;
+}
+
+interface LatLon {
+  lat: number;
+  lon: number;
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type LeafletAny = any;
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+function distanceKm(a: LatLon, b: LatLon) {
   const R = 6371;
-  const toRad = (deg) => (deg * Math.PI) / 180;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
   const dLat = toRad(b.lat - a.lat);
   const dLon = toRad(b.lon - a.lon);
   const lat1 = toRad(a.lat);
@@ -48,7 +79,7 @@ function distanceKm(a, b) {
 
 const PVZ_PROVIDERS = ["Яндекс Доставка", "CDEK", "Boxberry", "Почта России"];
 
-function generateTestPvzPoints(count) {
+function generateTestPvzPoints(count: number): PvzPoint[] {
   const cities = [
     { city: "Москва", lat: 55.751244, lon: 37.618423 },
     { city: "Санкт-Петербург", lat: 59.938732, lon: 30.316229 },
@@ -93,16 +124,16 @@ function generateTestPvzPoints(count) {
     "Зеленая ул",
   ];
 
-  const deliveryTextByProvider = {
+  const deliveryTextByProvider: Record<string, string> = {
     "Яндекс Доставка": "Доставка 1-3 дня",
     CDEK: "Доставка 2-5 дней",
     Boxberry: "Доставка 2-6 дней",
     "Почта России": "Доставка 3-7 дней",
   };
 
-  const points = [];
+  const points: PvzPoint[] = [];
 
-  const mulberry32 = (seed) => {
+  const mulberry32 = (seed: number) => {
     let t = seed >>> 0;
     return () => {
       t += 0x6d2b79f5;
@@ -170,18 +201,18 @@ function CheckoutPickupPageInner() {
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
 
-  const leafletRef = useRef(null);
-  const mapRef = useRef(null);
-  const markerRef = useRef(null);
-  const pvzClusterRef = useRef(null);
-  const pvzPointsRef = useRef(null);
-  const pvzPointByIdRef = useRef(null);
-  const pvzMarkersRef = useRef(new Map());
-  const pvzProviderByIdRef = useRef(new Map());
-  const prevSelectedPvzIdRef = useRef(null);
-  const userMarkerRef = useRef(null);
-  const userAccuracyCircleRef = useRef(null);
-  const geoWatchIdRef = useRef(null);
+  const leafletRef = useRef<LeafletAny>(null);
+  const mapRef = useRef<LeafletAny>(null);
+  const markerRef = useRef<LeafletAny>(null);
+  const pvzClusterRef = useRef<LeafletAny>(null);
+  const pvzPointsRef = useRef<PvzPoint[] | null>(null);
+  const pvzPointByIdRef = useRef<Map<string, PvzPoint> | null>(null);
+  const pvzMarkersRef = useRef<Map<string, LeafletAny>>(new Map());
+  const pvzProviderByIdRef = useRef<Map<string, string>>(new Map());
+  const prevSelectedPvzIdRef = useRef<string | null>(null);
+  const userMarkerRef = useRef<LeafletAny>(null);
+  const userAccuracyCircleRef = useRef<LeafletAny>(null);
+  const geoWatchIdRef = useRef<number | null>(null);
   const userEverCenteredRef = useRef(false);
   const initSeqRef = useRef(0);
   const iconFixedRef = useRef(false);
@@ -240,12 +271,12 @@ function CheckoutPickupPageInner() {
   }, [step, selectedPvzId]);
 
   const [isUserTracking, setIsUserTracking] = useState(false);
-  const [geoError, setGeoError] = useState(null);
-  const [userLocation, setUserLocation] = useState(null);
-  const lastUserLocationRef = useRef(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<LatLon | null>(null);
+  const lastUserLocationRef = useRef<LatLon | null>(null);
 
   const [query, setQuery] = useState("");
-  const [suggestions, setSuggestions] = useState([]);
+  const [suggestions, setSuggestions] = useState<DaDataSuggestion[]>([]);
 
   useEffect(() => {
     const q = query.trim();
@@ -314,7 +345,7 @@ function CheckoutPickupPageInner() {
   }, [query, suggestions]);
 
   const replacePickupUrl = useCallback(
-    (update) => {
+    (update: (params: URLSearchParams) => void) => {
       const params = new URLSearchParams(searchParamsKey);
       update(params);
       router.replace(`/checkout/pickup?${params.toString()}`);
@@ -322,9 +353,9 @@ function CheckoutPickupPageInner() {
     [router, searchParamsKey],
   );
 
-  const setStepAndUrl = (next) => {
+  const setStepAndUrl = (next: string) => {
     setStep(next);
-    replacePickupUrl((params) => {
+    replacePickupUrl((params: URLSearchParams) => {
       params.set("step", next);
     });
   };
@@ -336,7 +367,7 @@ function CheckoutPickupPageInner() {
     const q = pvzQuery.trim().toLowerCase();
     const base = !q
       ? allPoints
-      : allPoints.filter((x) => {
+      : allPoints.filter((x: PvzPoint) => {
           const hay = `${x.provider} ${x.address}`.toLowerCase();
           return hay.includes(q);
         });
@@ -344,7 +375,7 @@ function CheckoutPickupPageInner() {
     const providerFiltered =
       activeProvider === "all"
         ? base
-        : base.filter((x) => x.provider === activeProvider);
+        : base.filter((x: PvzPoint) => x.provider === activeProvider);
 
     if (!userLocation) return providerFiltered;
 
@@ -385,11 +416,11 @@ function CheckoutPickupPageInner() {
   }, []);
 
   const selectPvzOnMap = useCallback(
-    (pvzId) => {
+    (pvzId: string) => {
       setIsPvzModalOpen(true);
       stopUserTracking();
       setStep("map");
-      replacePickupUrl((params) => {
+      replacePickupUrl((params: URLSearchParams) => {
         params.set("step", "map");
         params.set("pvzId", pvzId);
         params.delete("address");
@@ -401,7 +432,7 @@ function CheckoutPickupPageInner() {
   );
 
   const openPvzPopup = useCallback(
-    (pvzId) => {
+    (pvzId: string) => {
       const marker = pvzMarkersRef.current.get(pvzId);
       if (!marker) return;
 
@@ -602,7 +633,7 @@ function CheckoutPickupPageInner() {
     mapRef.current = null;
   }, [stopUserTracking]);
 
-  const getPvzMarkerIcon = useCallback((L, provider, isSelected) => {
+  const getPvzMarkerIcon = useCallback((L: LeafletAny, provider: string, isSelected: boolean) => {
     const bubble = isSelected ? 54 : 48;
     const tail = isSelected ? 16 : 14;
     const border = isSelected ? 3 : 2;
@@ -750,7 +781,7 @@ function CheckoutPickupPageInner() {
       if (mapRef.current) return;
 
       // Defensive: if some previous init left a leaflet id on the element.
-      const anyEl = el;
+      const anyEl = el as LeafletAny;
       if (anyEl._leaflet_id) {
         try {
           delete anyEl._leaflet_id;
@@ -801,7 +832,7 @@ function CheckoutPickupPageInner() {
             zoomToBoundsOnClick: true,
             maxClusterRadius: 52,
             chunkedLoading: true,
-            iconCreateFunction: (cluster) => {
+            iconCreateFunction: (cluster: LeafletAny) => {
               const count = cluster.getChildCount();
               const size = count < 10 ? 34 : count < 100 ? 40 : 46;
 
@@ -1013,7 +1044,7 @@ function CheckoutPickupPageInner() {
   );
 
   if (step === "map") {
-    const ProviderIcon = ({ provider }) => {
+    const ProviderIcon = ({ provider }: { provider: string }) => {
       if (provider === "CDEK") {
         return (
           <svg
@@ -1526,7 +1557,7 @@ function CheckoutPickupPageInner() {
       </div>
 
       <div className={styles.c82}>
-        {filteredPvz.map((p, idx) => {
+        {filteredPvz.map((p: PvzPoint, idx: number) => {
           const isActive = selectedPvzId === p.id;
 
           return (

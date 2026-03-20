@@ -35,6 +35,8 @@ export interface TelegramWebApp {
     offClick: (cb: () => void) => void;
     isVisible: boolean;
   };
+  showPopup?: (opts: { message: string }) => void;
+  openTelegramLink?: (url: string) => void;
   MainButton: {
     show: () => void;
     hide: () => void;

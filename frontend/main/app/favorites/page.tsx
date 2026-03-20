@@ -39,7 +39,7 @@ interface ApiProduct {
 }
 
 interface BrandUi {
-  id: number | string | undefined;
+  id: number | string;
   name: string;
   image: string;
   imageFallbacks: string[];
@@ -73,8 +73,9 @@ export default function FavoritesPage(): React.JSX.Element {
   const brands = useMemo((): BrandUi[] => {
     const rows = Array.isArray(brandsData) ? brandsData : [];
     return rows
+      .filter((b): b is ApiBrand & { id: number | string } => b?.id != null)
       .map((b) => {
-        const id = b?.id;
+        const id = b.id;
         const name = b?.name ?? "";
         const candidates = getBrandLogoCandidates(b);
         const image = candidates[0] || "";
@@ -84,10 +85,9 @@ export default function FavoritesPage(): React.JSX.Element {
           name,
           image,
           imageFallbacks,
-          isFavorite: brandFav.favoriteItemIds.has(id as number | string),
+          isFavorite: brandFav.favoriteItemIds.has(id),
         };
-      })
-      .filter((b) => b.id != null);
+      });
   }, [brandFav.favoriteItemIds, brandsData]);
 
   const favoriteProductIds: number[] = [];

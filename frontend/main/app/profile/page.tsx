@@ -48,7 +48,8 @@ function MenuIcon({ src, alt = "" }: MenuIconProps) {
 }
 
 export default function ProfilePage() {
-  const me: Record<string, unknown> | null = null;
+  // Placeholder: will be populated from API later.
+  const me = null as Record<string, unknown> | null;
   const isLoading = false;
   const isFetching = false;
 

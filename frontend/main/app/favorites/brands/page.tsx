@@ -16,7 +16,7 @@ interface ApiBrand {
 }
 
 interface BrandUi {
-  id: number | string | undefined;
+  id: number | string;
   name: string;
   image: string;
   imageFallbacks: string[];
@@ -33,13 +33,14 @@ export default function BrandsPage(): React.JSX.Element {
   const allBrands = useMemo((): BrandUi[] => {
     const rows = Array.isArray(brandsData) ? brandsData : [];
     return rows
+      .filter((b): b is ApiBrand & { id: number | string } => b?.id != null)
       .map((b) => {
-        const id = b?.id;
+        const id = b.id;
         const name = b?.name ?? "";
         const candidates = getBrandLogoCandidates(b);
         const image = candidates[0] || "";
         const imageFallbacks = candidates.slice(1);
-        const isFavorite = favoriteItemIds.has(id as number | string);
+        const isFavorite = favoriteItemIds.has(id);
         return {
           id,
           name,
@@ -47,8 +48,7 @@ export default function BrandsPage(): React.JSX.Element {
           imageFallbacks,
           isFavorite,
         };
-      })
-      .filter((b) => b.id != null);
+      });
   }, [brandsData, favoriteItemIds]);
 
   const favoriteBrands = useMemo(

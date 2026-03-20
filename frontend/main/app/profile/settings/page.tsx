@@ -8,13 +8,13 @@ import BottomSheet from "@/components/ui/BottomSheet";
 import Button from "@/components/ui/Button";
 import styles from "./page.module.css";
 
-function asNonEmptyTrimmedString(value) {
+function asNonEmptyTrimmedString(value: unknown) {
   if (typeof value !== "string") return null;
   const s = value.trim();
   return s ? s : null;
 }
 
-function asSafeImageSrc(value) {
+function asSafeImageSrc(value: unknown) {
   const s = asNonEmptyTrimmedString(value);
   if (!s) return null;
 
@@ -26,7 +26,7 @@ function asSafeImageSrc(value) {
 }
 
 export default function SettingsPage() {
-  const me = null, isMeLoading = false, isMeFetching = false;
+  const me = null as Record<string, unknown> | null, isMeLoading = false, isMeFetching = false;
 
   const tgUnsafeUser =
     typeof window !== "undefined"
@@ -78,8 +78,8 @@ export default function SettingsPage() {
   );
 
   const [pickupSheetOpen, setPickupSheetOpen] = useState(false);
-  const [pickupPointId, setPickupPointId] = useState(null);
-  const [pickupDraftId, setPickupDraftId] = useState(null);
+  const [pickupPointId, setPickupPointId] = useState<string | null>(null);
+  const [pickupDraftId, setPickupDraftId] = useState<string | null>(null);
 
   const [recipientSheetOpen, setRecipientSheetOpen] = useState(false);
   const [recipient, setRecipient] = useState({ fio: "", phone: "", email: "" });
@@ -162,10 +162,10 @@ export default function SettingsPage() {
     didInitRecipientFromMeRef.current = true;
   }, [me, tgUnsafeUser]);
 
-  const normalizePhoneDigits = (value) =>
+  const normalizePhoneDigits = (value: string) =>
     String(value || "").replace(/\D/g, "");
 
-  const formatRuPhone = (value) => {
+  const formatRuPhone = (value: string) => {
     let digits = normalizePhoneDigits(value);
 
     // Support users typing: 8..., 7..., +7..., or just 9...
@@ -188,7 +188,7 @@ export default function SettingsPage() {
     return out;
   };
 
-  const isValidPhone = (value) => {
+  const isValidPhone = (value: string) => {
     const digits = normalizePhoneDigits(value);
     // Accept +7XXXXXXXXXX or 7XXXXXXXXXX or 8XXXXXXXXXX (after normalization)
     if (
@@ -202,13 +202,13 @@ export default function SettingsPage() {
     return false;
   };
 
-  const isValidEmail = (value) => {
+  const isValidEmail = (value: string) => {
     const s = String(value || "").trim();
     if (!s) return true;
     return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(s);
   };
 
-  const isValidFio = (value) => {
+  const isValidFio = (value: string) => {
     const s = String(value || "").trim();
     if (!s) return true;
     // Screenshot shows Latin name as invalid; enforce Cyrillic letters.
@@ -233,7 +233,7 @@ export default function SettingsPage() {
     };
   }, [recipientDraft.email, recipientDraft.fio, recipientDraft.phone]);
 
-  const showRecipientError = (key) =>
+  const showRecipientError = (key: keyof typeof recipientErrors) =>
     Boolean(recipientErrors[key]) &&
     (recipientSubmitAttempted || recipientTouched[key]);
 

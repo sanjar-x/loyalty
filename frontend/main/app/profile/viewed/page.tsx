@@ -63,7 +63,7 @@ export default function ViewedPage() {
     },
   ]);
 
-  const toggleViewedProduct = (id) => {
+  const toggleViewedProduct = (id: string | number) => {
     setViewedProducts((prev) =>
       prev.map((product) =>
         product.id === id

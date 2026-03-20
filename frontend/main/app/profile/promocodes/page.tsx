@@ -91,7 +91,7 @@ export default function PromoCodesPage() {
       return;
     }
 
-    const tg = (window as Record<string, unknown>).Telegram as Record<string, unknown> | undefined;
+    const tg = (window as unknown as Record<string, unknown>).Telegram as Record<string, unknown> | undefined;
     const webApp = tg?.WebApp as Record<string, unknown> | undefined;
     if (webApp?.showPopup) {
       try {

@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import styles from "./page.module.css";
 import BottomSheet from "@/components/ui/BottomSheet";
 import Footer from "@/components/layout/Footer";
 
-function titleize(value) {
+function titleize(value: string | string[] | undefined) {
   const s = String(value || "")
     .replace(/[-_]+/g, " ")
     .trim();
@@ -15,19 +15,19 @@ function titleize(value) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function toNumber(value) {
+function toNumber(value: unknown) {
   const digits = String(value ?? "").replace(/[^0-9]/g, "");
   const n = Number(digits);
   return Number.isFinite(n) ? n : 0;
 }
 
-function formatRub(value) {
+function formatRub(value: number | string) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return "";
   return `${n.toLocaleString("ru-RU")} ₽`;
 }
 
-function Stars({ value, size = 12, showEmpty = true }) {
+function Stars({ value, size = 12, showEmpty = true }: { value: number; size?: number; showEmpty?: boolean }) {
   const safe = Math.max(0, Math.min(5, Number(value) || 0));
   const starsToRender = showEmpty ? 5 : safe;
 
@@ -46,14 +46,14 @@ function Stars({ value, size = 12, showEmpty = true }) {
   );
 }
 
-function Segmented({ value, onChange, items }) {
+function Segmented({ value, onChange, items }: { value: string; onChange: (v: string) => void; items: { value: string; label: string }[] }) {
   return (
     <div
       className={styles.segmented}
       role="tablist"
       aria-label="Фильтр отзывов"
     >
-      {items.map((it) => {
+      {items.map((it: { value: string; label: string }) => {
         const active = it.value === value;
         return (
           <button
@@ -72,7 +72,7 @@ function Segmented({ value, onChange, items }) {
   );
 }
 
-function Chip({ active, onClick, icon, children, ignoreActive = false }) {
+function Chip({ active, onClick, icon, children, ignoreActive = false }: { active: boolean; onClick: () => void; icon?: React.ReactNode; children: React.ReactNode; ignoreActive?: boolean }) {
   const isActive = !ignoreActive && !!active;
   return (
     <button
@@ -87,7 +87,7 @@ function Chip({ active, onClick, icon, children, ignoreActive = false }) {
   );
 }
 
-function ReviewPhotos({ images = [] }) {
+function ReviewPhotos({ images = [] }: { images?: string[] }) {
   if (!Array.isArray(images) || images.length === 0) return null;
 
   return (
@@ -102,7 +102,7 @@ function ReviewPhotos({ images = [] }) {
   );
 }
 
-function ExpandableReviewText({ label, text, clampLines = 3 }) {
+function ExpandableReviewText({ label, text, clampLines = 3 }: { label: string; text: string; clampLines?: number }) {
   const [expanded, setExpanded] = useState(false);
   const content = String(text ?? "").trim();
   if (!content) return null;
@@ -131,7 +131,26 @@ function ExpandableReviewText({ label, text, clampLines = 3 }) {
   );
 }
 
-function ReviewCard({ review }) {
+interface ReviewData {
+  id: number;
+  userName: string;
+  avatar: string;
+  date: string;
+  rating: number;
+  isVariant?: boolean;
+  images?: string[];
+  pros: string;
+  cons: string;
+  comment?: string;
+  product?: {
+    name: string;
+    size?: string;
+    article?: string;
+    image: string;
+  };
+}
+
+function ReviewCard({ review }: { review: ReviewData }) {
   return (
     <article className={styles.reviewCard}>
       <div className={styles.reviewHeader}>
@@ -156,7 +175,7 @@ function ReviewCard({ review }) {
       <div className={styles.reviewBody}>
         <ExpandableReviewText label="Достоинства" text={review.pros} />
         <ExpandableReviewText label="Недостатки" text={review.cons} />
-        <ExpandableReviewText label="Комментарий" text={review.comment} />
+        <ExpandableReviewText label="Комментарий" text={review.comment ?? ""} />
       </div>
 
       {review.product ? (

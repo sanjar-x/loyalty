@@ -5,14 +5,14 @@ import { Check } from "lucide-react";
 
 import styles from "./page.module.css";
 
-export default function InviteLinkActions({ url }) {
+export default function InviteLinkActions({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
   const [hint, setHint] = useState("");
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const shareText = useMemo(() => `Присоединяйся к LOYALTY: ${url}`, [url]);
 
-  const copyText = useCallback(async (text) => {
+  const copyText = useCallback(async (text: string) => {
     // Modern clipboard API (may be blocked in Telegram/iOS).
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {

@@ -1,5 +1,5 @@
 "use client";
-const EMPTY_SET = new Set();
+const EMPTY_SET = new Set<string | number>();
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -17,7 +17,7 @@ import {
 } from "@/lib/format/product-image";
 import Header from "@/components/layout/Header";
 
-function formatRub(value) {
+function formatRub(value: number) {
   try {
     return `${new Intl.NumberFormat("ru-RU").format(value)} ₽`;
   } catch {
@@ -25,7 +25,7 @@ function formatRub(value) {
   }
 }
 
-function pluralizeItemsRu(count) {
+function pluralizeItemsRu(count: number) {
   const n = Math.abs(count);
   const mod10 = n % 10;
   const mod100 = n % 100;
@@ -72,7 +72,7 @@ function CartSkeleton({ count = 3 }) {
   );
 }
 
-function formatRubPrice(value) {
+function formatRubPrice(value: number | string | undefined) {
   const n = Number(value);
   if (!Number.isFinite(n)) return "";
   const formatted = Math.round(n)
@@ -81,8 +81,8 @@ function formatRubPrice(value) {
   return `${formatted} ₽`;
 }
 
-function getProductPhotoCandidates(product) {
-  const candidates = [];
+function getProductPhotoCandidates(product: Record<string, unknown>) {
+  const candidates: string[] = [];
 
   const rawDirect =
     (typeof product?.image === "string" ? product.image : "") ||
@@ -91,13 +91,14 @@ function getProductPhotoCandidates(product) {
     (typeof product?.photo_url === "string" ? product.photo_url : "");
   if (rawDirect && rawDirect.trim()) candidates.push(rawDirect.trim());
 
-  const photos = Array.isArray(product?.photos) ? product.photos : [];
+  const photos = Array.isArray(product?.photos) ? (product.photos as unknown[]) : [];
   const first = photos?.[0];
+  const firstObj = first && typeof first === "object" ? first as Record<string, unknown> : null;
   const filename =
     typeof first === "string"
       ? first
-      : first && typeof first === "object"
-        ? (first.filename ?? first.file ?? first.path ?? first.url)
+      : firstObj
+        ? ((firstObj.filename ?? firstObj.file ?? firstObj.path ?? firstObj.url) as string | null)
         : null;
 
   const raw = typeof filename === "string" ? filename.trim() : "";
@@ -114,7 +115,7 @@ function getProductPhotoCandidates(product) {
   return candidates.filter(Boolean);
 }
 
-function mapApiProductToCard(product, favoriteIds) {
+function mapApiProductToCard(product: Record<string, unknown>, favoriteIds: Set<string | number>) {
   const id = product?.id;
   if (id == null) return null;
 
@@ -138,13 +139,13 @@ function mapApiProductToCard(product, favoriteIds) {
           : null;
 
   const isFavorite = Boolean(
-    (serverIsFavorite ?? false) || (favoriteIds?.has?.(id) ?? false),
+    (serverIsFavorite ?? false) || (favoriteIds?.has?.(id as string | number) ?? false),
   );
 
   return {
-    id,
+    id: id as string | number,
     name: String(product?.name ?? ""),
-    price: formatRubPrice(product?.price),
+    price: formatRubPrice(product?.price as number | string | undefined),
     image,
     imageFallbacks,
     isFavorite,
@@ -168,26 +169,26 @@ export default function TrashBasketPage() {
   } = useCart();
 
   const favoriteItemIds = EMPTY_SET;
-  const toggleProductFavorite = () => {};
+  const toggleProductFavorite = (_id?: string | number) => {};
 
-  const forYouRaw = [], isForYouLoading = false, isForYouFetching = false;
+  const forYouRaw: Record<string, unknown>[] = [], isForYouLoading = false, isForYouFetching = false;
 
   const forYouProducts = useMemo(() => {
     const rows = Array.isArray(forYouRaw) ? forYouRaw : [];
     return rows
       .map((p) => mapApiProductToCard(p, favoriteItemIds))
-      .filter(Boolean);
+      .filter((x): x is NonNullable<typeof x> => x != null);
   }, [favoriteItemIds, forYouRaw]);
 
   const isForYouInitialLoading =
     Boolean(isForYouLoading || isForYouFetching) &&
     (!Array.isArray(forYouRaw) || forYouRaw.length === 0);
 
-  const [unselectedIds, setUnselectedIds] = useState(() => new Set());
+  const [unselectedIds, setUnselectedIds] = useState<Set<string | number>>(() => new Set());
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const selectedIds = useMemo(() => {
-    const next = new Set();
+    const next = new Set<string | number>();
     for (const item of items) {
       if (!unselectedIds.has(item.id)) next.add(item.id);
     }
@@ -202,7 +203,7 @@ export default function TrashBasketPage() {
       nextQuantity += item.quantity;
       const line = Number(item.lineTotalRub);
       if (Number.isFinite(line)) nextSubtotalRub += line;
-      else nextSubtotalRub += item.priceRub * item.quantity;
+      else nextSubtotalRub += (item.priceRub ?? item.price) * item.quantity;
     }
     return {
       selectedQuantity: nextQuantity,
@@ -212,7 +213,7 @@ export default function TrashBasketPage() {
 
   const allSelected = items.length > 0 && selectedIds.size === items.length;
 
-  const toggleSelect = (id) => {
+  const toggleSelect = (id: string | number) => {
     setUnselectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -225,15 +226,15 @@ export default function TrashBasketPage() {
     setUnselectedIds((prev) => {
       if (items.length === 0) return prev;
       const areAllSelected = items.every((x) => !prev.has(x.id));
-      if (areAllSelected) return new Set(items.map((x) => x.id));
-      return new Set();
+      if (areAllSelected) return new Set<string | number>(items.map((x) => x.id));
+      return new Set<string | number>();
     });
   };
 
   const openDeleteConfirm = () => setDeleteConfirmOpen(true);
   const closeDeleteConfirm = () => setDeleteConfirmOpen(false);
   const confirmDeleteSelected = () => {
-    removeMany(selectedIds);
+    removeMany([...selectedIds]);
     setUnselectedIds((prev) => {
       const next = new Set(prev);
       for (const id of selectedIds) next.add(id);
@@ -242,7 +243,7 @@ export default function TrashBasketPage() {
     setDeleteConfirmOpen(false);
   };
 
-  const removeOne = (id) => {
+  const removeOne = (id: string | number) => {
     removeItem(id);
     setUnselectedIds((prev) => new Set(prev).add(id));
   };
@@ -258,12 +259,12 @@ export default function TrashBasketPage() {
   );
   const [promoCode, setPromoCode] = useState("");
   const [promoStatus, setPromoStatus] = useState("idle");
-  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountRub: number } | null>(null);
 
   const promoActive = promoCode.trim().length > 0;
   const promoNormalized = promoCode.trim().toUpperCase();
 
-  const onPromoChange = (value) => {
+  const onPromoChange = (value: string) => {
     setPromoCode(value);
     if (promoStatus !== "idle" || appliedPromo) {
       setPromoStatus("idle");
@@ -453,7 +454,7 @@ export default function TrashBasketPage() {
                       </div>
 
                       <div className={styles.c26}>
-                        {formatRub(item.priceRub)}
+                        {formatRub(item.priceRub ?? item.price)}
                       </div>
 
                       <div className={cn(styles.c27, styles.tw11)}>
@@ -473,7 +474,7 @@ export default function TrashBasketPage() {
                                 : null
                             }
                             aria-label={
-                              favoriteItemIds.has(item.productId)
+                              item.productId != null && favoriteItemIds.has(item.productId)
                                 ? "Убрать из избранного"
                                 : "Добавить в избранное"
                             }
@@ -481,7 +482,7 @@ export default function TrashBasketPage() {
                           >
                             <img
                               src={
-                                favoriteItemIds.has(item.productId)
+                                item.productId != null && favoriteItemIds.has(item.productId)
                                   ? "/icons/global/active-heart.svg"
                                   : "/icons/global/not-active-heart.svg"
                               }

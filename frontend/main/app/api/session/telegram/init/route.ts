@@ -194,7 +194,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const initData =
     typeof body?.initData === "string" ? (body.initData as string).trim() : "";
   const debugUser = isLocalBrowserDebugRequest(req)
-    ? normalizeBrowserDebugUser(body?.debugUser)
+    ? normalizeBrowserDebugUser(body?.debugUser as Record<string, unknown> | undefined)
     : null;
 
   let tgId: string | number | null = null;
@@ -213,7 +213,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    let parsed: Record<string, unknown>;
+    let parsed: ReturnType<typeof validateTelegramInitDataOrThrow>;
     try {
       parsed = validateTelegramInitDataOrThrow({
         initData,

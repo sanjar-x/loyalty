@@ -103,7 +103,7 @@ export default function PurchasedPage() {
 
   const [purchasedProducts, setPurchasedProducts] = useState<PurchasedProduct[]>(() => []);
 
-  const toggleFavorite = (id: number) => {
+  const toggleFavorite = (id: string | number) => {
     setPurchasedProducts((prev) =>
       prev.map((product) =>
         product.id === id
@@ -113,7 +113,7 @@ export default function PurchasedPage() {
     );
   };
 
-  const setRating = (id: number, rating: number) => {
+  const setRating = (id: string | number | undefined, rating: number) => {
     if (!id) return;
 
     try {
@@ -135,7 +135,7 @@ export default function PurchasedPage() {
     }
   };
 
-  const handleStarSelect = (id: number, rating: number) => {
+  const handleStarSelect = (id: string | number | undefined, rating: number) => {
     setRating(id, rating);
     if (!id) return;
 

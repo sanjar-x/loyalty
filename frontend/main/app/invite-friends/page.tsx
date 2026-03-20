@@ -24,10 +24,10 @@ function isExistingStatus(status: string | null | undefined): boolean {
 }
 
 export default function InviteFriends() {
-  const linkData = {}, isLinkLoading = false, isLinkFetching = false;
-  const invitedData = {}, isInvitedLoading = false, isInvitedFetching = false;
-  const discountData = {}, isDiscountLoading = false, isDiscountFetching = false;
-  const statsData = {}, isStatsLoading = false, isStatsFetching = false;
+  const linkData = {} as { link?: string }, isLinkLoading = false, isLinkFetching = false;
+  const invitedData = {} as { items?: Record<string, unknown>[] }, isInvitedLoading = false, isInvitedFetching = false;
+  const discountData = {} as { code?: string; percent?: number; expires_at?: string; max_amount?: number }, isDiscountLoading = false, isDiscountFetching = false;
+  const statsData = {} as { clicked?: number; installed?: number; promo_issued_total?: number }, isStatsLoading = false, isStatsFetching = false;
 
   const inviteUrl = linkData?.link || "";
   const stats = {
@@ -280,25 +280,25 @@ export default function InviteFriends() {
                     </div>
                   </li>
                 ))
-              : invitedUsers.map((user) => {
-                  const status = user?.status ?? "";
+              : invitedUsers.map((user: Record<string, unknown>) => {
+                  const status = String(user?.status ?? "");
                   const isExisting = isExistingStatus(status);
-                  const name =
+                  const name = String(
                     user?.invitee_username ||
                     user?.invitee_tg_id ||
                     (user?.invitee_id != null
                       ? String(user.invitee_id)
-                      : "Пользователь");
-                  const date = formatRuDateTime(user?.created_at);
+                      : "Пользователь"));
+                  const date = formatRuDateTime(user?.created_at as string | undefined);
 
                   return (
                     <li
-                      key={
+                      key={String(
                         user?.invite_id ??
                         user?.invitee_id ??
                         user?.invitee_tg_id ??
                         name
-                      }
+                      )}
                       className={styles.historyItem}
                     >
                       <Image
