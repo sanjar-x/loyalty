@@ -66,6 +66,15 @@ class ILogger(Protocol):
         """
         ...
 
+    def critical(self, event: str, **kwargs: Any) -> None:
+        """Emit a CRITICAL-level log entry.
+
+        Args:
+            event: Human-readable event description.
+            **kwargs: Structured fields attached to the entry.
+        """
+        ...
+
     def exception(self, event: str, **kwargs: Any) -> None:
         """Emit an ERROR-level log entry with the current exception traceback.
 

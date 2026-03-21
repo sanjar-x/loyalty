@@ -43,6 +43,8 @@ class CustomerDetail(BaseModel):
         last_name: Customer's last name.
         phone: Customer's phone number, if available.
         referral_code: Customer's unique referral code.
+        username: Customer's username, if available.
+        auth_methods: List of auth methods (e.g. 'local', 'google', 'telegram').
         referred_by: UUID of the customer who referred this one.
         roles: List of roles with full metadata.
         created_at: When the identity was created.
@@ -58,6 +60,8 @@ class CustomerDetail(BaseModel):
     last_name: str
     phone: str | None
     referral_code: str | None
+    username: str | None = None
+    auth_methods: list[str] = []
     referred_by: uuid.UUID | None
     roles: list[CustomerRoleInfo]
     created_at: datetime
@@ -97,7 +101,7 @@ class GetCustomerDetailHandler:
         sql = text(
             "SELECT i.id AS identity_id, lc.email, i.type AS auth_type, "
             "i.is_active, c.first_name, c.last_name, c.phone, "
-            "c.referral_code, c.referred_by, "
+            "c.referral_code, c.username, c.referred_by, "
             "i.created_at, i.deactivated_at, i.deactivated_by "
             "FROM identities i "
             "LEFT JOIN local_credentials lc ON lc.identity_id = i.id "
@@ -129,6 +133,18 @@ class GetCustomerDetailHandler:
             for rr in roles_result.mappings().all()
         ]
 
+        # Fetch linked account providers
+        la_sql = text(
+            "SELECT provider FROM linked_accounts WHERE identity_id = :id"
+        )
+        la_result = await self._session.execute(la_sql, {"id": query.identity_id})
+        providers = [la_row["provider"] for la_row in la_result.mappings()]
+
+        auth_methods: list[str] = []
+        if row["email"]:
+            auth_methods.append("local")
+        auth_methods.extend(providers)
+
         return CustomerDetail(
             identity_id=row["identity_id"],
             email=row["email"],
@@ -138,6 +154,8 @@ class GetCustomerDetailHandler:
             last_name=row["last_name"] or "",
             phone=row["phone"],
             referral_code=row["referral_code"],
+            username=row["username"],
+            auth_methods=auth_methods,
             referred_by=row["referred_by"],
             roles=roles,
             created_at=row["created_at"],

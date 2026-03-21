@@ -37,7 +37,7 @@ async def _seed_identity_with_creds(
 
 
 async def test_add_credentials_and_get_by_email(db_session: AsyncSession):
-    identity, creds = await _seed_identity_with_creds(db_session, email="cred@test.com")
+    identity, _creds = await _seed_identity_with_creds(db_session, email="cred@test.com")
 
     repo = IdentityRepository(session=db_session)
     result = await repo.get_by_email("cred@test.com")
@@ -56,7 +56,7 @@ async def test_get_by_email_not_found(db_session: AsyncSession):
 
 
 async def test_update_credentials(db_session: AsyncSession):
-    identity, creds = await _seed_identity_with_creds(
+    _identity, creds = await _seed_identity_with_creds(
         db_session, email="update@test.com", password_hash="old-hash"
     )
 

@@ -39,7 +39,7 @@ from src.modules.identity.domain.exceptions import (
     SelfDeactivationError,
     SystemRoleModificationError,
 )
-from src.modules.identity.domain.value_objects import IdentityType
+from src.modules.identity.domain.value_objects import AccountType, IdentityType
 from src.shared.exceptions import ConflictError, NotFoundError
 
 pytestmark = pytest.mark.asyncio
@@ -74,6 +74,7 @@ def make_identity(
     return Identity(
         id=iid,
         type=IdentityType.LOCAL,
+        account_type=AccountType.CUSTOMER,
         is_active=is_active,
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
@@ -171,7 +172,7 @@ class TestAdminDeactivateIdentityHandler:
         session_repo.revoke_all_for_identity.assert_awaited_once_with(identity_id)
         uow.register_aggregate.assert_called_once_with(identity)
         uow.commit.assert_awaited_once()
-        assert permission_resolver.invalidate.await_count == 2
+        permission_resolver.invalidate_many.assert_awaited_once_with(revoked_ids)
 
     async def test_admin_deactivate_identity_not_found(self) -> None:
         identity_repo = AsyncMock()
@@ -234,7 +235,7 @@ class TestAdminDeactivateIdentityHandler:
         identity_repo.get.return_value = identity
         role_repo = AsyncMock()
         role_repo.get_identity_role_ids.return_value = [admin_role.id]
-        role_repo.get.return_value = admin_role
+        role_repo.get_by_name.return_value = admin_role
         role_repo.count_identities_with_role.return_value = 1
 
         handler = self._make_handler(
@@ -262,7 +263,7 @@ class TestAdminDeactivateIdentityHandler:
         identity_repo.get.return_value = identity
         role_repo = AsyncMock()
         role_repo.get_identity_role_ids.return_value = [admin_role.id]
-        role_repo.get.return_value = admin_role
+        role_repo.get_by_name.return_value = admin_role
         role_repo.count_identities_with_role.return_value = 3
         session_repo = AsyncMock()
         session_repo.revoke_all_for_identity.return_value = []
@@ -313,9 +314,7 @@ class TestAdminDeactivateIdentityHandler:
             )
         )
 
-        assert permission_resolver.invalidate.await_count == 3
-        for sid in revoked_ids:
-            permission_resolver.invalidate.assert_any_await(sid)
+        permission_resolver.invalidate_many.assert_awaited_once_with(revoked_ids)
 
     async def test_admin_deactivate_emits_event_with_deactivated_by(self) -> None:
         identity_id = uuid.uuid4()
@@ -697,8 +696,7 @@ class TestSetRolePermissionsHandler:
         perm = make_permission(codename="brands:create")
         identity_id_1 = uuid.uuid4()
         identity_id_2 = uuid.uuid4()
-        session_ids_1 = [uuid.uuid4()]
-        session_ids_2 = [uuid.uuid4(), uuid.uuid4()]
+        all_session_ids = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
 
         role_repo = AsyncMock()
         role_repo.get.return_value = role
@@ -706,7 +704,7 @@ class TestSetRolePermissionsHandler:
         permission_repo = AsyncMock()
         permission_repo.get_by_ids.return_value = [perm]
         session_repo = AsyncMock()
-        session_repo.get_active_session_ids.side_effect = [session_ids_1, session_ids_2]
+        session_repo.get_active_session_ids_bulk.return_value = all_session_ids
         permission_resolver = AsyncMock()
         permission_resolver.get_permissions.return_value = frozenset({"brands:create"})
         uow = make_uow()
@@ -728,10 +726,7 @@ class TestSetRolePermissionsHandler:
         )
 
         # Cache invalidated for all 3 affected sessions
-        assert permission_resolver.invalidate.await_count == 3
-        all_session_ids = session_ids_1 + session_ids_2
-        for sid in all_session_ids:
-            permission_resolver.invalidate.assert_any_await(sid)
+        permission_resolver.invalidate_many.assert_awaited_once_with(all_session_ids)
 
     async def test_set_permissions_empty_list_clears_all(self) -> None:
         role = make_role()

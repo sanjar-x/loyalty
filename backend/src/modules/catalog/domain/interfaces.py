@@ -14,7 +14,6 @@ Typical usage:
 
 import uuid
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
 
 from src.modules.catalog.domain.entities import Attribute as DomainAttribute
 from src.modules.catalog.domain.entities import AttributeGroup
@@ -26,10 +25,8 @@ from src.modules.catalog.domain.entities import Product as DomainProduct
 from src.modules.catalog.domain.entities import ProductAttributeValue as DomainProductAttributeValue
 from src.modules.catalog.domain.value_objects import ProductStatus
 
-T = TypeVar("T")
 
-
-class ICatalogRepository(Generic[T], ABC):
+class ICatalogRepository[T](ABC):
     """Generic CRUD repository contract for catalog aggregates.
 
     Type parameter ``T`` is the domain entity type (e.g. ``DomainBrand``).

@@ -28,7 +28,9 @@ class StructlogAdapter(ILogger):
         self._logger: structlog.stdlib.BoundLogger = structlog.get_logger(name)
 
     @classmethod
-    def _from_bound(cls, bound_logger: structlog.stdlib.BoundLogger) -> StructlogAdapter:
+    def _from_bound(
+        cls, bound_logger: structlog.stdlib.BoundLogger
+    ) -> StructlogAdapter:
         """Create an adapter from an already-bound logger (used by ``bind``).
 
         Args:
@@ -87,6 +89,15 @@ class StructlogAdapter(ILogger):
             **kwargs: Additional structured context.
         """
         self._logger.error(event, **kwargs)
+
+    def critical(self, event: str, **kwargs: Any) -> None:
+        """Log a message at CRITICAL level.
+
+        Args:
+            event: The log event message.
+            **kwargs: Additional structured context.
+        """
+        self._logger.critical(event, **kwargs)
 
     def exception(self, event: str, **kwargs: Any) -> None:
         """Log a message at ERROR level with exception info.

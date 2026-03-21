@@ -30,7 +30,7 @@ from src.modules.identity.domain.exceptions import (
     SessionExpiredError,
     SessionRevokedError,
 )
-from src.modules.identity.domain.value_objects import AccountType, IdentityType, InvitationStatus, TelegramUserData
+from src.modules.identity.domain.value_objects import AccountType, IdentityType, InvitationStatus
 from src.shared.interfaces.entities import AggregateRoot
 
 
@@ -58,6 +58,7 @@ class Identity(AggregateRoot):
     updated_at: datetime
     deactivated_at: datetime | None = None
     deactivated_by: uuid.UUID | None = None
+    token_version: int = 1
 
     @classmethod
     def register(
@@ -150,6 +151,11 @@ class Identity(AggregateRoot):
         if not self.is_active:
             raise IdentityDeactivatedError()
 
+    def bump_token_version(self) -> None:
+        """Increment token version to invalidate all outstanding JWTs."""
+        self.token_version += 1
+        self.updated_at = datetime.now(UTC)
+
 
 @dataclass
 class LocalCredentials:
@@ -199,6 +205,8 @@ class Session:
     created_at: datetime
     expires_at: datetime
     activated_roles: tuple[uuid.UUID, ...]
+    last_active_at: datetime
+    idle_expires_at: datetime
 
     @classmethod
     def create(
@@ -209,6 +217,7 @@ class Session:
         user_agent: str,
         role_ids: list[uuid.UUID],
         expires_days: int = 30,
+        idle_timeout_minutes: int = 30,
     ) -> Session:
         """Create a new session with a hashed refresh token.
 
@@ -219,6 +228,7 @@ class Session:
             user_agent: Client User-Agent header value.
             role_ids: Role IDs to activate for this session.
             expires_days: Number of days until the refresh token expires.
+            idle_timeout_minutes: Minutes of inactivity before session expires.
 
         Returns:
             A new Session instance.
@@ -235,7 +245,15 @@ class Session:
             created_at=now,
             expires_at=now + timedelta(days=expires_days),
             activated_roles=tuple(role_ids),
+            last_active_at=now,
+            idle_expires_at=now + timedelta(minutes=idle_timeout_minutes),
         )
+
+    def touch(self, idle_timeout_minutes: int) -> None:
+        """Extend idle timeout on activity (refresh token use)."""
+        now = datetime.now(UTC)
+        self.last_active_at = now
+        self.idle_expires_at = now + timedelta(minutes=idle_timeout_minutes)
 
     def revoke(self) -> None:
         """Mark this session as revoked."""
@@ -278,13 +296,15 @@ class Session:
             raise RefreshTokenReuseError()
 
     def ensure_valid(self) -> None:
-        """Verify that this session is neither expired nor revoked.
+        """Verify that this session is neither expired, idle-expired, nor revoked.
 
         Raises:
-            SessionExpiredError: If the session has expired.
+            SessionExpiredError: If the session has expired (absolute or idle).
             SessionRevokedError: If the session has been revoked.
         """
         if self.is_expired():
+            raise SessionExpiredError()
+        if datetime.now(UTC) >= self.idle_expires_at:
             raise SessionExpiredError()
         if self.is_revoked:
             raise SessionRevokedError()
@@ -331,61 +351,25 @@ class Permission:
 
 @dataclass
 class LinkedAccount:
-    """External OIDC provider account linked to an Identity.
-
-    Attributes:
-        id: Unique linked account identifier.
-        identity_id: The identity this external account is linked to.
-        provider: OIDC provider name (e.g. "google", "github").
-        provider_sub_id: The provider's unique subject identifier.
-        provider_email: Email address reported by the provider, if available.
-    """
+    """External provider account linked to an Identity."""
 
     id: uuid.UUID
     identity_id: uuid.UUID
     provider: str
     provider_sub_id: str
     provider_email: str | None
-
-
-@dataclass
-class TelegramCredentials:
-    """Telegram-specific credentials linked to an Identity.
-    Shared PK 1:1 pattern (like LocalCredentials)."""
-
-    identity_id: uuid.UUID
-    telegram_id: int
-    first_name: str
-    last_name: str | None
-    username: str | None
-    language_code: str | None
-    is_premium: bool
-    photo_url: str | None
-    allows_write_to_pm: bool
+    email_verified: bool
+    provider_metadata: dict
     created_at: datetime
     updated_at: datetime
 
-    def update_profile(self, data: TelegramUserData) -> bool:
-        """Update profile fields. Don't erase photo_url with None."""
-        changed = False
-        for field in (
-            "first_name",
-            "last_name",
-            "username",
-            "language_code",
-            "is_premium",
-            "allows_write_to_pm",
-        ):
-            new_val = getattr(data, field)
-            if getattr(self, field) != new_val:
-                setattr(self, field, new_val)
-                changed = True
-        if data.photo_url is not None and self.photo_url != data.photo_url:
-            self.photo_url = data.photo_url
-            changed = True
-        if changed:
+    def update_metadata(self, new_metadata: dict) -> bool:
+        """Update provider_metadata if changed. Returns True if updated."""
+        if self.provider_metadata != new_metadata:
+            self.provider_metadata = new_metadata
             self.updated_at = datetime.now(UTC)
-        return changed
+            return True
+        return False
 
 
 @dataclass

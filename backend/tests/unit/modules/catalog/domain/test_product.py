@@ -8,6 +8,11 @@ from datetime import UTC, datetime
 import pytest
 
 from src.modules.catalog.domain.entities import SKU, Product
+from src.modules.catalog.domain.exceptions import (
+    DuplicateVariantCombinationError,
+    InvalidStatusTransitionError,
+    SKUNotFoundError,
+)
 from src.modules.catalog.domain.value_objects import Money, ProductStatus
 from src.shared.interfaces.entities import AggregateRoot
 
@@ -418,25 +423,25 @@ class TestProductTransitionStatus:
     def test_draft_to_published_raises(self) -> None:
         """Invalid: DRAFT -> PUBLISHED must raise (skips FSM steps)."""
         product = make_product()
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidStatusTransitionError):
             product.transition_status(ProductStatus.PUBLISHED)
 
     def test_draft_to_ready_for_review_raises(self) -> None:
         """Invalid: DRAFT -> READY_FOR_REVIEW must raise."""
         product = make_product()
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidStatusTransitionError):
             product.transition_status(ProductStatus.READY_FOR_REVIEW)
 
     def test_draft_to_archived_raises(self) -> None:
         """Invalid: DRAFT -> ARCHIVED must raise."""
         product = make_product()
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidStatusTransitionError):
             product.transition_status(ProductStatus.ARCHIVED)
 
     def test_draft_to_draft_raises(self) -> None:
         """Invalid: self-transition DRAFT -> DRAFT must raise."""
         product = make_product()
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidStatusTransitionError):
             product.transition_status(ProductStatus.DRAFT)
 
     def test_published_to_draft_raises(self) -> None:
@@ -445,7 +450,7 @@ class TestProductTransitionStatus:
         product.transition_status(ProductStatus.ENRICHING)
         product.transition_status(ProductStatus.READY_FOR_REVIEW)
         product.transition_status(ProductStatus.PUBLISHED)
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidStatusTransitionError):
             product.transition_status(ProductStatus.DRAFT)
 
     def test_published_to_enriching_raises(self) -> None:
@@ -454,7 +459,7 @@ class TestProductTransitionStatus:
         product.transition_status(ProductStatus.ENRICHING)
         product.transition_status(ProductStatus.READY_FOR_REVIEW)
         product.transition_status(ProductStatus.PUBLISHED)
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidStatusTransitionError):
             product.transition_status(ProductStatus.ENRICHING)
 
     def test_archived_to_enriching_raises(self) -> None:
@@ -464,14 +469,14 @@ class TestProductTransitionStatus:
         product.transition_status(ProductStatus.READY_FOR_REVIEW)
         product.transition_status(ProductStatus.PUBLISHED)
         product.transition_status(ProductStatus.ARCHIVED)
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidStatusTransitionError):
             product.transition_status(ProductStatus.ENRICHING)
 
     def test_invalid_transition_preserves_current_status(self) -> None:
         """After failed transition the status must remain unchanged."""
         product = make_product()
         assert product.status == ProductStatus.DRAFT
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidStatusTransitionError):
             product.transition_status(ProductStatus.PUBLISHED)
         assert product.status == ProductStatus.DRAFT
 
@@ -582,7 +587,7 @@ class TestProductAddSku:
             price=make_money(),
             variant_attributes=[(attr_id, val_id)],
         )
-        with pytest.raises(Exception):
+        with pytest.raises(DuplicateVariantCombinationError):
             product.add_sku(
                 sku_code="SKU-002",
                 price=make_money(),
@@ -619,7 +624,7 @@ class TestProductAddSku:
         """Two zero-variant SKUs have identical hash — second must raise."""
         product = make_product()
         product.add_sku(sku_code="SKU-001", price=make_money())
-        with pytest.raises(Exception):
+        with pytest.raises(DuplicateVariantCombinationError):
             product.add_sku(sku_code="SKU-002", price=make_money())
 
     def test_add_sku_with_compare_at_price_succeeds(self) -> None:
@@ -730,7 +735,7 @@ class TestProductRemoveSku:
     def test_remove_sku_not_found_raises(self) -> None:
         """remove_sku() raises when SKU ID does not exist."""
         product = make_product()
-        with pytest.raises(Exception):
+        with pytest.raises(SKUNotFoundError):
             product.remove_sku(uuid.uuid4())
 
     def test_remove_sku_already_deleted_raises(self) -> None:
@@ -738,7 +743,7 @@ class TestProductRemoveSku:
         product = make_product()
         sku = product.add_sku(sku_code="SKU-001", price=make_money())
         product.remove_sku(sku.id)
-        with pytest.raises(Exception):
+        with pytest.raises(SKUNotFoundError):
             product.remove_sku(sku.id)  # second removal must fail
 
 

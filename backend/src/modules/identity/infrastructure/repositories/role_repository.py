@@ -7,7 +7,7 @@ association management.
 
 import uuid
 
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.identity.domain.entities import Role

@@ -31,7 +31,7 @@ class TelegramInitDataValidator(ITelegramInitDataValidator):
                 token=self._bot_token, init_data=init_data_raw,
             )
         except ValueError:
-            raise InvalidInitDataError()
+            raise InvalidInitDataError() from None
 
         # 2. Freshness check (aiogram does NOT do this)
         age = int((datetime.now(UTC) - parsed.auth_date).total_seconds())

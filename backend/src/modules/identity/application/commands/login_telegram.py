@@ -8,18 +8,18 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from src.modules.identity.domain.entities import Identity, Session, TelegramCredentials
-from src.modules.identity.domain.events import TelegramIdentityCreatedEvent
+from src.modules.identity.domain.entities import Identity, LinkedAccount, Session
+from src.modules.identity.domain.events import LinkedAccountCreatedEvent
 from src.modules.identity.domain.interfaces import (
     IIdentityRepository,
+    ILinkedAccountRepository,
     IRoleRepository,
     ISessionRepository,
-    ITelegramCredentialsRepository,
     ITelegramInitDataValidator,
 )
 from src.modules.identity.domain.value_objects import (
     AccountType,
-    IdentityType,
+    PrimaryAuthMethod,
     TelegramUserData,
 )
 from src.shared.interfaces.logger import ILogger
@@ -46,7 +46,7 @@ class LoginTelegramHandler:
     def __init__(
         self,
         telegram_validator: ITelegramInitDataValidator,
-        telegram_creds_repo: ITelegramCredentialsRepository,
+        linked_account_repo: ILinkedAccountRepository,
         identity_repo: IIdentityRepository,
         session_repo: ISessionRepository,
         role_repo: IRoleRepository,
@@ -56,9 +56,10 @@ class LoginTelegramHandler:
         logger: ILogger,
         max_sessions: int = 5,
         refresh_token_days: int = 7,
+        idle_timeout_minutes: int = 1440,
     ) -> None:
         self._validator: ITelegramInitDataValidator = telegram_validator
-        self._telegram_creds_repo: ITelegramCredentialsRepository = telegram_creds_repo
+        self._linked_account_repo: ILinkedAccountRepository = linked_account_repo
         self._identity_repo: IIdentityRepository = identity_repo
         self._session_repo: ISessionRepository = session_repo
         self._role_repo: IRoleRepository = role_repo
@@ -68,6 +69,7 @@ class LoginTelegramHandler:
         self._logger: ILogger = logger.bind(handler="LoginTelegramHandler")
         self._max_sessions: int = max_sessions
         self._refresh_token_days: int = refresh_token_days
+        self._idle_timeout_minutes: int = idle_timeout_minutes
 
     async def handle(self, command: LoginTelegramCommand) -> LoginTelegramResult:
         # 1. Validate initData (outside UoW)
@@ -75,18 +77,27 @@ class LoginTelegramHandler:
 
         async with self._uow:
             # 2. Lookup by telegram_id
-            result: tuple[Identity, TelegramCredentials] | None = await self._telegram_creds_repo.get_by_telegram_id(
-                telegram_user.telegram_id
+            result: tuple[Identity, LinkedAccount] | None = await self._linked_account_repo.get_by_provider(
+                "telegram", str(telegram_user.telegram_id)
             )
             is_new_user: bool = result is None
 
             if is_new_user:
                 identity: Identity = await self._provision_new_identity(telegram_user)
             else:
-                identity, credentials = result
+                identity, linked_account = result
                 identity.ensure_active()
-                if credentials.update_profile(telegram_user):
-                    await self._telegram_creds_repo.update(credentials)
+                new_metadata = {
+                    "first_name": telegram_user.first_name,
+                    "last_name": telegram_user.last_name,
+                    "username": telegram_user.username,
+                    "language_code": telegram_user.language_code,
+                    "is_premium": telegram_user.is_premium,
+                    "photo_url": telegram_user.photo_url if telegram_user.photo_url is not None else linked_account.provider_metadata.get("photo_url"),
+                    "allows_write_to_pm": telegram_user.allows_write_to_pm,
+                }
+                if linked_account.update_metadata(new_metadata):
+                    await self._linked_account_repo.update(linked_account)
                     self._logger.info(
                         "telegram.profile.synced",
                         identity_id=str(identity.id),
@@ -116,6 +127,7 @@ class LoginTelegramHandler:
                 user_agent=command.user_agent,
                 role_ids=role_ids,
                 expires_days=self._refresh_token_days,
+                idle_timeout_minutes=self._idle_timeout_minutes,
             )
             await self._session_repo.add(session)
             await self._session_repo.add_session_roles(session.id, role_ids)
@@ -124,6 +136,7 @@ class LoginTelegramHandler:
                 payload_data={
                     "sub": str(identity.id),
                     "sid": str(session.id),
+                    "tv": identity.token_version,
                 },
             )
 
@@ -148,38 +161,45 @@ class LoginTelegramHandler:
         )
 
     async def _provision_new_identity(self, data: TelegramUserData) -> Identity:
-        """Create Identity + TelegramCredentials + default role atomically."""
-        identity = Identity.register(IdentityType.TELEGRAM, AccountType.CUSTOMER)
+        """Create Identity + LinkedAccount + default role atomically."""
+        identity = Identity.register(PrimaryAuthMethod.TELEGRAM, AccountType.CUSTOMER)
         await self._identity_repo.add(identity)
 
         now = datetime.now(UTC)
-        credentials = TelegramCredentials(
+        provider_metadata = {
+            "first_name": data.first_name,
+            "last_name": data.last_name,
+            "username": data.username,
+            "language_code": data.language_code,
+            "is_premium": data.is_premium,
+            "photo_url": data.photo_url,
+            "allows_write_to_pm": data.allows_write_to_pm,
+        }
+        linked_account = LinkedAccount(
+            id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
             identity_id=identity.id,
-            telegram_id=data.telegram_id,
-            first_name=data.first_name,
-            last_name=data.last_name,
-            username=data.username,
-            language_code=data.language_code,
-            is_premium=data.is_premium,
-            photo_url=data.photo_url,
-            allows_write_to_pm=data.allows_write_to_pm,
+            provider="telegram",
+            provider_sub_id=str(data.telegram_id),
+            provider_email=None,
+            email_verified=False,
+            provider_metadata=provider_metadata,
             created_at=now,
             updated_at=now,
         )
-        await self._telegram_creds_repo.add(credentials)
+        await self._linked_account_repo.add(linked_account)
 
         customer_role = await self._role_repo.get_by_name("customer")
         if customer_role:
             await self._role_repo.assign_to_identity(identity.id, customer_role.id)
 
         identity.add_domain_event(
-            TelegramIdentityCreatedEvent(
+            LinkedAccountCreatedEvent(
                 identity_id=identity.id,
-                telegram_id=data.telegram_id,
-                first_name=data.first_name,
-                last_name=data.last_name or "",
-                username=data.username,
+                provider="telegram",
+                provider_sub_id=str(data.telegram_id),
+                provider_metadata=provider_metadata,
                 start_param=data.start_param,
+                is_new_identity=True,
                 aggregate_id=str(identity.id),
             )
         )

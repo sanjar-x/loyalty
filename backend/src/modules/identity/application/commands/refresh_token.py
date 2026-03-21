@@ -65,6 +65,7 @@ class RefreshTokenHandler:
         permission_resolver: IPermissionResolver,
         cache: ICacheService,
         logger: ILogger,
+        idle_timeout_minutes: int = 30,
     ) -> None:
         self._session_repo = session_repo
         self._identity_repo = identity_repo
@@ -73,6 +74,7 @@ class RefreshTokenHandler:
         self._permission_resolver = permission_resolver
         self._cache = cache
         self._logger = logger.bind(handler="RefreshTokenHandler")
+        self._idle_timeout_minutes = idle_timeout_minutes
 
     async def handle(self, command: RefreshTokenCommand) -> RefreshTokenResult:
         """Execute the refresh token command.
@@ -103,6 +105,7 @@ class RefreshTokenHandler:
 
             # Validate session
             session.ensure_valid()
+            session.touch(self._idle_timeout_minutes)
 
             # Verify identity exists and is still active
             identity = await self._identity_repo.get(session.identity_id)
@@ -123,6 +126,7 @@ class RefreshTokenHandler:
                 payload_data={
                     "sub": str(session.identity_id),
                     "sid": str(session.id),
+                    "tv": identity.token_version,
                 },
             )
 

@@ -83,11 +83,14 @@ class UpdateBrandHandler:
             if brand is None:
                 raise BrandNotFoundError(brand_id=command.brand_id)
 
-            if command.slug is not None and command.slug != brand.slug:
-                if await self._brand_repo.check_slug_exists_excluding(
+            if (
+                command.slug is not None
+                and command.slug != brand.slug
+                and await self._brand_repo.check_slug_exists_excluding(
                     command.slug, command.brand_id
-                ):
-                    raise BrandSlugConflictError(slug=command.slug)
+                )
+            ):
+                raise BrandSlugConflictError(slug=command.slug)
 
             brand.update(name=command.name, slug=command.slug)
             await self._brand_repo.update(brand)

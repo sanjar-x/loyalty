@@ -23,21 +23,17 @@ const BROWSER_DEBUG_USER: Readonly<BrowserDebugUser> = Object.freeze({
 });
 
 export function isBrowserDebugAuthEnabled(): boolean {
-  // Default: enabled in local dev.
-  if (process.env.NODE_ENV !== "production") return true;
+  // NEVER allow debug auth in production — regardless of env flags.
+  if (process.env.NODE_ENV === "production") return false;
 
-  // Production builds (including Vercel preview/prod) must opt-in explicitly.
-  const clientFlag = String(process.env.NEXT_PUBLIC_BROWSER_DEBUG_AUTH || "")
-    .trim()
-    .toLowerCase();
-  if (clientFlag === "1" || clientFlag === "true") return true;
-
-  const serverFlag = String(process.env.BROWSER_DEBUG_AUTH || "")
-    .trim()
-    .toLowerCase();
-  if (serverFlag === "1" || serverFlag === "true") return true;
-
-  return false;
+  // Check both server-side and client-side env flags.
+  // BROWSER_DEBUG_AUTH is available in server contexts (API routes).
+  // NEXT_PUBLIC_BROWSER_DEBUG_AUTH is inlined into the client bundle by Next.js.
+  const flag =
+    String(process.env.BROWSER_DEBUG_AUTH || process.env.NEXT_PUBLIC_BROWSER_DEBUG_AUTH || "")
+      .trim()
+      .toLowerCase();
+  return flag === "1" || flag === "true";
 }
 
 export function normalizeBrowserDebugUser(

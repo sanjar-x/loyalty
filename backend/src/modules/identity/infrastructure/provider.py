@@ -9,6 +9,7 @@ from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 
 from src.bootstrap.config import settings
+from src.infrastructure.security.telegram import TelegramInitDataValidator
 from src.modules.identity.application.commands.accept_staff_invitation import (
     AcceptStaffInvitationHandler,
 )
@@ -84,10 +85,8 @@ from src.modules.identity.domain.interfaces import (
     IRoleRepository,
     ISessionRepository,
     IStaffInvitationRepository,
-    ITelegramCredentialsRepository,
     ITelegramInitDataValidator,
 )
-from src.infrastructure.security.telegram import TelegramInitDataValidator
 from src.modules.identity.infrastructure.repositories.identity_repository import (
     IdentityRepository,
 )
@@ -105,9 +104,6 @@ from src.modules.identity.infrastructure.repositories.session_repository import 
 )
 from src.modules.identity.infrastructure.repositories.staff_invitation_repository import (
     StaffInvitationRepository,
-)
-from src.modules.identity.infrastructure.repositories.telegram_credentials_repo import (
-    TelegramCredentialsRepository,
 )
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.security import IPasswordHasher, IPermissionResolver, ITokenProvider
@@ -137,12 +133,6 @@ class IdentityProvider(Provider):
         StaffInvitationRepository, scope=Scope.REQUEST, provides=IStaffInvitationRepository
     )
 
-    # Telegram auth
-    telegram_creds_repo = provide(
-        TelegramCredentialsRepository, scope=Scope.REQUEST,
-        provides=ITelegramCredentialsRepository,
-    )
-
     @provide(scope=Scope.REQUEST)
     def telegram_validator(self) -> ITelegramInitDataValidator:
         return TelegramInitDataValidator(
@@ -154,7 +144,7 @@ class IdentityProvider(Provider):
     def login_telegram_handler(
         self,
         telegram_validator: ITelegramInitDataValidator,
-        telegram_creds_repo: ITelegramCredentialsRepository,
+        linked_account_repo: ILinkedAccountRepository,
         identity_repo: IIdentityRepository,
         session_repo: ISessionRepository,
         role_repo: IRoleRepository,
@@ -165,7 +155,7 @@ class IdentityProvider(Provider):
     ) -> LoginTelegramHandler:
         return LoginTelegramHandler(
             telegram_validator=telegram_validator,
-            telegram_creds_repo=telegram_creds_repo,
+            linked_account_repo=linked_account_repo,
             identity_repo=identity_repo,
             session_repo=session_repo,
             role_repo=role_repo,
@@ -175,6 +165,7 @@ class IdentityProvider(Provider):
             logger=logger,
             max_sessions=settings.MAX_ACTIVE_SESSIONS_PER_IDENTITY,
             refresh_token_days=settings.TELEGRAM_REFRESH_TOKEN_EXPIRE_DAYS,
+            idle_timeout_minutes=settings.TELEGRAM_SESSION_IDLE_TIMEOUT_MINUTES,
         )
 
     # Command handlers (REQUEST scope)
@@ -215,6 +206,7 @@ class IdentityProvider(Provider):
             logger=logger,
             max_sessions=settings.MAX_ACTIVE_SESSIONS_PER_IDENTITY,
             refresh_token_days=settings.REFRESH_TOKEN_EXPIRE_DAYS,
+            idle_timeout_minutes=settings.SESSION_IDLE_TIMEOUT_MINUTES,
         )
 
     refresh_token_handler: CompositeDependencySource = provide(

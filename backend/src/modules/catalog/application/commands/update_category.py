@@ -104,11 +104,14 @@ class UpdateCategoryHandler:
             if category is None:
                 raise CategoryNotFoundError(category_id=command.category_id)
 
-            if command.slug is not None and command.slug != category.slug:
-                if await self._category_repo.check_slug_exists_excluding(
+            if (
+                command.slug is not None
+                and command.slug != category.slug
+                and await self._category_repo.check_slug_exists_excluding(
                     command.slug, category.parent_id, command.category_id
-                ):
-                    raise CategorySlugConflictError(slug=command.slug, parent_id=category.parent_id)
+                )
+            ):
+                raise CategorySlugConflictError(slug=command.slug, parent_id=category.parent_id)
 
             old_full_slug = category.update(
                 name=command.name,

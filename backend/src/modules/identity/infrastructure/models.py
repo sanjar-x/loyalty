@@ -10,22 +10,22 @@ from datetime import datetime
 
 from sqlalchemy import (
     TIMESTAMP,
-    BigInteger,
     Boolean,
     CheckConstraint,
     Enum,
     ForeignKey,
     Index,
+    Integer,
     String,
     UniqueConstraint,
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import INET, UUID
+from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.infrastructure.database.base import Base
-from src.modules.identity.domain.value_objects import IdentityType
+from src.modules.identity.domain.value_objects import PrimaryAuthMethod
 
 
 class IdentityModel(Base):
@@ -40,10 +40,10 @@ class IdentityModel(Base):
         default=uuid.uuid4,
         comment="PK (UUIDv7)",
     )
-    type: Mapped[str] = mapped_column(
-        Enum(IdentityType, native_enum=False, length=10),
+    primary_auth_method: Mapped[str] = mapped_column(
+        Enum(PrimaryAuthMethod, native_enum=False, length=10),
         nullable=False,
-        comment="Authentication method: LOCAL or OIDC",
+        comment="Authentication method: LOCAL, OIDC, or TELEGRAM",
     )
     account_type: Mapped[str] = mapped_column(
         String(10),
@@ -81,6 +81,12 @@ class IdentityModel(Base):
         nullable=True,
         comment="Identity ID of admin who deactivated this identity (null=self)",
     )
+    token_version: Mapped[int] = mapped_column(
+        Integer,
+        server_default=text("1"),
+        nullable=False,
+        comment="Incrementing version for instant JWT invalidation",
+    )
 
     credentials: Mapped[LocalCredentialsModel | None] = relationship(
         back_populates="identity",
@@ -93,11 +99,6 @@ class IdentityModel(Base):
     )
     linked_accounts: Mapped[list[LinkedAccountModel]] = relationship(
         back_populates="identity",
-        cascade="all, delete-orphan",
-    )
-    telegram_credentials: Mapped[TelegramCredentialsModel | None] = relationship(
-        back_populates="identity",
-        uselist=False,
         cascade="all, delete-orphan",
     )
 
@@ -165,63 +166,17 @@ class LinkedAccountModel(Base):
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     provider_sub_id: Mapped[str] = mapped_column(String(255), nullable=False)
     provider_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
-
-    identity: Mapped[IdentityModel] = relationship(back_populates="linked_accounts")
-
-
-class TelegramCredentialsModel(Base):
-    """ORM model for the ``telegram_credentials`` table."""
-
-    __tablename__ = "telegram_credentials"
-    __table_args__ = (
-        Index("ix_telegram_credentials_telegram_id", "telegram_id", unique=True),
-        {"comment": "Telegram auth credentials (Shared PK 1:1 with identities)"},
-    )
-
-    identity_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("identities.id", ondelete="CASCADE"),
-        primary_key=True,
-        comment="PK + FK -> identities (Shared PK 1:1)",
-    )
-    telegram_id: Mapped[int] = mapped_column(
-        BigInteger,
-        unique=True,
-        nullable=False,
-        comment="Telegram user ID (up to 52 significant bits)",
-    )
-    first_name: Mapped[str] = mapped_column(
-        String(100),
-        server_default="",
-        nullable=False,
-    )
-    last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    username: Mapped[str | None] = mapped_column(
-        String(100),
-        nullable=True,
-        comment="Telegram username without @",
-    )
-    language_code: Mapped[str | None] = mapped_column(
-        String(10),
-        nullable=True,
-        comment="IETF language tag from Telegram",
-    )
-    is_premium: Mapped[bool] = mapped_column(
+    email_verified: Mapped[bool] = mapped_column(
         Boolean,
         server_default=text("false"),
         nullable=False,
-        comment="Telegram Premium subscription status",
+        comment="Whether provider verified this email",
     )
-    photo_url: Mapped[str | None] = mapped_column(
-        String(512),
-        nullable=True,
-        comment="Telegram profile photo URL",
-    )
-    allows_write_to_pm: Mapped[bool] = mapped_column(
-        Boolean,
-        server_default=text("false"),
+    provider_metadata: Mapped[dict] = mapped_column(
+        JSONB,
+        server_default=text("'{}'::jsonb"),
         nullable=False,
-        comment="Whether user allows bot to send messages",
+        comment="Provider-specific profile data",
     )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
@@ -235,9 +190,7 @@ class TelegramCredentialsModel(Base):
         nullable=False,
     )
 
-    identity: Mapped[IdentityModel] = relationship(
-        back_populates="telegram_credentials",
-    )
+    identity: Mapped[IdentityModel] = relationship(back_populates="linked_accounts")
 
 
 class RoleModel(Base):
@@ -437,6 +390,17 @@ class SessionModel(Base):
         TIMESTAMP(timezone=True),
         nullable=False,
         comment="Refresh token expiry (created_at + REFRESH_TOKEN_EXPIRE_DAYS)",
+    )
+    last_active_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        comment="Last token refresh timestamp",
+    )
+    idle_expires_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        comment="Sliding idle timeout (extends on refresh)",
     )
 
     identity: Mapped[IdentityModel] = relationship(back_populates="sessions")

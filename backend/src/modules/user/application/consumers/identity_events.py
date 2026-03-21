@@ -203,64 +203,65 @@ async def anonymize_user_on_identity_deactivated(
 
 
 @broker.task(
-    queue="iam_events",
-    exchange="taskiq_rpc_exchange",
-    routing_key="user.telegram_identity_created",
-    max_retries=3,
+    queue_name="user.linked_account_created",
     retry_on_error=True,
     timeout=30,
 )
 @inject
-async def create_customer_on_telegram_identity_created(
+async def on_linked_account_created(
     identity_id: str,
-    telegram_id: int,
+    provider: str,
     customer_repo: FromDishka[ICustomerRepository],
     uow: FromDishka[IUnitOfWork],
-    first_name: str = "",
-    last_name: str = "",
-    username: str | None = None,
+    provider_metadata: dict | None = None,
     start_param: str | None = None,
-    account_type: str = "CUSTOMER",
+    is_new_identity: bool = True,
+    provider_sub_id: str = "",
 ) -> dict:
-    """Create a Customer when a Telegram identity is provisioned.
-
-    Follows the same pattern as create_user_on_identity_registered:
-    - Idempotency check (skip if customer already exists)
-    - generate_referral_code() for consistent format
-    - register_aggregate() for outbox events
-    - Referral resolution via start_param
-    """
+    """Handle LinkedAccountCreatedEvent -- create or enrich Customer."""
     identity_uuid = uuid.UUID(identity_id)
+    provider_metadata = provider_metadata or {}
 
-    # Idempotency: skip if customer already exists (retry safety)
-    existing = await customer_repo.get(identity_uuid)
-    if existing:
-        logger.info("customer.already_exists", identity_id=identity_id)
-        return {"status": "skipped", "reason": "already_exists"}
+    if is_new_identity:
+        existing = await customer_repo.get(identity_uuid)
+        if existing:
+            logger.info("customer.already_exists", identity_id=identity_id)
+            return {"status": "skipped", "reason": "already_exists"}
 
-    # Resolve referral
-    referred_by: uuid.UUID | None = None
-    if start_param:
-        referrer = await customer_repo.get_by_referral_code(start_param)
-        referred_by = referrer.id if referrer else None
+        referred_by: uuid.UUID | None = None
+        if start_param:
+            referrer = await customer_repo.get_by_referral_code(start_param)
+            referred_by = referrer.id if referrer else None
 
-    customer = Customer.create_from_identity(
-        identity_id=identity_uuid,
-        first_name=first_name,
-        last_name=last_name,
-        referral_code=generate_referral_code(),
-        referred_by=referred_by,
-    )
+        customer = Customer.create_from_identity(
+            identity_id=identity_uuid,
+            first_name=provider_metadata.get("first_name", ""),
+            last_name=provider_metadata.get("last_name", ""),
+            username=provider_metadata.get("username"),
+            referral_code=generate_referral_code(),
+            referred_by=referred_by,
+        )
 
-    async with uow:
-        await customer_repo.add(customer)
-        uow.register_aggregate(customer)
-        await uow.commit()
+        async with uow:
+            await customer_repo.add(customer)
+            uow.register_aggregate(customer)
+            await uow.commit()
 
-    logger.info(
-        "customer.created_from_telegram",
-        identity_id=identity_id,
-        telegram_id=telegram_id,
-        referred_by=str(referred_by) if referred_by else None,
-    )
-    return {"status": "success", "type": "customer"}
+        logger.info(
+            "customer.created_from_provider",
+            identity_id=identity_id,
+            provider=provider,
+            referred_by=str(referred_by) if referred_by else None,
+        )
+        return {"status": "success", "type": "customer"}
+    else:
+        customer = await customer_repo.get(identity_uuid)
+        if customer and not customer.username:
+            username = provider_metadata.get("username")
+            if username:
+                async with uow:
+                    customer.update_profile(username=username)
+                    await customer_repo.update(customer)
+                    await uow.commit()
+                logger.info("customer.username_enriched", identity_id=identity_id, provider=provider)
+        return {"status": "success", "type": "enriched"}

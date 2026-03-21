@@ -98,7 +98,7 @@ class TestDLQMiddlewarePostExecute:
         assert "final failure" in failed_task.error_message
 
     async def test_post_execute_handles_db_error(self):
-        middleware, session, factory = _make_middleware()
+        middleware, session, _factory = _make_middleware()
         message = _make_message(retries="3", max_retries="3")
         result = _make_result(is_err=True, error=ValueError("test error"))
 

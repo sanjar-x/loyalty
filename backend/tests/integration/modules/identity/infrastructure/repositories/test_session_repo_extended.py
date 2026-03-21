@@ -94,7 +94,7 @@ async def test_count_active_excludes_revoked(db_session: AsyncSession):
     identity = await _seed_identity(db_session)
     repo = SessionRepository(session=db_session)
 
-    s1 = await _create_session(repo, identity.id, token="keep")
+    await _create_session(repo, identity.id, token="keep")
     s2 = await _create_session(repo, identity.id, token="revoke-me")
     await db_session.flush()
 

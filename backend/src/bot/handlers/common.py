@@ -21,6 +21,8 @@ router.message.filter(F.chat.type == "private")
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext) -> None:
     """Greet the user and reset any active FSM dialog."""
+    if message.from_user is None:
+        return
     await state.clear()
     await message.answer(
         f"Привет, {html.bold(message.from_user.full_name)}! 👋\n\n"

@@ -8,17 +8,39 @@ import enum
 from dataclasses import dataclass
 
 
-class IdentityType(str, enum.Enum):
+class PrimaryAuthMethod(str, enum.Enum):
     """Authentication method used by an identity.
 
     Attributes:
         LOCAL: Email and password authentication.
         OIDC: External OpenID Connect provider authentication.
+        TELEGRAM: Telegram Mini App authentication.
     """
 
     LOCAL = "LOCAL"
     OIDC = "OIDC"
     TELEGRAM = "TELEGRAM"
+
+
+# Backward-compat alias — existing code imports IdentityType.
+IdentityType = PrimaryAuthMethod
+
+
+class AuthProvider(str, enum.Enum):
+    """Third-party authentication provider identifier.
+
+    Attributes:
+        TELEGRAM: Telegram messenger.
+        GOOGLE: Google OAuth / OIDC.
+        APPLE: Apple Sign-In.
+    """
+
+    TELEGRAM = "telegram"
+    GOOGLE = "google"
+    APPLE = "apple"
+
+
+TRUSTED_EMAIL_PROVIDERS: frozenset[AuthProvider] = frozenset({AuthProvider.GOOGLE, AuthProvider.APPLE})
 
 
 class AccountType(str, enum.Enum):

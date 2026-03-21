@@ -25,6 +25,7 @@ from src.modules.catalog.presentation.router_product_attributes import (
 from src.modules.catalog.presentation.router_products import product_router
 from src.modules.catalog.presentation.router_skus import sku_router
 from src.modules.catalog.presentation.router_storefront import storefront_router
+from src.modules.geo.presentation.router import geo_router
 from src.modules.identity.presentation.router_account import identity_account_router
 from src.modules.identity.presentation.router_admin import admin_router
 from src.modules.identity.presentation.router_auth import auth_router
@@ -51,3 +52,4 @@ router.include_router(customer_admin_router)
 router.include_router(invitation_router)
 router.include_router(user_router)
 router.include_router(identity_account_router)
+router.include_router(geo_router)

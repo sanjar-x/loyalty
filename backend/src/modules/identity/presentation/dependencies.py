@@ -14,6 +14,7 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.modules.identity.domain.exceptions import InsufficientPermissionsError
+from src.modules.identity.domain.interfaces import IIdentityRepository
 from src.shared.exceptions import UnauthorizedError
 from src.shared.interfaces.auth import AuthContext
 from src.shared.interfaces.security import IPermissionResolver, ITokenProvider
@@ -25,6 +26,7 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 async def get_auth_context(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     token_provider: FromDishka[ITokenProvider] = ...,  # type: ignore[assignment]
+    identity_repo: FromDishka[IIdentityRepository] = ...,  # type: ignore[assignment]
 ) -> AuthContext:
     """Extract AuthContext from a JWT Bearer token.
 
@@ -71,6 +73,20 @@ async def get_auth_context(
         raise UnauthorizedError(
             message="Invalid token payload: malformed sub or sid",
             error_code="INVALID_TOKEN_PAYLOAD",
+        ) from None
+
+    # Token version validation (Option A: DB check per request, ~1ms)
+    identity = await identity_repo.get(identity_id)
+    if identity is None or not identity.is_active:
+        raise UnauthorizedError(
+            message="Identity not found or deactivated",
+            error_code="IDENTITY_INVALID",
+        )
+    tv = payload.get("tv", 1)  # Backward compat: old tokens without tv get version 1
+    if tv < identity.token_version:
+        raise UnauthorizedError(
+            message="Token has been invalidated",
+            error_code="TOKEN_VERSION_STALE",
         )
 
     structlog.contextvars.bind_contextvars(

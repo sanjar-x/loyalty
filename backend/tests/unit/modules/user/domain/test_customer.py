@@ -65,3 +65,28 @@ class TestCustomerAnonymize:
         assert customer.phone is None
         assert customer.profile_email is None
         assert customer.referral_code == "KEEP1234"
+
+
+class TestCustomerUsername:
+    def test_create_with_username(self):
+        customer = Customer.create_from_identity(
+            identity_id=uuid.uuid4(),
+            referral_code="USR12345",
+            username="johndoe",
+        )
+        assert customer.username == "johndoe"
+
+    def test_create_without_username(self):
+        customer = Customer.create_from_identity(
+            identity_id=uuid.uuid4(),
+            referral_code="USR12345",
+        )
+        assert customer.username is None
+
+    def test_update_profile_username(self):
+        customer = Customer.create_from_identity(
+            identity_id=uuid.uuid4(),
+            referral_code="USR12345",
+        )
+        customer.update_profile(username="newname")
+        assert customer.username == "newname"

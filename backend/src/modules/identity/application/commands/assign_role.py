@@ -107,6 +107,8 @@ class AssignRoleHandler:
                 assigned_by=command.assigned_by,
             )
 
+            identity.bump_token_version()
+
             # Update session_roles for all active sessions (NIST compliance)
             active_session_ids = await self._session_repo.get_active_session_ids(
                 command.identity_id,
