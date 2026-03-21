@@ -25,6 +25,7 @@ from src.modules.catalog.presentation.dependencies import (
     ProductProvider,
     StorefrontCatalogProvider,
 )
+from src.modules.geo.presentation.dependencies import GeoProvider
 from src.modules.identity.infrastructure.provider import IdentityProvider
 from src.modules.storage.presentation.dependencies import StorageProvider
 from src.modules.user.infrastructure.provider import UserProvider
@@ -56,6 +57,7 @@ def create_container() -> AsyncContainer:
         DatabaseProvider(),
         CacheProvider(),
         SecurityProvider(),
+        GeoProvider(),
         StorageProvider(),
         CategoryProvider(),
         BrandProvider(),

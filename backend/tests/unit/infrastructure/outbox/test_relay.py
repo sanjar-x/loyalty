@@ -111,7 +111,7 @@ class TestRelayOutboxBatch:
         register_event_handler("BrandCreated", handler)
 
         row = _make_row(event_id=1, event_type="BrandCreated", payload={"id": "123"})
-        factory, session = _make_session_factory(fetch_rows=[row])
+        factory, _session = _make_session_factory(fetch_rows=[row])
 
         count = await relay_outbox_batch(session_factory=factory, batch_size=10)
 
@@ -123,7 +123,7 @@ class TestRelayOutboxBatch:
 
     async def test_relay_skips_unknown_event_type(self):
         row = _make_row(event_id=2, event_type="UnknownEvent")
-        factory, session = _make_session_factory(fetch_rows=[row])
+        factory, _session = _make_session_factory(fetch_rows=[row])
 
         count = await relay_outbox_batch(session_factory=factory, batch_size=10)
 
@@ -135,7 +135,7 @@ class TestRelayOutboxBatch:
         register_event_handler("FailingEvent", failing_handler)
 
         row = _make_row(event_id=3, event_type="FailingEvent")
-        factory, session = _make_session_factory(fetch_rows=[row])
+        factory, _session = _make_session_factory(fetch_rows=[row])
 
         # The handler raises, but relay catches the exception and continues
         count = await relay_outbox_batch(session_factory=factory, batch_size=10)

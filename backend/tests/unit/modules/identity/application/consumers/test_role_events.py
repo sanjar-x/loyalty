@@ -52,7 +52,7 @@ class TestInvalidatePermissionsCacheOnRoleChange:
         sid1 = uuid.uuid4()
         sid2 = uuid.uuid4()
 
-        factory, session = _make_session_factory(session_ids=[sid1, sid2])
+        factory, _session = _make_session_factory(session_ids=[sid1, sid2])
         permission_resolver = AsyncMock()
 
         result = await invalidate_permissions_cache_on_role_change(
@@ -68,7 +68,7 @@ class TestInvalidatePermissionsCacheOnRoleChange:
     async def test_no_active_sessions(self):
         identity_id = str(uuid.uuid4())
 
-        factory, session = _make_session_factory(session_ids=[])
+        factory, _session = _make_session_factory(session_ids=[])
         permission_resolver = AsyncMock()
 
         result = await invalidate_permissions_cache_on_role_change(

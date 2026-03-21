@@ -19,6 +19,15 @@ from src.modules.catalog.infrastructure.models import (
     ProductAttributeValueModel,
     SKUAttributeValueLink,
 )
+from src.modules.geo.infrastructure.models import (
+    CountryModel,
+    CountryTranslationModel,
+    LanguageModel,
+    SubdivisionCategoryModel,
+    SubdivisionCategoryTranslationModel,
+    SubdivisionModel,
+    SubdivisionTranslationModel,
+)
 from src.modules.identity.infrastructure.models import (
     IdentityModel,
     IdentityRoleModel,
@@ -34,30 +43,34 @@ from src.modules.identity.infrastructure.models import (
 from src.modules.user.infrastructure.models import UserModel
 
 __all__ = [
-    "Base",
-    "OutboxMessage",
-    # Catalog
-    "Brand",
-    "Category",
+    "SKU",
     "Attribute",
     "AttributeValue",
+    "Base",
+    "Brand",
+    "Category",
     "CategoryAttributeRule",
-    "Product",
-    "MediaAsset",
-    "SKU",
-    "SKUAttributeValueLink",
-    "ProductAttributeValueModel",
-    # Identity
+    "CountryModel",
+    "CountryTranslationModel",
     "IdentityModel",
-    "LocalCredentialsModel",
-    "LinkedAccountModel",
-    "RoleModel",
-    "PermissionModel",
-    "RolePermissionModel",
-    "RoleHierarchyModel",
     "IdentityRoleModel",
+    "LanguageModel",
+    "LinkedAccountModel",
+    "LocalCredentialsModel",
+    "MediaAsset",
+    "OutboxMessage",
+    "PermissionModel",
+    "Product",
+    "ProductAttributeValueModel",
+    "RoleHierarchyModel",
+    "RoleModel",
+    "RolePermissionModel",
+    "SKUAttributeValueLink",
     "SessionModel",
     "SessionRoleModel",
-    # User
+    "SubdivisionCategoryModel",
+    "SubdivisionCategoryTranslationModel",
+    "SubdivisionModel",
+    "SubdivisionTranslationModel",
     "UserModel",
 ]

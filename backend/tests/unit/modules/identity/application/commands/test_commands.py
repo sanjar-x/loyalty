@@ -341,7 +341,7 @@ class TestRefreshTokenHandler:
 
     async def test_refresh_token_reuse_detected(self):
         raw_token = "reused-token"
-        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        hashlib.sha256(raw_token.encode()).hexdigest()
 
         session_repo = AsyncMock()
         session_repo.get_by_refresh_token_hash.return_value = None

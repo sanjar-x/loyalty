@@ -80,7 +80,7 @@ class ChangePasswordHandler:
                     error_code="CREDENTIALS_NOT_FOUND",
                 )
 
-            identity, credentials = result
+            _identity, credentials = result
 
             # Verify current password
             if not self._hasher.verify(

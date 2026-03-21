@@ -9,6 +9,7 @@ from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 
 from src.bootstrap.config import settings
+from src.infrastructure.security.telegram import TelegramInitDataValidator
 from src.modules.identity.application.commands.accept_staff_invitation import (
     AcceptStaffInvitationHandler,
 )
@@ -86,7 +87,6 @@ from src.modules.identity.domain.interfaces import (
     IStaffInvitationRepository,
     ITelegramInitDataValidator,
 )
-from src.infrastructure.security.telegram import TelegramInitDataValidator
 from src.modules.identity.infrastructure.repositories.identity_repository import (
     IdentityRepository,
 )

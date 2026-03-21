@@ -125,7 +125,10 @@ class LoginOIDCHandler:
                 from datetime import UTC, datetime
 
                 from src.modules.identity.domain.entities import LinkedAccount
-                from src.modules.identity.domain.value_objects import TRUSTED_EMAIL_PROVIDERS, AuthProvider
+                from src.modules.identity.domain.value_objects import (
+                    TRUSTED_EMAIL_PROVIDERS,
+                    AuthProvider,
+                )
 
                 now = datetime.now(UTC)
                 # Trust email verification for known OIDC providers (Google, Apple)

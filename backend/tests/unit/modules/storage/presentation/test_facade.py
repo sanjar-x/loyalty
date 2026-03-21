@@ -84,7 +84,7 @@ class TestRequestDirectUpload:
 
 class TestRegisterProcessedMedia:
     async def test_register_processed_media_creates_file(self):
-        facade, blob_storage, storage_repo, uow, settings, logger = _make_facade()
+        facade, _blob_storage, storage_repo, uow, _settings, _logger = _make_facade()
 
         file_id = await facade.register_processed_media(
             module="catalog",
@@ -109,7 +109,7 @@ class TestRegisterProcessedMedia:
 
 class TestVerifyUpload:
     async def test_verify_upload_file_not_found(self):
-        facade, blob_storage, storage_repo, uow, *_ = _make_facade()
+        facade, _blob_storage, storage_repo, _uow, *_ = _make_facade()
         storage_repo.get_by_key = AsyncMock(return_value=None)
 
         with pytest.raises(ValidationError, match="File record not found"):
@@ -118,7 +118,7 @@ class TestVerifyUpload:
 
 class TestUpdateObjectMetadata:
     async def test_update_object_metadata_success(self):
-        facade, blob_storage, storage_repo, uow, *_ = _make_facade()
+        facade, _blob_storage, storage_repo, uow, *_ = _make_facade()
         file_id = uuid.uuid4()
         existing_file = StorageFile.create(
             bucket_name="test-bucket",
@@ -145,7 +145,7 @@ class TestUpdateObjectMetadata:
         assert existing_file.content_type == "image/webp"
 
     async def test_update_object_metadata_not_found(self):
-        facade, blob_storage, storage_repo, uow, *_ = _make_facade()
+        facade, _blob_storage, storage_repo, _uow, *_ = _make_facade()
         storage_repo.get_by_key = AsyncMock(return_value=None)
 
         with pytest.raises(ValidationError, match="File record not found"):

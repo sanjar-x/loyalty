@@ -8,10 +8,10 @@ from datetime import UTC, datetime
 import pytest
 
 from src.modules.identity.domain.value_objects import (
+    TRUSTED_EMAIL_PROVIDERS,
     AuthProvider,
     IdentityType,
     PrimaryAuthMethod,
-    TRUSTED_EMAIL_PROVIDERS,
     TelegramUserData,
 )
 
@@ -138,9 +138,9 @@ class TestLinkedAccount:
 
 
 from src.modules.identity.domain.events import (
+    IdentityTokenVersionBumpedEvent,
     LinkedAccountCreatedEvent,
     LinkedAccountRemovedEvent,
-    IdentityTokenVersionBumpedEvent,
 )
 from src.modules.identity.domain.exceptions import (
     InitDataExpiredError,

@@ -1,5 +1,5 @@
-from src.modules.identity.domain.value_objects import PrimaryAuthMethod
 from src.modules.identity.domain.entities import Identity
+from src.modules.identity.domain.value_objects import PrimaryAuthMethod
 
 
 class TestTokenVersion:

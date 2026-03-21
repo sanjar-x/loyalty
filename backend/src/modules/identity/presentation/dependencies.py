@@ -13,8 +13,8 @@ from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from src.modules.identity.domain.interfaces import IIdentityRepository
 from src.modules.identity.domain.exceptions import InsufficientPermissionsError
+from src.modules.identity.domain.interfaces import IIdentityRepository
 from src.shared.exceptions import UnauthorizedError
 from src.shared.interfaces.auth import AuthContext
 from src.shared.interfaces.security import IPermissionResolver, ITokenProvider

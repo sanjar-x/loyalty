@@ -682,7 +682,7 @@ class TestAdd:
         session = AsyncMock()
         repo = ProductRepository(session=session)
 
-        result = await repo.add(domain)
+        await repo.add(domain)
 
         added_obj = session.add.call_args[0][0]
         assert len(added_obj.skus) == 1

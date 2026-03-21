@@ -5,12 +5,11 @@ import hashlib
 import hmac
 import json
 import time
-import uuid
 from urllib.parse import urlencode
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bootstrap.config import settings

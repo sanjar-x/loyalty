@@ -48,7 +48,7 @@ class TestSessionIdleTimeout:
         session.idle_expires_at = datetime.now(UTC) - timedelta(minutes=1)
         try:
             session.ensure_valid()
-            assert False, "Should have raised SessionExpiredError"
+            raise AssertionError("Should have raised SessionExpiredError")
         except SessionExpiredError:
             pass
 
