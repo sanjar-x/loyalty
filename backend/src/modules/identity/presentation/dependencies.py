@@ -73,7 +73,7 @@ async def get_auth_context(
         raise UnauthorizedError(
             message="Invalid token payload: malformed sub or sid",
             error_code="INVALID_TOKEN_PAYLOAD",
-        )
+        ) from None
 
     # Token version validation (Option A: DB check per request, ~1ms)
     identity = await identity_repo.get(identity_id)

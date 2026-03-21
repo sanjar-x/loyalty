@@ -1,5 +1,6 @@
 # tests/conftest.py
 import asyncio
+import contextlib
 import contextvars
 import warnings
 from asyncio.events import AbstractEventLoop
@@ -219,10 +220,8 @@ async def setup_infrastructure(test_engine: AsyncEngine, test_settings: Settings
         aws_secret_access_key=test_settings.S3_SECRET_KEY,
         region_name=test_settings.S3_REGION,
     ) as s3_client:
-        try:
+        with contextlib.suppress(Exception):
             await s3_client.create_bucket(Bucket=test_settings.S3_BUCKET_NAME)
-        except Exception:
-            pass  # Bucket already exists
 
     return True
 

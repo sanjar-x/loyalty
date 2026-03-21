@@ -494,7 +494,7 @@ class CustomerListItemResponse(CamelModel):
     phone: str | None
     referral_code: str | None
     username: str | None = None
-    auth_methods: list[str] = []
+    auth_methods: list[str] = Field(default_factory=list)
     roles: list[str]
     is_active: bool
     created_at: datetime
@@ -521,7 +521,7 @@ class CustomerDetailResponse(CamelModel):
     phone: str | None
     referral_code: str | None
     username: str | None = None
-    auth_methods: list[str] = []
+    auth_methods: list[str] = Field(default_factory=list)
     referred_by: uuid.UUID | None
     roles: list[RoleInfoResponse]
     created_at: datetime

@@ -13,7 +13,7 @@ import ast
 import inspect
 import pathlib
 from abc import ABC
-from typing import get_args, get_origin
+from typing import ClassVar, get_args, get_origin
 
 import pytest
 
@@ -130,7 +130,7 @@ class TestIProductRepositoryInheritance:
 class TestIProductRepositoryAbstractMethods:
     """IProductRepository must declare the 6 additional abstract methods."""
 
-    EXPECTED_METHODS = {
+    EXPECTED_METHODS: ClassVar[set[str]] = {
         "get_by_slug",
         "check_slug_exists",
         "check_slug_exists_excluding",
@@ -140,7 +140,7 @@ class TestIProductRepositoryAbstractMethods:
     }
 
     # CRUD methods inherited from ICatalogRepository
-    INHERITED_CRUD = {"add", "get", "update", "delete"}
+    INHERITED_CRUD: ClassVar[set[str]] = {"add", "get", "update", "delete"}
 
     def test_all_six_methods_are_abstract(self) -> None:
         """Every required method is registered as abstract."""
@@ -267,7 +267,7 @@ class TestIProductAttributeValueRepositoryBase:
 class TestIProductAttributeValueRepositoryAbstractMethods:
     """IProductAttributeValueRepository must declare exactly 5 abstract methods."""
 
-    EXPECTED_METHODS = {"add", "get", "delete", "list_by_product", "exists"}
+    EXPECTED_METHODS: ClassVar[set[str]] = {"add", "get", "delete", "list_by_product", "exists"}
 
     def test_all_five_methods_are_abstract(self) -> None:
         """Every required method is registered as abstract."""
@@ -480,7 +480,7 @@ class TestDomainPurity:
 class TestICatalogRepositoryCRUD:
     """Regression: the CRUD base class retains its 4 abstract methods."""
 
-    CRUD_METHODS = {"add", "get", "update", "delete"}
+    CRUD_METHODS: ClassVar[set[str]] = {"add", "get", "update", "delete"}
 
     def test_catalog_repository_has_four_crud_methods(self) -> None:
         abstract_methods = _get_abstract_method_names(ICatalogRepository)

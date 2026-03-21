@@ -7,8 +7,20 @@ from datetime import UTC, datetime
 
 import pytest
 
+from src.modules.identity.domain.entities import Identity, LinkedAccount
+from src.modules.identity.domain.events import (
+    IdentityTokenVersionBumpedEvent,
+    LinkedAccountCreatedEvent,
+    LinkedAccountRemovedEvent,
+)
+from src.modules.identity.domain.exceptions import (
+    InitDataExpiredError,
+    InitDataMissingUserError,
+    InvalidInitDataError,
+)
 from src.modules.identity.domain.value_objects import (
     TRUSTED_EMAIL_PROVIDERS,
+    AccountType,
     AuthProvider,
     IdentityType,
     PrimaryAuthMethod,
@@ -83,14 +95,8 @@ class TestTelegramUserData:
         assert data.start_param is None
 
 
-from src.modules.identity.domain.entities import LinkedAccount
-from src.modules.identity.domain.value_objects import AccountType
-
-
 class TestIdentityRegisterTelegram:
     def test_register_telegram_type(self):
-        from src.modules.identity.domain.entities import Identity
-
         identity = Identity.register(IdentityType.TELEGRAM, AccountType.CUSTOMER)
         assert identity.type == IdentityType.TELEGRAM
         assert identity.account_type == AccountType.CUSTOMER
@@ -135,18 +141,6 @@ class TestLinkedAccount:
         changed = account.update_metadata({"username": "same"})
         assert changed is False
         assert account.updated_at == old_updated
-
-
-from src.modules.identity.domain.events import (
-    IdentityTokenVersionBumpedEvent,
-    LinkedAccountCreatedEvent,
-    LinkedAccountRemovedEvent,
-)
-from src.modules.identity.domain.exceptions import (
-    InitDataExpiredError,
-    InitDataMissingUserError,
-    InvalidInitDataError,
-)
 
 
 class TestLinkedAccountCreatedEvent:

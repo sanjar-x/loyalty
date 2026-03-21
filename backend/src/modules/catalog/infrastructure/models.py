@@ -17,7 +17,7 @@ Sections:
 import enum
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 
 from sqlalchemy import (
     ARRAY,
@@ -495,7 +495,7 @@ class Product(Base):
         "ProductAttributeValueModel", back_populates="product", cascade="all, delete-orphan"
     )
 
-    __mapper_args__ = {
+    __mapper_args__: ClassVar[dict[str, Any]] = {
         "version_id_col": version,
     }
 
@@ -645,7 +645,7 @@ class SKU(Base):
         "SKUAttributeValueLink", back_populates="sku", cascade="all, delete-orphan"
     )
 
-    __mapper_args__ = {
+    __mapper_args__: ClassVar[dict[str, Any]] = {
         "version_id_col": version,
     }
 

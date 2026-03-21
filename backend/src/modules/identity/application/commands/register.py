@@ -123,7 +123,7 @@ class RegisterHandler:
             except ConflictError:
                 # TOCTOU: concurrent registration with the same email passed
                 # the email_exists check but hit the DB unique constraint
-                raise IdentityAlreadyExistsError()
+                raise IdentityAlreadyExistsError() from None
 
         self._logger.info(
             "identity.registered",

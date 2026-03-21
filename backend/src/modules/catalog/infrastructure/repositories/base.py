@@ -8,7 +8,7 @@ and supply the ``_to_domain`` / ``_to_orm`` mapping methods.
 
 import uuid
 from abc import abstractmethod
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,11 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.modules.catalog.domain.interfaces import ICatalogRepository
 from src.shared.interfaces.entities import IBase
 
-ModelType = TypeVar("ModelType", bound=IBase)
-EntityType = TypeVar("EntityType")
 
-
-class BaseRepository(Generic[EntityType, ModelType], ICatalogRepository[EntityType]):
+class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType]):
     """Generic Data Mapper repository.
 
     Accepts and returns only domain entities (``EntityType``).

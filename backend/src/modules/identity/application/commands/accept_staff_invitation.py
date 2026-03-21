@@ -179,7 +179,7 @@ class AcceptStaffInvitationHandler:
             except ConflictError:
                 # TOCTOU: concurrent invitation acceptance with the same email
                 # passed validation but hit the DB unique constraint
-                raise IdentityAlreadyExistsError()
+                raise IdentityAlreadyExistsError() from None
 
         self._logger.info(
             "staff.invitation.accepted",
