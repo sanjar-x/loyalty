@@ -77,6 +77,7 @@ class ListSKUsQuery:
     """
 
     product_id: uuid.UUID
+    variant_id: uuid.UUID | None = None
 
 
 class ListSKUsHandler:
@@ -108,6 +109,8 @@ class ListSKUsHandler:
             )
             .order_by(OrmSKU.created_at)
         )
+        if query.variant_id is not None:
+            stmt = stmt.where(OrmSKU.variant_id == query.variant_id)
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
 

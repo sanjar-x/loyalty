@@ -165,7 +165,7 @@ async def get_attribute_by_slug(
     handler: FromDishka[GetAttributeHandler],
 ) -> AttributeResponse:
     result: AttributeReadModel = await handler.handle_by_slug(slug)
-    return _to_response(result)
+    return _to_attribute_response(result)
 
 
 @attribute_router.get(
@@ -180,7 +180,7 @@ async def get_attribute(
     handler: FromDishka[GetAttributeHandler],
 ) -> AttributeResponse:
     result: AttributeReadModel = await handler.handle(attribute_id)
-    return _to_response(result)
+    return _to_attribute_response(result)
 
 
 @attribute_router.patch(
@@ -216,7 +216,7 @@ async def update_attribute(
 
     # Fetch the full attribute for response
     read_model: AttributeReadModel = await get_handler.handle(result.id)
-    return _to_response(read_model)
+    return _to_attribute_response(read_model)
 
 
 @attribute_router.delete(
@@ -234,7 +234,7 @@ async def delete_attribute(
     await handler.handle(command)
 
 
-def _to_response(model: AttributeReadModel) -> AttributeResponse:
+def _to_attribute_response(model: AttributeReadModel) -> AttributeResponse:
     """Convert a read model to a response schema."""
     return AttributeResponse(
         id=model.id,

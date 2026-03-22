@@ -29,7 +29,7 @@ class AddProductMediaCommand:
 
     Attributes:
         product_id: UUID of the product to attach media to.
-        attribute_value_id: Optional variant discriminator (swatch media).
+        variant_id: Optional variant discriminator (swatch media).
         media_type: MIME-type hint or media category (e.g. ``"image/jpeg"``).
         role: Semantic role of the asset (e.g. ``"MAIN"``, ``"GALLERY"``).
         content_type: MIME type the client will send in the PUT request.

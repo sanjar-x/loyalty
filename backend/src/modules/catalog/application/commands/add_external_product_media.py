@@ -26,7 +26,7 @@ class AddExternalProductMediaCommand:
 
     Attributes:
         product_id: UUID of the product to attach media to.
-        attribute_value_id: Optional variant discriminator (swatch media).
+        variant_id: Optional variant discriminator (swatch media).
         media_type: Media category string (e.g. ``"image"``, ``"video"``).
         role: Semantic role of the asset (e.g. ``"main"``, ``"gallery"``).
         external_url: Public URL of the externally hosted file.
@@ -48,7 +48,7 @@ class AddExternalProductMediaResult:
     Attributes:
         media_id: UUID of the newly created MediaAsset.
         product_id: UUID of the owning product.
-        attribute_value_id: Optional variant discriminator.
+        variant_id: Optional variant discriminator.
         media_type: Media category string.
         role: Semantic role of the asset.
         sort_order: Display ordering among sibling assets.

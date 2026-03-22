@@ -87,10 +87,9 @@ async def list_skus(
     handler: FromDishka[ListSKUsHandler],
 ) -> list[SKUResponse]:
     """Return all SKUs belonging to the given product."""
-    query = ListSKUsQuery(product_id=product_id)
+    query = ListSKUsQuery(product_id=product_id, variant_id=variant_id)
     results = await handler.handle(query)
-    # Filter to only SKUs belonging to this variant
-    return [to_sku_response(model) for model in results if model.variant_id == variant_id]
+    return [to_sku_response(model) for model in results]
 
 
 @sku_router.patch(

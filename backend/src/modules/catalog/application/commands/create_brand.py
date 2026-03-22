@@ -72,7 +72,7 @@ class CreateBrandHandler:
         uow: IUnitOfWork,
         blob_storage: IBlobStorage,
         logger: ILogger,
-    ):
+    ) -> None:
         self._brand_repo = brand_repo
         self._uow = uow
         self._blob_storage = blob_storage

@@ -53,7 +53,7 @@ class BindAttributeToCategoryHandler:
         attribute_repo: IAttributeRepository,
         binding_repo: ICategoryAttributeBindingRepository,
         uow: IUnitOfWork,
-    ):
+    ) -> None:
         self._category_repo = category_repo
         self._attribute_repo = attribute_repo
         self._binding_repo = binding_repo

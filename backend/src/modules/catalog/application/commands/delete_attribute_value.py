@@ -36,7 +36,7 @@ class DeleteAttributeValueHandler:
         attribute_repo: IAttributeRepository,
         value_repo: IAttributeValueRepository,
         uow: IUnitOfWork,
-    ):
+    ) -> None:
         self._attribute_repo = attribute_repo
         self._value_repo = value_repo
         self._uow = uow

@@ -48,7 +48,7 @@ class CreateAttributeGroupHandler:
         self,
         group_repo: IAttributeGroupRepository,
         uow: IUnitOfWork,
-    ):
+    ) -> None:
         self._group_repo = group_repo
         self._uow = uow
 

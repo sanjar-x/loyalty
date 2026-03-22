@@ -60,7 +60,7 @@ class UpdateBrandHandler:
         brand_repo: IBrandRepository,
         uow: IUnitOfWork,
         logger: ILogger,
-    ):
+    ) -> None:
         self._brand_repo = brand_repo
         self._uow = uow
         self._logger = logger.bind(handler="UpdateBrandHandler")

@@ -80,7 +80,7 @@ class AttributeGroupReadModel(BaseModel):
 
     id: uuid.UUID
     code: str
-    name_i18n: dict[str, Any]
+    name_i18n: dict[str, str]
     sort_order: int
 
 
@@ -104,8 +104,8 @@ class AttributeReadModel(BaseModel):
     id: uuid.UUID
     code: str
     slug: str
-    name_i18n: dict[str, Any]
-    description_i18n: dict[str, Any]
+    name_i18n: dict[str, str]
+    description_i18n: dict[str, str]
     data_type: str
     ui_type: str
     is_dictionary: bool
