@@ -43,26 +43,38 @@ class GeoProvider(Provider):
     """DI provider for geo repositories and query handlers."""
 
     country_repo: CompositeDependencySource = provide(
-        CountryRepository, scope=Scope.REQUEST, provides=ICountryRepository,
+        CountryRepository,
+        scope=Scope.REQUEST,
+        provides=ICountryRepository,
     )
     currency_repo: CompositeDependencySource = provide(
-        CurrencyRepository, scope=Scope.REQUEST, provides=ICurrencyRepository,
+        CurrencyRepository,
+        scope=Scope.REQUEST,
+        provides=ICurrencyRepository,
     )
     language_repo: CompositeDependencySource = provide(
-        LanguageRepository, scope=Scope.REQUEST, provides=ILanguageRepository,
+        LanguageRepository,
+        scope=Scope.REQUEST,
+        provides=ILanguageRepository,
     )
     subdivision_repo: CompositeDependencySource = provide(
-        SubdivisionRepository, scope=Scope.REQUEST, provides=ISubdivisionRepository,
+        SubdivisionRepository,
+        scope=Scope.REQUEST,
+        provides=ISubdivisionRepository,
     )
     list_countries_handler: CompositeDependencySource = provide(
-        ListCountriesHandler, scope=Scope.REQUEST,
+        ListCountriesHandler,
+        scope=Scope.REQUEST,
     )
     list_currencies_handler: CompositeDependencySource = provide(
-        ListCurrenciesHandler, scope=Scope.REQUEST,
+        ListCurrenciesHandler,
+        scope=Scope.REQUEST,
     )
     list_languages_handler: CompositeDependencySource = provide(
-        ListLanguagesHandler, scope=Scope.REQUEST,
+        ListLanguagesHandler,
+        scope=Scope.REQUEST,
     )
     list_subdivisions_handler: CompositeDependencySource = provide(
-        ListSubdivisionsHandler, scope=Scope.REQUEST,
+        ListSubdivisionsHandler,
+        scope=Scope.REQUEST,
     )

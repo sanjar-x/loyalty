@@ -4,7 +4,8 @@ Translates between the ``currencies`` ORM table and the domain
 :class:`~src.modules.geo.domain.value_objects.Currency` value object.
 """
 
-from sqlalchemy import exists as sa_exists, select
+from sqlalchemy import exists as sa_exists
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.geo.domain.interfaces import ICurrencyRepository

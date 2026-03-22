@@ -16,7 +16,6 @@ from src.modules.geo.application.queries.read_models import (
 )
 from src.modules.geo.infrastructure.models import (
     CountryModel,
-    CountryTranslationModel,
 )
 
 logger = structlog.get_logger(__name__)

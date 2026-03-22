@@ -16,9 +16,8 @@ ORM and domain value objects using the Data Mapper pattern.
 from __future__ import annotations
 
 import uuid
-from decimal import Decimal
-
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     TIMESTAMP,

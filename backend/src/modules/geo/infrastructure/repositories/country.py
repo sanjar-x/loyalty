@@ -32,9 +32,7 @@ class CountryRepository(ICountryRepository):
 
     async def get_by_alpha3(self, alpha3: str) -> Country | None:
         stmt = (
-            select(CountryModel)
-            .where(CountryModel.alpha3 == alpha3.upper())
-            .limit(1)
+            select(CountryModel).where(CountryModel.alpha3 == alpha3.upper()).limit(1)
         )
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
