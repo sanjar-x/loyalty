@@ -1,4 +1,3 @@
-
 <div align="center">
 
 ```
@@ -9,7 +8,7 @@
 |_____|_| \_| |_| |_____|_| \_\_|   |_| \_\___|____/|_____| /_/   \_\_|  |___|
 ```
 
-**Production-grade e-commerce API built with DDD, Clean Architecture, and CQRS.**
+**Production-grade e-commerce loyalty platform API built with DDD, Clean Architecture, and CQRS.**
 
 [![Python 3.14+](https://img.shields.io/badge/python-3.14%2B-blue?logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -40,7 +39,7 @@
 
 ## Elevator Pitch
 
-Enterprise API is an async REST backend for e-commerce platforms. It implements a **modular monolith** with strict bounded contexts — each business domain (catalog, identity, users, storage) lives in its own module with independent layers, communicating only through domain events.
+Enterprise API is an async REST backend for e-commerce loyalty platforms. It implements a **modular monolith** with strict bounded contexts — each business domain (catalog, identity, users, geo, storage) lives in its own module with independent layers, communicating only through domain events.
 
 Unlike typical FastAPI CRUD apps, this project enforces **real DDD**: domain entities have zero framework imports, repositories use the Data Mapper pattern (not Active Record), and writes flow through CQRS command handlers with a transactional outbox for reliable event publishing.
 
@@ -50,14 +49,17 @@ Built for teams that want production architecture from day one — not a rewrite
 
 ## ✨ Features
 
-- **Modular Monolith** — four isolated bounded contexts (Catalog, Identity, User, Storage) with enforced architectural boundaries
+- **Modular Monolith** — five isolated bounded contexts (Catalog, Identity, User, Geo, Storage) with enforced architectural boundaries
 - **Full CQRS** — dedicated command and query handlers; writes never mix with reads
-- **JWT Authentication** — access/refresh token rotation, multi-session management, max 5 sessions per identity
-- **RBAC Authorization** — hierarchical roles and permissions with Redis-cached session lookups (300s TTL)
+- **Multi-Provider Authentication** — email/password (Argon2id), Telegram Login Widget, and OIDC support with access/refresh token rotation (max 5 sessions per identity)
+- **RBAC Authorization** — hierarchical roles and permissions with Redis-cached session lookups (300s TTL), resolved via recursive CTE
 - **Transactional Outbox** — domain events persist atomically with aggregates, then relay asynchronously via [TaskIQ](https://taskiq-python.github.io/) + RabbitMQ
 - **Presigned Uploads** — S3-compatible (MinIO) presigned URLs for brand logos with async image processing pipeline
 - **Category Trees** — hierarchical categories with `full_slug` propagation, sibling ordering, and bulk subtree renames
+- **Geo Reference Data** — ISO 3166-1/2 countries and subdivisions, ISO 4217 currencies, IETF BCP 47 languages with multi-language translations (JSONB)
+- **Telegram Bot** — [Aiogram 3](https://docs.aiogram.dev/) bot with inline keyboards, FSM states, throttling, and user identification middleware
 - **GDPR Account Deletion** — one-click account deactivation with cascading PII anonymization through domain events
+- **Staff Management** — invitation workflow with email verification, role assignment, and separate PII storage
 - **88% Test Coverage** — unit, integration, e2e, and architecture fitness tests powered by [testcontainers](https://testcontainers-python.readthedocs.io/)
 - **Structured Logging** — JSON-formatted logs via [structlog](https://www.structlog.org/) with request correlation IDs
 
@@ -114,11 +116,11 @@ curl http://localhost:8000/health
 
 ### Prerequisites
 
-| Dependency | Version | Purpose |
-|---|---|---|
-| [Python](https://www.python.org/downloads/) | 3.14+ | Runtime |
-| [uv](https://docs.astral.sh/uv/getting-started/installation/) | latest | Package manager |
-| [Docker](https://docs.docker.com/get-docker/) | 24.0+ | Infrastructure services |
+| Dependency                                                    | Version | Purpose                 |
+| ------------------------------------------------------------- | ------- | ----------------------- |
+| [Python](https://www.python.org/downloads/)                   | 3.14+   | Runtime                 |
+| [uv](https://docs.astral.sh/uv/getting-started/installation/) | latest  | Package manager         |
+| [Docker](https://docs.docker.com/get-docker/)                 | 24.0+   | Infrastructure services |
 
 ### From Source
 
@@ -149,12 +151,12 @@ docker run --env-file .env -p 8000:8000 enterprise-api
 
 ### Common Issues
 
-| Problem | Fix |
-|---|---|
-| `asyncpg` fails to install | Install system-level `libpq-dev` (Debian) or `postgresql-devel` (RHEL) |
-| `argon2-cffi` build error | Install `libffi-dev` and `build-essential` |
-| Docker services not healthy | Run `docker compose ps` — wait for all health checks to pass |
-| `alembic upgrade` hangs | Check that PostgreSQL is accepting connections on port 5432 |
+| Problem                     | Fix                                                                    |
+| --------------------------- | ---------------------------------------------------------------------- |
+| `asyncpg` fails to install  | Install system-level `libpq-dev` (Debian) or `postgresql-devel` (RHEL) |
+| `argon2-cffi` build error   | Install `libffi-dev` and `build-essential`                             |
+| Docker services not healthy | Run `docker compose ps` — wait for all health checks to pass           |
+| `alembic upgrade` hangs     | Check that PostgreSQL is accepting connections on port 5432            |
 
 ---
 
@@ -170,7 +172,7 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
 ```
 
 ```json
-{"identityId": "550e8400-e29b-41d4-a716-446655440000"}
+{ "identityId": "550e8400-e29b-41d4-a716-446655440000" }
 ```
 
 ```bash
@@ -271,61 +273,107 @@ All endpoints are served under `/api/v1`. Interactive docs available at `/docs` 
 
 ### Authentication
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `POST` | `/auth/register` | Public | Register with email + password |
-| `POST` | `/auth/login` | Public | Get access/refresh token pair |
-| `POST` | `/auth/refresh` | Public | Rotate refresh token |
-| `POST` | `/auth/logout` | Bearer | Revoke current session |
-| `POST` | `/auth/logout/all` | Bearer | Revoke all sessions |
+| Method | Endpoint           | Auth   | Description                         |
+| ------ | ------------------ | ------ | ----------------------------------- |
+| `POST` | `/auth/register`   | Public | Register with email + password      |
+| `POST` | `/auth/login`      | Public | Get access/refresh token pair       |
+| `POST` | `/auth/telegram`   | Public | Authenticate via Telegram init data |
+| `POST` | `/auth/oidc`       | Public | Authenticate via OIDC provider      |
+| `POST` | `/auth/refresh`    | Public | Rotate refresh token                |
+| `POST` | `/auth/logout`     | Bearer | Revoke current session              |
+| `POST` | `/auth/logout/all` | Bearer | Revoke all sessions                 |
+| `POST` | `/auth/password`   | Bearer | Change password                     |
 
 ### Catalog — Brands
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `POST` | `/catalog/brands` | `catalog:manage` | Create brand (with optional logo upload) |
-| `GET` | `/catalog/brands` | Public | List brands (paginated) |
-| `GET` | `/catalog/brands/{id}` | Public | Get brand by ID |
-| `PATCH` | `/catalog/brands/{id}` | `catalog:manage` | Update brand name/slug |
-| `DELETE` | `/catalog/brands/{id}` | `catalog:manage` | Delete brand |
-| `POST` | `/catalog/brands/{id}/logo/confirm` | `catalog:manage` | Confirm logo upload for processing |
+| Method   | Endpoint                            | Auth             | Description                              |
+| -------- | ----------------------------------- | ---------------- | ---------------------------------------- |
+| `POST`   | `/catalog/brands`                   | `catalog:manage` | Create brand (with optional logo upload) |
+| `GET`    | `/catalog/brands`                   | Public           | List brands (paginated)                  |
+| `GET`    | `/catalog/brands/{id}`              | Public           | Get brand by ID                          |
+| `PATCH`  | `/catalog/brands/{id}`              | `catalog:manage` | Update brand name/slug                   |
+| `DELETE` | `/catalog/brands/{id}`              | `catalog:manage` | Delete brand                             |
+| `POST`   | `/catalog/brands/{id}/logo/confirm` | `catalog:manage` | Confirm logo upload for processing       |
 
 ### Catalog — Categories
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `POST` | `/catalog/categories` | `catalog:manage` | Create category |
-| `GET` | `/catalog/categories` | Public | List categories (paginated) |
-| `GET` | `/catalog/categories/tree` | Public | Full nested category tree |
-| `GET` | `/catalog/categories/{id}` | Public | Get category by ID |
-| `PATCH` | `/catalog/categories/{id}` | `catalog:manage` | Update category |
+| Method   | Endpoint                   | Auth             | Description                 |
+| -------- | -------------------------- | ---------------- | --------------------------- |
+| `POST`   | `/catalog/categories`      | `catalog:manage` | Create category             |
+| `GET`    | `/catalog/categories`      | Public           | List categories (paginated) |
+| `GET`    | `/catalog/categories/tree` | Public           | Full nested category tree   |
+| `GET`    | `/catalog/categories/{id}` | Public           | Get category by ID          |
+| `PATCH`  | `/catalog/categories/{id}` | `catalog:manage` | Update category             |
 | `DELETE` | `/catalog/categories/{id}` | `catalog:manage` | Delete category (leaf only) |
 
 ### Admin — IAM
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `GET` | `/admin/roles` | `roles:manage` | List roles with permissions |
-| `POST` | `/admin/roles` | `roles:manage` | Create custom role |
-| `DELETE` | `/admin/roles/{id}` | `roles:manage` | Delete custom role |
-| `GET` | `/admin/permissions` | `roles:manage` | List all permissions |
-| `POST` | `/admin/identities/{id}/roles` | `roles:manage` | Assign role to identity |
-| `DELETE` | `/admin/identities/{id}/roles/{role_id}` | `roles:manage` | Revoke role |
+| Method   | Endpoint                                 | Auth           | Description                 |
+| -------- | ---------------------------------------- | -------------- | --------------------------- |
+| `GET`    | `/admin/roles`                           | `roles:manage` | List roles with permissions |
+| `POST`   | `/admin/roles`                           | `roles:manage` | Create custom role          |
+| `PATCH`  | `/admin/roles/{id}`                      | `roles:manage` | Update role                 |
+| `DELETE` | `/admin/roles/{id}`                      | `roles:manage` | Delete custom role          |
+| `PUT`    | `/admin/roles/{id}/permissions`          | `roles:manage` | Set role permissions        |
+| `GET`    | `/admin/permissions`                     | `roles:manage` | List all permissions        |
+| `POST`   | `/admin/identities/{id}/roles`           | `roles:manage` | Assign role to identity     |
+| `DELETE` | `/admin/identities/{id}/roles/{role_id}` | `roles:manage` | Revoke role                 |
+
+### Admin — Staff
+
+| Method   | Endpoint                        | Auth           | Description              |
+| -------- | ------------------------------- | -------------- | ------------------------ |
+| `GET`    | `/admin/staff`                  | `staff:read`   | List staff members       |
+| `GET`    | `/admin/staff/{id}`             | `staff:read`   | Get staff member detail  |
+| `GET`    | `/admin/staff/invitations`      | `staff:manage` | List pending invitations |
+| `POST`   | `/admin/staff/invitations`      | `staff:manage` | Invite staff member      |
+| `DELETE` | `/admin/staff/invitations/{id}` | `staff:manage` | Revoke invitation        |
+
+### Admin — Customers
+
+| Method | Endpoint                | Auth             | Description         |
+| ------ | ----------------------- | ---------------- | ------------------- |
+| `GET`  | `/admin/customers`      | `customers:read` | List customers      |
+| `GET`  | `/admin/customers/{id}` | `customers:read` | Get customer detail |
 
 ### User Profile
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `GET` | `/users/me` | `users:read` | Get my profile |
-| `PATCH` | `/users/me` | `users:update` | Update my profile |
-| `DELETE` | `/users/me` | `users:delete` | Delete account (GDPR) |
-| `GET` | `/users/me/sessions` | Bearer | List my active sessions |
+| Method   | Endpoint             | Auth           | Description             |
+| -------- | -------------------- | -------------- | ----------------------- |
+| `GET`    | `/users/me`          | `users:read`   | Get my profile          |
+| `PATCH`  | `/users/me`          | `users:update` | Update my profile       |
+| `DELETE` | `/users/me`          | `users:delete` | Delete account (GDPR)   |
+| `GET`    | `/users/me/sessions` | Bearer         | List my active sessions |
+
+### Account
+
+| Method | Endpoint              | Auth   | Description             |
+| ------ | --------------------- | ------ | ----------------------- |
+| `GET`  | `/account/me`         | Bearer | Get my identity detail  |
+| `GET`  | `/account/sessions`   | Bearer | List my active sessions |
+| `POST` | `/account/deactivate` | Bearer | Deactivate my account   |
+
+### Invitations
+
+| Method | Endpoint                      | Auth   | Description             |
+| ------ | ----------------------------- | ------ | ----------------------- |
+| `GET`  | `/invitations/{token}`        | Public | Validate invitation     |
+| `POST` | `/invitations/{token}/accept` | Public | Accept staff invitation |
+
+### Geo
+
+| Method | Endpoint                             | Auth   | Description                       |
+| ------ | ------------------------------------ | ------ | --------------------------------- |
+| `GET`  | `/geo/countries`                     | Public | List countries with translations  |
+| `GET`  | `/geo/countries/{code}/subdivisions` | Public | List subdivisions of a country    |
+| `GET`  | `/geo/currencies`                    | Public | List currencies with translations |
+| `GET`  | `/geo/languages`                     | Public | List supported languages          |
 
 ### System
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/health` | Health check (`{"status": "ok"}`) |
+| Method | Endpoint  | Description                       |
+| ------ | --------- | --------------------------------- |
+| `GET`  | `/health` | Health check (`{"status": "ok"}`) |
 
 ---
 
@@ -339,60 +387,69 @@ cp .env.example .env
 
 ### Application
 
-| Variable | Type | Default | Description |
-|---|---|---|---|
-| `PROJECT_NAME` | `str` | `Enterprise API` | Application display name |
-| `VERSION` | `str` | `1.0.0` | Semantic version |
-| `ENVIRONMENT` | `str` | `dev` | Runtime mode: `dev`, `test`, `prod` |
-| `DEBUG` | `bool` | `False` | Enable debug mode |
-| `SECRET_KEY` | `str` | **required** | JWT signing secret |
-| `CORS_ORIGINS` | `str` | `[]` | Comma-separated allowed origins |
+| Variable       | Type   | Default          | Description                         |
+| -------------- | ------ | ---------------- | ----------------------------------- |
+| `PROJECT_NAME` | `str`  | `Enterprise API` | Application display name            |
+| `VERSION`      | `str`  | `1.0.0`          | Semantic version                    |
+| `ENVIRONMENT`  | `str`  | `dev`            | Runtime mode: `dev`, `test`, `prod` |
+| `DEBUG`        | `bool` | `False`          | Enable debug mode                   |
+| `SECRET_KEY`   | `str`  | **required**     | JWT signing secret                  |
+| `CORS_ORIGINS` | `str`  | `[]`             | Comma-separated allowed origins     |
 
 ### Authentication & IAM
 
-| Variable | Type | Default | Description |
-|---|---|---|---|
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `int` | `15` | Access token TTL |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | `int` | `30` | Refresh token TTL |
-| `SESSION_PERMISSIONS_CACHE_TTL` | `int` | `300` | Redis permission cache TTL (seconds) |
-| `MAX_ACTIVE_SESSIONS_PER_IDENTITY` | `int` | `5` | Max concurrent sessions per user |
+| Variable                           | Type  | Default | Description                          |
+| ---------------------------------- | ----- | ------- | ------------------------------------ |
+| `ACCESS_TOKEN_EXPIRE_MINUTES`      | `int` | `15`    | Access token TTL                     |
+| `REFRESH_TOKEN_EXPIRE_DAYS`        | `int` | `30`    | Refresh token TTL                    |
+| `SESSION_PERMISSIONS_CACHE_TTL`    | `int` | `300`   | Redis permission cache TTL (seconds) |
+| `MAX_ACTIVE_SESSIONS_PER_IDENTITY` | `int` | `5`     | Max concurrent sessions per user     |
 
 ### PostgreSQL
 
-| Variable | Type | Default | Description |
-|---|---|---|---|
-| `PGHOST` | `str` | **required** | Database host |
-| `PGPORT` | `int` | **required** | Database port |
-| `PGUSER` | `str` | **required** | Database user |
+| Variable     | Type  | Default      | Description       |
+| ------------ | ----- | ------------ | ----------------- |
+| `PGHOST`     | `str` | **required** | Database host     |
+| `PGPORT`     | `int` | **required** | Database port     |
+| `PGUSER`     | `str` | **required** | Database user     |
 | `PGPASSWORD` | `str` | **required** | Database password |
-| `PGDATABASE` | `str` | **required** | Database name |
+| `PGDATABASE` | `str` | **required** | Database name     |
 
 ### Redis
 
-| Variable | Type | Default | Description |
-|---|---|---|---|
-| `REDISHOST` | `str` | **required** | Redis host |
-| `REDISPORT` | `int` | **required** | Redis port |
-| `REDISUSER` | `str` | `default` | Redis username |
-| `REDISPASSWORD` | `str` | `None` | Redis password |
-| `REDISDATABASE` | `int` | `0` | Redis database index |
+| Variable        | Type  | Default      | Description          |
+| --------------- | ----- | ------------ | -------------------- |
+| `REDISHOST`     | `str` | **required** | Redis host           |
+| `REDISPORT`     | `int` | **required** | Redis port           |
+| `REDISUSER`     | `str` | `default`    | Redis username       |
+| `REDISPASSWORD` | `str` | `None`       | Redis password       |
+| `REDISDATABASE` | `int` | `0`          | Redis database index |
 
 ### S3 / MinIO
 
-| Variable | Type | Default | Description |
-|---|---|---|---|
-| `S3_ENDPOINT_URL` | `str` | **required** | S3-compatible endpoint |
-| `S3_ACCESS_KEY` | `str` | **required** | Access key |
-| `S3_SECRET_KEY` | `str` | **required** | Secret key |
-| `S3_REGION` | `str` | **required** | AWS region or `us-east-1` for MinIO |
-| `S3_BUCKET_NAME` | `str` | **required** | Default bucket |
-| `S3_PUBLIC_BASE_URL` | `str` | **required** | Public URL prefix for assets |
+| Variable             | Type  | Default      | Description                         |
+| -------------------- | ----- | ------------ | ----------------------------------- |
+| `S3_ENDPOINT_URL`    | `str` | **required** | S3-compatible endpoint              |
+| `S3_ACCESS_KEY`      | `str` | **required** | Access key                          |
+| `S3_SECRET_KEY`      | `str` | **required** | Secret key                          |
+| `S3_REGION`          | `str` | **required** | AWS region or `us-east-1` for MinIO |
+| `S3_BUCKET_NAME`     | `str` | **required** | Default bucket                      |
+| `S3_PUBLIC_BASE_URL` | `str` | **required** | Public URL prefix for assets        |
 
 ### RabbitMQ
 
-| Variable | Type | Default | Description |
-|---|---|---|---|
+| Variable       | Type  | Default      | Description         |
+| -------------- | ----- | ------------ | ------------------- |
 | `RABBITMQ_URL` | `str` | **required** | AMQP connection URL |
+
+### Telegram Bot
+
+| Variable                | Type  | Default | Description                         |
+| ----------------------- | ----- | ------- | ----------------------------------- |
+| `TELEGRAM_BOT_TOKEN`    | `str` | `None`  | Bot token from @BotFather           |
+| `TELEGRAM_WEBHOOK_URL`  | `str` | `None`  | Webhook URL for incoming updates    |
+| `TELEGRAM_SESSION_TTL`  | `int` | `86400` | Absolute session TTL (seconds, 24h) |
+| `TELEGRAM_IDLE_TIMEOUT` | `int` | `1800`  | Idle session timeout (seconds, 30m) |
 
 ---
 
@@ -401,19 +458,23 @@ cp .env.example .env
 ### High-Level Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        FastAPI (ASGI Server)                        │
-│                                                                     │
-│   ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐      │
-│   │  Catalog   │  │ Identity  │  │   User    │  │  Storage  │      │
-│   │  Module    │  │  Module   │  │  Module   │  │  Module   │      │
-│   └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘      │
-│         │               │               │               │           │
-│   ┌─────┴───────────────┴───────────────┴───────────────┴─────┐    │
-│   │              Shared Infrastructure Layer                   │    │
-│   │   PostgreSQL  ·  Redis  ·  RabbitMQ  ·  S3/MinIO          │    │
-│   └───────────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           FastAPI (ASGI Server)                              │
+│                                                                              │
+│    ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
+│    │ Catalog  │ │ Identity │ │   User   │ │   Geo    │ │ Storage  │          │
+│    │ Module   │ │  Module  │ │  Module  │ │  Module  │ │  Module  │          │
+│    └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘          │
+│         │            │            │            │            │                │
+│  ┌──────┴────────────┴────────────┴────────────┴────────────┴──────────┐     │
+│  │                  Shared Infrastructure Layer                        │     │
+│  │   PostgreSQL  ·  Redis  ·  RabbitMQ  ·  S3/MinIO                    │     │
+│  └─────────────────────────────────────────────────────────────────────┘     │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐     │
+│  │                    Telegram Bot (Aiogram 3)                         │     │
+│  └─────────────────────────────────────────────────────────────────────┘     │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Module Internal Structure (Clean Architecture)
@@ -436,14 +497,16 @@ Each bounded context follows this layering:
 
 ### Key Architecture Decisions
 
-| Pattern | Implementation | Why |
-|---|---|---|
-| **Data Mapper** | Repositories convert between `attrs` entities and SQLAlchemy ORM models | Domain stays framework-free |
-| **CQRS** | Separate command handlers (write) and query handlers (read) | Optimize reads independently from writes |
-| **Transactional Outbox** | Domain events persist in `outbox_messages` table, relayed by TaskIQ worker | Guarantee at-least-once event delivery |
-| **Dishka DI** | Constructor injection with `APP`, `REQUEST`, `TRANSIENT` scopes | Explicit dependency graphs, no service locators |
-| **Unit of Work** | All mutations go through `IUnitOfWork.commit()` | Atomic multi-aggregate transactions |
-| **Event-Driven** | Modules communicate via domain events through the outbox | Zero direct cross-module imports |
+| Pattern                  | Implementation                                                             | Why                                      |
+| ------------------------ | -------------------------------------------------------------------------- | ---------------------------------------- |
+| **Data Mapper**          | Repositories convert between `attrs` entities and SQLAlchemy ORM models    | Domain stays framework-free              |
+| **CQRS**                 | Separate command handlers (write) and query handlers (read)                | Optimize reads independently from writes |
+| **Transactional Outbox** | Domain events persist in `outbox_messages` table, relayed by TaskIQ worker | Guarantee at-least-once event delivery   |
+| **Dishka DI**            | Constructor injection with `APP`, `REQUEST` scopes                         | Explicit dependency graphs               |
+| **Unit of Work**         | All mutations go through `IUnitOfWork.commit()`                            | Atomic multi-aggregate transactions      |
+| **Event-Driven**         | Modules communicate via domain events through the outbox                   | Zero direct cross-module imports         |
+| **NIST RBAC**            | Hierarchical roles → permissions, cached in Redis with CTE fallback        | Fine-grained access control              |
+| **Dead Letter Queue**    | Failed tasks persisted in `failed_tasks` table via DLQ middleware          | No silent task failures                  |
 
 ### Data Flow: Brand Logo Upload
 
@@ -453,13 +516,13 @@ Client                API                  Worker              S3
   ├─ POST /brands ────►│                    │                   │
   │                    ├─ Create brand ─────┤                   │
   │                    ├─ Generate presigned URL ──────────────►│
-  │◄── presignedUrl ──┤                    │                   │
+  │◄── presignedUrl ───┤                    │                   │
   │                    │                    │                   │
-  ├─ PUT presignedUrl ──────────────────────────────────────────►│
+  ├─ PUT presignedUrl ─────────────────────────────────────────►│
   │                    │                    │                   │
   ├─ POST /confirm ───►│                    │                   │
-  │                    ├─ Outbox: BrandLogoConfirmedEvent        │
-  │◄── 202 Accepted ──┤                    │                   │
+  │                    ├─ Outbox: BrandLogoConfirmedEvent       │
+  │◄── 202 Accepted ───┤                    │                   │
   │                    │                    │                   │
   │                    │  ┌── Relay ───────►│                   │
   │                    │  │                 ├─ Verify object ──►│
@@ -482,26 +545,38 @@ src/
 │   ├── container.py              # Dishka DI container assembly
 │   ├── web.py                    # FastAPI app factory + lifespan
 │   ├── worker.py                 # TaskIQ worker entrypoint
+│   ├── bot.py                    # Telegram bot initialization
+│   ├── scheduler.py              # Periodic task scheduler
 │   └── logger.py                 # structlog configuration
+│
+├── bot/                          # Telegram bot (Aiogram 3)
+│   ├── factory.py                # Bot/Dispatcher factory
+│   ├── handlers/                 # /start, /help, navigation, errors
+│   ├── keyboards/                # Inline + reply keyboards
+│   ├── middlewares/              # Logging, throttling, user identification
+│   ├── filters/                  # Admin check filter
+│   ├── callbacks/                # Callback query handlers
+│   └── states/                   # FSM states
 │
 ├── infrastructure/               # Cross-cutting concerns
 │   ├── cache/                    # Redis client + provider
-│   ├── database/                 # SQLAlchemy engine, session, UoW, models
-│   ├── logging/                  # DLQ middleware for failed tasks
-│   ├── outbox/                   # Event outbox relay + scheduled tasks
-│   ├── security/                 # JWT, password hashing, RBAC
+│   ├── database/                 # SQLAlchemy engine, session, UoW, outbox/DLQ models
+│   ├── logging/                  # Structlog adapter, TaskIQ + DLQ middleware
+│   ├── outbox/                   # Event outbox relay (FOR UPDATE SKIP LOCKED)
+│   ├── security/                 # JWT, Argon2id passwords, RBAC resolver, Telegram auth
 │   └── storage/                  # S3/MinIO client factory
 │
 ├── modules/
-│   ├── catalog/                  # Brands, categories, products
-│   ├── identity/                 # Auth, sessions, roles, permissions
-│   ├── user/                     # User profiles
+│   ├── catalog/                  # Brands, categories, products, attributes, SKUs
+│   ├── identity/                 # Auth (multi-provider), sessions, roles, permissions
+│   ├── user/                     # Customer + StaffMember profiles (PII storage)
+│   ├── geo/                      # Countries, currencies, languages, subdivisions
 │   └── storage/                  # File management, media processing
 │
 └── shared/                       # Cross-module interfaces + base classes
     ├── exceptions.py             # Base AppException hierarchy
     ├── schemas.py                # CamelModel (auto camelCase aliases)
-    └── interfaces/               # IUnitOfWork, IBlobStorage, ITokenProvider
+    └── interfaces/               # IUnitOfWork, IBlobStorage, ITokenProvider, ILogger, ...
 ```
 
 ---
@@ -526,13 +601,13 @@ uv run pytest tests/ --cov=src --cov-report=html
 
 ### Test Categories
 
-| Marker | Scope | Speed | Dependencies |
-|---|---|---|---|
-| `unit` | Domain + application logic | ~6s | None |
-| `architecture` | Boundary enforcement | ~1s | None |
-| `integration` | Real DB + services | ~30s | testcontainers |
-| `e2e` | Full HTTP round-trips | ~15s | testcontainers |
-| `load` | Stress testing (Locust) | variable | Running server |
+| Marker         | Scope                      | Speed    | Dependencies   |
+| -------------- | -------------------------- | -------- | -------------- |
+| `unit`         | Domain + application logic | ~6s      | None           |
+| `architecture` | Boundary enforcement       | ~1s      | None           |
+| `integration`  | Real DB + services         | ~30s     | testcontainers |
+| `e2e`          | Full HTTP round-trips      | ~15s     | testcontainers |
+| `load`         | Stress testing (Locust)    | variable | Running server |
 
 ### Architecture Fitness Tests
 
@@ -607,10 +682,12 @@ Distributed under the MIT License. See [`LICENSE`](LICENSE) for details.
 ### Built With
 
 - [FastAPI](https://fastapi.tiangolo.com) — async web framework
-- [SQLAlchemy 2.1](https://www.sqlalchemy.org) — async ORM with Data Mapper
+- [SQLAlchemy 2.x](https://www.sqlalchemy.org) — async ORM with Data Mapper
 - [Dishka](https://dishka.readthedocs.io) — dependency injection container
 - [TaskIQ](https://taskiq-python.github.io) — distributed task queue
+- [Aiogram 3](https://docs.aiogram.dev) — Telegram bot framework
 - [structlog](https://www.structlog.org) — structured logging
 - [Pydantic](https://docs.pydantic.dev) — data validation and settings
 - [Alembic](https://alembic.sqlalchemy.org) — database migrations
+- [pwdlib](https://pypi.org/project/pwdlib/) — Argon2id + bcrypt password hashing
 - [uv](https://docs.astral.sh/uv) — Python package manager

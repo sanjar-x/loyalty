@@ -256,7 +256,8 @@ def upgrade() -> None:
     # 2. Currency translations (deterministic UUIDs)
     for currency_code, lang_code, name in CURRENCY_TRANSLATIONS:
         tr_id = uuid.uuid5(
-            uuid.NAMESPACE_DNS, f"currency_tr.{currency_code}.{lang_code}",
+            uuid.NAMESPACE_DNS,
+            f"currency_tr.{currency_code}.{lang_code}",
         )
         op.execute(
             tr_t.insert().values(
