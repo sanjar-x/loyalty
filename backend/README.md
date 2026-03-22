@@ -51,7 +51,7 @@ Built for teams that want production architecture from day one — not a rewrite
 
 - **Modular Monolith** — five isolated bounded contexts (Catalog, Identity, User, Geo, Storage) with enforced architectural boundaries
 - **Full CQRS** — dedicated command and query handlers; writes never mix with reads
-- **Multi-Provider Authentication** — email/password (Argon2id), Telegram Login Widget, and OIDC support with access/refresh token rotation (max 5 sessions per identity)
+- **Multi-Provider Authentication** — email/password (Argon2id) and Telegram Mini App with access/refresh token rotation (max 5 sessions per identity)
 - **RBAC Authorization** — hierarchical roles and permissions with Redis-cached session lookups (300s TTL), resolved via recursive CTE
 - **Transactional Outbox** — domain events persist atomically with aggregates, then relay asynchronously via [TaskIQ](https://taskiq-python.github.io/) + RabbitMQ
 - **Presigned Uploads** — S3-compatible (MinIO) presigned URLs for brand logos with async image processing pipeline
@@ -278,11 +278,9 @@ All endpoints are served under `/api/v1`. Interactive docs available at `/docs` 
 | `POST` | `/auth/register`   | Public | Register with email + password      |
 | `POST` | `/auth/login`      | Public | Get access/refresh token pair       |
 | `POST` | `/auth/telegram`   | Public | Authenticate via Telegram init data |
-| `POST` | `/auth/oidc`       | Public | Authenticate via OIDC provider      |
 | `POST` | `/auth/refresh`    | Public | Rotate refresh token                |
 | `POST` | `/auth/logout`     | Bearer | Revoke current session              |
 | `POST` | `/auth/logout/all` | Bearer | Revoke all sessions                 |
-| `POST` | `/auth/password`   | Bearer | Change password                     |
 
 ### Catalog — Brands
 
@@ -306,68 +304,76 @@ All endpoints are served under `/api/v1`. Interactive docs available at `/docs` 
 | `PATCH`  | `/catalog/categories/{id}` | `catalog:manage` | Update category             |
 | `DELETE` | `/catalog/categories/{id}` | `catalog:manage` | Delete category (leaf only) |
 
-### Admin — IAM
+### Admin — Identity Management
 
-| Method   | Endpoint                                 | Auth           | Description                 |
-| -------- | ---------------------------------------- | -------------- | --------------------------- |
-| `GET`    | `/admin/roles`                           | `roles:manage` | List roles with permissions |
-| `POST`   | `/admin/roles`                           | `roles:manage` | Create custom role          |
-| `PATCH`  | `/admin/roles/{id}`                      | `roles:manage` | Update role                 |
-| `DELETE` | `/admin/roles/{id}`                      | `roles:manage` | Delete custom role          |
-| `PUT`    | `/admin/roles/{id}/permissions`          | `roles:manage` | Set role permissions        |
-| `GET`    | `/admin/permissions`                     | `roles:manage` | List all permissions        |
-| `POST`   | `/admin/identities/{id}/roles`           | `roles:manage` | Assign role to identity     |
-| `DELETE` | `/admin/identities/{id}/roles/{role_id}` | `roles:manage` | Revoke role                 |
+| Method   | Endpoint                                 | Auth                | Description               |
+| -------- | ---------------------------------------- | ------------------- | ------------------------- |
+| `GET`    | `/admin/identities`                      | `identities:manage` | List all identities       |
+| `GET`    | `/admin/identities/{id}`                 | `identities:manage` | Get identity detail       |
+| `POST`   | `/admin/identities/{id}/deactivate`      | `identities:manage` | Deactivate identity       |
+| `POST`   | `/admin/identities/{id}/reactivate`      | `identities:manage` | Reactivate identity       |
+| `POST`   | `/admin/identities/{id}/roles`           | `roles:manage`      | Assign role to identity   |
+| `DELETE` | `/admin/identities/{id}/roles/{role_id}` | `roles:manage`      | Revoke role from identity |
+
+### Admin — Roles & Permissions
+
+| Method   | Endpoint                        | Auth           | Description                         |
+| -------- | ------------------------------- | -------------- | ----------------------------------- |
+| `GET`    | `/admin/roles`                  | `roles:manage` | List roles with permissions         |
+| `POST`   | `/admin/roles`                  | `roles:manage` | Create custom role                  |
+| `GET`    | `/admin/roles/{id}`             | `roles:manage` | Get role detail with permissions    |
+| `PATCH`  | `/admin/roles/{id}`             | `roles:manage` | Update role name/description        |
+| `DELETE` | `/admin/roles/{id}`             | `roles:manage` | Delete custom role                  |
+| `PUT`    | `/admin/roles/{id}/permissions` | `roles:manage` | Set role permissions (full replace) |
+| `GET`    | `/admin/permissions`            | `roles:manage` | List all permissions (grouped)      |
 
 ### Admin — Staff
 
 | Method   | Endpoint                        | Auth           | Description              |
 | -------- | ------------------------------- | -------------- | ------------------------ |
-| `GET`    | `/admin/staff`                  | `staff:read`   | List staff members       |
-| `GET`    | `/admin/staff/{id}`             | `staff:read`   | Get staff member detail  |
+| `GET`    | `/admin/staff`                  | `staff:manage` | List staff members       |
+| `GET`    | `/admin/staff/{id}`             | `staff:manage` | Get staff member detail  |
+| `POST`   | `/admin/staff/{id}/deactivate`  | `staff:manage` | Deactivate staff member  |
+| `POST`   | `/admin/staff/{id}/reactivate`  | `staff:manage` | Reactivate staff member  |
 | `GET`    | `/admin/staff/invitations`      | `staff:manage` | List pending invitations |
-| `POST`   | `/admin/staff/invitations`      | `staff:manage` | Invite staff member      |
+| `POST`   | `/admin/staff/invitations`      | `staff:invite` | Invite staff member      |
 | `DELETE` | `/admin/staff/invitations/{id}` | `staff:manage` | Revoke invitation        |
 
 ### Admin — Customers
 
-| Method | Endpoint                | Auth             | Description         |
-| ------ | ----------------------- | ---------------- | ------------------- |
-| `GET`  | `/admin/customers`      | `customers:read` | List customers      |
-| `GET`  | `/admin/customers/{id}` | `customers:read` | Get customer detail |
+| Method | Endpoint                           | Auth               | Description         |
+| ------ | ---------------------------------- | ------------------ | ------------------- |
+| `GET`  | `/admin/customers`                 | `customers:read`   | List customers      |
+| `GET`  | `/admin/customers/{id}`            | `customers:read`   | Get customer detail |
+| `POST` | `/admin/customers/{id}/deactivate` | `customers:manage` | Deactivate customer |
+| `POST` | `/admin/customers/{id}/reactivate` | `customers:manage` | Reactivate customer |
 
-### User Profile
+### User Profile & Account
 
 | Method   | Endpoint             | Auth           | Description             |
 | -------- | -------------------- | -------------- | ----------------------- |
 | `GET`    | `/users/me`          | `users:read`   | Get my profile          |
 | `PATCH`  | `/users/me`          | `users:update` | Update my profile       |
 | `DELETE` | `/users/me`          | `users:delete` | Delete account (GDPR)   |
+| `PUT`    | `/users/me/password` | Bearer         | Change password         |
 | `GET`    | `/users/me/sessions` | Bearer         | List my active sessions |
-
-### Account
-
-| Method | Endpoint              | Auth   | Description             |
-| ------ | --------------------- | ------ | ----------------------- |
-| `GET`  | `/account/me`         | Bearer | Get my identity detail  |
-| `GET`  | `/account/sessions`   | Bearer | List my active sessions |
-| `POST` | `/account/deactivate` | Bearer | Deactivate my account   |
 
 ### Invitations
 
-| Method | Endpoint                      | Auth   | Description             |
-| ------ | ----------------------------- | ------ | ----------------------- |
-| `GET`  | `/invitations/{token}`        | Public | Validate invitation     |
-| `POST` | `/invitations/{token}/accept` | Public | Accept staff invitation |
+| Method | Endpoint                        | Auth   | Description             |
+| ------ | ------------------------------- | ------ | ----------------------- |
+| `GET`  | `/invitations/{token}/validate` | Public | Validate invitation     |
+| `POST` | `/invitations/{token}/accept`   | Public | Accept staff invitation |
 
 ### Geo
 
-| Method | Endpoint                             | Auth   | Description                       |
-| ------ | ------------------------------------ | ------ | --------------------------------- |
-| `GET`  | `/geo/countries`                     | Public | List countries with translations  |
-| `GET`  | `/geo/countries/{code}/subdivisions` | Public | List subdivisions of a country    |
-| `GET`  | `/geo/currencies`                    | Public | List currencies with translations |
-| `GET`  | `/geo/languages`                     | Public | List supported languages          |
+| Method | Endpoint                             | Auth   | Description                      |
+| ------ | ------------------------------------ | ------ | -------------------------------- |
+| `GET`  | `/geo/countries`                     | Public | List countries with translations |
+| `GET`  | `/geo/countries/{code}/subdivisions` | Public | List subdivisions of a country   |
+| `GET`  | `/geo/countries/{code}/currencies`   | Public | List currencies of a country     |
+| `GET`  | `/geo/currencies`                    | Public | List all currencies              |
+| `GET`  | `/geo/languages`                     | Public | List supported languages         |
 
 ### System
 
@@ -444,12 +450,24 @@ cp .env.example .env
 
 ### Telegram Bot
 
-| Variable                | Type  | Default | Description                         |
-| ----------------------- | ----- | ------- | ----------------------------------- |
-| `TELEGRAM_BOT_TOKEN`    | `str` | `None`  | Bot token from @BotFather           |
-| `TELEGRAM_WEBHOOK_URL`  | `str` | `None`  | Webhook URL for incoming updates    |
-| `TELEGRAM_SESSION_TTL`  | `int` | `86400` | Absolute session TTL (seconds, 24h) |
-| `TELEGRAM_IDLE_TIMEOUT` | `int` | `1800`  | Idle session timeout (seconds, 30m) |
+| Variable                             | Type        | Default      | Description                           |
+| ------------------------------------ | ----------- | ------------ | ------------------------------------- |
+| `BOT_TOKEN`                          | `str`       | **required** | Bot token from @BotFather             |
+| `BOT_ADMIN_IDS`                      | `list[int]` | `[]`         | Telegram IDs of bot administrators    |
+| `BOT_WEBHOOK_URL`                    | `str`       | `""`         | Webhook URL for incoming updates      |
+| `BOT_WEBHOOK_SECRET`                 | `str`       | `""`         | Webhook secret for request validation |
+| `THROTTLE_RATE`                      | `float`     | `0.5`        | Rate limit interval (seconds)         |
+| `TELEGRAM_INIT_DATA_MAX_AGE`         | `int`       | `300`        | Init data validity window (seconds)   |
+| `TELEGRAM_REFRESH_TOKEN_EXPIRE_DAYS` | `int`       | `7`          | Telegram refresh token TTL (days)     |
+
+### Session Timeouts
+
+| Variable                                   | Type  | Default | Description                               |
+| ------------------------------------------ | ----- | ------- | ----------------------------------------- |
+| `SESSION_IDLE_TIMEOUT_MINUTES`             | `int` | `30`    | Idle session timeout (minutes)            |
+| `SESSION_ABSOLUTE_LIFETIME_HOURS`          | `int` | `24`    | Absolute session lifetime (hours)         |
+| `TELEGRAM_SESSION_IDLE_TIMEOUT_MINUTES`    | `int` | `1440`  | Telegram session idle timeout (minutes)   |
+| `TELEGRAM_SESSION_ABSOLUTE_LIFETIME_HOURS` | `int` | `168`   | Telegram session lifetime (hours, 7 days) |
 
 ---
 
@@ -460,20 +478,17 @@ cp .env.example .env
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                           FastAPI (ASGI Server)                              │
-│                                                                              │
-│    ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
-│    │ Catalog  │ │ Identity │ │   User   │ │   Geo    │ │ Storage  │          │
-│    │ Module   │ │  Module  │ │  Module  │ │  Module  │ │  Module  │          │
-│    └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘          │
-│         │            │            │            │            │                │
-│  ┌──────┴────────────┴────────────┴────────────┴────────────┴──────────┐     │
-│  │                  Shared Infrastructure Layer                        │     │
-│  │   PostgreSQL  ·  Redis  ·  RabbitMQ  ·  S3/MinIO                    │     │
-│  └─────────────────────────────────────────────────────────────────────┘     │
-│                                                                              │
-│  ┌─────────────────────────────────────────────────────────────────────┐     │
-│  │                    Telegram Bot (Aiogram 3)                         │     │
-│  └─────────────────────────────────────────────────────────────────────┘     │
+│       ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
+│       │ Catalog  │ │ Identity │ │   User   │ │   Geo    │ │ Storage  │       │
+│       │ Module   │ │  Module  │ │  Module  │ │  Module  │ │  Module  │       │
+│       └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘       │
+│   ┌────────┴────────────┴────────────┴────────────┴────────────┴────────┐    │
+│   │                     Shared Infrastructure Layer                     │    │
+│   │         PostgreSQL   ·   Redis   ·   RabbitMQ   ·   S3/MinIO        │    │
+│   └─────────────────────────────────────────────────────────────────────┘    │
+│   ┌─────────────────────────────────────────────────────────────────────┐    │
+│   │                       Telegram Bot (Aiogram 3)                      │    │
+│   └─────────────────────────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
