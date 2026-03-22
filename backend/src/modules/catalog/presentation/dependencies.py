@@ -19,6 +19,9 @@ from src.modules.catalog.application.commands.add_product_media import (
     AddProductMediaHandler,
 )
 from src.modules.catalog.application.commands.add_sku import AddSKUHandler
+from src.modules.catalog.application.commands.add_variant import AddVariantHandler
+from src.modules.catalog.application.commands.delete_variant import DeleteVariantHandler
+from src.modules.catalog.application.commands.update_variant import UpdateVariantHandler
 from src.modules.catalog.application.commands.assign_product_attribute import (
     AssignProductAttributeHandler,
 )
@@ -134,6 +137,7 @@ from src.modules.catalog.application.queries.list_product_media import (
 )
 from src.modules.catalog.application.queries.list_products import ListProductsHandler
 from src.modules.catalog.application.queries.list_skus import ListSKUsHandler
+from src.modules.catalog.application.queries.list_variants import ListVariantsHandler
 from src.modules.catalog.application.queries.storefront import (
     StorefrontCardAttributesHandler,
     StorefrontComparisonAttributesHandler,
@@ -361,6 +365,13 @@ class ProductProvider(Provider):
     change_product_status_handler: CompositeDependencySource = provide(
         ChangeProductStatusHandler, scope=Scope.REQUEST
     )
+    add_variant_handler: CompositeDependencySource = provide(AddVariantHandler, scope=Scope.REQUEST)
+    update_variant_handler: CompositeDependencySource = provide(
+        UpdateVariantHandler, scope=Scope.REQUEST
+    )
+    delete_variant_handler: CompositeDependencySource = provide(
+        DeleteVariantHandler, scope=Scope.REQUEST
+    )
     add_sku_handler: CompositeDependencySource = provide(AddSKUHandler, scope=Scope.REQUEST)
     update_sku_handler: CompositeDependencySource = provide(UpdateSKUHandler, scope=Scope.REQUEST)
     delete_sku_handler: CompositeDependencySource = provide(DeleteSKUHandler, scope=Scope.REQUEST)
@@ -377,6 +388,9 @@ class ProductProvider(Provider):
         ListProductsHandler, scope=Scope.REQUEST
     )
     list_skus_handler: CompositeDependencySource = provide(ListSKUsHandler, scope=Scope.REQUEST)
+    list_variants_handler: CompositeDependencySource = provide(
+        ListVariantsHandler, scope=Scope.REQUEST
+    )
     list_product_attributes_handler: CompositeDependencySource = provide(
         ListProductAttributesHandler, scope=Scope.REQUEST
     )

@@ -26,6 +26,7 @@ from src.modules.catalog.presentation.router_product_attributes import (
 from src.modules.catalog.presentation.router_product_media import product_media_router
 from src.modules.catalog.presentation.router_products import product_router
 from src.modules.catalog.presentation.router_skus import sku_router
+from src.modules.catalog.presentation.router_variants import variant_router
 from src.modules.catalog.presentation.router_storefront import storefront_router
 from src.modules.geo.presentation.router import geo_router
 from src.modules.identity.presentation.router_account import identity_account_router
@@ -45,6 +46,7 @@ router.include_router(attribute_value_router, prefix="/catalog")
 router.include_router(category_binding_router, prefix="/catalog")
 router.include_router(storefront_router, prefix="/catalog")
 router.include_router(product_router, prefix="/catalog")
+router.include_router(variant_router, prefix="/catalog")
 router.include_router(sku_router, prefix="/catalog")
 router.include_router(product_attribute_router, prefix="/catalog")
 router.include_router(product_media_router, prefix="/catalog")
