@@ -40,7 +40,7 @@ class BrandLogoUploadInitiatedEvent(DomainEvent):
     object_key: str = ""
     content_type: str = ""
     aggregate_type: str = "Brand"
-    event_type: str = "BrandCreatedEvent"  # backward-compat with Outbox routing
+    event_type: str = "BrandLogoUploadInitiatedEvent"
 
     def __post_init__(self) -> None:
         if self.brand_id is None:

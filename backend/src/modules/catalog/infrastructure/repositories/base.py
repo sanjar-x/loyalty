@@ -6,10 +6,9 @@ and domain entities.  Concrete repositories inherit from :class:`BaseRepository`
 and supply the ``_to_domain`` / ``_to_orm`` mapping methods.
 
 Note:
-    Currently only ``CategoryRepository`` inherits this base class.
-    Other repositories were implemented before this abstraction was
-    introduced and follow the same pattern manually. Migration of
-    remaining repositories is a future cleanup task.
+    Most catalog repositories inherit this base class.
+    ``ProductRepository`` and ``MediaAssetRepository`` remain standalone
+    implementations due to their specialised query requirements.
 """
 
 import uuid

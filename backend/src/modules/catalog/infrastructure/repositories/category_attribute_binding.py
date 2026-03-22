@@ -8,8 +8,7 @@ and bulk sort/requirement updates.
 
 import uuid
 
-from sqlalchemy import case, delete, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import case, select, update
 
 from src.modules.catalog.domain.entities import (
     CategoryAttributeBinding as DomainBinding,
@@ -18,17 +17,19 @@ from src.modules.catalog.domain.interfaces import ICategoryAttributeBindingRepos
 from src.modules.catalog.infrastructure.models import (
     CategoryAttributeBinding as OrmBinding,
 )
+from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
 
-class CategoryAttributeBindingRepository(ICategoryAttributeBindingRepository):
+class CategoryAttributeBindingRepository(
+    BaseRepository[DomainBinding, OrmBinding],
+    ICategoryAttributeBindingRepository,
+    model_class=OrmBinding,
+):
     """Data Mapper repository for CategoryAttributeBinding.
 
-    Args:
-        session: SQLAlchemy async session scoped to the current request.
+    Inherits generic CRUD from :class:`BaseRepository` and adds
+    pair-uniqueness checks and bulk update operations.
     """
-
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
 
     def _to_domain(self, orm: OrmBinding) -> DomainBinding:
         """Map an ORM row to a domain entity."""
@@ -54,38 +55,6 @@ class CategoryAttributeBindingRepository(ICategoryAttributeBindingRepository):
         orm.flag_overrides = entity.flag_overrides
         orm.filter_settings = entity.filter_settings
         return orm
-
-    async def add(self, entity: DomainBinding) -> DomainBinding:
-        """Persist a new binding and return the refreshed domain entity."""
-        orm = self._to_orm(entity)
-        self._session.add(orm)
-        await self._session.flush()
-        return self._to_domain(orm)
-
-    async def get(self, binding_id: uuid.UUID) -> DomainBinding | None:
-        """Retrieve a binding by primary key, or ``None``."""
-        orm = await self._session.get(OrmBinding, binding_id)
-        if orm:
-            return self._to_domain(orm)
-        return None
-
-    async def update(self, entity: DomainBinding) -> DomainBinding:
-        """Merge updated domain state into the existing ORM row.
-
-        Raises:
-            ValueError: If the binding row does not exist.
-        """
-        orm = await self._session.get(OrmBinding, entity.id)
-        if not orm:
-            raise ValueError(f"CategoryAttributeBinding with id {entity.id} not found in DB")
-        orm = self._to_orm(entity, orm)
-        await self._session.flush()
-        return self._to_domain(orm)
-
-    async def delete(self, binding_id: uuid.UUID) -> None:
-        """Delete a binding row by primary key."""
-        stmt = delete(OrmBinding).where(OrmBinding.id == binding_id)
-        await self._session.execute(stmt)
 
     async def exists(self, category_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
         """Return ``True`` if a binding for this pair already exists."""

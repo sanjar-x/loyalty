@@ -21,13 +21,13 @@ from src.shared.interfaces.uow import IUnitOfWork
 @broker.task(
     queue="storage_brand_events",
     exchange="taskiq_rpc_exchange",
-    routing_key="storage.consumers.brand_created",
+    routing_key="storage.consumers.brand_logo_upload_initiated",
     max_retries=3,
     retry_on_error=True,
     timeout=30,  # 30 seconds: lightweight DB operation
 )
 @inject
-async def handle_brand_created_event(
+async def handle_brand_logo_upload_initiated_event(
     brand_id: str,
     object_key: str,
     content_type: str,
@@ -36,7 +36,7 @@ async def handle_brand_created_event(
     settings: FromDishka[IStorageConfig],
     logger: FromDishka[ILogger],
 ) -> dict:
-    """Handle a ``BrandCreatedEvent`` by creating a ``StorageFile`` record.
+    """Handle a ``BrandLogoUploadInitiatedEvent`` by creating a ``StorageFile`` record.
 
     Idempotency: if a record with the given ``object_key`` already exists
     the handler skips creation (duplicate delivery from Outbox Relay).

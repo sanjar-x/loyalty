@@ -25,7 +25,7 @@ from src.modules.catalog.application.queries.list_product_attributes import (
     ListProductAttributesQuery,
 )
 from src.modules.catalog.application.queries.read_models import (
-    ProductAttributeValueReadModel,
+    ProductAttributeReadModel,
 )
 from src.modules.catalog.presentation.schemas import (
     ProductAttributeAssignRequest,
@@ -94,13 +94,15 @@ async def list_product_attributes(
         List of product attribute assignment responses.
     """
     query = ListProductAttributesQuery(product_id=product_id)
-    items: list[ProductAttributeValueReadModel] = await handler.handle(query)
+    items: list[ProductAttributeReadModel] = await handler.handle(query)
     return [
         ProductAttributeResponse(
             id=item.id,
             product_id=item.product_id,
             attribute_id=item.attribute_id,
             attribute_value_id=item.attribute_value_id,
+            attribute_code=item.attribute_code,
+            attribute_name_i18n=item.attribute_name_i18n,
         )
         for item in items
     ]

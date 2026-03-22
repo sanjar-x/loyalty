@@ -8,26 +8,24 @@ a ``FOR UPDATE`` lock method used by the logo processing pipeline.
 
 import uuid
 
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from src.modules.catalog.domain.entities import Brand as DomainBrand
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
+from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
 
-class BrandRepository(IBrandRepository):
+class BrandRepository(
+    BaseRepository[DomainBrand, OrmBrand],
+    IBrandRepository,
+    model_class=OrmBrand,
+):
     """Data Mapper repository for the Brand aggregate.
 
-    Converts between the database layer (``OrmBrand``) and the domain
-    layer (``DomainBrand``), keeping ORM concerns out of business logic.
-
-    Args:
-        session: SQLAlchemy async session scoped to the current request.
+    Inherits generic CRUD from :class:`BaseRepository` and adds
+    slug-based lookups and pessimistic locking.
     """
-
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
 
     def _to_domain(self, orm: OrmBrand) -> DomainBrand:
         """Map an ORM Brand row to a domain Brand entity."""
@@ -51,38 +49,6 @@ class BrandRepository(IBrandRepository):
         orm.logo_file_id = entity.logo_file_id
         orm.logo_url = entity.logo_url
         return orm
-
-    async def add(self, entity: DomainBrand) -> DomainBrand:
-        """Persist a new brand and return the refreshed domain entity."""
-        orm = self._to_orm(entity)
-        self._session.add(orm)
-        await self._session.flush()
-        return self._to_domain(orm)
-
-    async def get(self, entity_id: uuid.UUID) -> DomainBrand | None:
-        """Retrieve a brand by primary key, or ``None`` if not found."""
-        orm = await self._session.get(OrmBrand, entity_id)
-        if orm:
-            return self._to_domain(orm)
-        return None
-
-    async def update(self, entity: DomainBrand) -> DomainBrand:
-        """Merge updated domain state into the existing ORM row.
-
-        Raises:
-            ValueError: If the brand row does not exist.
-        """
-        orm = await self._session.get(OrmBrand, entity.id)
-        if not orm:
-            raise ValueError(f"Brand with id {entity.id} not found in DB")
-        orm = self._to_orm(entity, orm)
-        await self._session.flush()
-        return self._to_domain(orm)
-
-    async def delete(self, entity_id: uuid.UUID) -> None:
-        """Delete a brand row by primary key."""
-        stmt = delete(OrmBrand).where(OrmBrand.id == entity_id)
-        await self._session.execute(stmt)
 
     async def get_by_slug(self, slug: str) -> DomainBrand | None:
         """Look up a brand by its URL slug, or ``None`` if not found."""

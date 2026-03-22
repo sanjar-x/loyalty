@@ -8,25 +8,26 @@ checks scoped to the parent attribute and bulk sort-order updates.
 
 import uuid
 
-from sqlalchemy import case, delete, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import case, select, update
 
 from src.modules.catalog.domain.entities import AttributeValue as DomainAttributeValue
 from src.modules.catalog.domain.interfaces import IAttributeValueRepository
 from src.modules.catalog.infrastructure.models import (
     AttributeValue as OrmAttributeValue,
 )
+from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
 
-class AttributeValueRepository(IAttributeValueRepository):
+class AttributeValueRepository(
+    BaseRepository[DomainAttributeValue, OrmAttributeValue],
+    IAttributeValueRepository,
+    model_class=OrmAttributeValue,
+):
     """Data Mapper repository for AttributeValue child entities.
 
-    Args:
-        session: SQLAlchemy async session scoped to the current request.
+    Inherits generic CRUD from :class:`BaseRepository` and adds
+    scoped uniqueness checks and bulk sort-order updates.
     """
-
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
 
     def _to_domain(self, orm: OrmAttributeValue) -> DomainAttributeValue:
         """Map an ORM row to a domain entity."""
@@ -58,38 +59,6 @@ class AttributeValueRepository(IAttributeValueRepository):
         orm.group_code = entity.value_group
         orm.sort_order = entity.sort_order
         return orm
-
-    async def add(self, entity: DomainAttributeValue) -> DomainAttributeValue:
-        """Persist a new attribute value and return the refreshed domain entity."""
-        orm = self._to_orm(entity)
-        self._session.add(orm)
-        await self._session.flush()
-        return self._to_domain(orm)
-
-    async def get(self, value_id: uuid.UUID) -> DomainAttributeValue | None:
-        """Retrieve an attribute value by primary key, or ``None``."""
-        orm = await self._session.get(OrmAttributeValue, value_id)
-        if orm:
-            return self._to_domain(orm)
-        return None
-
-    async def update(self, entity: DomainAttributeValue) -> DomainAttributeValue:
-        """Merge updated domain state into the existing ORM row.
-
-        Raises:
-            ValueError: If the value row does not exist.
-        """
-        orm = await self._session.get(OrmAttributeValue, entity.id)
-        if not orm:
-            raise ValueError(f"AttributeValue with id {entity.id} not found in DB")
-        orm = self._to_orm(entity, orm)
-        await self._session.flush()
-        return self._to_domain(orm)
-
-    async def delete(self, value_id: uuid.UUID) -> None:
-        """Delete an attribute value row by primary key."""
-        stmt = delete(OrmAttributeValue).where(OrmAttributeValue.id == value_id)
-        await self._session.execute(stmt)
 
     async def check_code_exists(self, attribute_id: uuid.UUID, code: str) -> bool:
         """Return ``True`` if the code is taken within this attribute."""

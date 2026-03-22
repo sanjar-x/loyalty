@@ -6,9 +6,9 @@ import uuid
 import pytest
 
 from src.modules.catalog.domain.events import (
-    BrandLogoUploadInitiatedEvent,
     BrandLogoConfirmedEvent,
     BrandLogoProcessedEvent,
+    BrandLogoUploadInitiatedEvent,
 )
 
 
@@ -30,7 +30,7 @@ class TestBrandLogoUploadInitiatedEvent:
             brand_id=brand_id, object_key="brands/logo.png", content_type="image/png"
         )
         assert event.aggregate_type == "Brand"
-        assert event.event_type == "BrandCreatedEvent"  # kept for backward-compat
+        assert event.event_type == "BrandLogoUploadInitiatedEvent"
         assert event.object_key == "brands/logo.png"
         assert event.content_type == "image/png"
 

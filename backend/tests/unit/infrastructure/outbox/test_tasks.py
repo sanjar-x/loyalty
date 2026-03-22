@@ -42,7 +42,7 @@ class TestEventHandlerRegistrations:
     async def test_event_handlers_registered(self):
         """After module-level registration, all 6 event types must be present."""
         expected_types = {
-            "BrandCreatedEvent",
+            "BrandLogoUploadInitiatedEvent",
             "BrandLogoConfirmedEvent",
             "BrandLogoProcessedEvent",
             "identity_registered",

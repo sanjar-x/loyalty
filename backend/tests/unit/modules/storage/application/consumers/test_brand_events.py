@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.modules.storage.application.consumers.brand_events import (
-    handle_brand_created_event as _handle_brand_created_task,
+    handle_brand_logo_upload_initiated_event as _handle_brand_logo_upload_initiated_task,
 )
 from src.modules.storage.application.consumers.brand_events import (
     handle_brand_logo_processed_event as _handle_brand_logo_processed_task,
@@ -20,7 +20,9 @@ def _unwrap_dishka_task(task: Any) -> Callable[..., Any]:
     return cast(Callable[..., Any], task.original_func.__dishka_orig_func__)
 
 
-handle_brand_created_event = _unwrap_dishka_task(_handle_brand_created_task)
+handle_brand_logo_upload_initiated_event = _unwrap_dishka_task(
+    _handle_brand_logo_upload_initiated_task
+)
 handle_brand_logo_processed_event = _unwrap_dishka_task(_handle_brand_logo_processed_task)
 
 pytestmark = pytest.mark.asyncio
@@ -42,13 +44,13 @@ def _make_deps():
     return storage_repo, uow, settings, logger
 
 
-class TestHandleBrandCreatedEvent:
+class TestHandleBrandLogoUploadInitiatedEvent:
     async def test_brand_created_creates_storage_file(self):
         storage_repo, uow, settings, logger = _make_deps()
         storage_repo.get_active_by_key = AsyncMock(return_value=None)
         storage_repo.add = AsyncMock()
 
-        result = await handle_brand_created_event(
+        result = await handle_brand_logo_upload_initiated_event(
             brand_id="brand-123",
             object_key="logos/brand-123/logo.png",
             content_type="image/png",
@@ -85,7 +87,7 @@ class TestHandleBrandCreatedEvent:
         )
         storage_repo.get_active_by_key = AsyncMock(return_value=existing_file)
 
-        result = await handle_brand_created_event(
+        result = await handle_brand_logo_upload_initiated_event(
             brand_id="brand-123",
             object_key="logos/brand-123/logo.png",
             content_type="image/png",

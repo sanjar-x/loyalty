@@ -68,15 +68,15 @@ async def test_create_brand_handler_with_logo(
     assert orm_brand is not None
     assert orm_brand.logo_status == MediaProcessingStatus.PENDING_UPLOAD
 
-    # Verify Outbox — BrandCreatedEvent recorded atomically
+    # Verify Outbox — BrandLogoUploadInitiatedEvent recorded atomically
     outbox_result = await db_session.execute(
         select(OutboxMessage).where(
             OutboxMessage.aggregate_type == "Brand",
             OutboxMessage.aggregate_id == str(result.brand_id),
-            OutboxMessage.event_type == "BrandCreatedEvent",
+            OutboxMessage.event_type == "BrandLogoUploadInitiatedEvent",
         )
     )
     outbox_row = outbox_result.scalar_one_or_none()
-    assert outbox_row is not None, "BrandCreatedEvent not found in Outbox"
+    assert outbox_row is not None, "BrandLogoUploadInitiatedEvent not found in Outbox"
     assert outbox_row.payload["object_key"] == expected_key
     assert outbox_row.payload["content_type"] == "image/png"

@@ -173,7 +173,9 @@ class Category(Base):
         "Category", back_populates="children", remote_side="Category.id"
     )
     attribute_bindings: Mapped[list[CategoryAttributeBinding]] = relationship(
-        "CategoryAttributeBinding", back_populates="category", cascade="all, delete-orphan"
+        "CategoryAttributeBinding",
+        back_populates="category",
+        cascade="all, delete-orphan",
     )
 
     __table_args__ = (
@@ -382,6 +384,7 @@ class AttributeValue(Base):
     search_aliases: Mapped[list[str]] = mapped_column(
         ARRAY(String), server_default=text("'{}'::varchar[]")
     )
+    # Named `meta_data` (not `metadata`) to avoid collision with SQLAlchemy Base.metadata
     meta_data: Mapped[dict[str, Any]] = mapped_column(
         MutableDict.as_mutable(JSONB), server_default=text("'{}'::jsonb")
     )
@@ -523,7 +526,7 @@ class Product(Base):
     skus: Mapped[list[SKU]] = relationship(
         "SKU", back_populates="product", cascade="all, delete-orphan"
     )
-    media_assets: Mapped[list["MediaAsset"]] = relationship(
+    media_assets: Mapped[list[MediaAsset]] = relationship(
         "MediaAsset", back_populates="product", cascade="all, delete-orphan"
     )
     product_attribute_values: Mapped[list[ProductAttributeValue]] = relationship(

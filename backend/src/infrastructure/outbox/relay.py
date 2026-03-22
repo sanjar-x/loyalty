@@ -36,7 +36,7 @@ def register_event_handler(event_type: str, handler: EventHandler) -> None:
     """Register a handler for a specific event type.
 
     Args:
-        event_type: The domain event type string (e.g., "BrandCreatedEvent").
+        event_type: The domain event type string (e.g., "BrandLogoUploadInitiatedEvent").
         handler: An async callable that dispatches the event to the broker.
     """
     _EVENT_HANDLERS[event_type] = handler

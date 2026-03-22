@@ -804,6 +804,8 @@ class ProductAttributeResponse(CamelModel):
     product_id: uuid.UUID
     attribute_id: uuid.UUID
     attribute_value_id: uuid.UUID
+    attribute_code: str = ""
+    attribute_name_i18n: dict[str, str] = Field(default_factory=dict)
 
 
 class ProductResponse(CamelModel):

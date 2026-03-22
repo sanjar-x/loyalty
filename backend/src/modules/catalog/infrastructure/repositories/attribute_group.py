@@ -8,8 +8,7 @@ and attribute membership checks for the delete guard.
 
 import uuid
 
-from sqlalchemy import delete, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update
 
 from src.modules.catalog.domain.entities import AttributeGroup as DomainAttributeGroup
 from src.modules.catalog.domain.interfaces import IAttributeGroupRepository
@@ -17,20 +16,19 @@ from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute
 from src.modules.catalog.infrastructure.models import (
     AttributeGroup as OrmAttributeGroup,
 )
+from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
 
-class AttributeGroupRepository(IAttributeGroupRepository):
+class AttributeGroupRepository(
+    BaseRepository[DomainAttributeGroup, OrmAttributeGroup],
+    IAttributeGroupRepository,
+    model_class=OrmAttributeGroup,
+):
     """Data Mapper repository for the AttributeGroup aggregate.
 
-    Converts between the database layer (``OrmAttributeGroup``) and the domain
-    layer (``DomainAttributeGroup``), keeping ORM concerns out of business logic.
-
-    Args:
-        session: SQLAlchemy async session scoped to the current request.
+    Inherits generic CRUD from :class:`BaseRepository` and adds
+    code-based lookups and attribute membership operations.
     """
-
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
 
     def _to_domain(self, orm: OrmAttributeGroup) -> DomainAttributeGroup:
         """Map an ORM AttributeGroup row to a domain AttributeGroup entity."""
@@ -52,38 +50,6 @@ class AttributeGroupRepository(IAttributeGroupRepository):
         orm.name_i18n = entity.name_i18n
         orm.sort_order = entity.sort_order
         return orm
-
-    async def add(self, entity: DomainAttributeGroup) -> DomainAttributeGroup:
-        """Persist a new attribute group and return the refreshed domain entity."""
-        orm = self._to_orm(entity)
-        self._session.add(orm)
-        await self._session.flush()
-        return self._to_domain(orm)
-
-    async def get(self, entity_id: uuid.UUID) -> DomainAttributeGroup | None:
-        """Retrieve an attribute group by primary key, or ``None`` if not found."""
-        orm = await self._session.get(OrmAttributeGroup, entity_id)
-        if orm:
-            return self._to_domain(orm)
-        return None
-
-    async def update(self, entity: DomainAttributeGroup) -> DomainAttributeGroup:
-        """Merge updated domain state into the existing ORM row.
-
-        Raises:
-            ValueError: If the group row does not exist.
-        """
-        orm = await self._session.get(OrmAttributeGroup, entity.id)
-        if not orm:
-            raise ValueError(f"AttributeGroup with id {entity.id} not found in DB")
-        orm = self._to_orm(entity, orm)
-        await self._session.flush()
-        return self._to_domain(orm)
-
-    async def delete(self, entity_id: uuid.UUID) -> None:
-        """Delete an attribute group row by primary key."""
-        stmt = delete(OrmAttributeGroup).where(OrmAttributeGroup.id == entity_id)
-        await self._session.execute(stmt)
 
     async def check_code_exists(self, code: str) -> bool:
         """Return ``True`` if any attribute group already uses this code."""

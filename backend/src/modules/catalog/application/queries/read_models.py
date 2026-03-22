@@ -414,3 +414,19 @@ class ProductListReadModel(BaseModel):
     total: int
     offset: int
     limit: int
+
+
+# ---------------------------------------------------------------------------
+# Product attribute (with joined attribute metadata) read models
+# ---------------------------------------------------------------------------
+
+
+class ProductAttributeReadModel(BaseModel):
+    """Read model for a product's attribute assignment with joined attribute data."""
+
+    id: uuid.UUID
+    product_id: uuid.UUID
+    attribute_id: uuid.UUID
+    attribute_value_id: uuid.UUID
+    attribute_code: str
+    attribute_name_i18n: dict[str, str]

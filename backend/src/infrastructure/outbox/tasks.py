@@ -39,14 +39,16 @@ def _build_labels(correlation_id: str | None) -> dict[str, str]:
     return {}
 
 
-async def _handle_brand_created(payload: dict, correlation_id: str | None = None) -> None:
+async def _handle_brand_logo_upload_initiated(
+    payload: dict, correlation_id: str | None = None
+) -> None:
     """Register a StorageFile in the Storage module via consumer."""
     from src.modules.storage.application.consumers.brand_events import (
-        handle_brand_created_event,
+        handle_brand_logo_upload_initiated_event,
     )
 
     await (
-        handle_brand_created_event.kicker()
+        handle_brand_logo_upload_initiated_event.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
             brand_id=payload["brand_id"],
@@ -87,7 +89,7 @@ async def _handle_brand_logo_processed(payload: dict, correlation_id: str | None
 
 
 # Register Catalog event mappings
-register_event_handler("BrandCreatedEvent", _handle_brand_created)
+register_event_handler("BrandLogoUploadInitiatedEvent", _handle_brand_logo_upload_initiated)
 register_event_handler("BrandLogoConfirmedEvent", _handle_brand_logo_confirmed)
 register_event_handler("BrandLogoProcessedEvent", _handle_brand_logo_processed)
 

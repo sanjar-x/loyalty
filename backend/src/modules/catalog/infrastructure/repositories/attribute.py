@@ -8,8 +8,7 @@ and category binding checks for delete guards.
 
 import uuid
 
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from src.modules.catalog.domain.entities import Attribute as DomainAttribute
 from src.modules.catalog.domain.interfaces import IAttributeRepository
@@ -17,20 +16,19 @@ from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute
 from src.modules.catalog.infrastructure.models import (
     CategoryAttributeBinding as OrmCategoryAttributeBinding,
 )
+from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
 
-class AttributeRepository(IAttributeRepository):
+class AttributeRepository(
+    BaseRepository[DomainAttribute, OrmAttribute],
+    IAttributeRepository,
+    model_class=OrmAttribute,
+):
     """Data Mapper repository for the Attribute aggregate.
 
-    Converts between the database layer (``OrmAttribute``) and the domain
-    layer (``DomainAttribute``), keeping ORM concerns out of business logic.
-
-    Args:
-        session: SQLAlchemy async session scoped to the current request.
+    Inherits generic CRUD from :class:`BaseRepository` and adds
+    code/slug-based lookups and category binding checks.
     """
-
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
 
     def _to_domain(self, orm: OrmAttribute) -> DomainAttribute:
         """Map an ORM Attribute row to a domain Attribute entity."""
@@ -76,38 +74,6 @@ class AttributeRepository(IAttributeRepository):
         orm.is_visible_in_catalog = entity.is_visible_in_catalog
         orm.validation_rules = entity.validation_rules  # type: ignore[assignment]
         return orm
-
-    async def add(self, entity: DomainAttribute) -> DomainAttribute:
-        """Persist a new attribute and return the refreshed domain entity."""
-        orm = self._to_orm(entity)
-        self._session.add(orm)
-        await self._session.flush()
-        return self._to_domain(orm)
-
-    async def get(self, entity_id: uuid.UUID) -> DomainAttribute | None:
-        """Retrieve an attribute by primary key, or ``None`` if not found."""
-        orm = await self._session.get(OrmAttribute, entity_id)
-        if orm:
-            return self._to_domain(orm)
-        return None
-
-    async def update(self, entity: DomainAttribute) -> DomainAttribute:
-        """Merge updated domain state into the existing ORM row.
-
-        Raises:
-            ValueError: If the attribute row does not exist.
-        """
-        orm = await self._session.get(OrmAttribute, entity.id)
-        if not orm:
-            raise ValueError(f"Attribute with id {entity.id} not found in DB")
-        orm = self._to_orm(entity, orm)
-        await self._session.flush()
-        return self._to_domain(orm)
-
-    async def delete(self, entity_id: uuid.UUID) -> None:
-        """Delete an attribute row by primary key."""
-        stmt = delete(OrmAttribute).where(OrmAttribute.id == entity_id)
-        await self._session.execute(stmt)
 
     async def check_code_exists(self, code: str) -> bool:
         """Return ``True`` if any attribute already uses this code."""

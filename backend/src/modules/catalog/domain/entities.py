@@ -716,6 +716,7 @@ class AttributeValue:
     slug: str
     value_i18n: dict[str, str]
     search_aliases: list[str]
+    # Named `meta_data` (not `metadata`) to avoid collision with SQLAlchemy Base.metadata
     meta_data: dict[str, Any]
     value_group: str | None
     sort_order: int

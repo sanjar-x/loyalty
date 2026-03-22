@@ -8,8 +8,7 @@ checks scoped to the (product_id, attribute_id) pair.
 
 import uuid
 
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from src.modules.catalog.domain.entities import (
     ProductAttributeValue as DomainProductAttributeValue,
@@ -18,17 +17,19 @@ from src.modules.catalog.domain.interfaces import IProductAttributeValueReposito
 from src.modules.catalog.infrastructure.models import (
     ProductAttributeValue as OrmProductAttributeValue,
 )
+from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
 
-class ProductAttributeValueRepository(IProductAttributeValueRepository):
+class ProductAttributeValueRepository(
+    BaseRepository[DomainProductAttributeValue, OrmProductAttributeValue],
+    IProductAttributeValueRepository,
+    model_class=OrmProductAttributeValue,
+):
     """Data Mapper repository for ProductAttributeValue child entities.
 
-    Args:
-        session: SQLAlchemy async session scoped to the current request.
+    Inherits generic CRUD from :class:`BaseRepository` and adds
+    duplicate-guard checks and product-scoped queries.
     """
-
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
 
     def _to_domain(self, orm: OrmProductAttributeValue) -> DomainProductAttributeValue:
         """Map an ORM row to a domain entity."""
@@ -39,33 +40,19 @@ class ProductAttributeValueRepository(IProductAttributeValueRepository):
             attribute_value_id=orm.attribute_value_id,
         )
 
-    def _to_orm(self, entity: DomainProductAttributeValue) -> OrmProductAttributeValue:
-        """Map a domain entity to an ORM row."""
-        orm = OrmProductAttributeValue()
+    def _to_orm(
+        self,
+        entity: DomainProductAttributeValue,
+        orm: OrmProductAttributeValue | None = None,
+    ) -> OrmProductAttributeValue:
+        """Map a domain entity to an ORM row (create or update)."""
+        if orm is None:
+            orm = OrmProductAttributeValue()
         orm.id = entity.id
         orm.product_id = entity.product_id
         orm.attribute_id = entity.attribute_id
         orm.attribute_value_id = entity.attribute_value_id
         return orm
-
-    async def add(self, entity: DomainProductAttributeValue) -> DomainProductAttributeValue:
-        """Persist a new product attribute assignment and return the refreshed domain entity."""
-        orm = self._to_orm(entity)
-        self._session.add(orm)
-        await self._session.flush()
-        return self._to_domain(orm)
-
-    async def get(self, pav_id: uuid.UUID) -> DomainProductAttributeValue | None:
-        """Retrieve a product attribute value by primary key, or ``None``."""
-        orm = await self._session.get(OrmProductAttributeValue, pav_id)
-        if orm:
-            return self._to_domain(orm)
-        return None
-
-    async def delete(self, pav_id: uuid.UUID) -> None:
-        """Delete a product attribute assignment by primary key."""
-        stmt = delete(OrmProductAttributeValue).where(OrmProductAttributeValue.id == pav_id)
-        await self._session.execute(stmt)
 
     async def list_by_product(self, product_id: uuid.UUID) -> list[DomainProductAttributeValue]:
         """List all attribute assignments for a given product."""
