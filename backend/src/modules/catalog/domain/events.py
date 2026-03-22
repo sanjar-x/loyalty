@@ -340,3 +340,45 @@ class AttributeUnboundFromCategoryEvent(DomainEvent):
             raise ValueError("binding_id is required for AttributeUnboundFromCategoryEvent")
         if not self.aggregate_id:
             self.aggregate_id = str(self.binding_id)
+
+
+# ---------------------------------------------------------------------------
+# ProductMedia events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ProductMediaConfirmedEvent(DomainEvent):
+    """Emitted when a media upload is confirmed — triggers AI processing."""
+
+    media_id: uuid.UUID | None = None
+    product_id: uuid.UUID | None = None
+    object_key: str = ""
+    content_type: str = ""
+    aggregate_type: str = "MediaAsset"
+    event_type: str = "ProductMediaConfirmedEvent"
+
+    def __post_init__(self) -> None:
+        if self.media_id is None:
+            raise ValueError("media_id is required for ProductMediaConfirmedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.media_id)
+
+
+@dataclass
+class ProductMediaProcessedEvent(DomainEvent):
+    """Emitted when AI processing completes for a media asset."""
+
+    media_id: uuid.UUID | None = None
+    product_id: uuid.UUID | None = None
+    object_key: str = ""
+    content_type: str = ""
+    size_bytes: int = 0
+    aggregate_type: str = "MediaAsset"
+    event_type: str = "ProductMediaProcessedEvent"
+
+    def __post_init__(self) -> None:
+        if self.media_id is None:
+            raise ValueError("media_id is required for ProductMediaProcessedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.media_id)
