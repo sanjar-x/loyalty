@@ -13,6 +13,9 @@ from src.modules.catalog.infrastructure.repositories.category_attribute_binding 
     CategoryAttributeBindingRepository,
 )
 from src.modules.catalog.infrastructure.repositories.product import ProductRepository
+from src.modules.catalog.infrastructure.repositories.media_asset import (
+    MediaAssetRepository,
+)
 from src.modules.catalog.infrastructure.repositories.product_attribute_value import (
     ProductAttributeValueRepository,
 )
@@ -24,6 +27,7 @@ __all__ = [
     "BrandRepository",
     "CategoryAttributeBindingRepository",
     "CategoryRepository",
+    "MediaAssetRepository",
     "ProductAttributeValueRepository",
     "ProductRepository",
 ]

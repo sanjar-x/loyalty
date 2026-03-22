@@ -607,6 +607,22 @@ class MediaAsset(Base):
         comment="Direct URL (e.g. youtube.com/...) when is_external is true",
     )
 
+    processing_status: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+        comment="FSM: PENDING_UPLOAD, PROCESSING, COMPLETED, FAILED",
+    )
+    raw_object_key: Mapped[str | None] = mapped_column(
+        String(1024),
+        nullable=True,
+        comment="S3 key for raw upload (before AI processing)",
+    )
+    public_url: Mapped[str | None] = mapped_column(
+        String(1024),
+        nullable=True,
+        comment="Final public URL after processing",
+    )
+
     product: Mapped[Product] = relationship("Product")
     color_attribute: Mapped[AttributeValue] = relationship("AttributeValue")
 

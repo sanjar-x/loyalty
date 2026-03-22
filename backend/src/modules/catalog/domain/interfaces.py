@@ -21,6 +21,7 @@ from src.modules.catalog.domain.entities import AttributeValue as DomainAttribut
 from src.modules.catalog.domain.entities import Brand as DomainBrand
 from src.modules.catalog.domain.entities import Category as DomainCategory
 from src.modules.catalog.domain.entities import CategoryAttributeBinding as DomainBinding
+from src.modules.catalog.domain.entities import MediaAsset as DomainMediaAsset
 from src.modules.catalog.domain.entities import Product as DomainProduct
 from src.modules.catalog.domain.entities import ProductAttributeValue as DomainProductAttributeValue
 from src.modules.catalog.domain.value_objects import ProductStatus
@@ -360,3 +361,39 @@ class IProductAttributeValueRepository(ABC):
     async def exists(self, product_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
         """Check whether a product+attribute pair already exists (duplicate guard)."""
         pass
+
+
+class IMediaAssetRepository(ABC):
+    """Repository contract for MediaAsset entities."""
+
+    @abstractmethod
+    async def add(self, media: DomainMediaAsset) -> None:
+        """Persist a new media asset."""
+
+    @abstractmethod
+    async def get(self, media_id: uuid.UUID) -> DomainMediaAsset | None:
+        """Retrieve a media asset by ID."""
+
+    @abstractmethod
+    async def get_for_update(self, media_id: uuid.UUID) -> DomainMediaAsset | None:
+        """Retrieve a media asset with row-level lock (SELECT FOR UPDATE)."""
+
+    @abstractmethod
+    async def update(self, media: DomainMediaAsset) -> None:
+        """Persist changes to an existing media asset."""
+
+    @abstractmethod
+    async def delete(self, media_id: uuid.UUID) -> None:
+        """Remove a media asset by ID."""
+
+    @abstractmethod
+    async def list_by_product(self, product_id: uuid.UUID) -> list[DomainMediaAsset]:
+        """List all media assets for a product, ordered by (attribute_value_id, sort_order)."""
+
+    @abstractmethod
+    async def has_main_for_variant(
+        self,
+        product_id: uuid.UUID,
+        attribute_value_id: uuid.UUID | None,
+    ) -> bool:
+        """Check if a MAIN media asset already exists for this product/variant combo."""
