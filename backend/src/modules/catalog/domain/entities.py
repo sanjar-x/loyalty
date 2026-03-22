@@ -954,9 +954,9 @@ class CategoryAttributeBinding(AggregateRoot):
         if unknown:
             raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
 
-        if "sort_order" in kwargs:
+        if "sort_order" in kwargs and kwargs["sort_order"] is not None:
             self.sort_order = kwargs["sort_order"]
-        if "requirement_level" in kwargs:
+        if "requirement_level" in kwargs and kwargs["requirement_level"] is not None:
             self.requirement_level = kwargs["requirement_level"]
         if "flag_overrides" in kwargs:
             self.flag_overrides = kwargs["flag_overrides"]

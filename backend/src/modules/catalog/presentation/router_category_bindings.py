@@ -137,17 +137,10 @@ async def update_binding(
     command = build_update_command(
         request,
         UpdateCategoryAttributeBindingCommand,
+        field_converters={"requirement_level": RequirementLevel},
         binding_id=binding_id,
         category_id=category_id,
     )
-    # Convert string literal to domain enum for requirement_level
-    if command.requirement_level is not None:
-        command = UpdateCategoryAttributeBindingCommand(
-            **{
-                **{name: getattr(command, name) for name in command.__dataclass_fields__},
-                "requirement_level": RequirementLevel(command.requirement_level),
-            }
-        )
     result: UpdateCategoryAttributeBindingResult = await handler.handle(command)
 
     return CategoryAttributeBindingResponse(

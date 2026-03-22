@@ -6,7 +6,6 @@ Delegates to application-layer command/query handlers via Dishka DI.
 """
 
 import uuid
-from typing import Any
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, status
@@ -46,6 +45,7 @@ from src.modules.catalog.presentation.schemas import (
     AttributeResponse,
     AttributeUpdateRequest,
 )
+from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
 
 attribute_router = APIRouter(
@@ -197,20 +197,14 @@ async def update_attribute(
     handler: FromDishka[UpdateAttributeHandler],
     get_handler: FromDishka[GetAttributeHandler],
 ) -> AttributeResponse:
-    # Build kwargs from only the fields the client actually sent
-    update_kwargs: dict[str, Any] = {}
-    for field_name in request.model_fields_set:
-        value = getattr(request, field_name)
-        if field_name == "ui_type" and value is not None:
-            value = AttributeUIType(value)
-        elif field_name == "level" and value is not None:
-            value = AttributeLevel(value)
-        update_kwargs[field_name] = value
-
-    command = UpdateAttributeCommand(
+    command = build_update_command(
+        request,
+        UpdateAttributeCommand,
+        field_converters={
+            "ui_type": AttributeUIType,
+            "level": AttributeLevel,
+        },
         attribute_id=attribute_id,
-        _provided_fields=frozenset(update_kwargs.keys()),
-        **update_kwargs,
     )
     result: UpdateAttributeResult = await handler.handle(command)
 

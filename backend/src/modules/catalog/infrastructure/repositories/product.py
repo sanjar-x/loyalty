@@ -165,6 +165,26 @@ class ProductRepository(IProductRepository):
         orm_variant.updated_at = domain_variant.updated_at
         return orm_variant
 
+    def _base_product_fields(self, orm: OrmProduct) -> dict:
+        """Extract common Product fields from an ORM row into a dict."""
+        return {
+            "id": orm.id,
+            "slug": orm.slug,
+            "title_i18n": dict(orm.title_i18n) if orm.title_i18n else {},
+            "description_i18n": dict(orm.description_i18n) if orm.description_i18n else {},
+            "status": ProductStatus(orm.status.value),
+            "brand_id": orm.brand_id,
+            "primary_category_id": orm.primary_category_id,
+            "supplier_id": orm.supplier_id,
+            "country_of_origin": orm.country_of_origin,
+            "tags": list(orm.tags) if orm.tags else [],
+            "version": orm.version,
+            "deleted_at": orm.deleted_at,
+            "created_at": orm.created_at,
+            "updated_at": orm.updated_at,
+            "published_at": orm.published_at,
+        }
+
     def _to_domain(self, orm: OrmProduct) -> DomainProduct:
         """Map an ORM Product row to a domain Product entity WITH variants.
 
@@ -172,21 +192,7 @@ class ProductRepository(IProductRepository):
         (via ``selectinload``) before calling this method.
         """
         return DomainProduct(
-            id=orm.id,
-            slug=orm.slug,
-            title_i18n=dict(orm.title_i18n) if orm.title_i18n else {},
-            description_i18n=dict(orm.description_i18n) if orm.description_i18n else {},
-            status=ProductStatus(orm.status.value),
-            brand_id=orm.brand_id,
-            primary_category_id=orm.primary_category_id,
-            supplier_id=orm.supplier_id,
-            country_of_origin=orm.country_of_origin,
-            tags=list(orm.tags) if orm.tags else [],
-            version=orm.version,
-            deleted_at=orm.deleted_at,
-            created_at=orm.created_at,
-            updated_at=orm.updated_at,
-            published_at=orm.published_at,
+            **self._base_product_fields(orm),
             variants=[self._variant_to_domain(v) for v in orm.variants],
         )
 
@@ -198,21 +204,7 @@ class ProductRepository(IProductRepository):
         async sessions.
         """
         return DomainProduct(
-            id=orm.id,
-            slug=orm.slug,
-            title_i18n=dict(orm.title_i18n) if orm.title_i18n else {},
-            description_i18n=dict(orm.description_i18n) if orm.description_i18n else {},
-            status=ProductStatus(orm.status.value),
-            brand_id=orm.brand_id,
-            primary_category_id=orm.primary_category_id,
-            supplier_id=orm.supplier_id,
-            country_of_origin=orm.country_of_origin,
-            tags=list(orm.tags) if orm.tags else [],
-            version=orm.version,
-            deleted_at=orm.deleted_at,
-            created_at=orm.created_at,
-            updated_at=orm.updated_at,
-            published_at=orm.published_at,
+            **self._base_product_fields(orm),
             variants=[],
         )
 

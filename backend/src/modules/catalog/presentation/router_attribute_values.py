@@ -6,7 +6,6 @@ All mutating endpoints require the ``catalog:manage`` permission.
 """
 
 import uuid
-from typing import Any
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, status
@@ -45,6 +44,7 @@ from src.modules.catalog.presentation.schemas import (
     AttributeValueUpdateRequest,
     ReorderAttributeValuesRequest,
 )
+from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
 
 attribute_value_router = APIRouter(
@@ -137,16 +137,11 @@ async def update_attribute_value(
     request: AttributeValueUpdateRequest,
     handler: FromDishka[UpdateAttributeValueHandler],
 ) -> AttributeValueResponse:
-    # Build kwargs from only the fields the client actually sent
-    update_kwargs: dict[str, Any] = {}
-    for field_name in request.model_fields_set:
-        update_kwargs[field_name] = getattr(request, field_name)
-
-    command = UpdateAttributeValueCommand(
+    command = build_update_command(
+        request,
+        UpdateAttributeValueCommand,
         attribute_id=attribute_id,
         value_id=value_id,
-        _provided_fields=frozenset(update_kwargs.keys()),
-        **update_kwargs,
     )
     result: UpdateAttributeValueResult = await handler.handle(command)
 

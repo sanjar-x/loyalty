@@ -27,6 +27,7 @@ from src.modules.catalog.application.queries.list_skus import (
     ListSKUsHandler,
     ListSKUsQuery,
 )
+from src.modules.catalog.domain.exceptions import SKUNotFoundError
 from src.modules.catalog.presentation.mappers import to_sku_response
 from src.modules.catalog.presentation.schemas import (
     SKUCreateRequest,
@@ -34,6 +35,7 @@ from src.modules.catalog.presentation.schemas import (
     SKUResponse,
     SKUUpdateRequest,
 )
+from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
 
 sku_router = APIRouter(
@@ -109,28 +111,28 @@ async def update_sku(
     list_handler: FromDishka[ListSKUsHandler],
 ) -> SKUResponse:
     """Apply a partial update to a SKU and return the updated state."""
-    provided_fields = request.model_fields_set - {"version"}
-    cmd_kwargs: dict[str, object] = {
-        "product_id": product_id,
-        "sku_id": sku_id,
-        "version": request.version,
-        "_provided_fields": frozenset(provided_fields),
-    }
-    for field_name in provided_fields:
-        value = getattr(request, field_name)
-        if field_name == "variant_attributes" and value is not None:
-            cmd_kwargs["variant_attributes"] = [
-                (p.attribute_id, p.attribute_value_id) for p in value
-            ]
-        else:
-            cmd_kwargs[field_name] = value
-
-    command = UpdateSKUCommand(**cmd_kwargs)  # type: ignore[arg-type]
+    command = build_update_command(
+        request,
+        UpdateSKUCommand,
+        exclude_from_provided=frozenset({"version"}),
+        field_converters={
+            "variant_attributes": lambda pairs: [
+                (p.attribute_id, p.attribute_value_id) for p in pairs
+            ],
+        },
+        product_id=product_id,
+        sku_id=sku_id,
+        version=request.version,
+    )
     result = await update_handler.handle(command)
 
-    # Fetch updated SKU list and find the one we just updated.
-    updated_skus = await list_handler.handle(ListSKUsQuery(product_id=product_id))
-    updated_sku = next(s for s in updated_skus if s.id == result.id)
+    # Fetch updated SKU list scoped to the variant and find the one we updated.
+    updated_skus = await list_handler.handle(
+        ListSKUsQuery(product_id=product_id, variant_id=variant_id)
+    )
+    updated_sku = next((s for s in updated_skus if s.id == result.id), None)
+    if updated_sku is None:
+        raise SKUNotFoundError(sku_id=result.id)
     return to_sku_response(updated_sku)
 
 
@@ -146,7 +148,14 @@ async def delete_sku(
     variant_id: uuid.UUID,
     sku_id: uuid.UUID,
     handler: FromDishka[DeleteSKUHandler],
+    list_handler: FromDishka[ListSKUsHandler],
 ) -> None:
-    """Soft-delete a SKU from the product."""
+    """Soft-delete a SKU from the product variant."""
+    # Verify SKU belongs to the specified variant before deleting
+    skus = await list_handler.handle(
+        ListSKUsQuery(product_id=product_id, variant_id=variant_id)
+    )
+    if not any(s.id == sku_id for s in skus):
+        raise SKUNotFoundError(sku_id=sku_id)
     command = DeleteSKUCommand(product_id=product_id, sku_id=sku_id)
     await handler.handle(command)
