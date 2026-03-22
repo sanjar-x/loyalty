@@ -24,6 +24,7 @@ from src.modules.catalog.infrastructure.models import (
 )
 from src.modules.catalog.infrastructure.models import (
     Product as OrmProduct,
+    ProductAttributeValue as OrmProductAttributeValue,
 )
 
 
@@ -58,6 +59,7 @@ class GetProductHandler:
                 selectinload(OrmProduct.variants.and_(OrmProductVariant.deleted_at.is_(None)))
                 .selectinload(OrmProductVariant.skus)
                 .selectinload(OrmSKU.attribute_values),
+                selectinload(OrmProduct.product_attribute_values),
             )
         )
         result = await self._session.execute(stmt)
@@ -87,10 +89,15 @@ class GetProductHandler:
         min_price = min(active_prices) if active_prices else None
         max_price = max(active_prices) if active_prices else None
 
-        # Product-level attribute values (EAV pivot records).
-        # The ProductAttributeValue ORM model is introduced in MT-16.
-        # Until that model and relationship exist, this list remains empty.
-        attributes: list[ProductAttributeValueReadModel] = []
+        attributes = [
+            ProductAttributeValueReadModel(
+                id=pav.id,
+                product_id=pav.product_id,
+                attribute_id=pav.attribute_id,
+                attribute_value_id=pav.attribute_value_id,
+            )
+            for pav in orm.product_attribute_values
+        ]
 
         return ProductReadModel(
             id=orm.id,

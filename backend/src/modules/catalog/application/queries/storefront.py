@@ -358,7 +358,10 @@ class _NullGroup:
 
     sort_order: int = 999_999
     code: str | None = None
-    name_i18n: dict[str, Any] = {}  # noqa: RUF012
+    name_i18n: dict[str, Any]
+
+    def __init__(self) -> None:
+        self.name_i18n = {}
 
 
 def _null_group() -> _NullGroup:
