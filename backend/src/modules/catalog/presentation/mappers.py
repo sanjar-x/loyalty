@@ -1,8 +1,12 @@
 """Shared mapping helpers for catalog presentation layer."""
 
-from src.modules.catalog.application.queries.read_models import SKUReadModel
+from src.modules.catalog.application.queries.read_models import (
+    ProductVariantReadModel,
+    SKUReadModel,
+)
 from src.modules.catalog.presentation.schemas import (
     MoneySchema,
+    ProductVariantResponse,
     SKUResponse,
     VariantAttributePairSchema,
 )
@@ -43,4 +47,18 @@ def to_sku_response(model: SKUReadModel) -> SKUResponse:
             )
             for va in model.variant_attributes
         ],
+    )
+
+
+def to_variant_response(v: ProductVariantReadModel) -> ProductVariantResponse:
+    """Convert a ProductVariantReadModel to a ProductVariantResponse schema."""
+    return ProductVariantResponse(
+        id=v.id,
+        name_i18n=v.name_i18n,
+        description_i18n=v.description_i18n,
+        sort_order=v.sort_order,
+        default_price=MoneySchema(amount=v.default_price.amount, currency=v.default_price.currency)
+        if v.default_price
+        else None,
+        skus=[to_sku_response(s) for s in v.skus],
     )

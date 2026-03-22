@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.catalog.application.queries.get_category import category_orm_to_read_model
 from src.modules.catalog.application.queries.read_models import (
     CategoryListReadModel,
     CategoryReadModel,
@@ -58,18 +59,7 @@ class ListCategoriesHandler:
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
 
-        items = [
-            CategoryReadModel(
-                id=orm.id,
-                name=orm.name,
-                slug=orm.slug,
-                full_slug=orm.full_slug,
-                level=orm.level,
-                sort_order=orm.sort_order,
-                parent_id=orm.parent_id,
-            )
-            for orm in rows
-        ]
+        items = [category_orm_to_read_model(orm) for orm in rows]
 
         return CategoryListReadModel(
             items=items,

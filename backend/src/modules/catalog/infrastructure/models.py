@@ -535,6 +535,10 @@ class Product(Base):
         Index("ix_products_attributes_gin", "attributes", postgresql_using="gin"),
         Index("ix_products_title_gin", "title_i18n", postgresql_using="gin"),
         Index("ix_products_tags_gin", "tags", postgresql_using="gin"),
+        # catalog_listing: covers queries that filter by status (e.g. admin listing by DRAFT/ACTIVE).
+        # sale_listing: covers storefront queries that don't filter by status but sort by popularity.
+        # Both are partial indexes on visible, non-deleted products. They differ in the "status" column
+        # inclusion, which avoids an index-filter step for each respective query pattern.
         Index(
             "ix_products_catalog_listing",
             "brand_id",
@@ -569,7 +573,9 @@ class ProductVariant(Base):
     name_i18n: Mapped[dict] = mapped_column(
         MutableDict.as_mutable(JSONB), server_default=text("'{}'::jsonb")
     )
-    description_i18n: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    description_i18n: Mapped[dict | None] = mapped_column(
+        MutableDict.as_mutable(JSONB), nullable=True
+    )
     sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
     default_price: Mapped[int | None] = mapped_column(
         Integer, nullable=True, comment="Default price in smallest currency units"
@@ -642,8 +648,8 @@ class MediaAsset(Base):
         comment="Direct URL (e.g. youtube.com/...) when is_external is true",
     )
 
-    processing_status: Mapped[str | None] = mapped_column(
-        String(30),
+    processing_status: Mapped[MediaProcessingStatus | None] = mapped_column(
+        Enum(MediaProcessingStatus, native_enum=False, length=30),
         nullable=True,
         comment="FSM: PENDING_UPLOAD, PROCESSING, COMPLETED, FAILED",
     )
@@ -680,12 +686,16 @@ class MediaAsset(Base):
 
     __table_args__ = (
         # Business rule: each variant may have at most one MAIN image
+        # Excludes FAILED uploads to match application-level has_main_for_variant check.
+        # TODO: requires a new Alembic migration to DROP + re-CREATE this index with the updated WHERE clause.
         Index(
             "uix_media_single_main_per_variant",
             "product_id",
             "variant_id",
             unique=True,
-            postgresql_where=text("role = 'main'"),
+            postgresql_where=text(
+                "role = 'main' AND deleted_at IS NULL AND processing_status != 'FAILED'"
+            ),
             postgresql_nulls_not_distinct=True,
         ),
     )
@@ -720,7 +730,7 @@ class SKU(Base):
         MutableDict.as_mutable(JSONB), server_default=text("'{}'::jsonb")
     )
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
-    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, server_default=text("1"), nullable=False)
 
     price: Mapped[int | None] = mapped_column(
         Integer,

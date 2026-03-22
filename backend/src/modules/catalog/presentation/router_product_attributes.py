@@ -24,9 +24,6 @@ from src.modules.catalog.application.queries.list_product_attributes import (
     ListProductAttributesHandler,
     ListProductAttributesQuery,
 )
-from src.modules.catalog.application.queries.read_models import (
-    ProductAttributeReadModel,
-)
 from src.modules.catalog.presentation.schemas import (
     ProductAttributeAssignRequest,
     ProductAttributeAssignResponse,
@@ -98,10 +95,8 @@ async def list_product_attributes(
     Returns:
         Paginated product attribute assignment responses.
     """
-    query = ListProductAttributesQuery(product_id=product_id)
-    all_items: list[ProductAttributeReadModel] = await handler.handle(query)
-    total = len(all_items)
-    page = all_items[offset : offset + limit]
+    query = ListProductAttributesQuery(product_id=product_id, offset=offset, limit=limit)
+    items, total = await handler.handle(query)
     return ProductAttributeListResponse(
         items=[
             ProductAttributeResponse(
@@ -112,7 +107,7 @@ async def list_product_attributes(
                 attribute_code=item.attribute_code,
                 attribute_name_i18n=item.attribute_name_i18n,
             )
-            for item in page
+            for item in items
         ],
         total=total,
         offset=offset,

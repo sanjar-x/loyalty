@@ -62,6 +62,7 @@ def upgrade() -> None:
     op.create_index("ix_product_variants_product_id", "product_variants", ["product_id"])
 
     # 2. Backfill: create 1 default variant per existing product
+    # NOTE: Uses UUIDv4 (gen_random_uuid) for backfill. Production IDs use UUIDv7 via application layer.
     op.execute(
         """
         INSERT INTO product_variants (id, product_id, name_i18n, sort_order, default_currency, created_at, updated_at)
@@ -139,6 +140,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Reverse operations (not detailed — pre-production)
+    # NOTE: Pre-production migration. Original indexes (ix_media_assets_product_attr, uix_media_single_main_per_color) not restored in downgrade.
     op.drop_index("uix_media_single_main_per_variant", table_name="media_assets")
     op.add_column("media_assets", sa.Column("attribute_value_id", sa.UUID(), nullable=True))
     op.drop_index("ix_media_assets_variant_id", table_name="media_assets")

@@ -5,6 +5,7 @@ Command handler: bulk update requirement levels for bindings in a category.
 import uuid
 from dataclasses import dataclass, field
 
+from src.modules.catalog.domain.events import RequirementLevelsUpdatedEvent
 from src.modules.catalog.domain.exceptions import CategoryNotFoundError
 from src.modules.catalog.domain.interfaces import (
     ICategoryAttributeBindingRepository,
@@ -67,4 +68,11 @@ class BulkUpdateRequirementLevelsHandler:
 
             updates = [(item.binding_id, item.requirement_level.value) for item in command.items]
             await self._binding_repo.bulk_update_requirement_level(updates)
+            category.add_domain_event(
+                RequirementLevelsUpdatedEvent(
+                    category_id=command.category_id,
+                    aggregate_id=str(command.category_id),
+                )
+            )
+            self._uow.register_aggregate(category)
             await self._uow.commit()

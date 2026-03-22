@@ -48,57 +48,57 @@ class TestListProductAttributesQuery:
 # ---------------------------------------------------------------------------
 
 
-class TestListProductAttributesHandlerStub:
-    """Handler is a stub until MT-16: always returns empty list."""
+def _mock_session(rows: list = []) -> AsyncMock:  # noqa: B006
+    """Build an AsyncSession mock returning count then data rows.
+
+    The handler calls session.execute twice: first for COUNT, then for data.
+    """
+    from unittest.mock import MagicMock
+
+    session = AsyncMock()
+
+    # First call: COUNT query -> scalar_one() returns len(rows)
+    count_result_mock = MagicMock()
+    count_result_mock.scalar_one.return_value = len(rows)
+
+    # Second call: data query -> all() returns rows (tuples of (pav, attr))
+    data_result_mock = MagicMock()
+    data_result_mock.all.return_value = rows
+
+    session.execute.side_effect = [count_result_mock, data_result_mock]
+    return session
+
+
+class TestListProductAttributesHandler:
+    """Tests for ListProductAttributesHandler."""
 
     @pytest.mark.asyncio
-    async def test_returns_empty_list(self) -> None:
-        """Handler returns an empty list (stub behavior)."""
-        session = AsyncMock()
+    async def test_returns_empty_list_with_zero_total(self) -> None:
+        """Handler returns (empty list, 0) when no attributes exist."""
+        session = _mock_session([])
         handler = ListProductAttributesHandler(session)
         query = ListProductAttributesQuery(product_id=uuid.uuid4())
 
-        result = await handler.handle(query)
+        items, total = await handler.handle(query)
 
-        assert isinstance(result, list)
-        assert result == []
-
-    @pytest.mark.asyncio
-    async def test_return_type_is_list_of_product_attribute_value_read_model(self) -> None:
-        """Return type annotation is list[ProductAttributeValueReadModel]."""
-        session = AsyncMock()
-        handler = ListProductAttributesHandler(session)
-        query = ListProductAttributesQuery(product_id=uuid.uuid4())
-
-        result = await handler.handle(query)
-
-        # Empty list conforms to list[ProductAttributeValueReadModel]
-        assert isinstance(result, list)
+        assert isinstance(items, list)
+        assert items == []
+        assert total == 0
 
     @pytest.mark.asyncio
-    async def test_session_not_queried(self) -> None:
-        """Session.execute is NOT called (stub -- no ORM model yet)."""
-        session = AsyncMock()
+    async def test_session_execute_called_twice(self) -> None:
+        """Handler calls session.execute twice (count + data)."""
+        session = _mock_session([])
         handler = ListProductAttributesHandler(session)
         query = ListProductAttributesQuery(product_id=uuid.uuid4())
 
         await handler.handle(query)
 
-        session.execute.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_accepts_any_product_id(self) -> None:
-        """Handler accepts any UUID without error."""
-        session = AsyncMock()
-        handler = ListProductAttributesHandler(session)
-
-        for _ in range(3):
-            result = await handler.handle(ListProductAttributesQuery(product_id=uuid.uuid4()))
-            assert result == []
+        assert session.execute.await_count == 2
 
     @pytest.mark.asyncio
     async def test_handler_stores_session(self) -> None:
-        """Handler stores the session for future use (MT-16)."""
+        """Handler stores the session."""
         session = AsyncMock()
         handler = ListProductAttributesHandler(session)
         assert handler._session is session

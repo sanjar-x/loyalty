@@ -73,17 +73,28 @@ def _make_orm_sku(
         created_at=_NOW,
         updated_at=_NOW,
         attribute_values=attribute_values or [],
+        variant=None,
     )
 
 
 def _mock_session(orm_rows: list[SimpleNamespace]) -> AsyncMock:
-    """Build an AsyncSession mock returning scalars().all() -> orm_rows."""
+    """Build an AsyncSession mock returning count then scalars().all() -> orm_rows.
+
+    The handler now calls session.execute twice: first for COUNT, then for data.
+    """
     session = AsyncMock()
-    result_mock = MagicMock()
+
+    # First call: COUNT query -> scalar_one() returns len(orm_rows)
+    count_result_mock = MagicMock()
+    count_result_mock.scalar_one.return_value = len(orm_rows)
+
+    # Second call: data query -> scalars().all() returns orm_rows
+    data_result_mock = MagicMock()
     scalars_mock = MagicMock()
     scalars_mock.all.return_value = orm_rows
-    result_mock.scalars.return_value = scalars_mock
-    session.execute.return_value = result_mock
+    data_result_mock.scalars.return_value = scalars_mock
+
+    session.execute.side_effect = [count_result_mock, data_result_mock]
     return session
 
 
@@ -118,29 +129,30 @@ class TestListSKUsHandlerHappyPath:
 
     @pytest.mark.asyncio
     async def test_returns_list_of_sku_read_models(self) -> None:
-        """Handler returns a list of SKUReadModel."""
+        """Handler returns a tuple of (list of SKUReadModel, total count)."""
         pid = uuid.uuid4()
         sku1 = _make_orm_sku(pid, price=500)
         sku2 = _make_orm_sku(pid, price=1500)
         session = _mock_session([sku1, sku2])
 
         handler = ListSKUsHandler(session)
-        result = await handler.handle(ListSKUsQuery(product_id=pid))
+        items, total = await handler.handle(ListSKUsQuery(product_id=pid))
 
-        assert isinstance(result, list)
-        assert len(result) == 2
-        assert all(isinstance(s, SKUReadModel) for s in result)
+        assert isinstance(items, list)
+        assert len(items) == 2
+        assert total == 2
+        assert all(isinstance(s, SKUReadModel) for s in items)
 
     @pytest.mark.asyncio
-    async def test_session_execute_called_once(self) -> None:
-        """Handler calls session.execute exactly once."""
+    async def test_session_execute_called_twice(self) -> None:
+        """Handler calls session.execute twice (count + data)."""
         pid = uuid.uuid4()
         session = _mock_session([])
 
         handler = ListSKUsHandler(session)
         await handler.handle(ListSKUsQuery(product_id=pid))
 
-        session.execute.assert_awaited_once()
+        assert session.execute.await_count == 2
 
 
 class TestListSKUsHandlerEmptyResult:
@@ -148,14 +160,15 @@ class TestListSKUsHandlerEmptyResult:
 
     @pytest.mark.asyncio
     async def test_empty_list_returned(self) -> None:
-        """No SKUs returns an empty list."""
+        """No SKUs returns an empty list with zero total."""
         pid = uuid.uuid4()
         session = _mock_session([])
 
         handler = ListSKUsHandler(session)
-        result = await handler.handle(ListSKUsQuery(product_id=pid))
+        items, total = await handler.handle(ListSKUsQuery(product_id=pid))
 
-        assert result == []
+        assert items == []
+        assert total == 0
 
 
 class TestListSKUsHandlerMapping:
@@ -169,11 +182,11 @@ class TestListSKUsHandlerMapping:
         session = _mock_session([sku])
 
         handler = ListSKUsHandler(session)
-        result = await handler.handle(ListSKUsQuery(product_id=pid))
+        items, _ = await handler.handle(ListSKUsQuery(product_id=pid))
 
-        assert isinstance(result[0].price, MoneyReadModel)
-        assert result[0].price.amount == 2500
-        assert result[0].price.currency == "EUR"
+        assert isinstance(items[0].price, MoneyReadModel)
+        assert items[0].price.amount == 2500
+        assert items[0].price.currency == "EUR"
 
     @pytest.mark.asyncio
     async def test_compare_at_price_none_when_absent(self) -> None:
@@ -183,9 +196,9 @@ class TestListSKUsHandlerMapping:
         session = _mock_session([sku])
 
         handler = ListSKUsHandler(session)
-        result = await handler.handle(ListSKUsQuery(product_id=pid))
+        items, _ = await handler.handle(ListSKUsQuery(product_id=pid))
 
-        assert result[0].compare_at_price is None
+        assert items[0].compare_at_price is None
 
     @pytest.mark.asyncio
     async def test_compare_at_price_mapped_when_present(self) -> None:
@@ -195,11 +208,11 @@ class TestListSKUsHandlerMapping:
         session = _mock_session([sku])
 
         handler = ListSKUsHandler(session)
-        result = await handler.handle(ListSKUsQuery(product_id=pid))
+        items, _ = await handler.handle(ListSKUsQuery(product_id=pid))
 
-        assert result[0].compare_at_price is not None
-        assert result[0].compare_at_price.amount == 1500
-        assert result[0].compare_at_price.currency == "USD"
+        assert items[0].compare_at_price is not None
+        assert items[0].compare_at_price.amount == 1500
+        assert items[0].compare_at_price.currency == "USD"
 
     @pytest.mark.asyncio
     async def test_variant_attributes_mapped(self) -> None:
@@ -212,10 +225,10 @@ class TestListSKUsHandlerMapping:
         session = _mock_session([sku])
 
         handler = ListSKUsHandler(session)
-        result = await handler.handle(ListSKUsQuery(product_id=pid))
+        items, _ = await handler.handle(ListSKUsQuery(product_id=pid))
 
-        assert len(result[0].variant_attributes) == 1
-        pair = result[0].variant_attributes[0]
+        assert len(items[0].variant_attributes) == 1
+        pair = items[0].variant_attributes[0]
         assert isinstance(pair, VariantAttributePairReadModel)
         assert pair.attribute_id == attr_id
         assert pair.attribute_value_id == val_id
@@ -229,9 +242,9 @@ class TestListSKUsHandlerMapping:
         session = _mock_session([sku])
 
         handler = ListSKUsHandler(session)
-        result = await handler.handle(ListSKUsQuery(product_id=pid))
+        items, _ = await handler.handle(ListSKUsQuery(product_id=pid))
 
-        assert len(result[0].variant_attributes) == 3
+        assert len(items[0].variant_attributes) == 3
 
     @pytest.mark.asyncio
     async def test_sku_fields_preserved(self) -> None:
@@ -246,9 +259,9 @@ class TestListSKUsHandlerMapping:
         session = _mock_session([sku])
 
         handler = ListSKUsHandler(session)
-        result = await handler.handle(ListSKUsQuery(product_id=pid))
+        items, _ = await handler.handle(ListSKUsQuery(product_id=pid))
 
-        item = result[0]
+        item = items[0]
         assert item.sku_code == "MY-SKU-001"
         assert item.is_active is False
         assert item.product_id == pid

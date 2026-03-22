@@ -18,11 +18,13 @@ from src.modules.catalog.domain.exceptions import (
     ProductNotFoundError,
     ProductSlugConflictError,
 )
+from src.shared.exceptions import UnprocessableEntityError
 from src.modules.catalog.domain.interfaces import (
     IBrandRepository,
     ICategoryRepository,
     IProductRepository,
 )
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -87,11 +89,13 @@ class UpdateProductHandler:
         brand_repo: IBrandRepository,
         category_repo: ICategoryRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._brand_repo = brand_repo
         self._category_repo = category_repo
         self._uow = uow
+        self._logger = logger.bind(handler="UpdateProductHandler")
 
     async def handle(self, command: UpdateProductCommand) -> UpdateProductResult:
         """Execute the update-product command.
@@ -130,11 +134,23 @@ class UpdateProductHandler:
 
             # --- FK validation (only when the field is being updated) ---
             if "brand_id" in command._provided_fields:
+                if command.brand_id is None:
+                    raise UnprocessableEntityError(
+                        message="brand_id cannot be set to None.",
+                        error_code="BRAND_ID_REQUIRED",
+                        details={},
+                    )
                 brand = await self._brand_repo.get(command.brand_id)
                 if brand is None:
                     raise BrandNotFoundError(brand_id=command.brand_id)
 
             if "primary_category_id" in command._provided_fields:
+                if command.primary_category_id is None:
+                    raise UnprocessableEntityError(
+                        message="primary_category_id cannot be set to None.",
+                        error_code="PRIMARY_CATEGORY_ID_REQUIRED",
+                        details={},
+                    )
                 category = await self._category_repo.get(command.primary_category_id)
                 if category is None:
                     raise CategoryNotFoundError(category_id=command.primary_category_id)
@@ -162,4 +178,9 @@ class UpdateProductHandler:
             self._uow.register_aggregate(product)
             await self._uow.commit()
 
+        self._logger.info(
+            "Product updated",
+            product_id=str(product.id),
+            provided_fields=sorted(command._provided_fields),
+        )
         return UpdateProductResult(id=product.id)

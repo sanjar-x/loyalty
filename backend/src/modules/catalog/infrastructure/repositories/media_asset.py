@@ -159,7 +159,7 @@ class MediaAssetRepository(IMediaAssetRepository):
         conditions = [
             OrmMediaAsset.product_id == product_id,
             OrmMediaAsset.role == MediaRole.MAIN,
-            OrmMediaAsset.processing_status != MediaProcessingStatus.FAILED.value,
+            OrmMediaAsset.processing_status != MediaProcessingStatus.FAILED,
         ]
         if variant_id is None:
             conditions.append(OrmMediaAsset.variant_id.is_(None))

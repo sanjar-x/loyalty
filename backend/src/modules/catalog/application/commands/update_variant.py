@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from src.modules.catalog.domain.exceptions import ProductNotFoundError, VariantNotFoundError
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -69,9 +70,11 @@ class UpdateVariantHandler:
         self,
         product_repo: IProductRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._uow = uow
+        self._logger = logger.bind(handler="UpdateVariantHandler")
 
     async def handle(self, command: UpdateVariantCommand) -> UpdateVariantResult:
         """Execute the update-variant command.
@@ -101,33 +104,36 @@ class UpdateVariantHandler:
 
             update_kwargs: dict[str, object] = {}
 
-            if command.name_i18n is not None:
+            if "name_i18n" in command._provided_fields:
                 update_kwargs["name_i18n"] = command.name_i18n
 
             if "description_i18n" in command._provided_fields:
                 update_kwargs["description_i18n"] = command.description_i18n
 
-            if command.sort_order is not None:
+            if "sort_order" in command._provided_fields:
                 update_kwargs["sort_order"] = command.sort_order
 
-            # Handle default_price: can be set, changed, or cleared
-            if (
-                command.default_price_amount is not None
-                or "default_price_amount" in command._provided_fields
-            ):
+            if "default_price_currency" in command._provided_fields:
+                currency = command.default_price_currency
+                if currency is not None and not (
+                    len(currency) == 3 and currency.isascii() and currency.isupper()
+                ):
+                    raise ValueError(
+                        "default_price_currency must be exactly 3 uppercase ASCII letters"
+                    )
+
+            if "default_price_amount" in command._provided_fields:
                 if command.default_price_amount is not None:
                     currency = command.default_price_currency or variant.default_currency
                     update_kwargs["default_price"] = Money(
                         amount=command.default_price_amount, currency=currency
                     )
-                    if command.default_price_currency is not None:
-                        update_kwargs["default_currency"] = command.default_price_currency
                 else:
-                    # Explicitly clear default_price
                     update_kwargs["default_price"] = None
 
-            elif command.default_price_currency is not None:
-                update_kwargs["default_currency"] = command.default_price_currency
+            if "default_price_currency" in command._provided_fields:
+                if command.default_price_currency is not None:
+                    update_kwargs["default_currency"] = command.default_price_currency
 
             if update_kwargs:
                 variant.update(**update_kwargs)
@@ -136,4 +142,9 @@ class UpdateVariantHandler:
             self._uow.register_aggregate(product)
             await self._uow.commit()
 
+        self._logger.info(
+            "Variant updated",
+            variant_id=str(variant.id),
+            product_id=str(command.product_id),
+        )
         return UpdateVariantResult(id=variant.id)

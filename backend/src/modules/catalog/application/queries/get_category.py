@@ -16,6 +16,19 @@ from src.modules.catalog.domain.exceptions import CategoryNotFoundError
 from src.modules.catalog.infrastructure.models import Category as OrmCategory
 
 
+def category_orm_to_read_model(orm: OrmCategory) -> CategoryReadModel:
+    """Convert an ORM Category to a CategoryReadModel."""
+    return CategoryReadModel(
+        id=orm.id,
+        name=orm.name,
+        slug=orm.slug,
+        full_slug=orm.full_slug,
+        level=orm.level,
+        sort_order=orm.sort_order,
+        parent_id=orm.parent_id,
+    )
+
+
 class GetCategoryHandler:
     """Fetch a single category by its UUID."""
 
@@ -41,12 +54,4 @@ class GetCategoryHandler:
         if orm is None:
             raise CategoryNotFoundError(category_id=category_id)
 
-        return CategoryReadModel(
-            id=orm.id,
-            name=orm.name,
-            slug=orm.slug,
-            full_slug=orm.full_slug,
-            level=orm.level,
-            sort_order=orm.sort_order,
-            parent_id=orm.parent_id,
-        )
+        return category_orm_to_read_model(orm)

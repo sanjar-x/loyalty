@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.catalog.application.queries.get_brand import brand_orm_to_read_model
 from src.modules.catalog.application.queries.read_models import (
     BrandListReadModel,
     BrandReadModel,
@@ -53,16 +54,7 @@ class ListBrandsHandler:
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
 
-        items = [
-            BrandReadModel(
-                id=orm.id,
-                name=orm.name,
-                slug=orm.slug,
-                logo_url=orm.logo_url,
-                logo_status=orm.logo_status,
-            )
-            for orm in rows
-        ]
+        items = [brand_orm_to_read_model(orm) for orm in rows]
 
         return BrandListReadModel(
             items=items,

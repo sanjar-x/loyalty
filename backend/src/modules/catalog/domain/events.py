@@ -421,6 +421,21 @@ class ProductCreatedEvent(DomainEvent):
 
 
 @dataclass
+class ProductUpdatedEvent(DomainEvent):
+    """Emitted when product fields are updated."""
+
+    product_id: uuid.UUID | None = None
+    aggregate_type: str = "Product"
+    event_type: str = "ProductUpdatedEvent"
+
+    def __post_init__(self) -> None:
+        if self.product_id is None:
+            raise ValueError("product_id is required for ProductUpdatedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.product_id)
+
+
+@dataclass
 class ProductStatusChangedEvent(DomainEvent):
     """Emitted when a product's status transitions."""
 
@@ -435,3 +450,53 @@ class ProductStatusChangedEvent(DomainEvent):
             raise ValueError("product_id is required for ProductStatusChangedEvent")
         if not self.aggregate_id:
             self.aggregate_id = str(self.product_id)
+
+
+# ---------------------------------------------------------------------------
+# Bulk operation events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class AttributeValuesReorderedEvent(DomainEvent):
+    """Emitted when attribute values are bulk-reordered."""
+
+    attribute_id: uuid.UUID | None = None
+    aggregate_type: str = "Attribute"
+    event_type: str = "AttributeValuesReorderedEvent"
+
+    def __post_init__(self) -> None:
+        if self.attribute_id is None:
+            raise ValueError("attribute_id is required for AttributeValuesReorderedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.attribute_id)
+
+
+@dataclass
+class CategoryBindingsReorderedEvent(DomainEvent):
+    """Emitted when category-attribute bindings are bulk-reordered."""
+
+    category_id: uuid.UUID | None = None
+    aggregate_type: str = "Category"
+    event_type: str = "CategoryBindingsReorderedEvent"
+
+    def __post_init__(self) -> None:
+        if self.category_id is None:
+            raise ValueError("category_id is required for CategoryBindingsReorderedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.category_id)
+
+
+@dataclass
+class RequirementLevelsUpdatedEvent(DomainEvent):
+    """Emitted when requirement levels are bulk-updated."""
+
+    category_id: uuid.UUID | None = None
+    aggregate_type: str = "Category"
+    event_type: str = "RequirementLevelsUpdatedEvent"
+
+    def __post_init__(self) -> None:
+        if self.category_id is None:
+            raise ValueError("category_id is required for RequirementLevelsUpdatedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.category_id)

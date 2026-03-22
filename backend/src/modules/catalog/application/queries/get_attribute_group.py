@@ -19,6 +19,16 @@ from src.modules.catalog.infrastructure.models import (
 )
 
 
+def attribute_group_orm_to_read_model(orm: OrmAttributeGroup) -> AttributeGroupReadModel:
+    """Convert an ORM AttributeGroup to an AttributeGroupReadModel."""
+    return AttributeGroupReadModel(
+        id=orm.id,
+        code=orm.code,
+        name_i18n=orm.name_i18n,
+        sort_order=orm.sort_order,
+    )
+
+
 class GetAttributeGroupHandler:
     """Fetch a single attribute group by its UUID."""
 
@@ -44,9 +54,4 @@ class GetAttributeGroupHandler:
         if orm is None:
             raise AttributeGroupNotFoundError(group_id=group_id)
 
-        return AttributeGroupReadModel(
-            id=orm.id,
-            code=orm.code,
-            name_i18n=orm.name_i18n,
-            sort_order=orm.sort_order,
-        )
+        return attribute_group_orm_to_read_model(orm)

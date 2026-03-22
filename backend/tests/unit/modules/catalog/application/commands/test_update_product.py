@@ -60,10 +60,31 @@ def make_product(
 def make_product_repo(product: MagicMock | None = None) -> AsyncMock:
     """Build a mock IProductRepository."""
     repo = AsyncMock()
-    repo.get.return_value = product
+    repo.get_with_variants = AsyncMock(return_value=product)
     repo.check_slug_exists_excluding = AsyncMock(return_value=False)
     repo.update = AsyncMock()
     return repo
+
+
+def make_brand_repo() -> AsyncMock:
+    """Build a mock IBrandRepository (returns a truthy brand by default)."""
+    repo = AsyncMock()
+    repo.get = AsyncMock(return_value=MagicMock())
+    return repo
+
+
+def make_category_repo() -> AsyncMock:
+    """Build a mock ICategoryRepository (returns a truthy category by default)."""
+    repo = AsyncMock()
+    repo.get = AsyncMock(return_value=MagicMock())
+    return repo
+
+
+def make_logger() -> MagicMock:
+    """Build a mock ILogger that supports .bind() chaining."""
+    logger = MagicMock()
+    logger.bind = MagicMock(return_value=logger)
+    return logger
 
 
 # ---------------------------------------------------------------------------
@@ -224,23 +245,35 @@ class TestUpdateProductHandlerHappyPath:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         result = await handler.handle(UpdateProductCommand(product_id=product_id))
 
         assert isinstance(result, UpdateProductResult)
         assert result.id == product_id
 
     async def test_fetches_product_by_id(self) -> None:
-        """Handler calls repo.get with the command's product_id."""
+        """Handler calls repo.get_with_variants with the command's product_id."""
         product_id = uuid.uuid4()
         product = make_product(product_id=product_id)
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(UpdateProductCommand(product_id=product_id))
 
-        repo.get.assert_awaited_once_with(product_id)
+        repo.get_with_variants.assert_awaited_once_with(product_id)
 
     async def test_calls_repo_update_and_uow_commit(self) -> None:
         """Handler calls repo.update(product) then uow.commit()."""
@@ -248,7 +281,13 @@ class TestUpdateProductHandlerHappyPath:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(UpdateProductCommand(product_id=product.id))
 
         repo.update.assert_awaited_once_with(product)
@@ -260,7 +299,13 @@ class TestUpdateProductHandlerHappyPath:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(
             UpdateProductCommand(
                 product_id=product.id,
@@ -278,7 +323,13 @@ class TestUpdateProductHandlerHappyPath:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(
             UpdateProductCommand(
                 product_id=product.id,
@@ -297,7 +348,13 @@ class TestUpdateProductHandlerHappyPath:
         uow = make_uow()
         brand_id = uuid.uuid4()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(
             UpdateProductCommand(
                 product_id=product.id,
@@ -315,7 +372,13 @@ class TestUpdateProductHandlerHappyPath:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(
             UpdateProductCommand(
                 product_id=product.id,
@@ -333,7 +396,13 @@ class TestUpdateProductHandlerHappyPath:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         # Should not raise even though we don't match the product version
         result = await handler.handle(UpdateProductCommand(product_id=product.id, version=None))
 
@@ -346,7 +415,13 @@ class TestUpdateProductHandlerHappyPath:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         result = await handler.handle(UpdateProductCommand(product_id=product.id, version=3))
 
         assert result.id == product.id
@@ -367,7 +442,13 @@ class TestUpdateProductHandlerNotFound:
         repo = make_product_repo(product=None)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
 
         with pytest.raises(ProductNotFoundError):
             await handler.handle(UpdateProductCommand(product_id=product_id))
@@ -378,7 +459,13 @@ class TestUpdateProductHandlerNotFound:
         repo = make_product_repo(product=None)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
 
         with pytest.raises(ProductNotFoundError):
             await handler.handle(UpdateProductCommand(product_id=product_id))
@@ -391,7 +478,13 @@ class TestUpdateProductHandlerNotFound:
         repo = make_product_repo(product=None)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
 
         with pytest.raises(ProductNotFoundError):
             await handler.handle(UpdateProductCommand(product_id=product_id))
@@ -413,7 +506,13 @@ class TestUpdateProductHandlerOptimisticLocking:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
 
         with pytest.raises(ConcurrencyError):
             await handler.handle(UpdateProductCommand(product_id=product.id, version=1))
@@ -424,7 +523,13 @@ class TestUpdateProductHandlerOptimisticLocking:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
 
         with pytest.raises(ConcurrencyError) as exc_info:
             await handler.handle(UpdateProductCommand(product_id=product.id, version=99))
@@ -437,7 +542,13 @@ class TestUpdateProductHandlerOptimisticLocking:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
 
         with pytest.raises(ConcurrencyError):
             await handler.handle(UpdateProductCommand(product_id=product.id, version=1))
@@ -450,7 +561,13 @@ class TestUpdateProductHandlerOptimisticLocking:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
 
         with pytest.raises(ConcurrencyError):
             await handler.handle(UpdateProductCommand(product_id=product.id, version=1))
@@ -463,7 +580,13 @@ class TestUpdateProductHandlerOptimisticLocking:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
 
         with pytest.raises(ConcurrencyError):
             await handler.handle(UpdateProductCommand(product_id=product.id, version=0))
@@ -484,7 +607,13 @@ class TestUpdateProductHandlerSlugConflict:
         repo.check_slug_exists_excluding.return_value = True
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
 
         with pytest.raises(ProductSlugConflictError):
             await handler.handle(
@@ -503,7 +632,13 @@ class TestUpdateProductHandlerSlugConflict:
         repo.check_slug_exists_excluding.return_value = True
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
 
         with pytest.raises(ProductSlugConflictError):
             await handler.handle(
@@ -523,7 +658,13 @@ class TestUpdateProductHandlerSlugConflict:
         repo.check_slug_exists_excluding.return_value = True
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
 
         with pytest.raises(ProductSlugConflictError):
             await handler.handle(
@@ -543,7 +684,13 @@ class TestUpdateProductHandlerSlugConflict:
         repo.check_slug_exists_excluding.return_value = True
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
 
         with pytest.raises(ProductSlugConflictError):
             await handler.handle(
@@ -562,7 +709,13 @@ class TestUpdateProductHandlerSlugConflict:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(
             UpdateProductCommand(
                 product_id=product.id,
@@ -580,7 +733,13 @@ class TestUpdateProductHandlerSlugConflict:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(
             UpdateProductCommand(
                 product_id=product.id,
@@ -599,7 +758,13 @@ class TestUpdateProductHandlerSlugConflict:
         repo.check_slug_exists_excluding.return_value = False
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(
             UpdateProductCommand(
                 product_id=product.id,
@@ -626,7 +791,13 @@ class TestUpdateProductHandlerProvidedFields:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(UpdateProductCommand(product_id=product.id))
 
         product.update.assert_called_once_with()
@@ -637,7 +808,13 @@ class TestUpdateProductHandlerProvidedFields:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(UpdateProductCommand(product_id=product.id))
 
         call_kwargs = product.update.call_args.kwargs
@@ -649,7 +826,13 @@ class TestUpdateProductHandlerProvidedFields:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(
             UpdateProductCommand(
                 product_id=product.id,
@@ -669,7 +852,13 @@ class TestUpdateProductHandlerProvidedFields:
         uow = make_uow()
         supplier_id = uuid.uuid4()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(
             UpdateProductCommand(
                 product_id=product.id,
@@ -687,7 +876,13 @@ class TestUpdateProductHandlerProvidedFields:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(UpdateProductCommand(product_id=product.id))
 
         call_kwargs = product.update.call_args.kwargs
@@ -699,7 +894,13 @@ class TestUpdateProductHandlerProvidedFields:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(
             UpdateProductCommand(
                 product_id=product.id,
@@ -718,7 +919,13 @@ class TestUpdateProductHandlerProvidedFields:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(
             UpdateProductCommand(
                 product_id=product.id,
@@ -736,7 +943,13 @@ class TestUpdateProductHandlerProvidedFields:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(UpdateProductCommand(product_id=product.id))
 
         call_kwargs = product.update.call_args.kwargs
@@ -759,7 +972,13 @@ class TestUpdateProductHandlerProvidedFields:
         brand_id = uuid.uuid4()
         supplier_id = uuid.uuid4()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(
             UpdateProductCommand(
                 product_id=product.id,
@@ -769,7 +988,13 @@ class TestUpdateProductHandlerProvidedFields:
                 supplier_id=supplier_id,
                 country_of_origin="US",
                 _provided_fields=frozenset(
-                    {"title_i18n", "slug", "brand_id", "supplier_id", "country_of_origin"}
+                    {
+                        "title_i18n",
+                        "slug",
+                        "brand_id",
+                        "supplier_id",
+                        "country_of_origin",
+                    }
                 ),
             )
         )
@@ -803,7 +1028,13 @@ class TestUpdateProductHandlerProvidedFields:
         repo = make_product_repo(product=product)
         uow = make_uow()
 
-        handler = UpdateProductHandler(product_repo=repo, uow=uow)
+        handler = UpdateProductHandler(
+            product_repo=repo,
+            brand_repo=make_brand_repo(),
+            category_repo=make_category_repo(),
+            uow=uow,
+            logger=make_logger(),
+        )
         await handler.handle(
             UpdateProductCommand(
                 product_id=product.id,

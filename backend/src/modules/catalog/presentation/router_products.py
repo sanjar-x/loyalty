@@ -37,9 +37,8 @@ from src.modules.catalog.application.queries.read_models import (
     ProductReadModel,
 )
 from src.modules.catalog.domain.value_objects import ProductStatus
-from src.modules.catalog.presentation.mappers import to_sku_response
+from src.modules.catalog.presentation.mappers import to_variant_response
 from src.modules.catalog.presentation.schemas import (
-    MoneySchema,
     ProductAttributeResponse,
     ProductCreateRequest,
     ProductCreateResponse,
@@ -48,7 +47,6 @@ from src.modules.catalog.presentation.schemas import (
     ProductResponse,
     ProductStatusChangeRequest,
     ProductUpdateRequest,
-    ProductVariantResponse,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
@@ -93,6 +91,7 @@ async def create_product(
     response_model=ProductListResponse,
     summary="List products (paginated, filterable)",
     description="Retrieve a paginated list of products with optional filters.",
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def list_products(
     handler: FromDishka[ListProductsHandler],
@@ -136,6 +135,7 @@ async def list_products(
     response_model=ProductResponse,
     summary="Get product detail by ID",
     description="Retrieve a single product with nested SKUs and attributes.",
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def get_product(
     product_id: uuid.UUID,
@@ -237,22 +237,8 @@ def _to_product_response(model: ProductReadModel) -> ProductResponse:
         published_at=model.published_at,
         min_price=model.min_price,
         max_price=model.max_price,
-        variants=[
-            ProductVariantResponse(
-                id=v.id,
-                name_i18n=v.name_i18n,
-                description_i18n=v.description_i18n,
-                sort_order=v.sort_order,
-                default_price=MoneySchema(
-                    amount=v.default_price.amount,
-                    currency=v.default_price.currency,
-                )
-                if v.default_price
-                else None,
-                skus=[to_sku_response(s) for s in v.skus],
-            )
-            for v in model.variants
-        ],
+        price_currency=model.price_currency,
+        variants=[to_variant_response(v) for v in model.variants],
         attributes=[
             ProductAttributeResponse(
                 id=a.id,

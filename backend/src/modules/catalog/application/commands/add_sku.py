@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from src.modules.catalog.domain.exceptions import ProductNotFoundError
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -65,9 +66,11 @@ class AddSKUHandler:
         self,
         product_repo: IProductRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._uow = uow
+        self._logger = logger.bind(handler="AddSKUHandler")
 
     async def handle(self, command: AddSKUCommand) -> AddSKUResult:
         """Execute the add-SKU command.
@@ -128,4 +131,9 @@ class AddSKUHandler:
             self._uow.register_aggregate(product)
             await self._uow.commit()
 
+        self._logger.info(
+            "SKU added to product",
+            sku_id=str(sku.id),
+            product_id=str(command.product_id),
+        )
         return AddSKUResult(sku_id=sku.id)

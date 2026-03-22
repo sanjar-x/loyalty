@@ -3,7 +3,7 @@
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.infrastructure.models import MediaAsset as OrmMediaAsset
@@ -25,21 +25,54 @@ class MediaAssetReadModel:
     external_url: str | None
 
 
+@dataclass(frozen=True)
+class ListProductMediaQuery:
+    """Parameters for listing media assets of a product.
+
+    Attributes:
+        product_id: UUID of the parent product.
+        offset: Number of records to skip.
+        limit: Maximum number of records to return.
+    """
+
+    product_id: uuid.UUID
+    offset: int = 0
+    limit: int = 50
+
+
 class ListProductMediaHandler:
-    """List all media assets for a product (CQRS read side)."""
+    """List media assets for a product with DB-level pagination (CQRS read side)."""
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def handle(self, product_id: uuid.UUID) -> list[MediaAssetReadModel]:
+    async def handle(self, query: ListProductMediaQuery) -> tuple[list[MediaAssetReadModel], int]:
+        """Retrieve paginated media assets for a product.
+
+        Args:
+            query: Query parameters with product_id and pagination.
+
+        Returns:
+            Tuple of (media read models, total count).
+        """
+        count_stmt = (
+            select(func.count())
+            .select_from(OrmMediaAsset)
+            .where(OrmMediaAsset.product_id == query.product_id)
+        )
+        count_result = await self._session.execute(count_stmt)
+        total: int = count_result.scalar_one()
+
         stmt = (
             select(OrmMediaAsset)
-            .where(OrmMediaAsset.product_id == product_id)
+            .where(OrmMediaAsset.product_id == query.product_id)
             .order_by(OrmMediaAsset.variant_id, OrmMediaAsset.sort_order)
+            .limit(query.limit)
+            .offset(query.offset)
         )
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
-        return [self._to_read_model(orm) for orm in rows]
+        return [self._to_read_model(orm) for orm in rows], total
 
     @staticmethod
     def _to_read_model(orm: OrmMediaAsset) -> MediaAssetReadModel:

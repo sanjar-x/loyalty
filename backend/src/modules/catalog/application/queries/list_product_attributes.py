@@ -8,7 +8,7 @@ alongside each assignment. CQRS read side -- queries ORM directly.
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.read_models import (
@@ -24,9 +24,17 @@ from src.modules.catalog.infrastructure.models import (
 
 @dataclass(frozen=True)
 class ListProductAttributesQuery:
-    """Parameters for listing attribute assignments of a product."""
+    """Parameters for listing attribute assignments of a product.
+
+    Attributes:
+        product_id: UUID of the parent product.
+        offset: Number of records to skip.
+        limit: Maximum number of records to return.
+    """
 
     product_id: uuid.UUID
+    offset: int = 0
+    limit: int = 50
 
 
 class ListProductAttributesHandler:
@@ -35,18 +43,37 @@ class ListProductAttributesHandler:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def handle(self, query: ListProductAttributesQuery) -> list[ProductAttributeReadModel]:
-        """Retrieve product attribute assignments joined with attribute data."""
+    async def handle(
+        self, query: ListProductAttributesQuery
+    ) -> tuple[list[ProductAttributeReadModel], int]:
+        """Retrieve paginated product attribute assignments joined with attribute data.
+
+        Args:
+            query: Query parameters with product_id and pagination.
+
+        Returns:
+            Tuple of (attribute read models, total count).
+        """
+        count_stmt = (
+            select(func.count())
+            .select_from(OrmProductAttributeValue)
+            .where(OrmProductAttributeValue.product_id == query.product_id)
+        )
+        count_result = await self._session.execute(count_stmt)
+        total: int = count_result.scalar_one()
+
         stmt = (
             select(OrmProductAttributeValue, OrmAttribute)
             .join(OrmAttribute, OrmProductAttributeValue.attribute_id == OrmAttribute.id)
             .where(OrmProductAttributeValue.product_id == query.product_id)
             .order_by(OrmAttribute.code)
+            .limit(query.limit)
+            .offset(query.offset)
         )
         result = await self._session.execute(stmt)
         rows = result.all()
 
-        return [
+        items = [
             ProductAttributeReadModel(
                 id=pav.id,
                 product_id=pav.product_id,
@@ -57,3 +84,4 @@ class ListProductAttributesHandler:
             )
             for pav, attr in rows
         ]
+        return items, total

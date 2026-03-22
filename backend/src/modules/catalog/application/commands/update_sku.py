@@ -168,7 +168,7 @@ class UpdateSKUHandler:
 
             # --- Variant attributes: re-compute hash and check uniqueness ---
             if command.variant_attributes is not None:
-                new_hash = product.compute_variant_hash(command.variant_attributes)
+                new_hash = product.compute_variant_hash(sku.variant_id, command.variant_attributes)
                 # Check uniqueness among active SKUs (excluding the one being updated).
                 for v in product.variants:
                     for existing in v.skus:

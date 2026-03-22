@@ -32,6 +32,7 @@ from src.modules.catalog.domain.events import (
     ProductMediaConfirmedEvent,
     ProductMediaProcessedEvent,
     ProductStatusChangedEvent,
+    ProductUpdatedEvent,
 )
 from src.modules.catalog.domain.exceptions import (
     CategoryMaxDepthError,
@@ -773,6 +774,7 @@ class AttributeValue:
         """
         if not value_i18n:
             raise ValueError("value_i18n must contain at least one language entry")
+        _validate_slug(slug, "AttributeValue")
 
         return cls(
             id=value_id or _generate_id(),
@@ -1028,14 +1030,17 @@ class SKU:
         """Validate compare_at_price > price when both are provided."""
         if self.price is None and self.compare_at_price is not None:
             raise ValueError("compare_at_price cannot be set when price is None")
-        if self.compare_at_price is not None and self.price is not None:
-            if self.compare_at_price.currency != self.price.currency:
-                raise ValueError(
-                    f"compare_at_price currency ({self.compare_at_price.currency}) "
-                    f"must match price currency ({self.price.currency})"
-                )
-            if not self.compare_at_price > self.price:
-                raise ValueError("compare_at_price must be greater than price")
+        if self.compare_at_price is not None:
+            if self.compare_at_price.amount <= 0:
+                raise ValueError("compare_at_price amount must be greater than zero")
+            if self.price is not None:
+                if self.compare_at_price.currency != self.price.currency:
+                    raise ValueError(
+                        f"compare_at_price currency ({self.compare_at_price.currency}) "
+                        f"must match price currency ({self.price.currency})"
+                    )
+                if not self.compare_at_price > self.price:
+                    raise ValueError("compare_at_price must be greater than price")
 
     def soft_delete(self) -> None:
         """Mark this SKU as deleted.
@@ -1093,12 +1098,11 @@ class SKU:
         # Re-validate price constraint after any price-related change.
         if self.price is None and self.compare_at_price is not None:
             raise ValueError("compare_at_price cannot be set when price is None")
-        if (
-            self.compare_at_price is not None
-            and self.price is not None
-            and not self.compare_at_price > self.price
-        ):
-            raise ValueError("compare_at_price must be greater than price")
+        if self.compare_at_price is not None:
+            if self.compare_at_price.amount <= 0:
+                raise ValueError("compare_at_price amount must be greater than zero")
+            if self.price is not None and not self.compare_at_price > self.price:
+                raise ValueError("compare_at_price must be greater than price")
 
         self.updated_at = datetime.now(UTC)
 
@@ -1203,8 +1207,13 @@ class ProductVariant:
             self.sort_order = kwargs["sort_order"]
         if "default_price" in kwargs:
             self.default_price = kwargs["default_price"]
+            if kwargs["default_price"] is not None:
+                self.default_currency = kwargs["default_price"].currency
         if "default_currency" in kwargs:
-            self.default_currency = kwargs["default_currency"]
+            currency = kwargs["default_currency"]
+            if not (len(currency) == 3 and currency.isascii() and currency.isupper()):
+                raise ValueError("default_currency must be exactly 3 uppercase ASCII letters")
+            self.default_currency = currency
 
         self.updated_at = datetime.now(UTC)
 
@@ -1646,6 +1655,12 @@ class Product(AggregateRoot):
             self.tags = kwargs["tags"]
 
         self.updated_at = datetime.now(UTC)
+        self.add_domain_event(
+            ProductUpdatedEvent(
+                product_id=self.id,
+                aggregate_id=str(self.id),
+            )
+        )
 
     def soft_delete(self) -> None:
         """Mark this product as deleted.
@@ -1811,7 +1826,7 @@ class Product(AggregateRoot):
             raise VariantNotFoundError(variant_id=variant_id, product_id=self.id)
         # compute hash, check uniqueness across ALL variants
         effective_attrs = variant_attributes or []
-        variant_hash = self.compute_variant_hash(effective_attrs)
+        variant_hash = self.compute_variant_hash(variant_id, effective_attrs)
         for v in self.variants:
             for existing in v.skus:
                 if existing.deleted_at is None and existing.variant_hash == variant_hash:
@@ -1868,20 +1883,23 @@ class Product(AggregateRoot):
 
     @staticmethod
     def compute_variant_hash(
+        variant_id: uuid.UUID,
         variant_attributes: list[tuple[uuid.UUID, uuid.UUID]],
     ) -> str:
         """Compute a deterministic SHA-256 hash for a variant attribute combination.
 
-        Sorts pairs by attribute_id (as string) before hashing so that the
-        result is independent of insertion order.  An empty list produces a
-        hash of the empty string -- a valid sentinel for zero-variant SKUs.
+        Includes ``variant_id`` in the hash so that different variants can
+        each have an empty-attributes SKU without collision.  Sorts pairs
+        by attribute_id (as string) before hashing so that the result is
+        independent of insertion order.
 
         Args:
+            variant_id: UUID of the owning ProductVariant.
             variant_attributes: List of (attribute_id, attribute_value_id) pairs.
 
         Returns:
             A 64-character lowercase hex string (SHA-256 digest).
         """
         sorted_attrs = sorted(variant_attributes, key=lambda x: str(x[0]))
-        payload = "|".join(f"{a!s}:{v!s}" for a, v in sorted_attrs)
+        payload = str(variant_id) + ":" + "|".join(f"{a!s}:{v!s}" for a, v in sorted_attrs)
         return hashlib.sha256(payload.encode()).hexdigest()

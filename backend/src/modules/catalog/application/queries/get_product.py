@@ -88,6 +88,16 @@ class GetProductHandler:
         min_price = min(active_prices) if active_prices else None
         max_price = max(active_prices) if active_prices else None
 
+        # Derive currency from the first active SKU that has a resolved price
+        price_currency: str | None = None
+        for variant in variants:
+            for sku in variant.skus:
+                if sku.is_active and sku.deleted_at is None and sku.resolved_price is not None:
+                    price_currency = sku.resolved_price.currency
+                    break
+            if price_currency is not None:
+                break
+
         attributes = [
             ProductAttributeValueReadModel(
                 id=pav.id,
@@ -118,6 +128,7 @@ class GetProductHandler:
             published_at=orm.published_at,
             min_price=min_price,
             max_price=max_price,
+            price_currency=price_currency,
             variants=variants,
             attributes=attributes,
         )

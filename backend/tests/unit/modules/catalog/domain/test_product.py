@@ -753,62 +753,72 @@ class TestProductRemoveSku:
 
 
 class TestProductComputeVariantHash:
-    """Tests for Product._compute_variant_hash() static method."""
+    """Tests for Product.compute_variant_hash() static method."""
 
     def test_empty_list_produces_deterministic_hash(self) -> None:
-        """Empty variant_attributes always produces the same 64-char hash."""
-        h1 = Product._compute_variant_hash([])
-        h2 = Product._compute_variant_hash([])
+        """Empty variant_attributes with same variant_id produces the same 64-char hash."""
+        vid = uuid.uuid4()
+        h1 = Product.compute_variant_hash(vid, [])
+        h2 = Product.compute_variant_hash(vid, [])
         assert h1 == h2
         assert len(h1) == 64
 
-    def test_empty_list_hash_equals_sha256_of_empty_string(self) -> None:
-        """Empty variant_attributes hash == sha256(b'').hexdigest()."""
-        expected = hashlib.sha256(b"").hexdigest()
-        assert Product._compute_variant_hash([]) == expected
+    def test_different_variant_ids_with_empty_attrs_produce_different_hashes(self) -> None:
+        """Different variant_ids with empty attrs must not collide."""
+        vid1 = uuid.uuid4()
+        vid2 = uuid.uuid4()
+        h1 = Product.compute_variant_hash(vid1, [])
+        h2 = Product.compute_variant_hash(vid2, [])
+        assert h1 != h2
 
     def test_same_pairs_same_order_produces_same_hash(self) -> None:
         """Identical inputs always yield identical hash (determinism)."""
+        vid = uuid.uuid4()
         a, v = uuid.uuid4(), uuid.uuid4()
-        h1 = Product._compute_variant_hash([(a, v)])
-        h2 = Product._compute_variant_hash([(a, v)])
+        h1 = Product.compute_variant_hash(vid, [(a, v)])
+        h2 = Product.compute_variant_hash(vid, [(a, v)])
         assert h1 == h2
 
     def test_same_pairs_different_order_produces_same_hash(self) -> None:
         """Insertion order independence: sorted by attribute_id."""
+        vid = uuid.uuid4()
         a1, v1 = uuid.uuid4(), uuid.uuid4()
         a2, v2 = uuid.uuid4(), uuid.uuid4()
-        h1 = Product._compute_variant_hash([(a1, v1), (a2, v2)])
-        h2 = Product._compute_variant_hash([(a2, v2), (a1, v1)])
+        h1 = Product.compute_variant_hash(vid, [(a1, v1), (a2, v2)])
+        h2 = Product.compute_variant_hash(vid, [(a2, v2), (a1, v1)])
         assert h1 == h2
 
     def test_different_attribute_ids_produce_different_hashes(self) -> None:
         """Different inputs must produce different hashes (collision resistance)."""
+        vid = uuid.uuid4()
         a1, v = uuid.uuid4(), uuid.uuid4()
         a2 = uuid.uuid4()
-        h1 = Product._compute_variant_hash([(a1, v)])
-        h2 = Product._compute_variant_hash([(a2, v)])
+        h1 = Product.compute_variant_hash(vid, [(a1, v)])
+        h2 = Product.compute_variant_hash(vid, [(a2, v)])
         assert h1 != h2
 
     def test_different_value_ids_produce_different_hashes(self) -> None:
         """Different value IDs for same attribute must produce different hashes."""
+        vid = uuid.uuid4()
         a = uuid.uuid4()
         v1, v2 = uuid.uuid4(), uuid.uuid4()
-        h1 = Product._compute_variant_hash([(a, v1)])
-        h2 = Product._compute_variant_hash([(a, v2)])
+        h1 = Product.compute_variant_hash(vid, [(a, v1)])
+        h2 = Product.compute_variant_hash(vid, [(a, v2)])
         assert h1 != h2
 
     def test_hash_is_64_char_lowercase_hex(self) -> None:
         """SHA-256 hexdigest is always 64 lowercase hex chars."""
+        vid = uuid.uuid4()
         a, v = uuid.uuid4(), uuid.uuid4()
-        h = Product._compute_variant_hash([(a, v)])
+        h = Product.compute_variant_hash(vid, [(a, v)])
         assert len(h) == 64
         assert all(c in "0123456789abcdef" for c in h)
 
     def test_multiple_pairs_produces_non_empty_hash(self) -> None:
         """Multi-attribute variant produces a valid 64-char hash."""
+        vid = uuid.uuid4()
         pairs = [(uuid.uuid4(), uuid.uuid4()) for _ in range(5)]
-        h = Product._compute_variant_hash(pairs)
+        h = Product.compute_variant_hash(vid, pairs)
         assert len(h) == 64
 
 

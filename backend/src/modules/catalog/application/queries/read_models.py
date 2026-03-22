@@ -413,6 +413,7 @@ class ProductReadModel(BaseModel):
     published_at: datetime | None = None
     min_price: int | None = None
     max_price: int | None = None
+    price_currency: str | None = None
     variants: list[ProductVariantReadModel]
     attributes: list[ProductAttributeValueReadModel]
 

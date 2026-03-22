@@ -107,11 +107,11 @@ def make_product(
 
     product.find_sku = MagicMock(side_effect=find_sku_impl)
 
-    def compute_hash(attrs: list[tuple[uuid.UUID, uuid.UUID]]) -> str:
+    def compute_hash(variant_id: uuid.UUID, attrs: list[tuple[uuid.UUID, uuid.UUID]]) -> str:
         import hashlib
 
         sorted_attrs = sorted(attrs, key=lambda x: str(x[0]))
-        payload = "|".join(f"{a!s}:{v!s}" for a, v in sorted_attrs)
+        payload = str(variant_id) + ":" + "|".join(f"{a!s}:{v!s}" for a, v in sorted_attrs)
         return hashlib.sha256(payload.encode()).hexdigest()
 
     product.compute_variant_hash = MagicMock(side_effect=compute_hash)
@@ -529,7 +529,7 @@ class TestUpdateSKUHandlerVariantAttributes:
         )
         await handler.handle(cmd)
 
-        product.compute_variant_hash.assert_called_once_with([(attr_id, val_id)])
+        product.compute_variant_hash.assert_called_once_with(sku.variant_id, [(attr_id, val_id)])
         call_kwargs = sku.update.call_args[1]
         assert "variant_attributes" in call_kwargs
         assert "variant_hash" in call_kwargs

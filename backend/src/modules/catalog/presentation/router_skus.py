@@ -92,12 +92,10 @@ async def list_skus(
     offset: int = Query(default=0, ge=0),
 ) -> SKUListResponse:
     """Return paginated SKUs belonging to the given product."""
-    query = ListSKUsQuery(product_id=product_id, variant_id=variant_id)
-    all_results = await handler.handle(query)
-    total = len(all_results)
-    page = all_results[offset : offset + limit]
+    query = ListSKUsQuery(product_id=product_id, variant_id=variant_id, offset=offset, limit=limit)
+    items, total = await handler.handle(query)
     return SKUListResponse(
-        items=[to_sku_response(model) for model in page],
+        items=[to_sku_response(model) for model in items],
         total=total,
         offset=offset,
         limit=limit,
@@ -137,8 +135,8 @@ async def update_sku(
     result = await update_handler.handle(command)
 
     # Fetch updated SKU list scoped to the variant and find the one we updated.
-    updated_skus = await list_handler.handle(
-        ListSKUsQuery(product_id=product_id, variant_id=variant_id)
+    updated_skus, _ = await list_handler.handle(
+        ListSKUsQuery(product_id=product_id, variant_id=variant_id, limit=None)
     )
     updated_sku = next((s for s in updated_skus if s.id == result.id), None)
     if updated_sku is None:
@@ -159,6 +157,12 @@ async def delete_sku(
     sku_id: uuid.UUID,
     handler: FromDishka[DeleteSKUHandler],
 ) -> None:
-    """Soft-delete a SKU from the product variant."""
+    """Soft-delete a SKU from the product variant.
+
+    Note: variant_id is present in the URL for hierarchical consistency but
+    is not validated against the SKU. The DeleteSKUCommand only uses
+    product_id + sku_id; the domain layer verifies SKU ownership via the
+    product aggregate.
+    """
     command = DeleteSKUCommand(product_id=product_id, sku_id=sku_id)
     await handler.handle(command)

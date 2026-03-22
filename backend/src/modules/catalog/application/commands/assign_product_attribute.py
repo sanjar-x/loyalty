@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 from src.modules.catalog.domain.entities import ProductAttributeValue
 from src.modules.catalog.domain.exceptions import (
+    AttributeNotDictionaryError,
     AttributeNotFoundError,
     AttributeValueNotFoundError,
     DuplicateProductAttributeError,
@@ -93,10 +94,12 @@ class AssignProductAttributeHandler:
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
-            # --- Validate attribute exists ---
+            # --- Validate attribute exists and is a dictionary type ---
             attribute = await self._attribute_repo.get(command.attribute_id)
             if attribute is None:
                 raise AttributeNotFoundError(attribute_id=command.attribute_id)
+            if not attribute.is_dictionary:
+                raise AttributeNotDictionaryError(attribute_id=command.attribute_id)
 
             # --- Validate attribute value exists and belongs to the attribute ---
             attr_value = await self._attribute_value_repo.get(command.attribute_value_id)

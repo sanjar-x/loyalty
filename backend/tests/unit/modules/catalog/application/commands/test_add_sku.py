@@ -42,6 +42,13 @@ def make_uow() -> AsyncMock:
     return uow
 
 
+def make_logger() -> MagicMock:
+    """Build a mock ILogger that supports .bind() chaining."""
+    logger = MagicMock()
+    logger.bind = MagicMock(return_value=logger)
+    return logger
+
+
 def make_product(
     product_id: uuid.UUID | None = None,
     skus: list[SKU] | None = None,
@@ -208,7 +215,7 @@ class TestAddSKUHandlerHappyPath:
         product_id = product.id
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         vid = product.variants[0].id
         result = await handler.handle(make_command(product_id=product_id, variant_id=vid))
@@ -221,7 +228,7 @@ class TestAddSKUHandlerHappyPath:
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         vid = product.variants[0].id
         result = await handler.handle(make_command(product_id=product.id, variant_id=vid))
@@ -234,7 +241,7 @@ class TestAddSKUHandlerHappyPath:
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         vid = product.variants[0].id
         await handler.handle(make_command(product_id=product.id, variant_id=vid))
@@ -246,7 +253,7 @@ class TestAddSKUHandlerHappyPath:
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         vid = product.variants[0].id
         await handler.handle(make_command(product_id=product.id, variant_id=vid))
@@ -258,7 +265,7 @@ class TestAddSKUHandlerHappyPath:
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         vid = product.variants[0].id
         await handler.handle(make_command(product_id=product.id, variant_id=vid))
@@ -270,7 +277,7 @@ class TestAddSKUHandlerHappyPath:
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         vid = product.variants[0].id
         await handler.handle(make_command(product_id=product.id, variant_id=vid))
@@ -283,7 +290,7 @@ class TestAddSKUHandlerHappyPath:
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         vid = product.variants[0].id
         await handler.handle(
@@ -303,7 +310,7 @@ class TestAddSKUHandlerHappyPath:
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         vid = product.variants[0].id
         await handler.handle(
@@ -317,7 +324,7 @@ class TestAddSKUHandlerHappyPath:
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         vid = product.variants[0].id
         await handler.handle(make_command(product_id=product.id, variant_id=vid))
@@ -329,7 +336,7 @@ class TestAddSKUHandlerHappyPath:
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         vid = product.variants[0].id
         await handler.handle(make_command(product_id=product.id, variant_id=vid, is_active=False))
@@ -341,7 +348,7 @@ class TestAddSKUHandlerHappyPath:
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         vid = product.variants[0].id
         await handler.handle(
@@ -362,7 +369,7 @@ class TestAddSKUHandlerHappyPath:
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         vid = product.variants[0].id
         await handler.handle(make_command(product_id=product.id, variant_id=vid))
@@ -382,7 +389,7 @@ class TestAddSKUHandlerProductNotFound:
         """Handler raises ProductNotFoundError when product is None."""
         repo = make_product_repo(product=None)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         with pytest.raises(ProductNotFoundError):
             await handler.handle(make_command())
@@ -392,7 +399,7 @@ class TestAddSKUHandlerProductNotFound:
         product_id = uuid.uuid4()
         repo = make_product_repo(product=None)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         with pytest.raises(ProductNotFoundError) as exc_info:
             await handler.handle(make_command(product_id=product_id))
@@ -403,7 +410,7 @@ class TestAddSKUHandlerProductNotFound:
         """When product not found, repo.update must not be called."""
         repo = make_product_repo(product=None)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         with pytest.raises(ProductNotFoundError):
             await handler.handle(make_command())
@@ -414,7 +421,7 @@ class TestAddSKUHandlerProductNotFound:
         """When product not found, uow.commit must not be called."""
         repo = make_product_repo(product=None)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         with pytest.raises(ProductNotFoundError):
             await handler.handle(make_command())
@@ -436,7 +443,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
         vid = product.variants[0].id
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         with pytest.raises(ValueError, match="compare_at_price must be greater than price"):
             await handler.handle(
@@ -454,7 +461,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
         vid = product.variants[0].id
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         with pytest.raises(ValueError, match="compare_at_price must be greater than price"):
             await handler.handle(
@@ -472,7 +479,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
         vid = product.variants[0].id
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         with pytest.raises(ValueError):
             await handler.handle(
@@ -492,7 +499,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
         vid = product.variants[0].id
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         with pytest.raises(ValueError):
             await handler.handle(
@@ -526,7 +533,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
         vid = product.variants[0].id
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         with pytest.raises(ValueError):
             await handler.handle(
@@ -565,7 +572,7 @@ class TestAddSKUHandlerDuplicateVariant:
 
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         with pytest.raises(DuplicateVariantCombinationError):
             await handler.handle(
@@ -593,7 +600,7 @@ class TestAddSKUHandlerDuplicateVariant:
 
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         with pytest.raises(DuplicateVariantCombinationError):
             await handler.handle(
@@ -619,7 +626,7 @@ class TestAddSKUHandlerDuplicateVariant:
 
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         result = await handler.handle(
             make_command(
@@ -647,7 +654,7 @@ class TestAddSKUHandlerVariantAttributes:
         vid = product.variants[0].id
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         result = await handler.handle(
             make_command(product_id=product.id, variant_id=vid, variant_attributes=[])
@@ -665,7 +672,7 @@ class TestAddSKUHandlerVariantAttributes:
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = AddSKUHandler(product_repo=repo, uow=uow)
+        handler = AddSKUHandler(product_repo=repo, uow=uow, logger=make_logger())
 
         vid = product.variants[0].id
         await handler.handle(

@@ -16,6 +16,17 @@ from src.modules.catalog.domain.exceptions import BrandNotFoundError
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 
 
+def brand_orm_to_read_model(orm: OrmBrand) -> BrandReadModel:
+    """Convert an ORM Brand to a BrandReadModel."""
+    return BrandReadModel(
+        id=orm.id,
+        name=orm.name,
+        slug=orm.slug,
+        logo_url=orm.logo_url,
+        logo_status=orm.logo_status,
+    )
+
+
 class GetBrandHandler:
     """Fetch a single brand by its UUID."""
 
@@ -41,10 +52,4 @@ class GetBrandHandler:
         if orm is None:
             raise BrandNotFoundError(brand_id=brand_id)
 
-        return BrandReadModel(
-            id=orm.id,
-            name=orm.name,
-            slug=orm.slug,
-            logo_url=orm.logo_url,
-            logo_status=orm.logo_status,
-        )
+        return brand_orm_to_read_model(orm)

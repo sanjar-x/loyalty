@@ -8,6 +8,7 @@ All values must belong to the specified attribute.
 import uuid
 from dataclasses import dataclass, field
 
+from src.modules.catalog.domain.events import AttributeValuesReorderedEvent
 from src.modules.catalog.domain.exceptions import AttributeNotFoundError
 from src.modules.catalog.domain.interfaces import (
     IAttributeRepository,
@@ -74,4 +75,11 @@ class ReorderAttributeValuesHandler:
 
             updates = [(item.value_id, item.sort_order) for item in command.items]
             await self._value_repo.bulk_update_sort_order(updates)
+            attribute.add_domain_event(
+                AttributeValuesReorderedEvent(
+                    attribute_id=command.attribute_id,
+                    aggregate_id=str(command.attribute_id),
+                )
+            )
+            self._uow.register_aggregate(attribute)
             await self._uow.commit()

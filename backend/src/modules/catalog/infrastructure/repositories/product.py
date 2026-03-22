@@ -519,7 +519,7 @@ class ProductRepository(IProductRepository):
         if brand_id is not None:
             filters.append(OrmProduct.brand_id == brand_id)
 
-        # Count query
+        # NOTE: count and data queries are not atomic; minor TOCTOU race is acceptable for catalog listing.
         count_stmt = select(func.count()).select_from(OrmProduct).where(*filters)
         count_result = await self._session.execute(count_stmt)
         total = count_result.scalar_one()

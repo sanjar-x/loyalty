@@ -7,7 +7,7 @@ a list of ProductVariantReadModel DTOs for a specific product.
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -52,9 +52,13 @@ class ListVariantsQuery:
 
     Attributes:
         product_id: UUID of the parent product.
+        offset: Number of records to skip.
+        limit: Maximum number of records to return.
     """
 
     product_id: uuid.UUID
+    offset: int = 0
+    limit: int = 50
 
 
 class ListVariantsHandler:
@@ -63,17 +67,28 @@ class ListVariantsHandler:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def handle(self, query: ListVariantsQuery) -> list[ProductVariantReadModel]:
-        """Retrieve all active variants for a product, ordered by sort_order.
+    async def handle(self, query: ListVariantsQuery) -> tuple[list[ProductVariantReadModel], int]:
+        """Retrieve paginated active variants for a product, ordered by sort_order.
 
         Eagerly loads SKUs and their variant attribute links for each variant.
 
         Args:
-            query: Query parameters with the parent product_id.
+            query: Query parameters with the parent product_id and pagination.
 
         Returns:
-            List of variant read models with nested SKUs.
+            Tuple of (variant read models, total count).
         """
+        count_stmt = (
+            select(func.count())
+            .select_from(OrmProductVariant)
+            .where(
+                OrmProductVariant.product_id == query.product_id,
+                OrmProductVariant.deleted_at.is_(None),
+            )
+        )
+        count_result = await self._session.execute(count_stmt)
+        total: int = count_result.scalar_one()
+
         stmt = (
             select(OrmProductVariant)
             .where(
@@ -82,7 +97,9 @@ class ListVariantsHandler:
             )
             .options(selectinload(OrmProductVariant.skus).selectinload(OrmSKU.attribute_values))
             .order_by(OrmProductVariant.sort_order)
+            .limit(query.limit)
+            .offset(query.offset)
         )
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
-        return [variant_orm_to_read_model(orm) for orm in rows]
+        return [variant_orm_to_read_model(orm) for orm in rows], total

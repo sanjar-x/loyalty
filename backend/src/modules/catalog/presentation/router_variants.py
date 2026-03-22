@@ -21,15 +21,12 @@ from src.modules.catalog.application.queries.list_variants import (
     ListVariantsHandler,
     ListVariantsQuery,
 )
-from src.modules.catalog.application.queries.read_models import ProductVariantReadModel
-from src.modules.catalog.presentation.mappers import to_sku_response
+from src.modules.catalog.presentation.mappers import to_variant_response
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.catalog.presentation.schemas import (
-    MoneySchema,
     ProductVariantCreateRequest,
     ProductVariantCreateResponse,
     ProductVariantListResponse,
-    ProductVariantResponse,
     ProductVariantUpdateRequest,
     ProductVariantUpdateResponse,
 )
@@ -40,20 +37,6 @@ variant_router = APIRouter(
     tags=["Product Variants"],
     route_class=DishkaRoute,
 )
-
-
-def _to_variant_response(v: ProductVariantReadModel) -> ProductVariantResponse:
-    """Convert a ProductVariantReadModel to a ProductVariantResponse schema."""
-    return ProductVariantResponse(
-        id=v.id,
-        name_i18n=v.name_i18n,
-        description_i18n=v.description_i18n,
-        sort_order=v.sort_order,
-        default_price=MoneySchema(amount=v.default_price.amount, currency=v.default_price.currency)
-        if v.default_price
-        else None,
-        skus=[to_sku_response(s) for s in v.skus],
-    )
 
 
 @variant_router.post(
@@ -96,12 +79,10 @@ async def list_variants(
     offset: int = Query(default=0, ge=0),
 ) -> ProductVariantListResponse:
     """Return paginated active variants for the given product."""
-    query = ListVariantsQuery(product_id=product_id)
-    all_results = await handler.handle(query)
-    total = len(all_results)
-    page = all_results[offset : offset + limit]
+    query = ListVariantsQuery(product_id=product_id, offset=offset, limit=limit)
+    items, total = await handler.handle(query)
     return ProductVariantListResponse(
-        items=[_to_variant_response(v) for v in page],
+        items=[to_variant_response(v) for v in items],
         total=total,
         offset=offset,
         limit=limit,

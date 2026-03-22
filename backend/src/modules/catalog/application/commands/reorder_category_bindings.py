@@ -5,6 +5,7 @@ Command handler: bulk reorder category-attribute bindings.
 import uuid
 from dataclasses import dataclass, field
 
+from src.modules.catalog.domain.events import CategoryBindingsReorderedEvent
 from src.modules.catalog.domain.exceptions import CategoryNotFoundError
 from src.modules.catalog.domain.interfaces import (
     ICategoryAttributeBindingRepository,
@@ -66,4 +67,11 @@ class ReorderCategoryBindingsHandler:
 
             updates = [(item.binding_id, item.sort_order) for item in command.items]
             await self._binding_repo.bulk_update_sort_order(updates)
+            category.add_domain_event(
+                CategoryBindingsReorderedEvent(
+                    category_id=command.category_id,
+                    aggregate_id=str(command.category_id),
+                )
+            )
+            self._uow.register_aggregate(category)
             await self._uow.commit()

@@ -11,6 +11,9 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.catalog.application.queries.get_attribute_group import (
+    attribute_group_orm_to_read_model,
+)
 from src.modules.catalog.application.queries.read_models import (
     AttributeGroupListReadModel,
     AttributeGroupReadModel,
@@ -62,15 +65,7 @@ class ListAttributeGroupsHandler:
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
 
-        items = [
-            AttributeGroupReadModel(
-                id=orm.id,
-                code=orm.code,
-                name_i18n=orm.name_i18n,
-                sort_order=orm.sort_order,
-            )
-            for orm in rows
-        ]
+        items = [attribute_group_orm_to_read_model(orm) for orm in rows]
 
         return AttributeGroupListReadModel(
             items=items,

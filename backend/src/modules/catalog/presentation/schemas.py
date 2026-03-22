@@ -8,7 +8,7 @@ presentation layer and carry no business logic.
 
 import uuid
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 from pydantic import ConfigDict, Field, model_validator
 
@@ -279,9 +279,11 @@ class AttributeUpdateRequest(CamelModel):
 
     name_i18n: dict[str, str] | None = Field(None, min_length=1)
     description_i18n: dict[str, str] | None = None
-    ui_type: str | None = None
+    ui_type: (
+        Literal["text_button", "color_swatch", "dropdown", "checkbox", "range_slider"] | None
+    ) = None
     group_id: uuid.UUID | None = None
-    level: str | None = None
+    level: Literal["product", "variant"] | None = None
     is_filterable: bool | None = None
     is_searchable: bool | None = None
     search_weight: int | None = Field(None, ge=1, le=10)
@@ -670,6 +672,13 @@ class ProductUpdateRequest(CamelModel):
     version: int | None = None
 
     @model_validator(mode="after")
+    def _reject_null_required_fks(self) -> Self:
+        for field in ("brand_id", "primary_category_id"):
+            if field in self.model_fields_set and getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be set to null")
+        return self
+
+    @model_validator(mode="after")
     def at_least_one_field(self) -> ProductUpdateRequest:
         """Ensure at least one non-version field is provided."""
         if not (self.model_fields_set - {"version"}):
@@ -781,6 +790,7 @@ class ProductResponse(CamelModel):
     published_at: datetime | None = None
     min_price: int | None = None
     max_price: int | None = None
+    price_currency: str | None = None
     variants: list[ProductVariantResponse]
     attributes: list[ProductAttributeResponse]
 
@@ -876,8 +886,8 @@ class ProductMediaUploadRequest(CamelModel):
     """Request body for reserving a media upload slot."""
 
     variant_id: uuid.UUID | None = None
-    media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
-    role: str = Field(..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$")
+    media_type: Literal["image", "video", "model_3d", "document"]
+    role: Literal["main", "hover", "gallery", "hero_video", "size_guide", "packaging"]
     content_type: str = Field(
         ...,
         pattern=r"^(image|video|application|model)/[a-zA-Z0-9][a-zA-Z0-9!#$&\-^_.+]*$",
@@ -898,8 +908,8 @@ class ProductMediaExternalRequest(CamelModel):
     """Request body for adding an external media URL (e.g., YouTube)."""
 
     variant_id: uuid.UUID | None = None
-    media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
-    role: str = Field(..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$")
+    media_type: Literal["image", "video", "model_3d", "document"]
+    role: Literal["main", "hover", "gallery", "hero_video", "size_guide", "packaging"]
     external_url: str = Field(..., min_length=1, max_length=2048, pattern=r"^https?://")
     sort_order: int = Field(0, ge=0)
 
@@ -926,6 +936,12 @@ class ProductAttributeListResponse(CamelModel):
     total: int
     offset: int
     limit: int
+
+
+class MediaConfirmResponse(CamelModel):
+    """Response after confirming media upload."""
+
+    message: str = "Media processing request accepted"
 
 
 class ProductMediaListResponse(CamelModel):

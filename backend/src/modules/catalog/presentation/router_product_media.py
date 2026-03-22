@@ -31,8 +31,10 @@ from src.modules.catalog.application.commands.delete_product_media import (
 )
 from src.modules.catalog.application.queries.list_product_media import (
     ListProductMediaHandler,
+    ListProductMediaQuery,
 )
 from src.modules.catalog.presentation.schemas import (
+    MediaConfirmResponse,
     ProductMediaExternalRequest,
     ProductMediaListResponse,
     ProductMediaResponse,
@@ -117,7 +119,8 @@ async def add_external_media(
 
 @product_media_router.post(
     path="/{media_id}/confirm",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=MediaConfirmResponse,
     summary="Confirm media upload",
     description="Confirm that a media file was uploaded to S3 and trigger processing.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
@@ -126,10 +129,11 @@ async def confirm_media_upload(
     product_id: uuid.UUID,
     media_id: uuid.UUID,
     handler: FromDishka[ConfirmProductMediaHandler],
-) -> None:
+) -> MediaConfirmResponse:
     """Confirm that a media file was uploaded to S3. Triggers AI processing."""
     cmd = ConfirmProductMediaCommand(product_id=product_id, media_id=media_id)
     await handler.handle(cmd)
+    return MediaConfirmResponse()
 
 
 @product_media_router.get(
@@ -146,9 +150,8 @@ async def list_product_media(
     offset: int = Query(default=0, ge=0),
 ) -> ProductMediaListResponse:
     """List all media assets for a product."""
-    all_items = await handler.handle(product_id)
-    total = len(all_items)
-    page = all_items[offset : offset + limit]
+    query = ListProductMediaQuery(product_id=product_id, offset=offset, limit=limit)
+    items, total = await handler.handle(query)
     return ProductMediaListResponse(
         items=[
             ProductMediaResponse(
@@ -163,7 +166,7 @@ async def list_product_media(
                 is_external=m.is_external,
                 external_url=m.external_url,
             )
-            for m in page
+            for m in items
         ],
         total=total,
         offset=offset,

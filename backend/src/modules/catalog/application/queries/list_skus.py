@@ -8,7 +8,7 @@ a list of SKUReadModel DTOs for a specific product.
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -74,10 +74,15 @@ class ListSKUsQuery:
 
     Attributes:
         product_id: UUID of the parent product.
+        variant_id: Optional variant filter.
+        offset: Number of records to skip.
+        limit: Maximum number of records to return. None means no limit.
     """
 
     product_id: uuid.UUID
     variant_id: uuid.UUID | None = None
+    offset: int = 0
+    limit: int | None = 50
 
 
 class ListSKUsHandler:
@@ -86,31 +91,43 @@ class ListSKUsHandler:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def handle(self, query: ListSKUsQuery) -> list[SKUReadModel]:
-        """Retrieve all SKUs for a product, ordered by creation time.
+    async def handle(self, query: ListSKUsQuery) -> tuple[list[SKUReadModel], int]:
+        """Retrieve paginated SKUs for a product, ordered by creation time.
 
         Eagerly loads variant attribute links for each SKU.
 
         Args:
-            query: Query parameters with the parent product_id.
+            query: Query parameters with the parent product_id and pagination.
 
         Returns:
-            List of SKU read models.
+            Tuple of (SKU read models, total count).
         """
+        # Build base WHERE conditions
+        conditions = [
+            OrmSKU.product_id == query.product_id,
+            OrmSKU.deleted_at.is_(None),
+        ]
+        if query.variant_id is not None:
+            conditions.append(OrmSKU.variant_id == query.variant_id)
+
+        # Count total
+        count_stmt = select(func.count()).select_from(OrmSKU).where(*conditions)
+        count_result = await self._session.execute(count_stmt)
+        total: int = count_result.scalar_one()
+
+        # Fetch page
         stmt = (
             select(OrmSKU)
-            .where(
-                OrmSKU.product_id == query.product_id,
-                OrmSKU.deleted_at.is_(None),
-            )
+            .where(*conditions)
             .options(
                 selectinload(OrmSKU.attribute_values),
                 selectinload(OrmSKU.variant),
             )
             .order_by(OrmSKU.created_at)
         )
-        if query.variant_id is not None:
-            stmt = stmt.where(OrmSKU.variant_id == query.variant_id)
+        if query.limit is not None:
+            stmt = stmt.limit(query.limit).offset(query.offset)
+
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
 
@@ -124,4 +141,4 @@ class ListSKUsHandler:
                 )
             items.append(sku_orm_to_read_model(orm, variant_default_price=variant_default))
 
-        return items
+        return items, total
