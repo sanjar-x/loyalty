@@ -39,12 +39,18 @@ def sku_orm_to_read_model(orm: OrmSKU) -> SKUReadModel:
             currency=orm.currency,
         )
 
+    sku_price: MoneyReadModel | None = None
+    if orm.price is not None:
+        sku_price = MoneyReadModel(amount=orm.price, currency=orm.currency)
+
     return SKUReadModel(
         id=orm.id,
         product_id=orm.product_id,
+        variant_id=orm.variant_id,
         sku_code=orm.sku_code,
         variant_hash=orm.variant_hash,
-        price=MoneyReadModel(amount=orm.price, currency=orm.currency),
+        price=sku_price,
+        resolved_price=sku_price,
         compare_at_price=compare_at,
         is_active=orm.is_active,
         version=orm.version,

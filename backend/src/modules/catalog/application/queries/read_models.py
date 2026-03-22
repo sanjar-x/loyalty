@@ -338,9 +338,11 @@ class SKUReadModel(BaseModel):
 
     id: uuid.UUID
     product_id: uuid.UUID
+    variant_id: uuid.UUID
     sku_code: str
     variant_hash: str
-    price: MoneyReadModel
+    price: MoneyReadModel | None = None
+    resolved_price: MoneyReadModel | None = None
     compare_at_price: MoneyReadModel | None = None
     is_active: bool
     version: int
@@ -348,6 +350,30 @@ class SKUReadModel(BaseModel):
     created_at: datetime
     updated_at: datetime
     variant_attributes: list[VariantAttributePairReadModel]
+
+
+def resolve_sku_price(
+    sku_price: MoneyReadModel | None,
+    variant_default: MoneyReadModel | None,
+) -> MoneyReadModel:
+    """Resolve effective SKU price: SKU override -> variant default -> error."""
+    if sku_price is not None:
+        return sku_price
+    if variant_default is not None:
+        return variant_default
+    raise ValueError("No price: neither SKU nor variant has a price set")
+
+
+class ProductVariantReadModel(BaseModel):
+    """Read model for a single product variant with nested SKUs."""
+
+    id: uuid.UUID
+    product_id: uuid.UUID
+    name_i18n: dict[str, str]
+    description_i18n: dict[str, str] | None
+    sort_order: int
+    default_price: MoneyReadModel | None
+    skus: list[SKUReadModel]
 
 
 class ProductAttributeValueReadModel(BaseModel):
@@ -360,7 +386,7 @@ class ProductAttributeValueReadModel(BaseModel):
 
 
 class ProductReadModel(BaseModel):
-    """Full read model for a single product with nested SKUs and attributes.
+    """Full read model for a single product with nested variants and attributes.
 
     ``status`` is stored as a plain string (the enum value) to avoid
     importing domain types into the application read-side.
@@ -385,7 +411,7 @@ class ProductReadModel(BaseModel):
     published_at: datetime | None = None
     min_price: int | None = None
     max_price: int | None = None
-    skus: list[SKUReadModel]
+    variants: list[ProductVariantReadModel]
     attributes: list[ProductAttributeValueReadModel]
 
 

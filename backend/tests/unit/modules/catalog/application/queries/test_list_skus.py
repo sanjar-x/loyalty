@@ -56,10 +56,12 @@ def _make_orm_sku(
     deleted_at: datetime | None = None,
     attribute_values: list[SimpleNamespace] | None = None,
     sku_code: str | None = None,
+    variant_id: uuid.UUID | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         id=uuid.uuid4(),
         product_id=product_id,
+        variant_id=variant_id or uuid.uuid4(),
         sku_code=sku_code or f"SKU-{uuid.uuid4().hex[:6]}",
         variant_hash=uuid.uuid4().hex[:12],
         price=price,

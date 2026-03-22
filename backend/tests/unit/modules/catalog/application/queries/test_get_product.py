@@ -25,6 +25,7 @@ from src.modules.catalog.application.queries.get_product import GetProductHandle
 from src.modules.catalog.application.queries.read_models import (
     MoneyReadModel,
     ProductReadModel,
+    ProductVariantReadModel,
     SKUReadModel,
     VariantAttributePairReadModel,
 )
@@ -59,10 +60,12 @@ def _make_orm_sku(
     is_active: bool = True,
     deleted_at: datetime | None = None,
     attribute_values: list[SimpleNamespace] | None = None,
+    variant_id: uuid.UUID | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         id=uuid.uuid4(),
         product_id=product_id,
+        variant_id=variant_id or uuid.uuid4(),
         sku_code=f"SKU-{uuid.uuid4().hex[:6]}",
         variant_hash=uuid.uuid4().hex[:12],
         price=price,
@@ -77,6 +80,33 @@ def _make_orm_sku(
     )
 
 
+def _make_orm_variant(
+    product_id: uuid.UUID,
+    skus: list[SimpleNamespace] | None = None,
+    default_price: int | None = None,
+    default_currency: str = "USD",
+    deleted_at: datetime | None = None,
+) -> SimpleNamespace:
+    vid = uuid.uuid4()
+    variant_skus = skus or []
+    # Set variant_id on each SKU
+    for s in variant_skus:
+        s.variant_id = vid
+    return SimpleNamespace(
+        id=vid,
+        product_id=product_id,
+        name_i18n={"en": "Default Variant"},
+        description_i18n=None,
+        sort_order=0,
+        default_price=default_price,
+        default_currency=default_currency,
+        deleted_at=deleted_at,
+        created_at=_NOW,
+        updated_at=_NOW,
+        skus=variant_skus,
+    )
+
+
 class _FakeStatus:
     """Mimics an enum with a .value property (like ORM ProductStatus)."""
 
@@ -86,11 +116,16 @@ class _FakeStatus:
 
 def _make_orm_product(
     product_id: uuid.UUID | None = None,
-    skus: list[SimpleNamespace] | None = None,
+    variants: list[SimpleNamespace] | None = None,
     status: str = "draft",
     tags: list[str] | None = None,
+    # Legacy helper: wraps skus in a single default variant for easy migration
+    skus: list[SimpleNamespace] | None = None,
 ) -> SimpleNamespace:
     pid = product_id or uuid.uuid4()
+    if variants is None and skus is not None:
+        # Wrap bare skus in a single default variant for backward compat
+        variants = [_make_orm_variant(pid, skus=skus)]
     return SimpleNamespace(
         id=pid,
         slug="test-product",
@@ -107,7 +142,7 @@ def _make_orm_product(
         created_at=_NOW,
         updated_at=_NOW,
         published_at=None,
-        skus=skus or [],
+        variants=variants or [],
     )
 
 
@@ -220,12 +255,12 @@ class TestGetProductHandlerNotFound:
             await handler.handle(pid)
 
 
-class TestGetProductHandlerSKUMapping:
-    """SKU mapping: ORM SKU -> SKUReadModel with correct fields."""
+class TestGetProductHandlerVariantAndSKUMapping:
+    """Variant + SKU mapping: ORM variant/SKU -> read models with correct fields."""
 
     @pytest.mark.asyncio
-    async def test_skus_mapped_to_read_models(self) -> None:
-        """Each ORM SKU is mapped to a SKUReadModel."""
+    async def test_variants_mapped_to_read_models(self) -> None:
+        """Each ORM variant is mapped to a ProductVariantReadModel."""
         pid = uuid.uuid4()
         sku1 = _make_orm_sku(pid, price=500)
         sku2 = _make_orm_sku(pid, price=1500)
@@ -235,8 +270,10 @@ class TestGetProductHandlerSKUMapping:
         handler = GetProductHandler(session)
         result = await handler.handle(pid)
 
-        assert len(result.skus) == 2
-        assert all(isinstance(s, SKUReadModel) for s in result.skus)
+        assert len(result.variants) == 1
+        assert isinstance(result.variants[0], ProductVariantReadModel)
+        assert len(result.variants[0].skus) == 2
+        assert all(isinstance(s, SKUReadModel) for s in result.variants[0].skus)
 
     @pytest.mark.asyncio
     async def test_sku_price_is_money_read_model(self) -> None:
@@ -249,9 +286,10 @@ class TestGetProductHandlerSKUMapping:
         handler = GetProductHandler(session)
         result = await handler.handle(pid)
 
-        assert isinstance(result.skus[0].price, MoneyReadModel)
-        assert result.skus[0].price.amount == 2999
-        assert result.skus[0].price.currency == "EUR"
+        sku_rm = result.variants[0].skus[0]
+        assert isinstance(sku_rm.price, MoneyReadModel)
+        assert sku_rm.price.amount == 2999
+        assert sku_rm.price.currency == "EUR"
 
     @pytest.mark.asyncio
     async def test_sku_compare_at_price_none(self) -> None:
@@ -264,7 +302,7 @@ class TestGetProductHandlerSKUMapping:
         handler = GetProductHandler(session)
         result = await handler.handle(pid)
 
-        assert result.skus[0].compare_at_price is None
+        assert result.variants[0].skus[0].compare_at_price is None
 
     @pytest.mark.asyncio
     async def test_sku_compare_at_price_set(self) -> None:
@@ -277,9 +315,10 @@ class TestGetProductHandlerSKUMapping:
         handler = GetProductHandler(session)
         result = await handler.handle(pid)
 
-        assert result.skus[0].compare_at_price is not None
-        assert result.skus[0].compare_at_price.amount == 1500
-        assert result.skus[0].compare_at_price.currency == "USD"
+        sku_rm = result.variants[0].skus[0]
+        assert sku_rm.compare_at_price is not None
+        assert sku_rm.compare_at_price.amount == 1500
+        assert sku_rm.compare_at_price.currency == "USD"
 
     @pytest.mark.asyncio
     async def test_sku_variant_attributes_mapped(self) -> None:
@@ -295,8 +334,9 @@ class TestGetProductHandlerSKUMapping:
         handler = GetProductHandler(session)
         result = await handler.handle(pid)
 
-        assert len(result.skus[0].variant_attributes) == 1
-        pair = result.skus[0].variant_attributes[0]
+        sku_rm = result.variants[0].skus[0]
+        assert len(sku_rm.variant_attributes) == 1
+        pair = sku_rm.variant_attributes[0]
         assert isinstance(pair, VariantAttributePairReadModel)
         assert pair.attribute_id == attr_id
         assert pair.attribute_value_id == val_id

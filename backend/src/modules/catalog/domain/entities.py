@@ -1152,6 +1152,38 @@ class ProductVariant:
             skus=[],
         )
 
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "name_i18n", "description_i18n", "sort_order", "default_price", "default_currency",
+    })
+
+    def update(self, **kwargs: Any) -> None:
+        """Update mutable variant fields.
+
+        Only fields present in ``kwargs`` are applied. Pass ``None`` for
+        ``description_i18n`` or ``default_price`` to clear them.
+
+        Raises:
+            TypeError: If an unknown field name is passed.
+        """
+        unknown = set(kwargs) - self._UPDATABLE_FIELDS
+        if unknown:
+            raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
+
+        if "name_i18n" in kwargs:
+            if not kwargs["name_i18n"]:
+                raise ValueError("name_i18n must contain at least one language entry")
+            self.name_i18n = kwargs["name_i18n"]
+        if "description_i18n" in kwargs:
+            self.description_i18n = kwargs["description_i18n"]
+        if "sort_order" in kwargs:
+            self.sort_order = kwargs["sort_order"]
+        if "default_price" in kwargs:
+            self.default_price = kwargs["default_price"]
+        if "default_currency" in kwargs:
+            self.default_currency = kwargs["default_currency"]
+
+        self.updated_at = datetime.now(UTC)
+
     def soft_delete(self) -> None:
         """Mark this variant and all its active SKUs as deleted."""
         now = datetime.now(UTC)

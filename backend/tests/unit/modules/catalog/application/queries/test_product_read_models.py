@@ -29,6 +29,7 @@ from src.modules.catalog.application.queries.read_models import (
     ProductListItemReadModel,
     ProductListReadModel,
     ProductReadModel,
+    ProductVariantReadModel,
     SKUReadModel,
     VariantAttributePairReadModel,
 )
@@ -57,10 +58,11 @@ def _variant_pair(
     )
 
 
-def _sku(product_id: uuid.UUID | None = None) -> SKUReadModel:
+def _sku(product_id: uuid.UUID | None = None, variant_id: uuid.UUID | None = None) -> SKUReadModel:
     return SKUReadModel(
         id=uuid.uuid4(),
         product_id=product_id or uuid.uuid4(),
+        variant_id=variant_id or uuid.uuid4(),
         sku_code="SKU-001",
         variant_hash="abc123",
         price=_money(1999, "USD"),
@@ -71,6 +73,21 @@ def _sku(product_id: uuid.UUID | None = None) -> SKUReadModel:
         created_at=_NOW,
         updated_at=_NOW,
         variant_attributes=[],
+    )
+
+
+def _variant(
+    product_id: uuid.UUID | None = None,
+    skus: list[SKUReadModel] | None = None,
+) -> ProductVariantReadModel:
+    return ProductVariantReadModel(
+        id=uuid.uuid4(),
+        product_id=product_id or uuid.uuid4(),
+        name_i18n={"en": "Default Variant"},
+        description_i18n=None,
+        sort_order=0,
+        default_price=None,
+        skus=skus if skus is not None else [],
     )
 
 
@@ -85,7 +102,7 @@ def _product_attr_value(product_id: uuid.UUID | None = None) -> ProductAttribute
 
 def _product(
     product_id: uuid.UUID | None = None,
-    skus: list[SKUReadModel] | None = None,
+    variants: list[ProductVariantReadModel] | None = None,
     attributes: list[ProductAttributeValueReadModel] | None = None,
 ) -> ProductReadModel:
     pid = product_id or uuid.uuid4()
@@ -101,7 +118,7 @@ def _product(
         version=1,
         created_at=_NOW,
         updated_at=_NOW,
-        skus=skus if skus is not None else [],
+        variants=variants if variants is not None else [],
         attributes=attributes if attributes is not None else [],
     )
 
@@ -230,9 +247,11 @@ class TestSKUReadModel:
         """Happy path: SKU created with required fields, optionals default to None."""
         sku_id = uuid.uuid4()
         product_id = uuid.uuid4()
+        variant_id = uuid.uuid4()
         model = SKUReadModel(
             id=sku_id,
             product_id=product_id,
+            variant_id=variant_id,
             sku_code="SKU-ABC",
             variant_hash="hashxyz",
             price=_money(2999, "USD"),
@@ -244,6 +263,7 @@ class TestSKUReadModel:
         )
         assert model.id == sku_id
         assert model.product_id == product_id
+        assert model.variant_id == variant_id
         assert model.sku_code == "SKU-ABC"
         assert model.compare_at_price is None
         assert model.deleted_at is None
@@ -265,6 +285,7 @@ class TestSKUReadModel:
         sku = SKUReadModel(
             id=uuid.uuid4(),
             product_id=product_id,
+            variant_id=uuid.uuid4(),
             sku_code="SKU-002",
             variant_hash="hash2",
             price=_money(3000, "USD"),
@@ -284,6 +305,7 @@ class TestSKUReadModel:
         sku = SKUReadModel(
             id=uuid.uuid4(),
             product_id=product_id,
+            variant_id=uuid.uuid4(),
             sku_code="SKU-DEL",
             variant_hash="hashdel",
             price=_money(1000, "USD"),
@@ -304,6 +326,7 @@ class TestSKUReadModel:
         sku = SKUReadModel(
             id=uuid.uuid4(),
             product_id=product_id,
+            variant_id=uuid.uuid4(),
             sku_code="SKU-VAR",
             variant_hash="hashvar",
             price=_money(500, "EUR"),
@@ -327,6 +350,7 @@ class TestSKUReadModel:
         original = SKUReadModel(
             id=sku_id,
             product_id=uuid.uuid4(),
+            variant_id=uuid.uuid4(),
             sku_code="SKU-RT",
             variant_hash="hashrt",
             price=_money(4000, "GBP"),
@@ -472,7 +496,7 @@ class TestProductReadModel:
             published_at=_NOW,
             min_price=500,
             max_price=9999,
-            skus=[],
+            variants=[],
             attributes=[],
         )
         assert product.supplier_id == supplier_id
@@ -482,18 +506,18 @@ class TestProductReadModel:
         assert product.min_price == 500
         assert product.max_price == 9999
 
-    def test_skus_list_is_empty_by_default(self) -> None:
-        """skus defaults to empty list when provided as []."""
+    def test_variants_list_is_empty_by_default(self) -> None:
+        """variants defaults to empty list when provided as []."""
         product = _product()
-        assert product.skus == []
+        assert product.variants == []
 
-    def test_skus_list_contains_sku_read_models(self) -> None:
-        """skus field is list[SKUReadModel]."""
+    def test_variants_list_contains_variant_read_models(self) -> None:
+        """variants field is list[ProductVariantReadModel]."""
         pid = uuid.uuid4()
-        sku = _sku(product_id=pid)
-        product = _product(product_id=pid, skus=[sku])
-        assert len(product.skus) == 1
-        assert isinstance(product.skus[0], SKUReadModel)
+        variant = _variant(product_id=pid)
+        product = _product(product_id=pid, variants=[variant])
+        assert len(product.variants) == 1
+        assert isinstance(product.variants[0], ProductVariantReadModel)
 
     def test_attributes_list_contains_product_attribute_value_models(self) -> None:
         """attributes field is list[ProductAttributeValueReadModel]."""
@@ -503,20 +527,23 @@ class TestProductReadModel:
         assert len(product.attributes) == 1
         assert isinstance(product.attributes[0], ProductAttributeValueReadModel)
 
-    def test_nesting_sku_contains_money_model(self) -> None:
-        """Nested SKU.price is a MoneyReadModel, not a plain dict."""
+    def test_nesting_variant_contains_sku_with_money_model(self) -> None:
+        """Nested variant's SKU.price is a MoneyReadModel, not a plain dict."""
         pid = uuid.uuid4()
-        sku = _sku(product_id=pid)
-        product = _product(product_id=pid, skus=[sku])
-        assert isinstance(product.skus[0].price, MoneyReadModel)
+        vid = uuid.uuid4()
+        sku = _sku(product_id=pid, variant_id=vid)
+        variant = _variant(product_id=pid, skus=[sku])
+        product = _product(product_id=pid, variants=[variant])
+        assert isinstance(product.variants[0].skus[0].price, MoneyReadModel)
 
-    def test_nesting_sku_contains_variant_pairs(self) -> None:
-        """Nested SKU.variant_attributes contains VariantAttributePairReadModel objects."""
+    def test_nesting_variant_sku_contains_variant_pairs(self) -> None:
+        """Nested variant's SKU.variant_attributes contains VariantAttributePairReadModel objects."""
         pid = uuid.uuid4()
         pair = _variant_pair()
         sku = SKUReadModel(
             id=uuid.uuid4(),
             product_id=pid,
+            variant_id=uuid.uuid4(),
             sku_code="SKU-PAIR",
             variant_hash="hashpair",
             price=_money(1000, "USD"),
@@ -526,16 +553,17 @@ class TestProductReadModel:
             updated_at=_NOW,
             variant_attributes=[pair],
         )
-        product = _product(product_id=pid, skus=[sku])
-        assert isinstance(product.skus[0].variant_attributes[0], VariantAttributePairReadModel)
+        variant = _variant(product_id=pid, skus=[sku])
+        product = _product(product_id=pid, variants=[variant])
+        assert isinstance(product.variants[0].skus[0].variant_attributes[0], VariantAttributePairReadModel)
 
-    def test_multiple_skus_and_attributes(self) -> None:
-        """ProductReadModel correctly holds multiple SKUs and attributes."""
+    def test_multiple_variants_and_attributes(self) -> None:
+        """ProductReadModel correctly holds multiple variants and attributes."""
         pid = uuid.uuid4()
-        skus = [_sku(product_id=pid) for _ in range(3)]
+        variants = [_variant(product_id=pid) for _ in range(3)]
         attrs = [_product_attr_value(product_id=pid) for _ in range(2)]
-        product = _product(product_id=pid, skus=skus, attributes=attrs)
-        assert len(product.skus) == 3
+        product = _product(product_id=pid, variants=variants, attributes=attrs)
+        assert len(product.variants) == 3
         assert len(product.attributes) == 2
 
     def test_inherits_from_base_model(self) -> None:
@@ -545,9 +573,9 @@ class TestProductReadModel:
     def test_serialization_round_trip(self) -> None:
         """model_dump -> model_validate round-trip preserves all fields."""
         pid = uuid.uuid4()
-        sku = _sku(product_id=pid)
+        variant = _variant(product_id=pid, skus=[_sku(product_id=pid)])
         attr_val = _product_attr_value(product_id=pid)
-        original = _product(product_id=pid, skus=[sku], attributes=[attr_val])
+        original = _product(product_id=pid, variants=[variant], attributes=[attr_val])
 
         data = original.model_dump()
         restored = ProductReadModel.model_validate(data)
@@ -555,29 +583,29 @@ class TestProductReadModel:
         assert restored.id == original.id
         assert restored.slug == original.slug
         assert restored.status == original.status
-        assert len(restored.skus) == 1
+        assert len(restored.variants) == 1
         assert len(restored.attributes) == 1
-        assert isinstance(restored.skus[0], SKUReadModel)
-        assert isinstance(restored.skus[0].price, MoneyReadModel)
+        assert isinstance(restored.variants[0], ProductVariantReadModel)
+        assert isinstance(restored.variants[0].skus[0], SKUReadModel)
 
     def test_json_round_trip(self) -> None:
         """model_dump_json -> model_validate_json preserves all fields."""
         pid = uuid.uuid4()
         original = _product(
             product_id=pid,
-            skus=[_sku(product_id=pid)],
+            variants=[_variant(product_id=pid, skus=[_sku(product_id=pid)])],
             attributes=[_product_attr_value(product_id=pid)],
         )
         json_str = original.model_dump_json()
         # Verify it is valid JSON
         parsed = json.loads(json_str)
         assert "id" in parsed
-        assert "skus" in parsed
+        assert "variants" in parsed
         assert "attributes" in parsed
 
         restored = ProductReadModel.model_validate_json(json_str)
         assert restored.id == original.id
-        assert len(restored.skus) == 1
+        assert len(restored.variants) == 1
 
     def test_empty_tags_list_is_valid(self) -> None:
         """tags=[] is a valid edge case."""
@@ -593,7 +621,7 @@ class TestProductReadModel:
             version=1,
             created_at=_NOW,
             updated_at=_NOW,
-            skus=[],
+            variants=[],
             attributes=[],
         )
         assert product.tags == []
@@ -613,7 +641,7 @@ class TestProductReadModel:
             version=1,
             created_at=_NOW,
             updated_at=_NOW,
-            skus=[],
+            variants=[],
             attributes=[],
         )
         assert product.status == status_str
@@ -638,7 +666,7 @@ class TestProductReadModel:
             updated_at=_NOW,
             min_price=100,
             max_price=9999,
-            skus=[],
+            variants=[],
             attributes=[],
         )
         assert isinstance(product2.min_price, int)

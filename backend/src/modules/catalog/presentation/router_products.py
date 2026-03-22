@@ -239,7 +239,7 @@ def _to_product_response(model: ProductReadModel) -> ProductResponse:
         published_at=model.published_at,
         min_price=model.min_price,
         max_price=model.max_price,
-        skus=[to_sku_response(s) for s in model.skus],
+        skus=[to_sku_response(s) for v in model.variants for s in v.skus],
         attributes=[
             ProductAttributeResponse(
                 id=a.id,

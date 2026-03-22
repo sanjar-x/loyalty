@@ -727,7 +727,7 @@ class SKUResponse(CamelModel):
     product_id: uuid.UUID
     sku_code: str
     variant_hash: str
-    price: MoneySchema
+    price: MoneySchema | None = None
     compare_at_price: MoneySchema | None = None
     is_active: bool
     version: int
