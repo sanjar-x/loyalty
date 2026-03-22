@@ -102,7 +102,7 @@ class UpdateProductHandler:
                 by the domain entity).
         """
         async with self._uow:
-            product = await self._product_repo.get(command.product_id)
+            product = await self._product_repo.get_with_variants(command.product_id)
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
@@ -139,6 +139,7 @@ class UpdateProductHandler:
             product.update(**update_kwargs)
 
             await self._product_repo.update(product)
+            self._uow.register_aggregate(product)
             await self._uow.commit()
 
         return UpdateProductResult(id=product.id)

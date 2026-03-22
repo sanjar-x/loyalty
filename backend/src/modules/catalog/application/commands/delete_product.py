@@ -53,4 +53,5 @@ class DeleteProductHandler:
 
             product.soft_delete()
             await self._product_repo.update(product)
+            self._uow.register_aggregate(product)
             await self._uow.commit()
