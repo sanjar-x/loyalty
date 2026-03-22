@@ -19,6 +19,29 @@ from src.modules.catalog.application.queries.read_models import (
 from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute
 
 
+def attribute_orm_to_read_model(orm: OrmAttribute) -> AttributeReadModel:
+    """Convert an ORM Attribute row to an AttributeReadModel."""
+    return AttributeReadModel(
+        id=orm.id,
+        code=orm.code,
+        slug=orm.slug,
+        name_i18n=orm.name_i18n,
+        description_i18n=orm.description_i18n,
+        data_type=orm.data_type.value,
+        ui_type=orm.ui_type.value,
+        is_dictionary=orm.is_dictionary,
+        group_id=orm.group_id,
+        level=orm.level.value,
+        is_filterable=orm.is_filterable,
+        is_searchable=orm.is_searchable,
+        search_weight=orm.search_weight,
+        is_comparable=orm.is_comparable,
+        is_visible_on_card=orm.is_visible_on_card,
+        is_visible_in_catalog=orm.is_visible_in_catalog,
+        validation_rules=dict(orm.validation_rules) if orm.validation_rules else None,
+    )
+
+
 @dataclass(frozen=True)
 class ListAttributesQuery:
     """Pagination and filter parameters for attribute listing.
@@ -78,7 +101,7 @@ class ListAttributesHandler:
         result = await self._session.execute(items_stmt)
         rows = result.scalars().all()
 
-        items = [self._to_read_model(orm) for orm in rows]
+        items = [attribute_orm_to_read_model(orm) for orm in rows]
 
         return AttributeListReadModel(
             items=items,
@@ -112,30 +135,7 @@ class ListAttributesHandler:
             # Search in JSONB name_i18n values across all languages
             # Uses the @> containment operator for GIN index utilization
             # Fallback to casting to text and using ILIKE for substring search
-            escaped = query.search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            escaped = query.search.replace("\\", "\\\\").replace("%", "\%").replace("_", "\_")
             search_pattern = f"%{escaped}%"
             stmt = stmt.where(func.cast(OrmAttribute.name_i18n, type_=Text()).ilike(search_pattern))
         return stmt
-
-    @staticmethod
-    def _to_read_model(orm: OrmAttribute) -> AttributeReadModel:
-        """Convert an ORM row to a read model."""
-        return AttributeReadModel(
-            id=orm.id,
-            code=orm.code,
-            slug=orm.slug,
-            name_i18n=orm.name_i18n,
-            description_i18n=orm.description_i18n,
-            data_type=orm.data_type.value,
-            ui_type=orm.ui_type.value,
-            is_dictionary=orm.is_dictionary,
-            group_id=orm.group_id,
-            level=orm.level.value,
-            is_filterable=orm.is_filterable,
-            is_searchable=orm.is_searchable,
-            search_weight=orm.search_weight,
-            is_comparable=orm.is_comparable,
-            is_visible_on_card=orm.is_visible_on_card,
-            is_visible_in_catalog=orm.is_visible_in_catalog,
-            validation_rules=dict(orm.validation_rules) if orm.validation_rules else None,
-        )

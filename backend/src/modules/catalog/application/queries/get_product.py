@@ -12,12 +12,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.modules.catalog.application.queries.list_skus import sku_orm_to_read_model
 from src.modules.catalog.application.queries.read_models import (
-    MoneyReadModel,
     ProductAttributeValueReadModel,
     ProductReadModel,
-    SKUReadModel,
-    VariantAttributePairReadModel,
 )
 from src.modules.catalog.domain.exceptions import ProductNotFoundError
 from src.modules.catalog.infrastructure.models import (
@@ -65,42 +63,9 @@ class GetProductHandler:
         return self._to_read_model(orm)
 
     @staticmethod
-    def _to_sku_read_model(sku: OrmSKU) -> SKUReadModel:
-        """Map an ORM SKU to a SKUReadModel."""
-        variant_attrs = [
-            VariantAttributePairReadModel(
-                attribute_id=link.attribute_id,
-                attribute_value_id=link.attribute_value_id,
-            )
-            for link in sku.attribute_values
-        ]
-
-        compare_at: MoneyReadModel | None = None
-        if sku.compare_at_price is not None:
-            compare_at = MoneyReadModel(
-                amount=sku.compare_at_price,
-                currency=sku.currency,
-            )
-
-        return SKUReadModel(
-            id=sku.id,
-            product_id=sku.product_id,
-            sku_code=sku.sku_code,
-            variant_hash=sku.variant_hash,
-            price=MoneyReadModel(amount=sku.price, currency=sku.currency),
-            compare_at_price=compare_at,
-            is_active=sku.is_active,
-            version=sku.version,
-            deleted_at=sku.deleted_at,
-            created_at=sku.created_at,
-            updated_at=sku.updated_at,
-            variant_attributes=variant_attrs,
-        )
-
-    @staticmethod
     def _to_read_model(orm: OrmProduct) -> ProductReadModel:
         """Map an ORM Product to a ProductReadModel with computed prices."""
-        skus = [GetProductHandler._to_sku_read_model(s) for s in orm.skus]
+        skus = [sku_orm_to_read_model(s) for s in orm.skus]
 
         # Compute min/max price across active, non-deleted SKUs
         active_prices = [s.price.amount for s in skus if s.is_active and s.deleted_at is None]

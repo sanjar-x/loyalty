@@ -22,6 +22,39 @@ from src.modules.catalog.infrastructure.models import (
 )
 
 
+def sku_orm_to_read_model(orm: OrmSKU) -> SKUReadModel:
+    """Convert an ORM SKU row to a SKUReadModel."""
+    variant_attrs = [
+        VariantAttributePairReadModel(
+            attribute_id=link.attribute_id,
+            attribute_value_id=link.attribute_value_id,
+        )
+        for link in orm.attribute_values
+    ]
+
+    compare_at: MoneyReadModel | None = None
+    if orm.compare_at_price is not None:
+        compare_at = MoneyReadModel(
+            amount=orm.compare_at_price,
+            currency=orm.currency,
+        )
+
+    return SKUReadModel(
+        id=orm.id,
+        product_id=orm.product_id,
+        sku_code=orm.sku_code,
+        variant_hash=orm.variant_hash,
+        price=MoneyReadModel(amount=orm.price, currency=orm.currency),
+        compare_at_price=compare_at,
+        is_active=orm.is_active,
+        version=orm.version,
+        deleted_at=orm.deleted_at,
+        created_at=orm.created_at,
+        updated_at=orm.updated_at,
+        variant_attributes=variant_attrs,
+    )
+
+
 @dataclass(frozen=True)
 class ListSKUsQuery:
     """Parameters for listing SKUs of a product.
@@ -59,37 +92,4 @@ class ListSKUsHandler:
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
 
-        return [self._to_read_model(orm) for orm in rows]
-
-    @staticmethod
-    def _to_read_model(orm: OrmSKU) -> SKUReadModel:
-        """Convert an ORM SKU row to a read model."""
-        variant_attrs = [
-            VariantAttributePairReadModel(
-                attribute_id=link.attribute_id,
-                attribute_value_id=link.attribute_value_id,
-            )
-            for link in orm.attribute_values
-        ]
-
-        compare_at: MoneyReadModel | None = None
-        if orm.compare_at_price is not None:
-            compare_at = MoneyReadModel(
-                amount=orm.compare_at_price,
-                currency=orm.currency,
-            )
-
-        return SKUReadModel(
-            id=orm.id,
-            product_id=orm.product_id,
-            sku_code=orm.sku_code,
-            variant_hash=orm.variant_hash,
-            price=MoneyReadModel(amount=orm.price, currency=orm.currency),
-            compare_at_price=compare_at,
-            is_active=orm.is_active,
-            version=orm.version,
-            deleted_at=orm.deleted_at,
-            created_at=orm.created_at,
-            updated_at=orm.updated_at,
-            variant_attributes=variant_attrs,
-        )
+        return [sku_orm_to_read_model(orm) for orm in rows]

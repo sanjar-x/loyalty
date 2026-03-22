@@ -2,8 +2,8 @@
 Command handler: change a product's lifecycle status.
 
 Delegates FSM validation to ``Product.transition_status()`` in the domain
-layer. The handler only orchestrates: fetch, transition, persist, commit.
-Part of the application layer (CQRS write side).
+layer. The handler only orchestrates: fetch (with pessimistic lock),
+transition, persist, commit. Part of the application layer (CQRS write side).
 """
 
 import uuid
@@ -31,11 +31,10 @@ class ChangeProductStatusCommand:
 class ChangeProductStatusHandler:
     """Transition a product through its lifecycle FSM.
 
-    Orchestrates: fetch -> transition_status -> persist -> commit.
+    Orchestrates: fetch (FOR UPDATE) -> transition_status -> persist -> commit.
     FSM rules (allowed transitions, ``published_at`` stamping) are
-    enforced entirely by the domain entity.
-
-    No domain events are emitted (product lifecycle events are deferred to P2).
+    enforced entirely by the domain entity. A ``ProductStatusChangedEvent``
+    is emitted via the Unit of Work aggregate registration.
     """
 
     def __init__(
@@ -58,11 +57,12 @@ class ChangeProductStatusHandler:
                 (raised by ``Product.transition_status``).
         """
         async with self._uow:
-            product = await self._product_repo.get(command.product_id)
+            product = await self._product_repo.get_for_update(command.product_id)
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
             product.transition_status(command.new_status)
 
             await self._product_repo.update(product)
+            self._uow.register_aggregate(product)
             await self._uow.commit()

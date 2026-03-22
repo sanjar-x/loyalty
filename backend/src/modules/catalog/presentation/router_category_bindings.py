@@ -135,6 +135,7 @@ async def update_binding(
 ) -> CategoryAttributeBindingResponse:
     command = UpdateCategoryAttributeBindingCommand(
         binding_id=binding_id,
+        category_id=category_id,
         sort_order=request.sort_order,
         requirement_level=(
             RequirementLevel(request.requirement_level) if request.requirement_level else None
@@ -167,7 +168,7 @@ async def unbind_attribute(
     binding_id: uuid.UUID,
     handler: FromDishka[UnbindAttributeFromCategoryHandler],
 ) -> None:
-    command = UnbindAttributeFromCategoryCommand(binding_id=binding_id)
+    command = UnbindAttributeFromCategoryCommand(binding_id=binding_id, category_id=category_id)
     await handler.handle(command)
 
 

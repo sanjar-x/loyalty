@@ -73,6 +73,11 @@ class IBrandRepository(ICatalogRepository[DomainBrand]):
         """Check if a slug is taken by another brand (excluding given ID)."""
         pass
 
+    @abstractmethod
+    async def get_by_slug(self, slug: str) -> DomainBrand | None:
+        """Retrieve a brand by its URL slug, or ``None``."""
+        pass
+
 
 class ICategoryRepository(ICatalogRepository[DomainCategory]):
     """Repository contract for the Category aggregate."""

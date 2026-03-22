@@ -421,7 +421,7 @@ class AttributeGroup(AggregateRoot):
         code: str,
         name_i18n: dict[str, str],
         sort_order: int = 0,
-        group_id: uuid.UUID | None = None,
+        group_id: uuid.UUID | None = ...,  # type: ignore[assignment]
     ) -> AttributeGroup:
         """Factory method to construct a new AttributeGroup aggregate.
 
@@ -610,7 +610,7 @@ class Attribute(AggregateRoot):
         name_i18n: dict[str, str] | None = None,
         description_i18n: dict[str, str] | None = None,
         ui_type: AttributeUIType | None = None,
-        group_id: uuid.UUID | None = None,
+        group_id: uuid.UUID | None = ...,  # type: ignore[assignment]
         level: AttributeLevel | None = None,
         is_filterable: bool | None = None,
         is_searchable: bool | None = None,
@@ -652,7 +652,7 @@ class Attribute(AggregateRoot):
         if ui_type is not None:
             self.ui_type = ui_type
 
-        if group_id is not None:
+        if group_id is not ...:
             self.group_id = group_id
 
         if level is not None:
@@ -1525,7 +1525,7 @@ class Product(AggregateRoot):
             )
         old_status = self.status.value
         self.status = new_status
-        if new_status == ProductStatus.PUBLISHED:
+        if new_status == ProductStatus.PUBLISHED and self.published_at is None:
             self.published_at = datetime.now(UTC)
         self.updated_at = datetime.now(UTC)
         self.add_domain_event(

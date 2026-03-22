@@ -125,11 +125,13 @@ class AddExternalProductMediaHandler:
             await self._media_repo.add(media)
             try:
                 await self._uow.commit()
-            except IntegrityError:
-                raise ConflictError(
-                    f"MAIN media already exists for product {command.product_id} "
-                    f"variant {command.attribute_value_id}"
-                ) from None
+            except IntegrityError as exc:
+                if "uix_media_single_main_per_color" in str(exc.orig):
+                    raise ConflictError(
+                        f"MAIN media already exists for product {command.product_id} "
+                        f"variant {command.attribute_value_id}"
+                    ) from None
+                raise
 
         return AddExternalProductMediaResult(
             media_id=media.id,

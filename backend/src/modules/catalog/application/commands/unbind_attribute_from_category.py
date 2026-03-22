@@ -20,6 +20,7 @@ class UnbindAttributeFromCategoryCommand:
     """Input for unbinding an attribute from a category."""
 
     binding_id: uuid.UUID
+    category_id: uuid.UUID
 
 
 class UnbindAttributeFromCategoryHandler:
@@ -37,11 +38,15 @@ class UnbindAttributeFromCategoryHandler:
         """Execute the unbind command.
 
         Raises:
-            CategoryAttributeBindingNotFoundError: If the binding does not exist.
+            CategoryAttributeBindingNotFoundError: If the binding does not exist
+                or does not belong to the specified category.
         """
         async with self._uow:
             binding = await self._binding_repo.get(command.binding_id)
             if binding is None:
+                raise CategoryAttributeBindingNotFoundError(binding_id=command.binding_id)
+
+            if binding.category_id != command.category_id:
                 raise CategoryAttributeBindingNotFoundError(binding_id=command.binding_id)
 
             binding.add_domain_event(

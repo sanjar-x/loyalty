@@ -26,6 +26,7 @@ class UpdateCategoryAttributeBindingCommand:
     """Input for updating a binding. category_id/attribute_id are immutable."""
 
     binding_id: uuid.UUID
+    category_id: uuid.UUID
     sort_order: int | None = None
     requirement_level: RequirementLevel | None = None
     flag_overrides: dict[str, Any] | None = _SENTINEL  # type: ignore[assignment]
@@ -65,11 +66,15 @@ class UpdateCategoryAttributeBindingHandler:
             Rich result containing the updated binding fields.
 
         Raises:
-            CategoryAttributeBindingNotFoundError: If the binding does not exist.
+            CategoryAttributeBindingNotFoundError: If the binding does not exist
+                or does not belong to the specified category.
         """
         async with self._uow:
             binding = await self._binding_repo.get(command.binding_id)
             if binding is None:
+                raise CategoryAttributeBindingNotFoundError(binding_id=command.binding_id)
+
+            if binding.category_id != command.category_id:
                 raise CategoryAttributeBindingNotFoundError(binding_id=command.binding_id)
 
             update_kwargs: dict[str, Any] = dict(

@@ -1,18 +1,26 @@
 """
 Command handler: create a new product.
 
-Validates slug uniqueness, persists the Product aggregate in DRAFT status,
-and returns the newly assigned product ID. Part of the application layer
-(CQRS write side). Domain events for the Product lifecycle are deferred
-to a future phase; this handler does NOT emit any domain events.
+Validates FK references (brand, category) and slug uniqueness, persists the
+Product aggregate in DRAFT status, registers it with the Unit of Work so that
+the ``ProductCreatedEvent`` reaches the Outbox, and returns the newly assigned
+product ID. Part of the application layer (CQRS write side).
 """
 
 import uuid
 from dataclasses import dataclass, field
 
 from src.modules.catalog.domain.entities import Product
-from src.modules.catalog.domain.exceptions import ProductSlugConflictError
-from src.modules.catalog.domain.interfaces import IProductRepository
+from src.modules.catalog.domain.exceptions import (
+    BrandNotFoundError,
+    CategoryNotFoundError,
+    ProductSlugConflictError,
+)
+from src.modules.catalog.domain.interfaces import (
+    IBrandRepository,
+    ICategoryRepository,
+    IProductRepository,
+)
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -54,18 +62,22 @@ class CreateProductResult:
 
 
 class CreateProductHandler:
-    """Create a new product with slug uniqueness validation.
+    """Create a new product with FK and slug uniqueness validation.
 
-    The product is persisted in DRAFT status. No domain events are
-    emitted (product lifecycle events are deferred to a future phase).
+    The product is persisted in DRAFT status. A ``ProductCreatedEvent`` is
+    emitted via the Unit of Work aggregate registration.
     """
 
     def __init__(
         self,
         product_repo: IProductRepository,
+        brand_repo: IBrandRepository,
+        category_repo: ICategoryRepository,
         uow: IUnitOfWork,
     ) -> None:
         self._product_repo = product_repo
+        self._brand_repo = brand_repo
+        self._category_repo = category_repo
         self._uow = uow
 
     async def handle(self, command: CreateProductCommand) -> CreateProductResult:
@@ -78,12 +90,22 @@ class CreateProductHandler:
             Result containing the new product's UUID.
 
         Raises:
+            BrandNotFoundError: If the referenced brand does not exist.
+            CategoryNotFoundError: If the referenced category does not exist.
             ProductSlugConflictError: If a product with the given slug
                 already exists.
             ValueError: If ``title_i18n`` is empty (propagated from
                 ``Product.create()``).
         """
         async with self._uow:
+            brand = await self._brand_repo.get(command.brand_id)
+            if brand is None:
+                raise BrandNotFoundError(brand_id=command.brand_id)
+
+            category = await self._category_repo.get(command.primary_category_id)
+            if category is None:
+                raise CategoryNotFoundError(category_id=command.primary_category_id)
+
             if await self._product_repo.check_slug_exists(command.slug):
                 raise ProductSlugConflictError(slug=command.slug)
 
@@ -99,6 +121,7 @@ class CreateProductHandler:
             )
 
             await self._product_repo.add(product)
+            self._uow.register_aggregate(product)
             await self._uow.commit()
 
         return CreateProductResult(product_id=product.id)

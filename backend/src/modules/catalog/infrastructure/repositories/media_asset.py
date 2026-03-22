@@ -136,20 +136,16 @@ class MediaAssetRepository(IMediaAssetRepository):
         attribute_value_id: uuid.UUID | None,
     ) -> bool:
         """Check if a MAIN media asset already exists for this product/variant combo."""
+        conditions = [
+            OrmMediaAsset.product_id == product_id,
+            OrmMediaAsset.role == MediaRole.MAIN,
+            OrmMediaAsset.processing_status != MediaProcessingStatus.FAILED.value,
+        ]
         if attribute_value_id is None:
-            condition = (
-                (OrmMediaAsset.product_id == product_id)
-                & (OrmMediaAsset.attribute_value_id.is_(None))
-                & (OrmMediaAsset.role == MediaRole.MAIN)
-                & (OrmMediaAsset.processing_status != MediaProcessingStatus.FAILED.value)
-            )
+            conditions.append(OrmMediaAsset.attribute_value_id.is_(None))
         else:
-            condition = (
-                (OrmMediaAsset.product_id == product_id)
-                & (OrmMediaAsset.attribute_value_id == attribute_value_id)
-                & (OrmMediaAsset.role == MediaRole.MAIN)
-                & (OrmMediaAsset.processing_status != MediaProcessingStatus.FAILED.value)
-            )
-        stmt = select(exists().where(condition))
+            conditions.append(OrmMediaAsset.attribute_value_id == attribute_value_id)
+
+        stmt = select(exists().where(*conditions))
         result = await self._session.execute(stmt)
         return bool(result.scalar())
