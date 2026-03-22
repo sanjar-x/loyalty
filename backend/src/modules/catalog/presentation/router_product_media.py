@@ -63,7 +63,7 @@ async def request_media_upload(
     """Generate a presigned S3 PUT URL for uploading a media file."""
     cmd = AddProductMediaCommand(
         product_id=product_id,
-        attribute_value_id=request.attribute_value_id,
+        variant_id=request.variant_id,
         media_type=request.media_type,
         role=request.role,
         content_type=request.content_type,
@@ -93,7 +93,7 @@ async def add_external_media(
     """Add an externally hosted media asset (e.g. YouTube video) to a product."""
     cmd = AddExternalProductMediaCommand(
         product_id=product_id,
-        attribute_value_id=request.attribute_value_id,
+        variant_id=request.variant_id,
         media_type=request.media_type,
         role=request.role,
         external_url=request.external_url,
@@ -103,7 +103,7 @@ async def add_external_media(
     return ProductMediaResponse(
         id=result.media_id,
         product_id=result.product_id,
-        attribute_value_id=result.attribute_value_id,
+        variant_id=result.variant_id,
         media_type=result.media_type,
         role=result.role,
         sort_order=result.sort_order,
@@ -148,7 +148,7 @@ async def list_product_media(
         ProductMediaResponse(
             id=m.id,
             product_id=m.product_id,
-            attribute_value_id=m.attribute_value_id,
+            variant_id=m.variant_id,
             media_type=m.media_type,
             role=m.role,
             sort_order=m.sort_order,

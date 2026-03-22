@@ -34,7 +34,7 @@ class AddExternalProductMediaCommand:
     """
 
     product_id: uuid.UUID
-    attribute_value_id: uuid.UUID | None
+    variant_id: uuid.UUID | None
     media_type: str
     role: str
     external_url: str
@@ -60,7 +60,7 @@ class AddExternalProductMediaResult:
 
     media_id: uuid.UUID
     product_id: uuid.UUID
-    attribute_value_id: uuid.UUID | None
+    variant_id: uuid.UUID | None
     media_type: str
     role: str
     sort_order: int
@@ -99,7 +99,7 @@ class AddExternalProductMediaHandler:
         """
         media = MediaAsset.create_external(
             product_id=command.product_id,
-            attribute_value_id=command.attribute_value_id,
+            variant_id=command.variant_id,
             media_type=command.media_type,
             role=command.role,
             external_url=command.external_url,
@@ -114,29 +114,29 @@ class AddExternalProductMediaHandler:
             if command.role == "main":
                 has_main = await self._media_repo.has_main_for_variant(
                     command.product_id,
-                    command.attribute_value_id,
+                    command.variant_id,
                 )
                 if has_main:
                     raise ConflictError(
                         f"MAIN media already exists for product {command.product_id} "
-                        f"variant {command.attribute_value_id}"
+                        f"variant {command.variant_id}"
                     )
 
             await self._media_repo.add(media)
             try:
                 await self._uow.commit()
             except IntegrityError as exc:
-                if "uix_media_single_main_per_color" in str(exc.orig):
+                if "uix_media_single_main_per_variant" in str(exc.orig):
                     raise ConflictError(
                         f"MAIN media already exists for product {command.product_id} "
-                        f"variant {command.attribute_value_id}"
+                        f"variant {command.variant_id}"
                     ) from None
                 raise
 
         return AddExternalProductMediaResult(
             media_id=media.id,
             product_id=media.product_id,
-            attribute_value_id=media.attribute_value_id,
+            variant_id=media.variant_id,
             media_type=media.media_type,
             role=media.role,
             sort_order=media.sort_order,

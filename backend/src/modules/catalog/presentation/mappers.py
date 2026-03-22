@@ -19,12 +19,18 @@ def to_sku_response(model: SKUReadModel) -> SKUResponse:
     price_schema: MoneySchema | None = None
     if model.price is not None:
         price_schema = MoneySchema(amount=model.price.amount, currency=model.price.currency)
+    resolved_price_schema: MoneySchema | None = None
+    if model.resolved_price is not None:
+        resolved_price_schema = MoneySchema(
+            amount=model.resolved_price.amount, currency=model.resolved_price.currency
+        )
     return SKUResponse(
         id=model.id,
         product_id=model.product_id,
         sku_code=model.sku_code,
         variant_hash=model.variant_hash,
         price=price_schema,
+        resolved_price=resolved_price_schema,
         compare_at_price=compare_at,
         is_active=model.is_active,
         version=model.version,

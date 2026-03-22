@@ -687,8 +687,8 @@ class SKUCreateRequest(CamelModel):
     """Request body for adding a SKU (variant) to a product."""
 
     sku_code: str = Field(..., min_length=1, max_length=100)
-    price_amount: int = Field(..., ge=0)
-    price_currency: str = Field(..., min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
+    price_amount: int | None = Field(None, ge=0)
+    price_currency: str = Field("RUB", min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
     compare_at_price_amount: int | None = Field(None, ge=0)
     is_active: bool = True
     variant_attributes: list[VariantAttributePairSchema] = Field(default_factory=list)
@@ -728,6 +728,7 @@ class SKUResponse(CamelModel):
     sku_code: str
     variant_hash: str
     price: MoneySchema | None = None
+    resolved_price: MoneySchema | None = None
     compare_at_price: MoneySchema | None = None
     is_active: bool
     version: int
@@ -782,7 +783,7 @@ class ProductResponse(CamelModel):
     published_at: datetime | None = None
     min_price: int | None = None
     max_price: int | None = None
-    skus: list[SKUResponse]
+    variants: list[ProductVariantResponse]
     attributes: list[ProductAttributeResponse]
 
 
@@ -810,6 +811,42 @@ class ProductListResponse(CamelModel):
 
 
 # ---------------------------------------------------------------------------
+# ProductVariant schemas
+# ---------------------------------------------------------------------------
+
+
+class ProductVariantCreateRequest(CamelModel):
+    """Request body for creating a new product variant."""
+
+    name_i18n: dict[str, str] = Field(..., min_length=1)
+    description_i18n: dict[str, str] | None = None
+    sort_order: int = Field(0, ge=0)
+    default_price_amount: int | None = Field(None, ge=0)
+    default_price_currency: str = Field("RUB", min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
+
+
+class ProductVariantUpdateRequest(CamelModel):
+    """Partial update request for a product variant (PATCH semantics)."""
+
+    name_i18n: dict[str, str] | None = None
+    description_i18n: dict[str, str] | None = None
+    sort_order: int | None = Field(None, ge=0)
+    default_price_amount: int | None = Field(None, ge=0)
+    default_price_currency: str | None = Field(None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
+
+
+class ProductVariantResponse(CamelModel):
+    """Product variant detail response with nested SKUs."""
+
+    id: uuid.UUID
+    name_i18n: dict[str, str]
+    description_i18n: dict[str, str] | None
+    sort_order: int
+    default_price: MoneySchema | None
+    skus: list[SKUResponse]
+
+
+# ---------------------------------------------------------------------------
 # Product media schemas
 # ---------------------------------------------------------------------------
 
@@ -817,7 +854,7 @@ class ProductListResponse(CamelModel):
 class ProductMediaUploadRequest(CamelModel):
     """Request body for reserving a media upload slot."""
 
-    attribute_value_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
     media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
     role: str = Field(..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$")
     content_type: str = Field(
@@ -839,7 +876,7 @@ class ProductMediaUploadResponse(CamelModel):
 class ProductMediaExternalRequest(CamelModel):
     """Request body for adding an external media URL (e.g., YouTube)."""
 
-    attribute_value_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
     media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
     role: str = Field(..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$")
     external_url: str = Field(..., min_length=1, max_length=2048, pattern=r"^https?://")
@@ -851,7 +888,7 @@ class ProductMediaResponse(CamelModel):
 
     id: uuid.UUID
     product_id: uuid.UUID
-    attribute_value_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
     media_type: str
     role: str
     sort_order: int

@@ -43,13 +43,13 @@ def make_product_repo(product: object | None = None) -> AsyncMock:
     """Build a mocked IProductRepository.
 
     Args:
-        product: The value returned by get_with_skus. None simulates not-found.
+        product: The value returned by get_with_variants. None simulates not-found.
 
     Returns:
         Configured AsyncMock.
     """
     repo = AsyncMock()
-    repo.get_with_skus = AsyncMock(return_value=product)
+    repo.get_with_variants = AsyncMock(return_value=product)
     repo.update = AsyncMock()
     return repo
 
@@ -126,8 +126,8 @@ class TestDeleteSKUCommand:
 class TestDeleteSKUHandlerHappyPath:
     """Handler tests when product and SKU both exist."""
 
-    async def test_calls_get_with_skus_with_product_id(self) -> None:
-        """Handler calls get_with_skus exactly once with the command's product_id."""
+    async def test_calls_get_with_variants_with_product_id(self) -> None:
+        """Handler calls get_with_variants exactly once with the command's product_id."""
         product_id = uuid.uuid4()
         product = make_product()
         repo = make_product_repo(product=product)
@@ -137,7 +137,7 @@ class TestDeleteSKUHandlerHappyPath:
         cmd = make_command(product_id=product_id)
         await handler.handle(cmd)
 
-        repo.get_with_skus.assert_awaited_once_with(product_id)
+        repo.get_with_variants.assert_awaited_once_with(product_id)
 
     async def test_calls_remove_sku_with_sku_id(self) -> None:
         """Handler delegates soft-delete to product.remove_sku with the command's sku_id."""
@@ -203,7 +203,7 @@ class TestDeleteSKUHandlerHappyPath:
         product = make_product()
 
         repo = AsyncMock()
-        repo.get_with_skus = AsyncMock(return_value=product)
+        repo.get_with_variants = AsyncMock(return_value=product)
         repo.update = AsyncMock(side_effect=lambda *_: call_order.append("update"))
 
         uow = make_uow()
@@ -224,7 +224,7 @@ class TestDeleteSKUHandlerProductNotFound:
     """Handler tests when the product does not exist."""
 
     async def test_raises_product_not_found_error(self) -> None:
-        """Handler raises ProductNotFoundError when get_with_skus returns None."""
+        """Handler raises ProductNotFoundError when get_with_variants returns None."""
         repo = make_product_repo(product=None)
         uow = make_uow()
         handler = DeleteSKUHandler(product_repo=repo, uow=uow)

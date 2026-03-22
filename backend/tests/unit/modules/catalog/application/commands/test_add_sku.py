@@ -20,7 +20,7 @@ from src.modules.catalog.application.commands.add_sku import (
     AddSKUHandler,
     AddSKUResult,
 )
-from src.modules.catalog.domain.entities import SKU, Product
+from src.modules.catalog.domain.entities import SKU, Product, ProductVariant
 from src.modules.catalog.domain.exceptions import (
     DuplicateVariantCombinationError,
     ProductNotFoundError,
@@ -48,20 +48,28 @@ def make_product(
 ) -> Product:
     """Build a minimal valid Product aggregate for testing.
 
+    Creates a product with one default variant so that add_sku() can find it.
+
     Args:
         product_id: Optional explicit product UUID.
-        skus: Optional list of existing SKUs on the product.
+        skus: Optional list of existing SKUs on the product (unused, kept for API compat).
 
     Returns:
-        A ready-to-use Product instance in DRAFT status.
+        A ready-to-use Product instance in DRAFT status with a default variant.
     """
-    return Product.create(
+    product = Product.create(
         slug=f"test-product-{uuid.uuid4().hex[:6]}",
         title_i18n={"en": "Test Product"},
         brand_id=uuid.uuid4(),
         primary_category_id=uuid.uuid4(),
         product_id=product_id,
     )
+    # Add a default variant so add_sku has a target
+    product.add_variant(
+        name_i18n={"en": "Default"},
+        sort_order=0,
+    )
+    return product
 
 
 def make_product_repo(product: Product | None = None) -> AsyncMock:
@@ -74,15 +82,16 @@ def make_product_repo(product: Product | None = None) -> AsyncMock:
         Configured AsyncMock.
     """
     repo = AsyncMock()
-    repo.get_with_skus = AsyncMock(return_value=product)
+    repo.get_with_variants = AsyncMock(return_value=product)
     repo.update = AsyncMock()
     return repo
 
 
 def make_command(
     product_id: uuid.UUID | None = None,
+    variant_id: uuid.UUID | None = None,
     sku_code: str = "SKU-001",
-    price_amount: int = 10000,
+    price_amount: int | None = 10000,
     price_currency: str = "USD",
     compare_at_price_amount: int | None = None,
     is_active: bool = True,
@@ -92,8 +101,9 @@ def make_command(
 
     Args:
         product_id: Product UUID; generates one if None.
+        variant_id: Variant UUID; generates one if None.
         sku_code: Human-readable SKU code.
-        price_amount: Price in smallest currency units.
+        price_amount: Price in smallest currency units (None for no price).
         price_currency: ISO 4217 currency code.
         compare_at_price_amount: Optional strikethrough price amount.
         is_active: Whether SKU is immediately active.
@@ -104,6 +114,7 @@ def make_command(
     """
     return AddSKUCommand(
         product_id=product_id or uuid.uuid4(),
+        variant_id=variant_id or uuid.uuid4(),
         sku_code=sku_code,
         price_amount=price_amount,
         price_currency=price_currency,
@@ -199,7 +210,8 @@ class TestAddSKUHandlerHappyPath:
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
-        result = await handler.handle(make_command(product_id=product_id))
+        vid = product.variants[0].id
+        result = await handler.handle(make_command(product_id=product_id, variant_id=vid))
 
         assert isinstance(result, AddSKUResult)
         assert isinstance(result.sku_id, uuid.UUID)
@@ -211,21 +223,23 @@ class TestAddSKUHandlerHappyPath:
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
-        result = await handler.handle(make_command(product_id=product.id))
+        vid = product.variants[0].id
+        result = await handler.handle(make_command(product_id=product.id, variant_id=vid))
 
-        assert len(product.skus) == 1
-        assert result.sku_id == product.skus[0].id
+        assert len(product.variants[0].skus) == 1
+        assert result.sku_id == product.variants[0].skus[0].id
 
-    async def test_calls_get_with_skus_with_correct_id(self) -> None:
-        """Handler calls get_with_skus with the command's product_id."""
+    async def test_calls_get_with_variants_with_correct_id(self) -> None:
+        """Handler calls get_with_variants with the command's product_id."""
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
-        await handler.handle(make_command(product_id=product.id))
+        vid = product.variants[0].id
+        await handler.handle(make_command(product_id=product.id, variant_id=vid))
 
-        repo.get_with_skus.assert_awaited_once_with(product.id)
+        repo.get_with_variants.assert_awaited_once_with(product.id)
 
     async def test_calls_repo_update_with_product(self) -> None:
         """Handler calls repo.update exactly once with the product."""
@@ -234,7 +248,8 @@ class TestAddSKUHandlerHappyPath:
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
-        await handler.handle(make_command(product_id=product.id))
+        vid = product.variants[0].id
+        await handler.handle(make_command(product_id=product.id, variant_id=vid))
 
         repo.update.assert_awaited_once_with(product)
 
@@ -245,7 +260,8 @@ class TestAddSKUHandlerHappyPath:
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
-        await handler.handle(make_command(product_id=product.id))
+        vid = product.variants[0].id
+        await handler.handle(make_command(product_id=product.id, variant_id=vid))
 
         uow.commit.assert_awaited_once()
 
@@ -256,7 +272,8 @@ class TestAddSKUHandlerHappyPath:
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
-        await handler.handle(make_command(product_id=product.id))
+        vid = product.variants[0].id
+        await handler.handle(make_command(product_id=product.id, variant_id=vid))
 
         uow.__aenter__.assert_awaited_once()
         uow.__aexit__.assert_awaited_once()
@@ -268,15 +285,17 @@ class TestAddSKUHandlerHappyPath:
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
+        vid = product.variants[0].id
         await handler.handle(
             make_command(
                 product_id=product.id,
+                variant_id=vid,
                 price_amount=7500,
                 price_currency="RUB",
             )
         )
 
-        sku = product.skus[0]
+        sku = product.variants[0].skus[0]
         assert sku.price == Money(amount=7500, currency="RUB")
 
     async def test_sku_has_correct_sku_code(self) -> None:
@@ -286,9 +305,10 @@ class TestAddSKUHandlerHappyPath:
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
-        await handler.handle(make_command(product_id=product.id, sku_code="CUSTOM-CODE-99"))
+        vid = product.variants[0].id
+        await handler.handle(make_command(product_id=product.id, variant_id=vid, sku_code="CUSTOM-CODE-99"))
 
-        assert product.skus[0].sku_code == "CUSTOM-CODE-99"
+        assert product.variants[0].skus[0].sku_code == "CUSTOM-CODE-99"
 
     async def test_sku_is_active_by_default(self) -> None:
         """SKU is active when is_active=True (default)."""
@@ -297,9 +317,10 @@ class TestAddSKUHandlerHappyPath:
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
-        await handler.handle(make_command(product_id=product.id))
+        vid = product.variants[0].id
+        await handler.handle(make_command(product_id=product.id, variant_id=vid))
 
-        assert product.skus[0].is_active is True
+        assert product.variants[0].skus[0].is_active is True
 
     async def test_sku_can_be_inactive(self) -> None:
         """SKU respects is_active=False from the command."""
@@ -308,9 +329,10 @@ class TestAddSKUHandlerHappyPath:
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
-        await handler.handle(make_command(product_id=product.id, is_active=False))
+        vid = product.variants[0].id
+        await handler.handle(make_command(product_id=product.id, variant_id=vid, is_active=False))
 
-        assert product.skus[0].is_active is False
+        assert product.variants[0].skus[0].is_active is False
 
     async def test_compare_at_price_set_when_valid(self) -> None:
         """When compare_at_price > price, it is set on the SKU."""
@@ -319,16 +341,18 @@ class TestAddSKUHandlerHappyPath:
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
+        vid = product.variants[0].id
         await handler.handle(
             make_command(
                 product_id=product.id,
+                variant_id=vid,
                 price_amount=5000,
                 price_currency="USD",
                 compare_at_price_amount=8000,
             )
         )
 
-        sku = product.skus[0]
+        sku = product.variants[0].skus[0]
         assert sku.compare_at_price == Money(amount=8000, currency="USD")
 
     async def test_compare_at_price_none_when_not_provided(self) -> None:
@@ -338,9 +362,10 @@ class TestAddSKUHandlerHappyPath:
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
-        await handler.handle(make_command(product_id=product.id))
+        vid = product.variants[0].id
+        await handler.handle(make_command(product_id=product.id, variant_id=vid))
 
-        assert product.skus[0].compare_at_price is None
+        assert product.variants[0].skus[0].compare_at_price is None
 
 
 # ---------------------------------------------------------------------------
@@ -406,6 +431,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
     async def test_raises_value_error_when_compare_equals_price(self) -> None:
         """compare_at_price == price raises ValueError."""
         product = make_product()
+        vid = product.variants[0].id
         repo = make_product_repo(product=product)
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
@@ -414,6 +440,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
             await handler.handle(
                 make_command(
                     product_id=product.id,
+                    variant_id=vid,
                     price_amount=5000,
                     compare_at_price_amount=5000,
                 )
@@ -422,6 +449,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
     async def test_raises_value_error_when_compare_less_than_price(self) -> None:
         """compare_at_price < price raises ValueError."""
         product = make_product()
+        vid = product.variants[0].id
         repo = make_product_repo(product=product)
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
@@ -430,6 +458,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
             await handler.handle(
                 make_command(
                     product_id=product.id,
+                    variant_id=vid,
                     price_amount=5000,
                     compare_at_price_amount=3000,
                 )
@@ -438,6 +467,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
     async def test_commit_not_called_on_price_validation_error(self) -> None:
         """When compare_at_price validation fails, commit is not called."""
         product = make_product()
+        vid = product.variants[0].id
         repo = make_product_repo(product=product)
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
@@ -446,6 +476,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
             await handler.handle(
                 make_command(
                     product_id=product.id,
+                    variant_id=vid,
                     price_amount=5000,
                     compare_at_price_amount=3000,
                 )
@@ -456,6 +487,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
     async def test_repo_update_not_called_on_price_validation_error(self) -> None:
         """When compare_at_price validation fails, repo.update is not called."""
         product = make_product()
+        vid = product.variants[0].id
         repo = make_product_repo(product=product)
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
@@ -464,6 +496,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
             await handler.handle(
                 make_command(
                     product_id=product.id,
+                    variant_id=vid,
                     price_amount=5000,
                     compare_at_price_amount=3000,
                 )
@@ -488,6 +521,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
     ) -> None:
         """Parametrized: various invalid compare_at_price values all raise ValueError."""
         product = make_product()
+        vid = product.variants[0].id
         repo = make_product_repo(product=product)
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
@@ -496,6 +530,7 @@ class TestAddSKUHandlerCompareAtPriceValidation:
             await handler.handle(
                 make_command(
                     product_id=product.id,
+                    variant_id=vid,
                     price_amount=price_amount,
                     compare_at_price_amount=compare_at_price_amount,
                 )
@@ -517,8 +552,10 @@ class TestAddSKUHandlerDuplicateVariant:
         variant_attrs: list[tuple[uuid.UUID, uuid.UUID]] = [(attr_id, val_id)]
 
         product = make_product()
+        vid = product.variants[0].id
         # Pre-add a SKU with the same variant attributes.
         product.add_sku(
+            vid,
             sku_code="EXISTING-SKU",
             price=Money(amount=5000, currency="USD"),
             variant_attributes=variant_attrs,
@@ -532,6 +569,7 @@ class TestAddSKUHandlerDuplicateVariant:
             await handler.handle(
                 make_command(
                     product_id=product.id,
+                    variant_id=vid,
                     variant_attributes=variant_attrs,
                 )
             )
@@ -543,7 +581,9 @@ class TestAddSKUHandlerDuplicateVariant:
         variant_attrs: list[tuple[uuid.UUID, uuid.UUID]] = [(attr_id, val_id)]
 
         product = make_product()
+        vid = product.variants[0].id
         product.add_sku(
+            vid,
             sku_code="EXISTING-SKU",
             price=Money(amount=5000, currency="USD"),
             variant_attributes=variant_attrs,
@@ -557,6 +597,7 @@ class TestAddSKUHandlerDuplicateVariant:
             await handler.handle(
                 make_command(
                     product_id=product.id,
+                    variant_id=vid,
                     variant_attributes=variant_attrs,
                 )
             )
@@ -566,7 +607,9 @@ class TestAddSKUHandlerDuplicateVariant:
     async def test_different_variant_attributes_no_collision(self) -> None:
         """Adding SKUs with different variant attributes succeeds."""
         product = make_product()
+        vid = product.variants[0].id
         product.add_sku(
+            vid,
             sku_code="EXISTING-SKU",
             price=Money(amount=5000, currency="USD"),
             variant_attributes=[(uuid.uuid4(), uuid.uuid4())],
@@ -579,12 +622,13 @@ class TestAddSKUHandlerDuplicateVariant:
         result = await handler.handle(
             make_command(
                 product_id=product.id,
+                variant_id=vid,
                 variant_attributes=[(uuid.uuid4(), uuid.uuid4())],
             )
         )
 
         assert isinstance(result, AddSKUResult)
-        assert len(product.skus) == 2
+        assert len(product.variants[0].skus) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -598,14 +642,15 @@ class TestAddSKUHandlerVariantAttributes:
     async def test_empty_variant_attributes_creates_sku(self) -> None:
         """Empty variant_attributes list still creates a valid SKU."""
         product = make_product()
+        vid = product.variants[0].id
         repo = make_product_repo(product=product)
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
-        result = await handler.handle(make_command(product_id=product.id, variant_attributes=[]))
+        result = await handler.handle(make_command(product_id=product.id, variant_id=vid, variant_attributes=[]))
 
         assert isinstance(result, AddSKUResult)
-        assert product.skus[0].variant_attributes == []
+        assert product.variants[0].skus[0].variant_attributes == []
 
     async def test_multiple_variant_attributes_stored(self) -> None:
         """Multiple variant attribute pairs are forwarded to the SKU."""
@@ -618,7 +663,8 @@ class TestAddSKUHandlerVariantAttributes:
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
-        await handler.handle(make_command(product_id=product.id, variant_attributes=variant_attrs))
+        vid = product.variants[0].id
+        await handler.handle(make_command(product_id=product.id, variant_id=vid, variant_attributes=variant_attrs))
 
-        sku = product.skus[0]
+        sku = product.variants[0].skus[0]
         assert len(sku.variant_attributes) == 2

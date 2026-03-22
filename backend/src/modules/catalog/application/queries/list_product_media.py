@@ -15,7 +15,7 @@ class MediaAssetReadModel:
 
     id: uuid.UUID
     product_id: uuid.UUID
-    attribute_value_id: uuid.UUID | None
+    variant_id: uuid.UUID | None
     media_type: str
     role: str
     sort_order: int
@@ -35,7 +35,7 @@ class ListProductMediaHandler:
         stmt = (
             select(OrmMediaAsset)
             .where(OrmMediaAsset.product_id == product_id)
-            .order_by(OrmMediaAsset.attribute_value_id, OrmMediaAsset.sort_order)
+            .order_by(OrmMediaAsset.variant_id, OrmMediaAsset.sort_order)
         )
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
@@ -46,7 +46,7 @@ class ListProductMediaHandler:
         return MediaAssetReadModel(
             id=orm.id,
             product_id=orm.product_id,
-            attribute_value_id=orm.attribute_value_id,
+            variant_id=orm.variant_id,
             media_type=orm.media_type.value if orm.media_type else "",
             role=orm.role.value if orm.role else "",
             sort_order=orm.sort_order,

@@ -33,9 +33,10 @@ class AddSKUCommand:
     """
 
     product_id: uuid.UUID
+    variant_id: uuid.UUID
     sku_code: str
-    price_amount: int
-    price_currency: str
+    price_amount: int | None = None
+    price_currency: str = "RUB"
     compare_at_price_amount: int | None = None
     is_active: bool = True
     variant_attributes: list[tuple[uuid.UUID, uuid.UUID]] = field(default_factory=list)
@@ -86,18 +87,20 @@ class AddSKUHandler:
                 ``Product.add_sku()``).
         """
         async with self._uow:
-            product = await self._product_repo.get_with_skus(command.product_id)
+            product = await self._product_repo.get_with_variants(command.product_id)
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
-            price = Money(
-                amount=command.price_amount,
-                currency=command.price_currency,
-            )
+            price: Money | None = None
+            if command.price_amount is not None:
+                price = Money(
+                    amount=command.price_amount,
+                    currency=command.price_currency,
+                )
 
             compare_at_price: Money | None = None
             if command.compare_at_price_amount is not None:
-                if command.compare_at_price_amount <= command.price_amount:
+                if command.price_amount is not None and command.compare_at_price_amount <= command.price_amount:
                     raise ValueError("compare_at_price must be greater than price")
                 compare_at_price = Money(
                     amount=command.compare_at_price_amount,
@@ -105,6 +108,7 @@ class AddSKUHandler:
                 )
 
             sku = product.add_sku(
+                variant_id=command.variant_id,
                 sku_code=command.sku_code,
                 price=price,
                 compare_at_price=compare_at_price,

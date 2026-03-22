@@ -39,6 +39,7 @@ from src.modules.catalog.application.queries.read_models import (
 from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.presentation.mappers import to_sku_response
 from src.modules.catalog.presentation.schemas import (
+    MoneySchema,
     ProductAttributeResponse,
     ProductCreateRequest,
     ProductCreateResponse,
@@ -47,6 +48,7 @@ from src.modules.catalog.presentation.schemas import (
     ProductResponse,
     ProductStatusChangeRequest,
     ProductUpdateRequest,
+    ProductVariantResponse,
 )
 from src.modules.identity.presentation.dependencies import RequirePermission
 
@@ -239,7 +241,22 @@ def _to_product_response(model: ProductReadModel) -> ProductResponse:
         published_at=model.published_at,
         min_price=model.min_price,
         max_price=model.max_price,
-        skus=[to_sku_response(s) for v in model.variants for s in v.skus],
+        variants=[
+            ProductVariantResponse(
+                id=v.id,
+                name_i18n=v.name_i18n,
+                description_i18n=v.description_i18n,
+                sort_order=v.sort_order,
+                default_price=MoneySchema(
+                    amount=v.default_price.amount,
+                    currency=v.default_price.currency,
+                )
+                if v.default_price
+                else None,
+                skus=[to_sku_response(s) for s in v.skus],
+            )
+            for v in model.variants
+        ],
         attributes=[
             ProductAttributeResponse(
                 id=a.id,

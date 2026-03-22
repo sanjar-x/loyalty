@@ -78,19 +78,31 @@ def make_sku(
     return sku
 
 
+def _make_mock_variant(skus: list[MagicMock] | None = None) -> MagicMock:
+    """Build a mock ProductVariant holding the given SKUs."""
+    variant = MagicMock()
+    variant.id = uuid.uuid4()
+    variant.skus = skus or []
+    variant.deleted_at = None
+    return variant
+
+
 def make_product(
     product_id: uuid.UUID | None = None,
     skus: list[MagicMock] | None = None,
 ) -> MagicMock:
-    """Build a minimal mock Product aggregate with SKUs."""
+    """Build a minimal mock Product aggregate with SKUs inside a variant."""
     product = MagicMock()
     product.id = product_id or uuid.uuid4()
-    product.skus = skus or []
+    # Wrap SKUs inside a single variant (mirrors the new domain model)
+    variant = _make_mock_variant(skus or [])
+    product.variants = [variant]
 
     def find_sku_impl(sid: uuid.UUID) -> MagicMock | None:
-        for s in product.skus:
-            if s.id == sid and s.deleted_at is None:
-                return s
+        for v in product.variants:
+            for s in v.skus:
+                if s.id == sid and s.deleted_at is None:
+                    return s
         return None
 
     product.find_sku = MagicMock(side_effect=find_sku_impl)
@@ -102,14 +114,14 @@ def make_product(
         payload = "|".join(f"{a!s}:{v!s}" for a, v in sorted_attrs)
         return hashlib.sha256(payload.encode()).hexdigest()
 
-    product._compute_variant_hash = MagicMock(side_effect=compute_hash)
+    product.compute_variant_hash = MagicMock(side_effect=compute_hash)
     return product
 
 
 def make_product_repo(product: MagicMock | None = None) -> AsyncMock:
     """Build a mock IProductRepository."""
     repo = AsyncMock()
-    repo.get_with_skus = AsyncMock(return_value=product)
+    repo.get_with_variants = AsyncMock(return_value=product)
     repo.update = AsyncMock()
     return repo
 
@@ -231,8 +243,8 @@ class TestUpdateSKUHandlerHappyPath:
         assert isinstance(result, UpdateSKUResult)
         assert result.id == sku.id
 
-    async def test_calls_repo_get_with_skus(self) -> None:
-        """Handler calls get_with_skus with the product_id from command."""
+    async def test_calls_repo_get_with_variants(self) -> None:
+        """Handler calls get_with_variants with the product_id from command."""
         sku = make_sku()
         product = make_product(skus=[sku])
         repo = make_product_repo(product=product)
@@ -242,7 +254,7 @@ class TestUpdateSKUHandlerHappyPath:
         cmd = UpdateSKUCommand(product_id=product.id, sku_id=sku.id, sku_code="X")
         await handler.handle(cmd)
 
-        repo.get_with_skus.assert_awaited_once_with(product.id)
+        repo.get_with_variants.assert_awaited_once_with(product.id)
 
     async def test_calls_repo_update_and_uow_commit(self) -> None:
         """Handler calls repo.update(product) and uow.commit() on success."""
@@ -326,7 +338,7 @@ class TestUpdateSKUHandlerProductNotFound:
     """Handler tests when the product does not exist."""
 
     async def test_raises_product_not_found_error(self) -> None:
-        """Handler raises ProductNotFoundError when get_with_skus returns None."""
+        """Handler raises ProductNotFoundError when get_with_variants returns None."""
         repo = make_product_repo(product=None)
         uow = make_uow()
         handler = UpdateSKUHandler(product_repo=repo, uow=uow)
@@ -517,7 +529,7 @@ class TestUpdateSKUHandlerVariantAttributes:
         )
         await handler.handle(cmd)
 
-        product._compute_variant_hash.assert_called_once_with([(attr_id, val_id)])
+        product.compute_variant_hash.assert_called_once_with([(attr_id, val_id)])
         call_kwargs = sku.update.call_args[1]
         assert "variant_attributes" in call_kwargs
         assert "variant_hash" in call_kwargs
@@ -621,7 +633,7 @@ class TestUpdateSKUHandlerVariantAttributes:
         cmd = UpdateSKUCommand(product_id=product.id, sku_id=sku.id, sku_code="NEW")
         await handler.handle(cmd)
 
-        product._compute_variant_hash.assert_not_called()
+        product.compute_variant_hash.assert_not_called()
         call_kwargs = sku.update.call_args[1]
         assert "variant_hash" not in call_kwargs
         assert "variant_attributes" not in call_kwargs

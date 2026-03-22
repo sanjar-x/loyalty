@@ -107,7 +107,7 @@ class UpdateSKUHandler:
             ValueError: If the resulting compare_at_price <= price.
         """
         async with self._uow:
-            product = await self._product_repo.get_with_skus(command.product_id)
+            product = await self._product_repo.get_with_variants(command.product_id)
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
@@ -134,12 +134,14 @@ class UpdateSKUHandler:
             # when only the amount changes, and vice versa.
             if command.price_amount is not None or command.price_currency is not None:
                 new_amount = (
-                    command.price_amount if command.price_amount is not None else sku.price.amount
+                    command.price_amount
+                    if command.price_amount is not None
+                    else (sku.price.amount if sku.price is not None else 0)
                 )
                 new_currency = (
                     command.price_currency
                     if command.price_currency is not None
-                    else sku.price.currency
+                    else (sku.price.currency if sku.price is not None else "RUB")
                 )
                 update_kwargs["price"] = Money(amount=new_amount, currency=new_currency)
 
@@ -154,7 +156,7 @@ class UpdateSKUHandler:
                     effective_currency = (
                         command.price_currency
                         if command.price_currency is not None
-                        else sku.price.currency
+                        else (sku.price.currency if sku.price is not None else "RUB")
                     )
                     assert isinstance(command.compare_at_price_amount, int)
                     update_kwargs["compare_at_price"] = Money(
@@ -169,16 +171,17 @@ class UpdateSKUHandler:
             if command.variant_attributes is not None:
                 new_hash = product.compute_variant_hash(command.variant_attributes)
                 # Check uniqueness among active SKUs (excluding the one being updated).
-                for existing in product.skus:
-                    if (
-                        existing.id != sku.id
-                        and existing.deleted_at is None
-                        and existing.variant_hash == new_hash
-                    ):
-                        raise DuplicateVariantCombinationError(
-                            product_id=product.id,
-                            variant_hash=new_hash,
-                        )
+                for v in product.variants:
+                    for existing in v.skus:
+                        if (
+                            existing.id != sku.id
+                            and existing.deleted_at is None
+                            and existing.variant_hash == new_hash
+                        ):
+                            raise DuplicateVariantCombinationError(
+                                product_id=product.id,
+                                variant_hash=new_hash,
+                            )
                 update_kwargs["variant_attributes"] = command.variant_attributes
                 update_kwargs["variant_hash"] = new_hash
 

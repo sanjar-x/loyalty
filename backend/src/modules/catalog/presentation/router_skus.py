@@ -1,6 +1,7 @@
 """
-FastAPI router for SKU (variant) CRUD endpoints.
+FastAPI router for SKU CRUD endpoints.
 
+Nested under ``/catalog/products/{product_id}/variants/{variant_id}/skus``.
 All mutating endpoints require the ``catalog:manage`` permission.
 Delegates to application-layer command/query handlers via Dishka DI.
 """
@@ -36,7 +37,7 @@ from src.modules.catalog.presentation.schemas import (
 from src.modules.identity.presentation.dependencies import RequirePermission
 
 sku_router = APIRouter(
-    prefix="/products/{product_id}/skus",
+    prefix="/products/{product_id}/variants/{variant_id}/skus",
     tags=["SKUs"],
     route_class=DishkaRoute,
 )
@@ -46,18 +47,20 @@ sku_router = APIRouter(
     path="",
     status_code=status.HTTP_201_CREATED,
     response_model=SKUCreateResponse,
-    summary="Add a SKU variant to a product",
-    description="Create a new SKU variant with price and attributes.",
+    summary="Add a SKU to a variant",
+    description="Create a new SKU with optional price and attributes.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def create_sku(
     product_id: uuid.UUID,
+    variant_id: uuid.UUID,
     request: SKUCreateRequest,
     handler: FromDishka[AddSKUHandler],
 ) -> SKUCreateResponse:
-    """Create a new SKU variant for the given product."""
+    """Create a new SKU for the given product variant."""
     command = AddSKUCommand(
         product_id=product_id,
+        variant_id=variant_id,
         sku_code=request.sku_code,
         price_amount=request.price_amount,
         price_currency=request.price_currency,
@@ -75,35 +78,38 @@ async def create_sku(
     path="",
     status_code=status.HTTP_200_OK,
     response_model=list[SKUResponse],
-    summary="List SKU variants for a product",
-    description="Return all SKU variants belonging to the given product.",
+    summary="List SKUs for a variant",
+    description="Return all SKUs belonging to the given product variant.",
 )
 async def list_skus(
     product_id: uuid.UUID,
+    variant_id: uuid.UUID,
     handler: FromDishka[ListSKUsHandler],
 ) -> list[SKUResponse]:
-    """Return all SKU variants belonging to the given product."""
+    """Return all SKUs belonging to the given product."""
     query = ListSKUsQuery(product_id=product_id)
     results = await handler.handle(query)
-    return [to_sku_response(model) for model in results]
+    # Filter to only SKUs belonging to this variant
+    return [to_sku_response(model) for model in results if model.variant_id == variant_id]
 
 
 @sku_router.patch(
     path="/{sku_id}",
     status_code=status.HTTP_200_OK,
     response_model=SKUResponse,
-    summary="Update a SKU variant",
-    description="Partially update a SKU variant. Only provided fields change.",
+    summary="Update a SKU",
+    description="Partially update a SKU. Only provided fields change.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_sku(
     product_id: uuid.UUID,
+    variant_id: uuid.UUID,
     sku_id: uuid.UUID,
     request: SKUUpdateRequest,
     update_handler: FromDishka[UpdateSKUHandler],
     list_handler: FromDishka[ListSKUsHandler],
 ) -> SKUResponse:
-    """Apply a partial update to a SKU variant and return the updated state."""
+    """Apply a partial update to a SKU and return the updated state."""
     provided_fields = request.model_fields_set - {"version"}
     cmd_kwargs: dict[str, object] = {
         "product_id": product_id,
@@ -132,15 +138,16 @@ async def update_sku(
 @sku_router.delete(
     path="/{sku_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Soft-delete a SKU variant",
-    description="Soft-delete a SKU variant from the product.",
+    summary="Soft-delete a SKU",
+    description="Soft-delete a SKU from the product variant.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_sku(
     product_id: uuid.UUID,
+    variant_id: uuid.UUID,
     sku_id: uuid.UUID,
     handler: FromDishka[DeleteSKUHandler],
 ) -> None:
-    """Soft-delete a SKU variant from the product."""
+    """Soft-delete a SKU from the product."""
     command = DeleteSKUCommand(product_id=product_id, sku_id=sku_id)
     await handler.handle(command)
