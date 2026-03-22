@@ -6,6 +6,7 @@ alongside each assignment. CQRS read side -- queries ORM directly.
 """
 
 import uuid
+from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,11 +22,11 @@ from src.modules.catalog.infrastructure.models import (
 )
 
 
+@dataclass(frozen=True)
 class ListProductAttributesQuery:
     """Parameters for listing attribute assignments of a product."""
 
-    def __init__(self, product_id: uuid.UUID) -> None:
-        self.product_id = product_id
+    product_id: uuid.UUID
 
 
 class ListProductAttributesHandler:

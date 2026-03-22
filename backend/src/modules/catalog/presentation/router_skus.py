@@ -148,14 +148,7 @@ async def delete_sku(
     variant_id: uuid.UUID,
     sku_id: uuid.UUID,
     handler: FromDishka[DeleteSKUHandler],
-    list_handler: FromDishka[ListSKUsHandler],
 ) -> None:
     """Soft-delete a SKU from the product variant."""
-    # Verify SKU belongs to the specified variant before deleting
-    skus = await list_handler.handle(
-        ListSKUsQuery(product_id=product_id, variant_id=variant_id)
-    )
-    if not any(s.id == sku_id for s in skus):
-        raise SKUNotFoundError(sku_id=sku_id)
     command = DeleteSKUCommand(product_id=product_id, sku_id=sku_id)
     await handler.handle(command)

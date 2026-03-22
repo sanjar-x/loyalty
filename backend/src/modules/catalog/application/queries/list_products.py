@@ -15,6 +15,7 @@ from src.modules.catalog.application.queries.read_models import (
     ProductListItemReadModel,
     ProductListReadModel,
 )
+from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
 
 
@@ -81,7 +82,11 @@ class ListProductsHandler:
         """Apply optional filter clauses to the query."""
         stmt = stmt.where(OrmProduct.deleted_at.is_(None))
         if query.status is not None:
-            stmt = stmt.where(OrmProduct.status == query.status)
+            try:
+                status_enum = ProductStatus(query.status)
+            except ValueError:
+                return stmt.where(False)
+            stmt = stmt.where(OrmProduct.status == status_enum)
         if query.brand_id is not None:
             stmt = stmt.where(OrmProduct.brand_id == query.brand_id)
         return stmt

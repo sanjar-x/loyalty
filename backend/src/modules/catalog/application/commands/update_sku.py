@@ -158,7 +158,6 @@ class UpdateSKUHandler:
                         if command.price_currency is not None
                         else (sku.price.currency if sku.price is not None else "RUB")
                     )
-                    assert isinstance(command.compare_at_price_amount, int)
                     update_kwargs["compare_at_price"] = Money(
                         amount=command.compare_at_price_amount,
                         currency=effective_currency,
