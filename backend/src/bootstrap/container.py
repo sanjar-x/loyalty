@@ -22,6 +22,7 @@ from src.modules.catalog.presentation.dependencies import (
     BrandProvider,
     CategoryAttributeBindingProvider,
     CategoryProvider,
+    MediaAssetProvider,
     ProductProvider,
     StorefrontCatalogProvider,
 )
@@ -67,6 +68,7 @@ def create_container() -> AsyncContainer:
         CategoryAttributeBindingProvider(),
         StorefrontCatalogProvider(),
         ProductProvider(),
+        MediaAssetProvider(),
         IdentityProvider(),
         UserProvider(),
     )

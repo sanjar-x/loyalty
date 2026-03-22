@@ -25,8 +25,27 @@ from src.modules.catalog.application.commands.bulk_update_requirement_levels imp
 from src.modules.catalog.application.commands.change_product_status import (
     ChangeProductStatusHandler,
 )
+from src.modules.catalog.application.commands.add_external_product_media import (
+    AddExternalProductMediaHandler,
+)
+from src.modules.catalog.application.commands.add_product_media import (
+    AddProductMediaHandler,
+)
+from src.modules.catalog.application.commands.complete_product_media import (
+    CompleteProductMediaHandler,
+    FailProductMediaHandler,
+)
 from src.modules.catalog.application.commands.confirm_brand_logo import (
     ConfirmBrandLogoUploadHandler,
+)
+from src.modules.catalog.application.commands.confirm_product_media import (
+    ConfirmProductMediaHandler,
+)
+from src.modules.catalog.application.commands.delete_product_media import (
+    DeleteProductMediaHandler,
+)
+from src.modules.catalog.application.queries.list_product_media import (
+    ListProductMediaHandler,
 )
 from src.modules.catalog.application.commands.create_attribute import (
     CreateAttributeHandler,
@@ -129,6 +148,7 @@ from src.modules.catalog.domain.interfaces import (
     IBrandRepository,
     ICategoryAttributeBindingRepository,
     ICategoryRepository,
+    IMediaAssetRepository,
     IProductAttributeValueRepository,
     IProductRepository,
 )
@@ -139,6 +159,7 @@ from src.modules.catalog.infrastructure.repositories import (
     BrandRepository,
     CategoryAttributeBindingRepository,
     CategoryRepository,
+    MediaAssetRepository,
     ProductAttributeValueRepository,
     ProductRepository,
 )
@@ -358,4 +379,37 @@ class ProductProvider(Provider):
     list_skus_handler: CompositeDependencySource = provide(ListSKUsHandler, scope=Scope.REQUEST)
     list_product_attributes_handler: CompositeDependencySource = provide(
         ListProductAttributesHandler, scope=Scope.REQUEST
+    )
+
+
+class MediaAssetProvider(Provider):
+    """DI provider for product media asset repositories and handlers."""
+
+    media_asset_repo: CompositeDependencySource = provide(
+        MediaAssetRepository, scope=Scope.REQUEST, provides=IMediaAssetRepository
+    )
+
+    # Command handlers
+    add_product_media_handler: CompositeDependencySource = provide(
+        AddProductMediaHandler, scope=Scope.REQUEST
+    )
+    confirm_product_media_handler: CompositeDependencySource = provide(
+        ConfirmProductMediaHandler, scope=Scope.REQUEST
+    )
+    complete_product_media_handler: CompositeDependencySource = provide(
+        CompleteProductMediaHandler, scope=Scope.REQUEST
+    )
+    fail_product_media_handler: CompositeDependencySource = provide(
+        FailProductMediaHandler, scope=Scope.REQUEST
+    )
+    delete_product_media_handler: CompositeDependencySource = provide(
+        DeleteProductMediaHandler, scope=Scope.REQUEST
+    )
+    add_external_product_media_handler: CompositeDependencySource = provide(
+        AddExternalProductMediaHandler, scope=Scope.REQUEST
+    )
+
+    # Query handlers
+    list_product_media_handler: CompositeDependencySource = provide(
+        ListProductMediaHandler, scope=Scope.REQUEST
     )
