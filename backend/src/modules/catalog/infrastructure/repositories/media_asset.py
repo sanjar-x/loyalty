@@ -44,7 +44,7 @@ class MediaAssetRepository(IMediaAssetRepository):
         return DomainMediaAsset(
             id=orm.id,
             product_id=orm.product_id,
-            attribute_value_id=orm.attribute_value_id,
+            variant_id=orm.variant_id,
             media_type=orm.media_type.value,
             role=orm.role.value,
             sort_order=orm.sort_order,
@@ -62,7 +62,7 @@ class MediaAssetRepository(IMediaAssetRepository):
             orm = OrmMediaAsset()
         orm.id = entity.id
         orm.product_id = entity.product_id
-        orm.attribute_value_id = entity.attribute_value_id
+        orm.variant_id = entity.variant_id
         orm.media_type = MediaType(entity.media_type)
         orm.role = MediaRole(entity.role)
         orm.sort_order = entity.sort_order
@@ -120,11 +120,22 @@ class MediaAssetRepository(IMediaAssetRepository):
         await self._session.execute(stmt)
 
     async def list_by_product(self, product_id: uuid.UUID) -> list[DomainMediaAsset]:
-        """List all media assets for a product, ordered by (attribute_value_id, sort_order)."""
+        """List all media assets for a product, ordered by (variant_id, sort_order)."""
         stmt = (
             select(OrmMediaAsset)
             .where(OrmMediaAsset.product_id == product_id)
-            .order_by(OrmMediaAsset.attribute_value_id, OrmMediaAsset.sort_order)
+            .order_by(OrmMediaAsset.variant_id, OrmMediaAsset.sort_order)
+        )
+        result = await self._session.execute(stmt)
+        rows = result.scalars().all()
+        return [self._to_domain(orm) for orm in rows]
+
+    async def list_by_variant(self, variant_id: uuid.UUID) -> list[DomainMediaAsset]:
+        """List all media assets for a variant, ordered by sort_order."""
+        stmt = (
+            select(OrmMediaAsset)
+            .where(OrmMediaAsset.variant_id == variant_id)
+            .order_by(OrmMediaAsset.sort_order)
         )
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
@@ -133,7 +144,7 @@ class MediaAssetRepository(IMediaAssetRepository):
     async def has_main_for_variant(
         self,
         product_id: uuid.UUID,
-        attribute_value_id: uuid.UUID | None,
+        variant_id: uuid.UUID | None,
     ) -> bool:
         """Check if a MAIN media asset already exists for this product/variant combo."""
         conditions = [
@@ -141,10 +152,10 @@ class MediaAssetRepository(IMediaAssetRepository):
             OrmMediaAsset.role == MediaRole.MAIN,
             OrmMediaAsset.processing_status != MediaProcessingStatus.FAILED.value,
         ]
-        if attribute_value_id is None:
-            conditions.append(OrmMediaAsset.attribute_value_id.is_(None))
+        if variant_id is None:
+            conditions.append(OrmMediaAsset.variant_id.is_(None))
         else:
-            conditions.append(OrmMediaAsset.attribute_value_id == attribute_value_id)
+            conditions.append(OrmMediaAsset.variant_id == variant_id)
 
         stmt = select(exists().where(*conditions))
         result = await self._session.execute(stmt)

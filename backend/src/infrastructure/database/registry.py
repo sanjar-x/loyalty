@@ -19,6 +19,7 @@ from src.modules.catalog.infrastructure.models import (
     MediaAsset,
     Product,
     ProductAttributeValue,
+    ProductVariant,
     SKUAttributeValueLink,
     Supplier,
 )
@@ -77,6 +78,7 @@ __all__ = [
     "PermissionModel",
     "Product",
     "ProductAttributeValue",
+    "ProductVariant",
     "RoleHierarchyModel",
     "RoleModel",
     "RolePermissionModel",

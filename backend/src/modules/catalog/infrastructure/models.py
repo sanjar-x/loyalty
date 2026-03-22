@@ -523,8 +523,8 @@ class Product(Base):
     published_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
     deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), index=True)
     supplier: Mapped[Supplier] = relationship("Supplier", back_populates="products")
-    skus: Mapped[list[SKU]] = relationship(
-        "SKU", back_populates="product", cascade="all, delete-orphan"
+    variants: Mapped[list["ProductVariant"]] = relationship(
+        "ProductVariant", back_populates="product", cascade="all, delete-orphan"
     )
     media_assets: Mapped[list[MediaAsset]] = relationship(
         "MediaAsset", back_populates="product", cascade="all, delete-orphan"
@@ -567,11 +567,50 @@ class Product(Base):
     )
 
 
+class ProductVariant(Base):
+    """ORM model for product variants (named variation groupings).
+
+    Each variant represents a tab in the admin UI with its own name,
+    media, and set of SKUs. Child of Product, parent of SKU.
+    """
+
+    __tablename__ = "product_variants"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"),
+    )
+    name_i18n: Mapped[dict] = mapped_column(
+        MutableDict.as_mutable(JSONB), server_default=text("'{}'::jsonb")
+    )
+    description_i18n: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    default_price: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, comment="Default price in smallest currency units"
+    )
+    default_currency: Mapped[str] = mapped_column(
+        String(3), ForeignKey("currencies.code", ondelete="RESTRICT"), server_default=text("'RUB'")
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    product: Mapped["Product"] = relationship("Product", back_populates="variants")
+    skus: Mapped[list["SKU"]] = relationship("SKU", back_populates="variant", cascade="all, delete-orphan")
+    media_assets: Mapped[list["MediaAsset"]] = relationship("MediaAsset", back_populates="variant")
+
+    __table_args__ = (
+        Index("ix_product_variants_product_id", "product_id"),
+    )
+
+
 class MediaAsset(Base):
     """ORM model for product media assets (business context).
 
     Describes *how* a file is used in the catalog -- its role, display
-    order, and optional colour-variant binding.  The physical file data
+    order, and optional variant binding.  The physical file data
     lives in the Storage module (:class:`StorageObject`).
     """
 
@@ -581,8 +620,8 @@ class MediaAsset(Base):
     product_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("products.id", ondelete="CASCADE"), index=True
     )
-    attribute_value_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("attribute_values.id", ondelete="CASCADE"), index=True
+    variant_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("product_variants.id", ondelete="CASCADE"), nullable=True, index=True
     )
 
     media_type: Mapped[MediaType] = mapped_column(
@@ -642,15 +681,14 @@ class MediaAsset(Base):
     )
 
     product: Mapped[Product] = relationship("Product", back_populates="media_assets")
-    color_attribute: Mapped[AttributeValue] = relationship("AttributeValue")
+    variant: Mapped["ProductVariant | None"] = relationship("ProductVariant", back_populates="media_assets")
 
     __table_args__ = (
-        Index("ix_media_assets_product_attr", "product_id", "attribute_value_id"),
-        # Business rule: each colour variant may have at most one MAIN image
+        # Business rule: each variant may have at most one MAIN image
         Index(
-            "uix_media_single_main_per_color",
+            "uix_media_single_main_per_variant",
             "product_id",
-            "attribute_value_id",
+            "variant_id",
             unique=True,
             postgresql_where=text("role = 'main'"),
             postgresql_nulls_not_distinct=True,
@@ -664,7 +702,7 @@ class MediaAsset(Base):
 
 
 class SKU(Base):
-    """ORM model for Stock Keeping Units (product variants).
+    """ORM model for Stock Keeping Units (purchasable items within a variant).
 
     Each SKU represents a unique combination of attribute values
     (e.g. size + colour) for a parent :class:`Product`.  Carries
@@ -677,6 +715,9 @@ class SKU(Base):
     product_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("products.id", ondelete="CASCADE"), index=True
     )
+    variant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("product_variants.id", ondelete="CASCADE"), index=True
+    )
     sku_code: Mapped[str] = mapped_column(String(100))
     variant_hash: Mapped[str] = mapped_column(String(64))
     main_image_url: Mapped[str | None] = mapped_column(String(1024))
@@ -686,10 +727,10 @@ class SKU(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
-    price: Mapped[int] = mapped_column(
+    price: Mapped[int | None] = mapped_column(
         Integer,
-        server_default=text("0"),
-        comment="Base price in smallest currency units (e.g. kopecks)",
+        nullable=True,
+        comment="Base price in smallest currency units (e.g. kopecks), nullable — inherits from variant",
     )
 
     compare_at_price: Mapped[int | None] = mapped_column(
@@ -711,7 +752,8 @@ class SKU(Base):
     )
     deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), index=True)
 
-    product: Mapped[Product] = relationship("Product", back_populates="skus")
+    product: Mapped[Product] = relationship("Product")
+    variant: Mapped["ProductVariant"] = relationship("ProductVariant", back_populates="skus")
     attribute_values: Mapped[list[SKUAttributeValueLink]] = relationship(
         "SKUAttributeValueLink", back_populates="sku", cascade="all, delete-orphan"
     )

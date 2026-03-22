@@ -2,9 +2,10 @@
 Product repository -- Data Mapper implementation.
 
 Translates between :class:`~src.modules.catalog.domain.entities.Product`
-(domain aggregate with SKU child entities) and the ``products`` / ``skus``
-ORM tables.  Handles Money value-object decomposition, eager SKU loading,
-paginated listing with filters, and optimistic-locking conflict detection.
+(domain aggregate with ProductVariant and SKU child entities) and the
+``products`` / ``product_variants`` / ``skus`` ORM tables.  Handles Money
+value-object decomposition, eager variant/SKU loading, paginated listing
+with filters, and optimistic-locking conflict detection.
 """
 
 import uuid
@@ -16,6 +17,7 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from src.modules.catalog.domain.entities import SKU as DomainSKU
 from src.modules.catalog.domain.entities import Product as DomainProduct
+from src.modules.catalog.domain.entities import ProductVariant as DomainProductVariant
 from src.modules.catalog.domain.exceptions import ConcurrencyError
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
@@ -23,6 +25,7 @@ from src.modules.catalog.domain.value_objects import ProductStatus as DomainProd
 from src.modules.catalog.infrastructure.models import SKU as OrmSKU
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
 from src.modules.catalog.infrastructure.models import ProductStatus as OrmProductStatus
+from src.modules.catalog.infrastructure.models import ProductVariant as OrmProductVariant
 from src.modules.catalog.infrastructure.models import SKUAttributeValueLink as OrmSKUAttrLink
 
 
@@ -47,6 +50,10 @@ class ProductRepository(IProductRepository):
 
     def _sku_to_domain(self, orm_sku: OrmSKU) -> DomainSKU:
         """Map an ORM SKU row to a domain SKU entity with Money VOs."""
+        price: Money | None = None
+        if orm_sku.price is not None:
+            price = Money(amount=orm_sku.price, currency=orm_sku.currency)
+
         compare_at_price: Money | None = None
         if orm_sku.compare_at_price is not None:
             compare_at_price = Money(
@@ -57,9 +64,10 @@ class ProductRepository(IProductRepository):
         return DomainSKU(
             id=orm_sku.id,
             product_id=orm_sku.product_id,
+            variant_id=orm_sku.variant_id,
             sku_code=orm_sku.sku_code,
             variant_hash=orm_sku.variant_hash,
-            price=Money(amount=orm_sku.price, currency=orm_sku.currency),
+            price=price,
             compare_at_price=compare_at_price,
             is_active=orm_sku.is_active,
             version=orm_sku.version,
@@ -84,6 +92,7 @@ class ProductRepository(IProductRepository):
 
         orm_sku.id = domain_sku.id
         orm_sku.product_id = domain_sku.product_id
+        orm_sku.variant_id = domain_sku.variant_id
         orm_sku.sku_code = domain_sku.sku_code
         orm_sku.variant_hash = domain_sku.variant_hash
         orm_sku.is_active = domain_sku.is_active
@@ -92,9 +101,13 @@ class ProductRepository(IProductRepository):
         orm_sku.created_at = domain_sku.created_at
         orm_sku.updated_at = domain_sku.updated_at
 
-        # Money VO decomposition
-        orm_sku.price = domain_sku.price.amount
-        orm_sku.currency = domain_sku.price.currency
+        # Money VO decomposition (price is now nullable)
+        if domain_sku.price is not None:
+            orm_sku.price = domain_sku.price.amount
+            orm_sku.currency = domain_sku.price.currency
+        else:
+            orm_sku.price = None
+            # currency stays as-is or from variant
         orm_sku.compare_at_price = (
             domain_sku.compare_at_price.amount if domain_sku.compare_at_price is not None else None
         )
@@ -117,11 +130,48 @@ class ProductRepository(IProductRepository):
 
         return orm_sku
 
-    def _to_domain(self, orm: OrmProduct) -> DomainProduct:
-        """Map an ORM Product row to a domain Product entity WITH SKUs.
+    def _variant_to_domain(self, orm_variant: OrmProductVariant) -> DomainProductVariant:
+        """Map an ORM ProductVariant row to a domain ProductVariant entity."""
+        default_price: Money | None = None
+        if orm_variant.default_price is not None:
+            default_price = Money(amount=orm_variant.default_price, currency=orm_variant.default_currency)
+        return DomainProductVariant(
+            id=orm_variant.id,
+            product_id=orm_variant.product_id,
+            name_i18n=dict(orm_variant.name_i18n) if orm_variant.name_i18n else {},
+            description_i18n=dict(orm_variant.description_i18n) if orm_variant.description_i18n else None,
+            sort_order=orm_variant.sort_order,
+            default_price=default_price,
+            default_currency=orm_variant.default_currency,
+            skus=[self._sku_to_domain(sku) for sku in orm_variant.skus],
+            deleted_at=orm_variant.deleted_at,
+            created_at=orm_variant.created_at,
+            updated_at=orm_variant.updated_at,
+        )
 
-        Callers must ensure ``orm.skus`` is loaded (via ``selectinload``
-        or prior access within the session) before calling this method.
+    def _variant_to_orm(
+        self, domain_variant: DomainProductVariant, orm_variant: OrmProductVariant | None = None
+    ) -> OrmProductVariant:
+        """Map a domain ProductVariant entity to an ORM row (create or update)."""
+        if orm_variant is None:
+            orm_variant = OrmProductVariant()
+        orm_variant.id = domain_variant.id
+        orm_variant.product_id = domain_variant.product_id
+        orm_variant.name_i18n = domain_variant.name_i18n
+        orm_variant.description_i18n = domain_variant.description_i18n
+        orm_variant.sort_order = domain_variant.sort_order
+        orm_variant.default_price = domain_variant.default_price.amount if domain_variant.default_price is not None else None
+        orm_variant.default_currency = domain_variant.default_currency
+        orm_variant.deleted_at = domain_variant.deleted_at
+        orm_variant.created_at = domain_variant.created_at
+        orm_variant.updated_at = domain_variant.updated_at
+        return orm_variant
+
+    def _to_domain(self, orm: OrmProduct) -> DomainProduct:
+        """Map an ORM Product row to a domain Product entity WITH variants.
+
+        Callers must ensure ``orm.variants`` (and nested SKUs) are loaded
+        (via ``selectinload``) before calling this method.
         """
         return DomainProduct(
             id=orm.id,
@@ -139,13 +189,13 @@ class ProductRepository(IProductRepository):
             created_at=orm.created_at,
             updated_at=orm.updated_at,
             published_at=orm.published_at,
-            skus=[self._sku_to_domain(sku) for sku in orm.skus],
+            variants=[self._variant_to_domain(v) for v in orm.variants],
         )
 
     def _to_domain_without_skus(self, orm: OrmProduct) -> DomainProduct:
-        """Map an ORM Product row to a domain Product entity WITHOUT SKUs.
+        """Map an ORM Product row to a domain Product entity WITHOUT variants.
 
-        Used by methods that do not eager-load SKUs (``get``, ``get_by_slug``,
+        Used by methods that do not eager-load variants (``get``, ``get_by_slug``,
         ``get_for_update``, ``list_products``) to avoid lazy-load errors in
         async sessions.
         """
@@ -165,7 +215,7 @@ class ProductRepository(IProductRepository):
             created_at=orm.created_at,
             updated_at=orm.updated_at,
             published_at=orm.published_at,
-            skus=[],
+            variants=[],
         )
 
     def _to_orm(self, entity: DomainProduct, orm: OrmProduct | None = None) -> OrmProduct:
@@ -204,27 +254,51 @@ class ProductRepository(IProductRepository):
 
         return orm
 
-    def _sync_skus(self, product: DomainProduct, orm: OrmProduct) -> None:
-        """Reconcile domain SKU list with the ORM SKU collection.
+    def _sync_variants(self, product: DomainProduct, orm: OrmProduct) -> None:
+        """Reconcile domain variant list with the ORM variant collection.
 
-        Handles additions, updates, and removals of child SKU entities.
+        Handles additions, updates, and removals of child variant entities
+        and their nested SKUs.
         """
-        existing_by_id: dict[uuid.UUID, OrmSKU] = {sku.id: sku for sku in orm.skus}
+        existing_variants: dict[uuid.UUID, OrmProductVariant] = {v.id: v for v in orm.variants}
+        domain_variant_ids: set[uuid.UUID] = set()
+
+        for domain_variant in product.variants:
+            domain_variant_ids.add(domain_variant.id)
+            existing_orm_variant = existing_variants.get(domain_variant.id)
+            if existing_orm_variant is not None:
+                self._variant_to_orm(domain_variant, existing_orm_variant)
+                # Sync SKUs within this variant
+                self._sync_skus_for_variant(domain_variant, existing_orm_variant)
+            else:
+                new_orm_variant = self._variant_to_orm(domain_variant)
+                for domain_sku in domain_variant.skus:
+                    new_orm_variant.skus.append(self._sku_to_orm(domain_sku))
+                orm.variants.append(new_orm_variant)
+
+        to_remove = [v for v in orm.variants if v.id not in domain_variant_ids]
+        for v in to_remove:
+            orm.variants.remove(v)
+
+    def _sync_skus_for_variant(
+        self, domain_variant: DomainProductVariant, orm_variant: OrmProductVariant
+    ) -> None:
+        """Reconcile domain SKU list within a single variant."""
+        existing_by_id: dict[uuid.UUID, OrmSKU] = {sku.id: sku for sku in orm_variant.skus}
         domain_sku_ids: set[uuid.UUID] = set()
 
-        for domain_sku in product.skus:
+        for domain_sku in domain_variant.skus:
             domain_sku_ids.add(domain_sku.id)
             existing_orm_sku = existing_by_id.get(domain_sku.id)
             if existing_orm_sku is not None:
                 self._sku_to_orm(domain_sku, existing_orm_sku)
             else:
                 new_orm_sku = self._sku_to_orm(domain_sku)
-                orm.skus.append(new_orm_sku)
+                orm_variant.skus.append(new_orm_sku)
 
-        # Remove ORM SKUs that are no longer in the domain list
-        to_remove = [sku for sku in orm.skus if sku.id not in domain_sku_ids]
+        to_remove = [sku for sku in orm_variant.skus if sku.id not in domain_sku_ids]
         for sku in to_remove:
-            orm.skus.remove(sku)
+            orm_variant.skus.remove(sku)
 
     # ------------------------------------------------------------------
     # Public methods -- IProductRepository + ICatalogRepository
@@ -238,9 +312,11 @@ class ProductRepository(IProductRepository):
         """
         orm = self._to_orm(entity)
 
-        for domain_sku in entity.skus:
-            orm_sku = self._sku_to_orm(domain_sku)
-            orm.skus.append(orm_sku)
+        for domain_variant in entity.variants:
+            orm_variant = self._variant_to_orm(domain_variant)
+            for domain_sku in domain_variant.skus:
+                orm_variant.skus.append(self._sku_to_orm(domain_sku))
+            orm.variants.append(orm_variant)
 
         self._session.add(orm)
 
@@ -269,8 +345,8 @@ class ProductRepository(IProductRepository):
     async def update(self, entity: DomainProduct) -> DomainProduct:
         """Merge updated domain state into the existing ORM row.
 
-        Eagerly loads SKUs and their attribute-value links to enable
-        proper reconciliation via ``_sync_skus``.
+        Eagerly loads variants and their SKU/attribute-value links to enable
+        proper reconciliation via ``_sync_variants``.
 
         Raises:
             ValueError: If the product row does not exist.
@@ -279,7 +355,11 @@ class ProductRepository(IProductRepository):
         stmt = (
             select(OrmProduct)
             .where(OrmProduct.id == entity.id)
-            .options(selectinload(OrmProduct.skus).selectinload(OrmSKU.attribute_values))
+            .options(
+                selectinload(OrmProduct.variants)
+                .selectinload(OrmProductVariant.skus)
+                .selectinload(OrmSKU.attribute_values)
+            )
         )
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
@@ -288,7 +368,7 @@ class ProductRepository(IProductRepository):
             raise ValueError(f"Product with id {entity.id} not found in DB")
 
         self._to_orm(entity, orm)
-        self._sync_skus(entity, orm)
+        self._sync_variants(entity, orm)
 
         try:
             await self._session.flush()
@@ -363,19 +443,22 @@ class ProductRepository(IProductRepository):
             return self._to_domain_without_skus(orm)
         return None
 
-    async def get_with_skus(self, product_id: uuid.UUID) -> DomainProduct | None:
-        """Retrieve a product with eagerly loaded SKU child entities.
+    async def get_with_variants(self, product_id: uuid.UUID) -> DomainProduct | None:
+        """Retrieve a product with eagerly loaded variant and SKU child entities.
 
-        Soft-deleted products are excluded. SKUs and their attribute-value
-        links are loaded via ``selectinload``.
+        Soft-deleted products are excluded. Variants, their SKUs, and
+        SKU attribute-value links are loaded via ``selectinload``.
+        Deleted variants and SKUs are filtered out.
         """
         stmt = (
             select(OrmProduct)
             .where(OrmProduct.id == product_id)
             .options(
-                selectinload(OrmProduct.skus.and_(OrmSKU.deleted_at.is_(None))).selectinload(
-                    OrmSKU.attribute_values
+                selectinload(
+                    OrmProduct.variants.and_(OrmProductVariant.deleted_at.is_(None))
                 )
+                .selectinload(OrmProductVariant.skus.and_(OrmSKU.deleted_at.is_(None)))
+                .selectinload(OrmSKU.attribute_values)
             )
         )
         result = await self._session.execute(stmt)
