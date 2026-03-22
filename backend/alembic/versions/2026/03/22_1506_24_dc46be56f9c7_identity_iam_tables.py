@@ -1,8 +1,8 @@
-"""create IAM tables
+"""identity_iam_tables
 
-Revision ID: f788d1919523
-Revises: b7c8d9e0f1a2
-Create Date: 2026-03-16 08:24:04.971591
+Revision ID: dc46be56f9c7
+Revises: 7d51a5971b94
+Create Date: 2026-03-22 15:06:24.036464
 
 """
 
@@ -15,8 +15,8 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "f788d1919523"
-down_revision: str | Sequence[str] | None = "b7c8d9e0f1a2"
+revision: str = "dc46be56f9c7"
+down_revision: str | Sequence[str] | None = "7d51a5971b94"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -28,17 +28,25 @@ def upgrade() -> None:
         "identities",
         sa.Column("id", sa.UUID(), nullable=False, comment="PK (UUIDv7)"),
         sa.Column(
-            "type",
+            "primary_auth_method",
             sa.Enum(
                 "LOCAL",
                 "OIDC",
-                name="identitytype",
+                "TELEGRAM",
+                name="primaryauthmethod",
                 metadata=MetaData(),
                 native_enum=False,
                 length=10,
             ),
             nullable=False,
-            comment="Authentication method: LOCAL or OIDC",
+            comment="Authentication method: LOCAL, OIDC, or TELEGRAM",
+        ),
+        sa.Column(
+            "account_type",
+            sa.String(length=10),
+            server_default="CUSTOMER",
+            nullable=False,
+            comment="Account type: CUSTOMER or STAFF",
         ),
         sa.Column(
             "is_active",
@@ -59,8 +67,39 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
+        sa.Column(
+            "deactivated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=True,
+            comment="When the identity was deactivated",
+        ),
+        sa.Column(
+            "deactivated_by",
+            sa.UUID(),
+            nullable=True,
+            comment="Identity ID of admin who deactivated this identity (null=self)",
+        ),
+        sa.Column(
+            "token_version",
+            sa.Integer(),
+            server_default=sa.text("1"),
+            nullable=False,
+            comment="Incrementing version for instant JWT invalidation",
+        ),
+        sa.ForeignKeyConstraint(
+            ["deactivated_by"],
+            ["identities.id"],
+            name=op.f("fk_identities_deactivated_by_identities"),
+            ondelete="SET NULL",
+        ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_identities")),
         comment="Authentication identities (root entity for IAM)",
+    )
+    op.create_index(
+        op.f("ix_identities_account_type"), "identities", ["account_type"], unique=False
+    )
+    op.create_index(
+        op.f("ix_identities_is_active"), "identities", ["is_active"], unique=False
     )
     op.create_table(
         "permissions",
@@ -97,6 +136,12 @@ def upgrade() -> None:
             comment="System roles cannot be modified or deleted",
         ),
         sa.Column(
+            "target_account_type",
+            sa.String(length=10),
+            nullable=True,
+            comment="Account type this role targets: CUSTOMER, STAFF, or NULL (any)",
+        ),
+        sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
             server_default=sa.text("now()"),
@@ -129,6 +174,12 @@ def upgrade() -> None:
             comment="Identity ID of admin who assigned this role",
         ),
         sa.ForeignKeyConstraint(
+            ["assigned_by"],
+            ["identities.id"],
+            name=op.f("fk_identity_roles_assigned_by_identities"),
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
             ["identity_id"],
             ["identities.id"],
             name=op.f("fk_identity_roles_identity_id_identities"),
@@ -140,7 +191,15 @@ def upgrade() -> None:
             name=op.f("fk_identity_roles_role_id_roles"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint("identity_id", "role_id", name=op.f("pk_identity_roles")),
+        sa.PrimaryKeyConstraint(
+            "identity_id", "role_id", name=op.f("pk_identity_roles")
+        ),
+    )
+    op.create_index(
+        "ix_identity_roles_identity_id", "identity_roles", ["identity_id"], unique=False
+    )
+    op.create_index(
+        "ix_identity_roles_role_id", "identity_roles", ["role_id"], unique=False
     )
     op.create_table(
         "linked_accounts",
@@ -149,6 +208,32 @@ def upgrade() -> None:
         sa.Column("provider", sa.String(length=50), nullable=False),
         sa.Column("provider_sub_id", sa.String(length=255), nullable=False),
         sa.Column("provider_email", sa.String(length=320), nullable=True),
+        sa.Column(
+            "email_verified",
+            sa.Boolean(),
+            server_default=sa.text("false"),
+            nullable=False,
+            comment="Whether provider verified this email",
+        ),
+        sa.Column(
+            "provider_metadata",
+            postgresql.JSONB(astext_type=sa.Text()),
+            server_default=sa.text("'{}'::jsonb"),
+            nullable=False,
+            comment="Provider-specific profile data",
+        ),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(
             ["identity_id"],
             ["identities.id"],
@@ -156,7 +241,9 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_linked_accounts")),
-        sa.UniqueConstraint("provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"),
+        sa.UniqueConstraint(
+            "provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"
+        ),
         comment="External OIDC provider accounts linked to identities",
     )
     op.create_index(
@@ -171,7 +258,7 @@ def upgrade() -> None:
             "identity_id",
             sa.UUID(),
             nullable=False,
-            comment="PK + FK → identities (Shared PK 1:1)",
+            comment="PK + FK -> identities (Shared PK 1:1)",
         ),
         sa.Column(
             "email",
@@ -181,9 +268,9 @@ def upgrade() -> None:
         ),
         sa.Column(
             "password_hash",
-            sa.String(length=255),
+            sa.String(length=512),
             nullable=False,
-            comment="Argon2id (new) or Bcrypt (legacy) hash",
+            comment="Argon2id (new) or Bcrypt (legacy) hash — 512 for non-default Argon2 params",
         ),
         sa.Column(
             "created_at",
@@ -227,7 +314,9 @@ def upgrade() -> None:
             name=op.f("fk_role_hierarchy_parent_role_id_roles"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint("parent_role_id", "child_role_id", name=op.f("pk_role_hierarchy")),
+        sa.PrimaryKeyConstraint(
+            "parent_role_id", "child_role_id", name=op.f("pk_role_hierarchy")
+        ),
         comment="Role inheritance: parent inherits all child permissions via CTE",
     )
     op.create_table(
@@ -246,7 +335,12 @@ def upgrade() -> None:
             name=op.f("fk_role_permissions_role_id_roles"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint("role_id", "permission_id", name=op.f("pk_role_permissions")),
+        sa.PrimaryKeyConstraint(
+            "role_id", "permission_id", name=op.f("pk_role_permissions")
+        ),
+    )
+    op.create_index(
+        "ix_role_permissions_role_id", "role_permissions", ["role_id"], unique=False
     )
     op.create_table(
         "sessions",
@@ -270,7 +364,9 @@ def upgrade() -> None:
             nullable=True,
             comment="Client User-Agent",
         ),
-        sa.Column("is_revoked", sa.Boolean(), server_default=sa.text("false"), nullable=False),
+        sa.Column(
+            "is_revoked", sa.Boolean(), server_default=sa.text("false"), nullable=False
+        ),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -283,6 +379,19 @@ def upgrade() -> None:
             nullable=False,
             comment="Refresh token expiry (created_at + REFRESH_TOKEN_EXPIRE_DAYS)",
         ),
+        sa.Column(
+            "last_active_at",
+            sa.TIMESTAMP(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+            comment="Last token refresh timestamp",
+        ),
+        sa.Column(
+            "idle_expires_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            comment="Sliding idle timeout (extends on refresh)",
+        ),
         sa.ForeignKeyConstraint(
             ["identity_id"],
             ["identities.id"],
@@ -290,52 +399,63 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_sessions")),
-        sa.UniqueConstraint("refresh_token_hash", name=op.f("uq_sessions_refresh_token_hash")),
+        sa.UniqueConstraint(
+            "refresh_token_hash", name=op.f("uq_sessions_refresh_token_hash")
+        ),
         comment="Authentication sessions with refresh token rotation",
     )
     op.create_index(
-        "ix_sessions_identity_revoked",
+        "ix_sessions_identity_active",
         "sessions",
-        ["identity_id", "is_revoked"],
+        ["identity_id", "is_revoked", "expires_at"],
         unique=False,
     )
     op.create_table(
-        "users",
+        "staff_invitations",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("email", sa.String(length=320), nullable=False),
+        sa.Column("token_hash", sa.String(length=64), nullable=False),
+        sa.Column("invited_by", sa.UUID(), nullable=False),
         sa.Column(
-            "id",
-            sa.UUID(),
-            nullable=False,
-            comment="PK + FK → identities (Shared PK 1:1)",
+            "status", sa.String(length=10), server_default="PENDING", nullable=False
         ),
-        sa.Column(
-            "profile_email",
-            sa.String(length=320),
-            nullable=True,
-            comment="Display email (may differ from login email in local_credentials)",
-        ),
-        sa.Column("first_name", sa.String(length=100), server_default="", nullable=False),
-        sa.Column("last_name", sa.String(length=100), server_default="", nullable=False),
-        sa.Column("phone", sa.String(length=20), nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
             server_default=sa.text("now()"),
             nullable=False,
         ),
-        sa.Column(
-            "updated_at",
-            sa.TIMESTAMP(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
+        sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.Column("accepted_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("accepted_identity_id", sa.UUID(), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["accepted_identity_id"],
+            ["identities.id"],
+            name=op.f("fk_staff_invitations_accepted_identity_id_identities"),
         ),
         sa.ForeignKeyConstraint(
-            ["id"],
+            ["invited_by"],
             ["identities.id"],
-            name=op.f("fk_users_id_identities"),
-            ondelete="CASCADE",
+            name=op.f("fk_staff_invitations_invited_by_identities"),
         ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_users")),
-        comment="User PII (GDPR-isolated from auth data)",
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_staff_invitations")),
+        sa.UniqueConstraint("token_hash", name=op.f("uq_staff_invitations_token_hash")),
+        comment="Staff member invitations with token-based acceptance",
+    )
+    op.create_index(
+        op.f("ix_staff_invitations_email"), "staff_invitations", ["email"], unique=False
+    )
+    op.create_index(
+        "ix_staff_invitations_email_status",
+        "staff_invitations",
+        ["email", "status"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_staff_invitations_status"),
+        "staff_invitations",
+        ["status"],
+        unique=False,
     )
     op.create_table(
         "session_roles",
@@ -355,23 +475,51 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("session_id", "role_id", name=op.f("pk_session_roles")),
     )
+    op.create_table(
+        "staff_invitation_roles",
+        sa.Column("invitation_id", sa.UUID(), nullable=False),
+        sa.Column("role_id", sa.UUID(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["invitation_id"],
+            ["staff_invitations.id"],
+            name=op.f("fk_staff_invitation_roles_invitation_id_staff_invitations"),
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["role_id"],
+            ["roles.id"],
+            name=op.f("fk_staff_invitation_roles_role_id_roles"),
+        ),
+        sa.PrimaryKeyConstraint(
+            "invitation_id", "role_id", name=op.f("pk_staff_invitation_roles")
+        ),
+    )
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_table("staff_invitation_roles")
     op.drop_table("session_roles")
-    op.drop_table("users")
-    op.drop_index("ix_sessions_identity_revoked", table_name="sessions")
+    op.drop_index(op.f("ix_staff_invitations_status"), table_name="staff_invitations")
+    op.drop_index("ix_staff_invitations_email_status", table_name="staff_invitations")
+    op.drop_index(op.f("ix_staff_invitations_email"), table_name="staff_invitations")
+    op.drop_table("staff_invitations")
+    op.drop_index("ix_sessions_identity_active", table_name="sessions")
     op.drop_table("sessions")
+    op.drop_index("ix_role_permissions_role_id", table_name="role_permissions")
     op.drop_table("role_permissions")
     op.drop_table("role_hierarchy")
     op.drop_table("local_credentials")
     op.drop_index(op.f("ix_linked_accounts_identity_id"), table_name="linked_accounts")
     op.drop_table("linked_accounts")
+    op.drop_index("ix_identity_roles_role_id", table_name="identity_roles")
+    op.drop_index("ix_identity_roles_identity_id", table_name="identity_roles")
     op.drop_table("identity_roles")
     op.drop_table("roles")
     op.drop_table("permissions")
+    op.drop_index(op.f("ix_identities_is_active"), table_name="identities")
+    op.drop_index(op.f("ix_identities_account_type"), table_name="identities")
     op.drop_table("identities")
     # ### end Alembic commands ###

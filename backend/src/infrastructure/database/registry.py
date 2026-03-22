@@ -6,10 +6,12 @@ module are registered with the shared ``Base.metadata``, so Alembic's
 """
 
 from src.infrastructure.database.base import Base
+from src.infrastructure.database.models.failed_task import FailedTask
 from src.infrastructure.database.models.outbox import OutboxMessage
 from src.modules.catalog.infrastructure.models import (
     SKU,
     Attribute,
+    AttributeGroup,
     AttributeValue,
     Brand,
     Category,
@@ -18,6 +20,7 @@ from src.modules.catalog.infrastructure.models import (
     Product,
     ProductAttributeValueModel,
     SKUAttributeValueLink,
+    Supplier,
 )
 from src.modules.geo.infrastructure.models import (
     CountryCurrencyModel,
@@ -42,12 +45,16 @@ from src.modules.identity.infrastructure.models import (
     RolePermissionModel,
     SessionModel,
     SessionRoleModel,
+    StaffInvitationModel,
+    StaffInvitationRoleModel,
 )
-from src.modules.user.infrastructure.models import UserModel
+from src.modules.storage.infrastructure.models import StorageObject
+from src.modules.user.infrastructure.models import CustomerModel, StaffMemberModel
 
 __all__ = [
     "SKU",
     "Attribute",
+    "AttributeGroup",
     "AttributeValue",
     "Base",
     "Brand",
@@ -58,6 +65,8 @@ __all__ = [
     "CountryTranslationModel",
     "CurrencyModel",
     "CurrencyTranslationModel",
+    "CustomerModel",
+    "FailedTask",
     "IdentityModel",
     "IdentityRoleModel",
     "LanguageModel",
@@ -74,9 +83,13 @@ __all__ = [
     "SKUAttributeValueLink",
     "SessionModel",
     "SessionRoleModel",
+    "StaffInvitationModel",
+    "StaffInvitationRoleModel",
+    "StaffMemberModel",
+    "StorageObject",
     "SubdivisionCategoryModel",
     "SubdivisionCategoryTranslationModel",
     "SubdivisionModel",
     "SubdivisionTranslationModel",
-    "UserModel",
+    "Supplier",
 ]

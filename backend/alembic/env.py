@@ -24,7 +24,10 @@ target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
-config.set_main_option("sqlalchemy.url", str(settings.database_url))
+config.set_main_option(
+    "sqlalchemy.url",
+    settings.database_url.render_as_string(hide_password=False),
+)
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
