@@ -1,6 +1,6 @@
 """
 Catalog domain entities (Brand, Category, AttributeGroup, Attribute,
-CategoryAttributeBinding, SKU, and Product aggregates).
+CategoryAttributeBinding, ProductVariant, SKU, and Product aggregates).
 
 Contains the core business logic for brand lifecycle management
 (including logo FSM transitions), hierarchical category trees,
@@ -39,7 +39,9 @@ from src.modules.catalog.domain.exceptions import (
     InvalidLogoStateError,
     InvalidMediaStateError,
     InvalidStatusTransitionError,
+    LastVariantRemovalError,
     SKUNotFoundError,
+    VariantNotFoundError,
 )
 from src.modules.catalog.domain.value_objects import (
     DEFAULT_SEARCH_WEIGHT,
@@ -345,7 +347,9 @@ class Category(AggregateRoot):
         """
         _validate_slug(slug, "Category")
         if parent.level >= MAX_CATEGORY_DEPTH:
-            raise CategoryMaxDepthError(max_depth=MAX_CATEGORY_DEPTH, current_level=parent.level)
+            raise CategoryMaxDepthError(
+                max_depth=MAX_CATEGORY_DEPTH, current_level=parent.level
+            )
 
         return cls(
             id=_generate_id(),
@@ -605,9 +609,18 @@ class Attribute(AggregateRoot):
         )
 
     _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "name_i18n", "description_i18n", "ui_type", "group_id", "level",
-        "is_filterable", "is_searchable", "search_weight", "is_comparable",
-        "is_visible_on_card", "is_visible_in_catalog", "validation_rules",
+        "name_i18n",
+        "description_i18n",
+        "ui_type",
+        "group_id",
+        "level",
+        "is_filterable",
+        "is_searchable",
+        "search_weight",
+        "is_comparable",
+        "is_visible_on_card",
+        "is_visible_in_catalog",
+        "validation_rules",
     })
 
     def update(self, **kwargs: Any) -> None:
@@ -668,7 +681,10 @@ class Attribute(AggregateRoot):
         if "is_visible_on_card" in kwargs and kwargs["is_visible_on_card"] is not None:
             self.is_visible_on_card = kwargs["is_visible_on_card"]
 
-        if "is_visible_in_catalog" in kwargs and kwargs["is_visible_in_catalog"] is not None:
+        if (
+            "is_visible_in_catalog" in kwargs
+            and kwargs["is_visible_in_catalog"] is not None
+        ):
             self.is_visible_in_catalog = kwargs["is_visible_in_catalog"]
 
         if "validation_rules" in kwargs:
@@ -760,7 +776,11 @@ class AttributeValue:
         )
 
     _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "value_i18n", "search_aliases", "meta_data", "value_group", "sort_order",
+        "value_i18n",
+        "search_aliases",
+        "meta_data",
+        "value_group",
+        "sort_order",
     })
 
     def update(self, **kwargs: Any) -> None:
@@ -915,7 +935,10 @@ class CategoryAttributeBinding(AggregateRoot):
         )
 
     _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "sort_order", "requirement_level", "flag_overrides", "filter_settings",
+        "sort_order",
+        "requirement_level",
+        "flag_overrides",
+        "filter_settings",
     })
 
     def update(self, **kwargs: Any) -> None:
@@ -946,25 +969,25 @@ class CategoryAttributeBinding(AggregateRoot):
 # ---------------------------------------------------------------------------
 
 
-
 @dataclass
 class SKU:
-    """Stock Keeping Unit -- a specific product variant.
+    """Stock Keeping Unit -- a purchasable item within a ProductVariant.
 
-    Child entity owned by the Product aggregate. Each SKU represents
-    a unique combination of variant attributes (e.g. size + color)
-    identified by its ``variant_hash``.  The hash is computed once by the
-    owning Product and stored immutably; it is recalculated only when
-    ``variant_attributes`` change via ``update()``.
+    Child entity owned by a ProductVariant (which is itself a child of
+    the Product aggregate). Each SKU represents a unique combination of
+    variant attributes (e.g. size) identified by its ``variant_hash``.
+    The hash is computed once by the owning Product and stored immutably;
+    it is recalculated only when ``variant_attributes`` change via ``update()``.
 
     Attributes:
         id: Unique SKU identifier.
-        product_id: FK to the owning Product aggregate.
+        product_id: FK to the owning Product aggregate (denormalized).
+        variant_id: FK to the parent ProductVariant.
         sku_code: Human-readable stock-keeping code.
         variant_hash: SHA-256 hash of sorted variant attribute pairs.
-        price: Base price as a Money value object.
+        price: Base price as a Money value object, or None to inherit from variant.
         compare_at_price: Previous/original price for strikethrough display.
-        is_active: Whether the variant is available for sale.
+        is_active: Whether the SKU is available for sale.
         version: Optimistic locking version counter (incremented by repo on save).
         deleted_at: Soft-delete timestamp, or None if active.
         created_at: Creation timestamp (UTC).
@@ -974,9 +997,10 @@ class SKU:
 
     id: uuid.UUID
     product_id: uuid.UUID
+    variant_id: uuid.UUID
     sku_code: str
     variant_hash: str
-    price: Money
+    price: Money | None = None
     compare_at_price: Money | None = None
     is_active: bool = True
     version: int = 1
@@ -987,7 +1011,9 @@ class SKU:
 
     def __attrs_post_init__(self) -> None:
         """Validate compare_at_price > price when both are provided."""
-        if self.compare_at_price is not None:
+        if self.price is None and self.compare_at_price is not None:
+            raise ValueError("compare_at_price cannot be set when price is None")
+        if self.compare_at_price is not None and self.price is not None:
             if self.compare_at_price.currency != self.price.currency:
                 raise ValueError(
                     f"compare_at_price currency ({self.compare_at_price.currency}) "
@@ -1008,8 +1034,12 @@ class SKU:
         self.updated_at = now
 
     _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "sku_code", "price", "compare_at_price", "is_active",
-        "variant_attributes", "variant_hash",
+        "sku_code",
+        "price",
+        "compare_at_price",
+        "is_active",
+        "variant_attributes",
+        "variant_hash",
     })
 
     def update(self, **kwargs: Any) -> None:
@@ -1043,10 +1073,93 @@ class SKU:
             self.variant_hash = kwargs["variant_hash"]
 
         # Re-validate price constraint after any price-related change.
-        if self.compare_at_price is not None and not self.compare_at_price > self.price:
+        if self.price is None and self.compare_at_price is not None:
+            raise ValueError("compare_at_price cannot be set when price is None")
+        if (
+            self.compare_at_price is not None
+            and self.price is not None
+            and not self.compare_at_price > self.price
+        ):
             raise ValueError("compare_at_price must be greater than price")
 
         self.updated_at = datetime.now(UTC)
+
+
+# ---------------------------------------------------------------------------
+# ProductVariant -- child entity owned by the Product aggregate
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ProductVariant:
+    """Product variant -- a named variation grouping that owns SKUs.
+
+    Child entity of the Product aggregate. Each variant represents a
+    tab in the admin UI with its own name, media, and set of SKUs.
+    """
+
+    id: uuid.UUID
+    product_id: uuid.UUID
+    name_i18n: dict[str, str]
+    description_i18n: dict[str, str] | None
+    sort_order: int
+    default_price: Money | None
+    default_currency: str
+    skus: list[SKU]
+    deleted_at: datetime | None = None
+    created_at: datetime = field(factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(factory=lambda: datetime.now(UTC))
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        product_id: uuid.UUID,
+        name_i18n: dict[str, str],
+        description_i18n: dict[str, str] | None = None,
+        sort_order: int = 0,
+        default_price: Money | None = None,
+        default_currency: str = "RUB",
+        variant_id: uuid.UUID | None = None,
+    ) -> ProductVariant:
+        """Factory method to construct a new ProductVariant.
+
+        Args:
+            product_id: UUID of the owning Product aggregate.
+            name_i18n: Multilingual variant name. At least one entry required.
+            description_i18n: Optional multilingual description.
+            sort_order: Display ordering among sibling variants (default: 0).
+            default_price: Optional default price for SKUs in this variant.
+            default_currency: Default currency code (default: "RUB").
+            variant_id: Optional pre-generated UUID.
+
+        Returns:
+            A new ProductVariant instance with an empty SKU list.
+
+        Raises:
+            ValueError: If name_i18n is empty.
+        """
+        if not name_i18n:
+            raise ValueError("name_i18n must contain at least one language entry")
+        return cls(
+            id=variant_id or _generate_id(),
+            product_id=product_id,
+            name_i18n=name_i18n,
+            description_i18n=description_i18n,
+            sort_order=sort_order,
+            default_price=default_price,
+            default_currency=default_currency,
+            skus=[],
+        )
+
+    def soft_delete(self) -> None:
+        """Mark this variant and all its active SKUs as deleted."""
+        now = datetime.now(UTC)
+        self.deleted_at = now
+        self.updated_at = now
+        for sku in self.skus:
+            if sku.deleted_at is None:
+                sku.soft_delete()
 
 
 # ---------------------------------------------------------------------------
@@ -1072,7 +1185,7 @@ class MediaAsset(AggregateRoot):
     Attributes:
         id: Unique media asset identifier.
         product_id: FK to the parent Product aggregate.
-        attribute_value_id: Optional FK to an AttributeValue (for swatch media).
+        variant_id: Optional FK to a ProductVariant (for variant-specific media).
         media_type: MIME-type hint or media category (e.g. ``"image/jpeg"``).
         role: Semantic role of the asset (e.g. ``"gallery"``, ``"cover"``).
         sort_order: Display ordering among sibling assets.
@@ -1086,7 +1199,7 @@ class MediaAsset(AggregateRoot):
 
     id: uuid.UUID
     product_id: uuid.UUID
-    attribute_value_id: uuid.UUID | None
+    variant_id: uuid.UUID | None
     media_type: str
     role: str
     sort_order: int
@@ -1106,7 +1219,7 @@ class MediaAsset(AggregateRoot):
         role: str,
         raw_object_key: str,
         sort_order: int = 0,
-        attribute_value_id: uuid.UUID | None = None,
+        variant_id: uuid.UUID | None = None,
         media_id: uuid.UUID | None = None,
     ) -> MediaAsset:
         """Factory method for a new upload-based media asset.
@@ -1120,7 +1233,7 @@ class MediaAsset(AggregateRoot):
             role: Semantic role of the asset within the product listing.
             raw_object_key: S3 key where the raw file will be uploaded.
             sort_order: Display ordering among sibling assets (default: 0).
-            attribute_value_id: Optional FK to an AttributeValue (swatch media).
+            variant_id: Optional FK to a ProductVariant (variant-specific media).
             media_id: Optional pre-generated UUID; generates uuid4 if omitted.
 
         Returns:
@@ -1129,7 +1242,7 @@ class MediaAsset(AggregateRoot):
         return cls(
             id=media_id or _generate_id(),
             product_id=product_id,
-            attribute_value_id=attribute_value_id,
+            variant_id=variant_id,
             media_type=media_type,
             role=role,
             sort_order=sort_order,
@@ -1147,7 +1260,7 @@ class MediaAsset(AggregateRoot):
         role: str,
         external_url: str,
         sort_order: int = 0,
-        attribute_value_id: uuid.UUID | None = None,
+        variant_id: uuid.UUID | None = None,
         media_id: uuid.UUID | None = None,
     ) -> MediaAsset:
         """Factory method for an externally hosted media asset.
@@ -1161,7 +1274,7 @@ class MediaAsset(AggregateRoot):
             role: Semantic role of the asset within the product listing.
             external_url: Public URL of the externally hosted file.
             sort_order: Display ordering among sibling assets (default: 0).
-            attribute_value_id: Optional FK to an AttributeValue (swatch media).
+            variant_id: Optional FK to a ProductVariant (variant-specific media).
             media_id: Optional pre-generated UUID; generates uuid4 if omitted.
 
         Returns:
@@ -1171,7 +1284,7 @@ class MediaAsset(AggregateRoot):
         return cls(
             id=media_id or _generate_id(),
             product_id=product_id,
-            attribute_value_id=attribute_value_id,
+            variant_id=variant_id,
             media_type=media_type,
             role=role,
             sort_order=sort_order,
@@ -1196,7 +1309,9 @@ class MediaAsset(AggregateRoot):
         if self.processing_status != MediaProcessingStatus.PENDING_UPLOAD:
             raise InvalidMediaStateError(
                 media_id=self.id,
-                current_status=str(self.processing_status) if self.processing_status else None,
+                current_status=str(self.processing_status)
+                if self.processing_status
+                else None,
                 expected_status=MediaProcessingStatus.PENDING_UPLOAD.value,
             )
         self.processing_status = MediaProcessingStatus.PROCESSING
@@ -1236,7 +1351,9 @@ class MediaAsset(AggregateRoot):
         if self.processing_status != MediaProcessingStatus.PROCESSING:
             raise InvalidMediaStateError(
                 media_id=self.id,
-                current_status=str(self.processing_status) if self.processing_status else None,
+                current_status=str(self.processing_status)
+                if self.processing_status
+                else None,
                 expected_status=MediaProcessingStatus.PROCESSING.value,
             )
         self.public_url = public_url
@@ -1263,7 +1380,9 @@ class MediaAsset(AggregateRoot):
         if self.processing_status != MediaProcessingStatus.PROCESSING:
             raise InvalidMediaStateError(
                 media_id=self.id,
-                current_status=str(self.processing_status) if self.processing_status else None,
+                current_status=str(self.processing_status)
+                if self.processing_status
+                else None,
                 expected_status=MediaProcessingStatus.PROCESSING.value,
             )
         self.processing_status = MediaProcessingStatus.FAILED
@@ -1278,8 +1397,9 @@ class MediaAsset(AggregateRoot):
 class Product(AggregateRoot):
     """Product aggregate root -- central catalog entity.
 
-    Owns SKU child entities, enforces status lifecycle transitions (FSM),
-    and computes variant hashes for SKU uniqueness.  Carries a ``version``
+    Owns ProductVariant child entities (which in turn own SKUs), enforces
+    status lifecycle transitions (FSM), and computes variant hashes for
+    SKU uniqueness.  Carries a ``version``
     field for optimistic locking (incremented by the repository on save)
     and supports soft-delete via ``deleted_at``.
 
@@ -1309,7 +1429,7 @@ class Product(AggregateRoot):
         created_at: Creation timestamp (UTC).
         updated_at: Last modification timestamp (UTC).
         published_at: Timestamp of first publication, or None.
-        skus: List of owned SKU child entities (includes soft-deleted).
+        variants: List of owned ProductVariant child entities (includes soft-deleted).
     """
 
     # Class-level FSM transition table -- excluded from attrs __init__ via ClassVar.
@@ -1339,7 +1459,7 @@ class Product(AggregateRoot):
     created_at: datetime = field(factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(factory=lambda: datetime.now(UTC))
     published_at: datetime | None = None
-    skus: list[SKU] = field(factory=list)
+    variants: list[ProductVariant] = field(factory=list)
 
     @classmethod
     def create(
@@ -1369,7 +1489,7 @@ class Product(AggregateRoot):
             product_id: Optional pre-generated UUID; generates uuid7/uuid4 if omitted.
 
         Returns:
-            A new Product instance in DRAFT status with an empty SKU list.
+            A new Product instance in DRAFT status with one default variant.
 
         Raises:
             ValueError: If ``title_i18n`` is empty.
@@ -1390,8 +1510,14 @@ class Product(AggregateRoot):
             country_of_origin=country_of_origin,
             tags=tags or [],
             version=1,
-            skus=[],
+            variants=[],
         )
+        # Auto-create 1 default variant
+        default_variant = ProductVariant.create(
+            product_id=product.id,
+            name_i18n=title_i18n,
+        )
+        product.variants.append(default_variant)
         product.add_domain_event(
             ProductCreatedEvent(
                 product_id=product.id,
@@ -1492,25 +1618,103 @@ class Product(AggregateRoot):
             )
         )
 
-    def add_sku(
+    # ------------------------------------------------------------------
+    # Variant management
+    # ------------------------------------------------------------------
+
+    def add_variant(
         self,
         *,
+        name_i18n: dict[str, str],
+        description_i18n: dict[str, str] | None = None,
+        sort_order: int = 0,
+        default_price: Money | None = None,
+        default_currency: str = "RUB",
+    ) -> ProductVariant:
+        """Create and attach a new ProductVariant to this product.
+
+        Args:
+            name_i18n: Multilingual variant name. At least one entry required.
+            description_i18n: Optional multilingual description.
+            sort_order: Display ordering among sibling variants (default: 0).
+            default_price: Optional default price for SKUs in this variant.
+            default_currency: Default currency code (default: "RUB").
+
+        Returns:
+            The newly created and attached ProductVariant instance.
+        """
+        variant = ProductVariant.create(
+            product_id=self.id,
+            name_i18n=name_i18n,
+            description_i18n=description_i18n,
+            sort_order=sort_order,
+            default_price=default_price,
+            default_currency=default_currency,
+        )
+        self.variants.append(variant)
+        self.updated_at = datetime.now(UTC)
+        return variant
+
+    def find_variant(self, variant_id: uuid.UUID) -> ProductVariant | None:
+        """Find an active (non-deleted) variant by its identifier.
+
+        Args:
+            variant_id: The UUID of the variant to locate.
+
+        Returns:
+            The matching ProductVariant instance, or None if not found or soft-deleted.
+        """
+        for variant in self.variants:
+            if variant.id == variant_id and variant.deleted_at is None:
+                return variant
+        return None
+
+    def remove_variant(self, variant_id: uuid.UUID) -> None:
+        """Soft-delete a variant and all its SKUs from this product.
+
+        Cannot remove the last active variant.
+
+        Args:
+            variant_id: The UUID of the variant to remove.
+
+        Raises:
+            VariantNotFoundError: If no active variant with the given ID exists.
+            LastVariantRemovalError: If this is the only remaining active variant.
+        """
+        variant = self.find_variant(variant_id)
+        if variant is None:
+            raise VariantNotFoundError(variant_id=variant_id, product_id=self.id)
+        active_variants = [v for v in self.variants if v.deleted_at is None]
+        if len(active_variants) <= 1:
+            raise LastVariantRemovalError(product_id=self.id)
+        variant.soft_delete()
+        self.updated_at = datetime.now(UTC)
+
+    # ------------------------------------------------------------------
+    # SKU management (delegated through variants)
+    # ------------------------------------------------------------------
+
+    def add_sku(
+        self,
+        variant_id: uuid.UUID,
+        *,
         sku_code: str,
-        price: Money,
+        price: Money | None = None,
         compare_at_price: Money | None = None,
         is_active: bool = True,
         variant_attributes: list[tuple[uuid.UUID, uuid.UUID]] | None = None,
     ) -> SKU:
-        """Create and attach a new SKU variant to this product.
+        """Create and attach a new SKU to a specific variant of this product.
 
         Computes the ``variant_hash`` from ``variant_attributes`` and checks
-        it is unique among non-deleted SKUs on this product.
+        it is unique among non-deleted SKUs across ALL variants.
 
         Args:
+            variant_id: UUID of the target ProductVariant.
             sku_code: Human-readable stock-keeping code.
-            price: Base selling price.
+            price: Optional base selling price (can be None; inherits from variant).
             compare_at_price: Optional strikethrough price (must be > price).
-            is_active: Whether the new variant is immediately available.
+            is_active: Whether the new SKU is immediately available.
             variant_attributes: List of (attribute_id, attribute_value_id) pairs
                 that uniquely identify this variant combination.
 
@@ -1518,22 +1722,30 @@ class Product(AggregateRoot):
             The newly created and attached SKU instance.
 
         Raises:
+            VariantNotFoundError: If no active variant with the given ID exists.
             DuplicateVariantCombinationError: If an active SKU with the same
                 variant attribute combination already exists.
         """
+        variant = self.find_variant(variant_id)
+        if variant is None:
+            raise VariantNotFoundError(variant_id=variant_id, product_id=self.id)
+        # compute hash, check uniqueness across ALL variants
         effective_attrs = variant_attributes or []
         variant_hash = self.compute_variant_hash(effective_attrs)
-
-        for existing in self.skus:
-            if existing.deleted_at is None and existing.variant_hash == variant_hash:
-                raise DuplicateVariantCombinationError(
-                    product_id=self.id,
-                    variant_hash=variant_hash,
-                )
-
+        for v in self.variants:
+            for existing in v.skus:
+                if (
+                    existing.deleted_at is None
+                    and existing.variant_hash == variant_hash
+                ):
+                    raise DuplicateVariantCombinationError(
+                        product_id=self.id,
+                        variant_hash=variant_hash,
+                    )
         sku = SKU(
             id=_generate_id(),
             product_id=self.id,
+            variant_id=variant_id,
             sku_code=sku_code,
             variant_hash=variant_hash,
             price=price,
@@ -1541,12 +1753,12 @@ class Product(AggregateRoot):
             is_active=is_active,
             variant_attributes=list(effective_attrs),
         )
-        self.skus.append(sku)
+        variant.skus.append(sku)
         self.updated_at = datetime.now(UTC)
         return sku
 
     def find_sku(self, sku_id: uuid.UUID) -> SKU | None:
-        """Find an active (non-deleted) SKU by its identifier.
+        """Find an active (non-deleted) SKU by its identifier across all variants.
 
         Args:
             sku_id: The UUID of the SKU to locate.
@@ -1554,16 +1766,14 @@ class Product(AggregateRoot):
         Returns:
             The matching SKU instance, or None if not found or soft-deleted.
         """
-        for sku in self.skus:
-            if sku.id == sku_id and sku.deleted_at is None:
-                return sku
+        for variant in self.variants:
+            for sku in variant.skus:
+                if sku.id == sku_id and sku.deleted_at is None:
+                    return sku
         return None
 
     def remove_sku(self, sku_id: uuid.UUID) -> None:
-        """Soft-delete a SKU variant from this product.
-
-        Locates the SKU by ID (only among active variants) and calls its
-        ``soft_delete()`` method.  Updates ``self.updated_at``.
+        """Soft-delete a SKU from this product (searches across all variants).
 
         Args:
             sku_id: The UUID of the SKU to remove.
@@ -1571,11 +1781,13 @@ class Product(AggregateRoot):
         Raises:
             SKUNotFoundError: If no active SKU with the given ID exists.
         """
-        sku = self.find_sku(sku_id)
-        if sku is None:
-            raise SKUNotFoundError(sku_id=sku_id)
-        sku.soft_delete()
-        self.updated_at = datetime.now(UTC)
+        for variant in self.variants:
+            for sku in variant.skus:
+                if sku.id == sku_id and sku.deleted_at is None:
+                    sku.soft_delete()
+                    self.updated_at = datetime.now(UTC)
+                    return
+        raise SKUNotFoundError(sku_id=sku_id)
 
     @staticmethod
     def compute_variant_hash(
@@ -1593,7 +1805,6 @@ class Product(AggregateRoot):
         Returns:
             A 64-character lowercase hex string (SHA-256 digest).
         """
-        # hashlib.sha256 is stdlib -- safe for the domain layer.
         sorted_attrs = sorted(variant_attributes, key=lambda x: str(x[0]))
         payload = "|".join(f"{a!s}:{v!s}" for a, v in sorted_attrs)
         return hashlib.sha256(payload.encode()).hexdigest()

@@ -206,6 +206,31 @@ class DuplicateProductAttributeError(ConflictError):
         )
 
 
+class VariantNotFoundError(NotFoundError):
+    """Raised when a product variant lookup yields no result."""
+
+    def __init__(self, variant_id: uuid.UUID | str, product_id: uuid.UUID | str | None = None) -> None:
+        details: dict[str, str] = {"variant_id": str(variant_id)}
+        if product_id is not None:
+            details["product_id"] = str(product_id)
+        super().__init__(
+            message=f"Product variant with ID {variant_id} not found.",
+            error_code="VARIANT_NOT_FOUND",
+            details=details,
+        )
+
+
+class LastVariantRemovalError(UnprocessableEntityError):
+    """Raised when attempting to remove the last active variant from a product."""
+
+    def __init__(self, product_id: uuid.UUID) -> None:
+        super().__init__(
+            message="Cannot remove the last variant from a product.",
+            error_code="LAST_VARIANT_REMOVAL",
+            details={"product_id": str(product_id)},
+        )
+
+
 class ProductAttributeValueNotFoundError(NotFoundError):
     """Raised when a product attribute value assignment is not found.
 

@@ -307,8 +307,8 @@ class IProductRepository(ICatalogRepository[DomainProduct]):
         pass
 
     @abstractmethod
-    async def get_with_skus(self, product_id: uuid.UUID) -> DomainProduct | None:
-        """Retrieve a product with eagerly loaded SKU child entities."""
+    async def get_with_variants(self, product_id: uuid.UUID) -> DomainProduct | None:
+        """Retrieve a product with eagerly loaded variant and SKU child entities."""
         pass
 
     @abstractmethod
@@ -405,14 +405,19 @@ class IMediaAssetRepository(ABC):
 
     @abstractmethod
     async def list_by_product(self, product_id: uuid.UUID) -> list[DomainMediaAsset]:
-        """List all media assets for a product, ordered by (attribute_value_id, sort_order)."""
+        """List all media assets for a product, ordered by (variant_id, sort_order)."""
+        pass
+
+    @abstractmethod
+    async def list_by_variant(self, variant_id: uuid.UUID) -> list[DomainMediaAsset]:
+        """List all media assets for a specific variant, ordered by sort_order."""
         pass
 
     @abstractmethod
     async def has_main_for_variant(
         self,
         product_id: uuid.UUID,
-        attribute_value_id: uuid.UUID | None,
+        variant_id: uuid.UUID | None,
     ) -> bool:
         """Check if a MAIN media asset already exists for this product/variant combo."""
         pass
