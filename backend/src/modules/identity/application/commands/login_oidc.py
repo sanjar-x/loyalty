@@ -132,8 +132,14 @@ class LoginOIDCHandler:
 
                 now = datetime.now(UTC)
                 # Trust email verification for known OIDC providers (Google, Apple)
-                provider_enum = AuthProvider(user_info.provider) if user_info.provider in [p.value for p in AuthProvider] else None
-                email_verified = provider_enum in TRUSTED_EMAIL_PROVIDERS if provider_enum else False
+                provider_enum = (
+                    AuthProvider(user_info.provider)
+                    if user_info.provider in [p.value for p in AuthProvider]
+                    else None
+                )
+                email_verified = (
+                    provider_enum in TRUSTED_EMAIL_PROVIDERS if provider_enum else False
+                )
 
                 linked_account = LinkedAccount(
                     id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),

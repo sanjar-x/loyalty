@@ -45,39 +45,41 @@ internal_router = APIRouter(
 
 
 @internal_router.post(
-    "/{media_id}/processed",
+    path="/{media_id}/processed",
     status_code=status.HTTP_200_OK,
     summary="AI processing completed",
+    description="Callback from AI-service after successful media processing.",
     response_model=WebhookAckResponse,
 )
 async def media_processed_webhook(
     media_id: uuid.UUID,
-    body: MediaProcessingWebhookRequest,
+    request: MediaProcessingWebhookRequest,
     handler: FromDishka[CompleteProductMediaHandler],
 ) -> WebhookAckResponse:
     """Callback from AI-service after successful media processing."""
-    cmd = CompleteProductMediaCommand(
+    command = CompleteProductMediaCommand(
         media_id=media_id,
-        object_key=body.object_key,
-        content_type=body.content_type,
-        size_bytes=body.size_bytes,
+        object_key=request.object_key,
+        content_type=request.content_type,
+        size_bytes=request.size_bytes,
     )
-    await handler.handle(cmd)
+    await handler.handle(command)
     return WebhookAckResponse()
 
 
 @internal_router.post(
-    "/{media_id}/failed",
+    path="/{media_id}/failed",
     status_code=status.HTTP_200_OK,
     summary="AI processing failed",
+    description="Callback from AI-service when media processing fails.",
     response_model=WebhookAckResponse,
 )
 async def media_failed_webhook(
     media_id: uuid.UUID,
-    body: MediaProcessingFailedRequest,
+    request: MediaProcessingFailedRequest,
     handler: FromDishka[FailProductMediaHandler],
 ) -> WebhookAckResponse:
     """Callback from AI-service when processing fails."""
-    cmd = FailProductMediaCommand(media_id=media_id, reason=body.error)
-    await handler.handle(cmd)
+    command = FailProductMediaCommand(media_id=media_id, reason=request.error)
+    await handler.handle(command)
     return WebhookAckResponse()

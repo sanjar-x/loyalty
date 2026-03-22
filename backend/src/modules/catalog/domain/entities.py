@@ -345,9 +345,7 @@ class Category(AggregateRoot):
         """
         _validate_slug(slug, "Category")
         if parent.level >= MAX_CATEGORY_DEPTH:
-            raise CategoryMaxDepthError(
-                max_depth=MAX_CATEGORY_DEPTH, current_level=parent.level
-            )
+            raise CategoryMaxDepthError(max_depth=MAX_CATEGORY_DEPTH, current_level=parent.level)
 
         return cls(
             id=_generate_id(),
@@ -1226,8 +1224,8 @@ class MediaAsset(AggregateRoot):
         if self.processing_status != MediaProcessingStatus.PENDING_UPLOAD:
             raise InvalidMediaStateError(
                 media_id=self.id,
-                current=str(self.processing_status) if self.processing_status else None,
-                expected=MediaProcessingStatus.PENDING_UPLOAD.value,
+                current_status=str(self.processing_status) if self.processing_status else None,
+                expected_status=MediaProcessingStatus.PENDING_UPLOAD.value,
             )
         self.processing_status = MediaProcessingStatus.PROCESSING
 
@@ -1266,8 +1264,8 @@ class MediaAsset(AggregateRoot):
         if self.processing_status != MediaProcessingStatus.PROCESSING:
             raise InvalidMediaStateError(
                 media_id=self.id,
-                current=str(self.processing_status) if self.processing_status else None,
-                expected=MediaProcessingStatus.PROCESSING.value,
+                current_status=str(self.processing_status) if self.processing_status else None,
+                expected_status=MediaProcessingStatus.PROCESSING.value,
             )
         self.public_url = public_url
         self.storage_object_id = storage_object_id
@@ -1293,8 +1291,8 @@ class MediaAsset(AggregateRoot):
         if self.processing_status != MediaProcessingStatus.PROCESSING:
             raise InvalidMediaStateError(
                 media_id=self.id,
-                current=str(self.processing_status) if self.processing_status else None,
-                expected=MediaProcessingStatus.PROCESSING.value,
+                current_status=str(self.processing_status) if self.processing_status else None,
+                expected_status=MediaProcessingStatus.PROCESSING.value,
             )
         self.processing_status = MediaProcessingStatus.FAILED
 
@@ -1640,7 +1638,7 @@ class Product(AggregateRoot):
         Returns:
             A 64-character lowercase hex string (SHA-256 digest).
         """
-        # Context7: verified hashlib.sha256 is stdlib -- allowed in domain layer.
+        # hashlib.sha256 is stdlib -- safe for the domain layer.
         sorted_attrs = sorted(variant_attributes, key=lambda x: str(x[0]))
         payload = "|".join(f"{a!s}:{v!s}" for a, v in sorted_attrs)
         return hashlib.sha256(payload.encode()).hexdigest()

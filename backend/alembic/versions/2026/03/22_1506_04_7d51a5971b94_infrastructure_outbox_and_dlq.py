@@ -50,9 +50,7 @@ def upgrade() -> None:
             nullable=False,
             comment="Task labels (correlation_id, etc.)",
         ),
-        sa.Column(
-            "error_message", sa.Text(), nullable=False, comment="Error message text"
-        ),
+        sa.Column("error_message", sa.Text(), nullable=False, comment="Error message text"),
         sa.Column(
             "retry_count",
             sa.Integer(),

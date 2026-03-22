@@ -14,9 +14,7 @@ class CustomerModel(Base):
     """ORM model for the ``customers`` table (customer profiles)."""
 
     __tablename__ = "customers"
-    __table_args__ = (
-        {"comment": "Customer profiles with referral data (GDPR-isolated)"},
-    )
+    __table_args__ = ({"comment": "Customer profiles with referral data (GDPR-isolated)"},)
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -24,17 +22,11 @@ class CustomerModel(Base):
         primary_key=True,
     )
     profile_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
-    first_name: Mapped[str] = mapped_column(
-        String(100), server_default="", nullable=False
-    )
-    last_name: Mapped[str] = mapped_column(
-        String(100), server_default="", nullable=False
-    )
+    first_name: Mapped[str] = mapped_column(String(100), server_default="", nullable=False)
+    last_name: Mapped[str] = mapped_column(String(100), server_default="", nullable=False)
     username: Mapped[str | None] = mapped_column(String(100), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    referral_code: Mapped[str | None] = mapped_column(
-        String(12), unique=True, nullable=True
-    )
+    referral_code: Mapped[str | None] = mapped_column(String(12), unique=True, nullable=True)
     referred_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("customers.id"), nullable=True
     )
@@ -60,12 +52,8 @@ class StaffMemberModel(Base):
         ForeignKey("identities.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    first_name: Mapped[str] = mapped_column(
-        String(100), server_default="", nullable=False
-    )
-    last_name: Mapped[str] = mapped_column(
-        String(100), server_default="", nullable=False
-    )
+    first_name: Mapped[str] = mapped_column(String(100), server_default="", nullable=False)
+    last_name: Mapped[str] = mapped_column(String(100), server_default="", nullable=False)
     profile_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     position: Mapped[str | None] = mapped_column(String(100), nullable=True)
     department: Mapped[str | None] = mapped_column(String(100), nullable=True)

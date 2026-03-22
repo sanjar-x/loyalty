@@ -19,7 +19,9 @@ class TestBrandLogoUploadInitiatedEvent:
 
     def test_auto_sets_aggregate_id_from_brand_id(self):
         brand_id: uuid.UUID = uuid.uuid4()
-        event = BrandLogoUploadInitiatedEvent(brand_id=brand_id, object_key="key", content_type="image/png")
+        event = BrandLogoUploadInitiatedEvent(
+            brand_id=brand_id, object_key="key", content_type="image/png"
+        )
         assert event.aggregate_id == str(brand_id)
 
     def test_fields_populated(self):

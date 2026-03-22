@@ -146,9 +146,7 @@ class LinkedAccountModel(Base):
 
     __tablename__ = "linked_accounts"
     __table_args__ = (
-        UniqueConstraint(
-            "provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"
-        ),
+        UniqueConstraint("provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"),
         {"comment": "External OIDC provider accounts linked to identities"},
     )
 

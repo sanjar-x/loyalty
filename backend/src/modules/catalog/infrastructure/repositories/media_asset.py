@@ -56,9 +56,7 @@ class MediaAssetRepository(IMediaAssetRepository):
             public_url=orm.public_url,
         )
 
-    def _to_orm(
-        self, entity: DomainMediaAsset, orm: OrmMediaAsset | None = None
-    ) -> OrmMediaAsset:
+    def _to_orm(self, entity: DomainMediaAsset, orm: OrmMediaAsset | None = None) -> OrmMediaAsset:
         """Map a domain MediaAsset entity to an ORM row (create or update)."""
         if orm is None:
             orm = OrmMediaAsset()
@@ -69,9 +67,7 @@ class MediaAssetRepository(IMediaAssetRepository):
         orm.role = MediaRole(entity.role)
         orm.sort_order = entity.sort_order
         orm.processing_status = (
-            entity.processing_status.value
-            if entity.processing_status is not None
-            else None
+            entity.processing_status.value if entity.processing_status is not None else None
         )
         orm.storage_object_id = entity.storage_object_id
         orm.is_external = entity.is_external
@@ -100,9 +96,7 @@ class MediaAssetRepository(IMediaAssetRepository):
 
     async def get_for_update(self, media_id: uuid.UUID) -> DomainMediaAsset | None:
         """Retrieve a media asset with a ``SELECT … FOR UPDATE`` row lock."""
-        stmt = (
-            select(OrmMediaAsset).where(OrmMediaAsset.id == media_id).with_for_update()
-        )
+        stmt = select(OrmMediaAsset).where(OrmMediaAsset.id == media_id).with_for_update()
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None

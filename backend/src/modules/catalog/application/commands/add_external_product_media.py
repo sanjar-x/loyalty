@@ -138,7 +138,9 @@ class AddExternalProductMediaHandler:
             media_type=media.media_type,
             role=media.role,
             sort_order=media.sort_order,
-            processing_status=media.processing_status.value if media.processing_status else "COMPLETED",
+            processing_status=media.processing_status.value
+            if media.processing_status
+            else "COMPLETED",
             public_url=media.public_url or "",
             is_external=media.is_external,
             external_url=media.external_url or "",

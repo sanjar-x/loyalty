@@ -54,25 +54,25 @@ class CategoryRepository(
 
     async def get_all_ordered(self) -> list[DomainCategory]:
         """Return all categories ordered by level then sort_order."""
-        statement = select(self.model).order_by(self.model.level.asc(), self.model.sort_order.asc())
-        result = await self._session.execute(statement)
+        stmt = select(self.model).order_by(self.model.level.asc(), self.model.sort_order.asc())
+        result = await self._session.execute(stmt)
         orms = result.scalars().all()
         return [self._to_domain(orm) for orm in orms]
 
     async def check_slug_exists(self, slug: str, parent_id: uuid.UUID | None) -> bool:
         """Return ``True`` if a sibling with this slug already exists."""
-        statement = select(
+        stmt = select(
             select(self.model)
             .where(self.model.slug == slug, self.model.parent_id == parent_id)
             .exists()
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return bool(result.scalar())
 
     async def get_for_update(self, category_id: uuid.UUID) -> DomainCategory | None:
         """Retrieve a category with a ``SELECT … FOR UPDATE`` row lock."""
-        statement = select(self.model).where(self.model.id == category_id).with_for_update()
-        result = await self._session.execute(statement)
+        stmt = select(self.model).where(self.model.id == category_id).with_for_update()
+        result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
@@ -80,7 +80,7 @@ class CategoryRepository(
         self, slug: str, parent_id: uuid.UUID | None, exclude_id: uuid.UUID
     ) -> bool:
         """Return ``True`` if the slug is taken by a sibling other than *exclude_id*."""
-        statement = select(
+        stmt = select(
             select(self.model)
             .where(
                 self.model.slug == slug,
@@ -89,15 +89,15 @@ class CategoryRepository(
             )
             .exists()
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return bool(result.scalar())
 
     async def has_children(self, category_id: uuid.UUID) -> bool:
         """Return ``True`` if the category has at least one child."""
-        statement = select(
+        stmt = select(
             select(self.model.id).where(self.model.parent_id == category_id).limit(1).exists()
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return bool(result.scalar())
 
     async def update_descendants_full_slug(self, old_prefix: str, new_prefix: str) -> None:
@@ -106,7 +106,7 @@ class CategoryRepository(
         Executes a single ``UPDATE … SET full_slug = concat(...)`` to
         efficiently propagate a parent slug change down the subtree.
         """
-        statement = (
+        stmt = (
             update(self.model)
             .where(self.model.full_slug.like(f"{old_prefix}/%"))
             .values(
@@ -116,4 +116,4 @@ class CategoryRepository(
                 )
             )
         )
-        await self._session.execute(statement)
+        await self._session.execute(stmt)

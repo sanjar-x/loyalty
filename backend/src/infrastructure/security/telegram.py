@@ -28,7 +28,8 @@ class TelegramInitDataValidator(ITelegramInitDataValidator):
         # 1. HMAC-SHA256 validation via aiogram
         try:
             parsed = safe_parse_webapp_init_data(
-                token=self._bot_token, init_data=init_data_raw,
+                token=self._bot_token,
+                init_data=init_data_raw,
             )
         except ValueError:
             raise InvalidInitDataError() from None

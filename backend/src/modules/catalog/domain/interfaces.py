@@ -16,7 +16,7 @@ import uuid
 from abc import ABC, abstractmethod
 
 from src.modules.catalog.domain.entities import Attribute as DomainAttribute
-from src.modules.catalog.domain.entities import AttributeGroup
+from src.modules.catalog.domain.entities import AttributeGroup as DomainAttributeGroup
 from src.modules.catalog.domain.entities import AttributeValue as DomainAttributeValue
 from src.modules.catalog.domain.entities import Brand as DomainBrand
 from src.modules.catalog.domain.entities import Category as DomainCategory
@@ -110,7 +110,7 @@ class ICategoryRepository(ICatalogRepository[DomainCategory]):
         pass
 
 
-class IAttributeGroupRepository(ICatalogRepository[AttributeGroup]):
+class IAttributeGroupRepository(ICatalogRepository[DomainAttributeGroup]):
     """Repository contract for the AttributeGroup aggregate."""
 
     @abstractmethod
@@ -119,7 +119,7 @@ class IAttributeGroupRepository(ICatalogRepository[AttributeGroup]):
         pass
 
     @abstractmethod
-    async def get_by_code(self, code: str) -> AttributeGroup | None:
+    async def get_by_code(self, code: str) -> DomainAttributeGroup | None:
         """Retrieve an attribute group by its unique code."""
         pass
 

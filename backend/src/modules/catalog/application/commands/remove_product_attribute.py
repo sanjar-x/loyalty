@@ -10,10 +10,7 @@ import uuid
 from dataclasses import dataclass
 
 from src.modules.catalog.domain.exceptions import ProductAttributeValueNotFoundError
-from src.modules.catalog.domain.interfaces import (
-    IProductAttributeValueRepository,
-    IProductRepository,
-)
+from src.modules.catalog.domain.interfaces import IProductAttributeValueRepository
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -39,11 +36,9 @@ class RemoveProductAttributeHandler:
 
     def __init__(
         self,
-        product_repo: IProductRepository,
         pav_repo: IProductAttributeValueRepository,
         uow: IUnitOfWork,
     ) -> None:
-        self._product_repo = product_repo
         self._pav_repo = pav_repo
         self._uow = uow
 

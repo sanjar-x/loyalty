@@ -263,5 +263,7 @@ async def on_linked_account_created(
                     customer.update_profile(username=username)
                     await customer_repo.update(customer)
                     await uow.commit()
-                logger.info("customer.username_enriched", identity_id=identity_id, provider=provider)
+                logger.info(
+                    "customer.username_enriched", identity_id=identity_id, provider=provider
+                )
         return {"status": "success", "type": "enriched"}

@@ -26,12 +26,8 @@ def upgrade() -> None:
         "customers",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("profile_email", sa.String(length=320), nullable=True),
-        sa.Column(
-            "first_name", sa.String(length=100), server_default="", nullable=False
-        ),
-        sa.Column(
-            "last_name", sa.String(length=100), server_default="", nullable=False
-        ),
+        sa.Column("first_name", sa.String(length=100), server_default="", nullable=False),
+        sa.Column("last_name", sa.String(length=100), server_default="", nullable=False),
         sa.Column("username", sa.String(length=100), nullable=True),
         sa.Column("phone", sa.String(length=20), nullable=True),
         sa.Column("referral_code", sa.String(length=12), nullable=True),
@@ -66,12 +62,8 @@ def upgrade() -> None:
     op.create_table(
         "staff_members",
         sa.Column("id", sa.UUID(), nullable=False),
-        sa.Column(
-            "first_name", sa.String(length=100), server_default="", nullable=False
-        ),
-        sa.Column(
-            "last_name", sa.String(length=100), server_default="", nullable=False
-        ),
+        sa.Column("first_name", sa.String(length=100), server_default="", nullable=False),
+        sa.Column("last_name", sa.String(length=100), server_default="", nullable=False),
         sa.Column("profile_email", sa.String(length=320), nullable=True),
         sa.Column("position", sa.String(length=100), nullable=True),
         sa.Column("department", sa.String(length=100), nullable=True),

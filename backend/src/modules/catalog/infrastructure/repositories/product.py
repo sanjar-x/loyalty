@@ -373,9 +373,9 @@ class ProductRepository(IProductRepository):
             select(OrmProduct)
             .where(OrmProduct.id == product_id)
             .options(
-                selectinload(
-                    OrmProduct.skus.and_(OrmSKU.deleted_at.is_(None))
-                ).selectinload(OrmSKU.attribute_values)
+                selectinload(OrmProduct.skus.and_(OrmSKU.deleted_at.is_(None))).selectinload(
+                    OrmSKU.attribute_values
+                )
             )
         )
         result = await self._session.execute(stmt)

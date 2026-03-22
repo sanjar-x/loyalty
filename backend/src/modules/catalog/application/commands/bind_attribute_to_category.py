@@ -2,7 +2,7 @@
 Command handler: bind an attribute to a category.
 
 Validates both entities exist and the pair is unique, then persists the
-binding and emits ``AttributeBoundToCategoryEvent``.
+binding and emits ``CategoryAttributeBindingCreatedEvent``.
 """
 
 import uuid
@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.modules.catalog.domain.entities import CategoryAttributeBinding
-from src.modules.catalog.domain.events import AttributeBoundToCategoryEvent
+from src.modules.catalog.domain.events import CategoryAttributeBindingCreatedEvent
 from src.modules.catalog.domain.exceptions import (
     AttributeNotFoundError,
     CategoryAttributeBindingAlreadyExistsError,
@@ -94,7 +94,7 @@ class BindAttributeToCategoryHandler:
             )
 
             binding.add_domain_event(
-                AttributeBoundToCategoryEvent(
+                CategoryAttributeBindingCreatedEvent(
                     category_id=command.category_id,
                     attribute_id=command.attribute_id,
                     binding_id=binding.id,

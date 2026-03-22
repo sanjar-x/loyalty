@@ -15,7 +15,7 @@ from src.modules.catalog.domain.entities import Attribute as DomainAttribute
 from src.modules.catalog.domain.interfaces import IAttributeRepository
 from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute
 from src.modules.catalog.infrastructure.models import (
-    CategoryAttributeRule as OrmCategoryAttributeRule,
+    CategoryAttributeBinding as OrmCategoryAttributeBinding,
 )
 
 
@@ -51,14 +51,10 @@ class AttributeRepository(IAttributeRepository):
             is_comparable=orm.is_comparable,
             is_visible_on_card=orm.is_visible_on_card,
             is_visible_in_catalog=orm.is_visible_in_catalog,
-            validation_rules=dict(orm.validation_rules)
-            if orm.validation_rules
-            else None,
+            validation_rules=dict(orm.validation_rules) if orm.validation_rules else None,
         )
 
-    def _to_orm(
-        self, entity: DomainAttribute, orm: OrmAttribute | None = None
-    ) -> OrmAttribute:
+    def _to_orm(self, entity: DomainAttribute, orm: OrmAttribute | None = None) -> OrmAttribute:
         """Map a domain Attribute entity to an ORM row (create or update)."""
         if orm is None:
             orm = OrmAttribute()
@@ -125,9 +121,7 @@ class AttributeRepository(IAttributeRepository):
         result = await self._session.execute(stmt)
         return result.first() is not None
 
-    async def check_code_exists_excluding(
-        self, code: str, exclude_id: uuid.UUID
-    ) -> bool:
+    async def check_code_exists_excluding(self, code: str, exclude_id: uuid.UUID) -> bool:
         """Return ``True`` if the code is taken by another attribute."""
         stmt = (
             select(OrmAttribute.id)
@@ -137,9 +131,7 @@ class AttributeRepository(IAttributeRepository):
         result = await self._session.execute(stmt)
         return result.first() is not None
 
-    async def check_slug_exists_excluding(
-        self, slug: str, exclude_id: uuid.UUID
-    ) -> bool:
+    async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
         """Return ``True`` if the slug is taken by another attribute."""
         stmt = (
             select(OrmAttribute.id)
@@ -161,8 +153,8 @@ class AttributeRepository(IAttributeRepository):
     async def has_category_bindings(self, attribute_id: uuid.UUID) -> bool:
         """Return ``True`` if the attribute is bound to at least one category."""
         stmt = select(
-            select(OrmCategoryAttributeRule.id)
-            .where(OrmCategoryAttributeRule.attribute_id == attribute_id)
+            select(OrmCategoryAttributeBinding.id)
+            .where(OrmCategoryAttributeBinding.attribute_id == attribute_id)
             .limit(1)
             .exists()
         )

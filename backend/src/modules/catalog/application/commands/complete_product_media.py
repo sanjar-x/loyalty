@@ -54,7 +54,7 @@ class CompleteProductMediaHandler:
         logger: ILogger,
     ) -> None:
         self._media_repo = media_repo
-        self._blob = blob_storage
+        self._blob_storage = blob_storage
         self._uow = uow
         self._config = config
         self._logger = logger.bind(handler="CompleteProductMediaHandler")
@@ -66,7 +66,7 @@ class CompleteProductMediaHandler:
             command: Processing completion parameters.
 
         Raises:
-            NotFoundError: If the media asset does not exist.
+            MediaAssetNotFoundError: If the media asset does not exist.
             InvalidMediaStateError: If the asset FSM is not in PROCESSING.
         """
         raw_object_key: str | None = None
@@ -105,7 +105,7 @@ class CompleteProductMediaHandler:
         # a rollback does not leave us deleting a file we still need
         if command.delete_raw and raw_object_key:
             try:
-                await self._blob.delete_object(raw_object_key)
+                await self._blob_storage.delete_object(raw_object_key)
             except Exception:
                 self._logger.warning(
                     "Failed to delete raw upload after processing",
@@ -158,7 +158,7 @@ class FailProductMediaHandler:
             command: Failure parameters.
 
         Raises:
-            NotFoundError: If the media asset does not exist.
+            MediaAssetNotFoundError: If the media asset does not exist.
             InvalidMediaStateError: If the asset FSM is not in PROCESSING.
         """
         async with self._uow:

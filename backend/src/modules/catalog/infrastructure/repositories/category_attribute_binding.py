@@ -16,7 +16,7 @@ from src.modules.catalog.domain.entities import (
 )
 from src.modules.catalog.domain.interfaces import ICategoryAttributeBindingRepository
 from src.modules.catalog.infrastructure.models import (
-    CategoryAttributeRule as OrmRule,
+    CategoryAttributeBinding as OrmBinding,
 )
 
 
@@ -30,7 +30,7 @@ class CategoryAttributeBindingRepository(ICategoryAttributeBindingRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    def _to_domain(self, orm: OrmRule) -> DomainBinding:
+    def _to_domain(self, orm: OrmBinding) -> DomainBinding:
         """Map an ORM row to a domain entity."""
         return DomainBinding(
             id=orm.id,
@@ -42,10 +42,10 @@ class CategoryAttributeBindingRepository(ICategoryAttributeBindingRepository):
             filter_settings=dict(orm.filter_settings) if orm.filter_settings else None,
         )
 
-    def _to_orm(self, entity: DomainBinding, orm: OrmRule | None = None) -> OrmRule:
+    def _to_orm(self, entity: DomainBinding, orm: OrmBinding | None = None) -> OrmBinding:
         """Map a domain entity to an ORM row (create or update)."""
         if orm is None:
-            orm = OrmRule()
+            orm = OrmBinding()
         orm.id = entity.id
         orm.category_id = entity.category_id
         orm.attribute_id = entity.attribute_id
@@ -64,7 +64,7 @@ class CategoryAttributeBindingRepository(ICategoryAttributeBindingRepository):
 
     async def get(self, binding_id: uuid.UUID) -> DomainBinding | None:
         """Retrieve a binding by primary key, or ``None``."""
-        orm = await self._session.get(OrmRule, binding_id)
+        orm = await self._session.get(OrmBinding, binding_id)
         if orm:
             return self._to_domain(orm)
         return None
@@ -75,7 +75,7 @@ class CategoryAttributeBindingRepository(ICategoryAttributeBindingRepository):
         Raises:
             ValueError: If the binding row does not exist.
         """
-        orm = await self._session.get(OrmRule, entity.id)
+        orm = await self._session.get(OrmBinding, entity.id)
         if not orm:
             raise ValueError(f"CategoryAttributeBinding with id {entity.id} not found in DB")
         orm = self._to_orm(entity, orm)
@@ -84,14 +84,14 @@ class CategoryAttributeBindingRepository(ICategoryAttributeBindingRepository):
 
     async def delete(self, binding_id: uuid.UUID) -> None:
         """Delete a binding row by primary key."""
-        stmt = delete(OrmRule).where(OrmRule.id == binding_id)
+        stmt = delete(OrmBinding).where(OrmBinding.id == binding_id)
         await self._session.execute(stmt)
 
     async def exists(self, category_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
         """Return ``True`` if a binding for this pair already exists."""
         stmt = (
-            select(OrmRule.id)
-            .where(OrmRule.category_id == category_id, OrmRule.attribute_id == attribute_id)
+            select(OrmBinding.id)
+            .where(OrmBinding.category_id == category_id, OrmBinding.attribute_id == attribute_id)
             .limit(1)
         )
         result = await self._session.execute(stmt)
@@ -102,8 +102,8 @@ class CategoryAttributeBindingRepository(ICategoryAttributeBindingRepository):
     ) -> DomainBinding | None:
         """Retrieve a binding by the category+attribute pair."""
         stmt = (
-            select(OrmRule)
-            .where(OrmRule.category_id == category_id, OrmRule.attribute_id == attribute_id)
+            select(OrmBinding)
+            .where(OrmBinding.category_id == category_id, OrmBinding.attribute_id == attribute_id)
             .limit(1)
         )
         result = await self._session.execute(stmt)
@@ -119,12 +119,12 @@ class CategoryAttributeBindingRepository(ICategoryAttributeBindingRepository):
         id_to_order = {bid: order for bid, order in updates}
         binding_ids = list(id_to_order.keys())
         stmt = (
-            update(OrmRule)
-            .where(OrmRule.id.in_(binding_ids))
+            update(OrmBinding)
+            .where(OrmBinding.id.in_(binding_ids))
             .values(
                 sort_order=case(
-                    *[(OrmRule.id == bid, order) for bid, order in id_to_order.items()],
-                    else_=OrmRule.sort_order,
+                    *[(OrmBinding.id == bid, order) for bid, order in id_to_order.items()],
+                    else_=OrmBinding.sort_order,
                 )
             )
         )
@@ -137,12 +137,12 @@ class CategoryAttributeBindingRepository(ICategoryAttributeBindingRepository):
         id_to_level = {bid: level for bid, level in updates}
         binding_ids = list(id_to_level.keys())
         stmt = (
-            update(OrmRule)
-            .where(OrmRule.id.in_(binding_ids))
+            update(OrmBinding)
+            .where(OrmBinding.id.in_(binding_ids))
             .values(
                 requirement_level=case(
-                    *[(OrmRule.id == bid, level) for bid, level in id_to_level.items()],
-                    else_=OrmRule.requirement_level,
+                    *[(OrmBinding.id == bid, level) for bid, level in id_to_level.items()],
+                    else_=OrmBinding.requirement_level,
                 )
             )
         )

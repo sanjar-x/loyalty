@@ -64,8 +64,7 @@ async def create_sku(
         compare_at_price_amount=request.compare_at_price_amount,
         is_active=request.is_active,
         variant_attributes=[
-            (pair.attribute_id, pair.attribute_value_id)
-            for pair in request.variant_attributes
+            (pair.attribute_id, pair.attribute_value_id) for pair in request.variant_attributes
         ],
     )
     result = await handler.handle(command)
@@ -152,4 +151,3 @@ async def delete_sku(
     """Soft-delete a SKU variant from the product."""
     command = DeleteSKUCommand(product_id=product_id, sku_id=sku_id)
     await handler.handle(command)
-

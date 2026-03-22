@@ -77,7 +77,9 @@ class LoginTelegramHandler:
 
         async with self._uow:
             # 2. Lookup by telegram_id
-            result: tuple[Identity, LinkedAccount] | None = await self._linked_account_repo.get_by_provider(
+            result: (
+                tuple[Identity, LinkedAccount] | None
+            ) = await self._linked_account_repo.get_by_provider(
                 "telegram", str(telegram_user.telegram_id)
             )
             is_new_user: bool = result is None
@@ -93,7 +95,9 @@ class LoginTelegramHandler:
                     "username": telegram_user.username,
                     "language_code": telegram_user.language_code,
                     "is_premium": telegram_user.is_premium,
-                    "photo_url": telegram_user.photo_url if telegram_user.photo_url is not None else linked_account.provider_metadata.get("photo_url"),
+                    "photo_url": telegram_user.photo_url
+                    if telegram_user.photo_url is not None
+                    else linked_account.provider_metadata.get("photo_url"),
                     "allows_write_to_pm": telegram_user.allows_write_to_pm,
                 }
                 if linked_account.update_metadata(new_metadata):
@@ -107,7 +111,9 @@ class LoginTelegramHandler:
             # 3. Session limit — evict oldest if needed
             active_count: int = await self._session_repo.count_active(identity.id)
             if active_count >= self._max_sessions:
-                evicted_id: uuid.UUID | None = await self._session_repo.revoke_oldest_active(identity.id)
+                evicted_id: uuid.UUID | None = await self._session_repo.revoke_oldest_active(
+                    identity.id
+                )
                 if evicted_id:
                     await self._permission_resolver.invalidate(evicted_id)
                     self._logger.info(

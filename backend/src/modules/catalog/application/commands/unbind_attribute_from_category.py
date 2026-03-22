@@ -1,13 +1,13 @@
 """
 Command handler: unbind an attribute from a category.
 
-Removes the binding and emits ``AttributeUnboundFromCategoryEvent``.
+Removes the binding and emits ``CategoryAttributeBindingDeletedEvent``.
 """
 
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.domain.events import AttributeUnboundFromCategoryEvent
+from src.modules.catalog.domain.events import CategoryAttributeBindingDeletedEvent
 from src.modules.catalog.domain.exceptions import (
     CategoryAttributeBindingNotFoundError,
 )
@@ -45,7 +45,7 @@ class UnbindAttributeFromCategoryHandler:
                 raise CategoryAttributeBindingNotFoundError(binding_id=command.binding_id)
 
             binding.add_domain_event(
-                AttributeUnboundFromCategoryEvent(
+                CategoryAttributeBindingDeletedEvent(
                     category_id=binding.category_id,
                     attribute_id=binding.attribute_id,
                     binding_id=binding.id,

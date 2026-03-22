@@ -98,9 +98,7 @@ def upgrade() -> None:
     op.create_index(
         op.f("ix_identities_account_type"), "identities", ["account_type"], unique=False
     )
-    op.create_index(
-        op.f("ix_identities_is_active"), "identities", ["is_active"], unique=False
-    )
+    op.create_index(op.f("ix_identities_is_active"), "identities", ["is_active"], unique=False)
     op.create_table(
         "permissions",
         sa.Column("id", sa.UUID(), nullable=False),
@@ -191,16 +189,12 @@ def upgrade() -> None:
             name=op.f("fk_identity_roles_role_id_roles"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint(
-            "identity_id", "role_id", name=op.f("pk_identity_roles")
-        ),
+        sa.PrimaryKeyConstraint("identity_id", "role_id", name=op.f("pk_identity_roles")),
     )
     op.create_index(
         "ix_identity_roles_identity_id", "identity_roles", ["identity_id"], unique=False
     )
-    op.create_index(
-        "ix_identity_roles_role_id", "identity_roles", ["role_id"], unique=False
-    )
+    op.create_index("ix_identity_roles_role_id", "identity_roles", ["role_id"], unique=False)
     op.create_table(
         "linked_accounts",
         sa.Column("id", sa.UUID(), nullable=False),
@@ -241,9 +235,7 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_linked_accounts")),
-        sa.UniqueConstraint(
-            "provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"
-        ),
+        sa.UniqueConstraint("provider", "provider_sub_id", name="uq_linked_accounts_provider_sub"),
         comment="External OIDC provider accounts linked to identities",
     )
     op.create_index(
@@ -314,9 +306,7 @@ def upgrade() -> None:
             name=op.f("fk_role_hierarchy_parent_role_id_roles"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint(
-            "parent_role_id", "child_role_id", name=op.f("pk_role_hierarchy")
-        ),
+        sa.PrimaryKeyConstraint("parent_role_id", "child_role_id", name=op.f("pk_role_hierarchy")),
         comment="Role inheritance: parent inherits all child permissions via CTE",
     )
     op.create_table(
@@ -335,13 +325,9 @@ def upgrade() -> None:
             name=op.f("fk_role_permissions_role_id_roles"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint(
-            "role_id", "permission_id", name=op.f("pk_role_permissions")
-        ),
+        sa.PrimaryKeyConstraint("role_id", "permission_id", name=op.f("pk_role_permissions")),
     )
-    op.create_index(
-        "ix_role_permissions_role_id", "role_permissions", ["role_id"], unique=False
-    )
+    op.create_index("ix_role_permissions_role_id", "role_permissions", ["role_id"], unique=False)
     op.create_table(
         "sessions",
         sa.Column("id", sa.UUID(), nullable=False),
@@ -364,9 +350,7 @@ def upgrade() -> None:
             nullable=True,
             comment="Client User-Agent",
         ),
-        sa.Column(
-            "is_revoked", sa.Boolean(), server_default=sa.text("false"), nullable=False
-        ),
+        sa.Column("is_revoked", sa.Boolean(), server_default=sa.text("false"), nullable=False),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -399,9 +383,7 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_sessions")),
-        sa.UniqueConstraint(
-            "refresh_token_hash", name=op.f("uq_sessions_refresh_token_hash")
-        ),
+        sa.UniqueConstraint("refresh_token_hash", name=op.f("uq_sessions_refresh_token_hash")),
         comment="Authentication sessions with refresh token rotation",
     )
     op.create_index(
@@ -416,9 +398,7 @@ def upgrade() -> None:
         sa.Column("email", sa.String(length=320), nullable=False),
         sa.Column("token_hash", sa.String(length=64), nullable=False),
         sa.Column("invited_by", sa.UUID(), nullable=False),
-        sa.Column(
-            "status", sa.String(length=10), server_default="PENDING", nullable=False
-        ),
+        sa.Column("status", sa.String(length=10), server_default="PENDING", nullable=False),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -490,9 +470,7 @@ def upgrade() -> None:
             ["roles.id"],
             name=op.f("fk_staff_invitation_roles_role_id_roles"),
         ),
-        sa.PrimaryKeyConstraint(
-            "invitation_id", "role_id", name=op.f("pk_staff_invitation_roles")
-        ),
+        sa.PrimaryKeyConstraint("invitation_id", "role_id", name=op.f("pk_staff_invitation_roles")),
     )
     # ### end Alembic commands ###
 

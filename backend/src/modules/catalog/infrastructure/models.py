@@ -9,7 +9,7 @@ entities using the Data Mapper pattern.
 Sections:
     1. Enumerations -- database-level enums for product status, media, etc.
     2. Taxonomy & Dictionaries -- Brand, Category, AttributeGroup, Attribute, AttributeValue.
-    3. Rules -- CategoryAttributeRule (governance matrix).
+    3. Rules -- CategoryAttributeBinding (governance matrix).
     4. Core Domain -- Supplier, Product, MediaAsset.
     5. Variations -- SKU and SKU <-> AttributeValue link table.
 """
@@ -146,9 +146,7 @@ class Category(Base):
 
     __tablename__ = "categories"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     parent_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("categories.id", ondelete="CASCADE"), index=True
     )
@@ -156,15 +154,16 @@ class Category(Base):
     level: Mapped[int] = mapped_column(Integer, server_default=text("0"), index=True)
     name: Mapped[str] = mapped_column(String(255))
     slug: Mapped[str] = mapped_column(String(255), index=True)
-    sort_order: Mapped[int] = mapped_column(
-        Integer, server_default=text("0"), index=True
-    )
+    sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"), index=True)
 
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(),
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(),
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
     )
 
     children: Mapped[list[Category]] = relationship(
@@ -173,8 +172,8 @@ class Category(Base):
     parent: Mapped[Category] = relationship(
         "Category", back_populates="children", remote_side="Category.id"
     )
-    attribute_rules: Mapped[list[CategoryAttributeRule]] = relationship(
-        "CategoryAttributeRule", back_populates="category", cascade="all, delete-orphan"
+    attribute_bindings: Mapped[list[CategoryAttributeBinding]] = relationship(
+        "CategoryAttributeBinding", back_populates="category", cascade="all, delete-orphan"
     )
 
     __table_args__ = (
@@ -226,15 +225,16 @@ class AttributeGroup(Base):
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(),
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(),
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
     )
 
-    attributes: Mapped[list[Attribute]] = relationship(
-        "Attribute", back_populates="group"
-    )
+    attributes: Mapped[list[Attribute]] = relationship("Attribute", back_populates="group")
 
     __table_args__ = (
         Index("uix_attribute_groups_code", "code", unique=True),
@@ -328,10 +328,13 @@ class Attribute(Base):
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(),
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(),
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
     )
 
     group: Mapped[AttributeGroup | None] = relationship(
@@ -340,8 +343,8 @@ class Attribute(Base):
     values: Mapped[list[AttributeValue]] = relationship(
         "AttributeValue", back_populates="attribute", cascade="all, delete-orphan"
     )
-    category_rules: Mapped[list[CategoryAttributeRule]] = relationship(
-        "CategoryAttributeRule",
+    category_bindings: Mapped[list[CategoryAttributeBinding]] = relationship(
+        "CategoryAttributeBinding",
         back_populates="attribute",
         cascade="all, delete-orphan",
     )
@@ -367,9 +370,7 @@ class AttributeValue(Base):
 
     __tablename__ = "attribute_values"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     attribute_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("attributes.id", ondelete="CASCADE"), index=True
     )
@@ -393,9 +394,7 @@ class AttributeValue(Base):
         Index("uix_attr_val_code", "attribute_id", "code", unique=True),
         Index("uix_attr_val_slug", "attribute_id", "slug", unique=True),
         Index("ix_attr_val_value_i18n_gin", "value_i18n", postgresql_using="gin"),
-        Index(
-            "ix_attr_val_search_aliases_gin", "search_aliases", postgresql_using="gin"
-        ),
+        Index("ix_attr_val_search_aliases_gin", "search_aliases", postgresql_using="gin"),
     )
 
 
@@ -404,7 +403,7 @@ class AttributeValue(Base):
 # ---------------------------------------------------------------------------
 
 
-class CategoryAttributeRule(Base):
+class CategoryAttributeBinding(Base):
     """Governance model: controls which attributes apply to a category.
 
     Acts as a many-to-many link between :class:`Category` and
@@ -414,9 +413,7 @@ class CategoryAttributeRule(Base):
 
     __tablename__ = "category_attribute_rules"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     category_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("categories.id", ondelete="CASCADE"), index=True
     )
@@ -440,16 +437,10 @@ class CategoryAttributeRule(Base):
         comment="Per-category filter config (e.g. filter_type, thresholds)",
     )
 
-    category: Mapped[Category] = relationship(
-        "Category", back_populates="attribute_rules"
-    )
-    attribute: Mapped[Attribute] = relationship(
-        "Attribute", back_populates="category_rules"
-    )
+    category: Mapped[Category] = relationship("Category", back_populates="attribute_bindings")
+    attribute: Mapped[Attribute] = relationship("Attribute", back_populates="category_bindings")
 
-    __table_args__ = (
-        Index("uix_cat_attr_rule", "category_id", "attribute_id", unique=True),
-    )
+    __table_args__ = (Index("uix_cat_attr_rule", "category_id", "attribute_id", unique=True),)
 
 
 # ---------------------------------------------------------------------------
@@ -466,13 +457,9 @@ class Supplier(Base):
 
     __tablename__ = "suppliers"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     name: Mapped[str] = mapped_column(String(255))
-    type: Mapped[SupplierType] = mapped_column(
-        Enum(SupplierType, name="supplier_type_enum")
-    )
+    type: Mapped[SupplierType] = mapped_column(Enum(SupplierType, name="supplier_type_enum"))
     region: Mapped[str | None] = mapped_column(String(255))
     products: Mapped[list[Product]] = relationship("Product", back_populates="supplier")
 
@@ -487,9 +474,7 @@ class Product(Base):
 
     __tablename__ = "products"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     primary_category_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("categories.id", ondelete="RESTRICT"), index=True
     )
@@ -513,9 +498,7 @@ class Product(Base):
         MutableDict.as_mutable(JSONB), server_default=text("'{}'::jsonb")
     )
     source_url: Mapped[str | None] = mapped_column(String(1024))
-    tags: Mapped[list[str]] = mapped_column(
-        ARRAY(String), server_default=text("'{}'::varchar[]")
-    )
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String), server_default=text("'{}'::varchar[]"))
 
     status: Mapped[ProductStatus] = mapped_column(
         Enum(ProductStatus, name="product_status_enum"),
@@ -535,9 +518,7 @@ class Product(Base):
         TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     published_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
-    deleted_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), index=True
-    )
+    deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), index=True)
     supplier: Mapped[Supplier] = relationship("Supplier", back_populates="products")
     skus: Mapped[list[SKU]] = relationship(
         "SKU", back_populates="product", cascade="all, delete-orphan"
@@ -545,8 +526,8 @@ class Product(Base):
     media_assets: Mapped[list["MediaAsset"]] = relationship(
         "MediaAsset", back_populates="product", cascade="all, delete-orphan"
     )
-    product_attribute_values: Mapped[list[ProductAttributeValueModel]] = relationship(
-        "ProductAttributeValueModel",
+    product_attribute_values: Mapped[list[ProductAttributeValue]] = relationship(
+        "ProductAttributeValue",
         back_populates="product",
         cascade="all, delete-orphan",
     )
@@ -593,9 +574,7 @@ class MediaAsset(Base):
 
     __tablename__ = "media_assets"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     product_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("products.id", ondelete="CASCADE"), index=True
     )
@@ -650,10 +629,13 @@ class MediaAsset(Base):
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(),
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(),
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
     )
 
     product: Mapped[Product] = relationship("Product", back_populates="media_assets")
@@ -688,9 +670,7 @@ class SKU(Base):
 
     __tablename__ = "skus"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     product_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("products.id", ondelete="CASCADE"), index=True
     )
@@ -726,9 +706,7 @@ class SKU(Base):
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    deleted_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), index=True
-    )
+    deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), index=True)
 
     product: Mapped[Product] = relationship("Product", back_populates="skus")
     attribute_values: Mapped[list[SKUAttributeValueLink]] = relationship(
@@ -764,12 +742,8 @@ class SKUAttributeValueLink(Base):
 
     __tablename__ = "sku_attribute_values"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
-    sku_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("skus.id", ondelete="CASCADE"), index=True
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
+    sku_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("skus.id", ondelete="CASCADE"), index=True)
     attribute_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("attributes.id", ondelete="CASCADE"), index=True
     )
@@ -782,9 +756,7 @@ class SKUAttributeValueLink(Base):
     attribute_value: Mapped[AttributeValue] = relationship("AttributeValue")
 
     __table_args__ = (
-        UniqueConstraint(
-            "sku_id", "attribute_id", name="uix_sku_single_attribute_value"
-        ),
+        UniqueConstraint("sku_id", "attribute_id", name="uix_sku_single_attribute_value"),
         Index("ix_sku_attr_val_lookup", "attribute_value_id", "sku_id"),
     )
 
@@ -794,7 +766,7 @@ class SKUAttributeValueLink(Base):
 # ---------------------------------------------------------------------------
 
 
-class ProductAttributeValueModel(Base):
+class ProductAttributeValue(Base):
     """Bridge between Product and EAV attribute values.
 
     Each row assigns one attribute value to a product.
@@ -803,9 +775,7 @@ class ProductAttributeValueModel(Base):
 
     __tablename__ = "product_attribute_values"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     product_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("products.id", ondelete="CASCADE"), index=True
     )
@@ -816,15 +786,11 @@ class ProductAttributeValueModel(Base):
         ForeignKey("attribute_values.id", ondelete="RESTRICT"), index=True
     )
 
-    product: Mapped[Product] = relationship(
-        "Product", back_populates="product_attribute_values"
-    )
+    product: Mapped[Product] = relationship("Product", back_populates="product_attribute_values")
     attribute: Mapped[Attribute] = relationship("Attribute")
     attribute_value: Mapped[AttributeValue] = relationship("AttributeValue")
 
     __table_args__ = (
-        UniqueConstraint(
-            "product_id", "attribute_id", name="uix_product_single_attribute_value"
-        ),
+        UniqueConstraint("product_id", "attribute_id", name="uix_product_single_attribute_value"),
         Index("ix_product_attr_val_lookup", "attribute_value_id", "product_id"),
     )

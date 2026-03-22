@@ -56,9 +56,7 @@ def upgrade() -> None:
         unique=False,
         postgresql_using="gin",
     )
-    op.create_index(
-        "uix_attribute_groups_code", "attribute_groups", ["code"], unique=True
-    )
+    op.create_index("uix_attribute_groups_code", "attribute_groups", ["code"], unique=True)
     op.create_table(
         "brands",
         sa.Column(
@@ -67,9 +65,7 @@ def upgrade() -> None:
             nullable=False,
             comment="Primary key (UUIDv7 for time-sortable ordering)",
         ),
-        sa.Column(
-            "name", sa.String(length=255), nullable=False, comment="Brand display name"
-        ),
+        sa.Column("name", sa.String(length=255), nullable=False, comment="Brand display name"),
         sa.Column(
             "slug",
             sa.String(length=255),
@@ -106,9 +102,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_brands")),
         comment="Brand directory for the catalog",
     )
-    op.create_index(
-        op.f("ix_brands_logo_file_id"), "brands", ["logo_file_id"], unique=False
-    )
+    op.create_index(op.f("ix_brands_logo_file_id"), "brands", ["logo_file_id"], unique=False)
     op.create_index(op.f("ix_brands_slug"), "brands", ["slug"], unique=False)
     op.create_index("uix_brands_name", "brands", ["name"], unique=True)
     op.create_table(
@@ -119,9 +113,7 @@ def upgrade() -> None:
         sa.Column("level", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("slug", sa.String(length=255), nullable=False),
-        sa.Column(
-            "sort_order", sa.Integer(), server_default=sa.text("0"), nullable=False
-        ),
+        sa.Column("sort_order", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.ForeignKeyConstraint(
             ["parent_id"],
             ["categories.id"],
@@ -130,9 +122,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_categories")),
     )
-    op.create_index(
-        op.f("ix_categories_full_slug"), "categories", ["full_slug"], unique=False
-    )
+    op.create_index(op.f("ix_categories_full_slug"), "categories", ["full_slug"], unique=False)
     op.create_index(
         "ix_categories_full_slug_ops",
         "categories",
@@ -141,16 +131,10 @@ def upgrade() -> None:
         postgresql_ops={"full_slug": "varchar_pattern_ops"},
     )
     op.create_index(op.f("ix_categories_level"), "categories", ["level"], unique=False)
-    op.create_index(
-        "ix_categories_level_sort", "categories", ["level", "sort_order"], unique=False
-    )
-    op.create_index(
-        op.f("ix_categories_parent_id"), "categories", ["parent_id"], unique=False
-    )
+    op.create_index("ix_categories_level_sort", "categories", ["level", "sort_order"], unique=False)
+    op.create_index(op.f("ix_categories_parent_id"), "categories", ["parent_id"], unique=False)
     op.create_index(op.f("ix_categories_slug"), "categories", ["slug"], unique=False)
-    op.create_index(
-        op.f("ix_categories_sort_order"), "categories", ["sort_order"], unique=False
-    )
+    op.create_index(op.f("ix_categories_sort_order"), "categories", ["sort_order"], unique=False)
     op.create_index(
         "uix_categories_slug",
         "categories",
@@ -263,9 +247,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column(
             "type",
-            sa.Enum(
-                "CROSS_BORDER", "LOCAL", name="supplier_type_enum", metadata=MetaData()
-            ),
+            sa.Enum("CROSS_BORDER", "LOCAL", name="supplier_type_enum", metadata=MetaData()),
             nullable=False,
         ),
         sa.Column("region", sa.String(length=255), nullable=True),
@@ -329,9 +311,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "level",
-            sa.Enum(
-                "PRODUCT", "VARIANT", name="attribute_level_enum", metadata=MetaData()
-            ),
+            sa.Enum("PRODUCT", "VARIANT", name="attribute_level_enum", metadata=MetaData()),
             server_default="PRODUCT",
             nullable=False,
             comment="Product-level or variant-level attribute",
@@ -399,9 +379,7 @@ def upgrade() -> None:
         unique=False,
         postgresql_where=sa.text("is_filterable = true"),
     )
-    op.create_index(
-        op.f("ix_attributes_group_id"), "attributes", ["group_id"], unique=False
-    )
+    op.create_index(op.f("ix_attributes_group_id"), "attributes", ["group_id"], unique=False)
     op.create_index(
         "ix_attributes_name_i18n_gin",
         "attributes",
@@ -464,9 +442,7 @@ def upgrade() -> None:
             server_default="DRAFT",
             nullable=False,
         ),
-        sa.Column(
-            "is_visible", sa.Boolean(), server_default=sa.text("true"), nullable=False
-        ),
+        sa.Column("is_visible", sa.Boolean(), server_default=sa.text("true"), nullable=False),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column(
             "created_at",
@@ -510,9 +486,7 @@ def upgrade() -> None:
         unique=False,
         postgresql_using="gin",
     )
-    op.create_index(
-        op.f("ix_products_brand_id"), "products", ["brand_id"], unique=False
-    )
+    op.create_index(op.f("ix_products_brand_id"), "products", ["brand_id"], unique=False)
     op.create_index(
         "ix_products_catalog_listing",
         "products",
@@ -520,9 +494,7 @@ def upgrade() -> None:
         unique=False,
         postgresql_where=sa.text("deleted_at IS NULL AND is_visible = true"),
     )
-    op.create_index(
-        op.f("ix_products_deleted_at"), "products", ["deleted_at"], unique=False
-    )
+    op.create_index(op.f("ix_products_deleted_at"), "products", ["deleted_at"], unique=False)
     op.create_index(
         op.f("ix_products_primary_category_id"),
         "products",
@@ -537,9 +509,7 @@ def upgrade() -> None:
         postgresql_where=sa.text("deleted_at IS NULL AND is_visible = true"),
     )
     op.create_index(op.f("ix_products_status"), "products", ["status"], unique=False)
-    op.create_index(
-        op.f("ix_products_supplier_id"), "products", ["supplier_id"], unique=False
-    )
+    op.create_index(op.f("ix_products_supplier_id"), "products", ["supplier_id"], unique=False)
     op.create_index(
         "ix_products_tags_gin",
         "products",
@@ -586,9 +556,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("group_code", sa.String(length=100), nullable=True),
-        sa.Column(
-            "sort_order", sa.Integer(), server_default=sa.text("0"), nullable=False
-        ),
+        sa.Column("sort_order", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.ForeignKeyConstraint(
             ["attribute_id"],
             ["attributes.id"],
@@ -623,23 +591,15 @@ def upgrade() -> None:
         ["group_code"],
         unique=False,
     )
-    op.create_index(
-        op.f("ix_attribute_values_slug"), "attribute_values", ["slug"], unique=False
-    )
-    op.create_index(
-        "uix_attr_val_code", "attribute_values", ["attribute_id", "code"], unique=True
-    )
-    op.create_index(
-        "uix_attr_val_slug", "attribute_values", ["attribute_id", "slug"], unique=True
-    )
+    op.create_index(op.f("ix_attribute_values_slug"), "attribute_values", ["slug"], unique=False)
+    op.create_index("uix_attr_val_code", "attribute_values", ["attribute_id", "code"], unique=True)
+    op.create_index("uix_attr_val_slug", "attribute_values", ["attribute_id", "slug"], unique=True)
     op.create_table(
         "category_attribute_rules",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("category_id", sa.UUID(), nullable=False),
         sa.Column("attribute_id", sa.UUID(), nullable=False),
-        sa.Column(
-            "sort_order", sa.Integer(), server_default=sa.text("0"), nullable=False
-        ),
+        sa.Column("sort_order", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column(
             "requirement_level",
             sa.Enum(
@@ -710,9 +670,7 @@ def upgrade() -> None:
             server_default=sa.text("'{}'::jsonb"),
             nullable=False,
         ),
-        sa.Column(
-            "is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False
-        ),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column(
             "price",
@@ -811,9 +769,7 @@ def upgrade() -> None:
             server_default="GALLERY",
             nullable=False,
         ),
-        sa.Column(
-            "sort_order", sa.Integer(), server_default=sa.text("0"), nullable=False
-        ),
+        sa.Column("sort_order", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column(
             "storage_object_id",
             sa.UUID(),
@@ -894,9 +850,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["attribute_value_id"],
             ["attribute_values.id"],
-            name=op.f(
-                "fk_product_attribute_values_attribute_value_id_attribute_values"
-            ),
+            name=op.f("fk_product_attribute_values_attribute_value_id_attribute_values"),
             ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
@@ -959,9 +913,7 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_sku_attribute_values")),
-        sa.UniqueConstraint(
-            "sku_id", "attribute_id", name="uix_sku_single_attribute_value"
-        ),
+        sa.UniqueConstraint("sku_id", "attribute_id", name="uix_sku_single_attribute_value"),
     )
     op.create_index(
         "ix_sku_attr_val_lookup",
@@ -993,16 +945,12 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_index(
-        op.f("ix_sku_attribute_values_sku_id"), table_name="sku_attribute_values"
-    )
+    op.drop_index(op.f("ix_sku_attribute_values_sku_id"), table_name="sku_attribute_values")
     op.drop_index(
         op.f("ix_sku_attribute_values_attribute_value_id"),
         table_name="sku_attribute_values",
     )
-    op.drop_index(
-        op.f("ix_sku_attribute_values_attribute_id"), table_name="sku_attribute_values"
-    )
+    op.drop_index(op.f("ix_sku_attribute_values_attribute_id"), table_name="sku_attribute_values")
     op.drop_index("ix_sku_attr_val_lookup", table_name="sku_attribute_values")
     op.drop_table("sku_attribute_values")
     op.drop_index(
@@ -1058,9 +1006,7 @@ def downgrade() -> None:
     op.drop_index("uix_attr_val_code", table_name="attribute_values")
     op.drop_index(op.f("ix_attribute_values_slug"), table_name="attribute_values")
     op.drop_index(op.f("ix_attribute_values_group_code"), table_name="attribute_values")
-    op.drop_index(
-        op.f("ix_attribute_values_attribute_id"), table_name="attribute_values"
-    )
+    op.drop_index(op.f("ix_attribute_values_attribute_id"), table_name="attribute_values")
     op.drop_index(
         "ix_attr_val_value_i18n_gin",
         table_name="attribute_values",
@@ -1077,9 +1023,7 @@ def downgrade() -> None:
         table_name="products",
         postgresql_where=sa.text("deleted_at IS NULL"),
     )
-    op.drop_index(
-        "ix_products_title_gin", table_name="products", postgresql_using="gin"
-    )
+    op.drop_index("ix_products_title_gin", table_name="products", postgresql_using="gin")
     op.drop_index("ix_products_tags_gin", table_name="products", postgresql_using="gin")
     op.drop_index(op.f("ix_products_supplier_id"), table_name="products")
     op.drop_index(op.f("ix_products_status"), table_name="products")
@@ -1096,15 +1040,11 @@ def downgrade() -> None:
         postgresql_where=sa.text("deleted_at IS NULL AND is_visible = true"),
     )
     op.drop_index(op.f("ix_products_brand_id"), table_name="products")
-    op.drop_index(
-        "ix_products_attributes_gin", table_name="products", postgresql_using="gin"
-    )
+    op.drop_index("ix_products_attributes_gin", table_name="products", postgresql_using="gin")
     op.drop_table("products")
     op.drop_index("uix_attributes_slug", table_name="attributes")
     op.drop_index("uix_attributes_code", table_name="attributes")
-    op.drop_index(
-        "ix_attributes_name_i18n_gin", table_name="attributes", postgresql_using="gin"
-    )
+    op.drop_index("ix_attributes_name_i18n_gin", table_name="attributes", postgresql_using="gin")
     op.drop_index(op.f("ix_attributes_group_id"), table_name="attributes")
     op.drop_index(
         "ix_attributes_filterable",

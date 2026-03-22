@@ -48,8 +48,8 @@ from src.modules.catalog.presentation.schemas import (
     BulkUpdateRequirementLevelsRequest,
     CategoryAttributeBindingListResponse,
     CategoryAttributeBindingResponse,
+    CategoryAttributeBindingUpdateRequest,
     ReorderBindingsRequest,
-    UpdateBindingRequest,
 )
 from src.modules.identity.presentation.dependencies import RequirePermission
 
@@ -98,9 +98,7 @@ async def list_category_bindings(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
 ) -> CategoryAttributeBindingListResponse:
-    query = ListCategoryBindingsQuery(
-        category_id=category_id, offset=offset, limit=limit
-    )
+    query = ListCategoryBindingsQuery(category_id=category_id, offset=offset, limit=limit)
     result: CategoryAttributeBindingListReadModel = await handler.handle(query)
     return CategoryAttributeBindingListResponse(
         items=[
@@ -132,16 +130,14 @@ async def list_category_bindings(
 async def update_binding(
     category_id: uuid.UUID,
     binding_id: uuid.UUID,
-    request: UpdateBindingRequest,
+    request: CategoryAttributeBindingUpdateRequest,
     handler: FromDishka[UpdateCategoryAttributeBindingHandler],
 ) -> CategoryAttributeBindingResponse:
     command = UpdateCategoryAttributeBindingCommand(
         binding_id=binding_id,
         sort_order=request.sort_order,
         requirement_level=(
-            RequirementLevel(request.requirement_level)
-            if request.requirement_level
-            else None
+            RequirementLevel(request.requirement_level) if request.requirement_level else None
         ),
         flag_overrides=request.flag_overrides,
         filter_settings=request.filter_settings,

@@ -46,7 +46,7 @@ from src.modules.catalog.infrastructure.models import (
     Category as OrmCategory,
 )
 from src.modules.catalog.infrastructure.models import (
-    CategoryAttributeRule as OrmRule,
+    CategoryAttributeBinding as OrmBinding,
 )
 
 # ---------------------------------------------------------------------------
@@ -96,7 +96,7 @@ def _values_to_read_models(values: list[OrmAttributeValue]) -> list[StorefrontVa
 
 async def _load_bindings_with_attributes(
     session: AsyncSession, category_id: uuid.UUID
-) -> list[OrmRule]:
+) -> list[OrmBinding]:
     """Load all bindings for a category with eagerly-loaded attribute + group + values.
 
     Raises:
@@ -108,13 +108,13 @@ async def _load_bindings_with_attributes(
         raise CategoryNotFoundError(category_id=category_id)
 
     stmt = (
-        select(OrmRule)
-        .where(OrmRule.category_id == category_id)
+        select(OrmBinding)
+        .where(OrmBinding.category_id == category_id)
         .options(
-            joinedload(OrmRule.attribute).joinedload(OrmAttribute.group),
-            joinedload(OrmRule.attribute).selectinload(OrmAttribute.values),
+            joinedload(OrmBinding.attribute).joinedload(OrmAttribute.group),
+            joinedload(OrmBinding.attribute).selectinload(OrmAttribute.values),
         )
-        .order_by(OrmRule.sort_order)
+        .order_by(OrmBinding.sort_order)
     )
     result = await session.execute(stmt)
     return list(result.unique().scalars().all())
@@ -181,7 +181,9 @@ class StorefrontCardAttributesHandler:
         rules = await _load_bindings_with_attributes(self._session, category_id)
 
         # Group by attribute group
-        groups_map: dict[uuid.UUID | None, list[tuple[OrmRule, OrmAttribute]]] = defaultdict(list)
+        groups_map: dict[uuid.UUID | None, list[tuple[OrmBinding, OrmAttribute]]] = defaultdict(
+            list
+        )
         group_info: dict[uuid.UUID | None, OrmAttributeGroup | None] = {}
 
         for rule in rules:
@@ -289,7 +291,9 @@ class StorefrontFormAttributesHandler:
         rules = await _load_bindings_with_attributes(self._session, category_id)
 
         # Group by attribute group
-        groups_map: dict[uuid.UUID | None, list[tuple[OrmRule, OrmAttribute]]] = defaultdict(list)
+        groups_map: dict[uuid.UUID | None, list[tuple[OrmBinding, OrmAttribute]]] = defaultdict(
+            list
+        )
         group_info: dict[uuid.UUID | None, OrmAttributeGroup | None] = {}
 
         for rule in rules:

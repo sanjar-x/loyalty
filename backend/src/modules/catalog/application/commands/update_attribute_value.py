@@ -65,9 +65,7 @@ class UpdateAttributeValueHandler:
         self._value_repo = value_repo
         self._uow = uow
 
-    async def handle(
-        self, command: UpdateAttributeValueCommand
-    ) -> UpdateAttributeValueResult:
+    async def handle(self, command: UpdateAttributeValueCommand) -> UpdateAttributeValueResult:
         """Execute the update-attribute-value command.
 
         Returns:

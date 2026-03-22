@@ -65,8 +65,7 @@ class Argon2PasswordHasher(IPasswordHasher):
         """
         for hasher in self._password_hash.hashers:
             if hasher.identify(hashed_password):
-                return (
-                    hasher != self._password_hash.hashers[0]
-                    or hasher.check_needs_rehash(hashed_password)
+                return hasher != self._password_hash.hashers[0] or hasher.check_needs_rehash(
+                    hashed_password
                 )
         return True

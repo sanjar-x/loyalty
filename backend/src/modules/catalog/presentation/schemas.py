@@ -34,9 +34,7 @@ class CategoryCreateRequest(CamelModel):
         pattern=r"^[a-z0-9-]+$",
         examples=["sneakers"],
     )
-    parent_id: uuid.UUID | None = Field(
-        None, description="Parent category ID (optional)"
-    )
+    parent_id: uuid.UUID | None = Field(None, description="Parent category ID (optional)")
     sort_order: int = Field(0, description="Display ordering among siblings")
 
 
@@ -77,17 +75,13 @@ class CategoryUpdateRequest(CamelModel):
     """Partial update request -- all fields optional (PATCH semantics)."""
 
     name: str | None = Field(None, min_length=2, max_length=255)
-    slug: str | None = Field(
-        None, min_length=3, max_length=255, pattern=r"^[a-z0-9-]+$"
-    )
+    slug: str | None = Field(None, min_length=3, max_length=255, pattern=r"^[a-z0-9-]+$")
     sort_order: int | None = None
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> CategoryUpdateRequest:
         if self.name is None and self.slug is None and self.sort_order is None:
-            raise ValueError(
-                "At least one field (name, slug, or sortOrder) must be provided"
-            )
+            raise ValueError("At least one field (name, slug, or sortOrder) must be provided")
         return self
 
 
@@ -130,9 +124,7 @@ class BrandUpdateRequest(CamelModel):
     """Partial update request -- all fields optional (PATCH semantics)."""
 
     name: str | None = Field(None, min_length=1, max_length=255)
-    slug: str | None = Field(
-        None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$"
-    )
+    slug: str | None = Field(None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$")
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> BrandUpdateRequest:
@@ -175,9 +167,7 @@ class AttributeGroupCreateRequest(CamelModel):
     name_i18n: dict[str, str] = Field(
         ...,
         min_length=1,
-        examples=[
-            {"en": "Physical Characteristics", "ru": "Физические характеристики"}
-        ],
+        examples=[{"en": "Physical Characteristics", "ru": "Физические характеристики"}],
         description="Multilingual display name (at least one language required)",
     )
     sort_order: int = Field(0, description="Display ordering among groups")
@@ -211,9 +201,7 @@ class AttributeGroupUpdateRequest(CamelModel):
     @model_validator(mode="after")
     def at_least_one_field(self) -> AttributeGroupUpdateRequest:
         if self.name_i18n is None and self.sort_order is None:
-            raise ValueError(
-                "At least one field (nameI18n or sortOrder) must be provided"
-            )
+            raise ValueError("At least one field (nameI18n or sortOrder) must be provided")
         return self
 
 
@@ -240,12 +228,12 @@ class AttributeCreateRequest(CamelModel):
     slug: str = Field(
         ..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$", examples=["color"]
     )
-    name_i18n: dict[str, str] = Field(
-        ..., min_length=1, examples=[{"en": "Color", "ru": "Цвет"}]
-    )
+    name_i18n: dict[str, str] = Field(..., min_length=1, examples=[{"en": "Color", "ru": "Цвет"}])
     description_i18n: dict[str, str] = Field(default_factory=dict)
     data_type: Literal["string", "integer", "float", "boolean"] = Field(..., examples=["string"])
-    ui_type: Literal["text_button", "color_swatch", "dropdown", "checkbox", "range_slider"] = Field(..., examples=["color_swatch"])
+    ui_type: Literal["text_button", "color_swatch", "dropdown", "checkbox", "range_slider"] = Field(
+        ..., examples=["color_swatch"]
+    )
     is_dictionary: bool = True
     group_id: uuid.UUID
     level: Literal["product", "variant"] = Field("product", examples=["product", "variant"])
@@ -306,10 +294,17 @@ class AttributeUpdateRequest(CamelModel):
     def at_least_one_field(self) -> AttributeUpdateRequest:
         """Ensure at least one field is provided for update."""
         fields = [
-            self.name_i18n, self.description_i18n, self.ui_type,
-            self.group_id, self.level, self.is_filterable,
-            self.is_searchable, self.search_weight, self.is_comparable,
-            self.is_visible_on_card, self.is_visible_in_catalog,
+            self.name_i18n,
+            self.description_i18n,
+            self.ui_type,
+            self.group_id,
+            self.level,
+            self.is_filterable,
+            self.is_searchable,
+            self.search_weight,
+            self.is_comparable,
+            self.is_visible_on_card,
+            self.is_visible_in_catalog,
         ]
         sentinel_provided = self.validation_rules is not ...
         if all(f is None for f in fields) and not sentinel_provided:
@@ -334,21 +329,11 @@ class AttributeListResponse(CamelModel):
 class AttributeValueCreateRequest(CamelModel):
     """Request body for adding a value to an attribute."""
 
-    code: str = Field(
-        ..., min_length=1, max_length=100, pattern=r"^[a-z0-9_]+$", examples=["red"]
-    )
-    slug: str = Field(
-        ..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$", examples=["red"]
-    )
-    value_i18n: dict[str, str] = Field(
-        ..., min_length=1, examples=[{"en": "Red", "ru": "Красный"}]
-    )
-    search_aliases: list[str] = Field(
-        default_factory=list, examples=[["scarlet", "crimson"]]
-    )
-    meta_data: dict[str, Any] = Field(
-        default_factory=dict, examples=[{"hex": "#FF0000"}]
-    )
+    code: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9_]+$", examples=["red"])
+    slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$", examples=["red"])
+    value_i18n: dict[str, str] = Field(..., min_length=1, examples=[{"en": "Red", "ru": "Красный"}])
+    search_aliases: list[str] = Field(default_factory=list, examples=[["scarlet", "crimson"]])
+    meta_data: dict[str, Any] = Field(default_factory=dict, examples=[{"hex": "#FF0000"}])
     value_group: str | None = Field(None, max_length=100, examples=["Warm tones"])
     sort_order: int = Field(0, description="Display ordering among values")
 
@@ -386,7 +371,9 @@ class AttributeValueUpdateRequest(CamelModel):
     def at_least_one_field(self) -> AttributeValueUpdateRequest:
         """Ensure at least one field is provided for update."""
         fields = [
-            self.value_i18n, self.search_aliases, self.meta_data,
+            self.value_i18n,
+            self.search_aliases,
+            self.meta_data,
             self.sort_order,
         ]
         sentinel_provided = self.value_group is not ...
@@ -460,7 +447,7 @@ class CategoryAttributeBindingResponse(CamelModel):
     filter_settings: dict[str, Any] | None = None
 
 
-class UpdateBindingRequest(CamelModel):
+class CategoryAttributeBindingUpdateRequest(CamelModel):
     """Partial update request for a binding."""
 
     sort_order: int | None = None
@@ -469,7 +456,7 @@ class UpdateBindingRequest(CamelModel):
     filter_settings: dict[str, Any] | None = ...  # type: ignore[assignment]
 
     @model_validator(mode="after")
-    def at_least_one_field(self) -> UpdateBindingRequest:
+    def at_least_one_field(self) -> CategoryAttributeBindingUpdateRequest:
         """Ensure at least one field is provided for update."""
         fields = [self.sort_order, self.requirement_level]
         sentinel_provided = [
@@ -757,9 +744,7 @@ class SKUUpdateRequest(CamelModel):
 
     sku_code: str | None = Field(None, min_length=1, max_length=100)
     price_amount: int | None = Field(None, ge=0)
-    price_currency: str | None = Field(
-        None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"
-    )
+    price_currency: str | None = Field(None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
     compare_at_price_amount: int | None = ...  # type: ignore[assignment]
     is_active: bool | None = None
     variant_attributes: list[VariantAttributePairSchema] | None = None
@@ -769,8 +754,11 @@ class SKUUpdateRequest(CamelModel):
     def at_least_one_field(self) -> SKUUpdateRequest:
         """Ensure at least one field is provided for update."""
         fields = [
-            self.sku_code, self.price_amount, self.price_currency,
-            self.is_active, self.variant_attributes,
+            self.sku_code,
+            self.price_amount,
+            self.price_currency,
+            self.is_active,
+            self.variant_attributes,
         ]
         sentinel_provided = self.compare_at_price_amount is not ...
         if all(f is None for f in fields) and not sentinel_provided:
@@ -875,9 +863,7 @@ class ProductMediaUploadRequest(CamelModel):
 
     attribute_value_id: uuid.UUID | None = None
     media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
-    role: str = Field(
-        ..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$"
-    )
+    role: str = Field(..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$")
     content_type: str = Field(
         ...,
         pattern=r"^(image|video|application|model)/[a-zA-Z0-9][a-zA-Z0-9!#$&\-^_.+]*$",
@@ -899,9 +885,7 @@ class ProductMediaExternalRequest(CamelModel):
 
     attribute_value_id: uuid.UUID | None = None
     media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
-    role: str = Field(
-        ..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$"
-    )
+    role: str = Field(..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$")
     external_url: str = Field(..., min_length=1, max_length=2048, pattern=r"^https?://")
     sort_order: int = Field(0, ge=0)
 

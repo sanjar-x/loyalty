@@ -16,7 +16,7 @@ from src.modules.catalog.domain.entities import (
 )
 from src.modules.catalog.domain.interfaces import IProductAttributeValueRepository
 from src.modules.catalog.infrastructure.models import (
-    ProductAttributeValueModel as OrmProductAttributeValue,
+    ProductAttributeValue as OrmProductAttributeValue,
 )
 
 

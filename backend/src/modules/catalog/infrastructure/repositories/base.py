@@ -36,14 +36,12 @@ class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType
 
     model: type[ModelType]
 
-    def __init_subclass__(
-        cls, model_class: type[ModelType] | None = None, **kwargs: Any
-    ) -> None:
+    def __init_subclass__(cls, model_class: type[ModelType] | None = None, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         if model_class:
             cls.model = model_class
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     @abstractmethod
@@ -94,5 +92,5 @@ class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType
 
     async def delete(self, entity_id: uuid.UUID) -> None:
         """Delete a row by primary key.  Transaction control is in the UoW."""
-        statement = delete(self.model).where(self.model.id == entity_id)
-        await self._session.execute(statement)
+        stmt = delete(self.model).where(self.model.id == entity_id)
+        await self._session.execute(stmt)

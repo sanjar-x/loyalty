@@ -72,8 +72,7 @@ class ListCurrenciesHandler:
 
         # Fetch with translations
         stmt = (
-            base_where
-            .options(selectinload(CurrencyModel.translations))
+            base_where.options(selectinload(CurrencyModel.translations))
             .order_by(CurrencyModel.sort_order, CurrencyModel.code)
             .offset(offset)
             .limit(limit)

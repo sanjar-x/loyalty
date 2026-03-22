@@ -7,8 +7,8 @@ import pytest
 
 from src.modules.catalog.domain.entities import CategoryAttributeBinding
 from src.modules.catalog.domain.events import (
-    AttributeBoundToCategoryEvent,
-    AttributeUnboundFromCategoryEvent,
+    CategoryAttributeBindingCreatedEvent,
+    CategoryAttributeBindingDeletedEvent,
     CategoryAttributeBindingUpdatedEvent,
 )
 from src.modules.catalog.domain.exceptions import (
@@ -188,7 +188,7 @@ class TestCategoryAttributeBindingAggregateRoot:
         binding = CategoryAttributeBinding.create(
             category_id=uuid.uuid4(), attribute_id=uuid.uuid4()
         )
-        event = AttributeBoundToCategoryEvent(
+        event = CategoryAttributeBindingCreatedEvent(
             category_id=binding.category_id,
             attribute_id=binding.attribute_id,
             binding_id=binding.id,
@@ -201,7 +201,7 @@ class TestCategoryAttributeBindingAggregateRoot:
             category_id=uuid.uuid4(), attribute_id=uuid.uuid4()
         )
         binding.add_domain_event(
-            AttributeBoundToCategoryEvent(
+            CategoryAttributeBindingCreatedEvent(
                 category_id=binding.category_id,
                 attribute_id=binding.attribute_id,
                 binding_id=binding.id,
@@ -216,10 +216,10 @@ class TestCategoryAttributeBindingAggregateRoot:
 # ---------------------------------------------------------------------------
 
 
-class TestAttributeBoundToCategoryEvent:
+class TestCategoryAttributeBindingCreatedEvent:
     def test_raises_when_binding_id_is_none(self):
         with pytest.raises(ValueError, match="binding_id is required"):
-            AttributeBoundToCategoryEvent(
+            CategoryAttributeBindingCreatedEvent(
                 category_id=uuid.uuid4(),
                 attribute_id=uuid.uuid4(),
                 binding_id=None,
@@ -227,7 +227,7 @@ class TestAttributeBoundToCategoryEvent:
 
     def test_auto_sets_aggregate_id(self):
         bid = uuid.uuid4()
-        event = AttributeBoundToCategoryEvent(
+        event = CategoryAttributeBindingCreatedEvent(
             category_id=uuid.uuid4(),
             attribute_id=uuid.uuid4(),
             binding_id=bid,
@@ -238,11 +238,11 @@ class TestAttributeBoundToCategoryEvent:
         cat_id = uuid.uuid4()
         attr_id = uuid.uuid4()
         bid = uuid.uuid4()
-        event = AttributeBoundToCategoryEvent(
+        event = CategoryAttributeBindingCreatedEvent(
             category_id=cat_id, attribute_id=attr_id, binding_id=bid
         )
         assert event.aggregate_type == "CategoryAttributeBinding"
-        assert event.event_type == "AttributeBoundToCategoryEvent"
+        assert event.event_type == "CategoryAttributeBindingCreatedEvent"
         assert event.category_id == cat_id
         assert event.attribute_id == attr_id
 
@@ -258,10 +258,10 @@ class TestCategoryAttributeBindingUpdatedEvent:
         assert event.aggregate_id == str(bid)
 
 
-class TestAttributeUnboundFromCategoryEvent:
+class TestCategoryAttributeBindingDeletedEvent:
     def test_raises_when_binding_id_is_none(self):
         with pytest.raises(ValueError, match="binding_id is required"):
-            AttributeUnboundFromCategoryEvent(
+            CategoryAttributeBindingDeletedEvent(
                 category_id=uuid.uuid4(),
                 attribute_id=uuid.uuid4(),
                 binding_id=None,
@@ -269,13 +269,13 @@ class TestAttributeUnboundFromCategoryEvent:
 
     def test_fields_populated(self):
         bid = uuid.uuid4()
-        event = AttributeUnboundFromCategoryEvent(
+        event = CategoryAttributeBindingDeletedEvent(
             category_id=uuid.uuid4(),
             attribute_id=uuid.uuid4(),
             binding_id=bid,
         )
         assert event.aggregate_type == "CategoryAttributeBinding"
-        assert event.event_type == "AttributeUnboundFromCategoryEvent"
+        assert event.event_type == "CategoryAttributeBindingDeletedEvent"
 
 
 # ---------------------------------------------------------------------------

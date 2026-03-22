@@ -94,7 +94,9 @@ async def change_password(
         new_password=body.new_password,
     )
     await handler.handle(command)
-    return MessageResponse(message="Password changed successfully. Other sessions have been revoked.")
+    return MessageResponse(
+        message="Password changed successfully. Other sessions have been revoked."
+    )
 
 
 @identity_account_router.get(

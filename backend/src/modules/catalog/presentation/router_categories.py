@@ -85,7 +85,9 @@ async def create_category(
 )
 async def get_category_tree(
     handler: FromDishka[GetCategoryTreeHandler],
-    max_depth: int | None = Query(default=None, ge=1, le=10, description="Maximum tree depth to return"),
+    max_depth: int | None = Query(
+        default=None, ge=1, le=10, description="Maximum tree depth to return"
+    ),
 ) -> list[CategoryTreeResponse]:
     # TODO: pass max_depth to handler when depth filtering is implemented
     roots: list[CategoryNode] = await handler.handle()

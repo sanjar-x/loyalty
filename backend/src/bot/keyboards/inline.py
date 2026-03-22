@@ -74,23 +74,17 @@ def add_pagination_row(
         buttons.append(
             InlineKeyboardButton(
                 text="◀️",
-                callback_data=PageCallback(
-                    entity=entity, page=page - 1, size=page_size
-                ).pack(),
+                callback_data=PageCallback(entity=entity, page=page - 1, size=page_size).pack(),
             )
         )
 
-    buttons.append(
-        InlineKeyboardButton(text=f"{page}/{total_pages}", callback_data="noop")
-    )
+    buttons.append(InlineKeyboardButton(text=f"{page}/{total_pages}", callback_data="noop"))
 
     if page < total_pages:
         buttons.append(
             InlineKeyboardButton(
                 text="▶️",
-                callback_data=PageCallback(
-                    entity=entity, page=page + 1, size=page_size
-                ).pack(),
+                callback_data=PageCallback(entity=entity, page=page + 1, size=page_size).pack(),
             )
         )
 

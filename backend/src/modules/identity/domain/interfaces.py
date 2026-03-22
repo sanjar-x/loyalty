@@ -61,7 +61,8 @@ class IIdentityRepository(ABC):
 
     @abstractmethod
     async def get_with_credentials(
-        self, identity_id: uuid.UUID,
+        self,
+        identity_id: uuid.UUID,
     ) -> tuple[Identity, LocalCredentials] | None:
         """Retrieve an identity with its local credentials by identity ID.
 
@@ -226,7 +227,8 @@ class ISessionRepository(ABC):
 
     @abstractmethod
     async def get_active_session_ids_bulk(
-        self, identity_ids: list[uuid.UUID],
+        self,
+        identity_ids: list[uuid.UUID],
     ) -> list[uuid.UUID]:
         """Retrieve IDs of all active sessions for multiple identities in one query.
 
@@ -481,7 +483,9 @@ class ILinkedAccountRepository(ABC):
     async def update(self, account: LinkedAccount) -> None: ...
 
     @abstractmethod
-    async def get_by_identity_and_provider(self, identity_id: uuid.UUID, provider: str) -> LinkedAccount | None: ...
+    async def get_by_identity_and_provider(
+        self, identity_id: uuid.UUID, provider: str
+    ) -> LinkedAccount | None: ...
 
     @abstractmethod
     async def find_by_verified_email(self, email: str) -> tuple[Identity, LinkedAccount] | None: ...
@@ -491,7 +495,6 @@ class ILinkedAccountRepository(ABC):
 
     @abstractmethod
     async def delete(self, account_id: uuid.UUID) -> None: ...
-
 
 
 class ITelegramInitDataValidator(ABC):

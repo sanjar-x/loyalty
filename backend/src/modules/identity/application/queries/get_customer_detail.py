@@ -134,9 +134,7 @@ class GetCustomerDetailHandler:
         ]
 
         # Fetch linked account providers
-        la_sql = text(
-            "SELECT provider FROM linked_accounts WHERE identity_id = :id"
-        )
+        la_sql = text("SELECT provider FROM linked_accounts WHERE identity_id = :id")
         la_result = await self._session.execute(la_sql, {"id": query.identity_id})
         providers = [la_row["provider"] for la_row in la_result.mappings()]
 

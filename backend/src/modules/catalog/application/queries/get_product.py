@@ -103,9 +103,7 @@ class GetProductHandler:
         skus = [GetProductHandler._to_sku_read_model(s) for s in orm.skus]
 
         # Compute min/max price across active, non-deleted SKUs
-        active_prices = [
-            s.price.amount for s in skus if s.is_active and s.deleted_at is None
-        ]
+        active_prices = [s.price.amount for s in skus if s.is_active and s.deleted_at is None]
         min_price = min(active_prices) if active_prices else None
         max_price = max(active_prices) if active_prices else None
 

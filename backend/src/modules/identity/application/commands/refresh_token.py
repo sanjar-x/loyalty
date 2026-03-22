@@ -136,7 +136,9 @@ class RefreshTokenHandler:
         # so a DB rollback doesn't leave a phantom cache entry
         reuse_key = f"rotated:{token_hash}"
         await self._cache.set(
-            reuse_key, str(identity_id_for_reuse), ttl=self._REUSE_DETECTION_TTL,
+            reuse_key,
+            str(identity_id_for_reuse),
+            ttl=self._REUSE_DETECTION_TTL,
         )
 
         self._logger.info(

@@ -15,7 +15,7 @@ from src.modules.catalog.application.queries.read_models import (
     CategoryAttributeBindingReadModel,
 )
 from src.modules.catalog.infrastructure.models import (
-    CategoryAttributeRule as OrmRule,
+    CategoryAttributeBinding as OrmBinding,
 )
 
 
@@ -38,14 +38,14 @@ class ListCategoryBindingsHandler:
         self, query: ListCategoryBindingsQuery
     ) -> CategoryAttributeBindingListReadModel:
         """Retrieve a paginated list of bindings for a category."""
-        base = select(OrmRule).where(OrmRule.category_id == query.category_id)
+        base = select(OrmBinding).where(OrmBinding.category_id == query.category_id)
 
         count_stmt = select(func.count()).select_from(base.subquery())
         count_result = await self._session.execute(count_stmt)
         total: int = count_result.scalar_one()
 
         items_stmt = (
-            base.order_by(OrmRule.sort_order, OrmRule.attribute_id)
+            base.order_by(OrmBinding.sort_order, OrmBinding.attribute_id)
             .offset(query.offset)
             .limit(query.limit)
         )

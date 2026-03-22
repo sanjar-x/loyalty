@@ -20,7 +20,6 @@ from src.modules.catalog.domain.interfaces import (
 )
 from src.shared.exceptions import ConflictError
 from src.shared.interfaces.blob_storage import IBlobStorage
-from src.shared.interfaces.config import IStorageConfig
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -69,13 +68,11 @@ class AddProductMediaHandler:
         media_repo: IMediaAssetRepository,
         blob_storage: IBlobStorage,
         uow: IUnitOfWork,
-        config: IStorageConfig,
     ) -> None:
         self._product_repo = product_repo
         self._media_repo = media_repo
-        self._blob = blob_storage
+        self._blob_storage = blob_storage
         self._uow = uow
-        self._config = config
 
     async def handle(self, command: AddProductMediaCommand) -> AddProductMediaResult:
         """Execute the add-product-media command.
@@ -111,7 +108,7 @@ class AddProductMediaHandler:
 
         # 3. Generate presigned PUT URL outside the transaction (S3 I/O must not
         #    hold a DB connection)
-        presigned_url = await self._blob.generate_presigned_put_url(
+        presigned_url = await self._blob_storage.generate_presigned_put_url(
             object_name=object_key,
             content_type=command.content_type,
             expiration=300,

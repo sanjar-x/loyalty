@@ -273,8 +273,6 @@ class SessionRepository(ISessionRepository):
         if session_id is None:
             return None
         await self._session.execute(
-            update(SessionModel)
-            .where(SessionModel.id == session_id)
-            .values(is_revoked=True)
+            update(SessionModel).where(SessionModel.id == session_id).values(is_revoked=True)
         )
         return session_id

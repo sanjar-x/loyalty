@@ -102,13 +102,15 @@ class User(AggregateRoot):
         self.updated_at = datetime.now(UTC)
 
 
-_CUSTOMER_UPDATABLE_FIELDS = frozenset({
-    "profile_email",
-    "first_name",
-    "last_name",
-    "phone",
-    "username",
-})
+_CUSTOMER_UPDATABLE_FIELDS = frozenset(
+    {
+        "profile_email",
+        "first_name",
+        "last_name",
+        "phone",
+        "username",
+    }
+)
 
 
 @dataclass
@@ -205,12 +207,14 @@ class Customer(AggregateRoot):
         self.updated_at = datetime.now(UTC)
 
 
-_STAFF_UPDATABLE_FIELDS = frozenset({
-    "first_name",
-    "last_name",
-    "position",
-    "department",
-})
+_STAFF_UPDATABLE_FIELDS = frozenset(
+    {
+        "first_name",
+        "last_name",
+        "position",
+        "department",
+    }
+)
 
 
 @dataclass

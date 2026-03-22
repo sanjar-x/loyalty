@@ -70,9 +70,7 @@ class UpdateCategoryAttributeBindingHandler:
         async with self._uow:
             binding = await self._binding_repo.get(command.binding_id)
             if binding is None:
-                raise CategoryAttributeBindingNotFoundError(
-                    binding_id=command.binding_id
-                )
+                raise CategoryAttributeBindingNotFoundError(binding_id=command.binding_id)
 
             update_kwargs: dict[str, Any] = dict(
                 sort_order=command.sort_order,
@@ -102,10 +100,6 @@ class UpdateCategoryAttributeBindingHandler:
             attribute_id=binding.attribute_id,
             sort_order=binding.sort_order,
             requirement_level=binding.requirement_level.value,
-            flag_overrides=dict(binding.flag_overrides)
-            if binding.flag_overrides
-            else None,
-            filter_settings=dict(binding.filter_settings)
-            if binding.filter_settings
-            else None,
+            flag_overrides=dict(binding.flag_overrides) if binding.flag_overrides else None,
+            filter_settings=dict(binding.filter_settings) if binding.filter_settings else None,
         )

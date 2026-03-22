@@ -235,9 +235,7 @@ class CountryTranslationModel(Base):
 
     # -- relationships ------------------------------------------------- #
 
-    country: Mapped[CountryModel] = relationship(
-        back_populates="translations", lazy="joined"
-    )
+    country: Mapped[CountryModel] = relationship(back_populates="translations", lazy="joined")
 
     # -- table-level constraints --------------------------------------- #
 
@@ -365,9 +363,7 @@ class CurrencyTranslationModel(Base):
 
     # -- relationships ------------------------------------------------- #
 
-    currency: Mapped[CurrencyModel] = relationship(
-        back_populates="translations", lazy="joined"
-    )
+    currency: Mapped[CurrencyModel] = relationship(back_populates="translations", lazy="joined")
 
     # -- table-level constraints --------------------------------------- #
 
@@ -409,12 +405,8 @@ class CountryCurrencyModel(Base):
 
     # -- relationships ------------------------------------------------- #
 
-    country: Mapped[CountryModel] = relationship(
-        back_populates="currency_links", lazy="joined"
-    )
-    currency: Mapped[CurrencyModel] = relationship(
-        back_populates="country_links", lazy="joined"
-    )
+    country: Mapped[CountryModel] = relationship(back_populates="currency_links", lazy="joined")
+    currency: Mapped[CurrencyModel] = relationship(back_populates="country_links", lazy="joined")
 
     # -- table-level constraints --------------------------------------- #
 
@@ -571,13 +563,9 @@ class SubdivisionModel(Base):
 
     # -- relationships ------------------------------------------------- #
 
-    country: Mapped[CountryModel] = relationship(
-        back_populates="subdivisions", lazy="joined"
-    )
+    country: Mapped[CountryModel] = relationship(back_populates="subdivisions", lazy="joined")
     category: Mapped[SubdivisionCategoryModel] = relationship(lazy="joined")
-    parent: Mapped[SubdivisionModel | None] = relationship(
-        remote_side=[code], lazy="select"
-    )
+    parent: Mapped[SubdivisionModel | None] = relationship(remote_side=[code], lazy="select")
     translations: Mapped[list[SubdivisionTranslationModel]] = relationship(
         back_populates="subdivision",
         cascade="all, delete-orphan",

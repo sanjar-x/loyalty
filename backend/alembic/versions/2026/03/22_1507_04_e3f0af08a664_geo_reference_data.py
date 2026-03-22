@@ -291,12 +291,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_country_translations")),
         sa.UniqueConstraint("country_code", "lang_code", name="uq_country_lang"),
     )
-    op.create_index(
-        "ix_country_tr_lang", "country_translations", ["lang_code"], unique=False
-    )
-    op.create_index(
-        "ix_country_tr_name", "country_translations", ["name"], unique=False
-    )
+    op.create_index("ix_country_tr_lang", "country_translations", ["lang_code"], unique=False)
+    op.create_index("ix_country_tr_name", "country_translations", ["name"], unique=False)
     op.create_table(
         "currency_translations",
         sa.Column("id", sa.UUID(), nullable=False, comment="Surrogate primary key"),
@@ -333,12 +329,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_currency_translations")),
         sa.UniqueConstraint("currency_code", "lang_code", name="uq_currency_lang"),
     )
-    op.create_index(
-        "ix_currency_tr_lang", "currency_translations", ["lang_code"], unique=False
-    )
-    op.create_index(
-        "ix_currency_tr_name", "currency_translations", ["name"], unique=False
-    )
+    op.create_index("ix_currency_tr_lang", "currency_translations", ["lang_code"], unique=False)
+    op.create_index("ix_currency_tr_name", "currency_translations", ["name"], unique=False)
     op.create_table(
         "subdivision_category_translations",
         sa.Column("id", sa.UUID(), nullable=False, comment="Surrogate primary key"),
@@ -363,9 +355,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["category_code"],
             ["subdivision_categories.code"],
-            name=op.f(
-                "fk_subdivision_category_translations_category_code_subdivision_categories"
-            ),
+            name=op.f("fk_subdivision_category_translations_category_code_subdivision_categories"),
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
@@ -374,9 +364,7 @@ def upgrade() -> None:
             name=op.f("fk_subdivision_category_translations_lang_code_languages"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint(
-            "id", name=op.f("pk_subdivision_category_translations")
-        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_subdivision_category_translations")),
         sa.UniqueConstraint("category_code", "lang_code", name="uq_sub_category_lang"),
     )
     op.create_index(
@@ -463,12 +451,8 @@ def upgrade() -> None:
         ["country_code", "category_code"],
         unique=False,
     )
-    op.create_index(
-        "ix_subdivisions_country", "subdivisions", ["country_code"], unique=False
-    )
-    op.create_index(
-        "ix_subdivisions_parent", "subdivisions", ["parent_code"], unique=False
-    )
+    op.create_index("ix_subdivisions_country", "subdivisions", ["country_code"], unique=False)
+    op.create_index("ix_subdivisions_parent", "subdivisions", ["parent_code"], unique=False)
     op.create_table(
         "subdivision_translations",
         sa.Column("id", sa.UUID(), nullable=False, comment="Surrogate primary key"),
@@ -515,16 +499,10 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_subdivision_translations")),
-        sa.UniqueConstraint(
-            "subdivision_code", "lang_code", name="uq_subdivision_lang"
-        ),
+        sa.UniqueConstraint("subdivision_code", "lang_code", name="uq_subdivision_lang"),
     )
-    op.create_index(
-        "ix_sub_tr_lang", "subdivision_translations", ["lang_code"], unique=False
-    )
-    op.create_index(
-        "ix_sub_tr_name", "subdivision_translations", ["name"], unique=False
-    )
+    op.create_index("ix_sub_tr_lang", "subdivision_translations", ["lang_code"], unique=False)
+    op.create_index("ix_sub_tr_name", "subdivision_translations", ["name"], unique=False)
     # ### end Alembic commands ###
 
 
@@ -546,9 +524,7 @@ def downgrade() -> None:
     op.drop_index("ix_country_tr_name", table_name="country_translations")
     op.drop_index("ix_country_tr_lang", table_name="country_translations")
     op.drop_table("country_translations")
-    op.drop_index(
-        "ix_country_currencies_currency_code", table_name="country_currencies"
-    )
+    op.drop_index("ix_country_currencies_currency_code", table_name="country_currencies")
     op.drop_table("country_currencies")
     op.drop_table("subdivision_categories")
     op.drop_index("ix_languages_iso639_1", table_name="languages")

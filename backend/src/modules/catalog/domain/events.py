@@ -301,18 +301,18 @@ class AttributeValueDeletedEvent(DomainEvent):
 
 
 @dataclass
-class AttributeBoundToCategoryEvent(DomainEvent):
-    """Emitted when an attribute is bound to a category."""
+class CategoryAttributeBindingCreatedEvent(DomainEvent):
+    """Emitted when a category-attribute binding is created."""
 
     category_id: uuid.UUID | None = None
     attribute_id: uuid.UUID | None = None
     binding_id: uuid.UUID | None = None
     aggregate_type: str = "CategoryAttributeBinding"
-    event_type: str = "AttributeBoundToCategoryEvent"
+    event_type: str = "CategoryAttributeBindingCreatedEvent"
 
     def __post_init__(self) -> None:
         if self.binding_id is None:
-            raise ValueError("binding_id is required for AttributeBoundToCategoryEvent")
+            raise ValueError("binding_id is required for CategoryAttributeBindingCreatedEvent")
         if not self.aggregate_id:
             self.aggregate_id = str(self.binding_id)
 
@@ -333,18 +333,18 @@ class CategoryAttributeBindingUpdatedEvent(DomainEvent):
 
 
 @dataclass
-class AttributeUnboundFromCategoryEvent(DomainEvent):
-    """Emitted when an attribute is unbound from a category."""
+class CategoryAttributeBindingDeletedEvent(DomainEvent):
+    """Emitted when a category-attribute binding is deleted."""
 
     category_id: uuid.UUID | None = None
     attribute_id: uuid.UUID | None = None
     binding_id: uuid.UUID | None = None
     aggregate_type: str = "CategoryAttributeBinding"
-    event_type: str = "AttributeUnboundFromCategoryEvent"
+    event_type: str = "CategoryAttributeBindingDeletedEvent"
 
     def __post_init__(self) -> None:
         if self.binding_id is None:
-            raise ValueError("binding_id is required for AttributeUnboundFromCategoryEvent")
+            raise ValueError("binding_id is required for CategoryAttributeBindingDeletedEvent")
         if not self.aggregate_id:
             self.aggregate_id = str(self.binding_id)
 
@@ -362,7 +362,7 @@ class ProductMediaConfirmedEvent(DomainEvent):
     product_id: uuid.UUID | None = None
     object_key: str = ""
     content_type: str = ""
-    aggregate_type: str = "MediaAsset"
+    aggregate_type: str = "ProductMedia"
     event_type: str = "ProductMediaConfirmedEvent"
 
     def __post_init__(self) -> None:
@@ -381,7 +381,7 @@ class ProductMediaProcessedEvent(DomainEvent):
     object_key: str = ""
     content_type: str = ""
     size_bytes: int = 0
-    aggregate_type: str = "MediaAsset"
+    aggregate_type: str = "ProductMedia"
     event_type: str = "ProductMediaProcessedEvent"
 
     def __post_init__(self) -> None:

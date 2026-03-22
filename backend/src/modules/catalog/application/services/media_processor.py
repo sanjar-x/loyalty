@@ -43,14 +43,14 @@ class BrandLogoProcessor:
         brand_repo: IBrandRepository,
         blob_storage: IBlobStorage,
         uow: IUnitOfWork,
-        settings: IStorageConfig,
+        config: IStorageConfig,
         logger: ILogger,
     ):
         self._brand_repo = brand_repo
         self._blob_storage = blob_storage
         self._uow = uow
-        self._settings = settings
-        self._log = logger.bind(service="BrandLogoProcessor")
+        self._config = config
+        self._logger = logger.bind(service="BrandLogoProcessor")
 
     async def process(self, brand_id: uuid.UUID) -> None:
         """Run the full logo processing pipeline for a brand.
@@ -62,7 +62,7 @@ class BrandLogoProcessor:
             ValueError: If the raw logo exceeds ``MAX_LOGO_SIZE_BYTES``.
             Exception: Re-raised after marking the brand as FAILED.
         """
-        log = self._log.bind(brand_id=str(brand_id))
+        log = self._logger.bind(brand_id=str(brand_id))
         log.info("brand_logo_processing_started")
 
         raw_key = raw_logo_key(brand_id)
@@ -75,7 +75,7 @@ class BrandLogoProcessor:
             )
             await self._upload_processed(pub_key, processed_data, log)
 
-            logo_url = f"{self._settings.S3_PUBLIC_BASE_URL}/{pub_key}"
+            logo_url = f"{self._config.S3_PUBLIC_BASE_URL}/{pub_key}"
             await self._finalize_brand(brand_id, logo_url, pub_key, len(processed_data), log)
 
             await self._blob_storage.delete_object(raw_key)

@@ -46,9 +46,7 @@ class Country:
                 f"alpha3 must be exactly 3 uppercase ASCII letters, got {self.alpha3!r}"
             )
         if not _NUMERIC_RE.match(self.numeric):
-            raise ValueError(
-                f"numeric must be exactly 3 digits, got {self.numeric!r}"
-            )
+            raise ValueError(f"numeric must be exactly 3 digits, got {self.numeric!r}")
 
 
 # ------------------------------------------------------------------ #
@@ -93,17 +91,11 @@ class Language:
         if not _BCP47_RE.match(self.code):
             raise ValueError(f"code must be a valid BCP 47 tag, got {self.code!r}")
         if self.iso639_1 is not None and not _ISO639_1_RE.match(self.iso639_1):
-            raise ValueError(
-                f"iso639_1 must be exactly 2 lowercase letters, got {self.iso639_1!r}"
-            )
+            raise ValueError(f"iso639_1 must be exactly 2 lowercase letters, got {self.iso639_1!r}")
         if self.iso639_2 is not None and not _ISO639_23_RE.match(self.iso639_2):
-            raise ValueError(
-                f"iso639_2 must be exactly 3 lowercase letters, got {self.iso639_2!r}"
-            )
+            raise ValueError(f"iso639_2 must be exactly 3 lowercase letters, got {self.iso639_2!r}")
         if self.iso639_3 is not None and not _ISO639_23_RE.match(self.iso639_3):
-            raise ValueError(
-                f"iso639_3 must be exactly 3 lowercase letters, got {self.iso639_3!r}"
-            )
+            raise ValueError(f"iso639_3 must be exactly 3 lowercase letters, got {self.iso639_3!r}")
         if self.script is not None and not _SCRIPT_RE.match(self.script):
             raise ValueError(
                 f"script must be a 4-letter ISO 15924 code (e.g. 'Latn'), got {self.script!r}"
@@ -146,19 +138,13 @@ class Currency:
 
     def __attrs_post_init__(self) -> None:
         if not _CURRENCY_CODE_RE.match(self.code):
-            raise ValueError(
-                f"code must be exactly 3 uppercase ASCII letters, got {self.code!r}"
-            )
+            raise ValueError(f"code must be exactly 3 uppercase ASCII letters, got {self.code!r}")
         if not _CURRENCY_NUMERIC_RE.match(self.numeric):
-            raise ValueError(
-                f"numeric must be exactly 3 digits, got {self.numeric!r}"
-            )
+            raise ValueError(f"numeric must be exactly 3 digits, got {self.numeric!r}")
         if not self.name or not self.name.strip():
             raise ValueError("name must be a non-empty string")
         if self.minor_unit is not None and not (0 <= self.minor_unit <= 4):
-            raise ValueError(
-                f"minor_unit must be 0-4 or None, got {self.minor_unit}"
-            )
+            raise ValueError(f"minor_unit must be 0-4 or None, got {self.minor_unit}")
 
 
 # ------------------------------------------------------------------ #
@@ -193,12 +179,8 @@ class Subdivision:
 
     def __attrs_post_init__(self) -> None:
         if not _SUBDIVISION_CODE_RE.match(self.code):
-            raise ValueError(
-                f"code must match ISO 3166-2 format (e.g. 'UZ-TO'), got {self.code!r}"
-            )
+            raise ValueError(f"code must match ISO 3166-2 format (e.g. 'UZ-TO'), got {self.code!r}")
         if not _ALPHA2_RE.match(self.country_code):
-            raise ValueError(
-                f"country_code must be 2 uppercase letters, got {self.country_code!r}"
-            )
+            raise ValueError(f"country_code must be 2 uppercase letters, got {self.country_code!r}")
         if not self.category_code or not self.category_code.strip():
             raise ValueError("category_code must be a non-empty string")

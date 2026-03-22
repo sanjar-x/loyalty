@@ -138,9 +138,7 @@ class UpdateSKUHandler:
             # when only the amount changes, and vice versa.
             if command.price_amount is not None or command.price_currency is not None:
                 new_amount = (
-                    command.price_amount
-                    if command.price_amount is not None
-                    else sku.price.amount
+                    command.price_amount if command.price_amount is not None else sku.price.amount
                 )
                 new_currency = (
                     command.price_currency

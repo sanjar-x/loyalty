@@ -44,7 +44,7 @@ class ConfirmProductMediaHandler:
         logger: ILogger,
     ) -> None:
         self._media_repo = media_repo
-        self._blob = blob_storage
+        self._blob_storage = blob_storage
         self._uow = uow
         self._logger = logger.bind(handler="ConfirmProductMediaHandler")
 
@@ -55,7 +55,7 @@ class ConfirmProductMediaHandler:
             command: Confirmation parameters.
 
         Raises:
-            NotFoundError: If the media asset does not exist or has no raw key.
+            MediaAssetNotFoundError: If the media asset does not exist or has no raw key.
             UnprocessableEntityError: If the raw file is not present in S3.
             InvalidMediaStateError: If the asset FSM is not in PENDING_UPLOAD.
         """
@@ -70,7 +70,7 @@ class ConfirmProductMediaHandler:
         if media.raw_object_key is None:
             raise MediaAssetNotFoundError(media_id=command.media_id)
 
-        exists = await self._blob.object_exists(media.raw_object_key)
+        exists = await self._blob_storage.object_exists(media.raw_object_key)
         if not exists:
             raise UnprocessableEntityError(
                 f"Raw file not yet uploaded to S3: {media.raw_object_key}"

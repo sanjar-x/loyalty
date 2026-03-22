@@ -41,9 +41,7 @@ class TestCustomerCreate:
 
 class TestCustomerUpdate:
     def test_update_profile_partial(self):
-        customer = Customer.create_from_identity(
-            identity_id=uuid.uuid4(), referral_code="AAA11111"
-        )
+        customer = Customer.create_from_identity(identity_id=uuid.uuid4(), referral_code="AAA11111")
         old_updated = customer.updated_at
         customer.update_profile(first_name="John")
         assert customer.first_name == "John"

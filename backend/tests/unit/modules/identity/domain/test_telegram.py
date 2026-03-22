@@ -34,7 +34,11 @@ class TestPrimaryAuthMethod:
         assert PrimaryAuthMethod.TELEGRAM.value == "TELEGRAM"
 
     def test_all_methods(self):
-        assert set(PrimaryAuthMethod) == {PrimaryAuthMethod.LOCAL, PrimaryAuthMethod.OIDC, PrimaryAuthMethod.TELEGRAM}
+        assert set(PrimaryAuthMethod) == {
+            PrimaryAuthMethod.LOCAL,
+            PrimaryAuthMethod.OIDC,
+            PrimaryAuthMethod.TELEGRAM,
+        }
 
 
 class TestAuthProvider:
