@@ -20,8 +20,11 @@ from src.modules.catalog.infrastructure.models import (
     SKUAttributeValueLink,
 )
 from src.modules.geo.infrastructure.models import (
+    CountryCurrencyModel,
     CountryModel,
     CountryTranslationModel,
+    CurrencyModel,
+    CurrencyTranslationModel,
     LanguageModel,
     SubdivisionCategoryModel,
     SubdivisionCategoryTranslationModel,
@@ -50,8 +53,11 @@ __all__ = [
     "Brand",
     "Category",
     "CategoryAttributeRule",
+    "CountryCurrencyModel",
     "CountryModel",
     "CountryTranslationModel",
+    "CurrencyModel",
+    "CurrencyTranslationModel",
     "IdentityModel",
     "IdentityRoleModel",
     "LanguageModel",

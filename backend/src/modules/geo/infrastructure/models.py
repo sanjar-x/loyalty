@@ -3,6 +3,7 @@
 Maps geographic and locale reference data to PostgreSQL:
 
 * **Country** (ISO 3166-1) + translations
+* **Currency** (ISO 4217) + translations + country bridge
 * **Language** (IETF BCP 47 / ISO 639)
 * **Subdivision** (ISO 3166-2) + translations
 * **SubdivisionCategory** + translations
@@ -15,14 +16,20 @@ ORM and domain value objects using the Data Mapper pattern.
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
+
+from datetime import datetime
 
 from sqlalchemy import (
+    TIMESTAMP,
     ForeignKey,
     Index,
     Numeric,
+    PrimaryKeyConstraint,
     SmallInteger,
     String,
     UniqueConstraint,
+    func,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -108,6 +115,15 @@ class LanguageModel(Base):
         comment="Display order in language pickers",
     )
 
+    # -- audit --------------------------------------------------------- #
+
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="Last modification timestamp",
+    )
+
     # -- table-level constraints --------------------------------------- #
 
     __table_args__ = (
@@ -129,10 +145,8 @@ class CountryModel(Base):
 
     Uses the **Alpha-2 code as a natural primary key**.
 
-    Relationships:
-
-    * ``translations`` -- eagerly loaded (``selectin``).
-    * ``subdivisions`` -- not loaded by default (``raise``).
+    All relationships use ``lazy="raise"`` to prevent accidental
+    eager loading; use explicit ``selectinload()`` when needed.
     """
 
     __tablename__ = "countries"
@@ -148,16 +162,20 @@ class CountryModel(Base):
         unique=True,
         comment="ISO 3166-1 Alpha-3 code (e.g. KAZ)",
     )
-    numeric: Mapped[int] = mapped_column(
-        SmallInteger,
+    numeric: Mapped[str] = mapped_column(
+        String(3),
         nullable=False,
         unique=True,
-        comment="ISO 3166-1 Numeric code (e.g. 398)",
+        comment="ISO 3166-1 Numeric code, zero-padded (e.g. 398)",
     )
-    name: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-        comment="Common English short name",
+
+    # -- audit --------------------------------------------------------- #
+
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="Last modification timestamp",
     )
 
     # -- relationships ------------------------------------------------- #
@@ -165,17 +183,18 @@ class CountryModel(Base):
     translations: Mapped[list[CountryTranslationModel]] = relationship(
         back_populates="country",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="raise",
+    )
+    currency_links: Mapped[list[CountryCurrencyModel]] = relationship(
+        back_populates="country",
+        cascade="all, delete-orphan",
+        lazy="raise",
     )
     subdivisions: Mapped[list[SubdivisionModel]] = relationship(
         back_populates="country",
         cascade="all, delete-orphan",
         lazy="raise",
     )
-
-    # -- table-level constraints --------------------------------------- #
-
-    __table_args__ = (Index("ix_countries_name", "name"),)
 
 
 class CountryTranslationModel(Base):
@@ -225,13 +244,188 @@ class CountryTranslationModel(Base):
 
     __table_args__ = (
         UniqueConstraint("country_code", "lang_code", name="uq_country_lang"),
-        Index("ix_country_tr_country", "country_code"),
         Index("ix_country_tr_lang", "lang_code"),
         Index("ix_country_tr_name", "name"),
     )
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<CountryTranslation {self.country_code}/{self.lang_code}>"
+
+
+# ===================================================================
+#  Currency (ISO 4217)
+# ===================================================================
+
+
+class CurrencyModel(Base):
+    """Persistent representation of a currency per ISO 4217.
+
+    Uses the **Alpha-3 code as a natural primary key**.
+    """
+
+    __tablename__ = "currencies"
+
+    code: Mapped[str] = mapped_column(
+        String(3),
+        primary_key=True,
+        comment="ISO 4217 alpha-3 code (e.g. UZS, USD, EUR)",
+    )
+    numeric: Mapped[str] = mapped_column(
+        String(3),
+        nullable=False,
+        unique=True,
+        comment="ISO 4217 numeric code, zero-padded (e.g. 840, 978)",
+    )
+    name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        comment="Common English name (e.g. US Dollar)",
+    )
+    minor_unit: Mapped[int | None] = mapped_column(
+        SmallInteger,
+        nullable=True,
+        comment="Decimal places (2 for USD, 0 for JPY, 3 for BHD, NULL for XXX)",
+    )
+    is_active: Mapped[bool] = mapped_column(
+        default=True,
+        server_default="true",
+        comment="Available for selection in UI / API",
+    )
+    sort_order: Mapped[int] = mapped_column(
+        SmallInteger,
+        default=0,
+        server_default="0",
+        comment="Display order in currency pickers",
+    )
+
+    # -- audit --------------------------------------------------------- #
+
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="Last modification timestamp",
+    )
+
+    # -- relationships ------------------------------------------------- #
+
+    translations: Mapped[list[CurrencyTranslationModel]] = relationship(
+        back_populates="currency",
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
+    country_links: Mapped[list[CountryCurrencyModel]] = relationship(
+        back_populates="currency",
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
+
+    # -- table-level constraints --------------------------------------- #
+
+    __table_args__ = (
+        Index("ix_currencies_numeric", "numeric"),
+        Index("ix_currencies_active", "is_active"),
+        Index("ix_currencies_name", "name"),
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<Currency {self.code}>"
+
+
+class CurrencyTranslationModel(Base):
+    """Currency name in a specific language.
+
+    Natural key: ``(currency_code, lang_code)``.
+    """
+
+    __tablename__ = "currency_translations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="Surrogate primary key",
+    )
+    currency_code: Mapped[str] = mapped_column(
+        String(3),
+        ForeignKey("currencies.code", ondelete="CASCADE"),
+        nullable=False,
+        comment="FK -> currencies.code",
+    )
+    lang_code: Mapped[str] = mapped_column(
+        String(12),
+        ForeignKey("languages.code", ondelete="CASCADE"),
+        nullable=False,
+        comment="FK -> languages.code (IETF BCP 47)",
+    )
+    name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        comment="Translated currency name (e.g. Доллар США)",
+    )
+
+    # -- relationships ------------------------------------------------- #
+
+    currency: Mapped[CurrencyModel] = relationship(
+        back_populates="translations", lazy="joined"
+    )
+
+    # -- table-level constraints --------------------------------------- #
+
+    __table_args__ = (
+        UniqueConstraint("currency_code", "lang_code", name="uq_currency_lang"),
+        Index("ix_currency_tr_lang", "lang_code"),
+        Index("ix_currency_tr_name", "name"),
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<CurrencyTranslation {self.currency_code}/{self.lang_code}>"
+
+
+class CountryCurrencyModel(Base):
+    """Bridge table linking countries to their currencies (M:N).
+
+    Composite primary key: ``(country_code, currency_code)``.
+    """
+
+    __tablename__ = "country_currencies"
+
+    country_code: Mapped[str] = mapped_column(
+        String(2),
+        ForeignKey("countries.alpha2", ondelete="CASCADE"),
+        nullable=False,
+        comment="FK -> countries.alpha2 (ISO 3166-1)",
+    )
+    currency_code: Mapped[str] = mapped_column(
+        String(3),
+        ForeignKey("currencies.code", ondelete="CASCADE"),
+        nullable=False,
+        comment="FK -> currencies.code (ISO 4217)",
+    )
+    is_primary: Mapped[bool] = mapped_column(
+        default=False,
+        server_default="false",
+        comment="Whether this is the country's primary/official currency",
+    )
+
+    # -- relationships ------------------------------------------------- #
+
+    country: Mapped[CountryModel] = relationship(
+        back_populates="currency_links", lazy="joined"
+    )
+    currency: Mapped[CurrencyModel] = relationship(
+        back_populates="country_links", lazy="joined"
+    )
+
+    # -- table-level constraints --------------------------------------- #
+
+    __table_args__ = (
+        PrimaryKeyConstraint("country_code", "currency_code"),
+        Index("ix_country_currencies_currency_code", "currency_code"),
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<CountryCurrency {self.country_code}/{self.currency_code}>"
 
 
 # ===================================================================
@@ -261,7 +455,7 @@ class SubdivisionCategoryModel(Base):
     translations: Mapped[list[SubdivisionCategoryTranslationModel]] = relationship(
         back_populates="category",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="raise",
     )
 
     def __repr__(self) -> str:  # pragma: no cover
@@ -303,14 +497,13 @@ class SubdivisionCategoryTranslationModel(Base):
     # -- relationships ------------------------------------------------- #
 
     category: Mapped[SubdivisionCategoryModel] = relationship(
-        back_populates="translations"
+        back_populates="translations", lazy="joined"
     )
 
     # -- table-level constraints --------------------------------------- #
 
     __table_args__ = (
         UniqueConstraint("category_code", "lang_code", name="uq_sub_category_lang"),
-        Index("ix_sub_cat_tr_category", "category_code"),
         Index("ix_sub_cat_tr_lang", "lang_code"),
     )
 
@@ -355,12 +548,12 @@ class SubdivisionModel(Base):
         nullable=True,
         comment="Parent subdivision for nested levels",
     )
-    latitude: Mapped[float | None] = mapped_column(
+    latitude: Mapped[Decimal | None] = mapped_column(
         Numeric(10, 7),
         nullable=True,
         comment="Centroid latitude (WGS 84)",
     )
-    longitude: Mapped[float | None] = mapped_column(
+    longitude: Mapped[Decimal | None] = mapped_column(
         Numeric(10, 7),
         nullable=True,
         comment="Centroid longitude (WGS 84)",
@@ -389,7 +582,7 @@ class SubdivisionModel(Base):
     translations: Mapped[list[SubdivisionTranslationModel]] = relationship(
         back_populates="subdivision",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="raise",
     )
 
     # -- table-level constraints --------------------------------------- #
@@ -448,13 +641,14 @@ class SubdivisionTranslationModel(Base):
 
     # -- relationships ------------------------------------------------- #
 
-    subdivision: Mapped[SubdivisionModel] = relationship(back_populates="translations")
+    subdivision: Mapped[SubdivisionModel] = relationship(
+        back_populates="translations", lazy="joined"
+    )
 
     # -- table-level constraints --------------------------------------- #
 
     __table_args__ = (
         UniqueConstraint("subdivision_code", "lang_code", name="uq_subdivision_lang"),
-        Index("ix_sub_tr_subdivision", "subdivision_code"),
         Index("ix_sub_tr_lang", "lang_code"),
         Index("ix_sub_tr_name", "name"),
     )

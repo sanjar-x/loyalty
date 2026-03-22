@@ -24,7 +24,6 @@ class CountryRepository(ICountryRepository):
             alpha2=orm.alpha2,
             alpha3=orm.alpha3,
             numeric=orm.numeric,
-            name=orm.name,
         )
 
     async def get_by_alpha2(self, alpha2: str) -> Country | None:
@@ -42,6 +41,6 @@ class CountryRepository(ICountryRepository):
         return self._to_domain(orm) if orm else None
 
     async def list_all(self) -> list[Country]:
-        stmt = select(CountryModel).order_by(CountryModel.name)
+        stmt = select(CountryModel).order_by(CountryModel.alpha2)
         result = await self._session.execute(stmt)
         return [self._to_domain(orm) for orm in result.scalars().all()]

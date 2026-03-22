@@ -1,0 +1,2498 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<api name="YandexDeliveryOtherDay" version="1.0">
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 1: API METADATA
+       ══════════════════════════════════════════════════════════════ -->
+  <metadata>
+    <title>Yandex Delivery "Other Day" API</title>
+    <description>API for creating and managing next-day delivery orders</description>
+
+    <environments>
+      <environment name="production">
+        <host>https://b2b-authproxy.taxi.yandex.net</host>
+      </environment>
+      <environment name="test">
+        <host>https://b2b.taxi.tst.yandex.net</host>
+        <test_credentials>
+          <bearer_token>y2_AgAAAAD04omrAAAPeAAAAAACRpC94Qk6Z5rUTgOcTgYFECJllXYKFx8</bearer_token>
+          <platform_station_id description="Test warehouse (point A)">
+            fbed3aa1-2cc6-4370-ab4d-59c5cc9bb924</platform_station_id>
+        </test_credentials>
+        <test_pickup_points>
+          <point direction="from" address="Москва, Ленинградский проспект 27"
+            platform_station_id="e1139f6d-e34f-47a9-a55f-31f032a861a6" />
+          <point direction="to" address="Москва, Ленинградский проспект 37 к9"
+            platform_station_id="01946f4f013c7337874ec2fb848a58a4" />
+        </test_pickup_points>
+        <limitations>
+          <limitation>Only Moscow (MSK) addresses are supported</limitation>
+        </limitations>
+      </environment>
+    </environments>
+
+    <authentication>
+      <method>Bearer</method>
+      <header>Authorization</header>
+      <format>Bearer &lt;OAuth-token&gt;</format>
+      <token_lifetime>Unlimited</token_lifetime>
+      <invalidation_condition>Token is invalidated when the account password is changed</invalidation_condition>
+    </authentication>
+
+    <!-- Global query parameter affecting response format -->
+    <format_switch name="send_unix" type="boolean" default="false"
+      description="Time format for delivery intervals in API responses (true — UNIX integer, false — UTC string)">
+      <used_in endpoint="1.02" path="/api/b2b/platform/offers/info" method="GET" />
+      <used_in endpoint="1.03" path="/api/b2b/platform/offers/info" method="POST" />
+      <used_in endpoint="3.01" path="/api/b2b/platform/offers/create" method="POST" />
+      <used_in endpoint="3.11" path="/api/b2b/platform/request/create" method="POST" />
+      <affects_response>
+        <field model="Offer" field="expires_at" when_true="integer (UNIX timestamp)"
+          when_false="string (UTC)" />
+        <field model="OfferDetails" field="pickup_interval"
+          when_true="PickupInterval (min/max integer)"
+          when_false="PickupIntervalUTC (min/max string)" />
+        <field model="TimeIntervalUTC" field="from" when_true="integer (UNIX timestamp)"
+          when_false="string (UTC)" />
+        <field model="TimeIntervalUTC" field="to" when_true="integer (UNIX timestamp)"
+          when_false="string (UTC)" />
+      </affects_response>
+    </format_switch>
+  </metadata>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 1.5: GLOSSARY
+       ══════════════════════════════════════════════════════════════ -->
+  <glossary>
+    <term name="Offer"
+      definition="A delivery option or route selected based on the given order parameters" />
+    <term name="Order"
+      definition="A formalized delivery assignment containing all information required to provide services (sender, list of services, recipient, shipment, etc.)" />
+    <term name="Label"
+      definition="An accompanying document — a sticker on the shipment with sender and recipient info, tracking number, weight, delivery method, and a barcode" />
+    <term name="Handover Act"
+      definition="An accompanying document confirming the transfer of goods during order pickup" />
+    <term name="Pickup Point"
+      definition="A self-service order collection point" />
+  </glossary>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 2: ENUMERATIONS (ENUMS)
+       ══════════════════════════════════════════════════════════════ -->
+  <enums>
+    <!-- Last mile delivery method -->
+    <enum name="LastMilePolicy" description="Last mile delivery method">
+      <value name="time_interval" description="Door delivery within a specified time interval" />
+      <value name="self_pickup" description="Delivery to a pickup point" />
+    </enum>
+
+    <!-- Payment method -->
+    <enum name="PaymentMethod" description="Payment method">
+      <value name="already_paid" description="Order is already paid" />
+      <value name="card_on_receipt" description="Card payment on receipt (incl. postpay)" />
+      <value name="postpay" description="Card payment via Yandex Go app or SMS link" />
+    </enum>
+
+    <!-- Pickup/delivery station type -->
+    <enum name="PickupStationType" description="Pickup/delivery station type">
+      <value name="pickup_point" description="Pickup point" />
+      <value name="terminal" description="Parcel locker" />
+      <value name="warehouse" description="Sorting center" />
+    </enum>
+
+    <!-- Pickup point operator -->
+    <enum name="OperatorId" description="Pickup point operator ID">
+      <value name="market_l4g" description="Yandex Market and partner pickup points" />
+      <value name="5post" description="5Post pickup points" />
+    </enum>
+
+    <!-- Destination type (discriminator) -->
+    <enum name="DestinationType" description="Destination point type">
+      <value name="platform_station" description="Delivery to a pickup point" />
+      <value name="custom_location" description="Door delivery" />
+    </enum>
+
+    <!-- Cancel/reschedule reason (identical enums) -->
+    <enum name="CancelChangeReason" description="Order cancellation or reschedule reason">
+      <value name="SHOP_CANCELLED" description="Sender cancelled the order" />
+      <value name="USER_CHANGED_MIND" description="Buyer changed their mind" />
+      <value name="DELIVERY_PROBLEMS" description="Delivery problems occurred" />
+      <value name="ORDER_WAS_LOST" description="Order was lost" />
+      <value name="ORDER_IS_DAMAGED" description="Order was damaged" />
+      <value name="EXTRA_RESCHEDULING" description="Order cancelled due to frequent rescheduling" />
+      <value name="BROKEN_ITEM" description="Item was defective" />
+      <value name="DIMENSIONS_EXCEEDED" description="Package too large for the delivery method" />
+      <value name="PICKUP_EXPIRED" description="Storage period at pickup point expired" />
+      <value name="LAST_MILE_CHANGED_BY_USER"
+        description="Last mile changed by user initiative" />
+      <value name="CLIENT_REQUEST" description="Recipient cancelled the order" />
+      <value name="DELIVERY_DATE_UPDATED_BY_DELIVERY"
+        description="Order processing delayed by delivery partner" />
+      <value name="DELIVERY_DATE_UPDATED_BY_SHOP" description="Rescheduled by shop request" />
+    </enum>
+
+    <!-- Editing request status -->
+    <enum name="EditingRequestStatus" description="Editing request status">
+      <value name="pending" description="Awaiting execution" />
+      <value name="execution" description="In progress" />
+      <value name="success" description="Completed successfully" />
+      <value name="failure" description="An error occurred during execution" />
+    </enum>
+
+    <!-- Cancellation status -->
+    <enum name="CancelStatus" description="Order cancellation status">
+      <value name="CREATED" description="Cancellation initiated" />
+      <value name="SUCCESS" description="Cancellation completed" />
+      <value name="ERROR" description="Request finished with an error" />
+    </enum>
+
+    <!-- Cancellation reasons from status model (differ from CancelChangeReason) -->
+    <enum name="CancelStatusReason" description="Order cancellation reasons (from status model)">
+      <value name="CANCELLED_BY_RECIPIENT" description="Order cancelled at client's request" />
+      <value name="CANCELLED_USER" description="Order cancelled by user" />
+      <value name="CANCELLED_IN_PLATFORM" description="Order cancelled in platform" />
+      <value name="SORTING_CENTER_CANCELLED" description="Order cancelled by sorting center" />
+    </enum>
+
+    <!-- Delivery tariff (for pricing-calculator) -->
+    <enum name="DeliveryTariff" description="Delivery tariff">
+      <value name="time_interval" description="Door delivery within a time interval" />
+      <value name="self_pickup" description="Delivery to a pickup point" />
+    </enum>
+  </enums>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 3: DATA MODELS
+       Duplicates merged (8 groups of identical models → unified models).
+       Different models kept separate (7 groups).
+       ══════════════════════════════════════════════════════════════ -->
+  <models>
+
+    <!-- ─── Simple types (Timestamps) ─── -->
+    <model name="TimestampUNIX" description="UNIX format timestamp">
+      <field name="value" type="integer" description="UNIX timestamp" />
+    </model>
+
+    <model name="TimestampUTC" description="UTC format timestamp">
+      <field name="value" type="string" description="UTC string"
+        example="2021-10-25T15:00:00.000000Z" />
+    </model>
+
+    <!-- ─── UTC time interval ─── -->
+    <model name="TimeIntervalUTC" description="Time interval in UTC format">
+      <note>Field types depend on the send_unix query parameter: when send_unix=true — integer
+        (UNIX),
+        otherwise — string (UTC)</note>
+      <field name="from" type="integer | string" required="true"
+        description="Lower bound of interval (UNIX timestamp or UTC string depending on send_unix)"
+        example="2021-10-25T15:00:00.000000Z" />
+      <field name="to" type="integer | string" required="true"
+        description="Upper bound of interval (UNIX timestamp or UTC string depending on send_unix)"
+        example="2021-10-25T15:00:00.000000Z" />
+    </model>
+
+    <!-- ─── Platform station ─── -->
+    <model name="PlatformStation"
+      description="Station registered in the logistics platform">
+      <field name="platform_id" type="string" required="true" description="Station identifier"
+        example="e1139f6d-e34f-47a9-a55f-31f032a861a6" />
+    </model>
+
+    <!-- ─── Source node (simple) ───
+         Merges PricingSourceNode and OffersInfoSourceNode (IDENTICAL) -->
+    <model name="SimpleSourceNode"
+      description="Source point (for pricing-calculator and offers/info POST)">
+      <field name="platform_station_id" type="string" required="true"
+        description="Shipping warehouse ID" example="fbed3aa1-2cc6-4370-ab4d-59c5cc9bb924" />
+    </model>
+
+    <!-- ─── Destination node (simple) ───
+         Merges PricingDestinationNode and OffersInfoDestinationNode (IDENTICAL) -->
+    <model name="SimpleDestinationNode"
+      description="Destination point (for pricing-calculator and offers/info POST). OneOf: address or platform_station_id">
+      <field name="address" type="string" required="false"
+        description="Delivery address (city, street, house). No apartment"
+        example="Санкт-Петербург, Большая Монетная улица, 1к1А" />
+      <field name="platform_station_id" type="string" required="false"
+        description="Pickup point or parcel locker ID"
+        example="e1139f6d-e34f-47a9-a55f-31f032a861a6" />
+    </model>
+
+    <!-- ─── Package physical dimensions ─── -->
+    <model name="PlacePhysicalDimensions" description="Package weight and dimensions">
+      <field name="weight_gross" type="integer" required="true" unit="grams"
+        description="Gross weight" />
+      <field name="dx" type="integer" required="true" unit="centimeters" description="Length" />
+      <field name="dy" type="integer" required="true" unit="centimeters" description="Height" />
+      <field name="dz" type="integer" required="true" unit="centimeters" description="Width" />
+    </model>
+
+    <!-- ─── Package physical dimensions (with min_value) ───
+         PlaceDimensions — DIFFERS from PlacePhysicalDimensions by having min_value:1 -->
+    <model name="PlaceDimensions"
+      description="Package weight and dimensions (with min_value:1 validation)">
+      <field name="weight_gross" type="integer" required="true" unit="grams" min_value="1"
+        description="Gross weight" />
+      <field name="dx" type="integer" required="true" unit="centimeters" min_value="1"
+        description="Length" />
+      <field name="dy" type="integer" required="true" unit="centimeters" min_value="1"
+        description="Height" />
+      <field name="dz" type="integer" required="true" unit="centimeters" min_value="1"
+        description="Width" />
+    </model>
+
+    <!-- ─── Item physical dimensions ───
+         DIFFERS from PlacePhysicalDimensions: predefined_volume instead of weight_gross -->
+    <model name="ItemPhysicalDimensions"
+      description="Item physical parameters. Either dx/dy/dz or predefined_volume">
+      <field name="dx" type="integer" required="false" unit="centimeters" description="Length" />
+      <field name="dy" type="integer" required="false" unit="centimeters" description="Height" />
+      <field name="dz" type="integer" required="false" unit="centimeters" description="Width" />
+      <field name="predefined_volume" type="integer" required="false" unit="cm³"
+        description="Volume" />
+    </model>
+
+    <!-- ─── Place (simple, for pricing/offersinfo) ───
+         Merges PricingResourcePlace and OffersInfoResourcePlace (IDENTICAL) -->
+    <model name="SimpleResourcePlace"
+      description="Order place (for pricing-calculator and offers/info POST)">
+      <field name="physical_dims" type="PlacePhysicalDimensions" required="true"
+        description="Physical parameters of the place" />
+    </model>
+
+    <!-- ─── Order place (full) ─── -->
+    <model name="ResourcePlace"
+      description="Order place (full, for offers/create and request/edit)">
+      <field name="physical_dims" type="PlacePhysicalDimensions" required="true"
+        description="Physical parameters of the place" />
+      <field name="barcode" type="string" required="true" description="Box barcode"
+        example="Kia-01" />
+    </model>
+
+    <!-- ─── Contact details ───
+         Merges Contact and StationContact (IDENTICAL fields) -->
+    <model name="Contact" description="Contact details (recipient, station)">
+      <field name="first_name" type="string" required="false" description="First name"
+        example="Василий" />
+      <field name="last_name" type="string" required="false" description="Last name"
+        example="Пупкин" />
+      <field name="patronymic" type="string" required="false" description="Patronymic"
+        example="Михайлович" />
+      <field name="phone" type="string" required="false" description="Phone number (without +)"
+        example="79529999999" />
+      <field name="email" type="string" required="false" description="Email"
+        example="pupkin@mail.ru" />
+    </model>
+
+    <!-- ─── Address (LocationDetails) ───
+         Unified model for pickup_points_list and offers_create (IDENTICAL) -->
+    <model name="LocationDetails" description="Detailed address">
+      <field name="geoId" type="number" required="false" description="City identifier"
+        example="213" />
+      <field name="country" type="string" required="false" description="Country" example="Россия" />
+      <field name="region" type="string" required="false" description="Region" example="Москва" />
+      <field name="subRegion" type="string" required="false" description="Sub-region"
+        example="Московская область" />
+      <field name="locality" type="string" required="false" description="Locality"
+        example="Москва" />
+      <field name="street" type="string" required="false" description="Street"
+        example="Пролетарский проспект" />
+      <field name="house" type="string" required="false" description="House number" example="19" />
+      <field name="housing" type="string" required="false" description="Housing block (korpus)"
+        example="1" />
+      <field name="building" type="string" required="false" description="Building" example="1" />
+      <field name="apartment" type="string" required="false" description="Apartment number"
+        example="2" />
+      <field name="comment" type="string" required="false" description="Comment" />
+      <field name="full_address" type="string" required="false" description="Full address"
+        example="Москва, Пролетарский проспект, 19" />
+      <field name="postal_code" type="string" required="false" description="Postal code"
+        example="123182" />
+    </model>
+
+    <!-- ─── Custom location ─── -->
+    <model name="CustomLocation" description="Custom location (coordinates + address)">
+      <field name="latitude" type="number" required="false" description="Latitude" />
+      <field name="longitude" type="number" required="false" description="Longitude" />
+      <field name="details" type="LocationDetails" required="false"
+        description="Detailed address information" />
+    </model>
+
+    <!-- ─── Source node (for orders) ─── -->
+    <model name="SourceRequestNode"
+      description="Order source point (for offers/create, request/create)">
+      <field name="platform_station" type="PlatformStation" required="true"
+        description="Source station" />
+      <field name="interval_utc" type="TimeIntervalUTC" required="false"
+        description="Shipping time interval (UTC)" />
+    </model>
+
+    <!-- ─── Destination node (for orders) ─── -->
+    <model name="DestinationRequestNode"
+      description="Order destination point (discriminated union by type)">
+      <field name="type" type="DestinationType" required="true" description="Destination point type" />
+      <field name="platform_station" type="PlatformStation" required="false"
+        description="Pickup point station (when type=platform_station)" />
+      <field name="custom_location" type="CustomLocation" required="false"
+        description="Custom address (when type=custom_location)" />
+      <field name="interval_utc" type="TimeIntervalUTC" required="false"
+        description="Desired delivery interval (UTC). Ignored in redelivery_options" />
+    </model>
+
+    <!-- ─── Request metadata ─── -->
+    <model name="RequestInfo" description="Basic request metadata">
+      <field name="operator_request_id" type="string" required="true"
+        description="Unique order ID on the sender's side" example="lKF4565ml" />
+      <field name="merchant_id" type="string" required="false" description="Sender merchant ID"
+        example="290587090cfc4943856851c8c3b2eebf" />
+      <field name="comment" type="string" required="false" description="Comment" />
+    </model>
+
+    <!-- ─── Item billing details ─── -->
+    <model name="ItemBillingDetails" description="Billing details for an item">
+      <field name="inn" type="string" required="true" description="Tax ID (INN)"
+        example="9715386101" />
+      <field name="nds" type="integer" required="true"
+        description="VAT rate. Allowed: 0, 5, 7, 10, 22. No VAT: -1" example="22" />
+      <field name="unit_price" type="integer" required="true" unit="kopecks"
+        description="Price per unit" example="100" />
+      <field name="assessed_unit_price" type="integer" required="true" unit="kopecks"
+        description="Assessed price per unit" example="100" />
+    </model>
+
+    <!-- ─── Order item ─── -->
+    <model name="RequestResourceItem" description="Item in an order">
+      <field name="count" type="integer" required="true" description="Quantity" example="1" />
+      <field name="name" type="string" required="true" description="Name" example="Духи" />
+      <field name="article" type="string" required="true" description="Article/SKU"
+        example="YS2-2022" />
+      <field name="marking_code" type="string" required="false"
+        description="Marking code (Chestniy Znak / Honest Mark)" />
+      <field name="billing_details" type="ItemBillingDetails" required="true"
+        description="Billing details" />
+      <field name="physical_dims" type="ItemPhysicalDimensions" required="false"
+        description="Item physical parameters" />
+      <field name="place_barcode" type="string" required="true"
+        description="Barcode of the box containing this item" example="Kia-01" />
+      <field name="cargo_types" type="string[]" required="false" min_items="1"
+        description="Cargo types (e.g. 80 — jewelry)" example="[&quot;80&quot;]" />
+      <field name="fitting" type="boolean" required="false" default="false"
+        description="Whether fitting is allowed" />
+    </model>
+
+    <!-- ─── Variable delivery cost discount ─── -->
+    <model name="VariableDeliveryCostForRecipientItem"
+      description="Delivery cost discount based on buyback amount">
+      <field name="min_cost_of_accepted_items" type="integer" required="true" min_value="1"
+        description="Minimum accepted items cost threshold" />
+      <field name="delivery_cost" type="integer" required="true" min_value="0" unit="kopecks"
+        description="Delivery cost after discount" />
+    </model>
+
+    <!-- ─── Order billing info ─── -->
+    <model name="BillingInfo" description="Order billing information">
+      <field name="payment_method" type="PaymentMethod" required="true" description="Payment method" />
+      <field name="delivery_cost" type="integer" required="false" unit="kopecks"
+        description="Delivery fee charged to recipient" />
+      <field name="variable_delivery_cost_for_recipient"
+        type="VariableDeliveryCostForRecipientItem[]" required="false"
+        description="Delivery cost discounts (only for postpay with partial buyback)" />
+    </model>
+
+    <!-- ─── Coordinate interval ─── -->
+    <model name="CoordinateInterval" description="Coordinate interval for geo-filtering">
+      <field name="from" type="number" required="true" description="Lower bound" />
+      <field name="to" type="number" required="true" description="Upper bound" />
+    </model>
+
+    <!-- ─── Geo point ─── -->
+    <model name="GeoPoint" description="Geo coordinates">
+      <field name="latitude" type="number" required="true" description="Latitude"
+        example="55.666624" />
+      <field name="longitude" type="number" required="true" description="Longitude"
+        example="37.51573" />
+    </model>
+
+    <!-- ─── Pickup point services ─── -->
+    <model name="PickupServices" description="Services available at a pickup point">
+      <field name="is_fitting_allowed" type="boolean" required="false"
+        description="Whether fitting is allowed" />
+      <field name="is_partial_refuse_allowed" type="boolean" required="false"
+        description="Whether partial buyback is allowed" />
+      <field name="is_paperless_pickup_allowed" type="boolean" required="false"
+        description="Whether paperless drop-off is allowed" />
+      <field name="is_unboxing_allowed" type="boolean" required="false"
+        description="Whether unboxing is allowed" />
+    </model>
+
+    <!-- ─── Time of day ─── -->
+    <model name="DayTime" description="Time of day">
+      <field name="hours" type="integer" required="true" min_value="0" max_value="23"
+        description="Hours" />
+      <field name="minutes" type="integer" required="true" min_value="0" max_value="59"
+        description="Minutes" />
+    </model>
+
+    <!-- ─── Schedule rule ─── -->
+    <model name="StationScheduleRestriction" description="Operating schedule rule">
+      <field name="days" type="integer[]" required="true"
+        description="Day of week numbers (1=Mon, 7=Sun)" />
+      <field name="time_from" type="DayTime" required="true" description="Opening time" />
+      <field name="time_to" type="DayTime" required="false" description="Closing time" />
+    </model>
+
+    <!-- ─── Station schedule ─── -->
+    <model name="StationSchedule" description="Station operating schedule">
+      <field name="time_zone" type="integer" required="true"
+        description="Time zone (UTC offset in hours)" />
+      <field name="restrictions" type="StationScheduleRestriction[]" required="true"
+        description="Schedule rules" />
+    </model>
+
+    <!-- ─── Days off ─── -->
+    <model name="DayOffs" description="Day off">
+      <field name="date" type="integer" required="true" description="Date as UNIX timestamp"
+        example="1733356800" />
+      <field name="date_utc" type="string" required="true" description="Date in UTC"
+        example="2024-12-05T00:00:00+0000" />
+    </model>
+
+    <!-- ─── Pickup station (Response) ─── -->
+    <model name="PickupStation" description="Pickup/drop-off station">
+      <field name="id" type="string" required="true" description="Station identifier"
+        example="0198602de4a6749aba12e151bdf4caaa" />
+      <field name="operator_station_id" type="string" required="false"
+        description="ID in operator system" example="10035218565" />
+      <field name="name" type="string" required="false" description="Name"
+        example="Пункт выдачи заказов Яндекс Маркета" />
+      <field name="type" type="PickupStationType" required="true" description="Station type" />
+      <field name="position" type="GeoPoint" required="false" description="Geo coordinates" />
+      <field name="address" type="LocationDetails" required="false" description="Full address" />
+      <field name="instruction" type="string" required="false" description="How to get there" />
+      <field name="payment_methods" type="PaymentMethod[]" required="false"
+        description="Available payment methods" />
+      <field name="contact" type="Contact" required="false" description="Station contacts" />
+      <field name="schedule" type="StationSchedule" required="false"
+        description="Operating schedule" />
+      <field name="is_yandex_branded" type="boolean" required="false" default="false"
+        description="Yandex-branded pickup point" />
+      <field name="is_market_partner" type="boolean" required="false" default="false"
+        description="Partner pickup point" />
+      <field name="is_dark_store" type="boolean" required="false" default="false"
+        description="Dark store" />
+      <field name="pickup_services" type="PickupServices" required="false"
+        description="Available services" />
+      <field name="deactivation_date" type="string" required="false"
+        description="Pickup point deactivation date" />
+      <field name="deactivation_date_predicted_debt" type="string" required="false"
+        description="Deactivation date due to non-payment" />
+      <field name="available_for_dropoff" type="boolean" required="false"
+        description="Available for business drop-off" />
+      <field name="available_for_c2c_dropoff" type="boolean" required="false"
+        description="Available for individual drop-off" />
+      <field name="dayoffs" type="DayOffs[]" required="false" description="Days off" />
+    </model>
+
+    <!-- ─── Detected locality ─── -->
+    <model name="LocationDetectedVariant" description="Detected locality variant">
+      <field name="geo_id" type="integer" required="true"
+        description="Locality identifier" example="213" />
+      <field name="address" type="string" required="true" description="Address variant"
+        example="Москва" />
+    </model>
+
+    <!-- ─── Delivery interval (OfferInfo — response offers/info) ─── -->
+    <model name="OfferInfo" description="Delivery interval (response for offers/info GET and POST)">
+      <field name="from" type="string" required="true" description="UTC delivery start time"
+        example="2026-01-18T07:00:00.000000Z" />
+      <field name="to" type="string" required="true" description="UTC delivery end time"
+        example="2026-01-18T15:00:00.000000Z" />
+    </model>
+
+    <!-- ─── Offer ─── -->
+    <model name="Offer" description="Delivery option (offer)">
+      <field name="offer_id" type="string" required="true" description="Offer identifier"
+        example="c1b139dbd76b4ee3b39b19180b516119" />
+      <field name="expires_at" type="integer | string" required="true"
+        description="Offer expiration time. When send_unix=true — integer (UNIX timestamp), otherwise — string (UTC)"
+        example="2021-10-25T15:00:00.000000Z" />
+      <field name="offer_details" type="OfferDetails" required="true"
+        description="Offer details" />
+    </model>
+
+    <!-- ─── Offer details ─── -->
+    <model name="OfferDetails" description="Delivery option details">
+      <field name="delivery_interval" type="DeliveryIntervalUTC" required="true"
+        description="Delivery interval" />
+      <field name="pickup_interval" type="PickupInterval | PickupIntervalUTC" required="true"
+        description="Pickup interval. When send_unix=true — PickupInterval (integer UNIX), otherwise — PickupIntervalUTC (string UTC)" />
+      <field name="pricing" type="string" required="true" description="Delivery cost incl. VAT"
+        example="192.15 RUB" />
+      <field name="pricing_commission_on_delivery_payment" type="string" required="false"
+        description="Commission percentage" example="2.2%" />
+      <field name="pricing_commission_on_delivery_payment_amount" type="string" required="false"
+        description="Commission amount" example="9.43 RUB" />
+      <field name="pricing_total" type="string" required="true"
+        description="Total incl. VAT and commission" example="1400.96 RUB" />
+    </model>
+
+    <!-- ─── Delivery interval (response offers/create) ─── -->
+    <model name="DeliveryIntervalUTC" description="Delivery interval (response offers/create)">
+      <field name="min" type="string" required="true" description="Lower bound (UTC)"
+        example="2021-10-25T15:00:00.000000Z" />
+      <field name="max" type="string" required="true" description="Upper bound (UTC)"
+        example="2021-10-25T15:00:00.000000Z" />
+      <field name="policy" type="LastMilePolicy" required="true"
+        description="Last mile policy" />
+    </model>
+
+    <!-- ─── Pickup interval (UNIX) ─── -->
+    <model name="PickupInterval" description="Pickup interval (UNIX Timestamp)">
+      <field name="min" type="integer" required="true" description="Lower bound (UNIX)" />
+      <field name="max" type="integer" required="true" description="Upper bound (UNIX)" />
+    </model>
+
+    <!-- ─── Pickup interval (UTC) ─── -->
+    <model name="PickupIntervalUTC" description="Pickup interval (UTC string)">
+      <field name="min" type="string" required="true" description="Lower bound (UTC)"
+        example="2021-10-25T15:00:00.000000Z" />
+      <field name="max" type="string" required="true" description="Upper bound (UTC)"
+        example="2021-10-25T15:00:00.000000Z" />
+    </model>
+
+    <!-- ─── Actual delivery interval ─── -->
+    <model name="ActualDeliveryInterval"
+      description="Actual delivery interval (time + timezone, no date)">
+      <field name="from" type="string" required="true" description="Interval start"
+        example="10:00+03:00" />
+      <field name="to" type="string" required="true" description="Interval end"
+        example="23:00+03:00" />
+    </model>
+
+    <!-- ─── Available actions ─── -->
+    <model name="AvailableActions" description="Available order modification actions">
+      <field name="update_dates_available" type="boolean" required="false"
+        description="Delivery date change available" />
+      <field name="update_address_available" type="boolean" required="false"
+        description="Address change available" />
+      <field name="update_courier_to_pickup_available" type="boolean" required="false"
+        description="Switch courier→pickup point available" />
+      <field name="update_pickup_to_courier_available" type="boolean" required="false"
+        description="Switch pickup point→courier available" />
+      <field name="update_pickup_to_pickup_available" type="boolean" required="false"
+        description="Switch pickup point→pickup point available" />
+      <field name="update_items" type="boolean" required="false"
+        description="Item modification available" />
+      <field name="update_recipient" type="boolean" required="false"
+        description="Recipient modification available" />
+      <field name="update_places" type="boolean" required="false"
+        description="Package modification available" />
+    </model>
+
+    <!-- ─── Order state ─── -->
+    <model name="RequestState" description="Current order status">
+      <field name="status" type="string" required="true" description="Status (see status model)"
+        example="CREATED" />
+      <field name="description" type="string" required="false" description="Status description"
+        example="Заказ создан в операторе" />
+      <field name="timestamp" type="integer" required="false" description="UNIX timestamp" />
+      <field name="timestamp_utc" type="string" required="false" description="UTC timestamp" />
+      <field name="reason" type="CancelChangeReason" required="false"
+        description="Cancellation/reschedule reason" />
+    </model>
+
+    <!-- ─── Pickup code ─── -->
+    <model name="SelfPickupNodeCode" description="Pickup point collection code">
+      <field name="type" type="string" required="true" description="Code type" example="pickup" />
+      <field name="code" type="string" required="true" description="Code" example="00000" />
+    </model>
+
+    <!-- ─── Order data (BaseUserRequest) ─── -->
+    <model name="BaseUserRequest" description="Full order data (composite model)">
+      <field name="info" type="RequestInfo" required="true" description="Metadata" />
+      <field name="source" type="SourceRequestNode" required="true" description="Source point" />
+      <field name="destination" type="DestinationRequestNode" required="true"
+        description="Destination point" />
+      <field name="items" type="RequestResourceItem[]" required="true" min_items="1"
+        description="Order items" />
+      <field name="places" type="ResourcePlace[]" required="true" min_items="1"
+        description="Packages" />
+      <field name="billing_info" type="BillingInfo" required="true" description="Billing data" />
+      <field name="recipient_info" type="Contact" required="true" description="Recipient data" />
+      <field name="last_mile_policy" type="LastMilePolicy" required="true"
+        description="Delivery method" />
+      <field name="particular_items_refuse" type="boolean" required="false" default="false"
+        description="Partial buyback" />
+      <field name="forbid_unboxing" type="boolean" required="false" default="false"
+        description="Unboxing prohibited" />
+      <field name="available_actions" type="AvailableActions" required="false"
+        description="Available actions" />
+    </model>
+
+    <!-- ─── Order report (for batch request) ─── -->
+    <model name="RequestReport" description="Order report (wrapper for batch response)">
+      <field name="request_id" type="string" required="true" description="Order ID" />
+      <field name="request" type="BaseUserRequest" required="true" description="Order data" />
+      <field name="state" type="RequestState" required="true" description="Current status" />
+      <field name="full_items_price" type="integer" required="false"
+        description="Total items cost" />
+      <field name="sharing_url" type="string" required="false" description="Tracking link" />
+      <field name="courier_order_id" type="string" required="false"
+        description="Order number in operator system" />
+      <field name="self_pickup_node_code" type="SelfPickupNodeCode" required="false"
+        description="Collection code" />
+    </model>
+
+    <!-- ─── Editable package ─── -->
+    <model name="EditPlace" description="Package for editing (3.06)">
+      <field name="barcode" type="string" required="true"
+        description="Old barcode (identifier)" example="Kia-01" />
+      <field name="place" type="ResourcePlace" required="true"
+        description="New package (replacement)" />
+    </model>
+
+    <!-- ─── Package for places/edit ─── -->
+    <model name="PlacesEditRequestPlace" description="Package with items (3.12)">
+      <field name="barcode" type="string" required="true" description="Box barcode"
+        example="Kia-01" />
+      <field name="dimensions" type="PlaceDimensions" required="true"
+        description="Physical parameters (with min_value:1)" />
+      <field name="items" type="PlacesEditRequestItems[]" required="true"
+        description="Items in the box" />
+    </model>
+
+    <!-- ─── Item in box (for places/edit) ─── -->
+    <model name="PlacesEditRequestItems" description="Item-to-box binding (3.12)">
+      <field name="count" type="integer" required="true" description="Item quantity in the box" />
+      <field name="item_barcode" type="string" required="true" description="Item barcode" />
+    </model>
+
+    <!-- ─── Item markings for editing ─── -->
+    <model name="ItemsInstancesEditRequestItemInstances"
+      description="Item markings for editing (3.14)">
+      <field name="item_barcode" type="string" required="true" description="Item barcode" />
+      <field name="article" type="string" required="true" description="Article/SKU" />
+      <field name="marking_code" type="string" required="false" description="Marking code" />
+    </model>
+
+    <!-- ─── Item for removal ─── -->
+    <model name="ItemToRemove" description="Item for removal/reduction (3.15)">
+      <field name="item_barcode" type="string" required="true" description="Item barcode" />
+      <field name="remaining_count" type="integer" required="true"
+        description="Remaining quantity (0 = full removal)" />
+    </model>
+
+    <!-- ─── API error ─── -->
+    <model name="ApiError" description="Standard API error">
+      <field name="code" type="string" required="true" description="Error code"
+        example="bad_request" />
+      <field name="message" type="string" required="true" description="Error description" />
+    </model>
+  </models>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 4: STATUS MODEL
+       ══════════════════════════════════════════════════════════════ -->
+  <status_model>
+    <!-- Door delivery -->
+    <flow name="door_delivery" description="Door delivery">
+      <status name="DRAFT" type="main" description="Order created" />
+      <status name="VALIDATING" type="detail" description="Order is being validated" />
+      <status name="VALIDATING_ERROR" type="detail" description="Not confirmed by sorting center" />
+      <status name="CREATED" type="main" description="Order created and confirmed" />
+      <status name="DELIVERY_PROCESSING_STARTED" type="detail"
+        description="Being created in sorting center" />
+      <status name="DELIVERY_TRACK_RECIEVED" type="detail"
+        description="Created in delivery service system" />
+      <status name="SORTING_CENTER_PROCESSING_STARTED" type="detail"
+        description="Processing started at sorting center" />
+      <status name="SORTING_CENTER_TRACK_RECEIVED" type="detail"
+        description="Processed at sorting center" />
+      <status name="SORTING_CENTER_TRACK_LOADED" type="detail"
+        description="Created at sorting center" />
+      <status name="DELIVERY_LOADED" type="detail" description="Added to current shipment" />
+      <status name="SORTING_CENTER_LOADED" type="detail" description="Confirmed at sorting center" />
+      <status name="SORTING_CENTER_AT_START" type="main" description="Arrived at intake point" />
+      <status name="SORTING_CENTER_PREPARED" type="detail"
+        description="Ready to ship to delivery service" />
+      <status name="SORTING_CENTER_TRANSMITTED" type="detail"
+        description="In transit to last mile" />
+      <status name="DELIVERY_AT_START" type="detail" description="In recipient's city" />
+      <status name="DELIVERY_AT_START_SORT" type="detail"
+        description="Being prepared for courier dispatch" />
+      <status name="DELIVERY_TRANSPORTATION_RECIPIENT" type="detail"
+        description="Out for delivery to recipient" />
+      <status name="DELIVERY_TRANSMITTED_TO_RECIPIENT" type="detail"
+        description="Handed to recipient" />
+      <status name="DELIVERY_ATTEMPT_FAILED" type="detail" description="Delivery attempt failed" />
+      <status name="DELIVERY_DELIVERED" type="main" description="Delivered to recipient" />
+      <!-- Cancellation -->
+      <status name="CANCELLED" type="main" description="Cancelled" reasons="CancelStatusReason" />
+      <!-- Return -->
+      <status name="SORTING_CENTER_RETURN_PREPARING" type="detail"
+        description="Being prepared for return" />
+      <status name="SORTING_CENTER_RETURN_PREPARING_SENDER" type="detail"
+        description="Ready to ship back to sender" />
+      <status name="SORTING_CENTER_RETURN_ARRIVED" type="detail"
+        description="Arrived at sender's location" />
+      <status name="SORTING_CENTER_RETURN_RETURNED" type="detail"
+        description="Returned to sender" />
+      <status name="RETURN_PREPARING" type="main"
+        description="Return in progress at sorting center warehouse" />
+      <status name="RETURN_TRANSPORTATION_STARTED" type="main"
+        description="In transit to return point" />
+      <status name="RETURN_ARRIVED_DELIVERY" type="main" description="Returned to warehouse" />
+      <status name="RETURN_TRANSMITTED_FULFILMENT" type="main"
+        description="Transferred to fulfillment warehouse" />
+      <status name="RETURN_READY_FOR_PICKUP" type="main" description="Ready for store pickup" />
+      <status name="RETURN_RETURNED" type="main" description="Returned to store" />
+      <!-- Reschedule -->
+      <status name="DELIVERY_UPDATED_BY_SHOP" type="detail" description="Rescheduled by sender" />
+      <status name="DELIVERY_UPDATED_BY_RECIPIENT" type="detail"
+        description="Rescheduled by recipient" />
+      <status name="DELIVERY_UPDATED_BY_DELIVERY" type="detail"
+        description="Rescheduled by delivery service" />
+    </flow>
+
+    <!-- Pickup point delivery -->
+    <flow name="pickup_delivery" description="Delivery to pickup point or parcel locker">
+      <status name="DRAFT" type="main" description="Order created" />
+      <status name="VALIDATING" type="detail" description="Order is being validated" />
+      <status name="VALIDATING_ERROR" type="detail" description="Not confirmed by sorting center" />
+      <status name="CREATED" type="main" description="Order created and confirmed" />
+      <status name="DELIVERY_PROCESSING_STARTED" type="detail"
+        description="Being created in sorting center" />
+      <status name="DELIVERY_TRACK_RECIEVED" type="detail"
+        description="Created in delivery service system" />
+      <status name="SORTING_CENTER_PROCESSING_STARTED" type="detail"
+        description="Processing started at sorting center" />
+      <status name="SORTING_CENTER_TRACK_RECEIVED" type="detail"
+        description="Processed at sorting center" />
+      <status name="SORTING_CENTER_TRACK_LOADED" type="detail"
+        description="Created at sorting center" />
+      <status name="DELIVERY_LOADED" type="detail" description="Added to current shipment" />
+      <status name="SORTING_CENTER_LOADED" type="detail" description="Confirmed at sorting center" />
+      <status name="SORTING_CENTER_AT_START" type="main" description="Arrived at sorting center" />
+      <status name="SORTING_CENTER_PREPARED" type="detail"
+        description="Ready to ship to delivery service" />
+      <status name="SORTING_CENTER_TRANSMITTED" type="detail" description="In transit" />
+      <status name="DELIVERY_AT_START" type="detail"
+        description="Being prepared for dispatch to recipient" />
+      <status name="DELIVERY_TRANSPORTATION" type="detail" description="In transit to destination" />
+      <status name="DELIVERY_ARRIVED_PICKUP_POINT" type="detail"
+        description="Arrived at destination pickup point" />
+      <status name="DELIVERY_TRANSMITTED_TO_RECIPIENT" type="detail"
+        description="Handed to recipient" />
+      <status name="DELIVERY_STORAGE_PERIOD_EXPIRED" type="detail"
+        description="Storage period expired" />
+      <status name="DELIVERY_STORAGE_PERIOD_EXTENDED" type="detail"
+        description="Storage period extended" />
+      <status name="CONFIRMATION_CODE_RECEIVED" type="detail"
+        description="Confirmation code received" />
+      <status name="PARTICULARLY_DELIVERED" type="main" description="Partially delivered" />
+      <status name="DELIVERY_DELIVERED" type="main" description="Delivered to recipient" />
+      <status name="FINISHED" type="detail" description="Order confirmed" />
+      <!-- Cancellation -->
+      <status name="CANCELLED" type="main" description="Cancelled" reasons="CancelStatusReason" />
+      <!-- Return -->
+      <status name="SORTING_CENTER_RETURN_PREPARING" type="detail"
+        description="Being prepared for return" />
+      <status name="SORTING_CENTER_RETURN_PREPARING_SENDER" type="detail"
+        description="Ready to ship back to sender" />
+      <status name="SORTING_CENTER_RETURN_ARRIVED" type="detail"
+        description="Arrived at sender's location" />
+      <status name="SORTING_CENTER_RETURN_RETURNED" type="detail"
+        description="Returned to sender" />
+      <status name="RETURN_TRANSPORTATION_STARTED" type="main"
+        description="In transit to return point" />
+      <status name="RETURN_ARRIVED_DELIVERY" type="main" description="Returned to warehouse" />
+      <status name="RETURN_READY_FOR_PICKUP" type="main" description="Ready for store pickup" />
+      <status name="RETURN_RETURNED" type="main" description="Returned to store" />
+      <!-- Other statuses (unique to pickup point delivery) -->
+      <status name="DELIVERY_UPDATED_BY_SHOP" type="detail"
+        description="Order updated by sender" />
+      <status name="DELIVERY_UPDATED_BY_DELIVERY" type="detail"
+        description="Order updated by delivery service" />
+      <status name="CANCELED_IN_PLATFORM" type="detail"
+        description="Order cancelled by delivery service" />
+    </flow>
+  </status_model>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 5: ENDPOINTS
+       ══════════════════════════════════════════════════════════════ -->
+  <endpoints>
+
+    <!-- ═══ GROUP 1: Request preparation ═══ -->
+    <group id="1" name="Request preparation">
+
+      <!-- 1.01 Preliminary cost estimation -->
+      <endpoint id="1.01" name="Preliminary delivery cost estimation">
+        <method>POST</method>
+        <path>/api/b2b/platform/pricing-calculator</path>
+        <content_type>application/json</content_type>
+
+        <request>
+          <query_params>
+            <param name="is_oversized" type="boolean" required="false"
+              description="Oversized cargo flag" />
+          </query_params>
+          <body>
+            <field name="source" type="SimpleSourceNode" required="true"
+              description="Source point" />
+            <field name="destination" type="SimpleDestinationNode" required="true"
+              description="Destination point (oneOf: address or platform_station_id)" />
+            <field name="tariff" type="DeliveryTariff" required="true" description="Delivery tariff" />
+            <field name="total_weight" type="integer" required="true" unit="grams"
+              description="Total weight" />
+            <field name="total_assessed_price" type="integer" required="false" default="0"
+              unit="kopecks" description="Total assessed value" />
+            <field name="client_price" type="integer" required="false" default="0" unit="kopecks"
+              description="Amount to charge recipient" />
+            <field name="payment_method" type="string" required="false" default="already_paid"
+              description="Payment method: already_paid | card_on_receipt" />
+            <field name="places" type="SimpleResourcePlace[]" required="false" min_items="0"
+              description="Package information" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="200" description="Successful calculation">
+            <body>
+              <field name="pricing_total" type="string" description="Total cost incl. VAT"
+                example="225.7 RUB" />
+              <field name="delivery_days" type="integer" description="Estimated delivery days"
+                example="7" />
+            </body>
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 1.02 Get delivery intervals (GET) -->
+      <endpoint id="1.02" name="Get delivery intervals">
+        <method>GET</method>
+        <path>/api/b2b/platform/offers/info</path>
+
+        <request>
+          <query_params>
+            <param name="station_id" type="string" required="true" description="Shipping station ID" />
+            <param name="full_address" type="string" required="false"
+              description="Full address (oneOf with self_pickup_id)" />
+            <param name="self_pickup_id" type="string" required="false"
+              description="Pickup point ID (oneOf with full_address)" />
+            <param name="last_mile_policy" type="LastMilePolicy" required="false"
+              default="time_interval" description="Delivery method" />
+            <param name="is_oversized" type="boolean" required="false"
+              description="Oversized cargo flag" />
+            <param name="send_unix" type="boolean" required="false"
+              description="Time format (true=unix, false=utc)" />
+          </query_params>
+        </request>
+
+        <responses>
+          <response code="200" description="Successful request">
+            <body>
+              <field name="offers" type="OfferInfo[]" min_items="0"
+                description="Available intervals" />
+            </body>
+          </response>
+          <response code="400" description="No available options">
+            <body type="ApiError" />
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 1.03 Get delivery intervals (POST) -->
+      <endpoint id="1.03" name="Get delivery intervals #2">
+        <method>POST</method>
+        <path>/api/b2b/platform/offers/info</path>
+        <content_type>application/json</content_type>
+
+        <request>
+          <query_params>
+            <param name="is_oversized" type="boolean" required="false"
+              description="Oversized cargo flag" />
+            <param name="last_mile_policy" type="LastMilePolicy" required="false"
+              default="time_interval" description="Delivery method" />
+            <param name="send_unix" type="boolean" required="false"
+              description="Response time format (true — UNIX integer, false — UTC string). See format_switch in metadata" />
+          </query_params>
+          <body>
+            <field name="source" type="SimpleSourceNode" required="true"
+              description="Source point" />
+            <field name="destination" type="SimpleDestinationNode" required="true"
+              description="Destination point" />
+            <field name="places" type="SimpleResourcePlace[]" required="true" min_items="1"
+              description="Package information" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="200" description="Successful request">
+            <body>
+              <field name="offers" type="OfferInfo[]" min_items="0"
+                description="Available intervals" />
+            </body>
+          </response>
+          <response code="400" description="No available options">
+            <body type="ApiError" />
+          </response>
+        </responses>
+      </endpoint>
+    </group>
+
+    <!-- ═══ GROUP 2: Drop-off points and pickup points ═══ -->
+    <group id="2" name="Drop-off points and pickup points">
+
+      <!-- 2.01 Get geo_id -->
+      <endpoint id="2.01" name="Get locality identifier">
+        <method>POST</method>
+        <path>/api/b2b/platform/location/detect</path>
+        <content_type>application/json</content_type>
+        <note>Large cities may have multiple geo_id values depending on the address provided</note>
+
+        <request>
+          <body>
+            <field name="location" type="string" required="true"
+              description="Address or address fragment" example="Москва" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="200" description="Successful request">
+            <body>
+              <field name="variants" type="LocationDetectedVariant[]"
+                description="Detected locality variants" />
+            </body>
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 2.02 Pickup points list -->
+      <endpoint id="2.02" name="Get drop-off and pickup points list">
+        <method>POST</method>
+        <path>/api/b2b/platform/pickup-points/list</path>
+        <content_type>application/json</content_type>
+        <note>Accepts empty body — returns all available points</note>
+
+        <request>
+          <body>
+            <field name="pickup_point_ids" type="string[]" required="false"
+              description="Pickup point IDs" />
+            <field name="geo_id" type="integer" required="false" min_value="0"
+              description="Locality ID" />
+            <field name="longitude" type="CoordinateInterval" required="false"
+              description="Longitude interval" />
+            <field name="latitude" type="CoordinateInterval" required="false"
+              description="Latitude interval" />
+            <field name="type" type="PickupStationType" required="false" description="Station type" />
+            <field name="payment_method" type="PaymentMethod" required="false"
+              description="Payment type" />
+            <field name="payment_methods" type="PaymentMethod[]" required="false"
+              description="Set of required payment types" />
+            <field name="available_for_dropoff" type="boolean" required="false"
+              description="Drop-off availability (required true for warehouse type)" />
+            <field name="is_yandex_branded" type="boolean" required="false" default="false"
+              description="Yandex-branded pickup points" />
+            <field name="is_not_branded_partner_station" type="boolean" required="false"
+              default="false" description="Partner pickup points" />
+            <field name="operator_ids" type="OperatorId[]" required="false"
+              description="Filter by pickup point operators" />
+            <field name="pickup_services" type="PickupServices" required="false"
+              description="Pickup point services" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="200" description="Successful request">
+            <body>
+              <field name="points" type="PickupStation[]" description="Array of stations" />
+            </body>
+          </response>
+        </responses>
+      </endpoint>
+    </group>
+
+    <!-- ═══ GROUP 3: Core requests ═══ -->
+    <group id="3" name="Core requests">
+
+      <!-- 3.01 Create request -->
+      <endpoint id="3.01" name="Create request (get offers)">
+        <method>POST</method>
+        <path>/api/b2b/platform/offers/create</path>
+        <content_type>application/json</content_type>
+
+        <request>
+          <query_params>
+            <param name="send_unix" type="boolean" required="false"
+              description="Response time format (true — UNIX integer, false — UTC string). See format_switch in metadata" />
+          </query_params>
+          <body>
+            <field name="info" type="RequestInfo" required="true" description="Metadata" />
+            <field name="source" type="SourceRequestNode" required="true"
+              description="Source point" />
+            <field name="destination" type="DestinationRequestNode" required="true"
+              description="Destination point" />
+            <field name="items" type="RequestResourceItem[]" required="true" min_items="1"
+              description="Items" />
+            <field name="places" type="ResourcePlace[]" required="true" min_items="1"
+              description="Packages" />
+            <field name="billing_info" type="BillingInfo" required="true"
+              description="Billing data" />
+            <field name="recipient_info" type="Contact" required="true"
+              description="Recipient data" />
+            <field name="last_mile_policy" type="LastMilePolicy" required="true"
+              description="Delivery method" />
+            <field name="particular_items_refuse" type="boolean" required="false" default="false"
+              description="Partial buyback" />
+            <field name="forbid_unboxing" type="boolean" required="false" default="false"
+              description="Unboxing prohibited" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="200" description="Delivery options">
+            <body>
+              <field name="offers" type="Offer[]" min_items="1" description="Array of offers" />
+            </body>
+          </response>
+          <response code="400" description="No options available">
+            <body type="ApiError" />
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 3.02 Confirm request -->
+      <endpoint id="3.02" name="Confirm request">
+        <method>POST</method>
+        <path>/api/b2b/platform/offers/confirm</path>
+        <content_type>application/json</content_type>
+        <note>10 minutes to confirm the offer</note>
+
+        <request>
+          <body>
+            <field name="offer_id" type="string" required="true" description="Offer ID"
+              example="c1b139dbd76b4ee3b39b19180b516119" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="200" description="Successfully booked">
+            <body>
+              <field name="request_id" type="string" description="Created order ID" />
+            </body>
+          </response>
+          <response code="400" description="Error">
+            <body type="ApiError" />
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 3.03 Get request info -->
+      <endpoint id="3.03" name="Get request info">
+        <method>GET</method>
+        <path>/api/b2b/platform/request/info</path>
+
+        <request>
+          <query_params>
+            <param name="request_id" type="string" required="false"
+              description="Request ID (oneOf with request_code)" />
+            <param name="request_code" type="string" required="false"
+              description="Order number (oneOf with request_id)" />
+            <param name="slim" type="boolean" required="false"
+              description="Updated response version" />
+          </query_params>
+        </request>
+
+        <responses>
+          <response code="200" description="Request information">
+            <body>
+              <field name="request_id" type="string" description="Order ID" />
+              <field name="request" type="BaseUserRequest" description="Order data" />
+              <field name="state" type="RequestState" description="Current status" />
+              <field name="full_items_price" type="integer" description="Total items cost" />
+              <field name="sharing_url" type="string" description="Tracking link" />
+              <field name="courier_order_id" type="string"
+                description="Order number in operator system" />
+              <field name="self_pickup_node_code" type="SelfPickupNodeCode"
+                description="Collection code" />
+            </body>
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 3.04 Get requests info (batch) -->
+      <endpoint id="3.04" name="Get requests info (batch)">
+        <method>POST</method>
+        <path>/api/b2b/platform/requests/info</path>
+        <content_type>application/json</content_type>
+
+        <request>
+          <body>
+            <field name="from" type="string" required="false"
+              description="Interval start (UTC or UNIX)" />
+            <field name="to" type="string" required="false"
+              description="Interval end (UTC or UNIX)" />
+            <field name="request_ids" type="string[]" required="false"
+              description="List of order IDs" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="200" description="List of requests">
+            <body>
+              <field name="requests" type="RequestReport[]" description="Array of requests" />
+            </body>
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 3.05 Actual delivery info -->
+      <endpoint id="3.05" name="Get actual delivery info">
+        <method>GET</method>
+        <path>/api/b2b/platform/request/actual_info</path>
+        <note>Only valid for statuses other than DELIVERY_DELIVERED, ERROR, CANCELLED</note>
+
+        <request>
+          <query_params>
+            <param name="request_id" type="string" required="true" description="Request ID" />
+          </query_params>
+        </request>
+
+        <responses>
+          <response code="200" description="Actual information">
+            <body>
+              <field name="delivery_date" type="string" description="Delivery date (YYYY-MM-DD)"
+                example="2023-10-20" />
+              <field name="delivery_interval" type="ActualDeliveryInterval"
+                description="Time interval" />
+            </body>
+          </response>
+          <response code="404" description="Request not found">
+            <body type="ApiError" />
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 3.06 Edit order -->
+      <endpoint id="3.06" name="Edit order">
+        <method>POST</method>
+        <path>/api/b2b/platform/request/edit</path>
+        <content_type>application/json</content_type>
+        <note>Availability is determined by the available_actions field from 3.03</note>
+
+        <request>
+          <body>
+            <field name="request_id" type="string" required="true" description="Order ID" />
+            <field name="recipient_info" type="Contact" required="false"
+              description="New recipient data" />
+            <field name="destination" type="DestinationRequestNode" required="false"
+              description="New destination point" />
+            <field name="places" type="EditPlace[]" required="false"
+              description="Packages to edit" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="200" description="Success">
+            <body>
+              <field name="edit_id" type="string" description="Edit operation ID" />
+            </body>
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 3.07 Intervals for current destination -->
+      <endpoint id="3.07" name="Get delivery intervals for current destination">
+        <method>POST</method>
+        <path>/api/b2b/platform/request/datetime_options</path>
+        <content_type>application/json</content_type>
+
+        <request>
+          <body>
+            <field name="request_id" type="string" required="true" description="Order ID" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="200" description="Available intervals">
+            <body>
+              <field name="options" type="TimeIntervalUTC[]" description="Possible intervals" />
+            </body>
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 3.08 Intervals for new destination -->
+      <endpoint id="3.08" name="Get delivery intervals for new destination">
+        <method>POST</method>
+        <path>/api/b2b/platform/request/redelivery_options</path>
+        <content_type>application/json</content_type>
+        <note>destination.interval_utc is ignored</note>
+
+        <request>
+          <body>
+            <field name="request_id" type="string" required="true" description="Order ID" />
+            <field name="destination" type="DestinationRequestNode" required="true"
+              description="New destination point" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="200" description="Available intervals">
+            <body>
+              <field name="options" type="TimeIntervalUTC[]" description="Possible intervals" />
+            </body>
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 3.09 Status history -->
+      <endpoint id="3.09" name="Request status history">
+        <method>GET</method>
+        <path>/api/b2b/platform/request/history</path>
+
+        <request>
+          <query_params>
+            <param name="request_id" type="string" required="true" description="Request ID" />
+          </query_params>
+        </request>
+
+        <responses>
+          <response code="200" description="Status history">
+            <body>
+              <field name="state_history" type="RequestState[]" min_items="1"
+                description="Change history" />
+            </body>
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 3.10 Cancel request -->
+      <endpoint id="3.10" name="Cancel request">
+        <method>POST</method>
+        <path>/api/b2b/platform/request/cancel</path>
+        <content_type>application/json</content_type>
+        <note>Can be cancelled before reaching DELIVERY_TRANSPORTATION_RECIPIENT status</note>
+
+        <request>
+          <body>
+            <field name="request_id" type="string" required="true" description="Request ID" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="200" description="Cancellation result">
+            <body>
+              <field name="status" type="CancelStatus" description="Cancellation status" />
+              <field name="reason" type="string" description="Reason code" />
+              <field name="description" type="string" description="Comment" />
+            </body>
+          </response>
+          <response code="403" description="Insufficient permissions">
+            <body type="ApiError" />
+          </response>
+          <response code="404" description="Not found">
+            <body type="ApiError" />
+          </response>
+          <response code="500" description="Internal error">
+            <body type="ApiError" />
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 3.11 Create order (quick) -->
+      <endpoint id="3.11" name="Create order (quick, without offer)">
+        <method>POST</method>
+        <path>/api/b2b/platform/request/create</path>
+        <content_type>application/json</content_type>
+        <note>Simplified alternative to 3.01+3.02. Creates order immediately.</note>
+
+        <request>
+          <query_params>
+            <param name="send_unix" type="boolean" required="false"
+              description="Response time format (true — UNIX integer, false — UTC string). See format_switch in metadata" />
+          </query_params>
+          <headers>
+            <header name="Accept-Language" type="string" required="false"
+              description="Response language"
+              example="ru" />
+          </headers>
+          <body description="Identical to 3.01 (offers/create) body">
+            <field name="info" type="RequestInfo" required="true" />
+            <field name="source" type="SourceRequestNode" required="true" />
+            <field name="destination" type="DestinationRequestNode" required="true" />
+            <field name="items" type="RequestResourceItem[]" required="true" min_items="1" />
+            <field name="places" type="ResourcePlace[]" required="true" min_items="1" />
+            <field name="billing_info" type="BillingInfo" required="true" />
+            <field name="recipient_info" type="Contact" required="true" />
+            <field name="last_mile_policy" type="LastMilePolicy" required="true" />
+            <field name="particular_items_refuse" type="boolean" required="false" default="false" />
+            <field name="forbid_unboxing" type="boolean" required="false" default="false" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="200" description="Order created">
+            <body>
+              <field name="request_id" type="string" description="Created order ID" />
+            </body>
+          </response>
+          <response code="400" description="No options available">
+            <body type="ApiError" />
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 3.12 Edit packages -->
+      <endpoint id="3.12" name="Edit order packages">
+        <method>POST</method>
+        <path>/api/b2b/platform/request/places/edit</path>
+        <content_type>application/json</content_type>
+        <note>Async operation. Full set of new boxes with items.</note>
+
+        <request>
+          <body>
+            <field name="request_id" type="string" required="true" description="Order ID" />
+            <field name="places" type="PlacesEditRequestPlace" required="true"
+              description="Package information" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="202" description="Request accepted">
+            <body>
+              <field name="editing_task_id" type="string"
+                description="Task ID for status check" />
+            </body>
+          </response>
+          <response code="400" description="Data error">
+            <body type="ApiError" />
+          </response>
+          <response code="403" description="Insufficient permissions">
+            <body type="ApiError" />
+          </response>
+          <response code="404" description="Not found">
+            <body type="ApiError" />
+          </response>
+          <response code="409" description="Conflict">
+            <body type="ApiError" />
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 3.13 Editing status -->
+      <endpoint id="3.13" name="Get editing request status">
+        <method>POST</method>
+        <path>/api/b2b/platform/request/edit/status</path>
+
+        <request>
+          <query_params>
+            <param name="editing_task_id" type="string" required="true"
+              description="Editing task ID" />
+          </query_params>
+        </request>
+
+        <responses>
+          <response code="200" description="Status">
+            <body>
+              <field name="status" type="EditingRequestStatus" description="Task status" />
+            </body>
+          </response>
+          <response code="400" description="Data error">
+            <body type="ApiError" />
+          </response>
+          <response code="404" description="Not found">
+            <body type="ApiError" />
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 3.14 Edit items -->
+      <endpoint id="3.14" name="Edit order items">
+        <method>POST</method>
+        <path>/api/b2b/platform/request/items-instances/edit</path>
+        <content_type>application/json</content_type>
+        <note>Async operation. Full set of items. Each item_barcode must have a unique article.</note>
+
+        <request>
+          <body>
+            <field name="request_id" type="string" required="true" description="Order ID" />
+            <field name="items_instances" type="ItemsInstancesEditRequestItemInstances[]"
+              required="true" min_items="1" description="List of items" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="202" description="Request accepted">
+            <body>
+              <field name="editing_task_id" type="string" description="Task ID" />
+            </body>
+          </response>
+          <response code="400" description="Data error">
+            <body type="ApiError" />
+          </response>
+          <response code="403" description="Insufficient permissions">
+            <body type="ApiError" />
+          </response>
+          <response code="404" description="Not found">
+            <body type="ApiError" />
+          </response>
+          <response code="409" description="Conflict">
+            <body type="ApiError" />
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 3.15 Remove items -->
+      <endpoint id="3.15" name="Remove items from order">
+        <method>POST</method>
+        <path>/api/b2b/platform/request/items/remove</path>
+        <content_type>application/json</content_type>
+        <note>Async operation. Full set of items with new quantities.</note>
+
+        <request>
+          <body>
+            <field name="request_id" type="string" required="true" description="Order ID" />
+            <field name="items_to_remove" type="ItemToRemove[]" required="true" min_items="1"
+              description="Items with new quantities" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="202" description="Request accepted">
+            <body>
+              <field name="editing_task_id" type="string" description="Task ID" />
+            </body>
+          </response>
+          <response code="400" description="Data error">
+            <body type="ApiError" />
+          </response>
+          <response code="403" description="Insufficient permissions">
+            <body type="ApiError" />
+          </response>
+          <response code="404" description="Not found">
+            <body type="ApiError" />
+          </response>
+          <response code="409" description="Conflict">
+            <body type="ApiError" />
+          </response>
+        </responses>
+      </endpoint>
+    </group>
+
+    <!-- ═══ GROUP 4: Labels and handover acts ═══ -->
+    <group id="4" name="Labels and handover acts">
+
+      <!-- 4.01 Generate labels -->
+      <endpoint id="4.01" name="Generate labels">
+        <method>POST</method>
+        <path>/api/b2b/platform/request/generate-labels</path>
+        <content_type>application/json</content_type>
+        <response_content_type>application/pdf</response_content_type>
+
+        <request>
+          <body>
+            <field name="request_ids" type="string[]" required="true"
+              description="List of order IDs" />
+            <field name="generate_type" type="string" required="false" default="one"
+              description="Format: one (1 label/page), many (max labels/page)" />
+            <field name="language" type="string" required="false" default="ru"
+              description="Label text language" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="200" description="PDF with labels">
+            <body type="binary" content_type="application/pdf" />
+          </response>
+        </responses>
+      </endpoint>
+
+      <!-- 4.02 Handover act -->
+      <endpoint id="4.02" name="Get handover acts">
+        <method>POST</method>
+        <path>/api/b2b/platform/request/get-handover-act</path>
+        <content_type>application/json</content_type>
+        <response_content_type>application/pdf</response_content_type>
+        <note>At least one filter criterion is required: new_requests, created_since/until,
+          request_ids, or request_code</note>
+
+        <request>
+          <query_params>
+            <param name="new_requests" type="boolean" required="false"
+              description="All new unshipped orders" />
+            <param name="created_since" type="integer" required="false" min_value="0"
+              description="Range start (UNIX)" />
+            <param name="created_until" type="integer" required="false" min_value="0"
+              description="Range end (UNIX)" />
+            <param name="created_since_utc" type="string" required="false"
+              description="Range start (UTC)" />
+            <param name="created_until_utc" type="string" required="false"
+              description="Range end (UTC)" />
+            <param name="request_ids" type="string" required="false"
+              description="Order IDs (query)" />
+            <param name="request_code" type="string" required="false" description="Order number" />
+            <param name="editable_format" type="boolean" required="false"
+              description="Generate in Word format" />
+          </query_params>
+          <body>
+            <field name="request_ids" type="string[]" required="false"
+              description="List of request_id" />
+            <field name="request_codes" type="string[]" required="false"
+              description="List of request_code" />
+          </body>
+        </request>
+
+        <responses>
+          <response code="200" description="PDF/Word with handover act">
+            <body type="binary" content_type="application/pdf | application/msword" />
+          </response>
+        </responses>
+      </endpoint>
+    </group>
+  </endpoints>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 6: ERROR REFERENCE
+       ══════════════════════════════════════════════════════════════ -->
+  <errors>
+    <error_group name="Validation (400)">
+      <error code="400" text="Cannot parse destination info"
+        description="Required format: City, street, house" category="Address" />
+      <error code="400"
+        text="There already was request with such code within this employer, request_id"
+        description="operator_request_id must be unique" category="Duplication" />
+      <error code="400" text="Cant get station id for point" description="Invalid station IDs"
+        category="Station" />
+      <error code="400" text="Payment on delivery option is not available for courier delivery"
+        description="Payment on delivery not available for courier delivery" category="Payment" />
+      <error code="400" text="Сant calc routes because destination station is disabled"
+        description="Destination point is deactivated" category="Station" />
+      <error code="400" text="Pickup point doesn't accept payment on delivery"
+        description="Payment method not supported at pickup point" category="Payment" />
+      <error code="400" text="Pickup point doesn't accept prepaid orders"
+        description="Prepaid orders not accepted at pickup point" category="Payment" />
+      <error code="400" text="Particular items refuse is not allowed for courier delivery"
+        description="Partial buyback not available for courier delivery" category="Partial buyback" />
+      <error code="400" text="Fitting of items is not available for courier delivery"
+        description="Fitting not available for courier delivery" category="Fitting" />
+      <error code="400" text="Particular items refuse is not allowed for pickup point"
+        description="Partial buyback not available at pickup point" category="Partial buyback" />
+      <error code="400" text="Fitting of items is not available for pickup point"
+        description="Fitting not available at pickup point" category="Fitting" />
+    </error_group>
+
+    <error_group name="Authorization (401)">
+      <error code="401" text="Access denied" description="Check your token" category="Authorization" />
+    </error_group>
+
+    <error_group name="Resources (404)">
+      <error code="404" text="No delivery options" description="No available delivery options"
+        category="Delivery options" />
+      <error code="404" text="No dropoff available"
+        description="Drop-off unavailable from this station"
+        category="Shipment" />
+      <error code="404" text="Dimensions should not exceed limit"
+        description="Dimensions exceed maximum allowed" category="Dimensions" />
+    </error_group>
+  </errors>
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 7: UNITS OF MEASUREMENT
+       ══════════════════════════════════════════════════════════════ -->
+  <units>
+    <unit parameter="Volume" unit="cm³" />
+    <unit parameter="Dimensions" unit="centimeters" />
+    <unit parameter="Weight" unit="grams" />
+    <unit parameter="Cost" unit="kopecks" />
+    <unit parameter="Time" unit="UNIX (GMT+0) or UTC (GMT+0)" />
+    <unit parameter="Phone" format="without plus sign: 79123456789" />
+  </units>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 8: BUSINESS RULES (from FAQ and endpoint notes)
+       ══════════════════════════════════════════════════════════════ -->
+  <business_rules>
+
+    <!-- ─── Order cancellation ─── -->
+    <rule_group name="Order cancellation">
+      <rule id="BR-001" severity="critical"> Order can be cancelled before reaching
+        DELIVERY_TRANSPORTATION_RECIPIENT status (before handoff to courier). <source>faq,
+        request_cancel</source>
+        <related_endpoint>3.10</related_endpoint>
+      </rule>
+      <rule id="BR-002" severity="warning"> Paid cancellation starts from SORTING_CENTER_AT_START
+        status. <source>faq</source>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Offer and confirmation ─── -->
+    <rule_group name="Offer and confirmation">
+      <rule id="BR-003" severity="critical"> 10 minutes to confirm an offer. After expiration the
+        offer becomes invalid. <source>faq</source>
+        <related_endpoint>3.02</related_endpoint>
+      </rule>
+      <rule id="BR-004" severity="info"> If the client needs more time — do not create a request
+        until confirmation is received. For preliminary estimation use pricing-calculator (1.01) and
+        offers/info (1.02/1.03). <source>faq</source>
+        <related_endpoint>1.01, 1.02, 1.03</related_endpoint>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Items and packages ─── -->
+    <rule_group name="Items and packages">
+      <rule id="BR-005" severity="critical"> Every package (place) must have at least one item, and
+        every item must belong to a package (place_barcode → barcode). <source>faq</source>
+        <related_endpoint>3.01,
+        3.11</related_endpoint>
+      </rule>
+      <rule id="BR-006" severity="warning"> When sending multiple identical items, always specify
+        the quantity in the count parameter. Otherwise the system records quantity = 1. <source>
+        offers_create</source>
+        <related_endpoint>3.01, 3.11</related_endpoint>
+      </rule>
+      <rule id="BR-007" severity="info"> items — goods packed inside places. places — boxes
+        (packages) that will be loaded onto the vehicle during shipment. <source>faq</source>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Identifier uniqueness ─── -->
+    <rule_group name="Identifier uniqueness">
+      <rule id="BR-008" severity="critical"> operator_request_id must be unique for each confirmed
+        order. Creating a new order with the same ID will return an error. <source>faq</source>
+        <related_endpoint>3.01,
+        3.11</related_endpoint>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Address format ─── -->
+    <rule_group name="Address format">
+      <rule id="BR-009" severity="warning"> Address format: "City, street, house". Separate parts
+        with commas. Do not include: postal code, apartment number (apartment goes in
+        details.apartment). Intercom code, entrance number, etc. — in the comment field. <source>faq</source>
+        <example>Россия,
+        Москва, улица Пушкина, д. 8</example>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Phone format ─── -->
+    <rule_group name="Phone format">
+      <rule id="BR-010" severity="warning"> Phone number must be sent without the plus sign:
+        79123456789. <source>
+          faq</source>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Timezone ─── -->
+    <rule_group name="Timezone">
+      <rule id="BR-011" severity="critical"> All timestamps are sent and returned in GMT+0 (UNIX or
+        UTC format). <source>faq</source>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Marking (Chestniy Znak / Honest Mark) ─── -->
+    <rule_group name="Marking">
+      <rule id="BR-012" severity="info"> Chestniy Znak (Honest Mark) marking version 1.2 with crypto
+        tail is supported. In the marking_code field: GTIN (14 characters) + serial number (13
+        characters). Marking is NOT printed on receipts. Withdrawal from circulation is the client's
+        responsibility. <source>faq</source>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Barcodes ─── -->
+    <rule_group name="Barcodes">
+      <rule id="BR-013" severity="warning"> Allowed barcode characters: a-z, A-Z, 0-9, -, /, \, _.
+        Barcode is unique per package. Multiple items in one order can share the same barcode. <source>
+        faq</source>
+      </rule>
+      <rule id="BR-014" severity="info"> By default, the package barcode is replaced with a unique
+        one on the Yandex Delivery side. To use your own barcodes — contact your manager. <source>
+        offers_create</source>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Custom labels ─── -->
+    <rule_group name="Labels">
+      <rule id="BR-015" severity="info"> Custom labels are allowed. Requirements: — barcode unique
+        per package; — must contain: order number, store name, recipient address, delivery
+        date/time, contacts; — must scan correctly, standard size; — placed on flat surface of
+        packaging (not on edges); — label must remain intact when box is opened. <source>faq</source>
+        <related_endpoint>
+        4.01</related_endpoint>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Payment ─── -->
+    <rule_group name="Payment">
+      <rule id="BR-016" severity="critical"> For payment on delivery, set
+        billing_info.payment_method to: card_on_receipt or postpay. <source>faq</source>
+        <related_endpoint>3.01,
+        3.11</related_endpoint>
+      </rule>
+      <rule id="BR-017" severity="info"> Postpay — card payment via Yandex Go app or SMS link. Flow:
+        recipient selects items → pickup point staff confirms → push notification → payment (SBP or
+        card). Set payment_method: postpay in billing_info. <source>faq</source>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Limits ─── -->
+    <rule_group name="Limits">
+      <rule id="BR-018" severity="critical"> Maximum insured value: 250,000 rubles. <source>faq</source>
+        <external_link>
+        https://yandex.com/support/delivery-profile/ru/security/insurance-cargo-other-day</external_link>
+      </rule>
+      <rule id="BR-019" severity="info"> Dimension and weight limits depend on the delivery method. <source>
+        faq</source>
+        <external_link>https://yandex.com/support/delivery-profile/ru/other-day/rules</external_link>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Self drop-off ─── -->
+    <rule_group name="Self drop-off">
+      <rule id="BR-020" severity="info"> Self drop-off to sorting center is available until 21:00.
+        Get drop-off points via method 2.02 (pickup-points/list). Individual terms — contact your
+        manager. <source>faq</source>
+        <related_endpoint>2.02</related_endpoint>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Cost units ─── -->
+    <rule_group name="Cost units">
+      <rule id="BR-021" severity="critical"> All costs (unit_price, assessed_unit_price,
+        delivery_cost, client_price, total_assessed_price) are in KOPECKS, not rubles. Wrong units
+        will cause "Inconsistency billing details" error. <source>faq</source>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Authorization ─── -->
+    <rule_group name="Authorization">
+      <rule id="BR-022" severity="critical"> Test token works ONLY with test host, production token
+        — only with production host. Mixing will cause "Not authorized request". Also, "Incorrect
+        station platform ID" error occurs if: (1) environment mismatch (production station in test
+        request); (2) station is not bound to user or does not exist. <source>faq</source>
+      </rule>
+      <rule id="BR-023" severity="warning"> Changing the account password invalidates the token and
+        requires re-generation. <source>access</source>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Delivery intervals ─── -->
+    <rule_group name="Delivery intervals">
+      <rule id="BR-024" severity="critical"> Delivery interval must be in the future, otherwise —
+        "Delivery interval in the past" error. <source>faq</source>
+      </rule>
+      <rule id="BR-025" severity="warning"> Delivery interval must not be narrower than available
+        intervals in the region. For example, with 9:00–18:00 delivery, a 9:00–13:00 interval
+        returns "Delivery interval is too narrow". <source>faq</source>
+      </rule>
+      <rule id="BR-026" severity="info"> For pickup point/parcel locker delivery, interval format
+        is: {"from": "2022-06-16", "to": "2022-06-16"} (dates only). <source>faq</source>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Test environment ─── -->
+    <rule_group name="Test environment">
+      <rule id="BR-027" severity="info"> Test environment only supports Moscow addresses. This
+        applies to courier delivery, pickup points, and postal offices. <source>access</source>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Async operations ─── -->
+    <rule_group name="Async operations">
+      <rule id="BR-028" severity="warning"> Package editing (3.12), item editing (3.14), and item
+        removal (3.15) are async. They return 202 Accepted with editing_task_id. Check status via
+        3.13 (edit/status). <source>request_places_edit, request_items_edit,
+          request_items_remove</source>
+        <related_endpoint>3.12, 3.13, 3.14, 3.15</related_endpoint>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Order editing ─── -->
+    <rule_group name="Order editing">
+      <rule id="BR-029" severity="critical"> Edit availability is determined by the
+        available_actions field from 3.03 (request/info) response. Always check available_actions
+        before calling 3.06 (edit). <source>request_edit</source>
+        <related_endpoint>3.03, 3.06</related_endpoint>
+      </rule>
+      <rule id="BR-030" severity="warning"> To edit delivery dates, first request available
+        intervals via 3.07 or 3.08. <source>request_edit</source>
+        <related_endpoint>3.07, 3.08</related_endpoint>
+      </rule>
+    </rule_group>
+
+    <!-- ─── Request validation ─── -->
+    <rule_group name="Request validation">
+      <rule id="BR-031" severity="warning"> Request body must be valid JSON. Parsing errors return
+        "Incorrect JSON content" or "Cannot parse ... info". Validate JSON before sending. <source>
+        faq</source>
+      </rule>
+    </rule_group>
+
+  </business_rules>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 9: DUPLICATES MAP (for reference)
+       ══════════════════════════════════════════════════════════════ -->
+  <duplicates_map>
+    <group verdict="MERGED" unified_model="SimpleSourceNode">
+      <original name="PricingSourceNode" source="pricing_calculator" />
+      <original name="OffersInfoSourceNode" source="offersinfo_post" />
+    </group>
+    <group verdict="MERGED" unified_model="SimpleDestinationNode">
+      <original name="PricingDestinationNode" source="pricing_calculator" />
+      <original name="OffersInfoDestinationNode" source="offersinfo_post" />
+    </group>
+    <group verdict="MERGED" unified_model="SimpleResourcePlace">
+      <original name="PricingResourcePlace" source="pricing_calculator" />
+      <original name="OffersInfoResourcePlace" source="offersinfo_post" />
+    </group>
+    <group verdict="MERGED" unified_model="Contact">
+      <original name="Contact" source="offers_create" />
+      <original name="StationContact" source="pickup_points_list" />
+    </group>
+    <group verdict="MERGED" unified_model="LocationDetails">
+      <original name="LocationDetails" source="pickup_points_list" />
+      <original name="LocationDetails" source="offers_create" />
+    </group>
+    <group verdict="MERGED" unified_model="LastMilePolicy">
+      <original name="OffersInfoLastMilePolicy" source="offersinfo_get/post" />
+      <original name="LastMilePolicy" source="offers_create" />
+    </group>
+    <group verdict="MERGED" unified_model="CancelChangeReason">
+      <original name="CancelReason" source="request_info_get" />
+      <original name="ChangeReason" source="request_info_get" />
+    </group>
+    <group verdict="MERGED" unified_model="PaymentMethod">
+      <original name="PaymentMethod" source="pickup_points_list" />
+      <original name="PaymentMethod" source="offers_create" />
+    </group>
+    <group verdict="KEPT_SEPARATE" reason="Different structure">
+      <original name="SimpleSourceNode" note="Flat platform_station_id" />
+      <original name="SourceRequestNode" note="Nested PlatformStation + interval_utc" />
+    </group>
+    <group verdict="KEPT_SEPARATE" reason="Different structure">
+      <original name="SimpleDestinationNode" note="Flat address + platform_station_id" />
+      <original name="DestinationRequestNode" note="Discriminator type + nested objects" />
+    </group>
+    <group verdict="KEPT_SEPARATE" reason="Different structure">
+      <original name="SimpleResourcePlace" note="Only physical_dims" />
+      <original name="ResourcePlace" note="physical_dims + barcode" />
+    </group>
+    <group verdict="KEPT_SEPARATE" reason="Different fields">
+      <original name="PlacePhysicalDimensions" note="weight_gross, dx, dy, dz (no min_value)" />
+      <original name="PlaceDimensions" note="weight_gross, dx, dy, dz (all min_value:1)" />
+    </group>
+    <group verdict="KEPT_SEPARATE" reason="Different fields">
+      <original name="ItemPhysicalDimensions"
+        note="dx, dy, dz, predefined_volume (no weight_gross)" />
+      <original name="PlacePhysicalDimensions"
+        note="dx, dy, dz, weight_gross (no predefined_volume)" />
+    </group>
+    <group verdict="KEPT_SEPARATE" reason="Different format">
+      <original name="OfferInfo" note="from/to (UTC string)" />
+      <original name="TimeIntervalUTC" note="from/to (UNIX/UTC)" />
+      <original name="ActualDeliveryInterval" note="from/to (HH:MM+TZ, time without date)" />
+    </group>
+    <group verdict="KEPT_SEPARATE" reason="Different types">
+      <original name="PickupInterval" note="min/max (integer, UNIX)" />
+      <original name="PickupIntervalUTC" note="min/max (string, UTC)" />
+    </group>
+  </duplicates_map>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 10: JSON EXAMPLES (request/response for each endpoint)
+       ══════════════════════════════════════════════════════════════ -->
+  <json_examples>
+
+    <endpoint_example id="1.01" name="Preliminary delivery cost estimation">
+      <request><![CDATA[{
+  "source": {
+    "platform_station_id": "fbed3aa1-2cc6-4370-ab4d-59c5cc9bb924"
+  },
+  "destination": {
+    "platform_station_id": "e1139f6d-e34f-47a9-a55f-31f032a861a6",
+    "address": "Санкт-Петербург, Большая Монетная улица, 1к1А"
+  },
+  "tariff": "time_interval",
+  "total_weight": 0,
+  "total_assessed_price": 0,
+  "client_price": 0,
+  "payment_method": "already_paid",
+  "places": [
+    {
+      "physical_dims": {
+        "weight_gross": 100,
+        "dx": 10,
+        "dy": 10,
+        "dz": 10
+      }
+    }
+  ]
+}]]></request>
+      <response code="200"><![CDATA[{
+  "pricing_total": "225.7 RUB",
+  "delivery_days": 7
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="1.02" name="Get delivery intervals (GET)">
+      <request>GET with query parameters, no body</request>
+      <response code="200"><![CDATA[{
+  "offers": [
+    {
+      "from": "2026-01-18T07:00:00.000000Z",
+      "to": "2026-01-18T15:00:00.000000Z"
+    }
+  ]
+}]]></response>
+      <response code="400"><![CDATA[{
+  "code": "no_delivery_options",
+  "message": "No delivery options for interval"
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="1.03" name="Get delivery intervals #2 (POST)">
+      <request><![CDATA[{
+  "source": {
+    "platform_station_id": "fbed3aa1-2cc6-4370-ab4d-59c5cc9bb924"
+  },
+  "destination": {
+    "platform_station_id": "e1139f6d-e34f-47a9-a55f-31f032a861a6",
+    "address": "Санкт-Петербург, Большая Монетная улица, 1к1А"
+  },
+  "places": [
+    {
+      "physical_dims": {
+        "weight_gross": 100,
+        "dx": 10,
+        "dy": 10,
+        "dz": 10
+      }
+    }
+  ]
+}]]></request>
+      <response code="200"><![CDATA[{
+  "offers": [
+    {
+      "from": "2026-01-18T07:00:00.000000Z",
+      "to": "2026-01-18T15:00:00.000000Z"
+    }
+  ]
+}]]></response>
+      <response code="400"><![CDATA[{
+  "code": "no_delivery_options",
+  "message": "No delivery options for interval"
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="2.01" name="Get locality ID">
+      <request><![CDATA[{
+  "location": "Москва"
+}]]></request>
+      <response code="200"><![CDATA[{
+  "variants": [
+    {
+      "geo_id": 213,
+      "address": "Москва"
+    }
+  ]
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="2.02" name="Get drop-off and pickup points list">
+      <request><![CDATA[{
+  "pickup_point_ids": "01946f4f013c7337874ec2fb848a58a4",
+  "geo_id": 0,
+  "longitude": { "from": 0.5, "to": 0.5 },
+  "latitude": null,
+  "type": "pickup_point",
+  "payment_method": "already_paid",
+  "available_for_dropoff": true,
+  "is_yandex_branded": false,
+  "is_not_branded_partner_station": false,
+  "payment_methods": [null],
+  "operator_ids": ["market_l4g", "5post"],
+  "pickup_services": {
+    "is_fitting_allowed": true,
+    "is_partial_refuse_allowed": true,
+    "is_paperless_pickup_allowed": true,
+    "is_unboxing_allowed": true
+  }
+}]]></request>
+      <response code="200"><![CDATA[{
+  "points": [
+    {
+      "id": "0198602de4a6749aba12e151bdf4caaa",
+      "operator_station_id": "10035218565",
+      "name": "Пункт выдачи заказов Яндекс Маркета",
+      "type": "pickup_point",
+      "position": { "latitude": 55.666624, "longitude": 37.51573 },
+      "address": {
+        "geoId": 213, "country": "Россия", "region": "Москва",
+        "subRegion": "Московская область", "locality": "Москва",
+        "street": "Пролетарский проспект", "house": "19", "housing": "1",
+        "apartment": "2", "building": "1",
+        "comment": "Станция метро Щукинская (4выход) второй дом слева...",
+        "full_address": "Москва, Пролетарский проспект, 19", "postal_code": "123182"
+      },
+      "instruction": "Станция метро Щукинская (4выход) второй дом слева...",
+      "payment_methods": ["already_paid"],
+      "contact": {
+        "first_name": "Василий", "last_name": "Пупкин", "patronymic": "Михайлович",
+        "phone": "+74959999999", "email": "pupkin@mail.ru"
+      },
+      "schedule": {
+        "time_zone": 0,
+        "restrictions": [{ "days": [1], "time_from": {"hours": 0, "minutes": 0}, "time_to": null }]
+      },
+      "is_yandex_branded": false, "is_market_partner": false, "is_dark_store": false,
+      "pickup_services": {
+        "is_fitting_allowed": true, "is_partial_refuse_allowed": true,
+        "is_paperless_pickup_allowed": true, "is_unboxing_allowed": true
+      },
+      "deactivation_date": null, "deactivation_date_predicted_debt": null,
+      "available_for_dropoff": true, "available_for_c2c_dropoff": true,
+      "dayoffs": [{ "date": 1733356800, "date_utc": "2024-12-05T00:00:00+0000" }]
+    }
+  ]
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.01" name="Create request (offers/create)">
+      <request><![CDATA[{
+  "info": {
+    "operator_request_id": "lKF4565ml",
+    "merchant_id": "290587090cfc4943856851c8c3b2eebf",
+    "comment": "Комментарий"
+  },
+  "source": {
+    "platform_station": { "platform_id": "e1139f6d-e34f-47a9-a55f-31f032a861a6" },
+    "interval_utc": { "from": "2021-10-25T15:00:00.000000Z", "to": "2021-10-25T15:00:00.000000Z" }
+  },
+  "destination": {
+    "type": "platform_station",
+    "platform_station": null,
+    "custom_location": {
+      "latitude": 0.5, "longitude": 0.5,
+      "details": {
+        "geoId": 213, "country": "Россия", "region": "Москва",
+        "subRegion": "Московская область", "locality": "Москва",
+        "street": "Пролетарский проспект", "house": "19", "housing": "1",
+        "apartment": "2", "building": "1",
+        "comment": "Станция метро Щукинская...",
+        "full_address": "Москва, Пролетарский проспект, 19", "postal_code": "123182"
+      }
+    },
+    "interval_utc": null
+  },
+  "items": [{
+    "count": 1, "name": "Духи", "article": "YS2-2022",
+    "marking_code": "0104640126996984...",
+    "billing_details": { "inn": "9715386101", "nds": 22, "unit_price": 100, "assessed_unit_price": 100 },
+    "physical_dims": { "dx": 10, "dy": 15, "dz": 10, "predefined_volume": 20 },
+    "place_barcode": "Kia-01", "cargo_types": ["80"], "fitting": false
+  }],
+  "places": [{
+    "physical_dims": { "weight_gross": 100, "dx": 10, "dy": 10, "dz": 10 },
+    "barcode": "Kia-01"
+  }],
+  "billing_info": {
+    "payment_method": "already_paid", "delivery_cost": 0,
+    "variable_delivery_cost_for_recipient": [{ "min_cost_of_accepted_items": 1, "delivery_cost": 0 }]
+  },
+  "recipient_info": {
+    "first_name": "Василий", "last_name": "Пупкин", "patronymic": "Михайлович",
+    "phone": "+79529999999", "email": "pupkin@mail.ru"
+  },
+  "last_mile_policy": "time_interval",
+  "particular_items_refuse": false,
+  "forbid_unboxing": false
+}]]></request>
+      <response code="200"><![CDATA[{
+  "offers": [{
+    "offer_id": "c1b139dbd76b4ee3b39b19180b516119",
+    "expires_at": "2021-10-25T15:00:00.000000Z",
+    "offer_details": {
+      "delivery_interval": {
+        "min": "2021-10-25T15:00:00.000000Z",
+        "max": "2021-10-25T15:00:00.000000Z",
+        "policy": "time_interval"
+      },
+      "pickup_interval": { "min": "2021-10-25T15:00:00.000000Z", "max": "2021-10-25T15:00:00.000000Z" },
+      "pricing": "192.15 RUB",
+      "pricing_commission_on_delivery_payment": "2.2%",
+      "pricing_commission_on_delivery_payment_amount": "9.43 RUB",
+      "pricing_total": "1400.96 RUB"
+    }
+  }]
+}]]></response>
+      <response code="400"><![CDATA[{
+  "code": "no_delivery_options",
+  "message": "No delivery options for interval"
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.02" name="Confirm request">
+      <request><![CDATA[{
+  "offer_id": "c1b139dbd76b4ee3b39b19180b516119"
+}]]></request>
+      <response code="200"><![CDATA[{
+  "request_id": "77241d8009bb46d0bff5c65a73077bcd-udp"
+}]]></response>
+      <response code="400"><![CDATA[{
+  "code": "bad_request",
+  "message": "Missing required field 'offer_id'"
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.03" name="Get request info (GET)">
+      <request>GET with query parameters request_id or request_code</request>
+      <response code="200"><![CDATA[{
+  "request_id": "77241d8009bb46d0bff5c65a73077bcd-udp",
+  "request": {
+    "info": { "operator_request_id": "lKF4565ml", "merchant_id": "290587090cfc4943856851c8c3b2eebf", "comment": "Комментарий" },
+    "source": {
+      "platform_station": { "platform_id": "e1139f6d-e34f-47a9-a55f-31f032a861a6" },
+      "interval_utc": { "from": "2021-10-25T15:00:00.000000Z", "to": "2021-10-25T15:00:00.000000Z" }
+    },
+    "destination": {
+      "type": "platform_station", "platform_station": null,
+      "custom_location": {
+        "latitude": 0.5, "longitude": 0.5,
+        "details": {
+          "geoId": 213, "country": "Россия", "region": "Москва", "subRegion": "Московская область",
+          "locality": "Москва", "street": "Пролетарский проспект", "house": "19", "housing": "1",
+          "apartment": "2", "building": "1",
+          "full_address": "Москва, Пролетарский проспект, 19", "postal_code": "123182"
+        }
+      },
+      "interval_utc": null
+    },
+    "items": [{
+      "count": 1, "name": "Духи", "article": "YS2-2022",
+      "billing_details": { "inn": "9715386101", "nds": 22, "unit_price": 100, "assessed_unit_price": 100 },
+      "physical_dims": { "dx": 10, "dy": 15, "dz": 10, "predefined_volume": 20 },
+      "place_barcode": "Kia-01", "cargo_types": ["80"], "fitting": false
+    }],
+    "places": [{ "physical_dims": { "weight_gross": 100, "dx": 10, "dy": 10, "dz": 10 }, "barcode": "Kia-01" }],
+    "billing_info": {
+      "payment_method": "already_paid", "delivery_cost": 0,
+      "variable_delivery_cost_for_recipient": [{ "min_cost_of_accepted_items": 1, "delivery_cost": 0 }]
+    },
+    "recipient_info": { "first_name": "Василий", "last_name": "Пупкин", "patronymic": "Михайлович", "phone": "+79529999999", "email": "pupkin@mail.ru" },
+    "last_mile_policy": "time_interval", "particular_items_refuse": false, "forbid_unboxing": false,
+    "available_actions": {
+      "update_dates_available": true, "update_address_available": true,
+      "update_courier_to_pickup_available": true, "update_pickup_to_courier_available": true,
+      "update_pickup_to_pickup_available": true, "update_items": true,
+      "update_recipient": true, "update_places": true
+    }
+  },
+  "state": { "status": "CREATED", "description": "Заказ создан в операторе", "timestamp": 1704056400, "timestamp_utc": "2021-10-25T15:00:00.000000Z", "reason": "SHOP_CANCELLED" },
+  "full_items_price": 0,
+  "sharing_url": "https://dostavka.yandex.ru/route/ff60658e-d0f6-44bf-a22b-a77b08949e86",
+  "courier_order_id": "786459112",
+  "self_pickup_node_code": { "type": "pickup", "code": "00000" }
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.04" name="Get requests info (batch)">
+      <request><![CDATA[{
+  "from": "2021-10-25T15:00:00.000000Z",
+  "to": null,
+  "request_ids": "77241d8009bb46d0bff5c65a73077bcd-udp"
+}]]></request>
+      <response code="200"><![CDATA[{
+  "requests": [
+    {
+      "request_id": "77241d8009bb46d0bff5c65a73077bcd-udp",
+      "request": {
+        "info": {
+          "operator_request_id": "lKF4565ml",
+          "merchant_id": "290587090cfc4943856851c8c3b2eebf",
+          "comment": "Комментарий"
+        },
+        "source": {
+          "platform_station": { "platform_id": "e1139f6d-e34f-47a9-a55f-31f032a861a6" },
+          "interval_utc": { "from": "2021-10-25T15:00:00.000000Z", "to": "2021-10-25T15:00:00.000000Z" }
+        },
+        "destination": {
+          "type": "platform_station",
+          "platform_station": null,
+          "custom_location": { "latitude": 0.5, "longitude": 0.5, "details": {} },
+          "interval_utc": null
+        },
+        "items": [{
+          "count": 1, "name": "Духи", "article": "YS2-2022",
+          "billing_details": { "inn": "9715386101", "nds": 22, "unit_price": 100, "assessed_unit_price": 100 },
+          "physical_dims": { "dx": 10, "dy": 15, "dz": 10, "predefined_volume": 20 },
+          "place_barcode": "Kia-01", "cargo_types": ["80"], "fitting": false
+        }],
+        "places": [{ "physical_dims": { "weight_gross": 100, "dx": 10, "dy": 10, "dz": 10 }, "barcode": "Kia-01" }],
+        "billing_info": {
+          "payment_method": "already_paid", "delivery_cost": 0,
+          "variable_delivery_cost_for_recipient": [{ "min_cost_of_accepted_items": 1, "delivery_cost": 0 }]
+        },
+        "recipient_info": { "first_name": "Василий", "last_name": "Пупкин", "patronymic": "Михайлович", "phone": "+79529999999", "email": "pupkin@mail.ru" },
+        "last_mile_policy": "time_interval", "particular_items_refuse": false, "forbid_unboxing": false,
+        "available_actions": {
+          "update_dates_available": true, "update_address_available": true,
+          "update_courier_to_pickup_available": true, "update_pickup_to_courier_available": true,
+          "update_pickup_to_pickup_available": true, "update_items": true,
+          "update_recipient": true, "update_places": true
+        }
+      },
+      "state": { "status": "CREATED", "description": "Заказ создан в операторе", "timestamp": 1704056400, "timestamp_utc": "2021-10-25T15:00:00.000000Z", "reason": "SHOP_CANCELLED" },
+      "full_items_price": 0,
+      "sharing_url": "https://dostavka.yandex.ru/route/ff60658e-d0f6-44bf-a22b-a77b08949e86",
+      "courier_order_id": "786459112",
+      "self_pickup_node_code": { "type": "pickup", "code": "00000" }
+    }
+  ]
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.05" name="Get actual delivery info (GET)">
+      <request>GET with query parameter request_id</request>
+      <response code="200"><![CDATA[{
+  "delivery_date": "2023-10-20",
+  "delivery_interval": { "from": "10:00+03:00", "to": "23:00+03:00" }
+}]]></response>
+      <response code="404"><![CDATA[{
+  "code": "not_found",
+  "message": "Order with ID  some_id not found"
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.06" name="Edit order">
+      <request><![CDATA[{
+  "request_id": "77241d8009bb46d0bff5c65a73077bcd-udp",
+  "recipient_info": {
+    "first_name": "Василий", "last_name": "Пупкин", "patronymic": "Михайлович",
+    "phone": "+79529999999", "email": "pupkin@mail.ru"
+  },
+  "destination": {
+    "type": "platform_station",
+    "platform_station": { "platform_id": "e1139f6d-e34f-47a9-a55f-31f032a861a6" },
+    "custom_location": {
+      "latitude": 0.5, "longitude": 0.5,
+      "details": {
+        "geoId": 213, "country": "Россия", "region": "Москва", "subRegion": "Московская область",
+        "locality": "Москва", "street": "Пролетарский проспект", "house": "19", "housing": "1",
+        "apartment": "2", "building": "1", "comment": "Станция метро Щукинская...",
+        "full_address": "Москва, Пролетарский проспект, 19", "postal_code": "123182"
+      }
+    },
+    "interval_utc": { "from": "2021-10-25T15:00:00.000000Z", "to": "2021-10-25T15:00:00.000000Z" }
+  },
+  "places": [{
+    "barcode": "Kia-01",
+    "place": {
+      "physical_dims": { "weight_gross": 100, "dx": 10, "dy": 10, "dz": 10 },
+      "barcode": "Kia-01"
+    }
+  }]
+}]]></request>
+      <response code="200"><![CDATA[{
+  "edit_id": "efb951b3280b4924b46b61a5db20df85"
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.07" name="Intervals for current destination">
+      <request><![CDATA[{
+  "request_id": "77241d8009bb46d0bff5c65a73077bcd-udp"
+}]]></request>
+      <response code="200"><![CDATA[{
+  "options": [{ "from": "2021-10-25T15:00:00.000000Z", "to": "2021-10-25T15:00:00.000000Z" }]
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.08" name="Intervals for new destination">
+      <request><![CDATA[{
+  "request_id": "77241d8009bb46d0bff5c65a73077bcd-udp",
+  "destination": {
+    "type": "platform_station",
+    "platform_station": { "platform_id": "e1139f6d-e34f-47a9-a55f-31f032a861a6" },
+    "custom_location": {
+      "latitude": 0.5, "longitude": 0.5,
+      "details": {
+        "geoId": 213, "country": "Россия", "region": "Москва", "subRegion": "Московская область",
+        "locality": "Москва", "street": "Пролетарский проспект", "house": "19", "housing": "1",
+        "apartment": "2", "building": "1", "comment": "Станция метро Щукинская...",
+        "full_address": "Москва, Пролетарский проспект, 19", "postal_code": "123182"
+      }
+    },
+    "interval_utc": { "from": "2021-10-25T15:00:00.000000Z", "to": "2021-10-25T15:00:00.000000Z" }
+  }
+}]]></request>
+      <response code="200"><![CDATA[{
+  "options": [{ "from": "2021-10-25T15:00:00.000000Z", "to": "2021-10-25T15:00:00.000000Z" }]
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.09" name="Status history (GET)">
+      <request>GET with query parameter request_id</request>
+      <response code="200"><![CDATA[{
+  "state_history": [{
+    "status": "CREATED",
+    "description": "Заказ создан в операторе",
+    "timestamp": 1704056400,
+    "timestamp_utc": "2021-10-25T15:00:00.000000Z",
+    "reason": "SHOP_CANCELLED"
+  }]
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.10" name="Cancel request">
+      <request><![CDATA[{
+  "request_id": "77241d8009bb46d0bff5c65a73077bcd-udp"
+}]]></request>
+      <response code="200"><![CDATA[{
+  "status": "CREATED",
+  "reason": "already_cancelled",
+  "description": "Заказ отменен"
+}]]></response>
+      <response code="403"><![CDATA[{
+  "code": "customer_order_not_found",
+  "message": "There is no customer_order with such ID in platform, the order belongs to another employer"
+}]]></response>
+      <response code="404"><![CDATA[{
+  "code": "not_found",
+  "message": "Order with ID  some_id not found"
+}]]></response>
+      <response code="500"><![CDATA[{
+  "code": "conflict",
+  "message": "Internal Server Error"
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.11" name="Create order (quick)">
+      <request><![CDATA[{
+  "info": {
+    "operator_request_id": "lKF4565ml",
+    "merchant_id": "290587090cfc4943856851c8c3b2eebf",
+    "comment": "Комментарий"
+  },
+  "source": {
+    "platform_station": { "platform_id": "e1139f6d-e34f-47a9-a55f-31f032a861a6" },
+    "interval_utc": { "from": "2021-10-25T15:00:00.000000Z", "to": "2021-10-25T15:00:00.000000Z" }
+  },
+  "destination": {
+    "type": "platform_station",
+    "platform_station": null,
+    "custom_location": {
+      "latitude": 0.5, "longitude": 0.5,
+      "details": {
+        "geoId": 213, "country": "Россия", "region": "Москва",
+        "subRegion": "Московская область", "locality": "Москва",
+        "street": "Пролетарский проспект", "house": "19", "housing": "1",
+        "apartment": "2", "building": "1",
+        "full_address": "Москва, Пролетарский проспект, 19", "postal_code": "123182"
+      }
+    },
+    "interval_utc": null
+  },
+  "items": [{
+    "count": 1, "name": "Духи", "article": "YS2-2022",
+    "billing_details": { "inn": "9715386101", "nds": 22, "unit_price": 100, "assessed_unit_price": 100 },
+    "physical_dims": { "dx": 10, "dy": 15, "dz": 10, "predefined_volume": 20 },
+    "place_barcode": "Kia-01", "cargo_types": ["80"], "fitting": false
+  }],
+  "places": [{
+    "physical_dims": { "weight_gross": 100, "dx": 10, "dy": 10, "dz": 10 },
+    "barcode": "Kia-01"
+  }],
+  "billing_info": {
+    "payment_method": "already_paid", "delivery_cost": 0,
+    "variable_delivery_cost_for_recipient": [{ "min_cost_of_accepted_items": 1, "delivery_cost": 0 }]
+  },
+  "recipient_info": {
+    "first_name": "Василий", "last_name": "Пупкин", "patronymic": "Михайлович",
+    "phone": "+79529999999", "email": "pupkin@mail.ru"
+  },
+  "last_mile_policy": "time_interval",
+  "particular_items_refuse": false,
+  "forbid_unboxing": false
+}]]></request>
+      <response code="200"><![CDATA[{
+  "request_id": "77241d8009bb46d0bff5c65a73077bcd-udp"
+}]]></response>
+      <response code="400"><![CDATA[{
+  "code": "no_delivery_options",
+  "message": "No delivery options for interval"
+}]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.12" name="Edit packages">
+      <request><![CDATA[{
+  "request_id": "77241d8009bb46d0bff5c65a73077bcd-udp",
+  "places": {
+    "dimensions": { "weight_gross": 1, "dx": 1, "dy": 1, "dz": 1 },
+    "barcode": "Kia-01",
+    "items": [{ "count": 0, "item_barcode": "9f210a050a7282f353d9ab9ac9e27cb4" }]
+  }
+}]]></request>
+      <response code="202"><![CDATA[{
+  "editing_task_id": "51487d835c3444e9b157b1061567f10a"
+}]]></response>
+      <response code="400"><![CDATA[{ "code": "bad_request", "message": "Missing field request_id" }]]></response>
+      <response code="403"><![CDATA[{ "code": "customer_order_not_found", "message": "There is no customer_order with such ID in platform, the order belongs to another employer" }]]></response>
+      <response code="404"><![CDATA[{ "code": "not_found", "message": "Order with ID  some_id not found" }]]></response>
+      <response code="409"><![CDATA[{ "code": "conflict", "message": "Another editing request with conflict data execution" }]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.13" name="Editing status">
+      <request>POST with query parameter editing_task_id</request>
+      <response code="200"><![CDATA[{ "status": "pending" }]]></response>
+      <response code="400"><![CDATA[{ "code": "bad_request", "message": "Missing field request_id" }]]></response>
+      <response code="404"><![CDATA[{ "code": "not_found", "message": "Order with ID  some_id not found" }]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.14" name="Edit items">
+      <request><![CDATA[{
+  "request_id": "77241d8009bb46d0bff5c65a73077bcd-udp",
+  "items_instances": [{
+    "item_barcode": "9f210a050a7282f353d9ab9ac9e27cb4",
+    "article": "YS2-2022",
+    "marking_code": "0104640126996984215oKHnIQ;-kMAp..."
+  }]
+}]]></request>
+      <response code="202"><![CDATA[{ "editing_task_id": "51487d835c3444e9b157b1061567f10a" }]]></response>
+      <response code="400"><![CDATA[{ "code": "bad_request", "message": "Missing field request_id" }]]></response>
+      <response code="403"><![CDATA[{ "code": "customer_order_not_found", "message": "There is no customer_order with such ID in platform, the order belongs to another employer" }]]></response>
+      <response code="404"><![CDATA[{ "code": "not_found", "message": "Order with ID  some_id not found" }]]></response>
+      <response code="409"><![CDATA[{ "code": "conflict", "message": "Another editing request with conflict data execution" }]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="3.15" name="Remove items">
+      <request><![CDATA[{
+  "request_id": "77241d8009bb46d0bff5c65a73077bcd-udp",
+  "items_to_remove": [{ "item_barcode": "9f210a050a7282f353d9ab9ac9e27cb4", "remaining_count": 0 }]
+}]]></request>
+      <response code="202"><![CDATA[{ "editing_task_id": "51487d835c3444e9b157b1061567f10a" }]]></response>
+      <response code="400"><![CDATA[{ "code": "bad_request", "message": "Missing field request_id" }]]></response>
+      <response code="403"><![CDATA[{ "code": "customer_order_not_found", "message": "There is no customer_order with such ID in platform, the order belongs to another employer" }]]></response>
+      <response code="404"><![CDATA[{ "code": "not_found", "message": "Order with ID  some_id not found" }]]></response>
+      <response code="409"><![CDATA[{ "code": "conflict", "message": "Another editing request with conflict data execution" }]]></response>
+    </endpoint_example>
+
+    <endpoint_example id="4.01" name="Generate labels">
+      <request><![CDATA[{
+  "request_ids": "77241d8009bb46d0bff5c65a73077bcd-udp",
+  "generate_type": "one",
+  "language": "ru"
+}]]></request>
+      <response code="200" content_type="application/pdf">Binary PDF</response>
+    </endpoint_example>
+
+    <endpoint_example id="4.02" name="Get handover acts">
+      <request><![CDATA[{
+  "request_ids": "77241d8009bb46d0bff5c65a73077bcd-udp",
+  "request_codes": "Kia-01, Kia-02"
+}]]></request>
+      <response code="200" content_type="application/pdf | application/msword">Binary PDF/Word</response>
+    </endpoint_example>
+
+  </json_examples>
+
+</api>

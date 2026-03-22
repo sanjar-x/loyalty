@@ -24,8 +24,7 @@ class CountryReadModel(BaseModel):
 
     alpha2: str
     alpha3: str
-    numeric: int
-    name: str
+    numeric: str
     translations: list[CountryTranslationReadModel] = Field(default_factory=list)
 
 
@@ -33,6 +32,35 @@ class CountryListReadModel(BaseModel):
     """Full country list response."""
 
     items: list[CountryReadModel]
+    total: int
+
+
+# ------------------------------------------------------------------ #
+#  Currency
+# ------------------------------------------------------------------ #
+
+
+class CurrencyTranslationReadModel(BaseModel):
+    """Single translation row for a currency."""
+
+    lang_code: str
+    name: str
+
+
+class CurrencyReadModel(BaseModel):
+    """Currency with inline translations."""
+
+    code: str
+    numeric: str
+    name: str
+    minor_unit: int | None = None
+    translations: list[CurrencyTranslationReadModel] = Field(default_factory=list)
+
+
+class CurrencyListReadModel(BaseModel):
+    """Currency list response."""
+
+    items: list[CurrencyReadModel]
     total: int
 
 

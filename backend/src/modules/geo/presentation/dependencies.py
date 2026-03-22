@@ -10,6 +10,9 @@ from dishka.dependency_source.composite import CompositeDependencySource
 from src.modules.geo.application.queries.list_countries import (
     ListCountriesHandler,
 )
+from src.modules.geo.application.queries.list_currencies import (
+    ListCurrenciesHandler,
+)
 from src.modules.geo.application.queries.list_languages import (
     ListLanguagesHandler,
 )
@@ -18,11 +21,15 @@ from src.modules.geo.application.queries.list_subdivisions import (
 )
 from src.modules.geo.domain.interfaces import (
     ICountryRepository,
+    ICurrencyRepository,
     ILanguageRepository,
     ISubdivisionRepository,
 )
 from src.modules.geo.infrastructure.repositories.country import (
     CountryRepository,
+)
+from src.modules.geo.infrastructure.repositories.currency import (
+    CurrencyRepository,
 )
 from src.modules.geo.infrastructure.repositories.language import (
     LanguageRepository,
@@ -38,6 +45,9 @@ class GeoProvider(Provider):
     country_repo: CompositeDependencySource = provide(
         CountryRepository, scope=Scope.REQUEST, provides=ICountryRepository,
     )
+    currency_repo: CompositeDependencySource = provide(
+        CurrencyRepository, scope=Scope.REQUEST, provides=ICurrencyRepository,
+    )
     language_repo: CompositeDependencySource = provide(
         LanguageRepository, scope=Scope.REQUEST, provides=ILanguageRepository,
     )
@@ -46,6 +56,9 @@ class GeoProvider(Provider):
     )
     list_countries_handler: CompositeDependencySource = provide(
         ListCountriesHandler, scope=Scope.REQUEST,
+    )
+    list_currencies_handler: CompositeDependencySource = provide(
+        ListCurrenciesHandler, scope=Scope.REQUEST,
     )
     list_languages_handler: CompositeDependencySource = provide(
         ListLanguagesHandler, scope=Scope.REQUEST,

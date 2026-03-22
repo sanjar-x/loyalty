@@ -630,7 +630,12 @@ class SKU(Base):
         Integer, comment="Previous price for strikethrough display"
     )
 
-    currency: Mapped[str] = mapped_column(String(3), server_default=text("'RUB'"))
+    currency: Mapped[str] = mapped_column(
+        String(3),
+        ForeignKey("currencies.code", ondelete="RESTRICT"),
+        server_default=text("'RUB'"),
+        comment="ISO 4217 currency code (FK → geo.currencies)",
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()

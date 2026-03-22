@@ -16,8 +16,7 @@ from attrs import frozen
 
 _ALPHA2_RE = re.compile(r"^[A-Z]{2}$")
 _ALPHA3_RE = re.compile(r"^[A-Z]{3}$")
-_NUMERIC_MIN = 1
-_NUMERIC_MAX = 999
+_NUMERIC_RE = re.compile(r"^\d{3}$")
 
 
 @frozen
@@ -27,8 +26,7 @@ class Country:
     Attributes:
         alpha2: ISO 3166-1 Alpha-2 code (e.g. ``"KZ"``).
         alpha3: ISO 3166-1 Alpha-3 code (e.g. ``"KAZ"``).
-        numeric: ISO 3166-1 Numeric code (e.g. ``398``).
-        name: Common short name in English (e.g. ``"Kazakhstan"``).
+        numeric: Zero-padded 3-digit ISO 3166-1 Numeric code (e.g. ``"398"``).
 
     Raises:
         ValueError: If any field fails format validation at construction time.
@@ -36,8 +34,7 @@ class Country:
 
     alpha2: str
     alpha3: str
-    numeric: int
-    name: str
+    numeric: str
 
     def __attrs_post_init__(self) -> None:
         if not _ALPHA2_RE.match(self.alpha2):
@@ -48,17 +45,10 @@ class Country:
             raise ValueError(
                 f"alpha3 must be exactly 3 uppercase ASCII letters, got {self.alpha3!r}"
             )
-        if not (_NUMERIC_MIN <= self.numeric <= _NUMERIC_MAX):
+        if not _NUMERIC_RE.match(self.numeric):
             raise ValueError(
-                f"numeric must be between {_NUMERIC_MIN} and {_NUMERIC_MAX}, got {self.numeric}"
+                f"numeric must be exactly 3 digits, got {self.numeric!r}"
             )
-        if not self.name or not self.name.strip():
-            raise ValueError("name must be a non-empty string")
-
-    @property
-    def numeric_str(self) -> str:
-        """Zero-padded 3-digit ISO numeric code (e.g. ``"008"``)."""
-        return f"{self.numeric:03d}"
 
 
 # ------------------------------------------------------------------ #
@@ -124,6 +114,51 @@ class Language:
             raise ValueError("name_native must be a non-empty string")
         if self.direction not in _DIRECTION_VALUES:
             raise ValueError(f"direction must be 'ltr' or 'rtl', got {self.direction!r}")
+
+
+# ------------------------------------------------------------------ #
+#  ISO 3166-2 Subdivision
+# ------------------------------------------------------------------ #
+
+_CURRENCY_CODE_RE = re.compile(r"^[A-Z]{3}$")
+_CURRENCY_NUMERIC_RE = re.compile(r"^\d{3}$")
+
+
+@frozen
+class Currency:
+    """Immutable value object representing a currency per ISO 4217.
+
+    Attributes:
+        code: ISO 4217 alpha-3 code (e.g. ``"UZS"``).
+        numeric: Zero-padded 3-digit numeric code (e.g. ``"860"``).
+        name: Common English name (e.g. ``"Uzbekistan Sum"``).
+        minor_unit: Number of decimal places (0-4), or ``None`` for
+            special codes like ``XXX`` (no currency).
+
+    Raises:
+        ValueError: If any field fails format validation at construction time.
+    """
+
+    code: str
+    numeric: str
+    name: str
+    minor_unit: int | None
+
+    def __attrs_post_init__(self) -> None:
+        if not _CURRENCY_CODE_RE.match(self.code):
+            raise ValueError(
+                f"code must be exactly 3 uppercase ASCII letters, got {self.code!r}"
+            )
+        if not _CURRENCY_NUMERIC_RE.match(self.numeric):
+            raise ValueError(
+                f"numeric must be exactly 3 digits, got {self.numeric!r}"
+            )
+        if not self.name or not self.name.strip():
+            raise ValueError("name must be a non-empty string")
+        if self.minor_unit is not None and not (0 <= self.minor_unit <= 4):
+            raise ValueError(
+                f"minor_unit must be 0-4 or None, got {self.minor_unit}"
+            )
 
 
 # ------------------------------------------------------------------ #

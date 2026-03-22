@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "data": {
+    "web": [
+      {
+        "url": "https://en.wikipedia.org/wiki/ISO_4217",
+        "title": "ISO 4217 - Wikipedia",
+        "description": "ISO 4217 is a standard published by the International Organization for Standardization (ISO) that defines alpha codes and numeric codes for the representation ...",
+        "position": 1
+      },
+      {
+        "url": "https://www.iso.org/iso-4217-currency-codes.html",
+        "title": "ISO 4217 — Currency codes",
+        "description": "This standard establishes internationally recognized codes for the representation of currencies that enable clarity and reduce errors.",
+        "position": 2
+      },
+      {
+        "url": "https://www.iban.com/currency-codes",
+        "title": "List of Currency Codes by Country (ISO 4217) - IBAN",
+        "description": "Updated list of currency names. 3 character alphabetic and 3 digit numeric ISO 4217 codes for each country.",
+        "position": 3
+      }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "data": {
+    "web": [
+      {
+        "url": "https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml",
+        "title": "List One (XML) - SIX Group",
+        "description": "> <ISO_4217 Pblshd=\"2026-01-01\"> <CcyTbl> <CcyNtry> <CtryNm>AFGHANISTAN ... currency</CcyNm> </CcyNtry> <CcyNtry> <CtryNm>ANTIGUA AND BARBUDA</CtryNm> ...",
+        "position": 1
+      },
+      {
+        "url": "https://www.iso.org/iso-4217-currency-codes.html",
+        "title": "ISO 4217 — Currency codes",
+        "description": "This standard establishes internationally recognized codes for the representation of currencies that enable clarity and reduce errors.",
+        "position": 2
+      },
+      {
+        "url": "https://www.six-group.com/en/products-services/financial-information/market-reference-data/data-standards.html",
+        "title": "Global Financial Data Standards - SIX Group",
+        "description": "SIX is the official Maintenance Agency of these currency codes under ISO 4217 and as such the only recognized, authoritative source on currency code ...",
+        "position": 3
+      }
+    ]
+  }
+}

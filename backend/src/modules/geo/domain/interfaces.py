@@ -7,7 +7,7 @@ concrete implementations live in the infrastructure layer.
 
 from abc import ABC, abstractmethod
 
-from src.modules.geo.domain.value_objects import Country, Language, Subdivision
+from src.modules.geo.domain.value_objects import Country, Currency, Language, Subdivision
 
 
 class ICountryRepository(ABC):
@@ -44,6 +44,26 @@ class ILanguageRepository(ABC):
     @abstractmethod
     async def get_default(self) -> Language | None:
         """Retrieve the default fallback language (``is_default=True``)."""
+
+
+class ICurrencyRepository(ABC):
+    """Read-only repository contract for currency reference data."""
+
+    @abstractmethod
+    async def get_by_code(self, code: str) -> Currency | None:
+        """Retrieve a currency by ISO 4217 alpha-3 code."""
+
+    @abstractmethod
+    async def list_active(self) -> list[Currency]:
+        """Retrieve active currencies ordered by ``sort_order``."""
+
+    @abstractmethod
+    async def list_all(self) -> list[Currency]:
+        """Retrieve all currencies (including inactive) ordered by ``sort_order``."""
+
+    @abstractmethod
+    async def exists(self, code: str) -> bool:
+        """Check whether a currency with the given code exists."""
 
 
 class ISubdivisionRepository(ABC):
