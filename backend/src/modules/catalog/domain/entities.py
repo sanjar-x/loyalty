@@ -1029,11 +1029,14 @@ class SKU:
 
 
 @dataclass
-class MediaAsset:
+class MediaAsset(AggregateRoot):
     """A media file associated with a product (image, video, document, etc.).
 
-    MediaAsset is a child entity -- not an aggregate root. It tracks the full
-    lifecycle of a media upload through a processing FSM:
+    MediaAsset extends AggregateRoot so that domain events (e.g. confirmed,
+    processed) can be accumulated in-memory and written to the Outbox atomically
+    by the UnitOfWork on commit.
+
+    Lifecycle follows a strict processing FSM:
     ``PENDING_UPLOAD`` -> ``PROCESSING`` -> ``COMPLETED`` | ``FAILED``.
 
     External URLs bypass the FSM entirely and are created with ``COMPLETED``
@@ -1151,8 +1154,14 @@ class MediaAsset:
             public_url=external_url,
         )
 
-    def confirm_upload(self) -> None:
+    def confirm_upload(self, content_type: str = "") -> None:
         """Transition FSM from PENDING_UPLOAD to PROCESSING.
+
+        Emits a ``ProductMediaConfirmedEvent`` so the Outbox relays it to the
+        AI processing service via RabbitMQ.
+
+        Args:
+            content_type: MIME type of the uploaded file (forwarded in the event).
 
         Raises:
             InvalidMediaStateError: If current state is not PENDING_UPLOAD.
@@ -1164,6 +1173,17 @@ class MediaAsset:
                 expected=MediaProcessingStatus.PENDING_UPLOAD.value,
             )
         self.processing_status = MediaProcessingStatus.PROCESSING
+
+        from src.modules.catalog.domain.events import ProductMediaConfirmedEvent
+
+        self.add_domain_event(
+            ProductMediaConfirmedEvent(
+                media_id=self.id,
+                product_id=self.product_id,
+                object_key=self.raw_object_key or "",
+                content_type=content_type,
+            )
+        )
 
     def complete_processing(
         self,
@@ -1193,6 +1213,18 @@ class MediaAsset:
         self.raw_object_key = object_key
         self.storage_object_id = storage_object_id
         self.processing_status = MediaProcessingStatus.COMPLETED
+
+        from src.modules.catalog.domain.events import ProductMediaProcessedEvent
+
+        self.add_domain_event(
+            ProductMediaProcessedEvent(
+                media_id=self.id,
+                product_id=self.product_id,
+                object_key=object_key,
+                content_type="",
+                size_bytes=0,
+            )
+        )
 
     def fail_processing(self) -> None:
         """Transition FSM from PROCESSING to FAILED.
