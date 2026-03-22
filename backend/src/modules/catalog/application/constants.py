@@ -38,5 +38,15 @@ def public_logo_key(brand_id: uuid.UUID) -> str:
     return f"public/brands/{brand_id}/logo.webp"
 
 
+def raw_media_key(product_id: uuid.UUID, media_id: uuid.UUID) -> str:
+    """Build the S3 key for a product media's raw (unprocessed) upload."""
+    return f"raw_uploads/catalog/products/{product_id}/media/{media_id}"
+
+
+def public_media_key(product_id: uuid.UUID, media_id: uuid.UUID, ext: str = "webp") -> str:
+    """Build the S3 key for a product media's processed (public) file."""
+    return f"public/products/{product_id}/media/{media_id}.{ext}"
+
+
 CATEGORY_TREE_CACHE_KEY = "catalog:category_tree"
 """Redis cache key for the full category tree JSON payload."""
