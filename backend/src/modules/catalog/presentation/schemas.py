@@ -777,3 +777,65 @@ class ProductListResponse(CamelModel):
     total: int
     offset: int
     limit: int
+
+
+# ---------------------------------------------------------------------------
+# Product media schemas
+# ---------------------------------------------------------------------------
+
+
+class ProductMediaUploadRequest(CamelModel):
+    """Request body for reserving a media upload slot."""
+
+    attribute_value_id: uuid.UUID | None = None
+    media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
+    role: str = Field(..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$")
+    content_type: str = Field(..., pattern=r"^(image|video)/")
+    sort_order: int = Field(0, ge=0)
+
+
+class ProductMediaUploadResponse(CamelModel):
+    """Response with presigned upload URL."""
+
+    id: uuid.UUID
+    presigned_upload_url: str
+    object_key: str
+
+
+class ProductMediaExternalRequest(CamelModel):
+    """Request body for adding an external media URL (e.g., YouTube)."""
+
+    attribute_value_id: uuid.UUID | None = None
+    media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
+    role: str = Field(..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$")
+    external_url: str = Field(..., min_length=1)
+    sort_order: int = Field(0, ge=0)
+
+
+class ProductMediaResponse(CamelModel):
+    """Media asset detail response."""
+
+    id: uuid.UUID
+    product_id: uuid.UUID
+    attribute_value_id: uuid.UUID | None = None
+    media_type: str
+    role: str
+    sort_order: int
+    processing_status: str | None = None
+    public_url: str | None = None
+    is_external: bool
+    external_url: str | None = None
+
+
+class MediaProcessingWebhookRequest(CamelModel):
+    """Internal webhook body from AI-service after processing."""
+
+    object_key: str
+    content_type: str
+    size_bytes: int = Field(..., ge=0)
+
+
+class MediaProcessingFailedRequest(CamelModel):
+    """Internal webhook body from AI-service on failure."""
+
+    error: str
