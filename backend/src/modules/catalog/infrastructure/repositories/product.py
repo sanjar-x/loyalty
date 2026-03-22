@@ -20,11 +20,9 @@ from src.modules.catalog.domain.entities import Product as DomainProduct
 from src.modules.catalog.domain.entities import ProductVariant as DomainProductVariant
 from src.modules.catalog.domain.exceptions import ConcurrencyError
 from src.modules.catalog.domain.interfaces import IProductRepository
-from src.modules.catalog.domain.value_objects import Money
-from src.modules.catalog.domain.value_objects import ProductStatus as DomainProductStatus
+from src.modules.catalog.domain.value_objects import Money, ProductStatus
 from src.modules.catalog.infrastructure.models import SKU as OrmSKU
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
-from src.modules.catalog.infrastructure.models import ProductStatus as OrmProductStatus
 from src.modules.catalog.infrastructure.models import ProductVariant as OrmProductVariant
 from src.modules.catalog.infrastructure.models import SKUAttributeValueLink as OrmSKUAttrLink
 
@@ -178,7 +176,7 @@ class ProductRepository(IProductRepository):
             slug=orm.slug,
             title_i18n=dict(orm.title_i18n) if orm.title_i18n else {},
             description_i18n=dict(orm.description_i18n) if orm.description_i18n else {},
-            status=DomainProductStatus(orm.status.value),
+            status=ProductStatus(orm.status.value),
             brand_id=orm.brand_id,
             primary_category_id=orm.primary_category_id,
             supplier_id=orm.supplier_id,
@@ -204,7 +202,7 @@ class ProductRepository(IProductRepository):
             slug=orm.slug,
             title_i18n=dict(orm.title_i18n) if orm.title_i18n else {},
             description_i18n=dict(orm.description_i18n) if orm.description_i18n else {},
-            status=DomainProductStatus(orm.status.value),
+            status=ProductStatus(orm.status.value),
             brand_id=orm.brand_id,
             primary_category_id=orm.primary_category_id,
             supplier_id=orm.supplier_id,
@@ -240,7 +238,7 @@ class ProductRepository(IProductRepository):
         orm.published_at = entity.published_at
         orm.country_of_origin = entity.country_of_origin
 
-        orm.status = OrmProductStatus(entity.status.value)
+        orm.status = ProductStatus(entity.status.value)
         orm.title_i18n = entity.title_i18n  # type: ignore[assignment]
         orm.description_i18n = entity.description_i18n  # type: ignore[assignment]
         orm.tags = entity.tags  # type: ignore[assignment]
@@ -473,7 +471,7 @@ class ProductRepository(IProductRepository):
         self,
         limit: int,
         offset: int,
-        status: DomainProductStatus | None = None,
+        status: ProductStatus | None = None,
         brand_id: uuid.UUID | None = None,
     ) -> tuple[list[DomainProduct], int]:
         """List products with pagination and optional filters.
@@ -492,7 +490,7 @@ class ProductRepository(IProductRepository):
         filters: list[ColumnElement[bool]] = [OrmProduct.deleted_at.is_(None)]
 
         if status is not None:
-            filters.append(OrmProduct.status == OrmProductStatus(status.value))
+            filters.append(OrmProduct.status == ProductStatus(status.value))
         if brand_id is not None:
             filters.append(OrmProduct.brand_id == brand_id)
 

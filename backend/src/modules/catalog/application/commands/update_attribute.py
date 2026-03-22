@@ -6,7 +6,7 @@ immutable after creation. Part of the application layer (CQRS write side).
 """
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from src.modules.catalog.domain.events import AttributeUpdatedEvent
@@ -49,7 +49,7 @@ class UpdateAttributeCommand:
     is_visible_on_card: bool | None = None
     is_visible_in_catalog: bool | None = None
     validation_rules: dict[str, Any] | None = None
-    _provided_fields: frozenset[str] = frozenset()
+    _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 
 @dataclass(frozen=True)

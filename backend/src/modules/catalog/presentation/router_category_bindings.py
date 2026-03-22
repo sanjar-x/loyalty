@@ -42,6 +42,7 @@ from src.modules.catalog.application.queries.read_models import (
     CategoryAttributeBindingListReadModel,
 )
 from src.modules.catalog.domain.value_objects import RequirementLevel
+from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.catalog.presentation.schemas import (
     BindAttributeToCategoryRequest,
     BindAttributeToCategoryResponse,
@@ -133,20 +134,20 @@ async def update_binding(
     request: CategoryAttributeBindingUpdateRequest,
     handler: FromDishka[UpdateCategoryAttributeBindingHandler],
 ) -> CategoryAttributeBindingResponse:
-    provided_fields = request.model_fields_set
-    cmd_kwargs: dict[str, object] = {
-        "binding_id": binding_id,
-        "category_id": category_id,
-        "_provided_fields": frozenset(provided_fields),
-    }
-    for field_name in provided_fields:
-        value = getattr(request, field_name)
-        if field_name == "requirement_level" and value is not None:
-            cmd_kwargs["requirement_level"] = RequirementLevel(value)
-        else:
-            cmd_kwargs[field_name] = value
-
-    command = UpdateCategoryAttributeBindingCommand(**cmd_kwargs)  # type: ignore[arg-type]
+    command = build_update_command(
+        request,
+        UpdateCategoryAttributeBindingCommand,
+        binding_id=binding_id,
+        category_id=category_id,
+    )
+    # Convert string literal to domain enum for requirement_level
+    if command.requirement_level is not None:
+        command = UpdateCategoryAttributeBindingCommand(
+            **{
+                **{name: getattr(command, name) for name in command.__dataclass_fields__},
+                "requirement_level": RequirementLevel(command.requirement_level),
+            }
+        )
     result: UpdateCategoryAttributeBindingResult = await handler.handle(command)
 
     return CategoryAttributeBindingResponse(

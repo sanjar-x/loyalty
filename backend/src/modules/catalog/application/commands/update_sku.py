@@ -188,6 +188,7 @@ class UpdateSKUHandler:
             sku.update(**update_kwargs)  # type: ignore[arg-type]
 
             await self._product_repo.update(product)
+            self._uow.register_aggregate(product)
             await self._uow.commit()
 
         return UpdateSKUResult(id=sku.id)

@@ -6,7 +6,7 @@ Emits ``AttributeValueUpdatedEvent`` through the parent attribute.
 """
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from src.modules.catalog.domain.events import AttributeValueUpdatedEvent
@@ -32,7 +32,7 @@ class UpdateAttributeValueCommand:
     meta_data: dict[str, Any] | None = None
     value_group: str | None = None
     sort_order: int | None = None
-    _provided_fields: frozenset[str] = frozenset()
+    _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 
 @dataclass(frozen=True)

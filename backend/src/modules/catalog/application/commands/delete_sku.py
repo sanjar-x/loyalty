@@ -60,4 +60,5 @@ class DeleteSKUHandler:
             product.remove_sku(command.sku_id)
 
             await self._product_repo.update(product)
+            self._uow.register_aggregate(product)
             await self._uow.commit()

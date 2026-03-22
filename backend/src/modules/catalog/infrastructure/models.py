@@ -42,21 +42,9 @@ from src.modules.catalog.domain.value_objects import (
     AttributeLevel,
     AttributeUIType,
     MediaProcessingStatus,
+    ProductStatus,
     RequirementLevel,
 )
-
-
-class ProductStatus(enum.StrEnum):
-    """Lifecycle states of a product listing.
-
-    DRAFT -> ENRICHING -> READY_FOR_REVIEW -> PUBLISHED -> ARCHIVED.
-    """
-
-    DRAFT = "draft"
-    ENRICHING = "enriching"
-    READY_FOR_REVIEW = "ready_for_review"
-    PUBLISHED = "published"
-    ARCHIVED = "archived"
 
 
 class MediaType(enum.StrEnum):

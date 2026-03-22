@@ -38,6 +38,7 @@ from src.modules.catalog.application.queries.read_models import (
 )
 from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.presentation.mappers import to_sku_response
+from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.catalog.presentation.schemas import (
     MoneySchema,
     ProductAttributeResponse,
@@ -160,16 +161,12 @@ async def update_product(
     get_handler: FromDishka[GetProductHandler],
 ) -> ProductResponse:
     """Update an existing product (full or partial fields)."""
-    provided_fields = request.model_fields_set - {"version"}
-    update_kwargs = {
-        field: getattr(request, field)
-        for field in provided_fields
-    }
-    command = UpdateProductCommand(
+    command = build_update_command(
+        request,
+        UpdateProductCommand,
+        exclude_from_provided=frozenset({"version"}),
         product_id=product_id,
         version=request.version,
-        _provided_fields=frozenset(provided_fields),
-        **update_kwargs,
     )
     result: UpdateProductResult = await handler.handle(command)
 
