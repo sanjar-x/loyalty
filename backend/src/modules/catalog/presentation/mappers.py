@@ -27,6 +27,7 @@ def to_sku_response(model: SKUReadModel) -> SKUResponse:
     return SKUResponse(
         id=model.id,
         product_id=model.product_id,
+        variant_id=model.variant_id,
         sku_code=model.sku_code,
         variant_hash=model.variant_hash,
         price=price_schema,

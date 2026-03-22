@@ -725,6 +725,7 @@ class SKUResponse(CamelModel):
 
     id: uuid.UUID
     product_id: uuid.UUID
+    variant_id: uuid.UUID
     sku_code: str
     variant_hash: str
     price: MoneySchema | None = None
@@ -833,6 +834,27 @@ class ProductVariantUpdateRequest(CamelModel):
     sort_order: int | None = Field(None, ge=0)
     default_price_amount: int | None = Field(None, ge=0)
     default_price_currency: str | None = Field(None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> ProductVariantUpdateRequest:
+        """Ensure at least one field is provided for update."""
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided for update")
+        return self
+
+
+class ProductVariantCreateResponse(CamelModel):
+    """Response returned after successful variant creation."""
+
+    id: uuid.UUID
+    message: str
+
+
+class ProductVariantUpdateResponse(CamelModel):
+    """Response returned after successful variant update."""
+
+    id: uuid.UUID
+    message: str
 
 
 class ProductVariantResponse(CamelModel):

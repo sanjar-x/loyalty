@@ -21,13 +21,16 @@ from src.modules.catalog.application.queries.list_variants import (
     ListVariantsHandler,
     ListVariantsQuery,
 )
+from src.modules.catalog.application.queries.read_models import ProductVariantReadModel
 from src.modules.catalog.presentation.mappers import to_sku_response
+from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.catalog.presentation.schemas import (
     MoneySchema,
     ProductVariantCreateRequest,
+    ProductVariantCreateResponse,
     ProductVariantResponse,
     ProductVariantUpdateRequest,
-    SKUResponse,
+    ProductVariantUpdateResponse,
 )
 from src.modules.identity.presentation.dependencies import RequirePermission
 
@@ -38,7 +41,7 @@ variant_router = APIRouter(
 )
 
 
-def _to_variant_response(v) -> ProductVariantResponse:  # noqa: ANN001
+def _to_variant_response(v: ProductVariantReadModel) -> ProductVariantResponse:
     """Convert a ProductVariantReadModel to a ProductVariantResponse schema."""
     return ProductVariantResponse(
         id=v.id,
@@ -57,14 +60,16 @@ def _to_variant_response(v) -> ProductVariantResponse:  # noqa: ANN001
 @variant_router.post(
     path="",
     status_code=status.HTTP_201_CREATED,
+    response_model=ProductVariantCreateResponse,
     summary="Create a product variant",
+    description="Create a new variant for the given product.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def create_variant(
     product_id: uuid.UUID,
     request: ProductVariantCreateRequest,
     handler: FromDishka[AddVariantHandler],
-):
+) -> ProductVariantCreateResponse:
     """Create a new variant for the given product."""
     command = AddVariantCommand(
         product_id=product_id,
@@ -75,7 +80,7 @@ async def create_variant(
         default_price_currency=request.default_price_currency,
     )
     result = await handler.handle(command)
-    return {"id": result.variant_id, "message": "Variant created"}
+    return ProductVariantCreateResponse(id=result.variant_id, message="Variant created")
 
 
 @variant_router.get(
@@ -83,11 +88,12 @@ async def create_variant(
     status_code=status.HTTP_200_OK,
     response_model=list[ProductVariantResponse],
     summary="List product variants",
+    description="Return all active variants for the given product.",
 )
 async def list_variants(
     product_id: uuid.UUID,
     handler: FromDishka[ListVariantsHandler],
-):
+) -> list[ProductVariantResponse]:
     """Return all active variants for the given product."""
     query = ListVariantsQuery(product_id=product_id)
     results = await handler.handle(query)
@@ -97,7 +103,9 @@ async def list_variants(
 @variant_router.patch(
     path="/{variant_id}",
     status_code=status.HTTP_200_OK,
+    response_model=ProductVariantUpdateResponse,
     summary="Update a product variant",
+    description="Partially update a product variant. Only provided fields are modified.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_variant(
@@ -105,25 +113,23 @@ async def update_variant(
     variant_id: uuid.UUID,
     request: ProductVariantUpdateRequest,
     handler: FromDishka[UpdateVariantHandler],
-):
+) -> ProductVariantUpdateResponse:
     """Partially update a product variant. Only provided fields are modified."""
-    provided_fields = request.model_fields_set
-    cmd_kwargs: dict[str, object] = {
-        "product_id": product_id,
-        "variant_id": variant_id,
-        "_provided_fields": frozenset(provided_fields),
-    }
-    for field_name in provided_fields:
-        cmd_kwargs[field_name] = getattr(request, field_name)
-    command = UpdateVariantCommand(**cmd_kwargs)  # type: ignore[arg-type]
+    command = build_update_command(
+        request,
+        UpdateVariantCommand,
+        product_id=product_id,
+        variant_id=variant_id,
+    )
     result = await handler.handle(command)
-    return {"id": result.id, "message": "Variant updated"}
+    return ProductVariantUpdateResponse(id=result.id, message="Variant updated")
 
 
 @variant_router.delete(
     path="/{variant_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a product variant",
+    description="Soft-delete a product variant from the product.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_variant(
