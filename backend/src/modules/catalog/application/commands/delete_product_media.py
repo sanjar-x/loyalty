@@ -60,7 +60,12 @@ class DeleteProductMediaHandler:
         if media is None:
             raise NotFoundError(f"Media {cmd.media_id} not found")
 
+        if media.product_id != cmd.product_id:
+            raise NotFoundError(f"Media {cmd.media_id} not found for product {cmd.product_id}")
+
         raw_object_key = media.raw_object_key
+        public_url = media.public_url
+        is_external = media.is_external
 
         # Delete the DB record atomically
         async with self._uow:
@@ -75,6 +80,19 @@ class DeleteProductMediaHandler:
                 self._logger.warning(
                     "Failed to delete raw S3 object during media deletion",
                     raw_object_key=raw_object_key,
+                    media_id=str(cmd.media_id),
+                )
+
+        # Best-effort cleanup of the processed S3 object (if any)
+        if public_url is not None and not is_external:
+            # Extract S3 key from the public URL (everything after the bucket base)
+            processed_key = public_url.split("/", 3)[-1] if "/" in public_url else public_url
+            try:
+                await self._blob.delete_object(processed_key)
+            except Exception:  # noqa: BLE001
+                self._logger.warning(
+                    "Failed to delete processed S3 object during media deletion",
+                    processed_key=processed_key,
                     media_id=str(cmd.media_id),
                 )
 

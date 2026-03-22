@@ -634,7 +634,7 @@ class MediaAsset(Base):
             "product_id",
             "attribute_value_id",
             unique=True,
-            postgresql_where=text("role = 'MAIN'"),
+            postgresql_where=text("role = 'main'"),
             postgresql_nulls_not_distinct=True,
         ),
     )

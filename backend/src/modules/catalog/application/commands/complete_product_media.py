@@ -10,7 +10,6 @@ Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.application.constants import public_media_key
 from src.modules.catalog.domain.interfaces import IMediaAssetRepository
 from src.shared.exceptions import NotFoundError
 from src.shared.interfaces.blob_storage import IBlobStorage

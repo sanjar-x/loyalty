@@ -85,8 +85,8 @@ class AddExternalProductMediaHandler:
         media = MediaAsset.create_external(
             product_id=cmd.product_id,
             attribute_value_id=cmd.attribute_value_id,
-            media_type=cmd.media_type.upper(),
-            role=cmd.role.upper(),
+            media_type=cmd.media_type,
+            role=cmd.role,
             external_url=cmd.external_url,
             sort_order=cmd.sort_order,
         )

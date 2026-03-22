@@ -1182,6 +1182,7 @@ class MediaAsset(AggregateRoot):
                 product_id=self.product_id,
                 object_key=self.raw_object_key or "",
                 content_type=content_type,
+                aggregate_id=str(self.id),
             )
         )
 
@@ -1210,7 +1211,6 @@ class MediaAsset(AggregateRoot):
                 expected=MediaProcessingStatus.PROCESSING.value,
             )
         self.public_url = public_url
-        self.raw_object_key = object_key
         self.storage_object_id = storage_object_id
         self.processing_status = MediaProcessingStatus.COMPLETED
 
@@ -1223,6 +1223,7 @@ class MediaAsset(AggregateRoot):
                 object_key=object_key,
                 content_type="",
                 size_bytes=0,
+                aggregate_id=str(self.id),
             )
         )
 

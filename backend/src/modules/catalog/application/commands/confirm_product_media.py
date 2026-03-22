@@ -59,9 +59,12 @@ class ConfirmProductMediaHandler:
             InvalidMediaStateError: If the asset FSM is not in PENDING_UPLOAD.
         """
         async with self._uow:
-            media = await self._media_repo.get(cmd.media_id)
+            media = await self._media_repo.get_for_update(cmd.media_id)
             if media is None:
                 raise NotFoundError(f"Media {cmd.media_id} not found")
+
+            if media.product_id != cmd.product_id:
+                raise NotFoundError(f"Media {cmd.media_id} not found for product {cmd.product_id}")
 
             if media.raw_object_key is None:
                 raise NotFoundError(f"Media {cmd.media_id} has no raw object key")

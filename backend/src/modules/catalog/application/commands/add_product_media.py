@@ -89,33 +89,21 @@ class AddProductMediaHandler:
         if product is None:
             raise NotFoundError(f"Product {cmd.product_id} not found")
 
-        # 2. If role=MAIN, enforce single-main-per-variant constraint
-        if cmd.role.upper() == "MAIN":
-            has_main = await self._media_repo.has_main_for_variant(
-                cmd.product_id,
-                cmd.attribute_value_id,
-            )
-            if has_main:
-                raise ConflictError(
-                    f"MAIN media already exists for product {cmd.product_id} "
-                    f"variant {cmd.attribute_value_id}"
-                )
-
-        # 3. Build S3 key and create domain entity
+        # 2. Build S3 key and create domain entity
         media_id = uuid.uuid4()
         object_key = raw_media_key(cmd.product_id, media_id)
 
         media = MediaAsset.create_upload(
             product_id=cmd.product_id,
             attribute_value_id=cmd.attribute_value_id,
-            media_type=cmd.media_type.upper(),
-            role=cmd.role.upper(),
+            media_type=cmd.media_type,
+            role=cmd.role,
             sort_order=cmd.sort_order,
             raw_object_key=object_key,
             media_id=media_id,
         )
 
-        # 4. Generate presigned PUT URL outside the transaction (S3 I/O must not
+        # 3. Generate presigned PUT URL outside the transaction (S3 I/O must not
         #    hold a DB connection)
         presigned_url = await self._blob.generate_presigned_put_url(
             object_name=object_key,
@@ -123,8 +111,19 @@ class AddProductMediaHandler:
             expiration=300,
         )
 
-        # 5. Persist and commit
+        # 4. Enforce MAIN uniqueness and persist atomically in the same transaction
         async with self._uow:
+            if cmd.role == "main":
+                has_main = await self._media_repo.has_main_for_variant(
+                    cmd.product_id,
+                    cmd.attribute_value_id,
+                )
+                if has_main:
+                    raise ConflictError(
+                        f"MAIN media already exists for product {cmd.product_id} "
+                        f"variant {cmd.attribute_value_id}"
+                    )
+
             await self._media_repo.add(media)
             await self._uow.commit()
 
