@@ -1607,12 +1607,16 @@ class Product(AggregateRoot):
         """Mark this product as deleted.
 
         Sets ``deleted_at`` and ``updated_at`` to the current UTC timestamp.
-        The record is retained in the database; queries must exclude
-        non-None ``deleted_at`` when listing active products.
+        Cascades soft-delete to all active variants (which in turn cascade
+        to their SKUs). The record is retained in the database; queries
+        must exclude non-None ``deleted_at`` when listing active products.
         """
         now = datetime.now(UTC)
         self.deleted_at = now
         self.updated_at = now
+        for variant in self.variants:
+            if variant.deleted_at is None:
+                variant.soft_delete()
 
     def transition_status(self, new_status: ProductStatus) -> None:
         """Transition the product to a new lifecycle status.

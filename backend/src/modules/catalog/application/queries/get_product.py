@@ -50,9 +50,12 @@ class GetProductHandler:
         """
         stmt = (
             select(OrmProduct)
-            .where(OrmProduct.id == product_id)
+            .where(
+                OrmProduct.id == product_id,
+                OrmProduct.deleted_at.is_(None),
+            )
             .options(
-                selectinload(OrmProduct.variants)
+                selectinload(OrmProduct.variants.and_(OrmProductVariant.deleted_at.is_(None)))
                 .selectinload(OrmProductVariant.skus)
                 .selectinload(OrmSKU.attribute_values),
             )

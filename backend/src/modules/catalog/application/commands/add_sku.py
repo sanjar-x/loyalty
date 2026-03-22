@@ -91,6 +91,9 @@ class AddSKUHandler:
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
+            if command.compare_at_price_amount is not None and command.price_amount is None:
+                raise ValueError("compare_at_price cannot be set when price is not provided")
+
             price: Money | None = None
             if command.price_amount is not None:
                 price = Money(

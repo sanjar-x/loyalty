@@ -355,13 +355,13 @@ class SKUReadModel(BaseModel):
 def resolve_sku_price(
     sku_price: MoneyReadModel | None,
     variant_default: MoneyReadModel | None,
-) -> MoneyReadModel:
-    """Resolve effective SKU price: SKU override -> variant default -> error."""
+) -> MoneyReadModel | None:
+    """Resolve effective SKU price: SKU override -> variant default -> None."""
     if sku_price is not None:
         return sku_price
     if variant_default is not None:
         return variant_default
-    raise ValueError("No price: neither SKU nor variant has a price set")
+    return None
 
 
 class ProductVariantReadModel(BaseModel):

@@ -16,13 +16,18 @@ from src.modules.catalog.application.queries.read_models import (
     MoneyReadModel,
     SKUReadModel,
     VariantAttributePairReadModel,
+    resolve_sku_price,
 )
 from src.modules.catalog.infrastructure.models import (
+    ProductVariant as OrmProductVariant,
     SKU as OrmSKU,
 )
 
 
-def sku_orm_to_read_model(orm: OrmSKU) -> SKUReadModel:
+def sku_orm_to_read_model(
+    orm: OrmSKU,
+    variant_default_price: MoneyReadModel | None = None,
+) -> SKUReadModel:
     """Convert an ORM SKU row to a SKUReadModel."""
     variant_attrs = [
         VariantAttributePairReadModel(
@@ -43,6 +48,8 @@ def sku_orm_to_read_model(orm: OrmSKU) -> SKUReadModel:
     if orm.price is not None:
         sku_price = MoneyReadModel(amount=orm.price, currency=orm.currency)
 
+    resolved = resolve_sku_price(sku_price, variant_default_price)
+
     return SKUReadModel(
         id=orm.id,
         product_id=orm.product_id,
@@ -50,7 +57,7 @@ def sku_orm_to_read_model(orm: OrmSKU) -> SKUReadModel:
         sku_code=orm.sku_code,
         variant_hash=orm.variant_hash,
         price=sku_price,
-        resolved_price=sku_price,
+        resolved_price=resolved,
         compare_at_price=compare_at,
         is_active=orm.is_active,
         version=orm.version,
@@ -91,11 +98,27 @@ class ListSKUsHandler:
         """
         stmt = (
             select(OrmSKU)
-            .where(OrmSKU.product_id == query.product_id)
-            .options(selectinload(OrmSKU.attribute_values))
+            .where(
+                OrmSKU.product_id == query.product_id,
+                OrmSKU.deleted_at.is_(None),
+            )
+            .options(
+                selectinload(OrmSKU.attribute_values),
+                selectinload(OrmSKU.variant),
+            )
             .order_by(OrmSKU.created_at)
         )
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
 
-        return [sku_orm_to_read_model(orm) for orm in rows]
+        items: list[SKUReadModel] = []
+        for orm in rows:
+            variant_default: MoneyReadModel | None = None
+            if orm.variant is not None and orm.variant.default_price is not None:
+                variant_default = MoneyReadModel(
+                    amount=orm.variant.default_price,
+                    currency=orm.variant.default_currency,
+                )
+            items.append(sku_orm_to_read_model(orm, variant_default_price=variant_default))
+
+        return items
