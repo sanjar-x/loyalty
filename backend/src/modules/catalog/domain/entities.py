@@ -25,6 +25,7 @@ from attr import dataclass, field
 
 from src.modules.catalog.domain.exceptions import (
     DuplicateVariantCombinationError,
+    InvalidMediaStateError,
     InvalidStatusTransitionError,
     SKUNotFoundError,
 )
@@ -1020,6 +1021,192 @@ class SKU:
             raise ValueError("compare_at_price must be greater than price")
 
         self.updated_at = datetime.now(UTC)
+
+
+# ---------------------------------------------------------------------------
+# MediaAsset -- child entity owned by the Product aggregate
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class MediaAsset:
+    """A media file associated with a product (image, video, document, etc.).
+
+    MediaAsset is a child entity -- not an aggregate root. It tracks the full
+    lifecycle of a media upload through a processing FSM:
+    ``PENDING_UPLOAD`` -> ``PROCESSING`` -> ``COMPLETED`` | ``FAILED``.
+
+    External URLs bypass the FSM entirely and are created with ``COMPLETED``
+    status via the ``create_external`` factory.
+
+    Attributes:
+        id: Unique media asset identifier.
+        product_id: FK to the parent Product aggregate.
+        attribute_value_id: Optional FK to an AttributeValue (for swatch media).
+        media_type: MIME-type hint or media category (e.g. ``"image/jpeg"``).
+        role: Semantic role of the asset (e.g. ``"gallery"``, ``"cover"``).
+        sort_order: Display ordering among sibling assets.
+        processing_status: Current state of the processing FSM, or None.
+        storage_object_id: FK to the StorageObject record, if any.
+        is_external: True if the media URL is hosted externally.
+        external_url: URL of the externally hosted asset, if applicable.
+        raw_object_key: S3 key of the raw (unprocessed) upload, if any.
+        public_url: Public URL of the processed asset, set on completion.
+    """
+
+    id: uuid.UUID
+    product_id: uuid.UUID
+    attribute_value_id: uuid.UUID | None
+    media_type: str
+    role: str
+    sort_order: int
+    processing_status: MediaProcessingStatus | None = None
+    storage_object_id: uuid.UUID | None = None
+    is_external: bool = False
+    external_url: str | None = None
+    raw_object_key: str | None = None
+    public_url: str | None = None
+
+    @classmethod
+    def create_upload(
+        cls,
+        *,
+        product_id: uuid.UUID,
+        media_type: str,
+        role: str,
+        raw_object_key: str,
+        sort_order: int = 0,
+        attribute_value_id: uuid.UUID | None = None,
+        media_id: uuid.UUID | None = None,
+    ) -> MediaAsset:
+        """Factory method for a new upload-based media asset.
+
+        Creates the entity with ``PENDING_UPLOAD`` status so the client can
+        upload the raw file to the pre-signed S3 URL.
+
+        Args:
+            product_id: UUID of the owning Product aggregate.
+            media_type: MIME-type hint or media category string.
+            role: Semantic role of the asset within the product listing.
+            raw_object_key: S3 key where the raw file will be uploaded.
+            sort_order: Display ordering among sibling assets (default: 0).
+            attribute_value_id: Optional FK to an AttributeValue (swatch media).
+            media_id: Optional pre-generated UUID; generates uuid4 if omitted.
+
+        Returns:
+            A new MediaAsset instance in ``PENDING_UPLOAD`` state.
+        """
+        return cls(
+            id=media_id or uuid.uuid4(),
+            product_id=product_id,
+            attribute_value_id=attribute_value_id,
+            media_type=media_type,
+            role=role,
+            sort_order=sort_order,
+            processing_status=MediaProcessingStatus.PENDING_UPLOAD,
+            is_external=False,
+            raw_object_key=raw_object_key,
+        )
+
+    @classmethod
+    def create_external(
+        cls,
+        *,
+        product_id: uuid.UUID,
+        media_type: str,
+        role: str,
+        external_url: str,
+        sort_order: int = 0,
+        attribute_value_id: uuid.UUID | None = None,
+        media_id: uuid.UUID | None = None,
+    ) -> MediaAsset:
+        """Factory method for an externally hosted media asset.
+
+        Creates the entity with ``COMPLETED`` status; no upload or processing
+        is required because the asset is served from an external URL.
+
+        Args:
+            product_id: UUID of the owning Product aggregate.
+            media_type: MIME-type hint or media category string.
+            role: Semantic role of the asset within the product listing.
+            external_url: Public URL of the externally hosted file.
+            sort_order: Display ordering among sibling assets (default: 0).
+            attribute_value_id: Optional FK to an AttributeValue (swatch media).
+            media_id: Optional pre-generated UUID; generates uuid4 if omitted.
+
+        Returns:
+            A new MediaAsset instance in ``COMPLETED`` state with the
+            ``public_url`` set to ``external_url``.
+        """
+        return cls(
+            id=media_id or uuid.uuid4(),
+            product_id=product_id,
+            attribute_value_id=attribute_value_id,
+            media_type=media_type,
+            role=role,
+            sort_order=sort_order,
+            processing_status=MediaProcessingStatus.COMPLETED,
+            is_external=True,
+            external_url=external_url,
+            public_url=external_url,
+        )
+
+    def confirm_upload(self) -> None:
+        """Transition FSM from PENDING_UPLOAD to PROCESSING.
+
+        Raises:
+            InvalidMediaStateError: If current state is not PENDING_UPLOAD.
+        """
+        if self.processing_status != MediaProcessingStatus.PENDING_UPLOAD:
+            raise InvalidMediaStateError(
+                media_id=self.id,
+                current=str(self.processing_status) if self.processing_status else None,
+                expected=MediaProcessingStatus.PENDING_UPLOAD.value,
+            )
+        self.processing_status = MediaProcessingStatus.PROCESSING
+
+    def complete_processing(
+        self,
+        public_url: str,
+        object_key: str,
+        storage_object_id: uuid.UUID | None = None,
+    ) -> None:
+        """Transition FSM from PROCESSING to COMPLETED.
+
+        Sets the public URL and optionally records the storage object reference.
+
+        Args:
+            public_url: Public URL of the processed media file.
+            object_key: Final S3 key of the processed file (stored for reference).
+            storage_object_id: Optional FK to the StorageObject record.
+
+        Raises:
+            InvalidMediaStateError: If current state is not PROCESSING.
+        """
+        if self.processing_status != MediaProcessingStatus.PROCESSING:
+            raise InvalidMediaStateError(
+                media_id=self.id,
+                current=str(self.processing_status) if self.processing_status else None,
+                expected=MediaProcessingStatus.PROCESSING.value,
+            )
+        self.public_url = public_url
+        self.raw_object_key = object_key
+        self.storage_object_id = storage_object_id
+        self.processing_status = MediaProcessingStatus.COMPLETED
+
+    def fail_processing(self) -> None:
+        """Transition FSM from PROCESSING to FAILED.
+
+        Raises:
+            InvalidMediaStateError: If current state is not PROCESSING.
+        """
+        if self.processing_status != MediaProcessingStatus.PROCESSING:
+            raise InvalidMediaStateError(
+                media_id=self.id,
+                current=str(self.processing_status) if self.processing_status else None,
+                expected=MediaProcessingStatus.PROCESSING.value,
+            )
+        self.processing_status = MediaProcessingStatus.FAILED
 
 
 # ---------------------------------------------------------------------------

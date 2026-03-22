@@ -309,6 +309,21 @@ class InvalidLogoStateException(UnprocessableEntityError):
         )
 
 
+class InvalidMediaStateError(UnprocessableEntityError):
+    """Raised when a media asset FSM transition is invalid."""
+
+    def __init__(self, media_id: uuid.UUID, current: str | None, expected: str) -> None:
+        super().__init__(
+            message=f"Media {media_id} is in state {current}, expected {expected}",
+            error_code="INVALID_MEDIA_STATE",
+            details={
+                "media_id": str(media_id),
+                "current_state": current,
+                "expected_state": expected,
+            },
+        )
+
+
 # ---------------------------------------------------------------------------
 # AttributeGroup aggregate exceptions
 # ---------------------------------------------------------------------------
