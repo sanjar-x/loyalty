@@ -7,10 +7,14 @@ in the DI container at REQUEST scope.
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 
-from src.modules.user.application.commands.anonymize_customer import AnonymizeCustomerHandler
+from src.modules.user.application.commands.anonymize_customer import (
+    AnonymizeCustomerHandler,
+)
 from src.modules.user.application.commands.anonymize_user import AnonymizeUserHandler
 from src.modules.user.application.commands.create_customer import CreateCustomerHandler
-from src.modules.user.application.commands.create_staff_member import CreateStaffMemberHandler
+from src.modules.user.application.commands.create_staff_member import (
+    CreateStaffMemberHandler,
+)
 from src.modules.user.application.commands.create_user import CreateUserHandler
 from src.modules.user.application.commands.update_profile import UpdateProfileHandler
 from src.modules.user.application.queries.get_my_profile import GetMyProfileHandler
@@ -20,16 +24,12 @@ from src.modules.user.application.queries.get_user_by_identity import (
 from src.modules.user.domain.interfaces import (
     ICustomerRepository,
     IStaffMemberRepository,
-    IUserRepository,
 )
 from src.modules.user.infrastructure.repositories.customer_repository import (
     CustomerRepository,
 )
 from src.modules.user.infrastructure.repositories.staff_member_repository import (
     StaffMemberRepository,
-)
-from src.modules.user.infrastructure.repositories.user_repository import (
-    UserRepository,
 )
 
 
@@ -41,9 +41,6 @@ class UserProvider(Provider):
     """
 
     # Repositories
-    user_repo: CompositeDependencySource = provide(
-        UserRepository, scope=Scope.REQUEST, provides=IUserRepository
-    )
     customer_repo: CompositeDependencySource = provide(
         CustomerRepository, scope=Scope.REQUEST, provides=ICustomerRepository
     )
@@ -52,7 +49,9 @@ class UserProvider(Provider):
     )
 
     # Command handlers (legacy)
-    create_user_handler: CompositeDependencySource = provide(CreateUserHandler, scope=Scope.REQUEST)
+    create_user_handler: CompositeDependencySource = provide(
+        CreateUserHandler, scope=Scope.REQUEST
+    )
     update_profile_handler: CompositeDependencySource = provide(
         UpdateProfileHandler, scope=Scope.REQUEST
     )

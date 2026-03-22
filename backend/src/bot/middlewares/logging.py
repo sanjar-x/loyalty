@@ -29,7 +29,9 @@ class LoggingMiddleware(BaseMiddleware):
         user_info = f"user_id={user.id}" if user else "anonymous"
 
         update_id = event.update_id if isinstance(event, Update) else None
-        event_type = event.event_type if isinstance(event, Update) else type(event).__name__
+        event_type = (
+            event.event_type if isinstance(event, Update) else type(event).__name__
+        )
 
         logger.info(
             "update_received",

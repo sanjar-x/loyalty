@@ -300,7 +300,7 @@ domain/
 **NIST RBAC:**
 
 - Роли с иерархическими связями
-- Гранулярные права (`catalog:manage`, `users:read`, ...)
+- Гранулярные права (`catalog:manage`, `profile:read`, ...)
 - Привязка ролей к сессии
 - Кэширование прав в Redis (TTL)
 
@@ -422,7 +422,6 @@ infrastructure/
 ├── models.py               # SQLAlchemy ORM: User, Customer, StaffMember
 ├── provider.py             # UserProvider (Dishka)
 └── repositories/
-    ├── user_repository.py
     ├── customer_repository.py
     └── staff_member_repository.py
 ```
@@ -654,7 +653,7 @@ tests/
 │   ├── catalog_mothers.py  # Brand, Category, Product, SKU, Attribute
 │   ├── identity_mothers.py # Identity, Role, Permission, Session
 │   ├── storage_mothers.py  # StorageFile
-│   └── user_mothers.py     # User, Customer
+│   └── user_mothers.py     # Customer
 └── fakes/                  # Mock-реализации
     ├── blob_storage.py     # InMemoryBlobStorage
     └── oidc_provider.py    # StubOIDCProvider

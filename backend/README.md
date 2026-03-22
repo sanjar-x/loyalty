@@ -348,15 +348,15 @@ All endpoints are served under `/api/v1`. Interactive docs available at `/docs` 
 | `POST` | `/admin/customers/{id}/deactivate` | `customers:manage` | Deactivate customer |
 | `POST` | `/admin/customers/{id}/reactivate` | `customers:manage` | Reactivate customer |
 
-### User Profile & Account
+### Profile & Account
 
-| Method   | Endpoint             | Auth           | Description             |
-| -------- | -------------------- | -------------- | ----------------------- |
-| `GET`    | `/users/me`          | `users:read`   | Get my profile          |
-| `PATCH`  | `/users/me`          | `users:update` | Update my profile       |
-| `DELETE` | `/users/me`          | `users:delete` | Delete account (GDPR)   |
-| `PUT`    | `/users/me/password` | Bearer         | Change password         |
-| `GET`    | `/users/me/sessions` | Bearer         | List my active sessions |
+| Method   | Endpoint               | Auth             | Description             |
+| -------- | ---------------------- | ---------------- | ----------------------- |
+| `GET`    | `/profile/me`          | `profile:read`   | Get my profile          |
+| `PATCH`  | `/profile/me`          | `profile:update` | Update my profile       |
+| `DELETE` | `/profile/me`          | `profile:delete` | Delete account (GDPR)   |
+| `PUT`    | `/profile/me/password` | Bearer           | Change password         |
+| `GET`    | `/profile/me/sessions` | Bearer           | List my active sessions |
 
 ### Invitations
 

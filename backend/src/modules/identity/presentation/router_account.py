@@ -28,8 +28,8 @@ from src.modules.identity.presentation.schemas import ChangePasswordRequest, Mes
 from src.shared.interfaces.auth import AuthContext
 
 identity_account_router = APIRouter(
-    prefix="/users",
-    tags=["Account Management"],
+    prefix="/profile",
+    tags=["Account"],
     route_class=DishkaRoute,
 )
 
@@ -38,7 +38,7 @@ identity_account_router = APIRouter(
     "/me",
     response_model=MessageResponse,
     summary="Delete my account (GDPR)",
-    dependencies=[Depends(RequirePermission("users:delete"))],
+    dependencies=[Depends(RequirePermission("profile:delete"))],
 )
 async def delete_my_account(
     auth: AuthContext = Depends(get_auth_context),

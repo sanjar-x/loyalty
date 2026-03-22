@@ -28,8 +28,8 @@ from src.modules.user.presentation.schemas import (
 from src.shared.interfaces.auth import AuthContext
 
 user_router = APIRouter(
-    prefix="/users",
-    tags=["User Profile"],
+    prefix="/profile",
+    tags=["Profile"],
     route_class=DishkaRoute,
 )
 
@@ -38,7 +38,7 @@ user_router = APIRouter(
     "/me",
     response_model=UserProfileResponse,
     summary="Get my profile",
-    dependencies=[Depends(RequirePermission("users:read"))],
+    dependencies=[Depends(RequirePermission("profile:read"))],
 )
 async def get_my_profile(
     auth: AuthContext = Depends(get_auth_context),
@@ -70,7 +70,7 @@ async def get_my_profile(
     "/me",
     response_model=MessageResponse,
     summary="Update my profile",
-    dependencies=[Depends(RequirePermission("users:update"))],
+    dependencies=[Depends(RequirePermission("profile:update"))],
 )
 async def update_profile(
     body: UpdateProfileRequest,

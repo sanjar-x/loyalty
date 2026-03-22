@@ -1,8 +1,8 @@
-"""Seed IAM roles and permissions.
+"""seed_iam_roles_and_permissions
 
-Revision ID: a0seed00rbac
+Revision ID: dcb663d40ddd
 Revises: dbba35b3bf99
-Create Date: 2026-03-22 15:10:00.000000
+Create Date: 2026-03-22 15:56:10.158331
 
 """
 
@@ -11,13 +11,13 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "a0seed00rbac"
-down_revision: str = "dbba35b3bf99"
+revision: str = "dcb663d40ddd"
+down_revision: str | Sequence[str] | None = "dbba35b3bf99"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 # ---------------------------------------------------------------------------
-# Permission UUIDs — uuid5(NAMESPACE_DNS, "perm.<codename>")
+# Permission UUIDs — deterministic, well-known
 # ---------------------------------------------------------------------------
 PERMISSIONS: list[tuple[str, str, str, str, str]] = [
     # (id, codename, resource, action, description)
@@ -33,10 +33,10 @@ PERMISSIONS: list[tuple[str, str, str, str, str]] = [
     # ── Returns ──────────────────────────────────────────────────────────
     ("260ef83b-06b3-5e31-b60f-07dbd0666711", "returns:read", "returns", "read", "Просмотр возвратов"),
     ("7501bd14-845d-51de-a70c-335eb179ecdb", "returns:manage", "returns", "manage", "Обработка возвратов"),
-    # ── Users (self-service) ─────────────────────────────────────────────
-    ("12833502-d3f2-5eba-83ae-95a40cd06153", "users:read", "users", "read", "Просмотр профиля"),
-    ("4acf2608-e539-5057-9373-8c935b18aeaf", "users:update", "users", "update", "Редактирование профиля"),
-    ("8eadaeaf-ba4a-5747-b1f2-b360df386bca", "users:delete", "users", "delete", "Удаление аккаунта (GDPR)"),
+    # ── Profile (self-service) ───────────────────────────────────────────
+    ("12833502-d3f2-5eba-83ae-95a40cd06153", "profile:read", "profile", "read", "Просмотр профиля"),
+    ("4acf2608-e539-5057-9373-8c935b18aeaf", "profile:update", "profile", "update", "Редактирование профиля"),
+    ("8eadaeaf-ba4a-5747-b1f2-b360df386bca", "profile:delete", "profile", "delete", "Удаление аккаунта (GDPR)"),
     # ── Admin IAM ────────────────────────────────────────────────────────
     ("4236b6ca-8b53-5b65-9a66-b492351a07c1", "roles:manage", "roles", "manage", "Управление ролями и правами"),
     ("ab498b82-5aa9-5732-b724-4b1caf68b539", "identities:manage", "identities", "manage", "Управление идентификациями (список, деактивация, назначение ролей)"),
@@ -70,35 +70,28 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
     ROLE_ADMIN: [p[1] for p in PERMISSIONS],
     # manager: операционное управление (без IAM)
     ROLE_MANAGER: [
-        # catalog
         "catalog:read",
         "catalog:manage",
-        # orders
         "orders:read",
         "orders:manage",
-        # reviews
         "reviews:read",
         "reviews:moderate",
-        # returns
         "returns:read",
         "returns:manage",
-        # users (read-only для просмотра профилей)
-        "users:read",
-        # customers
+        "profile:read",
         "customers:read",
         "customers:manage",
-        # staff (просмотр + приглашение, но не управление ролями)
         "staff:manage",
         "staff:invite",
     ],
-    # customer: только свой профиль + чтение каталога/заказов
+    # customer: свой профиль + чтение каталога/заказов/отзывов
     ROLE_CUSTOMER: [
         "catalog:read",
         "orders:read",
         "reviews:read",
-        "users:read",
-        "users:update",
-        "users:delete",
+        "profile:read",
+        "profile:update",
+        "profile:delete",
     ],
 }
 
@@ -109,13 +102,12 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
 #     └── manager
 #           └── customer
 #
-# Effective permissions:
-#   admin    = own(17) + manager + customer = ALL 17
-#   manager  = own(14) + customer(6)        = 14 unique
+# Effective permissions (own + inherited, deduplicated):
+#   admin    = own(17)                      = ALL 17
+#   manager  = own(13) + customer(6)        = 15 unique
 #   customer = own(6)                       = 6
 # ---------------------------------------------------------------------------
 ROLE_HIERARCHY: list[tuple[str, str]] = [
-    # (parent_role_id, child_role_id)
     (ROLE_ADMIN, ROLE_MANAGER),
     (ROLE_MANAGER, ROLE_CUSTOMER),
 ]
@@ -131,7 +123,6 @@ def _perm_id(codename: str) -> str:
 
 
 def upgrade() -> None:
-    # ── Permissions ──────────────────────────────────────────────────────
     op.bulk_insert(
         sa.table(
             "permissions",
@@ -142,18 +133,11 @@ def upgrade() -> None:
             sa.column("description", sa.String),
         ),
         [
-            {
-                "id": p[0],
-                "codename": p[1],
-                "resource": p[2],
-                "action": p[3],
-                "description": p[4],
-            }
+            {"id": p[0], "codename": p[1], "resource": p[2], "action": p[3], "description": p[4]}
             for p in PERMISSIONS
         ],
     )
 
-    # ── Roles ────────────────────────────────────────────────────────────
     op.bulk_insert(
         sa.table(
             "roles",
@@ -175,7 +159,6 @@ def upgrade() -> None:
         ],
     )
 
-    # ── Role-Permission assignments ──────────────────────────────────────
     role_perm_rows = []
     for role_id, codenames in ROLE_PERMISSIONS.items():
         for codename in codenames:
@@ -190,7 +173,6 @@ def upgrade() -> None:
         role_perm_rows,
     )
 
-    # ── Role hierarchy ───────────────────────────────────────────────────
     op.bulk_insert(
         sa.table(
             "role_hierarchy",

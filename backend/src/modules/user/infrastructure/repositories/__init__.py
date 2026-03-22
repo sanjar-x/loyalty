@@ -10,12 +10,8 @@ from src.modules.user.infrastructure.repositories.customer_repository import (
 from src.modules.user.infrastructure.repositories.staff_member_repository import (
     StaffMemberRepository,
 )
-from src.modules.user.infrastructure.repositories.user_repository import (
-    UserRepository,
-)
 
 __all__ = [
     "CustomerRepository",
     "StaffMemberRepository",
-    "UserRepository",
 ]
