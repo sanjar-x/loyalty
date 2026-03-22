@@ -142,6 +142,7 @@ class Brand(AggregateRoot):
         if name is not None:
             self.name = name
         if slug is not None:
+            _validate_slug(slug, "Brand")
             self.slug = slug
 
     def init_logo_upload(self, object_key: str, content_type: str) -> None:
@@ -387,6 +388,7 @@ class Category(AggregateRoot):
             self.sort_order = sort_order
 
         if slug is not None and slug != self.slug:
+            _validate_slug(slug, "Category")
             old_full_slug = self.full_slug
             self.slug = slug
             # Recompute own full_slug by replacing the last path segment
@@ -649,7 +651,7 @@ class Attribute(AggregateRoot):
                 self.name_i18n = name_i18n
 
         if "description_i18n" in kwargs:
-            self.description_i18n = kwargs["description_i18n"]
+            self.description_i18n = kwargs["description_i18n"] or {}
 
         if "ui_type" in kwargs and kwargs["ui_type"] is not None:
             self.ui_type = kwargs["ui_type"]
@@ -1559,6 +1561,11 @@ class Product(AggregateRoot):
         )
         return product
 
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "title_i18n", "description_i18n", "slug", "brand_id",
+        "primary_category_id", "supplier_id", "country_of_origin", "tags",
+    })
+
     def update(self, **kwargs: Any) -> None:
         """Update mutable product fields.
 
@@ -1573,8 +1580,14 @@ class Product(AggregateRoot):
                 ``tags``.
 
         Raises:
-            ValueError: If ``title_i18n`` is provided but empty.
+            TypeError: If an unknown/immutable field name is passed.
+            ValueError: If ``title_i18n`` is provided but empty, or if
+                ``brand_id`` / ``primary_category_id`` is set to None.
         """
+        unknown = set(kwargs) - self._UPDATABLE_FIELDS
+        if unknown:
+            raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
+
         if "title_i18n" in kwargs:
             if not kwargs["title_i18n"]:
                 raise ValueError("title_i18n must contain at least one language entry")
@@ -1584,12 +1597,17 @@ class Product(AggregateRoot):
             self.description_i18n = kwargs["description_i18n"]
 
         if "slug" in kwargs:
+            _validate_slug(kwargs["slug"], "Product")
             self.slug = kwargs["slug"]
 
         if "brand_id" in kwargs:
+            if kwargs["brand_id"] is None:
+                raise ValueError("brand_id cannot be None")
             self.brand_id = kwargs["brand_id"]
 
         if "primary_category_id" in kwargs:
+            if kwargs["primary_category_id"] is None:
+                raise ValueError("primary_category_id cannot be None")
             self.primary_category_id = kwargs["primary_category_id"]
 
         if "supplier_id" in kwargs:
