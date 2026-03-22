@@ -914,41 +914,37 @@ class CategoryAttributeBinding(AggregateRoot):
             filter_settings=filter_settings,
         )
 
-    def update(
-        self,
-        *,
-        sort_order: int | None = None,
-        requirement_level: RequirementLevel | None = None,
-        flag_overrides: dict[str, Any] | None = ...,  # type: ignore[assignment]
-        filter_settings: dict[str, Any] | None = ...,  # type: ignore[assignment]
-    ) -> None:
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "sort_order", "requirement_level", "flag_overrides", "filter_settings",
+    })
+
+    def update(self, **kwargs: Any) -> None:
         """Update mutable binding fields. category_id and attribute_id are immutable.
 
-        Args:
-            sort_order: New sort position, or None to keep current.
-            requirement_level: New requirement level, or None to keep current.
-            flag_overrides: New overrides dict, None to clear, ``...`` to keep.
-            filter_settings: New filter settings, None to clear, ``...`` to keep.
+        Only fields present in ``kwargs`` are applied. Pass ``None`` for
+        nullable fields (flag_overrides, filter_settings) to clear them.
+
+        Raises:
+            TypeError: If an unknown field name is passed.
         """
-        if sort_order is not None:
-            self.sort_order = sort_order
+        unknown = set(kwargs) - self._UPDATABLE_FIELDS
+        if unknown:
+            raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
 
-        if requirement_level is not None:
-            self.requirement_level = requirement_level
-
-        if flag_overrides is not ...:
-            self.flag_overrides = flag_overrides
-
-        if filter_settings is not ...:
-            self.filter_settings = filter_settings
+        if "sort_order" in kwargs:
+            self.sort_order = kwargs["sort_order"]
+        if "requirement_level" in kwargs:
+            self.requirement_level = kwargs["requirement_level"]
+        if "flag_overrides" in kwargs:
+            self.flag_overrides = kwargs["flag_overrides"]
+        if "filter_settings" in kwargs:
+            self.filter_settings = kwargs["filter_settings"]
 
 
 # ---------------------------------------------------------------------------
 # SKU -- child entity owned by the Product aggregate
 # ---------------------------------------------------------------------------
 
-_SENTINEL: object = object()
-"""Sentinel value distinguishing 'not provided' from None for nullable fields."""
 
 
 @dataclass
@@ -1011,57 +1007,40 @@ class SKU:
         self.deleted_at = now
         self.updated_at = now
 
-    def update(
-        self,
-        *,
-        sku_code: str | None = None,
-        price: Money | None = None,
-        compare_at_price: Money | None | object = _SENTINEL,
-        is_active: bool | None = None,
-        variant_attributes: list[tuple[uuid.UUID, uuid.UUID]] | None = None,
-        variant_hash: str | None = None,
-    ) -> None:
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "sku_code", "price", "compare_at_price", "is_active",
+        "variant_attributes", "variant_hash",
+    })
+
+    def update(self, **kwargs: Any) -> None:
         """Update mutable SKU fields.
 
-        Uses the ``_SENTINEL`` pattern for ``compare_at_price`` so callers can
-        distinguish "leave unchanged" (omit or pass ``_SENTINEL``) from
-        "clear to None" (pass ``None``) or "set to a value" (pass a
-        ``Money`` instance).
+        Only fields present in ``kwargs`` are applied. Pass ``None`` for
+        ``compare_at_price`` to clear it.
 
         After any price or compare_at_price change the constraint
         ``compare_at_price > price`` is re-validated.
 
-        Args:
-            sku_code: New stock-keeping code, or None to keep current.
-            price: New base price, or None to keep current.
-            compare_at_price: New strikethrough price, None to clear,
-                or ``_SENTINEL`` (default) to leave unchanged.
-            is_active: New active flag, or None to keep current.
-            variant_attributes: New attribute pair list, or None to keep current.
-            variant_hash: Pre-computed hash for new variant_attributes.
-                Must be supplied together with ``variant_attributes``
-                when the hash is recalculated by the Product aggregate.
-
         Raises:
+            TypeError: If an unknown field name is passed.
             ValueError: If the resulting compare_at_price <= price.
         """
-        if sku_code is not None:
-            self.sku_code = sku_code
+        unknown = set(kwargs) - self._UPDATABLE_FIELDS
+        if unknown:
+            raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
 
-        if price is not None:
-            self.price = price
-
-        if compare_at_price is not _SENTINEL:
-            self.compare_at_price = compare_at_price  # type: ignore[assignment]
-
-        if is_active is not None:
-            self.is_active = is_active
-
-        if variant_attributes is not None:
-            self.variant_attributes = variant_attributes
-
-        if variant_hash is not None:
-            self.variant_hash = variant_hash
+        if "sku_code" in kwargs:
+            self.sku_code = kwargs["sku_code"]
+        if "price" in kwargs:
+            self.price = kwargs["price"]
+        if "compare_at_price" in kwargs:
+            self.compare_at_price = kwargs["compare_at_price"]
+        if "is_active" in kwargs:
+            self.is_active = kwargs["is_active"]
+        if "variant_attributes" in kwargs:
+            self.variant_attributes = kwargs["variant_attributes"]
+        if "variant_hash" in kwargs:
+            self.variant_hash = kwargs["variant_hash"]
 
         # Re-validate price constraint after any price-related change.
         if self.compare_at_price is not None and not self.compare_at_price > self.price:

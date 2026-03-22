@@ -6,7 +6,7 @@ and filter_settings. Emits ``CategoryAttributeBindingUpdatedEvent``.
 """
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from src.modules.catalog.domain.events import CategoryAttributeBindingUpdatedEvent
@@ -18,9 +18,6 @@ from src.modules.catalog.domain.value_objects import RequirementLevel
 from src.shared.interfaces.uow import IUnitOfWork
 
 
-_SENTINEL: object = object()
-
-
 @dataclass(frozen=True)
 class UpdateCategoryAttributeBindingCommand:
     """Input for updating a binding. category_id/attribute_id are immutable."""
@@ -29,8 +26,9 @@ class UpdateCategoryAttributeBindingCommand:
     category_id: uuid.UUID
     sort_order: int | None = None
     requirement_level: RequirementLevel | None = None
-    flag_overrides: dict[str, Any] | None = _SENTINEL  # type: ignore[assignment]
-    filter_settings: dict[str, Any] | None = _SENTINEL  # type: ignore[assignment]
+    flag_overrides: dict[str, Any] | None = None
+    filter_settings: dict[str, Any] | None = None
+    _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 
 @dataclass(frozen=True)
@@ -77,14 +75,11 @@ class UpdateCategoryAttributeBindingHandler:
             if binding.category_id != command.category_id:
                 raise CategoryAttributeBindingNotFoundError(binding_id=command.binding_id)
 
-            update_kwargs: dict[str, Any] = dict(
-                sort_order=command.sort_order,
-                requirement_level=command.requirement_level,
-            )
-            if command.flag_overrides is not _SENTINEL:
-                update_kwargs["flag_overrides"] = command.flag_overrides
-            if command.filter_settings is not _SENTINEL:
-                update_kwargs["filter_settings"] = command.filter_settings
+            update_kwargs: dict[str, Any] = {
+                f: getattr(command, f)
+                for f in command._provided_fields
+                if hasattr(command, f)
+            }
 
             binding.update(**update_kwargs)
 

@@ -49,7 +49,7 @@ class UpdateAttributeCommand:
     is_visible_on_card: bool | None = None
     is_visible_in_catalog: bool | None = None
     validation_rules: dict[str, Any] | None = None
-    fields_to_update: frozenset[str] = frozenset()
+    _provided_fields: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -89,10 +89,10 @@ class UpdateAttributeHandler:
             if attribute is None:
                 raise AttributeNotFoundError(attribute_id=command.attribute_id)
 
-            # Only pass fields the client actually sent (tracked via fields_to_update).
+            # Only pass fields the client actually sent (tracked via _provided_fields).
             update_kwargs: dict[str, Any] = {
                 name: getattr(command, name)
-                for name in command.fields_to_update
+                for name in command._provided_fields
             }
 
             attribute.update(**update_kwargs)

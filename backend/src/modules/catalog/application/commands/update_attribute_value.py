@@ -32,7 +32,7 @@ class UpdateAttributeValueCommand:
     meta_data: dict[str, Any] | None = None
     value_group: str | None = None
     sort_order: int | None = None
-    fields_to_update: frozenset[str] = frozenset()
+    _provided_fields: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -63,7 +63,9 @@ class UpdateAttributeValueHandler:
         self._value_repo = value_repo
         self._uow = uow
 
-    async def handle(self, command: UpdateAttributeValueCommand) -> UpdateAttributeValueResult:
+    async def handle(
+        self, command: UpdateAttributeValueCommand
+    ) -> UpdateAttributeValueResult:
         """Execute the update-attribute-value command.
 
         Returns:
@@ -82,10 +84,9 @@ class UpdateAttributeValueHandler:
             if value is None or value.attribute_id != command.attribute_id:
                 raise AttributeValueNotFoundError(value_id=command.value_id)
 
-            # Only pass fields the client actually sent (tracked via fields_to_update).
+            # Only pass fields the client actually sent (tracked via _provided_fields).
             update_kwargs: dict[str, Any] = {
-                name: getattr(command, name)
-                for name in command.fields_to_update
+                name: getattr(command, name) for name in command._provided_fields
             }
 
             value.update(**update_kwargs)

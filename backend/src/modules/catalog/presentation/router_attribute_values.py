@@ -145,7 +145,7 @@ async def update_attribute_value(
     command = UpdateAttributeValueCommand(
         attribute_id=attribute_id,
         value_id=value_id,
-        fields_to_update=frozenset(update_kwargs.keys()),
+        _provided_fields=frozenset(update_kwargs.keys()),
         **update_kwargs,
     )
     result: UpdateAttributeValueResult = await handler.handle(command)

@@ -209,7 +209,7 @@ async def update_attribute(
 
     command = UpdateAttributeCommand(
         attribute_id=attribute_id,
-        fields_to_update=frozenset(update_kwargs.keys()),
+        _provided_fields=frozenset(update_kwargs.keys()),
         **update_kwargs,
     )
     result: UpdateAttributeResult = await handler.handle(command)

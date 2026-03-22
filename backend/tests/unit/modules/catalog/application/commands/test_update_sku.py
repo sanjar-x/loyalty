@@ -1,7 +1,7 @@
 """Unit tests for UpdateSKUCommand, UpdateSKUResult, and UpdateSKUHandler.
 
 Covers:
-  - UpdateSKUCommand dataclass creation, field defaults, sentinel pattern
+  - UpdateSKUCommand dataclass creation, field defaults, _provided_fields pattern
   - UpdateSKUResult stores returned SKU id
   - Happy path: SKU found, updated, repo.update + uow.commit called
   - Product not found: raises ProductNotFoundError, no commit
@@ -9,7 +9,7 @@ Covers:
   - Optimistic locking: version mismatch raises ConcurrencyError
   - Variant attribute change: re-computes variant_hash, checks uniqueness
   - Duplicate variant combination: raises DuplicateVariantCombinationError
-  - compare_at_price sentinel: distinguish "unchanged" vs "clear" vs "set"
+  - _provided_fields: distinguish "unchanged" vs "clear" vs "set"
   - Price partial update: only amount or currency changed keeps the other
   - compare_at_price <= price: raises ValueError
 """
@@ -22,7 +22,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.modules.catalog.application.commands.update_sku import (
-    _SENTINEL,
     UpdateSKUCommand,
     UpdateSKUHandler,
     UpdateSKUResult,
@@ -131,16 +130,17 @@ class TestUpdateSKUCommand:
         assert cmd.product_id == pid
         assert cmd.sku_id == sid
 
-    def test_optional_fields_default_to_none_or_sentinel(self) -> None:
-        """All optional fields default to None or sentinel."""
+    def test_optional_fields_default_to_none(self) -> None:
+        """All optional fields default to None."""
         cmd = UpdateSKUCommand(product_id=uuid.uuid4(), sku_id=uuid.uuid4())
         assert cmd.sku_code is None
         assert cmd.price_amount is None
         assert cmd.price_currency is None
-        assert cmd.compare_at_price_amount is _SENTINEL
+        assert cmd.compare_at_price_amount is None
         assert cmd.is_active is None
         assert cmd.variant_attributes is None
         assert cmd.version is None
+        assert cmd._provided_fields == frozenset()
 
     def test_command_is_frozen(self) -> None:
         """UpdateSKUCommand is a frozen dataclass -- mutation raises."""
@@ -171,16 +171,17 @@ class TestUpdateSKUCommand:
         assert cmd.variant_attributes == [(attr_id, val_id)]
         assert cmd.version == 3
 
-    def test_compare_at_price_amount_none_vs_sentinel(self) -> None:
-        """Explicit None differs from sentinel default for compare_at_price_amount."""
+    def test_compare_at_price_amount_none_vs_not_provided(self) -> None:
+        """Explicit None with _provided_fields differs from not-provided default."""
         cmd_default = UpdateSKUCommand(product_id=uuid.uuid4(), sku_id=uuid.uuid4())
         cmd_none = UpdateSKUCommand(
             product_id=uuid.uuid4(),
             sku_id=uuid.uuid4(),
             compare_at_price_amount=None,
+            _provided_fields=frozenset({"compare_at_price_amount"}),
         )
-        assert cmd_default.compare_at_price_amount is _SENTINEL
-        assert cmd_none.compare_at_price_amount is None
+        assert "compare_at_price_amount" not in cmd_default._provided_fields
+        assert "compare_at_price_amount" in cmd_none._provided_fields
 
 
 # ---------------------------------------------------------------------------
@@ -710,10 +711,10 @@ class TestUpdateSKUHandlerPrice:
 
 
 class TestUpdateSKUHandlerCompareAtPrice:
-    """Handler tests for compare_at_price sentinel-based updates."""
+    """Handler tests for compare_at_price _provided_fields-based updates."""
 
-    async def test_sentinel_default_omits_compare_at_price(self) -> None:
-        """When compare_at_price_amount is sentinel, compare_at_price not in kwargs."""
+    async def test_not_provided_omits_compare_at_price(self) -> None:
+        """When compare_at_price_amount is not in _provided_fields, compare_at_price not in kwargs."""
         sku = make_sku()
         product = make_product(skus=[sku])
         repo = make_product_repo(product=product)
@@ -738,6 +739,7 @@ class TestUpdateSKUHandlerCompareAtPrice:
             product_id=product.id,
             sku_id=sku.id,
             compare_at_price_amount=None,
+            _provided_fields=frozenset({"compare_at_price_amount"}),
         )
         await handler.handle(cmd)
 
@@ -756,6 +758,7 @@ class TestUpdateSKUHandlerCompareAtPrice:
             product_id=product.id,
             sku_id=sku.id,
             compare_at_price_amount=15000,
+            _provided_fields=frozenset({"compare_at_price_amount"}),
         )
         await handler.handle(cmd)
 
@@ -777,6 +780,7 @@ class TestUpdateSKUHandlerCompareAtPrice:
             sku_id=sku.id,
             price_currency="EUR",
             compare_at_price_amount=20000,
+            _provided_fields=frozenset({"compare_at_price_amount", "price_currency"}),
         )
         await handler.handle(cmd)
 
@@ -808,6 +812,7 @@ class TestUpdateSKUHandlerCompareAtPriceValidation:
             product_id=product.id,
             sku_id=sku.id,
             compare_at_price_amount=5000,  # less than price
+            _provided_fields=frozenset({"compare_at_price_amount"}),
         )
 
         with pytest.raises(ValueError, match="compare_at_price must be greater than price"):

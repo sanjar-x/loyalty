@@ -11,7 +11,7 @@ Part of the application layer (CQRS write side).
 """
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from src.modules.catalog.domain.exceptions import (
     ConcurrencyError,
@@ -23,11 +23,6 @@ from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
 from src.shared.interfaces.uow import IUnitOfWork
 
-# Module-level sentinel -- distinguishes "not provided" from "set to None"
-# for the compare_at_price field.  Never crosses into the domain layer;
-# the handler builds kwargs conditionally.
-_SENTINEL: object = object()
-
 
 @dataclass(frozen=True)
 class UpdateSKUCommand:
@@ -36,7 +31,7 @@ class UpdateSKUCommand:
     All fields except ``product_id`` and ``sku_id`` are optional; omitting
     a field (or leaving it at its default) means "keep the current value".
     Pass ``None`` explicitly for ``compare_at_price_amount`` to *clear* the
-    compare-at price; the sentinel default leaves it unchanged.
+    compare-at price; leaving it out of ``_provided_fields`` keeps it unchanged.
 
     Attributes:
         product_id: UUID of the product that owns the SKU.
@@ -45,7 +40,7 @@ class UpdateSKUCommand:
         price_amount: New price in smallest currency units, or None to keep.
         price_currency: Currency code for the new price, or None to keep.
         compare_at_price_amount: New compare-at price amount, None to clear,
-            or absent (sentinel) to keep unchanged.
+            or absent (not in _provided_fields) to keep unchanged.
         is_active: New active flag, or None to keep current.
         variant_attributes: New variant attribute pairs, or None to keep.
         version: Expected SKU version for optimistic locking, or None to skip.
@@ -56,10 +51,11 @@ class UpdateSKUCommand:
     sku_code: str | None = None
     price_amount: int | None = None
     price_currency: str | None = None
-    compare_at_price_amount: int | None | object = _SENTINEL
+    compare_at_price_amount: int | None = None
     is_active: bool | None = None
     variant_attributes: list[tuple[uuid.UUID, uuid.UUID]] | None = None
     version: int | None = None
+    _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 
 @dataclass(frozen=True)
@@ -147,8 +143,8 @@ class UpdateSKUHandler:
                 )
                 update_kwargs["price"] = Money(amount=new_amount, currency=new_currency)
 
-            # Handle compare_at_price with sentinel pattern.
-            if command.compare_at_price_amount is not _SENTINEL:
+            # Handle compare_at_price via _provided_fields.
+            if "compare_at_price_amount" in command._provided_fields:
                 if command.compare_at_price_amount is None:
                     # Caller explicitly wants to clear compare_at_price.
                     update_kwargs["compare_at_price"] = None

@@ -133,16 +133,20 @@ async def update_binding(
     request: CategoryAttributeBindingUpdateRequest,
     handler: FromDishka[UpdateCategoryAttributeBindingHandler],
 ) -> CategoryAttributeBindingResponse:
-    command = UpdateCategoryAttributeBindingCommand(
-        binding_id=binding_id,
-        category_id=category_id,
-        sort_order=request.sort_order,
-        requirement_level=(
-            RequirementLevel(request.requirement_level) if request.requirement_level else None
-        ),
-        flag_overrides=request.flag_overrides,
-        filter_settings=request.filter_settings,
-    )
+    provided_fields = request.model_fields_set
+    cmd_kwargs: dict[str, object] = {
+        "binding_id": binding_id,
+        "category_id": category_id,
+        "_provided_fields": frozenset(provided_fields),
+    }
+    for field_name in provided_fields:
+        value = getattr(request, field_name)
+        if field_name == "requirement_level" and value is not None:
+            cmd_kwargs["requirement_level"] = RequirementLevel(value)
+        else:
+            cmd_kwargs[field_name] = value
+
+    command = UpdateCategoryAttributeBindingCommand(**cmd_kwargs)  # type: ignore[arg-type]
     result: UpdateCategoryAttributeBindingResult = await handler.handle(command)
 
     return CategoryAttributeBindingResponse(

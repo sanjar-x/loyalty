@@ -109,7 +109,7 @@ async def update_sku(
         "product_id": product_id,
         "sku_id": sku_id,
         "version": request.version,
-        "fields": frozenset(provided_fields),
+        "_provided_fields": frozenset(provided_fields),
     }
     for field_name in provided_fields:
         value = getattr(request, field_name)
