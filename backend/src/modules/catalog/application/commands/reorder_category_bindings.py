@@ -56,6 +56,14 @@ class ReorderCategoryBindingsHandler:
             if category is None:
                 raise CategoryNotFoundError(category_id=command.category_id)
 
+            valid_ids = await self._binding_repo.list_ids_by_category(command.category_id)
+            requested_ids = {item.binding_id for item in command.items}
+            invalid_ids = requested_ids - valid_ids
+            if invalid_ids:
+                raise ValueError(
+                    f"Binding IDs {invalid_ids} do not belong to category {command.category_id}"
+                )
+
             updates = [(item.binding_id, item.sort_order) for item in command.items]
             await self._binding_repo.bulk_update_sort_order(updates)
             await self._uow.commit()

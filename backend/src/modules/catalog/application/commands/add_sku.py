@@ -103,7 +103,10 @@ class AddSKUHandler:
 
             compare_at_price: Money | None = None
             if command.compare_at_price_amount is not None:
-                if command.price_amount is not None and command.compare_at_price_amount <= command.price_amount:
+                if (
+                    command.price_amount is not None
+                    and command.compare_at_price_amount <= command.price_amount
+                ):
                     raise ValueError("compare_at_price must be greater than price")
                 compare_at_price = Money(
                     amount=command.compare_at_price_amount,

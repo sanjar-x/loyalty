@@ -46,6 +46,7 @@ from src.modules.catalog.presentation.schemas import (
     BrandUpdateRequest,
     LogoConfirmResponse,
 )
+from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
 
 brand_router = APIRouter(
@@ -82,7 +83,7 @@ async def create_brand(
     )
     result: CreateBrandResult = await handler.handle(command)
     return BrandCreateResponse(
-        brand_id=result.brand_id,
+        id=result.brand_id,
         presigned_upload_url=result.presigned_upload_url,
         object_key=result.object_key,
     )
@@ -153,10 +154,10 @@ async def update_brand(
     request: BrandUpdateRequest,
     handler: FromDishka[UpdateBrandHandler],
 ) -> BrandResponse:
-    command = UpdateBrandCommand(
+    command = build_update_command(
+        request,
+        UpdateBrandCommand,
         brand_id=brand_id,
-        name=request.name,
-        slug=request.slug,
     )
     result: UpdateBrandResult = await handler.handle(command)
     return BrandResponse(

@@ -10,8 +10,8 @@ Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.domain.interfaces import IMediaAssetRepository
 from src.modules.catalog.domain.exceptions import MediaAssetNotFoundError
+from src.modules.catalog.domain.interfaces import IMediaAssetRepository
 from src.shared.exceptions import UnprocessableEntityError
 from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.logger import ILogger
@@ -59,6 +59,11 @@ class ConfirmProductMediaHandler:
             UnprocessableEntityError: If the raw file is not present in S3.
             InvalidMediaStateError: If the asset FSM is not in PENDING_UPLOAD.
         """
+        # Two-phase approach: deliberate TOCTOU trade-off. The S3 existence
+        # check runs outside the DB lock to avoid holding a connection during
+        # external I/O. The domain FSM guard in Phase 2 protects against stale
+        # reads (e.g. concurrent confirmations).
+
         # Phase 1: Read without lock and verify S3 existence (no row lock held)
         media = await self._media_repo.get(command.media_id)
         if media is None:

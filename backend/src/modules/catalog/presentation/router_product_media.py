@@ -9,7 +9,7 @@ Delegates to application-layer command/query handlers via Dishka DI.
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from src.modules.catalog.application.commands.add_external_product_media import (
     AddExternalProductMediaCommand,
@@ -34,6 +34,7 @@ from src.modules.catalog.application.queries.list_product_media import (
 )
 from src.modules.catalog.presentation.schemas import (
     ProductMediaExternalRequest,
+    ProductMediaListResponse,
     ProductMediaResponse,
     ProductMediaUploadRequest,
     ProductMediaUploadResponse,
@@ -134,31 +135,40 @@ async def confirm_media_upload(
 @product_media_router.get(
     path="",
     status_code=status.HTTP_200_OK,
-    response_model=list[ProductMediaResponse],
+    response_model=ProductMediaListResponse,
     summary="List product media",
-    description="Return all media assets for the given product.",
+    description="Return paginated media assets for the given product.",
 )
 async def list_product_media(
     product_id: uuid.UUID,
     handler: FromDishka[ListProductMediaHandler],
-) -> list[ProductMediaResponse]:
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> ProductMediaListResponse:
     """List all media assets for a product."""
-    items = await handler.handle(product_id)
-    return [
-        ProductMediaResponse(
-            id=m.id,
-            product_id=m.product_id,
-            variant_id=m.variant_id,
-            media_type=m.media_type,
-            role=m.role,
-            sort_order=m.sort_order,
-            processing_status=m.processing_status,
-            public_url=m.public_url,
-            is_external=m.is_external,
-            external_url=m.external_url,
-        )
-        for m in items
-    ]
+    all_items = await handler.handle(product_id)
+    total = len(all_items)
+    page = all_items[offset : offset + limit]
+    return ProductMediaListResponse(
+        items=[
+            ProductMediaResponse(
+                id=m.id,
+                product_id=m.product_id,
+                variant_id=m.variant_id,
+                media_type=m.media_type,
+                role=m.role,
+                sort_order=m.sort_order,
+                processing_status=m.processing_status,
+                public_url=m.public_url,
+                is_external=m.is_external,
+                external_url=m.external_url,
+            )
+            for m in page
+        ],
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
 
 
 @product_media_router.delete(

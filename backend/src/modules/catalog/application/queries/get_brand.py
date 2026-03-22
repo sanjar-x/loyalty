@@ -2,21 +2,18 @@
 Query handler: retrieve a single brand by ID.
 
 Strict CQRS read side — does not use IUnitOfWork, domain aggregates, or
-repositories. Queries the database directly via AsyncSession + raw SQL
-and returns a Pydantic read model.
+repositories. Queries the ORM directly via AsyncSession and returns a
+Pydantic read model.
 """
 
 import uuid
 
-from sqlalchemy import text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.read_models import BrandReadModel
 from src.modules.catalog.domain.exceptions import BrandNotFoundError
-
-_GET_BRAND_SQL = text(
-    "SELECT id, name, slug, logo_url, logo_status FROM brands WHERE id = :brand_id"
-)
+from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 
 
 class GetBrandHandler:
@@ -37,16 +34,17 @@ class GetBrandHandler:
         Raises:
             BrandNotFoundError: If no brand with this ID exists.
         """
-        result = await self._session.execute(_GET_BRAND_SQL, {"brand_id": brand_id})
-        row = result.mappings().first()
+        stmt = select(OrmBrand).where(OrmBrand.id == brand_id)
+        result = await self._session.execute(stmt)
+        orm = result.scalar_one_or_none()
 
-        if row is None:
+        if orm is None:
             raise BrandNotFoundError(brand_id=brand_id)
 
         return BrandReadModel(
-            id=row["id"],
-            name=row["name"],
-            slug=row["slug"],
-            logo_url=row["logo_url"],
-            logo_status=row["logo_status"],
+            id=orm.id,
+            name=orm.name,
+            slug=orm.slug,
+            logo_url=orm.logo_url,
+            logo_status=orm.logo_status,
         )

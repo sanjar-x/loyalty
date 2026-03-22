@@ -45,6 +45,7 @@ from src.modules.catalog.presentation.schemas import (
     CategoryTreeResponse,
     CategoryUpdateRequest,
 )
+from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
 
 category_router = APIRouter(
@@ -89,8 +90,7 @@ async def get_category_tree(
         default=None, ge=1, le=10, description="Maximum tree depth to return"
     ),
 ) -> list[CategoryTreeResponse]:
-    # TODO: pass max_depth to handler when depth filtering is implemented
-    roots: list[CategoryNode] = await handler.handle()
+    roots: list[CategoryNode] = await handler.handle(max_depth=max_depth)
     return [CategoryTreeResponse.model_validate(r, from_attributes=True) for r in roots]
 
 
@@ -163,11 +163,10 @@ async def update_category(
     request: CategoryUpdateRequest,
     handler: FromDishka[UpdateCategoryHandler],
 ) -> CategoryResponse:
-    command = UpdateCategoryCommand(
+    command = build_update_command(
+        request,
+        UpdateCategoryCommand,
         category_id=category_id,
-        name=request.name,
-        slug=request.slug,
-        sort_order=request.sort_order,
     )
     result: UpdateCategoryResult = await handler.handle(command)
     return CategoryResponse(

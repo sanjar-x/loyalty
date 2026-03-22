@@ -3,7 +3,7 @@
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from src.modules.catalog.application.commands.add_variant import (
     AddVariantCommand,
@@ -28,6 +28,7 @@ from src.modules.catalog.presentation.schemas import (
     MoneySchema,
     ProductVariantCreateRequest,
     ProductVariantCreateResponse,
+    ProductVariantListResponse,
     ProductVariantResponse,
     ProductVariantUpdateRequest,
     ProductVariantUpdateResponse,
@@ -48,9 +49,7 @@ def _to_variant_response(v: ProductVariantReadModel) -> ProductVariantResponse:
         name_i18n=v.name_i18n,
         description_i18n=v.description_i18n,
         sort_order=v.sort_order,
-        default_price=MoneySchema(
-            amount=v.default_price.amount, currency=v.default_price.currency
-        )
+        default_price=MoneySchema(amount=v.default_price.amount, currency=v.default_price.currency)
         if v.default_price
         else None,
         skus=[to_sku_response(s) for s in v.skus],
@@ -86,18 +85,27 @@ async def create_variant(
 @variant_router.get(
     path="",
     status_code=status.HTTP_200_OK,
-    response_model=list[ProductVariantResponse],
+    response_model=ProductVariantListResponse,
     summary="List product variants",
-    description="Return all active variants for the given product.",
+    description="Return paginated active variants for the given product.",
 )
 async def list_variants(
     product_id: uuid.UUID,
     handler: FromDishka[ListVariantsHandler],
-) -> list[ProductVariantResponse]:
-    """Return all active variants for the given product."""
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> ProductVariantListResponse:
+    """Return paginated active variants for the given product."""
     query = ListVariantsQuery(product_id=product_id)
-    results = await handler.handle(query)
-    return [_to_variant_response(v) for v in results]
+    all_results = await handler.handle(query)
+    total = len(all_results)
+    page = all_results[offset : offset + limit]
+    return ProductVariantListResponse(
+        items=[_to_variant_response(v) for v in page],
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
 
 
 @variant_router.patch(

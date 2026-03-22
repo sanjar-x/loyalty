@@ -95,7 +95,9 @@ class UpdateVariantHandler:
 
             variant = product.find_variant(command.variant_id)
             if variant is None:
-                raise VariantNotFoundError(variant_id=command.variant_id, product_id=command.product_id)
+                raise VariantNotFoundError(
+                    variant_id=command.variant_id, product_id=command.product_id
+                )
 
             update_kwargs: dict[str, object] = {}
 
@@ -109,10 +111,15 @@ class UpdateVariantHandler:
                 update_kwargs["sort_order"] = command.sort_order
 
             # Handle default_price: can be set, changed, or cleared
-            if command.default_price_amount is not None or "default_price_amount" in command._provided_fields:
+            if (
+                command.default_price_amount is not None
+                or "default_price_amount" in command._provided_fields
+            ):
                 if command.default_price_amount is not None:
                     currency = command.default_price_currency or variant.default_currency
-                    update_kwargs["default_price"] = Money(amount=command.default_price_amount, currency=currency)
+                    update_kwargs["default_price"] = Money(
+                        amount=command.default_price_amount, currency=currency
+                    )
                     if command.default_price_currency is not None:
                         update_kwargs["default_currency"] = command.default_price_currency
                 else:

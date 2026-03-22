@@ -12,11 +12,17 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from src.modules.catalog.domain.exceptions import (
+    BrandNotFoundError,
+    CategoryNotFoundError,
     ConcurrencyError,
     ProductNotFoundError,
     ProductSlugConflictError,
 )
-from src.modules.catalog.domain.interfaces import IProductRepository
+from src.modules.catalog.domain.interfaces import (
+    IBrandRepository,
+    ICategoryRepository,
+    IProductRepository,
+)
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -78,9 +84,13 @@ class UpdateProductHandler:
     def __init__(
         self,
         product_repo: IProductRepository,
+        brand_repo: IBrandRepository,
+        category_repo: ICategoryRepository,
         uow: IUnitOfWork,
     ) -> None:
         self._product_repo = product_repo
+        self._brand_repo = brand_repo
+        self._category_repo = category_repo
         self._uow = uow
 
     async def handle(self, command: UpdateProductCommand) -> UpdateProductResult:
@@ -118,6 +128,17 @@ class UpdateProductHandler:
                     actual_version=product.version,
                 )
 
+            # --- FK validation (only when the field is being updated) ---
+            if "brand_id" in command._provided_fields:
+                brand = await self._brand_repo.get(command.brand_id)
+                if brand is None:
+                    raise BrandNotFoundError(brand_id=command.brand_id)
+
+            if "primary_category_id" in command._provided_fields:
+                category = await self._category_repo.get(command.primary_category_id)
+                if category is None:
+                    raise CategoryNotFoundError(category_id=command.primary_category_id)
+
             # --- Slug uniqueness check (only when slug is actually changing) ---
             if (
                 command.slug is not None
@@ -132,8 +153,7 @@ class UpdateProductHandler:
             # The router records which fields were explicitly provided in
             # ``_provided_fields``.  We forward exactly those to the entity.
             update_kwargs: dict[str, Any] = {
-                f: getattr(command, f)
-                for f in command._provided_fields
+                f: getattr(command, f) for f in command._provided_fields
             }
 
             product.update(**update_kwargs)

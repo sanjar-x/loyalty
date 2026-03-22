@@ -2,28 +2,22 @@
 Query handler: paginated attribute group listing.
 
 Strict CQRS read side -- does not use IUnitOfWork, domain aggregates, or
-repositories. Queries the database directly via AsyncSession + raw SQL
-and returns a Pydantic read model.
+repositories. Queries the ORM directly via AsyncSession and returns a
+Pydantic read model.
 """
 
 from dataclasses import dataclass
 
-from sqlalchemy import text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.read_models import (
     AttributeGroupListReadModel,
     AttributeGroupReadModel,
 )
-
-_LIST_ATTRIBUTE_GROUPS_SQL = text(
-    "SELECT id, code, name_i18n, sort_order "
-    "FROM attribute_groups "
-    "ORDER BY sort_order, code "
-    "LIMIT :limit OFFSET :offset"
+from src.modules.catalog.infrastructure.models import (
+    AttributeGroup as OrmAttributeGroup,
 )
-
-_COUNT_ATTRIBUTE_GROUPS_SQL = text("SELECT count(*) FROM attribute_groups")
 
 
 @dataclass(frozen=True)
@@ -54,23 +48,28 @@ class ListAttributeGroupsHandler:
         Returns:
             Paginated list read model with items and total count.
         """
-        count_result = await self._session.execute(_COUNT_ATTRIBUTE_GROUPS_SQL)
+        count_result = await self._session.execute(
+            select(func.count()).select_from(OrmAttributeGroup)
+        )
         total = count_result.scalar_one()
 
-        result = await self._session.execute(
-            _LIST_ATTRIBUTE_GROUPS_SQL,
-            {"limit": query.limit, "offset": query.offset},
+        stmt = (
+            select(OrmAttributeGroup)
+            .order_by(OrmAttributeGroup.sort_order, OrmAttributeGroup.code)
+            .limit(query.limit)
+            .offset(query.offset)
         )
-        rows = result.mappings().all()
+        result = await self._session.execute(stmt)
+        rows = result.scalars().all()
 
         items = [
             AttributeGroupReadModel(
-                id=row["id"],
-                code=row["code"],
-                name_i18n=row["name_i18n"],
-                sort_order=row["sort_order"],
+                id=orm.id,
+                code=orm.code,
+                name_i18n=orm.name_i18n,
+                sort_order=orm.sort_order,
             )
-            for row in rows
+            for orm in rows
         ]
 
         return AttributeGroupListReadModel(

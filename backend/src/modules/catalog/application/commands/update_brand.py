@@ -6,7 +6,9 @@ and persists changes. Part of the application layer (CQRS write side).
 """
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from typing import Any
 
 from src.modules.catalog.domain.entities import Brand
 from src.modules.catalog.domain.exceptions import (
@@ -31,6 +33,7 @@ class UpdateBrandCommand:
     brand_id: uuid.UUID
     name: str | None = None
     slug: str | None = None
+    _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 
 @dataclass(frozen=True)
@@ -92,7 +95,10 @@ class UpdateBrandHandler:
             ):
                 raise BrandSlugConflictError(slug=command.slug)
 
-            brand.update(name=command.name, slug=command.slug)
+            update_kwargs: dict[str, Any] = {
+                f: getattr(command, f) for f in command._provided_fields
+            }
+            brand.update(**update_kwargs)
             await self._brand_repo.update(brand)
             self._uow.register_aggregate(brand)
             await self._uow.commit()

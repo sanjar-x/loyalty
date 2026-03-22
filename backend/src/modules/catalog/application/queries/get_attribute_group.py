@@ -1,22 +1,21 @@
 """
 Query handler: get a single attribute group by ID.
 
-Strict CQRS read side -- queries the database directly via AsyncSession
+Strict CQRS read side -- queries the ORM directly via AsyncSession
 and returns a read model DTO.
 """
 
 import uuid
 
-from sqlalchemy import text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.read_models import (
     AttributeGroupReadModel,
 )
 from src.modules.catalog.domain.exceptions import AttributeGroupNotFoundError
-
-_GET_ATTRIBUTE_GROUP_SQL = text(
-    "SELECT id, code, name_i18n, sort_order FROM attribute_groups WHERE id = :group_id"
+from src.modules.catalog.infrastructure.models import (
+    AttributeGroup as OrmAttributeGroup,
 )
 
 
@@ -38,15 +37,16 @@ class GetAttributeGroupHandler:
         Raises:
             AttributeGroupNotFoundError: If the group does not exist.
         """
-        result = await self._session.execute(_GET_ATTRIBUTE_GROUP_SQL, {"group_id": group_id})
-        row = result.mappings().first()
+        stmt = select(OrmAttributeGroup).where(OrmAttributeGroup.id == group_id)
+        result = await self._session.execute(stmt)
+        orm = result.scalar_one_or_none()
 
-        if row is None:
+        if orm is None:
             raise AttributeGroupNotFoundError(group_id=group_id)
 
         return AttributeGroupReadModel(
-            id=row["id"],
-            code=row["code"],
-            name_i18n=row["name_i18n"],
-            sort_order=row["sort_order"],
+            id=orm.id,
+            code=orm.code,
+            name_i18n=orm.name_i18n,
+            sort_order=orm.sort_order,
         )

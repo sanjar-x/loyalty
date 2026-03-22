@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CategoryNode(BaseModel):
@@ -27,7 +27,7 @@ class CategoryNode(BaseModel):
     level: int
     sort_order: int
     parent_id: uuid.UUID | None = None
-    children: list[CategoryNode] = []
+    children: list[CategoryNode] = Field(default_factory=list)
 
 
 class CategoryReadModel(BaseModel):
@@ -383,6 +383,8 @@ class ProductAttributeValueReadModel(BaseModel):
     product_id: uuid.UUID
     attribute_id: uuid.UUID
     attribute_value_id: uuid.UUID
+    attribute_code: str = ""
+    attribute_name_i18n: dict[str, str] = {}
 
 
 class ProductReadModel(BaseModel):

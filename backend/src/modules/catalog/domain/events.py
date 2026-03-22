@@ -313,6 +313,10 @@ class CategoryAttributeBindingCreatedEvent(DomainEvent):
     def __post_init__(self) -> None:
         if self.binding_id is None:
             raise ValueError("binding_id is required for CategoryAttributeBindingCreatedEvent")
+        if self.category_id is None:
+            raise ValueError("category_id is required for CategoryAttributeBindingCreatedEvent")
+        if self.attribute_id is None:
+            raise ValueError("attribute_id is required for CategoryAttributeBindingCreatedEvent")
         if not self.aggregate_id:
             self.aggregate_id = str(self.binding_id)
 
@@ -345,6 +349,10 @@ class CategoryAttributeBindingDeletedEvent(DomainEvent):
     def __post_init__(self) -> None:
         if self.binding_id is None:
             raise ValueError("binding_id is required for CategoryAttributeBindingDeletedEvent")
+        if self.category_id is None:
+            raise ValueError("category_id is required for CategoryAttributeBindingDeletedEvent")
+        if self.attribute_id is None:
+            raise ValueError("attribute_id is required for CategoryAttributeBindingDeletedEvent")
         if not self.aggregate_id:
             self.aggregate_id = str(self.binding_id)
 

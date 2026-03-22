@@ -91,8 +91,7 @@ class UpdateAttributeHandler:
 
             # Only pass fields the client actually sent (tracked via _provided_fields).
             update_kwargs: dict[str, Any] = {
-                name: getattr(command, name)
-                for name in command._provided_fields
+                name: getattr(command, name) for name in command._provided_fields
             }
 
             attribute.update(**update_kwargs)

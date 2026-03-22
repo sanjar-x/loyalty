@@ -274,62 +274,34 @@ class Money:
                 f"{self.currency} vs {other.currency}"
             )
 
-    def __lt__(self, other: Money) -> bool:
+    def __lt__(self, other: object) -> bool:
         """Return True if this amount is strictly less than *other*.
 
-        Args:
-            other: Money instance to compare against (must share currency).
-
-        Returns:
-            True if ``self.amount < other.amount``.
-
-        Raises:
-            ValueError: If currencies differ.
+        Returns NotImplemented for non-Money operands so Python can
+        try the reflected operation or raise TypeError.
         """
+        if not isinstance(other, Money):
+            return NotImplemented
         self._check_currency(other)
         return self.amount < other.amount
 
-    def __le__(self, other: Money) -> bool:
-        """Return True if this amount is less than or equal to *other*.
-
-        Args:
-            other: Money instance to compare against (must share currency).
-
-        Returns:
-            True if ``self.amount <= other.amount``.
-
-        Raises:
-            ValueError: If currencies differ.
-        """
+    def __le__(self, other: object) -> bool:
+        """Return True if this amount is less than or equal to *other*."""
+        if not isinstance(other, Money):
+            return NotImplemented
         self._check_currency(other)
         return self.amount <= other.amount
 
-    def __gt__(self, other: Money) -> bool:
-        """Return True if this amount is strictly greater than *other*.
-
-        Args:
-            other: Money instance to compare against (must share currency).
-
-        Returns:
-            True if ``self.amount > other.amount``.
-
-        Raises:
-            ValueError: If currencies differ.
-        """
+    def __gt__(self, other: object) -> bool:
+        """Return True if this amount is strictly greater than *other*."""
+        if not isinstance(other, Money):
+            return NotImplemented
         self._check_currency(other)
         return self.amount > other.amount
 
-    def __ge__(self, other: Money) -> bool:
-        """Return True if this amount is greater than or equal to *other*.
-
-        Args:
-            other: Money instance to compare against (must share currency).
-
-        Returns:
-            True if ``self.amount >= other.amount``.
-
-        Raises:
-            ValueError: If currencies differ.
-        """
+    def __ge__(self, other: object) -> bool:
+        """Return True if this amount is greater than or equal to *other*."""
+        if not isinstance(other, Money):
+            return NotImplemented
         self._check_currency(other)
         return self.amount >= other.amount

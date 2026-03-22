@@ -9,16 +9,16 @@ for direct client upload. Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy.exc import IntegrityError  # DB-level uniqueness safety net
-
 from src.modules.catalog.application.constants import raw_media_key
 from src.modules.catalog.domain.entities import MediaAsset
-from src.modules.catalog.domain.exceptions import ProductNotFoundError
+from src.modules.catalog.domain.exceptions import (
+    DuplicateMainMediaError,
+    ProductNotFoundError,
+)
 from src.modules.catalog.domain.interfaces import (
     IMediaAssetRepository,
     IProductRepository,
 )
-from src.shared.exceptions import ConflictError
 from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -107,7 +107,10 @@ class AddProductMediaHandler:
         )
 
         # 3. Generate presigned PUT URL outside the transaction (S3 I/O must not
-        #    hold a DB connection)
+        #    hold a DB connection).
+        #    Accepted trade-off: the presigned URL is generated before the
+        #    transaction, so if the transaction fails, an orphaned S3 upload may
+        #    occur. A periodic S3 lifecycle policy handles cleanup.
         presigned_url = await self._blob_storage.generate_presigned_put_url(
             object_name=object_key,
             content_type=command.content_type,
@@ -122,21 +125,13 @@ class AddProductMediaHandler:
                     command.variant_id,
                 )
                 if has_main:
-                    raise ConflictError(
-                        f"MAIN media already exists for product {command.product_id} "
-                        f"variant {command.variant_id}"
+                    raise DuplicateMainMediaError(
+                        product_id=command.product_id,
+                        variant_id=command.variant_id,
                     )
 
             await self._media_repo.add(media)
-            try:
-                await self._uow.commit()
-            except IntegrityError as exc:
-                if "uix_media_single_main_per_variant" in str(exc.orig):
-                    raise ConflictError(
-                        f"MAIN media already exists for product {command.product_id} "
-                        f"variant {command.variant_id}"
-                    ) from None
-                raise
+            await self._uow.commit()
 
         return AddProductMediaResult(
             media_id=media.id,

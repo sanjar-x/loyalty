@@ -29,13 +29,11 @@ def to_sku_response(model: SKUReadModel) -> SKUResponse:
         product_id=model.product_id,
         variant_id=model.variant_id,
         sku_code=model.sku_code,
-        variant_hash=model.variant_hash,
         price=price_schema,
         resolved_price=resolved_price_schema,
         compare_at_price=compare_at,
         is_active=model.is_active,
         version=model.version,
-        deleted_at=model.deleted_at,
         created_at=model.created_at,
         updated_at=model.updated_at,
         variant_attributes=[

@@ -101,9 +101,7 @@ class Brand(Base):
     )
 
     name: Mapped[str] = mapped_column(String(255), comment="Brand display name")
-    slug: Mapped[str] = mapped_column(
-        String(255), index=True, comment="URL-safe identifier for routing"
-    )
+    slug: Mapped[str] = mapped_column(String(255), comment="URL-safe identifier for routing")
     logo_file_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         nullable=True,
@@ -580,18 +578,20 @@ class ProductVariant(Base):
         String(3), ForeignKey("currencies.code", ondelete="RESTRICT"), server_default=text("'RUB'")
     )
     deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
     product: Mapped["Product"] = relationship("Product", back_populates="variants")
-    skus: Mapped[list["SKU"]] = relationship("SKU", back_populates="variant", cascade="all, delete-orphan")
+    skus: Mapped[list["SKU"]] = relationship(
+        "SKU", back_populates="variant", cascade="all, delete-orphan"
+    )
     media_assets: Mapped[list["MediaAsset"]] = relationship("MediaAsset", back_populates="variant")
 
-    __table_args__ = (
-        Index("ix_product_variants_product_id", "product_id"),
-    )
+    __table_args__ = (Index("ix_product_variants_product_id", "product_id"),)
 
 
 class MediaAsset(Base):
@@ -652,6 +652,11 @@ class MediaAsset(Base):
         nullable=True,
         comment="S3 key for raw upload (before AI processing)",
     )
+    processed_object_key: Mapped[str | None] = mapped_column(
+        String(1024),
+        nullable=True,
+        comment="S3 key for processed file (set on complete_processing)",
+    )
     public_url: Mapped[str | None] = mapped_column(
         String(1024),
         nullable=True,
@@ -669,7 +674,9 @@ class MediaAsset(Base):
     )
 
     product: Mapped[Product] = relationship("Product", back_populates="media_assets")
-    variant: Mapped["ProductVariant | None"] = relationship("ProductVariant", back_populates="media_assets")
+    variant: Mapped["ProductVariant | None"] = relationship(
+        "ProductVariant", back_populates="media_assets"
+    )
 
     __table_args__ = (
         # Business rule: each variant may have at most one MAIN image

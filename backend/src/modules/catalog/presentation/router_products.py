@@ -38,7 +38,6 @@ from src.modules.catalog.application.queries.read_models import (
 )
 from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.presentation.mappers import to_sku_response
-from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.catalog.presentation.schemas import (
     MoneySchema,
     ProductAttributeResponse,
@@ -51,6 +50,7 @@ from src.modules.catalog.presentation.schemas import (
     ProductUpdateRequest,
     ProductVariantResponse,
 )
+from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
 
 product_router = APIRouter(
@@ -232,7 +232,6 @@ def _to_product_response(model: ProductReadModel) -> ProductResponse:
         country_of_origin=model.country_of_origin,
         tags=model.tags,
         version=model.version,
-        deleted_at=model.deleted_at,
         created_at=model.created_at,
         updated_at=model.updated_at,
         published_at=model.published_at,
@@ -260,6 +259,8 @@ def _to_product_response(model: ProductReadModel) -> ProductResponse:
                 product_id=a.product_id,
                 attribute_id=a.attribute_id,
                 attribute_value_id=a.attribute_value_id,
+                attribute_code=a.attribute_code,
+                attribute_name_i18n=a.attribute_name_i18n,
             )
             for a in model.attributes
         ],

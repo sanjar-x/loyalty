@@ -148,10 +148,22 @@ class Brand(AggregateRoot):
     def init_logo_upload(self, object_key: str, content_type: str) -> None:
         """Transition logo FSM to PENDING_UPLOAD and emit BrandLogoUploadInitiatedEvent.
 
+        Only allowed from ``None`` (no logo) or ``COMPLETED``/``FAILED`` (re-upload).
+
         Args:
             object_key: S3 key where the client will upload the raw logo.
             content_type: Expected MIME type of the upload.
+
+        Raises:
+            InvalidLogoStateError: If current state is PENDING_UPLOAD or PROCESSING.
         """
+        allowed = {None, MediaProcessingStatus.COMPLETED, MediaProcessingStatus.FAILED}
+        if self.logo_status not in allowed:
+            raise InvalidLogoStateError(
+                brand_id=self.id,
+                current_status=str(self.logo_status) if self.logo_status else "None",
+                expected_status="None, COMPLETED, or FAILED",
+            )
         self.logo_status = MediaProcessingStatus.PENDING_UPLOAD
 
         self.add_domain_event(
@@ -348,9 +360,7 @@ class Category(AggregateRoot):
         """
         _validate_slug(slug, "Category")
         if parent.level >= MAX_CATEGORY_DEPTH:
-            raise CategoryMaxDepthError(
-                max_depth=MAX_CATEGORY_DEPTH, current_level=parent.level
-            )
+            raise CategoryMaxDepthError(max_depth=MAX_CATEGORY_DEPTH, current_level=parent.level)
 
         return cls(
             id=_generate_id(),
@@ -610,20 +620,22 @@ class Attribute(AggregateRoot):
             validation_rules=validation_rules,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "name_i18n",
-        "description_i18n",
-        "ui_type",
-        "group_id",
-        "level",
-        "is_filterable",
-        "is_searchable",
-        "search_weight",
-        "is_comparable",
-        "is_visible_on_card",
-        "is_visible_in_catalog",
-        "validation_rules",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "name_i18n",
+            "description_i18n",
+            "ui_type",
+            "group_id",
+            "level",
+            "is_filterable",
+            "is_searchable",
+            "search_weight",
+            "is_comparable",
+            "is_visible_on_card",
+            "is_visible_in_catalog",
+            "validation_rules",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable attribute fields. Code, slug, and data_type are immutable.
@@ -683,10 +695,7 @@ class Attribute(AggregateRoot):
         if "is_visible_on_card" in kwargs and kwargs["is_visible_on_card"] is not None:
             self.is_visible_on_card = kwargs["is_visible_on_card"]
 
-        if (
-            "is_visible_in_catalog" in kwargs
-            and kwargs["is_visible_in_catalog"] is not None
-        ):
+        if "is_visible_in_catalog" in kwargs and kwargs["is_visible_in_catalog"] is not None:
             self.is_visible_in_catalog = kwargs["is_visible_in_catalog"]
 
         if "validation_rules" in kwargs:
@@ -777,13 +786,15 @@ class AttributeValue:
             sort_order=sort_order,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "value_i18n",
-        "search_aliases",
-        "meta_data",
-        "value_group",
-        "sort_order",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "value_i18n",
+            "search_aliases",
+            "meta_data",
+            "value_group",
+            "sort_order",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable fields. Code and slug are immutable after creation.
@@ -936,12 +947,14 @@ class CategoryAttributeBinding(AggregateRoot):
             filter_settings=filter_settings,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "sort_order",
-        "requirement_level",
-        "flag_overrides",
-        "filter_settings",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "sort_order",
+            "requirement_level",
+            "flag_overrides",
+            "filter_settings",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable binding fields. category_id and attribute_id are immutable.
@@ -1035,14 +1048,15 @@ class SKU:
         self.deleted_at = now
         self.updated_at = now
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "sku_code",
-        "price",
-        "compare_at_price",
-        "is_active",
-        "variant_attributes",
-        "variant_hash",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "sku_code",
+            "price",
+            "compare_at_price",
+            "is_active",
+            "variant_attributes",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable SKU fields.
@@ -1071,8 +1085,10 @@ class SKU:
             self.is_active = kwargs["is_active"]
         if "variant_attributes" in kwargs:
             self.variant_attributes = kwargs["variant_attributes"]
-        if "variant_hash" in kwargs:
-            self.variant_hash = kwargs["variant_hash"]
+            # Recompute variant_hash to keep it consistent with attributes
+            pairs = sorted((str(a), str(v)) for a, v in self.variant_attributes)
+            raw = "|".join(f"{a}:{v}" for a, v in pairs)
+            self.variant_hash = hashlib.sha256(raw.encode()).hexdigest()
 
         # Re-validate price constraint after any price-related change.
         if self.price is None and self.compare_at_price is not None:
@@ -1154,9 +1170,15 @@ class ProductVariant:
             skus=[],
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "name_i18n", "description_i18n", "sort_order", "default_price", "default_currency",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "name_i18n",
+            "description_i18n",
+            "sort_order",
+            "default_price",
+            "default_currency",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable variant fields.
@@ -1242,6 +1264,7 @@ class MediaAsset(AggregateRoot):
     is_external: bool = False
     external_url: str | None = None
     raw_object_key: str | None = None
+    processed_object_key: str | None = None
     public_url: str | None = None
 
     @classmethod
@@ -1343,9 +1366,7 @@ class MediaAsset(AggregateRoot):
         if self.processing_status != MediaProcessingStatus.PENDING_UPLOAD:
             raise InvalidMediaStateError(
                 media_id=self.id,
-                current_status=str(self.processing_status)
-                if self.processing_status
-                else None,
+                current_status=str(self.processing_status) if self.processing_status else None,
                 expected_status=MediaProcessingStatus.PENDING_UPLOAD.value,
             )
         self.processing_status = MediaProcessingStatus.PROCESSING
@@ -1385,12 +1406,11 @@ class MediaAsset(AggregateRoot):
         if self.processing_status != MediaProcessingStatus.PROCESSING:
             raise InvalidMediaStateError(
                 media_id=self.id,
-                current_status=str(self.processing_status)
-                if self.processing_status
-                else None,
+                current_status=str(self.processing_status) if self.processing_status else None,
                 expected_status=MediaProcessingStatus.PROCESSING.value,
             )
         self.public_url = public_url
+        self.processed_object_key = object_key
         self.storage_object_id = storage_object_id
         self.processing_status = MediaProcessingStatus.COMPLETED
 
@@ -1414,9 +1434,7 @@ class MediaAsset(AggregateRoot):
         if self.processing_status != MediaProcessingStatus.PROCESSING:
             raise InvalidMediaStateError(
                 media_id=self.id,
-                current_status=str(self.processing_status)
-                if self.processing_status
-                else None,
+                current_status=str(self.processing_status) if self.processing_status else None,
                 expected_status=MediaProcessingStatus.PROCESSING.value,
             )
         self.processing_status = MediaProcessingStatus.FAILED
@@ -1561,10 +1579,18 @@ class Product(AggregateRoot):
         )
         return product
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "title_i18n", "description_i18n", "slug", "brand_id",
-        "primary_category_id", "supplier_id", "country_of_origin", "tags",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "title_i18n",
+            "description_i18n",
+            "slug",
+            "brand_id",
+            "primary_category_id",
+            "supplier_id",
+            "country_of_origin",
+            "tags",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable product fields.
@@ -1788,10 +1814,7 @@ class Product(AggregateRoot):
         variant_hash = self.compute_variant_hash(effective_attrs)
         for v in self.variants:
             for existing in v.skus:
-                if (
-                    existing.deleted_at is None
-                    and existing.variant_hash == variant_hash
-                ):
+                if existing.deleted_at is None and existing.variant_hash == variant_hash:
                     raise DuplicateVariantCombinationError(
                         product_id=self.id,
                         variant_hash=variant_hash,

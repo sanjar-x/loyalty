@@ -7,7 +7,9 @@ Part of the application layer (CQRS write side).
 """
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from typing import Any
 
 from src.modules.catalog.domain.events import AttributeGroupUpdatedEvent
 from src.modules.catalog.domain.exceptions import AttributeGroupNotFoundError
@@ -28,6 +30,7 @@ class UpdateAttributeGroupCommand:
     group_id: uuid.UUID
     name_i18n: dict[str, str] | None = None
     sort_order: int | None = None
+    _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 
 @dataclass(frozen=True)
@@ -76,10 +79,10 @@ class UpdateAttributeGroupHandler:
             if group is None:
                 raise AttributeGroupNotFoundError(group_id=command.group_id)
 
-            group.update(
-                name_i18n=command.name_i18n,
-                sort_order=command.sort_order,
-            )
+            update_kwargs: dict[str, Any] = {
+                f: getattr(command, f) for f in command._provided_fields
+            }
+            group.update(**update_kwargs)
 
             group.add_domain_event(
                 AttributeGroupUpdatedEvent(

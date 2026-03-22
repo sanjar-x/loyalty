@@ -306,7 +306,9 @@ class TestAddSKUHandlerHappyPath:
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
         vid = product.variants[0].id
-        await handler.handle(make_command(product_id=product.id, variant_id=vid, sku_code="CUSTOM-CODE-99"))
+        await handler.handle(
+            make_command(product_id=product.id, variant_id=vid, sku_code="CUSTOM-CODE-99")
+        )
 
         assert product.variants[0].skus[0].sku_code == "CUSTOM-CODE-99"
 
@@ -647,7 +649,9 @@ class TestAddSKUHandlerVariantAttributes:
         uow = make_uow()
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
-        result = await handler.handle(make_command(product_id=product.id, variant_id=vid, variant_attributes=[]))
+        result = await handler.handle(
+            make_command(product_id=product.id, variant_id=vid, variant_attributes=[])
+        )
 
         assert isinstance(result, AddSKUResult)
         assert product.variants[0].skus[0].variant_attributes == []
@@ -664,7 +668,9 @@ class TestAddSKUHandlerVariantAttributes:
         handler = AddSKUHandler(product_repo=repo, uow=uow)
 
         vid = product.variants[0].id
-        await handler.handle(make_command(product_id=product.id, variant_id=vid, variant_attributes=variant_attrs))
+        await handler.handle(
+            make_command(product_id=product.id, variant_id=vid, variant_attributes=variant_attrs)
+        )
 
         sku = product.variants[0].skus[0]
         assert len(sku.variant_attributes) == 2

@@ -9,7 +9,7 @@ Delegates to application-layer command/query handlers via Dishka DI.
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from src.modules.catalog.application.commands.add_sku import (
     AddSKUCommand,
@@ -32,6 +32,7 @@ from src.modules.catalog.presentation.mappers import to_sku_response
 from src.modules.catalog.presentation.schemas import (
     SKUCreateRequest,
     SKUCreateResponse,
+    SKUListResponse,
     SKUResponse,
     SKUUpdateRequest,
 )
@@ -79,19 +80,28 @@ async def create_sku(
 @sku_router.get(
     path="",
     status_code=status.HTTP_200_OK,
-    response_model=list[SKUResponse],
+    response_model=SKUListResponse,
     summary="List SKUs for a variant",
-    description="Return all SKUs belonging to the given product variant.",
+    description="Return paginated SKUs belonging to the given product variant.",
 )
 async def list_skus(
     product_id: uuid.UUID,
     variant_id: uuid.UUID,
     handler: FromDishka[ListSKUsHandler],
-) -> list[SKUResponse]:
-    """Return all SKUs belonging to the given product."""
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> SKUListResponse:
+    """Return paginated SKUs belonging to the given product."""
     query = ListSKUsQuery(product_id=product_id, variant_id=variant_id)
-    results = await handler.handle(query)
-    return [to_sku_response(model) for model in results]
+    all_results = await handler.handle(query)
+    total = len(all_results)
+    page = all_results[offset : offset + limit]
+    return SKUListResponse(
+        items=[to_sku_response(model) for model in page],
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
 
 
 @sku_router.patch(

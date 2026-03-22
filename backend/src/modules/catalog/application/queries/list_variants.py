@@ -11,12 +11,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.modules.catalog.application.queries.list_skus import sku_orm_to_read_model
 from src.modules.catalog.application.queries.read_models import (
     MoneyReadModel,
     ProductVariantReadModel,
     SKUReadModel,
-    VariantAttributePairReadModel,
-    resolve_sku_price,
 )
 from src.modules.catalog.infrastructure.models import (
     ProductVariant as OrmProductVariant,
@@ -34,41 +33,7 @@ def variant_orm_to_read_model(orm: OrmProductVariant) -> ProductVariantReadModel
     for sku_orm in orm.skus:
         if sku_orm.deleted_at is not None:
             continue
-
-        sku_price: MoneyReadModel | None = None
-        if sku_orm.price is not None:
-            sku_price = MoneyReadModel(amount=sku_orm.price, currency=sku_orm.currency)
-
-        compare_at: MoneyReadModel | None = None
-        if sku_orm.compare_at_price is not None:
-            compare_at = MoneyReadModel(amount=sku_orm.compare_at_price, currency=sku_orm.currency)
-
-        resolved = resolve_sku_price(sku_price, default_price)
-
-        variant_attrs = [
-            VariantAttributePairReadModel(
-                attribute_id=link.attribute_id,
-                attribute_value_id=link.attribute_value_id,
-            )
-            for link in sku_orm.attribute_values
-        ]
-
-        skus.append(SKUReadModel(
-            id=sku_orm.id,
-            product_id=sku_orm.product_id,
-            variant_id=sku_orm.variant_id,
-            sku_code=sku_orm.sku_code,
-            variant_hash=sku_orm.variant_hash,
-            price=sku_price,
-            resolved_price=resolved,
-            compare_at_price=compare_at,
-            is_active=sku_orm.is_active,
-            version=sku_orm.version,
-            deleted_at=sku_orm.deleted_at,
-            created_at=sku_orm.created_at,
-            updated_at=sku_orm.updated_at,
-            variant_attributes=variant_attrs,
-        ))
+        skus.append(sku_orm_to_read_model(sku_orm, variant_default_price=default_price))
 
     return ProductVariantReadModel(
         id=orm.id,
@@ -115,9 +80,7 @@ class ListVariantsHandler:
                 OrmProductVariant.product_id == query.product_id,
                 OrmProductVariant.deleted_at.is_(None),
             )
-            .options(
-                selectinload(OrmProductVariant.skus).selectinload(OrmSKU.attribute_values)
-            )
+            .options(selectinload(OrmProductVariant.skus).selectinload(OrmSKU.attribute_values))
             .order_by(OrmProductVariant.sort_order)
         )
         result = await self._session.execute(stmt)

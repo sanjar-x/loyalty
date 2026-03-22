@@ -36,9 +36,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("description_i18n", postgresql.JSONB(), nullable=True),
-        sa.Column(
-            "sort_order", sa.Integer(), server_default=sa.text("0"), nullable=False
-        ),
+        sa.Column("sort_order", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("default_price", sa.Integer(), nullable=True),
         sa.Column(
             "default_currency",
@@ -61,9 +59,7 @@ def upgrade() -> None:
             nullable=False,
         ),
     )
-    op.create_index(
-        "ix_product_variants_product_id", "product_variants", ["product_id"]
-    )
+    op.create_index("ix_product_variants_product_id", "product_variants", ["product_id"])
 
     # 2. Backfill: create 1 default variant per existing product
     op.execute(
@@ -127,9 +123,7 @@ def upgrade() -> None:
     # 10. Drop old attribute_value_id column and its index
     op.drop_index("ix_media_assets_product_attr", table_name="media_assets")
     op.drop_index("uix_media_single_main_per_color", table_name="media_assets")
-    op.drop_constraint(
-        "media_assets_attribute_value_id_fkey", "media_assets", type_="foreignkey"
-    )
+    op.drop_constraint("media_assets_attribute_value_id_fkey", "media_assets", type_="foreignkey")
     op.drop_column("media_assets", "attribute_value_id")
 
     # 11. Create new variant-based unique index for main media
@@ -146,21 +140,13 @@ def upgrade() -> None:
 def downgrade() -> None:
     # Reverse operations (not detailed — pre-production)
     op.drop_index("uix_media_single_main_per_variant", table_name="media_assets")
-    op.add_column(
-        "media_assets", sa.Column("attribute_value_id", sa.UUID(), nullable=True)
-    )
+    op.add_column("media_assets", sa.Column("attribute_value_id", sa.UUID(), nullable=True))
     op.drop_index("ix_media_assets_variant_id", table_name="media_assets")
-    op.drop_constraint(
-        "fk_media_assets_variant_id", "media_assets", type_="foreignkey"
-    )
+    op.drop_constraint("fk_media_assets_variant_id", "media_assets", type_="foreignkey")
     op.drop_column("media_assets", "variant_id")
-    op.alter_column(
-        "skus", "price", server_default=sa.text("0"), nullable=False
-    )
+    op.alter_column("skus", "price", server_default=sa.text("0"), nullable=False)
     op.drop_index("ix_skus_variant_id", table_name="skus")
     op.drop_constraint("fk_skus_variant_id", "skus", type_="foreignkey")
     op.drop_column("skus", "variant_id")
-    op.drop_index(
-        "ix_product_variants_product_id", table_name="product_variants"
-    )
+    op.drop_index("ix_product_variants_product_id", table_name="product_variants")
     op.drop_table("product_variants")

@@ -81,6 +81,12 @@ class CategoryAttributeBindingRepository(
             return self._to_domain(orm)
         return None
 
+    async def list_ids_by_category(self, category_id: uuid.UUID) -> set[uuid.UUID]:
+        """Return the set of binding IDs belonging to the given category."""
+        stmt = select(OrmBinding.id).where(OrmBinding.category_id == category_id)
+        result = await self._session.execute(stmt)
+        return {row[0] for row in result.all()}
+
     async def bulk_update_sort_order(self, updates: list[tuple[uuid.UUID, int]]) -> None:
         """Bulk-update sort_order for multiple bindings in a single stmt."""
         if not updates:

@@ -12,10 +12,14 @@ from dataclasses import dataclass
 
 from src.modules.catalog.domain.entities import ProductAttributeValue
 from src.modules.catalog.domain.exceptions import (
+    AttributeNotFoundError,
+    AttributeValueNotFoundError,
     DuplicateProductAttributeError,
     ProductNotFoundError,
 )
 from src.modules.catalog.domain.interfaces import (
+    IAttributeRepository,
+    IAttributeValueRepository,
     IProductAttributeValueRepository,
     IProductRepository,
 )
@@ -60,10 +64,14 @@ class AssignProductAttributeHandler:
         self,
         product_repo: IProductRepository,
         pav_repo: IProductAttributeValueRepository,
+        attribute_repo: IAttributeRepository,
+        attribute_value_repo: IAttributeValueRepository,
         uow: IUnitOfWork,
     ) -> None:
         self._product_repo = product_repo
         self._pav_repo = pav_repo
+        self._attribute_repo = attribute_repo
+        self._attribute_value_repo = attribute_value_repo
         self._uow = uow
 
     async def handle(self, command: AssignProductAttributeCommand) -> AssignProductAttributeResult:
@@ -84,6 +92,18 @@ class AssignProductAttributeHandler:
             product = await self._product_repo.get(command.product_id)
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
+
+            # --- Validate attribute exists ---
+            attribute = await self._attribute_repo.get(command.attribute_id)
+            if attribute is None:
+                raise AttributeNotFoundError(attribute_id=command.attribute_id)
+
+            # --- Validate attribute value exists and belongs to the attribute ---
+            attr_value = await self._attribute_value_repo.get(command.attribute_value_id)
+            if attr_value is None:
+                raise AttributeValueNotFoundError(value_id=command.attribute_value_id)
+            if attr_value.attribute_id != command.attribute_id:
+                raise AttributeValueNotFoundError(value_id=command.attribute_value_id)
 
             if await self._pav_repo.exists(command.product_id, command.attribute_id):
                 raise DuplicateProductAttributeError(

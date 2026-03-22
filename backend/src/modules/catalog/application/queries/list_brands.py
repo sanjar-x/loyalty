@@ -2,28 +2,20 @@
 Query handler: paginated brand listing.
 
 Strict CQRS read side — does not use IUnitOfWork, domain aggregates, or
-repositories. Queries the database directly via AsyncSession + raw SQL
-and returns a Pydantic read model.
+repositories. Queries the ORM directly via AsyncSession and returns a
+Pydantic read model.
 """
 
 from dataclasses import dataclass
 
-from sqlalchemy import text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.read_models import (
     BrandListReadModel,
     BrandReadModel,
 )
-
-_LIST_BRANDS_SQL = text(
-    "SELECT id, name, slug, logo_url, logo_status "
-    "FROM brands "
-    "ORDER BY name "
-    "LIMIT :limit OFFSET :offset"
-)
-
-_COUNT_BRANDS_SQL = text("SELECT count(*) FROM brands")
+from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 
 
 @dataclass(frozen=True)
@@ -54,23 +46,22 @@ class ListBrandsHandler:
         Returns:
             Paginated list read model with items and total count.
         """
-        count_result = await self._session.execute(_COUNT_BRANDS_SQL)
+        count_result = await self._session.execute(select(func.count()).select_from(OrmBrand))
         total = count_result.scalar_one()
 
-        result = await self._session.execute(
-            _LIST_BRANDS_SQL, {"limit": query.limit, "offset": query.offset}
-        )
-        rows = result.mappings().all()
+        stmt = select(OrmBrand).order_by(OrmBrand.name).limit(query.limit).offset(query.offset)
+        result = await self._session.execute(stmt)
+        rows = result.scalars().all()
 
         items = [
             BrandReadModel(
-                id=row["id"],
-                name=row["name"],
-                slug=row["slug"],
-                logo_url=row["logo_url"],
-                logo_status=row["logo_status"],
+                id=orm.id,
+                name=orm.name,
+                slug=orm.slug,
+                logo_url=orm.logo_url,
+                logo_status=orm.logo_status,
             )
-            for row in rows
+            for orm in rows
         ]
 
         return BrandListReadModel(

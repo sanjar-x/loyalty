@@ -96,8 +96,11 @@ class ProductRepository(IProductRepository):
         orm_sku.is_active = domain_sku.is_active
         orm_sku.version = domain_sku.version
         orm_sku.deleted_at = domain_sku.deleted_at
-        orm_sku.created_at = domain_sku.created_at
-        orm_sku.updated_at = domain_sku.updated_at
+
+        # Only set timestamps on create; let DB server_default / onupdate handle them
+        if is_create:
+            orm_sku.created_at = domain_sku.created_at
+            orm_sku.updated_at = domain_sku.updated_at
 
         # Money VO decomposition (price is now nullable)
         if domain_sku.price is not None:
@@ -115,16 +118,32 @@ class ProductRepository(IProductRepository):
             orm_sku.main_image_url = None
             orm_sku.attributes_cache = {}  # type: ignore[assignment]
 
-        # Sync variant_attributes -> SKUAttributeValueLink rows
-        orm_sku.attribute_values.clear()
-        for attr_id, attr_val_id in domain_sku.variant_attributes:
-            orm_sku.attribute_values.append(
-                OrmSKUAttrLink(
-                    sku_id=domain_sku.id,
-                    attribute_id=attr_id,
-                    attribute_value_id=attr_val_id,
+        # Sync variant_attributes -> SKUAttributeValueLink rows (diff-based)
+        desired_pairs = {(a_id, v_id) for a_id, v_id in domain_sku.variant_attributes}
+        existing_pairs = {
+            (link.attribute_id, link.attribute_value_id) for link in orm_sku.attribute_values
+        }
+
+        if desired_pairs != existing_pairs:
+            # Remove links that are no longer desired
+            to_remove = [
+                link
+                for link in orm_sku.attribute_values
+                if (link.attribute_id, link.attribute_value_id) not in desired_pairs
+            ]
+            for link in to_remove:
+                orm_sku.attribute_values.remove(link)
+
+            # Add links that don't exist yet
+            pairs_to_add = desired_pairs - existing_pairs
+            for attr_id, attr_val_id in pairs_to_add:
+                orm_sku.attribute_values.append(
+                    OrmSKUAttrLink(
+                        sku_id=domain_sku.id,
+                        attribute_id=attr_id,
+                        attribute_value_id=attr_val_id,
+                    )
                 )
-            )
 
         return orm_sku
 
@@ -132,12 +151,16 @@ class ProductRepository(IProductRepository):
         """Map an ORM ProductVariant row to a domain ProductVariant entity."""
         default_price: Money | None = None
         if orm_variant.default_price is not None:
-            default_price = Money(amount=orm_variant.default_price, currency=orm_variant.default_currency)
+            default_price = Money(
+                amount=orm_variant.default_price, currency=orm_variant.default_currency
+            )
         return DomainProductVariant(
             id=orm_variant.id,
             product_id=orm_variant.product_id,
             name_i18n=dict(orm_variant.name_i18n) if orm_variant.name_i18n else {},
-            description_i18n=dict(orm_variant.description_i18n) if orm_variant.description_i18n else None,
+            description_i18n=dict(orm_variant.description_i18n)
+            if orm_variant.description_i18n
+            else None,
             sort_order=orm_variant.sort_order,
             default_price=default_price,
             default_currency=orm_variant.default_currency,
@@ -151,6 +174,7 @@ class ProductRepository(IProductRepository):
         self, domain_variant: DomainProductVariant, orm_variant: OrmProductVariant | None = None
     ) -> OrmProductVariant:
         """Map a domain ProductVariant entity to an ORM row (create or update)."""
+        is_create = orm_variant is None
         if orm_variant is None:
             orm_variant = OrmProductVariant()
         orm_variant.id = domain_variant.id
@@ -158,11 +182,19 @@ class ProductRepository(IProductRepository):
         orm_variant.name_i18n = domain_variant.name_i18n
         orm_variant.description_i18n = domain_variant.description_i18n
         orm_variant.sort_order = domain_variant.sort_order
-        orm_variant.default_price = domain_variant.default_price.amount if domain_variant.default_price is not None else None
+        orm_variant.default_price = (
+            domain_variant.default_price.amount
+            if domain_variant.default_price is not None
+            else None
+        )
         orm_variant.default_currency = domain_variant.default_currency
         orm_variant.deleted_at = domain_variant.deleted_at
-        orm_variant.created_at = domain_variant.created_at
-        orm_variant.updated_at = domain_variant.updated_at
+
+        # Only set timestamps on create; let DB server_default / onupdate handle them
+        if is_create:
+            orm_variant.created_at = domain_variant.created_at
+            orm_variant.updated_at = domain_variant.updated_at
+
         return orm_variant
 
     def _base_product_fields(self, orm: OrmProduct) -> dict:
@@ -223,12 +255,15 @@ class ProductRepository(IProductRepository):
         orm.brand_id = entity.brand_id
         orm.primary_category_id = entity.primary_category_id
         orm.supplier_id = entity.supplier_id  # type: ignore[assignment]
-        orm.version = entity.version
         orm.deleted_at = entity.deleted_at
-        orm.created_at = entity.created_at
-        orm.updated_at = entity.updated_at
         orm.published_at = entity.published_at
         orm.country_of_origin = entity.country_of_origin
+
+        # Only set version and timestamps on create; let DB handle them on update
+        if is_create:
+            orm.version = entity.version
+            orm.created_at = entity.created_at
+            orm.updated_at = entity.updated_at
 
         orm.status = ProductStatus(entity.status.value)
         orm.title_i18n = entity.title_i18n  # type: ignore[assignment]
@@ -444,9 +479,7 @@ class ProductRepository(IProductRepository):
             select(OrmProduct)
             .where(OrmProduct.id == product_id)
             .options(
-                selectinload(
-                    OrmProduct.variants.and_(OrmProductVariant.deleted_at.is_(None))
-                )
+                selectinload(OrmProduct.variants.and_(OrmProductVariant.deleted_at.is_(None)))
                 .selectinload(OrmProductVariant.skus.and_(OrmSKU.deleted_at.is_(None)))
                 .selectinload(OrmSKU.attribute_values)
             )

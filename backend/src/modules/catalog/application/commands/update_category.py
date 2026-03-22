@@ -8,7 +8,9 @@ Part of the application layer (CQRS write side).
 
 import contextlib
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from typing import Any
 
 from src.modules.catalog.application.constants import CATEGORY_TREE_CACHE_KEY
 from src.modules.catalog.domain.entities import Category
@@ -37,6 +39,7 @@ class UpdateCategoryCommand:
     name: str | None = None
     slug: str | None = None
     sort_order: int | None = None
+    _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 
 @dataclass(frozen=True)
@@ -113,11 +116,10 @@ class UpdateCategoryHandler:
             ):
                 raise CategorySlugConflictError(slug=command.slug, parent_id=category.parent_id)
 
-            old_full_slug = category.update(
-                name=command.name,
-                slug=command.slug,
-                sort_order=command.sort_order,
-            )
+            update_kwargs: dict[str, Any] = {
+                f: getattr(command, f) for f in command._provided_fields
+            }
+            old_full_slug = category.update(**update_kwargs)
 
             await self._category_repo.update(category)
             self._uow.register_aggregate(category)

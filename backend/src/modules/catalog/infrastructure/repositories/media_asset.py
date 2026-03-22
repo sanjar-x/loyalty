@@ -24,6 +24,13 @@ class MediaAssetRepository(IMediaAssetRepository):
     Converts between the database layer (``OrmMediaAsset``) and the domain
     layer (``DomainMediaAsset``), keeping ORM concerns out of business logic.
 
+    Note: This class does NOT inherit from ``BaseRepository`` because
+    ``IMediaAssetRepository`` extends ``ABC`` directly (not
+    ``ICatalogRepository``), and its method signatures use different
+    parameter names (``media`` / ``media_id`` vs ``entity`` /
+    ``entity_id``).  Aligning the interface hierarchy would be a
+    larger refactor, so CRUD methods are kept inline here.
+
     Args:
         session: SQLAlchemy async session scoped to the current request.
     """
@@ -53,6 +60,7 @@ class MediaAssetRepository(IMediaAssetRepository):
             is_external=orm.is_external,
             external_url=orm.external_url,
             raw_object_key=orm.raw_object_key,
+            processed_object_key=orm.processed_object_key,
             public_url=orm.public_url,
         )
 
@@ -73,6 +81,7 @@ class MediaAssetRepository(IMediaAssetRepository):
         orm.is_external = entity.is_external
         orm.external_url = entity.external_url
         orm.raw_object_key = entity.raw_object_key
+        orm.processed_object_key = entity.processed_object_key
         orm.public_url = entity.public_url
         return orm
 

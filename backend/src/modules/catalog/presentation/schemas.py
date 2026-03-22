@@ -105,7 +105,7 @@ class BrandCreateRequest(CamelModel):
 class BrandCreateResponse(CamelModel):
     """Response after brand creation, including an optional presigned upload URL."""
 
-    brand_id: uuid.UUID
+    id: uuid.UUID
     presigned_upload_url: str | None = None
     object_key: str | None = None
 
@@ -176,7 +176,7 @@ class AttributeGroupCreateRequest(CamelModel):
 class AttributeGroupCreateResponse(CamelModel):
     """Response after attribute group creation."""
 
-    group_id: uuid.UUID
+    id: uuid.UUID
 
 
 class AttributeGroupResponse(CamelModel):
@@ -249,7 +249,7 @@ class AttributeCreateRequest(CamelModel):
 class AttributeCreateResponse(CamelModel):
     """Response after attribute creation."""
 
-    attribute_id: uuid.UUID
+    id: uuid.UUID
 
 
 class AttributeResponse(CamelModel):
@@ -327,7 +327,7 @@ class AttributeValueCreateRequest(CamelModel):
 class AttributeValueCreateResponse(CamelModel):
     """Response after attribute value creation."""
 
-    value_id: uuid.UUID
+    id: uuid.UUID
 
 
 class AttributeValueResponse(CamelModel):
@@ -411,7 +411,7 @@ class BindAttributeToCategoryRequest(CamelModel):
 class BindAttributeToCategoryResponse(CamelModel):
     """Response after binding creation."""
 
-    binding_id: uuid.UUID
+    id: uuid.UUID
 
 
 class CategoryAttributeBindingResponse(CamelModel):
@@ -727,13 +727,11 @@ class SKUResponse(CamelModel):
     product_id: uuid.UUID
     variant_id: uuid.UUID
     sku_code: str
-    variant_hash: str
     price: MoneySchema | None = None
     resolved_price: MoneySchema | None = None
     compare_at_price: MoneySchema | None = None
     is_active: bool
     version: int
-    deleted_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
     variant_attributes: list[VariantAttributePairSchema]
@@ -778,7 +776,6 @@ class ProductResponse(CamelModel):
     country_of_origin: str | None = None
     tags: list[str]
     version: int
-    deleted_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
     published_at: datetime | None = None
@@ -833,7 +830,9 @@ class ProductVariantUpdateRequest(CamelModel):
     description_i18n: dict[str, str] | None = None
     sort_order: int | None = Field(None, ge=0)
     default_price_amount: int | None = Field(None, ge=0)
-    default_price_currency: str | None = Field(None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
+    default_price_currency: str | None = Field(
+        None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"
+    )
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> ProductVariantUpdateRequest:
@@ -918,6 +917,42 @@ class ProductMediaResponse(CamelModel):
     public_url: str | None = None
     is_external: bool
     external_url: str | None = None
+
+
+class ProductAttributeListResponse(CamelModel):
+    """Paginated product attribute assignment list response."""
+
+    items: list[ProductAttributeResponse]
+    total: int
+    offset: int
+    limit: int
+
+
+class ProductMediaListResponse(CamelModel):
+    """Paginated product media list response."""
+
+    items: list[ProductMediaResponse]
+    total: int
+    offset: int
+    limit: int
+
+
+class SKUListResponse(CamelModel):
+    """Paginated SKU list response."""
+
+    items: list[SKUResponse]
+    total: int
+    offset: int
+    limit: int
+
+
+class ProductVariantListResponse(CamelModel):
+    """Paginated product variant list response."""
+
+    items: list[ProductVariantResponse]
+    total: int
+    offset: int
+    limit: int
 
 
 class MediaProcessingWebhookRequest(CamelModel):

@@ -83,7 +83,7 @@ async def bind_attribute_to_category(
         filter_settings=request.filter_settings,
     )
     result: BindAttributeToCategoryResult = await handler.handle(command)
-    return BindAttributeToCategoryResponse(binding_id=result.binding_id)
+    return BindAttributeToCategoryResponse(id=result.binding_id)
 
 
 @category_binding_router.get(

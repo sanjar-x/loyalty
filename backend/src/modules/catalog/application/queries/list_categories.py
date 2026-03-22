@@ -2,28 +2,20 @@
 Query handler: paginated category listing.
 
 Strict CQRS read side — does not use IUnitOfWork, domain aggregates, or
-repositories. Queries the database directly via AsyncSession + raw SQL
-and returns a Pydantic read model.
+repositories. Queries the ORM directly via AsyncSession and returns a
+Pydantic read model.
 """
 
 from dataclasses import dataclass
 
-from sqlalchemy import text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.read_models import (
     CategoryListReadModel,
     CategoryReadModel,
 )
-
-_LIST_CATEGORIES_SQL = text(
-    "SELECT id, name, slug, full_slug, level, sort_order, parent_id "
-    "FROM categories "
-    "ORDER BY level, sort_order, name "
-    "LIMIT :limit OFFSET :offset"
-)
-
-_COUNT_CATEGORIES_SQL = text("SELECT count(*) FROM categories")
+from src.modules.catalog.infrastructure.models import Category as OrmCategory
 
 
 @dataclass(frozen=True)
@@ -54,25 +46,29 @@ class ListCategoriesHandler:
         Returns:
             Paginated list read model with items and total count.
         """
-        count_result = await self._session.execute(_COUNT_CATEGORIES_SQL)
+        count_result = await self._session.execute(select(func.count()).select_from(OrmCategory))
         total: int = count_result.scalar_one()
 
-        result = await self._session.execute(
-            _LIST_CATEGORIES_SQL, {"limit": query.limit, "offset": query.offset}
+        stmt = (
+            select(OrmCategory)
+            .order_by(OrmCategory.level, OrmCategory.sort_order, OrmCategory.name)
+            .limit(query.limit)
+            .offset(query.offset)
         )
-        rows = result.mappings().all()
+        result = await self._session.execute(stmt)
+        rows = result.scalars().all()
 
         items = [
             CategoryReadModel(
-                id=row["id"],
-                name=row["name"],
-                slug=row["slug"],
-                full_slug=row["full_slug"],
-                level=row["level"],
-                sort_order=row["sort_order"],
-                parent_id=row["parent_id"],
+                id=orm.id,
+                name=orm.name,
+                slug=orm.slug,
+                full_slug=orm.full_slug,
+                level=orm.level,
+                sort_order=orm.sort_order,
+                parent_id=orm.parent_id,
             )
-            for row in rows
+            for orm in rows
         ]
 
         return CategoryListReadModel(

@@ -42,6 +42,7 @@ from src.modules.catalog.presentation.schemas import (
     AttributeGroupResponse,
     AttributeGroupUpdateRequest,
 )
+from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
 
 attribute_group_router = APIRouter(
@@ -69,7 +70,7 @@ async def create_attribute_group(
         sort_order=request.sort_order,
     )
     result: CreateAttributeGroupResult = await handler.handle(command)
-    return AttributeGroupCreateResponse(group_id=result.group_id)
+    return AttributeGroupCreateResponse(id=result.group_id)
 
 
 @attribute_group_router.get(
@@ -135,10 +136,10 @@ async def update_attribute_group(
     request: AttributeGroupUpdateRequest,
     handler: FromDishka[UpdateAttributeGroupHandler],
 ) -> AttributeGroupResponse:
-    command = UpdateAttributeGroupCommand(
+    command = build_update_command(
+        request,
+        UpdateAttributeGroupCommand,
         group_id=group_id,
-        name_i18n=request.name_i18n,
-        sort_order=request.sort_order,
     )
     result: UpdateAttributeGroupResult = await handler.handle(command)
     return AttributeGroupResponse(

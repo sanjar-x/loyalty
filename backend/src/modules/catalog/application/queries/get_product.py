@@ -25,6 +25,7 @@ from src.modules.catalog.infrastructure.models import (
 from src.modules.catalog.infrastructure.models import (
     Product as OrmProduct,
     ProductAttributeValue as OrmProductAttributeValue,
+    Attribute as OrmAttribute,
 )
 
 
@@ -59,7 +60,9 @@ class GetProductHandler:
                 selectinload(OrmProduct.variants.and_(OrmProductVariant.deleted_at.is_(None)))
                 .selectinload(OrmProductVariant.skus)
                 .selectinload(OrmSKU.attribute_values),
-                selectinload(OrmProduct.product_attribute_values),
+                selectinload(OrmProduct.product_attribute_values).selectinload(
+                    OrmProductAttributeValue.attribute
+                ),
             )
         )
         result = await self._session.execute(stmt)
@@ -73,11 +76,7 @@ class GetProductHandler:
     @staticmethod
     def _to_read_model(orm: OrmProduct) -> ProductReadModel:
         """Map an ORM Product to a ProductReadModel with computed prices."""
-        variants = [
-            variant_orm_to_read_model(v)
-            for v in orm.variants
-            if v.deleted_at is None
-        ]
+        variants = [variant_orm_to_read_model(v) for v in orm.variants if v.deleted_at is None]
 
         # Compute min/max price across active, non-deleted SKUs in all variants
         active_prices: list[int] = []
@@ -95,6 +94,8 @@ class GetProductHandler:
                 product_id=pav.product_id,
                 attribute_id=pav.attribute_id,
                 attribute_value_id=pav.attribute_value_id,
+                attribute_code=pav.attribute.code if pav.attribute else "",
+                attribute_name_i18n=dict(pav.attribute.name_i18n) if pav.attribute else {},
             )
             for pav in orm.product_attribute_values
         ]

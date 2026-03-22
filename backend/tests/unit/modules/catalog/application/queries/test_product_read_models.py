@@ -555,7 +555,9 @@ class TestProductReadModel:
         )
         variant = _variant(product_id=pid, skus=[sku])
         product = _product(product_id=pid, variants=[variant])
-        assert isinstance(product.variants[0].skus[0].variant_attributes[0], VariantAttributePairReadModel)
+        assert isinstance(
+            product.variants[0].skus[0].variant_attributes[0], VariantAttributePairReadModel
+        )
 
     def test_multiple_variants_and_attributes(self) -> None:
         """ProductReadModel correctly holds multiple variants and attributes."""

@@ -223,6 +223,11 @@ class IAttributeValueRepository(ABC):
         pass
 
     @abstractmethod
+    async def list_ids_by_attribute(self, attribute_id: uuid.UUID) -> set[uuid.UUID]:
+        """Return the set of value IDs belonging to the given attribute."""
+        pass
+
+    @abstractmethod
     async def bulk_update_sort_order(self, updates: list[tuple[uuid.UUID, int]]) -> None:
         """Bulk-update sort_order for multiple values atomically.
 
@@ -265,6 +270,11 @@ class ICategoryAttributeBindingRepository(ABC):
         self, category_id: uuid.UUID, attribute_id: uuid.UUID
     ) -> DomainBinding | None:
         """Retrieve a binding by the category+attribute pair."""
+        pass
+
+    @abstractmethod
+    async def list_ids_by_category(self, category_id: uuid.UUID) -> set[uuid.UUID]:
+        """Return the set of binding IDs belonging to the given category."""
         pass
 
     @abstractmethod

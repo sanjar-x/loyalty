@@ -55,7 +55,7 @@ class DeleteProductMediaHandler:
             MediaAssetNotFoundError: If the media asset does not exist.
         """
         raw_object_key: str | None = None
-        public_url: str | None = None
+        processed_object_key: str | None = None
         is_external: bool = False
 
         async with self._uow:
@@ -69,7 +69,7 @@ class DeleteProductMediaHandler:
                 )
 
             raw_object_key = media.raw_object_key
-            public_url = media.public_url
+            processed_object_key = media.processed_object_key
             is_external = media.is_external
 
             await self._media_repo.delete(command.media_id)
@@ -87,15 +87,13 @@ class DeleteProductMediaHandler:
                 )
 
         # Best-effort cleanup of the processed S3 object (if any)
-        if public_url is not None and not is_external:
-            # Extract S3 key from the public URL (everything after the base URL)
-            processed_key = public_url.split("/", 3)[-1] if "/" in public_url else public_url
+        if processed_object_key and not is_external:
             try:
-                await self._blob_storage.delete_object(processed_key)
+                await self._blob_storage.delete_object(processed_object_key)
             except Exception:
                 self._logger.warning(
                     "Failed to delete processed S3 object during media deletion",
-                    processed_key=processed_key,
+                    processed_object_key=processed_object_key,
                     media_id=str(command.media_id),
                 )
 

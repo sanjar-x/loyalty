@@ -86,7 +86,7 @@ async def create_attribute(
         validation_rules=request.validation_rules,
     )
     result: CreateAttributeResult = await handler.handle(command)
-    return AttributeCreateResponse(attribute_id=result.attribute_id)
+    return AttributeCreateResponse(id=result.attribute_id)
 
 
 @attribute_router.get(

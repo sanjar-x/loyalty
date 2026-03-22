@@ -118,6 +118,12 @@ class AttributeValueRepository(
         result = await self._session.execute(stmt)
         return result.first() is not None
 
+    async def list_ids_by_attribute(self, attribute_id: uuid.UUID) -> set[uuid.UUID]:
+        """Return the set of value IDs belonging to the given attribute."""
+        stmt = select(OrmAttributeValue.id).where(OrmAttributeValue.attribute_id == attribute_id)
+        result = await self._session.execute(stmt)
+        return {row[0] for row in result.all()}
+
     async def bulk_update_sort_order(self, updates: list[tuple[uuid.UUID, int]]) -> None:
         """Bulk-update sort_order for multiple values in a single stmt."""
         if not updates:

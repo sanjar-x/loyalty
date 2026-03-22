@@ -90,7 +90,10 @@ class CreateBrandHandler:
         Raises:
             BrandSlugConflictError: If the slug is already taken.
         """
-        # Pre-compute outside the transaction — S3 I/O must not hold a DB connection
+        # Pre-compute outside the transaction — S3 I/O must not hold a DB connection.
+        # Accepted trade-off: the presigned URL is generated before the transaction,
+        # so if the transaction fails, an orphaned S3 upload may occur. A periodic
+        # S3 lifecycle policy handles cleanup of such orphaned objects.
         brand_id = uuid.uuid4()
         presigned_url: str | None = None
         object_key: str | None = None

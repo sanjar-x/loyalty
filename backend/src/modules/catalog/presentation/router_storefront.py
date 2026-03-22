@@ -9,7 +9,7 @@ All endpoints are public (no auth required) and read-only.
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 
 from src.modules.catalog.application.queries.storefront import (
     StorefrontCardAttributesHandler,
@@ -23,6 +23,7 @@ from src.modules.catalog.presentation.schemas import (
     StorefrontFilterListResponse,
     StorefrontFormResponse,
 )
+from src.modules.identity.presentation.dependencies import RequirePermission
 
 storefront_router = APIRouter(
     prefix="/storefront/categories/{category_id}",
@@ -91,6 +92,7 @@ async def get_comparison_attributes(
     status_code=status.HTTP_200_OK,
     response_model=StorefrontFormResponse,
     summary="Get attributes for product creation form",
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
     description=(
         "Returns ALL attributes bound to this category, grouped by attribute group, "
         "with requirement levels, display types, validation rules, and all values "

@@ -78,7 +78,7 @@ async def add_attribute_value(
         sort_order=request.sort_order,
     )
     result: AddAttributeValueResult = await handler.handle(command)
-    return AttributeValueCreateResponse(value_id=result.value_id)
+    return AttributeValueCreateResponse(id=result.value_id)
 
 
 @attribute_value_router.get(

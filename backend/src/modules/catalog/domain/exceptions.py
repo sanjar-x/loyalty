@@ -209,7 +209,9 @@ class DuplicateProductAttributeError(ConflictError):
 class VariantNotFoundError(NotFoundError):
     """Raised when a product variant lookup yields no result."""
 
-    def __init__(self, variant_id: uuid.UUID | str, product_id: uuid.UUID | str | None = None) -> None:
+    def __init__(
+        self, variant_id: uuid.UUID | str, product_id: uuid.UUID | str | None = None
+    ) -> None:
         details: dict[str, str] = {"variant_id": str(variant_id)}
         if product_id is not None:
             details["product_id"] = str(product_id)
@@ -542,6 +544,20 @@ class CategoryAttributeBindingAlreadyExistsError(ConflictError):
 # ---------------------------------------------------------------------------
 # Media asset exceptions
 # ---------------------------------------------------------------------------
+
+
+class DuplicateMainMediaError(ConflictError):
+    """Raised when a MAIN media asset already exists for a product/variant combo."""
+
+    def __init__(self, product_id: uuid.UUID, variant_id: uuid.UUID | None) -> None:
+        super().__init__(
+            message="A MAIN media asset already exists for this product/variant.",
+            error_code="DUPLICATE_MAIN_MEDIA",
+            details={
+                "product_id": str(product_id),
+                "variant_id": str(variant_id) if variant_id else None,
+            },
+        )
 
 
 class MediaAssetNotFoundError(NotFoundError):

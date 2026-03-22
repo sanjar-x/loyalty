@@ -9,7 +9,7 @@ Delegates to application-layer command/query handlers via Dishka DI.
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from src.modules.catalog.application.commands.assign_product_attribute import (
     AssignProductAttributeCommand,
@@ -30,6 +30,7 @@ from src.modules.catalog.application.queries.read_models import (
 from src.modules.catalog.presentation.schemas import (
     ProductAttributeAssignRequest,
     ProductAttributeAssignResponse,
+    ProductAttributeListResponse,
     ProductAttributeResponse,
 )
 from src.modules.identity.presentation.dependencies import RequirePermission
@@ -76,36 +77,47 @@ async def assign_product_attribute(
 @product_attribute_router.get(
     path="",
     status_code=status.HTTP_200_OK,
-    response_model=list[ProductAttributeResponse],
+    response_model=ProductAttributeListResponse,
     summary="List attribute assignments for a product",
-    description="Return all attribute value assignments for a product.",
+    description="Return paginated attribute value assignments for a product.",
 )
 async def list_product_attributes(
     product_id: uuid.UUID,
     handler: FromDishka[ListProductAttributesHandler],
-) -> list[ProductAttributeResponse]:
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> ProductAttributeListResponse:
     """List all attribute value assignments for a product.
 
     Args:
         product_id: UUID of the target product.
         handler: Injected query handler.
+        limit: Maximum number of items to return.
+        offset: Number of items to skip.
 
     Returns:
-        List of product attribute assignment responses.
+        Paginated product attribute assignment responses.
     """
     query = ListProductAttributesQuery(product_id=product_id)
-    items: list[ProductAttributeReadModel] = await handler.handle(query)
-    return [
-        ProductAttributeResponse(
-            id=item.id,
-            product_id=item.product_id,
-            attribute_id=item.attribute_id,
-            attribute_value_id=item.attribute_value_id,
-            attribute_code=item.attribute_code,
-            attribute_name_i18n=item.attribute_name_i18n,
-        )
-        for item in items
-    ]
+    all_items: list[ProductAttributeReadModel] = await handler.handle(query)
+    total = len(all_items)
+    page = all_items[offset : offset + limit]
+    return ProductAttributeListResponse(
+        items=[
+            ProductAttributeResponse(
+                id=item.id,
+                product_id=item.product_id,
+                attribute_id=item.attribute_id,
+                attribute_value_id=item.attribute_value_id,
+                attribute_code=item.attribute_code,
+                attribute_name_i18n=item.attribute_name_i18n,
+            )
+            for item in page
+        ],
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
 
 
 @product_attribute_router.delete(

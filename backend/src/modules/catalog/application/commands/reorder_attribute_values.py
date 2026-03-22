@@ -64,6 +64,14 @@ class ReorderAttributeValuesHandler:
             if attribute is None:
                 raise AttributeNotFoundError(attribute_id=command.attribute_id)
 
+            valid_ids = await self._value_repo.list_ids_by_attribute(command.attribute_id)
+            requested_ids = {item.value_id for item in command.items}
+            invalid_ids = requested_ids - valid_ids
+            if invalid_ids:
+                raise ValueError(
+                    f"Value IDs {invalid_ids} do not belong to attribute {command.attribute_id}"
+                )
+
             updates = [(item.value_id, item.sort_order) for item in command.items]
             await self._value_repo.bulk_update_sort_order(updates)
             await self._uow.commit()

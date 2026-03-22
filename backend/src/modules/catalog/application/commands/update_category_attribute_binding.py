@@ -76,9 +76,7 @@ class UpdateCategoryAttributeBindingHandler:
                 raise CategoryAttributeBindingNotFoundError(binding_id=command.binding_id)
 
             update_kwargs: dict[str, Any] = {
-                f: getattr(command, f)
-                for f in command._provided_fields
-                if hasattr(command, f)
+                f: getattr(command, f) for f in command._provided_fields if hasattr(command, f)
             }
 
             binding.update(**update_kwargs)

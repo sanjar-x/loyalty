@@ -57,6 +57,11 @@ class ConfirmBrandLogoUploadHandler:
             LogoFileNotUploadedError: If the raw logo file is not in S3.
             InvalidLogoStateError: If the logo FSM is not in PENDING_UPLOAD.
         """
+        # Two-phase approach: deliberate TOCTOU trade-off. The S3 existence
+        # check runs outside the DB lock to avoid holding a connection during
+        # external I/O. The domain FSM guard in Phase 2 protects against stale
+        # reads (e.g. concurrent confirmations).
+
         # Phase 1: Read without lock, verify S3 existence
         brand = await self._brand_repo.get(command.brand_id)
         if brand is None:

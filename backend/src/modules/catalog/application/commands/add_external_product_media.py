@@ -8,15 +8,15 @@ with the provided external URL. Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy.exc import IntegrityError  # DB-level uniqueness safety net
-
 from src.modules.catalog.domain.entities import MediaAsset
-from src.modules.catalog.domain.exceptions import ProductNotFoundError
+from src.modules.catalog.domain.exceptions import (
+    DuplicateMainMediaError,
+    ProductNotFoundError,
+)
 from src.modules.catalog.domain.interfaces import (
     IMediaAssetRepository,
     IProductRepository,
 )
-from src.shared.exceptions import ConflictError
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -117,21 +117,13 @@ class AddExternalProductMediaHandler:
                     command.variant_id,
                 )
                 if has_main:
-                    raise ConflictError(
-                        f"MAIN media already exists for product {command.product_id} "
-                        f"variant {command.variant_id}"
+                    raise DuplicateMainMediaError(
+                        product_id=command.product_id,
+                        variant_id=command.variant_id,
                     )
 
             await self._media_repo.add(media)
-            try:
-                await self._uow.commit()
-            except IntegrityError as exc:
-                if "uix_media_single_main_per_variant" in str(exc.orig):
-                    raise ConflictError(
-                        f"MAIN media already exists for product {command.product_id} "
-                        f"variant {command.variant_id}"
-                    ) from None
-                raise
+            await self._uow.commit()
 
         return AddExternalProductMediaResult(
             media_id=media.id,
