@@ -21,6 +21,9 @@ from src.modules.catalog.domain.interfaces import (
 from src.shared.interfaces.uow import IUnitOfWork
 
 
+_SENTINEL: object = object()
+
+
 @dataclass(frozen=True)
 class UpdateAttributeValueCommand:
     """Input for updating an attribute value. Code and slug are immutable."""
@@ -30,8 +33,23 @@ class UpdateAttributeValueCommand:
     value_i18n: dict[str, str] | None = None
     search_aliases: list[str] | None = None
     meta_data: dict[str, Any] | None = None
-    value_group: str | None = ...  # type: ignore[assignment]
+    value_group: str | None = _SENTINEL  # type: ignore[assignment]
     sort_order: int | None = None
+
+
+@dataclass(frozen=True)
+class UpdateAttributeValueResult:
+    """Output of the update-attribute-value command."""
+
+    id: uuid.UUID
+    attribute_id: uuid.UUID
+    code: str
+    slug: str
+    value_i18n: dict[str, str]
+    search_aliases: list[str]
+    meta_data: dict[str, Any] | None
+    value_group: str | None
+    sort_order: int
 
 
 class UpdateAttributeValueHandler:
@@ -47,11 +65,13 @@ class UpdateAttributeValueHandler:
         self._value_repo = value_repo
         self._uow = uow
 
-    async def handle(self, command: UpdateAttributeValueCommand) -> uuid.UUID:
+    async def handle(
+        self, command: UpdateAttributeValueCommand
+    ) -> UpdateAttributeValueResult:
         """Execute the update-attribute-value command.
 
         Returns:
-            UUID of the updated value.
+            Rich result containing the updated value fields.
 
         Raises:
             AttributeNotFoundError: If the parent attribute does not exist.
@@ -66,13 +86,16 @@ class UpdateAttributeValueHandler:
             if value is None or value.attribute_id != command.attribute_id:
                 raise AttributeValueNotFoundError(value_id=command.value_id)
 
-            value.update(
+            update_kwargs: dict[str, Any] = dict(
                 value_i18n=command.value_i18n,
                 search_aliases=command.search_aliases,
                 meta_data=command.meta_data,
-                value_group=command.value_group,
                 sort_order=command.sort_order,
             )
+            if command.value_group is not _SENTINEL:
+                update_kwargs["value_group"] = command.value_group
+
+            value.update(**update_kwargs)
 
             attribute.add_domain_event(
                 AttributeValueUpdatedEvent(
@@ -86,4 +109,14 @@ class UpdateAttributeValueHandler:
             self._uow.register_aggregate(attribute)
             await self._uow.commit()
 
-        return value.id
+        return UpdateAttributeValueResult(
+            id=value.id,
+            attribute_id=value.attribute_id,
+            code=value.code,
+            slug=value.slug,
+            value_i18n=value.value_i18n,
+            search_aliases=list(value.search_aliases) if value.search_aliases else [],
+            meta_data=value.meta_data,
+            value_group=value.value_group,
+            sort_order=value.sort_order,
+        )

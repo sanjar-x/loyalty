@@ -18,6 +18,9 @@ from src.modules.catalog.domain.value_objects import RequirementLevel
 from src.shared.interfaces.uow import IUnitOfWork
 
 
+_SENTINEL: object = object()
+
+
 @dataclass(frozen=True)
 class UpdateCategoryAttributeBindingCommand:
     """Input for updating a binding. category_id/attribute_id are immutable."""
@@ -25,8 +28,21 @@ class UpdateCategoryAttributeBindingCommand:
     binding_id: uuid.UUID
     sort_order: int | None = None
     requirement_level: RequirementLevel | None = None
-    flag_overrides: dict[str, Any] | None = ...  # type: ignore[assignment]
-    filter_settings: dict[str, Any] | None = ...  # type: ignore[assignment]
+    flag_overrides: dict[str, Any] | None = _SENTINEL  # type: ignore[assignment]
+    filter_settings: dict[str, Any] | None = _SENTINEL  # type: ignore[assignment]
+
+
+@dataclass(frozen=True)
+class UpdateCategoryAttributeBindingResult:
+    """Output of the update-category-attribute-binding command."""
+
+    id: uuid.UUID
+    category_id: uuid.UUID
+    attribute_id: uuid.UUID
+    sort_order: int
+    requirement_level: str
+    flag_overrides: dict[str, Any] | None
+    filter_settings: dict[str, Any] | None
 
 
 class UpdateCategoryAttributeBindingHandler:
@@ -40,11 +56,13 @@ class UpdateCategoryAttributeBindingHandler:
         self._binding_repo = binding_repo
         self._uow = uow
 
-    async def handle(self, command: UpdateCategoryAttributeBindingCommand) -> uuid.UUID:
+    async def handle(
+        self, command: UpdateCategoryAttributeBindingCommand
+    ) -> UpdateCategoryAttributeBindingResult:
         """Execute the update-binding command.
 
         Returns:
-            UUID of the updated binding.
+            Rich result containing the updated binding fields.
 
         Raises:
             CategoryAttributeBindingNotFoundError: If the binding does not exist.
@@ -52,14 +70,20 @@ class UpdateCategoryAttributeBindingHandler:
         async with self._uow:
             binding = await self._binding_repo.get(command.binding_id)
             if binding is None:
-                raise CategoryAttributeBindingNotFoundError(binding_id=command.binding_id)
+                raise CategoryAttributeBindingNotFoundError(
+                    binding_id=command.binding_id
+                )
 
-            binding.update(
+            update_kwargs: dict[str, Any] = dict(
                 sort_order=command.sort_order,
                 requirement_level=command.requirement_level,
-                flag_overrides=command.flag_overrides,
-                filter_settings=command.filter_settings,
             )
+            if command.flag_overrides is not _SENTINEL:
+                update_kwargs["flag_overrides"] = command.flag_overrides
+            if command.filter_settings is not _SENTINEL:
+                update_kwargs["filter_settings"] = command.filter_settings
+
+            binding.update(**update_kwargs)
 
             binding.add_domain_event(
                 CategoryAttributeBindingUpdatedEvent(
@@ -72,4 +96,16 @@ class UpdateCategoryAttributeBindingHandler:
             self._uow.register_aggregate(binding)
             await self._uow.commit()
 
-        return binding.id
+        return UpdateCategoryAttributeBindingResult(
+            id=binding.id,
+            category_id=binding.category_id,
+            attribute_id=binding.attribute_id,
+            sort_order=binding.sort_order,
+            requirement_level=binding.requirement_level.value,
+            flag_overrides=dict(binding.flag_overrides)
+            if binding.flag_overrides
+            else None,
+            filter_settings=dict(binding.filter_settings)
+            if binding.filter_settings
+            else None,
+        )

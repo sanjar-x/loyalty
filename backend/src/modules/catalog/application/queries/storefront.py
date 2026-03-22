@@ -32,6 +32,7 @@ from src.modules.catalog.application.queries.read_models import (
     StorefrontFormReadModel,
     StorefrontValueReadModel,
 )
+from src.modules.catalog.domain.exceptions import CategoryNotFoundError
 from src.modules.catalog.infrastructure.models import (
     Attribute as OrmAttribute,
 )
@@ -40,6 +41,9 @@ from src.modules.catalog.infrastructure.models import (
 )
 from src.modules.catalog.infrastructure.models import (
     AttributeValue as OrmAttributeValue,
+)
+from src.modules.catalog.infrastructure.models import (
+    Category as OrmCategory,
 )
 from src.modules.catalog.infrastructure.models import (
     CategoryAttributeRule as OrmRule,
@@ -93,7 +97,16 @@ def _values_to_read_models(values: list[OrmAttributeValue]) -> list[StorefrontVa
 async def _load_bindings_with_attributes(
     session: AsyncSession, category_id: uuid.UUID
 ) -> list[OrmRule]:
-    """Load all bindings for a category with eagerly-loaded attribute + group + values."""
+    """Load all bindings for a category with eagerly-loaded attribute + group + values.
+
+    Raises:
+        CategoryNotFoundError: If the category does not exist.
+    """
+    # Verify the category exists before loading bindings
+    cat = await session.get(OrmCategory, category_id)
+    if cat is None:
+        raise CategoryNotFoundError(category_id=category_id)
+
     stmt = (
         select(OrmRule)
         .where(OrmRule.category_id == category_id)

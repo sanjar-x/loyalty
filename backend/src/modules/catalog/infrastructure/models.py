@@ -101,6 +101,7 @@ class Brand(Base):
     __tablename__ = "brands"
     __table_args__ = (
         Index("uix_brands_name", "name", unique=True),
+        Index("uix_brands_slug", "slug", unique=True),
         {"comment": "Brand directory for the catalog"},
     )
 
@@ -157,6 +158,13 @@ class Category(Base):
     slug: Mapped[str] = mapped_column(String(255), index=True)
     sort_order: Mapped[int] = mapped_column(
         Integer, server_default=text("0"), index=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(),
     )
 
     children: Mapped[list[Category]] = relationship(
@@ -217,6 +225,13 @@ class AttributeGroup(Base):
         comment="Display ordering among groups (lower = first)",
     )
 
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(),
+    )
+
     attributes: Mapped[list[Attribute]] = relationship(
         "Attribute", back_populates="group"
     )
@@ -263,6 +278,7 @@ class Attribute(Base):
     )
     data_type: Mapped[AttributeDataType] = mapped_column(
         Enum(AttributeDataType, name="attribute_data_type_enum"),
+        # PostgreSQL native enums use .name (uppercase label), not .value
         server_default=AttributeDataType.STRING.name,
     )
     ui_type: Mapped[AttributeUIType] = mapped_column(
@@ -309,6 +325,13 @@ class Attribute(Base):
         MutableDict.as_mutable(JSONB),
         nullable=True,
         comment="Type-specific validation constraints (e.g. min_length, max_value)",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(),
     )
 
     group: Mapped[AttributeGroup | None] = relationship(
@@ -501,7 +524,7 @@ class Product(Base):
     )
     is_visible: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
 
-    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, server_default=text("1"), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
@@ -518,6 +541,9 @@ class Product(Base):
     supplier: Mapped[Supplier] = relationship("Supplier", back_populates="products")
     skus: Mapped[list[SKU]] = relationship(
         "SKU", back_populates="product", cascade="all, delete-orphan"
+    )
+    media_assets: Mapped[list["MediaAsset"]] = relationship(
+        "MediaAsset", back_populates="product", cascade="all, delete-orphan"
     )
     product_attribute_values: Mapped[list[ProductAttributeValueModel]] = relationship(
         "ProductAttributeValueModel",
@@ -623,7 +649,14 @@ class MediaAsset(Base):
         comment="Final public URL after processing",
     )
 
-    product: Mapped[Product] = relationship("Product")
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(),
+    )
+
+    product: Mapped[Product] = relationship("Product", back_populates="media_assets")
     color_attribute: Mapped[AttributeValue] = relationship("AttributeValue")
 
     __table_args__ = (
@@ -662,7 +695,7 @@ class SKU(Base):
         ForeignKey("products.id", ondelete="CASCADE"), index=True
     )
     sku_code: Mapped[str] = mapped_column(String(100))
-    variant_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    variant_hash: Mapped[str] = mapped_column(String(64))
     main_image_url: Mapped[str | None] = mapped_column(String(1024))
     attributes_cache: Mapped[dict[str, Any]] = mapped_column(
         MutableDict.as_mutable(JSONB), server_default=text("'{}'::jsonb")

@@ -15,6 +15,8 @@ from src.modules.catalog.domain.interfaces import IAttributeRepository
 from src.modules.catalog.domain.value_objects import AttributeLevel, AttributeUIType
 from src.shared.interfaces.uow import IUnitOfWork
 
+_SENTINEL: object = object()
+
 
 @dataclass(frozen=True)
 class UpdateAttributeCommand:
@@ -48,7 +50,7 @@ class UpdateAttributeCommand:
     is_comparable: bool | None = None
     is_visible_on_card: bool | None = None
     is_visible_in_catalog: bool | None = None
-    validation_rules: dict[str, Any] | None = ...  # type: ignore[assignment]
+    validation_rules: dict[str, Any] | None = _SENTINEL  # type: ignore[assignment]
 
 
 @dataclass(frozen=True)
@@ -88,7 +90,7 @@ class UpdateAttributeHandler:
             if attribute is None:
                 raise AttributeNotFoundError(attribute_id=command.attribute_id)
 
-            attribute.update(
+            update_kwargs: dict[str, Any] = dict(
                 name_i18n=command.name_i18n,
                 description_i18n=command.description_i18n,
                 ui_type=command.ui_type,
@@ -100,8 +102,11 @@ class UpdateAttributeHandler:
                 is_comparable=command.is_comparable,
                 is_visible_on_card=command.is_visible_on_card,
                 is_visible_in_catalog=command.is_visible_in_catalog,
-                validation_rules=command.validation_rules,
             )
+            if command.validation_rules is not _SENTINEL:
+                update_kwargs["validation_rules"] = command.validation_rules
+
+            attribute.update(**update_kwargs)
 
             attribute.add_domain_event(
                 AttributeUpdatedEvent(

@@ -3,8 +3,10 @@
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.domain.entities import MediaAsset
-from src.modules.catalog.domain.interfaces import IMediaAssetRepository
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.modules.catalog.infrastructure.models import MediaAsset as OrmMediaAsset
 
 
 @dataclass(frozen=True)
@@ -23,25 +25,33 @@ class MediaAssetReadModel:
     external_url: str | None
 
 
-def _to_read_model(media: MediaAsset) -> MediaAssetReadModel:
-    return MediaAssetReadModel(
-        id=media.id,
-        product_id=media.product_id,
-        attribute_value_id=media.attribute_value_id,
-        media_type=media.media_type,
-        role=media.role,
-        sort_order=media.sort_order,
-        processing_status=media.processing_status.value if media.processing_status else None,
-        public_url=media.public_url,
-        is_external=media.is_external,
-        external_url=media.external_url,
-    )
-
-
 class ListProductMediaHandler:
-    def __init__(self, media_repo: IMediaAssetRepository) -> None:
-        self._media_repo = media_repo
+    """List all media assets for a product (CQRS read side)."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
 
     async def handle(self, product_id: uuid.UUID) -> list[MediaAssetReadModel]:
-        media_list = await self._media_repo.list_by_product(product_id)
-        return [_to_read_model(m) for m in media_list]
+        stmt = (
+            select(OrmMediaAsset)
+            .where(OrmMediaAsset.product_id == product_id)
+            .order_by(OrmMediaAsset.attribute_value_id, OrmMediaAsset.sort_order)
+        )
+        result = await self._session.execute(stmt)
+        rows = result.scalars().all()
+        return [self._to_read_model(orm) for orm in rows]
+
+    @staticmethod
+    def _to_read_model(orm: OrmMediaAsset) -> MediaAssetReadModel:
+        return MediaAssetReadModel(
+            id=orm.id,
+            product_id=orm.product_id,
+            attribute_value_id=orm.attribute_value_id,
+            media_type=orm.media_type.value if orm.media_type else "",
+            role=orm.role.value if orm.role else "",
+            sort_order=orm.sort_order,
+            processing_status=orm.processing_status,
+            public_url=orm.public_url,
+            is_external=orm.is_external,
+            external_url=orm.external_url,
+        )

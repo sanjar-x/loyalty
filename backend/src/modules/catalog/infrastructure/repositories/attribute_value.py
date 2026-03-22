@@ -25,7 +25,7 @@ class AttributeValueRepository(IAttributeValueRepository):
         session: SQLAlchemy async session scoped to the current request.
     """
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     def _to_domain(self, orm: OrmAttributeValue) -> DomainAttributeValue:
@@ -43,20 +43,20 @@ class AttributeValueRepository(IAttributeValueRepository):
         )
 
     def _to_orm(
-        self, domain: DomainAttributeValue, orm: OrmAttributeValue | None = None
+        self, entity: DomainAttributeValue, orm: OrmAttributeValue | None = None
     ) -> OrmAttributeValue:
         """Map a domain entity to an ORM row (create or update)."""
         if orm is None:
             orm = OrmAttributeValue()
-        orm.id = domain.id
-        orm.attribute_id = domain.attribute_id
-        orm.code = domain.code
-        orm.slug = domain.slug
-        orm.value_i18n = domain.value_i18n
-        orm.search_aliases = domain.search_aliases
-        orm.meta_data = domain.meta_data
-        orm.group_code = domain.value_group
-        orm.sort_order = domain.sort_order
+        orm.id = entity.id
+        orm.attribute_id = entity.attribute_id
+        orm.code = entity.code
+        orm.slug = entity.slug
+        orm.value_i18n = entity.value_i18n
+        orm.search_aliases = entity.search_aliases
+        orm.meta_data = entity.meta_data
+        orm.group_code = entity.value_group
+        orm.sort_order = entity.sort_order
         return orm
 
     async def add(self, entity: DomainAttributeValue) -> DomainAttributeValue:
@@ -88,12 +88,12 @@ class AttributeValueRepository(IAttributeValueRepository):
 
     async def delete(self, value_id: uuid.UUID) -> None:
         """Delete an attribute value row by primary key."""
-        statement = delete(OrmAttributeValue).where(OrmAttributeValue.id == value_id)
-        await self._session.execute(statement)
+        stmt = delete(OrmAttributeValue).where(OrmAttributeValue.id == value_id)
+        await self._session.execute(stmt)
 
     async def check_code_exists(self, attribute_id: uuid.UUID, code: str) -> bool:
         """Return ``True`` if the code is taken within this attribute."""
-        statement = (
+        stmt = (
             select(OrmAttributeValue.id)
             .where(
                 OrmAttributeValue.attribute_id == attribute_id,
@@ -101,12 +101,12 @@ class AttributeValueRepository(IAttributeValueRepository):
             )
             .limit(1)
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return result.first() is not None
 
     async def check_slug_exists(self, attribute_id: uuid.UUID, slug: str) -> bool:
         """Return ``True`` if the slug is taken within this attribute."""
-        statement = (
+        stmt = (
             select(OrmAttributeValue.id)
             .where(
                 OrmAttributeValue.attribute_id == attribute_id,
@@ -114,14 +114,14 @@ class AttributeValueRepository(IAttributeValueRepository):
             )
             .limit(1)
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return result.first() is not None
 
     async def check_code_exists_excluding(
         self, attribute_id: uuid.UUID, code: str, exclude_id: uuid.UUID
     ) -> bool:
         """Return ``True`` if the code is taken by another value within this attribute."""
-        statement = (
+        stmt = (
             select(OrmAttributeValue.id)
             .where(
                 OrmAttributeValue.attribute_id == attribute_id,
@@ -130,14 +130,14 @@ class AttributeValueRepository(IAttributeValueRepository):
             )
             .limit(1)
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return result.first() is not None
 
     async def check_slug_exists_excluding(
         self, attribute_id: uuid.UUID, slug: str, exclude_id: uuid.UUID
     ) -> bool:
         """Return ``True`` if the slug is taken by another value within this attribute."""
-        statement = (
+        stmt = (
             select(OrmAttributeValue.id)
             .where(
                 OrmAttributeValue.attribute_id == attribute_id,
@@ -146,11 +146,11 @@ class AttributeValueRepository(IAttributeValueRepository):
             )
             .limit(1)
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return result.first() is not None
 
     async def bulk_update_sort_order(self, updates: list[tuple[uuid.UUID, int]]) -> None:
-        """Bulk-update sort_order for multiple values in a single statement."""
+        """Bulk-update sort_order for multiple values in a single stmt."""
         if not updates:
             return
 

@@ -11,7 +11,8 @@ import uuid
 from dataclasses import dataclass
 
 from src.modules.catalog.domain.interfaces import IMediaAssetRepository
-from src.shared.exceptions import NotFoundError, UnprocessableEntityError
+from src.modules.catalog.domain.exceptions import MediaAssetNotFoundError
+from src.shared.exceptions import UnprocessableEntityError
 from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -47,40 +48,43 @@ class ConfirmProductMediaHandler:
         self._uow = uow
         self._logger = logger.bind(handler="ConfirmProductMediaHandler")
 
-    async def handle(self, cmd: ConfirmProductMediaCommand) -> None:
+    async def handle(self, command: ConfirmProductMediaCommand) -> None:
         """Execute the confirm-product-media command.
 
         Args:
-            cmd: Confirmation parameters.
+            command: Confirmation parameters.
 
         Raises:
             NotFoundError: If the media asset does not exist or has no raw key.
             UnprocessableEntityError: If the raw file is not present in S3.
             InvalidMediaStateError: If the asset FSM is not in PENDING_UPLOAD.
         """
+        # Phase 1: Read without lock and verify S3 existence (no row lock held)
+        media = await self._media_repo.get(command.media_id)
+        if media is None:
+            raise MediaAssetNotFoundError(media_id=command.media_id)
+
+        if media.product_id != command.product_id:
+            raise MediaAssetNotFoundError(media_id=command.media_id, product_id=command.product_id)
+
+        if media.raw_object_key is None:
+            raise MediaAssetNotFoundError(media_id=command.media_id)
+
+        exists = await self._blob.object_exists(media.raw_object_key)
+        if not exists:
+            raise UnprocessableEntityError(
+                f"Raw file not yet uploaded to S3: {media.raw_object_key}"
+            )
+
+        # Phase 2: Lock the row and perform FSM transition
         async with self._uow:
-            media = await self._media_repo.get_for_update(cmd.media_id)
+            media = await self._media_repo.get_for_update(command.media_id)
             if media is None:
-                raise NotFoundError(f"Media {cmd.media_id} not found")
-
-            if media.product_id != cmd.product_id:
-                raise NotFoundError(f"Media {cmd.media_id} not found for product {cmd.product_id}")
-
-            if media.raw_object_key is None:
-                raise NotFoundError(f"Media {cmd.media_id} has no raw object key")
-
-            # Verify raw file exists in S3 (outside transaction would be ideal, but
-            # we are inside the UoW context to hold the row lock implicitly through
-            # the session; S3 I/O here is acceptable for the confirmation flow)
-            exists = await self._blob.object_exists(media.raw_object_key)
-            if not exists:
-                raise UnprocessableEntityError(
-                    f"Raw file not yet uploaded to S3: {media.raw_object_key}"
-                )
+                raise MediaAssetNotFoundError(media_id=command.media_id)
 
             # FSM transition PENDING_UPLOAD -> PROCESSING; emits
             # ProductMediaConfirmedEvent accumulated on the MediaAsset aggregate
-            media.confirm_upload(content_type=cmd.content_type)
+            media.confirm_upload(content_type=command.content_type)
 
             await self._media_repo.update(media)
 
@@ -92,6 +96,6 @@ class ConfirmProductMediaHandler:
 
         self._logger.info(
             "Media transitioned to PROCESSING, event written to Outbox",
-            media_id=str(cmd.media_id),
-            product_id=str(cmd.product_id),
+            media_id=str(command.media_id),
+            product_id=str(command.product_id),
         )

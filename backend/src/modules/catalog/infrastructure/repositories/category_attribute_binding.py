@@ -27,7 +27,7 @@ class CategoryAttributeBindingRepository(ICategoryAttributeBindingRepository):
         session: SQLAlchemy async session scoped to the current request.
     """
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     def _to_domain(self, orm: OrmRule) -> DomainBinding:
@@ -42,17 +42,17 @@ class CategoryAttributeBindingRepository(ICategoryAttributeBindingRepository):
             filter_settings=dict(orm.filter_settings) if orm.filter_settings else None,
         )
 
-    def _to_orm(self, domain: DomainBinding, orm: OrmRule | None = None) -> OrmRule:
+    def _to_orm(self, entity: DomainBinding, orm: OrmRule | None = None) -> OrmRule:
         """Map a domain entity to an ORM row (create or update)."""
         if orm is None:
             orm = OrmRule()
-        orm.id = domain.id
-        orm.category_id = domain.category_id
-        orm.attribute_id = domain.attribute_id
-        orm.sort_order = domain.sort_order
-        orm.requirement_level = domain.requirement_level
-        orm.flag_overrides = domain.flag_overrides
-        orm.filter_settings = domain.filter_settings
+        orm.id = entity.id
+        orm.category_id = entity.category_id
+        orm.attribute_id = entity.attribute_id
+        orm.sort_order = entity.sort_order
+        orm.requirement_level = entity.requirement_level
+        orm.flag_overrides = entity.flag_overrides
+        orm.filter_settings = entity.filter_settings
         return orm
 
     async def add(self, entity: DomainBinding) -> DomainBinding:
@@ -84,36 +84,36 @@ class CategoryAttributeBindingRepository(ICategoryAttributeBindingRepository):
 
     async def delete(self, binding_id: uuid.UUID) -> None:
         """Delete a binding row by primary key."""
-        statement = delete(OrmRule).where(OrmRule.id == binding_id)
-        await self._session.execute(statement)
+        stmt = delete(OrmRule).where(OrmRule.id == binding_id)
+        await self._session.execute(stmt)
 
     async def exists(self, category_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
         """Return ``True`` if a binding for this pair already exists."""
-        statement = (
+        stmt = (
             select(OrmRule.id)
             .where(OrmRule.category_id == category_id, OrmRule.attribute_id == attribute_id)
             .limit(1)
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return result.first() is not None
 
     async def get_by_category_and_attribute(
         self, category_id: uuid.UUID, attribute_id: uuid.UUID
     ) -> DomainBinding | None:
         """Retrieve a binding by the category+attribute pair."""
-        statement = (
+        stmt = (
             select(OrmRule)
             .where(OrmRule.category_id == category_id, OrmRule.attribute_id == attribute_id)
             .limit(1)
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         if orm:
             return self._to_domain(orm)
         return None
 
     async def bulk_update_sort_order(self, updates: list[tuple[uuid.UUID, int]]) -> None:
-        """Bulk-update sort_order for multiple bindings in a single statement."""
+        """Bulk-update sort_order for multiple bindings in a single stmt."""
         if not updates:
             return
         id_to_order = {bid: order for bid, order in updates}
@@ -131,7 +131,7 @@ class CategoryAttributeBindingRepository(ICategoryAttributeBindingRepository):
         await self._session.execute(stmt)
 
     async def bulk_update_requirement_level(self, updates: list[tuple[uuid.UUID, str]]) -> None:
-        """Bulk-update requirement_level for multiple bindings in a single statement."""
+        """Bulk-update requirement_level for multiple bindings in a single stmt."""
         if not updates:
             return
         id_to_level = {bid: level for bid, level in updates}

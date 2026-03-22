@@ -85,7 +85,8 @@ class ListAttributeValuesHandler:
         stmt: Select[tuple[OrmAttributeValue]], search: str
     ) -> Select[tuple[OrmAttributeValue]]:
         """Apply full-text search across value_i18n values."""
-        pattern = f"%{search}%"
+        escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{escaped}%"
         stmt = stmt.where(func.cast(OrmAttributeValue.value_i18n, Text()).ilike(pattern))
         return stmt
 

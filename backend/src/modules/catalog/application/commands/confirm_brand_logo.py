@@ -55,7 +55,7 @@ class ConfirmBrandLogoUploadHandler:
         Raises:
             BrandNotFoundError: If the brand does not exist.
             LogoFileNotUploadedError: If the raw logo file is not in S3.
-            InvalidLogoStateException: If the logo FSM is not in PENDING_UPLOAD.
+            InvalidLogoStateError: If the logo FSM is not in PENDING_UPLOAD.
         """
         async with self._uow:
             brand = await self._brand_repo.get(command.brand_id)

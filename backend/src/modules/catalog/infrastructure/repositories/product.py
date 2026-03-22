@@ -352,7 +352,11 @@ class ProductRepository(IProductRepository):
 
         SKUs are NOT loaded.
         """
-        stmt = select(OrmProduct).where(OrmProduct.id == product_id).with_for_update()
+        stmt = (
+            select(OrmProduct)
+            .where(OrmProduct.id == product_id, OrmProduct.deleted_at.is_(None))
+            .with_for_update()
+        )
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         if orm is not None:
@@ -368,7 +372,11 @@ class ProductRepository(IProductRepository):
         stmt = (
             select(OrmProduct)
             .where(OrmProduct.id == product_id)
-            .options(selectinload(OrmProduct.skus).selectinload(OrmSKU.attribute_values))
+            .options(
+                selectinload(
+                    OrmProduct.skus.and_(OrmSKU.deleted_at.is_(None))
+                ).selectinload(OrmSKU.attribute_values)
+            )
         )
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()

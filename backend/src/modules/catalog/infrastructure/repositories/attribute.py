@@ -29,7 +29,7 @@ class AttributeRepository(IAttributeRepository):
         session: SQLAlchemy async session scoped to the current request.
     """
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     def _to_domain(self, orm: OrmAttribute) -> DomainAttribute:
@@ -51,30 +51,34 @@ class AttributeRepository(IAttributeRepository):
             is_comparable=orm.is_comparable,
             is_visible_on_card=orm.is_visible_on_card,
             is_visible_in_catalog=orm.is_visible_in_catalog,
-            validation_rules=dict(orm.validation_rules) if orm.validation_rules else None,
+            validation_rules=dict(orm.validation_rules)
+            if orm.validation_rules
+            else None,
         )
 
-    def _to_orm(self, domain: DomainAttribute, orm: OrmAttribute | None = None) -> OrmAttribute:
+    def _to_orm(
+        self, entity: DomainAttribute, orm: OrmAttribute | None = None
+    ) -> OrmAttribute:
         """Map a domain Attribute entity to an ORM row (create or update)."""
         if orm is None:
             orm = OrmAttribute()
-        orm.id = domain.id
-        orm.code = domain.code
-        orm.slug = domain.slug
-        orm.name_i18n = domain.name_i18n  # type: ignore[assignment]
-        orm.description_i18n = domain.description_i18n  # type: ignore[assignment]
-        orm.data_type = domain.data_type
-        orm.ui_type = domain.ui_type
-        orm.is_dictionary = domain.is_dictionary
-        orm.group_id = domain.group_id
-        orm.level = domain.level
-        orm.is_filterable = domain.is_filterable
-        orm.is_searchable = domain.is_searchable
-        orm.search_weight = domain.search_weight
-        orm.is_comparable = domain.is_comparable
-        orm.is_visible_on_card = domain.is_visible_on_card
-        orm.is_visible_in_catalog = domain.is_visible_in_catalog
-        orm.validation_rules = domain.validation_rules  # type: ignore[assignment]
+        orm.id = entity.id
+        orm.code = entity.code
+        orm.slug = entity.slug
+        orm.name_i18n = entity.name_i18n  # type: ignore[assignment]
+        orm.description_i18n = entity.description_i18n  # type: ignore[assignment]
+        orm.data_type = entity.data_type
+        orm.ui_type = entity.ui_type
+        orm.is_dictionary = entity.is_dictionary
+        orm.group_id = entity.group_id
+        orm.level = entity.level
+        orm.is_filterable = entity.is_filterable
+        orm.is_searchable = entity.is_searchable
+        orm.search_weight = entity.search_weight
+        orm.is_comparable = entity.is_comparable
+        orm.is_visible_on_card = entity.is_visible_on_card
+        orm.is_visible_in_catalog = entity.is_visible_in_catalog
+        orm.validation_rules = entity.validation_rules  # type: ignore[assignment]
         return orm
 
     async def add(self, entity: DomainAttribute) -> DomainAttribute:
@@ -106,45 +110,49 @@ class AttributeRepository(IAttributeRepository):
 
     async def delete(self, entity_id: uuid.UUID) -> None:
         """Delete an attribute row by primary key."""
-        statement = delete(OrmAttribute).where(OrmAttribute.id == entity_id)
-        await self._session.execute(statement)
+        stmt = delete(OrmAttribute).where(OrmAttribute.id == entity_id)
+        await self._session.execute(stmt)
 
     async def check_code_exists(self, code: str) -> bool:
         """Return ``True`` if any attribute already uses this code."""
-        statement = select(OrmAttribute.id).where(OrmAttribute.code == code).limit(1)
-        result = await self._session.execute(statement)
+        stmt = select(OrmAttribute.id).where(OrmAttribute.code == code).limit(1)
+        result = await self._session.execute(stmt)
         return result.first() is not None
 
     async def check_slug_exists(self, slug: str) -> bool:
         """Return ``True`` if any attribute already uses this slug."""
-        statement = select(OrmAttribute.id).where(OrmAttribute.slug == slug).limit(1)
-        result = await self._session.execute(statement)
+        stmt = select(OrmAttribute.id).where(OrmAttribute.slug == slug).limit(1)
+        result = await self._session.execute(stmt)
         return result.first() is not None
 
-    async def check_code_exists_excluding(self, code: str, exclude_id: uuid.UUID) -> bool:
+    async def check_code_exists_excluding(
+        self, code: str, exclude_id: uuid.UUID
+    ) -> bool:
         """Return ``True`` if the code is taken by another attribute."""
-        statement = (
+        stmt = (
             select(OrmAttribute.id)
             .where(OrmAttribute.code == code, OrmAttribute.id != exclude_id)
             .limit(1)
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return result.first() is not None
 
-    async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
+    async def check_slug_exists_excluding(
+        self, slug: str, exclude_id: uuid.UUID
+    ) -> bool:
         """Return ``True`` if the slug is taken by another attribute."""
-        statement = (
+        stmt = (
             select(OrmAttribute.id)
             .where(OrmAttribute.slug == slug, OrmAttribute.id != exclude_id)
             .limit(1)
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return result.first() is not None
 
     async def get_by_slug(self, slug: str) -> DomainAttribute | None:
         """Retrieve an attribute by its URL slug, or ``None`` if not found."""
-        statement = select(OrmAttribute).where(OrmAttribute.slug == slug).limit(1)
-        result = await self._session.execute(statement)
+        stmt = select(OrmAttribute).where(OrmAttribute.slug == slug).limit(1)
+        result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         if orm:
             return self._to_domain(orm)
@@ -152,11 +160,11 @@ class AttributeRepository(IAttributeRepository):
 
     async def has_category_bindings(self, attribute_id: uuid.UUID) -> bool:
         """Return ``True`` if the attribute is bound to at least one category."""
-        statement = select(
+        stmt = select(
             select(OrmCategoryAttributeRule.id)
             .where(OrmCategoryAttributeRule.attribute_id == attribute_id)
             .limit(1)
             .exists()
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return bool(result.scalar())

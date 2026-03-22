@@ -138,7 +138,9 @@ class UpdateSKUHandler:
             # when only the amount changes, and vice versa.
             if command.price_amount is not None or command.price_currency is not None:
                 new_amount = (
-                    command.price_amount if command.price_amount is not None else sku.price.amount
+                    command.price_amount
+                    if command.price_amount is not None
+                    else sku.price.amount
                 )
                 new_currency = (
                     command.price_currency
@@ -171,7 +173,7 @@ class UpdateSKUHandler:
 
             # --- Variant attributes: re-compute hash and check uniqueness ---
             if command.variant_attributes is not None:
-                new_hash = product._compute_variant_hash(command.variant_attributes)
+                new_hash = product.compute_variant_hash(command.variant_attributes)
                 # Check uniqueness among active SKUs (excluding the one being updated).
                 for existing in product.skus:
                     if (

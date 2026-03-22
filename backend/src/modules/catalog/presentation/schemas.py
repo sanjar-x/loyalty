@@ -8,7 +8,7 @@ presentation layer and carry no business logic.
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import ConfigDict, Field, model_validator
 
@@ -34,7 +34,9 @@ class CategoryCreateRequest(CamelModel):
         pattern=r"^[a-z0-9-]+$",
         examples=["sneakers"],
     )
-    parent_id: uuid.UUID | None = Field(None, description="Parent category ID (optional)")
+    parent_id: uuid.UUID | None = Field(
+        None, description="Parent category ID (optional)"
+    )
     sort_order: int = Field(0, description="Display ordering among siblings")
 
 
@@ -75,13 +77,17 @@ class CategoryUpdateRequest(CamelModel):
     """Partial update request -- all fields optional (PATCH semantics)."""
 
     name: str | None = Field(None, min_length=2, max_length=255)
-    slug: str | None = Field(None, min_length=3, max_length=255, pattern=r"^[a-z0-9-]+$")
+    slug: str | None = Field(
+        None, min_length=3, max_length=255, pattern=r"^[a-z0-9-]+$"
+    )
     sort_order: int | None = None
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> CategoryUpdateRequest:
         if self.name is None and self.slug is None and self.sort_order is None:
-            raise ValueError("At least one field (name, slug, or sortOrder) must be provided")
+            raise ValueError(
+                "At least one field (name, slug, or sortOrder) must be provided"
+            )
         return self
 
 
@@ -124,7 +130,9 @@ class BrandUpdateRequest(CamelModel):
     """Partial update request -- all fields optional (PATCH semantics)."""
 
     name: str | None = Field(None, min_length=1, max_length=255)
-    slug: str | None = Field(None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$")
+    slug: str | None = Field(
+        None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$"
+    )
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> BrandUpdateRequest:
@@ -140,6 +148,12 @@ class BrandListResponse(CamelModel):
     total: int
     offset: int
     limit: int
+
+
+class LogoConfirmResponse(CamelModel):
+    """Response after confirming logo upload."""
+
+    message: str = "Logo processing request accepted"
 
 
 # ---------------------------------------------------------------------------
@@ -161,7 +175,9 @@ class AttributeGroupCreateRequest(CamelModel):
     name_i18n: dict[str, str] = Field(
         ...,
         min_length=1,
-        examples=[{"en": "Physical Characteristics", "ru": "Физические характеристики"}],
+        examples=[
+            {"en": "Physical Characteristics", "ru": "Физические характеристики"}
+        ],
         description="Multilingual display name (at least one language required)",
     )
     sort_order: int = Field(0, description="Display ordering among groups")
@@ -178,7 +194,7 @@ class AttributeGroupResponse(CamelModel):
 
     id: uuid.UUID
     code: str
-    name_i18n: dict[str, Any]
+    name_i18n: dict[str, str]
     sort_order: int
 
 
@@ -195,7 +211,9 @@ class AttributeGroupUpdateRequest(CamelModel):
     @model_validator(mode="after")
     def at_least_one_field(self) -> AttributeGroupUpdateRequest:
         if self.name_i18n is None and self.sort_order is None:
-            raise ValueError("At least one field (nameI18n or sortOrder) must be provided")
+            raise ValueError(
+                "At least one field (nameI18n or sortOrder) must be provided"
+            )
         return self
 
 
@@ -222,13 +240,15 @@ class AttributeCreateRequest(CamelModel):
     slug: str = Field(
         ..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$", examples=["color"]
     )
-    name_i18n: dict[str, str] = Field(..., min_length=1, examples=[{"en": "Color", "ru": "Цвет"}])
+    name_i18n: dict[str, str] = Field(
+        ..., min_length=1, examples=[{"en": "Color", "ru": "Цвет"}]
+    )
     description_i18n: dict[str, str] = Field(default_factory=dict)
-    data_type: str = Field(..., examples=["string"])
-    ui_type: str = Field(..., examples=["color_swatch"])
+    data_type: Literal["string", "integer", "float", "boolean"] = Field(..., examples=["string"])
+    ui_type: Literal["text_button", "color_swatch", "dropdown", "checkbox", "range_slider"] = Field(..., examples=["color_swatch"])
     is_dictionary: bool = True
     group_id: uuid.UUID
-    level: str = Field("product", examples=["product", "variant"])
+    level: Literal["product", "variant"] = Field("product", examples=["product", "variant"])
     is_filterable: bool = False
     is_searchable: bool = False
     search_weight: int = Field(5, ge=1, le=10)
@@ -250,8 +270,8 @@ class AttributeResponse(CamelModel):
     id: uuid.UUID
     code: str
     slug: str
-    name_i18n: dict[str, Any]
-    description_i18n: dict[str, Any]
+    name_i18n: dict[str, str]
+    description_i18n: dict[str, str]
     data_type: str
     ui_type: str
     is_dictionary: bool
@@ -282,6 +302,20 @@ class AttributeUpdateRequest(CamelModel):
     is_visible_in_catalog: bool | None = None
     validation_rules: dict[str, Any] | None = ...  # type: ignore[assignment]
 
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> AttributeUpdateRequest:
+        """Ensure at least one field is provided for update."""
+        fields = [
+            self.name_i18n, self.description_i18n, self.ui_type,
+            self.group_id, self.level, self.is_filterable,
+            self.is_searchable, self.search_weight, self.is_comparable,
+            self.is_visible_on_card, self.is_visible_in_catalog,
+        ]
+        sentinel_provided = self.validation_rules is not ...
+        if all(f is None for f in fields) and not sentinel_provided:
+            raise ValueError("At least one field must be provided for update")
+        return self
+
 
 class AttributeListResponse(CamelModel):
     """Paginated attribute list response."""
@@ -300,11 +334,21 @@ class AttributeListResponse(CamelModel):
 class AttributeValueCreateRequest(CamelModel):
     """Request body for adding a value to an attribute."""
 
-    code: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9_]+$", examples=["red"])
-    slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$", examples=["red"])
-    value_i18n: dict[str, str] = Field(..., min_length=1, examples=[{"en": "Red", "ru": "Красный"}])
-    search_aliases: list[str] = Field(default_factory=list, examples=[["scarlet", "crimson"]])
-    meta_data: dict[str, Any] = Field(default_factory=dict, examples=[{"hex": "#FF0000"}])
+    code: str = Field(
+        ..., min_length=1, max_length=100, pattern=r"^[a-z0-9_]+$", examples=["red"]
+    )
+    slug: str = Field(
+        ..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$", examples=["red"]
+    )
+    value_i18n: dict[str, str] = Field(
+        ..., min_length=1, examples=[{"en": "Red", "ru": "Красный"}]
+    )
+    search_aliases: list[str] = Field(
+        default_factory=list, examples=[["scarlet", "crimson"]]
+    )
+    meta_data: dict[str, Any] = Field(
+        default_factory=dict, examples=[{"hex": "#FF0000"}]
+    )
     value_group: str | None = Field(None, max_length=100, examples=["Warm tones"])
     sort_order: int = Field(0, description="Display ordering among values")
 
@@ -322,7 +366,7 @@ class AttributeValueResponse(CamelModel):
     attribute_id: uuid.UUID
     code: str
     slug: str
-    value_i18n: dict[str, Any]
+    value_i18n: dict[str, str]
     search_aliases: list[str]
     meta_data: dict[str, Any]
     value_group: str | None = None
@@ -337,6 +381,18 @@ class AttributeValueUpdateRequest(CamelModel):
     meta_data: dict[str, Any] | None = None
     value_group: str | None = ...  # type: ignore[assignment]
     sort_order: int | None = None
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> AttributeValueUpdateRequest:
+        """Ensure at least one field is provided for update."""
+        fields = [
+            self.value_i18n, self.search_aliases, self.meta_data,
+            self.sort_order,
+        ]
+        sentinel_provided = self.value_group is not ...
+        if all(f is None for f in fields) and not sentinel_provided:
+            raise ValueError("At least one field must be provided for update")
+        return self
 
 
 class AttributeValueListResponse(CamelModel):
@@ -371,7 +427,9 @@ class BindAttributeToCategoryRequest(CamelModel):
 
     attribute_id: uuid.UUID
     sort_order: int = Field(0, description="Display ordering within the category")
-    requirement_level: str = Field("optional", examples=["required", "recommended", "optional"])
+    requirement_level: Literal["required", "recommended", "optional"] = Field(
+        "optional", examples=["required", "recommended", "optional"]
+    )
     flag_overrides: dict[str, Any] | None = Field(
         None,
         description="Per-category behavior flag overrides",
@@ -406,9 +464,21 @@ class UpdateBindingRequest(CamelModel):
     """Partial update request for a binding."""
 
     sort_order: int | None = None
-    requirement_level: str | None = None
+    requirement_level: Literal["required", "recommended", "optional"] | None = None
     flag_overrides: dict[str, Any] | None = ...  # type: ignore[assignment]
     filter_settings: dict[str, Any] | None = ...  # type: ignore[assignment]
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> UpdateBindingRequest:
+        """Ensure at least one field is provided for update."""
+        fields = [self.sort_order, self.requirement_level]
+        sentinel_provided = [
+            self.flag_overrides is not ...,
+            self.filter_settings is not ...,
+        ]
+        if all(f is None for f in fields) and not any(sentinel_provided):
+            raise ValueError("At least one field must be provided for update")
+        return self
 
 
 class CategoryAttributeBindingListResponse(CamelModel):
@@ -437,7 +507,9 @@ class RequirementLevelUpdateItemRequest(CamelModel):
     """A single requirement-level update instruction."""
 
     binding_id: uuid.UUID
-    requirement_level: str = Field(..., examples=["required", "recommended", "optional"])
+    requirement_level: Literal["required", "recommended", "optional"] = Field(
+        ..., examples=["required", "recommended", "optional"]
+    )
 
 
 class BulkUpdateRequirementLevelsRequest(CamelModel):
@@ -457,7 +529,7 @@ class StorefrontValueResponse(CamelModel):
     id: uuid.UUID
     code: str
     slug: str
-    value_i18n: dict[str, Any]
+    value_i18n: dict[str, str]
     meta_data: dict[str, Any]
     value_group: str | None = None
     sort_order: int
@@ -469,7 +541,7 @@ class StorefrontFilterAttributeResponse(CamelModel):
     attribute_id: uuid.UUID
     code: str
     slug: str
-    name_i18n: dict[str, Any]
+    name_i18n: dict[str, str]
     data_type: str
     display_type: str
     is_dictionary: bool
@@ -491,7 +563,7 @@ class StorefrontCardAttributeResponse(CamelModel):
     attribute_id: uuid.UUID
     code: str
     slug: str
-    name_i18n: dict[str, Any]
+    name_i18n: dict[str, str]
     data_type: str
     display_type: str
     requirement_level: str
@@ -503,7 +575,7 @@ class StorefrontCardGroupResponse(CamelModel):
 
     group_id: uuid.UUID | None
     group_code: str | None
-    group_name_i18n: dict[str, Any]
+    group_name_i18n: dict[str, str]
     group_sort_order: int
     attributes: list[StorefrontCardAttributeResponse]
 
@@ -521,7 +593,7 @@ class StorefrontComparisonAttributeResponse(CamelModel):
     attribute_id: uuid.UUID
     code: str
     slug: str
-    name_i18n: dict[str, Any]
+    name_i18n: dict[str, str]
     data_type: str
     display_type: str
     sort_order: int
@@ -540,8 +612,8 @@ class StorefrontFormAttributeResponse(CamelModel):
     attribute_id: uuid.UUID
     code: str
     slug: str
-    name_i18n: dict[str, Any]
-    description_i18n: dict[str, Any]
+    name_i18n: dict[str, str]
+    description_i18n: dict[str, str]
     data_type: str
     display_type: str
     is_dictionary: bool
@@ -557,7 +629,7 @@ class StorefrontFormGroupResponse(CamelModel):
 
     group_id: uuid.UUID | None
     group_code: str | None
-    group_name_i18n: dict[str, Any]
+    group_name_i18n: dict[str, str]
     group_sort_order: int
     attributes: list[StorefrontFormAttributeResponse]
 
@@ -602,7 +674,7 @@ class ProductCreateRequest(CamelModel):
     primary_category_id: uuid.UUID
     description_i18n: dict[str, str] = Field(default_factory=dict)
     supplier_id: uuid.UUID | None = None
-    country_of_origin: str | None = Field(None, max_length=2)
+    country_of_origin: str | None = Field(None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")
     tags: list[str] = Field(default_factory=list)
 
 
@@ -632,7 +704,7 @@ class ProductUpdateRequest(CamelModel):
     brand_id: uuid.UUID | None = None
     primary_category_id: uuid.UUID | None = None
     supplier_id: uuid.UUID | None = ...  # type: ignore[assignment]
-    country_of_origin: str | None = ...  # type: ignore[assignment]
+    country_of_origin: str | None = Field(..., min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")  # type: ignore[assignment]
     tags: list[str] | None = None
     version: int | None = None
 
@@ -659,7 +731,7 @@ class ProductUpdateRequest(CamelModel):
 class ProductStatusChangeRequest(CamelModel):
     """Request body for changing a product's status."""
 
-    status: str
+    status: Literal["draft", "enriching", "ready_for_review", "published", "archived"] = Field(...)
 
 
 class SKUCreateRequest(CamelModel):
@@ -685,11 +757,25 @@ class SKUUpdateRequest(CamelModel):
 
     sku_code: str | None = Field(None, min_length=1, max_length=100)
     price_amount: int | None = Field(None, ge=0)
-    price_currency: str | None = Field(None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
+    price_currency: str | None = Field(
+        None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"
+    )
     compare_at_price_amount: int | None = ...  # type: ignore[assignment]
     is_active: bool | None = None
     variant_attributes: list[VariantAttributePairSchema] | None = None
     version: int | None = None
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> SKUUpdateRequest:
+        """Ensure at least one field is provided for update."""
+        fields = [
+            self.sku_code, self.price_amount, self.price_currency,
+            self.is_active, self.variant_attributes,
+        ]
+        sentinel_provided = self.compare_at_price_amount is not ...
+        if all(f is None for f in fields) and not sentinel_provided:
+            raise ValueError("At least one field must be provided for update")
+        return self
 
 
 class SKUResponse(CamelModel):
@@ -789,8 +875,14 @@ class ProductMediaUploadRequest(CamelModel):
 
     attribute_value_id: uuid.UUID | None = None
     media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
-    role: str = Field(..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$")
-    content_type: str = Field(..., pattern=r"^(image|video)/")
+    role: str = Field(
+        ..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$"
+    )
+    content_type: str = Field(
+        ...,
+        pattern=r"^(image|video|application|model)/[a-zA-Z0-9][a-zA-Z0-9!#$&\-^_.+]*$",
+        max_length=255,
+    )
     sort_order: int = Field(0, ge=0)
 
 
@@ -807,8 +899,10 @@ class ProductMediaExternalRequest(CamelModel):
 
     attribute_value_id: uuid.UUID | None = None
     media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
-    role: str = Field(..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$")
-    external_url: str = Field(..., min_length=1)
+    role: str = Field(
+        ..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$"
+    )
+    external_url: str = Field(..., min_length=1, max_length=2048, pattern=r"^https?://")
     sort_order: int = Field(0, ge=0)
 
 
@@ -830,12 +924,22 @@ class ProductMediaResponse(CamelModel):
 class MediaProcessingWebhookRequest(CamelModel):
     """Internal webhook body from AI-service after processing."""
 
-    object_key: str
-    content_type: str
+    object_key: str = Field(..., pattern=r"^[a-zA-Z0-9/_.-]+$", max_length=1024)
+    content_type: str = Field(
+        ...,
+        pattern=r"^[a-zA-Z0-9][a-zA-Z0-9!#$&\-^_.+]+/[a-zA-Z0-9][a-zA-Z0-9!#$&\-^_.+]+$",
+        max_length=255,
+    )
     size_bytes: int = Field(..., ge=0)
 
 
 class MediaProcessingFailedRequest(CamelModel):
     """Internal webhook body from AI-service on failure."""
 
-    error: str
+    error: str = Field(..., max_length=2000)
+
+
+class WebhookAckResponse(CamelModel):
+    """Acknowledgement response for internal webhooks."""
+
+    status: str = "ok"

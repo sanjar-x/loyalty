@@ -67,7 +67,7 @@ class CategoryRepository(
             .exists()
         )
         result = await self._session.execute(statement)
-        return result.scalar()
+        return bool(result.scalar())
 
     async def get_for_update(self, category_id: uuid.UUID) -> DomainCategory | None:
         """Retrieve a category with a ``SELECT … FOR UPDATE`` row lock."""

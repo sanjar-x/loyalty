@@ -26,7 +26,7 @@ class BrandRepository(IBrandRepository):
         session: SQLAlchemy async session scoped to the current request.
     """
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     def _to_domain(self, orm: OrmBrand) -> DomainBrand:
@@ -40,16 +40,16 @@ class BrandRepository(IBrandRepository):
             logo_url=orm.logo_url,
         )
 
-    def _to_orm(self, domain: DomainBrand, orm: OrmBrand | None = None) -> OrmBrand:
+    def _to_orm(self, entity: DomainBrand, orm: OrmBrand | None = None) -> OrmBrand:
         """Map a domain Brand entity to an ORM row (create or update)."""
         if orm is None:
             orm = OrmBrand()
-        orm.id = domain.id
-        orm.name = domain.name
-        orm.slug = domain.slug
-        orm.logo_status = domain.logo_status
-        orm.logo_file_id = domain.logo_file_id
-        orm.logo_url = domain.logo_url
+        orm.id = entity.id
+        orm.name = entity.name
+        orm.slug = entity.slug
+        orm.logo_status = entity.logo_status
+        orm.logo_file_id = entity.logo_file_id
+        orm.logo_url = entity.logo_url
         return orm
 
     async def add(self, entity: DomainBrand) -> DomainBrand:
@@ -81,13 +81,13 @@ class BrandRepository(IBrandRepository):
 
     async def delete(self, entity_id: uuid.UUID) -> None:
         """Delete a brand row by primary key."""
-        statement = delete(OrmBrand).where(OrmBrand.id == entity_id)
-        await self._session.execute(statement)
+        stmt = delete(OrmBrand).where(OrmBrand.id == entity_id)
+        await self._session.execute(stmt)
 
     async def get_by_slug(self, slug: str) -> DomainBrand | None:
         """Look up a brand by its URL slug, or ``None`` if not found."""
-        statement = select(OrmBrand).where(OrmBrand.slug == slug).limit(1)
-        result = await self._session.execute(statement)
+        stmt = select(OrmBrand).where(OrmBrand.slug == slug).limit(1)
+        result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         if orm:
             return self._to_domain(orm)
@@ -95,16 +95,16 @@ class BrandRepository(IBrandRepository):
 
     async def check_slug_exists(self, slug: str) -> bool:
         """Return ``True`` if any brand already uses this slug."""
-        statement = select(OrmBrand.id).where(OrmBrand.slug == slug).limit(1)
-        result = await self._session.execute(statement)
+        stmt = select(OrmBrand.id).where(OrmBrand.slug == slug).limit(1)
+        result = await self._session.execute(stmt)
         return result.first() is not None
 
     async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
         """Return ``True`` if the slug is taken by a brand other than *exclude_id*."""
-        statement = (
+        stmt = (
             select(OrmBrand.id).where(OrmBrand.slug == slug, OrmBrand.id != exclude_id).limit(1)
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return result.first() is not None
 
     async def get_for_update(self, brand_id: uuid.UUID) -> DomainBrand | None:
@@ -113,7 +113,7 @@ class BrandRepository(IBrandRepository):
         Used by the logo processing pipeline to prevent concurrent
         state transitions on the same brand.
         """
-        statement = select(OrmBrand).where(OrmBrand.id == brand_id).with_for_update()
-        result = await self._session.execute(statement)
+        stmt = select(OrmBrand).where(OrmBrand.id == brand_id).with_for_update()
+        result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None

@@ -19,13 +19,13 @@ from src.modules.catalog.presentation.router_categories import category_router
 from src.modules.catalog.presentation.router_category_bindings import (
     category_binding_router,
 )
+from src.modules.catalog.presentation.router_internal import internal_router
 from src.modules.catalog.presentation.router_product_attributes import (
     product_attribute_router,
 )
+from src.modules.catalog.presentation.router_product_media import product_media_router
 from src.modules.catalog.presentation.router_products import product_router
 from src.modules.catalog.presentation.router_skus import sku_router
-from src.modules.catalog.presentation.router_internal import internal_router
-from src.modules.catalog.presentation.router_product_media import product_media_router
 from src.modules.catalog.presentation.router_storefront import storefront_router
 from src.modules.geo.presentation.router import geo_router
 from src.modules.identity.presentation.router_account import identity_account_router

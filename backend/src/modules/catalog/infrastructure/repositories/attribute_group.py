@@ -29,7 +29,7 @@ class AttributeGroupRepository(IAttributeGroupRepository):
         session: SQLAlchemy async session scoped to the current request.
     """
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     def _to_domain(self, orm: OrmAttributeGroup) -> DomainAttributeGroup:
@@ -42,15 +42,15 @@ class AttributeGroupRepository(IAttributeGroupRepository):
         )
 
     def _to_orm(
-        self, domain: DomainAttributeGroup, orm: OrmAttributeGroup | None = None
+        self, entity: DomainAttributeGroup, orm: OrmAttributeGroup | None = None
     ) -> OrmAttributeGroup:
         """Map a domain AttributeGroup entity to an ORM row (create or update)."""
         if orm is None:
             orm = OrmAttributeGroup()
-        orm.id = domain.id
-        orm.code = domain.code
-        orm.name_i18n = domain.name_i18n
-        orm.sort_order = domain.sort_order
+        orm.id = entity.id
+        orm.code = entity.code
+        orm.name_i18n = entity.name_i18n
+        orm.sort_order = entity.sort_order
         return orm
 
     async def add(self, entity: DomainAttributeGroup) -> DomainAttributeGroup:
@@ -82,19 +82,19 @@ class AttributeGroupRepository(IAttributeGroupRepository):
 
     async def delete(self, entity_id: uuid.UUID) -> None:
         """Delete an attribute group row by primary key."""
-        statement = delete(OrmAttributeGroup).where(OrmAttributeGroup.id == entity_id)
-        await self._session.execute(statement)
+        stmt = delete(OrmAttributeGroup).where(OrmAttributeGroup.id == entity_id)
+        await self._session.execute(stmt)
 
     async def check_code_exists(self, code: str) -> bool:
         """Return ``True`` if any attribute group already uses this code."""
-        statement = select(OrmAttributeGroup.id).where(OrmAttributeGroup.code == code).limit(1)
-        result = await self._session.execute(statement)
+        stmt = select(OrmAttributeGroup.id).where(OrmAttributeGroup.code == code).limit(1)
+        result = await self._session.execute(stmt)
         return result.first() is not None
 
     async def get_by_code(self, code: str) -> DomainAttributeGroup | None:
         """Retrieve an attribute group by its unique code, or ``None``."""
-        statement = select(OrmAttributeGroup).where(OrmAttributeGroup.code == code).limit(1)
-        result = await self._session.execute(statement)
+        stmt = select(OrmAttributeGroup).where(OrmAttributeGroup.code == code).limit(1)
+        result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         if orm:
             return self._to_domain(orm)
@@ -102,19 +102,19 @@ class AttributeGroupRepository(IAttributeGroupRepository):
 
     async def has_attributes(self, group_id: uuid.UUID) -> bool:
         """Return ``True`` if at least one attribute belongs to this group."""
-        statement = select(
+        stmt = select(
             select(OrmAttribute.id).where(OrmAttribute.group_id == group_id).limit(1).exists()
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return bool(result.scalar())
 
     async def move_attributes_to_group(
         self, source_group_id: uuid.UUID, target_group_id: uuid.UUID
     ) -> None:
         """Bulk-move all attributes from one group to another."""
-        statement = (
+        stmt = (
             update(OrmAttribute)
             .where(OrmAttribute.group_id == source_group_id)
             .values(group_id=target_group_id)
         )
-        await self._session.execute(statement)
+        await self._session.execute(stmt)

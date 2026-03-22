@@ -56,35 +56,40 @@ class MediaAssetRepository(IMediaAssetRepository):
             public_url=orm.public_url,
         )
 
-    def _to_orm(self, domain: DomainMediaAsset, orm: OrmMediaAsset | None = None) -> OrmMediaAsset:
+    def _to_orm(
+        self, entity: DomainMediaAsset, orm: OrmMediaAsset | None = None
+    ) -> OrmMediaAsset:
         """Map a domain MediaAsset entity to an ORM row (create or update)."""
         if orm is None:
             orm = OrmMediaAsset()
-        orm.id = domain.id
-        orm.product_id = domain.product_id
-        orm.attribute_value_id = domain.attribute_value_id
-        orm.media_type = MediaType(domain.media_type)
-        orm.role = MediaRole(domain.role)
-        orm.sort_order = domain.sort_order
+        orm.id = entity.id
+        orm.product_id = entity.product_id
+        orm.attribute_value_id = entity.attribute_value_id
+        orm.media_type = MediaType(entity.media_type)
+        orm.role = MediaRole(entity.role)
+        orm.sort_order = entity.sort_order
         orm.processing_status = (
-            domain.processing_status.value if domain.processing_status is not None else None
+            entity.processing_status.value
+            if entity.processing_status is not None
+            else None
         )
-        orm.storage_object_id = domain.storage_object_id
-        orm.is_external = domain.is_external
-        orm.external_url = domain.external_url
-        orm.raw_object_key = domain.raw_object_key
-        orm.public_url = domain.public_url
+        orm.storage_object_id = entity.storage_object_id
+        orm.is_external = entity.is_external
+        orm.external_url = entity.external_url
+        orm.raw_object_key = entity.raw_object_key
+        orm.public_url = entity.public_url
         return orm
 
     # ------------------------------------------------------------------
     # IMediaAssetRepository methods
     # ------------------------------------------------------------------
 
-    async def add(self, media: DomainMediaAsset) -> None:
+    async def add(self, media: DomainMediaAsset) -> DomainMediaAsset:
         """Persist a new media asset."""
         orm = self._to_orm(media)
         self._session.add(orm)
         await self._session.flush()
+        return self._to_domain(orm)
 
     async def get(self, media_id: uuid.UUID) -> DomainMediaAsset | None:
         """Retrieve a media asset by primary key, or ``None`` if not found."""
@@ -95,16 +100,14 @@ class MediaAssetRepository(IMediaAssetRepository):
 
     async def get_for_update(self, media_id: uuid.UUID) -> DomainMediaAsset | None:
         """Retrieve a media asset with a ``SELECT … FOR UPDATE`` row lock."""
-        statement = (
-            select(OrmMediaAsset)
-            .where(OrmMediaAsset.id == media_id)
-            .with_for_update()
+        stmt = (
+            select(OrmMediaAsset).where(OrmMediaAsset.id == media_id).with_for_update()
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
-    async def update(self, media: DomainMediaAsset) -> None:
+    async def update(self, media: DomainMediaAsset) -> DomainMediaAsset:
         """Merge updated domain state into the existing ORM row.
 
         Raises:
@@ -115,20 +118,21 @@ class MediaAssetRepository(IMediaAssetRepository):
             raise ValueError(f"MediaAsset with id {media.id} not found in DB")
         self._to_orm(media, orm)
         await self._session.flush()
+        return self._to_domain(orm)
 
     async def delete(self, media_id: uuid.UUID) -> None:
         """Delete a media asset row by primary key."""
-        statement = delete(OrmMediaAsset).where(OrmMediaAsset.id == media_id)
-        await self._session.execute(statement)
+        stmt = delete(OrmMediaAsset).where(OrmMediaAsset.id == media_id)
+        await self._session.execute(stmt)
 
     async def list_by_product(self, product_id: uuid.UUID) -> list[DomainMediaAsset]:
         """List all media assets for a product, ordered by (attribute_value_id, sort_order)."""
-        statement = (
+        stmt = (
             select(OrmMediaAsset)
             .where(OrmMediaAsset.product_id == product_id)
             .order_by(OrmMediaAsset.attribute_value_id, OrmMediaAsset.sort_order)
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         rows = result.scalars().all()
         return [self._to_domain(orm) for orm in rows]
 
@@ -143,13 +147,15 @@ class MediaAssetRepository(IMediaAssetRepository):
                 (OrmMediaAsset.product_id == product_id)
                 & (OrmMediaAsset.attribute_value_id.is_(None))
                 & (OrmMediaAsset.role == MediaRole.MAIN)
+                & (OrmMediaAsset.processing_status != MediaProcessingStatus.FAILED.value)
             )
         else:
             condition = (
                 (OrmMediaAsset.product_id == product_id)
                 & (OrmMediaAsset.attribute_value_id == attribute_value_id)
                 & (OrmMediaAsset.role == MediaRole.MAIN)
+                & (OrmMediaAsset.processing_status != MediaProcessingStatus.FAILED.value)
             )
-        statement = select(exists().where(condition))
-        result = await self._session.execute(statement)
+        stmt = select(exists().where(condition))
+        result = await self._session.execute(stmt)
         return bool(result.scalar())

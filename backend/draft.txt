@@ -1,0 +1,6 @@
+Domain Layer + Infrastructure Layer
+Application Layer + Presentation Layer
+Infrastructure Layer + Application Layer
+Presentation Layer + Domain Layer
+Domain Layer + Application Layer
+Infrastructure + Presentation Layer

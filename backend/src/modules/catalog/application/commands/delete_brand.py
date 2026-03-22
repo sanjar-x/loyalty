@@ -1,8 +1,7 @@
 """
 Command handler: delete a brand.
 
-Verifies the brand exists, registers it for event collection, and removes
-it from the repository. Part of the application layer (CQRS write side).
+Verifies the brand exists and removes it from the repository. Part of the application layer (CQRS write side).
 """
 
 import uuid
@@ -52,7 +51,6 @@ class DeleteBrandHandler:
             if brand is None:
                 raise BrandNotFoundError(brand_id=command.brand_id)
 
-            self._uow.register_aggregate(brand)
             await self._brand_repo.delete(command.brand_id)
             await self._uow.commit()
 

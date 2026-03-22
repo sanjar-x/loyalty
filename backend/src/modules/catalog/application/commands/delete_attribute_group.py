@@ -14,6 +14,7 @@ from src.modules.catalog.domain.entities import GENERAL_GROUP_CODE
 from src.modules.catalog.domain.events import AttributeGroupDeletedEvent
 from src.modules.catalog.domain.exceptions import (
     AttributeGroupCannotDeleteGeneralError,
+    AttributeGroupHasAttributesError,
     AttributeGroupNotFoundError,
 )
 from src.modules.catalog.domain.interfaces import IAttributeGroupRepository
@@ -79,10 +80,6 @@ class DeleteAttributeGroupHandler:
                             target_group_id=general.id,
                         )
                 else:
-                    from src.modules.catalog.domain.exceptions import (
-                        AttributeGroupHasAttributesError,
-                    )
-
                     raise AttributeGroupHasAttributesError(group_id=command.group_id)
 
             group.add_domain_event(

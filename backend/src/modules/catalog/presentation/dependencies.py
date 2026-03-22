@@ -12,6 +12,12 @@ from dishka.dependency_source.composite import CompositeDependencySource
 from src.modules.catalog.application.commands.add_attribute_value import (
     AddAttributeValueHandler,
 )
+from src.modules.catalog.application.commands.add_external_product_media import (
+    AddExternalProductMediaHandler,
+)
+from src.modules.catalog.application.commands.add_product_media import (
+    AddProductMediaHandler,
+)
 from src.modules.catalog.application.commands.add_sku import AddSKUHandler
 from src.modules.catalog.application.commands.assign_product_attribute import (
     AssignProductAttributeHandler,
@@ -25,12 +31,6 @@ from src.modules.catalog.application.commands.bulk_update_requirement_levels imp
 from src.modules.catalog.application.commands.change_product_status import (
     ChangeProductStatusHandler,
 )
-from src.modules.catalog.application.commands.add_external_product_media import (
-    AddExternalProductMediaHandler,
-)
-from src.modules.catalog.application.commands.add_product_media import (
-    AddProductMediaHandler,
-)
 from src.modules.catalog.application.commands.complete_product_media import (
     CompleteProductMediaHandler,
     FailProductMediaHandler,
@@ -40,12 +40,6 @@ from src.modules.catalog.application.commands.confirm_brand_logo import (
 )
 from src.modules.catalog.application.commands.confirm_product_media import (
     ConfirmProductMediaHandler,
-)
-from src.modules.catalog.application.commands.delete_product_media import (
-    DeleteProductMediaHandler,
-)
-from src.modules.catalog.application.queries.list_product_media import (
-    ListProductMediaHandler,
 )
 from src.modules.catalog.application.commands.create_attribute import (
     CreateAttributeHandler,
@@ -72,6 +66,9 @@ from src.modules.catalog.application.commands.delete_category import (
     DeleteCategoryHandler,
 )
 from src.modules.catalog.application.commands.delete_product import DeleteProductHandler
+from src.modules.catalog.application.commands.delete_product_media import (
+    DeleteProductMediaHandler,
+)
 from src.modules.catalog.application.commands.delete_sku import DeleteSKUHandler
 from src.modules.catalog.application.commands.remove_product_attribute import (
     RemoveProductAttributeHandler,
@@ -131,6 +128,9 @@ from src.modules.catalog.application.queries.list_category_bindings import (
 )
 from src.modules.catalog.application.queries.list_product_attributes import (
     ListProductAttributesHandler,
+)
+from src.modules.catalog.application.queries.list_product_media import (
+    ListProductMediaHandler,
 )
 from src.modules.catalog.application.queries.list_products import ListProductsHandler
 from src.modules.catalog.application.queries.list_skus import ListSKUsHandler

@@ -294,7 +294,7 @@ class LogoFileNotUploadedError(UnprocessableEntityError):
         )
 
 
-class InvalidLogoStateException(UnprocessableEntityError):
+class InvalidLogoStateError(UnprocessableEntityError):
     """Raised when a logo FSM transition is attempted from an invalid state."""
 
     def __init__(self, brand_id: uuid.UUID, current_status: str, expected_status: str):
@@ -509,4 +509,23 @@ class CategoryAttributeBindingAlreadyExistsError(ConflictError):
                 "category_id": str(category_id),
                 "attribute_id": str(attribute_id),
             },
+        )
+
+
+# ---------------------------------------------------------------------------
+# Media asset exceptions
+# ---------------------------------------------------------------------------
+
+
+class MediaAssetNotFoundError(NotFoundError):
+    """Raised when a media asset lookup yields no result."""
+
+    def __init__(self, media_id: uuid.UUID | str, product_id: uuid.UUID | str | None = None):
+        details: dict[str, str] = {"media_id": str(media_id)}
+        if product_id is not None:
+            details["product_id"] = str(product_id)
+        super().__init__(
+            message=f"Media asset with ID {media_id} not found.",
+            error_code="MEDIA_ASSET_NOT_FOUND",
+            details=details,
         )

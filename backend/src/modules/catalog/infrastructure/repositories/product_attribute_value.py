@@ -39,13 +39,13 @@ class ProductAttributeValueRepository(IProductAttributeValueRepository):
             attribute_value_id=orm.attribute_value_id,
         )
 
-    def _to_orm(self, domain: DomainProductAttributeValue) -> OrmProductAttributeValue:
+    def _to_orm(self, entity: DomainProductAttributeValue) -> OrmProductAttributeValue:
         """Map a domain entity to an ORM row."""
         orm = OrmProductAttributeValue()
-        orm.id = domain.id
-        orm.product_id = domain.product_id
-        orm.attribute_id = domain.attribute_id
-        orm.attribute_value_id = domain.attribute_value_id
+        orm.id = entity.id
+        orm.product_id = entity.product_id
+        orm.attribute_id = entity.attribute_id
+        orm.attribute_value_id = entity.attribute_value_id
         return orm
 
     async def add(self, entity: DomainProductAttributeValue) -> DomainProductAttributeValue:
@@ -64,20 +64,20 @@ class ProductAttributeValueRepository(IProductAttributeValueRepository):
 
     async def delete(self, pav_id: uuid.UUID) -> None:
         """Delete a product attribute assignment by primary key."""
-        statement = delete(OrmProductAttributeValue).where(OrmProductAttributeValue.id == pav_id)
-        await self._session.execute(statement)
+        stmt = delete(OrmProductAttributeValue).where(OrmProductAttributeValue.id == pav_id)
+        await self._session.execute(stmt)
 
     async def list_by_product(self, product_id: uuid.UUID) -> list[DomainProductAttributeValue]:
         """List all attribute assignments for a given product."""
-        statement = select(OrmProductAttributeValue).where(
+        stmt = select(OrmProductAttributeValue).where(
             OrmProductAttributeValue.product_id == product_id
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return [self._to_domain(orm) for orm in result.scalars().all()]
 
     async def exists(self, product_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
         """Check whether a product+attribute pair already exists (duplicate guard)."""
-        statement = (
+        stmt = (
             select(OrmProductAttributeValue.id)
             .where(
                 OrmProductAttributeValue.product_id == product_id,
@@ -85,5 +85,21 @@ class ProductAttributeValueRepository(IProductAttributeValueRepository):
             )
             .limit(1)
         )
-        result = await self._session.execute(statement)
+        result = await self._session.execute(stmt)
         return result.first() is not None
+
+    async def get_by_product_and_attribute(
+        self, product_id: uuid.UUID, attribute_id: uuid.UUID
+    ) -> DomainProductAttributeValue | None:
+        """Retrieve a PAV by product+attribute pair, or None."""
+        stmt = (
+            select(OrmProductAttributeValue)
+            .where(
+                OrmProductAttributeValue.product_id == product_id,
+                OrmProductAttributeValue.attribute_id == attribute_id,
+            )
+            .limit(1)
+        )
+        result = await self._session.execute(stmt)
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None

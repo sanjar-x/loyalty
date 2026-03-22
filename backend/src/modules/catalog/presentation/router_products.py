@@ -24,7 +24,6 @@ from src.modules.catalog.application.commands.delete_product import (
     DeleteProductHandler,
 )
 from src.modules.catalog.application.commands.update_product import (
-    _SENTINEL,
     UpdateProductCommand,
     UpdateProductHandler,
     UpdateProductResult,
@@ -36,11 +35,10 @@ from src.modules.catalog.application.queries.list_products import (
 )
 from src.modules.catalog.application.queries.read_models import (
     ProductReadModel,
-    SKUReadModel,
 )
 from src.modules.catalog.domain.value_objects import ProductStatus
+from src.modules.catalog.presentation.mappers import to_sku_response
 from src.modules.catalog.presentation.schemas import (
-    MoneySchema,
     ProductAttributeResponse,
     ProductCreateRequest,
     ProductCreateResponse,
@@ -49,10 +47,12 @@ from src.modules.catalog.presentation.schemas import (
     ProductResponse,
     ProductStatusChangeRequest,
     ProductUpdateRequest,
-    SKUResponse,
-    VariantAttributePairSchema,
 )
 from src.modules.identity.presentation.dependencies import RequirePermission
+
+# Local sentinel -- distinguishes "not provided" from "set to None" for
+# nullable fields (supplier_id, country_of_origin) in PATCH payloads.
+_UNSET: object = object()
 
 product_router = APIRouter(
     prefix="/products",
@@ -66,6 +66,7 @@ product_router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     response_model=ProductCreateResponse,
     summary="Create a new product",
+    description="Create a new product in DRAFT status with required fields.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def create_product(
@@ -92,6 +93,7 @@ async def create_product(
     status_code=status.HTTP_200_OK,
     response_model=ProductListResponse,
     summary="List products (paginated, filterable)",
+    description="Retrieve a paginated list of products with optional filters.",
 )
 async def list_products(
     handler: FromDishka[ListProductsHandler],
@@ -134,6 +136,7 @@ async def list_products(
     status_code=status.HTTP_200_OK,
     response_model=ProductResponse,
     summary="Get product detail by ID",
+    description="Retrieve a single product with nested SKUs and attributes.",
 )
 async def get_product(
     product_id: uuid.UUID,
@@ -144,11 +147,12 @@ async def get_product(
     return _to_product_response(read_model)
 
 
-@product_router.put(
+@product_router.patch(
     path="/{product_id}",
     status_code=status.HTTP_200_OK,
     response_model=ProductResponse,
     summary="Update a product",
+    description="Partially update product fields. Only provided fields are modified.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_product(
@@ -176,16 +180,16 @@ async def update_product(
         update_kwargs["version"] = request.version
 
     # Sentinel fields: Pydantic uses ... (Ellipsis) as "not provided".
-    # Map Pydantic Ellipsis -> command _SENTINEL, explicit None -> None.
+    # Map Pydantic Ellipsis -> command _UNSET, explicit None -> None.
     if request.supplier_id is not ...:
         update_kwargs["supplier_id"] = request.supplier_id
     else:
-        update_kwargs["supplier_id"] = _SENTINEL
+        update_kwargs["supplier_id"] = _UNSET
 
     if request.country_of_origin is not ...:
         update_kwargs["country_of_origin"] = request.country_of_origin
     else:
-        update_kwargs["country_of_origin"] = _SENTINEL
+        update_kwargs["country_of_origin"] = _UNSET
 
     command = UpdateProductCommand(**update_kwargs)  # type: ignore[arg-type]
     result: UpdateProductResult = await handler.handle(command)
@@ -199,6 +203,7 @@ async def update_product(
     path="/{product_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Soft-delete a product",
+    description="Mark a product as deleted without removing it from the database.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_product(
@@ -215,6 +220,7 @@ async def delete_product(
     status_code=status.HTTP_200_OK,
     response_model=ProductResponse,
     summary="Change product status",
+    description="Transition a product to a new lifecycle status.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def change_product_status(
@@ -234,36 +240,6 @@ async def change_product_status(
     # Fetch updated product for response
     read_model: ProductReadModel = await get_handler.handle(product_id)
     return _to_product_response(read_model)
-
-
-def _to_sku_response(sku: SKUReadModel) -> SKUResponse:
-    """Convert a SKU read model to a SKU response schema."""
-    compare_at: MoneySchema | None = None
-    if sku.compare_at_price is not None:
-        compare_at = MoneySchema(
-            amount=sku.compare_at_price.amount,
-            currency=sku.compare_at_price.currency,
-        )
-    return SKUResponse(
-        id=sku.id,
-        product_id=sku.product_id,
-        sku_code=sku.sku_code,
-        variant_hash=sku.variant_hash,
-        price=MoneySchema(amount=sku.price.amount, currency=sku.price.currency),
-        compare_at_price=compare_at,
-        is_active=sku.is_active,
-        version=sku.version,
-        deleted_at=sku.deleted_at,
-        created_at=sku.created_at,
-        updated_at=sku.updated_at,
-        variant_attributes=[
-            VariantAttributePairSchema(
-                attribute_id=va.attribute_id,
-                attribute_value_id=va.attribute_value_id,
-            )
-            for va in sku.variant_attributes
-        ],
-    )
 
 
 def _to_product_response(model: ProductReadModel) -> ProductResponse:
@@ -286,7 +262,7 @@ def _to_product_response(model: ProductReadModel) -> ProductResponse:
         published_at=model.published_at,
         min_price=model.min_price,
         max_price=model.max_price,
-        skus=[_to_sku_response(s) for s in model.skus],
+        skus=[to_sku_response(s) for s in model.skus],
         attributes=[
             ProductAttributeResponse(
                 id=a.id,

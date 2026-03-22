@@ -9,8 +9,6 @@ import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.commands.add_attribute_value import (
     AddAttributeValueCommand,
@@ -29,6 +27,7 @@ from src.modules.catalog.application.commands.reorder_attribute_values import (
 from src.modules.catalog.application.commands.update_attribute_value import (
     UpdateAttributeValueCommand,
     UpdateAttributeValueHandler,
+    UpdateAttributeValueResult,
 )
 from src.modules.catalog.application.queries.list_attribute_values import (
     ListAttributeValuesHandler,
@@ -36,9 +35,6 @@ from src.modules.catalog.application.queries.list_attribute_values import (
 )
 from src.modules.catalog.application.queries.read_models import (
     AttributeValueListReadModel,
-)
-from src.modules.catalog.infrastructure.models import (
-    AttributeValue as OrmAttributeValue,
 )
 from src.modules.catalog.presentation.schemas import (
     AttributeValueCreateRequest,
@@ -62,6 +58,7 @@ attribute_value_router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     response_model=AttributeValueCreateResponse,
     summary="Add a value to an attribute",
+    description="Add a new dictionary value to the specified attribute.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def add_attribute_value(
@@ -88,6 +85,7 @@ async def add_attribute_value(
     status_code=status.HTTP_200_OK,
     response_model=AttributeValueListResponse,
     summary="List values for an attribute (paginated)",
+    description="Retrieve a paginated list of values for an attribute.",
 )
 async def list_attribute_values(
     attribute_id: uuid.UUID,
@@ -129,6 +127,7 @@ async def list_attribute_values(
     status_code=status.HTTP_200_OK,
     response_model=AttributeValueResponse,
     summary="Update an attribute value",
+    description="Partially update an attribute value. Only provided fields change.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_attribute_value(
@@ -136,7 +135,6 @@ async def update_attribute_value(
     value_id: uuid.UUID,
     request: AttributeValueUpdateRequest,
     handler: FromDishka[UpdateAttributeValueHandler],
-    session: FromDishka[AsyncSession],
 ) -> AttributeValueResponse:
     command = UpdateAttributeValueCommand(
         attribute_id=attribute_id,
@@ -147,23 +145,18 @@ async def update_attribute_value(
         value_group=request.value_group,
         sort_order=request.sort_order,
     )
-    await handler.handle(command)
-
-    # CQRS read side -- fetch the updated value for response
-    stmt = select(OrmAttributeValue).where(OrmAttributeValue.id == value_id)
-    orm_result = await session.execute(stmt)
-    orm = orm_result.scalar_one()
+    result: UpdateAttributeValueResult = await handler.handle(command)
 
     return AttributeValueResponse(
-        id=orm.id,
-        attribute_id=orm.attribute_id,
-        code=orm.code,
-        slug=orm.slug,
-        value_i18n=orm.value_i18n,
-        search_aliases=list(orm.search_aliases) if orm.search_aliases else [],
-        meta_data=orm.meta_data,
-        value_group=orm.group_code,
-        sort_order=orm.sort_order,
+        id=result.id,
+        attribute_id=result.attribute_id,
+        code=result.code,
+        slug=result.slug,
+        value_i18n=result.value_i18n,
+        search_aliases=result.search_aliases,
+        meta_data=result.meta_data,
+        value_group=result.value_group,
+        sort_order=result.sort_order,
     )
 
 
@@ -171,6 +164,7 @@ async def update_attribute_value(
     path="/{value_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete an attribute value",
+    description="Permanently delete a value from the attribute.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_attribute_value(
@@ -189,6 +183,7 @@ async def delete_attribute_value(
     path="/reorder",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Bulk reorder attribute values",
+    description="Set new sort orders for multiple attribute values at once.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def reorder_attribute_values(

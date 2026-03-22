@@ -17,14 +17,26 @@ Typical usage:
 """
 
 import hashlib
+import re
 import uuid
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 from attr import dataclass, field
 
+from src.modules.catalog.domain.events import (
+    BrandLogoConfirmedEvent,
+    BrandLogoProcessedEvent,
+    BrandLogoUploadInitiatedEvent,
+    ProductCreatedEvent,
+    ProductMediaConfirmedEvent,
+    ProductMediaProcessedEvent,
+    ProductStatusChangedEvent,
+)
 from src.modules.catalog.domain.exceptions import (
+    CategoryMaxDepthError,
     DuplicateVariantCombinationError,
+    InvalidLogoStateError,
     InvalidMediaStateError,
     InvalidStatusTransitionError,
     SKUNotFoundError,
@@ -46,6 +58,22 @@ from src.shared.interfaces.entities import AggregateRoot
 
 GENERAL_GROUP_CODE = "general"
 """Code of the default attribute group that always exists and cannot be deleted."""
+
+_SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+def _validate_slug(slug: str, entity_name: str) -> None:
+    """Validate that a slug is URL-safe (lowercase alphanumeric with hyphens)."""
+    if not slug or not _SLUG_PATTERN.match(slug):
+        raise ValueError(
+            f"{entity_name} slug must be non-empty and match pattern: "
+            f"lowercase letters, digits, and hyphens (e.g. 'my-slug-123')"
+        )
+
+
+def _generate_id() -> uuid.UUID:
+    """Generate a time-sortable UUID (v7 if available, v4 fallback)."""
+    return uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4()
 
 
 @dataclass
@@ -93,8 +121,9 @@ class Brand(AggregateRoot):
         Returns:
             A new Brand instance.
         """
+        _validate_slug(slug, "Brand")
         return cls(
-            id=brand_id or uuid.uuid4(),
+            id=brand_id or _generate_id(),
             name=name,
             slug=slug,
             logo_file_id=logo_file_id,
@@ -114,7 +143,7 @@ class Brand(AggregateRoot):
             self.slug = slug
 
     def init_logo_upload(self, object_key: str, content_type: str) -> None:
-        """Transition logo FSM to PENDING_UPLOAD and emit BrandCreatedEvent.
+        """Transition logo FSM to PENDING_UPLOAD and emit BrandLogoUploadInitiatedEvent.
 
         Args:
             object_key: S3 key where the client will upload the raw logo.
@@ -122,10 +151,8 @@ class Brand(AggregateRoot):
         """
         self.logo_status = MediaProcessingStatus.PENDING_UPLOAD
 
-        from src.modules.catalog.domain.events import BrandCreatedEvent
-
         self.add_domain_event(
-            BrandCreatedEvent(
+            BrandLogoUploadInitiatedEvent(
                 brand_id=self.id,
                 object_key=object_key,
                 content_type=content_type,
@@ -139,19 +166,15 @@ class Brand(AggregateRoot):
         Emits a ``BrandLogoConfirmedEvent`` to trigger background processing.
 
         Raises:
-            InvalidLogoStateException: If current state is not PENDING_UPLOAD.
+            InvalidLogoStateError: If current state is not PENDING_UPLOAD.
         """
         if self.logo_status != MediaProcessingStatus.PENDING_UPLOAD:
-            from src.modules.catalog.domain.exceptions import InvalidLogoStateException
-
-            raise InvalidLogoStateException(
+            raise InvalidLogoStateError(
                 brand_id=self.id,
                 current_status=str(self.logo_status) if self.logo_status else "None",
                 expected_status=MediaProcessingStatus.PENDING_UPLOAD,
             )
         self.logo_status = MediaProcessingStatus.PROCESSING
-
-        from src.modules.catalog.domain.events import BrandLogoConfirmedEvent
 
         self.add_domain_event(
             BrandLogoConfirmedEvent(
@@ -174,20 +197,16 @@ class Brand(AggregateRoot):
             size_bytes: Size of the processed file in bytes.
 
         Raises:
-            InvalidLogoStateException: If current state is not PROCESSING.
+            InvalidLogoStateError: If current state is not PROCESSING.
         """
         if self.logo_status != MediaProcessingStatus.PROCESSING:
-            from src.modules.catalog.domain.exceptions import InvalidLogoStateException
-
-            raise InvalidLogoStateException(
+            raise InvalidLogoStateError(
                 brand_id=self.id,
                 current_status=str(self.logo_status) if self.logo_status else "None",
                 expected_status=MediaProcessingStatus.PROCESSING,
             )
         self.logo_url = url
         self.logo_status = MediaProcessingStatus.COMPLETED
-
-        from src.modules.catalog.domain.events import BrandLogoProcessedEvent
 
         self.add_domain_event(
             BrandLogoProcessedEvent(
@@ -203,17 +222,45 @@ class Brand(AggregateRoot):
         """Transition logo FSM from PROCESSING to FAILED.
 
         Raises:
-            InvalidLogoStateException: If current state is not PROCESSING.
+            InvalidLogoStateError: If current state is not PROCESSING.
         """
         if self.logo_status != MediaProcessingStatus.PROCESSING:
-            from src.modules.catalog.domain.exceptions import InvalidLogoStateException
-
-            raise InvalidLogoStateException(
+            raise InvalidLogoStateError(
                 brand_id=self.id,
                 current_status=str(self.logo_status) if self.logo_status else "None",
                 expected_status=MediaProcessingStatus.PROCESSING,
             )
         self.logo_status = MediaProcessingStatus.FAILED
+
+    def retry_logo_upload(self, object_key: str, content_type: str) -> None:
+        """Re-initiate logo upload from FAILED state.
+
+        Transitions logo FSM from FAILED back to PENDING_UPLOAD and emits
+        a BrandLogoUploadInitiatedEvent so the upload slot is prepared again.
+
+        Args:
+            object_key: S3 key where the client will upload the new raw logo.
+            content_type: Expected MIME type of the upload.
+
+        Raises:
+            InvalidLogoStateError: If current state is not FAILED.
+        """
+        if self.logo_status != MediaProcessingStatus.FAILED:
+            raise InvalidLogoStateError(
+                brand_id=self.id,
+                current_status=str(self.logo_status) if self.logo_status else "None",
+                expected_status=MediaProcessingStatus.FAILED,
+            )
+        self.logo_status = MediaProcessingStatus.PENDING_UPLOAD
+
+        self.add_domain_event(
+            BrandLogoUploadInitiatedEvent(
+                brand_id=self.id,
+                object_key=object_key,
+                content_type=content_type,
+                aggregate_id=str(self.id),
+            )
+        )
 
 
 MAX_CATEGORY_DEPTH = 3
@@ -263,8 +310,9 @@ class Category(AggregateRoot):
         Returns:
             A new root Category with level=0.
         """
+        _validate_slug(slug, "Category")
         return cls(
-            id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
+            id=_generate_id(),
             parent_id=None,
             name=name,
             slug=slug,
@@ -295,13 +343,14 @@ class Category(AggregateRoot):
         Raises:
             CategoryMaxDepthError: If the parent is already at max depth.
         """
+        _validate_slug(slug, "Category")
         if parent.level >= MAX_CATEGORY_DEPTH:
-            from src.modules.catalog.domain.exceptions import CategoryMaxDepthError
-
-            raise CategoryMaxDepthError(max_depth=MAX_CATEGORY_DEPTH, current_level=parent.level)
+            raise CategoryMaxDepthError(
+                max_depth=MAX_CATEGORY_DEPTH, current_level=parent.level
+            )
 
         return cls(
-            id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
+            id=_generate_id(),
             parent_id=parent.id,
             name=name,
             slug=slug,
@@ -394,7 +443,7 @@ class AttributeGroup(AggregateRoot):
             raise ValueError("name_i18n must contain at least one language entry")
 
         return cls(
-            id=group_id or (uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4()),
+            id=group_id or _generate_id(),
             code=code,
             name_i18n=name_i18n,
             sort_order=sort_order,
@@ -465,7 +514,7 @@ class Attribute(AggregateRoot):
     data_type: AttributeDataType
     ui_type: AttributeUIType
     is_dictionary: bool
-    group_id: uuid.UUID
+    group_id: uuid.UUID | None
     level: AttributeLevel
     is_filterable: bool = False
     is_searchable: bool = False
@@ -525,6 +574,7 @@ class Attribute(AggregateRoot):
             ValueError: If name_i18n is empty, search_weight out of range,
                 or validation_rules do not match data_type.
         """
+        _validate_slug(slug, "Attribute")
         if not name_i18n:
             raise ValueError("name_i18n must contain at least one language entry")
 
@@ -537,7 +587,7 @@ class Attribute(AggregateRoot):
         validate_validation_rules(data_type, validation_rules)
 
         return cls(
-            id=attribute_id or (uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4()),
+            id=attribute_id or _generate_id(),
             code=code,
             slug=slug,
             name_i18n=name_i18n,
@@ -709,7 +759,7 @@ class AttributeValue:
             raise ValueError("value_i18n must contain at least one language entry")
 
         return cls(
-            id=value_id or (uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4()),
+            id=value_id or _generate_id(),
             attribute_id=attribute_id,
             code=code,
             slug=slug,
@@ -801,7 +851,7 @@ class ProductAttributeValue:
             A new ProductAttributeValue instance.
         """
         return cls(
-            id=pav_id or uuid.uuid4(),
+            id=pav_id or _generate_id(),
             product_id=product_id,
             attribute_id=attribute_id,
             attribute_value_id=attribute_value_id,
@@ -864,7 +914,7 @@ class CategoryAttributeBinding(AggregateRoot):
             A new CategoryAttributeBinding instance.
         """
         return cls(
-            id=binding_id or (uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4()),
+            id=binding_id or _generate_id(),
             category_id=category_id,
             attribute_id=attribute_id,
             sort_order=sort_order,
@@ -950,8 +1000,14 @@ class SKU:
 
     def __attrs_post_init__(self) -> None:
         """Validate compare_at_price > price when both are provided."""
-        if self.compare_at_price is not None and not self.compare_at_price > self.price:
-            raise ValueError("compare_at_price must be greater than price")
+        if self.compare_at_price is not None:
+            if self.compare_at_price.currency != self.price.currency:
+                raise ValueError(
+                    f"compare_at_price currency ({self.compare_at_price.currency}) "
+                    f"must match price currency ({self.price.currency})"
+                )
+            if not self.compare_at_price > self.price:
+                raise ValueError("compare_at_price must be greater than price")
 
     def soft_delete(self) -> None:
         """Mark this SKU as deleted.
@@ -1024,17 +1080,18 @@ class SKU:
 
 
 # ---------------------------------------------------------------------------
-# MediaAsset -- child entity owned by the Product aggregate
+# MediaAsset -- independent aggregate for product media resources
 # ---------------------------------------------------------------------------
 
 
 @dataclass
 class MediaAsset(AggregateRoot):
-    """A media file associated with a product (image, video, document, etc.).
+    """MediaAsset aggregate — independently addressable media resource.
 
-    MediaAsset extends AggregateRoot so that domain events (e.g. confirmed,
-    processed) can be accumulated in-memory and written to the Outbox atomically
-    by the UnitOfWork on commit.
+    Manages the lifecycle of a single media file (image, video, 3D model,
+    or document) attached to a product. Extends AggregateRoot to support
+    domain event emission for the processing FSM. Has its own repository
+    (IMediaAssetRepository) and is addressed independently from Product.
 
     Lifecycle follows a strict processing FSM:
     ``PENDING_UPLOAD`` -> ``PROCESSING`` -> ``COMPLETED`` | ``FAILED``.
@@ -1100,7 +1157,7 @@ class MediaAsset(AggregateRoot):
             A new MediaAsset instance in ``PENDING_UPLOAD`` state.
         """
         return cls(
-            id=media_id or uuid.uuid4(),
+            id=media_id or _generate_id(),
             product_id=product_id,
             attribute_value_id=attribute_value_id,
             media_type=media_type,
@@ -1142,7 +1199,7 @@ class MediaAsset(AggregateRoot):
             ``public_url`` set to ``external_url``.
         """
         return cls(
-            id=media_id or uuid.uuid4(),
+            id=media_id or _generate_id(),
             product_id=product_id,
             attribute_value_id=attribute_value_id,
             media_type=media_type,
@@ -1174,8 +1231,6 @@ class MediaAsset(AggregateRoot):
             )
         self.processing_status = MediaProcessingStatus.PROCESSING
 
-        from src.modules.catalog.domain.events import ProductMediaConfirmedEvent
-
         self.add_domain_event(
             ProductMediaConfirmedEvent(
                 media_id=self.id,
@@ -1190,6 +1245,8 @@ class MediaAsset(AggregateRoot):
         self,
         public_url: str,
         object_key: str,
+        content_type: str = "",
+        size_bytes: int = 0,
         storage_object_id: uuid.UUID | None = None,
     ) -> None:
         """Transition FSM from PROCESSING to COMPLETED.
@@ -1199,6 +1256,8 @@ class MediaAsset(AggregateRoot):
         Args:
             public_url: Public URL of the processed media file.
             object_key: Final S3 key of the processed file (stored for reference).
+            content_type: MIME type of the processed file.
+            size_bytes: Size of the processed file in bytes.
             storage_object_id: Optional FK to the StorageObject record.
 
         Raises:
@@ -1214,15 +1273,13 @@ class MediaAsset(AggregateRoot):
         self.storage_object_id = storage_object_id
         self.processing_status = MediaProcessingStatus.COMPLETED
 
-        from src.modules.catalog.domain.events import ProductMediaProcessedEvent
-
         self.add_domain_event(
             ProductMediaProcessedEvent(
                 media_id=self.id,
                 product_id=self.product_id,
                 object_key=object_key,
-                content_type="",
-                size_bytes=0,
+                content_type=content_type,
+                size_bytes=size_bytes,
                 aggregate_id=str(self.id),
             )
         )
@@ -1256,7 +1313,7 @@ class Product(AggregateRoot):
     field for optimistic locking (incremented by the repository on save)
     and supports soft-delete via ``deleted_at``.
 
-    No domain events are emitted in this phase (deferred to P2).
+    Emits ProductCreatedEvent on creation and ProductStatusChangedEvent on status transitions.
 
     Status FSM (allowed transitions)::
 
@@ -1289,7 +1346,10 @@ class Product(AggregateRoot):
     _ALLOWED_TRANSITIONS: ClassVar[dict[ProductStatus, set[ProductStatus]]] = {
         ProductStatus.DRAFT: {ProductStatus.ENRICHING},
         ProductStatus.ENRICHING: {ProductStatus.DRAFT, ProductStatus.READY_FOR_REVIEW},
-        ProductStatus.READY_FOR_REVIEW: {ProductStatus.ENRICHING, ProductStatus.PUBLISHED},
+        ProductStatus.READY_FOR_REVIEW: {
+            ProductStatus.ENRICHING,
+            ProductStatus.PUBLISHED,
+        },
         ProductStatus.PUBLISHED: {ProductStatus.ARCHIVED},
         ProductStatus.ARCHIVED: {ProductStatus.DRAFT},
     }
@@ -1344,11 +1404,12 @@ class Product(AggregateRoot):
         Raises:
             ValueError: If ``title_i18n`` is empty.
         """
+        _validate_slug(slug, "Product")
         if not title_i18n:
             raise ValueError("title_i18n must contain at least one language entry")
 
-        return cls(
-            id=product_id or (uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4()),
+        product = cls(
+            id=product_id or _generate_id(),
             slug=slug,
             title_i18n=title_i18n,
             description_i18n=description_i18n or {},
@@ -1361,6 +1422,14 @@ class Product(AggregateRoot):
             version=1,
             skus=[],
         )
+        product.add_domain_event(
+            ProductCreatedEvent(
+                product_id=product.id,
+                slug=product.slug,
+                aggregate_id=str(product.id),
+            )
+        )
+        return product
 
     def update(
         self,
@@ -1456,10 +1525,19 @@ class Product(AggregateRoot):
                 target_status=new_status,
                 allowed_transitions=list(allowed),
             )
+        old_status = self.status.value
         self.status = new_status
         if new_status == ProductStatus.PUBLISHED:
             self.published_at = datetime.now(UTC)
         self.updated_at = datetime.now(UTC)
+        self.add_domain_event(
+            ProductStatusChangedEvent(
+                product_id=self.id,
+                old_status=old_status,
+                new_status=new_status.value,
+                aggregate_id=str(self.id),
+            )
+        )
 
     def add_sku(
         self,
@@ -1491,7 +1569,7 @@ class Product(AggregateRoot):
                 variant attribute combination already exists.
         """
         effective_attrs = variant_attributes or []
-        variant_hash = self._compute_variant_hash(effective_attrs)
+        variant_hash = self.compute_variant_hash(effective_attrs)
 
         for existing in self.skus:
             if existing.deleted_at is None and existing.variant_hash == variant_hash:
@@ -1501,7 +1579,7 @@ class Product(AggregateRoot):
                 )
 
         sku = SKU(
-            id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
+            id=_generate_id(),
             product_id=self.id,
             sku_code=sku_code,
             variant_hash=variant_hash,
@@ -1547,7 +1625,9 @@ class Product(AggregateRoot):
         self.updated_at = datetime.now(UTC)
 
     @staticmethod
-    def _compute_variant_hash(variant_attributes: list[tuple[uuid.UUID, uuid.UUID]]) -> str:
+    def compute_variant_hash(
+        variant_attributes: list[tuple[uuid.UUID, uuid.UUID]],
+    ) -> str:
         """Compute a deterministic SHA-256 hash for a variant attribute combination.
 
         Sorts pairs by attribute_id (as string) before hashing so that the

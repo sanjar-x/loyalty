@@ -46,6 +46,7 @@ product_attribute_router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     response_model=ProductAttributeAssignResponse,
     summary="Assign an attribute value to a product",
+    description="Assign a specific attribute value to the given product.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def assign_product_attribute(
@@ -77,6 +78,7 @@ async def assign_product_attribute(
     status_code=status.HTTP_200_OK,
     response_model=list[ProductAttributeResponse],
     summary="List attribute assignments for a product",
+    description="Return all attribute value assignments for a product.",
 )
 async def list_product_attributes(
     product_id: uuid.UUID,
@@ -108,6 +110,7 @@ async def list_product_attributes(
     path="/{attribute_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove an attribute assignment from a product",
+    description="Un-assign an attribute from the given product.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def remove_product_attribute(

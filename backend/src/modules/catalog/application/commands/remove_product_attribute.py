@@ -58,11 +58,9 @@ class RemoveProductAttributeHandler:
                 have this attribute assigned.
         """
         async with self._uow:
-            # Find the PAV record by iterating the product's assignments.
-            pavs = await self._pav_repo.list_by_product(command.product_id)
-            target = next(
-                (pav for pav in pavs if pav.attribute_id == command.attribute_id),
-                None,
+            # Look up the specific PAV record by product+attribute pair.
+            target = await self._pav_repo.get_by_product_and_attribute(
+                command.product_id, command.attribute_id
             )
 
             if target is None:

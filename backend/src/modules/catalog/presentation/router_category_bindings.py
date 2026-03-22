@@ -9,8 +9,6 @@ import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.commands.bind_attribute_to_category import (
     BindAttributeToCategoryCommand,
@@ -34,6 +32,7 @@ from src.modules.catalog.application.commands.unbind_attribute_from_category imp
 from src.modules.catalog.application.commands.update_category_attribute_binding import (
     UpdateCategoryAttributeBindingCommand,
     UpdateCategoryAttributeBindingHandler,
+    UpdateCategoryAttributeBindingResult,
 )
 from src.modules.catalog.application.queries.list_category_bindings import (
     ListCategoryBindingsHandler,
@@ -43,9 +42,6 @@ from src.modules.catalog.application.queries.read_models import (
     CategoryAttributeBindingListReadModel,
 )
 from src.modules.catalog.domain.value_objects import RequirementLevel
-from src.modules.catalog.infrastructure.models import (
-    CategoryAttributeRule as OrmRule,
-)
 from src.modules.catalog.presentation.schemas import (
     BindAttributeToCategoryRequest,
     BindAttributeToCategoryResponse,
@@ -69,6 +65,7 @@ category_binding_router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     response_model=BindAttributeToCategoryResponse,
     summary="Bind an attribute to a category",
+    description="Create a binding between an attribute and a category.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def bind_attribute_to_category(
@@ -93,6 +90,7 @@ async def bind_attribute_to_category(
     status_code=status.HTTP_200_OK,
     response_model=CategoryAttributeBindingListResponse,
     summary="List attribute bindings for a category",
+    description="Retrieve a paginated list of attribute bindings for a category.",
 )
 async def list_category_bindings(
     category_id: uuid.UUID,
@@ -100,7 +98,9 @@ async def list_category_bindings(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
 ) -> CategoryAttributeBindingListResponse:
-    query = ListCategoryBindingsQuery(category_id=category_id, offset=offset, limit=limit)
+    query = ListCategoryBindingsQuery(
+        category_id=category_id, offset=offset, limit=limit
+    )
     result: CategoryAttributeBindingListReadModel = await handler.handle(query)
     return CategoryAttributeBindingListResponse(
         items=[
@@ -126,6 +126,7 @@ async def list_category_bindings(
     status_code=status.HTTP_200_OK,
     response_model=CategoryAttributeBindingResponse,
     summary="Update a category-attribute binding",
+    description="Partially update binding fields like sort order or requirement level.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_binding(
@@ -133,32 +134,28 @@ async def update_binding(
     binding_id: uuid.UUID,
     request: UpdateBindingRequest,
     handler: FromDishka[UpdateCategoryAttributeBindingHandler],
-    session: FromDishka[AsyncSession],
 ) -> CategoryAttributeBindingResponse:
     command = UpdateCategoryAttributeBindingCommand(
         binding_id=binding_id,
         sort_order=request.sort_order,
         requirement_level=(
-            RequirementLevel(request.requirement_level) if request.requirement_level else None
+            RequirementLevel(request.requirement_level)
+            if request.requirement_level
+            else None
         ),
         flag_overrides=request.flag_overrides,
         filter_settings=request.filter_settings,
     )
-    await handler.handle(command)
-
-    # CQRS read side -- fetch the updated binding for response
-    stmt = select(OrmRule).where(OrmRule.id == binding_id)
-    orm_result = await session.execute(stmt)
-    orm = orm_result.scalar_one()
+    result: UpdateCategoryAttributeBindingResult = await handler.handle(command)
 
     return CategoryAttributeBindingResponse(
-        id=orm.id,
-        category_id=orm.category_id,
-        attribute_id=orm.attribute_id,
-        sort_order=orm.sort_order,
-        requirement_level=orm.requirement_level.value,
-        flag_overrides=dict(orm.flag_overrides) if orm.flag_overrides else None,
-        filter_settings=dict(orm.filter_settings) if orm.filter_settings else None,
+        id=result.id,
+        category_id=result.category_id,
+        attribute_id=result.attribute_id,
+        sort_order=result.sort_order,
+        requirement_level=result.requirement_level,
+        flag_overrides=result.flag_overrides,
+        filter_settings=result.filter_settings,
     )
 
 
@@ -166,6 +163,7 @@ async def update_binding(
     path="/{binding_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Unbind an attribute from a category",
+    description="Remove the binding between an attribute and a category.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def unbind_attribute(
@@ -181,6 +179,7 @@ async def unbind_attribute(
     path="/reorder",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Bulk reorder bindings within a category",
+    description="Set new sort orders for multiple bindings at once.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def reorder_bindings(
@@ -202,6 +201,7 @@ async def reorder_bindings(
     path="/bulk-requirement-level",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Bulk update requirement levels for bindings",
+    description="Update requirement levels for multiple bindings at once.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def bulk_update_requirement_levels(

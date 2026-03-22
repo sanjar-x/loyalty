@@ -26,14 +26,12 @@ from src.modules.catalog.application.queries.list_skus import (
     ListSKUsHandler,
     ListSKUsQuery,
 )
-from src.modules.catalog.application.queries.read_models import SKUReadModel
+from src.modules.catalog.presentation.mappers import to_sku_response
 from src.modules.catalog.presentation.schemas import (
-    MoneySchema,
     SKUCreateRequest,
     SKUCreateResponse,
     SKUResponse,
     SKUUpdateRequest,
-    VariantAttributePairSchema,
 )
 from src.modules.identity.presentation.dependencies import RequirePermission
 
@@ -49,6 +47,7 @@ sku_router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     response_model=SKUCreateResponse,
     summary="Add a SKU variant to a product",
+    description="Create a new SKU variant with price and attributes.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def create_sku(
@@ -65,7 +64,8 @@ async def create_sku(
         compare_at_price_amount=request.compare_at_price_amount,
         is_active=request.is_active,
         variant_attributes=[
-            (pair.attribute_id, pair.attribute_value_id) for pair in request.variant_attributes
+            (pair.attribute_id, pair.attribute_value_id)
+            for pair in request.variant_attributes
         ],
     )
     result = await handler.handle(command)
@@ -77,6 +77,7 @@ async def create_sku(
     status_code=status.HTTP_200_OK,
     response_model=list[SKUResponse],
     summary="List SKU variants for a product",
+    description="Return all SKU variants belonging to the given product.",
 )
 async def list_skus(
     product_id: uuid.UUID,
@@ -85,14 +86,15 @@ async def list_skus(
     """Return all SKU variants belonging to the given product."""
     query = ListSKUsQuery(product_id=product_id)
     results = await handler.handle(query)
-    return [_to_sku_response(model) for model in results]
+    return [to_sku_response(model) for model in results]
 
 
-@sku_router.put(
+@sku_router.patch(
     path="/{sku_id}",
     status_code=status.HTTP_200_OK,
     response_model=SKUResponse,
     summary="Update a SKU variant",
+    description="Partially update a SKU variant. Only provided fields change.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_sku(
@@ -132,13 +134,14 @@ async def update_sku(
     # Fetch updated SKU list and find the one we just updated.
     updated_skus = await list_handler.handle(ListSKUsQuery(product_id=product_id))
     updated_sku = next(s for s in updated_skus if s.id == result.id)
-    return _to_sku_response(updated_sku)
+    return to_sku_response(updated_sku)
 
 
 @sku_router.delete(
     path="/{sku_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Soft-delete a SKU variant",
+    description="Soft-delete a SKU variant from the product.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_sku(
@@ -150,31 +153,3 @@ async def delete_sku(
     command = DeleteSKUCommand(product_id=product_id, sku_id=sku_id)
     await handler.handle(command)
 
-
-def _to_sku_response(model: SKUReadModel) -> SKUResponse:
-    """Map a SKU read model to the presentation-layer response schema."""
-    return SKUResponse(
-        id=model.id,
-        product_id=model.product_id,
-        sku_code=model.sku_code,
-        variant_hash=model.variant_hash,
-        price=MoneySchema(amount=model.price.amount, currency=model.price.currency),
-        compare_at_price=MoneySchema(
-            amount=model.compare_at_price.amount,
-            currency=model.compare_at_price.currency,
-        )
-        if model.compare_at_price is not None
-        else None,
-        is_active=model.is_active,
-        version=model.version,
-        deleted_at=model.deleted_at,
-        created_at=model.created_at,
-        updated_at=model.updated_at,
-        variant_attributes=[
-            VariantAttributePairSchema(
-                attribute_id=va.attribute_id,
-                attribute_value_id=va.attribute_value_id,
-            )
-            for va in model.variant_attributes
-        ],
-    )

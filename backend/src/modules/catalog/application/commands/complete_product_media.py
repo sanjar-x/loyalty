@@ -11,12 +11,12 @@ import uuid
 from dataclasses import dataclass
 
 from src.modules.catalog.domain.interfaces import IMediaAssetRepository
-from src.shared.exceptions import NotFoundError
+from src.modules.catalog.domain.value_objects import MediaProcessingStatus
+from src.modules.catalog.domain.exceptions import MediaAssetNotFoundError
 from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.config import IStorageConfig
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
-
 
 # ---------------------------------------------------------------------------
 # Complete (success path)
@@ -59,11 +59,11 @@ class CompleteProductMediaHandler:
         self._config = config
         self._logger = logger.bind(handler="CompleteProductMediaHandler")
 
-    async def handle(self, cmd: CompleteProductMediaCommand) -> None:
+    async def handle(self, command: CompleteProductMediaCommand) -> None:
         """Execute the complete-product-media command.
 
         Args:
-            cmd: Processing completion parameters.
+            command: Processing completion parameters.
 
         Raises:
             NotFoundError: If the media asset does not exist.
@@ -72,20 +72,26 @@ class CompleteProductMediaHandler:
         raw_object_key: str | None = None
 
         async with self._uow:
-            media = await self._media_repo.get_for_update(cmd.media_id)
+            media = await self._media_repo.get_for_update(command.media_id)
             if media is None:
-                raise NotFoundError(f"Media {cmd.media_id} not found")
+                raise MediaAssetNotFoundError(media_id=command.media_id)
+
+            # Idempotency: if already completed, return silently
+            if media.processing_status == MediaProcessingStatus.COMPLETED:
+                return
 
             # Stash raw key before the FSM transition overwrites it
             raw_object_key = media.raw_object_key
 
             # Build the publicly accessible URL from the processed object key
-            public_url = f"{self._config.S3_PUBLIC_BASE_URL}/{cmd.object_key}"
+            public_url = f"{self._config.S3_PUBLIC_BASE_URL}/{command.object_key}"
 
             # FSM transition PROCESSING -> COMPLETED; emits ProductMediaProcessedEvent
             media.complete_processing(
                 public_url=public_url,
-                object_key=cmd.object_key,
+                object_key=command.object_key,
+                content_type=command.content_type,
+                size_bytes=command.size_bytes,
             )
 
             await self._media_repo.update(media)
@@ -97,20 +103,20 @@ class CompleteProductMediaHandler:
 
         # Delete the raw upload file after the transaction is committed so that
         # a rollback does not leave us deleting a file we still need
-        if cmd.delete_raw and raw_object_key:
+        if command.delete_raw and raw_object_key:
             try:
                 await self._blob.delete_object(raw_object_key)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 self._logger.warning(
                     "Failed to delete raw upload after processing",
                     raw_object_key=raw_object_key,
-                    media_id=str(cmd.media_id),
+                    media_id=str(command.media_id),
                 )
 
         self._logger.info(
             "Media processing completed",
-            media_id=str(cmd.media_id),
-            object_key=cmd.object_key,
+            media_id=str(command.media_id),
+            object_key=command.object_key,
         )
 
 
@@ -145,20 +151,24 @@ class FailProductMediaHandler:
         self._uow = uow
         self._logger = logger.bind(handler="FailProductMediaHandler")
 
-    async def handle(self, cmd: FailProductMediaCommand) -> None:
+    async def handle(self, command: FailProductMediaCommand) -> None:
         """Execute the fail-product-media command.
 
         Args:
-            cmd: Failure parameters.
+            command: Failure parameters.
 
         Raises:
             NotFoundError: If the media asset does not exist.
             InvalidMediaStateError: If the asset FSM is not in PROCESSING.
         """
         async with self._uow:
-            media = await self._media_repo.get_for_update(cmd.media_id)
+            media = await self._media_repo.get_for_update(command.media_id)
             if media is None:
-                raise NotFoundError(f"Media {cmd.media_id} not found")
+                raise MediaAssetNotFoundError(media_id=command.media_id)
+
+            # Idempotency: if already failed, return silently
+            if media.processing_status == MediaProcessingStatus.FAILED:
+                return
 
             # FSM transition PROCESSING -> FAILED
             media.fail_processing()
@@ -168,6 +178,6 @@ class FailProductMediaHandler:
 
         self._logger.warning(
             "Media processing failed",
-            media_id=str(cmd.media_id),
-            reason=cmd.reason,
+            media_id=str(command.media_id),
+            reason=command.reason,
         )

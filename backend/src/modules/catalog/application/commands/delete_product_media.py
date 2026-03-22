@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass
 
 from src.modules.catalog.domain.interfaces import IMediaAssetRepository
-from src.shared.exceptions import NotFoundError
+from src.modules.catalog.domain.exceptions import MediaAssetNotFoundError
 from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -45,59 +45,62 @@ class DeleteProductMediaHandler:
         self._uow = uow
         self._logger = logger.bind(handler="DeleteProductMediaHandler")
 
-    async def handle(self, cmd: DeleteProductMediaCommand) -> None:
+    async def handle(self, command: DeleteProductMediaCommand) -> None:
         """Execute the delete-product-media command.
 
         Args:
-            cmd: Deletion parameters.
+            command: Deletion parameters.
 
         Raises:
             NotFoundError: If the media asset does not exist.
         """
-        # Load the record first (outside transaction) to get the raw_object_key
-        # so we know what to clean up in S3 after the DB delete
-        media = await self._media_repo.get(cmd.media_id)
-        if media is None:
-            raise NotFoundError(f"Media {cmd.media_id} not found")
+        raw_object_key: str | None = None
+        public_url: str | None = None
+        is_external: bool = False
 
-        if media.product_id != cmd.product_id:
-            raise NotFoundError(f"Media {cmd.media_id} not found for product {cmd.product_id}")
-
-        raw_object_key = media.raw_object_key
-        public_url = media.public_url
-        is_external = media.is_external
-
-        # Delete the DB record atomically
         async with self._uow:
-            await self._media_repo.delete(cmd.media_id)
+            media = await self._media_repo.get_for_update(command.media_id)
+            if media is None:
+                raise MediaAssetNotFoundError(media_id=command.media_id)
+
+            if media.product_id != command.product_id:
+                raise MediaAssetNotFoundError(media_id=command.media_id, product_id=command.product_id)
+
+            raw_object_key = media.raw_object_key
+            public_url = media.public_url
+            is_external = media.is_external
+
+            await self._media_repo.delete(command.media_id)
             await self._uow.commit()
 
         # Best-effort S3 cleanup — errors are logged but do not propagate
         if raw_object_key:
             try:
                 await self._blob.delete_object(raw_object_key)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 self._logger.warning(
                     "Failed to delete raw S3 object during media deletion",
                     raw_object_key=raw_object_key,
-                    media_id=str(cmd.media_id),
+                    media_id=str(command.media_id),
                 )
 
         # Best-effort cleanup of the processed S3 object (if any)
         if public_url is not None and not is_external:
-            # Extract S3 key from the public URL (everything after the bucket base)
-            processed_key = public_url.split("/", 3)[-1] if "/" in public_url else public_url
+            # Extract S3 key from the public URL (everything after the base URL)
+            processed_key = (
+                public_url.split("/", 3)[-1] if "/" in public_url else public_url
+            )
             try:
                 await self._blob.delete_object(processed_key)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 self._logger.warning(
                     "Failed to delete processed S3 object during media deletion",
                     processed_key=processed_key,
-                    media_id=str(cmd.media_id),
+                    media_id=str(command.media_id),
                 )
 
         self._logger.info(
             "Media asset deleted",
-            media_id=str(cmd.media_id),
-            product_id=str(cmd.product_id),
+            media_id=str(command.media_id),
+            product_id=str(command.product_id),
         )

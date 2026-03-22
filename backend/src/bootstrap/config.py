@@ -101,6 +101,7 @@ class Settings(BaseSettings):
     S3_REGION: str
     S3_BUCKET_NAME: str
     S3_PUBLIC_BASE_URL: str
+    INTERNAL_WEBHOOK_SECRET: SecretStr = SecretStr("")
 
     RABBITMQ_URL: str
 

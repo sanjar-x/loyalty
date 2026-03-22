@@ -55,12 +55,12 @@ category_router = APIRouter(
 
 
 @category_router.post(
-    "",
+    path="",
     status_code=status.HTTP_201_CREATED,
     response_model=CategoryCreateResponse,
     summary="Create a new category",
     description="Creates a category in the hierarchy.",
-    dependencies=[Depends(dependency=RequirePermission(codename="catalog:manage"))],
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def create_category(
     request: CategoryCreateRequest,
@@ -77,7 +77,7 @@ async def create_category(
 
 
 @category_router.get(
-    "/tree",
+    path="/tree",
     status_code=status.HTTP_200_OK,
     response_model=list[CategoryTreeResponse],
     summary="Get the category tree",
@@ -85,21 +85,24 @@ async def create_category(
 )
 async def get_category_tree(
     handler: FromDishka[GetCategoryTreeHandler],
+    max_depth: int | None = Query(default=None, ge=1, le=10, description="Maximum tree depth to return"),
 ) -> list[CategoryTreeResponse]:
+    # TODO: pass max_depth to handler when depth filtering is implemented
     roots: list[CategoryNode] = await handler.handle()
     return [CategoryTreeResponse.model_validate(r, from_attributes=True) for r in roots]
 
 
 @category_router.get(
-    "",
+    path="",
     status_code=status.HTTP_200_OK,
     response_model=CategoryListResponse,
     summary="List categories (paginated)",
+    description="Retrieve a paginated list of all categories.",
 )
 async def list_categories(
     handler: FromDishka[ListCategoriesHandler],
     offset: int = Query(default=0, ge=0),
-    limit: int = Query(default=20, ge=1, le=100),
+    limit: int = Query(default=50, ge=1, le=200),
 ) -> CategoryListResponse:
     query = ListCategoriesQuery(offset=offset, limit=limit)
     result: CategoryListReadModel = await handler.handle(query)
@@ -127,6 +130,7 @@ async def list_categories(
     status_code=status.HTTP_200_OK,
     response_model=CategoryResponse,
     summary="Get category by ID",
+    description="Retrieve a single category by its unique identifier.",
 )
 async def get_category(
     category_id: uuid.UUID,
@@ -145,11 +149,12 @@ async def get_category(
 
 
 @category_router.patch(
-    "/{category_id}",
+    path="/{category_id}",
     status_code=status.HTTP_200_OK,
     response_model=CategoryResponse,
     summary="Update a category",
-    dependencies=[Depends(dependency=RequirePermission(codename="catalog:manage"))],
+    description="Partially update category fields. Only provided fields are modified.",
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_category(
     category_id: uuid.UUID,
@@ -178,7 +183,8 @@ async def update_category(
     path="/{category_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a category",
-    dependencies=[Depends(dependency=RequirePermission(codename="catalog:manage"))],
+    description="Permanently delete a category and its subtree.",
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_category(
     category_id: uuid.UUID,

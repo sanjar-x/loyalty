@@ -56,6 +56,7 @@ attribute_group_router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     response_model=AttributeGroupCreateResponse,
     summary="Create a new attribute group",
+    description="Create a new attribute group with code, name, and sort order.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def create_attribute_group(
@@ -76,6 +77,7 @@ async def create_attribute_group(
     status_code=status.HTTP_200_OK,
     response_model=AttributeGroupListResponse,
     summary="List attribute groups (paginated)",
+    description="Retrieve a paginated list of all attribute groups.",
 )
 async def list_attribute_groups(
     handler: FromDishka[ListAttributeGroupsHandler],
@@ -105,6 +107,7 @@ async def list_attribute_groups(
     status_code=status.HTTP_200_OK,
     response_model=AttributeGroupResponse,
     summary="Get attribute group by ID",
+    description="Retrieve a single attribute group by its unique identifier.",
 )
 async def get_attribute_group(
     group_id: uuid.UUID,
@@ -124,6 +127,7 @@ async def get_attribute_group(
     status_code=status.HTTP_200_OK,
     response_model=AttributeGroupResponse,
     summary="Update an attribute group",
+    description="Partially update attribute group fields like name or sort order.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_attribute_group(

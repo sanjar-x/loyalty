@@ -1,8 +1,8 @@
 import pytest
 
 from src.modules.catalog.domain.entities import Brand, Category
-from src.modules.catalog.domain.events import BrandCreatedEvent, BrandLogoConfirmedEvent
-from src.modules.catalog.domain.exceptions import InvalidLogoStateException
+from src.modules.catalog.domain.events import BrandLogoUploadInitiatedEvent, BrandLogoConfirmedEvent
+from src.modules.catalog.domain.exceptions import InvalidLogoStateError
 from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 from tests.factories.catalog_mothers import BrandMothers, CategoryMothers
 
@@ -22,7 +22,7 @@ def test_brand_init_logo_upload_sets_status_pending():
 
 
 def test_brand_init_logo_upload_emits_brand_created_event():
-    """init_logo_upload() должен сгенерировать BrandCreatedEvent."""
+    """init_logo_upload() должен сгенерировать BrandLogoUploadInitiatedEvent."""
     # Arrange
     brand = Brand.create(name="Apple", slug="apple")
     object_key = f"raw_uploads/catalog/brands/{brand.id}/logo_raw"
@@ -34,7 +34,7 @@ def test_brand_init_logo_upload_emits_brand_created_event():
     events = brand.domain_events
     assert len(events) == 1
     event = events[0]
-    assert isinstance(event, BrandCreatedEvent)
+    assert isinstance(event, BrandLogoUploadInitiatedEvent)
     assert event.brand_id == brand.id
     assert event.object_key == object_key
     assert event.content_type == "image/png"
@@ -48,7 +48,7 @@ def test_brand_confirm_logo_upload_changes_status_to_processing():
         object_key="raw_uploads/catalog/brands/test/logo_raw",
         content_type="image/png",
     )
-    brand.clear_domain_events()  # очищаем BrandCreatedEvent
+    brand.clear_domain_events()  # очищаем BrandLogoUploadInitiatedEvent
 
     # Act
     brand.confirm_logo_upload()
@@ -86,7 +86,7 @@ def test_brand_confirm_logo_upload_raises_error_when_invalid_state():
     brand = Brand.create(name="Apple", slug="apple")
 
     # Act & Assert
-    with pytest.raises(InvalidLogoStateException) as exc_info:
+    with pytest.raises(InvalidLogoStateError) as exc_info:
         brand.confirm_logo_upload()
 
     assert exc_info.value.details is not None
@@ -154,13 +154,13 @@ def test_brand_clear_domain_events():
 
 def test_brand_confirm_upload_from_completed_raises():
     brand = BrandMothers.with_completed_logo()
-    with pytest.raises(InvalidLogoStateException):
+    with pytest.raises(InvalidLogoStateError):
         brand.confirm_logo_upload()
 
 
 def test_brand_complete_processing_from_pending_raises():
     brand = BrandMothers.with_pending_logo()
-    with pytest.raises(InvalidLogoStateException):
+    with pytest.raises(InvalidLogoStateError):
         brand.complete_logo_processing(
             url="https://cdn.test/logo.webp",
             object_key="processed/test/logo.webp",
@@ -171,7 +171,7 @@ def test_brand_complete_processing_from_pending_raises():
 
 def test_brand_fail_processing_from_pending_raises():
     brand = BrandMothers.with_pending_logo()
-    with pytest.raises(InvalidLogoStateException):
+    with pytest.raises(InvalidLogoStateError):
         brand.fail_logo_processing()
 
 

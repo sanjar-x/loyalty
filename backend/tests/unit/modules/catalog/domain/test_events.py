@@ -6,36 +6,36 @@ import uuid
 import pytest
 
 from src.modules.catalog.domain.events import (
-    BrandCreatedEvent,
+    BrandLogoUploadInitiatedEvent,
     BrandLogoConfirmedEvent,
     BrandLogoProcessedEvent,
 )
 
 
-class TestBrandCreatedEvent:
+class TestBrandLogoUploadInitiatedEvent:
     def test_raises_value_error_when_brand_id_is_none(self):
         with pytest.raises(ValueError, match="brand_id is required"):
-            BrandCreatedEvent(brand_id=None, object_key="key", content_type="image/png")
+            BrandLogoUploadInitiatedEvent(brand_id=None, object_key="key", content_type="image/png")
 
     def test_auto_sets_aggregate_id_from_brand_id(self):
         brand_id: uuid.UUID = uuid.uuid4()
-        event = BrandCreatedEvent(brand_id=brand_id, object_key="key", content_type="image/png")
+        event = BrandLogoUploadInitiatedEvent(brand_id=brand_id, object_key="key", content_type="image/png")
         assert event.aggregate_id == str(brand_id)
 
     def test_fields_populated(self):
         brand_id: uuid.UUID = uuid.uuid4()
-        event = BrandCreatedEvent(
+        event = BrandLogoUploadInitiatedEvent(
             brand_id=brand_id, object_key="brands/logo.png", content_type="image/png"
         )
         assert event.aggregate_type == "Brand"
-        assert event.event_type == "BrandCreatedEvent"
+        assert event.event_type == "BrandCreatedEvent"  # kept for backward-compat
         assert event.object_key == "brands/logo.png"
         assert event.content_type == "image/png"
 
     def test_preserves_explicit_aggregate_id(self):
         brand_id = uuid.uuid4()
         custom_agg_id = "custom-id"
-        event = BrandCreatedEvent(
+        event = BrandLogoUploadInitiatedEvent(
             brand_id=brand_id,
             aggregate_id=custom_agg_id,
             object_key="k",

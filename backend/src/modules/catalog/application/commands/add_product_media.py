@@ -7,12 +7,18 @@ for direct client upload. Part of the application layer (CQRS write side).
 """
 
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+
+from sqlalchemy.exc import IntegrityError  # DB-level uniqueness safety net
 
 from src.modules.catalog.application.constants import raw_media_key
 from src.modules.catalog.domain.entities import MediaAsset
-from src.modules.catalog.domain.interfaces import IMediaAssetRepository, IProductRepository
-from src.shared.exceptions import ConflictError, NotFoundError
+from src.modules.catalog.domain.exceptions import ProductNotFoundError
+from src.modules.catalog.domain.interfaces import (
+    IMediaAssetRepository,
+    IProductRepository,
+)
+from src.shared.exceptions import ConflictError
 from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.config import IStorageConfig
 from src.shared.interfaces.uow import IUnitOfWork
@@ -71,34 +77,34 @@ class AddProductMediaHandler:
         self._uow = uow
         self._config = config
 
-    async def handle(self, cmd: AddProductMediaCommand) -> AddProductMediaResult:
+    async def handle(self, command: AddProductMediaCommand) -> AddProductMediaResult:
         """Execute the add-product-media command.
 
         Args:
-            cmd: Media upload parameters.
+            command: Media upload parameters.
 
         Returns:
             Result containing the new media ID, presigned URL, and S3 key.
 
         Raises:
-            NotFoundError: If the product does not exist.
+            ProductNotFoundError: If the product does not exist.
             ConflictError: If a MAIN media asset already exists for this variant.
         """
         # 1. Verify product exists
-        product = await self._product_repo.get(cmd.product_id)
+        product = await self._product_repo.get(command.product_id)
         if product is None:
-            raise NotFoundError(f"Product {cmd.product_id} not found")
+            raise ProductNotFoundError(product_id=command.product_id)
 
         # 2. Build S3 key and create domain entity
         media_id = uuid.uuid4()
-        object_key = raw_media_key(cmd.product_id, media_id)
+        object_key = raw_media_key(command.product_id, media_id)
 
         media = MediaAsset.create_upload(
-            product_id=cmd.product_id,
-            attribute_value_id=cmd.attribute_value_id,
-            media_type=cmd.media_type,
-            role=cmd.role,
-            sort_order=cmd.sort_order,
+            product_id=command.product_id,
+            attribute_value_id=command.attribute_value_id,
+            media_type=command.media_type,
+            role=command.role,
+            sort_order=command.sort_order,
             raw_object_key=object_key,
             media_id=media_id,
         )
@@ -107,25 +113,31 @@ class AddProductMediaHandler:
         #    hold a DB connection)
         presigned_url = await self._blob.generate_presigned_put_url(
             object_name=object_key,
-            content_type=cmd.content_type,
+            content_type=command.content_type,
             expiration=300,
         )
 
         # 4. Enforce MAIN uniqueness and persist atomically in the same transaction
         async with self._uow:
-            if cmd.role == "main":
+            if command.role == "main":
                 has_main = await self._media_repo.has_main_for_variant(
-                    cmd.product_id,
-                    cmd.attribute_value_id,
+                    command.product_id,
+                    command.attribute_value_id,
                 )
                 if has_main:
                     raise ConflictError(
-                        f"MAIN media already exists for product {cmd.product_id} "
-                        f"variant {cmd.attribute_value_id}"
+                        f"MAIN media already exists for product {command.product_id} "
+                        f"variant {command.attribute_value_id}"
                     )
 
             await self._media_repo.add(media)
-            await self._uow.commit()
+            try:
+                await self._uow.commit()
+            except IntegrityError:
+                raise ConflictError(
+                    f"MAIN media already exists for product {command.product_id} "
+                    f"variant {command.attribute_value_id}"
+                ) from None
 
         return AddProductMediaResult(
             media_id=media.id,

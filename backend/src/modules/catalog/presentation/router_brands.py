@@ -44,6 +44,7 @@ from src.modules.catalog.presentation.schemas import (
     BrandListResponse,
     BrandResponse,
     BrandUpdateRequest,
+    LogoConfirmResponse,
 )
 from src.modules.identity.presentation.dependencies import RequirePermission
 
@@ -59,6 +60,7 @@ brand_router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     response_model=BrandCreateResponse,
     summary="Create a new brand",
+    description="Create a new brand with name, slug, and optional logo.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def create_brand(
@@ -91,11 +93,12 @@ async def create_brand(
     status_code=status.HTTP_200_OK,
     response_model=BrandListResponse,
     summary="List brands (paginated)",
+    description="Retrieve a paginated list of all brands.",
 )
 async def list_brands(
     handler: FromDishka[ListBrandsHandler],
     offset: int = Query(default=0, ge=0),
-    limit: int = Query(default=20, ge=1, le=100),
+    limit: int = Query(default=50, ge=1, le=200),
 ) -> BrandListResponse:
     query = ListBrandsQuery(offset=offset, limit=limit)
     result: BrandListReadModel = await handler.handle(query)
@@ -121,6 +124,7 @@ async def list_brands(
     status_code=status.HTTP_200_OK,
     response_model=BrandResponse,
     summary="Get brand by ID",
+    description="Retrieve a single brand by its unique identifier.",
 )
 async def get_brand(
     brand_id: uuid.UUID,
@@ -141,6 +145,7 @@ async def get_brand(
     status_code=status.HTTP_200_OK,
     response_model=BrandResponse,
     summary="Update a brand",
+    description="Partially update brand fields like name or slug.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_brand(
@@ -167,6 +172,7 @@ async def update_brand(
     path="/{brand_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a brand",
+    description="Permanently delete a brand by its ID.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_brand(
@@ -180,13 +186,15 @@ async def delete_brand(
 @brand_router.post(
     path="/{brand_id}/logo/confirm",
     status_code=status.HTTP_202_ACCEPTED,
+    response_model=LogoConfirmResponse,
     summary="Confirm logo upload",
+    description="Confirm that a logo was uploaded to S3 and start processing.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def confirm_logo_upload(
     brand_id: uuid.UUID,
     handler: FromDishka[ConfirmBrandLogoUploadHandler],
-) -> dict:
+) -> LogoConfirmResponse:
     command = ConfirmBrandLogoUploadCommand(brand_id=brand_id)
     await handler.handle(command)
-    return {"message": "Logo processing request accepted"}
+    return LogoConfirmResponse()

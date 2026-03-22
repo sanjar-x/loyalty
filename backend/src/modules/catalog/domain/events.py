@@ -7,7 +7,14 @@ aggregates during business operations, serialized to JSON via
 The infrastructure layer relays them to downstream consumers.
 
 Typical usage:
-    brand.add_domain_event(BrandCreatedEvent(brand_id=brand.id, ...))
+    brand.add_domain_event(BrandLogoUploadInitiatedEvent(brand_id=brand.id, ...))
+
+Note:
+    Events are plain (non-frozen) dataclasses because ``DomainEvent``
+    (the shared base class) is non-frozen and Python prohibits frozen
+    subclasses of non-frozen parents. Events MUST be treated as
+    immutable after construction — do not mutate event fields after
+    ``__post_init__`` has run.
 """
 
 import uuid
@@ -17,14 +24,14 @@ from src.shared.interfaces.entities import DomainEvent
 
 
 @dataclass
-class BrandCreatedEvent(DomainEvent):
-    """Emitted when a brand is created with a logo upload request.
+class BrandLogoUploadInitiatedEvent(DomainEvent):
+    """Emitted when a brand logo upload is initiated.
 
     The Storage module reacts by creating a ``StorageFile`` record
     and preparing the upload slot asynchronously.
 
     Attributes:
-        brand_id: UUID of the newly created brand.
+        brand_id: UUID of the brand initiating logo upload.
         object_key: S3 key where the client will upload the raw logo.
         content_type: Expected MIME type of the logo file.
     """
@@ -33,11 +40,11 @@ class BrandCreatedEvent(DomainEvent):
     object_key: str = ""
     content_type: str = ""
     aggregate_type: str = "Brand"
-    event_type: str = "BrandCreatedEvent"
+    event_type: str = "BrandCreatedEvent"  # backward-compat with Outbox routing
 
     def __post_init__(self) -> None:
         if self.brand_id is None:
-            raise ValueError("brand_id is required for BrandCreatedEvent")
+            raise ValueError("brand_id is required for BrandLogoUploadInitiatedEvent")
         if not self.aggregate_id:
             self.aggregate_id = str(self.brand_id)
 
@@ -382,3 +389,41 @@ class ProductMediaProcessedEvent(DomainEvent):
             raise ValueError("media_id is required for ProductMediaProcessedEvent")
         if not self.aggregate_id:
             self.aggregate_id = str(self.media_id)
+
+
+# ---------------------------------------------------------------------------
+# Product events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ProductCreatedEvent(DomainEvent):
+    """Emitted when a new product is created."""
+
+    product_id: uuid.UUID | None = None
+    slug: str = ""
+    aggregate_type: str = "Product"
+    event_type: str = "ProductCreatedEvent"
+
+    def __post_init__(self) -> None:
+        if self.product_id is None:
+            raise ValueError("product_id is required for ProductCreatedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.product_id)
+
+
+@dataclass
+class ProductStatusChangedEvent(DomainEvent):
+    """Emitted when a product's status transitions."""
+
+    product_id: uuid.UUID | None = None
+    old_status: str = ""
+    new_status: str = ""
+    aggregate_type: str = "Product"
+    event_type: str = "ProductStatusChangedEvent"
+
+    def __post_init__(self) -> None:
+        if self.product_id is None:
+            raise ValueError("product_id is required for ProductStatusChangedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.product_id)

@@ -4,6 +4,12 @@ Base repository implementing the Data Mapper pattern for catalog aggregates.
 Provides generic CRUD operations that convert between SQLAlchemy ORM models
 and domain entities.  Concrete repositories inherit from :class:`BaseRepository`
 and supply the ``_to_domain`` / ``_to_orm`` mapping methods.
+
+Note:
+    Currently only ``CategoryRepository`` inherits this base class.
+    Other repositories were implemented before this abstraction was
+    introduced and follow the same pattern manually. Migration of
+    remaining repositories is a future cleanup task.
 """
 
 import uuid
@@ -30,7 +36,9 @@ class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType
 
     model: type[ModelType]
 
-    def __init_subclass__(cls, model_class: type[ModelType] | None = None, **kwargs: Any) -> None:
+    def __init_subclass__(
+        cls, model_class: type[ModelType] | None = None, **kwargs: Any
+    ) -> None:
         super().__init_subclass__(**kwargs)
         if model_class:
             cls.model = model_class
@@ -81,6 +89,7 @@ class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType
             raise ValueError(f"Entity with id {pk} not found in the database")
 
         orm = self._to_orm(entity, orm)
+        await self._session.flush()
         return self._to_domain(orm)
 
     async def delete(self, entity_id: uuid.UUID) -> None:

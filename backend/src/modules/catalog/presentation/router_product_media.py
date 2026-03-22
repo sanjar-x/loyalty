@@ -48,25 +48,26 @@ product_media_router = APIRouter(
 
 
 @product_media_router.post(
-    "/upload",
+    path="/upload",
     status_code=status.HTTP_201_CREATED,
     response_model=ProductMediaUploadResponse,
     summary="Reserve media upload slot",
+    description="Generate a presigned S3 PUT URL for uploading a media file.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def request_media_upload(
     product_id: uuid.UUID,
-    body: ProductMediaUploadRequest,
+    request: ProductMediaUploadRequest,
     handler: FromDishka[AddProductMediaHandler],
 ) -> ProductMediaUploadResponse:
     """Generate a presigned S3 PUT URL for uploading a media file."""
     cmd = AddProductMediaCommand(
         product_id=product_id,
-        attribute_value_id=body.attribute_value_id,
-        media_type=body.media_type,
-        role=body.role,
-        content_type=body.content_type,
-        sort_order=body.sort_order,
+        attribute_value_id=request.attribute_value_id,
+        media_type=request.media_type,
+        role=request.role,
+        content_type=request.content_type,
+        sort_order=request.sort_order,
     )
     result: AddProductMediaResult = await handler.handle(cmd)
     return ProductMediaUploadResponse(
@@ -77,45 +78,47 @@ async def request_media_upload(
 
 
 @product_media_router.post(
-    "/external",
+    path="/external",
     status_code=status.HTTP_201_CREATED,
     response_model=ProductMediaResponse,
     summary="Add external media URL",
+    description="Add an externally hosted media asset to a product.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def add_external_media(
     product_id: uuid.UUID,
-    body: ProductMediaExternalRequest,
+    request: ProductMediaExternalRequest,
     handler: FromDishka[AddExternalProductMediaHandler],
 ) -> ProductMediaResponse:
     """Add an externally hosted media asset (e.g. YouTube video) to a product."""
     cmd = AddExternalProductMediaCommand(
         product_id=product_id,
-        attribute_value_id=body.attribute_value_id,
-        media_type=body.media_type,
-        role=body.role,
-        external_url=body.external_url,
-        sort_order=body.sort_order,
+        attribute_value_id=request.attribute_value_id,
+        media_type=request.media_type,
+        role=request.role,
+        external_url=request.external_url,
+        sort_order=request.sort_order,
     )
     result: AddExternalProductMediaResult = await handler.handle(cmd)
     return ProductMediaResponse(
         id=result.media_id,
-        product_id=product_id,
-        attribute_value_id=body.attribute_value_id,
-        media_type=body.media_type.upper(),
-        role=body.role.upper(),
-        sort_order=body.sort_order,
-        processing_status="COMPLETED",
+        product_id=result.product_id,
+        attribute_value_id=result.attribute_value_id,
+        media_type=result.media_type,
+        role=result.role,
+        sort_order=result.sort_order,
+        processing_status=result.processing_status,
         public_url=result.public_url,
-        is_external=True,
-        external_url=body.external_url,
+        is_external=result.is_external,
+        external_url=result.external_url,
     )
 
 
 @product_media_router.post(
-    "/{media_id}/confirm",
+    path="/{media_id}/confirm",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Confirm media upload",
+    description="Confirm that a media file was uploaded to S3 and trigger processing.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def confirm_media_upload(
@@ -129,9 +132,11 @@ async def confirm_media_upload(
 
 
 @product_media_router.get(
-    "",
+    path="",
+    status_code=status.HTTP_200_OK,
     response_model=list[ProductMediaResponse],
     summary="List product media",
+    description="Return all media assets for the given product.",
 )
 async def list_product_media(
     product_id: uuid.UUID,
@@ -157,9 +162,10 @@ async def list_product_media(
 
 
 @product_media_router.delete(
-    "/{media_id}",
+    path="/{media_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a media asset",
+    description="Delete a media asset and its associated S3 files.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_product_media(

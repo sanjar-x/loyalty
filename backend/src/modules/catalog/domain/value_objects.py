@@ -98,7 +98,6 @@ class AttributeLevel(str, enum.Enum):
 # Keys allowed per data type
 _STRING_RULE_KEYS = {"min_length", "max_length", "pattern"}
 _NUMERIC_RULE_KEYS = {"min_value", "max_value"}
-_DATE_RULE_KEYS = {"min_date", "max_date"}
 _BOOLEAN_RULE_KEYS: set[str] = set()  # no rules for booleans
 
 
@@ -221,10 +220,10 @@ class ProductStatus(str, enum.Enum):
     ARCHIVED = "archived"
 
 
-# Context7: verified @frozen does not generate order methods by default in attrs.
-# Custom __lt__/__le__/__gt__/__ge__ are therefore safe to define without conflict.
-# Context7: verified __attrs_post_init__ in @frozen classes must only READ fields,
-# never assign -- our validation only reads self.amount and self.currency, so safe.
+# @frozen does not generate order methods by default in attrs, so custom
+# __lt__/__le__/__gt__/__ge__ are safe to define without conflict.
+# __attrs_post_init__ in @frozen classes must only read fields, never assign;
+# our validation only reads self.amount and self.currency, so this is safe.
 @frozen
 class Money:
     """Immutable value object representing a monetary amount.
@@ -258,6 +257,7 @@ class Money:
             raise ValueError("Money amount must be non-negative")
         if len(self.currency) != 3:
             raise ValueError("Currency must be a 3-character ISO code")
+        object.__setattr__(self, "currency", self.currency.upper())
 
     def _check_currency(self, other: Money) -> None:
         """Assert both instances share the same currency.

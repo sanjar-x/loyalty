@@ -59,6 +59,7 @@ attribute_router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     response_model=AttributeCreateResponse,
     summary="Create a new attribute",
+    description="Create a new attribute with full configuration options.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def create_attribute(
@@ -92,6 +93,7 @@ async def create_attribute(
     status_code=status.HTTP_200_OK,
     response_model=AttributeListResponse,
     summary="List attributes (paginated, filterable)",
+    description="Retrieve a paginated list of attributes with optional filters.",
 )
 async def list_attributes(
     handler: FromDishka[ListAttributesHandler],
@@ -155,6 +157,7 @@ async def list_attributes(
     status_code=status.HTTP_200_OK,
     response_model=AttributeResponse,
     summary="Get attribute by slug",
+    description="Retrieve a single attribute by its URL-friendly slug.",
 )
 async def get_attribute_by_slug(
     slug: str,
@@ -169,6 +172,7 @@ async def get_attribute_by_slug(
     status_code=status.HTTP_200_OK,
     response_model=AttributeResponse,
     summary="Get attribute by ID",
+    description="Retrieve a single attribute by its unique identifier.",
 )
 async def get_attribute(
     attribute_id: uuid.UUID,
@@ -183,6 +187,7 @@ async def get_attribute(
     status_code=status.HTTP_200_OK,
     response_model=AttributeResponse,
     summary="Update an attribute",
+    description="Partially update attribute fields. Only provided fields are modified.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_attribute(
@@ -218,6 +223,7 @@ async def update_attribute(
     path="/{attribute_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete an attribute",
+    description="Permanently delete an attribute by its ID.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_attribute(
