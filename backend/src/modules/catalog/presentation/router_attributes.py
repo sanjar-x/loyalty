@@ -6,6 +6,7 @@ Delegates to application-layer command/query handlers via Dishka DI.
 """
 
 import uuid
+from typing import Any
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, status
@@ -196,21 +197,20 @@ async def update_attribute(
     handler: FromDishka[UpdateAttributeHandler],
     get_handler: FromDishka[GetAttributeHandler],
 ) -> AttributeResponse:
-    # Build update command with sentinel handling for validation_rules
+    # Build kwargs from only the fields the client actually sent
+    update_kwargs: dict[str, Any] = {}
+    for field_name in request.model_fields_set:
+        value = getattr(request, field_name)
+        if field_name == "ui_type" and value is not None:
+            value = AttributeUIType(value)
+        elif field_name == "level" and value is not None:
+            value = AttributeLevel(value)
+        update_kwargs[field_name] = value
+
     command = UpdateAttributeCommand(
         attribute_id=attribute_id,
-        name_i18n=request.name_i18n,
-        description_i18n=request.description_i18n,
-        ui_type=AttributeUIType(request.ui_type) if request.ui_type else None,
-        group_id=request.group_id,
-        level=AttributeLevel(request.level) if request.level else None,
-        is_filterable=request.is_filterable,
-        is_searchable=request.is_searchable,
-        search_weight=request.search_weight,
-        is_comparable=request.is_comparable,
-        is_visible_on_card=request.is_visible_on_card,
-        is_visible_in_catalog=request.is_visible_in_catalog,
-        validation_rules=request.validation_rules,
+        fields_to_update=frozenset(update_kwargs.keys()),
+        **update_kwargs,
     )
     result: UpdateAttributeResult = await handler.handle(command)
 

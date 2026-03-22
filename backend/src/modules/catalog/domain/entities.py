@@ -421,7 +421,7 @@ class AttributeGroup(AggregateRoot):
         code: str,
         name_i18n: dict[str, str],
         sort_order: int = 0,
-        group_id: uuid.UUID | None = ...,  # type: ignore[assignment]
+        group_id: uuid.UUID | None = None,
     ) -> AttributeGroup:
         """Factory method to construct a new AttributeGroup aggregate.
 
@@ -604,67 +604,57 @@ class Attribute(AggregateRoot):
             validation_rules=validation_rules,
         )
 
-    def update(
-        self,
-        *,
-        name_i18n: dict[str, str] | None = None,
-        description_i18n: dict[str, str] | None = None,
-        ui_type: AttributeUIType | None = None,
-        group_id: uuid.UUID | None = ...,  # type: ignore[assignment]
-        level: AttributeLevel | None = None,
-        is_filterable: bool | None = None,
-        is_searchable: bool | None = None,
-        search_weight: int | None = None,
-        is_comparable: bool | None = None,
-        is_visible_on_card: bool | None = None,
-        is_visible_in_catalog: bool | None = None,
-        validation_rules: dict[str, Any] | None = ...,  # type: ignore[assignment]
-    ) -> None:
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "name_i18n", "description_i18n", "ui_type", "group_id", "level",
+        "is_filterable", "is_searchable", "search_weight", "is_comparable",
+        "is_visible_on_card", "is_visible_in_catalog", "validation_rules",
+    })
+
+    def update(self, **kwargs: Any) -> None:
         """Update mutable attribute fields. Code, slug, and data_type are immutable.
 
-        Args:
-            name_i18n: New multilingual name, or None to keep current.
-            description_i18n: New multilingual description, or None to keep current.
-            ui_type: New UI widget type, or None to keep current.
-            group_id: New group UUID, or None to keep current.
-            level: New attribute level, or None to keep current.
-            is_filterable: New filter flag, or None to keep current.
-            is_searchable: New search flag, or None to keep current.
-            search_weight: New search weight (1-10), or None to keep current.
-            is_comparable: New comparison flag, or None to keep current.
-            is_visible_on_card: New card visibility flag, or None to keep current.
-            is_visible_in_catalog: New catalog visibility flag, or None to keep current.
-            validation_rules: New validation rules dict, None to clear, or
-                ``...`` (sentinel) to keep current.
+        Only fields present in *kwargs* are applied. Absent fields are left
+        unchanged.  For nullable fields (``group_id``, ``validation_rules``),
+        passing ``None`` explicitly clears the value.
 
         Raises:
+            TypeError: If an unknown/immutable field name is passed.
             ValueError: If name_i18n empty, search_weight out of range,
                 or validation_rules incompatible with data_type.
         """
-        if name_i18n is not None:
-            if not name_i18n:
+        unknown = kwargs.keys() - self._UPDATABLE_FIELDS
+        if unknown:
+            raise TypeError(
+                f"update() got unexpected keyword argument(s): {', '.join(sorted(unknown))}"
+            )
+
+        if "name_i18n" in kwargs:
+            name_i18n = kwargs["name_i18n"]
+            if name_i18n is not None and not name_i18n:
                 raise ValueError("name_i18n must contain at least one language entry")
-            self.name_i18n = name_i18n
+            if name_i18n is not None:
+                self.name_i18n = name_i18n
 
-        if description_i18n is not None:
-            self.description_i18n = description_i18n
+        if "description_i18n" in kwargs:
+            self.description_i18n = kwargs["description_i18n"]
 
-        if ui_type is not None:
-            self.ui_type = ui_type
+        if "ui_type" in kwargs and kwargs["ui_type"] is not None:
+            self.ui_type = kwargs["ui_type"]
 
-        if group_id is not ...:
-            self.group_id = group_id
+        if "group_id" in kwargs:
+            self.group_id = kwargs["group_id"]  # nullable -- None clears it
 
-        if level is not None:
-            self.level = level
+        if "level" in kwargs and kwargs["level"] is not None:
+            self.level = kwargs["level"]
 
-        if is_filterable is not None:
-            self.is_filterable = is_filterable
+        if "is_filterable" in kwargs and kwargs["is_filterable"] is not None:
+            self.is_filterable = kwargs["is_filterable"]
 
-        if is_searchable is not None:
-            self.is_searchable = is_searchable
+        if "is_searchable" in kwargs and kwargs["is_searchable"] is not None:
+            self.is_searchable = kwargs["is_searchable"]
 
-        if search_weight is not None:
+        if "search_weight" in kwargs and kwargs["search_weight"] is not None:
+            search_weight = kwargs["search_weight"]
             if not (MIN_SEARCH_WEIGHT <= search_weight <= MAX_SEARCH_WEIGHT):
                 raise ValueError(
                     f"search_weight must be between {MIN_SEARCH_WEIGHT} and "
@@ -672,20 +662,20 @@ class Attribute(AggregateRoot):
                 )
             self.search_weight = search_weight
 
-        if is_comparable is not None:
-            self.is_comparable = is_comparable
+        if "is_comparable" in kwargs and kwargs["is_comparable"] is not None:
+            self.is_comparable = kwargs["is_comparable"]
 
-        if is_visible_on_card is not None:
-            self.is_visible_on_card = is_visible_on_card
+        if "is_visible_on_card" in kwargs and kwargs["is_visible_on_card"] is not None:
+            self.is_visible_on_card = kwargs["is_visible_on_card"]
 
-        if is_visible_in_catalog is not None:
-            self.is_visible_in_catalog = is_visible_in_catalog
+        if "is_visible_in_catalog" in kwargs and kwargs["is_visible_in_catalog"] is not None:
+            self.is_visible_in_catalog = kwargs["is_visible_in_catalog"]
 
-        # Sentinel ``...`` means "do not change"; None means "clear rules"
-        if validation_rules is not ...:
+        if "validation_rules" in kwargs:
+            validation_rules = kwargs["validation_rules"]
             if validation_rules is not None:
                 validate_validation_rules(self.data_type, validation_rules)
-            self.validation_rules = validation_rules
+            self.validation_rules = validation_rules  # nullable -- None clears it
 
 
 @dataclass
@@ -769,43 +759,45 @@ class AttributeValue:
             sort_order=sort_order,
         )
 
-    def update(
-        self,
-        *,
-        value_i18n: dict[str, str] | None = None,
-        search_aliases: list[str] | None = None,
-        meta_data: dict[str, Any] | None = None,
-        value_group: str | None = ...,  # type: ignore[assignment]
-        sort_order: int | None = None,
-    ) -> None:
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "value_i18n", "search_aliases", "meta_data", "value_group", "sort_order",
+    })
+
+    def update(self, **kwargs: Any) -> None:
         """Update mutable fields. Code and slug are immutable after creation.
 
-        Args:
-            value_i18n: New multilingual name, or None to keep current.
-            search_aliases: New search synonyms list, or None to keep current.
-            meta_data: New metadata dict, or None to keep current.
-            value_group: New group label, None to clear, ``...`` to keep current.
-            sort_order: New sort position, or None to keep current.
+        Only fields present in *kwargs* are applied. Absent fields are left
+        unchanged.  For nullable fields (``value_group``), passing ``None``
+        explicitly clears the value.
 
         Raises:
+            TypeError: If an unknown/immutable field name is passed.
             ValueError: If value_i18n is provided but empty.
         """
-        if value_i18n is not None:
-            if not value_i18n:
+        unknown = kwargs.keys() - self._UPDATABLE_FIELDS
+        if unknown:
+            raise TypeError(
+                f"update() got unexpected keyword argument(s): {', '.join(sorted(unknown))}"
+            )
+
+        if "value_i18n" in kwargs:
+            value_i18n = kwargs["value_i18n"]
+            if value_i18n is not None and not value_i18n:
                 raise ValueError("value_i18n must contain at least one language entry")
-            self.value_i18n = value_i18n
+            if value_i18n is not None:
+                self.value_i18n = value_i18n
 
-        if search_aliases is not None:
-            self.search_aliases = search_aliases
+        if "search_aliases" in kwargs and kwargs["search_aliases"] is not None:
+            self.search_aliases = kwargs["search_aliases"]
 
-        if meta_data is not None:
-            self.meta_data = meta_data
+        if "meta_data" in kwargs and kwargs["meta_data"] is not None:
+            self.meta_data = kwargs["meta_data"]
 
-        if value_group is not ...:
-            self.value_group = value_group
+        if "value_group" in kwargs:
+            self.value_group = kwargs["value_group"]  # nullable -- None clears it
 
-        if sort_order is not None:
-            self.sort_order = sort_order
+        if "sort_order" in kwargs and kwargs["sort_order"] is not None:
+            self.sort_order = kwargs["sort_order"]
 
 
 @dataclass
@@ -1430,64 +1422,47 @@ class Product(AggregateRoot):
         )
         return product
 
-    def update(
-        self,
-        *,
-        title_i18n: dict[str, str] | None = None,
-        description_i18n: dict[str, str] | None = None,
-        slug: str | None = None,
-        brand_id: uuid.UUID | None = None,
-        primary_category_id: uuid.UUID | None = None,
-        supplier_id: uuid.UUID | None | object = _SENTINEL,
-        country_of_origin: str | None | object = _SENTINEL,
-        tags: list[str] | None = None,
-    ) -> None:
+    def update(self, **kwargs: Any) -> None:
         """Update mutable product fields.
 
-        Uses the ``_SENTINEL`` pattern for nullable fields (``supplier_id``,
-        ``country_of_origin``) so callers can distinguish "leave unchanged"
-        from "clear to None".
+        Only fields present in ``kwargs`` are modified; absent fields are
+        left unchanged.  Nullable fields (``supplier_id``,
+        ``country_of_origin``) can be set to ``None`` to clear them.
 
         Args:
-            title_i18n: New multilingual title, or None to keep current.
-            description_i18n: New multilingual description, or None to keep.
-            slug: New URL-safe slug, or None to keep current.
-            brand_id: New brand UUID, or None to keep current.
-            primary_category_id: New category UUID, or None to keep current.
-            supplier_id: New supplier UUID, None to clear, or ``_SENTINEL``
-                (default) to leave unchanged.
-            country_of_origin: New country code, None to clear, or
-                ``_SENTINEL`` (default) to leave unchanged.
-            tags: New tags list, or None to keep current.
+            **kwargs: Field-name/value pairs to update.  Supported keys:
+                ``title_i18n``, ``description_i18n``, ``slug``, ``brand_id``,
+                ``primary_category_id``, ``supplier_id``, ``country_of_origin``,
+                ``tags``.
 
         Raises:
             ValueError: If ``title_i18n`` is provided but empty.
         """
-        if title_i18n is not None:
-            if not title_i18n:
+        if "title_i18n" in kwargs:
+            if not kwargs["title_i18n"]:
                 raise ValueError("title_i18n must contain at least one language entry")
-            self.title_i18n = title_i18n
+            self.title_i18n = kwargs["title_i18n"]
 
-        if description_i18n is not None:
-            self.description_i18n = description_i18n
+        if "description_i18n" in kwargs:
+            self.description_i18n = kwargs["description_i18n"]
 
-        if slug is not None:
-            self.slug = slug
+        if "slug" in kwargs:
+            self.slug = kwargs["slug"]
 
-        if brand_id is not None:
-            self.brand_id = brand_id
+        if "brand_id" in kwargs:
+            self.brand_id = kwargs["brand_id"]
 
-        if primary_category_id is not None:
-            self.primary_category_id = primary_category_id
+        if "primary_category_id" in kwargs:
+            self.primary_category_id = kwargs["primary_category_id"]
 
-        if supplier_id is not _SENTINEL:
-            self.supplier_id = supplier_id  # type: ignore[assignment]
+        if "supplier_id" in kwargs:
+            self.supplier_id = kwargs["supplier_id"]  # can be None
 
-        if country_of_origin is not _SENTINEL:
-            self.country_of_origin = country_of_origin  # type: ignore[assignment]
+        if "country_of_origin" in kwargs:
+            self.country_of_origin = kwargs["country_of_origin"]  # can be None
 
-        if tags is not None:
-            self.tags = tags
+        if "tags" in kwargs:
+            self.tags = kwargs["tags"]
 
         self.updated_at = datetime.now(UTC)
 

@@ -288,26 +288,12 @@ class AttributeUpdateRequest(CamelModel):
     is_comparable: bool | None = None
     is_visible_on_card: bool | None = None
     is_visible_in_catalog: bool | None = None
-    validation_rules: dict[str, Any] | None = ...  # type: ignore[assignment]
+    validation_rules: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> AttributeUpdateRequest:
         """Ensure at least one field is provided for update."""
-        fields = [
-            self.name_i18n,
-            self.description_i18n,
-            self.ui_type,
-            self.group_id,
-            self.level,
-            self.is_filterable,
-            self.is_searchable,
-            self.search_weight,
-            self.is_comparable,
-            self.is_visible_on_card,
-            self.is_visible_in_catalog,
-        ]
-        sentinel_provided = self.validation_rules is not ...
-        if all(f is None for f in fields) and not sentinel_provided:
+        if not self.model_fields_set:
             raise ValueError("At least one field must be provided for update")
         return self
 
@@ -364,20 +350,13 @@ class AttributeValueUpdateRequest(CamelModel):
     value_i18n: dict[str, str] | None = Field(None, min_length=1)
     search_aliases: list[str] | None = None
     meta_data: dict[str, Any] | None = None
-    value_group: str | None = ...  # type: ignore[assignment]
+    value_group: str | None = None
     sort_order: int | None = None
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> AttributeValueUpdateRequest:
         """Ensure at least one field is provided for update."""
-        fields = [
-            self.value_i18n,
-            self.search_aliases,
-            self.meta_data,
-            self.sort_order,
-        ]
-        sentinel_provided = self.value_group is not ...
-        if all(f is None for f in fields) and not sentinel_provided:
+        if not self.model_fields_set:
             raise ValueError("At least one field must be provided for update")
         return self
 
@@ -452,18 +431,13 @@ class CategoryAttributeBindingUpdateRequest(CamelModel):
 
     sort_order: int | None = None
     requirement_level: Literal["required", "recommended", "optional"] | None = None
-    flag_overrides: dict[str, Any] | None = ...  # type: ignore[assignment]
-    filter_settings: dict[str, Any] | None = ...  # type: ignore[assignment]
+    flag_overrides: dict[str, Any] | None = None
+    filter_settings: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> CategoryAttributeBindingUpdateRequest:
         """Ensure at least one field is provided for update."""
-        fields = [self.sort_order, self.requirement_level]
-        sentinel_provided = [
-            self.flag_overrides is not ...,
-            self.filter_settings is not ...,
-        ]
-        if all(f is None for f in fields) and not any(sentinel_provided):
+        if not self.model_fields_set:
             raise ValueError("At least one field must be provided for update")
         return self
 
@@ -675,9 +649,9 @@ class ProductCreateResponse(CamelModel):
 class ProductUpdateRequest(CamelModel):
     """Partial update request for a product -- all fields optional (PATCH semantics).
 
-    At least one non-version field must be provided.  Nullable fields
-    (``supplier_id``, ``country_of_origin``) use the ``...`` sentinel so that
-    an explicit ``null`` can be distinguished from "not provided".
+    At least one non-version field must be provided.  Uses
+    ``model_fields_set`` to distinguish "not provided" from an explicit
+    ``null`` for nullable fields (``supplier_id``, ``country_of_origin``).
     """
 
     title_i18n: dict[str, str] | None = Field(None, min_length=1)
@@ -690,27 +664,15 @@ class ProductUpdateRequest(CamelModel):
     description_i18n: dict[str, str] | None = None
     brand_id: uuid.UUID | None = None
     primary_category_id: uuid.UUID | None = None
-    supplier_id: uuid.UUID | None = ...  # type: ignore[assignment]
-    country_of_origin: str | None = Field(..., min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")  # type: ignore[assignment]
+    supplier_id: uuid.UUID | None = None
+    country_of_origin: str | None = Field(None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")
     tags: list[str] | None = None
     version: int | None = None
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> ProductUpdateRequest:
         """Ensure at least one non-version field is provided."""
-        fields = [
-            self.title_i18n,
-            self.slug,
-            self.description_i18n,
-            self.brand_id,
-            self.primary_category_id,
-            self.tags,
-        ]
-        sentinel_fields_provided = [
-            self.supplier_id is not ...,
-            self.country_of_origin is not ...,
-        ]
-        if all(f is None for f in fields) and not any(sentinel_fields_provided):
+        if not (self.model_fields_set - {"version"}):
             raise ValueError("At least one field besides 'version' must be provided")
         return self
 
@@ -745,7 +707,7 @@ class SKUUpdateRequest(CamelModel):
     sku_code: str | None = Field(None, min_length=1, max_length=100)
     price_amount: int | None = Field(None, ge=0)
     price_currency: str | None = Field(None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
-    compare_at_price_amount: int | None = ...  # type: ignore[assignment]
+    compare_at_price_amount: int | None = None
     is_active: bool | None = None
     variant_attributes: list[VariantAttributePairSchema] | None = None
     version: int | None = None
@@ -753,16 +715,8 @@ class SKUUpdateRequest(CamelModel):
     @model_validator(mode="after")
     def at_least_one_field(self) -> SKUUpdateRequest:
         """Ensure at least one field is provided for update."""
-        fields = [
-            self.sku_code,
-            self.price_amount,
-            self.price_currency,
-            self.is_active,
-            self.variant_attributes,
-        ]
-        sentinel_provided = self.compare_at_price_amount is not ...
-        if all(f is None for f in fields) and not sentinel_provided:
-            raise ValueError("At least one field must be provided for update")
+        if not (self.model_fields_set - {"version"}):
+            raise ValueError("At least one field besides 'version' must be provided")
         return self
 
 

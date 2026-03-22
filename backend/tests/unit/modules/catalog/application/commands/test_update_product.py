@@ -2,7 +2,6 @@
 
 Covers:
   - UpdateProductCommand dataclass creation and field defaults
-  - Sentinel pattern for nullable fields (supplier_id, country_of_origin)
   - Happy path: product found, updated, committed
   - Optimistic locking: version mismatch raises ConcurrencyError
   - Slug conflict on update
@@ -18,7 +17,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.modules.catalog.application.commands.update_product import (
-    _SENTINEL,
     UpdateProductCommand,
     UpdateProductHandler,
     UpdateProductResult,
@@ -90,37 +88,48 @@ class TestUpdateProductCommand:
         assert cmd.tags is None
         assert cmd.version is None
 
-    def test_supplier_id_defaults_to_sentinel(self) -> None:
-        """supplier_id defaults to _SENTINEL, not None."""
+    def test_supplier_id_defaults_to_none(self) -> None:
+        """supplier_id defaults to None (not provided)."""
         cmd = UpdateProductCommand(product_id=uuid.uuid4())
-        assert cmd.supplier_id is _SENTINEL
+        assert cmd.supplier_id is None
 
-    def test_country_of_origin_defaults_to_sentinel(self) -> None:
-        """country_of_origin defaults to _SENTINEL, not None."""
+    def test_country_of_origin_defaults_to_none(self) -> None:
+        """country_of_origin defaults to None (not provided)."""
         cmd = UpdateProductCommand(product_id=uuid.uuid4())
-        assert cmd.country_of_origin is _SENTINEL
+        assert cmd.country_of_origin is None
 
-    def test_sentinel_is_distinct_from_none(self) -> None:
-        """_SENTINEL is not None — callers can distinguish 'absent' from 'clear'."""
-        assert _SENTINEL is not None
+    def test_provided_fields_defaults_to_empty(self) -> None:
+        """_provided_fields defaults to an empty frozenset."""
+        cmd = UpdateProductCommand(product_id=uuid.uuid4())
+        assert cmd._provided_fields == frozenset()
 
     def test_supplier_id_set_to_none_explicitly(self) -> None:
-        """Passing supplier_id=None means 'clear the field', not 'leave unchanged'."""
-        cmd = UpdateProductCommand(product_id=uuid.uuid4(), supplier_id=None)
+        """Passing supplier_id=None with _provided_fields means 'clear the field'."""
+        cmd = UpdateProductCommand(
+            product_id=uuid.uuid4(),
+            supplier_id=None,
+            _provided_fields=frozenset({"supplier_id"}),
+        )
         assert cmd.supplier_id is None
-        assert cmd.supplier_id is not _SENTINEL
+        assert "supplier_id" in cmd._provided_fields
 
     def test_supplier_id_set_to_uuid(self) -> None:
         """supplier_id can be set to a real UUID."""
         supplier_id = uuid.uuid4()
-        cmd = UpdateProductCommand(product_id=uuid.uuid4(), supplier_id=supplier_id)
+        cmd = UpdateProductCommand(product_id=uuid.uuid4(), supplier_id=supplier_id,
+                _provided_fields=frozenset({"supplier_id"}),
+            )
         assert cmd.supplier_id == supplier_id
 
     def test_country_of_origin_set_to_none_explicitly(self) -> None:
-        """Passing country_of_origin=None means 'clear', not 'leave unchanged'."""
-        cmd = UpdateProductCommand(product_id=uuid.uuid4(), country_of_origin=None)
+        """Passing country_of_origin=None with _provided_fields means 'clear'."""
+        cmd = UpdateProductCommand(
+            product_id=uuid.uuid4(),
+            country_of_origin=None,
+            _provided_fields=frozenset({"country_of_origin"}),
+        )
         assert cmd.country_of_origin is None
-        assert cmd.country_of_origin is not _SENTINEL
+        assert "country_of_origin" in cmd._provided_fields
 
     def test_all_fields_provided(self) -> None:
         """Command stores all explicitly provided values correctly."""
@@ -140,7 +149,9 @@ class TestUpdateProductCommand:
             country_of_origin="DE",
             tags=["tag1", "tag2"],
             version=3,
-        )
+        
+                _provided_fields=frozenset({"title_i18n", "description_i18n", "slug", "brand_id", "primary_category_id", "supplier_id", "country_of_origin", "tags"}),
+            )
 
         assert cmd.product_id == product_id
         assert cmd.title_i18n == {"en": "New Title"}
@@ -242,6 +253,8 @@ class TestUpdateProductHandlerHappyPath:
             UpdateProductCommand(
                 product_id=product.id,
                 title_i18n={"en": "New Title"},
+            
+                _provided_fields=frozenset({"title_i18n"}),
             )
         )
 
@@ -259,6 +272,8 @@ class TestUpdateProductHandlerHappyPath:
             UpdateProductCommand(
                 product_id=product.id,
                 description_i18n={"en": "New Description"},
+            
+                _provided_fields=frozenset({"description_i18n"}),
             )
         )
 
@@ -273,7 +288,9 @@ class TestUpdateProductHandlerHappyPath:
         brand_id = uuid.uuid4()
 
         handler = UpdateProductHandler(product_repo=repo, uow=uow)
-        await handler.handle(UpdateProductCommand(product_id=product.id, brand_id=brand_id))
+        await handler.handle(UpdateProductCommand(product_id=product.id, brand_id=brand_id,
+                _provided_fields=frozenset({"brand_id"}),
+            ))
 
         call_kwargs = product.update.call_args.kwargs
         assert call_kwargs.get("brand_id") == brand_id
@@ -285,7 +302,9 @@ class TestUpdateProductHandlerHappyPath:
         uow = make_uow()
 
         handler = UpdateProductHandler(product_repo=repo, uow=uow)
-        await handler.handle(UpdateProductCommand(product_id=product.id, tags=["tag1", "tag2"]))
+        await handler.handle(UpdateProductCommand(product_id=product.id, tags=["tag1", "tag2"],
+                _provided_fields=frozenset({"tags"}),
+            ))
 
         call_kwargs = product.update.call_args.kwargs
         assert call_kwargs.get("tags") == ["tag1", "tag2"]
@@ -450,7 +469,9 @@ class TestUpdateProductHandlerSlugConflict:
         handler = UpdateProductHandler(product_repo=repo, uow=uow)
 
         with pytest.raises(ProductSlugConflictError):
-            await handler.handle(UpdateProductCommand(product_id=product.id, slug="taken-slug"))
+            await handler.handle(UpdateProductCommand(product_id=product.id, slug="taken-slug",
+                _provided_fields=frozenset({"slug"}),
+            ))
 
     async def test_slug_conflict_check_uses_correct_args(self) -> None:
         """Slug conflict check passes new slug and product_id as exclude_id."""
@@ -463,7 +484,9 @@ class TestUpdateProductHandlerSlugConflict:
         handler = UpdateProductHandler(product_repo=repo, uow=uow)
 
         with pytest.raises(ProductSlugConflictError):
-            await handler.handle(UpdateProductCommand(product_id=product_id, slug="new-slug"))
+            await handler.handle(UpdateProductCommand(product_id=product_id, slug="new-slug",
+                _provided_fields=frozenset({"slug"}),
+            ))
 
         repo.check_slug_exists_excluding.assert_awaited_once_with("new-slug", product_id)
 
@@ -477,7 +500,9 @@ class TestUpdateProductHandlerSlugConflict:
         handler = UpdateProductHandler(product_repo=repo, uow=uow)
 
         with pytest.raises(ProductSlugConflictError):
-            await handler.handle(UpdateProductCommand(product_id=product.id, slug="taken-slug"))
+            await handler.handle(UpdateProductCommand(product_id=product.id, slug="taken-slug",
+                _provided_fields=frozenset({"slug"}),
+            ))
 
         product.update.assert_not_called()
 
@@ -491,7 +516,9 @@ class TestUpdateProductHandlerSlugConflict:
         handler = UpdateProductHandler(product_repo=repo, uow=uow)
 
         with pytest.raises(ProductSlugConflictError):
-            await handler.handle(UpdateProductCommand(product_id=product.id, slug="taken-slug"))
+            await handler.handle(UpdateProductCommand(product_id=product.id, slug="taken-slug",
+                _provided_fields=frozenset({"slug"}),
+            ))
 
         uow.commit.assert_not_awaited()
 
@@ -502,7 +529,9 @@ class TestUpdateProductHandlerSlugConflict:
         uow = make_uow()
 
         handler = UpdateProductHandler(product_repo=repo, uow=uow)
-        await handler.handle(UpdateProductCommand(product_id=product.id, slug="same-slug"))
+        await handler.handle(UpdateProductCommand(product_id=product.id, slug="same-slug",
+                _provided_fields=frozenset({"slug"}),
+            ))
 
         repo.check_slug_exists_excluding.assert_not_awaited()
         uow.commit.assert_awaited_once()
@@ -514,7 +543,9 @@ class TestUpdateProductHandlerSlugConflict:
         uow = make_uow()
 
         handler = UpdateProductHandler(product_repo=repo, uow=uow)
-        await handler.handle(UpdateProductCommand(product_id=product.id, slug=None))
+        await handler.handle(UpdateProductCommand(product_id=product.id, slug=None,
+                _provided_fields=frozenset({"slug"}),
+            ))
 
         repo.check_slug_exists_excluding.assert_not_awaited()
         uow.commit.assert_awaited_once()
@@ -527,19 +558,21 @@ class TestUpdateProductHandlerSlugConflict:
         uow = make_uow()
 
         handler = UpdateProductHandler(product_repo=repo, uow=uow)
-        await handler.handle(UpdateProductCommand(product_id=product.id, slug="new-slug"))
+        await handler.handle(UpdateProductCommand(product_id=product.id, slug="new-slug",
+                _provided_fields=frozenset({"slug"}),
+            ))
 
         repo.check_slug_exists_excluding.assert_awaited_once()
         uow.commit.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------
-# UpdateProductHandler — sentinel pattern (selective kwargs forwarding)
+# UpdateProductHandler — provided fields forwarding
 # ---------------------------------------------------------------------------
 
 
-class TestUpdateProductHandlerSentinelPattern:
-    """Tests for conditional kwargs forwarding to product.update()."""
+class TestUpdateProductHandlerProvidedFields:
+    """Tests for conditional kwargs forwarding via _provided_fields."""
 
     async def test_no_fields_provided_calls_update_with_empty_kwargs(self) -> None:
         """When no optional fields are provided, product.update() called with no kwargs."""
@@ -552,8 +585,8 @@ class TestUpdateProductHandlerSentinelPattern:
 
         product.update.assert_called_once_with()
 
-    async def test_supplier_id_sentinel_not_forwarded(self) -> None:
-        """supplier_id at sentinel default is NOT included in product.update kwargs."""
+    async def test_supplier_id_not_in_provided_not_forwarded(self) -> None:
+        """supplier_id not in _provided_fields is NOT included in kwargs."""
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
@@ -571,7 +604,9 @@ class TestUpdateProductHandlerSentinelPattern:
         uow = make_uow()
 
         handler = UpdateProductHandler(product_repo=repo, uow=uow)
-        await handler.handle(UpdateProductCommand(product_id=product.id, supplier_id=None))
+        await handler.handle(UpdateProductCommand(product_id=product.id, supplier_id=None,
+                _provided_fields=frozenset({"supplier_id"}),
+            ))
 
         call_kwargs = product.update.call_args.kwargs
         assert "supplier_id" in call_kwargs
@@ -585,13 +620,15 @@ class TestUpdateProductHandlerSentinelPattern:
         supplier_id = uuid.uuid4()
 
         handler = UpdateProductHandler(product_repo=repo, uow=uow)
-        await handler.handle(UpdateProductCommand(product_id=product.id, supplier_id=supplier_id))
+        await handler.handle(UpdateProductCommand(product_id=product.id, supplier_id=supplier_id,
+                _provided_fields=frozenset({"supplier_id"}),
+            ))
 
         call_kwargs = product.update.call_args.kwargs
         assert call_kwargs.get("supplier_id") == supplier_id
 
-    async def test_country_of_origin_sentinel_not_forwarded(self) -> None:
-        """country_of_origin at sentinel default is NOT included in product.update kwargs."""
+    async def test_country_of_origin_not_in_provided_not_forwarded(self) -> None:
+        """country_of_origin not in _provided_fields is NOT included in kwargs."""
         product = make_product()
         repo = make_product_repo(product=product)
         uow = make_uow()
@@ -609,7 +646,9 @@ class TestUpdateProductHandlerSentinelPattern:
         uow = make_uow()
 
         handler = UpdateProductHandler(product_repo=repo, uow=uow)
-        await handler.handle(UpdateProductCommand(product_id=product.id, country_of_origin=None))
+        await handler.handle(UpdateProductCommand(product_id=product.id, country_of_origin=None,
+                _provided_fields=frozenset({"country_of_origin"}),
+            ))
 
         call_kwargs = product.update.call_args.kwargs
         assert "country_of_origin" in call_kwargs
@@ -622,7 +661,9 @@ class TestUpdateProductHandlerSentinelPattern:
         uow = make_uow()
 
         handler = UpdateProductHandler(product_repo=repo, uow=uow)
-        await handler.handle(UpdateProductCommand(product_id=product.id, country_of_origin="DE"))
+        await handler.handle(UpdateProductCommand(product_id=product.id, country_of_origin="DE",
+                _provided_fields=frozenset({"country_of_origin"}),
+            ))
 
         call_kwargs = product.update.call_args.kwargs
         assert call_kwargs.get("country_of_origin") == "DE"
@@ -665,6 +706,8 @@ class TestUpdateProductHandlerSentinelPattern:
                 brand_id=brand_id,
                 supplier_id=supplier_id,
                 country_of_origin="US",
+            
+                _provided_fields=frozenset({"title_i18n", "slug", "brand_id", "supplier_id", "country_of_origin"}),
             )
         )
 
@@ -699,7 +742,11 @@ class TestUpdateProductHandlerSentinelPattern:
 
         handler = UpdateProductHandler(product_repo=repo, uow=uow)
         await handler.handle(
-            UpdateProductCommand(product_id=product.id, **{field_name: field_value})
+            UpdateProductCommand(
+                product_id=product.id,
+                _provided_fields=frozenset({field_name}),
+                **{field_name: field_value},
+            )
         )
 
         call_kwargs = product.update.call_args.kwargs

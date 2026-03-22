@@ -15,8 +15,6 @@ from src.modules.catalog.domain.interfaces import IAttributeRepository
 from src.modules.catalog.domain.value_objects import AttributeLevel, AttributeUIType
 from src.shared.interfaces.uow import IUnitOfWork
 
-_SENTINEL: object = object()
-
 
 @dataclass(frozen=True)
 class UpdateAttributeCommand:
@@ -50,7 +48,8 @@ class UpdateAttributeCommand:
     is_comparable: bool | None = None
     is_visible_on_card: bool | None = None
     is_visible_in_catalog: bool | None = None
-    validation_rules: dict[str, Any] | None = _SENTINEL  # type: ignore[assignment]
+    validation_rules: dict[str, Any] | None = None
+    fields_to_update: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -90,21 +89,11 @@ class UpdateAttributeHandler:
             if attribute is None:
                 raise AttributeNotFoundError(attribute_id=command.attribute_id)
 
-            update_kwargs: dict[str, Any] = dict(
-                name_i18n=command.name_i18n,
-                description_i18n=command.description_i18n,
-                ui_type=command.ui_type,
-                group_id=command.group_id,
-                level=command.level,
-                is_filterable=command.is_filterable,
-                is_searchable=command.is_searchable,
-                search_weight=command.search_weight,
-                is_comparable=command.is_comparable,
-                is_visible_on_card=command.is_visible_on_card,
-                is_visible_in_catalog=command.is_visible_in_catalog,
-            )
-            if command.validation_rules is not _SENTINEL:
-                update_kwargs["validation_rules"] = command.validation_rules
+            # Only pass fields the client actually sent (tracked via fields_to_update).
+            update_kwargs: dict[str, Any] = {
+                name: getattr(command, name)
+                for name in command.fields_to_update
+            }
 
             attribute.update(**update_kwargs)
 

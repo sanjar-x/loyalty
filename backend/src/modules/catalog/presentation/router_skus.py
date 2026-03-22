@@ -104,28 +104,21 @@ async def update_sku(
     list_handler: FromDishka[ListSKUsHandler],
 ) -> SKUResponse:
     """Apply a partial update to a SKU variant and return the updated state."""
-    # Build command kwargs; only pass compare_at_price_amount when the client
-    # actually provided a value (distinguishing "not sent" from "explicitly null").
+    provided_fields = request.model_fields_set - {"version"}
     cmd_kwargs: dict[str, object] = {
         "product_id": product_id,
         "sku_id": sku_id,
-        "sku_code": request.sku_code,
-        "price_amount": request.price_amount,
-        "price_currency": request.price_currency,
-        "is_active": request.is_active,
         "version": request.version,
+        "fields": frozenset(provided_fields),
     }
-
-    # Sentinel handling: Pydantic uses `...` (Ellipsis) as default.
-    # Only forward compare_at_price_amount when the client explicitly sent it.
-    if request.compare_at_price_amount is not ...:
-        cmd_kwargs["compare_at_price_amount"] = request.compare_at_price_amount
-
-    # Only forward variant_attributes when the client explicitly sent them.
-    if request.variant_attributes is not None:
-        cmd_kwargs["variant_attributes"] = [
-            (p.attribute_id, p.attribute_value_id) for p in request.variant_attributes
-        ]
+    for field_name in provided_fields:
+        value = getattr(request, field_name)
+        if field_name == "variant_attributes" and value is not None:
+            cmd_kwargs["variant_attributes"] = [
+                (p.attribute_id, p.attribute_value_id) for p in value
+            ]
+        else:
+            cmd_kwargs[field_name] = value
 
     command = UpdateSKUCommand(**cmd_kwargs)  # type: ignore[arg-type]
     result = await update_handler.handle(command)

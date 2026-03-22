@@ -8,7 +8,7 @@ Part of the application layer (CQRS write side).
 """
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from src.modules.catalog.domain.exceptions import (
@@ -18,12 +18,6 @@ from src.modules.catalog.domain.exceptions import (
 )
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.shared.interfaces.uow import IUnitOfWork
-
-# Module-level sentinel -- distinguishes "not provided" from "set to None" for
-# nullable fields (supplier_id, country_of_origin).  This sentinel is local to
-# the command module; the handler builds kwargs conditionally so it never
-# crosses into the domain entity layer.
-_SENTINEL: object = object()
 
 
 @dataclass(frozen=True)
@@ -42,8 +36,8 @@ class UpdateProductCommand:
         slug: New URL-safe slug, or None to keep current.
         brand_id: New brand UUID, or None to keep current.
         primary_category_id: New primary category UUID, or None to keep current.
-        supplier_id: New supplier UUID, None to clear, or absent (sentinel) to keep.
-        country_of_origin: New ISO country code, None to clear, or absent to keep.
+        supplier_id: New supplier UUID or None (both valid); absent means not provided.
+        country_of_origin: New ISO country code or None; absent means not provided.
         tags: New tags list, or None to keep current.
         version: Expected product version for optimistic locking, or None to skip.
     """
@@ -54,10 +48,11 @@ class UpdateProductCommand:
     slug: str | None = None
     brand_id: uuid.UUID | None = None
     primary_category_id: uuid.UUID | None = None
-    supplier_id: uuid.UUID | None | object = _SENTINEL
-    country_of_origin: str | None | object = _SENTINEL
+    supplier_id: uuid.UUID | None = None
+    country_of_origin: str | None = None
     tags: list[str] | None = None
     version: int | None = None
+    _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 
 @dataclass(frozen=True)
@@ -134,28 +129,12 @@ class UpdateProductHandler:
                 raise ProductSlugConflictError(slug=command.slug)
 
             # --- Build kwargs for only the fields the caller provided ---
-            # Non-sentinel scalar fields: None means "keep current"; any other
-            # value means "apply this change".
-            # Sentinel fields: the command's _SENTINEL means "keep current";
-            # None means "clear"; any UUID/str means "set".
-            update_kwargs: dict[str, Any] = {}
-
-            if command.title_i18n is not None:
-                update_kwargs["title_i18n"] = command.title_i18n
-            if command.description_i18n is not None:
-                update_kwargs["description_i18n"] = command.description_i18n
-            if command.slug is not None:
-                update_kwargs["slug"] = command.slug
-            if command.brand_id is not None:
-                update_kwargs["brand_id"] = command.brand_id
-            if command.primary_category_id is not None:
-                update_kwargs["primary_category_id"] = command.primary_category_id
-            if command.supplier_id is not _SENTINEL:
-                update_kwargs["supplier_id"] = command.supplier_id
-            if command.country_of_origin is not _SENTINEL:
-                update_kwargs["country_of_origin"] = command.country_of_origin
-            if command.tags is not None:
-                update_kwargs["tags"] = command.tags
+            # The router records which fields were explicitly provided in
+            # ``_provided_fields``.  We forward exactly those to the entity.
+            update_kwargs: dict[str, Any] = {
+                f: getattr(command, f)
+                for f in command._provided_fields
+            }
 
             product.update(**update_kwargs)
 

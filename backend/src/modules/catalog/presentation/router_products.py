@@ -50,10 +50,6 @@ from src.modules.catalog.presentation.schemas import (
 )
 from src.modules.identity.presentation.dependencies import RequirePermission
 
-# Local sentinel -- distinguishes "not provided" from "set to None" for
-# nullable fields (supplier_id, country_of_origin) in PATCH payloads.
-_UNSET: object = object()
-
 product_router = APIRouter(
     prefix="/products",
     tags=["Products"],
@@ -162,36 +158,17 @@ async def update_product(
     get_handler: FromDishka[GetProductHandler],
 ) -> ProductResponse:
     """Update an existing product (full or partial fields)."""
-    update_kwargs: dict[str, object] = {"product_id": product_id}
-
-    if request.title_i18n is not None:
-        update_kwargs["title_i18n"] = request.title_i18n
-    if request.slug is not None:
-        update_kwargs["slug"] = request.slug
-    if request.description_i18n is not None:
-        update_kwargs["description_i18n"] = request.description_i18n
-    if request.brand_id is not None:
-        update_kwargs["brand_id"] = request.brand_id
-    if request.primary_category_id is not None:
-        update_kwargs["primary_category_id"] = request.primary_category_id
-    if request.tags is not None:
-        update_kwargs["tags"] = request.tags
-    if request.version is not None:
-        update_kwargs["version"] = request.version
-
-    # Sentinel fields: Pydantic uses ... (Ellipsis) as "not provided".
-    # Map Pydantic Ellipsis -> command _UNSET, explicit None -> None.
-    if request.supplier_id is not ...:
-        update_kwargs["supplier_id"] = request.supplier_id
-    else:
-        update_kwargs["supplier_id"] = _UNSET
-
-    if request.country_of_origin is not ...:
-        update_kwargs["country_of_origin"] = request.country_of_origin
-    else:
-        update_kwargs["country_of_origin"] = _UNSET
-
-    command = UpdateProductCommand(**update_kwargs)  # type: ignore[arg-type]
+    provided_fields = request.model_fields_set - {"version"}
+    update_kwargs = {
+        field: getattr(request, field)
+        for field in provided_fields
+    }
+    command = UpdateProductCommand(
+        product_id=product_id,
+        version=request.version,
+        _provided_fields=frozenset(provided_fields),
+        **update_kwargs,
+    )
     result: UpdateProductResult = await handler.handle(command)
 
     # Fetch the full product for response

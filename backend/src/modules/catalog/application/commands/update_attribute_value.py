@@ -21,9 +21,6 @@ from src.modules.catalog.domain.interfaces import (
 from src.shared.interfaces.uow import IUnitOfWork
 
 
-_SENTINEL: object = object()
-
-
 @dataclass(frozen=True)
 class UpdateAttributeValueCommand:
     """Input for updating an attribute value. Code and slug are immutable."""
@@ -33,8 +30,9 @@ class UpdateAttributeValueCommand:
     value_i18n: dict[str, str] | None = None
     search_aliases: list[str] | None = None
     meta_data: dict[str, Any] | None = None
-    value_group: str | None = _SENTINEL  # type: ignore[assignment]
+    value_group: str | None = None
     sort_order: int | None = None
+    fields_to_update: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -84,14 +82,11 @@ class UpdateAttributeValueHandler:
             if value is None or value.attribute_id != command.attribute_id:
                 raise AttributeValueNotFoundError(value_id=command.value_id)
 
-            update_kwargs: dict[str, Any] = dict(
-                value_i18n=command.value_i18n,
-                search_aliases=command.search_aliases,
-                meta_data=command.meta_data,
-                sort_order=command.sort_order,
-            )
-            if command.value_group is not _SENTINEL:
-                update_kwargs["value_group"] = command.value_group
+            # Only pass fields the client actually sent (tracked via fields_to_update).
+            update_kwargs: dict[str, Any] = {
+                name: getattr(command, name)
+                for name in command.fields_to_update
+            }
 
             value.update(**update_kwargs)
 
