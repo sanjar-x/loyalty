@@ -20,8 +20,6 @@ from src.modules.catalog.application.commands.add_product_media import (
 )
 from src.modules.catalog.application.commands.add_sku import AddSKUHandler
 from src.modules.catalog.application.commands.add_variant import AddVariantHandler
-from src.modules.catalog.application.commands.delete_variant import DeleteVariantHandler
-from src.modules.catalog.application.commands.update_variant import UpdateVariantHandler
 from src.modules.catalog.application.commands.assign_product_attribute import (
     AssignProductAttributeHandler,
 )
@@ -69,13 +67,14 @@ from src.modules.catalog.application.commands.delete_category import (
     DeleteCategoryHandler,
 )
 from src.modules.catalog.application.commands.delete_product import DeleteProductHandler
+from src.modules.catalog.application.commands.delete_product_attribute import (
+    DeleteProductAttributeHandler,
+)
 from src.modules.catalog.application.commands.delete_product_media import (
     DeleteProductMediaHandler,
 )
 from src.modules.catalog.application.commands.delete_sku import DeleteSKUHandler
-from src.modules.catalog.application.commands.delete_product_attribute import (
-    DeleteProductAttributeHandler,
-)
+from src.modules.catalog.application.commands.delete_variant import DeleteVariantHandler
 from src.modules.catalog.application.commands.reorder_attribute_values import (
     ReorderAttributeValuesHandler,
 )
@@ -103,6 +102,7 @@ from src.modules.catalog.application.commands.update_category_attribute_binding 
 )
 from src.modules.catalog.application.commands.update_product import UpdateProductHandler
 from src.modules.catalog.application.commands.update_sku import UpdateSKUHandler
+from src.modules.catalog.application.commands.update_variant import UpdateVariantHandler
 from src.modules.catalog.application.queries.get_attribute import GetAttributeHandler
 from src.modules.catalog.application.queries.get_attribute_group import (
     GetAttributeGroupHandler,

@@ -14,6 +14,7 @@ from sqlalchemy.orm import selectinload
 
 from src.modules.catalog.application.queries.read_models import (
     MoneyReadModel,
+    SKUListReadModel,
     SKUReadModel,
     VariantAttributePairReadModel,
     resolve_sku_price,
@@ -92,7 +93,7 @@ class ListSKUsHandler:
         self._session = session
         self._logger = logger.bind(handler="ListSKUsHandler")
 
-    async def handle(self, query: ListSKUsQuery) -> tuple[list[SKUReadModel], int]:
+    async def handle(self, query: ListSKUsQuery) -> SKUListReadModel:
         """Retrieve paginated SKUs for a product, ordered by creation time.
 
         Eagerly loads variant attribute links for each SKU.
@@ -126,8 +127,9 @@ class ListSKUsHandler:
             )
             .order_by(OrmSKU.created_at)
         )
+        stmt = stmt.offset(query.offset)
         if query.limit is not None:
-            stmt = stmt.limit(query.limit).offset(query.offset)
+            stmt = stmt.limit(query.limit)
 
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
@@ -142,4 +144,9 @@ class ListSKUsHandler:
                 )
             items.append(sku_orm_to_read_model(orm, variant_default_price=variant_default))
 
-        return items, total
+        return SKUListReadModel(
+            items=items,
+            total=total,
+            offset=query.offset,
+            limit=query.limit,
+        )

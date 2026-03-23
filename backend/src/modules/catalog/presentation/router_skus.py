@@ -83,7 +83,7 @@ async def add_sku(
     response_model=SKUListResponse,
     summary="List SKUs for a variant",
     description="Return paginated SKUs belonging to the given product variant.",
-    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_skus(
     product_id: uuid.UUID,
@@ -94,12 +94,12 @@ async def list_skus(
 ) -> SKUListResponse:
     """Return paginated SKUs belonging to the given product."""
     query = ListSKUsQuery(product_id=product_id, variant_id=variant_id, offset=offset, limit=limit)
-    items, total = await handler.handle(query)
+    result = await handler.handle(query)
     return SKUListResponse(
-        items=[to_sku_response(model) for model in items],
-        total=total,
-        offset=offset,
-        limit=limit,
+        items=[to_sku_response(model) for model in result.items],
+        total=result.total,
+        offset=result.offset,
+        limit=result.limit,
     )
 
 
@@ -120,6 +120,13 @@ async def update_sku(
     list_handler: FromDishka[ListSKUsHandler],
 ) -> SKUResponse:
     """Apply a partial update to a SKU and return the updated state."""
+    # SEC-02: Verify the SKU belongs to the specified variant before update.
+    sku_list = await list_handler.handle(
+        ListSKUsQuery(product_id=product_id, variant_id=variant_id, limit=None)
+    )
+    if not any(s.id == sku_id for s in sku_list.items):
+        raise SKUNotFoundError(sku_id=sku_id)
+
     command = build_update_command(
         request,
         UpdateSKUCommand,
@@ -136,10 +143,10 @@ async def update_sku(
     result = await update_handler.handle(command)
 
     # Fetch updated SKU list scoped to the variant and find the one we updated.
-    updated_skus, _ = await list_handler.handle(
+    sku_list = await list_handler.handle(
         ListSKUsQuery(product_id=product_id, variant_id=variant_id, limit=None)
     )
-    updated_sku = next((s for s in updated_skus if s.id == result.id), None)
+    updated_sku = next((s for s in sku_list.items if s.id == result.id), None)
     if updated_sku is None:
         raise SKUNotFoundError(sku_id=result.id)
     return to_sku_response(updated_sku)
@@ -165,10 +172,10 @@ async def delete_sku(
     dispatching the delete command, preventing IDOR across variants.
     """
     # SEC-02: Verify the SKU belongs to the specified variant before deletion.
-    skus, _ = await list_handler.handle(
+    sku_list = await list_handler.handle(
         ListSKUsQuery(product_id=product_id, variant_id=variant_id, limit=None)
     )
-    if not any(s.id == sku_id for s in skus):
+    if not any(s.id == sku_id for s in sku_list.items):
         raise SKUNotFoundError(sku_id=sku_id)
 
     command = DeleteSKUCommand(product_id=product_id, sku_id=sku_id)

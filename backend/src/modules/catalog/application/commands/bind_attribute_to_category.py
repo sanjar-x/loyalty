@@ -9,7 +9,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
-from src.modules.catalog.application.constants import storefront_cache_key
+from src.modules.catalog.application.queries.storefront import invalidate_storefront_cache
 from src.modules.catalog.domain.entities import CategoryAttributeBinding
 from src.modules.catalog.domain.events import CategoryAttributeBindingCreatedEvent
 from src.modules.catalog.domain.exceptions import (
@@ -114,6 +114,9 @@ class BindAttributeToCategoryHandler:
             await self._uow.commit()
 
         # Invalidate storefront cache for the affected category
-        await self._cache.delete(storefront_cache_key(command.category_id))
+        try:
+            await invalidate_storefront_cache(self._cache, command.category_id)
+        except Exception as exc:
+            self._logger.warning("cache_invalidation_failed", error=str(exc))
 
         return BindAttributeToCategoryResult(binding_id=binding.id)

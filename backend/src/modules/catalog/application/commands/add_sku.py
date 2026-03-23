@@ -101,12 +101,14 @@ class AddSKUHandler:
             if await self._product_repo.sku_code_exists(command.sku_code):
                 raise SKUCodeConflictError(sku_code=command.sku_code, product_id=command.product_id)
 
-            price, compare_at_price = Money.from_primitives(
-                amount=command.price_amount,
-                currency=command.price_currency,
-                compare_at_amount=command.compare_at_price_amount,
-            )
-
+            if command.price_amount is not None:
+                price, compare_at_price = Money.from_primitives(
+                    amount=command.price_amount,
+                    currency=command.price_currency,
+                    compare_at_amount=command.compare_at_price_amount,
+                )
+            else:
+                price, compare_at_price = None, None
 
             sku = product.add_sku(
                 variant_id=command.variant_id,

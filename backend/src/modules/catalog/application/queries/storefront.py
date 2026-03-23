@@ -374,14 +374,20 @@ class StorefrontFormAttributesHandler:
 
 
 class _NullGroup:
-    """Placeholder for attributes whose group_id is NULL."""
+    """Placeholder for attributes whose group_id is NULL.
 
+    All fields are immutable to prevent cross-request corruption
+    (module-level singleton).
+    """
+
+    __slots__ = ()
     sort_order: int = 999_999
     code: str | None = None
-    name_i18n: dict[str, Any]
 
-    def __init__(self) -> None:
-        self.name_i18n = {}
+    @property
+    def name_i18n(self) -> dict[str, Any]:
+        """Return a fresh empty dict each time (caller can mutate safely)."""
+        return {}
 
 
 _NULL_GROUP = _NullGroup()

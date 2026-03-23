@@ -77,6 +77,7 @@ async def assign_product_attribute(
     response_model=ProductAttributeListResponse,
     summary="List attribute assignments for a product",
     description="Return paginated attribute value assignments for a product.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_product_attributes(
     product_id: uuid.UUID,
@@ -96,7 +97,7 @@ async def list_product_attributes(
         Paginated product attribute assignment responses.
     """
     query = ListProductAttributesQuery(product_id=product_id, offset=offset, limit=limit)
-    items, total = await handler.handle(query)
+    result = await handler.handle(query)
     return ProductAttributeListResponse(
         items=[
             ProductAttributeResponse(
@@ -107,11 +108,11 @@ async def list_product_attributes(
                 attribute_code=item.attribute_code,
                 attribute_name_i18n=item.attribute_name_i18n,
             )
-            for item in items
+            for item in result.items
         ],
-        total=total,
-        offset=offset,
-        limit=limit,
+        total=result.total,
+        offset=result.offset,
+        limit=result.limit,
     )
 
 

@@ -17,7 +17,6 @@ Typical usage:
 """
 
 import hashlib
-import re
 import uuid
 from datetime import UTC, datetime
 from typing import Any, ClassVar
@@ -58,6 +57,7 @@ from src.modules.catalog.domain.value_objects import (
     DEFAULT_SEARCH_WEIGHT,
     MAX_SEARCH_WEIGHT,
     MIN_SEARCH_WEIGHT,
+    SLUG_RE,
     AttributeDataType,
     AttributeLevel,
     AttributeUIType,
@@ -73,12 +73,10 @@ from src.shared.interfaces.entities import AggregateRoot, DomainEvent
 GENERAL_GROUP_CODE = "general"
 """Code of the default attribute group that always exists and cannot be deleted."""
 
-_SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-
 
 def _validate_slug(slug: str, entity_name: str) -> None:
     """Validate that a slug is URL-safe (lowercase alphanumeric with hyphens)."""
-    if not slug or not _SLUG_PATTERN.match(slug):
+    if not slug or not SLUG_RE.match(slug):
         raise ValueError(
             f"{entity_name} slug must be non-empty and match pattern: "
             f"lowercase letters, digits, and hyphens (e.g. 'my-slug-123')"
@@ -103,55 +101,6 @@ _CATEGORY_GUARDED_FIELDS: frozenset[str] = frozenset({"slug"})
 # ---------------------------------------------------------------------------
 # DUP-05: Partial-update mixin to eliminate repetitive update() boilerplate
 # ---------------------------------------------------------------------------
-
-
-class _PartialUpdateMixin:
-    """Mixin providing a reusable ``_apply_partial_update`` helper.
-
-    Subclasses define ``_UPDATABLE_FIELDS: ClassVar[frozenset[str]]`` and
-    call this helper from their ``update()`` method to apply only the
-    supplied kwargs, rejecting any unknown/immutable fields.
-    """
-
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]]
-
-    def _apply_partial_update(
-        self,
-        kwargs: dict[str, Any],
-        *,
-        validators: dict[str, Any] | None = None,
-    ) -> set[str]:
-        """Apply a partial update from *kwargs* to ``self``.
-
-        Args:
-            kwargs: Field-name / value pairs to apply.
-            validators: Optional mapping of field name -> callable.
-                Each callable receives ``(self, value)`` and should raise
-                on invalid input. Called *before* the assignment.
-
-        Returns:
-            Set of field names that were actually changed.
-
-        Raises:
-            TypeError: If *kwargs* contains keys not in ``_UPDATABLE_FIELDS``.
-        """
-        unknown = set(kwargs) - self._UPDATABLE_FIELDS
-        if unknown:
-            raise TypeError(
-                f"update() got unexpected keyword argument(s): {', '.join(sorted(unknown))}"
-            )
-
-        changed: set[str] = set()
-        validators = validators or {}
-
-        for key, value in kwargs.items():
-            validator = validators.get(key)
-            if validator is not None:
-                validator(self, value)
-            setattr(self, key, value)
-            changed.add(key)
-
-        return changed
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +136,7 @@ class _EventEmitterEntity:
 
 
 @dataclass
-class Brand(AggregateRoot, _PartialUpdateMixin):
+class Brand(AggregateRoot):
     """Brand aggregate root with logo processing FSM.
 
     The logo lifecycle follows a strict state machine:
@@ -421,7 +370,7 @@ MAX_CATEGORY_DEPTH = 3
 
 
 @dataclass
-class Category(AggregateRoot, _PartialUpdateMixin):
+class Category(AggregateRoot):
     """Category aggregate root supporting hierarchical trees.
 
     Categories form a tree with a maximum depth of ``MAX_CATEGORY_DEPTH``.
@@ -590,7 +539,7 @@ class Category(AggregateRoot, _PartialUpdateMixin):
 
 
 @dataclass
-class AttributeGroup(AggregateRoot, _PartialUpdateMixin):
+class AttributeGroup(AggregateRoot):
     """Attribute group aggregate root for organizing attributes into logical sections.
 
     Groups provide visual and semantic grouping of attributes in the admin UI
@@ -675,7 +624,7 @@ class AttributeGroup(AggregateRoot, _PartialUpdateMixin):
 
 
 @dataclass
-class Attribute(AggregateRoot, _PartialUpdateMixin):
+class Attribute(AggregateRoot):
     """Attribute aggregate root -- a product characteristic definition.
 
     An attribute describes a single product property (e.g. "Color",
@@ -1126,7 +1075,7 @@ class ProductAttributeValue:
 
 
 @dataclass
-class CategoryAttributeBinding(_EventEmitterEntity, _PartialUpdateMixin):
+class CategoryAttributeBinding(_EventEmitterEntity):
     """Binding between a category and an attribute with governance settings.
 
     Child entity (not an aggregate root) that controls which attributes
@@ -1345,17 +1294,14 @@ class SKU:
         if self.compare_at_price is not None:
             if self.compare_at_price.amount <= 0:
                 raise ValueError("compare_at_price amount must be greater than zero")
-            if self.price is not None and not self.compare_at_price > self.price:
-                raise ValueError("compare_at_price must be greater than price")
-        if (
-            self.price is not None
-            and self.compare_at_price is not None
-            and self.compare_at_price.currency != self.price.currency
-        ):
-            raise ValueError(
-                f"compare_at_price currency ({self.compare_at_price.currency}) "
-                f"must match price currency ({self.price.currency})"
-            )
+            if self.price is not None:
+                if self.compare_at_price.currency != self.price.currency:
+                    raise ValueError(
+                        f"compare_at_price currency ({self.compare_at_price.currency}) "
+                        f"must match price currency ({self.price.currency})"
+                    )
+                if not self.compare_at_price > self.price:
+                    raise ValueError("compare_at_price must be greater than price")
 
         self.updated_at = datetime.now(UTC)
 
@@ -1380,10 +1326,15 @@ class ProductVariant:
     sort_order: int
     default_price: Money | None
     default_currency: str
-    skus: list[SKU]
+    _skus: list[SKU] = field(factory=list, alias="skus")
     deleted_at: datetime | None = None
     created_at: datetime = field(factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(factory=lambda: datetime.now(UTC))
+
+    @property
+    def skus(self) -> tuple[SKU, ...]:
+        """Read-only view of variant SKUs. Use Product.add_sku()/remove_sku() to mutate."""
+        return tuple(self._skus)
 
     @classmethod
     def create(
@@ -1708,7 +1659,7 @@ class MediaAsset(AggregateRoot):
 
 
 @dataclass
-class Product(AggregateRoot, _PartialUpdateMixin):
+class Product(AggregateRoot):
     """Product aggregate root -- central catalog entity.
 
     Owns ProductVariant child entities (which in turn own SKUs), enforces
@@ -1767,13 +1718,23 @@ class Product(AggregateRoot, _PartialUpdateMixin):
     primary_category_id: uuid.UUID
     supplier_id: uuid.UUID | None = None
     country_of_origin: str | None = None
-    tags: list[str] = field(factory=list)
+    _tags: list[str] = field(factory=list, alias="tags")
     version: int = 1
     deleted_at: datetime | None = None
     created_at: datetime = field(factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(factory=lambda: datetime.now(UTC))
     published_at: datetime | None = None
-    variants: list[ProductVariant] = field(factory=list)
+    _variants: list[ProductVariant] = field(factory=list, alias="variants")
+
+    @property
+    def tags(self) -> tuple[str, ...]:
+        """Read-only view of product tags."""
+        return tuple(self._tags)
+
+    @property
+    def variants(self) -> tuple[ProductVariant, ...]:
+        """Read-only view of product variants. Use add_variant()/remove_variant() to mutate."""
+        return tuple(self._variants)
 
     # DDD-01: guard status against direct mutation
     def __setattr__(self, name: str, value: object) -> None:
@@ -1843,7 +1804,7 @@ class Product(AggregateRoot, _PartialUpdateMixin):
             product_id=product.id,
             name_i18n=title_i18n,
         )
-        product.variants.append(default_variant)
+        product._variants.append(default_variant)
         product.add_domain_event(
             ProductCreatedEvent(
                 product_id=product.id,
@@ -1926,7 +1887,7 @@ class Product(AggregateRoot, _PartialUpdateMixin):
             changed = True
 
         if "tags" in kwargs:
-            self.tags = kwargs["tags"]
+            self._tags = list(kwargs["tags"])
             changed = True
 
         if changed:
@@ -2054,7 +2015,7 @@ class Product(AggregateRoot, _PartialUpdateMixin):
             default_price=default_price,
             default_currency=default_currency,
         )
-        self.variants.append(variant)
+        self._variants.append(variant)
         self.add_domain_event(
             VariantAddedEvent(product_id=self.id, variant_id=variant.id, aggregate_id=str(self.id))
         )
@@ -2161,13 +2122,12 @@ class Product(AggregateRoot, _PartialUpdateMixin):
             is_active=is_active,
             variant_attributes=list(effective_attrs),
         )
-        variant.skus.append(sku)
+        variant._skus.append(sku)
         self.add_domain_event(
             SKUAddedEvent(
                 product_id=self.id,
                 variant_id=variant_id,
                 sku_id=sku.id,
-                sku_code=sku.sku_code,
                 aggregate_id=str(self.id),
             )
         )

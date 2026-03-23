@@ -13,9 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.entities import MediaAsset as DomainMediaAsset
 from src.modules.catalog.domain.interfaces import IMediaAssetRepository
-from src.modules.catalog.domain.value_objects import MediaProcessingStatus
+from src.modules.catalog.domain.value_objects import MediaProcessingStatus, MediaRole, MediaType
 from src.modules.catalog.infrastructure.models import MediaAsset as OrmMediaAsset
-from src.modules.catalog.infrastructure.models import MediaRole, MediaType
 
 
 class MediaAssetRepository(IMediaAssetRepository):
@@ -174,7 +173,7 @@ class MediaAssetRepository(IMediaAssetRepository):
         """Count media assets in PENDING_UPLOAD state for a product."""
         stmt = select(func.count()).where(
             OrmMediaAsset.product_id == product_id,
-            OrmMediaAsset.processing_status == MediaProcessingStatus.PENDING_UPLOAD.value,
+            OrmMediaAsset.processing_status == MediaProcessingStatus.PENDING_UPLOAD,
         )
         result = await self._session.execute(stmt)
         return result.scalar_one()

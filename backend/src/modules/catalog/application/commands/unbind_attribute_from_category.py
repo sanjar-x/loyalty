@@ -7,15 +7,15 @@ Removes the binding and emits ``CategoryAttributeBindingDeletedEvent``.
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.application.constants import storefront_cache_key
+from src.modules.catalog.application.queries.storefront import invalidate_storefront_cache
 from src.modules.catalog.domain.events import CategoryAttributeBindingDeletedEvent
 from src.modules.catalog.domain.exceptions import (
     CategoryAttributeBindingNotFoundError,
 )
 from src.modules.catalog.domain.interfaces import ICategoryAttributeBindingRepository
 from src.shared.interfaces.cache import ICacheService
-from src.shared.interfaces.uow import IUnitOfWork
 from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)
@@ -70,4 +70,7 @@ class UnbindAttributeFromCategoryHandler:
             await self._uow.commit()
 
         # Invalidate storefront cache for the affected category
-        await self._cache.delete(storefront_cache_key(command.category_id))
+        try:
+            await invalidate_storefront_cache(self._cache, command.category_id)
+        except Exception as exc:
+            self._logger.warning("cache_invalidation_failed", error=str(exc))

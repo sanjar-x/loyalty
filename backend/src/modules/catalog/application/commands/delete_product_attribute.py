@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from src.modules.catalog.domain.exceptions import ProductAttributeValueNotFoundError
 from src.modules.catalog.domain.interfaces import IProductAttributeValueRepository
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -38,9 +39,11 @@ class DeleteProductAttributeHandler:
         self,
         pav_repo: IProductAttributeValueRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._pav_repo = pav_repo
         self._uow = uow
+        self._logger = logger.bind(handler="DeleteProductAttributeHandler")
 
     async def handle(self, command: DeleteProductAttributeCommand) -> None:
         """Execute the delete-product-attribute command.
@@ -66,3 +69,9 @@ class DeleteProductAttributeHandler:
 
             await self._pav_repo.delete(target.id)
             await self._uow.commit()
+
+        self._logger.info(
+            "Product attribute deleted",
+            product_id=str(command.product_id),
+            attribute_id=str(command.attribute_id),
+        )

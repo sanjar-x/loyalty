@@ -16,6 +16,7 @@ from src.modules.catalog.application.queries.read_models import (
     MoneyReadModel,
     ProductVariantReadModel,
     SKUReadModel,
+    VariantListReadModel,
 )
 from src.modules.catalog.infrastructure.models import (
     SKU as OrmSKU,
@@ -71,7 +72,7 @@ class ListVariantsHandler:
         self._session = session
         self._logger = logger.bind(handler="ListVariantsHandler")
 
-    async def handle(self, query: ListVariantsQuery) -> tuple[list[ProductVariantReadModel], int]:
+    async def handle(self, query: ListVariantsQuery) -> VariantListReadModel:
         """Retrieve paginated active variants for a product, ordered by sort_order.
 
         Eagerly loads SKUs and their variant attribute links for each variant.
@@ -106,4 +107,9 @@ class ListVariantsHandler:
         )
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
-        return [variant_orm_to_read_model(orm) for orm in rows], total
+        return VariantListReadModel(
+            items=[variant_orm_to_read_model(orm) for orm in rows],
+            total=total,
+            offset=query.offset,
+            limit=query.limit,
+        )

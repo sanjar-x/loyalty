@@ -10,6 +10,7 @@ import uuid
 from dataclasses import dataclass
 
 from src.modules.catalog.application.constants import CATEGORY_TREE_CACHE_KEY
+from src.modules.catalog.domain.events import CategoryDeletedEvent
 from src.modules.catalog.domain.exceptions import (
     CategoryHasChildrenError,
     CategoryHasProductsError,
@@ -78,6 +79,13 @@ class DeleteCategoryHandler:
             if has_products:
                 raise CategoryHasProductsError(category_id=command.category_id)
 
+            category.add_domain_event(
+                CategoryDeletedEvent(
+                    category_id=category.id,
+                    slug=category.slug,
+                    aggregate_id=str(category.id),
+                )
+            )
             self._uow.register_aggregate(category)
             await self._category_repo.delete(command.category_id)
             await self._uow.commit()

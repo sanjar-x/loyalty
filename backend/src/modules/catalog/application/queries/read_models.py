@@ -38,9 +38,20 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, Field
+
+T = TypeVar("T")
+
+
+class PaginatedReadModel(BaseModel, Generic[T]):
+    """Generic paginated list read model."""
+
+    items: list[T]
+    total: int
+    offset: int
+    limit: int
 
 
 class CategoryNode(BaseModel):
@@ -68,13 +79,7 @@ class CategoryReadModel(BaseModel):
     parent_id: uuid.UUID | None = None
 
 
-class CategoryListReadModel(BaseModel):
-    """Paginated category list read model."""
-
-    items: list[CategoryReadModel]
-    total: int
-    offset: int
-    limit: int
+CategoryListReadModel = PaginatedReadModel[CategoryReadModel]
 
 
 class BrandReadModel(BaseModel):
@@ -87,13 +92,7 @@ class BrandReadModel(BaseModel):
     logo_status: str | None = None
 
 
-class BrandListReadModel(BaseModel):
-    """Paginated brand list read model."""
-
-    items: list[BrandReadModel]
-    total: int
-    offset: int
-    limit: int
+BrandListReadModel = PaginatedReadModel[BrandReadModel]
 
 
 # ---------------------------------------------------------------------------
@@ -110,13 +109,7 @@ class AttributeGroupReadModel(BaseModel):
     sort_order: int
 
 
-class AttributeGroupListReadModel(BaseModel):
-    """Paginated attribute group list read model."""
-
-    items: list[AttributeGroupReadModel]
-    total: int
-    offset: int
-    limit: int
+AttributeGroupListReadModel = PaginatedReadModel[AttributeGroupReadModel]
 
 
 # ---------------------------------------------------------------------------
@@ -146,13 +139,7 @@ class AttributeReadModel(BaseModel):
     validation_rules: dict[str, Any] | None = None
 
 
-class AttributeListReadModel(BaseModel):
-    """Paginated attribute list read model."""
-
-    items: list[AttributeReadModel]
-    total: int
-    offset: int
-    limit: int
+AttributeListReadModel = PaginatedReadModel[AttributeReadModel]
 
 
 # ---------------------------------------------------------------------------
@@ -174,13 +161,7 @@ class AttributeValueReadModel(BaseModel):
     sort_order: int
 
 
-class AttributeValueListReadModel(BaseModel):
-    """Paginated attribute value list read model."""
-
-    items: list[AttributeValueReadModel]
-    total: int
-    offset: int
-    limit: int
+AttributeValueListReadModel = PaginatedReadModel[AttributeValueReadModel]
 
 
 # ---------------------------------------------------------------------------
@@ -200,13 +181,7 @@ class CategoryAttributeBindingReadModel(BaseModel):
     filter_settings: dict[str, Any] | None = None
 
 
-class CategoryAttributeBindingListReadModel(BaseModel):
-    """Paginated category-attribute binding list read model."""
-
-    items: list[CategoryAttributeBindingReadModel]
-    total: int
-    offset: int
-    limit: int
+CategoryAttributeBindingListReadModel = PaginatedReadModel[CategoryAttributeBindingReadModel]
 
 
 # ---------------------------------------------------------------------------
@@ -462,18 +437,39 @@ class ProductListItemReadModel(BaseModel):
     updated_at: datetime
 
 
-class ProductListReadModel(BaseModel):
-    """Paginated product list read model."""
-
-    items: list[ProductListItemReadModel]
-    total: int
-    offset: int
-    limit: int
+ProductListReadModel = PaginatedReadModel[ProductListItemReadModel]
 
 
 # ---------------------------------------------------------------------------
 # Product attribute (with joined attribute metadata) read models
 # ---------------------------------------------------------------------------
+
+
+ProductAttributeListReadModel = PaginatedReadModel[ProductAttributeValueReadModel]
+
+
+SKUListReadModel = PaginatedReadModel[SKUReadModel]
+
+
+VariantListReadModel = PaginatedReadModel[ProductVariantReadModel]
+
+
+class MediaAssetReadModel(BaseModel):
+    """Read model for a media asset."""
+
+    id: uuid.UUID
+    product_id: uuid.UUID
+    variant_id: uuid.UUID | None = None
+    media_type: str
+    role: str
+    sort_order: int
+    processing_status: str | None = None
+    public_url: str | None = None
+    is_external: bool
+    external_url: str | None = None
+
+
+MediaAssetListReadModel = PaginatedReadModel[MediaAssetReadModel]
 
 
 class ProductAttributeReadModel(ProductAttributeValueReadModel):

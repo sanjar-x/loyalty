@@ -6,24 +6,12 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.catalog.application.queries.read_models import (
+    MediaAssetListReadModel,
+    MediaAssetReadModel,
+)
 from src.modules.catalog.infrastructure.models import MediaAsset as OrmMediaAsset
 from src.shared.interfaces.logger import ILogger
-
-
-@dataclass(frozen=True)
-class MediaAssetReadModel:
-    """Read-only DTO for a media asset."""
-
-    id: uuid.UUID
-    product_id: uuid.UUID
-    variant_id: uuid.UUID | None
-    media_type: str
-    role: str
-    sort_order: int
-    processing_status: str | None
-    public_url: str | None
-    is_external: bool
-    external_url: str | None
 
 
 @dataclass(frozen=True)
@@ -48,7 +36,7 @@ class ListProductMediaHandler:
         self._session = session
         self._logger = logger.bind(handler="ListProductMediaHandler")
 
-    async def handle(self, query: ListProductMediaQuery) -> tuple[list[MediaAssetReadModel], int]:
+    async def handle(self, query: ListProductMediaQuery) -> MediaAssetListReadModel:
         """Retrieve paginated media assets for a product.
 
         Args:
@@ -74,7 +62,12 @@ class ListProductMediaHandler:
         )
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
-        return [self._to_read_model(orm) for orm in rows], total
+        return MediaAssetListReadModel(
+            items=[self._to_read_model(orm) for orm in rows],
+            total=total,
+            offset=query.offset,
+            limit=query.limit,
+        )
 
     @staticmethod
     def _to_read_model(orm: OrmMediaAsset) -> MediaAssetReadModel:

@@ -1,14 +1,11 @@
 """Shared mapping helpers for catalog presentation layer."""
 
 from src.modules.catalog.application.queries.read_models import (
-    ProductReadModel,
     ProductVariantReadModel,
     SKUReadModel,
 )
 from src.modules.catalog.presentation.schemas import (
     MoneySchema,
-    ProductAttributeResponse,
-    ProductResponse,
     ProductVariantResponse,
     SKUResponse,
     VariantAttributePairSchema,

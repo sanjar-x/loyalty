@@ -47,31 +47,7 @@ from src.modules.catalog.domain.value_objects import (
 )
 
 
-class MediaType(enum.StrEnum):
-    """Discriminator for media asset file types."""
-
-    IMAGE = "image"
-    VIDEO = "video"
-    MODEL_3D = "model_3d"
-    DOCUMENT = "document"
-
-
-class MediaRole(enum.StrEnum):
-    """Semantic role a media asset plays within a product gallery."""
-
-    MAIN = "main"
-    HOVER = "hover"
-    GALLERY = "gallery"
-    HERO_VIDEO = "hero_video"
-    SIZE_GUIDE = "size_guide"
-    PACKAGING = "packaging"
-
-
-class SupplierType(enum.StrEnum):
-    """Classification of suppliers by logistics origin."""
-
-    CROSS_BORDER = "cross_border"
-    LOCAL = "local"
+from src.modules.catalog.domain.value_objects import MediaType, MediaRole, SupplierType
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +97,16 @@ class Brand(Base):
         comment="Cached public URL from the Storage module",
     )
 
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
 
 class Category(Base):
     """ORM model for the hierarchical product category tree.
@@ -134,7 +120,7 @@ class Category(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     parent_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("categories.id", ondelete="CASCADE"), index=True
+        ForeignKey("categories.id", ondelete="RESTRICT"), index=True
     )
     full_slug: Mapped[str] = mapped_column(String(1000), index=True)
     level: Mapped[int] = mapped_column(Integer, server_default=text("0"), index=True)
@@ -450,6 +436,17 @@ class Supplier(Base):
     name: Mapped[str] = mapped_column(String(255))
     type: Mapped[SupplierType] = mapped_column(Enum(SupplierType, name="supplier_type_enum"))
     region: Mapped[str | None] = mapped_column(String(255))
+
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
     products: Mapped[list[Product]] = relationship("Product", back_populates="supplier")
 
 
@@ -692,9 +689,7 @@ class MediaAsset(Base):
             "product_id",
             "variant_id",
             unique=True,
-            postgresql_where=text(
-                f"role = '{MediaRole.MAIN}' AND processing_status != 'FAILED'"
-            ),
+            postgresql_where=text(f"role = '{MediaRole.MAIN}' AND processing_status != 'FAILED'"),
             postgresql_nulls_not_distinct=True,
         ),
     )

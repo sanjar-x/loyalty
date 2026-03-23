@@ -151,7 +151,8 @@ class TestDeleteProductAttributeHandlerHappyPath:
         await handler.handle(make_command(product_id=product_id, attribute_id=attribute_id))
 
         pav_repo.get_by_product_and_attribute.assert_awaited_once_with(
-            product_id, attribute_id,
+            product_id,
+            attribute_id,
         )
 
     async def test_calls_delete_with_correct_pav_id(self) -> None:

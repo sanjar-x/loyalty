@@ -62,6 +62,21 @@ class CatalogEvent(DomainEvent):
         if aggregate_id_field is not None:
             cls._aggregate_id_field = aggregate_id_field
 
+        # Guard: concrete events must override event_type and aggregate_type.
+        # Without this, a forgotten override silently inherits "CatalogEvent",
+        # causing misrouted events in downstream consumers.
+        if required_fields is not None:
+            if cls.event_type == "CatalogEvent":
+                raise TypeError(
+                    f"{cls.__name__} must define its own 'event_type' "
+                    f"(inherited default 'CatalogEvent' would misroute events)"
+                )
+            if cls.aggregate_type == "Catalog":
+                raise TypeError(
+                    f"{cls.__name__} must define its own 'aggregate_type' "
+                    f"(inherited default 'Catalog' would misroute events)"
+                )
+
     def __post_init__(self) -> None:
         cls_name = type(self).__name__
         for field_name in self._required_fields:
@@ -144,6 +159,42 @@ class BrandLogoProcessedEvent(
     size_bytes: int = 0
     aggregate_type: str = "Brand"
     event_type: str = "BrandLogoProcessedEvent"
+
+
+@dataclass
+class BrandDeletedEvent(
+    CatalogEvent,
+    required_fields=("brand_id",),
+    aggregate_id_field="brand_id",
+):
+    """Emitted when a brand is deleted."""
+
+    brand_id: uuid.UUID | None = None
+    aggregate_type: str = "Brand"
+    event_type: str = "BrandDeletedEvent"
+
+
+# ---------------------------------------------------------------------------
+# Category events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class CategoryDeletedEvent(
+    CatalogEvent,
+    required_fields=("category_id",),
+    aggregate_id_field="category_id",
+):
+    """Emitted when a category is deleted.
+
+    Downstream consumers (e.g. search index) react by removing
+    the category from their stores.
+    """
+
+    category_id: uuid.UUID | None = None
+    slug: str = ""
+    aggregate_type: str = "Category"
+    event_type: str = "CategoryDeletedEvent"
 
 
 # ---------------------------------------------------------------------------
@@ -318,6 +369,19 @@ class AttributeValueDeletedEvent(
     event_type: str = "AttributeValueDeletedEvent"
 
 
+@dataclass
+class AttributeValuesReorderedEvent(
+    CatalogEvent,
+    required_fields=("attribute_id",),
+    aggregate_id_field="attribute_id",
+):
+    """Emitted when attribute values are bulk-reordered."""
+
+    attribute_id: uuid.UUID | None = None
+    aggregate_type: str = "Attribute"
+    event_type: str = "AttributeValuesReorderedEvent"
+
+
 # ---------------------------------------------------------------------------
 # CategoryAttributeBinding events
 # ---------------------------------------------------------------------------
@@ -364,6 +428,19 @@ class CategoryAttributeBindingDeletedEvent(
     binding_id: uuid.UUID | None = None
     aggregate_type: str = "CategoryAttributeBinding"
     event_type: str = "CategoryAttributeBindingDeletedEvent"
+
+
+@dataclass
+class CategoryBindingsReorderedEvent(
+    CatalogEvent,
+    required_fields=("category_id",),
+    aggregate_id_field="category_id",
+):
+    """Emitted when category-attribute bindings are bulk-reordered."""
+
+    category_id: uuid.UUID | None = None
+    aggregate_type: str = "CategoryAttributeBinding"
+    event_type: str = "CategoryBindingsReorderedEvent"
 
 
 # ---------------------------------------------------------------------------
@@ -436,3 +513,84 @@ class ProductStatusChangedEvent(
     new_status: str = ""
     aggregate_type: str = "Product"
     event_type: str = "ProductStatusChangedEvent"
+
+
+@dataclass
+class ProductUpdatedEvent(
+    CatalogEvent,
+    required_fields=("product_id",),
+    aggregate_id_field="product_id",
+):
+    """Emitted when product fields are updated via partial update."""
+
+    product_id: uuid.UUID | None = None
+    aggregate_type: str = "Product"
+    event_type: str = "ProductUpdatedEvent"
+
+
+# ---------------------------------------------------------------------------
+# ProductVariant events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class VariantAddedEvent(
+    CatalogEvent,
+    required_fields=("product_id", "variant_id"),
+    aggregate_id_field="product_id",
+):
+    """Emitted when a new variant is added to a product."""
+
+    product_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
+    aggregate_type: str = "Product"
+    event_type: str = "VariantAddedEvent"
+
+
+@dataclass
+class VariantRemovedEvent(
+    CatalogEvent,
+    required_fields=("product_id", "variant_id"),
+    aggregate_id_field="product_id",
+):
+    """Emitted when a variant is soft-deleted from a product."""
+
+    product_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
+    aggregate_type: str = "Product"
+    event_type: str = "VariantRemovedEvent"
+
+
+# ---------------------------------------------------------------------------
+# SKU events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class SKUAddedEvent(
+    CatalogEvent,
+    required_fields=("product_id", "variant_id", "sku_id"),
+    aggregate_id_field="product_id",
+):
+    """Emitted when a new SKU is added to a product variant."""
+
+    product_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
+    sku_id: uuid.UUID | None = None
+    aggregate_type: str = "Product"
+    event_type: str = "SKUAddedEvent"
+
+
+@dataclass
+class SKURemovedEvent(
+    CatalogEvent,
+    required_fields=("product_id", "variant_id", "sku_id"),
+    aggregate_id_field="product_id",
+):
+    """Emitted when a SKU is soft-deleted from a product variant."""
+
+    product_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
+    sku_id: uuid.UUID | None = None
+    aggregate_type: str = "Product"
+    event_type: str = "SKURemovedEvent"

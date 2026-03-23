@@ -7,6 +7,7 @@ Verifies the brand exists and removes it from the repository. Part of the applic
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.domain.events import BrandDeletedEvent
 from src.modules.catalog.domain.exceptions import BrandHasProductsError, BrandNotFoundError
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.shared.interfaces.logger import ILogger
@@ -56,6 +57,13 @@ class DeleteBrandHandler:
             if has_products:
                 raise BrandHasProductsError(brand_id=command.brand_id)
 
+            brand.add_domain_event(
+                BrandDeletedEvent(
+                    brand_id=brand.id,
+                    aggregate_id=str(brand.id),
+                )
+            )
+            self._uow.register_aggregate(brand)
             await self._brand_repo.delete(command.brand_id)
             await self._uow.commit()
 

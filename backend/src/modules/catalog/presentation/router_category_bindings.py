@@ -42,7 +42,6 @@ from src.modules.catalog.application.queries.read_models import (
     CategoryAttributeBindingListReadModel,
 )
 from src.modules.catalog.domain.value_objects import RequirementLevel
-from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.catalog.presentation.schemas import (
     BindAttributeToCategoryRequest,
     BindAttributeToCategoryResponse,
@@ -52,6 +51,7 @@ from src.modules.catalog.presentation.schemas import (
     CategoryAttributeBindingUpdateRequest,
     ReorderBindingsRequest,
 )
+from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
 
 category_binding_router = APIRouter(
@@ -92,6 +92,7 @@ async def bind_attribute_to_category(
     response_model=CategoryAttributeBindingListResponse,
     summary="List attribute bindings for a category",
     description="Retrieve a paginated list of attribute bindings for a category.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_category_bindings(
     category_id: uuid.UUID,

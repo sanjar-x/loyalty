@@ -115,9 +115,9 @@ class UpdateCategoryHandler:
             ):
                 raise CategorySlugConflictError(slug=command.slug, parent_id=category.parent_id)
 
-            update_kwargs: dict[str, Any] = {
-                f: getattr(command, f) for f in command._provided_fields
-            }
+            _SAFE_FIELDS = frozenset({"name", "slug", "sort_order"})
+            safe_fields = command._provided_fields & _SAFE_FIELDS
+            update_kwargs: dict[str, Any] = {f: getattr(command, f) for f in safe_fields}
             old_full_slug = category.update(**update_kwargs)
 
             await self._category_repo.update(category)

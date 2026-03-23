@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.read_models import (
+    ProductAttributeListReadModel,
     ProductAttributeReadModel,
 )
 from src.modules.catalog.infrastructure.models import (
@@ -45,16 +46,14 @@ class ListProductAttributesHandler:
         self._session = session
         self._logger = logger.bind(handler="ListProductAttributesHandler")
 
-    async def handle(
-        self, query: ListProductAttributesQuery
-    ) -> tuple[list[ProductAttributeReadModel], int]:
+    async def handle(self, query: ListProductAttributesQuery) -> ProductAttributeListReadModel:
         """Retrieve paginated product attribute assignments joined with attribute data.
 
         Args:
             query: Query parameters with product_id and pagination.
 
         Returns:
-            Tuple of (attribute read models, total count).
+            Paginated product attribute list read model.
         """
         count_stmt = (
             select(func.count())
@@ -86,4 +85,9 @@ class ListProductAttributesHandler:
             )
             for pav, attr in rows
         ]
-        return items, total
+        return ProductAttributeListReadModel(
+            items=items,
+            total=total,
+            offset=query.offset,
+            limit=query.limit,
+        )

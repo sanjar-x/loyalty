@@ -22,7 +22,6 @@ from src.modules.catalog.application.queries.list_variants import (
     ListVariantsQuery,
 )
 from src.modules.catalog.presentation.mappers import to_variant_response
-from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.catalog.presentation.schemas import (
     ProductVariantCreateRequest,
     ProductVariantCreateResponse,
@@ -30,6 +29,7 @@ from src.modules.catalog.presentation.schemas import (
     ProductVariantUpdateRequest,
     ProductVariantUpdateResponse,
 )
+from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
 
 variant_router = APIRouter(
@@ -71,7 +71,7 @@ async def add_variant(
     response_model=ProductVariantListResponse,
     summary="List product variants",
     description="Return paginated active variants for the given product.",
-    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_variants(
     product_id: uuid.UUID,
@@ -81,12 +81,12 @@ async def list_variants(
 ) -> ProductVariantListResponse:
     """Return paginated active variants for the given product."""
     query = ListVariantsQuery(product_id=product_id, offset=offset, limit=limit)
-    items, total = await handler.handle(query)
+    result = await handler.handle(query)
     return ProductVariantListResponse(
-        items=[to_variant_response(v) for v in items],
-        total=total,
-        offset=offset,
-        limit=limit,
+        items=[to_variant_response(v) for v in result.items],
+        total=result.total,
+        offset=result.offset,
+        limit=result.limit,
     )
 
 

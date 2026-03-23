@@ -14,8 +14,9 @@ from src.modules.catalog.domain.interfaces import (
     IAttributeRepository,
     IAttributeValueRepository,
 )
-from src.shared.interfaces.uow import IUnitOfWork
+from src.shared.exceptions import ValidationError
 from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)
@@ -72,8 +73,9 @@ class ReorderAttributeValuesHandler:
             requested_ids = {item.value_id for item in command.items}
             invalid_ids = requested_ids - valid_ids
             if invalid_ids:
-                raise ValueError(
-                    f"Value IDs {invalid_ids} do not belong to attribute {command.attribute_id}"
+                raise ValidationError(
+                    message=f"Value IDs {invalid_ids} do not belong to attribute {command.attribute_id}",
+                    details={"invalid_ids": [str(i) for i in invalid_ids]},
                 )
 
             updates = [(item.value_id, item.sort_order) for item in command.items]

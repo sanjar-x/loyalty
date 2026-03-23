@@ -39,6 +39,7 @@ from src.modules.catalog.application.queries.read_models import (
 from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.presentation.mappers import to_variant_response
 from src.modules.catalog.presentation.schemas import (
+    ProductAttributeResponse,
     ProductCreateRequest,
     ProductCreateResponse,
     ProductListItemResponse,
@@ -49,6 +50,7 @@ from src.modules.catalog.presentation.schemas import (
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
+
 
 def build_update_product_command(
     product_id: uuid.UUID,
@@ -67,10 +69,7 @@ def build_update_product_command(
         A fully typed ``UpdateProductCommand`` ready for the handler.
     """
     provided_fields = request.model_fields_set - {"version"}
-    update_kwargs = {
-        field_name: getattr(request, field_name)
-        for field_name in provided_fields
-    }
+    update_kwargs = {field_name: getattr(request, field_name) for field_name in provided_fields}
     return UpdateProductCommand(
         product_id=product_id,
         version=request.version,
@@ -119,7 +118,7 @@ async def create_product(
     response_model=ProductListResponse,
     summary="List products (paginated, filterable)",
     description="Retrieve a paginated list of products with optional filters.",
-    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_products(
     handler: FromDishka[ListProductsHandler],
@@ -163,7 +162,7 @@ async def list_products(
     response_model=ProductResponse,
     summary="Get product detail by ID",
     description="Retrieve a single product with nested SKUs and attributes.",
-    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_product(
     product_id: uuid.UUID,
@@ -171,7 +170,7 @@ async def get_product(
 ) -> ProductResponse:
     """Retrieve a single product with nested SKUs and attributes."""
     read_model: ProductReadModel = await handler.handle(product_id)
-    return to_product_response(read_model)
+    return _to_product_response(read_model)
 
 
 @product_router.patch(
@@ -200,7 +199,7 @@ async def update_product(
 
     # Fetch the full product for response
     read_model: ProductReadModel = await get_handler.handle(result.id)
-    return to_product_response(read_model)
+    return _to_product_response(read_model)
 
 
 @product_router.delete(

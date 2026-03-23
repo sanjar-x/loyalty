@@ -60,7 +60,7 @@ class UpdateAttributeGroupHandler:
         uow: IUnitOfWork,
         logger: ILogger,
     ):
-        self._attribute_group_repo = group_repo
+        self._attribute_group_repo = attribute_group_repo
         self._uow = uow
         self._logger = logger.bind(handler="UpdateAttributeGroupHandler")
 
@@ -82,9 +82,9 @@ class UpdateAttributeGroupHandler:
             if group is None:
                 raise AttributeGroupNotFoundError(group_id=command.group_id)
 
-            update_kwargs: dict[str, Any] = {
-                f: getattr(command, f) for f in command._provided_fields
-            }
+            _SAFE_FIELDS = frozenset({"name_i18n", "sort_order"})
+            safe_fields = command._provided_fields & _SAFE_FIELDS
+            update_kwargs: dict[str, Any] = {f: getattr(command, f) for f in safe_fields}
             group.update(**update_kwargs)
 
             group.add_domain_event(

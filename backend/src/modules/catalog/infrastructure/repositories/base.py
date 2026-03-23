@@ -94,6 +94,37 @@ class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType
         stmt = delete(self.model).where(self.model.id == entity_id)
         await self._session.execute(stmt)
 
+    async def _field_exists(
+        self,
+        field_name: str,
+        value: object,
+        *,
+        exclude_id: uuid.UUID | None = None,
+        extra_filters: list[Any] | None = None,
+    ) -> bool:
+        """Check whether a row with the given field value exists.
+
+        Generic uniqueness-check helper used by concrete repositories
+        for slug / code duplicate detection.
+
+        Args:
+            field_name: Name of the ORM column to check (e.g. ``"slug"``).
+            value: The value to look for.
+            exclude_id: When provided, excludes the row with this primary
+                key from the check (used during updates).
+            extra_filters: Additional SQLAlchemy filter clauses
+                (e.g. ``[Model.parent_id == parent_id]``).
+        """
+        column = getattr(self.model, field_name)
+        filters: list[Any] = [column == value]
+        if exclude_id is not None:
+            filters.append(self.model.id != exclude_id)
+        if extra_filters:
+            filters.extend(extra_filters)
+        stmt = select(self.model.id).where(*filters).limit(1)
+        result = await self._session.execute(stmt)
+        return result.first() is not None
+
     async def get_for_update(self, entity_id: uuid.UUID) -> EntityType | None:
         """Retrieve a domain entity with a ``SELECT ... FOR UPDATE`` row lock.
 

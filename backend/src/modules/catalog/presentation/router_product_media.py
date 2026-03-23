@@ -152,7 +152,7 @@ async def list_product_media(
 ) -> ProductMediaListResponse:
     """List all media assets for a product."""
     query = ListProductMediaQuery(product_id=product_id, offset=offset, limit=limit)
-    items, total = await handler.handle(query)
+    result = await handler.handle(query)
     return ProductMediaListResponse(
         items=[
             ProductMediaResponse(
@@ -167,11 +167,11 @@ async def list_product_media(
                 is_external=m.is_external,
                 external_url=m.external_url,
             )
-            for m in items
+            for m in result.items
         ],
-        total=total,
-        offset=offset,
-        limit=limit,
+        total=result.total,
+        offset=result.offset,
+        limit=result.limit,
     )
 
 
