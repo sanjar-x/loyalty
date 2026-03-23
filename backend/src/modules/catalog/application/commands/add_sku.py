@@ -100,22 +100,12 @@ class AddSKUHandler:
                     sku_code=command.sku_code, product_id=command.product_id
                 )
 
-            if command.compare_at_price_amount is not None and command.price_amount is None:
-                raise ValueError("compare_at_price cannot be set when price is not provided")
+            price, compare_at_price = Money.from_primitives(
+                amount=command.price_amount,
+                currency=command.price_currency,
+                compare_at_amount=command.compare_at_price_amount,
+            )
 
-            price: Money | None = None
-            if command.price_amount is not None:
-                price = Money(
-                    amount=command.price_amount,
-                    currency=command.price_currency,
-                )
-
-            compare_at_price: Money | None = None
-            if command.compare_at_price_amount is not None:
-                compare_at_price = Money(
-                    amount=command.compare_at_price_amount,
-                    currency=command.price_currency,
-                )
 
             sku = product.add_sku(
                 variant_id=command.variant_id,
