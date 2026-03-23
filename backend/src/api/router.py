@@ -35,7 +35,7 @@ from src.modules.identity.presentation.router_auth import auth_router
 from src.modules.identity.presentation.router_customers import customer_admin_router
 from src.modules.identity.presentation.router_invitation import invitation_router
 from src.modules.identity.presentation.router_staff import staff_admin_router
-from src.modules.user.presentation.router import user_router
+from src.modules.user.presentation.router import profile_router
 
 router = APIRouter()
 router.include_router(category_router, prefix="/catalog")
@@ -56,6 +56,6 @@ router.include_router(admin_router)
 router.include_router(staff_admin_router)
 router.include_router(customer_admin_router)
 router.include_router(invitation_router)
-router.include_router(user_router)
+router.include_router(profile_router)
 router.include_router(identity_account_router)
 router.include_router(geo_router)

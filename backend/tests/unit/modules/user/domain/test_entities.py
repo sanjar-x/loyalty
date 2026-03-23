@@ -1,85 +1,86 @@
 import uuid
 from datetime import UTC, datetime
 
-from src.modules.user.domain.entities import User
-from tests.factories.user_mothers import UserMothers
+from src.modules.user.domain.entities import Customer
 
 
-class TestUser:
-    def _make_user(
+class TestCustomer:
+    def _make_customer(
         self,
         first_name: str = "John",
         last_name: str = "Doe",
         phone: str | None = "+1234567890",
-        profile_email: str | None = "user@example.com",
-    ) -> User:
+        profile_email: str | None = "customer@example.com",
+    ) -> Customer:
         now = datetime.now(UTC)
-        return User(
+        return Customer(
             id=uuid.uuid4(),
             profile_email=profile_email,
             first_name=first_name,
             last_name=last_name,
+            username=None,
             phone=phone,
+            referral_code="ABCD1234",
+            referred_by=None,
             created_at=now,
             updated_at=now,
         )
 
     def test_create_from_identity(self):
         identity_id = uuid.uuid4()
-        user = User.create_from_identity(
+        customer = Customer.create_from_identity(
             identity_id=identity_id,
-            profile_email="user@example.com",
+            profile_email="customer@example.com",
+            referral_code="REFCODE1",
         )
-        assert user.id == identity_id  # Shared PK
-        assert user.profile_email == "user@example.com"
-        assert user.first_name == ""
-        assert user.last_name == ""
+        assert customer.id == identity_id
+        assert customer.profile_email == "customer@example.com"
+        assert customer.first_name == ""
+        assert customer.last_name == ""
+        assert customer.referral_code == "REFCODE1"
 
     def test_update_profile(self):
-        user = self._make_user()
-        user.update_profile(first_name="Jane", phone="+9876543210")
-        assert user.first_name == "Jane"
-        assert user.phone == "+9876543210"
-        assert user.last_name == "Doe"  # unchanged
+        customer = self._make_customer()
+        customer.update_profile(first_name="Jane", phone="+9876543210")
+        assert customer.first_name == "Jane"
+        assert customer.phone == "+9876543210"
+        assert customer.last_name == "Doe"  # unchanged
 
     def test_update_profile_ignores_unknown_fields(self):
-        user = self._make_user()
-        user.update_profile(unknown_field="value")
+        customer = self._make_customer()
+        customer.update_profile(unknown_field="value")
         # should not raise, unknown fields are silently ignored
 
     def test_anonymize_replaces_pii(self):
-        user = self._make_user(
+        customer = self._make_customer(
             first_name="John",
             last_name="Doe",
             phone="+1234567890",
-            profile_email="user@example.com",
+            profile_email="customer@example.com",
         )
-        user.anonymize()
-        assert user.first_name == "[DELETED]"
-        assert user.last_name == "[DELETED]"
-        assert user.phone is None
-        assert user.profile_email is None
+        customer.anonymize()
+        assert customer.first_name == "[DELETED]"
+        assert customer.last_name == "[DELETED]"
+        assert customer.phone is None
+        assert customer.profile_email is None
+        assert customer.referral_code == "ABCD1234"  # preserved
 
     def test_anonymize_is_idempotent(self):
-        user = self._make_user()
-        user.anonymize()
-        user.anonymize()  # should not raise
-        assert user.first_name == "[DELETED]"
+        customer = self._make_customer()
+        customer.anonymize()
+        customer.anonymize()  # should not raise
+        assert customer.first_name == "[DELETED]"
 
     def test_create_from_identity_uses_shared_pk(self):
         identity_id = uuid.uuid4()
-        user = UserMothers.active(identity_id=identity_id)
-        assert user.id == identity_id
+        customer = Customer.create_from_identity(
+            identity_id=identity_id,
+            referral_code="REF12345",
+        )
+        assert customer.id == identity_id
 
     def test_update_profile_partial_fields(self):
-        user = UserMothers.with_profile(first_name="John", last_name="Doe")
-        user.update_profile(first_name="Jane")
-        assert user.first_name == "Jane"
-        assert user.last_name == "Doe"  # unchanged
-
-    def test_anonymized_mother_replaces_pii(self):
-        user = UserMothers.anonymized()
-        assert user.first_name == "[DELETED]"
-        assert user.last_name == "[DELETED]"
-        assert user.phone is None
-        assert user.profile_email is None
+        customer = self._make_customer(first_name="John", last_name="Doe")
+        customer.update_profile(first_name="Jane")
+        assert customer.first_name == "Jane"
+        assert customer.last_name == "Doe"  # unchanged

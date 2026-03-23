@@ -29,7 +29,7 @@ from src.modules.catalog.presentation.dependencies import (
 from src.modules.geo.presentation.dependencies import GeoProvider
 from src.modules.identity.infrastructure.provider import IdentityProvider
 from src.modules.storage.presentation.dependencies import StorageProvider
-from src.modules.user.infrastructure.provider import UserProvider
+from src.modules.user.infrastructure.provider import ProfileProvider
 from src.shared.interfaces.config import IStorageConfig
 
 logger: BoundLogger = structlog.get_logger(__name__)
@@ -70,5 +70,5 @@ def create_container() -> AsyncContainer:
         ProductProvider(),
         MediaAssetProvider(),
         IdentityProvider(),
-        UserProvider(),
+        ProfileProvider(),
     )

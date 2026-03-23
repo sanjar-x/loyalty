@@ -15,7 +15,6 @@ from src.modules.user.domain.entities import Customer, StaffMember
 from src.modules.user.domain.interfaces import (
     ICustomerRepository,
     IStaffMemberRepository,
-    IUserRepository,
 )
 from src.modules.user.domain.services import generate_referral_code
 from src.shared.interfaces.uow import IUnitOfWork
@@ -32,10 +31,9 @@ logger = structlog.get_logger(__name__)
     timeout=30,
 )
 @inject
-async def create_user_on_identity_registered(
+async def create_profile_on_identity_registered(
     identity_id: str,
     email: str,
-    user_repo: FromDishka[IUserRepository],
     customer_repo: FromDishka[ICustomerRepository],
     staff_repo: FromDishka[IStaffMemberRepository],
     uow: FromDishka[IUnitOfWork],
@@ -49,7 +47,6 @@ async def create_user_on_identity_registered(
     Args:
         identity_id: String UUID of the new identity.
         email: Email from the registration event.
-        user_repo: Injected User repository (deprecated, backward compat).
         customer_repo: Injected Customer repository.
         staff_repo: Injected StaffMember repository.
         uow: Injected Unit of Work.
@@ -74,29 +71,20 @@ async def create_user_on_identity_registered(
             last_name=last_name,
         )
 
-    # Default: CUSTOMER (also handles legacy events without account_type)
-    return await _create_customer(identity_uuid, email, customer_repo, user_repo, uow)
+    return await _create_customer(identity_uuid, email, customer_repo, uow)
 
 
 async def _create_customer(
     identity_id: uuid.UUID,
     email: str,
     customer_repo: ICustomerRepository,
-    user_repo: IUserRepository,
     uow: IUnitOfWork,
 ) -> dict:
     """Create a Customer profile with auto-generated referral code."""
-    # Check both repos for idempotency (customer table + legacy users table)
     existing = await customer_repo.get(identity_id)
     if existing:
         logger.info("customer.already_exists", identity_id=str(identity_id))
         return {"status": "skipped", "reason": "already_exists"}
-
-    # Also check legacy users table
-    legacy = await user_repo.get(identity_id)
-    if legacy:
-        logger.info("user.already_exists_legacy", identity_id=str(identity_id))
-        return {"status": "skipped", "reason": "already_exists_legacy"}
 
     referral_code = generate_referral_code()
     customer = Customer.create_from_identity(
@@ -154,20 +142,18 @@ async def _create_staff_member(
     timeout=30,
 )
 @inject
-async def anonymize_user_on_identity_deactivated(
+async def anonymize_customer_on_identity_deactivated(
     identity_id: str,
-    user_repo: FromDishka[IUserRepository],
     customer_repo: FromDishka[ICustomerRepository],
     uow: FromDishka[IUnitOfWork],
 ) -> dict:
-    """Anonymize user PII when an identity is deactivated.
+    """Anonymize customer PII when an identity is deactivated.
 
-    Tries customer first, then legacy users table. Staff members are not
-    anonymized (GDPR legitimate interest for employment records).
+    Staff members are not anonymized (GDPR legitimate interest for
+    employment records).
 
     Args:
         identity_id: String UUID of the deactivated identity.
-        user_repo: Injected User repository (legacy).
         customer_repo: Injected Customer repository.
         uow: Injected Unit of Work.
 
@@ -176,7 +162,6 @@ async def anonymize_user_on_identity_deactivated(
     """
     identity_uuid = uuid.UUID(identity_id)
 
-    # Try customer first
     customer = await customer_repo.get(identity_uuid)
     if customer:
         customer.anonymize()
@@ -187,18 +172,7 @@ async def anonymize_user_on_identity_deactivated(
         logger.info("customer.anonymized", identity_id=identity_id)
         return {"status": "success", "type": "customer"}
 
-    # Fall back to legacy users table
-    user = await user_repo.get(identity_uuid)
-    if user:
-        user.anonymize()
-        async with uow:
-            await user_repo.update(user)
-            uow.register_aggregate(user)
-            await uow.commit()
-        logger.info("user.anonymized_legacy", identity_id=identity_id)
-        return {"status": "success", "type": "user_legacy"}
-
-    logger.warning("user.not_found_for_anonymization", identity_id=identity_id)
+    logger.warning("customer.not_found_for_anonymization", identity_id=identity_id)
     return {"status": "skipped", "reason": "not_found"}
 
 

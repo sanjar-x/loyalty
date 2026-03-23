@@ -7,8 +7,8 @@ import pytest
 from _pytest.mark.structures import MarkDecorator
 
 from src.modules.user.application.consumers.identity_events import (
-    anonymize_user_on_identity_deactivated,
-    create_user_on_identity_registered,
+    anonymize_customer_on_identity_deactivated,
+    create_profile_on_identity_registered,
 )
 
 pytestmark: MarkDecorator = pytest.mark.asyncio
@@ -18,8 +18,8 @@ def _unwrap_dishka_task(task: Any) -> Callable[..., Any]:
     return cast(Callable[..., Any], task.original_func.__dishka_orig_func__)
 
 
-_create_user_fn = _unwrap_dishka_task(create_user_on_identity_registered)
-_anonymize_user_fn = _unwrap_dishka_task(anonymize_user_on_identity_deactivated)
+_create_profile_fn = _unwrap_dishka_task(create_profile_on_identity_registered)
+_anonymize_customer_fn = _unwrap_dishka_task(anonymize_customer_on_identity_deactivated)
 
 
 def make_uow():
@@ -30,24 +30,21 @@ def make_uow():
     return uow
 
 
-# ── create_user_on_identity_registered ───────────────────────────────
+# ── create_profile_on_identity_registered ────────────────────────────
 
 
-class TestCreateUserOnIdentityRegistered:
-    async def test_creates_user_on_registration(self):
-        """No existing user -> creates customer, commits, returns success."""
-        user_repo = AsyncMock()
+class TestCreateProfileOnIdentityRegistered:
+    async def test_creates_customer_on_registration(self):
+        """No existing customer -> creates customer, commits, returns success."""
         customer_repo = AsyncMock()
         customer_repo.get = AsyncMock(return_value=None)
-        user_repo.get = AsyncMock(return_value=None)
         staff_repo = AsyncMock()
         uow = make_uow()
 
         identity_id = str(uuid.uuid4())
-        result = await _create_user_fn(
+        result = await _create_profile_fn(
             identity_id=identity_id,
             email="test@example.com",
-            user_repo=user_repo,
             customer_repo=customer_repo,
             staff_repo=staff_repo,
             uow=uow,
@@ -59,19 +56,17 @@ class TestCreateUserOnIdentityRegistered:
         assert created_customer.id == uuid.UUID(identity_id)
         uow.commit.assert_awaited_once()
 
-    async def test_skips_existing_user(self):
+    async def test_skips_existing_customer(self):
         """Customer exists -> returns skipped status."""
         existing_customer = MagicMock()
-        user_repo = AsyncMock()
         customer_repo = AsyncMock()
         customer_repo.get = AsyncMock(return_value=existing_customer)
         staff_repo = AsyncMock()
         uow = make_uow()
 
-        result = await _create_user_fn(
+        result = await _create_profile_fn(
             identity_id=str(uuid.uuid4()),
             email="existing@example.com",
-            user_repo=user_repo,
             customer_repo=customer_repo,
             staff_repo=staff_repo,
             uow=uow,
@@ -82,24 +77,21 @@ class TestCreateUserOnIdentityRegistered:
         uow.commit.assert_not_awaited()
 
 
-# ── anonymize_user_on_identity_deactivated ───────────────────────────
+# ── anonymize_customer_on_identity_deactivated ───────────────────────
 
 
-class TestAnonymizeUserOnIdentityDeactivated:
-    async def test_anonymizes_user_on_deactivation(self):
+class TestAnonymizeCustomerOnIdentityDeactivated:
+    async def test_anonymizes_customer_on_deactivation(self):
         """Customer found -> anonymizes, commits, returns success."""
         customer = MagicMock()
         customer.anonymize = MagicMock()
-        user_repo = AsyncMock()
-        user_repo.get = AsyncMock(return_value=None)
         customer_repo = AsyncMock()
         customer_repo.get = AsyncMock(return_value=customer)
         uow = make_uow()
 
         identity_id = str(uuid.uuid4())
-        result = await _anonymize_user_fn(
+        result = await _anonymize_customer_fn(
             identity_id=identity_id,
-            user_repo=user_repo,
             customer_repo=customer_repo,
             uow=uow,
         )
@@ -109,21 +101,18 @@ class TestAnonymizeUserOnIdentityDeactivated:
         customer_repo.update.assert_awaited_once_with(customer)
         uow.commit.assert_awaited_once()
 
-    async def test_skips_missing_user(self):
-        """No customer or user -> returns skipped status."""
-        user_repo = AsyncMock()
-        user_repo.get = AsyncMock(return_value=None)
+    async def test_skips_missing_customer(self):
+        """No customer -> returns skipped status."""
         customer_repo = AsyncMock()
         customer_repo.get = AsyncMock(return_value=None)
         uow = make_uow()
 
-        result = await _anonymize_user_fn(
+        result = await _anonymize_customer_fn(
             identity_id=str(uuid.uuid4()),
-            user_repo=user_repo,
             customer_repo=customer_repo,
             uow=uow,
         )
 
         assert result == {"status": "skipped", "reason": "not_found"}
-        user_repo.update.assert_not_awaited()
+        customer_repo.update.assert_not_awaited()
         uow.commit.assert_not_awaited()

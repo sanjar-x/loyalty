@@ -174,7 +174,7 @@ async def app_container(
     )
     from src.modules.identity.infrastructure.provider import IdentityProvider
     from src.modules.storage.presentation.dependencies import StorageProvider
-    from src.modules.user.infrastructure.provider import UserProvider
+    from src.modules.user.infrastructure.provider import ProfileProvider
 
     container = make_async_container(
         DatabaseProvider(),
@@ -185,7 +185,7 @@ async def app_container(
         CategoryProvider(),
         BrandProvider(),
         IdentityProvider(),
-        UserProvider(),
+        ProfileProvider(),
         TestOverridesProvider(
             db_url=db_url, redis_url=redis_url, settings=test_settings
         ),

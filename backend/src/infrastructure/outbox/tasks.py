@@ -100,13 +100,13 @@ register_event_handler("BrandLogoProcessedEvent", _handle_brand_logo_processed)
 
 
 async def _handle_identity_registered(payload: dict, correlation_id: str | None = None) -> None:
-    """Dispatches CreateUserConsumer to create User row (Shared PK)."""
+    """Dispatches profile creation consumer (Customer or StaffMember)."""
     from src.modules.user.application.consumers.identity_events import (
-        create_user_on_identity_registered,
+        create_profile_on_identity_registered,
     )
 
     await (
-        create_user_on_identity_registered.kicker()
+        create_profile_on_identity_registered.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
             identity_id=payload["identity_id"],
@@ -116,13 +116,13 @@ async def _handle_identity_registered(payload: dict, correlation_id: str | None 
 
 
 async def _handle_identity_deactivated(payload: dict, correlation_id: str | None = None) -> None:
-    """Dispatches AnonymizeUserConsumer to anonymize PII (GDPR)."""
+    """Dispatches customer anonymization consumer (GDPR)."""
     from src.modules.user.application.consumers.identity_events import (
-        anonymize_user_on_identity_deactivated,
+        anonymize_customer_on_identity_deactivated,
     )
 
     await (
-        anonymize_user_on_identity_deactivated.kicker()
+        anonymize_customer_on_identity_deactivated.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
             identity_id=payload["identity_id"],
