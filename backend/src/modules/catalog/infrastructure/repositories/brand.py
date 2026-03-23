@@ -71,13 +71,4 @@ class BrandRepository(
         result = await self._session.execute(stmt)
         return result.first() is not None
 
-    async def get_for_update(self, brand_id: uuid.UUID) -> DomainBrand | None:
-        """Retrieve a brand with a ``SELECT … FOR UPDATE`` row lock.
-
-        Used by the logo processing pipeline to prevent concurrent
-        state transitions on the same brand.
-        """
-        stmt = select(OrmBrand).where(OrmBrand.id == brand_id).with_for_update()
-        result = await self._session.execute(stmt)
-        orm = result.scalar_one_or_none()
-        return self._to_domain(orm) if orm else None
+    # get_for_update is inherited from BaseRepository

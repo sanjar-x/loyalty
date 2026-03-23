@@ -15,7 +15,7 @@ import uuid
 from abc import abstractmethod
 from typing import Any
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.interfaces import ICatalogRepository
@@ -93,3 +93,14 @@ class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType
         """Delete a row by primary key.  Transaction control is in the UoW."""
         stmt = delete(self.model).where(self.model.id == entity_id)
         await self._session.execute(stmt)
+
+    async def get_for_update(self, entity_id: uuid.UUID) -> EntityType | None:
+        """Retrieve a domain entity with a ``SELECT ... FOR UPDATE`` row lock.
+
+        Used to prevent concurrent modifications on the same row.
+        Subclasses may override to add extra filters (e.g. soft-delete).
+        """
+        stmt = select(self.model).where(self.model.id == entity_id).with_for_update()
+        result = await self._session.execute(stmt)
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None

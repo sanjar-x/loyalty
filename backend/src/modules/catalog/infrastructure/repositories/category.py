@@ -69,12 +69,7 @@ class CategoryRepository(
         result = await self._session.execute(stmt)
         return bool(result.scalar())
 
-    async def get_for_update(self, category_id: uuid.UUID) -> DomainCategory | None:
-        """Retrieve a category with a ``SELECT … FOR UPDATE`` row lock."""
-        stmt = select(self.model).where(self.model.id == category_id).with_for_update()
-        result = await self._session.execute(stmt)
-        orm = result.scalar_one_or_none()
-        return self._to_domain(orm) if orm else None
+    # get_for_update is inherited from BaseRepository
 
     async def check_slug_exists_excluding(
         self, slug: str, parent_id: uuid.UUID | None, exclude_id: uuid.UUID
