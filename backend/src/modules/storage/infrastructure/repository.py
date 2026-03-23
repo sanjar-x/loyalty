@@ -14,12 +14,13 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.storage.domain.entities import StorageFile
+from src.modules.storage.domain.interfaces import IStorageRepository
 from src.modules.storage.infrastructure.models import StorageObject
 
 logger = structlog.get_logger(__name__)
 
 
-class StorageObjectRepository:
+class StorageObjectRepository(IStorageRepository):
     """Repository for managing S3 object metadata.
 
     Implements the Data Mapper pattern: all public methods accept and

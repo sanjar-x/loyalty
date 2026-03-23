@@ -423,7 +423,9 @@ class ProductRepository(IProductRepository):
         stmt = delete(OrmProduct).where(OrmProduct.id == entity_id)
         await self._session.execute(stmt)
 
-    async def sku_code_exists(self, sku_code: str, exclude_sku_id: uuid.UUID | None = None) -> bool:
+    async def check_sku_code_exists(
+        self, sku_code: str, exclude_sku_id: uuid.UUID | None = None
+    ) -> bool:
         """Return ``True`` if any non-deleted SKU already uses this code."""
         filters = [OrmSKU.sku_code == sku_code, OrmSKU.deleted_at.is_(None)]
         if exclude_sku_id is not None:

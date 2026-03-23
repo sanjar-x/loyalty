@@ -56,7 +56,7 @@ class CategoryAttributeBindingRepository(
         orm.filter_settings = entity.filter_settings
         return orm
 
-    async def exists(self, category_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
+    async def check_binding_exists(self, category_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
         """Return ``True`` if a binding for this pair already exists."""
         stmt = (
             select(OrmBinding.id)

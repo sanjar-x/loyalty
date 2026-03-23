@@ -284,7 +284,7 @@ class ICategoryAttributeBindingRepository(ABC):
         pass
 
     @abstractmethod
-    async def exists(self, category_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
+    async def check_binding_exists(self, category_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
         """Check whether a binding for this category+attribute pair exists."""
         pass
 
@@ -349,7 +349,9 @@ class IProductRepository(ICatalogRepository[DomainProduct]):
         pass
 
     @abstractmethod
-    async def sku_code_exists(self, sku_code: str, exclude_sku_id: uuid.UUID | None = None) -> bool:
+    async def check_sku_code_exists(
+        self, sku_code: str, exclude_sku_id: uuid.UUID | None = None
+    ) -> bool:
         """Check whether a non-deleted SKU with the given code already exists.
 
         Args:
@@ -396,7 +398,7 @@ class IProductAttributeValueRepository(ABC):
         pass
 
     @abstractmethod
-    async def exists(self, product_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
+    async def check_assignment_exists(self, product_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
         """Check whether a product+attribute pair already exists (duplicate guard)."""
         pass
 
@@ -628,7 +630,7 @@ class IAttributeReadRepository(ABC):
         pass
 
 
-class ICategoryBindingReadRepository(ABC):
+class ICategoryAttributeBindingReadRepository(ABC):
     """Read-only query interface for category-attribute bindings."""
 
     @abstractmethod

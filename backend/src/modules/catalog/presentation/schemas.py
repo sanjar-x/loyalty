@@ -93,7 +93,7 @@ class LogoMetadataRequest(CamelModel):
 
     filename: str = Field(..., max_length=255)
     content_type: str = Field(..., pattern=r"^image/(jpeg|png|webp|gif|svg\+xml)$")
-    size: int | None = None
+    size: int | None = Field(None, ge=0)
 
 
 class CategoryCreateRequest(CamelModel):
@@ -108,7 +108,7 @@ class CategoryCreateRequest(CamelModel):
         examples=["sneakers"],
     )
     parent_id: uuid.UUID | None = Field(None, description="Parent category ID (optional)")
-    sort_order: int = Field(0, description="Display ordering among siblings")
+    sort_order: int = Field(0, ge=0, description="Display ordering among siblings")
 
 
 class CategoryCreateResponse(CamelModel):
@@ -149,7 +149,7 @@ class CategoryUpdateRequest(CamelModel):
 
     name: str | None = Field(None, min_length=2, max_length=255)
     slug: str | None = Field(None, min_length=3, max_length=255, pattern=r"^[a-z0-9-]+$")
-    sort_order: int | None = None
+    sort_order: int | None = Field(None, ge=0)
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> CategoryUpdateRequest:
@@ -231,7 +231,7 @@ class AttributeGroupCreateRequest(CamelModel):
         examples=[{"en": "Physical Characteristics", "ru": "Физические характеристики"}],
         description="Multilingual display name (at least one language required)",
     )
-    sort_order: int = Field(0, description="Display ordering among groups")
+    sort_order: int = Field(0, ge=0, description="Display ordering among groups")
 
 
 class AttributeGroupCreateResponse(CamelModel):
@@ -257,7 +257,7 @@ class AttributeGroupUpdateRequest(CamelModel):
         min_length=1,
         description="Multilingual display name (at least one language required)",
     )
-    sort_order: int | None = None
+    sort_order: int | None = Field(None, ge=0)
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> AttributeGroupUpdateRequest:
@@ -334,9 +334,11 @@ class AttributeUpdateRequest(CamelModel):
 
     name_i18n: I18nDict | None = Field(None, min_length=1)
     description_i18n: I18nDict | None = None
-    ui_type: str | None = None
+    ui_type: (
+        Literal["text_button", "color_swatch", "dropdown", "checkbox", "range_slider"] | None
+    ) = None
     group_id: uuid.UUID | None = None
-    level: str | None = None
+    level: Literal["product", "variant"] | None = None
     is_filterable: bool | None = None
     is_searchable: bool | None = None
     search_weight: int | None = Field(None, ge=1, le=10)
@@ -375,7 +377,7 @@ class AttributeValueCreateRequest(CamelModel):
     )
     meta_data: BoundedJsonDict = Field(default_factory=dict, examples=[{"hex": "#FF0000"}])
     value_group: str | None = Field(None, max_length=100, examples=["Warm tones"])
-    sort_order: int = Field(0, description="Display ordering among values")
+    sort_order: int = Field(0, ge=0, description="Display ordering among values")
 
 
 class AttributeValueCreateResponse(CamelModel):
@@ -405,7 +407,7 @@ class AttributeValueUpdateRequest(CamelModel):
     search_aliases: list[Annotated[str, Field(max_length=100)]] | None = Field(None, max_length=50)
     meta_data: BoundedJsonDict | None = None
     value_group: str | None = None
-    sort_order: int | None = None
+    sort_order: int | None = Field(None, ge=0)
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> AttributeValueUpdateRequest:
@@ -422,7 +424,7 @@ class ReorderItemRequest(CamelModel):
     """A single reorder instruction."""
 
     value_id: uuid.UUID
-    sort_order: int
+    sort_order: int = Field(..., ge=0)
 
 
 class ReorderAttributeValuesRequest(CamelModel):
@@ -440,7 +442,7 @@ class BindAttributeToCategoryRequest(CamelModel):
     """Request body for binding an attribute to a category."""
 
     attribute_id: uuid.UUID
-    sort_order: int = Field(0, description="Display ordering within the category")
+    sort_order: int = Field(0, ge=0, description="Display ordering within the category")
     requirement_level: Literal["required", "recommended", "optional"] = Field(
         "optional", examples=["required", "recommended", "optional"]
     )
@@ -477,7 +479,7 @@ class CategoryAttributeBindingResponse(CamelModel):
 class CategoryAttributeBindingUpdateRequest(CamelModel):
     """Partial update request for a binding."""
 
-    sort_order: int | None = None
+    sort_order: int | None = Field(None, ge=0)
     requirement_level: Literal["required", "recommended", "optional"] | None = None
     flag_overrides: BoundedJsonDict | None = None
     filter_settings: BoundedJsonDict | None = None
@@ -497,7 +499,7 @@ class BindingReorderItemRequest(CamelModel):
     """A single binding reorder instruction."""
 
     binding_id: uuid.UUID
-    sort_order: int
+    sort_order: int = Field(..., ge=0)
 
 
 class ReorderBindingsRequest(CamelModel):

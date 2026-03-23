@@ -85,7 +85,9 @@ class BindAttributeToCategoryHandler:
             if attribute is None:
                 raise AttributeNotFoundError(attribute_id=command.attribute_id)
 
-            if await self._binding_repo.exists(command.category_id, command.attribute_id):
+            if await self._binding_repo.check_binding_exists(
+                command.category_id, command.attribute_id
+            ):
                 raise CategoryAttributeBindingAlreadyExistsError(
                     category_id=command.category_id,
                     attribute_id=command.attribute_id,

@@ -133,7 +133,7 @@ class UpdateSKUHandler:
             update_kwargs: dict[str, object] = {}
 
             if command.sku_code is not None:
-                if await self._product_repo.sku_code_exists(
+                if await self._product_repo.check_sku_code_exists(
                     command.sku_code, exclude_sku_id=command.sku_id
                 ):
                     raise SKUCodeConflictError(

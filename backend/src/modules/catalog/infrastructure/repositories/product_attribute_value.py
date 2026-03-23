@@ -62,7 +62,7 @@ class ProductAttributeValueRepository(
         result = await self._session.execute(stmt)
         return [self._to_domain(orm) for orm in result.scalars().all()]
 
-    async def exists(self, product_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
+    async def check_assignment_exists(self, product_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
         """Check whether a product+attribute pair already exists (duplicate guard)."""
         stmt = (
             select(OrmProductAttributeValue.id)

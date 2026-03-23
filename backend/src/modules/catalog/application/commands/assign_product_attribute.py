@@ -111,7 +111,9 @@ class AssignProductAttributeHandler:
             if attr_value.attribute_id != command.attribute_id:
                 raise AttributeValueNotFoundError(value_id=command.attribute_value_id)
 
-            if await self._pav_repo.exists(command.product_id, command.attribute_id):
+            if await self._pav_repo.check_assignment_exists(
+                command.product_id, command.attribute_id
+            ):
                 raise DuplicateProductAttributeError(
                     product_id=command.product_id,
                     attribute_id=command.attribute_id,

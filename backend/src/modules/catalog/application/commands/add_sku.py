@@ -98,7 +98,7 @@ class AddSKUHandler:
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
-            if await self._product_repo.sku_code_exists(command.sku_code):
+            if await self._product_repo.check_sku_code_exists(command.sku_code):
                 raise SKUCodeConflictError(sku_code=command.sku_code, product_id=command.product_id)
 
             if command.price_amount is not None:

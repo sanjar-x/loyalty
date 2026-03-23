@@ -475,10 +475,9 @@ MediaAssetListReadModel = PaginatedReadModel[MediaAssetReadModel]
 class ProductAttributeReadModel(ProductAttributeValueReadModel):
     """Read model for a product's attribute assignment with joined attribute data.
 
-    Extends :class:`ProductAttributeValueReadModel` with attribute metadata
-    (code and display name) obtained via a join, used when the consumer
-    needs human-readable attribute information alongside the assignment.
+    Inherits all fields from :class:`ProductAttributeValueReadModel` including
+    ``attribute_code`` and ``attribute_name_i18n``, which are always populated
+    via a join when this model is used.
     """
 
-    attribute_code: str
-    attribute_name_i18n: dict[str, str]
+    pass

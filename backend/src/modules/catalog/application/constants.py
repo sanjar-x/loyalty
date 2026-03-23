@@ -89,6 +89,11 @@ def storefront_comparison_cache_key(category_id: uuid.UUID) -> str:
     return f"catalog:storefront:comparison:{category_id}"
 
 
+def storefront_form_cache_key(category_id: uuid.UUID) -> str:
+    """Redis cache key for storefront form attributes of a category."""
+    return f"catalog:storefront:form:{category_id}"
+
+
 STOREFRONT_CACHE_TTL = 300
 """TTL in seconds for storefront attribute cache entries (5 minutes)."""
 

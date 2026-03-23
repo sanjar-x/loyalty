@@ -26,6 +26,7 @@ from src.modules.catalog.application.constants import (
     storefront_card_cache_key,
     storefront_comparison_cache_key,
     storefront_filters_cache_key,
+    storefront_form_cache_key,
 )
 from src.modules.catalog.application.queries.read_models import (
     StorefrontCardAttributeReadModel,
@@ -316,12 +317,18 @@ class StorefrontComparisonAttributesHandler:
 class StorefrontFormAttributesHandler:
     """Fetch the complete attribute set for a product creation form."""
 
-    def __init__(self, session: AsyncSession, logger: ILogger):
+    def __init__(self, session: AsyncSession, cache: ICacheService, logger: ILogger):
         self._session = session
+        self._cache = cache
         self._logger = logger.bind(handler="StorefrontFormAttributesHandler")
 
     async def handle(self, category_id: uuid.UUID) -> StorefrontFormReadModel:
         """Return ALL attributes bound to this category, grouped, with full metadata."""
+        cache_key = storefront_form_cache_key(category_id)
+        cached = await self._cache.get(cache_key)
+        if cached is not None:
+            return StorefrontFormReadModel.model_validate(json.loads(cached))
+
         rules = await _load_bindings_with_attributes(self._session, category_id)
 
         grouped = _group_bindings_into_groups(rules)
@@ -358,10 +365,16 @@ class StorefrontFormAttributesHandler:
                 )
             )
 
-        return StorefrontFormReadModel(
+        result = StorefrontFormReadModel(
             category_id=category_id,
             groups=group_models,
         )
+        await self._cache.set(
+            cache_key,
+            json.dumps(result.model_dump(mode="json")),
+            ttl=STOREFRONT_CACHE_TTL,
+        )
+        return result
 
 
 # ---------------------------------------------------------------------------
@@ -454,5 +467,6 @@ async def invalidate_storefront_cache(
         storefront_filters_cache_key(category_id),
         storefront_card_cache_key(category_id),
         storefront_comparison_cache_key(category_id),
+        storefront_form_cache_key(category_id),
     ]
     await cache.delete_many(keys)
