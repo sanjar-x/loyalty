@@ -21,6 +21,7 @@ from src.modules.catalog.domain.interfaces import (
     ICategoryRepository,
     IProductRepository,
 )
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -74,11 +75,13 @@ class CreateProductHandler:
         brand_repo: IBrandRepository,
         category_repo: ICategoryRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._brand_repo = brand_repo
         self._category_repo = category_repo
         self._uow = uow
+        self._logger = logger.bind(handler="CreateProductHandler")
 
     async def handle(self, command: CreateProductCommand) -> CreateProductResult:
         """Execute the create-product command.

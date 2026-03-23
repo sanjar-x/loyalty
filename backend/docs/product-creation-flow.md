@@ -13,7 +13,7 @@
   1. Создать        │   DRAFT ──► ENRICHING ──► READY_FOR_REVIEW  │
      карточку       │     ▲          │                  │         │
                     │     │          ▼                  ▼         │
-  2. Добавить       │   ARCHIVED ◄── ─ ─ ─ ─ ─    PUBLISHED      │
+  2. Добавить       │   ARCHIVED ◄── ─ ─ ─ ─ ─    PUBLISHED       │
      SKU, медиа,    │                                             │
      атрибуты       └─────────────────────────────────────────────┘
 
@@ -95,8 +95,8 @@ Router                     Handler                      Domain                  
   │                          │◄─ product ─────────────────│                          │
   │                          │                            │                          │
   │                          ├─ repo.add(product) ──────────────────────────────────►│
-  │                          │                            │             _to_orm()    │
-  │                          │                            │             session.add()│
+  │                          │                            │        _to_orm()         │
+  │                          │                            │      session.add()       │
   │                          │                            │                          │
   │                          ├─ uow.commit() ────────────►│                          │
   │                          │                        INSERT INTO products           │

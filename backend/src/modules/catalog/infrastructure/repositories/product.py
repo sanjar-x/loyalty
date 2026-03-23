@@ -301,8 +301,7 @@ class ProductRepository(IProductRepository):
                 orm.variants.append(new_orm_variant)
 
         to_remove = [
-            v for v in orm.variants
-            if v.id not in domain_variant_ids and v.deleted_at is None
+            v for v in orm.variants if v.id not in domain_variant_ids and v.deleted_at is None
         ]
         for v in to_remove:
             orm.variants.remove(v)
@@ -324,7 +323,8 @@ class ProductRepository(IProductRepository):
                 orm_variant.skus.append(new_orm_sku)
 
         to_remove = [
-            sku for sku in orm_variant.skus
+            sku
+            for sku in orm_variant.skus
             if sku.id not in domain_sku_ids and sku.deleted_at is None
         ]
         for sku in to_remove:
@@ -417,9 +417,7 @@ class ProductRepository(IProductRepository):
         stmt = delete(OrmProduct).where(OrmProduct.id == entity_id)
         await self._session.execute(stmt)
 
-    async def sku_code_exists(
-        self, sku_code: str, exclude_sku_id: uuid.UUID | None = None
-    ) -> bool:
+    async def sku_code_exists(self, sku_code: str, exclude_sku_id: uuid.UUID | None = None) -> bool:
         """Return ``True`` if any non-deleted SKU already uses this code."""
         filters = [OrmSKU.sku_code == sku_code, OrmSKU.deleted_at.is_(None)]
         if exclude_sku_id is not None:
@@ -491,9 +489,7 @@ class ProductRepository(IProductRepository):
             return self._to_domain_without_skus(orm)
         return None
 
-    async def get_for_update_with_variants(
-        self, product_id: uuid.UUID
-    ) -> DomainProduct | None:
+    async def get_for_update_with_variants(self, product_id: uuid.UUID) -> DomainProduct | None:
         """Retrieve a product with pessimistic lock AND eagerly loaded variants/SKUs.
 
         Combines ``SELECT FOR UPDATE`` with variant/SKU eager loading so
@@ -506,9 +502,7 @@ class ProductRepository(IProductRepository):
             .options(
                 selectinload(
                     OrmProduct.variants.and_(OrmProductVariant.deleted_at.is_(None))
-                ).selectinload(
-                    OrmProductVariant.skus.and_(OrmSKU.deleted_at.is_(None))
-                )
+                ).selectinload(OrmProductVariant.skus.and_(OrmSKU.deleted_at.is_(None)))
             )
             .with_for_update()
         )
@@ -541,4 +535,3 @@ class ProductRepository(IProductRepository):
             return None
 
         return self._to_domain(orm)
-

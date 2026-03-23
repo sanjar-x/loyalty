@@ -17,6 +17,7 @@ from src.modules.catalog.application.queries.read_models import (
     BrandReadModel,
 )
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)
@@ -35,8 +36,9 @@ class ListBrandsQuery:
 class ListBrandsHandler:
     """Fetch a paginated list of brands."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, logger: ILogger):
         self._session = session
+        self._logger = logger.bind(handler="ListBrandsHandler")
 
     async def handle(self, query: ListBrandsQuery) -> BrandListReadModel:
         """Retrieve a paginated brand list.

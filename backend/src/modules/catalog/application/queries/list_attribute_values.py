@@ -18,6 +18,7 @@ from src.modules.catalog.application.queries.read_models import (
 from src.modules.catalog.infrastructure.models import (
     AttributeValue as OrmAttributeValue,
 )
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)
@@ -40,8 +41,9 @@ class ListAttributeValuesQuery:
 class ListAttributeValuesHandler:
     """Fetch a paginated list of attribute values for a given attribute."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, logger: ILogger):
         self._session = session
+        self._logger = logger.bind(handler="ListAttributeValuesHandler")
 
     async def handle(self, query: ListAttributeValuesQuery) -> AttributeValueListReadModel:
         """Retrieve a paginated attribute value list with optional search.

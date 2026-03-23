@@ -15,6 +15,7 @@ from src.modules.catalog.domain.exceptions import (
 from src.modules.catalog.domain.interfaces import ICategoryAttributeBindingRepository
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)
@@ -33,10 +34,12 @@ class UnbindAttributeFromCategoryHandler:
         binding_repo: ICategoryAttributeBindingRepository,
         uow: IUnitOfWork,
         cache: ICacheService,
+        logger: ILogger,
     ):
         self._binding_repo = binding_repo
         self._uow = uow
         self._cache = cache
+        self._logger = logger.bind(handler="UnbindAttributeFromCategoryHandler")
 
     async def handle(self, command: UnbindAttributeFromCategoryCommand) -> None:
         """Execute the unbind command.

@@ -174,9 +174,7 @@ class UpdateProductHandler:
             # entity also rejects unknown kwargs, but filtering here keeps the
             # application layer self-contained.
             safe_fields = command._provided_fields & Product._UPDATABLE_FIELDS
-            update_kwargs: dict[str, Any] = {
-                f: getattr(command, f) for f in safe_fields
-            }
+            update_kwargs: dict[str, Any] = {f: getattr(command, f) for f in safe_fields}
 
             product.update(**update_kwargs)
 

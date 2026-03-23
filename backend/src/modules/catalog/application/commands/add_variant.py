@@ -7,6 +7,7 @@ from src.modules.catalog.application.constants import DEFAULT_CURRENCY
 from src.modules.catalog.domain.exceptions import ProductNotFoundError
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -54,9 +55,11 @@ class AddVariantHandler:
         self,
         product_repo: IProductRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._uow = uow
+        self._logger = logger.bind(handler="AddVariantHandler")
 
     async def handle(self, command: AddVariantCommand) -> AddVariantResult:
         """Execute the add-variant command.

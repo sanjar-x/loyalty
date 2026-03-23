@@ -27,6 +27,7 @@ from src.modules.catalog.domain.interfaces import (
 )
 from src.shared.exceptions import ValidationError
 from src.shared.interfaces.blob_storage import IBlobStorage
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 # SEC-08: Maximum number of PENDING_UPLOAD media assets allowed per product.
@@ -105,11 +106,13 @@ class AddProductMediaHandler:
         media_repo: IMediaAssetRepository,
         blob_storage: IBlobStorage,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._media_repo = media_repo
         self._blob_storage = blob_storage
         self._uow = uow
+        self._logger = logger.bind(handler="AddProductMediaHandler")
 
     async def handle(self, command: AddProductMediaCommand) -> AddProductMediaResult:
         """Execute the add-product-media command.

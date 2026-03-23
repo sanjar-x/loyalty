@@ -20,6 +20,7 @@ from src.modules.catalog.infrastructure.models import (
 from src.modules.catalog.infrastructure.models import (
     ProductAttributeValue as OrmProductAttributeValue,
 )
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)
@@ -40,8 +41,9 @@ class ListProductAttributesQuery:
 class ListProductAttributesHandler:
     """Fetch all attribute assignments for a product with attribute metadata."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, logger: ILogger) -> None:
         self._session = session
+        self._logger = logger.bind(handler="ListProductAttributesHandler")
 
     async def handle(
         self, query: ListProductAttributesQuery

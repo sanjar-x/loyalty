@@ -15,6 +15,7 @@ from src.modules.catalog.domain.events import AttributeGroupUpdatedEvent
 from src.modules.catalog.domain.exceptions import AttributeGroupNotFoundError
 from src.modules.catalog.domain.interfaces import IAttributeGroupRepository
 from src.shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)
@@ -57,9 +58,11 @@ class UpdateAttributeGroupHandler:
         self,
         attribute_group_repo: IAttributeGroupRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ):
         self._attribute_group_repo = group_repo
         self._uow = uow
+        self._logger = logger.bind(handler="UpdateAttributeGroupHandler")
 
     async def handle(self, command: UpdateAttributeGroupCommand) -> UpdateAttributeGroupResult:
         """Execute the update-attribute-group command.

@@ -25,6 +25,7 @@ from src.modules.catalog.domain.entities import MediaAsset as DomainMediaAsset
 from src.modules.catalog.domain.entities import Product as DomainProduct
 from src.modules.catalog.domain.entities import ProductAttributeValue as DomainProductAttributeValue
 
+
 class ICatalogRepository[T](ABC):
     """Generic CRUD repository contract for catalog aggregates.
 
@@ -334,9 +335,7 @@ class IProductRepository(ICatalogRepository[DomainProduct]):
         pass
 
     @abstractmethod
-    async def get_for_update_with_variants(
-        self, product_id: uuid.UUID
-    ) -> DomainProduct | None:
+    async def get_for_update_with_variants(self, product_id: uuid.UUID) -> DomainProduct | None:
         """Retrieve a product with pessimistic lock AND eagerly loaded variants/SKUs."""
         pass
 
@@ -346,9 +345,7 @@ class IProductRepository(ICatalogRepository[DomainProduct]):
         pass
 
     @abstractmethod
-    async def sku_code_exists(
-        self, sku_code: str, exclude_sku_id: uuid.UUID | None = None
-    ) -> bool:
+    async def sku_code_exists(self, sku_code: str, exclude_sku_id: uuid.UUID | None = None) -> bool:
         """Check whether a non-deleted SKU with the given code already exists.
 
         Args:
@@ -357,6 +354,7 @@ class IProductRepository(ICatalogRepository[DomainProduct]):
                 (used during updates to ignore the SKU being updated).
         """
         pass
+
 
 class IProductAttributeValueRepository(ABC):
     """Repository contract for ProductAttributeValue entities.
@@ -516,9 +514,7 @@ class IBrandReadRepository(ABC):
         pass
 
     @abstractmethod
-    async def list_brands(
-        self, *, offset: int = 0, limit: int = 20
-    ) -> "_BrandListRM":
+    async def list_brands(self, *, offset: int = 0, limit: int = 20) -> "_BrandListRM":
         """Return a paginated list of brands."""
         pass
 
@@ -535,9 +531,7 @@ class ICategoryReadRepository(ABC):
         pass
 
     @abstractmethod
-    async def list_categories(
-        self, *, offset: int = 0, limit: int = 20
-    ) -> "_CategoryListRM":
+    async def list_categories(self, *, offset: int = 0, limit: int = 20) -> "_CategoryListRM":
         """Return a paginated category list ordered by level and sort order."""
         pass
 
@@ -551,9 +545,7 @@ class IAttributeGroupReadRepository(ABC):
     """Read-only query interface for attribute groups."""
 
     @abstractmethod
-    async def get_attribute_group(
-        self, group_id: uuid.UUID
-    ) -> "_AttrGroupRM | None":
+    async def get_attribute_group(self, group_id: uuid.UUID) -> "_AttrGroupRM | None":
         """Retrieve a single attribute group read model by ID."""
         pass
 
@@ -569,9 +561,7 @@ class IAttributeReadRepository(ABC):
     """Read-only query interface for attributes and their values."""
 
     @abstractmethod
-    async def get_attribute(
-        self, attribute_id: uuid.UUID
-    ) -> "_AttrRM | None":
+    async def get_attribute(self, attribute_id: uuid.UUID) -> "_AttrRM | None":
         """Retrieve a single attribute read model by ID."""
         pass
 
@@ -684,29 +674,21 @@ class IStorefrontQueryService(ABC):
     """
 
     @abstractmethod
-    async def get_filterable_attributes(
-        self, category_id: uuid.UUID
-    ) -> "_SFFilterRM":
+    async def get_filterable_attributes(self, category_id: uuid.UUID) -> "_SFFilterRM":
         """Return filterable attributes with their dictionary values."""
         pass
 
     @abstractmethod
-    async def get_card_attributes(
-        self, category_id: uuid.UUID
-    ) -> "_SFCardRM":
+    async def get_card_attributes(self, category_id: uuid.UUID) -> "_SFCardRM":
         """Return visible-on-card attributes grouped by attribute group."""
         pass
 
     @abstractmethod
-    async def get_comparison_attributes(
-        self, category_id: uuid.UUID
-    ) -> "_SFCompRM":
+    async def get_comparison_attributes(self, category_id: uuid.UUID) -> "_SFCompRM":
         """Return comparable attributes for the comparison table."""
         pass
 
     @abstractmethod
-    async def get_form_attributes(
-        self, category_id: uuid.UUID
-    ) -> "_SFFormRM":
+    async def get_form_attributes(self, category_id: uuid.UUID) -> "_SFFormRM":
         """Return the full attribute set for the product creation form."""
         pass

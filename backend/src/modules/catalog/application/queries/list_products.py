@@ -17,6 +17,7 @@ from src.modules.catalog.application.queries.read_models import (
 )
 from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)
@@ -39,8 +40,9 @@ class ListProductsQuery:
 class ListProductsHandler:
     """Fetch a paginated and filtered list of products."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, logger: ILogger) -> None:
         self._session = session
+        self._logger = logger.bind(handler="ListProductsHandler")
 
     async def handle(self, query: ListProductsQuery) -> ProductListReadModel:
         """Retrieve a paginated product list with optional filters.

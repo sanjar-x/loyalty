@@ -16,11 +16,11 @@ from src.modules.catalog.application.queries.get_attribute_group import (
 )
 from src.modules.catalog.application.queries.read_models import (
     AttributeGroupListReadModel,
-    AttributeGroupReadModel,
 )
 from src.modules.catalog.infrastructure.models import (
     AttributeGroup as OrmAttributeGroup,
 )
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)
@@ -39,8 +39,9 @@ class ListAttributeGroupsQuery:
 class ListAttributeGroupsHandler:
     """Fetch a paginated list of attribute groups."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, logger: ILogger):
         self._session = session
+        self._logger = logger.bind(handler="ListAttributeGroupsHandler")
 
     async def handle(self, query: ListAttributeGroupsQuery) -> AttributeGroupListReadModel:
         """Retrieve a paginated attribute group list.

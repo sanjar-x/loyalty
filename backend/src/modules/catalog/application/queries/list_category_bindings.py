@@ -17,6 +17,7 @@ from src.modules.catalog.application.queries.read_models import (
 from src.modules.catalog.infrastructure.models import (
     CategoryAttributeBinding as OrmBinding,
 )
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)
@@ -31,8 +32,9 @@ class ListCategoryBindingsQuery:
 class ListCategoryBindingsHandler:
     """Fetch all attribute bindings for a given category."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, logger: ILogger):
         self._session = session
+        self._logger = logger.bind(handler="ListCategoryBindingsHandler")
 
     async def handle(
         self, query: ListCategoryBindingsQuery

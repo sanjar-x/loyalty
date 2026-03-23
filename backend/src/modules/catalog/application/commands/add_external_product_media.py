@@ -23,6 +23,7 @@ from src.modules.catalog.domain.interfaces import (
     IProductRepository,
 )
 from src.shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)
@@ -83,10 +84,12 @@ class AddExternalProductMediaHandler:
         product_repo: IProductRepository,
         media_repo: IMediaAssetRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._media_repo = media_repo
         self._uow = uow
+        self._logger = logger.bind(handler="AddExternalProductMediaHandler")
 
     async def handle(
         self, command: AddExternalProductMediaCommand

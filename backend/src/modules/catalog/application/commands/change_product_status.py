@@ -9,9 +9,16 @@ transition, persist, commit. Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.domain.exceptions import ProductNotFoundError, ProductNotReadyError
-from src.modules.catalog.domain.interfaces import IMediaAssetRepository, IProductRepository
+from src.modules.catalog.domain.exceptions import (
+    ProductNotFoundError,
+    ProductNotReadyError,
+)
+from src.modules.catalog.domain.interfaces import (
+    IMediaAssetRepository,
+    IProductRepository,
+)
 from src.modules.catalog.domain.value_objects import ProductStatus
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -42,10 +49,12 @@ class ChangeProductStatusHandler:
         product_repo: IProductRepository,
         media_repo: IMediaAssetRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._media_repo = media_repo
         self._uow = uow
+        self._logger = logger.bind(handler="ChangeProductStatusHandler")
 
     async def handle(self, command: ChangeProductStatusCommand) -> None:
         """Execute the change-product-status command.

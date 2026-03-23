@@ -22,7 +22,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from src.modules.catalog.application.constants import (
-    STOREFRONT_CACHE_PREFIX,
     STOREFRONT_CACHE_TTL,
     storefront_card_cache_key,
     storefront_comparison_cache_key,
@@ -42,7 +41,6 @@ from src.modules.catalog.application.queries.read_models import (
     StorefrontValueReadModel,
 )
 from src.modules.catalog.domain.exceptions import CategoryNotFoundError
-from src.shared.interfaces.cache import ICacheService
 from src.modules.catalog.infrastructure.models import (
     Attribute as OrmAttribute,
 )
@@ -58,6 +56,8 @@ from src.modules.catalog.infrastructure.models import (
 from src.modules.catalog.infrastructure.models import (
     CategoryAttributeBinding as OrmBinding,
 )
+from src.shared.interfaces.cache import ICacheService
+from src.shared.interfaces.logger import ILogger
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -88,7 +88,9 @@ def _effective_display_type(filter_settings: dict[str, Any] | None, global_ui_ty
     return global_ui_type
 
 
-def _values_to_read_models(values: list[OrmAttributeValue]) -> list[StorefrontValueReadModel]:
+def _values_to_read_models(
+    values: list[OrmAttributeValue],
+) -> list[StorefrontValueReadModel]:
     """Convert ORM attribute values to storefront value read models.
 
     Note: ORM ``group_code`` is mapped to read-model ``value_group`` to
@@ -142,9 +144,10 @@ async def _load_bindings_with_attributes(
 class StorefrontFilterableAttributesHandler:
     """Fetch filterable attributes for a category with their values."""
 
-    def __init__(self, session: AsyncSession, cache: ICacheService):
+    def __init__(self, session: AsyncSession, cache: ICacheService, logger: ILogger):
         self._session = session
         self._cache = cache
+        self._logger = logger.bind(handler="StorefrontFilterableAttributesHandler")
 
     async def handle(self, category_id: uuid.UUID) -> StorefrontFilterListReadModel:
         """Return all attributes where the effective is_filterable flag is True."""
@@ -184,7 +187,9 @@ class StorefrontFilterableAttributesHandler:
             attributes=attributes,
         )
         await self._cache.set(
-            cache_key, json.dumps(result.model_dump(mode="json")), ttl=STOREFRONT_CACHE_TTL
+            cache_key,
+            json.dumps(result.model_dump(mode="json")),
+            ttl=STOREFRONT_CACHE_TTL,
         )
         return result
 
@@ -197,9 +202,10 @@ class StorefrontFilterableAttributesHandler:
 class StorefrontCardAttributesHandler:
     """Fetch visible-on-card attributes for a category, grouped by attribute group."""
 
-    def __init__(self, session: AsyncSession, cache: ICacheService):
+    def __init__(self, session: AsyncSession, cache: ICacheService, logger: ILogger):
         self._session = session
         self._cache = cache
+        self._logger = logger.bind(handler="StorefrontCardAttributesHandler")
 
     async def handle(self, category_id: uuid.UUID) -> StorefrontCardReadModel:
         """Return all attributes where the effective is_visible_on_card flag is True."""
@@ -247,7 +253,9 @@ class StorefrontCardAttributesHandler:
             groups=group_models,
         )
         await self._cache.set(
-            cache_key, json.dumps(result.model_dump(mode="json")), ttl=STOREFRONT_CACHE_TTL
+            cache_key,
+            json.dumps(result.model_dump(mode="json")),
+            ttl=STOREFRONT_CACHE_TTL,
         )
         return result
 
@@ -260,9 +268,10 @@ class StorefrontCardAttributesHandler:
 class StorefrontComparisonAttributesHandler:
     """Fetch comparable attributes for a category."""
 
-    def __init__(self, session: AsyncSession, cache: ICacheService):
+    def __init__(self, session: AsyncSession, cache: ICacheService, logger: ILogger):
         self._session = session
         self._cache = cache
+        self._logger = logger.bind(handler="StorefrontComparisonAttributesHandler")
 
     async def handle(self, category_id: uuid.UUID) -> StorefrontComparisonReadModel:
         """Return all attributes where the effective is_comparable flag is True."""
@@ -296,7 +305,9 @@ class StorefrontComparisonAttributesHandler:
             attributes=attributes,
         )
         await self._cache.set(
-            cache_key, json.dumps(result.model_dump(mode="json")), ttl=STOREFRONT_CACHE_TTL
+            cache_key,
+            json.dumps(result.model_dump(mode="json")),
+            ttl=STOREFRONT_CACHE_TTL,
         )
         return result
 
@@ -309,8 +320,9 @@ class StorefrontComparisonAttributesHandler:
 class StorefrontFormAttributesHandler:
     """Fetch the complete attribute set for a product creation form."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, logger: ILogger):
         self._session = session
+        self._logger = logger.bind(handler="StorefrontFormAttributesHandler")
 
     async def handle(self, category_id: uuid.UUID) -> StorefrontFormReadModel:
         """Return ALL attributes bound to this category, grouped, with full metadata."""
@@ -382,8 +394,14 @@ def _null_group() -> _NullGroup:
 def _group_bindings_into_groups(
     bindings: list[OrmBinding],
     *,
-    predicate: "Callable[[OrmBinding, OrmAttribute], bool] | None" = None,
-) -> list[tuple[uuid.UUID | None, OrmAttributeGroup | None, list[tuple[OrmBinding, OrmAttribute]]]]:
+    predicate: Callable[[OrmBinding, OrmAttribute], bool] | None = None,
+) -> list[
+    tuple[
+        uuid.UUID | None,
+        OrmAttributeGroup | None,
+        list[tuple[OrmBinding, OrmAttribute]],
+    ]
+]:
     """Group bindings by attribute group, filter with optional *predicate*, and sort.
 
     Returns a list of ``(group_id, group_or_none, [(binding, attribute), ...])``
@@ -406,10 +424,7 @@ def _group_bindings_into_groups(
         key=lambda item: (group_info.get(item[0]) or _null_group()).sort_order,
     )
 
-    return [
-        (gid, group_info.get(gid), items)
-        for gid, items in sorted_groups
-    ]
+    return [(gid, group_info.get(gid), items) for gid, items in sorted_groups]
 
 
 # ---------------------------------------------------------------------------

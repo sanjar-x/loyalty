@@ -14,6 +14,7 @@ from src.modules.catalog.domain.interfaces import (
 )
 from src.modules.catalog.domain.value_objects import RequirementLevel
 from src.shared.interfaces.cache import ICacheService
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -42,11 +43,13 @@ class BulkUpdateRequirementLevelsHandler:
         binding_repo: ICategoryAttributeBindingRepository,
         uow: IUnitOfWork,
         cache: ICacheService,
+        logger: ILogger,
     ):
         self._category_repo = category_repo
         self._binding_repo = binding_repo
         self._uow = uow
         self._cache = cache
+        self._logger = logger.bind(handler="BulkUpdateRequirementLevelsHandler")
 
     async def handle(self, command: BulkUpdateRequirementLevelsCommand) -> None:
         """Execute the bulk-update-requirement-levels command.

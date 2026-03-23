@@ -12,28 +12,35 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.modules.catalog.application.queries.list_variants import variant_orm_to_read_model
+from src.modules.catalog.application.queries.list_variants import (
+    variant_orm_to_read_model,
+)
 from src.modules.catalog.application.queries.read_models import (
     ProductAttributeValueReadModel,
     ProductReadModel,
 )
 from src.modules.catalog.domain.exceptions import ProductNotFoundError
 from src.modules.catalog.infrastructure.models import (
-    ProductVariant as OrmProductVariant,
     SKU as OrmSKU,
 )
 from src.modules.catalog.infrastructure.models import (
     Product as OrmProduct,
-    ProductAttributeValue as OrmProductAttributeValue,
-    Attribute as OrmAttribute,
 )
+from src.modules.catalog.infrastructure.models import (
+    ProductAttributeValue as OrmProductAttributeValue,
+)
+from src.modules.catalog.infrastructure.models import (
+    ProductVariant as OrmProductVariant,
+)
+from src.shared.interfaces.logger import ILogger
 
 
 class GetProductHandler:
     """Fetch a single product by its UUID with nested variants and attributes."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, logger: ILogger) -> None:
         self._session = session
+        self._logger = logger.bind(handler="GetProductHandler")
 
     async def handle(self, product_id: uuid.UUID) -> ProductReadModel:
         """Retrieve a product by ID with all nested data.

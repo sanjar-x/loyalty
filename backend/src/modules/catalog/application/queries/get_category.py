@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.modules.catalog.application.queries.read_models import CategoryReadModel
 from src.modules.catalog.domain.exceptions import CategoryNotFoundError
 from src.modules.catalog.infrastructure.models import Category as OrmCategory
+from src.shared.interfaces.logger import ILogger
 
 
 def category_orm_to_read_model(orm: OrmCategory) -> CategoryReadModel:
@@ -32,8 +33,9 @@ def category_orm_to_read_model(orm: OrmCategory) -> CategoryReadModel:
 class GetCategoryHandler:
     """Fetch a single category by its UUID."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, logger: ILogger):
         self._session = session
+        self._logger = logger.bind(handler="GetCategoryHandler")
 
     async def handle(self, category_id: uuid.UUID) -> CategoryReadModel:
         """Retrieve a category read model.

@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.modules.catalog.application.queries.read_models import BrandReadModel
 from src.modules.catalog.domain.exceptions import BrandNotFoundError
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
+from src.shared.interfaces.logger import ILogger
 
 
 def brand_orm_to_read_model(orm: OrmBrand) -> BrandReadModel:
@@ -30,8 +31,9 @@ def brand_orm_to_read_model(orm: OrmBrand) -> BrandReadModel:
 class GetBrandHandler:
     """Fetch a single brand by its UUID."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, logger: ILogger):
         self._session = session
+        self._logger = logger.bind(handler="GetBrandHandler")
 
     async def handle(self, brand_id: uuid.UUID) -> BrandReadModel:
         """Retrieve a brand read model.

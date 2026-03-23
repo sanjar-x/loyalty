@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.infrastructure.models import MediaAsset as OrmMediaAsset
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)
@@ -43,8 +44,9 @@ class ListProductMediaQuery:
 class ListProductMediaHandler:
     """List media assets for a product with DB-level pagination (CQRS read side)."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, logger: ILogger) -> None:
         self._session = session
+        self._logger = logger.bind(handler="ListProductMediaHandler")
 
     async def handle(self, query: ListProductMediaQuery) -> tuple[list[MediaAssetReadModel], int]:
         """Retrieve paginated media assets for a product.

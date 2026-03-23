@@ -16,13 +16,15 @@ from src.modules.catalog.application.queries.list_attributes import (
 from src.modules.catalog.application.queries.read_models import AttributeReadModel
 from src.modules.catalog.domain.exceptions import AttributeNotFoundError
 from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute
+from src.shared.interfaces.logger import ILogger
 
 
 class GetAttributeHandler:
     """Fetch a single attribute by its UUID."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, logger: ILogger):
         self._session = session
+        self._logger = logger.bind(handler="GetAttributeHandler")
 
     async def handle(self, attribute_id: uuid.UUID) -> AttributeReadModel:
         """Retrieve an attribute by ID.

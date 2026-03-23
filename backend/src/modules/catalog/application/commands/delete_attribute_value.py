@@ -18,6 +18,7 @@ from src.modules.catalog.domain.interfaces import (
     IAttributeRepository,
     IAttributeValueRepository,
 )
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -37,10 +38,12 @@ class DeleteAttributeValueHandler:
         attribute_repo: IAttributeRepository,
         value_repo: IAttributeValueRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._attribute_repo = attribute_repo
         self._value_repo = value_repo
         self._uow = uow
+        self._logger = logger.bind(handler="DeleteAttributeValueHandler")
 
     async def handle(self, command: DeleteAttributeValueCommand) -> None:
         """Execute the delete-attribute-value command.

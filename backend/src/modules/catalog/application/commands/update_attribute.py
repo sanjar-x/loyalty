@@ -14,6 +14,7 @@ from src.modules.catalog.domain.exceptions import AttributeNotFoundError
 from src.modules.catalog.domain.interfaces import IAttributeRepository
 from src.modules.catalog.domain.value_objects import AttributeLevel, AttributeUIType
 from src.shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)
@@ -66,9 +67,11 @@ class UpdateAttributeHandler:
         self,
         attribute_repo: IAttributeRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._attribute_repo = attribute_repo
         self._uow = uow
+        self._logger = logger.bind(handler="UpdateAttributeHandler")
 
     async def handle(self, command: UpdateAttributeCommand) -> UpdateAttributeResult:
         """Execute the update-attribute command.

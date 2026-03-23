@@ -19,9 +19,9 @@ from src.modules.catalog.application.queries.read_models import (
     resolve_sku_price,
 )
 from src.modules.catalog.infrastructure.models import (
-    ProductVariant as OrmProductVariant,
     SKU as OrmSKU,
 )
+from src.shared.interfaces.logger import ILogger
 
 
 def sku_orm_to_read_model(
@@ -88,8 +88,9 @@ class ListSKUsQuery:
 class ListSKUsHandler:
     """Fetch all SKUs for a given product."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, logger: ILogger) -> None:
         self._session = session
+        self._logger = logger.bind(handler="ListSKUsHandler")
 
     async def handle(self, query: ListSKUsQuery) -> tuple[list[SKUReadModel], int]:
         """Retrieve paginated SKUs for a product, ordered by creation time.

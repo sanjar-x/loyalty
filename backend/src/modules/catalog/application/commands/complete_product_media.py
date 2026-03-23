@@ -10,9 +10,9 @@ Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.domain.exceptions import MediaAssetNotFoundError
 from src.modules.catalog.domain.interfaces import IMediaAssetRepository
 from src.modules.catalog.domain.value_objects import MediaProcessingStatus
-from src.modules.catalog.domain.exceptions import MediaAssetNotFoundError
 from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.config import IStorageConfig
 from src.shared.interfaces.logger import ILogger

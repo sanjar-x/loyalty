@@ -24,6 +24,7 @@ from src.modules.catalog.domain.interfaces import (
     IProductAttributeValueRepository,
     IProductRepository,
 )
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -68,12 +69,14 @@ class AssignProductAttributeHandler:
         attribute_repo: IAttributeRepository,
         attribute_value_repo: IAttributeValueRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._pav_repo = pav_repo
         self._attribute_repo = attribute_repo
         self._attribute_value_repo = attribute_value_repo
         self._uow = uow
+        self._logger = logger.bind(handler="AssignProductAttributeHandler")
 
     async def handle(self, command: AssignProductAttributeCommand) -> AssignProductAttributeResult:
         """Execute the assign-product-attribute command.

@@ -20,14 +20,16 @@ from src.modules.catalog.application.constants import (
 from src.modules.catalog.application.queries.read_models import CategoryNode
 from src.modules.catalog.infrastructure.models import Category as OrmCategory
 from src.shared.interfaces.cache import ICacheService
+from src.shared.interfaces.logger import ILogger
 
 
 class GetCategoryTreeHandler:
     """Fetch the full category tree as nested CategoryNode objects."""
 
-    def __init__(self, session: AsyncSession, cache: ICacheService):
+    def __init__(self, session: AsyncSession, cache: ICacheService, logger: ILogger):
         self._session = session
         self._cache = cache
+        self._logger = logger.bind(handler="GetCategoryTreeHandler")
 
     async def handle(self, *, max_depth: int | None = None) -> list[CategoryNode]:
         """Retrieve the category tree, using Redis cache when available.

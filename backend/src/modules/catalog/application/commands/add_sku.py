@@ -11,7 +11,10 @@ import uuid
 from dataclasses import dataclass, field
 
 from src.modules.catalog.application.constants import DEFAULT_CURRENCY
-from src.modules.catalog.domain.exceptions import ProductNotFoundError, SKUCodeConflictError
+from src.modules.catalog.domain.exceptions import (
+    ProductNotFoundError,
+    SKUCodeConflictError,
+)
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
 from src.shared.interfaces.logger import ILogger
@@ -96,9 +99,7 @@ class AddSKUHandler:
                 raise ProductNotFoundError(product_id=command.product_id)
 
             if await self._product_repo.sku_code_exists(command.sku_code):
-                raise SKUCodeConflictError(
-                    sku_code=command.sku_code, product_id=command.product_id
-                )
+                raise SKUCodeConflictError(sku_code=command.sku_code, product_id=command.product_id)
 
             price, compare_at_price = Money.from_primitives(
                 amount=command.price_amount,

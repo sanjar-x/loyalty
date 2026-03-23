@@ -22,6 +22,7 @@ from src.modules.catalog.domain.interfaces import (
     IAttributeRepository,
     IAttributeValueRepository,
 )
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -65,10 +66,12 @@ class AddAttributeValueHandler:
         attribute_repo: IAttributeRepository,
         value_repo: IAttributeValueRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ):
         self._attribute_repo = attribute_repo
         self._value_repo = value_repo
         self._uow = uow
+        self._logger = logger.bind(handler="AddAttributeValueHandler")
 
     async def handle(self, command: AddAttributeValueCommand) -> AddAttributeValueResult:
         """Execute the add-attribute-value command.

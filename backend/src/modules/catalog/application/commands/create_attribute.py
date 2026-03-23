@@ -22,6 +22,7 @@ from src.modules.catalog.domain.value_objects import (
     AttributeLevel,
     AttributeUIType,
 )
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -84,9 +85,11 @@ class CreateAttributeHandler:
         self,
         attribute_repo: IAttributeRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._attribute_repo = attribute_repo
         self._uow = uow
+        self._logger = logger.bind(handler="CreateAttributeHandler")
 
     async def handle(self, command: CreateAttributeCommand) -> CreateAttributeResult:
         """Execute the create-attribute command.

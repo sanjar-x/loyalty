@@ -24,6 +24,7 @@ from src.modules.catalog.domain.exceptions import (
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
 from src.shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)
@@ -85,9 +86,11 @@ class UpdateSKUHandler:
         self,
         product_repo: IProductRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._uow = uow
+        self._logger = logger.bind(handler="UpdateSKUHandler")
 
     async def handle(self, command: UpdateSKUCommand) -> UpdateSKUResult:
         """Execute the update-SKU command.

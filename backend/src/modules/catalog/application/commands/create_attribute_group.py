@@ -12,6 +12,7 @@ from src.modules.catalog.domain.entities import AttributeGroup
 from src.modules.catalog.domain.events import AttributeGroupCreatedEvent
 from src.modules.catalog.domain.exceptions import AttributeGroupCodeConflictError
 from src.modules.catalog.domain.interfaces import IAttributeGroupRepository
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -48,9 +49,11 @@ class CreateAttributeGroupHandler:
         self,
         attribute_group_repo: IAttributeGroupRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._attribute_group_repo = attribute_group_repo
         self._uow = uow
+        self._logger = logger.bind(handler="CreateAttributeGroupHandler")
 
     async def handle(self, command: CreateAttributeGroupCommand) -> CreateAttributeGroupResult:
         """Execute the create-attribute-group command.

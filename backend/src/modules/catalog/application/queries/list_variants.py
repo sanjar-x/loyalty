@@ -18,9 +18,12 @@ from src.modules.catalog.application.queries.read_models import (
     SKUReadModel,
 )
 from src.modules.catalog.infrastructure.models import (
-    ProductVariant as OrmProductVariant,
     SKU as OrmSKU,
 )
+from src.modules.catalog.infrastructure.models import (
+    ProductVariant as OrmProductVariant,
+)
+from src.shared.interfaces.logger import ILogger
 
 
 def variant_orm_to_read_model(orm: OrmProductVariant) -> ProductVariantReadModel:
@@ -64,8 +67,9 @@ class ListVariantsQuery:
 class ListVariantsHandler:
     """Fetch all active variants for a given product."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, logger: ILogger) -> None:
         self._session = session
+        self._logger = logger.bind(handler="ListVariantsHandler")
 
     async def handle(self, query: ListVariantsQuery) -> tuple[list[ProductVariantReadModel], int]:
         """Retrieve paginated active variants for a product, ordered by sort_order.

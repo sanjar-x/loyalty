@@ -18,6 +18,7 @@ from src.modules.catalog.domain.exceptions import (
     AttributeGroupNotFoundError,
 )
 from src.modules.catalog.domain.interfaces import IAttributeGroupRepository
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -47,9 +48,11 @@ class DeleteAttributeGroupHandler:
         self,
         attribute_group_repo: IAttributeGroupRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._attribute_group_repo = attribute_group_repo
         self._uow = uow
+        self._logger = logger.bind(handler="DeleteAttributeGroupHandler")
 
     async def handle(self, command: DeleteAttributeGroupCommand) -> None:
         """Execute the delete-attribute-group command.

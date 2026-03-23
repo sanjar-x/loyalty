@@ -176,7 +176,9 @@ class TestChangeProductStatusHandlerHappyPath:
         product = make_product(product_id=pid, status=ProductStatus.DRAFT)
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         await handler.handle(make_command(product_id=pid, new_status=ProductStatus.ENRICHING))
 
@@ -187,7 +189,9 @@ class TestChangeProductStatusHandlerHappyPath:
         product = make_product(status=ProductStatus.DRAFT)
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         await handler.handle(
             ChangeProductStatusCommand(
@@ -203,7 +207,9 @@ class TestChangeProductStatusHandlerHappyPath:
         product = make_product(status=ProductStatus.DRAFT)
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         await handler.handle(
             ChangeProductStatusCommand(
@@ -219,7 +225,9 @@ class TestChangeProductStatusHandlerHappyPath:
         product = make_product(status=ProductStatus.DRAFT)
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         await handler.handle(
             ChangeProductStatusCommand(
@@ -235,7 +243,9 @@ class TestChangeProductStatusHandlerHappyPath:
         product = make_product(status=ProductStatus.DRAFT)
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         await handler.handle(
             ChangeProductStatusCommand(
@@ -252,7 +262,9 @@ class TestChangeProductStatusHandlerHappyPath:
         product = make_product(status=ProductStatus.DRAFT)
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         result = await handler.handle(
             ChangeProductStatusCommand(
@@ -276,7 +288,9 @@ class TestChangeProductStatusHandlerNotFound:
         """Handler raises ProductNotFoundError when repo.get returns None."""
         repo = make_product_repo(product=None)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         with pytest.raises(ProductNotFoundError):
             await handler.handle(make_command())
@@ -286,7 +300,9 @@ class TestChangeProductStatusHandlerNotFound:
         pid = uuid.uuid4()
         repo = make_product_repo(product=None)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         with pytest.raises(ProductNotFoundError) as exc_info:
             await handler.handle(make_command(product_id=pid))
@@ -297,7 +313,9 @@ class TestChangeProductStatusHandlerNotFound:
         """When product not found, repo.update must not be called."""
         repo = make_product_repo(product=None)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         with pytest.raises(ProductNotFoundError):
             await handler.handle(make_command())
@@ -308,7 +326,9 @@ class TestChangeProductStatusHandlerNotFound:
         """When product not found, uow.commit must not be called."""
         repo = make_product_repo(product=None)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         with pytest.raises(ProductNotFoundError):
             await handler.handle(make_command())
@@ -329,7 +349,9 @@ class TestChangeProductStatusHandlerInvalidTransition:
         product = make_product(status=ProductStatus.DRAFT)
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         with pytest.raises(InvalidStatusTransitionError):
             await handler.handle(
@@ -344,7 +366,9 @@ class TestChangeProductStatusHandlerInvalidTransition:
         product = make_product(status=ProductStatus.DRAFT)
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         with pytest.raises(InvalidStatusTransitionError):
             await handler.handle(
@@ -359,7 +383,9 @@ class TestChangeProductStatusHandlerInvalidTransition:
         product = make_product(status=ProductStatus.PUBLISHED)
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         with pytest.raises(InvalidStatusTransitionError):
             await handler.handle(
@@ -374,7 +400,9 @@ class TestChangeProductStatusHandlerInvalidTransition:
         product = make_product(status=ProductStatus.DRAFT)
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         with pytest.raises(InvalidStatusTransitionError):
             await handler.handle(
@@ -391,7 +419,9 @@ class TestChangeProductStatusHandlerInvalidTransition:
         product = make_product(status=ProductStatus.DRAFT)
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         with pytest.raises(InvalidStatusTransitionError):
             await handler.handle(
@@ -408,7 +438,9 @@ class TestChangeProductStatusHandlerInvalidTransition:
         product = make_product(status=ProductStatus.DRAFT)
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         with pytest.raises(InvalidStatusTransitionError):
             await handler.handle(
@@ -457,7 +489,9 @@ class TestChangeProductStatusHandlerValidTransitions:
         product = make_product(status=from_status)
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         await handler.handle(
             ChangeProductStatusCommand(
@@ -523,7 +557,9 @@ class TestChangeProductStatusHandlerInvalidTransitions:
         product = make_product(status=from_status)
         repo = make_product_repo(product=product)
         uow = make_uow()
-        handler = ChangeProductStatusHandler(product_repo=repo, media_repo=make_media_repo(), uow=uow)
+        handler = ChangeProductStatusHandler(
+            product_repo=repo, media_repo=make_media_repo(), uow=uow
+        )
 
         with pytest.raises(InvalidStatusTransitionError):
             await handler.handle(

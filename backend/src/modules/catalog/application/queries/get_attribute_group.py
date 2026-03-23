@@ -17,9 +17,12 @@ from src.modules.catalog.domain.exceptions import AttributeGroupNotFoundError
 from src.modules.catalog.infrastructure.models import (
     AttributeGroup as OrmAttributeGroup,
 )
+from src.shared.interfaces.logger import ILogger
 
 
-def attribute_group_orm_to_read_model(orm: OrmAttributeGroup) -> AttributeGroupReadModel:
+def attribute_group_orm_to_read_model(
+    orm: OrmAttributeGroup,
+) -> AttributeGroupReadModel:
     """Convert an ORM AttributeGroup to an AttributeGroupReadModel."""
     return AttributeGroupReadModel(
         id=orm.id,
@@ -32,8 +35,9 @@ def attribute_group_orm_to_read_model(orm: OrmAttributeGroup) -> AttributeGroupR
 class GetAttributeGroupHandler:
     """Fetch a single attribute group by its UUID."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, logger: ILogger):
         self._session = session
+        self._logger = logger.bind(handler="GetAttributeGroupHandler")
 
     async def handle(self, group_id: uuid.UUID) -> AttributeGroupReadModel:
         """Retrieve an attribute group by ID.

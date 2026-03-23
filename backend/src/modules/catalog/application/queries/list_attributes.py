@@ -17,6 +17,7 @@ from src.modules.catalog.application.queries.read_models import (
     AttributeReadModel,
 )
 from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute
+from src.shared.interfaces.logger import ILogger
 
 
 def attribute_orm_to_read_model(orm: OrmAttribute) -> AttributeReadModel:
@@ -76,8 +77,9 @@ class ListAttributesQuery:
 class ListAttributesHandler:
     """Fetch a paginated and filtered list of attributes."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, logger: ILogger):
         self._session = session
+        self._logger = logger.bind(handler="ListAttributesHandler")
 
     async def handle(self, query: ListAttributesQuery) -> AttributeListReadModel:
         """Retrieve a paginated attribute list with optional filters.

@@ -138,8 +138,7 @@ class _PartialUpdateMixin:
         unknown = set(kwargs) - self._UPDATABLE_FIELDS
         if unknown:
             raise TypeError(
-                f"update() got unexpected keyword argument(s): "
-                f"{', '.join(sorted(unknown))}"
+                f"update() got unexpected keyword argument(s): {', '.join(sorted(unknown))}"
             )
 
         changed: set[str] = set()
@@ -215,8 +214,7 @@ class Brand(AggregateRoot, _PartialUpdateMixin):
     def __setattr__(self, name: str, value: object) -> None:
         if name in _BRAND_GUARDED_FIELDS and getattr(self, "_Brand__initialized", False):
             raise AttributeError(
-                f"Cannot set '{name}' directly on Brand. "
-                f"Use the update() method instead."
+                f"Cannot set '{name}' directly on Brand. Use the update() method instead."
             )
         super().__setattr__(name, value)
 
@@ -452,8 +450,7 @@ class Category(AggregateRoot, _PartialUpdateMixin):
     def __setattr__(self, name: str, value: object) -> None:
         if name in _CATEGORY_GUARDED_FIELDS and getattr(self, "_Category__initialized", False):
             raise AttributeError(
-                f"Cannot set '{name}' directly on Category. "
-                f"Use the update() method instead."
+                f"Cannot set '{name}' directly on Category. Use the update() method instead."
             )
         super().__setattr__(name, value)
 
@@ -1782,8 +1779,7 @@ class Product(AggregateRoot, _PartialUpdateMixin):
     def __setattr__(self, name: str, value: object) -> None:
         if name in _PRODUCT_GUARDED_FIELDS and getattr(self, "_Product__initialized", False):
             raise AttributeError(
-                f"Cannot set '{name}' directly on Product. "
-                f"Use transition_status() instead."
+                f"Cannot set '{name}' directly on Product. Use transition_status() instead."
             )
         super().__setattr__(name, value)
 
@@ -1992,8 +1988,11 @@ class Product(AggregateRoot, _PartialUpdateMixin):
             )
         if new_status in (ProductStatus.PUBLISHED, ProductStatus.READY_FOR_REVIEW):
             active_skus = [
-                s for v in self.variants if v.deleted_at is None
-                for s in v.skus if s.deleted_at is None and s.is_active
+                s
+                for v in self.variants
+                if v.deleted_at is None
+                for s in v.skus
+                if s.deleted_at is None and s.is_active
             ]
             if not active_skus:
                 raise ProductNotReadyError(
@@ -2056,7 +2055,9 @@ class Product(AggregateRoot, _PartialUpdateMixin):
             default_currency=default_currency,
         )
         self.variants.append(variant)
-        self.add_domain_event(VariantAddedEvent(product_id=self.id, variant_id=variant.id, aggregate_id=str(self.id)))
+        self.add_domain_event(
+            VariantAddedEvent(product_id=self.id, variant_id=variant.id, aggregate_id=str(self.id))
+        )
         self.updated_at = datetime.now(UTC)
         return variant
 
@@ -2093,7 +2094,11 @@ class Product(AggregateRoot, _PartialUpdateMixin):
         if len(active_variants) <= 1:
             raise LastVariantRemovalError(product_id=self.id)
         variant.soft_delete()
-        self.add_domain_event(VariantRemovedEvent(product_id=self.id, variant_id=variant_id, aggregate_id=str(self.id)))
+        self.add_domain_event(
+            VariantRemovedEvent(
+                product_id=self.id, variant_id=variant_id, aggregate_id=str(self.id)
+            )
+        )
         self.updated_at = datetime.now(UTC)
 
     # ------------------------------------------------------------------
@@ -2157,7 +2162,15 @@ class Product(AggregateRoot, _PartialUpdateMixin):
             variant_attributes=list(effective_attrs),
         )
         variant.skus.append(sku)
-        self.add_domain_event(SKUAddedEvent(product_id=self.id, variant_id=variant_id, sku_id=sku.id, sku_code=sku.sku_code, aggregate_id=str(self.id)))
+        self.add_domain_event(
+            SKUAddedEvent(
+                product_id=self.id,
+                variant_id=variant_id,
+                sku_id=sku.id,
+                sku_code=sku.sku_code,
+                aggregate_id=str(self.id),
+            )
+        )
         self.updated_at = datetime.now(UTC)
         return sku
 
@@ -2189,7 +2202,14 @@ class Product(AggregateRoot, _PartialUpdateMixin):
             for sku in variant.skus:
                 if sku.id == sku_id and sku.deleted_at is None:
                     sku.soft_delete()
-                    self.add_domain_event(SKURemovedEvent(product_id=self.id, variant_id=variant.id, sku_id=sku_id, aggregate_id=str(self.id)))
+                    self.add_domain_event(
+                        SKURemovedEvent(
+                            product_id=self.id,
+                            variant_id=variant.id,
+                            sku_id=sku_id,
+                            aggregate_id=str(self.id),
+                        )
+                    )
                     self.updated_at = datetime.now(UTC)
                     return
         raise SKUNotFoundError(sku_id=sku_id)

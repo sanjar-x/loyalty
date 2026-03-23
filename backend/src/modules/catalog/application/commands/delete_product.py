@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from src.modules.catalog.domain.exceptions import ProductNotFoundError
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)
@@ -33,9 +34,11 @@ class DeleteProductHandler:
         self,
         product_repo: IProductRepository,
         uow: IUnitOfWork,
+        logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._uow = uow
+        self._logger = logger.bind(handler="DeleteProductHandler")
 
     async def handle(self, command: DeleteProductCommand) -> None:
         """Execute the delete-product command.
