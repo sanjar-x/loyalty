@@ -35,8 +35,9 @@ class AttributeValueRepository(
     def _to_domain(self, orm: OrmAttributeValue) -> DomainAttributeValue:
         """Map an ORM row to a domain entity.
 
-        Note: ORM column ``group_code`` is deliberately mapped to the domain/API
-        field ``value_group`` to keep the public API name stable.
+        Note: ORM ``group_code`` is mapped to domain ``value_group``.
+        The domain uses ``value_group`` (a UI grouping label), while the
+        database column is ``group_code``. This is a deliberate rename.
         """
         return DomainAttributeValue(
             id=orm.id,
@@ -46,8 +47,7 @@ class AttributeValueRepository(
             value_i18n=dict(orm.value_i18n) if orm.value_i18n else {},
             search_aliases=list(orm.search_aliases) if orm.search_aliases else [],
             meta_data=dict(orm.meta_data) if orm.meta_data else {},
-            # Deliberate rename: ORM ``group_code`` -> domain ``value_group``
-            value_group=orm.group_code,
+            value_group=orm.group_code,  # ORM group_code -> domain value_group
             sort_order=orm.sort_order,
         )
 
@@ -64,8 +64,7 @@ class AttributeValueRepository(
         orm.value_i18n = entity.value_i18n
         orm.search_aliases = entity.search_aliases
         orm.meta_data = entity.meta_data
-        # Deliberate rename: domain ``value_group`` -> ORM ``group_code``
-        orm.group_code = entity.value_group
+        orm.group_code = entity.value_group  # domain value_group -> ORM group_code
         orm.sort_order = entity.sort_order
         return orm
 

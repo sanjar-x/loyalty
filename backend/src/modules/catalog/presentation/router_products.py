@@ -39,7 +39,6 @@ from src.modules.catalog.application.queries.read_models import (
 from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.presentation.mappers import to_variant_response
 from src.modules.catalog.presentation.schemas import (
-    ProductAttributeResponse,
     ProductCreateRequest,
     ProductCreateResponse,
     ProductListItemResponse,
@@ -172,7 +171,7 @@ async def get_product(
 ) -> ProductResponse:
     """Retrieve a single product with nested SKUs and attributes."""
     read_model: ProductReadModel = await handler.handle(product_id)
-    return _to_product_response(read_model)
+    return to_product_response(read_model)
 
 
 @product_router.patch(
@@ -201,7 +200,7 @@ async def update_product(
 
     # Fetch the full product for response
     read_model: ProductReadModel = await get_handler.handle(result.id)
-    return _to_product_response(read_model)
+    return to_product_response(read_model)
 
 
 @product_router.delete(

@@ -16,9 +16,9 @@ from src.modules.catalog.application.commands.assign_product_attribute import (
     AssignProductAttributeHandler,
     AssignProductAttributeResult,
 )
-from src.modules.catalog.application.commands.remove_product_attribute import (
-    RemoveProductAttributeCommand,
-    RemoveProductAttributeHandler,
+from src.modules.catalog.application.commands.delete_product_attribute import (
+    DeleteProductAttributeCommand,
+    DeleteProductAttributeHandler,
 )
 from src.modules.catalog.application.queries.list_product_attributes import (
     ListProductAttributesHandler,
@@ -118,23 +118,23 @@ async def list_product_attributes(
 @product_attribute_router.delete(
     path="/{attribute_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Remove an attribute assignment from a product",
+    summary="Delete an attribute assignment from a product",
     description="Un-assign an attribute from the given product.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
-async def remove_product_attribute(
+async def delete_product_attribute(
     product_id: uuid.UUID,
     attribute_id: uuid.UUID,
-    handler: FromDishka[RemoveProductAttributeHandler],
+    handler: FromDishka[DeleteProductAttributeHandler],
 ) -> None:
-    """Remove an attribute assignment from a product.
+    """Delete an attribute assignment from a product.
 
     Args:
         product_id: UUID of the target product.
         attribute_id: UUID of the attribute to un-assign.
         handler: Injected command handler.
     """
-    command = RemoveProductAttributeCommand(
+    command = DeleteProductAttributeCommand(
         product_id=product_id,
         attribute_id=attribute_id,
     )

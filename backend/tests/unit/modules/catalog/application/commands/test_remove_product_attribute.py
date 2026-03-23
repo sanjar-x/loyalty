@@ -1,11 +1,11 @@
-"""Unit tests for RemoveProductAttributeCommand and RemoveProductAttributeHandler.
+"""Unit tests for DeleteProductAttributeCommand and DeleteProductAttributeHandler.
 
 Tests cover:
 - Command dataclass field storage and immutability
 - Handler happy path: PAV found by product+attribute, deleted and committed
 - Handler not found: raises ProductAttributeValueNotFoundError, no commit
 - UoW is used as async context manager
-- Handler calls list_by_product and delete with correct arguments
+- Handler calls get_by_product_and_attribute and delete with correct arguments
 """
 
 import uuid
@@ -14,9 +14,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.modules.catalog.application.commands.remove_product_attribute import (
-    RemoveProductAttributeCommand,
-    RemoveProductAttributeHandler,
+from src.modules.catalog.application.commands.delete_product_attribute import (
+    DeleteProductAttributeCommand,
+    DeleteProductAttributeHandler,
 )
 from src.modules.catalog.domain.entities import ProductAttributeValue
 from src.modules.catalog.domain.exceptions import ProductAttributeValueNotFoundError
@@ -36,11 +36,6 @@ def make_uow() -> AsyncMock:
     return uow
 
 
-def make_product_repo() -> AsyncMock:
-    """Build a mocked IProductRepository (unused by remove handler but required by constructor)."""
-    return AsyncMock()
-
-
 def make_pav(
     product_id: uuid.UUID,
     attribute_id: uuid.UUID,
@@ -57,18 +52,21 @@ def make_pav(
 
 
 def make_pav_repo(
-    pavs: list[ProductAttributeValue] | None = None,
+    get_by_product_and_attribute_return: ProductAttributeValue | None = None,
 ) -> AsyncMock:
     """Build a mocked IProductAttributeValueRepository.
 
     Args:
-        pavs: List of PAVs to return from list_by_product(). Empty list by default.
+        get_by_product_and_attribute_return: Value to return from
+            get_by_product_and_attribute(). None means "not found".
 
     Returns:
         Configured AsyncMock.
     """
     repo = AsyncMock()
-    repo.list_by_product = AsyncMock(return_value=pavs if pavs is not None else [])
+    repo.get_by_product_and_attribute = AsyncMock(
+        return_value=get_by_product_and_attribute_return,
+    )
     repo.delete = AsyncMock()
     return repo
 
@@ -76,27 +74,27 @@ def make_pav_repo(
 def make_command(
     product_id: uuid.UUID | None = None,
     attribute_id: uuid.UUID | None = None,
-) -> RemoveProductAttributeCommand:
-    """Build a minimal valid RemoveProductAttributeCommand."""
-    return RemoveProductAttributeCommand(
+) -> DeleteProductAttributeCommand:
+    """Build a minimal valid DeleteProductAttributeCommand."""
+    return DeleteProductAttributeCommand(
         product_id=product_id or uuid.uuid4(),
         attribute_id=attribute_id or uuid.uuid4(),
     )
 
 
 # ---------------------------------------------------------------------------
-# RemoveProductAttributeCommand
+# DeleteProductAttributeCommand
 # ---------------------------------------------------------------------------
 
 
-class TestRemoveProductAttributeCommand:
-    """Structural tests for the RemoveProductAttributeCommand DTO."""
+class TestDeleteProductAttributeCommand:
+    """Structural tests for the DeleteProductAttributeCommand DTO."""
 
     def test_fields_stored_correctly(self) -> None:
         """Both required fields are stored on the dataclass."""
         product_id = uuid.uuid4()
         attribute_id = uuid.uuid4()
-        cmd = RemoveProductAttributeCommand(
+        cmd = DeleteProductAttributeCommand(
             product_id=product_id,
             attribute_id=attribute_id,
         )
@@ -104,31 +102,29 @@ class TestRemoveProductAttributeCommand:
         assert cmd.attribute_id == attribute_id
 
     def test_command_is_frozen(self) -> None:
-        """RemoveProductAttributeCommand is a frozen dataclass -- mutation must raise."""
+        """DeleteProductAttributeCommand is a frozen dataclass -- mutation must raise."""
         cmd = make_command()
         with pytest.raises(FrozenInstanceError):
             cmd.product_id = uuid.uuid4()  # type: ignore[misc]
 
 
 # ---------------------------------------------------------------------------
-# RemoveProductAttributeHandler -- happy path
+# DeleteProductAttributeHandler -- happy path
 # ---------------------------------------------------------------------------
 
 
-class TestRemoveProductAttributeHandlerHappyPath:
-    """Handler tests when the target PAV is found and removed."""
+class TestDeleteProductAttributeHandlerHappyPath:
+    """Handler tests when the target PAV is found and deleted."""
 
     async def test_returns_none(self) -> None:
-        """Handler returns None on successful removal."""
+        """Handler returns None on successful deletion."""
         product_id = uuid.uuid4()
         attribute_id = uuid.uuid4()
         pav = make_pav(product_id=product_id, attribute_id=attribute_id)
 
-        product_repo = make_product_repo()
-        pav_repo = make_pav_repo(pavs=[pav])
+        pav_repo = make_pav_repo(get_by_product_and_attribute_return=pav)
         uow = make_uow()
-        handler = RemoveProductAttributeHandler(
-            product_repo=product_repo,
+        handler = DeleteProductAttributeHandler(
             pav_repo=pav_repo,
             uow=uow,
         )
@@ -139,24 +135,24 @@ class TestRemoveProductAttributeHandlerHappyPath:
 
         assert result is None
 
-    async def test_calls_list_by_product_with_correct_id(self) -> None:
-        """Handler calls pav_repo.list_by_product() with the command's product_id."""
+    async def test_calls_get_by_product_and_attribute(self) -> None:
+        """Handler calls pav_repo.get_by_product_and_attribute() with the command IDs."""
         product_id = uuid.uuid4()
         attribute_id = uuid.uuid4()
         pav = make_pav(product_id=product_id, attribute_id=attribute_id)
 
-        product_repo = make_product_repo()
-        pav_repo = make_pav_repo(pavs=[pav])
+        pav_repo = make_pav_repo(get_by_product_and_attribute_return=pav)
         uow = make_uow()
-        handler = RemoveProductAttributeHandler(
-            product_repo=product_repo,
+        handler = DeleteProductAttributeHandler(
             pav_repo=pav_repo,
             uow=uow,
         )
 
         await handler.handle(make_command(product_id=product_id, attribute_id=attribute_id))
 
-        pav_repo.list_by_product.assert_awaited_once_with(product_id)
+        pav_repo.get_by_product_and_attribute.assert_awaited_once_with(
+            product_id, attribute_id,
+        )
 
     async def test_calls_delete_with_correct_pav_id(self) -> None:
         """Handler calls pav_repo.delete() with the id of the matching PAV."""
@@ -164,11 +160,9 @@ class TestRemoveProductAttributeHandlerHappyPath:
         attribute_id = uuid.uuid4()
         pav = make_pav(product_id=product_id, attribute_id=attribute_id)
 
-        product_repo = make_product_repo()
-        pav_repo = make_pav_repo(pavs=[pav])
+        pav_repo = make_pav_repo(get_by_product_and_attribute_return=pav)
         uow = make_uow()
-        handler = RemoveProductAttributeHandler(
-            product_repo=product_repo,
+        handler = DeleteProductAttributeHandler(
             pav_repo=pav_repo,
             uow=uow,
         )
@@ -183,11 +177,9 @@ class TestRemoveProductAttributeHandlerHappyPath:
         attribute_id = uuid.uuid4()
         pav = make_pav(product_id=product_id, attribute_id=attribute_id)
 
-        product_repo = make_product_repo()
-        pav_repo = make_pav_repo(pavs=[pav])
+        pav_repo = make_pav_repo(get_by_product_and_attribute_return=pav)
         uow = make_uow()
-        handler = RemoveProductAttributeHandler(
-            product_repo=product_repo,
+        handler = DeleteProductAttributeHandler(
             pav_repo=pav_repo,
             uow=uow,
         )
@@ -202,11 +194,9 @@ class TestRemoveProductAttributeHandlerHappyPath:
         attribute_id = uuid.uuid4()
         pav = make_pav(product_id=product_id, attribute_id=attribute_id)
 
-        product_repo = make_product_repo()
-        pav_repo = make_pav_repo(pavs=[pav])
+        pav_repo = make_pav_repo(get_by_product_and_attribute_return=pav)
         uow = make_uow()
-        handler = RemoveProductAttributeHandler(
-            product_repo=product_repo,
+        handler = DeleteProductAttributeHandler(
             pav_repo=pav_repo,
             uow=uow,
         )
@@ -216,44 +206,20 @@ class TestRemoveProductAttributeHandlerHappyPath:
         uow.__aenter__.assert_awaited_once()
         uow.__aexit__.assert_awaited_once()
 
-    async def test_selects_correct_pav_among_multiple(self) -> None:
-        """When product has multiple attribute assignments, handler deletes only the matching one."""
-        product_id = uuid.uuid4()
-        target_attribute_id = uuid.uuid4()
-        other_attribute_id = uuid.uuid4()
-
-        target_pav = make_pav(product_id=product_id, attribute_id=target_attribute_id)
-        other_pav = make_pav(product_id=product_id, attribute_id=other_attribute_id)
-
-        product_repo = make_product_repo()
-        pav_repo = make_pav_repo(pavs=[other_pav, target_pav])
-        uow = make_uow()
-        handler = RemoveProductAttributeHandler(
-            product_repo=product_repo,
-            pav_repo=pav_repo,
-            uow=uow,
-        )
-
-        await handler.handle(make_command(product_id=product_id, attribute_id=target_attribute_id))
-
-        pav_repo.delete.assert_awaited_once_with(target_pav.id)
-
 
 # ---------------------------------------------------------------------------
-# RemoveProductAttributeHandler -- not found
+# DeleteProductAttributeHandler -- not found
 # ---------------------------------------------------------------------------
 
 
-class TestRemoveProductAttributeHandlerNotFound:
+class TestDeleteProductAttributeHandlerNotFound:
     """Handler tests when the PAV is not found."""
 
-    async def test_raises_not_found_error_when_no_pavs(self) -> None:
-        """Handler raises ProductAttributeValueNotFoundError when product has no attribute assignments."""
-        product_repo = make_product_repo()
-        pav_repo = make_pav_repo(pavs=[])
+    async def test_raises_not_found_error_when_no_pav(self) -> None:
+        """Handler raises ProductAttributeValueNotFoundError when no matching PAV exists."""
+        pav_repo = make_pav_repo(get_by_product_and_attribute_return=None)
         uow = make_uow()
-        handler = RemoveProductAttributeHandler(
-            product_repo=product_repo,
+        handler = DeleteProductAttributeHandler(
             pav_repo=pav_repo,
             uow=uow,
         )
@@ -261,35 +227,11 @@ class TestRemoveProductAttributeHandlerNotFound:
         with pytest.raises(ProductAttributeValueNotFoundError):
             await handler.handle(make_command())
 
-    async def test_raises_not_found_error_when_attribute_not_matched(self) -> None:
-        """Handler raises error when product has PAVs but none matches the target attribute."""
-        product_id = uuid.uuid4()
-        other_attribute_id = uuid.uuid4()
-        target_attribute_id = uuid.uuid4()
-
-        other_pav = make_pav(product_id=product_id, attribute_id=other_attribute_id)
-
-        product_repo = make_product_repo()
-        pav_repo = make_pav_repo(pavs=[other_pav])
-        uow = make_uow()
-        handler = RemoveProductAttributeHandler(
-            product_repo=product_repo,
-            pav_repo=pav_repo,
-            uow=uow,
-        )
-
-        with pytest.raises(ProductAttributeValueNotFoundError):
-            await handler.handle(
-                make_command(product_id=product_id, attribute_id=target_attribute_id)
-            )
-
     async def test_error_contains_product_id(self) -> None:
         """Raised exception includes the product_id in its details."""
-        product_repo = make_product_repo()
-        pav_repo = make_pav_repo(pavs=[])
+        pav_repo = make_pav_repo(get_by_product_and_attribute_return=None)
         uow = make_uow()
-        handler = RemoveProductAttributeHandler(
-            product_repo=product_repo,
+        handler = DeleteProductAttributeHandler(
             pav_repo=pav_repo,
             uow=uow,
         )
@@ -303,11 +245,9 @@ class TestRemoveProductAttributeHandlerNotFound:
 
     async def test_delete_not_called_when_not_found(self) -> None:
         """When PAV is not found, pav_repo.delete() must not be called."""
-        product_repo = make_product_repo()
-        pav_repo = make_pav_repo(pavs=[])
+        pav_repo = make_pav_repo(get_by_product_and_attribute_return=None)
         uow = make_uow()
-        handler = RemoveProductAttributeHandler(
-            product_repo=product_repo,
+        handler = DeleteProductAttributeHandler(
             pav_repo=pav_repo,
             uow=uow,
         )
@@ -319,11 +259,9 @@ class TestRemoveProductAttributeHandlerNotFound:
 
     async def test_commit_not_called_when_not_found(self) -> None:
         """When PAV is not found, uow.commit must not be called."""
-        product_repo = make_product_repo()
-        pav_repo = make_pav_repo(pavs=[])
+        pav_repo = make_pav_repo(get_by_product_and_attribute_return=None)
         uow = make_uow()
-        handler = RemoveProductAttributeHandler(
-            product_repo=product_repo,
+        handler = DeleteProductAttributeHandler(
             pav_repo=pav_repo,
             uow=uow,
         )

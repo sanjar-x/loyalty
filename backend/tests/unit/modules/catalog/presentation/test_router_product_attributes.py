@@ -88,7 +88,7 @@ class TestListProductAttributesRoute:
         assert route.name == "list_product_attributes"
 
 
-class TestRemoveProductAttributeRoute:
+class TestDeleteProductAttributeRoute:
     """DELETE /products/{product_id}/attributes/{attribute_id}."""
 
     DELETE_PATH = f"{BASE_PATH}/{{attribute_id}}"
@@ -108,7 +108,7 @@ class TestRemoveProductAttributeRoute:
         """Route function name matches the endpoint function."""
         route = _find_route(self.DELETE_PATH, "DELETE")
         assert route is not None
-        assert route.name == "remove_product_attribute"
+        assert route.name == "delete_product_attribute"
 
 
 class TestRouterHttpMethods:

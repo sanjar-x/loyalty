@@ -957,6 +957,11 @@ class AttributeValue:
         search_aliases: Multilingual synonyms for search (e.g. ``["scarlet", "crimson"]``).
         meta_data: Arbitrary JSON metadata (e.g. ``{"hex": "#FF0000"}``).
         value_group: Optional grouping label (e.g. "Warm tones", "Cool tones").
+            Mapped to ``group_code`` in the ORM/database layer. The domain uses
+            ``value_group`` to express intent (a UI grouping label), while the
+            persistence layer uses ``group_code`` to reflect its column name.
+            See ``AttributeValueRepository._to_domain`` / ``_to_orm`` for the
+            mapping between the two names.
         sort_order: Display ordering among sibling values.
     """
 
@@ -968,6 +973,8 @@ class AttributeValue:
     search_aliases: list[str]
     # Named `meta_data` (not `metadata`) to avoid collision with SQLAlchemy Base.metadata
     meta_data: dict[str, Any]
+    # Named `value_group` in the domain (UI grouping label); mapped to `group_code`
+    # in the ORM layer.  See AttributeValueRepository for the translation.
     value_group: str | None
     sort_order: int
 
