@@ -6,13 +6,36 @@ camelCase <-> snake_case field aliasing.  These DTOs belong to the
 presentation layer and carry no business logic.
 """
 
+import re
 import uuid
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import AfterValidator, ConfigDict, Field, model_validator
 
 from src.shared.schemas import CamelModel
+
+# ---------------------------------------------------------------------------
+# i18n language code validation
+# ---------------------------------------------------------------------------
+
+# ISO 639-1 two-letter language codes (lowercase).
+_LANG_CODE_RE = re.compile(r"^[a-z]{2}$")
+
+
+def _validate_i18n_keys(value: dict[str, str]) -> dict[str, str]:
+    """Validate that all keys in an i18n dict are ISO 639-1 language codes."""
+    for key in value:
+        if not _LANG_CODE_RE.match(key):
+            raise ValueError(
+                f"Invalid language code '{key}'. "
+                f"Keys must be ISO 639-1 two-letter lowercase codes (e.g. 'en', 'ru')."
+            )
+    return value
+
+
+I18nDict = Annotated[dict[str, str], AfterValidator(_validate_i18n_keys)]
+"""A ``dict[str, str]`` whose keys are validated as ISO 639-1 language codes."""
 
 
 class LogoMetadataRequest(CamelModel):
@@ -164,7 +187,7 @@ class AttributeGroupCreateRequest(CamelModel):
         examples=["physical"],
         description="Machine-readable unique code",
     )
-    name_i18n: dict[str, str] = Field(
+    name_i18n: I18nDict = Field(
         ...,
         min_length=1,
         examples=[{"en": "Physical Characteristics", "ru": "Физические характеристики"}],
@@ -191,7 +214,7 @@ class AttributeGroupResponse(CamelModel):
 class AttributeGroupUpdateRequest(CamelModel):
     """Partial update request -- code is immutable and cannot be changed."""
 
-    name_i18n: dict[str, str] | None = Field(
+    name_i18n: I18nDict | None = Field(
         None,
         min_length=1,
         description="Multilingual display name (at least one language required)",
@@ -228,8 +251,8 @@ class AttributeCreateRequest(CamelModel):
     slug: str = Field(
         ..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$", examples=["color"]
     )
-    name_i18n: dict[str, str] = Field(..., min_length=1, examples=[{"en": "Color", "ru": "Цвет"}])
-    description_i18n: dict[str, str] = Field(default_factory=dict)
+    name_i18n: I18nDict = Field(..., min_length=1, examples=[{"en": "Color", "ru": "Цвет"}])
+    description_i18n: I18nDict = Field(default_factory=dict)
     data_type: Literal["string", "integer", "float", "boolean"] = Field(..., examples=["string"])
     ui_type: Literal["text_button", "color_swatch", "dropdown", "checkbox", "range_slider"] = Field(
         ..., examples=["color_swatch"]
@@ -277,8 +300,8 @@ class AttributeResponse(CamelModel):
 class AttributeUpdateRequest(CamelModel):
     """Partial update request -- code, slug, data_type are immutable."""
 
-    name_i18n: dict[str, str] | None = Field(None, min_length=1)
-    description_i18n: dict[str, str] | None = None
+    name_i18n: I18nDict | None = Field(None, min_length=1)
+    description_i18n: I18nDict | None = None
     ui_type: str | None = None
     group_id: uuid.UUID | None = None
     level: str | None = None
@@ -317,8 +340,13 @@ class AttributeValueCreateRequest(CamelModel):
 
     code: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9_]+$", examples=["red"])
     slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$", examples=["red"])
-    value_i18n: dict[str, str] = Field(..., min_length=1, examples=[{"en": "Red", "ru": "Красный"}])
-    search_aliases: list[str] = Field(default_factory=list, examples=[["scarlet", "crimson"]])
+    value_i18n: I18nDict = Field(..., min_length=1, examples=[{"en": "Red", "ru": "Красный"}])
+    search_aliases: list[Annotated[str, Field(max_length=100)]] = Field(
+        default_factory=list,
+        max_length=50,
+        examples=[["scarlet", "crimson"]],
+        description="Search synonyms (max 50 entries, each max 100 chars)",
+    )
     meta_data: dict[str, Any] = Field(default_factory=dict, examples=[{"hex": "#FF0000"}])
     value_group: str | None = Field(None, max_length=100, examples=["Warm tones"])
     sort_order: int = Field(0, description="Display ordering among values")
@@ -347,8 +375,8 @@ class AttributeValueResponse(CamelModel):
 class AttributeValueUpdateRequest(CamelModel):
     """Partial update request -- code and slug are immutable."""
 
-    value_i18n: dict[str, str] | None = Field(None, min_length=1)
-    search_aliases: list[str] | None = None
+    value_i18n: I18nDict | None = Field(None, min_length=1)
+    search_aliases: list[Annotated[str, Field(max_length=100)]] | None = Field(None, max_length=50)
     meta_data: dict[str, Any] | None = None
     value_group: str | None = None
     sort_order: int | None = None
@@ -624,7 +652,7 @@ class VariantAttributePairSchema(CamelModel):
 class ProductCreateRequest(CamelModel):
     """Request body for creating a new product."""
 
-    title_i18n: dict[str, str] = Field(..., min_length=1)
+    title_i18n: I18nDict = Field(..., min_length=1)
     slug: str = Field(
         ...,
         min_length=1,
@@ -633,7 +661,7 @@ class ProductCreateRequest(CamelModel):
     )
     brand_id: uuid.UUID
     primary_category_id: uuid.UUID
-    description_i18n: dict[str, str] = Field(default_factory=dict)
+    description_i18n: I18nDict = Field(default_factory=dict)
     supplier_id: uuid.UUID | None = None
     country_of_origin: str | None = Field(None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")
     tags: list[str] = Field(default_factory=list)
@@ -654,14 +682,14 @@ class ProductUpdateRequest(CamelModel):
     ``null`` for nullable fields (``supplier_id``, ``country_of_origin``).
     """
 
-    title_i18n: dict[str, str] | None = Field(None, min_length=1)
+    title_i18n: I18nDict | None = Field(None, min_length=1)
     slug: str | None = Field(
         None,
         min_length=1,
         max_length=255,
         pattern=r"^[a-z0-9-]+$",
     )
-    description_i18n: dict[str, str] | None = None
+    description_i18n: I18nDict | None = None
     brand_id: uuid.UUID | None = None
     primary_category_id: uuid.UUID | None = None
     supplier_id: uuid.UUID | None = None

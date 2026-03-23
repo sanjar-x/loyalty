@@ -416,3 +416,11 @@ class IMediaAssetRepository(ABC):
     ) -> bool:
         """Check if a MAIN media asset already exists for this product/variant combo."""
         pass
+
+    @abstractmethod
+    async def count_pending_uploads(self, product_id: uuid.UUID) -> int:
+        """Count media assets in PENDING_UPLOAD state for a product.
+
+        Used to enforce rate limiting on presigned URL generation (SEC-08).
+        """
+        pass

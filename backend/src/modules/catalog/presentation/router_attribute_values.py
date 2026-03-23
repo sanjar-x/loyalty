@@ -3,6 +3,7 @@ FastAPI router for AttributeValue CRUD and reorder endpoints.
 
 Nested under ``/catalog/attributes/{attribute_id}/values``.
 All mutating endpoints require the ``catalog:manage`` permission.
+Read endpoints require the ``catalog:read`` permission (admin use).
 """
 
 import uuid
@@ -87,6 +88,7 @@ async def add_attribute_value(
     response_model=AttributeValueListResponse,
     summary="List values for an attribute (paginated)",
     description="Retrieve a paginated list of values for an attribute.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_attribute_values(
     attribute_id: uuid.UUID,

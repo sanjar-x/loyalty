@@ -135,7 +135,7 @@ class ListAttributesHandler:
             # Search in JSONB name_i18n values across all languages
             # Uses the @> containment operator for GIN index utilization
             # Fallback to casting to text and using ILIKE for substring search
-            escaped = query.search.replace("\\", "\\\\").replace("%", "\%").replace("_", "\_")
+            escaped = query.search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
             search_pattern = f"%{escaped}%"
             stmt = stmt.where(func.cast(OrmAttribute.name_i18n, type_=Text()).ilike(search_pattern))
         return stmt
