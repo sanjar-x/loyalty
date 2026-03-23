@@ -50,3 +50,33 @@ def public_media_key(product_id: uuid.UUID, media_id: uuid.UUID, ext: str = "web
 
 CATEGORY_TREE_CACHE_KEY = "catalog:category_tree"
 """Redis cache key for the full category tree JSON payload."""
+
+DEFAULT_CURRENCY = "RUB"
+"""Default ISO 4217 currency code used for pricing when none is specified.
+
+Duplicated from ``domain.value_objects.DEFAULT_CURRENCY`` to avoid
+circular import issues in application-layer dataclasses that need a
+default value at class-definition time.
+"""
+
+MEDIA_ROLE_MAIN = "main"
+"""Canonical value for the "main" media role, matching ``MediaRole.MAIN``."""
+
+
+def storefront_filters_cache_key(category_id: uuid.UUID) -> str:
+    """Redis cache key for storefront filterable attributes of a category."""
+    return f"catalog:storefront:filters:{category_id}"
+
+
+def storefront_card_cache_key(category_id: uuid.UUID) -> str:
+    """Redis cache key for storefront card attributes of a category."""
+    return f"catalog:storefront:card:{category_id}"
+
+
+def storefront_comparison_cache_key(category_id: uuid.UUID) -> str:
+    """Redis cache key for storefront comparison attributes of a category."""
+    return f"catalog:storefront:comparison:{category_id}"
+
+
+STOREFRONT_CACHE_TTL = 300
+"""TTL in seconds for storefront attribute cache entries (5 minutes)."""

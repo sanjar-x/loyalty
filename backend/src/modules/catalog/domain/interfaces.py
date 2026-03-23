@@ -24,8 +24,6 @@ from src.modules.catalog.domain.entities import CategoryAttributeBinding as Doma
 from src.modules.catalog.domain.entities import MediaAsset as DomainMediaAsset
 from src.modules.catalog.domain.entities import Product as DomainProduct
 from src.modules.catalog.domain.entities import ProductAttributeValue as DomainProductAttributeValue
-from src.modules.catalog.domain.value_objects import ProductStatus
-
 
 class ICatalogRepository[T](ABC):
     """Generic CRUD repository contract for catalog aggregates.
@@ -78,6 +76,11 @@ class IBrandRepository(ICatalogRepository[DomainBrand]):
         """Retrieve a brand by its URL slug, or ``None``."""
         pass
 
+    @abstractmethod
+    async def has_products(self, brand_id: uuid.UUID) -> bool:
+        """Check whether any non-deleted products reference this brand."""
+        pass
+
 
 class ICategoryRepository(ICatalogRepository[DomainCategory]):
     """Repository contract for the Category aggregate."""
@@ -107,6 +110,11 @@ class ICategoryRepository(ICatalogRepository[DomainCategory]):
     @abstractmethod
     async def has_children(self, category_id: uuid.UUID) -> bool:
         """Check whether a category has any child categories."""
+        pass
+
+    @abstractmethod
+    async def has_products(self, category_id: uuid.UUID) -> bool:
+        """Check whether any non-deleted products reference this category."""
         pass
 
     @abstractmethod
@@ -174,6 +182,11 @@ class IAttributeRepository(ICatalogRepository[DomainAttribute]):
         """Check whether the attribute is bound to at least one category."""
         pass
 
+    @abstractmethod
+    async def has_product_attribute_values(self, attribute_id: uuid.UUID) -> bool:
+        """Check whether any products reference this attribute."""
+        pass
+
 
 class IAttributeValueRepository(ABC):
     """Repository contract for AttributeValue entities (children of Attribute)."""
@@ -220,6 +233,11 @@ class IAttributeValueRepository(ABC):
         self, attribute_id: uuid.UUID, slug: str, exclude_id: uuid.UUID
     ) -> bool:
         """Check if a slug is taken by another value within the attribute."""
+        pass
+
+    @abstractmethod
+    async def has_product_references(self, value_id: uuid.UUID) -> bool:
+        """Check whether any products reference this attribute value."""
         pass
 
     @abstractmethod
@@ -292,8 +310,7 @@ class IProductRepository(ICatalogRepository[DomainProduct]):
     """Repository contract for the Product aggregate.
 
     Extends the generic CRUD base with slug-based lookups,
-    pessimistic locking, eager SKU loading, and paginated listing
-    with optional status and brand filters.
+    pessimistic locking, and eager SKU loading.
     """
 
     @abstractmethod
@@ -322,27 +339,17 @@ class IProductRepository(ICatalogRepository[DomainProduct]):
         pass
 
     @abstractmethod
-    async def list_products(
-        self,
-        limit: int,
-        offset: int,
-        status: ProductStatus | None = None,
-        brand_id: uuid.UUID | None = None,
-    ) -> tuple[list[DomainProduct], int]:
-        """List products with pagination and optional filters.
+    async def sku_code_exists(
+        self, sku_code: str, exclude_sku_id: uuid.UUID | None = None
+    ) -> bool:
+        """Check whether a non-deleted SKU with the given code already exists.
 
         Args:
-            limit: Maximum number of products to return.
-            offset: Number of products to skip.
-            status: Optional filter by product lifecycle status.
-            brand_id: Optional filter by brand.
-
-        Returns:
-            Tuple of (product_list, total_count). Soft-deleted products
-            are excluded.
+            sku_code: The SKU code to check.
+            exclude_sku_id: Optional SKU ID to exclude from the check
+                (used during updates to ignore the SKU being updated).
         """
         pass
-
 
 class IProductAttributeValueRepository(ABC):
     """Repository contract for ProductAttributeValue entities.

@@ -6,7 +6,6 @@ changes to descendants, and invalidates the tree cache.
 Part of the application layer (CQRS write side).
 """
 
-import contextlib
 import uuid
 from dataclasses import dataclass, field
 
@@ -132,8 +131,10 @@ class UpdateCategoryHandler:
 
             await self._uow.commit()
 
-        with contextlib.suppress(Exception):
+        try:
             await self._cache.delete(CATEGORY_TREE_CACHE_KEY)
+        except Exception as e:
+            self._logger.warning("Failed to invalidate category tree cache", error=str(e))
 
         self._logger.info("Category updated", category_id=str(category.id))
 

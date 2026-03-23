@@ -13,10 +13,12 @@ Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass, field
 
+from src.modules.catalog.application.constants import DEFAULT_CURRENCY
 from src.modules.catalog.domain.exceptions import (
     ConcurrencyError,
     DuplicateVariantCombinationError,
     ProductNotFoundError,
+    SKUCodeConflictError,
     SKUNotFoundError,
 )
 from src.modules.catalog.domain.interfaces import IProductRepository
@@ -128,6 +130,12 @@ class UpdateSKUHandler:
             update_kwargs: dict[str, object] = {}
 
             if command.sku_code is not None:
+                if await self._product_repo.sku_code_exists(
+                    command.sku_code, exclude_sku_id=command.sku_id
+                ):
+                    raise SKUCodeConflictError(
+                        sku_code=command.sku_code, product_id=command.product_id
+                    )
                 update_kwargs["sku_code"] = command.sku_code
 
             # Build Money for price if provided.  Use existing currency
@@ -141,7 +149,7 @@ class UpdateSKUHandler:
                 new_currency = (
                     command.price_currency
                     if command.price_currency is not None
-                    else (sku.price.currency if sku.price is not None else "RUB")
+                    else (sku.price.currency if sku.price is not None else DEFAULT_CURRENCY)
                 )
                 update_kwargs["price"] = Money(amount=new_amount, currency=new_currency)
 
@@ -156,7 +164,7 @@ class UpdateSKUHandler:
                     effective_currency = (
                         command.price_currency
                         if command.price_currency is not None
-                        else (sku.price.currency if sku.price is not None else "RUB")
+                        else (sku.price.currency if sku.price is not None else DEFAULT_CURRENCY)
                     )
                     update_kwargs["compare_at_price"] = Money(
                         amount=command.compare_at_price_amount,

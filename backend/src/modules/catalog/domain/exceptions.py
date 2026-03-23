@@ -64,6 +64,17 @@ class CategoryHasChildrenError(ConflictError):
         )
 
 
+class CategoryHasProductsError(ConflictError):
+    """Raised when attempting to delete a category that still has products."""
+
+    def __init__(self, category_id: uuid.UUID):
+        super().__init__(
+            message="Cannot delete a category that has associated products.",
+            error_code="CATEGORY_HAS_PRODUCTS",
+            details={"category_id": str(category_id)},
+        )
+
+
 # ---------------------------------------------------------------------------
 # Product & SKU aggregate exceptions
 # ---------------------------------------------------------------------------
@@ -299,6 +310,17 @@ class BrandNotFoundError(NotFoundError):
         )
 
 
+class BrandHasProductsError(ConflictError):
+    """Raised when attempting to delete a brand that still has products."""
+
+    def __init__(self, brand_id: uuid.UUID):
+        super().__init__(
+            message="Cannot delete a brand that has associated products.",
+            error_code="BRAND_HAS_PRODUCTS",
+            details={"brand_id": str(brand_id)},
+        )
+
+
 class BrandSlugConflictError(ConflictError):
     """Raised when a brand slug collides with an existing brand."""
 
@@ -451,6 +473,17 @@ class AttributeHasCategoryBindingsError(ConflictError):
         )
 
 
+class AttributeInUseByProductsError(ConflictError):
+    """Raised when attempting to delete an attribute referenced by products."""
+
+    def __init__(self, attribute_id: uuid.UUID):
+        super().__init__(
+            message="Cannot delete attribute that is used by one or more products.",
+            error_code="ATTRIBUTE_IN_USE_BY_PRODUCTS",
+            details={"attribute_id": str(attribute_id)},
+        )
+
+
 class AttributeDataTypeChangeError(UnprocessableEntityError):
     """Raised when attempting to change an attribute's data type after creation."""
 
@@ -497,6 +530,17 @@ class AttributeValueSlugConflictError(ConflictError):
             message=f"Attribute value with slug '{slug}' already exists for this attribute.",
             error_code="ATTRIBUTE_VALUE_SLUG_CONFLICT",
             details={"slug": slug, "attribute_id": str(attribute_id)},
+        )
+
+
+class AttributeValueInUseError(ConflictError):
+    """Raised when attempting to delete an attribute value referenced by products."""
+
+    def __init__(self, value_id: uuid.UUID):
+        super().__init__(
+            message="Cannot delete attribute value that is used by one or more products.",
+            error_code="ATTRIBUTE_VALUE_IN_USE",
+            details={"value_id": str(value_id)},
         )
 
 

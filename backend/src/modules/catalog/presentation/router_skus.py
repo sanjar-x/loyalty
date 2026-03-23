@@ -83,6 +83,7 @@ async def create_sku(
     response_model=SKUListResponse,
     summary="List SKUs for a variant",
     description="Return paginated SKUs belonging to the given product variant.",
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def list_skus(
     product_id: uuid.UUID,

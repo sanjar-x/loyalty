@@ -6,13 +6,13 @@ Invalidates the category tree cache on success. Part of the
 application layer (CQRS write side).
 """
 
-import contextlib
 import uuid
 from dataclasses import dataclass
 
 from src.modules.catalog.application.constants import CATEGORY_TREE_CACHE_KEY
 from src.modules.catalog.domain.exceptions import (
     CategoryHasChildrenError,
+    CategoryHasProductsError,
     CategoryNotFoundError,
 )
 from src.modules.catalog.domain.interfaces import ICategoryRepository
@@ -63,6 +63,7 @@ class DeleteCategoryHandler:
         Raises:
             CategoryNotFoundError: If the category does not exist.
             CategoryHasChildrenError: If the category still has children.
+            CategoryHasProductsError: If the category still has associated products.
         """
         async with self._uow:
             category = await self._category_repo.get(command.category_id)
@@ -73,11 +74,17 @@ class DeleteCategoryHandler:
             if has_children:
                 raise CategoryHasChildrenError(category_id=command.category_id)
 
+            has_products = await self._category_repo.has_products(command.category_id)
+            if has_products:
+                raise CategoryHasProductsError(category_id=command.category_id)
+
             self._uow.register_aggregate(category)
             await self._category_repo.delete(command.category_id)
             await self._uow.commit()
 
-        with contextlib.suppress(Exception):
+        try:
             await self._cache.delete(CATEGORY_TREE_CACHE_KEY)
+        except Exception as e:
+            self._logger.warning("Failed to invalidate category tree cache", error=str(e))
 
         self._logger.info("Category deleted", category_id=str(command.category_id))

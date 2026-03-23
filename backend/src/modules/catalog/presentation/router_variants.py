@@ -71,6 +71,7 @@ async def create_variant(
     response_model=ProductVariantListResponse,
     summary="List product variants",
     description="Return paginated active variants for the given product.",
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def list_variants(
     product_id: uuid.UUID,

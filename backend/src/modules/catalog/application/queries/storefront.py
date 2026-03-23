@@ -11,6 +11,7 @@ Handlers:
     4. StorefrontFormAttributesHandler -- full attribute set with validation
 """
 
+import json
 import uuid
 from collections import defaultdict
 from typing import Any
@@ -19,6 +20,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from src.modules.catalog.application.constants import (
+    STOREFRONT_CACHE_TTL,
+    storefront_card_cache_key,
+    storefront_comparison_cache_key,
+    storefront_filters_cache_key,
+)
 from src.modules.catalog.application.queries.read_models import (
     StorefrontCardAttributeReadModel,
     StorefrontCardGroupReadModel,
@@ -33,6 +40,7 @@ from src.modules.catalog.application.queries.read_models import (
     StorefrontValueReadModel,
 )
 from src.modules.catalog.domain.exceptions import CategoryNotFoundError
+from src.shared.interfaces.cache import ICacheService
 from src.modules.catalog.infrastructure.models import (
     Attribute as OrmAttribute,
 )
@@ -79,7 +87,11 @@ def _effective_display_type(filter_settings: dict[str, Any] | None, global_ui_ty
 
 
 def _values_to_read_models(values: list[OrmAttributeValue]) -> list[StorefrontValueReadModel]:
-    """Convert ORM attribute values to storefront value read models."""
+    """Convert ORM attribute values to storefront value read models.
+
+    Note: ORM ``group_code`` is mapped to read-model ``value_group`` to
+    keep the public API field name stable.
+    """
     return [
         StorefrontValueReadModel(
             id=v.id,
@@ -87,6 +99,7 @@ def _values_to_read_models(values: list[OrmAttributeValue]) -> list[StorefrontVa
             slug=v.slug,
             value_i18n=v.value_i18n,
             meta_data=v.meta_data,
+            # Deliberate rename: ORM ``group_code`` -> API ``value_group``
             value_group=v.group_code,
             sort_order=v.sort_order,
         )
@@ -128,11 +141,17 @@ async def _load_bindings_with_attributes(
 class StorefrontFilterableAttributesHandler:
     """Fetch filterable attributes for a category with their values."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, cache: ICacheService):
         self._session = session
+        self._cache = cache
 
     async def handle(self, category_id: uuid.UUID) -> StorefrontFilterListReadModel:
         """Return all attributes where the effective is_filterable flag is True."""
+        cache_key = storefront_filters_cache_key(category_id)
+        cached = await self._cache.get(cache_key)
+        if cached is not None:
+            return StorefrontFilterListReadModel.model_validate(json.loads(cached))
+
         rules = await _load_bindings_with_attributes(self._session, category_id)
 
         attributes: list[StorefrontFilterAttributeReadModel] = []
@@ -159,10 +178,14 @@ class StorefrontFilterableAttributesHandler:
                 )
             )
 
-        return StorefrontFilterListReadModel(
+        result = StorefrontFilterListReadModel(
             category_id=category_id,
             attributes=attributes,
         )
+        await self._cache.set(
+            cache_key, json.dumps(result.model_dump(mode="json")), ttl=STOREFRONT_CACHE_TTL
+        )
+        return result
 
 
 # ---------------------------------------------------------------------------
@@ -173,11 +196,17 @@ class StorefrontFilterableAttributesHandler:
 class StorefrontCardAttributesHandler:
     """Fetch visible-on-card attributes for a category, grouped by attribute group."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, cache: ICacheService):
         self._session = session
+        self._cache = cache
 
     async def handle(self, category_id: uuid.UUID) -> StorefrontCardReadModel:
         """Return all attributes where the effective is_visible_on_card flag is True."""
+        cache_key = storefront_card_cache_key(category_id)
+        cached = await self._cache.get(cache_key)
+        if cached is not None:
+            return StorefrontCardReadModel.model_validate(json.loads(cached))
+
         rules = await _load_bindings_with_attributes(self._session, category_id)
 
         # Group by attribute group
@@ -230,10 +259,14 @@ class StorefrontCardAttributesHandler:
                 )
             )
 
-        return StorefrontCardReadModel(
+        result = StorefrontCardReadModel(
             category_id=category_id,
             groups=group_models,
         )
+        await self._cache.set(
+            cache_key, json.dumps(result.model_dump(mode="json")), ttl=STOREFRONT_CACHE_TTL
+        )
+        return result
 
 
 # ---------------------------------------------------------------------------
@@ -244,11 +277,17 @@ class StorefrontCardAttributesHandler:
 class StorefrontComparisonAttributesHandler:
     """Fetch comparable attributes for a category."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, cache: ICacheService):
         self._session = session
+        self._cache = cache
 
     async def handle(self, category_id: uuid.UUID) -> StorefrontComparisonReadModel:
         """Return all attributes where the effective is_comparable flag is True."""
+        cache_key = storefront_comparison_cache_key(category_id)
+        cached = await self._cache.get(cache_key)
+        if cached is not None:
+            return StorefrontComparisonReadModel.model_validate(json.loads(cached))
+
         rules = await _load_bindings_with_attributes(self._session, category_id)
 
         attributes: list[StorefrontComparisonAttributeReadModel] = []
@@ -269,10 +308,14 @@ class StorefrontComparisonAttributesHandler:
                 )
             )
 
-        return StorefrontComparisonReadModel(
+        result = StorefrontComparisonReadModel(
             category_id=category_id,
             attributes=attributes,
         )
+        await self._cache.set(
+            cache_key, json.dumps(result.model_dump(mode="json")), ttl=STOREFRONT_CACHE_TTL
+        )
+        return result
 
 
 # ---------------------------------------------------------------------------

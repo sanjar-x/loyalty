@@ -10,6 +10,9 @@ from typing import Any
 
 from attrs import frozen
 
+DEFAULT_CURRENCY = "RUB"
+"""Default ISO 4217 currency code used when none is specified."""
+
 DEFAULT_SEARCH_WEIGHT = 5
 """Default search weight for new attributes."""
 

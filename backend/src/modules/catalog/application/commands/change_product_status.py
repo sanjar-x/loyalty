@@ -57,7 +57,7 @@ class ChangeProductStatusHandler:
                 (raised by ``Product.transition_status``).
         """
         async with self._uow:
-            product = await self._product_repo.get_with_variants(command.product_id)
+            product = await self._product_repo.get_for_update(command.product_id)
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 

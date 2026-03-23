@@ -78,7 +78,7 @@ class ConfirmProductMediaHandler:
         exists = await self._blob_storage.object_exists(media.raw_object_key)
         if not exists:
             raise UnprocessableEntityError(
-                f"Raw file not yet uploaded to S3: {media.raw_object_key}"
+                "Raw file has not been uploaded yet. Please upload the file before confirming."
             )
 
         # Phase 2: Lock the row and perform FSM transition

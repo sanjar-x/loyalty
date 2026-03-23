@@ -10,7 +10,8 @@ the result. Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass, field
 
-from src.modules.catalog.domain.exceptions import ProductNotFoundError
+from src.modules.catalog.application.constants import DEFAULT_CURRENCY
+from src.modules.catalog.domain.exceptions import ProductNotFoundError, SKUCodeConflictError
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
 from src.shared.interfaces.logger import ILogger
@@ -37,7 +38,7 @@ class AddSKUCommand:
     variant_id: uuid.UUID
     sku_code: str
     price_amount: int | None = None
-    price_currency: str = "RUB"
+    price_currency: str = DEFAULT_CURRENCY
     compare_at_price_amount: int | None = None
     is_active: bool = True
     variant_attributes: list[tuple[uuid.UUID, uuid.UUID]] = field(default_factory=list)
@@ -93,6 +94,11 @@ class AddSKUHandler:
             product = await self._product_repo.get_with_variants(command.product_id)
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
+
+            if await self._product_repo.sku_code_exists(command.sku_code):
+                raise SKUCodeConflictError(
+                    sku_code=command.sku_code, product_id=command.product_id
+                )
 
             if command.compare_at_price_amount is not None and command.price_amount is None:
                 raise ValueError("compare_at_price cannot be set when price is not provided")

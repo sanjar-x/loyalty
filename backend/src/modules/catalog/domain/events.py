@@ -453,6 +453,86 @@ class ProductStatusChangedEvent(DomainEvent):
 
 
 # ---------------------------------------------------------------------------
+# Product Variant & SKU events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class VariantAddedEvent(DomainEvent):
+    """Emitted when a new variant is added to a product."""
+
+    product_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
+    aggregate_type: str = "Product"
+    event_type: str = "VariantAddedEvent"
+
+    def __post_init__(self) -> None:
+        if self.product_id is None:
+            raise ValueError("product_id is required for VariantAddedEvent")
+        if self.variant_id is None:
+            raise ValueError("variant_id is required for VariantAddedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.product_id)
+
+
+@dataclass
+class VariantRemovedEvent(DomainEvent):
+    """Emitted when a variant is removed (soft-deleted) from a product."""
+
+    product_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
+    aggregate_type: str = "Product"
+    event_type: str = "VariantRemovedEvent"
+
+    def __post_init__(self) -> None:
+        if self.product_id is None:
+            raise ValueError("product_id is required for VariantRemovedEvent")
+        if self.variant_id is None:
+            raise ValueError("variant_id is required for VariantRemovedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.product_id)
+
+
+@dataclass
+class SKUAddedEvent(DomainEvent):
+    """Emitted when a new SKU is added to a product variant."""
+
+    product_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
+    sku_id: uuid.UUID | None = None
+    sku_code: str = ""
+    aggregate_type: str = "Product"
+    event_type: str = "SKUAddedEvent"
+
+    def __post_init__(self) -> None:
+        if self.product_id is None:
+            raise ValueError("product_id is required for SKUAddedEvent")
+        if self.sku_id is None:
+            raise ValueError("sku_id is required for SKUAddedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.product_id)
+
+
+@dataclass
+class SKURemovedEvent(DomainEvent):
+    """Emitted when a SKU is removed (soft-deleted) from a product."""
+
+    product_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
+    sku_id: uuid.UUID | None = None
+    aggregate_type: str = "Product"
+    event_type: str = "SKURemovedEvent"
+
+    def __post_init__(self) -> None:
+        if self.product_id is None:
+            raise ValueError("product_id is required for SKURemovedEvent")
+        if self.sku_id is None:
+            raise ValueError("sku_id is required for SKURemovedEvent")
+        if not self.aggregate_id:
+            self.aggregate_id = str(self.product_id)
+
+
+# ---------------------------------------------------------------------------
 # Bulk operation events
 # ---------------------------------------------------------------------------
 

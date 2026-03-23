@@ -13,6 +13,7 @@ from sqlalchemy import select
 from src.modules.catalog.domain.entities import Brand as DomainBrand
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
+from src.modules.catalog.infrastructure.models import Product as OrmProduct
 from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
 
@@ -81,3 +82,14 @@ class BrandRepository(
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
+
+    async def has_products(self, brand_id: uuid.UUID) -> bool:
+        """Return ``True`` if any non-deleted product references this brand."""
+        stmt = select(
+            select(OrmProduct.id)
+            .where(OrmProduct.brand_id == brand_id, OrmProduct.deleted_at.is_(None))
+            .limit(1)
+            .exists()
+        )
+        result = await self._session.execute(stmt)
+        return bool(result.scalar())

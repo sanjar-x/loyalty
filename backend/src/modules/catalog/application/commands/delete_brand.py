@@ -7,7 +7,7 @@ Verifies the brand exists and removes it from the repository. Part of the applic
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.domain.exceptions import BrandNotFoundError
+from src.modules.catalog.domain.exceptions import BrandHasProductsError, BrandNotFoundError
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -32,7 +32,7 @@ class DeleteBrandHandler:
         brand_repo: IBrandRepository,
         uow: IUnitOfWork,
         logger: ILogger,
-    ) -> None:
+    ):
         self._brand_repo = brand_repo
         self._uow = uow
         self._logger = logger.bind(handler="DeleteBrandHandler")
@@ -45,11 +45,16 @@ class DeleteBrandHandler:
 
         Raises:
             BrandNotFoundError: If the brand does not exist.
+            BrandHasProductsError: If the brand still has associated products.
         """
         async with self._uow:
             brand = await self._brand_repo.get(command.brand_id)
             if brand is None:
                 raise BrandNotFoundError(brand_id=command.brand_id)
+
+            has_products = await self._brand_repo.has_products(command.brand_id)
+            if has_products:
+                raise BrandHasProductsError(brand_id=command.brand_id)
 
             await self._brand_repo.delete(command.brand_id)
             await self._uow.commit()

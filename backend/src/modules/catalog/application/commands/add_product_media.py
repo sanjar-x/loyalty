@@ -9,7 +9,7 @@ for direct client upload. Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.application.constants import raw_media_key
+from src.modules.catalog.application.constants import MEDIA_ROLE_MAIN, raw_media_key
 from src.modules.catalog.domain.entities import MediaAsset
 from src.modules.catalog.domain.exceptions import (
     DuplicateMainMediaError,
@@ -87,13 +87,8 @@ class AddProductMediaHandler:
             ProductNotFoundError: If the product does not exist.
             ConflictError: If a MAIN media asset already exists for this variant.
         """
-        # 1. Verify product exists
-        product = await self._product_repo.get(command.product_id)
-        if product is None:
-            raise ProductNotFoundError(product_id=command.product_id)
-
-        # 2. Build S3 key and create domain entity
-        media_id = uuid.uuid4()
+        # 1. Build S3 key and create domain entity
+        media_id = uuid.uuid7()
         object_key = raw_media_key(command.product_id, media_id)
 
         media = MediaAsset.create_upload(
@@ -106,7 +101,7 @@ class AddProductMediaHandler:
             media_id=media_id,
         )
 
-        # 3. Generate presigned PUT URL outside the transaction (S3 I/O must not
+        # 2. Generate presigned PUT URL outside the transaction (S3 I/O must not
         #    hold a DB connection).
         #    Accepted trade-off: the presigned URL is generated before the
         #    transaction, so if the transaction fails, an orphaned S3 upload may
@@ -117,9 +112,13 @@ class AddProductMediaHandler:
             expiration=300,
         )
 
-        # 4. Enforce MAIN uniqueness and persist atomically in the same transaction
+        # 3. Verify product exists, enforce MAIN uniqueness, and persist atomically
         async with self._uow:
-            if command.role == "main":
+            product = await self._product_repo.get(command.product_id)
+            if product is None:
+                raise ProductNotFoundError(product_id=command.product_id)
+
+            if command.role == MEDIA_ROLE_MAIN:
                 has_main = await self._media_repo.has_main_for_variant(
                     command.product_id,
                     command.variant_id,

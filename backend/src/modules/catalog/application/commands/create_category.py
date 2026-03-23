@@ -6,7 +6,6 @@ at the target parent level. Invalidates the category tree cache on success.
 Part of the application layer (CQRS write side).
 """
 
-import contextlib
 import uuid
 from dataclasses import dataclass
 
@@ -118,8 +117,10 @@ class CreateCategoryHandler:
             self._uow.register_aggregate(category)
             await self._uow.commit()
 
-        with contextlib.suppress(Exception):
+        try:
             await self._cache.delete(CATEGORY_TREE_CACHE_KEY)
+        except Exception:
+            pass  # Cache invalidation is best-effort
 
         return CreateCategoryResult(
             id=category.id,

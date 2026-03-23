@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from src.modules.catalog.domain.events import AttributeValueDeletedEvent
 from src.modules.catalog.domain.exceptions import (
     AttributeNotFoundError,
+    AttributeValueInUseError,
     AttributeValueNotFoundError,
 )
 from src.modules.catalog.domain.interfaces import (
@@ -56,6 +57,9 @@ class DeleteAttributeValueHandler:
             value = await self._value_repo.get(command.value_id)
             if value is None or value.attribute_id != command.attribute_id:
                 raise AttributeValueNotFoundError(value_id=command.value_id)
+
+            if await self._value_repo.has_product_references(command.value_id):
+                raise AttributeValueInUseError(value_id=command.value_id)
 
             attribute.add_domain_event(
                 AttributeValueDeletedEvent(

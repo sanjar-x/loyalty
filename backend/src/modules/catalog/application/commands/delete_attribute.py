@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from src.modules.catalog.domain.events import AttributeDeletedEvent
 from src.modules.catalog.domain.exceptions import (
     AttributeHasCategoryBindingsError,
+    AttributeInUseByProductsError,
     AttributeNotFoundError,
 )
 from src.modules.catalog.domain.interfaces import IAttributeRepository
@@ -57,6 +58,9 @@ class DeleteAttributeHandler:
 
             if await self._attribute_repo.has_category_bindings(command.attribute_id):
                 raise AttributeHasCategoryBindingsError(attribute_id=command.attribute_id)
+
+            if await self._attribute_repo.has_product_attribute_values(command.attribute_id):
+                raise AttributeInUseByProductsError(attribute_id=command.attribute_id)
 
             attribute.add_domain_event(
                 AttributeDeletedEvent(

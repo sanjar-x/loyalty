@@ -58,7 +58,7 @@ class GetProductHandler:
             )
             .options(
                 selectinload(OrmProduct.variants.and_(OrmProductVariant.deleted_at.is_(None)))
-                .selectinload(OrmProductVariant.skus)
+                .selectinload(OrmProductVariant.skus.and_(OrmSKU.deleted_at.is_(None)))
                 .selectinload(OrmSKU.attribute_values),
                 selectinload(OrmProduct.product_attribute_values).selectinload(
                     OrmProductAttributeValue.attribute

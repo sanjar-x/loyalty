@@ -13,6 +13,7 @@ from sqlalchemy import func, select, update
 from src.modules.catalog.domain.entities import Category as DomainCategory
 from src.modules.catalog.domain.interfaces import ICategoryRepository
 from src.modules.catalog.infrastructure.models import Category as OrmCategory
+from src.modules.catalog.infrastructure.models import Product as OrmProduct
 from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
 
@@ -96,6 +97,17 @@ class CategoryRepository(
         """Return ``True`` if the category has at least one child."""
         stmt = select(
             select(self.model.id).where(self.model.parent_id == category_id).limit(1).exists()
+        )
+        result = await self._session.execute(stmt)
+        return bool(result.scalar())
+
+    async def has_products(self, category_id: uuid.UUID) -> bool:
+        """Return ``True`` if any non-deleted product references this category."""
+        stmt = select(
+            select(OrmProduct.id)
+            .where(OrmProduct.primary_category_id == category_id, OrmProduct.deleted_at.is_(None))
+            .limit(1)
+            .exists()
         )
         result = await self._session.execute(stmt)
         return bool(result.scalar())

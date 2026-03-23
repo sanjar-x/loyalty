@@ -15,6 +15,9 @@ from src.modules.catalog.domain.interfaces import IAttributeValueRepository
 from src.modules.catalog.infrastructure.models import (
     AttributeValue as OrmAttributeValue,
 )
+from src.modules.catalog.infrastructure.models import (
+    ProductAttributeValue as OrmProductAttributeValue,
+)
 from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
 
@@ -30,7 +33,11 @@ class AttributeValueRepository(
     """
 
     def _to_domain(self, orm: OrmAttributeValue) -> DomainAttributeValue:
-        """Map an ORM row to a domain entity."""
+        """Map an ORM row to a domain entity.
+
+        Note: ORM column ``group_code`` is deliberately mapped to the domain/API
+        field ``value_group`` to keep the public API name stable.
+        """
         return DomainAttributeValue(
             id=orm.id,
             attribute_id=orm.attribute_id,
@@ -39,6 +46,7 @@ class AttributeValueRepository(
             value_i18n=dict(orm.value_i18n) if orm.value_i18n else {},
             search_aliases=list(orm.search_aliases) if orm.search_aliases else [],
             meta_data=dict(orm.meta_data) if orm.meta_data else {},
+            # Deliberate rename: ORM ``group_code`` -> domain ``value_group``
             value_group=orm.group_code,
             sort_order=orm.sort_order,
         )
@@ -56,6 +64,7 @@ class AttributeValueRepository(
         orm.value_i18n = entity.value_i18n
         orm.search_aliases = entity.search_aliases
         orm.meta_data = entity.meta_data
+        # Deliberate rename: domain ``value_group`` -> ORM ``group_code``
         orm.group_code = entity.value_group
         orm.sort_order = entity.sort_order
         return orm
@@ -117,6 +126,17 @@ class AttributeValueRepository(
         )
         result = await self._session.execute(stmt)
         return result.first() is not None
+
+    async def has_product_references(self, value_id: uuid.UUID) -> bool:
+        """Return ``True`` if any products reference this attribute value."""
+        stmt = select(
+            select(OrmProductAttributeValue.id)
+            .where(OrmProductAttributeValue.attribute_value_id == value_id)
+            .limit(1)
+            .exists()
+        )
+        result = await self._session.execute(stmt)
+        return bool(result.scalar())
 
     async def list_ids_by_attribute(self, attribute_id: uuid.UUID) -> set[uuid.UUID]:
         """Return the set of value IDs belonging to the given attribute."""

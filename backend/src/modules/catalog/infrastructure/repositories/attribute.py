@@ -16,6 +16,9 @@ from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute
 from src.modules.catalog.infrastructure.models import (
     CategoryAttributeBinding as OrmCategoryAttributeBinding,
 )
+from src.modules.catalog.infrastructure.models import (
+    ProductAttributeValue as OrmProductAttributeValue,
+)
 from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
 
@@ -121,6 +124,17 @@ class AttributeRepository(
         stmt = select(
             select(OrmCategoryAttributeBinding.id)
             .where(OrmCategoryAttributeBinding.attribute_id == attribute_id)
+            .limit(1)
+            .exists()
+        )
+        result = await self._session.execute(stmt)
+        return bool(result.scalar())
+
+    async def has_product_attribute_values(self, attribute_id: uuid.UUID) -> bool:
+        """Return ``True`` if any products reference this attribute."""
+        stmt = select(
+            select(OrmProductAttributeValue.id)
+            .where(OrmProductAttributeValue.attribute_id == attribute_id)
             .limit(1)
             .exists()
         )

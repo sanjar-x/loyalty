@@ -8,6 +8,7 @@ with the provided external URL. Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.application.constants import MEDIA_ROLE_MAIN
 from src.modules.catalog.domain.entities import MediaAsset
 from src.modules.catalog.domain.exceptions import (
     DuplicateMainMediaError,
@@ -111,7 +112,7 @@ class AddExternalProductMediaHandler:
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
-            if command.role == "main":
+            if command.role == MEDIA_ROLE_MAIN:
                 has_main = await self._media_repo.has_main_for_variant(
                     command.product_id,
                     command.variant_id,

@@ -3,6 +3,7 @@
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.application.constants import DEFAULT_CURRENCY
 from src.modules.catalog.domain.exceptions import ProductNotFoundError
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
@@ -27,7 +28,7 @@ class AddVariantCommand:
     description_i18n: dict[str, str] | None = None
     sort_order: int = 0
     default_price_amount: int | None = None
-    default_price_currency: str = "RUB"
+    default_price_currency: str = DEFAULT_CURRENCY
 
 
 @dataclass(frozen=True)

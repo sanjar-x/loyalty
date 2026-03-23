@@ -4,13 +4,13 @@ Product repository -- Data Mapper implementation.
 Translates between :class:`~src.modules.catalog.domain.entities.Product`
 (domain aggregate with ProductVariant and SKU child entities) and the
 ``products`` / ``product_variants`` / ``skus`` ORM tables.  Handles Money
-value-object decomposition, eager variant/SKU loading, paginated listing
-with filters, and optimistic-locking conflict detection.
+value-object decomposition, eager variant/SKU loading, and optimistic-locking
+conflict detection.
 """
 
 import uuid
 
-from sqlalchemy import ColumnElement, delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.exc import StaleDataError
@@ -232,8 +232,7 @@ class ProductRepository(IProductRepository):
         """Map an ORM Product row to a domain Product entity WITHOUT variants.
 
         Used by methods that do not eager-load variants (``get``, ``get_by_slug``,
-        ``get_for_update``, ``list_products``) to avoid lazy-load errors in
-        async sessions.
+        ``get_for_update``) to avoid lazy-load errors in async sessions.
         """
         return DomainProduct(
             **self._base_product_fields(orm),
@@ -412,6 +411,17 @@ class ProductRepository(IProductRepository):
         stmt = delete(OrmProduct).where(OrmProduct.id == entity_id)
         await self._session.execute(stmt)
 
+    async def sku_code_exists(
+        self, sku_code: str, exclude_sku_id: uuid.UUID | None = None
+    ) -> bool:
+        """Return ``True`` if any non-deleted SKU already uses this code."""
+        filters = [OrmSKU.sku_code == sku_code, OrmSKU.deleted_at.is_(None)]
+        if exclude_sku_id is not None:
+            filters.append(OrmSKU.id != exclude_sku_id)
+        stmt = select(OrmSKU.id).where(*filters).limit(1)
+        result = await self._session.execute(stmt)
+        return result.first() is not None
+
     async def get_by_slug(self, slug: str) -> DomainProduct | None:
         """Retrieve a product by its URL slug, or ``None`` if not found.
 
@@ -492,48 +502,3 @@ class ProductRepository(IProductRepository):
 
         return self._to_domain(orm)
 
-    async def list_products(
-        self,
-        limit: int,
-        offset: int,
-        status: ProductStatus | None = None,
-        brand_id: uuid.UUID | None = None,
-    ) -> tuple[list[DomainProduct], int]:
-        """List products with pagination and optional filters.
-
-        Soft-deleted products are excluded. SKUs are NOT loaded.
-
-        Args:
-            limit: Maximum number of products to return.
-            offset: Number of products to skip.
-            status: Optional filter by product lifecycle status.
-            brand_id: Optional filter by brand.
-
-        Returns:
-            Tuple of (product_list, total_count).
-        """
-        filters: list[ColumnElement[bool]] = [OrmProduct.deleted_at.is_(None)]
-
-        if status is not None:
-            filters.append(OrmProduct.status == ProductStatus(status.value))
-        if brand_id is not None:
-            filters.append(OrmProduct.brand_id == brand_id)
-
-        # NOTE: count and data queries are not atomic; minor TOCTOU race is acceptable for catalog listing.
-        count_stmt = select(func.count()).select_from(OrmProduct).where(*filters)
-        count_result = await self._session.execute(count_stmt)
-        total = count_result.scalar_one()
-
-        # Data query
-        data_stmt = (
-            select(OrmProduct)
-            .where(*filters)
-            .order_by(OrmProduct.created_at.desc())
-            .limit(limit)
-            .offset(offset)
-        )
-        data_result = await self._session.execute(data_stmt)
-        orm_products = data_result.scalars().all()
-
-        products = [self._to_domain_without_skus(orm) for orm in orm_products]
-        return products, total

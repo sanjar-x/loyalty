@@ -33,6 +33,10 @@ from src.modules.catalog.domain.events import (
     ProductMediaProcessedEvent,
     ProductStatusChangedEvent,
     ProductUpdatedEvent,
+    SKUAddedEvent,
+    SKURemovedEvent,
+    VariantAddedEvent,
+    VariantRemovedEvent,
 )
 from src.modules.catalog.domain.exceptions import (
     CategoryMaxDepthError,
@@ -45,6 +49,7 @@ from src.modules.catalog.domain.exceptions import (
     VariantNotFoundError,
 )
 from src.modules.catalog.domain.value_objects import (
+    DEFAULT_CURRENCY,
     DEFAULT_SEARCH_WEIGHT,
     MAX_SEARCH_WEIGHT,
     MIN_SEARCH_WEIGHT,
@@ -1060,6 +1065,7 @@ class SKU:
             "compare_at_price",
             "is_active",
             "variant_attributes",
+            "variant_hash",
         }
     )
 
@@ -1090,10 +1096,8 @@ class SKU:
             self.is_active = kwargs["is_active"]
         if "variant_attributes" in kwargs:
             self.variant_attributes = kwargs["variant_attributes"]
-            # Recompute variant_hash to keep it consistent with attributes
-            pairs = sorted((str(a), str(v)) for a, v in self.variant_attributes)
-            raw = "|".join(f"{a}:{v}" for a, v in pairs)
-            self.variant_hash = hashlib.sha256(raw.encode()).hexdigest()
+        if "variant_hash" in kwargs:
+            self.variant_hash = kwargs["variant_hash"]
 
         # Re-validate price constraint after any price-related change.
         if self.price is None and self.compare_at_price is not None:
@@ -1141,7 +1145,7 @@ class ProductVariant:
         description_i18n: dict[str, str] | None = None,
         sort_order: int = 0,
         default_price: Money | None = None,
-        default_currency: str = "RUB",
+        default_currency: str = DEFAULT_CURRENCY,
         variant_id: uuid.UUID | None = None,
     ) -> ProductVariant:
         """Factory method to construct a new ProductVariant.
@@ -1623,44 +1627,55 @@ class Product(AggregateRoot):
         if unknown:
             raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
 
+        changed = False
+
         if "title_i18n" in kwargs:
             if not kwargs["title_i18n"]:
                 raise ValueError("title_i18n must contain at least one language entry")
             self.title_i18n = kwargs["title_i18n"]
+            changed = True
 
         if "description_i18n" in kwargs:
             self.description_i18n = kwargs["description_i18n"]
+            changed = True
 
         if "slug" in kwargs:
             _validate_slug(kwargs["slug"], "Product")
             self.slug = kwargs["slug"]
+            changed = True
 
         if "brand_id" in kwargs:
             if kwargs["brand_id"] is None:
                 raise ValueError("brand_id cannot be None")
             self.brand_id = kwargs["brand_id"]
+            changed = True
 
         if "primary_category_id" in kwargs:
             if kwargs["primary_category_id"] is None:
                 raise ValueError("primary_category_id cannot be None")
             self.primary_category_id = kwargs["primary_category_id"]
+            changed = True
 
         if "supplier_id" in kwargs:
             self.supplier_id = kwargs["supplier_id"]  # can be None
+            changed = True
 
         if "country_of_origin" in kwargs:
             self.country_of_origin = kwargs["country_of_origin"]  # can be None
+            changed = True
 
         if "tags" in kwargs:
             self.tags = kwargs["tags"]
+            changed = True
 
-        self.updated_at = datetime.now(UTC)
-        self.add_domain_event(
-            ProductUpdatedEvent(
-                product_id=self.id,
-                aggregate_id=str(self.id),
+        if changed:
+            self.updated_at = datetime.now(UTC)
+            self.add_domain_event(
+                ProductUpdatedEvent(
+                    product_id=self.id,
+                    aggregate_id=str(self.id),
+                )
             )
-        )
 
     def soft_delete(self) -> None:
         """Mark this product as deleted.
@@ -1669,7 +1684,17 @@ class Product(AggregateRoot):
         Cascades soft-delete to all active variants (which in turn cascade
         to their SKUs). The record is retained in the database; queries
         must exclude non-None ``deleted_at`` when listing active products.
+
+        Raises:
+            InvalidStatusTransitionError: If the product is currently
+                PUBLISHED — it must be ARCHIVED first.
         """
+        if self.status == ProductStatus.PUBLISHED:
+            raise InvalidStatusTransitionError(
+                current_status=self.status,
+                target_status="DELETED",
+                allowed_transitions=[ProductStatus.ARCHIVED.value],
+            )
         now = datetime.now(UTC)
         self.deleted_at = now
         self.updated_at = now
@@ -1699,6 +1724,21 @@ class Product(AggregateRoot):
                 target_status=new_status,
                 allowed_transitions=list(allowed),
             )
+        if new_status in (ProductStatus.PUBLISHED, ProductStatus.READY_FOR_REVIEW):
+            active_skus = [
+                s for v in self.variants if v.deleted_at is None
+                for s in v.skus if s.deleted_at is None and s.is_active
+            ]
+            if not active_skus:
+                raise ValueError(
+                    f"Cannot transition to {new_status.value}: product has no active SKUs"
+                )
+            if new_status == ProductStatus.PUBLISHED and not any(
+                s.price is not None for s in active_skus
+            ):
+                raise ValueError(
+                    "Cannot publish product without at least one priced SKU"
+                )
         old_status = self.status.value
         self.status = new_status
         if new_status == ProductStatus.PUBLISHED and self.published_at is None:
@@ -1724,7 +1764,7 @@ class Product(AggregateRoot):
         description_i18n: dict[str, str] | None = None,
         sort_order: int = 0,
         default_price: Money | None = None,
-        default_currency: str = "RUB",
+        default_currency: str = DEFAULT_CURRENCY,
     ) -> ProductVariant:
         """Create and attach a new ProductVariant to this product.
 
@@ -1747,6 +1787,7 @@ class Product(AggregateRoot):
             default_currency=default_currency,
         )
         self.variants.append(variant)
+        self.add_domain_event(VariantAddedEvent(product_id=self.id, variant_id=variant.id, aggregate_id=str(self.id)))
         self.updated_at = datetime.now(UTC)
         return variant
 
@@ -1783,6 +1824,7 @@ class Product(AggregateRoot):
         if len(active_variants) <= 1:
             raise LastVariantRemovalError(product_id=self.id)
         variant.soft_delete()
+        self.add_domain_event(VariantRemovedEvent(product_id=self.id, variant_id=variant_id, aggregate_id=str(self.id)))
         self.updated_at = datetime.now(UTC)
 
     # ------------------------------------------------------------------
@@ -1846,6 +1888,7 @@ class Product(AggregateRoot):
             variant_attributes=list(effective_attrs),
         )
         variant.skus.append(sku)
+        self.add_domain_event(SKUAddedEvent(product_id=self.id, variant_id=variant_id, sku_id=sku.id, sku_code=sku.sku_code, aggregate_id=str(self.id)))
         self.updated_at = datetime.now(UTC)
         return sku
 
@@ -1877,6 +1920,7 @@ class Product(AggregateRoot):
             for sku in variant.skus:
                 if sku.id == sku_id and sku.deleted_at is None:
                     sku.soft_delete()
+                    self.add_domain_event(SKURemovedEvent(product_id=self.id, variant_id=variant.id, sku_id=sku_id, aggregate_id=str(self.id)))
                     self.updated_at = datetime.now(UTC)
                     return
         raise SKUNotFoundError(sku_id=sku_id)

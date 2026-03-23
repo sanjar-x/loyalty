@@ -245,6 +245,12 @@ class AttributeCreateRequest(CamelModel):
     is_visible_in_catalog: bool = False
     validation_rules: dict[str, Any] | None = None
 
+    @model_validator(mode="after")
+    def _limit_validation_rules_size(self) -> Self:
+        if self.validation_rules and len(str(self.validation_rules)) > 4096:
+            raise ValueError("validation_rules exceeds maximum allowed size")
+        return self
+
 
 class AttributeCreateResponse(CamelModel):
     """Response after attribute creation."""
@@ -297,6 +303,12 @@ class AttributeUpdateRequest(CamelModel):
         """Ensure at least one field is provided for update."""
         if not self.model_fields_set:
             raise ValueError("At least one field must be provided for update")
+        return self
+
+    @model_validator(mode="after")
+    def _limit_validation_rules_size(self) -> Self:
+        if self.validation_rules and len(str(self.validation_rules)) > 4096:
+            raise ValueError("validation_rules exceeds maximum allowed size")
         return self
 
 
@@ -382,12 +394,29 @@ class ReorderItemRequest(CamelModel):
 class ReorderAttributeValuesRequest(CamelModel):
     """Request body for bulk-reordering attribute values."""
 
-    items: list[ReorderItemRequest] = Field(..., min_length=1)
+    items: list[ReorderItemRequest] = Field(..., min_length=1, max_length=500)
 
 
 # ---------------------------------------------------------------------------
 # CategoryAttributeBinding schemas
 # ---------------------------------------------------------------------------
+
+
+class FlagOverrides(CamelModel):
+    """Optional overrides for attribute display flags at the category-binding level."""
+
+    is_filterable: bool | None = None
+    is_searchable: bool | None = None
+    is_comparable: bool | None = None
+    is_visible_on_card: bool | None = None
+    search_weight: int | None = Field(None, ge=1, le=10)
+
+
+class FilterSettings(CamelModel):
+    """Filter display settings for category-attribute bindings."""
+
+    display_type: str | None = None
+    collapse_threshold: int | None = Field(None, ge=0)
 
 
 class BindAttributeToCategoryRequest(CamelModel):
@@ -398,15 +427,15 @@ class BindAttributeToCategoryRequest(CamelModel):
     requirement_level: Literal["required", "recommended", "optional"] = Field(
         "optional", examples=["required", "recommended", "optional"]
     )
-    flag_overrides: dict[str, Any] | None = Field(
+    flag_overrides: FlagOverrides | None = Field(
         None,
         description="Per-category behavior flag overrides",
         examples=[{"is_filterable": True, "search_weight": 8}],
     )
-    filter_settings: dict[str, Any] | None = Field(
+    filter_settings: FilterSettings | None = Field(
         None,
         description="Per-category filter settings",
-        examples=[{"filter_type": "range", "thresholds": [0, 5000, 10000]}],
+        examples=[{"display_type": "range", "collapse_threshold": 5}],
     )
 
 
@@ -433,8 +462,8 @@ class CategoryAttributeBindingUpdateRequest(CamelModel):
 
     sort_order: int | None = None
     requirement_level: Literal["required", "recommended", "optional"] | None = None
-    flag_overrides: dict[str, Any] | None = None
-    filter_settings: dict[str, Any] | None = None
+    flag_overrides: FlagOverrides | None = None
+    filter_settings: FilterSettings | None = None
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> CategoryAttributeBindingUpdateRequest:
@@ -463,7 +492,7 @@ class BindingReorderItemRequest(CamelModel):
 class ReorderBindingsRequest(CamelModel):
     """Request body for bulk-reordering bindings."""
 
-    items: list[BindingReorderItemRequest] = Field(..., min_length=1)
+    items: list[BindingReorderItemRequest] = Field(..., min_length=1, max_length=500)
 
 
 class RequirementLevelUpdateItemRequest(CamelModel):
@@ -478,7 +507,7 @@ class RequirementLevelUpdateItemRequest(CamelModel):
 class BulkUpdateRequirementLevelsRequest(CamelModel):
     """Request body for bulk-updating requirement levels."""
 
-    items: list[RequirementLevelUpdateItemRequest] = Field(..., min_length=1)
+    items: list[RequirementLevelUpdateItemRequest] = Field(..., min_length=1, max_length=500)
 
 
 # ---------------------------------------------------------------------------
@@ -890,7 +919,7 @@ class ProductMediaUploadRequest(CamelModel):
     role: Literal["main", "hover", "gallery", "hero_video", "size_guide", "packaging"]
     content_type: str = Field(
         ...,
-        pattern=r"^(image|video|application|model)/[a-zA-Z0-9][a-zA-Z0-9!#$&\-^_.+]*$",
+        pattern=r"^(image/(jpeg|png|webp|gif|svg\+xml|avif)|video/(mp4|webm|quicktime|mpeg)|model/(gltf\+json|gltf-binary))$",
         max_length=255,
     )
     sort_order: int = Field(0, ge=0)

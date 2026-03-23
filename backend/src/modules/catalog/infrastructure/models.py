@@ -470,7 +470,7 @@ class Product(Base):
     brand_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("brands.id", ondelete="RESTRICT"), index=True
     )
-    supplier_id: Mapped[uuid.UUID] = mapped_column(
+    supplier_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("suppliers.id", ondelete="RESTRICT"), index=True
     )
     slug: Mapped[str] = mapped_column(String(255))
@@ -687,14 +687,13 @@ class MediaAsset(Base):
     __table_args__ = (
         # Business rule: each variant may have at most one MAIN image
         # Excludes FAILED uploads to match application-level has_main_for_variant check.
-        # TODO: requires a new Alembic migration to DROP + re-CREATE this index with the updated WHERE clause.
         Index(
             "uix_media_single_main_per_variant",
             "product_id",
             "variant_id",
             unique=True,
             postgresql_where=text(
-                "role = 'main' AND deleted_at IS NULL AND processing_status != 'FAILED'"
+                "role = 'main' AND processing_status != 'FAILED'"
             ),
             postgresql_nulls_not_distinct=True,
         ),
