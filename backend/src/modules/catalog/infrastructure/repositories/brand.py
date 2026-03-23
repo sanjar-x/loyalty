@@ -62,15 +62,11 @@ class BrandRepository(
 
     async def check_slug_exists(self, slug: str) -> bool:
         """Return ``True`` if any brand already uses this slug."""
-        stmt = select(OrmBrand.id).where(OrmBrand.slug == slug).limit(1)
-        result = await self._session.execute(stmt)
-        return result.first() is not None
+        return await self._field_exists("slug", slug)
 
     async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
         """Return ``True`` if the slug is taken by a brand other than *exclude_id*."""
-        stmt = select(OrmBrand.id).where(OrmBrand.slug == slug, OrmBrand.id != exclude_id).limit(1)
-        result = await self._session.execute(stmt)
-        return result.first() is not None
+        return await self._field_exists("slug", slug, exclude_id=exclude_id)
 
     async def get_for_update(self, brand_id: uuid.UUID) -> DomainBrand | None:
         """Retrieve a brand with a ``SELECT … FOR UPDATE`` row lock.

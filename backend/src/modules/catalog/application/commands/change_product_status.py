@@ -9,8 +9,8 @@ transition, persist, commit. Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.domain.exceptions import ProductNotFoundError
-from src.modules.catalog.domain.interfaces import IProductRepository
+from src.modules.catalog.domain.exceptions import ProductNotFoundError, ProductNotReadyError
+from src.modules.catalog.domain.interfaces import IMediaAssetRepository, IProductRepository
 from src.modules.catalog.domain.value_objects import ProductStatus
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -40,9 +40,11 @@ class ChangeProductStatusHandler:
     def __init__(
         self,
         product_repo: IProductRepository,
+        media_repo: IMediaAssetRepository,
         uow: IUnitOfWork,
     ) -> None:
         self._product_repo = product_repo
+        self._media_repo = media_repo
         self._uow = uow
 
     async def handle(self, command: ChangeProductStatusCommand) -> None:
@@ -57,9 +59,19 @@ class ChangeProductStatusHandler:
                 (raised by ``Product.transition_status``).
         """
         async with self._uow:
-            product = await self._product_repo.get_for_update(command.product_id)
+            product = await self._product_repo.get_for_update_with_variants(command.product_id)
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
+
+            # SEC-09: Pre-publication readiness check — ensure the product
+            # has at least one media asset before allowing PUBLISHED status.
+            if command.new_status == ProductStatus.PUBLISHED:
+                media_assets = await self._media_repo.list_by_product(command.product_id)
+                if not media_assets:
+                    raise ProductNotReadyError(
+                        product_id=command.product_id,
+                        reason="Cannot publish product without at least one media asset (image)",
+                    )
 
             product.transition_status(command.new_status)
 

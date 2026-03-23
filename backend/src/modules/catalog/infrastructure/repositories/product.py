@@ -300,7 +300,10 @@ class ProductRepository(IProductRepository):
                     new_orm_variant.skus.append(self._sku_to_orm(domain_sku))
                 orm.variants.append(new_orm_variant)
 
-        to_remove = [v for v in orm.variants if v.id not in domain_variant_ids]
+        to_remove = [
+            v for v in orm.variants
+            if v.id not in domain_variant_ids and v.deleted_at is None
+        ]
         for v in to_remove:
             orm.variants.remove(v)
 
@@ -320,7 +323,10 @@ class ProductRepository(IProductRepository):
                 new_orm_sku = self._sku_to_orm(domain_sku)
                 orm_variant.skus.append(new_orm_sku)
 
-        to_remove = [sku for sku in orm_variant.skus if sku.id not in domain_sku_ids]
+        to_remove = [
+            sku for sku in orm_variant.skus
+            if sku.id not in domain_sku_ids and sku.deleted_at is None
+        ]
         for sku in to_remove:
             orm_variant.skus.remove(sku)
 
@@ -438,29 +444,36 @@ class ProductRepository(IProductRepository):
             return self._to_domain_without_skus(orm)
         return None
 
-    async def check_slug_exists(self, slug: str) -> bool:
-        """Return ``True`` if any non-deleted product already uses this slug."""
-        stmt = (
-            select(OrmProduct.id)
-            .where(OrmProduct.slug == slug, OrmProduct.deleted_at.is_(None))
-            .limit(1)
-        )
+    async def _field_exists(
+        self,
+        field_name: str,
+        value: object,
+        *,
+        exclude_id: uuid.UUID | None = None,
+    ) -> bool:
+        """Check whether a non-deleted product row with the given field value exists.
+
+        Args:
+            field_name: Name of the ORM column to check (e.g. ``"slug"``).
+            value: The value to look for.
+            exclude_id: When provided, excludes the row with this primary
+                key from the check (used during updates).
+        """
+        column = getattr(OrmProduct, field_name)
+        filters = [column == value, OrmProduct.deleted_at.is_(None)]
+        if exclude_id is not None:
+            filters.append(OrmProduct.id != exclude_id)
+        stmt = select(OrmProduct.id).where(*filters).limit(1)
         result = await self._session.execute(stmt)
         return result.first() is not None
 
+    async def check_slug_exists(self, slug: str) -> bool:
+        """Return ``True`` if any non-deleted product already uses this slug."""
+        return await self._field_exists("slug", slug)
+
     async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
         """Return ``True`` if the slug is taken by another non-deleted product."""
-        stmt = (
-            select(OrmProduct.id)
-            .where(
-                OrmProduct.slug == slug,
-                OrmProduct.id != exclude_id,
-                OrmProduct.deleted_at.is_(None),
-            )
-            .limit(1)
-        )
-        result = await self._session.execute(stmt)
-        return result.first() is not None
+        return await self._field_exists("slug", slug, exclude_id=exclude_id)
 
     async def get_for_update(self, product_id: uuid.UUID) -> DomainProduct | None:
         """Retrieve a product with a pessimistic lock (SELECT FOR UPDATE).
@@ -476,6 +489,33 @@ class ProductRepository(IProductRepository):
         orm = result.scalar_one_or_none()
         if orm is not None:
             return self._to_domain_without_skus(orm)
+        return None
+
+    async def get_for_update_with_variants(
+        self, product_id: uuid.UUID
+    ) -> DomainProduct | None:
+        """Retrieve a product with pessimistic lock AND eagerly loaded variants/SKUs.
+
+        Combines ``SELECT FOR UPDATE`` with variant/SKU eager loading so
+        that domain methods like ``transition_status`` can inspect child
+        entities while holding the row lock.
+        """
+        stmt = (
+            select(OrmProduct)
+            .where(OrmProduct.id == product_id, OrmProduct.deleted_at.is_(None))
+            .options(
+                selectinload(
+                    OrmProduct.variants.and_(OrmProductVariant.deleted_at.is_(None))
+                ).selectinload(
+                    OrmProductVariant.skus.and_(OrmSKU.deleted_at.is_(None))
+                )
+            )
+            .with_for_update()
+        )
+        result = await self._session.execute(stmt)
+        orm = result.scalar_one_or_none()
+        if orm is not None:
+            return self._to_domain(orm)
         return None
 
     async def get_with_variants(self, product_id: uuid.UUID) -> DomainProduct | None:

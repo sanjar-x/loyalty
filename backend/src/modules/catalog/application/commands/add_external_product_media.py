@@ -8,7 +8,11 @@ with the provided external URL. Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.application.constants import MEDIA_ROLE_MAIN
+from sqlalchemy.exc import IntegrityError
+
+from src.modules.catalog.application.commands.add_product_media import (
+    enforce_main_media_uniqueness,
+)
 from src.modules.catalog.domain.entities import MediaAsset
 from src.modules.catalog.domain.exceptions import (
     DuplicateMainMediaError,
@@ -112,19 +116,25 @@ class AddExternalProductMediaHandler:
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
-            if command.role == MEDIA_ROLE_MAIN:
-                has_main = await self._media_repo.has_main_for_variant(
-                    command.product_id,
-                    command.variant_id,
-                )
-                if has_main:
-                    raise DuplicateMainMediaError(
-                        product_id=command.product_id,
-                        variant_id=command.variant_id,
-                    )
+            await enforce_main_media_uniqueness(
+                product_id=command.product_id,
+                variant_id=command.variant_id,
+                role=command.role,
+                media_repo=self._media_repo,
+            )
 
             await self._media_repo.add(media)
-            await self._uow.commit()
+            try:
+                await self._uow.commit()
+            except IntegrityError:
+                # TOCTOU safety net: two concurrent requests may both pass
+                # the has_main_for_variant check.  A DB unique constraint on
+                # (product_id, variant_id, role='MAIN') rejects the second
+                # insert at commit time.
+                raise DuplicateMainMediaError(
+                    product_id=command.product_id,
+                    variant_id=command.variant_id,
+                )
 
         return AddExternalProductMediaResult(
             media_id=media.id,

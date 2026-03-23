@@ -334,6 +334,13 @@ class IProductRepository(ICatalogRepository[DomainProduct]):
         pass
 
     @abstractmethod
+    async def get_for_update_with_variants(
+        self, product_id: uuid.UUID
+    ) -> DomainProduct | None:
+        """Retrieve a product with pessimistic lock AND eagerly loaded variants/SKUs."""
+        pass
+
+    @abstractmethod
     async def get_with_variants(self, product_id: uuid.UUID) -> DomainProduct | None:
         """Retrieve a product with eagerly loaded variant and SKU child entities."""
         pass
@@ -437,4 +444,261 @@ class IMediaAssetRepository(ABC):
         variant_id: uuid.UUID | None,
     ) -> bool:
         """Check if a MAIN media asset already exists for this product/variant combo."""
+        pass
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Read-only query interfaces (CQRS read side)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# These interfaces define the contracts for query handlers in the
+# application layer.  They allow query handlers to depend on abstractions
+# rather than on AsyncSession or ORM models directly, satisfying the
+# Dependency Inversion Principle (DIP) and the Clean Architecture
+# dependency rule (application -> domain, never application -> infra).
+#
+# Concrete implementations live in the infrastructure layer and are
+# free to use SQLAlchemy, raw SQL, Elasticsearch, or any other data
+# source.  The application layer only sees the interface and the read
+# models defined in ``application.queries.read_models``.
+#
+# NOTE: Import of read model types uses a TYPE_CHECKING guard so this
+# module has no runtime dependency on the application layer (domain
+# must not depend on application at runtime).  The annotations are
+# strings resolved only by type-checkers.
+# ═══════════════════════════════════════════════════════════════════════════
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.modules.catalog.application.queries.read_models import (
+        BrandReadModel as _BrandRM,
+        BrandListReadModel as _BrandListRM,
+        CategoryReadModel as _CategoryRM,
+        CategoryListReadModel as _CategoryListRM,
+        CategoryNode as _CategoryNodeRM,
+        AttributeGroupReadModel as _AttrGroupRM,
+        AttributeGroupListReadModel as _AttrGroupListRM,
+        AttributeReadModel as _AttrRM,
+        AttributeListReadModel as _AttrListRM,
+        AttributeValueListReadModel as _AttrValueListRM,
+        CategoryAttributeBindingListReadModel as _BindingListRM,
+        ProductReadModel as _ProductRM,
+        ProductListReadModel as _ProductListRM,
+        ProductVariantReadModel as _VariantRM,
+        SKUReadModel as _SKURM,
+        ProductAttributeReadModel as _ProdAttrRM,
+        StorefrontFilterListReadModel as _SFFilterRM,
+        StorefrontCardReadModel as _SFCardRM,
+        StorefrontComparisonReadModel as _SFCompRM,
+        StorefrontFormReadModel as _SFFormRM,
+    )
+
+
+class IBrandReadRepository(ABC):
+    """Read-only query interface for brands.
+
+    Implementations fetch brand data for the CQRS read side and return
+    pure read-model DTOs defined in ``application.queries.read_models``.
+    """
+
+    @abstractmethod
+    async def get_brand(self, brand_id: uuid.UUID) -> "_BrandRM | None":
+        """Retrieve a single brand read model by ID, or ``None``."""
+        pass
+
+    @abstractmethod
+    async def list_brands(
+        self, *, offset: int = 0, limit: int = 20
+    ) -> "_BrandListRM":
+        """Return a paginated list of brands."""
+        pass
+
+
+class ICategoryReadRepository(ABC):
+    """Read-only query interface for categories.
+
+    Provides both flat paginated listing and the full recursive tree.
+    """
+
+    @abstractmethod
+    async def get_category(self, category_id: uuid.UUID) -> "_CategoryRM | None":
+        """Retrieve a single category read model by ID, or ``None``."""
+        pass
+
+    @abstractmethod
+    async def list_categories(
+        self, *, offset: int = 0, limit: int = 20
+    ) -> "_CategoryListRM":
+        """Return a paginated category list ordered by level and sort order."""
+        pass
+
+    @abstractmethod
+    async def get_category_tree(self) -> "list[_CategoryNodeRM]":
+        """Return the full category hierarchy as a list of root nodes."""
+        pass
+
+
+class IAttributeGroupReadRepository(ABC):
+    """Read-only query interface for attribute groups."""
+
+    @abstractmethod
+    async def get_attribute_group(
+        self, group_id: uuid.UUID
+    ) -> "_AttrGroupRM | None":
+        """Retrieve a single attribute group read model by ID."""
+        pass
+
+    @abstractmethod
+    async def list_attribute_groups(
+        self, *, offset: int = 0, limit: int = 20
+    ) -> "_AttrGroupListRM":
+        """Return a paginated list of attribute groups."""
+        pass
+
+
+class IAttributeReadRepository(ABC):
+    """Read-only query interface for attributes and their values."""
+
+    @abstractmethod
+    async def get_attribute(
+        self, attribute_id: uuid.UUID
+    ) -> "_AttrRM | None":
+        """Retrieve a single attribute read model by ID."""
+        pass
+
+    @abstractmethod
+    async def list_attributes(
+        self,
+        *,
+        offset: int = 0,
+        limit: int = 20,
+        group_id: uuid.UUID | None = None,
+    ) -> "_AttrListRM":
+        """Return a paginated list of attributes, optionally filtered by group."""
+        pass
+
+    @abstractmethod
+    async def list_attribute_values(
+        self,
+        attribute_id: uuid.UUID,
+        *,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> "_AttrValueListRM":
+        """Return a paginated list of values for a given attribute."""
+        pass
+
+
+class ICategoryBindingReadRepository(ABC):
+    """Read-only query interface for category-attribute bindings."""
+
+    @abstractmethod
+    async def list_bindings(
+        self,
+        category_id: uuid.UUID,
+        *,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> "_BindingListRM":
+        """Return a paginated list of bindings for a category."""
+        pass
+
+
+class IProductReadRepository(ABC):
+    """Read-only query interface for products and their child entities.
+
+    Covers single-product detail, paginated listing, variants, SKUs,
+    product attribute assignments, and media assets.
+    """
+
+    @abstractmethod
+    async def get_product(self, product_id: uuid.UUID) -> "_ProductRM | None":
+        """Retrieve a full product read model by ID (with variants, SKUs, attributes).
+
+        Returns ``None`` if the product does not exist or is soft-deleted.
+        """
+        pass
+
+    @abstractmethod
+    async def list_products(
+        self,
+        *,
+        offset: int = 0,
+        limit: int = 50,
+        status: str | None = None,
+        brand_id: uuid.UUID | None = None,
+    ) -> "_ProductListRM":
+        """Return a paginated, optionally filtered, product list."""
+        pass
+
+    @abstractmethod
+    async def list_variants(
+        self,
+        product_id: uuid.UUID,
+        *,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> "tuple[list[_VariantRM], int]":
+        """Return paginated variants for a product with total count."""
+        pass
+
+    @abstractmethod
+    async def list_skus(
+        self,
+        product_id: uuid.UUID,
+        *,
+        variant_id: uuid.UUID | None = None,
+        offset: int = 0,
+        limit: int | None = 50,
+    ) -> "tuple[list[_SKURM], int]":
+        """Return paginated SKUs for a product with total count."""
+        pass
+
+    @abstractmethod
+    async def list_product_attributes(
+        self,
+        product_id: uuid.UUID,
+        *,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> "tuple[list[_ProdAttrRM], int]":
+        """Return paginated product attribute assignments with total count."""
+        pass
+
+
+class IStorefrontQueryService(ABC):
+    """Read-only query interface for storefront-facing attribute projections.
+
+    Each method returns a pre-shaped read model tailored to a specific
+    storefront use case (filter panel, product card, comparison table,
+    creation form).  Implementations may apply caching transparently.
+    """
+
+    @abstractmethod
+    async def get_filterable_attributes(
+        self, category_id: uuid.UUID
+    ) -> "_SFFilterRM":
+        """Return filterable attributes with their dictionary values."""
+        pass
+
+    @abstractmethod
+    async def get_card_attributes(
+        self, category_id: uuid.UUID
+    ) -> "_SFCardRM":
+        """Return visible-on-card attributes grouped by attribute group."""
+        pass
+
+    @abstractmethod
+    async def get_comparison_attributes(
+        self, category_id: uuid.UUID
+    ) -> "_SFCompRM":
+        """Return comparable attributes for the comparison table."""
+        pass
+
+    @abstractmethod
+    async def get_form_attributes(
+        self, category_id: uuid.UUID
+    ) -> "_SFFormRM":
+        """Return the full attribute set for the product creation form."""
         pass

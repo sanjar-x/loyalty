@@ -6,6 +6,7 @@ identity. Part of the domain layer -- zero infrastructure imports.
 """
 
 import enum
+import re
 from typing import Any
 
 from attrs import frozen
@@ -18,6 +19,178 @@ DEFAULT_SEARCH_WEIGHT = 5
 
 MIN_SEARCH_WEIGHT = 1
 MAX_SEARCH_WEIGHT = 10
+
+_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+"""Compiled pattern for valid slug values."""
+
+# Accepted language codes for LocalizedText (BCP-47 primary subtags).
+_LANG_CODE_RE = re.compile(r"^[a-z]{2,3}$")
+
+
+# ---------------------------------------------------------------------------
+# DDD-03: Slug value object
+# ---------------------------------------------------------------------------
+
+
+@frozen
+class Slug:
+    """Immutable value object representing a URL-safe slug.
+
+    Validates that the value matches the pattern ``^[a-z0-9]+(?:-[a-z0-9]+)*$``
+    (lowercase alphanumeric segments separated by single hyphens).
+
+    Attributes:
+        value: The validated slug string.
+
+    Raises:
+        ValueError: If the value is empty or does not match the slug pattern.
+    """
+
+    value: str
+
+    def __attrs_post_init__(self) -> None:
+        if not self.value or not _SLUG_RE.match(self.value):
+            raise ValueError(
+                f"Slug must be non-empty and match pattern: "
+                f"lowercase letters, digits, and hyphens (e.g. 'my-slug-123'). "
+                f"Got: {self.value!r}"
+            )
+
+    def __str__(self) -> str:
+        return self.value
+
+
+# ---------------------------------------------------------------------------
+# DDD-03: LocalizedText value object
+# ---------------------------------------------------------------------------
+
+
+@frozen
+class LocalizedText:
+    """Immutable value object wrapping a dict of language-code -> text.
+
+    Enforces that at least one translation is present and that all
+    language codes are valid BCP-47 primary subtags (2-3 lowercase letters).
+
+    Attributes:
+        translations: Mapping of language codes to translated strings.
+
+    Raises:
+        ValueError: If translations is empty or a language code is invalid.
+    """
+
+    translations: dict[str, str]
+
+    def __attrs_post_init__(self) -> None:
+        if not self.translations:
+            raise ValueError("LocalizedText must contain at least one language entry")
+        for code in self.translations:
+            if not _LANG_CODE_RE.match(code):
+                raise ValueError(
+                    f"Invalid language code: {code!r}. "
+                    f"Expected 2-3 lowercase letters (e.g. 'en', 'ru')."
+                )
+
+    def get(self, lang: str, default: str = "") -> str:
+        """Return the text for a given language, or *default* if absent."""
+        return self.translations.get(lang, default)
+
+    def __contains__(self, lang: str) -> bool:
+        return lang in self.translations
+
+    def __getitem__(self, lang: str) -> str:
+        return self.translations[lang]
+
+
+# ---------------------------------------------------------------------------
+# ARCH-03: Domain enums moved from infrastructure
+# ---------------------------------------------------------------------------
+
+
+class MediaType(str, enum.Enum):
+    """Discriminator for media asset file types.
+
+    Members:
+        IMAGE: Raster or vector image (JPEG, PNG, SVG, WebP).
+        VIDEO: Video file (MP4, WebM).
+        MODEL_3D: 3-D model file (glTF, USDZ).
+        DOCUMENT: PDF or other document attachment.
+    """
+
+    IMAGE = "image"
+    VIDEO = "video"
+    MODEL_3D = "model_3d"
+    DOCUMENT = "document"
+
+
+class MediaRole(str, enum.Enum):
+    """Semantic role a media asset plays within a product gallery.
+
+    Members:
+        MAIN: Primary product image shown in listings.
+        HOVER: Image shown on mouse-over in catalog grids.
+        GALLERY: Additional gallery image.
+        HERO_VIDEO: Hero video on the product detail page.
+        SIZE_GUIDE: Size/fit guide image or document.
+        PACKAGING: Packaging photo.
+    """
+
+    MAIN = "main"
+    HOVER = "hover"
+    GALLERY = "gallery"
+    HERO_VIDEO = "hero_video"
+    SIZE_GUIDE = "size_guide"
+    PACKAGING = "packaging"
+
+
+class SupplierType(str, enum.Enum):
+    """Classification of suppliers by logistics origin.
+
+    Members:
+        CROSS_BORDER: Supplier ships from abroad (cross-border logistics).
+        LOCAL: Supplier ships from a domestic warehouse.
+    """
+
+    CROSS_BORDER = "cross_border"
+    LOCAL = "local"
+
+
+# ---------------------------------------------------------------------------
+# QUAL-01: BehaviorFlags value object
+# ---------------------------------------------------------------------------
+
+
+@frozen
+class BehaviorFlags:
+    """Immutable value object grouping boolean behavior flags for an Attribute.
+
+    Replaces the individual ``is_filterable``, ``is_searchable``,
+    ``is_comparable``, ``is_visible_on_card``, ``is_visible_in_catalog``
+    booleans and the ``search_weight`` integer that were previously
+    passed as separate parameters.
+
+    Attributes:
+        is_filterable: Available as filter on the storefront.
+        is_searchable: Participates in full-text search.
+        search_weight: Priority for search ranking (1-10, default 5).
+        is_comparable: Shown in the product comparison table.
+        is_visible_on_card: Shown on the product detail page.
+        is_visible_in_catalog: Shown in catalog listing preview.
+    """
+
+    is_filterable: bool = False
+    is_searchable: bool = False
+    search_weight: int = DEFAULT_SEARCH_WEIGHT
+    is_comparable: bool = False
+    is_visible_on_card: bool = False
+    is_visible_in_catalog: bool = False
+
+    def __attrs_post_init__(self) -> None:
+        if not (MIN_SEARCH_WEIGHT <= self.search_weight <= MAX_SEARCH_WEIGHT):
+            raise ValueError(
+                f"search_weight must be between {MIN_SEARCH_WEIGHT} and "
+                f"{MAX_SEARCH_WEIGHT}, got {self.search_weight}"
+            )
 
 
 class MediaProcessingStatus(str, enum.Enum):

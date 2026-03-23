@@ -62,13 +62,9 @@ class CategoryRepository(
 
     async def check_slug_exists(self, slug: str, parent_id: uuid.UUID | None) -> bool:
         """Return ``True`` if a sibling with this slug already exists."""
-        stmt = select(
-            select(self.model)
-            .where(self.model.slug == slug, self.model.parent_id == parent_id)
-            .exists()
+        return await self._field_exists(
+            "slug", slug, extra_filters=[self.model.parent_id == parent_id]
         )
-        result = await self._session.execute(stmt)
-        return bool(result.scalar())
 
     async def get_for_update(self, category_id: uuid.UUID) -> DomainCategory | None:
         """Retrieve a category with a ``SELECT … FOR UPDATE`` row lock."""
@@ -81,17 +77,12 @@ class CategoryRepository(
         self, slug: str, parent_id: uuid.UUID | None, exclude_id: uuid.UUID
     ) -> bool:
         """Return ``True`` if the slug is taken by a sibling other than *exclude_id*."""
-        stmt = select(
-            select(self.model)
-            .where(
-                self.model.slug == slug,
-                self.model.parent_id == parent_id,
-                self.model.id != exclude_id,
-            )
-            .exists()
+        return await self._field_exists(
+            "slug",
+            slug,
+            exclude_id=exclude_id,
+            extra_filters=[self.model.parent_id == parent_id],
         )
-        result = await self._session.execute(stmt)
-        return bool(result.scalar())
 
     async def has_children(self, category_id: uuid.UUID) -> bool:
         """Return ``True`` if the category has at least one child."""

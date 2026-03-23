@@ -11,6 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from src.modules.catalog.domain.entities import Product
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
     CategoryNotFoundError,
@@ -167,9 +168,14 @@ class UpdateProductHandler:
 
             # --- Build kwargs for only the fields the caller provided ---
             # The router records which fields were explicitly provided in
-            # ``_provided_fields``.  We forward exactly those to the entity.
+            # ``_provided_fields``.  We intersect with Product._UPDATABLE_FIELDS
+            # to ensure non-updatable fields (e.g. "version", "product_id")
+            # never leak through to entity.update().  Defence-in-depth: the
+            # entity also rejects unknown kwargs, but filtering here keeps the
+            # application layer self-contained.
+            safe_fields = command._provided_fields & Product._UPDATABLE_FIELDS
             update_kwargs: dict[str, Any] = {
-                f: getattr(command, f) for f in command._provided_fields
+                f: getattr(command, f) for f in safe_fields
             }
 
             product.update(**update_kwargs)

@@ -9,7 +9,13 @@ for direct client upload. Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.application.constants import MEDIA_ROLE_MAIN, raw_media_key
+from sqlalchemy.exc import IntegrityError
+
+from src.modules.catalog.application.constants import (
+    MEDIA_ROLE_MAIN,
+    PRESIGNED_URL_EXPIRATION_SECONDS,
+    raw_media_key,
+)
 from src.modules.catalog.domain.entities import MediaAsset
 from src.modules.catalog.domain.exceptions import (
     DuplicateMainMediaError,
@@ -21,6 +27,32 @@ from src.modules.catalog.domain.interfaces import (
 )
 from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.uow import IUnitOfWork
+
+
+async def enforce_main_media_uniqueness(
+    product_id: uuid.UUID,
+    variant_id: uuid.UUID | None,
+    role: str,
+    media_repo: IMediaAssetRepository,
+) -> None:
+    """Check that no MAIN media asset already exists for a product/variant combo.
+
+    This is an application-level guard shared by both the upload-based and
+    external media handlers.  A database-level unique constraint should
+    back this check to prevent TOCTOU races; the callers additionally
+    wrap their commit in an ``IntegrityError`` catch as a safety net.
+
+    Raises:
+        DuplicateMainMediaError: If a MAIN asset already exists.
+    """
+    if role != MEDIA_ROLE_MAIN:
+        return
+    has_main = await media_repo.has_main_for_variant(product_id, variant_id)
+    if has_main:
+        raise DuplicateMainMediaError(
+            product_id=product_id,
+            variant_id=variant_id,
+        )
 
 
 @dataclass(frozen=True)
@@ -109,7 +141,7 @@ class AddProductMediaHandler:
         presigned_url = await self._blob_storage.generate_presigned_put_url(
             object_name=object_key,
             content_type=command.content_type,
-            expiration=300,
+            expiration=PRESIGNED_URL_EXPIRATION_SECONDS,
         )
 
         # 3. Verify product exists, enforce MAIN uniqueness, and persist atomically
@@ -118,19 +150,25 @@ class AddProductMediaHandler:
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
-            if command.role == MEDIA_ROLE_MAIN:
-                has_main = await self._media_repo.has_main_for_variant(
-                    command.product_id,
-                    command.variant_id,
-                )
-                if has_main:
-                    raise DuplicateMainMediaError(
-                        product_id=command.product_id,
-                        variant_id=command.variant_id,
-                    )
+            await enforce_main_media_uniqueness(
+                product_id=command.product_id,
+                variant_id=command.variant_id,
+                role=command.role,
+                media_repo=self._media_repo,
+            )
 
             await self._media_repo.add(media)
-            await self._uow.commit()
+            try:
+                await self._uow.commit()
+            except IntegrityError:
+                # TOCTOU safety net: two concurrent requests may both pass
+                # the has_main_for_variant check.  A DB unique constraint on
+                # (product_id, variant_id, role='MAIN') rejects the second
+                # insert at commit time.
+                raise DuplicateMainMediaError(
+                    product_id=command.product_id,
+                    variant_id=command.variant_id,
+                )
 
         return AddProductMediaResult(
             media_id=media.id,

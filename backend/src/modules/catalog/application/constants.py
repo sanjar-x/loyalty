@@ -13,6 +13,12 @@ Typical usage:
 
 import uuid
 
+from src.modules.catalog.domain.value_objects import DEFAULT_CURRENCY  # noqa: F401 – re-export
+
+# ---------------------------------------------------------------------------
+# S3 key builders
+# ---------------------------------------------------------------------------
+
 
 def raw_logo_key(brand_id: uuid.UUID) -> str:
     """Build the S3 key for a brand's raw (unprocessed) logo upload.
@@ -51,14 +57,6 @@ def public_media_key(product_id: uuid.UUID, media_id: uuid.UUID, ext: str = "web
 CATEGORY_TREE_CACHE_KEY = "catalog:category_tree"
 """Redis cache key for the full category tree JSON payload."""
 
-DEFAULT_CURRENCY = "RUB"
-"""Default ISO 4217 currency code used for pricing when none is specified.
-
-Duplicated from ``domain.value_objects.DEFAULT_CURRENCY`` to avoid
-circular import issues in application-layer dataclasses that need a
-default value at class-definition time.
-"""
-
 MEDIA_ROLE_MAIN = "main"
 """Canonical value for the "main" media role, matching ``MediaRole.MAIN``."""
 
@@ -80,3 +78,14 @@ def storefront_comparison_cache_key(category_id: uuid.UUID) -> str:
 
 STOREFRONT_CACHE_TTL = 300
 """TTL in seconds for storefront attribute cache entries (5 minutes)."""
+
+STOREFRONT_CACHE_PREFIX = "catalog:storefront:"
+"""Common prefix for all storefront cache keys.
+
+Used by ``invalidate_storefront_cache`` to build the list of keys that
+must be deleted when attributes, attribute values, or category-attribute
+bindings change.
+"""
+
+PRESIGNED_URL_EXPIRATION_SECONDS = 300
+MAX_MEDIA_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB

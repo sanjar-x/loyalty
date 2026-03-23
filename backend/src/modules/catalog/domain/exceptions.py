@@ -182,6 +182,28 @@ class SKUCodeConflictError(ConflictError):
         )
 
 
+class CannotDeletePublishedProductError(UnprocessableEntityError):
+    """Raised when attempting to delete a product that is currently published."""
+
+    def __init__(self, product_id: uuid.UUID, current_status: str) -> None:
+        super().__init__(
+            message="Cannot delete a published product. Archive it first.",
+            error_code="CANNOT_DELETE_PUBLISHED_PRODUCT",
+            details={"product_id": str(product_id), "current_status": current_status},
+        )
+
+
+class ProductNotReadyError(UnprocessableEntityError):
+    """Raised when a product is not ready for the requested status transition."""
+
+    def __init__(self, product_id: uuid.UUID, reason: str) -> None:
+        super().__init__(
+            message=f"Product {product_id} is not ready: {reason}",
+            error_code="PRODUCT_NOT_READY",
+            details={"product_id": str(product_id), "reason": reason},
+        )
+
+
 class DuplicateVariantCombinationError(ConflictError):
     """Raised when a new SKU would duplicate an existing variant combination.
 

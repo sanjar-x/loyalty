@@ -17,6 +17,7 @@ from src.modules.catalog.domain.exceptions import (
 )
 from src.modules.catalog.domain.interfaces import ICategoryRepository
 from src.shared.interfaces.cache import ICacheService
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -67,12 +68,20 @@ class CreateCategoryHandler:
         _category_repo: Category repository port.
         _uow: Unit of Work for transactional writes.
         _cache: Cache service for tree cache invalidation.
+        _logger: Structured logger with handler context.
     """
 
-    def __init__(self, category_repo: ICategoryRepository, uow: IUnitOfWork, cache: ICacheService):
+    def __init__(
+        self,
+        category_repo: ICategoryRepository,
+        uow: IUnitOfWork,
+        cache: ICacheService,
+        logger: ILogger,
+    ):
         self._category_repo: ICategoryRepository = category_repo
         self._uow: IUnitOfWork = uow
         self._cache: ICacheService = cache
+        self._logger: ILogger = logger.bind(handler="CreateCategoryHandler")
 
     async def handle(self, command: CreateCategoryCommand) -> CreateCategoryResult:
         """Execute the create-category command.
@@ -119,8 +128,8 @@ class CreateCategoryHandler:
 
         try:
             await self._cache.delete(CATEGORY_TREE_CACHE_KEY)
-        except Exception:
-            pass  # Cache invalidation is best-effort
+        except Exception as exc:
+            self._logger.warning("cache_invalidation_failed", error=str(exc))
 
         return CreateCategoryResult(
             id=category.id,

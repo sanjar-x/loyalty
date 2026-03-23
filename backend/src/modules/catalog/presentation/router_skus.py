@@ -54,7 +54,7 @@ sku_router = APIRouter(
     description="Create a new SKU with optional price and attributes.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
-async def create_sku(
+async def add_sku(
     product_id: uuid.UUID,
     variant_id: uuid.UUID,
     request: SKUCreateRequest,
@@ -157,13 +157,19 @@ async def delete_sku(
     variant_id: uuid.UUID,
     sku_id: uuid.UUID,
     handler: FromDishka[DeleteSKUHandler],
+    list_handler: FromDishka[ListSKUsHandler],
 ) -> None:
     """Soft-delete a SKU from the product variant.
 
-    Note: variant_id is present in the URL for hierarchical consistency but
-    is not validated against the SKU. The DeleteSKUCommand only uses
-    product_id + sku_id; the domain layer verifies SKU ownership via the
-    product aggregate.
+    Validates that the SKU belongs to the specified variant before
+    dispatching the delete command, preventing IDOR across variants.
     """
+    # SEC-02: Verify the SKU belongs to the specified variant before deletion.
+    skus, _ = await list_handler.handle(
+        ListSKUsQuery(product_id=product_id, variant_id=variant_id, limit=None)
+    )
+    if not any(s.id == sku_id for s in skus):
+        raise SKUNotFoundError(sku_id=sku_id)
+
     command = DeleteSKUCommand(product_id=product_id, sku_id=sku_id)
     await handler.handle(command)

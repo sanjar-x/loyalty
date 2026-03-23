@@ -47,7 +47,7 @@ variant_router = APIRouter(
     description="Create a new variant for the given product.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
-async def create_variant(
+async def add_variant(
     product_id: uuid.UUID,
     request: ProductVariantCreateRequest,
     handler: FromDishka[AddVariantHandler],

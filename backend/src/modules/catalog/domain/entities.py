@@ -39,12 +39,17 @@ from src.modules.catalog.domain.events import (
     VariantRemovedEvent,
 )
 from src.modules.catalog.domain.exceptions import (
+    BrandHasProductsError,
+    CannotDeletePublishedProductError,
+    CategoryHasChildrenError,
+    CategoryHasProductsError,
     CategoryMaxDepthError,
     DuplicateVariantCombinationError,
     InvalidLogoStateError,
     InvalidMediaStateError,
     InvalidStatusTransitionError,
     LastVariantRemovalError,
+    ProductNotReadyError,
     SKUNotFoundError,
     VariantNotFoundError,
 )
@@ -56,13 +61,14 @@ from src.modules.catalog.domain.value_objects import (
     AttributeDataType,
     AttributeLevel,
     AttributeUIType,
+    BehaviorFlags,
     MediaProcessingStatus,
     Money,
     ProductStatus,
     RequirementLevel,
     validate_validation_rules,
 )
-from src.shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.entities import AggregateRoot, DomainEvent
 
 GENERAL_GROUP_CODE = "general"
 """Code of the default attribute group that always exists and cannot be deleted."""
@@ -84,8 +90,105 @@ def _generate_id() -> uuid.UUID:
     return uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4()
 
 
+# ---------------------------------------------------------------------------
+# DDD-01: Guarded fields set -- fields that may only be changed through
+# explicit domain methods, never by direct attribute assignment.
+# ---------------------------------------------------------------------------
+
+_PRODUCT_GUARDED_FIELDS: frozenset[str] = frozenset({"status"})
+_BRAND_GUARDED_FIELDS: frozenset[str] = frozenset({"slug"})
+_CATEGORY_GUARDED_FIELDS: frozenset[str] = frozenset({"slug"})
+
+
+# ---------------------------------------------------------------------------
+# DUP-05: Partial-update mixin to eliminate repetitive update() boilerplate
+# ---------------------------------------------------------------------------
+
+
+class _PartialUpdateMixin:
+    """Mixin providing a reusable ``_apply_partial_update`` helper.
+
+    Subclasses define ``_UPDATABLE_FIELDS: ClassVar[frozenset[str]]`` and
+    call this helper from their ``update()`` method to apply only the
+    supplied kwargs, rejecting any unknown/immutable fields.
+    """
+
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]]
+
+    def _apply_partial_update(
+        self,
+        kwargs: dict[str, Any],
+        *,
+        validators: dict[str, Any] | None = None,
+    ) -> set[str]:
+        """Apply a partial update from *kwargs* to ``self``.
+
+        Args:
+            kwargs: Field-name / value pairs to apply.
+            validators: Optional mapping of field name -> callable.
+                Each callable receives ``(self, value)`` and should raise
+                on invalid input. Called *before* the assignment.
+
+        Returns:
+            Set of field names that were actually changed.
+
+        Raises:
+            TypeError: If *kwargs* contains keys not in ``_UPDATABLE_FIELDS``.
+        """
+        unknown = set(kwargs) - self._UPDATABLE_FIELDS
+        if unknown:
+            raise TypeError(
+                f"update() got unexpected keyword argument(s): "
+                f"{', '.join(sorted(unknown))}"
+            )
+
+        changed: set[str] = set()
+        validators = validators or {}
+
+        for key, value in kwargs.items():
+            validator = validators.get(key)
+            if validator is not None:
+                validator(self, value)
+            setattr(self, key, value)
+            changed.add(key)
+
+        return changed
+
+
+# ---------------------------------------------------------------------------
+# ARCH-05: Lightweight entity base with event support (not an aggregate root)
+# ---------------------------------------------------------------------------
+
+
+class _EventEmitterEntity:
+    """Mixin for child entities that need domain event support.
+
+    Provides the same ``add_domain_event`` / ``domain_events`` /
+    ``clear_domain_events`` API as ``AggregateRoot`` but communicates
+    that this is a child entity, not a consistency boundary.
+    """
+
+    def __attrs_post_init__(self) -> None:
+        self._domain_events: list[DomainEvent] = []
+
+    def add_domain_event(self, event: DomainEvent) -> None:
+        self._domain_events.append(event)
+
+    def clear_domain_events(self) -> None:
+        self._domain_events.clear()
+
+    @property
+    def domain_events(self) -> list[DomainEvent]:
+        return self._domain_events.copy()
+
+
+# ============================================================================
+# Brand aggregate
+# ============================================================================
+
+
 @dataclass
-class Brand(AggregateRoot):
+class Brand(AggregateRoot, _PartialUpdateMixin):
     """Brand aggregate root with logo processing FSM.
 
     The logo lifecycle follows a strict state machine:
@@ -107,6 +210,19 @@ class Brand(AggregateRoot):
     logo_status: MediaProcessingStatus | None = None
     logo_file_id: uuid.UUID | None = None
     logo_url: str | None = None
+
+    # DDD-01: guard slug against direct mutation
+    def __setattr__(self, name: str, value: object) -> None:
+        if name in _BRAND_GUARDED_FIELDS and getattr(self, "_Brand__initialized", False):
+            raise AttributeError(
+                f"Cannot set '{name}' directly on Brand. "
+                f"Use the update() method instead."
+            )
+        super().__setattr__(name, value)
+
+    def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
+        object.__setattr__(self, "_Brand__initialized", True)
 
     @classmethod
     def create(
@@ -149,7 +265,21 @@ class Brand(AggregateRoot):
             self.name = name
         if slug is not None:
             _validate_slug(slug, "Brand")
-            self.slug = slug
+            # Bypass the guard for controlled mutation via domain method
+            object.__setattr__(self, "slug", slug)
+
+    # DDD-06: deletion guard
+    def validate_deletable(self, *, has_products: bool) -> None:
+        """Validate that this brand can be safely deleted.
+
+        Args:
+            has_products: Whether the brand still has associated products.
+
+        Raises:
+            BrandHasProductsError: If the brand has associated products.
+        """
+        if has_products:
+            raise BrandHasProductsError(brand_id=self.id)
 
     def init_logo_upload(self, object_key: str, content_type: str) -> None:
         """Transition logo FSM to PENDING_UPLOAD and emit BrandLogoUploadInitiatedEvent.
@@ -284,12 +414,16 @@ class Brand(AggregateRoot):
         )
 
 
+# ============================================================================
+# Category aggregate
+# ============================================================================
+
 MAX_CATEGORY_DEPTH = 3
 """Maximum allowed nesting depth for the category tree."""
 
 
 @dataclass
-class Category(AggregateRoot):
+class Category(AggregateRoot, _PartialUpdateMixin):
     """Category aggregate root supporting hierarchical trees.
 
     Categories form a tree with a maximum depth of ``MAX_CATEGORY_DEPTH``.
@@ -313,6 +447,19 @@ class Category(AggregateRoot):
     full_slug: str
     level: int
     sort_order: int
+
+    # DDD-01: guard slug against direct mutation
+    def __setattr__(self, name: str, value: object) -> None:
+        if name in _CATEGORY_GUARDED_FIELDS and getattr(self, "_Category__initialized", False):
+            raise AttributeError(
+                f"Cannot set '{name}' directly on Category. "
+                f"Use the update() method instead."
+            )
+        super().__setattr__(name, value)
+
+    def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
+        object.__setattr__(self, "_Category__initialized", True)
 
     @classmethod
     def create_root(
@@ -406,7 +553,8 @@ class Category(AggregateRoot):
         if slug is not None and slug != self.slug:
             _validate_slug(slug, "Category")
             old_full_slug = self.full_slug
-            self.slug = slug
+            # Bypass the guard for controlled mutation via domain method
+            object.__setattr__(self, "slug", slug)
             # Recompute own full_slug by replacing the last path segment
             if self.parent_id is None:
                 self.full_slug = slug
@@ -416,9 +564,36 @@ class Category(AggregateRoot):
 
         return old_full_slug
 
+    # DDD-06: deletion guard
+    def validate_deletable(
+        self,
+        *,
+        has_children: bool,
+        has_products: bool,
+    ) -> None:
+        """Validate that this category can be safely deleted.
+
+        Args:
+            has_children: Whether the category still has child categories.
+            has_products: Whether the category still has associated products.
+
+        Raises:
+            CategoryHasChildrenError: If the category has child categories.
+            CategoryHasProductsError: If the category has associated products.
+        """
+        if has_children:
+            raise CategoryHasChildrenError(category_id=self.id)
+        if has_products:
+            raise CategoryHasProductsError(category_id=self.id)
+
+
+# ============================================================================
+# AttributeGroup aggregate
+# ============================================================================
+
 
 @dataclass
-class AttributeGroup(AggregateRoot):
+class AttributeGroup(AggregateRoot, _PartialUpdateMixin):
     """Attribute group aggregate root for organizing attributes into logical sections.
 
     Groups provide visual and semantic grouping of attributes in the admin UI
@@ -497,8 +672,13 @@ class AttributeGroup(AggregateRoot):
         return self.code == GENERAL_GROUP_CODE
 
 
+# ============================================================================
+# Attribute aggregate
+# ============================================================================
+
+
 @dataclass
-class Attribute(AggregateRoot):
+class Attribute(AggregateRoot, _PartialUpdateMixin):
     """Attribute aggregate root -- a product characteristic definition.
 
     An attribute describes a single product property (e.g. "Color",
@@ -517,12 +697,7 @@ class Attribute(AggregateRoot):
         is_dictionary: True if the attribute has predefined values.
         group_id: FK to the attribute group this attribute belongs to.
         level: Product-level or variant-level attribute.
-        is_filterable: Available as filter on storefront.
-        is_searchable: Participates in full-text search.
-        search_weight: Priority for search ranking (1-10, default 5).
-        is_comparable: Shown in product comparison table.
-        is_visible_on_card: Shown on product detail page.
-        is_visible_in_catalog: Shown in catalog listing preview.
+        behavior: Grouped behavior flags (filterable, searchable, etc.).
         validation_rules: Type-specific validation constraints (JSONB).
     """
 
@@ -536,13 +711,33 @@ class Attribute(AggregateRoot):
     is_dictionary: bool
     group_id: uuid.UUID | None
     level: AttributeLevel
-    is_filterable: bool = False
-    is_searchable: bool = False
-    search_weight: int = DEFAULT_SEARCH_WEIGHT
-    is_comparable: bool = False
-    is_visible_on_card: bool = False
-    is_visible_in_catalog: bool = False
+    behavior: BehaviorFlags = field(factory=BehaviorFlags)
     validation_rules: dict[str, Any] | None = None
+
+    # Expose individual flags as properties for backward compatibility
+    @property
+    def is_filterable(self) -> bool:
+        return self.behavior.is_filterable
+
+    @property
+    def is_searchable(self) -> bool:
+        return self.behavior.is_searchable
+
+    @property
+    def search_weight(self) -> int:
+        return self.behavior.search_weight
+
+    @property
+    def is_comparable(self) -> bool:
+        return self.behavior.is_comparable
+
+    @property
+    def is_visible_on_card(self) -> bool:
+        return self.behavior.is_visible_on_card
+
+    @property
+    def is_visible_in_catalog(self) -> bool:
+        return self.behavior.is_visible_in_catalog
 
     @classmethod
     def create(
@@ -565,8 +760,13 @@ class Attribute(AggregateRoot):
         is_visible_in_catalog: bool = False,
         validation_rules: dict[str, Any] | None = None,
         attribute_id: uuid.UUID | None = None,
+        behavior: BehaviorFlags | None = None,
     ) -> Attribute:
         """Factory method to construct a new Attribute aggregate.
+
+        Accepts either a ``BehaviorFlags`` object via *behavior* or
+        individual boolean flags for backward compatibility.  If
+        *behavior* is provided the individual flags are ignored.
 
         Args:
             code: Machine-readable unique code.
@@ -586,6 +786,7 @@ class Attribute(AggregateRoot):
             is_visible_in_catalog: Show in listing preview (default: False).
             validation_rules: Type-specific validation constraints.
             attribute_id: Optional pre-generated UUID.
+            behavior: Optional pre-built BehaviorFlags (overrides individual flags).
 
         Returns:
             A new Attribute instance.
@@ -595,13 +796,19 @@ class Attribute(AggregateRoot):
                 or validation_rules do not match data_type.
         """
         _validate_slug(slug, "Attribute")
+
         if not name_i18n:
             raise ValueError("name_i18n must contain at least one language entry")
 
-        if not (MIN_SEARCH_WEIGHT <= search_weight <= MAX_SEARCH_WEIGHT):
-            raise ValueError(
-                f"search_weight must be between {MIN_SEARCH_WEIGHT} and "
-                f"{MAX_SEARCH_WEIGHT}, got {search_weight}"
+        if behavior is None:
+            # Build from individual flags; BehaviorFlags validates search_weight
+            behavior = BehaviorFlags(
+                is_filterable=is_filterable,
+                is_searchable=is_searchable,
+                search_weight=search_weight,
+                is_comparable=is_comparable,
+                is_visible_on_card=is_visible_on_card,
+                is_visible_in_catalog=is_visible_in_catalog,
             )
 
         validate_validation_rules(data_type, validation_rules)
@@ -617,12 +824,7 @@ class Attribute(AggregateRoot):
             is_dictionary=is_dictionary,
             group_id=group_id,
             level=level,
-            is_filterable=is_filterable,
-            is_searchable=is_searchable,
-            search_weight=search_weight,
-            is_comparable=is_comparable,
-            is_visible_on_card=is_visible_on_card,
-            is_visible_in_catalog=is_visible_in_catalog,
+            behavior=behavior,
             validation_rules=validation_rules,
         )
 
@@ -640,6 +842,19 @@ class Attribute(AggregateRoot):
             "is_visible_on_card",
             "is_visible_in_catalog",
             "validation_rules",
+            "behavior",
+        }
+    )
+
+    # Individual behavior flag names mapped to BehaviorFlags field names
+    _BEHAVIOR_FLAG_NAMES: ClassVar[frozenset[str]] = frozenset(
+        {
+            "is_filterable",
+            "is_searchable",
+            "search_weight",
+            "is_comparable",
+            "is_visible_on_card",
+            "is_visible_in_catalog",
         }
     )
 
@@ -649,6 +864,10 @@ class Attribute(AggregateRoot):
         Only fields present in *kwargs* are applied. Absent fields are left
         unchanged.  For nullable fields (``group_id``, ``validation_rules``),
         passing ``None`` explicitly clears the value.
+
+        Accepts either a ``behavior`` key with a ``BehaviorFlags`` instance,
+        or individual flag keys (``is_filterable``, ``search_weight``, etc.)
+        for backward compatibility.
 
         Raises:
             TypeError: If an unknown/immutable field name is passed.
@@ -680,29 +899,37 @@ class Attribute(AggregateRoot):
         if "level" in kwargs and kwargs["level"] is not None:
             self.level = kwargs["level"]
 
-        if "is_filterable" in kwargs and kwargs["is_filterable"] is not None:
-            self.is_filterable = kwargs["is_filterable"]
+        # Handle behavior flags: accept either a BehaviorFlags object or
+        # individual flag kwargs for backward compatibility.
+        if "behavior" in kwargs and kwargs["behavior"] is not None:
+            self.behavior = kwargs["behavior"]
+        else:
+            # Check if any individual flag kwargs were provided
+            flag_updates: dict[str, Any] = {}
+            for flag_name in self._BEHAVIOR_FLAG_NAMES:
+                if flag_name in kwargs and kwargs[flag_name] is not None:
+                    flag_updates[flag_name] = kwargs[flag_name]
 
-        if "is_searchable" in kwargs and kwargs["is_searchable"] is not None:
-            self.is_searchable = kwargs["is_searchable"]
-
-        if "search_weight" in kwargs and kwargs["search_weight"] is not None:
-            search_weight = kwargs["search_weight"]
-            if not (MIN_SEARCH_WEIGHT <= search_weight <= MAX_SEARCH_WEIGHT):
-                raise ValueError(
-                    f"search_weight must be between {MIN_SEARCH_WEIGHT} and "
-                    f"{MAX_SEARCH_WEIGHT}, got {search_weight}"
-                )
-            self.search_weight = search_weight
-
-        if "is_comparable" in kwargs and kwargs["is_comparable"] is not None:
-            self.is_comparable = kwargs["is_comparable"]
-
-        if "is_visible_on_card" in kwargs and kwargs["is_visible_on_card"] is not None:
-            self.is_visible_on_card = kwargs["is_visible_on_card"]
-
-        if "is_visible_in_catalog" in kwargs and kwargs["is_visible_in_catalog"] is not None:
-            self.is_visible_in_catalog = kwargs["is_visible_in_catalog"]
+            if flag_updates:
+                # Validate search_weight if provided
+                if "search_weight" in flag_updates:
+                    sw = flag_updates["search_weight"]
+                    if not (MIN_SEARCH_WEIGHT <= sw <= MAX_SEARCH_WEIGHT):
+                        raise ValueError(
+                            f"search_weight must be between {MIN_SEARCH_WEIGHT} and "
+                            f"{MAX_SEARCH_WEIGHT}, got {sw}"
+                        )
+                # Build new BehaviorFlags merging current values with updates
+                current = {
+                    "is_filterable": self.behavior.is_filterable,
+                    "is_searchable": self.behavior.is_searchable,
+                    "search_weight": self.behavior.search_weight,
+                    "is_comparable": self.behavior.is_comparable,
+                    "is_visible_on_card": self.behavior.is_visible_on_card,
+                    "is_visible_in_catalog": self.behavior.is_visible_in_catalog,
+                }
+                current.update(flag_updates)
+                self.behavior = BehaviorFlags(**current)
 
         if "validation_rules" in kwargs:
             validation_rules = kwargs["validation_rules"]
@@ -889,13 +1116,22 @@ class ProductAttributeValue:
         )
 
 
+# ============================================================================
+# ARCH-05: CategoryAttributeBinding -- child entity (not AggregateRoot)
+# ============================================================================
+
+
 @dataclass
-class CategoryAttributeBinding(AggregateRoot):
+class CategoryAttributeBinding(_EventEmitterEntity, _PartialUpdateMixin):
     """Binding between a category and an attribute with governance settings.
 
-    Controls which attributes apply to a category, their display order,
-    requirement level for completeness scoring, optional behavior-flag
-    overrides, and per-category filter settings.
+    Child entity (not an aggregate root) that controls which attributes
+    apply to a category, their display order, requirement level for
+    completeness scoring, optional behavior-flag overrides, and
+    per-category filter settings.
+
+    Retains domain event support so that command handlers can emit
+    binding-related events through the entity.
 
     Attributes:
         id: Unique binding identifier.
@@ -1107,6 +1343,15 @@ class SKU:
                 raise ValueError("compare_at_price amount must be greater than zero")
             if self.price is not None and not self.compare_at_price > self.price:
                 raise ValueError("compare_at_price must be greater than price")
+        if (
+            self.price is not None
+            and self.compare_at_price is not None
+            and self.compare_at_price.currency != self.price.currency
+        ):
+            raise ValueError(
+                f"compare_at_price currency ({self.compare_at_price.currency}) "
+                f"must match price currency ({self.price.currency})"
+            )
 
         self.updated_at = datetime.now(UTC)
 
@@ -1238,7 +1483,7 @@ class ProductVariant:
 
 @dataclass
 class MediaAsset(AggregateRoot):
-    """MediaAsset aggregate — independently addressable media resource.
+    """MediaAsset aggregate -- independently addressable media resource.
 
     Manages the lifecycle of a single media file (image, video, 3D model,
     or document) attached to a product. Extends AggregateRoot to support
@@ -1459,7 +1704,7 @@ class MediaAsset(AggregateRoot):
 
 
 @dataclass
-class Product(AggregateRoot):
+class Product(AggregateRoot, _PartialUpdateMixin):
     """Product aggregate root -- central catalog entity.
 
     Owns ProductVariant child entities (which in turn own SKUs), enforces
@@ -1525,6 +1770,19 @@ class Product(AggregateRoot):
     updated_at: datetime = field(factory=lambda: datetime.now(UTC))
     published_at: datetime | None = None
     variants: list[ProductVariant] = field(factory=list)
+
+    # DDD-01: guard status against direct mutation
+    def __setattr__(self, name: str, value: object) -> None:
+        if name in _PRODUCT_GUARDED_FIELDS and getattr(self, "_Product__initialized", False):
+            raise AttributeError(
+                f"Cannot set '{name}' directly on Product. "
+                f"Use transition_status() instead."
+            )
+        super().__setattr__(name, value)
+
+    def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
+        object.__setattr__(self, "_Product__initialized", True)
 
     @classmethod
     def create(
@@ -1687,13 +1945,14 @@ class Product(AggregateRoot):
 
         Raises:
             InvalidStatusTransitionError: If the product is currently
-                PUBLISHED — it must be ARCHIVED first.
+                PUBLISHED -- it must be ARCHIVED first.
         """
+        if self.deleted_at is not None:
+            return
         if self.status == ProductStatus.PUBLISHED:
-            raise InvalidStatusTransitionError(
-                current_status=self.status,
-                target_status="DELETED",
-                allowed_transitions=[ProductStatus.ARCHIVED.value],
+            raise CannotDeletePublishedProductError(
+                product_id=self.id,
+                current_status=self.status.value,
             )
         now = datetime.now(UTC)
         self.deleted_at = now
@@ -1730,17 +1989,20 @@ class Product(AggregateRoot):
                 for s in v.skus if s.deleted_at is None and s.is_active
             ]
             if not active_skus:
-                raise ValueError(
-                    f"Cannot transition to {new_status.value}: product has no active SKUs"
+                raise ProductNotReadyError(
+                    product_id=self.id,
+                    reason=f"Cannot transition to {new_status.value}: product has no active SKUs",
                 )
             if new_status == ProductStatus.PUBLISHED and not any(
                 s.price is not None for s in active_skus
             ):
-                raise ValueError(
-                    "Cannot publish product without at least one priced SKU"
+                raise ProductNotReadyError(
+                    product_id=self.id,
+                    reason="Cannot publish product without at least one priced SKU",
                 )
         old_status = self.status.value
-        self.status = new_status
+        # Bypass the guard for controlled FSM mutation
+        object.__setattr__(self, "status", new_status)
         if new_status == ProductStatus.PUBLISHED and self.published_at is None:
             self.published_at = datetime.now(UTC)
         self.updated_at = datetime.now(UTC)

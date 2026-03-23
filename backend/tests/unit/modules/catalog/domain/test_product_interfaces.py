@@ -44,11 +44,29 @@ FORBIDDEN_FRAMEWORK_IMPORTS = [
 
 
 def _get_imports_from_source(filepath: pathlib.Path) -> list[str]:
-    """Return all imported module names from a Python source file."""
+    """Return all imported module names from a Python source file.
+
+    Skips imports guarded by ``if TYPE_CHECKING:`` blocks, since those
+    are not runtime dependencies and don't violate domain purity.
+    """
     source = filepath.read_text(encoding="utf-8")
     tree = ast.parse(source)
     imports: list[str] = []
+
+    # Collect node ids inside TYPE_CHECKING guards so we can skip them.
+    type_checking_nodes: set[int] = set()
     for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.If)
+            and isinstance(node.test, ast.Name)
+            and node.test.id == "TYPE_CHECKING"
+        ):
+            for child in ast.walk(node):
+                type_checking_nodes.add(id(child))
+
+    for node in ast.walk(tree):
+        if id(node) in type_checking_nodes:
+            continue
         if isinstance(node, ast.Import):
             imports.extend(alias.name for alias in node.names)
         elif isinstance(node, ast.ImportFrom) and node.module:

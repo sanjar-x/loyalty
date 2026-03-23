@@ -44,7 +44,7 @@ class AttributeRepository(
             data_type=orm.data_type,
             ui_type=orm.ui_type,
             is_dictionary=orm.is_dictionary,
-            group_id=orm.group_id,  # type: ignore[arg-type]
+            group_id=orm.group_id,
             level=orm.level,
             is_filterable=orm.is_filterable,
             is_searchable=orm.is_searchable,
@@ -52,10 +52,14 @@ class AttributeRepository(
             is_comparable=orm.is_comparable,
             is_visible_on_card=orm.is_visible_on_card,
             is_visible_in_catalog=orm.is_visible_in_catalog,
-            validation_rules=dict(orm.validation_rules) if orm.validation_rules else None,
+            validation_rules=dict(orm.validation_rules)
+            if orm.validation_rules
+            else None,
         )
 
-    def _to_orm(self, entity: DomainAttribute, orm: OrmAttribute | None = None) -> OrmAttribute:
+    def _to_orm(
+        self, entity: DomainAttribute, orm: OrmAttribute | None = None
+    ) -> OrmAttribute:
         """Map a domain Attribute entity to an ORM row (create or update)."""
         if orm is None:
             orm = OrmAttribute()
@@ -80,35 +84,23 @@ class AttributeRepository(
 
     async def check_code_exists(self, code: str) -> bool:
         """Return ``True`` if any attribute already uses this code."""
-        stmt = select(OrmAttribute.id).where(OrmAttribute.code == code).limit(1)
-        result = await self._session.execute(stmt)
-        return result.first() is not None
+        return await self._field_exists("code", code)
 
     async def check_slug_exists(self, slug: str) -> bool:
         """Return ``True`` if any attribute already uses this slug."""
-        stmt = select(OrmAttribute.id).where(OrmAttribute.slug == slug).limit(1)
-        result = await self._session.execute(stmt)
-        return result.first() is not None
+        return await self._field_exists("slug", slug)
 
-    async def check_code_exists_excluding(self, code: str, exclude_id: uuid.UUID) -> bool:
+    async def check_code_exists_excluding(
+        self, code: str, exclude_id: uuid.UUID
+    ) -> bool:
         """Return ``True`` if the code is taken by another attribute."""
-        stmt = (
-            select(OrmAttribute.id)
-            .where(OrmAttribute.code == code, OrmAttribute.id != exclude_id)
-            .limit(1)
-        )
-        result = await self._session.execute(stmt)
-        return result.first() is not None
+        return await self._field_exists("code", code, exclude_id=exclude_id)
 
-    async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
+    async def check_slug_exists_excluding(
+        self, slug: str, exclude_id: uuid.UUID
+    ) -> bool:
         """Return ``True`` if the slug is taken by another attribute."""
-        stmt = (
-            select(OrmAttribute.id)
-            .where(OrmAttribute.slug == slug, OrmAttribute.id != exclude_id)
-            .limit(1)
-        )
-        result = await self._session.execute(stmt)
-        return result.first() is not None
+        return await self._field_exists("slug", slug, exclude_id=exclude_id)
 
     async def get_by_slug(self, slug: str) -> DomainAttribute | None:
         """Retrieve an attribute by its URL slug, or ``None`` if not found."""

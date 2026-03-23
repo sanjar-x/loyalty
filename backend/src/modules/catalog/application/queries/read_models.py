@@ -2,10 +2,36 @@
 """
 Read models (DTOs) for Catalog query handlers.
 
-These models carry no business logic -- only data for the read side.
-Used directly by query handlers without involving domain aggregates,
-repositories, or the Unit of Work. Part of the application layer
-(CQRS read side).
+These are the **canonical return types** of the CQRS read side.  They
+carry no business logic -- only data shaped for specific query use
+cases (admin detail views, paginated lists, storefront projections).
+
+Architectural rules
+-------------------
+1. Read models live in the **application layer** and MUST NOT import
+   anything from the infrastructure layer (ORM models, SQLAlchemy
+   sessions, etc.).  They are plain Pydantic ``BaseModel`` subclasses
+   or ``dataclass``-style DTOs.
+
+2. Query handlers in ``application.queries`` SHOULD depend on
+   read-only repository interfaces defined in ``domain.interfaces``
+   (e.g. ``IProductReadRepository``, ``IStorefrontQueryService``)
+   rather than injecting ``AsyncSession`` directly.  This satisfies
+   the Dependency Inversion Principle and keeps the application layer
+   decoupled from any specific persistence technology.
+
+3. The concrete implementations of these query interfaces live in the
+   infrastructure layer alongside the ORM models.  They are free to
+   use SQLAlchemy, raw SQL, Elasticsearch, or any other data source
+   and are responsible for mapping rows to the read models defined
+   here.
+
+Migration note
+~~~~~~~~~~~~~~
+Several existing query handlers still inject ``AsyncSession`` and
+import ORM models directly.  This is a known technical-debt item
+(ARCH-01 / ARCH-02).  New query handlers should follow the interface
+pattern; existing ones will be migrated incrementally.
 """
 
 from __future__ import annotations
@@ -384,7 +410,7 @@ class ProductAttributeValueReadModel(BaseModel):
     attribute_id: uuid.UUID
     attribute_value_id: uuid.UUID
     attribute_code: str = ""
-    attribute_name_i18n: dict[str, str] = {}
+    attribute_name_i18n: dict[str, str] = Field(default_factory=dict)
 
 
 class ProductReadModel(BaseModel):

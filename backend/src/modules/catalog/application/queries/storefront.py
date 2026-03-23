@@ -14,6 +14,7 @@ Handlers:
 import json
 import uuid
 from collections import defaultdict
+from collections.abc import Callable
 from typing import Any
 
 from sqlalchemy import select
@@ -21,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from src.modules.catalog.application.constants import (
+    STOREFRONT_CACHE_PREFIX,
     STOREFRONT_CACHE_TTL,
     storefront_card_cache_key,
     storefront_comparison_cache_key,
@@ -209,33 +211,15 @@ class StorefrontCardAttributesHandler:
 
         rules = await _load_bindings_with_attributes(self._session, category_id)
 
-        # Group by attribute group
-        groups_map: dict[uuid.UUID | None, list[tuple[OrmBinding, OrmAttribute]]] = defaultdict(
-            list
-        )
-        group_info: dict[uuid.UUID | None, OrmAttributeGroup | None] = {}
-
-        for rule in rules:
-            attr = rule.attribute
-            if not _effective_bool(
+        grouped = _group_bindings_into_groups(
+            rules,
+            predicate=lambda rule, attr: _effective_bool(
                 rule.flag_overrides, "is_visible_on_card", attr.is_visible_on_card
-            ):
-                continue
-
-            gid = attr.group_id
-            groups_map[gid].append((rule, attr))
-            if gid not in group_info:
-                group_info[gid] = attr.group
-
-        # Build response sorted by group sort_order
-        group_models: list[StorefrontCardGroupReadModel] = []
-        sorted_groups = sorted(
-            groups_map.items(),
-            key=lambda item: (group_info.get(item[0]) or _null_group()).sort_order,
+            ),
         )
 
-        for gid, items in sorted_groups:
-            group = group_info.get(gid)
+        group_models: list[StorefrontCardGroupReadModel] = []
+        for gid, group, items in grouped:
             card_attrs = [
                 StorefrontCardAttributeReadModel(
                     attribute_id=attr.id,
@@ -333,28 +317,10 @@ class StorefrontFormAttributesHandler:
         """Return ALL attributes bound to this category, grouped, with full metadata."""
         rules = await _load_bindings_with_attributes(self._session, category_id)
 
-        # Group by attribute group
-        groups_map: dict[uuid.UUID | None, list[tuple[OrmBinding, OrmAttribute]]] = defaultdict(
-            list
-        )
-        group_info: dict[uuid.UUID | None, OrmAttributeGroup | None] = {}
+        grouped = _group_bindings_into_groups(rules)
 
-        for rule in rules:
-            attr = rule.attribute
-            gid = attr.group_id
-            groups_map[gid].append((rule, attr))
-            if gid not in group_info:
-                group_info[gid] = attr.group
-
-        # Build response sorted by group sort_order
         group_models: list[StorefrontFormGroupReadModel] = []
-        sorted_groups = sorted(
-            groups_map.items(),
-            key=lambda item: (group_info.get(item[0]) or _null_group()).sort_order,
-        )
-
-        for gid, items in sorted_groups:
-            group = group_info.get(gid)
+        for gid, group, items in grouped:
             form_attrs = [
                 StorefrontFormAttributeReadModel(
                     attribute_id=attr.id,
@@ -407,5 +373,70 @@ class _NullGroup:
         self.name_i18n = {}
 
 
+_NULL_GROUP = _NullGroup()
+
+
 def _null_group() -> _NullGroup:
-    return _NullGroup()
+    return _NULL_GROUP
+
+
+def _group_bindings_into_groups(
+    bindings: list[OrmBinding],
+    *,
+    predicate: "Callable[[OrmBinding, OrmAttribute], bool] | None" = None,
+) -> list[tuple[uuid.UUID | None, OrmAttributeGroup | None, list[tuple[OrmBinding, OrmAttribute]]]]:
+    """Group bindings by attribute group, filter with optional *predicate*, and sort.
+
+    Returns a list of ``(group_id, group_or_none, [(binding, attribute), ...])``
+    tuples sorted by the group's ``sort_order`` (NULL-group last).
+    """
+    groups_map: dict[uuid.UUID | None, list[tuple[OrmBinding, OrmAttribute]]] = defaultdict(list)
+    group_info: dict[uuid.UUID | None, OrmAttributeGroup | None] = {}
+
+    for rule in bindings:
+        attr = rule.attribute
+        if predicate is not None and not predicate(rule, attr):
+            continue
+        gid = attr.group_id
+        groups_map[gid].append((rule, attr))
+        if gid not in group_info:
+            group_info[gid] = attr.group
+
+    sorted_groups = sorted(
+        groups_map.items(),
+        key=lambda item: (group_info.get(item[0]) or _null_group()).sort_order,
+    )
+
+    return [
+        (gid, group_info.get(gid), items)
+        for gid, items in sorted_groups
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Cache invalidation
+# ---------------------------------------------------------------------------
+
+
+async def invalidate_storefront_cache(
+    cache: ICacheService,
+    category_id: uuid.UUID,
+) -> None:
+    """Delete all storefront cache entries for the given category.
+
+    Must be called whenever data that feeds the storefront queries changes:
+      - Attribute metadata updates  (name, flags, ui_type, …)
+      - Attribute value additions / updates / deletions
+      - Category-attribute binding changes  (bind, unbind, reorder,
+        flag_overrides, filter_settings, requirement_level)
+
+    The category tree cache (``CATEGORY_TREE_CACHE_KEY``) is handled
+    separately in the category CRUD handlers; this function only covers
+    the per-category storefront attribute caches.
+    """
+    keys = [
+        storefront_filters_cache_key(category_id),
+        storefront_card_cache_key(category_id),
+        storefront_comparison_cache_key(category_id),
+    ]
+    await cache.delete_many(keys)
