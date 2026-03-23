@@ -12,7 +12,8 @@ from sqlalchemy import select
 
 from src.modules.catalog.domain.entities import Brand as DomainBrand
 from src.modules.catalog.domain.interfaces import IBrandRepository
-from src.modules.catalog.infrastructure.models import Brand as OrmBrand, Product as OrmProduct
+from src.modules.catalog.infrastructure.models import Brand as OrmBrand
+from src.modules.catalog.infrastructure.models import Product as OrmProduct
 from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
 

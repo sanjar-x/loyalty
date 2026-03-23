@@ -7,7 +7,6 @@ and persists changes. Part of the application layer (CQRS write side).
 
 import uuid
 from dataclasses import dataclass, field
-
 from typing import Any
 
 from src.modules.catalog.domain.entities import Brand

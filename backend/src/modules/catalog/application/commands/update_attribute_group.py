@@ -8,14 +8,13 @@ Part of the application layer (CQRS write side).
 
 import uuid
 from dataclasses import dataclass, field
-
 from typing import Any
 
 from src.modules.catalog.domain.events import AttributeGroupUpdatedEvent
 from src.modules.catalog.domain.exceptions import AttributeGroupNotFoundError
 from src.modules.catalog.domain.interfaces import IAttributeGroupRepository
-from src.shared.interfaces.uow import IUnitOfWork
 from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

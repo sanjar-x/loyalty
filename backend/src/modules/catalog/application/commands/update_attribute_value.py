@@ -18,8 +18,8 @@ from src.modules.catalog.domain.interfaces import (
     IAttributeRepository,
     IAttributeValueRepository,
 )
-from src.shared.interfaces.uow import IUnitOfWork
 from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

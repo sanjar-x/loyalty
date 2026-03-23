@@ -19,12 +19,12 @@ from src.modules.catalog.domain.exceptions import (
     ProductNotFoundError,
     ProductSlugConflictError,
 )
-from src.shared.exceptions import UnprocessableEntityError
 from src.modules.catalog.domain.interfaces import (
     IBrandRepository,
     ICategoryRepository,
     IProductRepository,
 )
+from src.shared.exceptions import UnprocessableEntityError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 

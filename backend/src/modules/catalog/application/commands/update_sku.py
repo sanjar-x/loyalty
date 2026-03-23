@@ -92,7 +92,7 @@ class UpdateSKUHandler:
         self._uow = uow
         self._logger = logger.bind(handler="UpdateSKUHandler")
 
-    async def handle(self, command: UpdateSKUCommand) -> UpdateSKUResult:  # noqa: C901
+    async def handle(self, command: UpdateSKUCommand) -> UpdateSKUResult:
         """Execute the update-SKU command.
 
         Args:

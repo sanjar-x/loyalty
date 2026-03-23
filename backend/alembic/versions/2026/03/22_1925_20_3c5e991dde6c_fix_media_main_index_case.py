@@ -12,8 +12,9 @@ Create Date: 2026-03-22 19:25:20.475884
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
+
 from alembic import op
-import sqlalchemy as sa  # noqa: F401
 
 # revision identifiers, used by Alembic.
 revision: str = "3c5e991dde6c"

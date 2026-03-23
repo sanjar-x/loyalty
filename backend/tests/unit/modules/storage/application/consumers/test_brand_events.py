@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.modules.storage.application.consumers.brand_events import (
-    handle_brand_logo_upload_initiated_event as _handle_brand_logo_upload_initiated_task,
+    handle_brand_logo_processed_event as _handle_brand_logo_processed_task,
 )
 from src.modules.storage.application.consumers.brand_events import (
-    handle_brand_logo_processed_event as _handle_brand_logo_processed_task,
+    handle_brand_logo_upload_initiated_event as _handle_brand_logo_upload_initiated_task,
 )
 from src.modules.storage.domain.entities import StorageFile
 

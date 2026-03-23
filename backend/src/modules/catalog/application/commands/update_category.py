@@ -8,7 +8,6 @@ Part of the application layer (CQRS write side).
 
 import uuid
 from dataclasses import dataclass, field
-
 from typing import Any
 
 from src.modules.catalog.application.constants import CATEGORY_TREE_CACHE_KEY

@@ -12,10 +12,10 @@ from src.modules.catalog.infrastructure.repositories.category import CategoryRep
 from src.modules.catalog.infrastructure.repositories.category_attribute_binding import (
     CategoryAttributeBindingRepository,
 )
-from src.modules.catalog.infrastructure.repositories.product import ProductRepository
 from src.modules.catalog.infrastructure.repositories.media_asset import (
     MediaAssetRepository,
 )
+from src.modules.catalog.infrastructure.repositories.product import ProductRepository
 from src.modules.catalog.infrastructure.repositories.product_attribute_value import (
     ProductAttributeValueRepository,
 )

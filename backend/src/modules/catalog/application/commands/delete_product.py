@@ -12,8 +12,8 @@ from dataclasses import dataclass
 
 from src.modules.catalog.domain.exceptions import ProductNotFoundError
 from src.modules.catalog.domain.interfaces import IProductRepository
-from src.shared.interfaces.uow import IUnitOfWork
 from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

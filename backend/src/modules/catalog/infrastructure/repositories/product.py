@@ -15,13 +15,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.exc import StaleDataError
 
-from src.modules.catalog.domain.entities import SKU as DomainSKU  # noqa: N811
+from src.modules.catalog.domain.entities import SKU as DomainSKU
 from src.modules.catalog.domain.entities import Product as DomainProduct
 from src.modules.catalog.domain.entities import ProductVariant as DomainProductVariant
 from src.modules.catalog.domain.exceptions import ConcurrencyError
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money, ProductStatus
-from src.modules.catalog.infrastructure.models import SKU as OrmSKU  # noqa: N811
+from src.modules.catalog.infrastructure.models import SKU as OrmSKU
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
 from src.modules.catalog.infrastructure.models import (
     ProductVariant as OrmProductVariant,

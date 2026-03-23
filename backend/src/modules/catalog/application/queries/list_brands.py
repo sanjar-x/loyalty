@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.modules.catalog.application.queries.get_brand import brand_orm_to_read_model
 from src.modules.catalog.application.queries.read_models import (
     BrandListReadModel,
-    BrandReadModel,
 )
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 from src.shared.interfaces.logger import ILogger

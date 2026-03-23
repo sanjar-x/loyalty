@@ -9,7 +9,7 @@ and behavior flags, plus search by name across languages.
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import Select, func, literal_column, select, text
+from sqlalchemy import Select, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.read_models import (

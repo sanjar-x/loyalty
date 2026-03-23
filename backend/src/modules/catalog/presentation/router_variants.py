@@ -9,7 +9,6 @@ from src.modules.catalog.application.commands.add_variant import (
     AddVariantCommand,
     AddVariantHandler,
 )
-from src.modules.catalog.domain.value_objects import DEFAULT_CURRENCY
 from src.modules.catalog.application.commands.delete_variant import (
     DeleteVariantCommand,
     DeleteVariantHandler,
@@ -22,6 +21,7 @@ from src.modules.catalog.application.queries.list_variants import (
     ListVariantsHandler,
     ListVariantsQuery,
 )
+from src.modules.catalog.domain.value_objects import DEFAULT_CURRENCY
 from src.modules.catalog.presentation.mappers import to_variant_response
 from src.modules.catalog.presentation.schemas import (
     ProductVariantCreateRequest,

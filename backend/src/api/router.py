@@ -26,8 +26,8 @@ from src.modules.catalog.presentation.router_product_attributes import (
 from src.modules.catalog.presentation.router_product_media import product_media_router
 from src.modules.catalog.presentation.router_products import product_router
 from src.modules.catalog.presentation.router_skus import sku_router
-from src.modules.catalog.presentation.router_variants import variant_router
 from src.modules.catalog.presentation.router_storefront import storefront_router
+from src.modules.catalog.presentation.router_variants import variant_router
 from src.modules.geo.presentation.router import geo_router
 from src.modules.identity.presentation.router_account import identity_account_router
 from src.modules.identity.presentation.router_admin import admin_router
