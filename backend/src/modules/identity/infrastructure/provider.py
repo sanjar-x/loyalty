@@ -24,7 +24,9 @@ from src.modules.identity.application.commands.deactivate_identity import (
 from src.modules.identity.application.commands.delete_role import DeleteRoleHandler
 from src.modules.identity.application.commands.invite_staff import InviteStaffHandler
 from src.modules.identity.application.commands.login import LoginHandler
-from src.modules.identity.application.commands.login_telegram import LoginTelegramHandler
+from src.modules.identity.application.commands.login_telegram import (
+    LoginTelegramHandler,
+)
 from src.modules.identity.application.commands.logout import LogoutHandler
 from src.modules.identity.application.commands.logout_all import LogoutAllHandler
 from src.modules.identity.application.commands.reactivate_identity import (
@@ -105,8 +107,13 @@ from src.modules.identity.infrastructure.repositories.session_repository import 
 from src.modules.identity.infrastructure.repositories.staff_invitation_repository import (
     StaffInvitationRepository,
 )
+from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.security import IPasswordHasher, IPermissionResolver, ITokenProvider
+from src.shared.interfaces.security import (
+    IPasswordHasher,
+    IPermissionResolver,
+    ITokenProvider,
+)
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -130,7 +137,9 @@ class IdentityProvider(Provider):
         LinkedAccountRepository, scope=Scope.REQUEST, provides=ILinkedAccountRepository
     )
     staff_invitation_repo: CompositeDependencySource = provide(
-        StaffInvitationRepository, scope=Scope.REQUEST, provides=IStaffInvitationRepository
+        StaffInvitationRepository,
+        scope=Scope.REQUEST,
+        provides=IStaffInvitationRepository,
     )
 
     @provide(scope=Scope.REQUEST)
@@ -169,7 +178,9 @@ class IdentityProvider(Provider):
         )
 
     # Command handlers (REQUEST scope)
-    register_handler: CompositeDependencySource = provide(RegisterHandler, scope=Scope.REQUEST)
+    register_handler: CompositeDependencySource = provide(
+        RegisterHandler, scope=Scope.REQUEST
+    )
 
     @provide(scope=Scope.REQUEST)
     def login_handler(
@@ -209,15 +220,46 @@ class IdentityProvider(Provider):
             idle_timeout_minutes=settings.SESSION_IDLE_TIMEOUT_MINUTES,
         )
 
-    refresh_token_handler: CompositeDependencySource = provide(
-        RefreshTokenHandler, scope=Scope.REQUEST
+    @provide(scope=Scope.REQUEST)
+    def refresh_token_handler(
+        self,
+        session_repo: ISessionRepository,
+        identity_repo: IIdentityRepository,
+        uow: IUnitOfWork,
+        token_provider: ITokenProvider,
+        permission_resolver: IPermissionResolver,
+        cache: ICacheService,
+        logger: ILogger,
+    ) -> RefreshTokenHandler:
+        return RefreshTokenHandler(
+            session_repo=session_repo,
+            identity_repo=identity_repo,
+            uow=uow,
+            token_provider=token_provider,
+            permission_resolver=permission_resolver,
+            cache=cache,
+            logger=logger,
+            idle_timeout_minutes=settings.SESSION_IDLE_TIMEOUT_MINUTES,
+        )
+
+    logout_handler: CompositeDependencySource = provide(
+        LogoutHandler, scope=Scope.REQUEST
     )
-    logout_handler: CompositeDependencySource = provide(LogoutHandler, scope=Scope.REQUEST)
-    logout_all_handler: CompositeDependencySource = provide(LogoutAllHandler, scope=Scope.REQUEST)
-    create_role_handler: CompositeDependencySource = provide(CreateRoleHandler, scope=Scope.REQUEST)
-    delete_role_handler: CompositeDependencySource = provide(DeleteRoleHandler, scope=Scope.REQUEST)
-    assign_role_handler: CompositeDependencySource = provide(AssignRoleHandler, scope=Scope.REQUEST)
-    revoke_role_handler: CompositeDependencySource = provide(RevokeRoleHandler, scope=Scope.REQUEST)
+    logout_all_handler: CompositeDependencySource = provide(
+        LogoutAllHandler, scope=Scope.REQUEST
+    )
+    create_role_handler: CompositeDependencySource = provide(
+        CreateRoleHandler, scope=Scope.REQUEST
+    )
+    delete_role_handler: CompositeDependencySource = provide(
+        DeleteRoleHandler, scope=Scope.REQUEST
+    )
+    assign_role_handler: CompositeDependencySource = provide(
+        AssignRoleHandler, scope=Scope.REQUEST
+    )
+    revoke_role_handler: CompositeDependencySource = provide(
+        RevokeRoleHandler, scope=Scope.REQUEST
+    )
     deactivate_identity_handler: CompositeDependencySource = provide(
         DeactivateIdentityHandler, scope=Scope.REQUEST
     )
@@ -229,7 +271,9 @@ class IdentityProvider(Provider):
     reactivate_handler: CompositeDependencySource = provide(
         ReactivateIdentityHandler, scope=Scope.REQUEST
     )
-    update_role_handler: CompositeDependencySource = provide(UpdateRoleHandler, scope=Scope.REQUEST)
+    update_role_handler: CompositeDependencySource = provide(
+        UpdateRoleHandler, scope=Scope.REQUEST
+    )
     set_role_permissions_handler: CompositeDependencySource = provide(
         SetRolePermissionsHandler, scope=Scope.REQUEST
     )
@@ -241,7 +285,9 @@ class IdentityProvider(Provider):
     get_my_sessions_handler: CompositeDependencySource = provide(
         GetMySessionsHandler, scope=Scope.REQUEST
     )
-    list_roles_handler: CompositeDependencySource = provide(ListRolesHandler, scope=Scope.REQUEST)
+    list_roles_handler: CompositeDependencySource = provide(
+        ListRolesHandler, scope=Scope.REQUEST
+    )
     list_permissions_handler: CompositeDependencySource = provide(
         ListPermissionsHandler, scope=Scope.REQUEST
     )
@@ -272,7 +318,9 @@ class IdentityProvider(Provider):
     )
 
     # Staff/Customer query handlers
-    list_staff_handler: CompositeDependencySource = provide(ListStaffHandler, scope=Scope.REQUEST)
+    list_staff_handler: CompositeDependencySource = provide(
+        ListStaffHandler, scope=Scope.REQUEST
+    )
     get_staff_detail_handler: CompositeDependencySource = provide(
         GetStaffDetailHandler, scope=Scope.REQUEST
     )
