@@ -69,8 +69,8 @@ class AttributeRepository(
         orm.id = entity.id
         orm.code = entity.code
         orm.slug = entity.slug
-        orm.name_i18n = entity.name_i18n  # type: ignore[assignment]
-        orm.description_i18n = entity.description_i18n  # type: ignore[assignment]
+        orm.name_i18n = entity.name_i18n
+        orm.description_i18n = entity.description_i18n
         orm.data_type = entity.data_type
         orm.ui_type = entity.ui_type
         orm.is_dictionary = entity.is_dictionary
@@ -82,7 +82,7 @@ class AttributeRepository(
         orm.is_comparable = entity.is_comparable
         orm.is_visible_on_card = entity.is_visible_on_card
         orm.is_visible_in_catalog = entity.is_visible_in_catalog
-        orm.validation_rules = entity.validation_rules  # type: ignore[assignment]
+        orm.validation_rules = entity.validation_rules
         return orm
 
     async def check_code_exists(self, code: str) -> bool:

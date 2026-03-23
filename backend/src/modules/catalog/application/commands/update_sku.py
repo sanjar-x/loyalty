@@ -23,8 +23,8 @@ from src.modules.catalog.domain.exceptions import (
 )
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
-from src.shared.interfaces.uow import IUnitOfWork
 from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)
@@ -92,7 +92,7 @@ class UpdateSKUHandler:
         self._uow = uow
         self._logger = logger.bind(handler="UpdateSKUHandler")
 
-    async def handle(self, command: UpdateSKUCommand) -> UpdateSKUResult:
+    async def handle(self, command: UpdateSKUCommand) -> UpdateSKUResult:  # noqa: C901
         """Execute the update-SKU command.
 
         Args:
@@ -152,7 +152,11 @@ class UpdateSKUHandler:
                 new_currency = (
                     command.price_currency
                     if command.price_currency is not None
-                    else (sku.price.currency if sku.price is not None else DEFAULT_CURRENCY)
+                    else (
+                        sku.price.currency
+                        if sku.price is not None
+                        else DEFAULT_CURRENCY
+                    )
                 )
                 update_kwargs["price"] = Money(amount=new_amount, currency=new_currency)
 
@@ -167,7 +171,11 @@ class UpdateSKUHandler:
                     effective_currency = (
                         command.price_currency
                         if command.price_currency is not None
-                        else (sku.price.currency if sku.price is not None else DEFAULT_CURRENCY)
+                        else (
+                            sku.price.currency
+                            if sku.price is not None
+                            else DEFAULT_CURRENCY
+                        )
                     )
                     update_kwargs["compare_at_price"] = Money(
                         amount=command.compare_at_price_amount,
@@ -179,7 +187,9 @@ class UpdateSKUHandler:
 
             # --- Variant attributes: re-compute hash and check uniqueness ---
             if command.variant_attributes is not None:
-                new_hash = product.compute_variant_hash(sku.variant_id, command.variant_attributes)
+                new_hash = product.compute_variant_hash(
+                    sku.variant_id, command.variant_attributes
+                )
                 # Check uniqueness among active SKUs (excluding the one being updated).
                 for v in product.variants:
                     for existing in v.skus:
@@ -195,8 +205,7 @@ class UpdateSKUHandler:
                 update_kwargs["variant_attributes"] = command.variant_attributes
                 update_kwargs["variant_hash"] = new_hash
 
-            sku.update(**update_kwargs)  # type: ignore[arg-type]
-
+            sku.update(**update_kwargs)
             await self._product_repo.update(product)
             self._uow.register_aggregate(product)
             await self._uow.commit()

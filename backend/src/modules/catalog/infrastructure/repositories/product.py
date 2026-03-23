@@ -15,13 +15,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.exc import StaleDataError
 
-from src.modules.catalog.domain.entities import SKU as DomainSKU
+from src.modules.catalog.domain.entities import SKU as DomainSKU  # noqa: N811
 from src.modules.catalog.domain.entities import Product as DomainProduct
 from src.modules.catalog.domain.entities import ProductVariant as DomainProductVariant
 from src.modules.catalog.domain.exceptions import ConcurrencyError
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money, ProductStatus
-from src.modules.catalog.infrastructure.models import SKU as OrmSKU
+from src.modules.catalog.infrastructure.models import SKU as OrmSKU  # noqa: N811
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
 from src.modules.catalog.infrastructure.models import (
     ProductVariant as OrmProductVariant,
@@ -125,7 +125,7 @@ class ProductRepository(IProductRepository):
         # ORM-only fields: set defaults on create, preserve on update
         if is_create:
             orm_sku.main_image_url = None
-            orm_sku.attributes_cache = {}  # type: ignore[assignment]
+            orm_sku.attributes_cache = {}
 
         # Sync variant_attributes -> SKUAttributeValueLink rows (diff-based)
         desired_pairs = {(a_id, v_id) for a_id, v_id in domain_sku.variant_attributes}
@@ -271,7 +271,7 @@ class ProductRepository(IProductRepository):
         orm.slug = entity.slug
         orm.brand_id = entity.brand_id
         orm.primary_category_id = entity.primary_category_id
-        orm.supplier_id = entity.supplier_id  # type: ignore[assignment]
+        orm.supplier_id = entity.supplier_id
         orm.deleted_at = entity.deleted_at
         orm.published_at = entity.published_at
         orm.country_of_origin = entity.country_of_origin
@@ -283,8 +283,8 @@ class ProductRepository(IProductRepository):
             orm.updated_at = entity.updated_at
 
         orm.status = ProductStatus(entity.status.value)
-        orm.title_i18n = entity.title_i18n  # type: ignore[assignment]
-        orm.description_i18n = entity.description_i18n  # type: ignore[assignment]
+        orm.title_i18n = entity.title_i18n
+        orm.description_i18n = entity.description_i18n
         orm.tags = entity.tags  # type: ignore[assignment]
 
         # ORM-only fields: set defaults on create, preserve on update
@@ -292,7 +292,7 @@ class ProductRepository(IProductRepository):
             orm.popularity_score = 0
             orm.is_visible = True
             orm.source_url = None
-            orm.attributes = {}  # type: ignore[assignment]
+            orm.attributes = {}
 
         return orm
 
