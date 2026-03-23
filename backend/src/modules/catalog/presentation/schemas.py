@@ -546,7 +546,7 @@ class StorefrontFilterAttributeResponse(CamelModel):
     slug: str
     name_i18n: dict[str, str]
     data_type: str
-    display_type: str
+    ui_type: str
     is_dictionary: bool
     values: list[StorefrontValueResponse]
     filter_settings: dict[str, Any] | None = None
@@ -568,7 +568,7 @@ class StorefrontCardAttributeResponse(CamelModel):
     slug: str
     name_i18n: dict[str, str]
     data_type: str
-    display_type: str
+    ui_type: str
     requirement_level: str
     sort_order: int
 
@@ -598,7 +598,7 @@ class StorefrontComparisonAttributeResponse(CamelModel):
     slug: str
     name_i18n: dict[str, str]
     data_type: str
-    display_type: str
+    ui_type: str
     sort_order: int
 
 
@@ -618,7 +618,7 @@ class StorefrontFormAttributeResponse(CamelModel):
     name_i18n: dict[str, str]
     description_i18n: dict[str, str]
     data_type: str
-    display_type: str
+    ui_type: str
     is_dictionary: bool
     level: str
     requirement_level: str
