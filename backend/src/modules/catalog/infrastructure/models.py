@@ -14,7 +14,6 @@ Sections:
     5. Variations -- SKU and SKU <-> AttributeValue link table.
 """
 
-import enum
 import uuid
 from datetime import datetime
 from typing import Any, ClassVar
@@ -42,13 +41,12 @@ from src.modules.catalog.domain.value_objects import (
     AttributeLevel,
     AttributeUIType,
     MediaProcessingStatus,
+    MediaRole,
+    MediaType,
     ProductStatus,
     RequirementLevel,
+    SupplierType,
 )
-
-
-from src.modules.catalog.domain.value_objects import MediaType, MediaRole, SupplierType
-
 
 # ---------------------------------------------------------------------------
 # 2. TAXONOMY & DICTIONARIES
@@ -360,7 +358,7 @@ class AttributeValue(Base):
     meta_data: Mapped[dict[str, Any]] = mapped_column(
         MutableDict.as_mutable(JSONB), server_default=text("'{}'::jsonb")
     )
-    group_code: Mapped[str | None] = mapped_column(String(100), index=True)
+    value_group: Mapped[str | None] = mapped_column(String(100), index=True)
     sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
 
     attribute: Mapped[Attribute] = relationship("Attribute", back_populates="values")
@@ -506,7 +504,7 @@ class Product(Base):
     published_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
     deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), index=True)
     supplier: Mapped[Supplier] = relationship("Supplier", back_populates="products")
-    variants: Mapped[list["ProductVariant"]] = relationship(
+    variants: Mapped[list[ProductVariant]] = relationship(
         "ProductVariant", back_populates="product", cascade="all, delete-orphan"
     )
     media_assets: Mapped[list[MediaAsset]] = relationship(
@@ -578,7 +576,9 @@ class ProductVariant(Base):
         Integer, nullable=True, comment="Default price in smallest currency units"
     )
     default_currency: Mapped[str] = mapped_column(
-        String(3), ForeignKey("currencies.code", ondelete="RESTRICT"), server_default=text("'RUB'")
+        String(3),
+        ForeignKey("currencies.code", ondelete="RESTRICT"),
+        server_default=text("'RUB'"),
     )
     deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -588,11 +588,11 @@ class ProductVariant(Base):
         TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    product: Mapped["Product"] = relationship("Product", back_populates="variants")
-    skus: Mapped[list["SKU"]] = relationship(
+    product: Mapped[Product] = relationship("Product", back_populates="variants")
+    skus: Mapped[list[SKU]] = relationship(
         "SKU", back_populates="variant", cascade="all, delete-orphan"
     )
-    media_assets: Mapped[list["MediaAsset"]] = relationship("MediaAsset", back_populates="variant")
+    media_assets: Mapped[list[MediaAsset]] = relationship("MediaAsset", back_populates="variant")
 
     __table_args__ = (Index("ix_product_variants_product_id", "product_id"),)
 
@@ -677,7 +677,7 @@ class MediaAsset(Base):
     )
 
     product: Mapped[Product] = relationship("Product", back_populates="media_assets")
-    variant: Mapped["ProductVariant | None"] = relationship(
+    variant: Mapped[ProductVariant | None] = relationship(
         "ProductVariant", back_populates="media_assets"
     )
 
@@ -752,7 +752,7 @@ class SKU(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), index=True)
 
     product: Mapped[Product] = relationship("Product")
-    variant: Mapped["ProductVariant"] = relationship("ProductVariant", back_populates="skus")
+    variant: Mapped[ProductVariant] = relationship("ProductVariant", back_populates="skus")
     attribute_values: Mapped[list[SKUAttributeValueLink]] = relationship(
         "SKUAttributeValueLink", back_populates="sku", cascade="all, delete-orphan"
     )

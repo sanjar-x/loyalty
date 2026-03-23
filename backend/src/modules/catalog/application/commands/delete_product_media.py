@@ -1,7 +1,7 @@
 """
 Command handler: delete a product media asset.
 
-Removes the MediaAsset DB record and attempts to clean up the associated raw
+Deletes the MediaAsset DB record and attempts to clean up the associated raw
 S3 object (if present). S3 deletion errors are swallowed so that a missing
 or already-deleted object does not block the database record removal.
 Part of the application layer (CQRS write side).
@@ -10,8 +10,8 @@ Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.domain.interfaces import IMediaAssetRepository
 from src.modules.catalog.domain.exceptions import MediaAssetNotFoundError
+from src.modules.catalog.domain.interfaces import IMediaAssetRepository
 from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork

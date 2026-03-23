@@ -1,13 +1,15 @@
 """
 Command handler: unbind an attribute from a category.
 
-Removes the binding and emits ``CategoryAttributeBindingDeletedEvent``.
+Deletes the binding and emits ``CategoryAttributeBindingDeletedEvent``.
 """
 
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.application.queries.storefront import invalidate_storefront_cache
+from src.modules.catalog.application.queries.storefront import (
+    invalidate_storefront_cache,
+)
 from src.modules.catalog.domain.events import CategoryAttributeBindingDeletedEvent
 from src.modules.catalog.domain.exceptions import (
     CategoryAttributeBindingNotFoundError,
@@ -27,7 +29,7 @@ class UnbindAttributeFromCategoryCommand:
 
 
 class UnbindAttributeFromCategoryHandler:
-    """Remove a category-attribute binding."""
+    """Delete a category-attribute binding."""
 
     def __init__(
         self,

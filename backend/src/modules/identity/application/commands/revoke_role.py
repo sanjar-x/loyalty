@@ -1,6 +1,6 @@
 """Command handler for revoking a role from an identity.
 
-Removes the identity-role association, deactivates the role from all
+Deletes the identity-role association, deactivates the role from all
 active sessions, invalidates permission caches synchronously, and emits
 a RoleAssignmentChangedEvent for downstream consumers.
 """
@@ -68,7 +68,7 @@ class RevokeRoleHandler:
             if identity is None:
                 return
 
-            # Remove from identity_roles
+            # Delete from identity_roles
             await self._role_repo.revoke_from_identity(
                 identity_id=command.identity_id,
                 role_id=command.role_id,
@@ -77,7 +77,7 @@ class RevokeRoleHandler:
             identity.bump_token_version()
             await self._identity_repo.update(identity)
 
-            # Remove from session_roles for active sessions
+            # Delete from session_roles for active sessions
             active_session_ids = await self._session_repo.get_active_session_ids(
                 command.identity_id,
             )

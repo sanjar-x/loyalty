@@ -548,7 +548,7 @@ class VariantAddedEvent(
 
 
 @dataclass
-class VariantRemovedEvent(
+class VariantDeletedEvent(
     CatalogEvent,
     required_fields=("product_id", "variant_id"),
     aggregate_id_field="product_id",
@@ -558,7 +558,7 @@ class VariantRemovedEvent(
     product_id: uuid.UUID | None = None
     variant_id: uuid.UUID | None = None
     aggregate_type: str = "Product"
-    event_type: str = "VariantRemovedEvent"
+    event_type: str = "VariantDeletedEvent"
 
 
 # ---------------------------------------------------------------------------
@@ -582,7 +582,7 @@ class SKUAddedEvent(
 
 
 @dataclass
-class SKURemovedEvent(
+class SKUDeletedEvent(
     CatalogEvent,
     required_fields=("product_id", "variant_id", "sku_id"),
     aggregate_id_field="product_id",
@@ -593,4 +593,4 @@ class SKURemovedEvent(
     variant_id: uuid.UUID | None = None
     sku_id: uuid.UUID | None = None
     aggregate_type: str = "Product"
-    event_type: str = "SKURemovedEvent"
+    event_type: str = "SKUDeletedEvent"

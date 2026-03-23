@@ -91,11 +91,7 @@ def _effective_ui_type(filter_settings: dict[str, Any] | None, global_ui_type: s
 def _values_to_read_models(
     values: list[OrmAttributeValue],
 ) -> list[StorefrontValueReadModel]:
-    """Convert ORM attribute values to storefront value read models.
-
-    Note: ORM ``group_code`` is mapped to read-model ``value_group`` to
-    keep the public API field name stable.
-    """
+    """Convert ORM attribute values to storefront value read models."""
     return [
         StorefrontValueReadModel(
             id=v.id,
@@ -103,7 +99,7 @@ def _values_to_read_models(
             slug=v.slug,
             value_i18n=v.value_i18n,
             meta_data=v.meta_data,
-            value_group=v.group_code,  # ORM group_code -> read model value_group
+            value_group=v.value_group,
             sort_order=v.sort_order,
         )
         for v in sorted(values, key=lambda x: x.sort_order)

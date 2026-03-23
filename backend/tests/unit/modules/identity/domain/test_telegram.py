@@ -11,7 +11,7 @@ from src.modules.identity.domain.entities import Identity, LinkedAccount
 from src.modules.identity.domain.events import (
     IdentityTokenVersionBumpedEvent,
     LinkedAccountCreatedEvent,
-    LinkedAccountRemovedEvent,
+    LinkedAccountDeletedEvent,
 )
 from src.modules.identity.domain.exceptions import (
     InitDataExpiredError,
@@ -175,10 +175,10 @@ class TestLinkedAccountCreatedEvent:
             )
 
 
-class TestLinkedAccountRemovedEvent:
+class TestLinkedAccountDeletedEvent:
     def test_creation(self):
         identity_id = uuid.uuid4()
-        event = LinkedAccountRemovedEvent(
+        event = LinkedAccountDeletedEvent(
             identity_id=identity_id,
             provider="telegram",
             provider_sub_id="123456",

@@ -23,8 +23,12 @@ from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money, ProductStatus
 from src.modules.catalog.infrastructure.models import SKU as OrmSKU
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
-from src.modules.catalog.infrastructure.models import ProductVariant as OrmProductVariant
-from src.modules.catalog.infrastructure.models import SKUAttributeValueLink as OrmSKUAttrLink
+from src.modules.catalog.infrastructure.models import (
+    ProductVariant as OrmProductVariant,
+)
+from src.modules.catalog.infrastructure.models import (
+    SKUAttributeValueLink as OrmSKUAttrLink,
+)
 
 
 class ProductRepository(IProductRepository):
@@ -125,14 +129,14 @@ class ProductRepository(IProductRepository):
         }
 
         if desired_pairs != existing_pairs:
-            # Remove links that are no longer desired
+            # Delete links that are no longer desired
             to_remove = [
                 link
                 for link in orm_sku.attribute_values
                 if (link.attribute_id, link.attribute_value_id) not in desired_pairs
             ]
             for link in to_remove:
-                orm_sku.attribute_values.remove(link)
+                orm_sku.attribute_values.delete(link)
 
             # Add links that don't exist yet
             pairs_to_add = desired_pairs - existing_pairs
@@ -171,7 +175,9 @@ class ProductRepository(IProductRepository):
         )
 
     def _variant_to_orm(
-        self, domain_variant: DomainProductVariant, orm_variant: OrmProductVariant | None = None
+        self,
+        domain_variant: DomainProductVariant,
+        orm_variant: OrmProductVariant | None = None,
     ) -> OrmProductVariant:
         """Map a domain ProductVariant entity to an ORM row (create or update)."""
         is_create = orm_variant is None
@@ -304,7 +310,7 @@ class ProductRepository(IProductRepository):
             v for v in orm.variants if v.id not in domain_variant_ids and v.deleted_at is None
         ]
         for v in to_remove:
-            orm.variants.remove(v)
+            orm.variants.delete(v)
 
     def _sync_skus_for_variant(
         self, domain_variant: DomainProductVariant, orm_variant: OrmProductVariant
@@ -328,7 +334,7 @@ class ProductRepository(IProductRepository):
             if sku.id not in domain_sku_ids and sku.deleted_at is None
         ]
         for sku in to_remove:
-            orm_variant.skus.remove(sku)
+            orm_variant.skus.delete(sku)
 
     # ------------------------------------------------------------------
     # Public methods -- IProductRepository + ICatalogRepository

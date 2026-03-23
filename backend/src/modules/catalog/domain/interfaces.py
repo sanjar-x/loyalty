@@ -20,10 +20,14 @@ from src.modules.catalog.domain.entities import AttributeGroup as DomainAttribut
 from src.modules.catalog.domain.entities import AttributeValue as DomainAttributeValue
 from src.modules.catalog.domain.entities import Brand as DomainBrand
 from src.modules.catalog.domain.entities import Category as DomainCategory
-from src.modules.catalog.domain.entities import CategoryAttributeBinding as DomainBinding
+from src.modules.catalog.domain.entities import (
+    CategoryAttributeBinding as DomainBinding,
+)
 from src.modules.catalog.domain.entities import MediaAsset as DomainMediaAsset
 from src.modules.catalog.domain.entities import Product as DomainProduct
-from src.modules.catalog.domain.entities import ProductAttributeValue as DomainProductAttributeValue
+from src.modules.catalog.domain.entities import (
+    ProductAttributeValue as DomainProductAttributeValue,
+)
 
 
 class ICatalogRepository[T](ABC):
@@ -50,7 +54,7 @@ class ICatalogRepository[T](ABC):
 
     @abstractmethod
     async def delete(self, entity_id: uuid.UUID) -> None:
-        """Remove an aggregate by its unique identifier."""
+        """Delete an aggregate by its unique identifier."""
         pass
 
 
@@ -209,7 +213,7 @@ class IAttributeValueRepository(ABC):
 
     @abstractmethod
     async def delete(self, value_id: uuid.UUID) -> None:
-        """Remove an attribute value by its unique identifier."""
+        """Delete an attribute value by its unique identifier."""
         pass
 
     @abstractmethod
@@ -276,7 +280,7 @@ class ICategoryAttributeBindingRepository(ABC):
 
     @abstractmethod
     async def delete(self, binding_id: uuid.UUID) -> None:
-        """Remove a binding by its unique identifier."""
+        """Delete a binding by its unique identifier."""
         pass
 
     @abstractmethod
@@ -376,7 +380,7 @@ class IProductAttributeValueRepository(ABC):
 
     @abstractmethod
     async def delete(self, pav_id: uuid.UUID) -> None:
-        """Remove a product attribute assignment by its unique identifier."""
+        """Delete a product attribute assignment by its unique identifier."""
         pass
 
     @abstractmethod
@@ -422,7 +426,7 @@ class IMediaAssetRepository(ABC):
 
     @abstractmethod
     async def delete(self, media_id: uuid.UUID) -> None:
-        """Remove a media asset by ID."""
+        """Delete a media asset by ID."""
         pass
 
     @abstractmethod
@@ -478,25 +482,63 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.modules.catalog.application.queries.read_models import (
-        BrandReadModel as _BrandRM,
-        BrandListReadModel as _BrandListRM,
-        CategoryReadModel as _CategoryRM,
-        CategoryListReadModel as _CategoryListRM,
-        CategoryNode as _CategoryNodeRM,
-        AttributeGroupReadModel as _AttrGroupRM,
         AttributeGroupListReadModel as _AttrGroupListRM,
-        AttributeReadModel as _AttrRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
+        AttributeGroupReadModel as _AttrGroupRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
         AttributeListReadModel as _AttrListRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
+        AttributeReadModel as _AttrRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
         AttributeValueListReadModel as _AttrValueListRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
+        BrandListReadModel as _BrandListRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
+        BrandReadModel as _BrandRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
         CategoryAttributeBindingListReadModel as _BindingListRM,
-        ProductReadModel as _ProductRM,
-        ProductListReadModel as _ProductListRM,
-        ProductVariantReadModel as _VariantRM,
-        SKUReadModel as _SKURM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
+        CategoryListReadModel as _CategoryListRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
+        CategoryNode as _CategoryNodeRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
+        CategoryReadModel as _CategoryRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
         ProductAttributeReadModel as _ProdAttrRM,
-        StorefrontFilterListReadModel as _SFFilterRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
+        ProductListReadModel as _ProductListRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
+        ProductReadModel as _ProductRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
+        ProductVariantReadModel as _VariantRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
+        SKUReadModel as _SKURM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
         StorefrontCardReadModel as _SFCardRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
         StorefrontComparisonReadModel as _SFCompRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
+        StorefrontFilterListReadModel as _SFFilterRM,
+    )
+    from src.modules.catalog.application.queries.read_models import (
         StorefrontFormReadModel as _SFFormRM,
     )
 
@@ -509,12 +551,12 @@ class IBrandReadRepository(ABC):
     """
 
     @abstractmethod
-    async def get_brand(self, brand_id: uuid.UUID) -> "_BrandRM | None":
+    async def get_brand(self, brand_id: uuid.UUID) -> _BrandRM | None:
         """Retrieve a single brand read model by ID, or ``None``."""
         pass
 
     @abstractmethod
-    async def list_brands(self, *, offset: int = 0, limit: int = 20) -> "_BrandListRM":
+    async def list_brands(self, *, offset: int = 0, limit: int = 20) -> _BrandListRM:
         """Return a paginated list of brands."""
         pass
 
@@ -526,17 +568,17 @@ class ICategoryReadRepository(ABC):
     """
 
     @abstractmethod
-    async def get_category(self, category_id: uuid.UUID) -> "_CategoryRM | None":
+    async def get_category(self, category_id: uuid.UUID) -> _CategoryRM | None:
         """Retrieve a single category read model by ID, or ``None``."""
         pass
 
     @abstractmethod
-    async def list_categories(self, *, offset: int = 0, limit: int = 20) -> "_CategoryListRM":
+    async def list_categories(self, *, offset: int = 0, limit: int = 20) -> _CategoryListRM:
         """Return a paginated category list ordered by level and sort order."""
         pass
 
     @abstractmethod
-    async def get_category_tree(self) -> "list[_CategoryNodeRM]":
+    async def get_category_tree(self) -> list[_CategoryNodeRM]:
         """Return the full category hierarchy as a list of root nodes."""
         pass
 
@@ -545,14 +587,12 @@ class IAttributeGroupReadRepository(ABC):
     """Read-only query interface for attribute groups."""
 
     @abstractmethod
-    async def get_attribute_group(self, group_id: uuid.UUID) -> "_AttrGroupRM | None":
+    async def get_attribute_group(self, group_id: uuid.UUID) -> _AttrGroupRM | None:
         """Retrieve a single attribute group read model by ID."""
         pass
 
     @abstractmethod
-    async def list_attribute_groups(
-        self, *, offset: int = 0, limit: int = 20
-    ) -> "_AttrGroupListRM":
+    async def list_attribute_groups(self, *, offset: int = 0, limit: int = 20) -> _AttrGroupListRM:
         """Return a paginated list of attribute groups."""
         pass
 
@@ -561,7 +601,7 @@ class IAttributeReadRepository(ABC):
     """Read-only query interface for attributes and their values."""
 
     @abstractmethod
-    async def get_attribute(self, attribute_id: uuid.UUID) -> "_AttrRM | None":
+    async def get_attribute(self, attribute_id: uuid.UUID) -> _AttrRM | None:
         """Retrieve a single attribute read model by ID."""
         pass
 
@@ -572,7 +612,7 @@ class IAttributeReadRepository(ABC):
         offset: int = 0,
         limit: int = 20,
         group_id: uuid.UUID | None = None,
-    ) -> "_AttrListRM":
+    ) -> _AttrListRM:
         """Return a paginated list of attributes, optionally filtered by group."""
         pass
 
@@ -583,7 +623,7 @@ class IAttributeReadRepository(ABC):
         *,
         offset: int = 0,
         limit: int = 50,
-    ) -> "_AttrValueListRM":
+    ) -> _AttrValueListRM:
         """Return a paginated list of values for a given attribute."""
         pass
 
@@ -598,7 +638,7 @@ class ICategoryBindingReadRepository(ABC):
         *,
         offset: int = 0,
         limit: int = 50,
-    ) -> "_BindingListRM":
+    ) -> _BindingListRM:
         """Return a paginated list of bindings for a category."""
         pass
 
@@ -611,7 +651,7 @@ class IProductReadRepository(ABC):
     """
 
     @abstractmethod
-    async def get_product(self, product_id: uuid.UUID) -> "_ProductRM | None":
+    async def get_product(self, product_id: uuid.UUID) -> _ProductRM | None:
         """Retrieve a full product read model by ID (with variants, SKUs, attributes).
 
         Returns ``None`` if the product does not exist or is soft-deleted.
@@ -626,7 +666,7 @@ class IProductReadRepository(ABC):
         limit: int = 50,
         status: str | None = None,
         brand_id: uuid.UUID | None = None,
-    ) -> "_ProductListRM":
+    ) -> _ProductListRM:
         """Return a paginated, optionally filtered, product list."""
         pass
 
@@ -637,7 +677,7 @@ class IProductReadRepository(ABC):
         *,
         offset: int = 0,
         limit: int = 50,
-    ) -> "tuple[list[_VariantRM], int]":
+    ) -> tuple[list[_VariantRM], int]:
         """Return paginated variants for a product with total count."""
         pass
 
@@ -649,7 +689,7 @@ class IProductReadRepository(ABC):
         variant_id: uuid.UUID | None = None,
         offset: int = 0,
         limit: int | None = 50,
-    ) -> "tuple[list[_SKURM], int]":
+    ) -> tuple[list[_SKURM], int]:
         """Return paginated SKUs for a product with total count."""
         pass
 
@@ -660,7 +700,7 @@ class IProductReadRepository(ABC):
         *,
         offset: int = 0,
         limit: int = 50,
-    ) -> "tuple[list[_ProdAttrRM], int]":
+    ) -> tuple[list[_ProdAttrRM], int]:
         """Return paginated product attribute assignments with total count."""
         pass
 
@@ -674,21 +714,21 @@ class IStorefrontQueryService(ABC):
     """
 
     @abstractmethod
-    async def get_filterable_attributes(self, category_id: uuid.UUID) -> "_SFFilterRM":
+    async def get_filterable_attributes(self, category_id: uuid.UUID) -> _SFFilterRM:
         """Return filterable attributes with their dictionary values."""
         pass
 
     @abstractmethod
-    async def get_card_attributes(self, category_id: uuid.UUID) -> "_SFCardRM":
+    async def get_card_attributes(self, category_id: uuid.UUID) -> _SFCardRM:
         """Return visible-on-card attributes grouped by attribute group."""
         pass
 
     @abstractmethod
-    async def get_comparison_attributes(self, category_id: uuid.UUID) -> "_SFCompRM":
+    async def get_comparison_attributes(self, category_id: uuid.UUID) -> _SFCompRM:
         """Return comparable attributes for the comparison table."""
         pass
 
     @abstractmethod
-    async def get_form_attributes(self, category_id: uuid.UUID) -> "_SFFormRM":
+    async def get_form_attributes(self, category_id: uuid.UUID) -> _SFFormRM:
         """Return the full attribute set for the product creation form."""
         pass

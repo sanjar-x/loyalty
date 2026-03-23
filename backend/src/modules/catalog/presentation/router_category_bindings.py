@@ -159,7 +159,7 @@ async def update_binding(
     path="/{binding_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Unbind an attribute from a category",
-    description="Remove the binding between an attribute and a category.",
+    description="Delete the binding between an attribute and a category.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def unbind_attribute(

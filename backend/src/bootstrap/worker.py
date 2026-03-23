@@ -25,7 +25,7 @@ What breaks if the order is violated:
 
 Auto-formatter protection:
     Task imports are annotated with ``# noqa`` to suppress E402 (module-
-    level import not at top of file).  Do NOT remove these markers during
+    level import not at top of file).  Do NOT delete these markers during
     code cleanup.
 """
 

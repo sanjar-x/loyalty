@@ -41,7 +41,7 @@ class ICacheService(Protocol):
         ...
 
     async def delete(self, key: str) -> None:
-        """Remove a key from the cache.
+        """Delete a key from the cache.
 
         Args:
             key: Cache key to delete.
@@ -49,7 +49,7 @@ class ICacheService(Protocol):
         ...
 
     async def delete_many(self, keys: list[str]) -> None:
-        """Remove multiple keys from the cache in a single round-trip.
+        """Delete multiple keys from the cache in a single round-trip.
 
         Args:
             keys: Cache keys to delete. If empty, this is a no-op.

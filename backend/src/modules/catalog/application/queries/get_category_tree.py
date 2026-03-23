@@ -77,7 +77,9 @@ class GetCategoryTreeHandler:
 
         cache_payload = [n.model_dump(mode="json") for n in roots]
         await self._cache.set(
-            CATEGORY_TREE_CACHE_KEY, json.dumps(cache_payload), ttl=CATEGORY_TREE_CACHE_TTL_SECONDS
+            CATEGORY_TREE_CACHE_KEY,
+            json.dumps(cache_payload),
+            ttl=CATEGORY_TREE_CACHE_TTL_SECONDS,
         )
 
         if max_depth is not None:
@@ -87,7 +89,7 @@ class GetCategoryTreeHandler:
 
 
 def _prune_tree(nodes: list[CategoryNode], *, current_depth: int, max_depth: int) -> None:
-    """Recursively remove children beyond *max_depth*.
+    """Recursively delete children beyond *max_depth*.
 
     Depth 1 means only the nodes in *nodes* are kept (their children are
     cleared).  Depth 2 keeps one level of children, and so on.

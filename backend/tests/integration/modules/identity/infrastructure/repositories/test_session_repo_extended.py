@@ -160,7 +160,7 @@ async def test_remove_session_role(db_session: AsyncSession):
     await role_repo.add(role)
 
     sess = await _create_session(
-        session_repo, identity.id, token="remove-role", db_session=db_session
+        session_repo, identity.id, token="delete-role", db_session=db_session
     )
 
     await session_repo.add_session_roles(sess.id, [role.id])

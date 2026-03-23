@@ -182,11 +182,11 @@ class SelfDeactivationError(ForbiddenError):
 
 
 class LastAdminProtectionError(ForbiddenError):
-    """Raised when attempting to deactivate/remove the last admin."""
+    """Raised when attempting to deactivate/delete the last admin."""
 
     def __init__(self) -> None:
         super().__init__(
-            message="Cannot remove the last admin",
+            message="Cannot delete the last admin",
             error_code="LAST_ADMIN_PROTECTION",
         )
 

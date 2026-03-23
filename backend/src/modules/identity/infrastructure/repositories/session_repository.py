@@ -214,10 +214,10 @@ class SessionRepository(ISessionRepository):
         session_id: uuid.UUID,
         role_id: uuid.UUID,
     ) -> None:
-        """Remove a role from a session's activated roles.
+        """Delete a role from a session's activated roles.
 
         Args:
-            session_id: The session to remove the role from.
+            session_id: The session to delete the role from.
             role_id: The role ID to deactivate.
         """
         stmt = delete(SessionRoleModel).where(

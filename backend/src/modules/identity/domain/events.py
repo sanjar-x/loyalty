@@ -185,7 +185,7 @@ class LinkedAccountCreatedEvent(DomainEvent):
 
 
 @dataclass
-class LinkedAccountRemovedEvent(DomainEvent):
+class LinkedAccountDeletedEvent(DomainEvent):
     """Emitted when a provider is unlinked from an Identity."""
 
     identity_id: uuid.UUID | None = None

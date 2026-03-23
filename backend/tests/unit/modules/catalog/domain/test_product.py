@@ -1,7 +1,6 @@
 # tests/unit/modules/catalog/domain/test_product.py
 """Unit tests for the Product aggregate root domain entity (MT-2)."""
 
-import hashlib
 import uuid
 from datetime import UTC, datetime
 
@@ -705,7 +704,7 @@ class TestProductFindSku:
 # ---------------------------------------------------------------------------
 
 
-class TestProductRemoveSku:
+class TestProductDeleteSku:
     """Tests for Product.remove_sku() — soft-delete a child SKU."""
 
     def test_remove_sku_soft_deletes_the_sku(self) -> None:
@@ -726,7 +725,7 @@ class TestProductRemoveSku:
         assert before <= product.updated_at <= after
 
     def test_remove_sku_sku_still_in_list(self) -> None:
-        """remove_sku() does not physically remove the SKU from skus list."""
+        """remove_sku() does not physically delete the SKU from skus list."""
         product = make_product()
         sku = product.add_sku(sku_code="SKU-001", price=make_money())
         product.remove_sku(sku.id)
@@ -763,7 +762,9 @@ class TestProductComputeVariantHash:
         assert h1 == h2
         assert len(h1) == 64
 
-    def test_different_variant_ids_with_empty_attrs_produce_different_hashes(self) -> None:
+    def test_different_variant_ids_with_empty_attrs_produce_different_hashes(
+        self,
+    ) -> None:
         """Different variant_ids with empty attrs must not collide."""
         vid1 = uuid.uuid4()
         vid2 = uuid.uuid4()

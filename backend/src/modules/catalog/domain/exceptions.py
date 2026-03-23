@@ -256,11 +256,11 @@ class VariantNotFoundError(NotFoundError):
 
 
 class LastVariantRemovalError(UnprocessableEntityError):
-    """Raised when attempting to remove the last active variant from a product."""
+    """Raised when attempting to delete the last active variant from a product."""
 
     def __init__(self, product_id: uuid.UUID) -> None:
         super().__init__(
-            message="Cannot remove the last variant from a product.",
+            message="Cannot delete the last variant from a product.",
             error_code="LAST_VARIANT_REMOVAL",
             details={"product_id": str(product_id)},
         )

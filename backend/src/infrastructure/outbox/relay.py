@@ -176,7 +176,7 @@ async def relay_outbox_batch(
 
 
 # ---------------------------------------------------------------------------
-# Pruning: remove processed records older than N days
+# Pruning: delete processed records older than N days
 # ---------------------------------------------------------------------------
 
 _PRUNE_SQL = text("""

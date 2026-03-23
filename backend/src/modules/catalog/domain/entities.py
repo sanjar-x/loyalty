@@ -33,9 +33,9 @@ from src.modules.catalog.domain.events import (
     ProductStatusChangedEvent,
     ProductUpdatedEvent,
     SKUAddedEvent,
-    SKURemovedEvent,
+    SKUDeletedEvent,
     VariantAddedEvent,
-    VariantRemovedEvent,
+    VariantDeletedEvent,
 )
 from src.modules.catalog.domain.exceptions import (
     BrandHasProductsError,
@@ -903,11 +903,6 @@ class AttributeValue:
         search_aliases: Multilingual synonyms for search (e.g. ``["scarlet", "crimson"]``).
         meta_data: Arbitrary JSON metadata (e.g. ``{"hex": "#FF0000"}``).
         value_group: Optional grouping label (e.g. "Warm tones", "Cool tones").
-            Mapped to ``group_code`` in the ORM/database layer. The domain uses
-            ``value_group`` to express intent (a UI grouping label), while the
-            persistence layer uses ``group_code`` to reflect its column name.
-            See ``AttributeValueRepository._to_domain`` / ``_to_orm`` for the
-            mapping between the two names.
         sort_order: Display ordering among sibling values.
     """
 
@@ -919,8 +914,6 @@ class AttributeValue:
     search_aliases: list[str]
     # Named `meta_data` (not `metadata`) to avoid collision with SQLAlchemy Base.metadata
     meta_data: dict[str, Any]
-    # Named `value_group` in the domain (UI grouping label); mapped to `group_code`
-    # in the ORM layer.  See AttributeValueRepository for the translation.
     value_group: str | None
     sort_order: int
 
@@ -2039,10 +2032,10 @@ class Product(AggregateRoot):
     def remove_variant(self, variant_id: uuid.UUID) -> None:
         """Soft-delete a variant and all its SKUs from this product.
 
-        Cannot remove the last active variant.
+        Cannot delete the last active variant.
 
         Args:
-            variant_id: The UUID of the variant to remove.
+            variant_id: The UUID of the variant to delete.
 
         Raises:
             VariantNotFoundError: If no active variant with the given ID exists.
@@ -2056,7 +2049,7 @@ class Product(AggregateRoot):
             raise LastVariantRemovalError(product_id=self.id)
         variant.soft_delete()
         self.add_domain_event(
-            VariantRemovedEvent(
+            VariantDeletedEvent(
                 product_id=self.id, variant_id=variant_id, aggregate_id=str(self.id)
             )
         )
@@ -2153,7 +2146,7 @@ class Product(AggregateRoot):
         """Soft-delete a SKU from this product (searches across all variants).
 
         Args:
-            sku_id: The UUID of the SKU to remove.
+            sku_id: The UUID of the SKU to delete.
 
         Raises:
             SKUNotFoundError: If no active SKU with the given ID exists.
@@ -2163,7 +2156,7 @@ class Product(AggregateRoot):
                 if sku.id == sku_id and sku.deleted_at is None:
                     sku.soft_delete()
                     self.add_domain_event(
-                        SKURemovedEvent(
+                        SKUDeletedEvent(
                             product_id=self.id,
                             variant_id=variant.id,
                             sku_id=sku_id,
