@@ -134,10 +134,16 @@ class ListAttributesHandler:
         if query.is_comparable is not None:
             stmt = stmt.where(OrmAttribute.is_comparable == query.is_comparable)
         if query.search is not None:
-            # Search in JSONB name_i18n values across all languages
-            # Uses the @> containment operator for GIN index utilization
-            # Fallback to casting to text and using ILIKE for substring search
+            # Search across all JSONB values using jsonb_each_text lateral join.
+            # This avoids CAST(jsonb AS text) ILIKE which bypasses GIN indexes
+            # and pollutes results with JSON keys/syntax characters.
             escaped = query.search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
             search_pattern = f"%{escaped}%"
-            stmt = stmt.where(func.cast(OrmAttribute.name_i18n, type_=Text()).ilike(search_pattern))
+            stmt = stmt.where(
+                select(literal_column("1"))
+                .select_from(func.jsonb_each_text(OrmAttribute.name_i18n).alias("kv"))
+                .where(literal_column("kv.value").ilike(search_pattern))
+                .correlate(OrmAttribute)
+                .exists()
+            )
         return stmt
