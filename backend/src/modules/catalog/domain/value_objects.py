@@ -17,6 +17,29 @@ MIN_SEARCH_WEIGHT = 1
 MAX_SEARCH_WEIGHT = 10
 
 
+class MediaRole(str, enum.Enum):
+    """Semantic role a media asset plays within a product gallery.
+
+    Defines the business-level roles that media assets can fulfil,
+    independent of any infrastructure or ORM details.
+
+    Members:
+        MAIN: Primary product image (one per variant).
+        HOVER: Image shown on hover (product card).
+        GALLERY: Additional gallery images.
+        HERO_VIDEO: Hero video for the product page.
+        SIZE_GUIDE: Size guide image or document.
+        PACKAGING: Packaging shots.
+    """
+
+    MAIN = "main"
+    HOVER = "hover"
+    GALLERY = "gallery"
+    HERO_VIDEO = "hero_video"
+    SIZE_GUIDE = "size_guide"
+    PACKAGING = "packaging"
+
+
 class MediaProcessingStatus(str, enum.Enum):
     """Finite state machine (FSM) for media file processing lifecycle.
 
@@ -201,8 +224,7 @@ class ProductStatus(str, enum.Enum):
         PUBLISHED -> ARCHIVED
         ARCHIVED -> DRAFT
 
-    Values use lowercase strings matching the ORM ProductStatus enum
-    (see infrastructure/models.py) to enable simple string-based
+    Values use lowercase strings to enable simple string-based
     mapping in repositories without a translation table.
 
     Members:
@@ -258,6 +280,38 @@ class Money:
         if len(self.currency) != 3:
             raise ValueError("Currency must be a 3-character ISO code")
         object.__setattr__(self, "currency", self.currency.upper())
+
+    @staticmethod
+    def from_primitives(
+        amount: int,
+        currency: str,
+        compare_at_amount: int | None = None,
+    ) -> tuple[Money, Money | None]:
+        """Build a price/compare-at-price pair from primitive values.
+
+        Convenience factory that eliminates repeated Money construction
+        boilerplate across command handlers.
+
+        Args:
+            amount: Price in smallest currency units.
+            currency: 3-character ISO 4217 currency code.
+            compare_at_amount: Optional compare-at (strikethrough) price.
+                When provided, must be strictly greater than *amount*.
+
+        Returns:
+            Tuple of ``(price, compare_at_price)``.  ``compare_at_price``
+            is ``None`` when *compare_at_amount* is ``None``.
+
+        Raises:
+            ValueError: If *compare_at_amount* is not greater than *amount*.
+        """
+        price = Money(amount=amount, currency=currency)
+        compare_at_price: Money | None = None
+        if compare_at_amount is not None:
+            if compare_at_amount <= amount:
+                raise ValueError("compare_at_price must be greater than price")
+            compare_at_price = Money(amount=compare_at_amount, currency=currency)
+        return price, compare_at_price
 
     def _check_currency(self, other: Money) -> None:
         """Assert both instances share the same currency.

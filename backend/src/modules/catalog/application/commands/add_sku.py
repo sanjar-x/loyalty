@@ -90,19 +90,11 @@ class AddSKUHandler:
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
-            price = Money(
+            price, compare_at_price = Money.from_primitives(
                 amount=command.price_amount,
                 currency=command.price_currency,
+                compare_at_amount=command.compare_at_price_amount,
             )
-
-            compare_at_price: Money | None = None
-            if command.compare_at_price_amount is not None:
-                if command.compare_at_price_amount <= command.price_amount:
-                    raise ValueError("compare_at_price must be greater than price")
-                compare_at_price = Money(
-                    amount=command.compare_at_price_amount,
-                    currency=command.price_currency,
-                )
 
             sku = product.add_sku(
                 sku_code=command.sku_code,

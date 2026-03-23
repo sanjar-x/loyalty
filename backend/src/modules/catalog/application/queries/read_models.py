@@ -421,12 +421,13 @@ class ProductListReadModel(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class ProductAttributeReadModel(BaseModel):
-    """Read model for a product's attribute assignment with joined attribute data."""
+class ProductAttributeReadModel(ProductAttributeValueReadModel):
+    """Read model for a product's attribute assignment with joined attribute data.
 
-    id: uuid.UUID
-    product_id: uuid.UUID
-    attribute_id: uuid.UUID
-    attribute_value_id: uuid.UUID
+    Extends :class:`ProductAttributeValueReadModel` with attribute metadata
+    (code and display name) obtained via a join, used when the consumer
+    needs human-readable attribute information alongside the assignment.
+    """
+
     attribute_code: str
     attribute_name_i18n: dict[str, str]

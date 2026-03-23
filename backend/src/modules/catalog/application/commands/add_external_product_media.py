@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError  # DB-level uniqueness safety net
 
 from src.modules.catalog.domain.entities import MediaAsset
 from src.modules.catalog.domain.exceptions import ProductNotFoundError
+from src.modules.catalog.domain.value_objects import MediaRole
 from src.modules.catalog.domain.interfaces import (
     IMediaAssetRepository,
     IProductRepository,
@@ -111,7 +112,7 @@ class AddExternalProductMediaHandler:
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
-            if command.role == "main":
+            if command.role == MediaRole.MAIN:
                 has_main = await self._media_repo.has_main_for_variant(
                     command.product_id,
                     command.attribute_value_id,
