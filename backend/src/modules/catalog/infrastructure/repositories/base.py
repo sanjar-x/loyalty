@@ -15,11 +15,10 @@ import uuid
 from abc import abstractmethod
 from typing import Any
 
-from sqlalchemy import ColumnElement, select, delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.interfaces import ICatalogRepository
-from src.shared.exceptions import NotFoundError
 from src.shared.interfaces.entities import IBase
 
 
@@ -90,69 +89,18 @@ class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType
         await self._session.flush()
         return self._to_domain(orm)
 
-    async def get_or_raise(
-        self,
-        entity_id: uuid.UUID,
-        error: NotFoundError | None = None,
-    ) -> EntityType:
-        """Retrieve a domain entity by primary key, raising if not found.
-
-        Convenience wrapper around :meth:`get` that eliminates the
-        repetitive ``fetch → check None → raise`` pattern in command
-        handlers.
-
-        Args:
-            entity_id: Primary key of the entity to fetch.
-            error: A pre-built ``NotFoundError`` to raise when the entity
-                is missing.  When ``None`` a generic ``NotFoundError`` is
-                used instead.
-
-        Raises:
-            NotFoundError: If the entity does not exist.
-        """
-        entity = await self.get(entity_id)
-        if entity is None:
-            raise error or NotFoundError(
-                message=f"{self.model.__name__} with id {entity_id} not found",
-            )
-        return entity
-
-    async def _field_exists(
-        self,
-        field_name: str,
-        value: Any,
-        *,
-        exclude_id: uuid.UUID | None = None,
-        extra_filters: list[ColumnElement[bool]] | None = None,
-    ) -> bool:
-        """Check whether a row with the given field value already exists.
-
-        Generic helper that replaces per-repository ``check_slug_exists``
-        and ``check_slug_exists_excluding`` boilerplate.
-
-        Args:
-            field_name: Name of the ORM column to check (e.g. ``"slug"``).
-            value: The value to look for.
-            exclude_id: When provided, excludes the row with this primary
-                key from the check (used during updates).
-            extra_filters: Additional SQLAlchemy column expressions that
-                are ANDed into the query (e.g.
-                ``[Model.parent_id == parent_id]``).
-
-        Returns:
-            ``True`` if a matching row exists, ``False`` otherwise.
-        """
-        column = getattr(self.model, field_name)
-        filters: list[ColumnElement[bool]] = [column == value]
-        if exclude_id is not None:
-            filters.append(self.model.id != exclude_id)
-        if extra_filters:
-            filters.extend(extra_filters)
-        stmt = select(self.model.id).where(*filters).limit(1)
-        result = await self._session.execute(stmt)
-        return result.first() is not None
-
     async def delete(self, entity_id: uuid.UUID) -> None:
         """Delete a row by primary key.  Transaction control is in the UoW."""
         stmt = delete(self.model).where(self.model.id == entity_id)
         await self._session.execute(stmt)
+
+    async def get_for_update(self, entity_id: uuid.UUID) -> EntityType | None:
+        """Retrieve a domain entity with a ``SELECT ... FOR UPDATE`` row lock.
+
+        Used to prevent concurrent modifications on the same row.
+        Subclasses may override to add extra filters (e.g. soft-delete).
+        """
+        stmt = select(self.model).where(self.model.id == entity_id).with_for_update()
+        result = await self._session.execute(stmt)
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None

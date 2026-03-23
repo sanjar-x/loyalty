@@ -13,7 +13,6 @@ from sqlalchemy import select
 from src.modules.catalog.domain.entities import Brand as DomainBrand
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
-from src.modules.catalog.infrastructure.models import Product as OrmProduct
 from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
 
@@ -62,30 +61,14 @@ class BrandRepository(
 
     async def check_slug_exists(self, slug: str) -> bool:
         """Return ``True`` if any brand already uses this slug."""
-        return await self._field_exists("slug", slug)
+        stmt = select(OrmBrand.id).where(OrmBrand.slug == slug).limit(1)
+        result = await self._session.execute(stmt)
+        return result.first() is not None
 
     async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
         """Return ``True`` if the slug is taken by a brand other than *exclude_id*."""
-        return await self._field_exists("slug", slug, exclude_id=exclude_id)
-
-    async def get_for_update(self, brand_id: uuid.UUID) -> DomainBrand | None:
-        """Retrieve a brand with a ``SELECT … FOR UPDATE`` row lock.
-
-        Used by the logo processing pipeline to prevent concurrent
-        state transitions on the same brand.
-        """
-        stmt = select(OrmBrand).where(OrmBrand.id == brand_id).with_for_update()
+        stmt = select(OrmBrand.id).where(OrmBrand.slug == slug, OrmBrand.id != exclude_id).limit(1)
         result = await self._session.execute(stmt)
-        orm = result.scalar_one_or_none()
-        return self._to_domain(orm) if orm else None
+        return result.first() is not None
 
-    async def has_products(self, brand_id: uuid.UUID) -> bool:
-        """Return ``True`` if any non-deleted product references this brand."""
-        stmt = select(
-            select(OrmProduct.id)
-            .where(OrmProduct.brand_id == brand_id, OrmProduct.deleted_at.is_(None))
-            .limit(1)
-            .exists()
-        )
-        result = await self._session.execute(stmt)
-        return bool(result.scalar())
+    # get_for_update is inherited from BaseRepository

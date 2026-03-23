@@ -10,57 +10,78 @@ Typical usage:
     brand.add_domain_event(BrandLogoUploadInitiatedEvent(brand_id=brand.id, ...))
 
 Note:
-    DomainEvent (the shared base class) is a non-frozen dataclass, so
-    Python prohibits frozen subclasses. Instead we use a
-    ``_ImmutableAfterInit`` mixin that locks field assignment after
-    ``__post_init__`` has run, providing runtime immutability without
-    violating the inheritance constraint.
+    Events are plain (non-frozen) dataclasses because ``DomainEvent``
+    (the shared base class) is non-frozen and Python prohibits frozen
+    subclasses of non-frozen parents. Events MUST be treated as
+    immutable after construction — do not mutate event fields after
+    ``__post_init__`` has run.
 """
 
 import uuid
 from dataclasses import dataclass
+from typing import ClassVar
 
 from src.shared.interfaces.entities import DomainEvent
 
-# ---------------------------------------------------------------------------
-# DDD-02: Immutability mixin for domain events
-# ---------------------------------------------------------------------------
 
+@dataclass
+class CatalogEvent(DomainEvent):
+    """Intermediate base for all catalog domain events.
 
-class _ImmutableAfterInit:
-    """Mixin that freezes dataclass instances after ``__post_init__`` completes.
+    Subclasses declare which UUID fields are required and which field
+    supplies the ``aggregate_id`` via two class-level tuples:
 
-    Works with the standard ``@dataclass`` decorator. The ``__post_init__``
-    method in subclasses must call ``super().__post_init__()`` **last** (or
-    rely on MRO if using multiple inheritance). After ``_frozen`` is set to
-    ``True``, any attribute assignment or deletion raises ``AttributeError``.
+    * ``_required_fields`` — field names that must not be ``None``.
+    * ``_aggregate_id_field`` — the single field whose ``str()`` value
+      is copied into ``aggregate_id`` when the caller does not set it
+      explicitly.
+
+    This eliminates the repetitive ``__post_init__`` boilerplate that
+    was previously copy-pasted across every concrete event class.
     """
 
-    _frozen: bool = False
+    # ClassVar so dataclasses ignores them; subclasses override via __init_subclass__
+    _required_fields: ClassVar[tuple[str, ...]] = ()
+    _aggregate_id_field: ClassVar[str] = ""
 
-    def __setattr__(self, name: str, value: object) -> None:
-        if self._frozen and name != "_domain_events":
-            raise AttributeError(
-                f"Cannot set attribute '{name}' on frozen event {type(self).__name__}"
-            )
-        super().__setattr__(name, value)
+    # Provide non-empty defaults so DomainEvent.__init_subclass__ doesn't
+    # reject CatalogEvent itself (concrete events override these).
+    aggregate_type: str = "Catalog"
+    event_type: str = "CatalogEvent"
 
-    def __delattr__(self, name: str) -> None:
-        if self._frozen:
-            raise AttributeError(
-                f"Cannot delete attribute '{name}' on frozen event "
-                f"{type(self).__name__}"
-            )
-        super().__delattr__(name)
+    def __init_subclass__(
+        cls,
+        *,
+        required_fields: tuple[str, ...] | None = None,
+        aggregate_id_field: str | None = None,
+        **kwargs: object,
+    ) -> None:
+        super().__init_subclass__(**kwargs)
+        if required_fields is not None:
+            cls._required_fields = required_fields
+        if aggregate_id_field is not None:
+            cls._aggregate_id_field = aggregate_id_field
+
+    def __post_init__(self) -> None:
+        cls_name = type(self).__name__
+        for field_name in self._required_fields:
+            if getattr(self, field_name) is None:
+                raise ValueError(f"{field_name} is required for {cls_name}")
+        if not self.aggregate_id and self._aggregate_id_field:
+            self.aggregate_id = str(getattr(self, self._aggregate_id_field))
 
 
-def _freeze(event: _ImmutableAfterInit) -> None:
-    """Freeze the event instance after post-init logic has completed."""
-    object.__setattr__(event, "_frozen", True)
+# ---------------------------------------------------------------------------
+# Brand events
+# ---------------------------------------------------------------------------
 
 
 @dataclass
-class BrandLogoUploadInitiatedEvent(_ImmutableAfterInit, DomainEvent):
+class BrandLogoUploadInitiatedEvent(
+    CatalogEvent,
+    required_fields=("brand_id",),
+    aggregate_id_field="brand_id",
+):
     """Emitted when a brand logo upload is initiated.
 
     The Storage module reacts by creating a ``StorageFile`` record
@@ -78,16 +99,13 @@ class BrandLogoUploadInitiatedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "Brand"
     event_type: str = "BrandLogoUploadInitiatedEvent"
 
-    def __post_init__(self) -> None:
-        if self.brand_id is None:
-            raise ValueError("brand_id is required for BrandLogoUploadInitiatedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.brand_id)
-        _freeze(self)
-
 
 @dataclass
-class BrandLogoConfirmedEvent(_ImmutableAfterInit, DomainEvent):
+class BrandLogoConfirmedEvent(
+    CatalogEvent,
+    required_fields=("brand_id",),
+    aggregate_id_field="brand_id",
+):
     """Emitted when a logo upload is confirmed and processing should begin.
 
     Generated by ``Brand.confirm_logo_upload()``. Triggers background
@@ -101,16 +119,13 @@ class BrandLogoConfirmedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "Brand"
     event_type: str = "BrandLogoConfirmedEvent"
 
-    def __post_init__(self) -> None:
-        if self.brand_id is None:
-            raise ValueError("brand_id is required for BrandLogoConfirmedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.brand_id)
-        _freeze(self)
-
 
 @dataclass
-class BrandLogoProcessedEvent(_ImmutableAfterInit, DomainEvent):
+class BrandLogoProcessedEvent(
+    CatalogEvent,
+    required_fields=("brand_id",),
+    aggregate_id_field="brand_id",
+):
     """Emitted when logo processing completes successfully.
 
     Generated by ``Brand.complete_logo_processing()``. The Storage module
@@ -130,13 +145,6 @@ class BrandLogoProcessedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "Brand"
     event_type: str = "BrandLogoProcessedEvent"
 
-    def __post_init__(self) -> None:
-        if self.brand_id is None:
-            raise ValueError("brand_id is required for BrandLogoProcessedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.brand_id)
-        _freeze(self)
-
 
 # ---------------------------------------------------------------------------
 # AttributeGroup events
@@ -144,7 +152,11 @@ class BrandLogoProcessedEvent(_ImmutableAfterInit, DomainEvent):
 
 
 @dataclass
-class AttributeGroupCreatedEvent(_ImmutableAfterInit, DomainEvent):
+class AttributeGroupCreatedEvent(
+    CatalogEvent,
+    required_fields=("group_id",),
+    aggregate_id_field="group_id",
+):
     """Emitted when a new attribute group is created."""
 
     group_id: uuid.UUID | None = None
@@ -152,45 +164,32 @@ class AttributeGroupCreatedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "AttributeGroup"
     event_type: str = "AttributeGroupCreatedEvent"
 
-    def __post_init__(self) -> None:
-        if self.group_id is None:
-            raise ValueError("group_id is required for AttributeGroupCreatedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.group_id)
-        _freeze(self)
-
 
 @dataclass
-class AttributeGroupUpdatedEvent(_ImmutableAfterInit, DomainEvent):
+class AttributeGroupUpdatedEvent(
+    CatalogEvent,
+    required_fields=("group_id",),
+    aggregate_id_field="group_id",
+):
     """Emitted when an attribute group is updated."""
 
     group_id: uuid.UUID | None = None
     aggregate_type: str = "AttributeGroup"
     event_type: str = "AttributeGroupUpdatedEvent"
 
-    def __post_init__(self) -> None:
-        if self.group_id is None:
-            raise ValueError("group_id is required for AttributeGroupUpdatedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.group_id)
-        _freeze(self)
-
 
 @dataclass
-class AttributeGroupDeletedEvent(_ImmutableAfterInit, DomainEvent):
+class AttributeGroupDeletedEvent(
+    CatalogEvent,
+    required_fields=("group_id",),
+    aggregate_id_field="group_id",
+):
     """Emitted when an attribute group is deleted."""
 
     group_id: uuid.UUID | None = None
     code: str = ""
     aggregate_type: str = "AttributeGroup"
     event_type: str = "AttributeGroupDeletedEvent"
-
-    def __post_init__(self) -> None:
-        if self.group_id is None:
-            raise ValueError("group_id is required for AttributeGroupDeletedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.group_id)
-        _freeze(self)
 
 
 # ---------------------------------------------------------------------------
@@ -199,7 +198,11 @@ class AttributeGroupDeletedEvent(_ImmutableAfterInit, DomainEvent):
 
 
 @dataclass
-class AttributeCreatedEvent(_ImmutableAfterInit, DomainEvent):
+class AttributeCreatedEvent(
+    CatalogEvent,
+    required_fields=("attribute_id",),
+    aggregate_id_field="attribute_id",
+):
     """Emitted when a new attribute is created.
 
     Attributes:
@@ -212,16 +215,13 @@ class AttributeCreatedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "Attribute"
     event_type: str = "AttributeCreatedEvent"
 
-    def __post_init__(self) -> None:
-        if self.attribute_id is None:
-            raise ValueError("attribute_id is required for AttributeCreatedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.attribute_id)
-        _freeze(self)
-
 
 @dataclass
-class AttributeUpdatedEvent(_ImmutableAfterInit, DomainEvent):
+class AttributeUpdatedEvent(
+    CatalogEvent,
+    required_fields=("attribute_id",),
+    aggregate_id_field="attribute_id",
+):
     """Emitted when an attribute is updated.
 
     Attributes:
@@ -232,16 +232,13 @@ class AttributeUpdatedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "Attribute"
     event_type: str = "AttributeUpdatedEvent"
 
-    def __post_init__(self) -> None:
-        if self.attribute_id is None:
-            raise ValueError("attribute_id is required for AttributeUpdatedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.attribute_id)
-        _freeze(self)
-
 
 @dataclass
-class AttributeDeletedEvent(_ImmutableAfterInit, DomainEvent):
+class AttributeDeletedEvent(
+    CatalogEvent,
+    required_fields=("attribute_id",),
+    aggregate_id_field="attribute_id",
+):
     """Emitted when an attribute is deleted.
 
     Attributes:
@@ -254,13 +251,6 @@ class AttributeDeletedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "Attribute"
     event_type: str = "AttributeDeletedEvent"
 
-    def __post_init__(self) -> None:
-        if self.attribute_id is None:
-            raise ValueError("attribute_id is required for AttributeDeletedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.attribute_id)
-        _freeze(self)
-
 
 # ---------------------------------------------------------------------------
 # AttributeValue events
@@ -268,7 +258,11 @@ class AttributeDeletedEvent(_ImmutableAfterInit, DomainEvent):
 
 
 @dataclass
-class AttributeValueAddedEvent(_ImmutableAfterInit, DomainEvent):
+class AttributeValueAddedEvent(
+    CatalogEvent,
+    required_fields=("attribute_id", "value_id"),
+    aggregate_id_field="attribute_id",
+):
     """Emitted when a new value is added to a dictionary attribute.
 
     Attributes:
@@ -283,18 +277,13 @@ class AttributeValueAddedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "Attribute"
     event_type: str = "AttributeValueAddedEvent"
 
-    def __post_init__(self) -> None:
-        if self.attribute_id is None:
-            raise ValueError("attribute_id is required for AttributeValueAddedEvent")
-        if self.value_id is None:
-            raise ValueError("value_id is required for AttributeValueAddedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.attribute_id)
-        _freeze(self)
-
 
 @dataclass
-class AttributeValueUpdatedEvent(_ImmutableAfterInit, DomainEvent):
+class AttributeValueUpdatedEvent(
+    CatalogEvent,
+    required_fields=("attribute_id", "value_id"),
+    aggregate_id_field="attribute_id",
+):
     """Emitted when an attribute value is updated.
 
     Attributes:
@@ -307,18 +296,13 @@ class AttributeValueUpdatedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "Attribute"
     event_type: str = "AttributeValueUpdatedEvent"
 
-    def __post_init__(self) -> None:
-        if self.attribute_id is None:
-            raise ValueError("attribute_id is required for AttributeValueUpdatedEvent")
-        if self.value_id is None:
-            raise ValueError("value_id is required for AttributeValueUpdatedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.attribute_id)
-        _freeze(self)
-
 
 @dataclass
-class AttributeValueDeletedEvent(_ImmutableAfterInit, DomainEvent):
+class AttributeValueDeletedEvent(
+    CatalogEvent,
+    required_fields=("attribute_id", "value_id"),
+    aggregate_id_field="attribute_id",
+):
     """Emitted when an attribute value is deleted.
 
     Attributes:
@@ -333,15 +317,6 @@ class AttributeValueDeletedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "Attribute"
     event_type: str = "AttributeValueDeletedEvent"
 
-    def __post_init__(self) -> None:
-        if self.attribute_id is None:
-            raise ValueError("attribute_id is required for AttributeValueDeletedEvent")
-        if self.value_id is None:
-            raise ValueError("value_id is required for AttributeValueDeletedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.attribute_id)
-        _freeze(self)
-
 
 # ---------------------------------------------------------------------------
 # CategoryAttributeBinding events
@@ -349,7 +324,11 @@ class AttributeValueDeletedEvent(_ImmutableAfterInit, DomainEvent):
 
 
 @dataclass
-class CategoryAttributeBindingCreatedEvent(_ImmutableAfterInit, DomainEvent):
+class CategoryAttributeBindingCreatedEvent(
+    CatalogEvent,
+    required_fields=("binding_id",),
+    aggregate_id_field="binding_id",
+):
     """Emitted when a category-attribute binding is created."""
 
     category_id: uuid.UUID | None = None
@@ -358,44 +337,26 @@ class CategoryAttributeBindingCreatedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "CategoryAttributeBinding"
     event_type: str = "CategoryAttributeBindingCreatedEvent"
 
-    def __post_init__(self) -> None:
-        if self.binding_id is None:
-            raise ValueError(
-                "binding_id is required for CategoryAttributeBindingCreatedEvent"
-            )
-        if self.category_id is None:
-            raise ValueError(
-                "category_id is required for CategoryAttributeBindingCreatedEvent"
-            )
-        if self.attribute_id is None:
-            raise ValueError(
-                "attribute_id is required for CategoryAttributeBindingCreatedEvent"
-            )
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.binding_id)
-        _freeze(self)
-
 
 @dataclass
-class CategoryAttributeBindingUpdatedEvent(_ImmutableAfterInit, DomainEvent):
+class CategoryAttributeBindingUpdatedEvent(
+    CatalogEvent,
+    required_fields=("binding_id",),
+    aggregate_id_field="binding_id",
+):
     """Emitted when a category-attribute binding is updated."""
 
     binding_id: uuid.UUID | None = None
     aggregate_type: str = "CategoryAttributeBinding"
     event_type: str = "CategoryAttributeBindingUpdatedEvent"
 
-    def __post_init__(self) -> None:
-        if self.binding_id is None:
-            raise ValueError(
-                "binding_id is required for CategoryAttributeBindingUpdatedEvent"
-            )
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.binding_id)
-        _freeze(self)
-
 
 @dataclass
-class CategoryAttributeBindingDeletedEvent(_ImmutableAfterInit, DomainEvent):
+class CategoryAttributeBindingDeletedEvent(
+    CatalogEvent,
+    required_fields=("binding_id",),
+    aggregate_id_field="binding_id",
+):
     """Emitted when a category-attribute binding is deleted."""
 
     category_id: uuid.UUID | None = None
@@ -404,23 +365,6 @@ class CategoryAttributeBindingDeletedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "CategoryAttributeBinding"
     event_type: str = "CategoryAttributeBindingDeletedEvent"
 
-    def __post_init__(self) -> None:
-        if self.binding_id is None:
-            raise ValueError(
-                "binding_id is required for CategoryAttributeBindingDeletedEvent"
-            )
-        if self.category_id is None:
-            raise ValueError(
-                "category_id is required for CategoryAttributeBindingDeletedEvent"
-            )
-        if self.attribute_id is None:
-            raise ValueError(
-                "attribute_id is required for CategoryAttributeBindingDeletedEvent"
-            )
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.binding_id)
-        _freeze(self)
-
 
 # ---------------------------------------------------------------------------
 # ProductMedia events
@@ -428,8 +372,12 @@ class CategoryAttributeBindingDeletedEvent(_ImmutableAfterInit, DomainEvent):
 
 
 @dataclass
-class ProductMediaConfirmedEvent(_ImmutableAfterInit, DomainEvent):
-    """Emitted when a media upload is confirmed -- triggers AI processing."""
+class ProductMediaConfirmedEvent(
+    CatalogEvent,
+    required_fields=("media_id",),
+    aggregate_id_field="media_id",
+):
+    """Emitted when a media upload is confirmed — triggers AI processing."""
 
     media_id: uuid.UUID | None = None
     product_id: uuid.UUID | None = None
@@ -438,16 +386,13 @@ class ProductMediaConfirmedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "ProductMedia"
     event_type: str = "ProductMediaConfirmedEvent"
 
-    def __post_init__(self) -> None:
-        if self.media_id is None:
-            raise ValueError("media_id is required for ProductMediaConfirmedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.media_id)
-        _freeze(self)
-
 
 @dataclass
-class ProductMediaProcessedEvent(_ImmutableAfterInit, DomainEvent):
+class ProductMediaProcessedEvent(
+    CatalogEvent,
+    required_fields=("media_id",),
+    aggregate_id_field="media_id",
+):
     """Emitted when AI processing completes for a media asset."""
 
     media_id: uuid.UUID | None = None
@@ -458,13 +403,6 @@ class ProductMediaProcessedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "ProductMedia"
     event_type: str = "ProductMediaProcessedEvent"
 
-    def __post_init__(self) -> None:
-        if self.media_id is None:
-            raise ValueError("media_id is required for ProductMediaProcessedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.media_id)
-        _freeze(self)
-
 
 # ---------------------------------------------------------------------------
 # Product events
@@ -472,7 +410,11 @@ class ProductMediaProcessedEvent(_ImmutableAfterInit, DomainEvent):
 
 
 @dataclass
-class ProductCreatedEvent(_ImmutableAfterInit, DomainEvent):
+class ProductCreatedEvent(
+    CatalogEvent,
+    required_fields=("product_id",),
+    aggregate_id_field="product_id",
+):
     """Emitted when a new product is created."""
 
     product_id: uuid.UUID | None = None
@@ -480,32 +422,13 @@ class ProductCreatedEvent(_ImmutableAfterInit, DomainEvent):
     aggregate_type: str = "Product"
     event_type: str = "ProductCreatedEvent"
 
-    def __post_init__(self) -> None:
-        if self.product_id is None:
-            raise ValueError("product_id is required for ProductCreatedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.product_id)
-        _freeze(self)
-
 
 @dataclass
-class ProductUpdatedEvent(_ImmutableAfterInit, DomainEvent):
-    """Emitted when product fields are updated."""
-
-    product_id: uuid.UUID | None = None
-    aggregate_type: str = "Product"
-    event_type: str = "ProductUpdatedEvent"
-
-    def __post_init__(self) -> None:
-        if self.product_id is None:
-            raise ValueError("product_id is required for ProductUpdatedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.product_id)
-        _freeze(self)
-
-
-@dataclass
-class ProductStatusChangedEvent(_ImmutableAfterInit, DomainEvent):
+class ProductStatusChangedEvent(
+    CatalogEvent,
+    required_fields=("product_id",),
+    aggregate_id_field="product_id",
+):
     """Emitted when a product's status transitions."""
 
     product_id: uuid.UUID | None = None
@@ -513,153 +436,3 @@ class ProductStatusChangedEvent(_ImmutableAfterInit, DomainEvent):
     new_status: str = ""
     aggregate_type: str = "Product"
     event_type: str = "ProductStatusChangedEvent"
-
-    def __post_init__(self) -> None:
-        if self.product_id is None:
-            raise ValueError("product_id is required for ProductStatusChangedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.product_id)
-        _freeze(self)
-
-
-# ---------------------------------------------------------------------------
-# Product Variant & SKU events
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class VariantAddedEvent(_ImmutableAfterInit, DomainEvent):
-    """Emitted when a new variant is added to a product."""
-
-    product_id: uuid.UUID | None = None
-    variant_id: uuid.UUID | None = None
-    aggregate_type: str = "Product"
-    event_type: str = "VariantAddedEvent"
-
-    def __post_init__(self) -> None:
-        if self.product_id is None:
-            raise ValueError("product_id is required for VariantAddedEvent")
-        if self.variant_id is None:
-            raise ValueError("variant_id is required for VariantAddedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.product_id)
-        _freeze(self)
-
-
-@dataclass
-class VariantRemovedEvent(_ImmutableAfterInit, DomainEvent):
-    """Emitted when a variant is removed (soft-deleted) from a product."""
-
-    product_id: uuid.UUID | None = None
-    variant_id: uuid.UUID | None = None
-    aggregate_type: str = "Product"
-    event_type: str = "VariantRemovedEvent"
-
-    def __post_init__(self) -> None:
-        if self.product_id is None:
-            raise ValueError("product_id is required for VariantRemovedEvent")
-        if self.variant_id is None:
-            raise ValueError("variant_id is required for VariantRemovedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.product_id)
-        _freeze(self)
-
-
-@dataclass
-class SKUAddedEvent(_ImmutableAfterInit, DomainEvent):
-    """Emitted when a new SKU is added to a product variant."""
-
-    product_id: uuid.UUID | None = None
-    variant_id: uuid.UUID | None = None
-    sku_id: uuid.UUID | None = None
-    sku_code: str = ""
-    aggregate_type: str = "Product"
-    event_type: str = "SKUAddedEvent"
-
-    def __post_init__(self) -> None:
-        if self.product_id is None:
-            raise ValueError("product_id is required for SKUAddedEvent")
-        if self.sku_id is None:
-            raise ValueError("sku_id is required for SKUAddedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.product_id)
-        _freeze(self)
-
-
-@dataclass
-class SKURemovedEvent(_ImmutableAfterInit, DomainEvent):
-    """Emitted when a SKU is removed (soft-deleted) from a product."""
-
-    product_id: uuid.UUID | None = None
-    variant_id: uuid.UUID | None = None
-    sku_id: uuid.UUID | None = None
-    aggregate_type: str = "Product"
-    event_type: str = "SKURemovedEvent"
-
-    def __post_init__(self) -> None:
-        if self.product_id is None:
-            raise ValueError("product_id is required for SKURemovedEvent")
-        if self.sku_id is None:
-            raise ValueError("sku_id is required for SKURemovedEvent")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.product_id)
-        _freeze(self)
-
-
-# ---------------------------------------------------------------------------
-# Bulk operation events
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class AttributeValuesReorderedEvent(_ImmutableAfterInit, DomainEvent):
-    """Emitted when attribute values are bulk-reordered."""
-
-    attribute_id: uuid.UUID | None = None
-    aggregate_type: str = "Attribute"
-    event_type: str = "AttributeValuesReorderedEvent"
-
-    def __post_init__(self) -> None:
-        if self.attribute_id is None:
-            raise ValueError(
-                "attribute_id is required for AttributeValuesReorderedEvent"
-            )
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.attribute_id)
-        _freeze(self)
-
-
-@dataclass
-class CategoryBindingsReorderedEvent(_ImmutableAfterInit, DomainEvent):
-    """Emitted when category-attribute bindings are bulk-reordered."""
-
-    category_id: uuid.UUID | None = None
-    aggregate_type: str = "Category"
-    event_type: str = "CategoryBindingsReorderedEvent"
-
-    def __post_init__(self) -> None:
-        if self.category_id is None:
-            raise ValueError(
-                "category_id is required for CategoryBindingsReorderedEvent"
-            )
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.category_id)
-        _freeze(self)
-
-
-@dataclass
-class RequirementLevelsUpdatedEvent(_ImmutableAfterInit, DomainEvent):
-    """Emitted when requirement levels are bulk-updated."""
-
-    category_id: uuid.UUID | None = None
-    aggregate_type: str = "Category"
-    event_type: str = "RequirementLevelsUpdatedEvent"
-
-    def __post_init__(self) -> None:
-        if self.category_id is None:
-            raise ValueError(
-                "category_id is required for RequirementLevelsUpdatedEvent"
-            )
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.category_id)
-        _freeze(self)
