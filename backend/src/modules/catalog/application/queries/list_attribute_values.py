@@ -101,6 +101,6 @@ class ListAttributeValuesHandler:
             value_i18n=orm.value_i18n,
             search_aliases=list(orm.search_aliases) if orm.search_aliases else [],
             meta_data=orm.meta_data,
-            value_group=orm.group_code,
+            value_group=orm.group_code,  # ORM group_code -> read model value_group
             sort_order=orm.sort_order,
         )

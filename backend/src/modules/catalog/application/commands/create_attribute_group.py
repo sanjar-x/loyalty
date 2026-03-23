@@ -46,10 +46,10 @@ class CreateAttributeGroupHandler:
 
     def __init__(
         self,
-        group_repo: IAttributeGroupRepository,
+        attribute_group_repo: IAttributeGroupRepository,
         uow: IUnitOfWork,
     ):
-        self._group_repo = group_repo
+        self._attribute_group_repo = attribute_group_repo
         self._uow = uow
 
     async def handle(self, command: CreateAttributeGroupCommand) -> CreateAttributeGroupResult:
@@ -66,7 +66,7 @@ class CreateAttributeGroupHandler:
             ValueError: If name_i18n is empty.
         """
         async with self._uow:
-            if await self._group_repo.check_code_exists(command.code):
+            if await self._attribute_group_repo.check_code_exists(command.code):
                 raise AttributeGroupCodeConflictError(code=command.code)
 
             group = AttributeGroup.create(
@@ -83,7 +83,7 @@ class CreateAttributeGroupHandler:
                 )
             )
 
-            group = await self._group_repo.add(group)
+            group = await self._attribute_group_repo.add(group)
             self._uow.register_aggregate(group)
             await self._uow.commit()
 

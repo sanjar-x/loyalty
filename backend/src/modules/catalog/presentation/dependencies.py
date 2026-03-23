@@ -39,7 +39,7 @@ from src.modules.catalog.application.commands.confirm_brand_logo import (
     ConfirmBrandLogoUploadHandler,
 )
 from src.modules.catalog.application.commands.confirm_product_media import (
-    ConfirmProductMediaHandler,
+    ConfirmProductMediaUploadHandler,
 )
 from src.modules.catalog.application.commands.create_attribute import (
     CreateAttributeHandler,
@@ -70,8 +70,8 @@ from src.modules.catalog.application.commands.delete_product_media import (
     DeleteProductMediaHandler,
 )
 from src.modules.catalog.application.commands.delete_sku import DeleteSKUHandler
-from src.modules.catalog.application.commands.remove_product_attribute import (
-    RemoveProductAttributeHandler,
+from src.modules.catalog.application.commands.delete_product_attribute import (
+    DeleteProductAttributeHandler,
 )
 from src.modules.catalog.application.commands.reorder_attribute_values import (
     ReorderAttributeValuesHandler,
@@ -367,8 +367,8 @@ class ProductProvider(Provider):
     assign_product_attribute_handler: CompositeDependencySource = provide(
         AssignProductAttributeHandler, scope=Scope.REQUEST
     )
-    remove_product_attribute_handler: CompositeDependencySource = provide(
-        RemoveProductAttributeHandler, scope=Scope.REQUEST
+    delete_product_attribute_handler: CompositeDependencySource = provide(
+        DeleteProductAttributeHandler, scope=Scope.REQUEST
     )
 
     # Query handlers
@@ -394,7 +394,7 @@ class MediaAssetProvider(Provider):
         AddProductMediaHandler, scope=Scope.REQUEST
     )
     confirm_product_media_handler: CompositeDependencySource = provide(
-        ConfirmProductMediaHandler, scope=Scope.REQUEST
+        ConfirmProductMediaUploadHandler, scope=Scope.REQUEST
     )
     complete_product_media_handler: CompositeDependencySource = provide(
         CompleteProductMediaHandler, scope=Scope.REQUEST

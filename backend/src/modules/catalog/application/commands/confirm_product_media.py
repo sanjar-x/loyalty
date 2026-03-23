@@ -19,7 +19,7 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)
-class ConfirmProductMediaCommand:
+class ConfirmProductMediaUploadCommand:
     """Input for confirming a product media upload.
 
     Attributes:
@@ -33,7 +33,7 @@ class ConfirmProductMediaCommand:
     content_type: str = ""
 
 
-class ConfirmProductMediaHandler:
+class ConfirmProductMediaUploadHandler:
     """Confirm that a product media file was uploaded and trigger AI processing."""
 
     def __init__(
@@ -46,9 +46,9 @@ class ConfirmProductMediaHandler:
         self._media_repo = media_repo
         self._blob_storage = blob_storage
         self._uow = uow
-        self._logger = logger.bind(handler="ConfirmProductMediaHandler")
+        self._logger = logger.bind(handler="ConfirmProductMediaUploadHandler")
 
-    async def handle(self, command: ConfirmProductMediaCommand) -> None:
+    async def handle(self, command: ConfirmProductMediaUploadCommand) -> None:
         """Execute the confirm-product-media command.
 
         Args:

@@ -52,10 +52,10 @@ class UpdateAttributeGroupHandler:
 
     def __init__(
         self,
-        group_repo: IAttributeGroupRepository,
+        attribute_group_repo: IAttributeGroupRepository,
         uow: IUnitOfWork,
     ):
-        self._group_repo = group_repo
+        self._attribute_group_repo = group_repo
         self._uow = uow
 
     async def handle(self, command: UpdateAttributeGroupCommand) -> UpdateAttributeGroupResult:
@@ -72,7 +72,7 @@ class UpdateAttributeGroupHandler:
             ValueError: If name_i18n is provided but empty.
         """
         async with self._uow:
-            group = await self._group_repo.get(command.group_id)
+            group = await self._attribute_group_repo.get(command.group_id)
             if group is None:
                 raise AttributeGroupNotFoundError(group_id=command.group_id)
 
@@ -88,7 +88,7 @@ class UpdateAttributeGroupHandler:
                 )
             )
 
-            await self._group_repo.update(group)
+            await self._attribute_group_repo.update(group)
             self._uow.register_aggregate(group)
             await self._uow.commit()
 

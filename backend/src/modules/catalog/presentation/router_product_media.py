@@ -22,8 +22,8 @@ from src.modules.catalog.application.commands.add_product_media import (
     AddProductMediaResult,
 )
 from src.modules.catalog.application.commands.confirm_product_media import (
-    ConfirmProductMediaCommand,
-    ConfirmProductMediaHandler,
+    ConfirmProductMediaUploadCommand,
+    ConfirmProductMediaUploadHandler,
 )
 from src.modules.catalog.application.commands.delete_product_media import (
     DeleteProductMediaCommand,
@@ -124,10 +124,10 @@ async def add_external_media(
 async def confirm_media_upload(
     product_id: uuid.UUID,
     media_id: uuid.UUID,
-    handler: FromDishka[ConfirmProductMediaHandler],
+    handler: FromDishka[ConfirmProductMediaUploadHandler],
 ) -> None:
     """Confirm that a media file was uploaded to S3. Triggers AI processing."""
-    cmd = ConfirmProductMediaCommand(product_id=product_id, media_id=media_id)
+    cmd = ConfirmProductMediaUploadCommand(product_id=product_id, media_id=media_id)
     await handler.handle(cmd)
 
 
