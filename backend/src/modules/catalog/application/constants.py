@@ -60,6 +60,19 @@ CATEGORY_TREE_CACHE_KEY = "catalog:category_tree"
 MEDIA_ROLE_MAIN = "main"
 """Canonical value for the "main" media role, matching ``MediaRole.MAIN``."""
 
+CATEGORY_TREE_CACHE_TTL_SECONDS = 300
+"""TTL for the category tree Redis cache (5 minutes)."""
+
+PRESIGNED_URL_EXPIRATION_SECONDS = 300
+"""Expiration time in seconds for S3 presigned PUT URLs (5 minutes)."""
+
+MAX_MEDIA_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
+
+
+def storefront_cache_key(category_id: uuid.UUID) -> str:
+    """Build the Redis cache key for storefront attribute data of a category."""
+    return f"catalog:storefront:{category_id}"
+
 
 def storefront_filters_cache_key(category_id: uuid.UUID) -> str:
     """Redis cache key for storefront filterable attributes of a category."""
@@ -80,12 +93,4 @@ STOREFRONT_CACHE_TTL = 300
 """TTL in seconds for storefront attribute cache entries (5 minutes)."""
 
 STOREFRONT_CACHE_PREFIX = "catalog:storefront:"
-"""Common prefix for all storefront cache keys.
-
-Used by ``invalidate_storefront_cache`` to build the list of keys that
-must be deleted when attributes, attribute values, or category-attribute
-bindings change.
-"""
-
-PRESIGNED_URL_EXPIRATION_SECONDS = 300
-MAX_MEDIA_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
+"""Common prefix for all storefront cache keys."""

@@ -13,7 +13,10 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.modules.catalog.application.constants import CATEGORY_TREE_CACHE_KEY
+from src.modules.catalog.application.constants import (
+    CATEGORY_TREE_CACHE_KEY,
+    CATEGORY_TREE_CACHE_TTL_SECONDS,
+)
 from src.modules.catalog.application.queries.read_models import CategoryNode
 from src.modules.catalog.infrastructure.models import Category as OrmCategory
 from src.shared.interfaces.cache import ICacheService
@@ -71,7 +74,7 @@ class GetCategoryTreeHandler:
                     parent.children.append(node)
 
         cache_payload = [n.model_dump(mode="json") for n in roots]
-        await self._cache.set(CATEGORY_TREE_CACHE_KEY, json.dumps(cache_payload), ttl=300)
+        await self._cache.set(CATEGORY_TREE_CACHE_KEY, json.dumps(cache_payload), ttl=CATEGORY_TREE_CACHE_TTL_SECONDS)
 
         if max_depth is not None:
             _prune_tree(roots, current_depth=1, max_depth=max_depth)

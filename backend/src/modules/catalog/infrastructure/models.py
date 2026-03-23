@@ -693,7 +693,7 @@ class MediaAsset(Base):
             "variant_id",
             unique=True,
             postgresql_where=text(
-                "role = 'main' AND processing_status != 'FAILED'"
+                f"role = '{MediaRole.MAIN}' AND processing_status != 'FAILED'"
             ),
             postgresql_nulls_not_distinct=True,
         ),

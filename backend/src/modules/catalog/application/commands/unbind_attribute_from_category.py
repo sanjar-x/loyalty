@@ -7,11 +7,13 @@ Removes the binding and emits ``CategoryAttributeBindingDeletedEvent``.
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.application.constants import storefront_cache_key
 from src.modules.catalog.domain.events import CategoryAttributeBindingDeletedEvent
 from src.modules.catalog.domain.exceptions import (
     CategoryAttributeBindingNotFoundError,
 )
 from src.modules.catalog.domain.interfaces import ICategoryAttributeBindingRepository
+from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -30,9 +32,11 @@ class UnbindAttributeFromCategoryHandler:
         self,
         binding_repo: ICategoryAttributeBindingRepository,
         uow: IUnitOfWork,
+        cache: ICacheService,
     ):
         self._binding_repo = binding_repo
         self._uow = uow
+        self._cache = cache
 
     async def handle(self, command: UnbindAttributeFromCategoryCommand) -> None:
         """Execute the unbind command.
@@ -61,3 +65,6 @@ class UnbindAttributeFromCategoryHandler:
             self._uow.register_aggregate(binding)
             await self._binding_repo.delete(command.binding_id)
             await self._uow.commit()
+
+        # Invalidate storefront cache for the affected category
+        await self._cache.delete(storefront_cache_key(command.category_id))
