@@ -2,6 +2,8 @@
 FastAPI router for Category CRUD and tree endpoints.
 
 All mutating endpoints require the ``catalog:manage`` permission.
+Read endpoints require the ``catalog:read`` permission (admin use).
+Public storefront access is served by the separate storefront router.
 Delegates to application-layer command/query handlers via Dishka DI.
 """
 
@@ -83,6 +85,7 @@ async def create_category(
     response_model=list[CategoryTreeResponse],
     summary="Get the category tree",
     description="Returns the full catalog as a nested tree",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_category_tree(
     handler: FromDishka[GetCategoryTreeHandler],
@@ -100,6 +103,7 @@ async def get_category_tree(
     response_model=CategoryListResponse,
     summary="List categories (paginated)",
     description="Retrieve a paginated list of all categories.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_categories(
     handler: FromDishka[ListCategoriesHandler],
@@ -133,6 +137,7 @@ async def list_categories(
     response_model=CategoryResponse,
     summary="Get category by ID",
     description="Retrieve a single category by its unique identifier.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_category(
     category_id: uuid.UUID,

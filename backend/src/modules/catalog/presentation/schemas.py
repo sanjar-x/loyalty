@@ -6,101 +6,36 @@ camelCase <-> snake_case field aliasing.  These DTOs belong to the
 presentation layer and carry no business logic.
 """
 
-import ipaddress
 import re
 import uuid
 from datetime import datetime
-from typing import Annotated, Any, Generic, Literal, Self, TypeVar
-from urllib.parse import urlparse
+from typing import Annotated, Any, Literal
 
-from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
+from pydantic import AfterValidator, ConfigDict, Field, model_validator
 
 from src.shared.schemas import CamelModel
 
 # ---------------------------------------------------------------------------
-# Shared validation helpers
+# i18n language code validation
 # ---------------------------------------------------------------------------
 
-_LANG_CODE_RE = re.compile(r"^[a-z]{2}(-[A-Z]{2})?$")
+# ISO 639-1 two-letter language codes (lowercase).
+_LANG_CODE_RE = re.compile(r"^[a-z]{2}$")
 
 
-def _validate_i18n_dict(v: dict[str, str] | None) -> dict[str, str] | None:
-    """Validate i18n dictionary: max 20 language codes, max 10000 chars per value."""
-    if v is None:
-        return v
-    if len(v) > 20:
-        raise ValueError(f"i18n dict must have at most 20 entries, got {len(v)}")
-    for key, val in v.items():
+def _validate_i18n_keys(value: dict[str, str]) -> dict[str, str]:
+    """Validate that all keys in an i18n dict are ISO 639-1 language codes."""
+    for key in value:
         if not _LANG_CODE_RE.match(key):
-            raise ValueError(f"Invalid language code: '{key}'. Expected format: 'en' or 'en-US'")
-        if len(val) > 10_000:
-            raise ValueError(f"Value for language '{key}' exceeds 10000 characters")
-    return v
+            raise ValueError(
+                f"Invalid language code '{key}'. "
+                f"Keys must be ISO 639-1 two-letter lowercase codes (e.g. 'en', 'ru')."
+            )
+    return value
 
 
-I18nDict = Annotated[dict[str, str], AfterValidator(_validate_i18n_dict)]
-
-# ---------------------------------------------------------------------------
-# Reusable base classes
-# ---------------------------------------------------------------------------
-
-# Private IP/internal network ranges that must be blocked for SSRF protection.
-_BLOCKED_NETWORKS = [
-    ipaddress.ip_network("10.0.0.0/8"),
-    ipaddress.ip_network("172.16.0.0/12"),
-    ipaddress.ip_network("192.168.0.0/16"),
-    ipaddress.ip_network("127.0.0.0/8"),
-    ipaddress.ip_network("169.254.0.0/16"),
-    ipaddress.ip_network("0.0.0.0/8"),
-]
-
-_BLOCKED_HOSTNAMES = {"localhost"}
-
-
-class PatchModel(CamelModel):
-    """Base class for PATCH/update request schemas.
-
-    Provides a built-in ``at_least_one_field`` model validator that rejects
-    requests where every field is ``None`` (i.e. nothing was provided).
-    Subclasses that use a ``version`` field can add it to
-    ``_patch_exclude_fields`` so that sending *only* a version is rejected.
-
-    Usage::
-
-        class FooUpdateRequest(PatchModel):
-            name: str | None = None
-            slug: str | None = None
-    """
-
-    # Fields to exclude from the "at least one field" check (e.g. "version").
-    _patch_exclude_fields: frozenset[str] = frozenset()
-
-    @model_validator(mode="after")
-    def at_least_one_field(self) -> Self:
-        """Ensure at least one meaningful field was provided."""
-        if not (self.model_fields_set - self._patch_exclude_fields):
-            raise ValueError("At least one field must be provided for update")
-        return self
-
-
-T = TypeVar("T")
-
-
-class PaginatedResponse(CamelModel, Generic[T]):
-    """Generic paginated list response.
-
-    Usage::
-
-        class ProductListResponse(PaginatedResponse[ProductListItemResponse]):
-            pass
-
-    Or use directly as ``PaginatedResponse[ProductListItemResponse]``.
-    """
-
-    items: list[T]
-    total: int
-    offset: int
-    limit: int
+I18nDict = Annotated[dict[str, str], AfterValidator(_validate_i18n_keys)]
+"""A ``dict[str, str]`` whose keys are validated as ISO 639-1 language codes."""
 
 
 class LogoMetadataRequest(CamelModel):
@@ -119,7 +54,7 @@ class CategoryCreateRequest(CamelModel):
         ...,
         min_length=3,
         max_length=255,
-        pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        pattern=r"^[a-z0-9-]+$",
         examples=["sneakers"],
     )
     parent_id: uuid.UUID | None = Field(None, description="Parent category ID (optional)")
@@ -159,30 +94,41 @@ class CategoryResponse(CamelModel):
     parent_id: uuid.UUID | None = None
 
 
-class CategoryUpdateRequest(PatchModel):
+class CategoryUpdateRequest(CamelModel):
     """Partial update request -- all fields optional (PATCH semantics)."""
 
     name: str | None = Field(None, min_length=2, max_length=255)
-    slug: str | None = Field(None, min_length=3, max_length=255, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+    slug: str | None = Field(None, min_length=3, max_length=255, pattern=r"^[a-z0-9-]+$")
     sort_order: int | None = None
 
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> CategoryUpdateRequest:
+        if self.name is None and self.slug is None and self.sort_order is None:
+            raise ValueError("At least one field (name, slug, or sortOrder) must be provided")
+        return self
 
-class CategoryListResponse(PaginatedResponse[CategoryResponse]):
+
+class CategoryListResponse(CamelModel):
     """Paginated category list response."""
+
+    items: list[CategoryResponse]
+    total: int
+    offset: int
+    limit: int
 
 
 class BrandCreateRequest(CamelModel):
     """Request body for creating a new brand, with optional logo metadata."""
 
     name: str = Field(..., min_length=1, max_length=255)
-    slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+    slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$")
     logo: LogoMetadataRequest | None = None
 
 
 class BrandCreateResponse(CamelModel):
     """Response after brand creation, including an optional presigned upload URL."""
 
-    id: uuid.UUID
+    brand_id: uuid.UUID
     presigned_upload_url: str | None = None
     object_key: str | None = None
 
@@ -197,15 +143,26 @@ class BrandResponse(CamelModel):
     logo_status: str | None = None
 
 
-class BrandUpdateRequest(PatchModel):
+class BrandUpdateRequest(CamelModel):
     """Partial update request -- all fields optional (PATCH semantics)."""
 
     name: str | None = Field(None, min_length=1, max_length=255)
-    slug: str | None = Field(None, min_length=1, max_length=255, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+    slug: str | None = Field(None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$")
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> BrandUpdateRequest:
+        if self.name is None and self.slug is None:
+            raise ValueError("At least one field (name or slug) must be provided")
+        return self
 
 
-class BrandListResponse(PaginatedResponse[BrandResponse]):
+class BrandListResponse(CamelModel):
     """Paginated brand list response."""
+
+    items: list[BrandResponse]
+    total: int
+    offset: int
+    limit: int
 
 
 class LogoConfirmResponse(CamelModel):
@@ -242,7 +199,7 @@ class AttributeGroupCreateRequest(CamelModel):
 class AttributeGroupCreateResponse(CamelModel):
     """Response after attribute group creation."""
 
-    id: uuid.UUID
+    group_id: uuid.UUID
 
 
 class AttributeGroupResponse(CamelModel):
@@ -254,7 +211,7 @@ class AttributeGroupResponse(CamelModel):
     sort_order: int
 
 
-class AttributeGroupUpdateRequest(PatchModel):
+class AttributeGroupUpdateRequest(CamelModel):
     """Partial update request -- code is immutable and cannot be changed."""
 
     name_i18n: I18nDict | None = Field(
@@ -264,9 +221,20 @@ class AttributeGroupUpdateRequest(PatchModel):
     )
     sort_order: int | None = None
 
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> AttributeGroupUpdateRequest:
+        if self.name_i18n is None and self.sort_order is None:
+            raise ValueError("At least one field (nameI18n or sortOrder) must be provided")
+        return self
 
-class AttributeGroupListResponse(PaginatedResponse[AttributeGroupResponse]):
+
+class AttributeGroupListResponse(CamelModel):
     """Paginated attribute group list response."""
+
+    items: list[AttributeGroupResponse]
+    total: int
+    offset: int
+    limit: int
 
 
 # ---------------------------------------------------------------------------
@@ -281,7 +249,7 @@ class AttributeCreateRequest(CamelModel):
         ..., min_length=1, max_length=100, pattern=r"^[a-z0-9_]+$", examples=["color"]
     )
     slug: str = Field(
-        ..., min_length=1, max_length=255, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", examples=["color"]
+        ..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$", examples=["color"]
     )
     name_i18n: I18nDict = Field(..., min_length=1, examples=[{"en": "Color", "ru": "Цвет"}])
     description_i18n: I18nDict = Field(default_factory=dict)
@@ -300,17 +268,11 @@ class AttributeCreateRequest(CamelModel):
     is_visible_in_catalog: bool = False
     validation_rules: dict[str, Any] | None = None
 
-    @model_validator(mode="after")
-    def _limit_validation_rules_size(self) -> Self:
-        if self.validation_rules and len(str(self.validation_rules)) > 4096:
-            raise ValueError("validation_rules exceeds maximum allowed size")
-        return self
-
 
 class AttributeCreateResponse(CamelModel):
     """Response after attribute creation."""
 
-    id: uuid.UUID
+    attribute_id: uuid.UUID
 
 
 class AttributeResponse(CamelModel):
@@ -335,16 +297,14 @@ class AttributeResponse(CamelModel):
     validation_rules: dict[str, Any] | None = None
 
 
-class AttributeUpdateRequest(PatchModel):
+class AttributeUpdateRequest(CamelModel):
     """Partial update request -- code, slug, data_type are immutable."""
 
     name_i18n: I18nDict | None = Field(None, min_length=1)
     description_i18n: I18nDict | None = None
-    ui_type: (
-        Literal["text_button", "color_swatch", "dropdown", "checkbox", "range_slider"] | None
-    ) = None
+    ui_type: str | None = None
     group_id: uuid.UUID | None = None
-    level: Literal["product", "variant"] | None = None
+    level: str | None = None
     is_filterable: bool | None = None
     is_searchable: bool | None = None
     search_weight: int | None = Field(None, ge=1, le=10)
@@ -354,14 +314,20 @@ class AttributeUpdateRequest(PatchModel):
     validation_rules: dict[str, Any] | None = None
 
     @model_validator(mode="after")
-    def _limit_validation_rules_size(self) -> Self:
-        if self.validation_rules and len(str(self.validation_rules)) > 4096:
-            raise ValueError("validation_rules exceeds maximum allowed size")
+    def at_least_one_field(self) -> AttributeUpdateRequest:
+        """Ensure at least one field is provided for update."""
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided for update")
         return self
 
 
-class AttributeListResponse(PaginatedResponse[AttributeResponse]):
+class AttributeListResponse(CamelModel):
     """Paginated attribute list response."""
+
+    items: list[AttributeResponse]
+    total: int
+    offset: int
+    limit: int
 
 
 # ---------------------------------------------------------------------------
@@ -373,9 +339,14 @@ class AttributeValueCreateRequest(CamelModel):
     """Request body for adding a value to an attribute."""
 
     code: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9_]+$", examples=["red"])
-    slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", examples=["red"])
+    slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$", examples=["red"])
     value_i18n: I18nDict = Field(..., min_length=1, examples=[{"en": "Red", "ru": "Красный"}])
-    search_aliases: list[str] = Field(default_factory=list, examples=[["scarlet", "crimson"]])
+    search_aliases: list[Annotated[str, Field(max_length=100)]] = Field(
+        default_factory=list,
+        max_length=50,
+        examples=[["scarlet", "crimson"]],
+        description="Search synonyms (max 50 entries, each max 100 chars)",
+    )
     meta_data: dict[str, Any] = Field(default_factory=dict, examples=[{"hex": "#FF0000"}])
     value_group: str | None = Field(None, max_length=100, examples=["Warm tones"])
     sort_order: int = Field(0, description="Display ordering among values")
@@ -384,7 +355,7 @@ class AttributeValueCreateRequest(CamelModel):
 class AttributeValueCreateResponse(CamelModel):
     """Response after attribute value creation."""
 
-    id: uuid.UUID
+    value_id: uuid.UUID
 
 
 class AttributeValueResponse(CamelModel):
@@ -401,18 +372,30 @@ class AttributeValueResponse(CamelModel):
     sort_order: int
 
 
-class AttributeValueUpdateRequest(PatchModel):
+class AttributeValueUpdateRequest(CamelModel):
     """Partial update request -- code and slug are immutable."""
 
     value_i18n: I18nDict | None = Field(None, min_length=1)
-    search_aliases: list[str] | None = None
+    search_aliases: list[Annotated[str, Field(max_length=100)]] | None = Field(None, max_length=50)
     meta_data: dict[str, Any] | None = None
     value_group: str | None = None
     sort_order: int | None = None
 
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> AttributeValueUpdateRequest:
+        """Ensure at least one field is provided for update."""
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided for update")
+        return self
 
-class AttributeValueListResponse(PaginatedResponse[AttributeValueResponse]):
+
+class AttributeValueListResponse(CamelModel):
     """Paginated attribute value list response."""
+
+    items: list[AttributeValueResponse]
+    total: int
+    offset: int
+    limit: int
 
 
 class ReorderItemRequest(CamelModel):
@@ -425,29 +408,12 @@ class ReorderItemRequest(CamelModel):
 class ReorderAttributeValuesRequest(CamelModel):
     """Request body for bulk-reordering attribute values."""
 
-    items: list[ReorderItemRequest] = Field(..., min_length=1, max_length=500)
+    items: list[ReorderItemRequest] = Field(..., min_length=1)
 
 
 # ---------------------------------------------------------------------------
 # CategoryAttributeBinding schemas
 # ---------------------------------------------------------------------------
-
-
-class FlagOverrides(CamelModel):
-    """Optional overrides for attribute display flags at the category-binding level."""
-
-    is_filterable: bool | None = None
-    is_searchable: bool | None = None
-    is_comparable: bool | None = None
-    is_visible_on_card: bool | None = None
-    search_weight: int | None = Field(None, ge=1, le=10)
-
-
-class FilterSettings(CamelModel):
-    """Filter display settings for category-attribute bindings."""
-
-    display_type: str | None = None
-    collapse_threshold: int | None = Field(None, ge=0)
 
 
 class BindAttributeToCategoryRequest(CamelModel):
@@ -458,22 +424,22 @@ class BindAttributeToCategoryRequest(CamelModel):
     requirement_level: Literal["required", "recommended", "optional"] = Field(
         "optional", examples=["required", "recommended", "optional"]
     )
-    flag_overrides: FlagOverrides | None = Field(
+    flag_overrides: dict[str, Any] | None = Field(
         None,
         description="Per-category behavior flag overrides",
         examples=[{"is_filterable": True, "search_weight": 8}],
     )
-    filter_settings: FilterSettings | None = Field(
+    filter_settings: dict[str, Any] | None = Field(
         None,
         description="Per-category filter settings",
-        examples=[{"display_type": "range", "collapse_threshold": 5}],
+        examples=[{"filter_type": "range", "thresholds": [0, 5000, 10000]}],
     )
 
 
 class BindAttributeToCategoryResponse(CamelModel):
     """Response after binding creation."""
 
-    id: uuid.UUID
+    binding_id: uuid.UUID
 
 
 class CategoryAttributeBindingResponse(CamelModel):
@@ -488,17 +454,29 @@ class CategoryAttributeBindingResponse(CamelModel):
     filter_settings: dict[str, Any] | None = None
 
 
-class CategoryAttributeBindingUpdateRequest(PatchModel):
+class CategoryAttributeBindingUpdateRequest(CamelModel):
     """Partial update request for a binding."""
 
     sort_order: int | None = None
     requirement_level: Literal["required", "recommended", "optional"] | None = None
-    flag_overrides: FlagOverrides | None = None
-    filter_settings: FilterSettings | None = None
+    flag_overrides: dict[str, Any] | None = None
+    filter_settings: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> CategoryAttributeBindingUpdateRequest:
+        """Ensure at least one field is provided for update."""
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided for update")
+        return self
 
 
-class CategoryAttributeBindingListResponse(PaginatedResponse[CategoryAttributeBindingResponse]):
+class CategoryAttributeBindingListResponse(CamelModel):
     """Paginated binding list response."""
+
+    items: list[CategoryAttributeBindingResponse]
+    total: int
+    offset: int
+    limit: int
 
 
 class BindingReorderItemRequest(CamelModel):
@@ -511,7 +489,7 @@ class BindingReorderItemRequest(CamelModel):
 class ReorderBindingsRequest(CamelModel):
     """Request body for bulk-reordering bindings."""
 
-    items: list[BindingReorderItemRequest] = Field(..., min_length=1, max_length=500)
+    items: list[BindingReorderItemRequest] = Field(..., min_length=1)
 
 
 class RequirementLevelUpdateItemRequest(CamelModel):
@@ -526,19 +504,11 @@ class RequirementLevelUpdateItemRequest(CamelModel):
 class BulkUpdateRequirementLevelsRequest(CamelModel):
     """Request body for bulk-updating requirement levels."""
 
-    items: list[RequirementLevelUpdateItemRequest] = Field(..., min_length=1, max_length=500)
+    items: list[RequirementLevelUpdateItemRequest] = Field(..., min_length=1)
 
 
 # ---------------------------------------------------------------------------
 # Storefront schemas
-#
-# NOTE on ``display_type`` vs ``ui_type``:
-#   The domain model and admin-facing schemas use ``ui_type`` (the canonical
-#   attribute property stored in the database).  Storefront schemas
-#   intentionally expose this as ``display_type`` because the value may be
-#   overridden per-category via ``FilterSettings.display_type``.  The mapping
-#   is performed in ``storefront.py::_effective_display_type()``, which falls
-#   back to the attribute's ``ui_type`` when no per-category override exists.
 # ---------------------------------------------------------------------------
 
 
@@ -687,22 +657,14 @@ class ProductCreateRequest(CamelModel):
         ...,
         min_length=1,
         max_length=255,
-        pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        pattern=r"^[a-z0-9-]+$",
     )
     brand_id: uuid.UUID
     primary_category_id: uuid.UUID
     description_i18n: I18nDict = Field(default_factory=dict)
     supplier_id: uuid.UUID | None = None
     country_of_origin: str | None = Field(None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")
-    tags: list[str] = Field(default_factory=list, max_length=50)
-
-    @field_validator("tags")
-    @classmethod
-    def _validate_tags(cls, v: list[str]) -> list[str]:
-        for tag in v:
-            if len(tag) > 100:
-                raise ValueError(f"Tag '{tag[:20]}...' exceeds maximum length of 100 characters")
-        return v
+    tags: list[str] = Field(default_factory=list)
 
 
 class ProductCreateResponse(CamelModel):
@@ -712,7 +674,7 @@ class ProductCreateResponse(CamelModel):
     message: str
 
 
-class ProductUpdateRequest(PatchModel):
+class ProductUpdateRequest(CamelModel):
     """Partial update request for a product -- all fields optional (PATCH semantics).
 
     At least one non-version field must be provided.  Uses
@@ -720,39 +682,26 @@ class ProductUpdateRequest(PatchModel):
     ``null`` for nullable fields (``supplier_id``, ``country_of_origin``).
     """
 
-    _patch_exclude_fields: frozenset[str] = frozenset({"version"})
-
     title_i18n: I18nDict | None = Field(None, min_length=1)
     slug: str | None = Field(
         None,
         min_length=1,
         max_length=255,
-        pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        pattern=r"^[a-z0-9-]+$",
     )
     description_i18n: I18nDict | None = None
     brand_id: uuid.UUID | None = None
     primary_category_id: uuid.UUID | None = None
     supplier_id: uuid.UUID | None = None
     country_of_origin: str | None = Field(None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")
-    tags: list[str] | None = Field(None, max_length=50)
-
-    @field_validator("tags")
-    @classmethod
-    def _validate_tags(cls, v: list[str] | None) -> list[str] | None:
-        if v is None:
-            return v
-        for tag in v:
-            if len(tag) > 100:
-                raise ValueError(f"Tag '{tag[:20]}...' exceeds maximum length of 100 characters")
-        return v
-
+    tags: list[str] | None = None
     version: int | None = None
 
     @model_validator(mode="after")
-    def _reject_null_required_fks(self) -> Self:
-        for field in ("brand_id", "primary_category_id"):
-            if field in self.model_fields_set and getattr(self, field) is None:
-                raise ValueError(f"{field} cannot be set to null")
+    def at_least_one_field(self) -> ProductUpdateRequest:
+        """Ensure at least one non-version field is provided."""
+        if not (self.model_fields_set - {"version"}):
+            raise ValueError("At least one field besides 'version' must be provided")
         return self
 
 
@@ -766,8 +715,8 @@ class SKUCreateRequest(CamelModel):
     """Request body for adding a SKU (variant) to a product."""
 
     sku_code: str = Field(..., min_length=1, max_length=100)
-    price_amount: int | None = Field(None, ge=0)
-    price_currency: str = Field("RUB", min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
+    price_amount: int = Field(..., ge=0)
+    price_currency: str = Field(..., min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
     compare_at_price_amount: int | None = Field(None, ge=0)
     is_active: bool = True
     variant_attributes: list[VariantAttributePairSchema] = Field(default_factory=list)
@@ -780,10 +729,8 @@ class SKUCreateResponse(CamelModel):
     message: str
 
 
-class SKUUpdateRequest(PatchModel):
+class SKUUpdateRequest(CamelModel):
     """Partial update request for a SKU -- all fields optional (PATCH semantics)."""
-
-    _patch_exclude_fields: frozenset[str] = frozenset({"version"})
 
     sku_code: str | None = Field(None, min_length=1, max_length=100)
     price_amount: int | None = Field(None, ge=0)
@@ -793,19 +740,26 @@ class SKUUpdateRequest(PatchModel):
     variant_attributes: list[VariantAttributePairSchema] | None = None
     version: int | None = None
 
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> SKUUpdateRequest:
+        """Ensure at least one field is provided for update."""
+        if not (self.model_fields_set - {"version"}):
+            raise ValueError("At least one field besides 'version' must be provided")
+        return self
+
 
 class SKUResponse(CamelModel):
     """Full SKU (variant) detail response."""
 
     id: uuid.UUID
     product_id: uuid.UUID
-    variant_id: uuid.UUID
     sku_code: str
-    price: MoneySchema | None = None
-    resolved_price: MoneySchema | None = None
+    variant_hash: str
+    price: MoneySchema
     compare_at_price: MoneySchema | None = None
     is_active: bool
     version: int
+    deleted_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
     variant_attributes: list[VariantAttributePairSchema]
@@ -850,13 +804,13 @@ class ProductResponse(CamelModel):
     country_of_origin: str | None = None
     tags: list[str]
     version: int
+    deleted_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
     published_at: datetime | None = None
     min_price: int | None = None
     max_price: int | None = None
-    price_currency: str | None = None
-    variants: list[ProductVariantResponse]
+    skus: list[SKUResponse]
     attributes: list[ProductAttributeResponse]
 
 
@@ -874,60 +828,13 @@ class ProductListItemResponse(CamelModel):
     updated_at: datetime
 
 
-class ProductListResponse(PaginatedResponse[ProductListItemResponse]):
+class ProductListResponse(CamelModel):
     """Paginated product list response."""
 
-
-# ---------------------------------------------------------------------------
-# ProductVariant schemas
-# ---------------------------------------------------------------------------
-
-
-class ProductVariantCreateRequest(CamelModel):
-    """Request body for creating a new product variant."""
-
-    name_i18n: I18nDict = Field(..., min_length=1)
-    description_i18n: I18nDict | None = None
-    sort_order: int = Field(0, ge=0)
-    default_price_amount: int | None = Field(None, ge=0)
-    default_price_currency: str = Field("RUB", min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
-
-
-class ProductVariantUpdateRequest(PatchModel):
-    """Partial update request for a product variant (PATCH semantics)."""
-
-    name_i18n: I18nDict | None = None
-    description_i18n: I18nDict | None = None
-    sort_order: int | None = Field(None, ge=0)
-    default_price_amount: int | None = Field(None, ge=0)
-    default_price_currency: str | None = Field(
-        None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"
-    )
-
-
-class ProductVariantCreateResponse(CamelModel):
-    """Response returned after successful variant creation."""
-
-    id: uuid.UUID
-    message: str
-
-
-class ProductVariantUpdateResponse(CamelModel):
-    """Response returned after successful variant update."""
-
-    id: uuid.UUID
-    message: str
-
-
-class ProductVariantResponse(CamelModel):
-    """Product variant detail response with nested SKUs."""
-
-    id: uuid.UUID
-    name_i18n: dict[str, str]
-    description_i18n: dict[str, str] | None
-    sort_order: int
-    default_price: MoneySchema | None
-    skus: list[SKUResponse]
+    items: list[ProductListItemResponse]
+    total: int
+    offset: int
+    limit: int
 
 
 # ---------------------------------------------------------------------------
@@ -938,12 +845,12 @@ class ProductVariantResponse(CamelModel):
 class ProductMediaUploadRequest(CamelModel):
     """Request body for reserving a media upload slot."""
 
-    variant_id: uuid.UUID | None = None
-    media_type: Literal["image", "video", "model_3d", "document"]
-    role: Literal["main", "hover", "gallery", "hero_video", "size_guide", "packaging"]
+    attribute_value_id: uuid.UUID | None = None
+    media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
+    role: str = Field(..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$")
     content_type: str = Field(
         ...,
-        pattern=r"^(image/(jpeg|png|webp|gif|svg\+xml|avif)|video/(mp4|webm|quicktime|mpeg)|model/(gltf\+json|gltf-binary))$",
+        pattern=r"^(image|video|application|model)/[a-zA-Z0-9][a-zA-Z0-9!#$&\-^_.+]*$",
         max_length=255,
     )
     sort_order: int = Field(0, ge=0)
@@ -957,52 +864,13 @@ class ProductMediaUploadResponse(CamelModel):
     object_key: str
 
 
-def _validate_external_url_no_ssrf(url: str) -> str:
-    """Validate that an external URL does not point to internal/private IP ranges.
-
-    Blocks requests to:
-    - Private networks: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
-    - Loopback: 127.0.0.0/8
-    - Link-local: 169.254.0.0/16
-    - Unspecified: 0.0.0.0/8
-    - Hostnames: localhost
-    """
-    parsed = urlparse(url)
-    hostname = parsed.hostname
-    if hostname is None:
-        raise ValueError("URL must contain a valid hostname")
-
-    # Block well-known internal hostnames
-    if hostname.lower() in _BLOCKED_HOSTNAMES:
-        raise ValueError("URLs pointing to internal hosts are not allowed")
-
-    # Try to parse the hostname as an IP address and check against blocked ranges
-    try:
-        addr = ipaddress.ip_address(hostname)
-        for network in _BLOCKED_NETWORKS:
-            if addr in network:
-                raise ValueError("URLs pointing to internal/private IP ranges are not allowed")
-    except ValueError as exc:
-        # Re-raise our own validation errors
-        if "internal" in str(exc) or "not allowed" in str(exc):
-            raise
-        # hostname is a DNS name, not an IP literal -- allow it through
-        # (DNS resolution-based SSRF checks are handled at the network layer)
-
-    return url
-
-
 class ProductMediaExternalRequest(CamelModel):
     """Request body for adding an external media URL (e.g., YouTube)."""
 
-    variant_id: uuid.UUID | None = None
-    media_type: Literal["image", "video", "model_3d", "document"]
-    role: Literal["main", "hover", "gallery", "hero_video", "size_guide", "packaging"]
-    external_url: Annotated[
-        str,
-        Field(..., min_length=1, max_length=2048, pattern=r"^https?://"),
-        AfterValidator(_validate_external_url_no_ssrf),
-    ]
+    attribute_value_id: uuid.UUID | None = None
+    media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
+    role: str = Field(..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$")
+    external_url: str = Field(..., min_length=1, max_length=2048, pattern=r"^https?://")
     sort_order: int = Field(0, ge=0)
 
 
@@ -1011,7 +879,7 @@ class ProductMediaResponse(CamelModel):
 
     id: uuid.UUID
     product_id: uuid.UUID
-    variant_id: uuid.UUID | None = None
+    attribute_value_id: uuid.UUID | None = None
     media_type: str
     role: str
     sort_order: int
@@ -1019,28 +887,6 @@ class ProductMediaResponse(CamelModel):
     public_url: str | None = None
     is_external: bool
     external_url: str | None = None
-
-
-class ProductAttributeListResponse(PaginatedResponse[ProductAttributeResponse]):
-    """Paginated product attribute assignment list response."""
-
-
-class MediaConfirmResponse(CamelModel):
-    """Response after confirming media upload."""
-
-    message: str = "Media processing request accepted"
-
-
-class ProductMediaListResponse(PaginatedResponse[ProductMediaResponse]):
-    """Paginated product media list response."""
-
-
-class SKUListResponse(PaginatedResponse[SKUResponse]):
-    """Paginated SKU list response."""
-
-
-class ProductVariantListResponse(PaginatedResponse[ProductVariantResponse]):
-    """Paginated product variant list response."""
 
 
 class MediaProcessingWebhookRequest(CamelModel):

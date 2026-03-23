@@ -2,6 +2,8 @@
 FastAPI router for Attribute CRUD endpoints.
 
 All mutating endpoints require the ``catalog:manage`` permission.
+Read endpoints require the ``catalog:read`` permission (admin use).
+Public storefront access is served by the separate storefront router.
 Delegates to application-layer command/query handlers via Dishka DI.
 """
 
@@ -95,6 +97,7 @@ async def create_attribute(
     response_model=AttributeListResponse,
     summary="List attributes (paginated, filterable)",
     description="Retrieve a paginated list of attributes with optional filters.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_attributes(
     handler: FromDishka[ListAttributesHandler],
@@ -159,6 +162,7 @@ async def list_attributes(
     response_model=AttributeResponse,
     summary="Get attribute by slug",
     description="Retrieve a single attribute by its URL-friendly slug.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_attribute_by_slug(
     slug: str,
@@ -174,6 +178,7 @@ async def get_attribute_by_slug(
     response_model=AttributeResponse,
     summary="Get attribute by ID",
     description="Retrieve a single attribute by its unique identifier.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_attribute(
     attribute_id: uuid.UUID,

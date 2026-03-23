@@ -2,6 +2,8 @@
 FastAPI router for Brand CRUD and logo management endpoints.
 
 All mutating endpoints require the ``catalog:manage`` permission.
+Read endpoints require the ``catalog:read`` permission (admin use).
+Public storefront access is served by the separate storefront router.
 Delegates to application-layer command/query handlers via Dishka DI.
 """
 
@@ -95,6 +97,7 @@ async def create_brand(
     response_model=BrandListResponse,
     summary="List brands (paginated)",
     description="Retrieve a paginated list of all brands.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_brands(
     handler: FromDishka[ListBrandsHandler],
@@ -126,6 +129,7 @@ async def list_brands(
     response_model=BrandResponse,
     summary="Get brand by ID",
     description="Retrieve a single brand by its unique identifier.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_brand(
     brand_id: uuid.UUID,

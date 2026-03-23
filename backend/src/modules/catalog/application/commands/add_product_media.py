@@ -25,8 +25,13 @@ from src.modules.catalog.domain.interfaces import (
     IMediaAssetRepository,
     IProductRepository,
 )
+from src.shared.exceptions import ValidationError
 from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.uow import IUnitOfWork
+
+# SEC-08: Maximum number of PENDING_UPLOAD media assets allowed per product.
+# Prevents abuse of presigned URL generation (each URL consumes S3 resources).
+MAX_PENDING_UPLOADS_PER_PRODUCT = 20
 
 
 async def enforce_main_media_uniqueness(
@@ -119,6 +124,16 @@ class AddProductMediaHandler:
             ProductNotFoundError: If the product does not exist.
             ConflictError: If a MAIN media asset already exists for this variant.
         """
+        # SEC-08: Limit the number of outstanding PENDING_UPLOAD slots to
+        # prevent abuse of presigned URL generation.
+        pending_count = await self._media_repo.count_pending_uploads(command.product_id)
+        if pending_count >= MAX_PENDING_UPLOADS_PER_PRODUCT:
+            raise ValidationError(
+                f"Too many pending uploads for product {command.product_id}. "
+                f"Maximum {MAX_PENDING_UPLOADS_PER_PRODUCT} pending uploads allowed. "
+                f"Please confirm or delete existing uploads before requesting new ones."
+            )
+
         # 1. Build S3 key and create domain entity
         media_id = uuid.uuid7()
         object_key = raw_media_key(command.product_id, media_id)

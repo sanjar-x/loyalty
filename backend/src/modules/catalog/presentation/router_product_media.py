@@ -142,7 +142,7 @@ async def confirm_media_upload(
     response_model=ProductMediaListResponse,
     summary="List product media",
     description="Return paginated media assets for the given product.",
-    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_product_media(
     product_id: uuid.UUID,

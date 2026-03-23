@@ -2,6 +2,7 @@
 FastAPI router for AttributeGroup CRUD endpoints.
 
 All mutating endpoints require the ``catalog:manage`` permission.
+Read endpoints require the ``catalog:read`` permission (admin use).
 Delegates to application-layer command/query handlers via Dishka DI.
 """
 
@@ -79,6 +80,7 @@ async def create_attribute_group(
     response_model=AttributeGroupListResponse,
     summary="List attribute groups (paginated)",
     description="Retrieve a paginated list of all attribute groups.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_attribute_groups(
     handler: FromDishka[ListAttributeGroupsHandler],
@@ -109,6 +111,7 @@ async def list_attribute_groups(
     response_model=AttributeGroupResponse,
     summary="Get attribute group by ID",
     description="Retrieve a single attribute group by its unique identifier.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_attribute_group(
     group_id: uuid.UUID,
