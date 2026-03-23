@@ -3,10 +3,12 @@
 Provides:
 - ``get_auth_context``: Extracts AuthContext (identity_id + session_id) from JWT.
 - ``RequirePermission``: Callable dependency that checks session permissions via cache-aside.
-- ``get_current_user_id``: Backward-compatible wrapper returning identity_id as uuid.UUID.
+- ``Auth``: Annotated alias for injecting AuthContext via Depends(get_auth_context).
+- ``BearerCredentials``: Annotated alias for injecting HTTP Bearer credentials.
 """
 
 import uuid
+from typing import Annotated
 
 import structlog
 from dishka.integrations.fastapi import FromDishka, inject
@@ -21,10 +23,14 @@ from src.shared.interfaces.security import IPermissionResolver, ITokenProvider
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
+BearerCredentials = Annotated[
+    HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)
+]
+
 
 @inject
 async def get_auth_context(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+    credentials: BearerCredentials,
     token_provider: FromDishka[ITokenProvider] = ...,  # type: ignore[assignment]
     identity_repo: FromDishka[IIdentityRepository] = ...,  # type: ignore[assignment]
 ) -> AuthContext:
@@ -100,6 +106,9 @@ async def get_auth_context(
     )
 
 
+Auth = Annotated[AuthContext, Depends(get_auth_context)]
+
+
 class RequirePermission:
     """FastAPI dependency that enforces a specific permission on the session.
 
@@ -118,7 +127,7 @@ class RequirePermission:
     @inject
     async def __call__(
         self,
-        auth: AuthContext = Depends(get_auth_context),
+        auth: Auth,
         resolver: FromDishka[IPermissionResolver] = ...,  # type: ignore[assignment]
     ) -> AuthContext:
         """Check that the session has the required permission.
@@ -138,10 +147,10 @@ class RequirePermission:
         return auth
 
 
-async def get_current_user_id(
-    auth: AuthContext = Depends(get_auth_context),
+async def get_current_identity_id(
+    auth: Auth,
 ) -> uuid.UUID:
-    """Backward-compatible dependency that returns the identity_id as a UUID.
+    """Dependency that returns the identity_id as a UUID.
 
     Args:
         auth: The authenticated context from the JWT.

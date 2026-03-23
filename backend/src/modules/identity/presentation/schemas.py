@@ -292,7 +292,9 @@ class UpdateRoleRequest(CamelModel):
     def at_least_one_field(self) -> Self:
         """Validate that at least one field is provided."""
         if self.name is None and self.description is None:
-            raise ValueError("At least one field (name or description) must be provided")
+            raise ValueError(
+                "At least one field (name or description) must be provided"
+            )
         return self
 
 

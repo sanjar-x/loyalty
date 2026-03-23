@@ -125,7 +125,7 @@ async def list_products(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
     product_status: str | None = Query(default=None, alias="status"),
-    brand_id: uuid.UUID | None = Query(default=None),
+    brand_id: uuid.UUID | None = None,
 ) -> ProductListResponse:
     """Retrieve a paginated list of products with optional filters."""
     query = ListProductsQuery(

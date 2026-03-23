@@ -42,10 +42,7 @@ from src.modules.identity.application.queries.list_staff_invitations import (
     ListStaffInvitationsHandler,
     ListStaffInvitationsQuery,
 )
-from src.modules.identity.presentation.dependencies import (
-    RequirePermission,
-    get_auth_context,
-)
+from src.modules.identity.presentation.dependencies import Auth, RequirePermission
 from src.modules.identity.presentation.schemas import (
     AdminDeactivateRequest,
     InvitationListItemResponse,
@@ -58,7 +55,6 @@ from src.modules.identity.presentation.schemas import (
     StaffListItemResponse,
     StaffListResponse,
 )
-from src.shared.interfaces.auth import AuthContext
 
 staff_admin_router = APIRouter(
     prefix="/admin/staff",
@@ -83,7 +79,7 @@ async def list_staff(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     search: str | None = Query(None, max_length=200),
-    role_id: uuid.UUID | None = Query(None),
+    role_id: uuid.UUID | None = None,
     is_active: bool | None = Query(None),
     sort_by: str = Query("created_at", pattern=r"^(created_at|email|last_name)$"),
     sort_order: str = Query("desc", pattern=r"^(asc|desc)$"),
@@ -150,7 +146,7 @@ async def list_staff(
 async def invite_staff(
     body: InviteStaffRequest,
     handler: FromDishka[InviteStaffHandler],
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
 ) -> InviteStaffResponse:
     """Create a staff invitation.
 
@@ -229,7 +225,7 @@ async def list_invitations(
 async def revoke_invitation(
     invitation_id: uuid.UUID,
     handler: FromDishka[RevokeStaffInvitationHandler],
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
 ) -> MessageResponse:
     """Revoke a pending staff invitation.
 
@@ -285,7 +281,9 @@ async def get_staff_detail(
         position=result.position,
         department=result.department,
         roles=[
-            RoleInfoResponse(id=r.id, name=r.name, description=r.description, is_system=r.is_system)
+            RoleInfoResponse(
+                id=r.id, name=r.name, description=r.description, is_system=r.is_system
+            )
             for r in result.roles
         ],
         created_at=result.created_at,
@@ -305,7 +303,7 @@ async def deactivate_staff(
     identity_id: uuid.UUID,
     body: AdminDeactivateRequest,
     handler: FromDishka[AdminDeactivateIdentityHandler],
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
 ) -> MessageResponse:
     """Deactivate a staff member.
 
@@ -337,7 +335,7 @@ async def deactivate_staff(
 async def reactivate_staff(
     identity_id: uuid.UUID,
     handler: FromDishka[ReactivateIdentityHandler],
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
 ) -> MessageResponse:
     """Reactivate a deactivated staff member.
 

@@ -62,10 +62,7 @@ from src.modules.identity.application.queries.list_roles import (
     ListRolesHandler,
     RoleWithPermissions,
 )
-from src.modules.identity.presentation.dependencies import (
-    RequirePermission,
-    get_auth_context,
-)
+from src.modules.identity.presentation.dependencies import Auth, RequirePermission
 from src.modules.identity.presentation.schemas import (
     AdminDeactivateRequest,
     AdminIdentityDetailResponse,
@@ -81,7 +78,6 @@ from src.modules.identity.presentation.schemas import (
     SetRolePermissionsRequest,
     UpdateRoleRequest,
 )
-from src.shared.interfaces.auth import AuthContext
 
 admin_router = APIRouter(
     prefix="/admin",
@@ -106,7 +102,7 @@ async def list_identities(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     search: str | None = Query(None, max_length=200),
-    role_id: uuid.UUID | None = Query(None),
+    role_id: uuid.UUID | None = None,
     is_active: bool | None = Query(None),
     sort_by: str = Query("created_at", pattern=r"^(created_at|email|last_name)$"),
     sort_order: str = Query("desc", pattern=r"^(asc|desc)$"),
@@ -176,7 +172,10 @@ async def get_identity_detail(
         first_name=result.first_name,
         last_name=result.last_name,
         phone=result.phone,
-        roles=[RoleInfoResponse.model_validate(r, from_attributes=True) for r in result.roles],
+        roles=[
+            RoleInfoResponse.model_validate(r, from_attributes=True)
+            for r in result.roles
+        ],
         created_at=result.created_at,
         deactivated_at=result.deactivated_at,
         deactivated_by=result.deactivated_by,
@@ -193,7 +192,7 @@ async def admin_deactivate_identity(
     identity_id: uuid.UUID,
     body: AdminDeactivateRequest,
     handler: FromDishka[AdminDeactivateIdentityHandler],
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
 ) -> MessageResponse:
     """Deactivate an identity as an admin.
 
@@ -224,7 +223,7 @@ async def admin_deactivate_identity(
 async def admin_reactivate_identity(
     identity_id: uuid.UUID,
     handler: FromDishka[ReactivateIdentityHandler],
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
 ) -> MessageResponse:
     """Reactivate a deactivated identity.
 
@@ -391,7 +390,7 @@ async def set_role_permissions(
     body: SetRolePermissionsRequest,
     handler: FromDishka[SetRolePermissionsHandler],
     detail_handler: FromDishka[GetRoleDetailHandler],
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
 ) -> RoleDetailResponse:
     """Set role permissions (full replace). Clears existing and sets new.
 
@@ -444,7 +443,9 @@ async def list_permissions(
         List of permission groups sorted by resource.
     """
     groups = await handler.handle()
-    return [PermissionGroupResponse.model_validate(g, from_attributes=True) for g in groups]
+    return [
+        PermissionGroupResponse.model_validate(g, from_attributes=True) for g in groups
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -462,7 +463,7 @@ async def assign_role(
     identity_id: uuid.UUID,
     body: AssignRoleRequest,
     handler: FromDishka[AssignRoleHandler],
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
 ) -> MessageResponse:
     """Assign a role to an identity.
 

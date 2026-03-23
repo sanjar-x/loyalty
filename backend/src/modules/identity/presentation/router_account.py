@@ -20,12 +20,11 @@ from src.modules.identity.application.queries.get_my_sessions import (
     GetMySessionsQuery,
     SessionInfo,
 )
-from src.modules.identity.presentation.dependencies import (
-    RequirePermission,
-    get_auth_context,
+from src.modules.identity.presentation.dependencies import Auth, RequirePermission
+from src.modules.identity.presentation.schemas import (
+    ChangePasswordRequest,
+    MessageResponse,
 )
-from src.modules.identity.presentation.schemas import ChangePasswordRequest, MessageResponse
-from src.shared.interfaces.auth import AuthContext
 
 identity_account_router = APIRouter(
     prefix="/profile",
@@ -41,7 +40,7 @@ identity_account_router = APIRouter(
     dependencies=[Depends(RequirePermission("profile:delete"))],
 )
 async def delete_my_account(
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
     handler: FromDishka[DeactivateIdentityHandler] = ...,  # type: ignore[assignment]
 ) -> MessageResponse:
     """Deactivate the authenticated user's account.
@@ -71,7 +70,7 @@ async def delete_my_account(
 )
 async def change_password(
     body: ChangePasswordRequest,
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
     handler: FromDishka[ChangePasswordHandler] = ...,  # type: ignore[assignment]
 ) -> MessageResponse:
     """Change the authenticated user's password.
@@ -105,7 +104,7 @@ async def change_password(
     summary="List my active sessions",
 )
 async def get_my_sessions(
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
     handler: FromDishka[GetMySessionsHandler] = ...,  # type: ignore[assignment]
 ) -> list[SessionInfo]:
     """List the authenticated user's active sessions.

@@ -8,10 +8,7 @@ via the Identity module's authentication dependencies.
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends
 
-from src.modules.identity.presentation.dependencies import (
-    RequirePermission,
-    get_auth_context,
-)
+from src.modules.identity.presentation.dependencies import Auth, RequirePermission
 from src.modules.identity.presentation.schemas import MessageResponse
 from src.modules.user.application.commands.update_profile import (
     UpdateProfileCommand,
@@ -25,7 +22,6 @@ from src.modules.user.presentation.schemas import (
     ProfileResponse,
     UpdateProfileRequest,
 )
-from src.shared.interfaces.auth import AuthContext
 
 profile_router = APIRouter(
     prefix="/profile",
@@ -41,14 +37,10 @@ profile_router = APIRouter(
     dependencies=[Depends(RequirePermission("profile:read"))],
 )
 async def get_my_profile(
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
     handler: FromDishka[GetMyProfileHandler] = ...,  # type: ignore[assignment]
 ) -> ProfileResponse:
-    """Retrieve the authenticated customer's profile.
-
-    Returns the full profile data for the currently authenticated customer,
-    identified by the auth context's identity ID.
-    """
+    """Retrieve the authenticated customer's profile."""
     profile = await handler.handle(GetMyProfileQuery(customer_id=auth.identity_id))
     return ProfileResponse(
         id=profile.id,
@@ -67,14 +59,10 @@ async def get_my_profile(
 )
 async def update_profile(
     body: UpdateProfileRequest,
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
     handler: FromDishka[UpdateProfileHandler] = ...,  # type: ignore[assignment]
 ) -> MessageResponse:
-    """Update the authenticated customer's profile fields.
-
-    Applies a partial update to the customer's profile. Only fields included
-    in the request body (non-None) will be modified.
-    """
+    """Update the authenticated customer's profile fields."""
     command = UpdateProfileCommand(
         customer_id=auth.identity_id,
         first_name=body.first_name,

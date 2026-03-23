@@ -5,7 +5,7 @@ logout operations. All endpoints use Dishka for dependency injection.
 """
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Request, status
 
 from src.modules.identity.application.commands.login import LoginCommand, LoginHandler
 from src.modules.identity.application.commands.login_telegram import (
@@ -28,7 +28,7 @@ from src.modules.identity.application.commands.register import (
     RegisterCommand,
     RegisterHandler,
 )
-from src.modules.identity.presentation.dependencies import get_auth_context
+from src.modules.identity.presentation.dependencies import Auth
 from src.modules.identity.presentation.schemas import (
     LoginRequest,
     MessageResponse,
@@ -39,7 +39,6 @@ from src.modules.identity.presentation.schemas import (
     TokenResponse,
 )
 from src.shared.exceptions import UnauthorizedError
-from src.shared.interfaces.auth import AuthContext
 
 auth_router = APIRouter(
     prefix="/auth",
@@ -179,7 +178,7 @@ async def refresh_token(
     summary="Logout current session",
 )
 async def logout(
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
     handler: FromDishka[LogoutHandler] = ...,  # type: ignore[assignment]
 ) -> MessageResponse:
     """Revoke the current session.
@@ -201,7 +200,7 @@ async def logout(
     summary="Logout all sessions",
 )
 async def logout_all(
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
     handler: FromDishka[LogoutAllHandler] = ...,  # type: ignore[assignment]
 ) -> MessageResponse:
     """Revoke all sessions for the authenticated identity.

@@ -15,10 +15,10 @@ from src.modules.user.application.commands.create_staff_member import (
     CreateStaffMemberHandler,
 )
 from src.modules.user.application.commands.update_profile import UpdateProfileHandler
-from src.modules.user.application.queries.get_my_profile import GetMyProfileHandler
 from src.modules.user.application.queries.get_customer_by_identity import (
     GetCustomerByIdentityHandler,
 )
+from src.modules.user.application.queries.get_my_profile import GetMyProfileHandler
 from src.modules.user.domain.interfaces import (
     ICustomerRepository,
     IStaffMemberRepository,

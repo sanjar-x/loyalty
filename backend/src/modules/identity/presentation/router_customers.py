@@ -26,10 +26,7 @@ from src.modules.identity.application.queries.list_customers import (
     ListCustomersHandler,
     ListCustomersQuery,
 )
-from src.modules.identity.presentation.dependencies import (
-    RequirePermission,
-    get_auth_context,
-)
+from src.modules.identity.presentation.dependencies import Auth, RequirePermission
 from src.modules.identity.presentation.schemas import (
     AdminDeactivateRequest,
     CustomerDetailResponse,
@@ -38,7 +35,6 @@ from src.modules.identity.presentation.schemas import (
     MessageResponse,
     RoleInfoResponse,
 )
-from src.shared.interfaces.auth import AuthContext
 
 customer_admin_router = APIRouter(
     prefix="/admin/customers",
@@ -171,7 +167,7 @@ async def deactivate_customer(
     identity_id: uuid.UUID,
     body: AdminDeactivateRequest,
     handler: FromDishka[AdminDeactivateIdentityHandler],
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
 ) -> MessageResponse:
     """Deactivate a customer account.
 
@@ -203,7 +199,7 @@ async def deactivate_customer(
 async def reactivate_customer(
     identity_id: uuid.UUID,
     handler: FromDishka[ReactivateIdentityHandler],
-    auth: AuthContext = Depends(get_auth_context),
+    auth: Auth,
 ) -> MessageResponse:
     """Reactivate a deactivated customer account.
 

@@ -106,7 +106,7 @@ async def list_attributes(
     data_type: str | None = Query(default=None),
     ui_type: str | None = Query(default=None),
     is_dictionary: bool | None = Query(default=None),
-    group_id: uuid.UUID | None = Query(default=None),
+    group_id: uuid.UUID | None = None,
     level: str | None = Query(default=None),
     is_filterable: bool | None = Query(default=None),
     is_searchable: bool | None = Query(default=None),

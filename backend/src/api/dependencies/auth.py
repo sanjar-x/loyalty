@@ -1,13 +1,13 @@
-"""FastAPI dependency for authentication and binding user_id to the logging context.
+"""FastAPI dependency for authentication and binding identity_id to the logging context.
 
 Usage in protected routes::
 
     @router.get("/protected")
-    async def protected_route(user_id: str = Depends(get_current_user_id)):
+    async def protected_route(identity_id: str = Depends(get_current_identity_id)):
         ...
 """
 
-from typing import Any
+from typing import Annotated, Any
 
 import structlog
 from dishka.integrations.fastapi import FromDishka
@@ -19,15 +19,19 @@ from src.shared.interfaces.security import ITokenProvider
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
+BearerCredentials = Annotated[
+    HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)
+]
 
-async def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+
+async def get_current_identity_id(
+    credentials: BearerCredentials,
     token_provider: FromDishka[ITokenProvider] = ...,  # type: ignore[assignment]
 ) -> str:
-    """Extract the user ID from a JWT and bind it to the structlog context.
+    """Extract the identity ID from a JWT and bind it to the structlog context.
 
     After this dependency resolves, every log entry emitted during the
-    request will automatically include the ``user_id`` field.
+    request will automatically include the ``identity_id`` field.
 
     Args:
         credentials: Bearer token credentials extracted by the HTTPBearer
@@ -35,7 +39,7 @@ async def get_current_user_id(
         token_provider: DI-injected token provider used to decode JWTs.
 
     Returns:
-        The ``sub`` (subject) claim from the JWT, representing the user ID.
+        The ``sub`` (subject) claim from the JWT, representing the identity ID.
 
     Raises:
         UnauthorizedError: If the authorization token is missing or the
@@ -47,13 +51,15 @@ async def get_current_user_id(
             error_code="MISSING_TOKEN",
         )
 
-    payload: dict[str, Any] = token_provider.decode_access_token(credentials.credentials)
-    user_id: str | None = payload.get("sub")
-    if not user_id:
+    payload: dict[str, Any] = token_provider.decode_access_token(
+        credentials.credentials
+    )
+    identity_id: str | None = payload.get("sub")
+    if not identity_id:
         raise UnauthorizedError(
             message="Invalid token: missing sub claim.",
             error_code="INVALID_TOKEN_PAYLOAD",
         )
-    structlog.contextvars.bind_contextvars(user_id=user_id)
+    structlog.contextvars.bind_contextvars(identity_id=identity_id)
 
-    return user_id
+    return identity_id
