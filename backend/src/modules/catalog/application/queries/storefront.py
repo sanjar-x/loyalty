@@ -77,8 +77,8 @@ def _effective_bool(
     return global_value
 
 
-def _effective_display_type(filter_settings: dict[str, Any] | None, global_ui_type: str) -> str:
-    """Resolve the effective display/filter type.
+def _effective_ui_type(filter_settings: dict[str, Any] | None, global_ui_type: str) -> str:
+    """Resolve the effective UI type for storefront display.
 
     If filter_settings has a ``filter_type`` key, it overrides the
     global ``ui_type`` from the attribute.
@@ -164,7 +164,7 @@ class StorefrontFilterableAttributesHandler:
             if not _effective_bool(rule.flag_overrides, "is_filterable", attr.is_filterable):
                 continue
 
-            display_type = _effective_display_type(rule.filter_settings, attr.ui_type.value)
+            ui_type = _effective_ui_type(rule.filter_settings, attr.ui_type.value)
             values = _values_to_read_models(attr.values) if attr.is_dictionary else []
 
             attributes.append(
@@ -174,7 +174,7 @@ class StorefrontFilterableAttributesHandler:
                     slug=attr.slug,
                     name_i18n=attr.name_i18n,
                     data_type=attr.data_type.value,
-                    display_type=display_type,
+                    ui_type=ui_type,
                     is_dictionary=attr.is_dictionary,
                     values=values,
                     filter_settings=dict(rule.filter_settings) if rule.filter_settings else None,
@@ -232,7 +232,7 @@ class StorefrontCardAttributesHandler:
                     slug=attr.slug,
                     name_i18n=attr.name_i18n,
                     data_type=attr.data_type.value,
-                    display_type=attr.ui_type.value,
+                    ui_type=attr.ui_type.value,
                     requirement_level=rule.requirement_level.value,
                     sort_order=rule.sort_order,
                 )
@@ -295,7 +295,7 @@ class StorefrontComparisonAttributesHandler:
                     slug=attr.slug,
                     name_i18n=attr.name_i18n,
                     data_type=attr.data_type.value,
-                    display_type=attr.ui_type.value,
+                    ui_type=attr.ui_type.value,
                     sort_order=rule.sort_order,
                 )
             )
@@ -340,7 +340,7 @@ class StorefrontFormAttributesHandler:
                     name_i18n=attr.name_i18n,
                     description_i18n=attr.description_i18n,
                     data_type=attr.data_type.value,
-                    display_type=attr.ui_type.value,
+                    ui_type=attr.ui_type.value,
                     is_dictionary=attr.is_dictionary,
                     level=attr.level.value,
                     requirement_level=rule.requirement_level.value,
