@@ -142,11 +142,13 @@ class ListSKUsHandler:
                     amount=orm.variant.default_price,
                     currency=orm.variant.default_currency,
                 )
-            items.append(sku_orm_to_read_model(orm, variant_default_price=variant_default))
+            items.append(
+                sku_orm_to_read_model(orm, variant_default_price=variant_default)
+            )
 
         return SKUListReadModel(
             items=items,
             total=total,
             offset=query.offset,
-            limit=query.limit,
+            limit=query.limit if query.limit is not None else total,
         )

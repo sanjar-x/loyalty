@@ -158,6 +158,11 @@ class IAttributeRepository(ICatalogRepository[DomainAttribute]):
     """Repository contract for the Attribute aggregate."""
 
     @abstractmethod
+    async def get_for_update(self, attribute_id: uuid.UUID) -> DomainAttribute | None:
+        """Retrieve an attribute with a pessimistic lock (SELECT FOR UPDATE)."""
+        pass
+
+    @abstractmethod
     async def check_code_exists(self, code: str) -> bool:
         """Check whether an attribute with the given code already exists."""
         pass

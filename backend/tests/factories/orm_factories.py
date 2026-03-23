@@ -15,7 +15,6 @@ from src.modules.identity.infrastructure.models import (
     RoleModel,
     SessionModel,
 )
-from src.modules.user.infrastructure.models import UserModel
 
 
 class IdentityModelFactory(SQLAlchemyFactory):
@@ -45,9 +44,4 @@ class BrandModelFactory(SQLAlchemyFactory):
 
 class CategoryModelFactory(SQLAlchemyFactory):
     __model__ = CategoryModel
-    __set_relationships__ = True
-
-
-class UserModelFactory(SQLAlchemyFactory):
-    __model__ = UserModel
     __set_relationships__ = True

@@ -22,6 +22,7 @@ class CustomerRepository(ICustomerRepository):
             profile_email=orm.profile_email,
             first_name=orm.first_name,
             last_name=orm.last_name,
+            username=orm.username,
             phone=orm.phone,
             referral_code=orm.referral_code or "",
             referred_by=orm.referred_by,
@@ -35,6 +36,7 @@ class CustomerRepository(ICustomerRepository):
             profile_email=customer.profile_email,
             first_name=customer.first_name,
             last_name=customer.last_name,
+            username=customer.username,
             phone=customer.phone,
             referral_code=customer.referral_code or None,
             referred_by=customer.referred_by,
@@ -55,6 +57,7 @@ class CustomerRepository(ICustomerRepository):
                 profile_email=customer.profile_email,
                 first_name=customer.first_name,
                 last_name=customer.last_name,
+                username=customer.username,
                 phone=customer.phone,
                 referral_code=customer.referral_code or None,
             )

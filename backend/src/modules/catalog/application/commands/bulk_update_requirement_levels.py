@@ -5,7 +5,9 @@ Command handler: bulk update requirement levels for bindings in a category.
 import uuid
 from dataclasses import dataclass, field
 
-from src.modules.catalog.application.queries.storefront import invalidate_storefront_cache
+from src.modules.catalog.application.queries.storefront import (
+    invalidate_storefront_cache,
+)
 from src.modules.catalog.domain.events import RequirementLevelsUpdatedEvent
 from src.modules.catalog.domain.exceptions import CategoryNotFoundError
 from src.modules.catalog.domain.interfaces import (
@@ -66,7 +68,9 @@ class BulkUpdateRequirementLevelsHandler:
             if category is None:
                 raise CategoryNotFoundError(category_id=command.category_id)
 
-            valid_ids = await self._binding_repo.list_ids_by_category(command.category_id)
+            valid_ids = await self._binding_repo.list_ids_by_category(
+                command.category_id
+            )
             requested_ids = {item.binding_id for item in command.items}
             invalid_ids = requested_ids - valid_ids
             if invalid_ids:
@@ -75,7 +79,10 @@ class BulkUpdateRequirementLevelsHandler:
                     details={"invalid_ids": [str(i) for i in invalid_ids]},
                 )
 
-            updates = [(item.binding_id, item.requirement_level.value) for item in command.items]
+            updates = [
+                (item.binding_id, item.requirement_level.value)
+                for item in command.items
+            ]
             await self._binding_repo.bulk_update_requirement_level(updates)
             category.add_domain_event(
                 RequirementLevelsUpdatedEvent(

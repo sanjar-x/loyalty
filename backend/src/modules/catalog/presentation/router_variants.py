@@ -9,6 +9,7 @@ from src.modules.catalog.application.commands.add_variant import (
     AddVariantCommand,
     AddVariantHandler,
 )
+from src.modules.catalog.domain.value_objects import DEFAULT_CURRENCY
 from src.modules.catalog.application.commands.delete_variant import (
     DeleteVariantCommand,
     DeleteVariantHandler,
@@ -59,7 +60,7 @@ async def add_variant(
         description_i18n=request.description_i18n,
         sort_order=request.sort_order,
         default_price_amount=request.default_price_amount,
-        default_price_currency=request.default_price_currency,
+        default_price_currency=request.default_price_currency or DEFAULT_CURRENCY,
     )
     result = await handler.handle(command)
     return ProductVariantCreateResponse(id=result.variant_id, message="Variant created")

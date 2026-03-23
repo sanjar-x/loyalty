@@ -73,7 +73,9 @@ class LoginTelegramHandler:
 
     async def handle(self, command: LoginTelegramCommand) -> LoginTelegramResult:
         # 1. Validate initData (outside UoW)
-        telegram_user: TelegramUserData = self._validator.validate_and_parse(command.init_data_raw)
+        telegram_user: TelegramUserData = self._validator.validate_and_parse(
+            command.init_data_raw
+        )
 
         async with self._uow:
             # 2. Lookup by telegram_id
@@ -87,6 +89,7 @@ class LoginTelegramHandler:
             if is_new_user:
                 identity: Identity = await self._provision_new_identity(telegram_user)
             else:
+                assert result is not None  # narrowing: is_new_user is False
                 identity, linked_account = result
                 identity.ensure_active()
                 new_metadata = {
@@ -111,9 +114,9 @@ class LoginTelegramHandler:
             # 3. Session limit — evict oldest if needed
             active_count: int = await self._session_repo.count_active(identity.id)
             if active_count >= self._max_sessions:
-                evicted_id: uuid.UUID | None = await self._session_repo.revoke_oldest_active(
-                    identity.id
-                )
+                evicted_id: (
+                    uuid.UUID | None
+                ) = await self._session_repo.revoke_oldest_active(identity.id)
                 if evicted_id:
                     await self._permission_resolver.invalidate(evicted_id)
                     self._logger.info(
@@ -124,7 +127,9 @@ class LoginTelegramHandler:
 
             # 4. Create session + tokens
             raw_refresh, _ = self._token_provider.create_refresh_token()
-            role_ids: list[uuid.UUID] = await self._role_repo.get_identity_role_ids(identity.id)
+            role_ids: list[uuid.UUID] = await self._role_repo.get_identity_role_ids(
+                identity.id
+            )
 
             session = Session.create(
                 identity_id=identity.id,

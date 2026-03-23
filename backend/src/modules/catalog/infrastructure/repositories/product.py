@@ -77,11 +77,14 @@ class ProductRepository(IProductRepository):
             created_at=orm_sku.created_at,
             updated_at=orm_sku.updated_at,
             variant_attributes=[
-                (link.attribute_id, link.attribute_value_id) for link in orm_sku.attribute_values
+                (link.attribute_id, link.attribute_value_id)
+                for link in orm_sku.attribute_values
             ],
         )
 
-    def _sku_to_orm(self, domain_sku: DomainSKU, orm_sku: OrmSKU | None = None) -> OrmSKU:
+    def _sku_to_orm(
+        self, domain_sku: DomainSKU, orm_sku: OrmSKU | None = None
+    ) -> OrmSKU:
         """Map a domain SKU entity to an ORM SKU row.
 
         When ``orm_sku`` is ``None`` a new row is created with safe defaults
@@ -114,7 +117,9 @@ class ProductRepository(IProductRepository):
             orm_sku.price = None
             # currency stays as-is or from variant
         orm_sku.compare_at_price = (
-            domain_sku.compare_at_price.amount if domain_sku.compare_at_price is not None else None
+            domain_sku.compare_at_price.amount
+            if domain_sku.compare_at_price is not None
+            else None
         )
 
         # ORM-only fields: set defaults on create, preserve on update
@@ -125,7 +130,8 @@ class ProductRepository(IProductRepository):
         # Sync variant_attributes -> SKUAttributeValueLink rows (diff-based)
         desired_pairs = {(a_id, v_id) for a_id, v_id in domain_sku.variant_attributes}
         existing_pairs = {
-            (link.attribute_id, link.attribute_value_id) for link in orm_sku.attribute_values
+            (link.attribute_id, link.attribute_value_id)
+            for link in orm_sku.attribute_values
         }
 
         if desired_pairs != existing_pairs:
@@ -136,7 +142,7 @@ class ProductRepository(IProductRepository):
                 if (link.attribute_id, link.attribute_value_id) not in desired_pairs
             ]
             for link in to_remove:
-                orm_sku.attribute_values.delete(link)
+                orm_sku.attribute_values.remove(link)
 
             # Add links that don't exist yet
             pairs_to_add = desired_pairs - existing_pairs
@@ -151,7 +157,9 @@ class ProductRepository(IProductRepository):
 
         return orm_sku
 
-    def _variant_to_domain(self, orm_variant: OrmProductVariant) -> DomainProductVariant:
+    def _variant_to_domain(
+        self, orm_variant: OrmProductVariant
+    ) -> DomainProductVariant:
         """Map an ORM ProductVariant row to a domain ProductVariant entity."""
         default_price: Money | None = None
         if orm_variant.default_price is not None:
@@ -209,7 +217,9 @@ class ProductRepository(IProductRepository):
             "id": orm.id,
             "slug": orm.slug,
             "title_i18n": dict(orm.title_i18n) if orm.title_i18n else {},
-            "description_i18n": dict(orm.description_i18n) if orm.description_i18n else {},
+            "description_i18n": dict(orm.description_i18n)
+            if orm.description_i18n
+            else {},
             "status": ProductStatus(orm.status.value),
             "brand_id": orm.brand_id,
             "primary_category_id": orm.primary_category_id,
@@ -245,7 +255,9 @@ class ProductRepository(IProductRepository):
             variants=[],
         )
 
-    def _to_orm(self, entity: DomainProduct, orm: OrmProduct | None = None) -> OrmProduct:
+    def _to_orm(
+        self, entity: DomainProduct, orm: OrmProduct | None = None
+    ) -> OrmProduct:
         """Map a domain Product entity to an ORM Product row.
 
         When ``orm`` is ``None`` a new row is created with safe defaults
@@ -290,7 +302,9 @@ class ProductRepository(IProductRepository):
         Handles additions, updates, and removals of child variant entities
         and their nested SKUs.
         """
-        existing_variants: dict[uuid.UUID, OrmProductVariant] = {v.id: v for v in orm.variants}
+        existing_variants: dict[uuid.UUID, OrmProductVariant] = {
+            v.id: v for v in orm.variants
+        }
         domain_variant_ids: set[uuid.UUID] = set()
 
         for domain_variant in product.variants:
@@ -307,16 +321,20 @@ class ProductRepository(IProductRepository):
                 orm.variants.append(new_orm_variant)
 
         to_remove = [
-            v for v in orm.variants if v.id not in domain_variant_ids and v.deleted_at is None
+            v
+            for v in orm.variants
+            if v.id not in domain_variant_ids and v.deleted_at is None
         ]
         for v in to_remove:
-            orm.variants.delete(v)
+            orm.variants.remove(v)
 
     def _sync_skus_for_variant(
         self, domain_variant: DomainProductVariant, orm_variant: OrmProductVariant
     ) -> None:
         """Reconcile domain SKU list within a single variant."""
-        existing_by_id: dict[uuid.UUID, OrmSKU] = {sku.id: sku for sku in orm_variant.skus}
+        existing_by_id: dict[uuid.UUID, OrmSKU] = {
+            sku.id: sku for sku in orm_variant.skus
+        }
         domain_sku_ids: set[uuid.UUID] = set()
 
         for domain_sku in domain_variant.skus:
@@ -334,7 +352,7 @@ class ProductRepository(IProductRepository):
             if sku.id not in domain_sku_ids and sku.deleted_at is None
         ]
         for sku in to_remove:
-            orm_variant.skus.delete(sku)
+            orm_variant.skus.remove(sku)
 
     # ------------------------------------------------------------------
     # Public methods -- IProductRepository + ICatalogRepository
@@ -477,7 +495,9 @@ class ProductRepository(IProductRepository):
         """Return ``True`` if any non-deleted product already uses this slug."""
         return await self._field_exists("slug", slug)
 
-    async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
+    async def check_slug_exists_excluding(
+        self, slug: str, exclude_id: uuid.UUID
+    ) -> bool:
         """Return ``True`` if the slug is taken by another non-deleted product."""
         return await self._field_exists("slug", slug, exclude_id=exclude_id)
 
@@ -497,7 +517,9 @@ class ProductRepository(IProductRepository):
             return self._to_domain_without_skus(orm)
         return None
 
-    async def get_for_update_with_variants(self, product_id: uuid.UUID) -> DomainProduct | None:
+    async def get_for_update_with_variants(
+        self, product_id: uuid.UUID
+    ) -> DomainProduct | None:
         """Retrieve a product with pessimistic lock AND eagerly loaded variants/SKUs.
 
         Combines ``SELECT FOR UPDATE`` with variant/SKU eager loading so
@@ -531,7 +553,9 @@ class ProductRepository(IProductRepository):
             select(OrmProduct)
             .where(OrmProduct.id == product_id)
             .options(
-                selectinload(OrmProduct.variants.and_(OrmProductVariant.deleted_at.is_(None)))
+                selectinload(
+                    OrmProduct.variants.and_(OrmProductVariant.deleted_at.is_(None))
+                )
                 .selectinload(OrmProductVariant.skus.and_(OrmSKU.deleted_at.is_(None)))
                 .selectinload(OrmSKU.attribute_values)
             )

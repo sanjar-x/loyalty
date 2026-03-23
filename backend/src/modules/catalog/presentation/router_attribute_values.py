@@ -154,7 +154,7 @@ async def update_attribute_value(
         slug=result.slug,
         value_i18n=result.value_i18n,
         search_aliases=result.search_aliases,
-        meta_data=result.meta_data,
+        meta_data=result.meta_data or {},
         value_group=result.value_group,
         sort_order=result.sort_order,
     )

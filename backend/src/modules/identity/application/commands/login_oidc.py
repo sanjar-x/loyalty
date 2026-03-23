@@ -113,9 +113,7 @@ class LoginOIDCHandler:
             )
 
             if linked:
-                identity = await self._identity_repo.get(linked.identity_id)
-                if identity is None:
-                    raise InvalidCredentialsError()
+                identity, _linked_account = linked
                 identity.ensure_active()
             else:
                 # Create new identity and linked account

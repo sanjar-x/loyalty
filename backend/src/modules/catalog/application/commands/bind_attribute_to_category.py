@@ -9,7 +9,9 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
-from src.modules.catalog.application.queries.storefront import invalidate_storefront_cache
+from src.modules.catalog.application.queries.storefront import (
+    invalidate_storefront_cache,
+)
 from src.modules.catalog.domain.entities import CategoryAttributeBinding
 from src.modules.catalog.domain.events import CategoryAttributeBindingCreatedEvent
 from src.modules.catalog.domain.exceptions import (

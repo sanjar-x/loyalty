@@ -12,6 +12,7 @@ from sqlalchemy import select
 
 from src.modules.catalog.domain.entities import Attribute as DomainAttribute
 from src.modules.catalog.domain.interfaces import IAttributeRepository
+from src.modules.catalog.domain.value_objects import BehaviorFlags
 from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute
 from src.modules.catalog.infrastructure.models import (
     CategoryAttributeBinding as OrmCategoryAttributeBinding,
@@ -46,16 +47,22 @@ class AttributeRepository(
             is_dictionary=orm.is_dictionary,
             group_id=orm.group_id,
             level=orm.level,
-            is_filterable=orm.is_filterable,
-            is_searchable=orm.is_searchable,
-            search_weight=orm.search_weight,
-            is_comparable=orm.is_comparable,
-            is_visible_on_card=orm.is_visible_on_card,
-            is_visible_in_catalog=orm.is_visible_in_catalog,
-            validation_rules=dict(orm.validation_rules) if orm.validation_rules else None,
+            behavior=BehaviorFlags(
+                is_filterable=bool(orm.is_filterable),
+                is_searchable=bool(orm.is_searchable),
+                search_weight=orm.search_weight,
+                is_comparable=bool(orm.is_comparable),
+                is_visible_on_card=bool(orm.is_visible_on_card),
+                is_visible_in_catalog=bool(orm.is_visible_in_catalog),
+            ),
+            validation_rules=dict(orm.validation_rules)
+            if orm.validation_rules
+            else None,
         )
 
-    def _to_orm(self, entity: DomainAttribute, orm: OrmAttribute | None = None) -> OrmAttribute:
+    def _to_orm(
+        self, entity: DomainAttribute, orm: OrmAttribute | None = None
+    ) -> OrmAttribute:
         """Map a domain Attribute entity to an ORM row (create or update)."""
         if orm is None:
             orm = OrmAttribute()
@@ -86,11 +93,15 @@ class AttributeRepository(
         """Return ``True`` if any attribute already uses this slug."""
         return await self._field_exists("slug", slug)
 
-    async def check_code_exists_excluding(self, code: str, exclude_id: uuid.UUID) -> bool:
+    async def check_code_exists_excluding(
+        self, code: str, exclude_id: uuid.UUID
+    ) -> bool:
         """Return ``True`` if the code is taken by another attribute."""
         return await self._field_exists("code", code, exclude_id=exclude_id)
 
-    async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
+    async def check_slug_exists_excluding(
+        self, slug: str, exclude_id: uuid.UUID
+    ) -> bool:
         """Return ``True`` if the slug is taken by another attribute."""
         return await self._field_exists("slug", slug, exclude_id=exclude_id)
 

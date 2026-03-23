@@ -13,8 +13,8 @@ from src.modules.catalog.domain.events import AttributeUpdatedEvent
 from src.modules.catalog.domain.exceptions import AttributeNotFoundError
 from src.modules.catalog.domain.interfaces import IAttributeRepository
 from src.modules.catalog.domain.value_objects import AttributeLevel, AttributeUIType
-from src.shared.interfaces.uow import IUnitOfWork
 from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

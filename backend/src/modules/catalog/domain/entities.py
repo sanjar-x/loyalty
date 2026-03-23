@@ -161,7 +161,9 @@ class Brand(AggregateRoot):
 
     # DDD-01: guard slug against direct mutation
     def __setattr__(self, name: str, value: object) -> None:
-        if name in _BRAND_GUARDED_FIELDS and getattr(self, "_Brand__initialized", False):
+        if name in _BRAND_GUARDED_FIELDS and getattr(
+            self, "_Brand__initialized", False
+        ):
             raise AttributeError(
                 f"Cannot set '{name}' directly on Brand. Use the update() method instead."
             )
@@ -397,7 +399,9 @@ class Category(AggregateRoot):
 
     # DDD-01: guard slug against direct mutation
     def __setattr__(self, name: str, value: object) -> None:
-        if name in _CATEGORY_GUARDED_FIELDS and getattr(self, "_Category__initialized", False):
+        if name in _CATEGORY_GUARDED_FIELDS and getattr(
+            self, "_Category__initialized", False
+        ):
             raise AttributeError(
                 f"Cannot set '{name}' directly on Category. Use the update() method instead."
             )
@@ -459,7 +463,9 @@ class Category(AggregateRoot):
         """
         _validate_slug(slug, "Category")
         if parent.level >= MAX_CATEGORY_DEPTH:
-            raise CategoryMaxDepthError(max_depth=MAX_CATEGORY_DEPTH, current_level=parent.level)
+            raise CategoryMaxDepthError(
+                max_depth=MAX_CATEGORY_DEPTH, current_level=parent.level
+            )
 
         return cls(
             id=_generate_id(),
@@ -774,35 +780,31 @@ class Attribute(AggregateRoot):
             validation_rules=validation_rules,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "name_i18n",
-            "description_i18n",
-            "ui_type",
-            "group_id",
-            "level",
-            "is_filterable",
-            "is_searchable",
-            "search_weight",
-            "is_comparable",
-            "is_visible_on_card",
-            "is_visible_in_catalog",
-            "validation_rules",
-            "behavior",
-        }
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "name_i18n",
+        "description_i18n",
+        "ui_type",
+        "group_id",
+        "level",
+        "is_filterable",
+        "is_searchable",
+        "search_weight",
+        "is_comparable",
+        "is_visible_on_card",
+        "is_visible_in_catalog",
+        "validation_rules",
+        "behavior",
+    })
 
     # Individual behavior flag names mapped to BehaviorFlags field names
-    _BEHAVIOR_FLAG_NAMES: ClassVar[frozenset[str]] = frozenset(
-        {
-            "is_filterable",
-            "is_searchable",
-            "search_weight",
-            "is_comparable",
-            "is_visible_on_card",
-            "is_visible_in_catalog",
-        }
-    )
+    _BEHAVIOR_FLAG_NAMES: ClassVar[frozenset[str]] = frozenset({
+        "is_filterable",
+        "is_searchable",
+        "search_weight",
+        "is_comparable",
+        "is_visible_on_card",
+        "is_visible_in_catalog",
+    })
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable attribute fields. Code, slug, and data_type are immutable.
@@ -866,16 +868,30 @@ class Attribute(AggregateRoot):
                             f"{MAX_SEARCH_WEIGHT}, got {sw}"
                         )
                 # Build new BehaviorFlags merging current values with updates
-                current = {
-                    "is_filterable": self.behavior.is_filterable,
-                    "is_searchable": self.behavior.is_searchable,
-                    "search_weight": self.behavior.search_weight,
-                    "is_comparable": self.behavior.is_comparable,
-                    "is_visible_on_card": self.behavior.is_visible_on_card,
-                    "is_visible_in_catalog": self.behavior.is_visible_in_catalog,
-                }
-                current.update(flag_updates)
-                self.behavior = BehaviorFlags(**current)
+                self.behavior = BehaviorFlags(
+                    is_filterable=bool(
+                        flag_updates.get("is_filterable", self.behavior.is_filterable)
+                    ),
+                    is_searchable=bool(
+                        flag_updates.get("is_searchable", self.behavior.is_searchable)
+                    ),
+                    search_weight=int(
+                        flag_updates.get("search_weight", self.behavior.search_weight)
+                    ),
+                    is_comparable=bool(
+                        flag_updates.get("is_comparable", self.behavior.is_comparable)
+                    ),
+                    is_visible_on_card=bool(
+                        flag_updates.get(
+                            "is_visible_on_card", self.behavior.is_visible_on_card
+                        )
+                    ),
+                    is_visible_in_catalog=bool(
+                        flag_updates.get(
+                            "is_visible_in_catalog", self.behavior.is_visible_in_catalog
+                        )
+                    ),
+                )
 
         if "validation_rules" in kwargs:
             validation_rules = kwargs["validation_rules"]
@@ -966,15 +982,13 @@ class AttributeValue:
             sort_order=sort_order,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "value_i18n",
-            "search_aliases",
-            "meta_data",
-            "value_group",
-            "sort_order",
-        }
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "value_i18n",
+        "search_aliases",
+        "meta_data",
+        "value_group",
+        "sort_order",
+    })
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable fields. Code and slug are immutable after creation.
@@ -1068,16 +1082,15 @@ class ProductAttributeValue:
 
 
 @dataclass
-class CategoryAttributeBinding(_EventEmitterEntity):
+class CategoryAttributeBinding(AggregateRoot):
     """Binding between a category and an attribute with governance settings.
 
-    Child entity (not an aggregate root) that controls which attributes
-    apply to a category, their display order, requirement level for
-    completeness scoring, optional behavior-flag overrides, and
-    per-category filter settings.
+    Controls which attributes apply to a category, their display order,
+    requirement level for completeness scoring, optional behavior-flag
+    overrides, and per-category filter settings.
 
-    Retains domain event support so that command handlers can emit
-    binding-related events through the entity.
+    Extends AggregateRoot because bindings emit domain events and are
+    registered with UnitOfWork for Outbox persistence.
 
     Attributes:
         id: Unique binding identifier.
@@ -1136,14 +1149,12 @@ class CategoryAttributeBinding(_EventEmitterEntity):
             filter_settings=filter_settings,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "sort_order",
-            "requirement_level",
-            "flag_overrides",
-            "filter_settings",
-        }
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "sort_order",
+        "requirement_level",
+        "flag_overrides",
+        "filter_settings",
+    })
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable binding fields. category_id and attribute_id are immutable.
@@ -1240,16 +1251,14 @@ class SKU:
         self.deleted_at = now
         self.updated_at = now
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "sku_code",
-            "price",
-            "compare_at_price",
-            "is_active",
-            "variant_attributes",
-            "variant_hash",
-        }
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "sku_code",
+        "price",
+        "compare_at_price",
+        "is_active",
+        "variant_attributes",
+        "variant_hash",
+    })
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable SKU fields.
@@ -1371,15 +1380,13 @@ class ProductVariant:
             skus=[],
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "name_i18n",
-            "description_i18n",
-            "sort_order",
-            "default_price",
-            "default_currency",
-        }
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "name_i18n",
+        "description_i18n",
+        "sort_order",
+        "default_price",
+        "default_currency",
+    })
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable variant fields.
@@ -1409,7 +1416,9 @@ class ProductVariant:
         if "default_currency" in kwargs:
             currency = kwargs["default_currency"]
             if not (len(currency) == 3 and currency.isascii() and currency.isupper()):
-                raise ValueError("default_currency must be exactly 3 uppercase ASCII letters")
+                raise ValueError(
+                    "default_currency must be exactly 3 uppercase ASCII letters"
+                )
             self.default_currency = currency
 
         self.updated_at = datetime.now(UTC)
@@ -1572,7 +1581,9 @@ class MediaAsset(AggregateRoot):
         if self.processing_status != MediaProcessingStatus.PENDING_UPLOAD:
             raise InvalidMediaStateError(
                 media_id=self.id,
-                current_status=str(self.processing_status) if self.processing_status else None,
+                current_status=str(self.processing_status)
+                if self.processing_status
+                else None,
                 expected_status=MediaProcessingStatus.PENDING_UPLOAD.value,
             )
         self.processing_status = MediaProcessingStatus.PROCESSING
@@ -1612,7 +1623,9 @@ class MediaAsset(AggregateRoot):
         if self.processing_status != MediaProcessingStatus.PROCESSING:
             raise InvalidMediaStateError(
                 media_id=self.id,
-                current_status=str(self.processing_status) if self.processing_status else None,
+                current_status=str(self.processing_status)
+                if self.processing_status
+                else None,
                 expected_status=MediaProcessingStatus.PROCESSING.value,
             )
         self.public_url = public_url
@@ -1640,7 +1653,9 @@ class MediaAsset(AggregateRoot):
         if self.processing_status != MediaProcessingStatus.PROCESSING:
             raise InvalidMediaStateError(
                 media_id=self.id,
-                current_status=str(self.processing_status) if self.processing_status else None,
+                current_status=str(self.processing_status)
+                if self.processing_status
+                else None,
                 expected_status=MediaProcessingStatus.PROCESSING.value,
             )
         self.processing_status = MediaProcessingStatus.FAILED
@@ -1731,7 +1746,9 @@ class Product(AggregateRoot):
 
     # DDD-01: guard status against direct mutation
     def __setattr__(self, name: str, value: object) -> None:
-        if name in _PRODUCT_GUARDED_FIELDS and getattr(self, "_Product__initialized", False):
+        if name in _PRODUCT_GUARDED_FIELDS and getattr(
+            self, "_Product__initialized", False
+        ):
             raise AttributeError(
                 f"Cannot set '{name}' directly on Product. Use transition_status() instead."
             )
@@ -1807,18 +1824,16 @@ class Product(AggregateRoot):
         )
         return product
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "title_i18n",
-            "description_i18n",
-            "slug",
-            "brand_id",
-            "primary_category_id",
-            "supplier_id",
-            "country_of_origin",
-            "tags",
-        }
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "title_i18n",
+        "description_i18n",
+        "slug",
+        "brand_id",
+        "primary_category_id",
+        "supplier_id",
+        "country_of_origin",
+        "tags",
+    })
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable product fields.
@@ -2010,7 +2025,9 @@ class Product(AggregateRoot):
         )
         self._variants.append(variant)
         self.add_domain_event(
-            VariantAddedEvent(product_id=self.id, variant_id=variant.id, aggregate_id=str(self.id))
+            VariantAddedEvent(
+                product_id=self.id, variant_id=variant.id, aggregate_id=str(self.id)
+            )
         )
         self.updated_at = datetime.now(UTC)
         return variant
@@ -2099,7 +2116,10 @@ class Product(AggregateRoot):
         variant_hash = self.compute_variant_hash(variant_id, effective_attrs)
         for v in self.variants:
             for existing in v.skus:
-                if existing.deleted_at is None and existing.variant_hash == variant_hash:
+                if (
+                    existing.deleted_at is None
+                    and existing.variant_hash == variant_hash
+                ):
                     raise DuplicateVariantCombinationError(
                         product_id=self.id,
                         variant_hash=variant_hash,
@@ -2187,5 +2207,7 @@ class Product(AggregateRoot):
             A 64-character lowercase hex string (SHA-256 digest).
         """
         sorted_attrs = sorted(variant_attributes, key=lambda x: str(x[0]))
-        payload = str(variant_id) + ":" + "|".join(f"{a!s}:{v!s}" for a, v in sorted_attrs)
+        payload = (
+            str(variant_id) + ":" + "|".join(f"{a!s}:{v!s}" for a, v in sorted_attrs)
+        )
         return hashlib.sha256(payload.encode()).hexdigest()

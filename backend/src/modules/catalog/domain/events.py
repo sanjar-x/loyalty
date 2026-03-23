@@ -443,6 +443,19 @@ class CategoryBindingsReorderedEvent(
     event_type: str = "CategoryBindingsReorderedEvent"
 
 
+@dataclass
+class RequirementLevelsUpdatedEvent(
+    CatalogEvent,
+    required_fields=("category_id",),
+    aggregate_id_field="category_id",
+):
+    """Emitted when requirement levels are bulk-updated for a category's bindings."""
+
+    category_id: uuid.UUID | None = None
+    aggregate_type: str = "CategoryAttributeBinding"
+    event_type: str = "RequirementLevelsUpdatedEvent"
+
+
 # ---------------------------------------------------------------------------
 # ProductMedia events
 # ---------------------------------------------------------------------------
