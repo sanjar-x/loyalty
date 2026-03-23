@@ -11,7 +11,10 @@ from dataclasses import dataclass
 
 from sqlalchemy.exc import IntegrityError  # DB-level uniqueness safety net
 
-from src.modules.catalog.application.constants import raw_media_key
+from src.modules.catalog.application.constants import (
+    PRESIGNED_URL_EXPIRATION_SECONDS,
+    raw_media_key,
+)
 from src.modules.catalog.domain.entities import MediaAsset
 from src.modules.catalog.domain.exceptions import ProductNotFoundError
 from src.modules.catalog.domain.interfaces import (
@@ -111,7 +114,7 @@ class AddProductMediaHandler:
         presigned_url = await self._blob_storage.generate_presigned_put_url(
             object_name=object_key,
             content_type=command.content_type,
-            expiration=300,
+            expiration=PRESIGNED_URL_EXPIRATION_SECONDS,
         )
 
         # 4. Enforce MAIN uniqueness and persist atomically in the same transaction

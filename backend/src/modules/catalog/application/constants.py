@@ -50,3 +50,25 @@ def public_media_key(product_id: uuid.UUID, media_id: uuid.UUID, ext: str = "web
 
 CATEGORY_TREE_CACHE_KEY = "catalog:category_tree"
 """Redis cache key for the full category tree JSON payload."""
+
+CATEGORY_TREE_CACHE_TTL_SECONDS = 300
+"""TTL for the category tree Redis cache (5 minutes)."""
+
+PRESIGNED_URL_EXPIRATION_SECONDS = 300
+"""Expiration time in seconds for S3 presigned PUT URLs (5 minutes)."""
+
+
+def storefront_cache_key(category_id: uuid.UUID) -> str:
+    """Build the Redis cache key for storefront attribute data of a category.
+
+    Args:
+        category_id: UUID of the category.
+
+    Returns:
+        Redis cache key string.
+    """
+    return f"catalog:storefront:{category_id}"
+
+
+STOREFRONT_CACHE_TTL_SECONDS = 300
+"""TTL for storefront attribute cache entries (5 minutes)."""

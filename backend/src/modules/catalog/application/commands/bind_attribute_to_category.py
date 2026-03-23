@@ -9,6 +9,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+from src.modules.catalog.application.constants import storefront_cache_key
 from src.modules.catalog.domain.entities import CategoryAttributeBinding
 from src.modules.catalog.domain.events import CategoryAttributeBindingCreatedEvent
 from src.modules.catalog.domain.exceptions import (
@@ -22,6 +23,7 @@ from src.modules.catalog.domain.interfaces import (
     ICategoryRepository,
 )
 from src.modules.catalog.domain.value_objects import RequirementLevel
+from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.uow import IUnitOfWork
 
 
@@ -53,11 +55,13 @@ class BindAttributeToCategoryHandler:
         attribute_repo: IAttributeRepository,
         binding_repo: ICategoryAttributeBindingRepository,
         uow: IUnitOfWork,
+        cache: ICacheService,
     ):
         self._category_repo = category_repo
         self._attribute_repo = attribute_repo
         self._binding_repo = binding_repo
         self._uow = uow
+        self._cache = cache
 
     async def handle(
         self, command: BindAttributeToCategoryCommand
@@ -105,5 +109,8 @@ class BindAttributeToCategoryHandler:
             binding = await self._binding_repo.add(binding)
             self._uow.register_aggregate(binding)
             await self._uow.commit()
+
+        # Invalidate storefront cache for the affected category
+        await self._cache.delete(storefront_cache_key(command.category_id))
 
         return BindAttributeToCategoryResult(binding_id=binding.id)
