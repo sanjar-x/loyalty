@@ -21,6 +21,8 @@ from src.bootstrap.broker import broker
 from src.bootstrap.config import settings
 from src.bootstrap.container import create_container
 from src.bootstrap.logger import setup_logging
+from src.modules.catalog.management.sync_brands import sync_brands
+from src.modules.catalog.management.sync_categories import sync_categories
 from src.modules.identity.management.sync_system_roles import sync_system_roles
 
 setup_logging()
@@ -54,6 +56,8 @@ async def lifespan(app: FastAPI):
     async with container() as app_scope:
         factory = await app_scope.get(async_sessionmaker[AsyncSession])
         await sync_system_roles(factory)
+        await sync_categories(factory)
+        await sync_brands(factory)
 
     if not broker.is_worker_process:
         logger.info("Starting TaskIQ broker within the API process...")

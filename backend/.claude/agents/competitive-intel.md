@@ -170,7 +170,6 @@ Based on `domain`, select 3–5 platforms per source type:
 | catalog         | Shopify, Magento, BigCommerce, WooCommerce, Medusa |
 | payments        | Stripe, Adyen, Square, PayPal, Mollie              |
 | logistics       | Shippo, EasyPost, ShipStation, Flexport            |
-| loyalty         | Yotpo, LoyaltyLion, Smile.io, Antavo               |
 | auth            | Auth0, Clerk, Supabase Auth, Firebase Auth, WorkOS |
 | notifications   | Twilio, SendGrid, OneSignal, Novu, Knock           |
 | analytics       | Amplitude, Mixpanel, PostHog, Segment              |

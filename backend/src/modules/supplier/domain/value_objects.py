@@ -3,7 +3,7 @@
 import enum
 
 
-class SupplierType(str, enum.Enum):
+class SupplierType(enum.StrEnum):
     """Classification of supplier by geography and logistics model.
 
     CROSS_BORDER: Chinese marketplace suppliers (Poizon, Taobao, etc.)

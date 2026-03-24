@@ -503,7 +503,7 @@ class Product(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), index=True
     )
-    supplier: Mapped["Supplier"] = relationship(
+    supplier: Mapped["Supplier"] = relationship(  # noqa: F821, UP037  # ty:ignore[unresolved-reference]
         "src.modules.supplier.infrastructure.models.Supplier",
         back_populates="products",
         foreign_keys="[Product.supplier_id]",
