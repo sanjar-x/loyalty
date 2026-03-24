@@ -24,7 +24,7 @@ class CustomerModel(Base):
     profile_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     first_name: Mapped[str] = mapped_column(String(100), server_default="", nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), server_default="", nullable=False)
-    username: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    username: Mapped[str | None] = mapped_column(String(64), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     referral_code: Mapped[str | None] = mapped_column(String(12), unique=True, nullable=True)
     referred_by: Mapped[uuid.UUID | None] = mapped_column(
@@ -54,6 +54,7 @@ class StaffMemberModel(Base):
     )
     first_name: Mapped[str] = mapped_column(String(100), server_default="", nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), server_default="", nullable=False)
+    username: Mapped[str | None] = mapped_column(String(64), nullable=True)
     profile_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     position: Mapped[str | None] = mapped_column(String(100), nullable=True)
     department: Mapped[str | None] = mapped_column(String(100), nullable=True)

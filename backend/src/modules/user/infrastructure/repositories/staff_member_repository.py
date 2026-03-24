@@ -21,6 +21,7 @@ class StaffMemberRepository(IStaffMemberRepository):
             id=orm.id,
             first_name=orm.first_name,
             last_name=orm.last_name,
+            username=orm.username,
             profile_email=orm.profile_email,
             position=orm.position,
             department=orm.department,
@@ -34,6 +35,7 @@ class StaffMemberRepository(IStaffMemberRepository):
             id=staff.id,
             first_name=staff.first_name,
             last_name=staff.last_name,
+            username=staff.username,
             profile_email=staff.profile_email,
             position=staff.position,
             department=staff.department,
@@ -54,6 +56,7 @@ class StaffMemberRepository(IStaffMemberRepository):
             .values(
                 first_name=staff.first_name,
                 last_name=staff.last_name,
+                username=staff.username,
                 profile_email=staff.profile_email,
                 position=staff.position,
                 department=staff.department,

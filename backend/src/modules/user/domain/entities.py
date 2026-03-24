@@ -121,6 +121,7 @@ _STAFF_UPDATABLE_FIELDS = frozenset(
     {
         "first_name",
         "last_name",
+        "username",
         "position",
         "department",
     }
@@ -149,6 +150,7 @@ class StaffMember(AggregateRoot):
     id: uuid.UUID
     first_name: str
     last_name: str
+    username: str | None
     profile_email: str | None
     position: str | None
     department: str | None
@@ -164,6 +166,7 @@ class StaffMember(AggregateRoot):
         invited_by: uuid.UUID,
         first_name: str = "",
         last_name: str = "",
+        username: str | None = None,
     ) -> StaffMember:
         """Create a new StaffMember from an invitation acceptance.
 
@@ -182,6 +185,7 @@ class StaffMember(AggregateRoot):
             id=identity_id,
             first_name=first_name,
             last_name=last_name,
+            username=username,
             profile_email=profile_email,
             position=None,
             department=None,
