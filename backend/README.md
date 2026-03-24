@@ -447,9 +447,9 @@ cp .env.example .env
 
 ### RabbitMQ
 
-| Variable       | Type  | Default      | Description         |
-| -------------- | ----- | ------------ | ------------------- |
-| `RABBITMQ_URL` | `str` | **required** | AMQP connection URL |
+| Variable               | Type  | Default      | Description         |
+| ---------------------- | ----- | ------------ | ------------------- |
+| `RABBITMQ_PRIVATE_URL` | `str` | **required** | AMQP connection URL |
 
 ### Telegram Bot
 

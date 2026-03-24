@@ -103,7 +103,7 @@ class Settings(BaseSettings):
     S3_PUBLIC_BASE_URL: str
     INTERNAL_WEBHOOK_SECRET: SecretStr = SecretStr("")
 
-    RABBITMQ_URL: str
+    RABBITMQ_PRIVATE_URL: str
 
     # -- Telegram Bot --------------------------------------------------------
     BOT_TOKEN: SecretStr
