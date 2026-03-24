@@ -68,16 +68,7 @@ class MediaRole(str, enum.Enum):
     PACKAGING = "packaging"
 
 
-class SupplierType(str, enum.Enum):
-    """Classification of suppliers by logistics origin.
-
-    Members:
-        CROSS_BORDER: Supplier ships from abroad (cross-border logistics).
-        LOCAL: Supplier ships from a domestic warehouse.
-    """
-
-    CROSS_BORDER = "cross_border"
-    LOCAL = "local"
+from src.modules.supplier.domain.value_objects import SupplierType  # noqa: F401
 
 
 # ---------------------------------------------------------------------------

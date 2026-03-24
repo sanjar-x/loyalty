@@ -21,7 +21,6 @@ from src.modules.catalog.infrastructure.models import (
     ProductAttributeValue,
     ProductVariant,
     SKUAttributeValueLink,
-    Supplier,
 )
 from src.modules.geo.infrastructure.models import (
     CountryCurrencyModel,
@@ -93,5 +92,4 @@ __all__ = [
     "SubdivisionCategoryTranslationModel",
     "SubdivisionModel",
     "SubdivisionTranslationModel",
-    "Supplier",
 ]
