@@ -99,7 +99,7 @@ class LogoMetadataRequest(CamelModel):
 class CategoryCreateRequest(CamelModel):
     """Request body for creating a new category."""
 
-    name: str = Field(..., min_length=2, max_length=255, examples=["Sneakers"])
+    name_i18n: I18nDict = Field(..., min_length=1, examples=[{"ru": "Кроссовки", "en": "Sneakers"}])
     slug: str = Field(
         ...,
         min_length=3,
@@ -122,7 +122,7 @@ class CategoryTreeResponse(CamelModel):
     """Recursive tree node for the category hierarchy response."""
 
     id: uuid.UUID
-    name: str
+    name_i18n: dict[str, str]
     slug: str
     full_slug: str
     level: int
@@ -136,7 +136,7 @@ class CategoryResponse(CamelModel):
     """Single category detail response."""
 
     id: uuid.UUID
-    name: str
+    name_i18n: dict[str, str]
     slug: str
     full_slug: str
     level: int
@@ -147,14 +147,14 @@ class CategoryResponse(CamelModel):
 class CategoryUpdateRequest(CamelModel):
     """Partial update request -- all fields optional (PATCH semantics)."""
 
-    name: str | None = Field(None, min_length=2, max_length=255)
+    name_i18n: I18nDict | None = Field(None, min_length=1)
     slug: str | None = Field(None, min_length=3, max_length=255, pattern=r"^[a-z0-9-]+$")
     sort_order: int | None = Field(None, ge=0)
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> CategoryUpdateRequest:
-        if self.name is None and self.slug is None and self.sort_order is None:
-            raise ValueError("At least one field (name, slug, or sortOrder) must be provided")
+        if self.name_i18n is None and self.slug is None and self.sort_order is None:
+            raise ValueError("At least one field (nameI18n, slug, or sortOrder) must be provided")
         return self
 
 

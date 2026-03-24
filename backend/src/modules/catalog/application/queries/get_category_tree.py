@@ -57,7 +57,7 @@ class GetCategoryTreeHandler:
         for orm in rows:
             node = CategoryNode(
                 id=orm.id,
-                name=orm.name,
+                name_i18n=orm.name_i18n or {},
                 slug=orm.slug,
                 full_slug=orm.full_slug,
                 level=orm.level,

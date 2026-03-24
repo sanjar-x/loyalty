@@ -28,13 +28,13 @@ class UpdateCategoryCommand:
 
     Attributes:
         category_id: UUID of the category to update.
-        name: New display name, or None to keep current.
+        name_i18n: New multilingual display name, or None to keep current.
         slug: New URL-safe slug, or None to keep current.
         sort_order: New sort position, or None to keep current.
     """
 
     category_id: uuid.UUID
-    name: str | None = None
+    name_i18n: dict[str, str] | None = None
     slug: str | None = None
     sort_order: int | None = None
     _provided_fields: frozenset[str] = field(default_factory=frozenset)
@@ -46,7 +46,7 @@ class UpdateCategoryResult:
 
     Attributes:
         id: UUID of the updated category.
-        name: Updated display name.
+        name_i18n: Updated multilingual display name.
         slug: Updated URL-safe slug.
         full_slug: Recomputed materialized path.
         level: Tree depth.
@@ -55,7 +55,7 @@ class UpdateCategoryResult:
     """
 
     id: uuid.UUID
-    name: str
+    name_i18n: dict[str, str]
     slug: str
     full_slug: str
     level: int
@@ -114,7 +114,7 @@ class UpdateCategoryHandler:
             ):
                 raise CategorySlugConflictError(slug=command.slug, parent_id=category.parent_id)
 
-            _SAFE_FIELDS = frozenset({"name", "slug", "sort_order"})
+            _SAFE_FIELDS = frozenset({"name_i18n", "slug", "sort_order"})
             safe_fields = command._provided_fields & _SAFE_FIELDS
             update_kwargs: dict[str, Any] = {f: getattr(command, f) for f in safe_fields}
             old_full_slug = category.update(**update_kwargs)
@@ -139,7 +139,7 @@ class UpdateCategoryHandler:
 
         return UpdateCategoryResult(
             id=category.id,
-            name=category.name,
+            name_i18n=category.name_i18n,
             slug=category.slug,
             full_slug=category.full_slug,
             level=category.level,

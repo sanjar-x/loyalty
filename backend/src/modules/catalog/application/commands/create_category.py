@@ -26,13 +26,13 @@ class CreateCategoryCommand:
     """Input for creating a new category.
 
     Attributes:
-        name: Display name of the category.
+        name_i18n: Multilingual display name of the category.
         slug: URL-safe identifier, unique within the parent level.
         parent_id: Parent category UUID, or None for a root category.
         sort_order: Display ordering among siblings.
     """
 
-    name: str
+    name_i18n: dict[str, str]
     slug: str
     parent_id: uuid.UUID | None = None
     sort_order: int = 0
@@ -44,7 +44,7 @@ class CreateCategoryResult:
 
     Attributes:
         id: UUID of the newly created category.
-        name: Display name.
+        name_i18n: Multilingual display name.
         slug: URL-safe identifier.
         full_slug: Materialized path (e.g. ``"electronics/phones"``).
         level: Depth in the tree (0 = root).
@@ -53,7 +53,7 @@ class CreateCategoryResult:
     """
 
     id: uuid.UUID
-    name: str
+    name_i18n: dict[str, str]
     slug: str
     full_slug: str
     level: int
@@ -110,14 +110,14 @@ class CreateCategoryHandler:
                     raise CategoryNotFoundError(category_id=command.parent_id)
 
                 category = Category.create_child(
-                    name=command.name,
+                    name_i18n=command.name_i18n,
                     slug=command.slug,
                     parent=parent,
                     sort_order=command.sort_order,
                 )
             else:
                 category = Category.create_root(
-                    name=command.name,
+                    name_i18n=command.name_i18n,
                     slug=command.slug,
                     sort_order=command.sort_order,
                 )
@@ -133,7 +133,7 @@ class CreateCategoryHandler:
 
         return CreateCategoryResult(
             id=category.id,
-            name=category.name,
+            name_i18n=category.name_i18n,
             slug=category.slug,
             full_slug=category.full_slug,
             level=category.level,

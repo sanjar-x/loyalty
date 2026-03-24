@@ -53,7 +53,7 @@ class ListCategoriesHandler:
 
         stmt = (
             select(OrmCategory)
-            .order_by(OrmCategory.level, OrmCategory.sort_order, OrmCategory.name)
+            .order_by(OrmCategory.level, OrmCategory.sort_order, OrmCategory.name_i18n)
             .limit(query.limit)
             .offset(query.offset)
         )

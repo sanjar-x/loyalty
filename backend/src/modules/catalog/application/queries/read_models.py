@@ -58,7 +58,7 @@ class CategoryNode(BaseModel):
     """Recursive tree node for the category hierarchy read model."""
 
     id: uuid.UUID
-    name: str
+    name_i18n: dict[str, str]
     slug: str
     full_slug: str
     level: int
@@ -71,7 +71,7 @@ class CategoryReadModel(BaseModel):
     """Read model for a single category (flat, no children)."""
 
     id: uuid.UUID
-    name: str
+    name_i18n: dict[str, str]
     slug: str
     full_slug: str
     level: int

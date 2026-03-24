@@ -70,7 +70,7 @@ async def create_category(
     handler: FromDishka[CreateCategoryHandler],
 ) -> CategoryCreateResponse:
     command = CreateCategoryCommand(
-        name=request.name,
+        name_i18n=request.name_i18n,
         slug=request.slug,
         parent_id=request.parent_id,
         sort_order=request.sort_order,
@@ -116,7 +116,7 @@ async def list_categories(
         items=[
             CategoryResponse(
                 id=item.id,
-                name=item.name,
+                name_i18n=item.name_i18n,
                 slug=item.slug,
                 full_slug=item.full_slug,
                 level=item.level,
@@ -146,7 +146,7 @@ async def get_category(
     result: CategoryReadModel = await handler.handle(category_id)
     return CategoryResponse(
         id=result.id,
-        name=result.name,
+        name_i18n=result.name_i18n,
         slug=result.slug,
         full_slug=result.full_slug,
         level=result.level,
@@ -176,7 +176,7 @@ async def update_category(
     result: UpdateCategoryResult = await handler.handle(command)
     return CategoryResponse(
         id=result.id,
-        name=result.name,
+        name_i18n=result.name_i18n,
         slug=result.slug,
         full_slug=result.full_slug,
         level=result.level,

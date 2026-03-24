@@ -21,7 +21,7 @@ def category_orm_to_read_model(orm: OrmCategory) -> CategoryReadModel:
     """Convert an ORM Category to a CategoryReadModel."""
     return CategoryReadModel(
         id=orm.id,
-        name=orm.name,
+        name_i18n=orm.name_i18n or {},
         slug=orm.slug,
         full_slug=orm.full_slug,
         level=orm.level,
