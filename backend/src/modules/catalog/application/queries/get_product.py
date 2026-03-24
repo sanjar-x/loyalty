@@ -126,6 +126,7 @@ class GetProductHandler:
             brand_id=orm.brand_id,
             primary_category_id=orm.primary_category_id,
             supplier_id=orm.supplier_id,
+            source_url=orm.source_url,
             country_of_origin=orm.country_of_origin,
             tags=list(orm.tags) if orm.tags else [],
             version=orm.version,

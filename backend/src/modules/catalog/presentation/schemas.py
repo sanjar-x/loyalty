@@ -679,6 +679,7 @@ class ProductCreateRequest(CamelModel):
     primary_category_id: uuid.UUID
     description_i18n: I18nDict = Field(default_factory=dict)
     supplier_id: uuid.UUID | None = None
+    source_url: str | None = Field(None, max_length=1024)
     country_of_origin: str | None = Field(None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")
     tags: list[str] = Field(default_factory=list)
 
@@ -828,6 +829,7 @@ class ProductResponse(CamelModel):
     brand_id: uuid.UUID
     primary_category_id: uuid.UUID
     supplier_id: uuid.UUID | None = None
+    source_url: str | None = None
     country_of_origin: str | None = None
     tags: list[str]
     version: int

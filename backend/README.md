@@ -93,6 +93,10 @@ cp .env.example .env
 uv run alembic upgrade head
 ```
 
+python -m src.modules.identity.management.create_admin --email admin@example.com --password 'S3cret!' --username admin
+
+python -m src.modules.catalog.management.sync_categories
+
 **5. Start the API server:**
 
 ```bash

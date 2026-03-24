@@ -29,6 +29,7 @@ from src.modules.catalog.presentation.dependencies import (
 from src.modules.geo.presentation.dependencies import GeoProvider
 from src.modules.identity.infrastructure.provider import IdentityProvider
 from src.modules.storage.presentation.dependencies import StorageProvider
+from src.modules.supplier.presentation.dependencies import SupplierProvider
 from src.modules.user.infrastructure.provider import ProfileProvider
 from src.shared.interfaces.config import IStorageConfig
 
@@ -71,4 +72,5 @@ def create_container() -> AsyncContainer:
         MediaAssetProvider(),
         IdentityProvider(),
         ProfileProvider(),
+        SupplierProvider(),
     )

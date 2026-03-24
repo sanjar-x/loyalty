@@ -21,6 +21,9 @@ from src.modules.catalog.domain.interfaces import (
     ICategoryRepository,
     IProductRepository,
 )
+from src.modules.supplier.domain.exceptions import SourceUrlRequiredError
+from src.modules.supplier.domain.interfaces import ISupplierQueryService
+from src.modules.supplier.domain.value_objects import SupplierType
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -47,6 +50,7 @@ class CreateProductCommand:
     primary_category_id: uuid.UUID
     description_i18n: dict[str, str] = field(default_factory=dict)
     supplier_id: uuid.UUID | None = None
+    source_url: str | None = None
     country_of_origin: str | None = None
     tags: list[str] = field(default_factory=list)
 
@@ -74,12 +78,14 @@ class CreateProductHandler:
         product_repo: IProductRepository,
         brand_repo: IBrandRepository,
         category_repo: ICategoryRepository,
+        supplier_query_service: ISupplierQueryService,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._brand_repo = brand_repo
         self._category_repo = category_repo
+        self._supplier_query_service = supplier_query_service
         self._uow = uow
         self._logger = logger.bind(handler="CreateProductHandler")
 
@@ -109,6 +115,12 @@ class CreateProductHandler:
             if category is None:
                 raise CategoryNotFoundError(category_id=command.primary_category_id)
 
+            # Validate supplier exists and is active
+            if command.supplier_id is not None:
+                supplier_info = await self._supplier_query_service.assert_supplier_active(command.supplier_id)
+                if supplier_info.type == SupplierType.CROSS_BORDER and not command.source_url:
+                    raise SourceUrlRequiredError()
+
             if await self._product_repo.check_slug_exists(command.slug):
                 raise ProductSlugConflictError(slug=command.slug)
 
@@ -119,6 +131,7 @@ class CreateProductHandler:
                 primary_category_id=command.primary_category_id,
                 description_i18n=command.description_i18n if command.description_i18n else None,
                 supplier_id=command.supplier_id,
+                source_url=command.source_url,
                 country_of_origin=command.country_of_origin,
                 tags=list(command.tags) if command.tags else None,
             )

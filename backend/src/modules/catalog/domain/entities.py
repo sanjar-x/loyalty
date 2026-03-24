@@ -1725,6 +1725,7 @@ class Product(AggregateRoot):
     brand_id: uuid.UUID
     primary_category_id: uuid.UUID
     supplier_id: uuid.UUID | None = None
+    source_url: str | None = None
     country_of_origin: str | None = None
     _tags: list[str] = field(factory=list, alias="tags")
     version: int = 1
@@ -1768,6 +1769,7 @@ class Product(AggregateRoot):
         primary_category_id: uuid.UUID,
         description_i18n: dict[str, str] | None = None,
         supplier_id: uuid.UUID | None = None,
+        source_url: str | None = None,
         country_of_origin: str | None = None,
         tags: list[str] | None = None,
         product_id: uuid.UUID | None = None,
@@ -1804,6 +1806,7 @@ class Product(AggregateRoot):
             brand_id=brand_id,
             primary_category_id=primary_category_id,
             supplier_id=supplier_id,
+            source_url=source_url,
             country_of_origin=country_of_origin,
             tags=tags or [],
             version=1,

@@ -45,7 +45,6 @@ from src.modules.catalog.domain.value_objects import (
     MediaType,
     ProductStatus,
     RequirementLevel,
-    SupplierType,
 )
 
 # ---------------------------------------------------------------------------
@@ -441,37 +440,6 @@ class CategoryAttributeBinding(Base):
 # ---------------------------------------------------------------------------
 
 
-class Supplier(Base):
-    """ORM model for product suppliers.
-
-    Classifies suppliers as ``CROSS_BORDER`` or ``LOCAL`` to support
-    differentiated logistics and compliance rules.
-    """
-
-    __tablename__ = "suppliers"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
-    name: Mapped[str] = mapped_column(String(255))
-    type: Mapped[SupplierType] = mapped_column(
-        Enum(SupplierType, name="supplier_type_enum")
-    )
-    region: Mapped[str | None] = mapped_column(String(255))
-
-    created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        server_default=func.now(),
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-    )
-
-    products: Mapped[list[Product]] = relationship("Product", back_populates="supplier")
-
-
 class Product(Base):
     """ORM model for the central product entity.
 
@@ -535,7 +503,11 @@ class Product(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), index=True
     )
-    supplier: Mapped[Supplier] = relationship("Supplier", back_populates="products")
+    supplier: Mapped["Supplier"] = relationship(  # noqa: F821, UP037  # ty:ignore[unresolved-reference]
+        "src.modules.supplier.infrastructure.models.Supplier",
+        back_populates="products",
+        foreign_keys="[Product.supplier_id]",
+    )
     variants: Mapped[list[ProductVariant]] = relationship(
         "ProductVariant", back_populates="product", cascade="all, delete-orphan"
     )

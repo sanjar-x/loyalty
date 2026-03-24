@@ -105,6 +105,7 @@ async def create_product(
         primary_category_id=request.primary_category_id,
         description_i18n=request.description_i18n,
         supplier_id=request.supplier_id,
+        source_url=request.source_url,
         country_of_origin=request.country_of_origin,
         tags=request.tags,
     )
@@ -256,6 +257,7 @@ def _to_product_response(model: ProductReadModel) -> ProductResponse:
         brand_id=model.brand_id,
         primary_category_id=model.primary_category_id,
         supplier_id=model.supplier_id,
+        source_url=model.source_url,
         country_of_origin=model.country_of_origin,
         tags=model.tags,
         version=model.version,
