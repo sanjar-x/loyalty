@@ -141,6 +141,10 @@ class Category(Base):
         onupdate=func.now(),
     )
 
+    family_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("attribute_families.id", ondelete="SET NULL"), index=True, default=None
+    )
+
     children: Mapped[list[Category]] = relationship(
         "Category", back_populates="parent", cascade="all, delete-orphan"
     )
@@ -152,6 +156,7 @@ class Category(Base):
         back_populates="category",
         cascade="all, delete-orphan",
     )
+    family: Mapped[AttributeFamily | None] = relationship("AttributeFamily")
 
     __table_args__ = (
         Index(
@@ -167,6 +172,60 @@ class Category(Base):
             postgresql_ops={"full_slug": "varchar_pattern_ops"},
         ),
         Index("ix_categories_level_sort", "level", "sort_order"),
+    )
+
+
+class AttributeFamily(Base):
+    """ORM model for the attribute family hierarchy.
+
+    Families form a tree via self-referential FK. Used to define which
+    attributes apply to products through polymorphic inheritance.
+    """
+
+    __tablename__ = "attribute_families"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("attribute_families.id", ondelete="RESTRICT"), index=True
+    )
+    code: Mapped[str] = mapped_column(String(100), unique=True)
+    name_i18n: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    description_i18n: Mapped[dict] = mapped_column(
+        JSONB, server_default=text("'{}'::jsonb")
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    level: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    # Self-referential tree
+    children: Mapped[list[AttributeFamily]] = relationship(
+        "AttributeFamily", back_populates="parent", cascade="all, delete-orphan"
+    )
+    parent: Mapped[AttributeFamily | None] = relationship(
+        "AttributeFamily", back_populates="children", remote_side="AttributeFamily.id"
+    )
+
+    # Child aggregates
+    bindings: Mapped[list[FamilyAttributeBinding]] = relationship(
+        "FamilyAttributeBinding", back_populates="family", cascade="all, delete-orphan"
+    )
+    exclusions: Mapped[list[FamilyAttributeExclusion]] = relationship(
+        "FamilyAttributeExclusion", back_populates="family", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        Index("ix_attribute_families_level_sort", "level", "sort_order"),
     )
 
 
@@ -432,6 +491,88 @@ class CategoryAttributeBinding(Base):
 
     __table_args__ = (
         Index("uix_cat_attr_rule", "category_id", "attribute_id", unique=True),
+    )
+
+
+class FamilyAttributeBinding(Base):
+    """ORM model for family-attribute binding governance rules.
+
+    Many-to-many link between AttributeFamily and Attribute with
+    sort ordering, requirement level, flag overrides, and filter settings.
+    """
+
+    __tablename__ = "family_attribute_bindings"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
+    family_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("attribute_families.id", ondelete="CASCADE"), index=True
+    )
+    attribute_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("attributes.id", ondelete="CASCADE"), index=True
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    requirement_level: Mapped[RequirementLevel] = mapped_column(
+        Enum(RequirementLevel, name="requirement_level_enum", create_type=False),
+        server_default=text("'optional'"),
+    )
+    flag_overrides: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    filter_settings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    family: Mapped[AttributeFamily] = relationship(
+        "AttributeFamily", back_populates="bindings"
+    )
+    attribute: Mapped[Attribute] = relationship("Attribute")
+
+    __table_args__ = (
+        UniqueConstraint("family_id", "attribute_id", name="uix_family_attr_binding"),
+    )
+
+
+class FamilyAttributeExclusion(Base):
+    """ORM model for family attribute exclusions.
+
+    Records which inherited attributes a family explicitly excludes
+    from its effective attribute set.
+    """
+
+    __tablename__ = "family_attribute_exclusions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
+    family_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("attribute_families.id", ondelete="CASCADE"), index=True
+    )
+    attribute_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("attributes.id", ondelete="CASCADE"), index=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+    )
+
+    family: Mapped[AttributeFamily] = relationship(
+        "AttributeFamily", back_populates="exclusions"
+    )
+    attribute: Mapped[Attribute] = relationship("Attribute")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "family_id", "attribute_id", name="uix_family_attr_exclusion"
+        ),
     )
 
 
