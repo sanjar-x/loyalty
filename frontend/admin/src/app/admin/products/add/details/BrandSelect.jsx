@@ -1,25 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { fetchBrands, groupBrandsByLetter } from '@/services/brands';
 import { ChevronIcon } from './icons';
 import styles from './page.module.css';
-
-const BRAND_SECTIONS = [
-  {
-    key: 'A',
-    brands: [
-      { id: 'adidas', name: 'Adidas', mark: 'adidas' },
-      { id: 'armani', name: 'Armani', mark: 'ARMANI' },
-    ],
-  },
-  {
-    key: 'B',
-    brands: [
-      { id: 'balenciaga', name: 'BALENCIAGA', mark: 'BALENCIAGA' },
-      { id: 'burberry', name: 'Burberry', mark: 'BURBERRY' },
-    ],
-  },
-];
 
 function PlusIcon() {
   return (
@@ -58,17 +42,34 @@ function CloseIcon() {
 }
 
 function BrandMark({ brand }) {
+  if (brand.logoUrl) {
+    return (
+      <div className={styles.brandOptionLogo} aria-hidden="true">
+        <img
+          src={brand.logoUrl}
+          alt=""
+          className={styles.brandOptionLogoImage}
+        />
+      </div>
+    );
+  }
+
+  const mark = brand.mark ?? brand.name?.slice(0, 3)?.toUpperCase() ?? '';
   return (
     <div className={styles.brandOptionLogo} aria-hidden="true">
-      <span className={styles.brandOptionLogoText}>{brand.mark}</span>
+      <span className={styles.brandOptionLogoText}>{mark}</span>
     </div>
   );
 }
 
-export default function BrandSelect() {
+export default function BrandSelect({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState(null);
+  const [brands, setBrands] = useState([]);
+  const [brandSections, setBrandSections] = useState([]);
+  const [brandsLoading, setBrandsLoading] = useState(false);
+  const [brandsLoaded, setBrandsLoaded] = useState(false);
   const [brandImagePreviewUrl, setBrandImagePreviewUrl] = useState('');
   const [brandImageName, setBrandImageName] = useState('');
   const [newBrandName, setNewBrandName] = useState('');
@@ -79,6 +80,22 @@ export default function BrandSelect() {
   const isBrandFormComplete = Boolean(
     brandImagePreviewUrl && newBrandName.trim() && newBrandCategory,
   );
+
+  const loadBrands = useCallback(async () => {
+    if (brandsLoaded || brandsLoading) return;
+    setBrandsLoading(true);
+    try {
+      const data = await fetchBrands();
+      const items = data.items ?? [];
+      setBrands(items);
+      setBrandSections(groupBrandsByLetter(items));
+      setBrandsLoaded(true);
+    } catch {
+      // silent — dropdown will show empty
+    } finally {
+      setBrandsLoading(false);
+    }
+  }, [brandsLoaded, brandsLoading]);
 
   useEffect(() => {
     return () => {
@@ -152,7 +169,10 @@ export default function BrandSelect() {
         className={styles.brandSelectTrigger}
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => {
+          setOpen((current) => !current);
+          loadBrands();
+        }}
       >
         <span className={styles.brandSelectValue}>
           {selectedBrand?.name ?? 'Бренд'}
@@ -169,43 +189,52 @@ export default function BrandSelect() {
           aria-label="Список брендов"
         >
           <div className={styles.brandDropdownScrollArea}>
-            {BRAND_SECTIONS.map((section) => (
-              <section key={section.key} className={styles.brandSection}>
-                <div className={styles.brandSectionHeader}>{section.key}</div>
-                {section.brands.map((brand) => {
-                  const isSelected = selectedBrand?.id === brand.id;
+            {brandsLoading ? (
+              <div className={styles.brandSectionHeader}>Загрузка…</div>
+            ) : brandSections.length === 0 ? (
+              <div className={styles.brandSectionHeader}>Нет брендов</div>
+            ) : (
+              brandSections.map((section) => (
+                <section key={section.key} className={styles.brandSection}>
+                  <div className={styles.brandSectionHeader}>
+                    {section.key}
+                  </div>
+                  {section.brands.map((brand) => {
+                    const isSelected = selectedBrand?.id === brand.id;
 
-                  return (
-                    <button
-                      key={brand.id}
-                      type="button"
-                      className={styles.brandOption}
-                      role="option"
-                      aria-selected={isSelected}
-                      onClick={() => {
-                        setSelectedBrand(brand);
-                        setOpen(false);
-                      }}
-                    >
-                      <div className={styles.brandOptionMain}>
-                        <BrandMark brand={brand} />
-                        <span className={styles.brandOptionName}>
-                          {brand.name}
-                        </span>
-                      </div>
-                      <span
-                        className={styles.brandOptionCheck}
-                        aria-hidden="true"
+                    return (
+                      <button
+                        key={brand.id}
+                        type="button"
+                        className={styles.brandOption}
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => {
+                          setSelectedBrand(brand);
+                          onChange?.(brand);
+                          setOpen(false);
+                        }}
                       >
-                        {isSelected ? (
-                          <span className={styles.brandOptionCheckInner} />
-                        ) : null}
-                      </span>
-                    </button>
-                  );
-                })}
-              </section>
-            ))}
+                        <div className={styles.brandOptionMain}>
+                          <BrandMark brand={brand} />
+                          <span className={styles.brandOptionName}>
+                            {brand.name}
+                          </span>
+                        </div>
+                        <span
+                          className={styles.brandOptionCheck}
+                          aria-hidden="true"
+                        >
+                          {isSelected ? (
+                            <span className={styles.brandOptionCheckInner} />
+                          ) : null}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </section>
+              ))
+            )}
           </div>
 
           <button

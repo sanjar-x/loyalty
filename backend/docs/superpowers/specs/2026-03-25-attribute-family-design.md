@@ -20,6 +20,7 @@
 A standalone entity defining a set of attributes for products. Families form their own tree hierarchy independent of categories.
 
 **Example:**
+
 ```
 Family "Clothing"
 ├── attrs: [size (optional), color (required)]
@@ -73,10 +74,12 @@ class AttributeFamily(AggregateRoot):
 ```
 
 **Factory methods:**
+
 - `create_root(code, name_i18n, ...)` → root family (level=0, parent_id=None)
 - `create_child(parent, code, name_i18n, ...)` → child family (level=parent.level+1)
 
 **Constraints:**
+
 - `code` is unique globally and immutable after creation
 - Unlimited nesting depth (no MAX_DEPTH constant)
 - Cannot delete a family that has children or is referenced by categories
@@ -96,6 +99,7 @@ class FamilyAttributeBinding:
 ```
 
 **Constraints:**
+
 - Unique pair `(family_id, attribute_id)` — one binding per attribute per family
 - Mutable fields: `sort_order`, `requirement_level`, `flag_overrides`, `filter_settings`
 - Immutable fields: `family_id`, `attribute_id`
@@ -111,6 +115,7 @@ class FamilyAttributeExclusion:
 ```
 
 **Constraints:**
+
 - Unique pair `(family_id, attribute_id)`
 - Can only exclude attributes that are inherited from ancestors (not own bindings)
 - Validated at application layer: if `attribute_id` is not in ancestor's effective set → error
@@ -236,42 +241,42 @@ async def resolve_effective_attributes(
 
 ### AttributeFamily CRUD
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/catalog/attribute-families` | `catalog:manage` | Create family |
-| GET | `/catalog/attribute-families` | `catalog:read` | List (paginated) |
-| GET | `/catalog/attribute-families/tree` | `catalog:read` | Full hierarchy |
-| GET | `/catalog/attribute-families/{id}` | `catalog:read` | Get by ID |
-| PATCH | `/catalog/attribute-families/{id}` | `catalog:manage` | Update |
+| Method | Path                               | Auth             | Description                  |
+| ------ | ---------------------------------- | ---------------- | ---------------------------- |
+| POST   | `/catalog/attribute-families`      | `catalog:manage` | Create family                |
+| GET    | `/catalog/attribute-families`      | `catalog:read`   | List (paginated)             |
+| GET    | `/catalog/attribute-families/tree` | `catalog:read`   | Full hierarchy               |
+| GET    | `/catalog/attribute-families/{id}` | `catalog:read`   | Get by ID                    |
+| PATCH  | `/catalog/attribute-families/{id}` | `catalog:manage` | Update                       |
 | DELETE | `/catalog/attribute-families/{id}` | `catalog:manage` | Delete (if no children/refs) |
 
 ### Family Attribute Bindings
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/catalog/attribute-families/{id}/attributes` | `catalog:manage` | Bind attribute |
-| GET | `/catalog/attribute-families/{id}/attributes` | `catalog:read` | Own bindings |
-| GET | `/catalog/attribute-families/{id}/attributes/effective` | `catalog:read` | Resolved set |
-| PATCH | `/catalog/attribute-families/{id}/attributes/{bindingId}` | `catalog:manage` | Update binding |
-| DELETE | `/catalog/attribute-families/{id}/attributes/{bindingId}` | `catalog:manage` | Unbind |
-| POST | `/catalog/attribute-families/{id}/attributes/reorder` | `catalog:manage` | Reorder |
+| Method | Path                                                      | Auth             | Description    |
+| ------ | --------------------------------------------------------- | ---------------- | -------------- |
+| POST   | `/catalog/attribute-families/{id}/attributes`             | `catalog:manage` | Bind attribute |
+| GET    | `/catalog/attribute-families/{id}/attributes`             | `catalog:read`   | Own bindings   |
+| GET    | `/catalog/attribute-families/{id}/attributes/effective`   | `catalog:read`   | Resolved set   |
+| PATCH  | `/catalog/attribute-families/{id}/attributes/{bindingId}` | `catalog:manage` | Update binding |
+| DELETE | `/catalog/attribute-families/{id}/attributes/{bindingId}` | `catalog:manage` | Unbind         |
+| POST   | `/catalog/attribute-families/{id}/attributes/reorder`     | `catalog:manage` | Reorder        |
 
 ### Family Attribute Exclusions
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/catalog/attribute-families/{id}/exclusions` | `catalog:manage` | Exclude inherited attr |
-| GET | `/catalog/attribute-families/{id}/exclusions` | `catalog:read` | List exclusions |
-| DELETE | `/catalog/attribute-families/{id}/exclusions/{exclusionId}` | `catalog:manage` | Remove exclusion |
+| Method | Path                                                        | Auth             | Description            |
+| ------ | ----------------------------------------------------------- | ---------------- | ---------------------- |
+| POST   | `/catalog/attribute-families/{id}/exclusions`               | `catalog:manage` | Exclude inherited attr |
+| GET    | `/catalog/attribute-families/{id}/exclusions`               | `catalog:read`   | List exclusions        |
+| DELETE | `/catalog/attribute-families/{id}/exclusions/{exclusionId}` | `catalog:manage` | Remove exclusion       |
 
 ### Storefront (rewritten internals, same URLs)
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/catalog/storefront/categories/{id}/form-attributes` | `catalog:manage` | Full attribute form |
-| GET | `/catalog/storefront/categories/{id}/filters` | public | Filterable attributes |
-| GET | `/catalog/storefront/categories/{id}/card-attributes` | public | Card display attrs |
-| GET | `/catalog/storefront/categories/{id}/comparison-attributes` | public | Comparison attrs |
+| Method | Path                                                        | Auth             | Description           |
+| ------ | ----------------------------------------------------------- | ---------------- | --------------------- |
+| GET    | `/catalog/storefront/categories/{id}/form-attributes`       | `catalog:manage` | Full attribute form   |
+| GET    | `/catalog/storefront/categories/{id}/filters`               | public           | Filterable attributes |
+| GET    | `/catalog/storefront/categories/{id}/card-attributes`       | public           | Card display attrs    |
+| GET    | `/catalog/storefront/categories/{id}/comparison-attributes` | public           | Comparison attrs      |
 
 Storefront handlers now: `category → family_id → resolve effective → filter/group`.
 
@@ -390,58 +395,58 @@ FamilyAttributeExclusionRemovedEvent(family_id, attribute_id, exclusion_id)
 
 ## Files to DELETE
 
-| File | Reason |
-|------|--------|
-| `domain/entities.py` → `CategoryAttributeBinding` class | Replaced by `FamilyAttributeBinding` |
-| `domain/interfaces.py` → `ICategoryAttributeBindingRepository` | Replaced |
-| `domain/events.py` → `CategoryAttributeBindingCreatedEvent`, `CategoryAttributeBindingUpdatedEvent`, `CategoryAttributeBindingDeletedEvent`, `CategoryBindingsReorderedEvent`, `RequirementLevelsUpdatedEvent` | Replaced |
-| `infrastructure/models.py` → `CategoryAttributeBinding` ORM | Replaced |
-| `infrastructure/repositories/category_attribute_binding.py` | Replaced |
-| `application/commands/bind_attribute_to_category.py` | Replaced |
-| `application/commands/unbind_attribute_from_category.py` | Replaced |
-| `application/commands/update_category_attribute_binding.py` | Replaced |
-| `application/commands/reorder_category_bindings.py` | Replaced |
-| `application/commands/bulk_update_requirement_levels.py` | Replaced |
-| `presentation/router_category_bindings.py` | Replaced |
-| `presentation/schemas.py` → `BindAttributeToCategoryRequest`, `CategoryAttributeBindingResponse`, etc. | Replaced |
-| Migration: drop table `category_attribute_rules` | In new migration |
+| File                                                                                                                                                                                                           | Reason                               |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `domain/entities.py` → `CategoryAttributeBinding` class                                                                                                                                                        | Replaced by `FamilyAttributeBinding` |
+| `domain/interfaces.py` → `ICategoryAttributeBindingRepository`                                                                                                                                                 | Replaced                             |
+| `domain/events.py` → `CategoryAttributeBindingCreatedEvent`, `CategoryAttributeBindingUpdatedEvent`, `CategoryAttributeBindingDeletedEvent`, `CategoryBindingsReorderedEvent`, `RequirementLevelsUpdatedEvent` | Replaced                             |
+| `infrastructure/models.py` → `CategoryAttributeBinding` ORM                                                                                                                                                    | Replaced                             |
+| `infrastructure/repositories/category_attribute_binding.py`                                                                                                                                                    | Replaced                             |
+| `application/commands/bind_attribute_to_category.py`                                                                                                                                                           | Replaced                             |
+| `application/commands/unbind_attribute_from_category.py`                                                                                                                                                       | Replaced                             |
+| `application/commands/update_category_attribute_binding.py`                                                                                                                                                    | Replaced                             |
+| `application/commands/reorder_category_bindings.py`                                                                                                                                                            | Replaced                             |
+| `application/commands/bulk_update_requirement_levels.py`                                                                                                                                                       | Replaced                             |
+| `presentation/router_category_bindings.py`                                                                                                                                                                     | Replaced                             |
+| `presentation/schemas.py` → `BindAttributeToCategoryRequest`, `CategoryAttributeBindingResponse`, etc.                                                                                                         | Replaced                             |
+| Migration: drop table `category_attribute_rules`                                                                                                                                                               | In new migration                     |
 
 ## Files to CREATE
 
-| File | Content |
-|------|---------|
-| `domain/entities.py` → `AttributeFamily`, `FamilyAttributeBinding`, `FamilyAttributeExclusion` | New entities |
-| `domain/interfaces.py` → `IAttributeFamilyRepository` | Repository contract |
-| `domain/events.py` → 8 new events | Domain events |
-| `infrastructure/models.py` → `AttributeFamily`, `FamilyAttributeBinding`, `FamilyAttributeExclusion` ORM | ORM models |
-| `infrastructure/repositories/attribute_family.py` | Repository implementation |
-| `application/commands/create_attribute_family.py` | Handler |
-| `application/commands/update_attribute_family.py` | Handler |
-| `application/commands/delete_attribute_family.py` | Handler |
-| `application/commands/bind_attribute_to_family.py` | Handler |
-| `application/commands/unbind_attribute_from_family.py` | Handler |
-| `application/commands/update_family_attribute_binding.py` | Handler |
-| `application/commands/reorder_family_bindings.py` | Handler |
-| `application/commands/add_family_exclusion.py` | Handler |
-| `application/commands/remove_family_exclusion.py` | Handler |
-| `application/queries/resolve_family_attributes.py` | Effective resolution |
-| `application/queries/list_attribute_families.py` | List/tree queries |
-| `presentation/router_attribute_families.py` | REST endpoints |
-| `presentation/schemas.py` → new schemas | Request/Response |
-| Alembic migration | DDL changes |
+| File                                                                                                     | Content                   |
+| -------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `domain/entities.py` → `AttributeFamily`, `FamilyAttributeBinding`, `FamilyAttributeExclusion`           | New entities              |
+| `domain/interfaces.py` → `IAttributeFamilyRepository`                                                    | Repository contract       |
+| `domain/events.py` → 8 new events                                                                        | Domain events             |
+| `infrastructure/models.py` → `AttributeFamily`, `FamilyAttributeBinding`, `FamilyAttributeExclusion` ORM | ORM models                |
+| `infrastructure/repositories/attribute_family.py`                                                        | Repository implementation |
+| `application/commands/create_attribute_family.py`                                                        | Handler                   |
+| `application/commands/update_attribute_family.py`                                                        | Handler                   |
+| `application/commands/delete_attribute_family.py`                                                        | Handler                   |
+| `application/commands/bind_attribute_to_family.py`                                                       | Handler                   |
+| `application/commands/unbind_attribute_from_family.py`                                                   | Handler                   |
+| `application/commands/update_family_attribute_binding.py`                                                | Handler                   |
+| `application/commands/reorder_family_bindings.py`                                                        | Handler                   |
+| `application/commands/add_family_exclusion.py`                                                           | Handler                   |
+| `application/commands/remove_family_exclusion.py`                                                        | Handler                   |
+| `application/queries/resolve_family_attributes.py`                                                       | Effective resolution      |
+| `application/queries/list_attribute_families.py`                                                         | List/tree queries         |
+| `presentation/router_attribute_families.py`                                                              | REST endpoints            |
+| `presentation/schemas.py` → new schemas                                                                  | Request/Response          |
+| Alembic migration                                                                                        | DDL changes               |
 
 ## Files to MODIFY
 
-| File | Change |
-|------|--------|
-| `domain/entities.py` → `Category` | Add `family_id: UUID | None` |
-| `infrastructure/models.py` → `Category` ORM | Add `family_id` column + FK + index |
-| `application/queries/storefront.py` | Resolve through family instead of direct bindings |
-| `application/commands/create_category.py` | Accept optional `family_id` |
-| `application/commands/update_category.py` | Accept optional `family_id` |
-| `presentation/schemas.py` → `CategoryCreateRequest`, `CategoryUpdateRequest` | Add `familyId` field |
-| `presentation/router_products.py` → imports | Remove old binding references if any |
-| DI Provider | Register new repository + handlers |
+| File                                                                         | Change                                            |
+| ---------------------------------------------------------------------------- | ------------------------------------------------- | ----- |
+| `domain/entities.py` → `Category`                                            | Add `family_id: UUID                              | None` |
+| `infrastructure/models.py` → `Category` ORM                                  | Add `family_id` column + FK + index               |
+| `application/queries/storefront.py`                                          | Resolve through family instead of direct bindings |
+| `application/commands/create_category.py`                                    | Accept optional `family_id`                       |
+| `application/commands/update_category.py`                                    | Accept optional `family_id`                       |
+| `presentation/schemas.py` → `CategoryCreateRequest`, `CategoryUpdateRequest` | Add `familyId` field                              |
+| `presentation/router_products.py` → imports                                  | Remove old binding references if any              |
+| DI Provider                                                                  | Register new repository + handlers                |
 
 ---
 

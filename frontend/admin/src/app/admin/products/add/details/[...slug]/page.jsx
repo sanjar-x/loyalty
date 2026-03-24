@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import ProductDetailsForm from './ProductDetailsForm';
-import { findProductCategoryPath } from '@/services/categories';
-import styles from './page.module.css';
+import { categoryLabel } from '@/services/categories';
+import { fetchCategoryTreeServer } from '@/services/categories.server';
+import ProductDetailsForm from '../ProductDetailsForm';
+import styles from '../page.module.css';
 
 function BackArrowIcon() {
   return (
@@ -49,18 +50,28 @@ function Crumb({ label }) {
   );
 }
 
-export default async function AddProductDetailsPage({ searchParams }) {
-  const resolvedSearchParams = await searchParams;
-  const rootId = resolvedSearchParams?.root ?? '';
-  const groupId = resolvedSearchParams?.group ?? '';
-  const leafId = resolvedSearchParams?.leaf ?? '';
+function findByFullSlug(tree, fullSlug, path = []) {
+  for (const node of tree) {
+    const nodeSlug = node.fullSlug || node.slug || '';
+    if (nodeSlug === fullSlug) return [...path, node];
+    if (node.children?.length) {
+      const found = findByFullSlug(node.children, fullSlug, [...path, node]);
+      if (found) return found;
+    }
+  }
+  return null;
+}
 
-  const { root, group, leaf } = findProductCategoryPath(
-    rootId,
-    groupId,
-    leafId,
-  );
-  const leafLabel = leaf?.label ?? 'Категория';
+export default async function AddProductDetailsPage({ params }) {
+  const resolvedParams = await params;
+  const slugSegments = resolvedParams?.slug ?? [];
+  const fullSlug = slugSegments.join('/');
+
+  const tree = await fetchCategoryTreeServer();
+  const ancestors = findByFullSlug(tree, fullSlug) ?? [];
+  const leaf = ancestors.at(-1) ?? null;
+  const leafLabel = categoryLabel(leaf);
+  const leafCategoryId = leaf?.id ?? fullSlug;
 
   return (
     <section className={styles.page}>
@@ -79,12 +90,16 @@ export default async function AddProductDetailsPage({ searchParams }) {
         <div className={styles.mainColumn}>
           {/* Breadcrumbs */}
           <div className={styles.breadcrumbs}>
-            <Crumb label={root?.label ?? 'Одежда, обувь и аксессуары'} />
-            <Crumb label={group?.label ?? 'Категория'} />
-            <Crumb label={leafLabel} />
+            {ancestors.map((node) => (
+              <Crumb key={node.id} label={categoryLabel(node)} />
+            ))}
+            {ancestors.length === 0 && <Crumb label={leafLabel} />}
           </div>
 
-          <ProductDetailsForm leafLabel={leafLabel} />
+          <ProductDetailsForm
+            leafLabel={leafLabel}
+            categoryId={leafCategoryId}
+          />
         </div>
 
         {/* Sidebar */}

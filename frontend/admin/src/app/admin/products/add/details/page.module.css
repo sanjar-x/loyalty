@@ -303,6 +303,13 @@
   text-transform: uppercase;
 }
 
+.brandOptionLogoImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 14px;
+}
+
 .brandOptionName {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1591,4 +1598,159 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* ── Dynamic Attributes ── */
+
+.attrField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attrLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2d2d2d;
+}
+
+.attrRequired {
+  color: #cf4444;
+  margin-left: 2px;
+}
+
+.attrChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attrChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1.5px solid #e0dedb;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #2d2d2d;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.attrChip:hover {
+  border-color: #2d2d2d;
+}
+
+.attrChipActive {
+  composes: attrChip;
+  border-color: #2d2d2d;
+  background: #2d2d2d;
+  color: #ffffff;
+}
+
+.attrSwatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.attrSwatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 3px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 150ms ease;
+}
+
+.attrSwatch:hover {
+  border-color: #bbb;
+}
+
+.attrSwatchActive {
+  composes: attrSwatch;
+  border-color: #2d2d2d;
+}
+
+.attrSwatchColor {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.attrSelect {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1.5px solid #e0dedb;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #2d2d2d;
+  font-size: 15px;
+  font-weight: 500;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='7' viewBox='0 0 12 7' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23878b93' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  cursor: pointer;
+  transition: border-color 150ms ease;
+}
+
+.attrSelect:focus {
+  outline: none;
+  border-color: #2d2d2d;
+}
+
+.attrCheckboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.attrCheckboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #2d2d2d;
+  cursor: pointer;
+}
+
+.attrCheckbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  accent-color: #2d2d2d;
+  cursor: pointer;
+}
+
+.attrInput {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1.5px solid #e0dedb;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #2d2d2d;
+  font-size: 15px;
+  font-weight: 500;
+  transition: border-color 150ms ease;
+}
+
+.attrInput:focus {
+  outline: none;
+  border-color: #2d2d2d;
 }

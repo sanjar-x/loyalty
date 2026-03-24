@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import BrandSelect from './BrandSelect';
 import DeliverySection from './DeliverySection';
+import DynamicAttributes from './DynamicAttributes';
 import ImagesSection from './ImagesSection';
 import SizeSelect, { DEFAULT_SELECTED_SIZES, SIZE_OPTIONS } from './SizeSelect';
 import SizeTableSection from './SizeTableSection';
@@ -19,9 +20,10 @@ function sortSizes(sizes) {
   );
 }
 
-export default function ProductDetailsForm({ leafLabel }) {
+export default function ProductDetailsForm({ leafLabel, categoryId }) {
   const [selectedSizes, setSelectedSizes] = useState(DEFAULT_SELECTED_SIZES);
   const [variablePricing, setVariablePricing] = useState(false);
+  const [attributeValues, setAttributeValues] = useState({});
 
   const orderedSizes = useMemo(() => sortSizes(selectedSizes), [selectedSizes]);
 
@@ -40,6 +42,12 @@ export default function ProductDetailsForm({ leafLabel }) {
           <SizeSelect value={orderedSizes} onChange={setSelectedSizes} />
         </div>
       </section>
+
+      <DynamicAttributes
+        categoryId={categoryId}
+        values={attributeValues}
+        onChange={setAttributeValues}
+      />
 
       <SizeTableSection />
 
