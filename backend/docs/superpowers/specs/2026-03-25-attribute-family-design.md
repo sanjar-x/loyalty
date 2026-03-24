@@ -59,36 +59,50 @@ For any family, the effective (resolved) attribute set is computed by walking th
 
 ## Domain Entities
 
+> **Implementation note:** All entities use `from attr import dataclass, field` (the `attrs` library), NOT `from dataclasses import dataclass`. This is load-bearing — `AggregateRoot` depends on `__attrs_post_init__` hooks for domain event initialization.
+
 ### AttributeFamily (Aggregate Root)
 
 ```python
+from attr import dataclass, field
+
 @dataclass
 class AttributeFamily(AggregateRoot):
     id: uuid.UUID
-    parent_id: uuid.UUID | None        # null = root family
+    parent_id: uuid.UUID | None        # null = root family, IMMUTABLE after creation
     code: str                           # unique, immutable, ^[a-z0-9_]+$
     name_i18n: dict[str, str]           # at least 1 language
     description_i18n: dict[str, str]    # optional
     sort_order: int                     # display ordering among siblings
-    level: int                          # depth in tree (0 = root)
+    level: int                          # depth in tree (0 = root), derived from parent
 ```
 
 **Factory methods:**
-
 - `create_root(code, name_i18n, ...)` → root family (level=0, parent_id=None)
 - `create_child(parent, code, name_i18n, ...)` → child family (level=parent.level+1)
 
 **Constraints:**
-
-- `code` is unique globally and immutable after creation
+- `code` is unique globally and immutable after creation (enforced via `__setattr__` guard like `Category`)
+- `parent_id` is immutable after creation (enforced via `__setattr__` guard)
+- `level` is immutable after creation (derived from parent at creation time)
 - Unlimited nesting depth (no MAX_DEPTH constant)
 - Cannot delete a family that has children or is referenced by categories
 
-### FamilyAttributeBinding (Child Entity of AttributeFamily)
+**Updatable fields** (via `_UPDATABLE_FIELDS`):
+- `name_i18n`, `description_i18n`, `sort_order`
+
+**Guarded (immutable) fields** (via `_GUARDED_FIELDS`):
+- `code`, `parent_id`, `level`
+
+### FamilyAttributeBinding (Standalone Aggregate Root)
+
+> **Design decision:** `FamilyAttributeBinding` is a standalone aggregate (not a child entity of `AttributeFamily`), matching the pattern established by `CategoryAttributeBinding` in the existing codebase. It has its own repository, emits its own domain events, and is registered with UnitOfWork independently.
 
 ```python
+from attr import dataclass
+
 @dataclass
-class FamilyAttributeBinding:
+class FamilyAttributeBinding(AggregateRoot):
     id: uuid.UUID
     family_id: uuid.UUID
     attribute_id: uuid.UUID
@@ -99,26 +113,29 @@ class FamilyAttributeBinding:
 ```
 
 **Constraints:**
-
 - Unique pair `(family_id, attribute_id)` — one binding per attribute per family
 - Mutable fields: `sort_order`, `requirement_level`, `flag_overrides`, `filter_settings`
 - Immutable fields: `family_id`, `attribute_id`
 
-### FamilyAttributeExclusion (Child Entity of AttributeFamily)
+### FamilyAttributeExclusion (Standalone Aggregate Root)
+
+> **Design decision:** Standalone aggregate for the same reasons as `FamilyAttributeBinding`.
 
 ```python
+from attr import dataclass
+
 @dataclass
-class FamilyAttributeExclusion:
+class FamilyAttributeExclusion(AggregateRoot):
     id: uuid.UUID
     family_id: uuid.UUID
     attribute_id: uuid.UUID    # inherited attribute to exclude
 ```
 
 **Constraints:**
-
 - Unique pair `(family_id, attribute_id)`
-- Can only exclude attributes that are inherited from ancestors (not own bindings)
-- Validated at application layer: if `attribute_id` is not in ancestor's effective set → error
+- Can only exclude attributes that are **inherited from ancestors** (present in ancestor's effective set)
+- **Cannot exclude an attribute that the same family has in its own bindings** — raises `FamilyExclusionConflictsWithOwnBindingError`
+- If `attribute_id` is not in any ancestor's effective set → raises `AttributeNotInheritedError`
 
 ### Category (Modified)
 
@@ -126,6 +143,8 @@ class FamilyAttributeExclusion:
 # Added field:
 family_id: uuid.UUID | None    # FK to AttributeFamily, nullable
 ```
+
+Added to `_UPDATABLE_FIELDS` so it can be changed via `update()`.
 
 ---
 
@@ -203,13 +222,18 @@ async def resolve_effective_attributes(
     Walk ancestor chain from root to target family.
     Build merged attribute set with overrides and exclusions.
     """
-    # 1. Load ancestor chain (recursive CTE or iterative parent walk)
-    chain: list[AttributeFamily] = await get_ancestor_chain(family_id)
+    # 1. Load ancestor chain via recursive CTE (see repository section)
+    chain: list[AttributeFamily] = await family_repo.get_ancestor_chain(family_id)
     # chain = [root, ..., grandparent, parent, self]
 
     # 2. Load all bindings and exclusions for all families in chain
-    all_bindings: dict[UUID, list[FamilyAttributeBinding]] = ...
-    all_exclusions: dict[UUID, set[UUID]] = ...
+    family_ids = [f.id for f in chain]
+    all_bindings: dict[UUID, list[FamilyAttributeBinding]] = (
+        await binding_repo.get_bindings_for_families(family_ids)
+    )
+    all_exclusions: dict[UUID, set[UUID]] = (
+        await exclusion_repo.get_exclusions_for_families(family_ids)
+    )
 
     # 3. Merge: iterate chain root → leaf
     effective: dict[UUID, EffectiveAttribute] = {}  # keyed by attribute_id
@@ -233,7 +257,7 @@ async def resolve_effective_attributes(
     return sorted(effective.values(), key=lambda a: a.sort_order)
 ```
 
-**Caching:** Effective attribute sets are cached in Redis per `family_id`. Cache invalidated when any family in the ancestor chain changes its bindings or exclusions.
+**Caching:** Effective attribute sets are cached in Redis per `family_id`. Cache invalidated when any family in the ancestor chain changes its bindings or exclusions. See Cache Strategy section for descendant enumeration.
 
 ---
 
@@ -366,20 +390,107 @@ Storefront handlers now: `category → family_id → resolve effective → filte
 
 ## Domain Events
 
+All events follow the existing `CatalogEvent` base class protocol with `__init_subclass__` keyword arguments:
+
 ```python
-# AttributeFamily lifecycle
-AttributeFamilyCreatedEvent(family_id, code, parent_id)
-AttributeFamilyUpdatedEvent(family_id)
-AttributeFamilyDeletedEvent(family_id, code)
+from attr import dataclass
 
-# Family-Attribute bindings
-FamilyAttributeBindingCreatedEvent(family_id, attribute_id, binding_id)
-FamilyAttributeBindingUpdatedEvent(binding_id)
-FamilyAttributeBindingDeletedEvent(family_id, attribute_id, binding_id)
+# --- AttributeFamily lifecycle ---
 
-# Family-Attribute exclusions
-FamilyAttributeExclusionAddedEvent(family_id, attribute_id, exclusion_id)
-FamilyAttributeExclusionRemovedEvent(family_id, attribute_id, exclusion_id)
+@dataclass
+class AttributeFamilyCreatedEvent(
+    CatalogEvent,
+    required_fields=("family_id",),
+    aggregate_id_field="family_id",
+):
+    family_id: uuid.UUID | None = None
+    code: str = ""
+    parent_id: uuid.UUID | None = None
+    aggregate_type: str = "AttributeFamily"
+    event_type: str = "AttributeFamilyCreatedEvent"
+
+@dataclass
+class AttributeFamilyUpdatedEvent(
+    CatalogEvent,
+    required_fields=("family_id",),
+    aggregate_id_field="family_id",
+):
+    family_id: uuid.UUID | None = None
+    aggregate_type: str = "AttributeFamily"
+    event_type: str = "AttributeFamilyUpdatedEvent"
+
+@dataclass
+class AttributeFamilyDeletedEvent(
+    CatalogEvent,
+    required_fields=("family_id",),
+    aggregate_id_field="family_id",
+):
+    family_id: uuid.UUID | None = None
+    code: str = ""
+    aggregate_type: str = "AttributeFamily"
+    event_type: str = "AttributeFamilyDeletedEvent"
+
+# --- FamilyAttributeBinding lifecycle ---
+
+@dataclass
+class FamilyAttributeBindingCreatedEvent(
+    CatalogEvent,
+    required_fields=("binding_id",),
+    aggregate_id_field="binding_id",
+):
+    family_id: uuid.UUID | None = None
+    attribute_id: uuid.UUID | None = None
+    binding_id: uuid.UUID | None = None
+    aggregate_type: str = "FamilyAttributeBinding"
+    event_type: str = "FamilyAttributeBindingCreatedEvent"
+
+@dataclass
+class FamilyAttributeBindingUpdatedEvent(
+    CatalogEvent,
+    required_fields=("binding_id",),
+    aggregate_id_field="binding_id",
+):
+    binding_id: uuid.UUID | None = None
+    aggregate_type: str = "FamilyAttributeBinding"
+    event_type: str = "FamilyAttributeBindingUpdatedEvent"
+
+@dataclass
+class FamilyAttributeBindingDeletedEvent(
+    CatalogEvent,
+    required_fields=("binding_id",),
+    aggregate_id_field="binding_id",
+):
+    family_id: uuid.UUID | None = None
+    attribute_id: uuid.UUID | None = None
+    binding_id: uuid.UUID | None = None
+    aggregate_type: str = "FamilyAttributeBinding"
+    event_type: str = "FamilyAttributeBindingDeletedEvent"
+
+# --- FamilyAttributeExclusion lifecycle ---
+
+@dataclass
+class FamilyAttributeExclusionAddedEvent(
+    CatalogEvent,
+    required_fields=("exclusion_id",),
+    aggregate_id_field="exclusion_id",
+):
+    family_id: uuid.UUID | None = None
+    attribute_id: uuid.UUID | None = None
+    exclusion_id: uuid.UUID | None = None
+    aggregate_type: str = "FamilyAttributeExclusion"
+    event_type: str = "FamilyAttributeExclusionAddedEvent"
+
+@dataclass
+class FamilyAttributeExclusionRemovedEvent(
+    CatalogEvent,
+    required_fields=("exclusion_id",),
+    aggregate_id_field="exclusion_id",
+):
+    family_id: uuid.UUID | None = None
+    attribute_id: uuid.UUID | None = None
+    exclusion_id: uuid.UUID | None = None
+    aggregate_type: str = "FamilyAttributeExclusion"
+    event_type: str = "FamilyAttributeExclusionRemovedEvent"
 ```
 
 ---
@@ -388,65 +499,147 @@ FamilyAttributeExclusionRemovedEvent(family_id, attribute_id, exclusion_id)
 
 - **Key pattern:** `family:{family_id}:effective_attrs`
 - **TTL:** Same as `STOREFRONT_CACHE_TTL`
-- **Invalidation:** When a family's bindings or exclusions change, invalidate cache for that family AND all its descendants (since they inherit from it)
-- **Storefront keys** (`storefront:cat:{cat_id}:*`) are invalidated when a category's `family_id` changes or when the linked family's effective set changes
+- **Descendant enumeration:** `IAttributeFamilyRepository.get_descendant_ids(family_id) -> list[UUID]` using a `WITH RECURSIVE` CTE on `attribute_families.parent_id`. Used for cache cascade invalidation.
+- **Invalidation on binding/exclusion change:** When a family's bindings or exclusions change, call `get_descendant_ids(family_id)` and invalidate `family:{id}:effective_attrs` for the family itself AND all its descendants.
+- **Invalidation on category family_id change:** When a category's `family_id` is updated, invalidate all storefront cache keys (`storefront:cat:{cat_id}:*`) for that category.
+- **Storefront keys** (`storefront:cat:{cat_id}:*`) are also invalidated when the linked family's effective set changes (triggered by family binding/exclusion cache invalidation).
+
+### Repository method for descendant enumeration
+
+```python
+class IAttributeFamilyRepository:
+    @abstractmethod
+    async def get_descendant_ids(self, family_id: uuid.UUID) -> list[uuid.UUID]:
+        """Return all descendant family IDs using WITH RECURSIVE CTE."""
+        pass
+
+    @abstractmethod
+    async def get_ancestor_chain(self, family_id: uuid.UUID) -> list[AttributeFamily]:
+        """Return ancestor chain [root, ..., parent, self] using WITH RECURSIVE CTE."""
+        pass
+```
+
+### SQL for descendant enumeration
+
+```sql
+WITH RECURSIVE descendants AS (
+    SELECT id FROM attribute_families WHERE id = :family_id
+    UNION ALL
+    SELECT af.id FROM attribute_families af
+    JOIN descendants d ON af.parent_id = d.id
+)
+SELECT id FROM descendants WHERE id != :family_id;
+```
+
+### SQL for ancestor chain
+
+```sql
+WITH RECURSIVE ancestors AS (
+    SELECT id, parent_id, level FROM attribute_families WHERE id = :family_id
+    UNION ALL
+    SELECT af.id, af.parent_id, af.level FROM attribute_families af
+    JOIN ancestors a ON a.parent_id = af.id
+)
+SELECT * FROM ancestors ORDER BY level ASC;
+```
+
+---
+
+## Exception Classes
+
+### New exceptions (add to `domain/exceptions.py`)
+
+```python
+# AttributeFamily
+class AttributeFamilyNotFoundError(NotFoundError): ...
+class AttributeFamilyCodeAlreadyExistsError(ConflictError): ...
+class AttributeFamilyHasChildrenError(ConflictError): ...
+class AttributeFamilyHasCategoryReferencesError(ConflictError): ...
+class AttributeFamilyParentImmutableError(ValidationError): ...
+
+# FamilyAttributeBinding
+class FamilyAttributeBindingNotFoundError(NotFoundError): ...
+class FamilyAttributeBindingAlreadyExistsError(ConflictError): ...
+
+# FamilyAttributeExclusion
+class FamilyAttributeExclusionNotFoundError(NotFoundError): ...
+class AttributeNotInheritedError(ValidationError): ...
+    """Raised when trying to exclude an attribute not present in ancestor's effective set."""
+class FamilyExclusionConflictsWithOwnBindingError(ConflictError): ...
+    """Raised when trying to exclude an attribute that has a direct binding on the same family."""
+```
+
+### Modified exceptions
+
+```python
+# REPLACE AttributeHasCategoryBindingsError with:
+class AttributeHasFamilyBindingsError(ConflictError):
+    """Raised when attempting to delete an attribute bound to families."""
+```
+
+The attribute delete handler must be updated to check `family_attribute_bindings` instead of `category_attribute_rules`.
 
 ---
 
 ## Files to DELETE
 
-| File                                                                                                                                                                                                           | Reason                               |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| `domain/entities.py` → `CategoryAttributeBinding` class                                                                                                                                                        | Replaced by `FamilyAttributeBinding` |
-| `domain/interfaces.py` → `ICategoryAttributeBindingRepository`                                                                                                                                                 | Replaced                             |
-| `domain/events.py` → `CategoryAttributeBindingCreatedEvent`, `CategoryAttributeBindingUpdatedEvent`, `CategoryAttributeBindingDeletedEvent`, `CategoryBindingsReorderedEvent`, `RequirementLevelsUpdatedEvent` | Replaced                             |
-| `infrastructure/models.py` → `CategoryAttributeBinding` ORM                                                                                                                                                    | Replaced                             |
-| `infrastructure/repositories/category_attribute_binding.py`                                                                                                                                                    | Replaced                             |
-| `application/commands/bind_attribute_to_category.py`                                                                                                                                                           | Replaced                             |
-| `application/commands/unbind_attribute_from_category.py`                                                                                                                                                       | Replaced                             |
-| `application/commands/update_category_attribute_binding.py`                                                                                                                                                    | Replaced                             |
-| `application/commands/reorder_category_bindings.py`                                                                                                                                                            | Replaced                             |
-| `application/commands/bulk_update_requirement_levels.py`                                                                                                                                                       | Replaced                             |
-| `presentation/router_category_bindings.py`                                                                                                                                                                     | Replaced                             |
-| `presentation/schemas.py` → `BindAttributeToCategoryRequest`, `CategoryAttributeBindingResponse`, etc.                                                                                                         | Replaced                             |
-| Migration: drop table `category_attribute_rules`                                                                                                                                                               | In new migration                     |
+| File | Reason |
+|------|--------|
+| `domain/entities.py` → `CategoryAttributeBinding` class | Replaced by `FamilyAttributeBinding` |
+| `domain/interfaces.py` → `ICategoryAttributeBindingRepository` | Replaced by `IAttributeFamilyRepository` + `IFamilyAttributeBindingRepository` |
+| `domain/events.py` → `CategoryAttributeBindingCreatedEvent`, `CategoryAttributeBindingUpdatedEvent`, `CategoryAttributeBindingDeletedEvent`, `CategoryBindingsReorderedEvent`, `RequirementLevelsUpdatedEvent` | Replaced by new Family events |
+| `domain/exceptions.py` → `AttributeHasCategoryBindingsError` | Replaced by `AttributeHasFamilyBindingsError` |
+| `infrastructure/models.py` → `CategoryAttributeBinding` ORM | Replaced |
+| `infrastructure/repositories/category_attribute_binding.py` | Replaced |
+| `application/commands/bind_attribute_to_category.py` | Replaced |
+| `application/commands/unbind_attribute_from_category.py` | Replaced |
+| `application/commands/update_category_attribute_binding.py` | Replaced |
+| `application/commands/reorder_category_bindings.py` | Replaced |
+| `application/commands/bulk_update_requirement_levels.py` | Replaced |
+| `presentation/router_category_bindings.py` | Replaced |
+| `presentation/schemas.py` → `BindAttributeToCategoryRequest`, `CategoryAttributeBindingResponse`, etc. | Replaced |
+| Migration: drop table `category_attribute_rules` | In new migration |
 
 ## Files to CREATE
 
-| File                                                                                                     | Content                   |
-| -------------------------------------------------------------------------------------------------------- | ------------------------- |
-| `domain/entities.py` → `AttributeFamily`, `FamilyAttributeBinding`, `FamilyAttributeExclusion`           | New entities              |
-| `domain/interfaces.py` → `IAttributeFamilyRepository`                                                    | Repository contract       |
-| `domain/events.py` → 8 new events                                                                        | Domain events             |
-| `infrastructure/models.py` → `AttributeFamily`, `FamilyAttributeBinding`, `FamilyAttributeExclusion` ORM | ORM models                |
-| `infrastructure/repositories/attribute_family.py`                                                        | Repository implementation |
-| `application/commands/create_attribute_family.py`                                                        | Handler                   |
-| `application/commands/update_attribute_family.py`                                                        | Handler                   |
-| `application/commands/delete_attribute_family.py`                                                        | Handler                   |
-| `application/commands/bind_attribute_to_family.py`                                                       | Handler                   |
-| `application/commands/unbind_attribute_from_family.py`                                                   | Handler                   |
-| `application/commands/update_family_attribute_binding.py`                                                | Handler                   |
-| `application/commands/reorder_family_bindings.py`                                                        | Handler                   |
-| `application/commands/add_family_exclusion.py`                                                           | Handler                   |
-| `application/commands/remove_family_exclusion.py`                                                        | Handler                   |
-| `application/queries/resolve_family_attributes.py`                                                       | Effective resolution      |
-| `application/queries/list_attribute_families.py`                                                         | List/tree queries         |
-| `presentation/router_attribute_families.py`                                                              | REST endpoints            |
-| `presentation/schemas.py` → new schemas                                                                  | Request/Response          |
-| Alembic migration                                                                                        | DDL changes               |
+| File | Content |
+|------|---------|
+| `domain/entities.py` → `AttributeFamily`, `FamilyAttributeBinding`, `FamilyAttributeExclusion` | New aggregate roots (using `from attr import dataclass`) |
+| `domain/interfaces.py` → `IAttributeFamilyRepository`, `IFamilyAttributeBindingRepository`, `IFamilyAttributeExclusionRepository` | Repository contracts with CTE methods |
+| `domain/events.py` → 8 new events (see Domain Events section) | Full `CatalogEvent` subclasses |
+| `domain/exceptions.py` → 8 new exception classes + `AttributeHasFamilyBindingsError` | See Exception Classes section |
+| `infrastructure/models.py` → `AttributeFamily`, `FamilyAttributeBinding`, `FamilyAttributeExclusion` ORM | ORM models |
+| `infrastructure/repositories/attribute_family.py` | Repository with CTE queries |
+| `infrastructure/repositories/family_attribute_binding.py` | Binding repository |
+| `infrastructure/repositories/family_attribute_exclusion.py` | Exclusion repository |
+| `application/commands/create_attribute_family.py` | Handler (validates no cycle at creation) |
+| `application/commands/update_attribute_family.py` | Handler (only `name_i18n`, `description_i18n`, `sort_order`) |
+| `application/commands/delete_attribute_family.py` | Handler (checks children + category refs) |
+| `application/commands/bind_attribute_to_family.py` | Handler |
+| `application/commands/unbind_attribute_from_family.py` | Handler |
+| `application/commands/update_family_attribute_binding.py` | Handler |
+| `application/commands/reorder_family_bindings.py` | Handler |
+| `application/commands/add_family_exclusion.py` | Handler (validates inherited + no own binding conflict) |
+| `application/commands/remove_family_exclusion.py` | Handler |
+| `application/queries/resolve_family_attributes.py` | Effective resolution with caching |
+| `application/queries/list_attribute_families.py` | List/tree queries |
+| `presentation/router_attribute_families.py` | REST endpoints |
+| `presentation/schemas.py` → new schemas | Request/Response |
+| Alembic migration | DDL changes |
 
 ## Files to MODIFY
 
-| File                                                                         | Change                                            |
-| ---------------------------------------------------------------------------- | ------------------------------------------------- | ----- |
-| `domain/entities.py` → `Category`                                            | Add `family_id: UUID                              | None` |
-| `infrastructure/models.py` → `Category` ORM                                  | Add `family_id` column + FK + index               |
-| `application/queries/storefront.py`                                          | Resolve through family instead of direct bindings |
-| `application/commands/create_category.py`                                    | Accept optional `family_id`                       |
-| `application/commands/update_category.py`                                    | Accept optional `family_id`                       |
-| `presentation/schemas.py` → `CategoryCreateRequest`, `CategoryUpdateRequest` | Add `familyId` field                              |
-| `presentation/router_products.py` → imports                                  | Remove old binding references if any              |
-| DI Provider                                                                  | Register new repository + handlers                |
+| File | Change |
+|------|--------|
+| `domain/entities.py` → `Category` | Add `family_id: uuid.UUID \| None` to entity + `_UPDATABLE_FIELDS` |
+| `infrastructure/models.py` → `Category` ORM | Add `family_id` column + FK + relationship + index |
+| `application/queries/storefront.py` | Resolve through family instead of direct bindings |
+| `application/commands/create_category.py` | Accept optional `family_id` |
+| `application/commands/update_category.py` | Accept optional `family_id`, invalidate storefront cache on change |
+| `application/commands/delete_attribute.py` | Check `family_attribute_bindings` instead of `category_attribute_rules` |
+| `presentation/schemas.py` → `CategoryCreateRequest`, `CategoryUpdateRequest` | Add `familyId` field |
+| `presentation/router_products.py` → imports | Remove old binding references if any |
+| DI Provider | Register new repositories + handlers |
 
 ---
 
@@ -454,7 +647,9 @@ FamilyAttributeExclusionRemovedEvent(family_id, attribute_id, exclusion_id)
 
 1. **Family code:** `^[a-z0-9_]+$`, unique globally, immutable after creation
 2. **Cannot delete family** with children or category references
-3. **Exclusion validation:** Can only exclude attributes present in ancestor's effective set
+3. **Exclusion validation:** Can only exclude attributes present in ancestor's effective set AND not in own bindings
 4. **Binding uniqueness:** One binding per `(family_id, attribute_id)` pair
-5. **No circular references:** `parent_id` chain must not form a cycle
-6. **Family tree integrity:** Changing `parent_id` after creation is not allowed (immutable hierarchy)
+5. **No circular references:** `parent_id` chain cannot form a cycle. Since `parent_id` is immutable after creation and set only at creation time, the `create_attribute_family` handler validates the proposed `parent_id` exists and is not the family itself. No `FamilyCircularReferenceError` needed — cycles are structurally impossible because a family can only reference an already-existing parent.
+6. **Family tree integrity:** `parent_id` and `level` are immutable after creation — enforced by `__setattr__` guard on the entity
+7. **Update scope:** `UpdateAttributeFamilyCommand` accepts only `name_i18n`, `description_i18n`, `sort_order`. Fields `parent_id`, `level`, `code` are explicitly excluded.
+8. **Attribute deletion guard:** Deleting an attribute checks `family_attribute_bindings` (replaces old `category_attribute_rules` check). Raises `AttributeHasFamilyBindingsError`.
