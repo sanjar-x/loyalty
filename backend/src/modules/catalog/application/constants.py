@@ -103,3 +103,8 @@ STOREFRONT_CACHE_TTL = 300
 
 STOREFRONT_CACHE_PREFIX = "catalog:storefront:"
 """Common prefix for all storefront cache keys."""
+
+
+def family_effective_attrs_cache_key(family_id: uuid.UUID) -> str:
+    """Build the Redis cache key for a family's effective attribute set."""
+    return f"catalog:family:{family_id}:effective_attrs"

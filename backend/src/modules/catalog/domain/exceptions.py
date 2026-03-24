@@ -710,6 +710,20 @@ class FamilyAttributeExclusionNotFoundError(NotFoundError):
         )
 
 
+class FamilyAttributeExclusionAlreadyExistsError(ConflictError):
+    """Raised when an exclusion for a family+attribute pair already exists."""
+
+    def __init__(self, family_id: uuid.UUID, attribute_id: uuid.UUID):
+        super().__init__(
+            message="This attribute is already excluded from the family.",
+            error_code="FAMILY_ATTRIBUTE_EXCLUSION_ALREADY_EXISTS",
+            details={
+                "family_id": str(family_id),
+                "attribute_id": str(attribute_id),
+            },
+        )
+
+
 class AttributeNotInheritedError(ValidationError):
     """Raised when trying to exclude an attribute not inherited from ancestors."""
 
