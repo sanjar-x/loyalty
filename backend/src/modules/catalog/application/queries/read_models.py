@@ -462,3 +462,34 @@ class ProductAttributeReadModel(ProductAttributeValueReadModel):
     """
 
     pass
+
+
+# ---------------------------------------------------------------------------
+# AttributeFamily read models
+# ---------------------------------------------------------------------------
+
+
+class AttributeFamilyReadModel(BaseModel):
+    """Read model for a single attribute family."""
+
+    id: uuid.UUID
+    parent_id: uuid.UUID | None
+    code: str
+    name_i18n: dict[str, str]
+    description_i18n: dict[str, str]
+    sort_order: int
+    level: int
+
+
+AttributeFamilyListReadModel = PaginatedReadModel[AttributeFamilyReadModel]
+
+
+class AttributeFamilyTreeNode(BaseModel):
+    """Recursive tree node for the attribute family hierarchy read model."""
+
+    id: uuid.UUID
+    code: str
+    name_i18n: dict[str, str]
+    level: int
+    sort_order: int
+    children: list[AttributeFamilyTreeNode] = Field(default_factory=list)
