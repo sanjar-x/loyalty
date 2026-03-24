@@ -47,7 +47,6 @@ from src.modules.catalog.domain.value_objects import (
     RequirementLevel,
 )
 
-
 # ---------------------------------------------------------------------------
 # 2. TAXONOMY & DICTIONARIES
 # ---------------------------------------------------------------------------
