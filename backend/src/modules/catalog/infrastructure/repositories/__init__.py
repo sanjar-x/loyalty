@@ -1,6 +1,9 @@
 from src.modules.catalog.infrastructure.repositories.attribute import (
     AttributeRepository,
 )
+from src.modules.catalog.infrastructure.repositories.attribute_family import (
+    AttributeFamilyRepository,
+)
 from src.modules.catalog.infrastructure.repositories.attribute_group import (
     AttributeGroupRepository,
 )
@@ -21,6 +24,7 @@ from src.modules.catalog.infrastructure.repositories.product_attribute_value imp
 )
 
 __all__ = [
+    "AttributeFamilyRepository",
     "AttributeGroupRepository",
     "AttributeRepository",
     "AttributeValueRepository",
