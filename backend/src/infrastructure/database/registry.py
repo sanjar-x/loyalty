@@ -49,6 +49,7 @@ from src.modules.identity.infrastructure.models import (
     StaffInvitationRoleModel,
 )
 from src.modules.storage.infrastructure.models import StorageObject
+from src.modules.supplier.infrastructure.models import Supplier
 from src.modules.user.infrastructure.models import CustomerModel, StaffMemberModel
 
 __all__ = [
@@ -88,6 +89,7 @@ __all__ = [
     "StaffInvitationRoleModel",
     "StaffMemberModel",
     "StorageObject",
+    "Supplier",
     "SubdivisionCategoryModel",
     "SubdivisionCategoryTranslationModel",
     "SubdivisionModel",
