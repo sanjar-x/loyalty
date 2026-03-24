@@ -30,12 +30,14 @@ class CreateCategoryCommand:
         slug: URL-safe identifier, unique within the parent level.
         parent_id: Parent category UUID, or None for a root category.
         sort_order: Display ordering among siblings.
+        family_id: Optional FK to an AttributeFamily.
     """
 
     name_i18n: dict[str, str]
     slug: str
     parent_id: uuid.UUID | None = None
     sort_order: int = 0
+    family_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -50,6 +52,7 @@ class CreateCategoryResult:
         level: Depth in the tree (0 = root).
         sort_order: Display ordering.
         parent_id: Parent category UUID, or None.
+        family_id: Associated AttributeFamily UUID, or None.
     """
 
     id: uuid.UUID
@@ -59,6 +62,7 @@ class CreateCategoryResult:
     level: int
     sort_order: int
     parent_id: uuid.UUID | None = None
+    family_id: uuid.UUID | None = None
 
 
 class CreateCategoryHandler:
@@ -116,12 +120,14 @@ class CreateCategoryHandler:
                     slug=command.slug,
                     parent=parent,
                     sort_order=command.sort_order,
+                    family_id=command.family_id,
                 )
             else:
                 category = Category.create_root(
                     name_i18n=command.name_i18n,
                     slug=command.slug,
                     sort_order=command.sort_order,
+                    family_id=command.family_id,
                 )
 
             category = await self._category_repo.add(category)
@@ -141,4 +147,5 @@ class CreateCategoryHandler:
             level=category.level,
             sort_order=category.sort_order,
             parent_id=category.parent_id,
+            family_id=category.family_id,
         )
