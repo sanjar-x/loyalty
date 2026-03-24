@@ -13,6 +13,7 @@ from src.shared.exceptions import (
     ConflictError,
     NotFoundError,
     UnprocessableEntityError,
+    ValidationError,
 )
 
 # ---------------------------------------------------------------------------
@@ -641,4 +642,149 @@ class MediaAssetNotFoundError(NotFoundError):
             message=f"Media asset with ID {media_id} not found.",
             error_code="MEDIA_ASSET_NOT_FOUND",
             details=details,
+        )
+
+
+# ---------------------------------------------------------------------------
+# AttributeFamily exceptions
+# ---------------------------------------------------------------------------
+
+
+class AttributeFamilyNotFoundError(NotFoundError):
+    """Raised when an attribute family lookup yields no result."""
+
+    def __init__(self, family_id: uuid.UUID | str):
+        super().__init__(
+            message=f"Attribute family with ID {family_id} not found.",
+            error_code="ATTRIBUTE_FAMILY_NOT_FOUND",
+            details={"family_id": str(family_id)},
+        )
+
+
+class AttributeFamilyCodeAlreadyExistsError(ConflictError):
+    """Raised when a family code conflicts with an existing one."""
+
+    def __init__(self, code: str):
+        super().__init__(
+            message=f"Attribute family with code '{code}' already exists.",
+            error_code="ATTRIBUTE_FAMILY_CODE_CONFLICT",
+            details={"code": code},
+        )
+
+
+class AttributeFamilyHasChildrenError(ConflictError):
+    """Raised when attempting to delete a family that has children."""
+
+    def __init__(self, family_id: uuid.UUID):
+        super().__init__(
+            message="Cannot delete attribute family: it has child families.",
+            error_code="ATTRIBUTE_FAMILY_HAS_CHILDREN",
+            details={"family_id": str(family_id)},
+        )
+
+
+class AttributeFamilyHasCategoryReferencesError(ConflictError):
+    """Raised when attempting to delete a family referenced by categories."""
+
+    def __init__(self, family_id: uuid.UUID):
+        super().__init__(
+            message="Cannot delete attribute family: it is referenced by categories.",
+            error_code="ATTRIBUTE_FAMILY_HAS_CATEGORY_REFERENCES",
+            details={"family_id": str(family_id)},
+        )
+
+
+class AttributeFamilyParentImmutableError(UnprocessableEntityError):
+    """Raised when attempting to change parent_id or level after creation."""
+
+    def __init__(self, family_id: uuid.UUID):
+        super().__init__(
+            message="Cannot change parent_id or level after family creation.",
+            error_code="ATTRIBUTE_FAMILY_PARENT_IMMUTABLE",
+            details={"family_id": str(family_id)},
+        )
+
+
+# ---------------------------------------------------------------------------
+# FamilyAttributeBinding exceptions
+# ---------------------------------------------------------------------------
+
+
+class FamilyAttributeBindingNotFoundError(NotFoundError):
+    """Raised when a family-attribute binding lookup yields no result."""
+
+    def __init__(self, binding_id: uuid.UUID):
+        super().__init__(
+            message=f"Family attribute binding with ID {binding_id} not found.",
+            error_code="FAMILY_ATTRIBUTE_BINDING_NOT_FOUND",
+            details={"binding_id": str(binding_id)},
+        )
+
+
+class FamilyAttributeBindingAlreadyExistsError(ConflictError):
+    """Raised when a family-attribute binding pair already exists."""
+
+    def __init__(self, family_id: uuid.UUID, attribute_id: uuid.UUID):
+        super().__init__(
+            message="This attribute is already bound to the family.",
+            error_code="FAMILY_ATTRIBUTE_BINDING_ALREADY_EXISTS",
+            details={
+                "family_id": str(family_id),
+                "attribute_id": str(attribute_id),
+            },
+        )
+
+
+# ---------------------------------------------------------------------------
+# FamilyAttributeExclusion exceptions
+# ---------------------------------------------------------------------------
+
+
+class FamilyAttributeExclusionNotFoundError(NotFoundError):
+    """Raised when a family attribute exclusion lookup yields no result."""
+
+    def __init__(self, exclusion_id: uuid.UUID):
+        super().__init__(
+            message=f"Family attribute exclusion with ID {exclusion_id} not found.",
+            error_code="FAMILY_ATTRIBUTE_EXCLUSION_NOT_FOUND",
+            details={"exclusion_id": str(exclusion_id)},
+        )
+
+
+class AttributeNotInheritedError(ValidationError):
+    """Raised when trying to exclude an attribute not inherited from ancestors."""
+
+    def __init__(self, family_id: uuid.UUID, attribute_id: uuid.UUID):
+        super().__init__(
+            message="Cannot exclude: attribute is not inherited from any ancestor family.",
+            error_code="ATTRIBUTE_NOT_INHERITED",
+            details={
+                "family_id": str(family_id),
+                "attribute_id": str(attribute_id),
+            },
+        )
+
+
+class FamilyExclusionConflictsWithOwnBindingError(ConflictError):
+    """Raised when trying to exclude an attribute that has a direct binding on the same family."""
+
+    def __init__(self, family_id: uuid.UUID, attribute_id: uuid.UUID):
+        super().__init__(
+            message="Cannot exclude: attribute has a direct binding on this family. Remove the binding first.",
+            error_code="FAMILY_EXCLUSION_CONFLICTS_WITH_OWN_BINDING",
+            details={
+                "family_id": str(family_id),
+                "attribute_id": str(attribute_id),
+            },
+        )
+
+
+class AttributeHasFamilyBindingsError(ConflictError):
+    """Raised when attempting to delete an attribute bound to families."""
+
+    def __init__(self, attribute_id: uuid.UUID):
+        super().__init__(
+            message="Cannot delete attribute: it is bound to one or more attribute families.",
+            error_code="ATTRIBUTE_HAS_FAMILY_BINDINGS",
+            details={"attribute_id": str(attribute_id)},
         )
