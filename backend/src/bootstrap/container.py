@@ -16,6 +16,7 @@ from src.infrastructure.database.provider import DatabaseProvider
 from src.infrastructure.logging.provider import LoggingProvider
 from src.infrastructure.security.provider import SecurityProvider
 from src.modules.catalog.presentation.dependencies import (
+    AttributeFamilyProvider,
     AttributeGroupProvider,
     AttributeProvider,
     AttributeValueProvider,
@@ -65,6 +66,7 @@ def create_container() -> AsyncContainer:
         AttributeGroupProvider(),
         AttributeProvider(),
         AttributeValueProvider(),
+        AttributeFamilyProvider(),
         StorefrontCatalogProvider(),
         ProductProvider(),
         MediaAssetProvider(),

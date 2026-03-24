@@ -7,6 +7,9 @@ under an appropriate URL prefix.
 
 from fastapi import APIRouter
 
+from src.modules.catalog.presentation.router_attribute_families import (
+    attribute_family_router,
+)
 from src.modules.catalog.presentation.router_attribute_groups import (
     attribute_group_router,
 )
@@ -41,6 +44,7 @@ router.include_router(brand_router, prefix="/catalog")
 router.include_router(attribute_group_router, prefix="/catalog")
 router.include_router(attribute_router, prefix="/catalog")
 router.include_router(attribute_value_router, prefix="/catalog")
+router.include_router(attribute_family_router, prefix="/catalog")
 router.include_router(storefront_router, prefix="/catalog")
 router.include_router(product_router, prefix="/catalog")
 router.include_router(variant_router, prefix="/catalog")
