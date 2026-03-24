@@ -30,6 +30,7 @@ class IdentityRegisteredEvent(DomainEvent):
     email: str = ""
     registered_at: datetime | None = None
     account_type: str = "CUSTOMER"
+    username: str | None = None
     aggregate_type: str = "Identity"
     event_type: str = "identity_registered"
 

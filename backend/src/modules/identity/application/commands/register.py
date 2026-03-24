@@ -31,6 +31,7 @@ class RegisterCommand:
 
     email: str
     password: str
+    username: str | None = None
 
 
 @dataclass(frozen=True)
@@ -113,6 +114,7 @@ class RegisterHandler:
                     identity_id=identity.id,
                     email=command.email,
                     account_type=AccountType.CUSTOMER.value,
+                    username=command.username,
                     aggregate_id=str(identity.id),
                 )
             )

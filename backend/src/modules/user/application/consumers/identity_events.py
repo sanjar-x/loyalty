@@ -17,6 +17,8 @@ from src.modules.user.domain.interfaces import (
     IStaffMemberRepository,
 )
 from src.modules.user.domain.services import generate_referral_code
+from sqlalchemy.exc import IntegrityError
+
 from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
@@ -41,6 +43,7 @@ async def create_profile_on_identity_registered(
     invited_by: str | None = None,
     first_name: str = "",
     last_name: str = "",
+    username: str | None = None,
 ) -> dict:
     """Create a profile when an identity registers. Routes by account_type.
 
@@ -71,7 +74,7 @@ async def create_profile_on_identity_registered(
             last_name=last_name,
         )
 
-    return await _create_customer(identity_uuid, email, customer_repo, uow)
+    return await _create_customer(identity_uuid, email, customer_repo, uow, username=username)
 
 
 async def _create_customer(
@@ -79,6 +82,7 @@ async def _create_customer(
     email: str,
     customer_repo: ICustomerRepository,
     uow: IUnitOfWork,
+    username: str | None = None,
 ) -> dict:
     """Create a Customer profile with auto-generated referral code."""
     existing = await customer_repo.get(identity_id)
@@ -91,6 +95,7 @@ async def _create_customer(
         identity_id=identity_id,
         profile_email=email,
         referral_code=referral_code,
+        username=username,
     )
     async with uow:
         await customer_repo.add(customer)
@@ -216,10 +221,29 @@ async def on_linked_account_created(
             referred_by=referred_by,
         )
 
-        async with uow:
-            await customer_repo.add(customer)
-            uow.register_aggregate(customer)
-            await uow.commit()
+        try:
+            async with uow:
+                await customer_repo.add(customer)
+                uow.register_aggregate(customer)
+                await uow.commit()
+        except IntegrityError:
+            logger.warning(
+                "customer.username_conflict",
+                identity_id=identity_id,
+                username=provider_metadata.get("username"),
+            )
+            customer = Customer.create_from_identity(
+                identity_id=identity_uuid,
+                first_name=provider_metadata.get("first_name", ""),
+                last_name=provider_metadata.get("last_name", ""),
+                username=None,
+                referral_code=generate_referral_code(),
+                referred_by=referred_by,
+            )
+            async with uow:
+                await customer_repo.add(customer)
+                uow.register_aggregate(customer)
+                await uow.commit()
 
         logger.info(
             "customer.created_from_provider",
