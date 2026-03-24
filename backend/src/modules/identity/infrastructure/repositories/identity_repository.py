@@ -122,6 +122,32 @@ class IdentityRepository(IIdentityRepository):
             self._credentials_to_domain(orm.credentials),
         )
 
+    async def get_by_login(
+        self,
+        login: str,
+    ) -> tuple[Identity, LocalCredentials] | None:
+        """Retrieve an identity by email or username.
+
+        If ``login`` contains '@', look up by email; otherwise by username.
+        """
+        if "@" in login:
+            return await self.get_by_email(login)
+
+        stmt = (
+            select(IdentityModel)
+            .join(LocalCredentialsModel)
+            .options(joinedload(IdentityModel.credentials))
+            .where(LocalCredentialsModel.username == login)
+        )
+        result = await self._session.execute(stmt)
+        orm = result.unique().scalar_one_or_none()
+        if orm is None or orm.credentials is None:
+            return None
+        return (
+            self._identity_to_domain(orm),
+            self._credentials_to_domain(orm.credentials),
+        )
+
     async def get_with_credentials(
         self,
         identity_id: uuid.UUID,
