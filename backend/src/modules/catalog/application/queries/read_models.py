@@ -405,6 +405,7 @@ class ProductReadModel(BaseModel):
     brand_id: uuid.UUID
     primary_category_id: uuid.UUID
     supplier_id: uuid.UUID | None = None
+    source_url: str | None = None
     country_of_origin: str | None = None
     tags: list[str]
     version: int
