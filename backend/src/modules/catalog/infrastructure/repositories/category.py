@@ -33,7 +33,7 @@ class CategoryRepository(
         return DomainCategory(
             id=orm.id,
             parent_id=orm.parent_id,
-            name=orm.name,
+            name_i18n=orm.name_i18n or {},
             slug=orm.slug,
             full_slug=orm.full_slug,
             level=orm.level,
@@ -46,7 +46,7 @@ class CategoryRepository(
             orm = OrmCategory()
         orm.id = entity.id
         orm.parent_id = entity.parent_id
-        orm.name = entity.name
+        orm.name_i18n = entity.name_i18n
         orm.slug = entity.slug
         orm.full_slug = entity.full_slug
         orm.level = entity.level

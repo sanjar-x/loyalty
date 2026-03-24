@@ -75,7 +75,9 @@ class Brand(Base):
     )
 
     name: Mapped[str] = mapped_column(String(255), comment="Brand display name")
-    slug: Mapped[str] = mapped_column(String(255), comment="URL-safe identifier for routing")
+    slug: Mapped[str] = mapped_column(
+        String(255), comment="URL-safe identifier for routing"
+    )
     logo_file_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         nullable=True,
@@ -116,15 +118,19 @@ class Category(Base):
 
     __tablename__ = "categories"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
     parent_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("categories.id", ondelete="RESTRICT"), index=True
     )
     full_slug: Mapped[str] = mapped_column(String(1000), index=True)
     level: Mapped[int] = mapped_column(Integer, server_default=text("0"), index=True)
-    name: Mapped[str] = mapped_column(String(255))
+    name_i18n: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
     slug: Mapped[str] = mapped_column(String(255), index=True)
-    sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"), index=True)
+    sort_order: Mapped[int] = mapped_column(
+        Integer, server_default=text("0"), index=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
@@ -206,7 +212,9 @@ class AttributeGroup(Base):
         onupdate=func.now(),
     )
 
-    attributes: Mapped[list[Attribute]] = relationship("Attribute", back_populates="group")
+    attributes: Mapped[list[Attribute]] = relationship(
+        "Attribute", back_populates="group"
+    )
 
     __table_args__ = (
         Index("uix_attribute_groups_code", "code", unique=True),
@@ -342,7 +350,9 @@ class AttributeValue(Base):
 
     __tablename__ = "attribute_values"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
     attribute_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("attributes.id", ondelete="CASCADE"), index=True
     )
@@ -367,7 +377,9 @@ class AttributeValue(Base):
         Index("uix_attr_val_code", "attribute_id", "code", unique=True),
         Index("uix_attr_val_slug", "attribute_id", "slug", unique=True),
         Index("ix_attr_val_value_i18n_gin", "value_i18n", postgresql_using="gin"),
-        Index("ix_attr_val_search_aliases_gin", "search_aliases", postgresql_using="gin"),
+        Index(
+            "ix_attr_val_search_aliases_gin", "search_aliases", postgresql_using="gin"
+        ),
     )
 
 
@@ -386,7 +398,9 @@ class CategoryAttributeBinding(Base):
 
     __tablename__ = "category_attribute_rules"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
     category_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("categories.id", ondelete="CASCADE"), index=True
     )
@@ -410,10 +424,16 @@ class CategoryAttributeBinding(Base):
         comment="Per-category filter config (e.g. filter_type, thresholds)",
     )
 
-    category: Mapped[Category] = relationship("Category", back_populates="attribute_bindings")
-    attribute: Mapped[Attribute] = relationship("Attribute", back_populates="category_bindings")
+    category: Mapped[Category] = relationship(
+        "Category", back_populates="attribute_bindings"
+    )
+    attribute: Mapped[Attribute] = relationship(
+        "Attribute", back_populates="category_bindings"
+    )
 
-    __table_args__ = (Index("uix_cat_attr_rule", "category_id", "attribute_id", unique=True),)
+    __table_args__ = (
+        Index("uix_cat_attr_rule", "category_id", "attribute_id", unique=True),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -430,9 +450,13 @@ class Supplier(Base):
 
     __tablename__ = "suppliers"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
     name: Mapped[str] = mapped_column(String(255))
-    type: Mapped[SupplierType] = mapped_column(Enum(SupplierType, name="supplier_type_enum"))
+    type: Mapped[SupplierType] = mapped_column(
+        Enum(SupplierType, name="supplier_type_enum")
+    )
     region: Mapped[str | None] = mapped_column(String(255))
 
     created_at: Mapped[datetime] = mapped_column(
@@ -458,7 +482,9 @@ class Product(Base):
 
     __tablename__ = "products"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
     primary_category_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("categories.id", ondelete="RESTRICT"), index=True
     )
@@ -482,7 +508,9 @@ class Product(Base):
         MutableDict.as_mutable(JSONB), server_default=text("'{}'::jsonb")
     )
     source_url: Mapped[str | None] = mapped_column(String(1024))
-    tags: Mapped[list[str]] = mapped_column(ARRAY(String), server_default=text("'{}'::varchar[]"))
+    tags: Mapped[list[str]] = mapped_column(
+        ARRAY(String), server_default=text("'{}'::varchar[]")
+    )
 
     status: Mapped[ProductStatus] = mapped_column(
         Enum(ProductStatus, name="product_status_enum"),
@@ -491,7 +519,9 @@ class Product(Base):
     )
     is_visible: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
 
-    version: Mapped[int] = mapped_column(Integer, server_default=text("1"), nullable=False)
+    version: Mapped[int] = mapped_column(
+        Integer, server_default=text("1"), nullable=False
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
@@ -502,7 +532,9 @@ class Product(Base):
         TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     published_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
-    deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), index=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), index=True
+    )
     supplier: Mapped[Supplier] = relationship("Supplier", back_populates="products")
     variants: Mapped[list[ProductVariant]] = relationship(
         "ProductVariant", back_populates="product", cascade="all, delete-orphan"
@@ -561,7 +593,9 @@ class ProductVariant(Base):
 
     __tablename__ = "product_variants"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
     product_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("products.id", ondelete="CASCADE"),
     )
@@ -580,7 +614,9 @@ class ProductVariant(Base):
         ForeignKey("currencies.code", ondelete="RESTRICT"),
         server_default=text("'RUB'"),
     )
-    deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
     )
@@ -592,7 +628,9 @@ class ProductVariant(Base):
     skus: Mapped[list[SKU]] = relationship(
         "SKU", back_populates="variant", cascade="all, delete-orphan"
     )
-    media_assets: Mapped[list[MediaAsset]] = relationship("MediaAsset", back_populates="variant")
+    media_assets: Mapped[list[MediaAsset]] = relationship(
+        "MediaAsset", back_populates="variant"
+    )
 
     __table_args__ = (Index("ix_product_variants_product_id", "product_id"),)
 
@@ -607,7 +645,9 @@ class MediaAsset(Base):
 
     __tablename__ = "media_assets"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
     product_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("products.id", ondelete="CASCADE"), index=True
     )
@@ -689,7 +729,9 @@ class MediaAsset(Base):
             "product_id",
             "variant_id",
             unique=True,
-            postgresql_where=text(f"role = '{MediaRole.MAIN}' AND processing_status != 'FAILED'"),
+            postgresql_where=text(
+                f"role = '{MediaRole.MAIN}' AND processing_status != 'FAILED'"
+            ),
             postgresql_nulls_not_distinct=True,
         ),
     )
@@ -710,7 +752,9 @@ class SKU(Base):
 
     __tablename__ = "skus"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
     product_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("products.id", ondelete="CASCADE"), index=True
     )
@@ -724,7 +768,9 @@ class SKU(Base):
         MutableDict.as_mutable(JSONB), server_default=text("'{}'::jsonb")
     )
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
-    version: Mapped[int] = mapped_column(Integer, server_default=text("1"), nullable=False)
+    version: Mapped[int] = mapped_column(
+        Integer, server_default=text("1"), nullable=False
+    )
 
     price: Mapped[int | None] = mapped_column(
         Integer,
@@ -749,10 +795,14 @@ class SKU(Base):
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), index=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), index=True
+    )
 
     product: Mapped[Product] = relationship("Product")
-    variant: Mapped[ProductVariant] = relationship("ProductVariant", back_populates="skus")
+    variant: Mapped[ProductVariant] = relationship(
+        "ProductVariant", back_populates="skus"
+    )
     attribute_values: Mapped[list[SKUAttributeValueLink]] = relationship(
         "SKUAttributeValueLink", back_populates="sku", cascade="all, delete-orphan"
     )
@@ -786,8 +836,12 @@ class SKUAttributeValueLink(Base):
 
     __tablename__ = "sku_attribute_values"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
-    sku_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("skus.id", ondelete="CASCADE"), index=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
+    sku_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("skus.id", ondelete="CASCADE"), index=True
+    )
     attribute_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("attributes.id", ondelete="CASCADE"), index=True
     )
@@ -800,7 +854,9 @@ class SKUAttributeValueLink(Base):
     attribute_value: Mapped[AttributeValue] = relationship("AttributeValue")
 
     __table_args__ = (
-        UniqueConstraint("sku_id", "attribute_id", name="uix_sku_single_attribute_value"),
+        UniqueConstraint(
+            "sku_id", "attribute_id", name="uix_sku_single_attribute_value"
+        ),
         Index("ix_sku_attr_val_lookup", "attribute_value_id", "sku_id"),
     )
 
@@ -819,7 +875,9 @@ class ProductAttributeValue(Base):
 
     __tablename__ = "product_attribute_values"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
     product_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("products.id", ondelete="CASCADE"), index=True
     )
@@ -830,11 +888,15 @@ class ProductAttributeValue(Base):
         ForeignKey("attribute_values.id", ondelete="RESTRICT"), index=True
     )
 
-    product: Mapped[Product] = relationship("Product", back_populates="product_attribute_values")
+    product: Mapped[Product] = relationship(
+        "Product", back_populates="product_attribute_values"
+    )
     attribute: Mapped[Attribute] = relationship("Attribute")
     attribute_value: Mapped[AttributeValue] = relationship("AttributeValue")
 
     __table_args__ = (
-        UniqueConstraint("product_id", "attribute_id", name="uix_product_single_attribute_value"),
+        UniqueConstraint(
+            "product_id", "attribute_id", name="uix_product_single_attribute_value"
+        ),
         Index("ix_product_attr_val_lookup", "attribute_value_id", "product_id"),
     )

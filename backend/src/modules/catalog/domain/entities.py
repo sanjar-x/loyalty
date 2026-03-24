@@ -382,7 +382,7 @@ class Category(AggregateRoot):
     Attributes:
         id: Unique category identifier (uuid7 when available, uuid4 fallback).
         parent_id: UUID of the parent category, or None for root categories.
-        name: Display name.
+        name_i18n: Multilingual display name.
         slug: URL-safe identifier, unique within the same parent level.
         full_slug: Materialized path (e.g. ``"electronics/phones/android"``).
         level: Depth in the tree (0 = root).
@@ -391,7 +391,7 @@ class Category(AggregateRoot):
 
     id: uuid.UUID
     parent_id: uuid.UUID | None
-    name: str
+    name_i18n: dict[str, str]
     slug: str
     full_slug: str
     level: int
@@ -414,14 +414,14 @@ class Category(AggregateRoot):
     @classmethod
     def create_root(
         cls,
-        name: str,
+        name_i18n: dict[str, str],
         slug: str,
         sort_order: int = 0,
     ) -> Category:
         """Create a top-level (root) category.
 
         Args:
-            name: Display name.
+            name_i18n: Multilingual display name.
             slug: URL-safe identifier.
             sort_order: Display ordering among root categories.
 
@@ -432,7 +432,7 @@ class Category(AggregateRoot):
         return cls(
             id=_generate_id(),
             parent_id=None,
-            name=name,
+            name_i18n=name_i18n,
             slug=slug,
             full_slug=slug,
             level=0,
@@ -442,7 +442,7 @@ class Category(AggregateRoot):
     @classmethod
     def create_child(
         cls,
-        name: str,
+        name_i18n: dict[str, str],
         slug: str,
         parent: Category,
         sort_order: int = 0,
@@ -450,7 +450,7 @@ class Category(AggregateRoot):
         """Create a child category under the given parent.
 
         Args:
-            name: Display name.
+            name_i18n: Multilingual display name.
             slug: URL-safe identifier (unique within parent's children).
             parent: Parent category aggregate.
             sort_order: Display ordering among siblings.
@@ -470,7 +470,7 @@ class Category(AggregateRoot):
         return cls(
             id=_generate_id(),
             parent_id=parent.id,
-            name=name,
+            name_i18n=name_i18n,
             slug=slug,
             full_slug=f"{parent.full_slug}/{slug}",
             level=parent.level + 1,
@@ -479,14 +479,14 @@ class Category(AggregateRoot):
 
     def update(
         self,
-        name: str | None = None,
+        name_i18n: dict[str, str] | None = None,
         slug: str | None = None,
         sort_order: int | None = None,
     ) -> str | None:
         """Update category details and recompute full_slug if slug changed.
 
         Args:
-            name: New display name, or None to keep current.
+            name_i18n: New multilingual name, or None to keep current.
             slug: New URL-safe slug, or None to keep current.
             sort_order: New sort position, or None to keep current.
 
@@ -496,8 +496,8 @@ class Category(AggregateRoot):
         """
         old_full_slug: str | None = None
 
-        if name is not None:
-            self.name = name
+        if name_i18n is not None:
+            self.name_i18n = name_i18n
 
         if sort_order is not None:
             self.sort_order = sort_order
