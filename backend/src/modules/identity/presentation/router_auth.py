@@ -66,7 +66,7 @@ async def register(
     Returns:
         The new identity's UUID and a confirmation message.
     """
-    command = RegisterCommand(email=body.email, password=body.password)
+    command = RegisterCommand(email=body.email, password=body.password, username=body.username)
     result = await handler.handle(command)
     return RegisterResponse(identity_id=result.identity_id)
 
@@ -74,14 +74,14 @@ async def register(
 @auth_router.post(
     "/login",
     response_model=TokenResponse,
-    summary="Login with email and password",
+    summary="Login with email/username and password",
 )
 async def login(
     body: LoginRequest,
     request: Request,
     handler: FromDishka[LoginHandler],
 ) -> TokenResponse:
-    """Authenticate with email and password, returning a token pair.
+    """Authenticate with email or username and password, returning a token pair.
 
     Args:
         body: The login request payload.
@@ -92,7 +92,7 @@ async def login(
         An access/refresh token pair.
     """
     command = LoginCommand(
-        email=body.email,
+        login=body.login,
         password=body.password,
         ip_address=request.client.host if request.client else "unknown",
         user_agent=request.headers.get("user-agent", ""),

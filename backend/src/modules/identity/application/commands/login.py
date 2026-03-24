@@ -1,4 +1,4 @@
-"""Command handler for local email/password authentication.
+"""Command handler for local email-or-username/password authentication.
 
 Implements the full login flow: credential verification, identity status
 check, transparent password rehash (Bcrypt to Argon2id), session limit
@@ -26,16 +26,16 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 @dataclass(frozen=True)
 class LoginCommand:
-    """Command to authenticate with email and password.
+    """Command to authenticate with email/username and password.
 
     Attributes:
-        email: The user's email address.
+        login: The user's email address or username.
         password: The user's plaintext password.
         ip_address: Client IP address for session tracking.
         user_agent: Client User-Agent header for session tracking.
     """
 
-    email: str
+    login: str
     password: str
     ip_address: str
     user_agent: str
@@ -98,8 +98,8 @@ class LoginHandler:
             MaxSessionsExceededError: If the session limit is reached.
         """
         async with self._uow:
-            # Find identity by email (unified error for enumeration protection)
-            result = await self._identity_repo.get_by_email(command.email)
+            # Find identity by email or username (unified error for enumeration protection)
+            result = await self._identity_repo.get_by_login(command.login)
             if result is None:
                 raise InvalidCredentialsError()
 
@@ -109,7 +109,7 @@ class LoginHandler:
             if not self._hasher.verify(command.password, credentials.password_hash):
                 self._logger.warning(
                     "identity.login.failed",
-                    email=command.email,
+                    login=command.login,
                     ip=command.ip_address,
                     reason="invalid_credentials",
                 )

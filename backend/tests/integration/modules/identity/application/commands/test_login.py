@@ -29,7 +29,7 @@ async def test_login_returns_tokens_for_valid_credentials(
         login_handler = await request.get(LoginHandler)
         result = await login_handler.handle(
             LoginCommand(
-                email="login@example.com",
+                login="login@example.com",
                 password="S3cure!Pass",
                 ip_address="127.0.0.1",
                 user_agent="TestAgent/1.0",
@@ -54,7 +54,7 @@ async def test_login_raises_invalid_credentials_for_wrong_password(
             handler = await request.get(LoginHandler)
             await handler.handle(
                 LoginCommand(
-                    email="wrongpw@example.com",
+                    login="wrongpw@example.com",
                     password="WrongPassword!",
                     ip_address="127.0.0.1",
                     user_agent="TestAgent/1.0",

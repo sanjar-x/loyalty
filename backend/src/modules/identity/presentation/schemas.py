@@ -27,6 +27,7 @@ class RegisterRequest(CamelModel):
 
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
+    username: str | None = Field(None, min_length=3, max_length=64, pattern=r"^[a-zA-Z0-9_.-]+$")
 
 
 class RegisterResponse(CamelModel):
@@ -42,14 +43,14 @@ class RegisterResponse(CamelModel):
 
 
 class LoginRequest(CamelModel):
-    """Request payload for email/password login.
+    """Request payload for email-or-username/password login.
 
     Attributes:
-        email: The user's email address.
+        login: The user's email address or username.
         password: The user's plaintext password (max 128 characters).
     """
 
-    email: EmailStr
+    login: str = Field(..., min_length=1, max_length=320)
     password: str = Field(..., min_length=8, max_length=128)
 
 

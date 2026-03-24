@@ -13,15 +13,15 @@ from src.modules.identity.presentation.schemas import (
 
 class TestLoginRequest:
     def test_valid_login(self):
-        m = LoginRequest(email="user@example.com", password="secret123")
+        m = LoginRequest(login="user@example.com", password="secret123")
         assert m.password == "secret123"
 
     def test_password_max_length_128(self):
         with pytest.raises(ValidationError, match="password"):
-            LoginRequest(email="user@example.com", password="x" * 129)
+            LoginRequest(login="user@example.com", password="x" * 129)
 
     def test_password_at_max_length_accepted(self):
-        m = LoginRequest(email="user@example.com", password="x" * 128)
+        m = LoginRequest(login="user@example.com", password="x" * 128)
         assert len(m.password) == 128
 
 

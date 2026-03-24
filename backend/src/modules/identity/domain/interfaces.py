@@ -60,6 +60,21 @@ class IIdentityRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_by_login(self, login: str) -> tuple[Identity, LocalCredentials] | None:
+        """Retrieve an identity by email or username.
+
+        If ``login`` contains '@', it is treated as an email address;
+        otherwise it is looked up as a username.
+
+        Args:
+            login: Email address or username.
+
+        Returns:
+            A tuple of (Identity, LocalCredentials) if found, or None.
+        """
+        pass
+
+    @abstractmethod
     async def get_with_credentials(
         self,
         identity_id: uuid.UUID,
