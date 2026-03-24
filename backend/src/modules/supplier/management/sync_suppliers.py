@@ -39,7 +39,7 @@ async def sync_suppliers(
                 {
                     "id": str(supplier["id"]),
                     "name": supplier["name"],
-                    "type": supplier["type"].value,
+                    "type": supplier["type"].name,
                     "region": supplier["region"],
                 },
             )

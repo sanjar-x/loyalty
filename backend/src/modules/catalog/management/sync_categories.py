@@ -12,6 +12,7 @@ Usage:
 """
 
 import json
+import uuid
 
 import structlog
 from sqlalchemy import text
@@ -20,8 +21,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 logger = structlog.get_logger(__name__)
 
 _UPSERT_ROOT = text("""
-    INSERT INTO categories (parent_id, name_i18n, slug, full_slug, level, sort_order)
-    VALUES (NULL, cast(:name_i18n AS jsonb), :slug, :full_slug, :level, :sort_order)
+    INSERT INTO categories (id, parent_id, name_i18n, slug, full_slug, level, sort_order)
+    VALUES (:id, NULL, cast(:name_i18n AS jsonb), :slug, :full_slug, :level, :sort_order)
     ON CONFLICT (parent_id, slug) DO UPDATE SET
         name_i18n  = EXCLUDED.name_i18n,
         full_slug  = EXCLUDED.full_slug,
@@ -30,8 +31,8 @@ _UPSERT_ROOT = text("""
 """)
 
 _UPSERT_CHILD = text("""
-    INSERT INTO categories (parent_id, name_i18n, slug, full_slug, level, sort_order)
-    VALUES (:parent_id, cast(:name_i18n AS jsonb), :slug, :full_slug, :level, :sort_order)
+    INSERT INTO categories (id, parent_id, name_i18n, slug, full_slug, level, sort_order)
+    VALUES (:id, :parent_id, cast(:name_i18n AS jsonb), :slug, :full_slug, :level, :sort_order)
     ON CONFLICT (parent_id, slug) DO UPDATE SET
         name_i18n  = EXCLUDED.name_i18n,
         full_slug  = EXCLUDED.full_slug,
@@ -111,6 +112,7 @@ async def sync_categories(
             result = await session.execute(
                 _UPSERT_ROOT,
                 {
+                    "id": str(uuid.uuid7()),
                     "name_i18n": json.dumps(root["name_i18n"], ensure_ascii=False),
                     "slug": root["slug"],
                     "full_slug": root["slug"],
@@ -125,6 +127,7 @@ async def sync_categories(
                 await session.execute(
                     _UPSERT_CHILD,
                     {
+                        "id": str(uuid.uuid7()),
                         "parent_id": parent_id,
                         "name_i18n": json.dumps(child["name_i18n"], ensure_ascii=False),
                         "slug": child["slug"],

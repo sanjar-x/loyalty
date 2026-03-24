@@ -11,6 +11,8 @@ Usage:
     await sync_brands(session_factory)
 """
 
+import uuid
+
 import structlog
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -18,8 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 logger = structlog.get_logger(__name__)
 
 _UPSERT_BRAND = text("""
-    INSERT INTO brands (name, slug)
-    VALUES (:name, :slug)
+    INSERT INTO brands (id, name, slug)
+    VALUES (:id, :name, :slug)
     ON CONFLICT (slug) DO UPDATE SET
         name = EXCLUDED.name
 """)
@@ -78,7 +80,10 @@ async def sync_brands(
     """Upsert all seed brands. Idempotent — safe to run on every deploy."""
     async with session_factory() as session, session.begin():
         for brand in BRANDS:
-            await session.execute(_UPSERT_BRAND, brand)
+            await session.execute(
+                _UPSERT_BRAND,
+                {"id": str(uuid.uuid7()), **brand},
+            )
 
     logger.info("brands.synced", count=len(BRANDS))
 

@@ -5,6 +5,7 @@ import uuid
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, status
 
+from src.modules.identity.presentation.dependencies import RequirePermission
 from src.modules.supplier.application.commands.activate_supplier import (
     ActivateSupplierCommand,
     ActivateSupplierHandler,
@@ -34,7 +35,6 @@ from src.modules.supplier.presentation.schemas import (
     SupplierResponse,
     SupplierUpdateRequest,
 )
-from src.modules.identity.presentation.dependencies import RequirePermission
 
 supplier_router = APIRouter(
     prefix="/suppliers",
@@ -79,8 +79,13 @@ async def list_suppliers(
     return SupplierListResponse(
         items=[
             SupplierResponse(
-                id=s.id, name=s.name, type=s.type, region=s.region,
-                is_active=s.is_active, created_at=s.created_at, updated_at=s.updated_at,
+                id=s.id,
+                name=s.name,
+                type=s.type,
+                region=s.region,
+                is_active=s.is_active,
+                created_at=s.created_at,
+                updated_at=s.updated_at,
             )
             for s in result.items
         ],
@@ -102,8 +107,13 @@ async def get_supplier(
 ) -> SupplierResponse:
     result = await handler.handle(supplier_id)
     return SupplierResponse(
-        id=result.id, name=result.name, type=result.type, region=result.region,
-        is_active=result.is_active, created_at=result.created_at, updated_at=result.updated_at,
+        id=result.id,
+        name=result.name,
+        type=result.type,
+        region=result.region,
+        is_active=result.is_active,
+        created_at=result.created_at,
+        updated_at=result.updated_at,
     )
 
 

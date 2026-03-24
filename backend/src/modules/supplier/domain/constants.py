@@ -69,8 +69,3 @@ SEED_SUPPLIERS: list[dict] = [
         "region": "Волгоград",
     },
 ]
-
-# Backward-compatible alias
-MARKETPLACE_SUPPLIERS = [
-    s for s in SEED_SUPPLIERS if s["type"] == SupplierType.CROSS_BORDER
-]

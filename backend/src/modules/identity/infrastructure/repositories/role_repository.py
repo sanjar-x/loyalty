@@ -122,11 +122,15 @@ class RoleRepository(IRoleRepository):
         Returns:
             List of assigned role UUIDs.
         """
-        stmt = select(IdentityRoleModel.role_id).where(IdentityRoleModel.identity_id == identity_id)
+        stmt = select(IdentityRoleModel.role_id).where(
+            IdentityRoleModel.identity_id == identity_id
+        )
         result = await self._session.execute(stmt)
         return [row[0] for row in result.all()]
 
-    async def is_role_assigned(self, identity_id: uuid.UUID, role_id: uuid.UUID) -> bool:
+    async def is_role_assigned(
+        self, identity_id: uuid.UUID, role_id: uuid.UUID
+    ) -> bool:
         """Check if a role is already assigned to an identity."""
         stmt = select(IdentityRoleModel.identity_id).where(
             IdentityRoleModel.identity_id == identity_id,
@@ -199,15 +203,23 @@ class RoleRepository(IRoleRepository):
 
     async def get_identity_ids_with_role(self, role_id: uuid.UUID) -> list[uuid.UUID]:
         """Get all identity IDs that have this role assigned."""
-        stmt = select(IdentityRoleModel.identity_id).where(IdentityRoleModel.role_id == role_id)
+        stmt = select(IdentityRoleModel.identity_id).where(
+            IdentityRoleModel.role_id == role_id
+        )
         result = await self._session.execute(stmt)
         return [row[0] for row in result.all()]
 
-    async def set_permissions(self, role_id: uuid.UUID, permission_ids: list[uuid.UUID]) -> None:
+    async def set_permissions(
+        self, role_id: uuid.UUID, permission_ids: list[uuid.UUID]
+    ) -> None:
         """Full-replace permissions for a role."""
-        del_stmt = delete(RolePermissionModel).where(RolePermissionModel.role_id == role_id)
+        del_stmt = delete(RolePermissionModel).where(
+            RolePermissionModel.role_id == role_id
+        )
         await self._session.execute(del_stmt)
         if permission_ids:
-            values = [{"role_id": role_id, "permission_id": pid} for pid in permission_ids]
+            values = [
+                {"role_id": role_id, "permission_id": pid} for pid in permission_ids
+            ]
             ins_stmt = insert(RolePermissionModel).values(values)
             await self._session.execute(ins_stmt)
