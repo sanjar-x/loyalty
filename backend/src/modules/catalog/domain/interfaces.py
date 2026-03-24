@@ -22,7 +22,16 @@ from src.modules.catalog.domain.entities import AttributeValue as DomainAttribut
 from src.modules.catalog.domain.entities import Brand as DomainBrand
 from src.modules.catalog.domain.entities import Category as DomainCategory
 from src.modules.catalog.domain.entities import (
+    AttributeFamily as DomainAttributeFamily,
+)
+from src.modules.catalog.domain.entities import (
     CategoryAttributeBinding as DomainBinding,
+)
+from src.modules.catalog.domain.entities import (
+    FamilyAttributeBinding as DomainFamilyAttributeBinding,
+)
+from src.modules.catalog.domain.entities import (
+    FamilyAttributeExclusion as DomainFamilyAttributeExclusion,
 )
 from src.modules.catalog.domain.entities import MediaAsset as DomainMediaAsset
 from src.modules.catalog.domain.entities import Product as DomainProduct
@@ -487,6 +496,112 @@ class IMediaAssetRepository(ABC):
         """Count media assets in PENDING_UPLOAD state for a product.
 
         Used to enforce rate limiting on presigned URL generation (SEC-08).
+        """
+        pass
+
+
+class IAttributeFamilyRepository(ICatalogRepository[DomainAttributeFamily]):
+    """Repository contract for the AttributeFamily aggregate."""
+
+    @abstractmethod
+    async def check_code_exists(self, code: str) -> bool:
+        """Check whether a family with the given code already exists."""
+        pass
+
+    @abstractmethod
+    async def check_code_exists_excluding(
+        self, code: str, exclude_id: uuid.UUID
+    ) -> bool:
+        """Check if a code is taken by another family."""
+        pass
+
+    @abstractmethod
+    async def has_children(self, family_id: uuid.UUID) -> bool:
+        """Check whether a family has any child families."""
+        pass
+
+    @abstractmethod
+    async def has_category_references(self, family_id: uuid.UUID) -> bool:
+        """Check whether any categories reference this family."""
+        pass
+
+    @abstractmethod
+    async def get_all_ordered(self) -> list[DomainAttributeFamily]:
+        """Retrieve all families ordered by level and sort_order."""
+        pass
+
+    @abstractmethod
+    async def get_ancestor_chain(
+        self, family_id: uuid.UUID
+    ) -> list[DomainAttributeFamily]:
+        """Return ancestor chain [root, ..., parent, self] using WITH RECURSIVE CTE."""
+        pass
+
+    @abstractmethod
+    async def get_descendant_ids(self, family_id: uuid.UUID) -> list[uuid.UUID]:
+        """Return all descendant family IDs using WITH RECURSIVE CTE."""
+        pass
+
+
+class IFamilyAttributeBindingRepository(ICatalogRepository[DomainFamilyAttributeBinding]):
+    """Repository contract for the FamilyAttributeBinding aggregate."""
+
+    @abstractmethod
+    async def check_binding_exists(
+        self, family_id: uuid.UUID, attribute_id: uuid.UUID
+    ) -> bool:
+        """Return True if a binding for this pair already exists."""
+        pass
+
+    @abstractmethod
+    async def get_by_family_and_attribute(
+        self, family_id: uuid.UUID, attribute_id: uuid.UUID
+    ) -> DomainFamilyAttributeBinding | None:
+        """Retrieve a binding by the family+attribute pair."""
+        pass
+
+    @abstractmethod
+    async def list_ids_by_family(self, family_id: uuid.UUID) -> set[uuid.UUID]:
+        """Return the set of binding IDs belonging to the given family."""
+        pass
+
+    @abstractmethod
+    async def get_bindings_for_families(
+        self, family_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, list[DomainFamilyAttributeBinding]]:
+        """Batch-load all bindings for a list of family IDs."""
+        pass
+
+    @abstractmethod
+    async def bulk_update_sort_order(
+        self, updates: list[tuple[uuid.UUID, int]]
+    ) -> None:
+        """Bulk-update sort_order for multiple bindings."""
+        pass
+
+    @abstractmethod
+    async def has_bindings_for_attribute(self, attribute_id: uuid.UUID) -> bool:
+        """Check whether any family binds this attribute (for deletion guard)."""
+        pass
+
+
+class IFamilyAttributeExclusionRepository(ICatalogRepository[DomainFamilyAttributeExclusion]):
+    """Repository contract for the FamilyAttributeExclusion aggregate."""
+
+    @abstractmethod
+    async def check_exclusion_exists(
+        self, family_id: uuid.UUID, attribute_id: uuid.UUID
+    ) -> bool:
+        """Return True if an exclusion for this pair already exists."""
+        pass
+
+    @abstractmethod
+    async def get_exclusions_for_families(
+        self, family_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, set[uuid.UUID]]:
+        """Batch-load all exclusions for a list of family IDs.
+
+        Returns a dict mapping family_id to a set of excluded attribute_ids.
         """
         pass
 
