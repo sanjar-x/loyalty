@@ -4,14 +4,11 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
-T = TypeVar("T")
 
-
-class PaginatedReadModel(BaseModel, Generic[T]):
+class PaginatedReadModel[T](BaseModel):
     items: list[T]
     total: int
     offset: int
