@@ -51,6 +51,9 @@ deploy/docker/*
 # Worktrees
 .worktrees/
 
+# Firecrawl
+.firecrawl/
+
 # Alembic
 # ВАЖНО: Файлы миграций (alembic/versions/*.py) и alembic.ini ИГНОРИРОВАТЬ НЕЛЬЗЯ!
 # Они должны отслеживаться в Git для поддержания актуальной схемы БД на всех серверах.

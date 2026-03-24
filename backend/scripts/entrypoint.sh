@@ -2,6 +2,6 @@
 set -e
 
 echo "Applying database migrations..."
-uv run alembic upgrade head
+alembic upgrade head
 
-exec uv run fastapi run src/main.py
+exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
