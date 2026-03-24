@@ -15,7 +15,7 @@ import structlog
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.modules.supplier.domain.constants import MARKETPLACE_SUPPLIERS
+from src.modules.supplier.domain.constants import SEED_SUPPLIERS
 
 logger = structlog.get_logger(__name__)
 
@@ -33,7 +33,7 @@ async def sync_suppliers(
 ) -> None:
     """Upsert all marketplace suppliers. Idempotent — safe to run on every deploy."""
     async with session_factory() as session, session.begin():
-        for supplier in MARKETPLACE_SUPPLIERS:
+        for supplier in SEED_SUPPLIERS:
             await session.execute(
                 _UPSERT_SUPPLIER,
                 {
@@ -44,7 +44,7 @@ async def sync_suppliers(
                 },
             )
 
-    logger.info("suppliers.synced", count=len(MARKETPLACE_SUPPLIERS))
+    logger.info("suppliers.synced", count=len(SEED_SUPPLIERS))
 
 
 # ---------------------------------------------------------------------------
