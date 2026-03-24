@@ -165,28 +165,6 @@ AttributeValueListReadModel = PaginatedReadModel[AttributeValueReadModel]
 
 
 # ---------------------------------------------------------------------------
-# CategoryAttributeBinding read models
-# ---------------------------------------------------------------------------
-
-
-class CategoryAttributeBindingReadModel(BaseModel):
-    """Read model for a single category-attribute binding."""
-
-    id: uuid.UUID
-    category_id: uuid.UUID
-    attribute_id: uuid.UUID
-    sort_order: int
-    requirement_level: str
-    flag_overrides: dict[str, Any] | None = None
-    filter_settings: dict[str, Any] | None = None
-
-
-CategoryAttributeBindingListReadModel = PaginatedReadModel[
-    CategoryAttributeBindingReadModel
-]
-
-
-# ---------------------------------------------------------------------------
 # Storefront read models
 # ---------------------------------------------------------------------------
 

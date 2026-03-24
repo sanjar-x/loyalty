@@ -15,9 +15,6 @@ from src.modules.catalog.domain.interfaces import IAttributeRepository
 from src.modules.catalog.domain.value_objects import BehaviorFlags
 from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute
 from src.modules.catalog.infrastructure.models import (
-    CategoryAttributeBinding as OrmCategoryAttributeBinding,
-)
-from src.modules.catalog.infrastructure.models import (
     ProductAttributeValue as OrmProductAttributeValue,
 )
 from src.modules.catalog.infrastructure.repositories.base import BaseRepository
@@ -113,17 +110,6 @@ class AttributeRepository(
         if orm:
             return self._to_domain(orm)
         return None
-
-    async def has_category_bindings(self, attribute_id: uuid.UUID) -> bool:
-        """Return ``True`` if the attribute is bound to at least one category."""
-        stmt = select(
-            select(OrmCategoryAttributeBinding.id)
-            .where(OrmCategoryAttributeBinding.attribute_id == attribute_id)
-            .limit(1)
-            .exists()
-        )
-        result = await self._session.execute(stmt)
-        return bool(result.scalar())
 
     async def has_product_attribute_values(self, attribute_id: uuid.UUID) -> bool:
         """Return ``True`` if any products reference this attribute."""

@@ -1,7 +1,7 @@
 """
 Catalog domain entities (Brand, Category, AttributeFamily,
 FamilyAttributeBinding, FamilyAttributeExclusion, AttributeGroup, Attribute,
-CategoryAttributeBinding, ProductVariant, SKU, and Product aggregates).
+ProductVariant, SKU, and Product aggregates).
 
 Contains the core business logic for brand lifecycle management
 (including logo FSM transitions), hierarchical category trees,
@@ -1342,111 +1342,6 @@ class ProductAttributeValue:
             attribute_id=attribute_id,
             attribute_value_id=attribute_value_id,
         )
-
-
-# ============================================================================
-# ARCH-05: CategoryAttributeBinding -- child entity (not AggregateRoot)
-# ============================================================================
-
-
-@dataclass
-class CategoryAttributeBinding(AggregateRoot):
-    """Binding between a category and an attribute with governance settings.
-
-    Controls which attributes apply to a category, their display order,
-    requirement level for completeness scoring, optional behavior-flag
-    overrides, and per-category filter settings.
-
-    Extends AggregateRoot because bindings emit domain events and are
-    registered with UnitOfWork for Outbox persistence.
-
-    Attributes:
-        id: Unique binding identifier.
-        category_id: FK to the Category aggregate.
-        attribute_id: FK to the Attribute aggregate.
-        sort_order: Display ordering of the attribute within the category.
-        requirement_level: Required / recommended / optional (default: optional).
-        flag_overrides: Optional per-category overrides for global behavior flags.
-            Keys match attribute flag names; values override the global setting.
-            Example: ``{"is_filterable": True, "search_weight": 8}``.
-        filter_settings: Optional per-category filter configuration.
-            Example: ``{"filter_type": "range", "thresholds": [0, 5000, 10000]}``.
-    """
-
-    id: uuid.UUID
-    category_id: uuid.UUID
-    attribute_id: uuid.UUID
-    sort_order: int
-    requirement_level: RequirementLevel
-    flag_overrides: dict[str, Any] | None
-    filter_settings: dict[str, Any] | None
-
-    @classmethod
-    def create(
-        cls,
-        *,
-        category_id: uuid.UUID,
-        attribute_id: uuid.UUID,
-        sort_order: int = 0,
-        requirement_level: RequirementLevel | None = None,
-        flag_overrides: dict[str, Any] | None = None,
-        filter_settings: dict[str, Any] | None = None,
-        binding_id: uuid.UUID | None = None,
-    ) -> CategoryAttributeBinding:
-        """Factory method to construct a new CategoryAttributeBinding.
-
-        Args:
-            category_id: UUID of the category.
-            attribute_id: UUID of the attribute.
-            sort_order: Display ordering (default: 0).
-            requirement_level: Requirement level (default: OPTIONAL).
-            flag_overrides: Optional behavior flag overrides.
-            filter_settings: Optional filter configuration.
-            binding_id: Optional pre-generated UUID.
-
-        Returns:
-            A new CategoryAttributeBinding instance.
-        """
-        return cls(
-            id=binding_id or _generate_id(),
-            category_id=category_id,
-            attribute_id=attribute_id,
-            sort_order=sort_order,
-            requirement_level=requirement_level or RequirementLevel.OPTIONAL,
-            flag_overrides=flag_overrides,
-            filter_settings=filter_settings,
-        )
-
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "sort_order",
-            "requirement_level",
-            "flag_overrides",
-            "filter_settings",
-        }
-    )
-
-    def update(self, **kwargs: Any) -> None:
-        """Update mutable binding fields. category_id and attribute_id are immutable.
-
-        Only fields present in ``kwargs`` are applied. Pass ``None`` for
-        nullable fields (flag_overrides, filter_settings) to clear them.
-
-        Raises:
-            TypeError: If an unknown field name is passed.
-        """
-        unknown = set(kwargs) - self._UPDATABLE_FIELDS
-        if unknown:
-            raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
-
-        if "sort_order" in kwargs and kwargs["sort_order"] is not None:
-            self.sort_order = kwargs["sort_order"]
-        if "requirement_level" in kwargs and kwargs["requirement_level"] is not None:
-            self.requirement_level = kwargs["requirement_level"]
-        if "flag_overrides" in kwargs:
-            self.flag_overrides = kwargs["flag_overrides"]
-        if "filter_settings" in kwargs:
-            self.filter_settings = kwargs["filter_settings"]
 
 
 # ---------------------------------------------------------------------------

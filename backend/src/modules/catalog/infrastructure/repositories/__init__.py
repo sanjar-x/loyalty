@@ -12,9 +12,6 @@ from src.modules.catalog.infrastructure.repositories.attribute_value import (
 )
 from src.modules.catalog.infrastructure.repositories.brand import BrandRepository
 from src.modules.catalog.infrastructure.repositories.category import CategoryRepository
-from src.modules.catalog.infrastructure.repositories.category_attribute_binding import (
-    CategoryAttributeBindingRepository,
-)
 from src.modules.catalog.infrastructure.repositories.family_attribute_binding import (
     FamilyAttributeBindingRepository,
 )
@@ -35,7 +32,6 @@ __all__ = [
     "AttributeRepository",
     "AttributeValueRepository",
     "BrandRepository",
-    "CategoryAttributeBindingRepository",
     "CategoryRepository",
     "FamilyAttributeBindingRepository",
     "FamilyAttributeExclusionRepository",

@@ -25,9 +25,6 @@ from src.modules.catalog.domain.entities import (
     AttributeFamily as DomainAttributeFamily,
 )
 from src.modules.catalog.domain.entities import (
-    CategoryAttributeBinding as DomainBinding,
-)
-from src.modules.catalog.domain.entities import (
     FamilyAttributeBinding as DomainFamilyAttributeBinding,
 )
 from src.modules.catalog.domain.entities import (
@@ -206,11 +203,6 @@ class IAttributeRepository(ICatalogRepository[DomainAttribute]):
         pass
 
     @abstractmethod
-    async def has_category_bindings(self, attribute_id: uuid.UUID) -> bool:
-        """Check whether the attribute is bound to at least one category."""
-        pass
-
-    @abstractmethod
     async def has_product_attribute_values(self, attribute_id: uuid.UUID) -> bool:
         """Check whether any products reference this attribute."""
         pass
@@ -282,63 +274,6 @@ class IAttributeValueRepository(ABC):
         Args:
             updates: List of (value_id, new_sort_order) tuples.
         """
-        pass
-
-
-class ICategoryAttributeBindingRepository(ABC):
-    """Repository contract for CategoryAttributeBinding entities."""
-
-    @abstractmethod
-    async def add(self, entity: DomainBinding) -> DomainBinding:
-        """Persist a new category-attribute binding."""
-        pass
-
-    @abstractmethod
-    async def get(self, binding_id: uuid.UUID) -> DomainBinding | None:
-        """Retrieve a binding by its unique identifier."""
-        pass
-
-    @abstractmethod
-    async def update(self, entity: DomainBinding) -> DomainBinding:
-        """Persist changes to an existing binding."""
-        pass
-
-    @abstractmethod
-    async def delete(self, binding_id: uuid.UUID) -> None:
-        """Delete a binding by its unique identifier."""
-        pass
-
-    @abstractmethod
-    async def check_binding_exists(
-        self, category_id: uuid.UUID, attribute_id: uuid.UUID
-    ) -> bool:
-        """Check whether a binding for this category+attribute pair exists."""
-        pass
-
-    @abstractmethod
-    async def get_by_category_and_attribute(
-        self, category_id: uuid.UUID, attribute_id: uuid.UUID
-    ) -> DomainBinding | None:
-        """Retrieve a binding by the category+attribute pair."""
-        pass
-
-    @abstractmethod
-    async def list_ids_by_category(self, category_id: uuid.UUID) -> set[uuid.UUID]:
-        """Return the set of binding IDs belonging to the given category."""
-        pass
-
-    @abstractmethod
-    async def bulk_update_sort_order(
-        self, updates: list[tuple[uuid.UUID, int]]
-    ) -> None:
-        """Bulk-update sort_order for multiple bindings atomically."""
-        pass
-
-    @abstractmethod
-    async def bulk_update_requirement_level(
-        self, updates: list[tuple[uuid.UUID, str]]
-    ) -> None:
-        """Bulk-update requirement_level for multiple bindings atomically."""
         pass
 
 
@@ -650,9 +585,6 @@ if TYPE_CHECKING:
         BrandReadModel as _BrandRM,
     )
     from src.modules.catalog.application.queries.read_models import (
-        CategoryAttributeBindingListReadModel as _BindingListRM,
-    )
-    from src.modules.catalog.application.queries.read_models import (
         CategoryListReadModel as _CategoryListRM,
     )
     from src.modules.catalog.application.queries.read_models import (
@@ -776,21 +708,6 @@ class IAttributeReadRepository(ABC):
         limit: int = 50,
     ) -> _AttrValueListRM:
         """Return a paginated list of values for a given attribute."""
-        pass
-
-
-class ICategoryAttributeBindingReadRepository(ABC):
-    """Read-only query interface for category-attribute bindings."""
-
-    @abstractmethod
-    async def list_bindings(
-        self,
-        category_id: uuid.UUID,
-        *,
-        offset: int = 0,
-        limit: int = 50,
-    ) -> _BindingListRM:
-        """Return a paginated list of bindings for a category."""
         pass
 
 

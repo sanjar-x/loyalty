@@ -487,17 +487,6 @@ class AttributeSlugConflictError(ConflictError):
         )
 
 
-class AttributeHasCategoryBindingsError(ConflictError):
-    """Raised when attempting to delete an attribute bound to categories."""
-
-    def __init__(self, attribute_id: uuid.UUID):
-        super().__init__(
-            message="Cannot delete attribute that is bound to one or more categories.",
-            error_code="ATTRIBUTE_HAS_CATEGORY_BINDINGS",
-            details={"attribute_id": str(attribute_id)},
-        )
-
-
 class AttributeInUseByProductsError(ConflictError):
     """Raised when attempting to delete an attribute referenced by products."""
 
@@ -577,36 +566,6 @@ class AttributeNotDictionaryError(UnprocessableEntityError):
             message="Values can only be added to dictionary attributes (is_dictionary=True).",
             error_code="ATTRIBUTE_NOT_DICTIONARY",
             details={"attribute_id": str(attribute_id)},
-        )
-
-
-# ---------------------------------------------------------------------------
-# CategoryAttributeBinding exceptions
-# ---------------------------------------------------------------------------
-
-
-class CategoryAttributeBindingNotFoundError(NotFoundError):
-    """Raised when a category-attribute binding lookup yields no result."""
-
-    def __init__(self, binding_id: uuid.UUID | str):
-        super().__init__(
-            message=f"Category-attribute binding with ID {binding_id} not found.",
-            error_code="CATEGORY_ATTRIBUTE_BINDING_NOT_FOUND",
-            details={"binding_id": str(binding_id)},
-        )
-
-
-class CategoryAttributeBindingAlreadyExistsError(ConflictError):
-    """Raised when a binding for the same category+attribute pair already exists."""
-
-    def __init__(self, category_id: uuid.UUID, attribute_id: uuid.UUID):
-        super().__init__(
-            message="This attribute is already bound to this category.",
-            error_code="CATEGORY_ATTRIBUTE_BINDING_ALREADY_EXISTS",
-            details={
-                "category_id": str(category_id),
-                "attribute_id": str(attribute_id),
-            },
         )
 
 

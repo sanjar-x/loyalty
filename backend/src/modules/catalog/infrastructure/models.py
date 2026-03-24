@@ -9,7 +9,7 @@ entities using the Data Mapper pattern.
 Sections:
     1. Enumerations -- database-level enums for product status, media, etc.
     2. Taxonomy & Dictionaries -- Brand, Category, AttributeGroup, Attribute, AttributeValue.
-    3. Rules -- CategoryAttributeBinding (governance matrix).
+    3. Rules -- FamilyAttributeBinding, FamilyAttributeExclusion (governance).
     4. Core Domain -- Supplier, Product, MediaAsset.
     5. Variations -- SKU and SKU <-> AttributeValue link table.
 """
@@ -150,11 +150,6 @@ class Category(Base):
     )
     parent: Mapped[Category] = relationship(
         "Category", back_populates="children", remote_side="Category.id"
-    )
-    attribute_bindings: Mapped[list[CategoryAttributeBinding]] = relationship(
-        "CategoryAttributeBinding",
-        back_populates="category",
-        cascade="all, delete-orphan",
     )
     family: Mapped[AttributeFamily | None] = relationship("AttributeFamily")
 
@@ -381,12 +376,6 @@ class Attribute(Base):
     values: Mapped[list[AttributeValue]] = relationship(
         "AttributeValue", back_populates="attribute", cascade="all, delete-orphan"
     )
-    category_bindings: Mapped[list[CategoryAttributeBinding]] = relationship(
-        "CategoryAttributeBinding",
-        back_populates="attribute",
-        cascade="all, delete-orphan",
-    )
-
     __table_args__ = (
         Index("uix_attributes_code", "code", unique=True),
         Index("uix_attributes_slug", "slug", unique=True),
@@ -438,59 +427,6 @@ class AttributeValue(Base):
         Index(
             "ix_attr_val_search_aliases_gin", "search_aliases", postgresql_using="gin"
         ),
-    )
-
-
-# ---------------------------------------------------------------------------
-# 3. RULES
-# ---------------------------------------------------------------------------
-
-
-class CategoryAttributeBinding(Base):
-    """Governance model: controls which attributes apply to a category.
-
-    Acts as a many-to-many link between :class:`Category` and
-    :class:`Attribute` with sort ordering, requirement level,
-    optional behavior-flag overrides, and filter settings.
-    """
-
-    __tablename__ = "category_attribute_rules"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
-    category_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("categories.id", ondelete="CASCADE"), index=True
-    )
-    attribute_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("attributes.id", ondelete="CASCADE"), index=True
-    )
-    sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
-    requirement_level: Mapped[RequirementLevel] = mapped_column(
-        Enum(RequirementLevel, name="requirement_level_enum"),
-        server_default=RequirementLevel.OPTIONAL.name,
-        comment="Required / recommended / optional",
-    )
-    flag_overrides: Mapped[dict[str, Any] | None] = mapped_column(
-        MutableDict.as_mutable(JSONB),
-        nullable=True,
-        comment="Per-category behavior-flag overrides (e.g. is_filterable, search_weight)",
-    )
-    filter_settings: Mapped[dict[str, Any] | None] = mapped_column(
-        MutableDict.as_mutable(JSONB),
-        nullable=True,
-        comment="Per-category filter config (e.g. filter_type, thresholds)",
-    )
-
-    category: Mapped[Category] = relationship(
-        "Category", back_populates="attribute_bindings"
-    )
-    attribute: Mapped[Attribute] = relationship(
-        "Attribute", back_populates="category_bindings"
-    )
-
-    __table_args__ = (
-        Index("uix_cat_attr_rule", "category_id", "attribute_id", unique=True),
     )
 
 
