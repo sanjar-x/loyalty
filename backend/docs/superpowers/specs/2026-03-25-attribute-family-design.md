@@ -390,10 +390,12 @@ Storefront handlers now: `category → family_id → resolve effective → filte
 
 ## Domain Events
 
-All events follow the existing `CatalogEvent` base class protocol with `__init_subclass__` keyword arguments:
+All events follow the existing `CatalogEvent` base class protocol with `__init_subclass__` keyword arguments.
+
+> **Important:** Events use `from dataclasses import dataclass` (stdlib), NOT `from attr import dataclass`. This is because `DomainEvent` is a non-frozen stdlib dataclass, and Python prohibits mixing `attrs` subclasses with stdlib dataclass parents. Domain entities use `attrs`; domain events use stdlib `dataclasses`.
 
 ```python
-from attr import dataclass
+from dataclasses import dataclass
 
 # --- AttributeFamily lifecycle ---
 
