@@ -2,16 +2,13 @@
 
 import uuid
 from datetime import datetime
-from typing import Generic, TypeVar
 
 from pydantic import Field
 
 from src.shared.schemas import CamelModel
 
-S = TypeVar("S")
 
-
-class PaginatedResponse(CamelModel, Generic[S]):
+class PaginatedResponse[S](CamelModel):
     items: list[S]
     total: int
     offset: int
