@@ -98,3 +98,13 @@ class IStaffMemberRepository(ABC):
         Args:
             staff: The StaffMember domain entity with updated field values.
         """
+
+
+class IUsernameUniquenessChecker(ABC):
+    """Check username availability across customers and staff_members."""
+
+    @abstractmethod
+    async def is_available(
+        self, username: str, exclude_identity_id: uuid.UUID | None = None,
+    ) -> bool:
+        """Return True if username is not taken (case-insensitive)."""

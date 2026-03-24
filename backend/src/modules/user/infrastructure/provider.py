@@ -22,6 +22,10 @@ from src.modules.user.application.queries.get_my_profile import GetMyProfileHand
 from src.modules.user.domain.interfaces import (
     ICustomerRepository,
     IStaffMemberRepository,
+    IUsernameUniquenessChecker,
+)
+from src.modules.user.infrastructure.services.username_checker import (
+    UsernameUniquenessChecker,
 )
 from src.modules.user.infrastructure.repositories.customer_repository import (
     CustomerRepository,
@@ -44,6 +48,9 @@ class ProfileProvider(Provider):
     )
     staff_member_repo: CompositeDependencySource = provide(
         StaffMemberRepository, scope=Scope.REQUEST, provides=IStaffMemberRepository
+    )
+    username_checker: CompositeDependencySource = provide(
+        UsernameUniquenessChecker, scope=Scope.REQUEST, provides=IUsernameUniquenessChecker
     )
 
     # Command handlers
