@@ -7,6 +7,8 @@
 - [x] Brand selection (`GET /catalog/brands`)
 - [ ] **Attribute assignment** ← этот документ
 
+> **Architecture update (2026-03-25):** Бэкенд перешёл на систему `AttributeFamily` вместо прямой привязки атрибутов к категориям. Категория теперь ссылается на `AttributeFamily` через поле `familyId`. Семьи (families) образуют иерархию с наследованием атрибутов: дочерняя семья наследует атрибуты родительской, может переопределять настройки и исключать унаследованные атрибуты. **Для фронтенда storefront API не изменился** — те же endpoints, те же response formats. Изменения касаются только admin panel (новые endpoints для управления семьями).
+
 После того как пользователь выбрал **категорию** и **бренд**, следующий шаг — запросить атрибуты этой категории и дать пользователю заполнить их.
 
 ---
@@ -364,4 +366,96 @@ interface ProductAttribute {
   attributeCode: string;
   attributeNameI18n: Record<string, string>;
 }
+```
+
+---
+
+## Admin Panel: AttributeFamily Management (NEW)
+
+Для admin panel доступны новые endpoints для управления семьями атрибутов.
+
+### Family CRUD
+
+```
+POST   /api/v1/catalog/attribute-families          — создать семью
+GET    /api/v1/catalog/attribute-families          — список (paginated)
+GET    /api/v1/catalog/attribute-families/tree     — дерево семей
+GET    /api/v1/catalog/attribute-families/{id}     — получить семью
+PATCH  /api/v1/catalog/attribute-families/{id}     — обновить
+DELETE /api/v1/catalog/attribute-families/{id}     — удалить
+```
+
+### Family Attribute Bindings
+
+```
+POST   /api/v1/catalog/attribute-families/{id}/attributes           — привязать атрибут
+GET    /api/v1/catalog/attribute-families/{id}/attributes           — свои привязки
+GET    /api/v1/catalog/attribute-families/{id}/attributes/effective — resolved с наследованием
+PATCH  /api/v1/catalog/attribute-families/{id}/attributes/{bid}    — обновить привязку
+DELETE /api/v1/catalog/attribute-families/{id}/attributes/{bid}    — удалить привязку
+POST   /api/v1/catalog/attribute-families/{id}/attributes/reorder  — переупорядочить
+```
+
+### Family Attribute Exclusions
+
+```
+POST   /api/v1/catalog/attribute-families/{id}/exclusions              — исключить атрибут
+GET    /api/v1/catalog/attribute-families/{id}/exclusions              — список исключений
+DELETE /api/v1/catalog/attribute-families/{id}/exclusions/{eid}       — отменить исключение
+```
+
+### Category → Family Assignment
+
+При создании/обновлении категории передаётся `familyId`:
+
+```json
+// PATCH /api/v1/catalog/categories/{id}
+{ "familyId": "uuid-of-family" }
+```
+
+### Пример: создать иерархию семей
+
+```typescript
+// 1. Создать корневую семью "Одежда"
+const clothing = await api.post('/catalog/attribute-families', {
+  code: 'clothing',
+  nameI18n: { ru: 'Одежда', en: 'Clothing' },
+});
+
+// 2. Привязать атрибуты к "Одежда"
+await api.post(`/catalog/attribute-families/${clothing.id}/attributes`, {
+  attributeId: sizeAttrId,
+  requirementLevel: 'optional',
+});
+await api.post(`/catalog/attribute-families/${clothing.id}/attributes`, {
+  attributeId: colorAttrId,
+  requirementLevel: 'required',
+});
+
+// 3. Создать дочернюю семью "Футболки" (наследует size, color)
+const tshirts = await api.post('/catalog/attribute-families', {
+  code: 't_shirts',
+  parentId: clothing.id,
+  nameI18n: { ru: 'Футболки', en: 'T-shirts' },
+});
+
+// 4. Добавить собственный атрибут "Материал"
+await api.post(`/catalog/attribute-families/${tshirts.id}/attributes`, {
+  attributeId: materialAttrId,
+  requirementLevel: 'recommended',
+});
+
+// 5. Переопределить size на required (было optional у родителя)
+await api.post(`/catalog/attribute-families/${tshirts.id}/attributes`, {
+  attributeId: sizeAttrId,
+  requirementLevel: 'required',
+});
+
+// 6. Получить effective атрибуты (size:required, color:required, material:recommended)
+const effective = await api.get(`/catalog/attribute-families/${tshirts.id}/attributes/effective`);
+
+// 7. Назначить семью категории
+await api.patch(`/catalog/categories/${tshirtCategoryId}`, {
+  familyId: tshirts.id,
+});
 ```
