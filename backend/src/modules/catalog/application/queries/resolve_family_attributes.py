@@ -70,6 +70,19 @@ class EffectiveAttributeReadModel(BaseModel):
     values: list[EffectiveValueReadModel] = []
     sort_order: int = 0
 
+    # Global attribute flags (from the attribute definition itself).
+    # These serve as defaults when flag_overrides does not specify a value.
+    is_filterable: bool = False
+    is_searchable: bool = False
+    is_comparable: bool = False
+    is_visible_on_card: bool = False
+    is_visible_in_catalog: bool = False
+    search_weight: int = 5
+    group_id: uuid.UUID | None = None
+    group_code: str | None = None
+    group_name_i18n: dict[str, Any] = {}
+    group_sort_order: int = 0
+
 
 class EffectiveAttributeSetReadModel(BaseModel):
     """Complete effective attribute set for a family."""
@@ -163,7 +176,7 @@ class ResolveFamilyAttributesHandler:
         stmt = (
             select(OrmAttribute)
             .where(OrmAttribute.id.in_(effective_attr_ids))
-            .options(selectinload(OrmAttribute.values))
+            .options(selectinload(OrmAttribute.values), selectinload(OrmAttribute.group))
         )
         attr_result = await self._session.execute(stmt)
         orm_attrs = {a.id: a for a in attr_result.unique().scalars().all()}
@@ -190,6 +203,7 @@ class ResolveFamilyAttributesHandler:
                     for v in sorted(orm_attr.values, key=lambda x: x.sort_order)
                 ]
 
+            grp = orm_attr.group
             attributes.append(
                 EffectiveAttributeReadModel(
                     attribute_id=orm_attr.id,
@@ -209,6 +223,17 @@ class ResolveFamilyAttributesHandler:
                     is_overridden=is_overridden,
                     values=values,
                     sort_order=binding.sort_order,
+                    # Global attribute flags
+                    is_filterable=orm_attr.is_filterable,
+                    is_searchable=orm_attr.is_searchable,
+                    is_comparable=orm_attr.is_comparable,
+                    is_visible_on_card=orm_attr.is_visible_on_card,
+                    is_visible_in_catalog=orm_attr.is_visible_in_catalog,
+                    search_weight=orm_attr.search_weight,
+                    group_id=grp.id if grp else None,
+                    group_code=grp.code if grp else None,
+                    group_name_i18n=(grp.name_i18n or {}) if grp else {},
+                    group_sort_order=grp.sort_order if grp else 0,
                 )
             )
 
