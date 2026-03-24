@@ -3,17 +3,17 @@
 import { useState } from 'react';
 
 const ERROR_MESSAGES = {
-  INVALID_CREDENTIALS: 'Неверный email или пароль',
+  INVALID_CREDENTIALS: 'Неверный логин или пароль',
   IDENTITY_DEACTIVATED: 'Аккаунт деактивирован',
   MAX_SESSIONS_EXCEEDED: 'Превышен лимит сессий (макс. 5)',
   REFRESH_TOKEN_REUSE: 'Сессия скомпрометирована. Войдите заново',
-  IDENTITY_ALREADY_EXISTS: 'Этот email уже зарегистрирован',
+  IDENTITY_ALREADY_EXISTS: 'Этот аккаунт уже зарегистрирован',
   VALIDATION_ERROR: 'Проверьте введённые данные',
   SERVICE_UNAVAILABLE: 'Сервис временно недоступен',
 };
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,7 +30,7 @@ export default function LoginPage() {
           'Content-Type': 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ login, password }),
       });
 
       if (res.ok) {
@@ -69,16 +69,16 @@ export default function LoginPage() {
 
         <label className="mb-4 block">
           <span className="mb-1 block text-sm font-medium text-[#22252b]">
-            Email
+            Логин
           </span>
           <input
-            type="email"
+            type="text"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={login}
+            onChange={(e) => setLogin(e.target.value)}
             className="w-full rounded-lg border border-[#dfdfe2] px-3 py-2.5 text-sm transition-colors outline-none focus:border-[#22252b]"
-            placeholder="admin@example.com"
-            autoComplete="email"
+            placeholder="Email или имя пользователя"
+            autoComplete="username"
           />
         </label>
 
