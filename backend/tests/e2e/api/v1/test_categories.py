@@ -6,7 +6,7 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_create_category_e2e_success(admin_client: AsyncClient, db_session: AsyncSession):
-    payload = {"name": "Computers", "slug": "computers", "parentId": None}
+    payload = {"nameI18n": {"en": "Computers", "ru": "Компьютеры"}, "slug": "computers", "parentId": None}
     response = await admin_client.post("/api/v1/catalog/categories", json=payload)
 
     assert response.status_code == 201
@@ -18,7 +18,7 @@ async def test_create_category_e2e_validation_error(
     admin_client: AsyncClient, db_session: AsyncSession
 ):
     payload = {
-        "name": "",  # invalid empty name
+        "nameI18n": {},  # invalid empty name_i18n
         "slug": "c",  # invalid too short slug
         "parentId": None,
     }

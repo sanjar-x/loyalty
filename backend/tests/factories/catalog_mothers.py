@@ -71,21 +71,26 @@ class CategoryMothers:
     """Pre-built Category aggregate configurations."""
 
     @staticmethod
-    def root(name: str = "Electronics", slug: str | None = None) -> Category:
+    def root(
+        name_i18n: dict[str, str] | None = None, slug: str | None = None,
+    ) -> Category:
         """Root-level category (level=0, no parent)."""
         return Category.create_root(
-            name=name,
+            name_i18n=name_i18n or {"en": "Electronics"},
             slug=slug or f"electronics-{uuid.uuid4().hex[:6]}",
             sort_order=0,
         )
 
     @staticmethod
-    def child(parent: Category | None = None, name: str = "Smartphones") -> Category:
+    def child(
+        parent: Category | None = None,
+        name_i18n: dict[str, str] | None = None,
+    ) -> Category:
         """Child category under given parent (or creates a root parent)."""
         if parent is None:
             parent = CategoryMothers.root()
         return Category.create_child(
-            name=name,
+            name_i18n=name_i18n or {"en": "Smartphones"},
             slug=f"smartphones-{uuid.uuid4().hex[:6]}",
             parent=parent,
             sort_order=0,
@@ -96,11 +101,11 @@ class CategoryMothers:
         """Chain of nested categories up to the given depth."""
         categories: list[Category] = []
         names = ["Electronics", "Smartphones", "Android", "Samsung", "Galaxy"]
-        root = CategoryMothers.root(name=names[0])
+        root = CategoryMothers.root(name_i18n={"en": names[0]})
         categories.append(root)
         for i in range(1, min(depth, len(names))):
             child = Category.create_child(
-                name=names[i],
+                name_i18n={"en": names[i]},
                 slug=f"{names[i].lower()}-{uuid.uuid4().hex[:6]}",
                 parent=categories[-1],
                 sort_order=0,

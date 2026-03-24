@@ -90,13 +90,13 @@ class CategoryBuilder:
     """Fluent builder for Category tree construction."""
 
     def __init__(self) -> None:
-        self._name = "Test Category"
+        self._name_i18n: dict[str, str] = {"en": "Test Category"}
         self._slug: str | None = None
         self._sort_order = 0
         self._parent: Category | None = None
 
-    def with_name(self, name: str) -> CategoryBuilder:
-        self._name = name
+    def with_name_i18n(self, name_i18n: dict[str, str]) -> CategoryBuilder:
+        self._name_i18n = name_i18n
         return self
 
     def with_slug(self, slug: str) -> CategoryBuilder:
@@ -108,9 +108,10 @@ class CategoryBuilder:
         return self
 
     def build(self) -> Category:
-        slug = self._slug or f"{self._name.lower().replace(' ', '-')}-{uuid.uuid4().hex[:6]}"
+        default = self._name_i18n.get("en", "category").lower().replace(" ", "-")
+        slug = self._slug or f"{default}-{uuid.uuid4().hex[:6]}"
         if self._parent is None:
-            return Category.create_root(name=self._name, slug=slug, sort_order=self._sort_order)
+            return Category.create_root(name_i18n=self._name_i18n, slug=slug, sort_order=self._sort_order)
         return Category.create_child(
-            name=self._name, slug=slug, parent=self._parent, sort_order=self._sort_order
+            name_i18n=self._name_i18n, slug=slug, parent=self._parent, sort_order=self._sort_order
         )
