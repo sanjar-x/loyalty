@@ -6,7 +6,7 @@ corresponding domain entities using the Data Mapper pattern.
 
 import uuid
 
-from sqlalchemy import exists, select, update
+from sqlalchemy import exists, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -128,25 +128,50 @@ class IdentityRepository(IIdentityRepository):
     ) -> tuple[Identity, LocalCredentials] | None:
         """Retrieve an identity by email or username.
 
-        If ``login`` contains '@', look up by email; otherwise by username.
+        If login contains '@', look up by email. Otherwise look up by
+        username across customers and staff_members via raw SQL JOIN.
         """
         if "@" in login:
             return await self.get_by_email(login)
 
-        stmt = (
-            select(IdentityModel)
-            .join(LocalCredentialsModel)
-            .options(joinedload(IdentityModel.credentials))
-            .where(LocalCredentialsModel.username == login)
-        )
-        result = await self._session.execute(stmt)
-        orm = result.unique().scalar_one_or_none()
-        if orm is None or orm.credentials is None:
+        stmt = text("""
+            SELECT i.id, i.primary_auth_method, i.account_type, i.is_active,
+                   i.created_at, i.updated_at, i.deactivated_at, i.deactivated_by,
+                   i.token_version,
+                   lc.identity_id AS lc_identity_id, lc.email, lc.password_hash,
+                   lc.created_at AS lc_created_at, lc.updated_at AS lc_updated_at
+            FROM identities i
+            JOIN local_credentials lc ON lc.identity_id = i.id
+            LEFT JOIN customers c ON c.id = i.id
+            LEFT JOIN staff_members s ON s.id = i.id
+            WHERE LOWER(c.username) = LOWER(:login)
+               OR LOWER(s.username) = LOWER(:login)
+            LIMIT 1
+        """)
+        result = await self._session.execute(stmt, {"login": login})
+        row = result.mappings().first()
+        if row is None:
             return None
-        return (
-            self._identity_to_domain(orm),
-            self._credentials_to_domain(orm.credentials),
+
+        identity = Identity(
+            id=row["id"],
+            type=PrimaryAuthMethod(row["primary_auth_method"]),
+            account_type=AccountType(row["account_type"]),
+            is_active=row["is_active"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            deactivated_at=row["deactivated_at"],
+            deactivated_by=row["deactivated_by"],
+            token_version=row["token_version"],
         )
+        credentials = LocalCredentials(
+            identity_id=row["lc_identity_id"],
+            email=row["email"],
+            password_hash=row["password_hash"],
+            created_at=row["lc_created_at"],
+            updated_at=row["lc_updated_at"],
+        )
+        return identity, credentials
 
     async def get_with_credentials(
         self,
