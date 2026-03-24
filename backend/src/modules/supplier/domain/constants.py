@@ -52,21 +52,21 @@ SEED_SUPPLIERS: list[dict] = [
     # ── Local ──────────────────────────────────────────────────────────
     {
         "id": MOSCOW_ID,
-        "name": "Москва",
+        "name": "Стритстайл",
         "type": SupplierType.LOCAL,
-        "region": "Moscow",
+        "region": "Москва",
     },
     {
         "id": SPB_ID,
-        "name": "Санкт-Петербург",
+        "name": "Невский Склад",
         "type": SupplierType.LOCAL,
-        "region": "Saint Petersburg",
+        "region": "Санкт-Петербург",
     },
     {
         "id": VOLGOGRAD_ID,
-        "name": "Волгоград",
+        "name": "Волга Трейд",
         "type": SupplierType.LOCAL,
-        "region": "Volgograd",
+        "region": "Волгоград",
     },
 ]
 
