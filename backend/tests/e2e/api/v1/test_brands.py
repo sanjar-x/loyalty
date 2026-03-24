@@ -58,7 +58,9 @@ async def test_confirm_brand_logo_e2e_success(
     )
 
     # 3. Confirm upload
-    response = await admin_client.post(f"/api/v1/catalog/brands/{brand_id}/logo/confirm", json={})
+    response = await admin_client.post(
+        f"/api/v1/catalog/brands/{brand_id}/logo/confirm", json={}
+    )
 
     assert response.status_code == 202
     assert response.json() == {"message": "Logo processing request accepted"}

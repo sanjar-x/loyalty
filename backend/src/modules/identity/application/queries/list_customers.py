@@ -134,7 +134,9 @@ class ListCustomersHandler:
         total = count_result.scalar() or 0
 
         if total == 0:
-            return CustomerListResult(items=[], total=0, offset=query.offset, limit=query.limit)
+            return CustomerListResult(
+                items=[], total=0, offset=query.offset, limit=query.limit
+            )
 
         # Fetch page
         sort_col = _SORT_COLUMNS.get(query.sort_by, "i.created_at")
@@ -156,11 +158,15 @@ class ListCustomersHandler:
         rows = list_result.mappings().all()
 
         if not rows:
-            return CustomerListResult(items=[], total=total, offset=query.offset, limit=query.limit)
+            return CustomerListResult(
+                items=[], total=total, offset=query.offset, limit=query.limit
+            )
 
         # Fetch role names
         identity_ids = [row["identity_id"] for row in rows]
-        role_result = await self._session.execute(_ROLE_NAMES_SQL, {"identity_ids": identity_ids})
+        role_result = await self._session.execute(
+            _ROLE_NAMES_SQL, {"identity_ids": identity_ids}
+        )
         role_rows = role_result.mappings().all()
 
         roles_by_identity: dict[uuid.UUID, list[str]] = {}
@@ -174,7 +180,9 @@ class ListCustomersHandler:
         la_result = await self._session.execute(la_stmt, {"ids": identity_ids})
         providers_by_identity: dict[uuid.UUID, list[str]] = {}
         for la_row in la_result.mappings():
-            providers_by_identity.setdefault(la_row["identity_id"], []).append(la_row["provider"])
+            providers_by_identity.setdefault(la_row["identity_id"], []).append(
+                la_row["provider"]
+            )
 
         items = []
         for row in rows:
@@ -199,4 +207,6 @@ class ListCustomersHandler:
                 )
             )
 
-        return CustomerListResult(items=items, total=total, offset=query.offset, limit=query.limit)
+        return CustomerListResult(
+            items=items, total=total, offset=query.offset, limit=query.limit
+        )

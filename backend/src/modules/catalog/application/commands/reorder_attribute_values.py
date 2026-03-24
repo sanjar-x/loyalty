@@ -69,7 +69,9 @@ class ReorderAttributeValuesHandler:
             if attribute is None:
                 raise AttributeNotFoundError(attribute_id=command.attribute_id)
 
-            valid_ids = await self._value_repo.list_ids_by_attribute(command.attribute_id)
+            valid_ids = await self._value_repo.list_ids_by_attribute(
+                command.attribute_id
+            )
             requested_ids = {item.value_id for item in command.items}
             invalid_ids = requested_ids - valid_ids
             if invalid_ids:

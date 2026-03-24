@@ -22,7 +22,9 @@ def to_sku_response(model: SKUReadModel) -> SKUResponse:
         )
     price_schema: MoneySchema | None = None
     if model.price is not None:
-        price_schema = MoneySchema(amount=model.price.amount, currency=model.price.currency)
+        price_schema = MoneySchema(
+            amount=model.price.amount, currency=model.price.currency
+        )
     resolved_price_schema: MoneySchema | None = None
     if model.resolved_price is not None:
         resolved_price_schema = MoneySchema(
@@ -57,7 +59,9 @@ def to_variant_response(v: ProductVariantReadModel) -> ProductVariantResponse:
         name_i18n=v.name_i18n,
         description_i18n=v.description_i18n,
         sort_order=v.sort_order,
-        default_price=MoneySchema(amount=v.default_price.amount, currency=v.default_price.currency)
+        default_price=MoneySchema(
+            amount=v.default_price.amount, currency=v.default_price.currency
+        )
         if v.default_price
         else None,
         skus=[to_sku_response(s) for s in v.skus],

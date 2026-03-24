@@ -71,7 +71,9 @@ class DomainEvent:
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
         if cls.aggregate_type == "" or cls.event_type == "":
-            raise TypeError(f"{cls.__name__} must override 'aggregate_type' and 'event_type'")
+            raise TypeError(
+                f"{cls.__name__} must override 'aggregate_type' and 'event_type'"
+            )
 
 
 class AggregateRoot:

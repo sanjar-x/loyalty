@@ -143,7 +143,9 @@ async def get_customer_detail(
         auth_methods=result.auth_methods,
         referred_by=result.referred_by,
         roles=[
-            RoleInfoResponse(id=r.id, name=r.name, description=r.description, is_system=r.is_system)
+            RoleInfoResponse(
+                id=r.id, name=r.name, description=r.description, is_system=r.is_system
+            )
             for r in result.roles
         ],
         created_at=result.created_at,

@@ -96,7 +96,9 @@ class ListStaffInvitationsHandler:
         total = count_result.scalar() or 0
 
         if total == 0:
-            return InvitationListResult(items=[], total=0, offset=query.offset, limit=query.limit)
+            return InvitationListResult(
+                items=[], total=0, offset=query.offset, limit=query.limit
+            )
 
         # Fetch page
         list_sql = (
@@ -126,7 +128,9 @@ class ListStaffInvitationsHandler:
             "JOIN roles r ON r.id = sir.role_id "
             "WHERE sir.invitation_id = ANY(:invitation_ids)"
         )
-        roles_result = await self._session.execute(roles_sql, {"invitation_ids": invitation_ids})
+        roles_result = await self._session.execute(
+            roles_sql, {"invitation_ids": invitation_ids}
+        )
         roles_rows = roles_result.mappings().all()
 
         roles_by_invitation: dict[uuid.UUID, list[str]] = {}

@@ -76,7 +76,9 @@ async def create_category(
         sort_order=request.sort_order,
     )
     category: CreateCategoryResult = await handler.handle(command)
-    return CategoryCreateResponse(id=category.id, message="Category created successfully")
+    return CategoryCreateResponse(
+        id=category.id, message="Category created successfully"
+    )
 
 
 @category_router.get(

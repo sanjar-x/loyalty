@@ -146,7 +146,9 @@ class SessionRepository(ISessionRepository):
 
         if session_ids:
             update_stmt = (
-                update(SessionModel).where(SessionModel.id.in_(session_ids)).values(is_revoked=True)
+                update(SessionModel)
+                .where(SessionModel.id.in_(session_ids))
+                .values(is_revoked=True)
             )
             await self._session.execute(update_stmt)
 
@@ -273,6 +275,8 @@ class SessionRepository(ISessionRepository):
         if session_id is None:
             return None
         await self._session.execute(
-            update(SessionModel).where(SessionModel.id == session_id).values(is_revoked=True)
+            update(SessionModel)
+            .where(SessionModel.id == session_id)
+            .values(is_revoked=True)
         )
         return session_id

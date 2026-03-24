@@ -52,22 +52,43 @@ SEED: list[dict] = [
         "children": [
             {"slug": "tees", "name_i18n": {"ru": "Футболки", "en": "T-Shirts"}},
             {"slug": "hoodies", "name_i18n": {"ru": "Худи", "en": "Hoodies"}},
-            {"slug": "zip-hoodies", "name_i18n": {"ru": "Зип-худи", "en": "Zip Hoodies"}},
+            {
+                "slug": "zip-hoodies",
+                "name_i18n": {"ru": "Зип-худи", "en": "Zip Hoodies"},
+            },
             {"slug": "jeans", "name_i18n": {"ru": "Джинсы", "en": "Jeans"}},
             {"slug": "pants", "name_i18n": {"ru": "Штаны", "en": "Pants"}},
             {"slug": "shorts", "name_i18n": {"ru": "Шорты", "en": "Shorts"}},
             {"slug": "tank-tops", "name_i18n": {"ru": "Майки", "en": "Tank Tops"}},
-            {"slug": "long-sleeves", "name_i18n": {"ru": "Лонгсливы", "en": "Long Sleeves"}},
-            {"slug": "sweatshirts", "name_i18n": {"ru": "Свитшоты", "en": "Sweatshirts"}},
+            {
+                "slug": "long-sleeves",
+                "name_i18n": {"ru": "Лонгсливы", "en": "Long Sleeves"},
+            },
+            {
+                "slug": "sweatshirts",
+                "name_i18n": {"ru": "Свитшоты", "en": "Sweatshirts"},
+            },
             {"slug": "sweaters", "name_i18n": {"ru": "Свитеры", "en": "Sweaters"}},
             {"slug": "shirts", "name_i18n": {"ru": "Рубашки", "en": "Shirts"}},
-            {"slug": "windbreakers", "name_i18n": {"ru": "Ветровки", "en": "Windbreakers"}},
-            {"slug": "bomber-jackets", "name_i18n": {"ru": "Бомберы", "en": "Bomber Jackets"}},
+            {
+                "slug": "windbreakers",
+                "name_i18n": {"ru": "Ветровки", "en": "Windbreakers"},
+            },
+            {
+                "slug": "bomber-jackets",
+                "name_i18n": {"ru": "Бомберы", "en": "Bomber Jackets"},
+            },
             {"slug": "jackets", "name_i18n": {"ru": "Куртки", "en": "Jackets"}},
-            {"slug": "puffers", "name_i18n": {"ru": "Пуховики", "en": "Puffer Jackets"}},
+            {
+                "slug": "puffers",
+                "name_i18n": {"ru": "Пуховики", "en": "Puffer Jackets"},
+            },
             {"slug": "vests", "name_i18n": {"ru": "Жилеты", "en": "Vests"}},
             {"slug": "socks", "name_i18n": {"ru": "Носки", "en": "Socks"}},
-            {"slug": "underwear", "name_i18n": {"ru": "Нижнее бельё", "en": "Underwear"}},
+            {
+                "slug": "underwear",
+                "name_i18n": {"ru": "Нижнее бельё", "en": "Underwear"},
+            },
         ],
     },
     # ── Обувь ─────────────────────────────────────────────────────────────

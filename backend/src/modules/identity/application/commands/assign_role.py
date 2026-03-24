@@ -97,7 +97,9 @@ class AssignRoleHandler:
                 raise AccountTypeMismatchError()
 
             # Idempotency guard — prevent duplicate assignment
-            if await self._role_repo.is_role_assigned(command.identity_id, command.role_id):
+            if await self._role_repo.is_role_assigned(
+                command.identity_id, command.role_id
+            ):
                 raise RoleAlreadyAssignedError()
 
             # Assign role to identity

@@ -28,7 +28,9 @@ class StructlogAdapter(ILogger):
         self._logger: structlog.stdlib.BoundLogger = structlog.get_logger(name)
 
     @classmethod
-    def _from_bound(cls, bound_logger: structlog.stdlib.BoundLogger) -> StructlogAdapter:
+    def _from_bound(
+        cls, bound_logger: structlog.stdlib.BoundLogger
+    ) -> StructlogAdapter:
         """Create an adapter from an already-bound logger (used by ``bind``).
 
         Args:

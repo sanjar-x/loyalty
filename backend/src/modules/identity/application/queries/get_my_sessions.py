@@ -69,7 +69,9 @@ class GetMySessionsHandler:
         Returns:
             List of active sessions ordered by creation time (newest first).
         """
-        result = await self._session.execute(_MY_SESSIONS_SQL, {"identity_id": query.identity_id})
+        result = await self._session.execute(
+            _MY_SESSIONS_SQL, {"identity_id": query.identity_id}
+        )
         return [
             SessionInfo(
                 id=row["id"],

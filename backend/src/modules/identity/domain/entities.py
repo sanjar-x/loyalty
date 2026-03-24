@@ -30,7 +30,11 @@ from src.modules.identity.domain.exceptions import (
     SessionExpiredError,
     SessionRevokedError,
 )
-from src.modules.identity.domain.value_objects import AccountType, IdentityType, InvitationStatus
+from src.modules.identity.domain.value_objects import (
+    AccountType,
+    IdentityType,
+    InvitationStatus,
+)
 from src.shared.interfaces.entities import AggregateRoot
 
 
@@ -86,7 +90,9 @@ class Identity(AggregateRoot):
         )
 
     @classmethod
-    def register_staff(cls, identity_type: IdentityType = IdentityType.LOCAL) -> Identity:
+    def register_staff(
+        cls, identity_type: IdentityType = IdentityType.LOCAL
+    ) -> Identity:
         """Create a new active staff identity.
 
         Args:

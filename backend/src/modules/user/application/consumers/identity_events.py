@@ -9,6 +9,7 @@ import uuid
 
 import structlog
 from dishka.integrations.taskiq import FromDishka, inject
+from sqlalchemy.exc import IntegrityError
 
 from src.bootstrap.broker import broker
 from src.modules.user.domain.entities import Customer, StaffMember
@@ -17,8 +18,6 @@ from src.modules.user.domain.interfaces import (
     IStaffMemberRepository,
 )
 from src.modules.user.domain.services import generate_referral_code
-from sqlalchemy.exc import IntegrityError
-
 from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
@@ -74,7 +73,9 @@ async def create_profile_on_identity_registered(
             last_name=last_name,
         )
 
-    return await _create_customer(identity_uuid, email, customer_repo, uow, username=username)
+    return await _create_customer(
+        identity_uuid, email, customer_repo, uow, username=username
+    )
 
 
 async def _create_customer(
@@ -262,6 +263,8 @@ async def on_linked_account_created(
                     await customer_repo.update(customer)
                     await uow.commit()
                 logger.info(
-                    "customer.username_enriched", identity_id=identity_id, provider=provider
+                    "customer.username_enriched",
+                    identity_id=identity_id,
+                    provider=provider,
                 )
         return {"status": "success", "type": "enriched"}

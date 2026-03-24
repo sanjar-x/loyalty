@@ -46,7 +46,9 @@ class TestUploadStream:
         """Small buffer that never exceeds the 5 MB part threshold —
         single trailing upload_part + complete_multipart_upload."""
         service, client = _make_service()
-        client.create_multipart_upload = AsyncMock(return_value={"UploadId": "upload-123"})
+        client.create_multipart_upload = AsyncMock(
+            return_value={"UploadId": "upload-123"}
+        )
         client.upload_part = AsyncMock(return_value={"ETag": '"etag-1"'})
         client.complete_multipart_upload = AsyncMock(return_value={})
 
@@ -68,7 +70,9 @@ class TestUploadStream:
         """When create_multipart_upload succeeds but upload_part fails,
         the multipart upload must be aborted and ServiceUnavailableError raised."""
         service, client = _make_service()
-        client.create_multipart_upload = AsyncMock(return_value={"UploadId": "upload-456"})
+        client.create_multipart_upload = AsyncMock(
+            return_value={"UploadId": "upload-456"}
+        )
         client.upload_part = AsyncMock(side_effect=RuntimeError("upload broke"))
         client.abort_multipart_upload = AsyncMock(return_value={})
 
@@ -106,7 +110,9 @@ class TestDownloadStream:
     async def test_download_stream_client_error(self):
         """A 404 ClientError should raise NotFoundError."""
         service, client = _make_service()
-        client.get_object = AsyncMock(side_effect=_make_client_error("404", "GetObject"))
+        client.get_object = AsyncMock(
+            side_effect=_make_client_error("404", "GetObject")
+        )
 
         with pytest.raises(NotFoundError):
             async for _ in service.download_stream("missing.bin"):
@@ -165,13 +171,17 @@ class TestGeneratePresignedPutUrlError:
         )
 
         with pytest.raises(ServiceUnavailableError):
-            await service.generate_presigned_put_url("key.png", content_type="image/png")
+            await service.generate_presigned_put_url(
+                "key.png", content_type="image/png"
+            )
 
 
 class TestDeleteObjectError:
     async def test_delete_object_error(self):
         service, client = _make_service()
-        client.delete_object = AsyncMock(side_effect=_make_client_error("500", "DeleteObject"))
+        client.delete_object = AsyncMock(
+            side_effect=_make_client_error("500", "DeleteObject")
+        )
 
         with pytest.raises(ServiceUnavailableError):
             await service.delete_object("key.png")
@@ -180,7 +190,9 @@ class TestDeleteObjectError:
 class TestDeleteObjectsClientError:
     async def test_delete_objects_client_error(self):
         service, client = _make_service()
-        client.delete_objects = AsyncMock(side_effect=_make_client_error("500", "DeleteObjects"))
+        client.delete_objects = AsyncMock(
+            side_effect=_make_client_error("500", "DeleteObjects")
+        )
 
         with pytest.raises(ServiceUnavailableError):
             await service.delete_objects(["a.png", "b.png"])
@@ -190,7 +202,9 @@ class TestCopyObjectNotFound:
     async def test_copy_object_not_found(self):
         """A 404 ClientError during copy_object should raise NotFoundError."""
         service, client = _make_service()
-        client.copy_object = AsyncMock(side_effect=_make_client_error("404", "CopyObject"))
+        client.copy_object = AsyncMock(
+            side_effect=_make_client_error("404", "CopyObject")
+        )
 
         with pytest.raises(NotFoundError):
             await service.copy_object("missing.png", "dest.png")
@@ -199,7 +213,9 @@ class TestCopyObjectNotFound:
 class TestListObjectsError:
     async def test_list_objects_error(self):
         service, client = _make_service()
-        client.list_objects_v2 = AsyncMock(side_effect=_make_client_error("500", "ListObjectsV2"))
+        client.list_objects_v2 = AsyncMock(
+            side_effect=_make_client_error("500", "ListObjectsV2")
+        )
 
         with pytest.raises(ServiceUnavailableError):
             await service.list_objects(prefix="uploads/")
@@ -210,7 +226,9 @@ class TestHandleClientErrorNon404:
         """Non-404 codes (e.g. 403) in _handle_client_error should raise
         ServiceUnavailableError, not NotFoundError."""
         service, client = _make_service()
-        client.head_object = AsyncMock(side_effect=_make_client_error("403", "HeadObject"))
+        client.head_object = AsyncMock(
+            side_effect=_make_client_error("403", "HeadObject")
+        )
 
         # get_object_metadata calls _handle_client_error internally
         with pytest.raises(ServiceUnavailableError):
@@ -230,7 +248,9 @@ class TestListObjectsWithContinuationToken:
             }
         )
 
-        await service.list_objects(prefix="img/", limit=10, continuation_token="tok-abc")
+        await service.list_objects(
+            prefix="img/", limit=10, continuation_token="tok-abc"
+        )
 
         client.list_objects_v2.assert_awaited_once_with(
             Bucket="test-bucket",

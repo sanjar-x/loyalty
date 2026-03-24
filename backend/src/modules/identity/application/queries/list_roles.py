@@ -60,7 +60,9 @@ class ListRolesHandler:
             return []
 
         role_ids = [row["id"] for row in rows]
-        perm_result = await self._session.execute(_ROLE_PERMISSIONS_SQL, {"role_ids": role_ids})
+        perm_result = await self._session.execute(
+            _ROLE_PERMISSIONS_SQL, {"role_ids": role_ids}
+        )
         perm_rows = perm_result.mappings().all()
 
         perms_by_role: dict[uuid.UUID, list[str]] = {}

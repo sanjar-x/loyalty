@@ -94,7 +94,9 @@ class PermissionCode:
         """
         parts = self._value.split(":")
         if len(parts) != 2 or not parts[0] or not parts[1]:
-            raise ValueError(f"Permission codename must be 'resource:action', got: '{self._value}'")
+            raise ValueError(
+                f"Permission codename must be 'resource:action', got: '{self._value}'"
+            )
 
     @property
     def resource(self) -> str:

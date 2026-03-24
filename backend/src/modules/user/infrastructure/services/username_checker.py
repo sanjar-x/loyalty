@@ -24,7 +24,9 @@ class UsernameUniquenessChecker(IUsernameUniquenessChecker):
         self._session = session
 
     async def is_available(
-        self, username: str, exclude_identity_id: uuid.UUID | None = None,
+        self,
+        username: str,
+        exclude_identity_id: uuid.UUID | None = None,
     ) -> bool:
         result = await self._session.execute(
             _CHECK_SQL,

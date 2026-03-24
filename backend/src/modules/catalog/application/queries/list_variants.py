@@ -31,7 +31,9 @@ def variant_orm_to_read_model(orm: OrmProductVariant) -> ProductVariantReadModel
     """Convert an ORM ProductVariant to a read model with nested SKUs."""
     default_price: MoneyReadModel | None = None
     if orm.default_price is not None:
-        default_price = MoneyReadModel(amount=orm.default_price, currency=orm.default_currency)
+        default_price = MoneyReadModel(
+            amount=orm.default_price, currency=orm.default_currency
+        )
 
     skus: list[SKUReadModel] = []
     for sku_orm in orm.skus:
@@ -100,7 +102,11 @@ class ListVariantsHandler:
                 OrmProductVariant.product_id == query.product_id,
                 OrmProductVariant.deleted_at.is_(None),
             )
-            .options(selectinload(OrmProductVariant.skus).selectinload(OrmSKU.attribute_values))
+            .options(
+                selectinload(OrmProductVariant.skus).selectinload(
+                    OrmSKU.attribute_values
+                )
+            )
             .order_by(OrmProductVariant.sort_order)
             .limit(query.limit)
             .offset(query.offset)

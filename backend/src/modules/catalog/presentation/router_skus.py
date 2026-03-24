@@ -70,7 +70,8 @@ async def add_sku(
         compare_at_price_amount=request.compare_at_price_amount,
         is_active=request.is_active,
         variant_attributes=[
-            (pair.attribute_id, pair.attribute_value_id) for pair in request.variant_attributes
+            (pair.attribute_id, pair.attribute_value_id)
+            for pair in request.variant_attributes
         ],
     )
     result = await handler.handle(command)
@@ -93,7 +94,9 @@ async def list_skus(
     offset: int = Query(default=0, ge=0),
 ) -> SKUListResponse:
     """Return paginated SKUs belonging to the given product."""
-    query = ListSKUsQuery(product_id=product_id, variant_id=variant_id, offset=offset, limit=limit)
+    query = ListSKUsQuery(
+        product_id=product_id, variant_id=variant_id, offset=offset, limit=limit
+    )
     result = await handler.handle(query)
     return SKUListResponse(
         items=[to_sku_response(model) for model in result.items],

@@ -81,7 +81,9 @@ class UpdateBrandHandler:
             BrandSlugConflictError: If the new slug is already taken.
         """
         async with self._uow:
-            brand: Brand | None = await self._brand_repo.get_for_update(command.brand_id)
+            brand: Brand | None = await self._brand_repo.get_for_update(
+                command.brand_id
+            )
             if brand is None:
                 raise BrandNotFoundError(brand_id=command.brand_id)
 
@@ -96,7 +98,9 @@ class UpdateBrandHandler:
 
             _SAFE_FIELDS = frozenset({"name", "slug"})
             safe_fields = command._provided_fields & _SAFE_FIELDS
-            update_kwargs: dict[str, Any] = {f: getattr(command, f) for f in safe_fields}
+            update_kwargs: dict[str, Any] = {
+                f: getattr(command, f) for f in safe_fields
+            }
             brand.update(**update_kwargs)
             await self._brand_repo.update(brand)
             self._uow.register_aggregate(brand)

@@ -68,7 +68,9 @@ async def assign_product_attribute(
         attribute_value_id=request.attribute_value_id,
     )
     result: AssignProductAttributeResult = await handler.handle(command)
-    return ProductAttributeAssignResponse(id=result.pav_id, message="Attribute assigned to product")
+    return ProductAttributeAssignResponse(
+        id=result.pav_id, message="Attribute assigned to product"
+    )
 
 
 @product_attribute_router.get(
@@ -96,7 +98,9 @@ async def list_product_attributes(
     Returns:
         Paginated product attribute assignment responses.
     """
-    query = ListProductAttributesQuery(product_id=product_id, offset=offset, limit=limit)
+    query = ListProductAttributesQuery(
+        product_id=product_id, offset=offset, limit=limit
+    )
     result = await handler.handle(query)
     return ProductAttributeListResponse(
         items=[

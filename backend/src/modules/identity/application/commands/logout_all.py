@@ -7,7 +7,10 @@ permissions cache entries for each revoked session.
 import uuid
 from dataclasses import dataclass
 
-from src.modules.identity.domain.interfaces import IIdentityRepository, ISessionRepository
+from src.modules.identity.domain.interfaces import (
+    IIdentityRepository,
+    ISessionRepository,
+)
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.security import IPermissionResolver
 from src.shared.interfaces.uow import IUnitOfWork

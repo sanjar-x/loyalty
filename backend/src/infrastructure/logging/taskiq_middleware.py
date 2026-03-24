@@ -30,7 +30,9 @@ class LoggingTaskiqMiddleware(TaskiqMiddleware):
         Returns:
             The unmodified message, after context has been bound.
         """
-        correlation_id = message.labels.get("correlation_id", "task-" + uuid.uuid4().hex[:12])
+        correlation_id = message.labels.get(
+            "correlation_id", "task-" + uuid.uuid4().hex[:12]
+        )
 
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(

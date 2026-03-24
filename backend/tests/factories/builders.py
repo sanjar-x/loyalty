@@ -111,7 +111,12 @@ class CategoryBuilder:
         default = self._name_i18n.get("en", "category").lower().replace(" ", "-")
         slug = self._slug or f"{default}-{uuid.uuid4().hex[:6]}"
         if self._parent is None:
-            return Category.create_root(name_i18n=self._name_i18n, slug=slug, sort_order=self._sort_order)
+            return Category.create_root(
+                name_i18n=self._name_i18n, slug=slug, sort_order=self._sort_order
+            )
         return Category.create_child(
-            name_i18n=self._name_i18n, slug=slug, parent=self._parent, sort_order=self._sort_order
+            name_i18n=self._name_i18n,
+            slug=slug,
+            parent=self._parent,
+            sort_order=self._sort_order,
         )

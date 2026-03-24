@@ -104,7 +104,9 @@ class PermissionResolver(IPermissionResolver):
 
         # 3. Cache result (skip empty sets to avoid masking pending role assignments)
         if permissions:
-            await self._redis.set(key, json.dumps(list(permissions)), ttl=self._cache_ttl)
+            await self._redis.set(
+                key, json.dumps(list(permissions)), ttl=self._cache_ttl
+            )
 
         return permissions
 

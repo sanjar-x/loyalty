@@ -117,8 +117,15 @@ class CreateProductHandler:
 
             # Validate supplier exists and is active
             if command.supplier_id is not None:
-                supplier_info = await self._supplier_query_service.assert_supplier_active(command.supplier_id)
-                if supplier_info.type == SupplierType.CROSS_BORDER and not command.source_url:
+                supplier_info = (
+                    await self._supplier_query_service.assert_supplier_active(
+                        command.supplier_id
+                    )
+                )
+                if (
+                    supplier_info.type == SupplierType.CROSS_BORDER
+                    and not command.source_url
+                ):
                     raise SourceUrlRequiredError()
 
             if await self._product_repo.check_slug_exists(command.slug):
@@ -129,7 +136,9 @@ class CreateProductHandler:
                 title_i18n=command.title_i18n,
                 brand_id=command.brand_id,
                 primary_category_id=command.primary_category_id,
-                description_i18n=command.description_i18n if command.description_i18n else None,
+                description_i18n=command.description_i18n
+                if command.description_i18n
+                else None,
                 supplier_id=command.supplier_id,
                 source_url=command.source_url,
                 country_of_origin=command.country_of_origin,

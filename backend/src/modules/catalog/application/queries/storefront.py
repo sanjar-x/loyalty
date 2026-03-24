@@ -78,7 +78,9 @@ def _effective_bool(
     return global_value
 
 
-def _effective_ui_type(filter_settings: dict[str, Any] | None, global_ui_type: str) -> str:
+def _effective_ui_type(
+    filter_settings: dict[str, Any] | None, global_ui_type: str
+) -> str:
     """Resolve the effective UI type for storefront display.
 
     If filter_settings has a ``filter_type`` key, it overrides the
@@ -158,7 +160,9 @@ class StorefrontFilterableAttributesHandler:
         attributes: list[StorefrontFilterAttributeReadModel] = []
         for rule in rules:
             attr = rule.attribute
-            if not _effective_bool(rule.flag_overrides, "is_filterable", attr.is_filterable):
+            if not _effective_bool(
+                rule.flag_overrides, "is_filterable", attr.is_filterable
+            ):
                 continue
 
             ui_type = _effective_ui_type(rule.filter_settings, attr.ui_type.value)
@@ -174,7 +178,9 @@ class StorefrontFilterableAttributesHandler:
                     ui_type=ui_type,
                     is_dictionary=attr.is_dictionary,
                     values=values,
-                    filter_settings=dict(rule.filter_settings) if rule.filter_settings else None,
+                    filter_settings=dict(rule.filter_settings)
+                    if rule.filter_settings
+                    else None,
                     sort_order=rule.sort_order,
                 )
             )
@@ -282,7 +288,9 @@ class StorefrontComparisonAttributesHandler:
         attributes: list[StorefrontComparisonAttributeReadModel] = []
         for rule in rules:
             attr = rule.attribute
-            if not _effective_bool(rule.flag_overrides, "is_comparable", attr.is_comparable):
+            if not _effective_bool(
+                rule.flag_overrides, "is_comparable", attr.is_comparable
+            ):
                 continue
 
             attributes.append(
@@ -350,7 +358,9 @@ class StorefrontFormAttributesHandler:
                     validation_rules=(
                         dict(attr.validation_rules) if attr.validation_rules else None
                     ),
-                    values=_values_to_read_models(attr.values) if attr.is_dictionary else [],
+                    values=_values_to_read_models(attr.values)
+                    if attr.is_dictionary
+                    else [],
                     sort_order=rule.sort_order,
                 )
                 for rule, attr in items
@@ -422,7 +432,9 @@ def _group_bindings_into_groups(
     Returns a list of ``(group_id, group_or_none, [(binding, attribute), ...])``
     tuples sorted by the group's ``sort_order`` (NULL-group last).
     """
-    groups_map: dict[uuid.UUID | None, list[tuple[OrmBinding, OrmAttribute]]] = defaultdict(list)
+    groups_map: dict[uuid.UUID | None, list[tuple[OrmBinding, OrmAttribute]]] = (
+        defaultdict(list)
+    )
     group_info: dict[uuid.UUID | None, OrmAttributeGroup | None] = {}
 
     for rule in bindings:

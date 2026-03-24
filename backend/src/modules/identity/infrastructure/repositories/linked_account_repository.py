@@ -127,7 +127,9 @@ class LinkedAccountRepository(ILinkedAccountRepository):
         Returns:
             List of linked accounts.
         """
-        stmt = select(LinkedAccountModel).where(LinkedAccountModel.identity_id == identity_id)
+        stmt = select(LinkedAccountModel).where(
+            LinkedAccountModel.identity_id == identity_id
+        )
         result = await self._session.execute(stmt)
         return [self._to_domain(orm) for orm in result.scalars().all()]
 

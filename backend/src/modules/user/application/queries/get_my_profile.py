@@ -45,8 +45,7 @@ class GetMyProfileQuery:
 
 
 _GET_PROFILE_SQL = text(
-    "SELECT id, profile_email, first_name, last_name, phone "
-    "FROM customers WHERE id = :customer_id"
+    "SELECT id, profile_email, first_name, last_name, phone FROM customers WHERE id = :customer_id"
 )
 
 

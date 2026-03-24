@@ -80,7 +80,9 @@ class S3StorageService(IBlobStorage):
             ServiceUnavailableError: On S3 communication failure.
         """
         try:
-            response = await self._client.get_object(Bucket=self._bucket, Key=object_name)
+            response = await self._client.get_object(
+                Bucket=self._bucket, Key=object_name
+            )
             stream = response["Body"]
 
             while True:
@@ -111,7 +113,9 @@ class S3StorageService(IBlobStorage):
                 ExpiresIn=expiration,
             )
         except ClientError as e:
-            logger.error("s3_presigned_url_error", object_name=object_name, error=str(e))
+            logger.error(
+                "s3_presigned_url_error", object_name=object_name, error=str(e)
+            )
             raise ServiceUnavailableError(
                 message="Failed to generate a presigned download URL.",
                 details={"key": object_name},
@@ -168,7 +172,9 @@ class S3StorageService(IBlobStorage):
                         UploadId=upload_id,
                         Body=part_data,
                     )
-                    parts.append({"PartNumber": part_number, "ETag": upload_result["ETag"]})
+                    parts.append(
+                        {"PartNumber": part_number, "ETag": upload_result["ETag"]}
+                    )
                     part_number += 1
 
             # Flush remaining buffer (tail), even if smaller than 5 MB
@@ -198,7 +204,9 @@ class S3StorageService(IBlobStorage):
 
         except Exception as e:
             # On error, abort the multipart upload to clean up orphaned parts
-            logger.error("s3_upload_stream_error", object_name=object_name, error=str(e))
+            logger.error(
+                "s3_upload_stream_error", object_name=object_name, error=str(e)
+            )
             if upload_id:
                 try:
                     await self._client.abort_multipart_upload(
@@ -217,7 +225,9 @@ class S3StorageService(IBlobStorage):
                 details={"key": object_name, "error": str(e)},
             ) from e
 
-    async def get_presigned_upload_url(self, object_name: str, expiration: int = 3600) -> dict:
+    async def get_presigned_upload_url(
+        self, object_name: str, expiration: int = 3600
+    ) -> dict:
         """Generate a presigned POST URL for browser-based uploads.
 
         Args:
@@ -235,7 +245,9 @@ class S3StorageService(IBlobStorage):
                 Bucket=self._bucket, Key=object_name, ExpiresIn=expiration
             )
         except ClientError as e:
-            logger.error("s3_presigned_upload_url_error", object_name=object_name, error=str(e))
+            logger.error(
+                "s3_presigned_upload_url_error", object_name=object_name, error=str(e)
+            )
             raise ServiceUnavailableError(
                 message="Failed to generate a presigned upload URL.",
                 details={"key": object_name},
@@ -268,7 +280,9 @@ class S3StorageService(IBlobStorage):
                 ExpiresIn=expiration,
             )
         except ClientError as e:
-            logger.error("s3_presigned_put_url_error", object_name=object_name, error=str(e))
+            logger.error(
+                "s3_presigned_put_url_error", object_name=object_name, error=str(e)
+            )
             raise ServiceUnavailableError(
                 message="Failed to generate a direct upload URL.",
                 details={"key": object_name},
@@ -294,8 +308,12 @@ class S3StorageService(IBlobStorage):
             if error_code in ("404", "NoSuchKey", "NotFound"):
                 return False
 
-            logger.error("s3_object_exists_error", object_name=object_name, error=str(e))
-            raise ServiceUnavailableError(message="Error checking file existence.") from e
+            logger.error(
+                "s3_object_exists_error", object_name=object_name, error=str(e)
+            )
+            raise ServiceUnavailableError(
+                message="Error checking file existence."
+            ) from e
 
     async def get_object_metadata(self, object_name: str) -> dict[str, Any]:
         """Retrieve metadata for an object via a HEAD request.
@@ -312,7 +330,9 @@ class S3StorageService(IBlobStorage):
             ServiceUnavailableError: On S3 communication failure.
         """
         try:
-            response = await self._client.head_object(Bucket=self._bucket, Key=object_name)
+            response = await self._client.head_object(
+                Bucket=self._bucket, Key=object_name
+            )
             return {
                 "content_length": response.get("ContentLength"),
                 "content_type": response.get("ContentType"),
@@ -378,7 +398,9 @@ class S3StorageService(IBlobStorage):
             }
         except ClientError as e:
             logger.error("s3_list_objects_error", prefix=prefix, error=str(e))
-            raise ServiceUnavailableError(message="Error listing files from storage.") from e
+            raise ServiceUnavailableError(
+                message="Error listing files from storage."
+            ) from e
 
     async def delete_object(self, object_name: str) -> None:
         """Delete a single object from the bucket.
@@ -392,7 +414,9 @@ class S3StorageService(IBlobStorage):
         try:
             await self._client.delete_object(Bucket=self._bucket, Key=object_name)
         except ClientError as e:
-            logger.error("s3_delete_object_error", object_name=object_name, error=str(e))
+            logger.error(
+                "s3_delete_object_error", object_name=object_name, error=str(e)
+            )
             raise ServiceUnavailableError(
                 message="Failed to delete file.", details={"key": object_name}
             ) from e
@@ -430,7 +454,9 @@ class S3StorageService(IBlobStorage):
             return failed_keys
         except ClientError as e:
             logger.error("s3_batch_delete_error", count=len(object_names), error=str(e))
-            raise ServiceUnavailableError(message="Error during batch file deletion.") from e
+            raise ServiceUnavailableError(
+                message="Error during batch file deletion."
+            ) from e
 
     async def copy_object(self, source_name: str, dest_name: str) -> None:
         """Copy an object within the same bucket.

@@ -207,8 +207,12 @@ class BrandProvider(Provider):
     confirm_brand_logo_handler: CompositeDependencySource = provide(
         ConfirmBrandLogoUploadHandler, scope=Scope.REQUEST
     )
-    get_brand_handler: CompositeDependencySource = provide(GetBrandHandler, scope=Scope.REQUEST)
-    list_brands_handler: CompositeDependencySource = provide(ListBrandsHandler, scope=Scope.REQUEST)
+    get_brand_handler: CompositeDependencySource = provide(
+        GetBrandHandler, scope=Scope.REQUEST
+    )
+    list_brands_handler: CompositeDependencySource = provide(
+        ListBrandsHandler, scope=Scope.REQUEST
+    )
     update_brand_handler: CompositeDependencySource = provide(
         UpdateBrandHandler, scope=Scope.REQUEST
     )
@@ -365,16 +369,24 @@ class ProductProvider(Provider):
     change_product_status_handler: CompositeDependencySource = provide(
         ChangeProductStatusHandler, scope=Scope.REQUEST
     )
-    add_variant_handler: CompositeDependencySource = provide(AddVariantHandler, scope=Scope.REQUEST)
+    add_variant_handler: CompositeDependencySource = provide(
+        AddVariantHandler, scope=Scope.REQUEST
+    )
     update_variant_handler: CompositeDependencySource = provide(
         UpdateVariantHandler, scope=Scope.REQUEST
     )
     delete_variant_handler: CompositeDependencySource = provide(
         DeleteVariantHandler, scope=Scope.REQUEST
     )
-    add_sku_handler: CompositeDependencySource = provide(AddSKUHandler, scope=Scope.REQUEST)
-    update_sku_handler: CompositeDependencySource = provide(UpdateSKUHandler, scope=Scope.REQUEST)
-    delete_sku_handler: CompositeDependencySource = provide(DeleteSKUHandler, scope=Scope.REQUEST)
+    add_sku_handler: CompositeDependencySource = provide(
+        AddSKUHandler, scope=Scope.REQUEST
+    )
+    update_sku_handler: CompositeDependencySource = provide(
+        UpdateSKUHandler, scope=Scope.REQUEST
+    )
+    delete_sku_handler: CompositeDependencySource = provide(
+        DeleteSKUHandler, scope=Scope.REQUEST
+    )
     assign_product_attribute_handler: CompositeDependencySource = provide(
         AssignProductAttributeHandler, scope=Scope.REQUEST
     )
@@ -383,11 +395,15 @@ class ProductProvider(Provider):
     )
 
     # Query handlers
-    get_product_handler: CompositeDependencySource = provide(GetProductHandler, scope=Scope.REQUEST)
+    get_product_handler: CompositeDependencySource = provide(
+        GetProductHandler, scope=Scope.REQUEST
+    )
     list_products_handler: CompositeDependencySource = provide(
         ListProductsHandler, scope=Scope.REQUEST
     )
-    list_skus_handler: CompositeDependencySource = provide(ListSKUsHandler, scope=Scope.REQUEST)
+    list_skus_handler: CompositeDependencySource = provide(
+        ListSKUsHandler, scope=Scope.REQUEST
+    )
     list_variants_handler: CompositeDependencySource = provide(
         ListVariantsHandler, scope=Scope.REQUEST
     )

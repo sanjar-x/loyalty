@@ -83,7 +83,9 @@ class DatabaseProvider(Provider):
         )
 
     @provide(scope=Scope.REQUEST)
-    async def session(self, maker: async_sessionmaker[AsyncSession]) -> AsyncIterable[AsyncSession]:
+    async def session(
+        self, maker: async_sessionmaker[AsyncSession]
+    ) -> AsyncIterable[AsyncSession]:
         """Provide a per-request ``AsyncSession``.
 
         Args:

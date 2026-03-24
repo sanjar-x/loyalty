@@ -61,7 +61,9 @@ class GetRoleDetailQuery:
     role_id: uuid.UUID
 
 
-_ROLE_SQL = text("SELECT id, name, description, is_system FROM roles WHERE id = :role_id")
+_ROLE_SQL = text(
+    "SELECT id, name, description, is_system FROM roles WHERE id = :role_id"
+)
 
 _ROLE_PERMS_SQL = text(
     "SELECT p.id, p.codename, p.resource, p.action, p.description "
@@ -99,7 +101,9 @@ class GetRoleDetailHandler:
                 error_code="ROLE_NOT_FOUND",
             )
 
-        perm_result = await self._session.execute(_ROLE_PERMS_SQL, {"role_id": query.role_id})
+        perm_result = await self._session.execute(
+            _ROLE_PERMS_SQL, {"role_id": query.role_id}
+        )
         perm_rows = perm_result.mappings().all()
 
         permissions = [

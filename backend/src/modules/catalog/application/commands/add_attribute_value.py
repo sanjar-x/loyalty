@@ -73,7 +73,9 @@ class AddAttributeValueHandler:
         self._uow = uow
         self._logger = logger.bind(handler="AddAttributeValueHandler")
 
-    async def handle(self, command: AddAttributeValueCommand) -> AddAttributeValueResult:
+    async def handle(
+        self, command: AddAttributeValueCommand
+    ) -> AddAttributeValueResult:
         """Execute the add-attribute-value command.
 
         Raises:
@@ -90,12 +92,16 @@ class AddAttributeValueHandler:
             if not attribute.is_dictionary:
                 raise AttributeNotDictionaryError(attribute_id=command.attribute_id)
 
-            if await self._value_repo.check_code_exists(command.attribute_id, command.code):
+            if await self._value_repo.check_code_exists(
+                command.attribute_id, command.code
+            ):
                 raise AttributeValueCodeConflictError(
                     code=command.code, attribute_id=command.attribute_id
                 )
 
-            if await self._value_repo.check_slug_exists(command.attribute_id, command.slug):
+            if await self._value_repo.check_slug_exists(
+                command.attribute_id, command.slug
+            ):
                 raise AttributeValueSlugConflictError(
                     slug=command.slug, attribute_id=command.attribute_id
                 )

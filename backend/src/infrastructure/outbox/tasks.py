@@ -58,7 +58,9 @@ async def _handle_brand_logo_upload_initiated(
     )
 
 
-async def _handle_brand_logo_confirmed(payload: dict, correlation_id: str | None = None) -> None:
+async def _handle_brand_logo_confirmed(
+    payload: dict, correlation_id: str | None = None
+) -> None:
     """Dispatch the brand logo processing task to TaskIQ."""
     from src.modules.catalog.application.tasks import process_brand_logo_task
 
@@ -70,7 +72,9 @@ async def _handle_brand_logo_confirmed(payload: dict, correlation_id: str | None
     )
 
 
-async def _handle_brand_logo_processed(payload: dict, correlation_id: str | None = None) -> None:
+async def _handle_brand_logo_processed(
+    payload: dict, correlation_id: str | None = None
+) -> None:
     """Register a processed file in the Storage module."""
     from src.modules.storage.application.consumers.brand_events import (
         handle_brand_logo_processed_event,
@@ -89,7 +93,9 @@ async def _handle_brand_logo_processed(payload: dict, correlation_id: str | None
 
 
 # Register Catalog event mappings
-register_event_handler("BrandLogoUploadInitiatedEvent", _handle_brand_logo_upload_initiated)
+register_event_handler(
+    "BrandLogoUploadInitiatedEvent", _handle_brand_logo_upload_initiated
+)
 register_event_handler("BrandLogoConfirmedEvent", _handle_brand_logo_confirmed)
 register_event_handler("BrandLogoProcessedEvent", _handle_brand_logo_processed)
 
@@ -99,7 +105,9 @@ register_event_handler("BrandLogoProcessedEvent", _handle_brand_logo_processed)
 # ---------------------------------------------------------------------------
 
 
-async def _handle_identity_registered(payload: dict, correlation_id: str | None = None) -> None:
+async def _handle_identity_registered(
+    payload: dict, correlation_id: str | None = None
+) -> None:
     """Dispatches profile creation consumer (Customer or StaffMember)."""
     from src.modules.user.application.consumers.identity_events import (
         create_profile_on_identity_registered,
@@ -115,7 +123,9 @@ async def _handle_identity_registered(payload: dict, correlation_id: str | None 
     )
 
 
-async def _handle_identity_deactivated(payload: dict, correlation_id: str | None = None) -> None:
+async def _handle_identity_deactivated(
+    payload: dict, correlation_id: str | None = None
+) -> None:
     """Dispatches customer anonymization consumer (GDPR)."""
     from src.modules.user.application.consumers.identity_events import (
         anonymize_customer_on_identity_deactivated,
@@ -130,7 +140,9 @@ async def _handle_identity_deactivated(payload: dict, correlation_id: str | None
     )
 
 
-async def _handle_role_assignment_changed(payload: dict, correlation_id: str | None = None) -> None:
+async def _handle_role_assignment_changed(
+    payload: dict, correlation_id: str | None = None
+) -> None:
     """Dispatches cache invalidation for affected identity's sessions."""
     from src.modules.identity.application.consumers.role_events import (
         invalidate_permissions_cache_on_role_change,

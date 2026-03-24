@@ -62,7 +62,9 @@ class ListCategoryBindingsHandler:
                 sort_order=orm.sort_order,
                 requirement_level=orm.requirement_level.value,
                 flag_overrides=dict(orm.flag_overrides) if orm.flag_overrides else None,
-                filter_settings=dict(orm.filter_settings) if orm.filter_settings else None,
+                filter_settings=dict(orm.filter_settings)
+                if orm.filter_settings
+                else None,
             )
             for orm in rows
         ]

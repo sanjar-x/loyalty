@@ -14,6 +14,7 @@ Typical usage:
 
 import uuid
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from src.modules.catalog.domain.entities import Attribute as DomainAttribute
 from src.modules.catalog.domain.entities import AttributeGroup as DomainAttributeGroup
@@ -72,7 +73,9 @@ class IBrandRepository(ICatalogRepository[DomainBrand]):
         pass
 
     @abstractmethod
-    async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
+    async def check_slug_exists_excluding(
+        self, slug: str, exclude_id: uuid.UUID
+    ) -> bool:
         """Check if a slug is taken by another brand (excluding given ID)."""
         pass
 
@@ -123,7 +126,9 @@ class ICategoryRepository(ICatalogRepository[DomainCategory]):
         pass
 
     @abstractmethod
-    async def update_descendants_full_slug(self, old_prefix: str, new_prefix: str) -> None:
+    async def update_descendants_full_slug(
+        self, old_prefix: str, new_prefix: str
+    ) -> None:
         """Bulk-update full_slug for all descendants when a parent's slug changes."""
         pass
 
@@ -173,12 +178,16 @@ class IAttributeRepository(ICatalogRepository[DomainAttribute]):
         pass
 
     @abstractmethod
-    async def check_code_exists_excluding(self, code: str, exclude_id: uuid.UUID) -> bool:
+    async def check_code_exists_excluding(
+        self, code: str, exclude_id: uuid.UUID
+    ) -> bool:
         """Check if a code is taken by another attribute (excluding given ID)."""
         pass
 
     @abstractmethod
-    async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
+    async def check_slug_exists_excluding(
+        self, slug: str, exclude_id: uuid.UUID
+    ) -> bool:
         """Check if a slug is taken by another attribute (excluding given ID)."""
         pass
 
@@ -256,7 +265,9 @@ class IAttributeValueRepository(ABC):
         pass
 
     @abstractmethod
-    async def bulk_update_sort_order(self, updates: list[tuple[uuid.UUID, int]]) -> None:
+    async def bulk_update_sort_order(
+        self, updates: list[tuple[uuid.UUID, int]]
+    ) -> None:
         """Bulk-update sort_order for multiple values atomically.
 
         Args:
@@ -289,7 +300,9 @@ class ICategoryAttributeBindingRepository(ABC):
         pass
 
     @abstractmethod
-    async def check_binding_exists(self, category_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
+    async def check_binding_exists(
+        self, category_id: uuid.UUID, attribute_id: uuid.UUID
+    ) -> bool:
         """Check whether a binding for this category+attribute pair exists."""
         pass
 
@@ -306,12 +319,16 @@ class ICategoryAttributeBindingRepository(ABC):
         pass
 
     @abstractmethod
-    async def bulk_update_sort_order(self, updates: list[tuple[uuid.UUID, int]]) -> None:
+    async def bulk_update_sort_order(
+        self, updates: list[tuple[uuid.UUID, int]]
+    ) -> None:
         """Bulk-update sort_order for multiple bindings atomically."""
         pass
 
     @abstractmethod
-    async def bulk_update_requirement_level(self, updates: list[tuple[uuid.UUID, str]]) -> None:
+    async def bulk_update_requirement_level(
+        self, updates: list[tuple[uuid.UUID, str]]
+    ) -> None:
         """Bulk-update requirement_level for multiple bindings atomically."""
         pass
 
@@ -334,7 +351,9 @@ class IProductRepository(ICatalogRepository[DomainProduct]):
         pass
 
     @abstractmethod
-    async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
+    async def check_slug_exists_excluding(
+        self, slug: str, exclude_id: uuid.UUID
+    ) -> bool:
         """Check if a slug is taken by another product (excluding given ID)."""
         pass
 
@@ -344,7 +363,9 @@ class IProductRepository(ICatalogRepository[DomainProduct]):
         pass
 
     @abstractmethod
-    async def get_for_update_with_variants(self, product_id: uuid.UUID) -> DomainProduct | None:
+    async def get_for_update_with_variants(
+        self, product_id: uuid.UUID
+    ) -> DomainProduct | None:
         """Retrieve a product with pessimistic lock AND eagerly loaded variants/SKUs."""
         pass
 
@@ -376,7 +397,9 @@ class IProductAttributeValueRepository(ABC):
     """
 
     @abstractmethod
-    async def add(self, entity: DomainProductAttributeValue) -> DomainProductAttributeValue:
+    async def add(
+        self, entity: DomainProductAttributeValue
+    ) -> DomainProductAttributeValue:
         """Persist a new product attribute assignment."""
         pass
 
@@ -391,7 +414,9 @@ class IProductAttributeValueRepository(ABC):
         pass
 
     @abstractmethod
-    async def list_by_product(self, product_id: uuid.UUID) -> list[DomainProductAttributeValue]:
+    async def list_by_product(
+        self, product_id: uuid.UUID
+    ) -> list[DomainProductAttributeValue]:
         """List all attribute assignments for a given product."""
         pass
 
@@ -403,7 +428,9 @@ class IProductAttributeValueRepository(ABC):
         pass
 
     @abstractmethod
-    async def check_assignment_exists(self, product_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
+    async def check_assignment_exists(
+        self, product_id: uuid.UUID, attribute_id: uuid.UUID
+    ) -> bool:
         """Check whether a product+attribute pair already exists (duplicate guard)."""
         pass
 
@@ -484,8 +511,6 @@ class IMediaAssetRepository(ABC):
 # must not depend on application at runtime).  The annotations are
 # strings resolved only by type-checkers.
 # ═══════════════════════════════════════════════════════════════════════════
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.modules.catalog.application.queries.read_models import (
@@ -580,7 +605,9 @@ class ICategoryReadRepository(ABC):
         pass
 
     @abstractmethod
-    async def list_categories(self, *, offset: int = 0, limit: int = 20) -> _CategoryListRM:
+    async def list_categories(
+        self, *, offset: int = 0, limit: int = 20
+    ) -> _CategoryListRM:
         """Return a paginated category list ordered by level and sort order."""
         pass
 
@@ -599,7 +626,9 @@ class IAttributeGroupReadRepository(ABC):
         pass
 
     @abstractmethod
-    async def list_attribute_groups(self, *, offset: int = 0, limit: int = 20) -> _AttrGroupListRM:
+    async def list_attribute_groups(
+        self, *, offset: int = 0, limit: int = 20
+    ) -> _AttrGroupListRM:
         """Return a paginated list of attribute groups."""
         pass
 

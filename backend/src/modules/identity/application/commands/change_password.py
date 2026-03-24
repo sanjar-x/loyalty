@@ -83,7 +83,9 @@ class ChangePasswordHandler:
             _identity, credentials = result
 
             # Verify current password
-            if not self._hasher.verify(command.current_password, credentials.password_hash):
+            if not self._hasher.verify(
+                command.current_password, credentials.password_hash
+            ):
                 self._logger.warning(
                     "password.change.failed",
                     identity_id=str(command.identity_id),
@@ -104,7 +106,9 @@ class ChangePasswordHandler:
             if current_session and current_session.is_revoked:
                 current_session.is_revoked = False
                 await self._session_repo.update(current_session)
-                revoked_ids = [sid for sid in all_revoked if sid != command.current_session_id]
+                revoked_ids = [
+                    sid for sid in all_revoked if sid != command.current_session_id
+                ]
             else:
                 revoked_ids = all_revoked
 

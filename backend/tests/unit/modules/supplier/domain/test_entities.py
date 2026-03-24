@@ -38,7 +38,9 @@ class TestSupplierCreate:
     def test_create_with_fixed_id(self):
         fixed_id = uuid.uuid4()
         supplier = Supplier.create(
-            name="Test", supplier_type=SupplierType.LOCAL, region="SPB",
+            name="Test",
+            supplier_type=SupplierType.LOCAL,
+            region="SPB",
             supplier_id=fixed_id,
         )
         assert supplier.id == fixed_id
@@ -53,7 +55,9 @@ class TestSupplierCreate:
 
     def test_create_strips_whitespace(self):
         supplier = Supplier.create(
-            name="  Spaced  ", supplier_type=SupplierType.LOCAL, region="  Moscow  ",
+            name="  Spaced  ",
+            supplier_type=SupplierType.LOCAL,
+            region="  Moscow  ",
         )
         assert supplier.name == "Spaced"
         assert supplier.region == "Moscow"
@@ -62,7 +66,9 @@ class TestSupplierCreate:
 class TestSupplierUpdate:
     def test_update_name(self):
         supplier = Supplier.create(
-            name="Old Name", supplier_type=SupplierType.LOCAL, region="Moscow",
+            name="Old Name",
+            supplier_type=SupplierType.LOCAL,
+            region="Moscow",
         )
         supplier.clear_domain_events()
         supplier.update(name="New Name")
@@ -72,14 +78,18 @@ class TestSupplierUpdate:
 
     def test_update_region(self):
         supplier = Supplier.create(
-            name="Test", supplier_type=SupplierType.LOCAL, region="Moscow",
+            name="Test",
+            supplier_type=SupplierType.LOCAL,
+            region="Moscow",
         )
         supplier.update(region="SPB")
         assert supplier.region == "SPB"
 
     def test_update_unknown_field_raises(self):
         supplier = Supplier.create(
-            name="Test", supplier_type=SupplierType.LOCAL, region="Moscow",
+            name="Test",
+            supplier_type=SupplierType.LOCAL,
+            region="Moscow",
         )
         with pytest.raises(TypeError, match="unexpected keyword argument"):
             supplier.update(type=SupplierType.CROSS_BORDER)
@@ -88,7 +98,9 @@ class TestSupplierUpdate:
 class TestSupplierTypeImmutability:
     def test_type_cannot_be_changed_after_creation(self):
         supplier = Supplier.create(
-            name="Test", supplier_type=SupplierType.LOCAL, region="Moscow",
+            name="Test",
+            supplier_type=SupplierType.LOCAL,
+            region="Moscow",
         )
         with pytest.raises(AttributeError, match="immutable"):
             supplier.type = SupplierType.CROSS_BORDER
@@ -97,7 +109,9 @@ class TestSupplierTypeImmutability:
 class TestSupplierActivation:
     def test_deactivate(self):
         supplier = Supplier.create(
-            name="Test", supplier_type=SupplierType.LOCAL, region="Moscow",
+            name="Test",
+            supplier_type=SupplierType.LOCAL,
+            region="Moscow",
         )
         supplier.clear_domain_events()
         supplier.deactivate()
@@ -106,7 +120,9 @@ class TestSupplierActivation:
 
     def test_deactivate_already_inactive_raises(self):
         supplier = Supplier.create(
-            name="Test", supplier_type=SupplierType.LOCAL, region="Moscow",
+            name="Test",
+            supplier_type=SupplierType.LOCAL,
+            region="Moscow",
         )
         supplier.deactivate()
         with pytest.raises(SupplierAlreadyInactiveError):
@@ -114,7 +130,9 @@ class TestSupplierActivation:
 
     def test_activate(self):
         supplier = Supplier.create(
-            name="Test", supplier_type=SupplierType.LOCAL, region="Moscow",
+            name="Test",
+            supplier_type=SupplierType.LOCAL,
+            region="Moscow",
         )
         supplier.deactivate()
         supplier.clear_domain_events()
@@ -124,7 +142,9 @@ class TestSupplierActivation:
 
     def test_activate_already_active_raises(self):
         supplier = Supplier.create(
-            name="Test", supplier_type=SupplierType.LOCAL, region="Moscow",
+            name="Test",
+            supplier_type=SupplierType.LOCAL,
+            region="Moscow",
         )
         with pytest.raises(SupplierAlreadyActiveError):
             supplier.activate()

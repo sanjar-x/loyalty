@@ -134,11 +134,15 @@ class AttributeValueRepository(
 
     async def list_ids_by_attribute(self, attribute_id: uuid.UUID) -> set[uuid.UUID]:
         """Return the set of value IDs belonging to the given attribute."""
-        stmt = select(OrmAttributeValue.id).where(OrmAttributeValue.attribute_id == attribute_id)
+        stmt = select(OrmAttributeValue.id).where(
+            OrmAttributeValue.attribute_id == attribute_id
+        )
         result = await self._session.execute(stmt)
         return {row[0] for row in result.all()}
 
-    async def bulk_update_sort_order(self, updates: list[tuple[uuid.UUID, int]]) -> None:
+    async def bulk_update_sort_order(
+        self, updates: list[tuple[uuid.UUID, int]]
+    ) -> None:
         """Bulk-update sort_order for multiple values in a single stmt."""
         if not updates:
             return
@@ -152,7 +156,10 @@ class AttributeValueRepository(
             .where(OrmAttributeValue.id.in_(value_ids))
             .values(
                 sort_order=case(
-                    *[(OrmAttributeValue.id == vid, order) for vid, order in id_to_order.items()],
+                    *[
+                        (OrmAttributeValue.id == vid, order)
+                        for vid, order in id_to_order.items()
+                    ],
                     else_=OrmAttributeValue.sort_order,
                 )
             )

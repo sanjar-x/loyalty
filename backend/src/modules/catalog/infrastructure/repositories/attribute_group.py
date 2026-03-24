@@ -53,7 +53,9 @@ class AttributeGroupRepository(
 
     async def check_code_exists(self, code: str) -> bool:
         """Return ``True`` if any attribute group already uses this code."""
-        stmt = select(OrmAttributeGroup.id).where(OrmAttributeGroup.code == code).limit(1)
+        stmt = (
+            select(OrmAttributeGroup.id).where(OrmAttributeGroup.code == code).limit(1)
+        )
         result = await self._session.execute(stmt)
         return result.first() is not None
 
@@ -69,7 +71,10 @@ class AttributeGroupRepository(
     async def has_attributes(self, group_id: uuid.UUID) -> bool:
         """Return ``True`` if at least one attribute belongs to this group."""
         stmt = select(
-            select(OrmAttribute.id).where(OrmAttribute.group_id == group_id).limit(1).exists()
+            select(OrmAttribute.id)
+            .where(OrmAttribute.group_id == group_id)
+            .limit(1)
+            .exists()
         )
         result = await self._session.execute(stmt)
         return bool(result.scalar())

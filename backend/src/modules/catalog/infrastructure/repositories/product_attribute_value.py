@@ -54,7 +54,9 @@ class ProductAttributeValueRepository(
         orm.attribute_value_id = entity.attribute_value_id
         return orm
 
-    async def list_by_product(self, product_id: uuid.UUID) -> list[DomainProductAttributeValue]:
+    async def list_by_product(
+        self, product_id: uuid.UUID
+    ) -> list[DomainProductAttributeValue]:
         """List all attribute assignments for a given product."""
         stmt = select(OrmProductAttributeValue).where(
             OrmProductAttributeValue.product_id == product_id
@@ -62,7 +64,9 @@ class ProductAttributeValueRepository(
         result = await self._session.execute(stmt)
         return [self._to_domain(orm) for orm in result.scalars().all()]
 
-    async def check_assignment_exists(self, product_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
+    async def check_assignment_exists(
+        self, product_id: uuid.UUID, attribute_id: uuid.UUID
+    ) -> bool:
         """Check whether a product+attribute pair already exists (duplicate guard)."""
         stmt = (
             select(OrmProductAttributeValue.id)

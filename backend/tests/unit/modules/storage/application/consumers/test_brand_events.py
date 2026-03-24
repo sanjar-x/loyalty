@@ -23,7 +23,9 @@ def _unwrap_dishka_task(task: Any) -> Callable[..., Any]:
 handle_brand_logo_upload_initiated_event = _unwrap_dishka_task(
     _handle_brand_logo_upload_initiated_task
 )
-handle_brand_logo_processed_event = _unwrap_dishka_task(_handle_brand_logo_processed_task)
+handle_brand_logo_processed_event = _unwrap_dishka_task(
+    _handle_brand_logo_processed_task
+)
 
 pytestmark = pytest.mark.asyncio
 

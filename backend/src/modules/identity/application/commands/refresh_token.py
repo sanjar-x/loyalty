@@ -173,7 +173,9 @@ class RefreshTokenHandler:
 
             # Revoke all sessions for the compromised identity
             async with self._uow:
-                revoked_ids = await self._session_repo.revoke_all_for_identity(identity_id)
+                revoked_ids = await self._session_repo.revoke_all_for_identity(
+                    identity_id
+                )
                 await self._uow.commit()
 
             # Invalidate permission caches

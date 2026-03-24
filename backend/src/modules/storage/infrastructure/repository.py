@@ -138,7 +138,9 @@ class StorageObjectRepository(IStorageRepository):
         orm = await self._session.get(StorageObject, key)
         return self._to_domain(orm) if orm else None
 
-    async def get_active_by_key(self, bucket_name: str, object_key: str) -> StorageFile | None:
+    async def get_active_by_key(
+        self, bucket_name: str, object_key: str
+    ) -> StorageFile | None:
         """Retrieve the current active version of a file by its S3 path.
 
         Args:
@@ -157,7 +159,9 @@ class StorageObjectRepository(IStorageRepository):
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
-    async def get_all_versions(self, bucket_name: str, object_key: str) -> Sequence[StorageFile]:
+    async def get_all_versions(
+        self, bucket_name: str, object_key: str
+    ) -> Sequence[StorageFile]:
         """Retrieve the full version history of a file, newest first.
 
         Args:
@@ -179,7 +183,9 @@ class StorageObjectRepository(IStorageRepository):
         result = await self._session.execute(stmt)
         return [self._to_domain(orm) for orm in result.scalars().all()]
 
-    async def deactivate_previous_versions(self, bucket_name: str, object_key: str) -> None:
+    async def deactivate_previous_versions(
+        self, bucket_name: str, object_key: str
+    ) -> None:
         """Deactivate all existing active versions of a file.
 
         This **must** be called before ``session.flush()`` when adding a
@@ -221,4 +227,6 @@ class StorageObjectRepository(IStorageRepository):
             object_key: The full object key within the bucket.
         """
         await self.deactivate_previous_versions(bucket_name, object_key)
-        self._logger.info("File marked as deleted", bucket_name=bucket_name, object_key=object_key)
+        self._logger.info(
+            "File marked as deleted", bucket_name=bucket_name, object_key=object_key
+        )

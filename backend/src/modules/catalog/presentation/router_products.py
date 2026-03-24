@@ -69,7 +69,9 @@ def build_update_product_command(
         A fully typed ``UpdateProductCommand`` ready for the handler.
     """
     provided_fields = request.model_fields_set - {"version"}
-    update_kwargs = {field_name: getattr(request, field_name) for field_name in provided_fields}
+    update_kwargs = {
+        field_name: getattr(request, field_name) for field_name in provided_fields
+    }
     return UpdateProductCommand(
         product_id=product_id,
         version=request.version,

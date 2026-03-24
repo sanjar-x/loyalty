@@ -62,7 +62,9 @@ class StorageProvider(Provider):
     )
 
     @provide(scope=Scope.REQUEST)
-    def storage_service(self, client: AioBaseClient, settings: Settings) -> IBlobStorage:
+    def storage_service(
+        self, client: AioBaseClient, settings: Settings
+    ) -> IBlobStorage:
         """Create a per-request S3 storage service.
 
         Args:
@@ -77,4 +79,6 @@ class StorageProvider(Provider):
             bucket_name=settings.S3_BUCKET_NAME,
         )
 
-    storage_facade = provide(StorageFacade, scope=Scope.REQUEST, provides=IStorageFacade)
+    storage_facade = provide(
+        StorageFacade, scope=Scope.REQUEST, provides=IStorageFacade
+    )

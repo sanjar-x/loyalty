@@ -99,7 +99,9 @@ class AddSKUHandler:
                 raise ProductNotFoundError(product_id=command.product_id)
 
             if await self._product_repo.check_sku_code_exists(command.sku_code):
-                raise SKUCodeConflictError(sku_code=command.sku_code, product_id=command.product_id)
+                raise SKUCodeConflictError(
+                    sku_code=command.sku_code, product_id=command.product_id
+                )
 
             if command.price_amount is not None:
                 price, compare_at_price = Money.from_primitives(

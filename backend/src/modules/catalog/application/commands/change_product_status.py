@@ -68,14 +68,18 @@ class ChangeProductStatusHandler:
                 (raised by ``Product.transition_status``).
         """
         async with self._uow:
-            product = await self._product_repo.get_for_update_with_variants(command.product_id)
+            product = await self._product_repo.get_for_update_with_variants(
+                command.product_id
+            )
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
             # SEC-09: Pre-publication readiness check — ensure the product
             # has at least one media asset before allowing PUBLISHED status.
             if command.new_status == ProductStatus.PUBLISHED:
-                media_assets = await self._media_repo.list_by_product(command.product_id)
+                media_assets = await self._media_repo.list_by_product(
+                    command.product_id
+                )
                 if not media_assets:
                     raise ProductNotReadyError(
                         product_id=command.product_id,

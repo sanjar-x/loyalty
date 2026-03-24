@@ -70,7 +70,9 @@ class SetRolePermissionsHandler:
         # without holding a DB connection, and gets a fresh snapshot
         admin_perms: frozenset[str] = frozenset()
         if command.permission_ids:
-            admin_perms = await self._permission_resolver.get_permissions(command.session_id)
+            admin_perms = await self._permission_resolver.get_permissions(
+                command.session_id
+            )
 
         async with self._uow:
             # 1. Role exists
@@ -83,11 +85,15 @@ class SetRolePermissionsHandler:
 
             # 2. Validate all permission IDs exist
             if command.permission_ids:
-                existing = await self._permission_repo.get_by_ids(command.permission_ids)
+                existing = await self._permission_repo.get_by_ids(
+                    command.permission_ids
+                )
                 if len(existing) != len(command.permission_ids):
                     found_ids = {p.id for p in existing}
                     missing_ids = [
-                        str(pid) for pid in command.permission_ids if pid not in found_ids
+                        str(pid)
+                        for pid in command.permission_ids
+                        if pid not in found_ids
                     ]
                     raise NotFoundError(
                         message="Some permissions not found",
@@ -99,10 +105,14 @@ class SetRolePermissionsHandler:
                 requested_codenames = {p.codename for p in existing}
                 escalation = requested_codenames - admin_perms
                 if escalation:
-                    raise PrivilegeEscalationError(escalated_permissions=sorted(escalation))
+                    raise PrivilegeEscalationError(
+                        escalated_permissions=sorted(escalation)
+                    )
 
             # 4. Full-replace permissions
-            await self._role_repo.set_permissions(command.role_id, command.permission_ids)
+            await self._role_repo.set_permissions(
+                command.role_id, command.permission_ids
+            )
 
             # 5. Fetch affected session IDs INSIDE UoW block (single query)
             affected_identity_ids = await self._role_repo.get_identity_ids_with_role(

@@ -48,7 +48,9 @@ class IIdentityRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_email(self, email: str) -> tuple[Identity, LocalCredentials] | None:
+    async def get_by_email(
+        self, email: str
+    ) -> tuple[Identity, LocalCredentials] | None:
         """Retrieve an identity with its local credentials by email.
 
         Args:
@@ -60,7 +62,9 @@ class IIdentityRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_login(self, login: str) -> tuple[Identity, LocalCredentials] | None:
+    async def get_by_login(
+        self, login: str
+    ) -> tuple[Identity, LocalCredentials] | None:
         """Retrieve an identity by email or username.
 
         If ``login`` contains '@', it is treated as an email address;
@@ -221,7 +225,9 @@ class ISessionRepository(ABC):
         pass
 
     @abstractmethod
-    async def add_session_roles(self, session_id: uuid.UUID, role_ids: list[uuid.UUID]) -> None:
+    async def add_session_roles(
+        self, session_id: uuid.UUID, role_ids: list[uuid.UUID]
+    ) -> None:
         """Activate roles for a session (NIST session-role activation).
 
         Args:
@@ -231,7 +237,9 @@ class ISessionRepository(ABC):
         pass
 
     @abstractmethod
-    async def remove_session_role(self, session_id: uuid.UUID, role_id: uuid.UUID) -> None:
+    async def remove_session_role(
+        self, session_id: uuid.UUID, role_id: uuid.UUID
+    ) -> None:
         """Delete a role from a session's activated roles.
 
         Args:
@@ -331,7 +339,9 @@ class IRoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def is_role_assigned(self, identity_id: uuid.UUID, role_id: uuid.UUID) -> bool:
+    async def is_role_assigned(
+        self, identity_id: uuid.UUID, role_id: uuid.UUID
+    ) -> bool:
         """Check if a role is already assigned to an identity.
 
         Args:
@@ -360,7 +370,9 @@ class IRoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def revoke_from_identity(self, identity_id: uuid.UUID, role_id: uuid.UUID) -> None:
+    async def revoke_from_identity(
+        self, identity_id: uuid.UUID, role_id: uuid.UUID
+    ) -> None:
         """Revoke a role from an identity.
 
         Args:
@@ -403,7 +415,9 @@ class IRoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def set_permissions(self, role_id: uuid.UUID, permission_ids: list[uuid.UUID]) -> None:
+    async def set_permissions(
+        self, role_id: uuid.UUID, permission_ids: list[uuid.UUID]
+    ) -> None:
         """Full-replace permissions for a role (DELETE existing + INSERT new).
 
         Args:
@@ -503,7 +517,9 @@ class ILinkedAccountRepository(ABC):
     ) -> LinkedAccount | None: ...
 
     @abstractmethod
-    async def find_by_verified_email(self, email: str) -> tuple[Identity, LinkedAccount] | None: ...
+    async def find_by_verified_email(
+        self, email: str
+    ) -> tuple[Identity, LinkedAccount] | None: ...
 
     @abstractmethod
     async def count_for_identity(self, identity_id: uuid.UUID) -> int: ...

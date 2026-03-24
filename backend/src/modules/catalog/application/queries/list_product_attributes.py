@@ -46,7 +46,9 @@ class ListProductAttributesHandler:
         self._session = session
         self._logger = logger.bind(handler="ListProductAttributesHandler")
 
-    async def handle(self, query: ListProductAttributesQuery) -> ProductAttributeListReadModel:
+    async def handle(
+        self, query: ListProductAttributesQuery
+    ) -> ProductAttributeListReadModel:
         """Retrieve paginated product attribute assignments joined with attribute data.
 
         Args:
@@ -65,7 +67,9 @@ class ListProductAttributesHandler:
 
         stmt = (
             select(OrmProductAttributeValue, OrmAttribute)
-            .join(OrmAttribute, OrmProductAttributeValue.attribute_id == OrmAttribute.id)
+            .join(
+                OrmAttribute, OrmProductAttributeValue.attribute_id == OrmAttribute.id
+            )
             .where(OrmProductAttributeValue.product_id == query.product_id)
             .order_by(OrmAttribute.code)
             .limit(query.limit)

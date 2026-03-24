@@ -12,7 +12,9 @@ class TestIdentityAlreadyExistsError:
 
     def test_no_pii_in_details(self):
         error = IdentityAlreadyExistsError()
-        assert not hasattr(error, "details") or "email" not in getattr(error, "details", {})
+        assert not hasattr(error, "details") or "email" not in getattr(
+            error, "details", {}
+        )
 
     def test_status_code_409(self):
         error = IdentityAlreadyExistsError()

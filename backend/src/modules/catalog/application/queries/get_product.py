@@ -64,7 +64,9 @@ class GetProductHandler:
                 OrmProduct.deleted_at.is_(None),
             )
             .options(
-                selectinload(OrmProduct.variants.and_(OrmProductVariant.deleted_at.is_(None)))
+                selectinload(
+                    OrmProduct.variants.and_(OrmProductVariant.deleted_at.is_(None))
+                )
                 .selectinload(OrmProductVariant.skus.and_(OrmSKU.deleted_at.is_(None)))
                 .selectinload(OrmSKU.attribute_values),
                 selectinload(OrmProduct.product_attribute_values).selectinload(
@@ -83,13 +85,19 @@ class GetProductHandler:
     @staticmethod
     def _to_read_model(orm: OrmProduct) -> ProductReadModel:
         """Map an ORM Product to a ProductReadModel with computed prices."""
-        variants = [variant_orm_to_read_model(v) for v in orm.variants if v.deleted_at is None]
+        variants = [
+            variant_orm_to_read_model(v) for v in orm.variants if v.deleted_at is None
+        ]
 
         # Compute min/max price across active, non-deleted SKUs in all variants
         active_prices: list[int] = []
         for variant in variants:
             for sku in variant.skus:
-                if sku.is_active and sku.deleted_at is None and sku.resolved_price is not None:
+                if (
+                    sku.is_active
+                    and sku.deleted_at is None
+                    and sku.resolved_price is not None
+                ):
                     active_prices.append(sku.resolved_price.amount)
 
         min_price = min(active_prices) if active_prices else None
@@ -99,7 +107,11 @@ class GetProductHandler:
         price_currency: str | None = None
         for variant in variants:
             for sku in variant.skus:
-                if sku.is_active and sku.deleted_at is None and sku.resolved_price is not None:
+                if (
+                    sku.is_active
+                    and sku.deleted_at is None
+                    and sku.resolved_price is not None
+                ):
                     price_currency = sku.resolved_price.currency
                     break
             if price_currency is not None:
@@ -112,7 +124,9 @@ class GetProductHandler:
                 attribute_id=pav.attribute_id,
                 attribute_value_id=pav.attribute_value_id,
                 attribute_code=pav.attribute.code if pav.attribute else "",
-                attribute_name_i18n=dict(pav.attribute.name_i18n) if pav.attribute else {},
+                attribute_name_i18n=dict(pav.attribute.name_i18n)
+                if pav.attribute
+                else {},
             )
             for pav in orm.product_attribute_values
         ]

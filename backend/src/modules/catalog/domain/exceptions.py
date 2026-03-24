@@ -274,7 +274,9 @@ class ProductAttributeValueNotFoundError(NotFoundError):
         attribute_id: The attribute whose value was not found on the product.
     """
 
-    def __init__(self, product_id: uuid.UUID | str, attribute_id: uuid.UUID | str) -> None:
+    def __init__(
+        self, product_id: uuid.UUID | str, attribute_id: uuid.UUID | str
+    ) -> None:
         super().__init__(
             message="Product attribute value not found.",
             error_code="PRODUCT_ATTRIBUTE_VALUE_NOT_FOUND",
@@ -629,7 +631,9 @@ class DuplicateMainMediaError(ConflictError):
 class MediaAssetNotFoundError(NotFoundError):
     """Raised when a media asset lookup yields no result."""
 
-    def __init__(self, media_id: uuid.UUID | str, product_id: uuid.UUID | str | None = None):
+    def __init__(
+        self, media_id: uuid.UUID | str, product_id: uuid.UUID | str | None = None
+    ):
         details: dict[str, str] = {"media_id": str(media_id)}
         if product_id is not None:
             details["product_id"] = str(product_id)

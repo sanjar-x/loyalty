@@ -25,7 +25,9 @@ class IBlobStorage(Protocol):
     Implementations must be stateless per-call and safe for concurrent use.
     """
 
-    def download_stream(self, object_name: str, chunk_size: int = 65536) -> AsyncIterator[bytes]:
+    def download_stream(
+        self, object_name: str, chunk_size: int = 65536
+    ) -> AsyncIterator[bytes]:
         """Yield the object contents as an async byte stream.
 
         Args:
@@ -49,7 +51,9 @@ class IBlobStorage(Protocol):
         """
         ...
 
-    async def get_presigned_upload_url(self, object_name: str, expiration: int = 3600) -> dict:
+    async def get_presigned_upload_url(
+        self, object_name: str, expiration: int = 3600
+    ) -> dict:
         """Generate a presigned POST upload URL with form fields.
 
         Args:

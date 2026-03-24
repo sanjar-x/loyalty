@@ -76,7 +76,7 @@ class Supplier(AggregateRoot):
         region: str,
         supplier_id: uuid.UUID | None = None,
         is_active: bool = True,
-    ) -> "Supplier":
+    ) -> Supplier:
         if not name or not name.strip():
             raise ValueError("Supplier name is required.")
         if not region or not region.strip():

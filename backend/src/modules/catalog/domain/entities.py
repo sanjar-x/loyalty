@@ -780,31 +780,35 @@ class Attribute(AggregateRoot):
             validation_rules=validation_rules,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "name_i18n",
-        "description_i18n",
-        "ui_type",
-        "group_id",
-        "level",
-        "is_filterable",
-        "is_searchable",
-        "search_weight",
-        "is_comparable",
-        "is_visible_on_card",
-        "is_visible_in_catalog",
-        "validation_rules",
-        "behavior",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "name_i18n",
+            "description_i18n",
+            "ui_type",
+            "group_id",
+            "level",
+            "is_filterable",
+            "is_searchable",
+            "search_weight",
+            "is_comparable",
+            "is_visible_on_card",
+            "is_visible_in_catalog",
+            "validation_rules",
+            "behavior",
+        }
+    )
 
     # Individual behavior flag names mapped to BehaviorFlags field names
-    _BEHAVIOR_FLAG_NAMES: ClassVar[frozenset[str]] = frozenset({
-        "is_filterable",
-        "is_searchable",
-        "search_weight",
-        "is_comparable",
-        "is_visible_on_card",
-        "is_visible_in_catalog",
-    })
+    _BEHAVIOR_FLAG_NAMES: ClassVar[frozenset[str]] = frozenset(
+        {
+            "is_filterable",
+            "is_searchable",
+            "search_weight",
+            "is_comparable",
+            "is_visible_on_card",
+            "is_visible_in_catalog",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable attribute fields. Code, slug, and data_type are immutable.
@@ -982,13 +986,15 @@ class AttributeValue:
             sort_order=sort_order,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "value_i18n",
-        "search_aliases",
-        "meta_data",
-        "value_group",
-        "sort_order",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "value_i18n",
+            "search_aliases",
+            "meta_data",
+            "value_group",
+            "sort_order",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable fields. Code and slug are immutable after creation.
@@ -1149,12 +1155,14 @@ class CategoryAttributeBinding(AggregateRoot):
             filter_settings=filter_settings,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "sort_order",
-        "requirement_level",
-        "flag_overrides",
-        "filter_settings",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "sort_order",
+            "requirement_level",
+            "flag_overrides",
+            "filter_settings",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable binding fields. category_id and attribute_id are immutable.
@@ -1251,14 +1259,16 @@ class SKU:
         self.deleted_at = now
         self.updated_at = now
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "sku_code",
-        "price",
-        "compare_at_price",
-        "is_active",
-        "variant_attributes",
-        "variant_hash",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "sku_code",
+            "price",
+            "compare_at_price",
+            "is_active",
+            "variant_attributes",
+            "variant_hash",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable SKU fields.
@@ -1380,13 +1390,15 @@ class ProductVariant:
             skus=[],
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "name_i18n",
-        "description_i18n",
-        "sort_order",
-        "default_price",
-        "default_currency",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "name_i18n",
+            "description_i18n",
+            "sort_order",
+            "default_price",
+            "default_currency",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable variant fields.
@@ -1827,16 +1839,18 @@ class Product(AggregateRoot):
         )
         return product
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "title_i18n",
-        "description_i18n",
-        "slug",
-        "brand_id",
-        "primary_category_id",
-        "supplier_id",
-        "country_of_origin",
-        "tags",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "title_i18n",
+            "description_i18n",
+            "slug",
+            "brand_id",
+            "primary_category_id",
+            "supplier_id",
+            "country_of_origin",
+            "tags",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable product fields.

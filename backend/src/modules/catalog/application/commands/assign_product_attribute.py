@@ -78,7 +78,9 @@ class AssignProductAttributeHandler:
         self._uow = uow
         self._logger = logger.bind(handler="AssignProductAttributeHandler")
 
-    async def handle(self, command: AssignProductAttributeCommand) -> AssignProductAttributeResult:
+    async def handle(
+        self, command: AssignProductAttributeCommand
+    ) -> AssignProductAttributeResult:
         """Execute the assign-product-attribute command.
 
         Args:
@@ -105,7 +107,9 @@ class AssignProductAttributeHandler:
                 raise AttributeNotDictionaryError(attribute_id=command.attribute_id)
 
             # --- Validate attribute value exists and belongs to the attribute ---
-            attr_value = await self._attribute_value_repo.get(command.attribute_value_id)
+            attr_value = await self._attribute_value_repo.get(
+                command.attribute_value_id
+            )
             if attr_value is None:
                 raise AttributeValueNotFoundError(value_id=command.attribute_value_id)
             if attr_value.attribute_id != command.attribute_id:

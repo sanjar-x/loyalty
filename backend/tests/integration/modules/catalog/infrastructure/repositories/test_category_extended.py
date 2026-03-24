@@ -41,22 +41,32 @@ async def test_get_for_update(db_session: AsyncSession):
 
 async def test_check_slug_exists_excluding(db_session: AsyncSession):
     repo = CategoryRepository(session=db_session)
-    cat = Category.create_root(name_i18n={"en": "Books"}, slug="books-excl", sort_order=1)
+    cat = Category.create_root(
+        name_i18n={"en": "Books"}, slug="books-excl", sort_order=1
+    )
     await repo.add(cat)
     await db_session.flush()
 
     # Exclude self — should be False
     assert await repo.check_slug_exists_excluding("books-excl", None, cat.id) is False
     # Exclude different ID — should be True
-    assert await repo.check_slug_exists_excluding("books-excl", None, uuid.uuid4()) is True
+    assert (
+        await repo.check_slug_exists_excluding("books-excl", None, uuid.uuid4()) is True
+    )
     # Nonexistent slug — should be False
-    assert await repo.check_slug_exists_excluding("no-such", None, uuid.uuid4()) is False
+    assert (
+        await repo.check_slug_exists_excluding("no-such", None, uuid.uuid4()) is False
+    )
 
 
 async def test_has_children(db_session: AsyncSession):
     repo = CategoryRepository(session=db_session)
-    root = Category.create_root(name_i18n={"en": "Parent"}, slug="parent-hc", sort_order=1)
-    child = Category.create_child(name_i18n={"en": "Child"}, slug="child-hc", parent=root, sort_order=1)
+    root = Category.create_root(
+        name_i18n={"en": "Parent"}, slug="parent-hc", sort_order=1
+    )
+    child = Category.create_child(
+        name_i18n={"en": "Child"}, slug="child-hc", parent=root, sort_order=1
+    )
     await repo.add(root)
     await repo.add(child)
     await db_session.flush()
@@ -68,7 +78,9 @@ async def test_has_children(db_session: AsyncSession):
 
 async def test_update_category(db_session: AsyncSession):
     repo = CategoryRepository(session=db_session)
-    cat = Category.create_root(name_i18n={"en": "Original"}, slug="original", sort_order=5)
+    cat = Category.create_root(
+        name_i18n={"en": "Original"}, slug="original", sort_order=5
+    )
     await repo.add(cat)
     await db_session.flush()
 
@@ -85,9 +97,15 @@ async def test_update_category(db_session: AsyncSession):
 async def test_update_descendants_full_slug(db_session: AsyncSession):
     repo = CategoryRepository(session=db_session)
 
-    root = Category.create_root(name_i18n={"en": "Electronics"}, slug="electronics", sort_order=1)
-    child = Category.create_child(name_i18n={"en": "Laptops"}, slug="laptops", parent=root, sort_order=1)
-    grandchild = Category.create_child(name_i18n={"en": "Gaming"}, slug="gaming", parent=child, sort_order=1)
+    root = Category.create_root(
+        name_i18n={"en": "Electronics"}, slug="electronics", sort_order=1
+    )
+    child = Category.create_child(
+        name_i18n={"en": "Laptops"}, slug="laptops", parent=root, sort_order=1
+    )
+    grandchild = Category.create_child(
+        name_i18n={"en": "Gaming"}, slug="gaming", parent=child, sort_order=1
+    )
 
     await repo.add(root)
     await repo.add(child)

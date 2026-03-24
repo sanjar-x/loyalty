@@ -22,7 +22,9 @@ async def test_login_returns_tokens_for_valid_credentials(
     # Register first
     async with app_container() as request:
         reg_handler = await request.get(RegisterHandler)
-        await reg_handler.handle(RegisterCommand(email="login@example.com", password="S3cure!Pass"))
+        await reg_handler.handle(
+            RegisterCommand(email="login@example.com", password="S3cure!Pass")
+        )
 
     # Login
     async with app_container() as request:

@@ -70,7 +70,9 @@ class ConfirmProductMediaUploadHandler:
             raise MediaAssetNotFoundError(media_id=command.media_id)
 
         if media.product_id != command.product_id:
-            raise MediaAssetNotFoundError(media_id=command.media_id, product_id=command.product_id)
+            raise MediaAssetNotFoundError(
+                media_id=command.media_id, product_id=command.product_id
+            )
 
         if media.raw_object_key is None:
             raise MediaAssetNotFoundError(media_id=command.media_id)

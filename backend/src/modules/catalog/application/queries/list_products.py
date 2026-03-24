@@ -65,7 +65,9 @@ class ListProductsHandler:
 
         # Items
         items_stmt = (
-            base.order_by(OrmProduct.created_at.desc()).offset(query.offset).limit(query.limit)
+            base.order_by(OrmProduct.created_at.desc())
+            .offset(query.offset)
+            .limit(query.limit)
         )
         result = await self._session.execute(items_stmt)
         rows = result.scalars().all()
@@ -80,7 +82,9 @@ class ListProductsHandler:
         )
 
     @staticmethod
-    def _apply_filters(stmt: Select[OrmProduct], query: ListProductsQuery) -> Select[OrmProduct]:
+    def _apply_filters(
+        stmt: Select[OrmProduct], query: ListProductsQuery
+    ) -> Select[OrmProduct]:
         """Apply optional filter clauses to the query."""
         stmt = stmt.where(OrmProduct.deleted_at.is_(None))
         if query.status is not None:

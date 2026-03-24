@@ -55,7 +55,9 @@ class CreateAttributeGroupHandler:
         self._uow = uow
         self._logger = logger.bind(handler="CreateAttributeGroupHandler")
 
-    async def handle(self, command: CreateAttributeGroupCommand) -> CreateAttributeGroupResult:
+    async def handle(
+        self, command: CreateAttributeGroupCommand
+    ) -> CreateAttributeGroupResult:
         """Execute the create-attribute-group command.
 
         Args:

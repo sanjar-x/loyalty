@@ -41,5 +41,8 @@ class ListSuppliersHandler:
 
         items = [supplier_orm_to_read_model(orm) for orm in rows]
         return SupplierListReadModel(
-            items=items, total=total, offset=query.offset, limit=query.limit,
+            items=items,
+            total=total,
+            offset=query.offset,
+            limit=query.limit,
         )

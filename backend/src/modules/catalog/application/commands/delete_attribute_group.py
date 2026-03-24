@@ -73,10 +73,14 @@ class DeleteAttributeGroupHandler:
             if group.code == GENERAL_GROUP_CODE:
                 raise AttributeGroupCannotDeleteGeneralError()
 
-            has_attrs = await self._attribute_group_repo.has_attributes(command.group_id)
+            has_attrs = await self._attribute_group_repo.has_attributes(
+                command.group_id
+            )
             if has_attrs:
                 if command.move_to_general:
-                    general = await self._attribute_group_repo.get_by_code(GENERAL_GROUP_CODE)
+                    general = await self._attribute_group_repo.get_by_code(
+                        GENERAL_GROUP_CODE
+                    )
                     if general is None:
                         raise ValueError(
                             f"Cannot move attributes: '{GENERAL_GROUP_CODE}' group does not exist"

@@ -20,7 +20,9 @@ class StaffInvitationRepository(IStaffInvitationRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    def _to_domain(self, orm: StaffInvitationModel, role_ids: list[uuid.UUID]) -> StaffInvitation:
+    def _to_domain(
+        self, orm: StaffInvitationModel, role_ids: list[uuid.UUID]
+    ) -> StaffInvitation:
         return StaffInvitation(
             id=orm.id,
             email=orm.email,
@@ -70,7 +72,9 @@ class StaffInvitationRepository(IStaffInvitationRepository):
         return self._to_domain(orm, role_ids)
 
     async def get_by_token_hash(self, token_hash: str) -> StaffInvitation | None:
-        stmt = select(StaffInvitationModel).where(StaffInvitationModel.token_hash == token_hash)
+        stmt = select(StaffInvitationModel).where(
+            StaffInvitationModel.token_hash == token_hash
+        )
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         if orm is None:
@@ -119,7 +123,9 @@ class StaffInvitationRepository(IStaffInvitationRepository):
         total = count_result.scalar() or 0
 
         list_stmt = (
-            list_stmt.order_by(StaffInvitationModel.created_at.desc()).offset(offset).limit(limit)
+            list_stmt.order_by(StaffInvitationModel.created_at.desc())
+            .offset(offset)
+            .limit(limit)
         )
         list_result = await self._session.execute(list_stmt)
         orms = list_result.scalars().all()

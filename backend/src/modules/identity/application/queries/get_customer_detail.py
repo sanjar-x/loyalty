@@ -122,7 +122,9 @@ class GetCustomerDetailHandler:
             "FROM identity_roles ir JOIN roles r ON r.id = ir.role_id "
             "WHERE ir.identity_id = :identity_id"
         )
-        roles_result = await self._session.execute(roles_sql, {"identity_id": query.identity_id})
+        roles_result = await self._session.execute(
+            roles_sql, {"identity_id": query.identity_id}
+        )
         roles = [
             CustomerRoleInfo(
                 id=rr["id"],

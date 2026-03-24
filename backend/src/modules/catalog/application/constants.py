@@ -13,7 +13,9 @@ Typical usage:
 
 import uuid
 
-from src.modules.catalog.domain.value_objects import DEFAULT_CURRENCY  # noqa: F401 – re-export
+from src.modules.catalog.domain.value_objects import (
+    DEFAULT_CURRENCY,  # noqa: F401 – re-export
+)
 
 # ---------------------------------------------------------------------------
 # S3 key builders
@@ -49,7 +51,9 @@ def raw_media_key(product_id: uuid.UUID, media_id: uuid.UUID) -> str:
     return f"raw_uploads/catalog/products/{product_id}/media/{media_id}"
 
 
-def public_media_key(product_id: uuid.UUID, media_id: uuid.UUID, ext: str = "webp") -> str:
+def public_media_key(
+    product_id: uuid.UUID, media_id: uuid.UUID, ext: str = "webp"
+) -> str:
     """Build the S3 key for a product media's processed (public) file."""
     return f"public/products/{product_id}/media/{media_id}.{ext}"
 

@@ -101,7 +101,9 @@ class AccessLoggerMiddleware:
 
             if message["type"] == "http.response.start":
                 status_code = message.get("status", 500)
-                duration_ms = round(number=(time.perf_counter() - start_time) * 1000, ndigits=2)
+                duration_ms = round(
+                    number=(time.perf_counter() - start_time) * 1000, ndigits=2
+                )
 
                 existing_headers = list(message.get("headers", []))
                 existing_headers.extend(

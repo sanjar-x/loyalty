@@ -53,10 +53,14 @@ class UnbindAttributeFromCategoryHandler:
         async with self._uow:
             binding = await self._binding_repo.get(command.binding_id)
             if binding is None:
-                raise CategoryAttributeBindingNotFoundError(binding_id=command.binding_id)
+                raise CategoryAttributeBindingNotFoundError(
+                    binding_id=command.binding_id
+                )
 
             if binding.category_id != command.category_id:
-                raise CategoryAttributeBindingNotFoundError(binding_id=command.binding_id)
+                raise CategoryAttributeBindingNotFoundError(
+                    binding_id=command.binding_id
+                )
 
             binding.add_domain_event(
                 CategoryAttributeBindingDeletedEvent(

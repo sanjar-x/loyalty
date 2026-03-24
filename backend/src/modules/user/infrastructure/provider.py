@@ -24,14 +24,14 @@ from src.modules.user.domain.interfaces import (
     IStaffMemberRepository,
     IUsernameUniquenessChecker,
 )
-from src.modules.user.infrastructure.services.username_checker import (
-    UsernameUniquenessChecker,
-)
 from src.modules.user.infrastructure.repositories.customer_repository import (
     CustomerRepository,
 )
 from src.modules.user.infrastructure.repositories.staff_member_repository import (
     StaffMemberRepository,
+)
+from src.modules.user.infrastructure.services.username_checker import (
+    UsernameUniquenessChecker,
 )
 
 
@@ -50,7 +50,9 @@ class ProfileProvider(Provider):
         StaffMemberRepository, scope=Scope.REQUEST, provides=IStaffMemberRepository
     )
     username_checker: CompositeDependencySource = provide(
-        UsernameUniquenessChecker, scope=Scope.REQUEST, provides=IUsernameUniquenessChecker
+        UsernameUniquenessChecker,
+        scope=Scope.REQUEST,
+        provides=IUsernameUniquenessChecker,
     )
 
     # Command handlers

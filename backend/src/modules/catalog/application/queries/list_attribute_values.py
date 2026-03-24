@@ -45,7 +45,9 @@ class ListAttributeValuesHandler:
         self._session = session
         self._logger = logger.bind(handler="ListAttributeValuesHandler")
 
-    async def handle(self, query: ListAttributeValuesQuery) -> AttributeValueListReadModel:
+    async def handle(
+        self, query: ListAttributeValuesQuery
+    ) -> AttributeValueListReadModel:
         """Retrieve a paginated attribute value list with optional search.
 
         Args:
@@ -54,7 +56,9 @@ class ListAttributeValuesHandler:
         Returns:
             Paginated list read model with items and total count.
         """
-        base = select(OrmAttributeValue).where(OrmAttributeValue.attribute_id == query.attribute_id)
+        base = select(OrmAttributeValue).where(
+            OrmAttributeValue.attribute_id == query.attribute_id
+        )
 
         if query.search:
             base = self._apply_search(base, query.search)
@@ -89,7 +93,9 @@ class ListAttributeValuesHandler:
         """Apply full-text search across value_i18n values."""
         escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         pattern = f"%{escaped}%"
-        stmt = stmt.where(func.cast(OrmAttributeValue.value_i18n, Text()).ilike(pattern))
+        stmt = stmt.where(
+            func.cast(OrmAttributeValue.value_i18n, Text()).ilike(pattern)
+        )
         return stmt
 
     @staticmethod

@@ -16,7 +16,9 @@ from src.modules.supplier.infrastructure.repositories.supplier import SupplierRe
 async def test_deactivate_supplier(db_session: AsyncSession):
     repo = SupplierRepository(session=db_session)
     supplier = Supplier.create(
-        name="To Deactivate", supplier_type=SupplierType.LOCAL, region="Moscow",
+        name="To Deactivate",
+        supplier_type=SupplierType.LOCAL,
+        region="Moscow",
     )
     await repo.add(supplier)
     supplier.deactivate()
@@ -28,7 +30,9 @@ async def test_assert_active_raises_for_inactive(db_session: AsyncSession):
     repo = SupplierRepository(session=db_session)
     query_svc = SupplierQueryService(session=db_session)
     supplier = Supplier.create(
-        name="Inactive", supplier_type=SupplierType.LOCAL, region="Moscow",
+        name="Inactive",
+        supplier_type=SupplierType.LOCAL,
+        region="Moscow",
     )
     await repo.add(supplier)
     supplier.deactivate()

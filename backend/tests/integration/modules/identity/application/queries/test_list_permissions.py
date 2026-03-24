@@ -6,7 +6,9 @@ import uuid
 from dishka import AsyncContainer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.modules.identity.application.queries.list_permissions import ListPermissionsHandler
+from src.modules.identity.application.queries.list_permissions import (
+    ListPermissionsHandler,
+)
 from src.modules.identity.infrastructure.models import PermissionModel
 
 
@@ -62,7 +64,9 @@ async def test_list_permissions_fields_populated(
     # Find the catalog group
     catalog_groups = [g for g in result if g.resource == "catalog"]
     assert len(catalog_groups) == 1
-    matched = [p for p in catalog_groups[0].permissions if p.codename == "catalog:manage"]
+    matched = [
+        p for p in catalog_groups[0].permissions if p.codename == "catalog:manage"
+    ]
     assert len(matched) == 1
     assert matched[0].action == "manage"
     assert matched[0].description == "Manage catalog"

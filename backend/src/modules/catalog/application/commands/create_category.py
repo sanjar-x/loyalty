@@ -102,7 +102,9 @@ class CreateCategoryHandler:
                 slug=command.slug, parent_id=command.parent_id
             )
             if is_slug_taken:
-                raise CategorySlugConflictError(slug=command.slug, parent_id=command.parent_id)
+                raise CategorySlugConflictError(
+                    slug=command.slug, parent_id=command.parent_id
+                )
 
             if command.parent_id is not None:
                 parent = await self._category_repo.get(command.parent_id)

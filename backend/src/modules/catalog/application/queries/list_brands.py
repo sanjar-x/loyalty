@@ -48,10 +48,17 @@ class ListBrandsHandler:
         Returns:
             Paginated list read model with items and total count.
         """
-        count_result = await self._session.execute(select(func.count()).select_from(OrmBrand))
+        count_result = await self._session.execute(
+            select(func.count()).select_from(OrmBrand)
+        )
         total = count_result.scalar_one()
 
-        stmt = select(OrmBrand).order_by(OrmBrand.name).limit(query.limit).offset(query.offset)
+        stmt = (
+            select(OrmBrand)
+            .order_by(OrmBrand.name)
+            .limit(query.limit)
+            .offset(query.offset)
+        )
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
 

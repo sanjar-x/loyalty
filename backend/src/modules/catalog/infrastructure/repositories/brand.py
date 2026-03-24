@@ -66,9 +66,15 @@ class BrandRepository(
         result = await self._session.execute(stmt)
         return result.first() is not None
 
-    async def check_slug_exists_excluding(self, slug: str, exclude_id: uuid.UUID) -> bool:
+    async def check_slug_exists_excluding(
+        self, slug: str, exclude_id: uuid.UUID
+    ) -> bool:
         """Return ``True`` if the slug is taken by a brand other than *exclude_id*."""
-        stmt = select(OrmBrand.id).where(OrmBrand.slug == slug, OrmBrand.id != exclude_id).limit(1)
+        stmt = (
+            select(OrmBrand.id)
+            .where(OrmBrand.slug == slug, OrmBrand.id != exclude_id)
+            .limit(1)
+        )
         result = await self._session.execute(stmt)
         return result.first() is not None
 

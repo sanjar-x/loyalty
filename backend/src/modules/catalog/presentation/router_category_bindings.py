@@ -100,7 +100,9 @@ async def list_category_bindings(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
 ) -> CategoryAttributeBindingListResponse:
-    query = ListCategoryBindingsQuery(category_id=category_id, offset=offset, limit=limit)
+    query = ListCategoryBindingsQuery(
+        category_id=category_id, offset=offset, limit=limit
+    )
     result: CategoryAttributeBindingListReadModel = await handler.handle(query)
     return CategoryAttributeBindingListResponse(
         items=[
@@ -167,7 +169,9 @@ async def unbind_attribute(
     binding_id: uuid.UUID,
     handler: FromDishka[UnbindAttributeFromCategoryHandler],
 ) -> None:
-    command = UnbindAttributeFromCategoryCommand(binding_id=binding_id, category_id=category_id)
+    command = UnbindAttributeFromCategoryCommand(
+        binding_id=binding_id, category_id=category_id
+    )
     await handler.handle(command)
 
 

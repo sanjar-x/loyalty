@@ -51,7 +51,8 @@ class UpdateProfileRequest(CamelModel):
     def at_least_one_field(self) -> UpdateProfileRequest:
         """Validate that at least one field is provided for update."""
         if all(
-            v is None for v in (self.first_name, self.last_name, self.phone, self.profile_email)
+            v is None
+            for v in (self.first_name, self.last_name, self.phone, self.profile_email)
         ):
             raise ValueError("At least one field must be provided")
         return self

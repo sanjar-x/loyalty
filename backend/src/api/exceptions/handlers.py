@@ -88,7 +88,9 @@ async def validation_exception_handler(
     )
 
 
-async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+async def http_exception_handler(
+    request: Request, exc: StarletteHTTPException
+) -> JSONResponse:
     """Handle standard Starlette/FastAPI HTTP exceptions.
 
     Ensures that the client always receives the uniform JSON error

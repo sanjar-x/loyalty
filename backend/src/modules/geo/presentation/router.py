@@ -43,7 +43,9 @@ geo_router = APIRouter(
 async def list_countries(
     response: Response,
     handler: FromDishka[ListCountriesHandler],
-    lang: str | None = Query(None, description="Filter translations to this language code"),
+    lang: str | None = Query(
+        None, description="Filter translations to this language code"
+    ),
     offset: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(50, ge=1, le=500, description="Pagination limit"),
 ) -> CountryListReadModel:
@@ -61,7 +63,9 @@ async def list_countries(
 async def list_currencies(
     response: Response,
     handler: FromDishka[ListCurrenciesHandler],
-    lang: str | None = Query(None, description="Filter translations to this language code"),
+    lang: str | None = Query(
+        None, description="Filter translations to this language code"
+    ),
     include_inactive: bool = Query(False, description="Include inactive currencies"),
     offset: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(50, ge=1, le=500, description="Pagination limit"),
@@ -108,7 +112,9 @@ async def list_country_currencies(
     country_code: str,
     response: Response,
     handler: FromDishka[ListCurrenciesHandler],
-    lang: str | None = Query(None, description="Filter translations to this language code"),
+    lang: str | None = Query(
+        None, description="Filter translations to this language code"
+    ),
     offset: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(50, ge=1, le=500, description="Pagination limit"),
 ) -> CurrencyListReadModel:
@@ -132,7 +138,9 @@ async def list_subdivisions(
     country_code: str,
     response: Response,
     handler: FromDishka[ListSubdivisionsHandler],
-    lang: str | None = Query(None, description="Filter translations to this language code"),
+    lang: str | None = Query(
+        None, description="Filter translations to this language code"
+    ),
     offset: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(50, ge=1, le=500, description="Pagination limit"),
 ) -> SubdivisionListReadModel:

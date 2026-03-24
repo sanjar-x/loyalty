@@ -181,7 +181,9 @@ class CategoryAttributeBindingReadModel(BaseModel):
     filter_settings: dict[str, Any] | None = None
 
 
-CategoryAttributeBindingListReadModel = PaginatedReadModel[CategoryAttributeBindingReadModel]
+CategoryAttributeBindingListReadModel = PaginatedReadModel[
+    CategoryAttributeBindingReadModel
+]
 
 
 # ---------------------------------------------------------------------------

@@ -11,6 +11,8 @@ from typing import Any
 
 from attrs import frozen
 
+from src.modules.supplier.domain.value_objects import SupplierType  # noqa: F401
+
 DEFAULT_CURRENCY = "RUB"
 """Default ISO 4217 currency code used when none is specified."""
 
@@ -66,9 +68,6 @@ class MediaRole(str, enum.Enum):
     HERO_VIDEO = "hero_video"
     SIZE_GUIDE = "size_guide"
     PACKAGING = "packaging"
-
-
-from src.modules.supplier.domain.value_objects import SupplierType  # noqa: F401
 
 
 # ---------------------------------------------------------------------------

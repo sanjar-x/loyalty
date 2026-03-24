@@ -60,9 +60,13 @@ class DeleteAttributeHandler:
                 raise AttributeNotFoundError(attribute_id=command.attribute_id)
 
             if await self._attribute_repo.has_category_bindings(command.attribute_id):
-                raise AttributeHasCategoryBindingsError(attribute_id=command.attribute_id)
+                raise AttributeHasCategoryBindingsError(
+                    attribute_id=command.attribute_id
+                )
 
-            if await self._attribute_repo.has_product_attribute_values(command.attribute_id):
+            if await self._attribute_repo.has_product_attribute_values(
+                command.attribute_id
+            ):
                 raise AttributeInUseByProductsError(attribute_id=command.attribute_id)
 
             attribute.add_domain_event(

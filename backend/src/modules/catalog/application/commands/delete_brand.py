@@ -8,7 +8,10 @@ import uuid
 from dataclasses import dataclass
 
 from src.modules.catalog.domain.events import BrandDeletedEvent
-from src.modules.catalog.domain.exceptions import BrandHasProductsError, BrandNotFoundError
+from src.modules.catalog.domain.exceptions import (
+    BrandHasProductsError,
+    BrandNotFoundError,
+)
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork

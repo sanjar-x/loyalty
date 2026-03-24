@@ -82,4 +82,6 @@ class UpdateProfileHandler:
 
             await self._uow.commit()
 
-        self._logger.info("customer.profile_updated", customer_id=str(command.customer_id))
+        self._logger.info(
+            "customer.profile_updated", customer_id=str(command.customer_id)
+        )

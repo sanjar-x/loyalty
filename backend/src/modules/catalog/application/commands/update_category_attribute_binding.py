@@ -9,7 +9,9 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.modules.catalog.application.queries.storefront import invalidate_storefront_cache
+from src.modules.catalog.application.queries.storefront import (
+    invalidate_storefront_cache,
+)
 from src.modules.catalog.domain.events import CategoryAttributeBindingUpdatedEvent
 from src.modules.catalog.domain.exceptions import (
     CategoryAttributeBindingNotFoundError,
@@ -77,15 +79,23 @@ class UpdateCategoryAttributeBindingHandler:
         async with self._uow:
             binding = await self._binding_repo.get(command.binding_id)
             if binding is None:
-                raise CategoryAttributeBindingNotFoundError(binding_id=command.binding_id)
+                raise CategoryAttributeBindingNotFoundError(
+                    binding_id=command.binding_id
+                )
 
             if binding.category_id != command.category_id:
-                raise CategoryAttributeBindingNotFoundError(binding_id=command.binding_id)
+                raise CategoryAttributeBindingNotFoundError(
+                    binding_id=command.binding_id
+                )
 
             from src.modules.catalog.domain.entities import CategoryAttributeBinding
 
-            safe_fields = command._provided_fields & CategoryAttributeBinding._UPDATABLE_FIELDS
-            update_kwargs: dict[str, Any] = {f: getattr(command, f) for f in safe_fields}
+            safe_fields = (
+                command._provided_fields & CategoryAttributeBinding._UPDATABLE_FIELDS
+            )
+            update_kwargs: dict[str, Any] = {
+                f: getattr(command, f) for f in safe_fields
+            }
 
             binding.update(**update_kwargs)
 
@@ -112,6 +122,10 @@ class UpdateCategoryAttributeBindingHandler:
             attribute_id=binding.attribute_id,
             sort_order=binding.sort_order,
             requirement_level=binding.requirement_level.value,
-            flag_overrides=dict(binding.flag_overrides) if binding.flag_overrides else None,
-            filter_settings=dict(binding.filter_settings) if binding.filter_settings else None,
+            flag_overrides=dict(binding.flag_overrides)
+            if binding.flag_overrides
+            else None,
+            filter_settings=dict(binding.filter_settings)
+            if binding.filter_settings
+            else None,
         )

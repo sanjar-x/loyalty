@@ -139,7 +139,9 @@ class ListStaffHandler:
         total = count_result.scalar() or 0
 
         if total == 0:
-            return StaffListResult(items=[], total=0, offset=query.offset, limit=query.limit)
+            return StaffListResult(
+                items=[], total=0, offset=query.offset, limit=query.limit
+            )
 
         # Fetch page
         sort_col = _SORT_COLUMNS.get(query.sort_by, "i.created_at")
@@ -160,11 +162,15 @@ class ListStaffHandler:
         rows = list_result.mappings().all()
 
         if not rows:
-            return StaffListResult(items=[], total=total, offset=query.offset, limit=query.limit)
+            return StaffListResult(
+                items=[], total=total, offset=query.offset, limit=query.limit
+            )
 
         # Fetch role names
         identity_ids = [row["identity_id"] for row in rows]
-        role_result = await self._session.execute(_ROLE_NAMES_SQL, {"identity_ids": identity_ids})
+        role_result = await self._session.execute(
+            _ROLE_NAMES_SQL, {"identity_ids": identity_ids}
+        )
         role_rows = role_result.mappings().all()
 
         roles_by_identity: dict[uuid.UUID, list[str]] = {}
@@ -186,4 +192,6 @@ class ListStaffHandler:
             for row in rows
         ]
 
-        return StaffListResult(items=items, total=total, offset=query.offset, limit=query.limit)
+        return StaffListResult(
+            items=items, total=total, offset=query.offset, limit=query.limit
+        )

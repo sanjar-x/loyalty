@@ -2,7 +2,6 @@
 
 import uuid
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.supplier.domain.entities import Supplier as DomainSupplier
@@ -26,7 +25,9 @@ class SupplierRepository(ISupplierRepository):
             updated_at=orm.updated_at,
         )
 
-    def _to_orm(self, entity: DomainSupplier, orm: OrmSupplier | None = None) -> OrmSupplier:
+    def _to_orm(
+        self, entity: DomainSupplier, orm: OrmSupplier | None = None
+    ) -> OrmSupplier:
         if orm is None:
             orm = OrmSupplier()
         orm.id = entity.id

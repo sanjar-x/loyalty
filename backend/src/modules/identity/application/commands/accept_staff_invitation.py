@@ -87,7 +87,9 @@ class AcceptStaffInvitationHandler:
         self._token_provider = token_provider
         self._logger = logger.bind(handler="AcceptStaffInvitationHandler")
 
-    async def handle(self, command: AcceptStaffInvitationCommand) -> AcceptStaffInvitationResult:
+    async def handle(
+        self, command: AcceptStaffInvitationCommand
+    ) -> AcceptStaffInvitationResult:
         """Execute the accept invitation command.
 
         Creates Identity (STAFF), credentials, assigns roles, marks invitation

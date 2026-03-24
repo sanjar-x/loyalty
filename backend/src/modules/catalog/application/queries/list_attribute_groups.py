@@ -43,7 +43,9 @@ class ListAttributeGroupsHandler:
         self._session = session
         self._logger = logger.bind(handler="ListAttributeGroupsHandler")
 
-    async def handle(self, query: ListAttributeGroupsQuery) -> AttributeGroupListReadModel:
+    async def handle(
+        self, query: ListAttributeGroupsQuery
+    ) -> AttributeGroupListReadModel:
         """Retrieve a paginated attribute group list.
 
         Args:

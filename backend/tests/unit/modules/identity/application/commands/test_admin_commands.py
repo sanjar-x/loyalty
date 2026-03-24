@@ -285,7 +285,9 @@ class TestAdminDeactivateIdentityHandler:
 
         assert identity.is_active is False
 
-    async def test_admin_deactivate_revokes_sessions_and_invalidates_cache(self) -> None:
+    async def test_admin_deactivate_revokes_sessions_and_invalidates_cache(
+        self,
+    ) -> None:
         identity_id = uuid.uuid4()
         identity = make_identity(identity_id=identity_id, is_active=True)
         revoked_ids = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
@@ -400,7 +402,9 @@ class TestReactivateIdentityHandler:
 
         with pytest.raises(NotFoundError) as exc_info:
             await handler.handle(
-                ReactivateIdentityCommand(identity_id=uuid.uuid4(), reactivated_by=uuid.uuid4())
+                ReactivateIdentityCommand(
+                    identity_id=uuid.uuid4(), reactivated_by=uuid.uuid4()
+                )
             )
 
         assert exc_info.value.error_code == "IDENTITY_NOT_FOUND"
@@ -415,7 +419,9 @@ class TestReactivateIdentityHandler:
 
         with pytest.raises(IdentityAlreadyActiveError):
             await handler.handle(
-                ReactivateIdentityCommand(identity_id=identity.id, reactivated_by=uuid.uuid4())
+                ReactivateIdentityCommand(
+                    identity_id=identity.id, reactivated_by=uuid.uuid4()
+                )
             )
 
     async def test_reactivate_emits_event(self) -> None:
@@ -427,7 +433,9 @@ class TestReactivateIdentityHandler:
         handler = self._make_handler(identity_repo=identity_repo, uow=make_uow())
 
         await handler.handle(
-            ReactivateIdentityCommand(identity_id=identity.id, reactivated_by=uuid.uuid4())
+            ReactivateIdentityCommand(
+                identity_id=identity.id, reactivated_by=uuid.uuid4()
+            )
         )
 
         events = identity.domain_events
@@ -464,7 +472,9 @@ class TestUpdateRoleHandler:
 
         handler = self._make_handler(role_repo=role_repo, uow=uow)
 
-        result = await handler.handle(UpdateRoleCommand(role_id=role.id, name="new_name"))
+        result = await handler.handle(
+            UpdateRoleCommand(role_id=role.id, name="new_name")
+        )
 
         assert role.name == "new_name"
         assert result.role_id == role.id
@@ -583,8 +593,12 @@ class TestSetRolePermissionsHandler:
 
     async def test_set_permissions_success(self) -> None:
         role = make_role()
-        perm1 = make_permission(codename="brands:create", resource="brands", action="create")
-        perm2 = make_permission(codename="brands:read", resource="brands", action="read")
+        perm1 = make_permission(
+            codename="brands:create", resource="brands", action="create"
+        )
+        perm2 = make_permission(
+            codename="brands:read", resource="brands", action="read"
+        )
         admin_session_id = uuid.uuid4()
 
         role_repo = AsyncMock()
@@ -613,7 +627,9 @@ class TestSetRolePermissionsHandler:
             )
         )
 
-        role_repo.set_permissions.assert_awaited_once_with(role.id, [perm1.id, perm2.id])
+        role_repo.set_permissions.assert_awaited_once_with(
+            role.id, [perm1.id, perm2.id]
+        )
         uow.commit.assert_awaited_once()
 
     async def test_set_permissions_role_not_found(self) -> None:
@@ -691,7 +707,9 @@ class TestSetRolePermissionsHandler:
                 )
             )
 
-    async def test_set_permissions_invalidates_cache_for_affected_sessions(self) -> None:
+    async def test_set_permissions_invalidates_cache_for_affected_sessions(
+        self,
+    ) -> None:
         role = make_role()
         perm = make_permission(codename="brands:create")
         identity_id_1 = uuid.uuid4()
@@ -700,7 +718,10 @@ class TestSetRolePermissionsHandler:
 
         role_repo = AsyncMock()
         role_repo.get.return_value = role
-        role_repo.get_identity_ids_with_role.return_value = [identity_id_1, identity_id_2]
+        role_repo.get_identity_ids_with_role.return_value = [
+            identity_id_1,
+            identity_id_2,
+        ]
         permission_repo = AsyncMock()
         permission_repo.get_by_ids.return_value = [perm]
         session_repo = AsyncMock()

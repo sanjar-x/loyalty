@@ -105,6 +105,8 @@ class IUsernameUniquenessChecker(ABC):
 
     @abstractmethod
     async def is_available(
-        self, username: str, exclude_identity_id: uuid.UUID | None = None,
+        self,
+        username: str,
+        exclude_identity_id: uuid.UUID | None = None,
     ) -> bool:
         """Return True if username is not taken (case-insensitive)."""

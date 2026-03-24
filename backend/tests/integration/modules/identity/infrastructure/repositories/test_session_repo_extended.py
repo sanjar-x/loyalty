@@ -50,7 +50,9 @@ async def test_get_by_refresh_token_hash(db_session: AsyncSession):
     identity = await _seed_identity(db_session)
     repo = SessionRepository(session=db_session)
 
-    sess = await _create_session(repo, identity.id, token="unique-rt", db_session=db_session)
+    sess = await _create_session(
+        repo, identity.id, token="unique-rt", db_session=db_session
+    )
 
     found = await repo.get_by_refresh_token_hash(sess.refresh_token_hash)
     assert found is not None
@@ -67,7 +69,9 @@ async def test_update_session_revoke(db_session: AsyncSession):
     identity = await _seed_identity(db_session)
     repo = SessionRepository(session=db_session)
 
-    sess = await _create_session(repo, identity.id, token="update-test", db_session=db_session)
+    sess = await _create_session(
+        repo, identity.id, token="update-test", db_session=db_session
+    )
     sess.revoke()
 
     await repo.update(sess)
@@ -145,7 +149,9 @@ async def test_add_session_roles_empty_list(db_session: AsyncSession):
     identity = await _seed_identity(db_session)
     session_repo = SessionRepository(session=db_session)
 
-    sess = await _create_session(session_repo, identity.id, token="no-roles", db_session=db_session)
+    sess = await _create_session(
+        session_repo, identity.id, token="no-roles", db_session=db_session
+    )
 
     await session_repo.add_session_roles(sess.id, [])
     # Should not raise

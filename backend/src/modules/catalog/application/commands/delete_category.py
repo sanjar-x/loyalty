@@ -93,6 +93,8 @@ class DeleteCategoryHandler:
         try:
             await self._cache.delete(CATEGORY_TREE_CACHE_KEY)
         except Exception as e:
-            self._logger.warning("Failed to invalidate category tree cache", error=str(e))
+            self._logger.warning(
+                "Failed to invalidate category tree cache", error=str(e)
+            )
 
         self._logger.info("Category deleted", category_id=str(command.category_id))

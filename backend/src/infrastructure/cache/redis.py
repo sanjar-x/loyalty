@@ -81,4 +81,6 @@ class RedisService(ICacheService):
             logger.debug("Redis DELETE_MANY", count=len(keys))
             await self._client.delete(*keys)
         except RedisError as e:
-            logger.warning("Redis delete error (DELETE_MANY)", count=len(keys), error=str(e))
+            logger.warning(
+                "Redis delete error (DELETE_MANY)", count=len(keys), error=str(e)
+            )

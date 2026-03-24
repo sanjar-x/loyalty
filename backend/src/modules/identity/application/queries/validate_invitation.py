@@ -77,7 +77,9 @@ class ValidateInvitationHandler:
             "JOIN roles r ON r.id = sir.role_id "
             "WHERE sir.invitation_id = :invitation_id"
         )
-        roles_result = await self._session.execute(roles_sql, {"invitation_id": row["id"]})
+        roles_result = await self._session.execute(
+            roles_sql, {"invitation_id": row["id"]}
+        )
         role_names = [r["name"] for r in roles_result.mappings().all()]
 
         return InvitationInfo(

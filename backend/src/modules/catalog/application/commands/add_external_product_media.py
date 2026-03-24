@@ -129,7 +129,7 @@ class AddExternalProductMediaHandler:
             await self._media_repo.add(media)
             try:
                 await self._uow.commit()
-            except IntegrityError:
+            except IntegrityError as err:
                 # TOCTOU safety net: two concurrent requests may both pass
                 # the has_main_for_variant check.  A DB unique constraint on
                 # (product_id, variant_id, role='MAIN') rejects the second
@@ -137,7 +137,7 @@ class AddExternalProductMediaHandler:
                 raise DuplicateMainMediaError(
                     product_id=command.product_id,
                     variant_id=command.variant_id,
-                )
+                ) from err
 
         return AddExternalProductMediaResult(
             media_id=media.id,

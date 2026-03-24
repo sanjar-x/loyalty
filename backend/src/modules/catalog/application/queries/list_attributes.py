@@ -99,7 +99,9 @@ class ListAttributesHandler:
         total: int = count_result.scalar_one()
 
         # Items
-        items_stmt = base.order_by(OrmAttribute.code).offset(query.offset).limit(query.limit)
+        items_stmt = (
+            base.order_by(OrmAttribute.code).offset(query.offset).limit(query.limit)
+        )
         result = await self._session.execute(items_stmt)
         rows = result.scalars().all()
 
@@ -137,7 +139,11 @@ class ListAttributesHandler:
             # Search across all JSONB values using jsonb_each_text lateral join.
             # This avoids CAST(jsonb AS text) ILIKE which bypasses GIN indexes
             # and pollutes results with JSON keys/syntax characters.
-            escaped = query.search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            escaped = (
+                query.search.replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_")
+            )
             search_pattern = f"%{escaped}%"
             stmt = stmt.where(
                 select(literal_column("1"))

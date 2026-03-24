@@ -66,7 +66,9 @@ async def register(
     Returns:
         The new identity's UUID and a confirmation message.
     """
-    command = RegisterCommand(email=body.email, password=body.password, username=body.username)
+    command = RegisterCommand(
+        email=body.email, password=body.password, username=body.username
+    )
     result = await handler.handle(command)
     return RegisterResponse(identity_id=result.identity_id)
 

@@ -112,11 +112,15 @@ class UpdateCategoryHandler:
                     command.slug, category.parent_id, command.category_id
                 )
             ):
-                raise CategorySlugConflictError(slug=command.slug, parent_id=category.parent_id)
+                raise CategorySlugConflictError(
+                    slug=command.slug, parent_id=category.parent_id
+                )
 
             _SAFE_FIELDS = frozenset({"name_i18n", "slug", "sort_order"})
             safe_fields = command._provided_fields & _SAFE_FIELDS
-            update_kwargs: dict[str, Any] = {f: getattr(command, f) for f in safe_fields}
+            update_kwargs: dict[str, Any] = {
+                f: getattr(command, f) for f in safe_fields
+            }
             old_full_slug = category.update(**update_kwargs)
 
             await self._category_repo.update(category)
@@ -133,7 +137,9 @@ class UpdateCategoryHandler:
         try:
             await self._cache.delete(CATEGORY_TREE_CACHE_KEY)
         except Exception as e:
-            self._logger.warning("Failed to invalidate category tree cache", error=str(e))
+            self._logger.warning(
+                "Failed to invalidate category tree cache", error=str(e)
+            )
 
         self._logger.info("Category updated", category_id=str(category.id))
 

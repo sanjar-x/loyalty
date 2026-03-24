@@ -5,8 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 pytestmark = pytest.mark.asyncio
 
 
-async def test_create_category_e2e_success(admin_client: AsyncClient, db_session: AsyncSession):
-    payload = {"nameI18n": {"en": "Computers", "ru": "Компьютеры"}, "slug": "computers", "parentId": None}
+async def test_create_category_e2e_success(
+    admin_client: AsyncClient, db_session: AsyncSession
+):
+    payload = {
+        "nameI18n": {"en": "Computers", "ru": "Компьютеры"},
+        "slug": "computers",
+        "parentId": None,
+    }
     response = await admin_client.post("/api/v1/catalog/categories", json=payload)
 
     assert response.status_code == 201

@@ -99,7 +99,9 @@ class LogoMetadataRequest(CamelModel):
 class CategoryCreateRequest(CamelModel):
     """Request body for creating a new category."""
 
-    name_i18n: I18nDict = Field(..., min_length=1, examples=[{"ru": "Кроссовки", "en": "Sneakers"}])
+    name_i18n: I18nDict = Field(
+        ..., min_length=1, examples=[{"ru": "Кроссовки", "en": "Sneakers"}]
+    )
     slug: str = Field(
         ...,
         min_length=3,
@@ -107,7 +109,9 @@ class CategoryCreateRequest(CamelModel):
         pattern=r"^[a-z0-9-]+$",
         examples=["sneakers"],
     )
-    parent_id: uuid.UUID | None = Field(None, description="Parent category ID (optional)")
+    parent_id: uuid.UUID | None = Field(
+        None, description="Parent category ID (optional)"
+    )
     sort_order: int = Field(0, ge=0, description="Display ordering among siblings")
 
 
@@ -148,13 +152,17 @@ class CategoryUpdateRequest(CamelModel):
     """Partial update request -- all fields optional (PATCH semantics)."""
 
     name_i18n: I18nDict | None = Field(None, min_length=1)
-    slug: str | None = Field(None, min_length=3, max_length=255, pattern=r"^[a-z0-9-]+$")
+    slug: str | None = Field(
+        None, min_length=3, max_length=255, pattern=r"^[a-z0-9-]+$"
+    )
     sort_order: int | None = Field(None, ge=0)
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> CategoryUpdateRequest:
         if self.name_i18n is None and self.slug is None and self.sort_order is None:
-            raise ValueError("At least one field (nameI18n, slug, or sortOrder) must be provided")
+            raise ValueError(
+                "At least one field (nameI18n, slug, or sortOrder) must be provided"
+            )
         return self
 
 
@@ -191,7 +199,9 @@ class BrandUpdateRequest(CamelModel):
     """Partial update request -- all fields optional (PATCH semantics)."""
 
     name: str | None = Field(None, min_length=1, max_length=255)
-    slug: str | None = Field(None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$")
+    slug: str | None = Field(
+        None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$"
+    )
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> BrandUpdateRequest:
@@ -228,7 +238,9 @@ class AttributeGroupCreateRequest(CamelModel):
     name_i18n: I18nDict = Field(
         ...,
         min_length=1,
-        examples=[{"en": "Physical Characteristics", "ru": "Физические характеристики"}],
+        examples=[
+            {"en": "Physical Characteristics", "ru": "Физические характеристики"}
+        ],
         description="Multilingual display name (at least one language required)",
     )
     sort_order: int = Field(0, ge=0, description="Display ordering among groups")
@@ -262,7 +274,9 @@ class AttributeGroupUpdateRequest(CamelModel):
     @model_validator(mode="after")
     def at_least_one_field(self) -> AttributeGroupUpdateRequest:
         if self.name_i18n is None and self.sort_order is None:
-            raise ValueError("At least one field (nameI18n or sortOrder) must be provided")
+            raise ValueError(
+                "At least one field (nameI18n or sortOrder) must be provided"
+            )
         return self
 
 
@@ -283,15 +297,21 @@ class AttributeCreateRequest(CamelModel):
     slug: str = Field(
         ..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$", examples=["color"]
     )
-    name_i18n: I18nDict = Field(..., min_length=1, examples=[{"en": "Color", "ru": "Цвет"}])
-    description_i18n: I18nDict = Field(default_factory=dict)
-    data_type: Literal["string", "integer", "float", "boolean"] = Field(..., examples=["string"])
-    ui_type: Literal["text_button", "color_swatch", "dropdown", "checkbox", "range_slider"] = Field(
-        ..., examples=["color_swatch"]
+    name_i18n: I18nDict = Field(
+        ..., min_length=1, examples=[{"en": "Color", "ru": "Цвет"}]
     )
+    description_i18n: I18nDict = Field(default_factory=dict)
+    data_type: Literal["string", "integer", "float", "boolean"] = Field(
+        ..., examples=["string"]
+    )
+    ui_type: Literal[
+        "text_button", "color_swatch", "dropdown", "checkbox", "range_slider"
+    ] = Field(..., examples=["color_swatch"])
     is_dictionary: bool = True
     group_id: uuid.UUID
-    level: Literal["product", "variant"] = Field("product", examples=["product", "variant"])
+    level: Literal["product", "variant"] = Field(
+        "product", examples=["product", "variant"]
+    )
     is_filterable: bool = False
     is_searchable: bool = False
     search_weight: int = Field(5, ge=1, le=10)
@@ -335,7 +355,8 @@ class AttributeUpdateRequest(CamelModel):
     name_i18n: I18nDict | None = Field(None, min_length=1)
     description_i18n: I18nDict | None = None
     ui_type: (
-        Literal["text_button", "color_swatch", "dropdown", "checkbox", "range_slider"] | None
+        Literal["text_button", "color_swatch", "dropdown", "checkbox", "range_slider"]
+        | None
     ) = None
     group_id: uuid.UUID | None = None
     level: Literal["product", "variant"] | None = None
@@ -366,16 +387,24 @@ AttributeListResponse = PaginatedResponse[AttributeResponse]
 class AttributeValueCreateRequest(CamelModel):
     """Request body for adding a value to an attribute."""
 
-    code: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9_]+$", examples=["red"])
-    slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$", examples=["red"])
-    value_i18n: I18nDict = Field(..., min_length=1, examples=[{"en": "Red", "ru": "Красный"}])
+    code: str = Field(
+        ..., min_length=1, max_length=100, pattern=r"^[a-z0-9_]+$", examples=["red"]
+    )
+    slug: str = Field(
+        ..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$", examples=["red"]
+    )
+    value_i18n: I18nDict = Field(
+        ..., min_length=1, examples=[{"en": "Red", "ru": "Красный"}]
+    )
     search_aliases: list[Annotated[str, Field(max_length=100)]] = Field(
         default_factory=list,
         max_length=50,
         examples=[["scarlet", "crimson"]],
         description="Search synonyms (max 50 entries, each max 100 chars)",
     )
-    meta_data: BoundedJsonDict = Field(default_factory=dict, examples=[{"hex": "#FF0000"}])
+    meta_data: BoundedJsonDict = Field(
+        default_factory=dict, examples=[{"hex": "#FF0000"}]
+    )
     value_group: str | None = Field(None, max_length=100, examples=["Warm tones"])
     sort_order: int = Field(0, ge=0, description="Display ordering among values")
 
@@ -404,7 +433,9 @@ class AttributeValueUpdateRequest(CamelModel):
     """Partial update request -- code and slug are immutable."""
 
     value_i18n: I18nDict | None = Field(None, min_length=1)
-    search_aliases: list[Annotated[str, Field(max_length=100)]] | None = Field(None, max_length=50)
+    search_aliases: list[Annotated[str, Field(max_length=100)]] | None = Field(
+        None, max_length=50
+    )
     meta_data: BoundedJsonDict | None = None
     value_group: str | None = None
     sort_order: int | None = Field(None, ge=0)
@@ -492,7 +523,9 @@ class CategoryAttributeBindingUpdateRequest(CamelModel):
         return self
 
 
-CategoryAttributeBindingListResponse = PaginatedResponse[CategoryAttributeBindingResponse]
+CategoryAttributeBindingListResponse = PaginatedResponse[
+    CategoryAttributeBindingResponse
+]
 
 
 class BindingReorderItemRequest(CamelModel):
@@ -680,7 +713,9 @@ class ProductCreateRequest(CamelModel):
     description_i18n: I18nDict = Field(default_factory=dict)
     supplier_id: uuid.UUID | None = None
     source_url: str | None = Field(None, max_length=1024)
-    country_of_origin: str | None = Field(None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")
+    country_of_origin: str | None = Field(
+        None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$"
+    )
     tags: list[str] = Field(default_factory=list)
 
 
@@ -710,7 +745,9 @@ class ProductUpdateRequest(CamelModel):
     brand_id: uuid.UUID | None = None
     primary_category_id: uuid.UUID | None = None
     supplier_id: uuid.UUID | None = None
-    country_of_origin: str | None = Field(None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")
+    country_of_origin: str | None = Field(
+        None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$"
+    )
     tags: list[str] | None = None
     version: int | None = None
 
@@ -725,7 +762,9 @@ class ProductUpdateRequest(CamelModel):
 class ProductStatusChangeRequest(CamelModel):
     """Request body for changing a product's status."""
 
-    status: Literal["draft", "enriching", "ready_for_review", "published", "archived"] = Field(...)
+    status: Literal[
+        "draft", "enriching", "ready_for_review", "published", "archived"
+    ] = Field(...)
 
 
 class SKUCreateRequest(CamelModel):
@@ -751,7 +790,9 @@ class SKUUpdateRequest(CamelModel):
 
     sku_code: str | None = Field(None, min_length=1, max_length=100)
     price_amount: int | None = Field(None, ge=0)
-    price_currency: str | None = Field(None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
+    price_currency: str | None = Field(
+        None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"
+    )
     compare_at_price_amount: int | None = None
     is_active: bool | None = None
     variant_attributes: list[VariantAttributePairSchema] | None = None
@@ -870,7 +911,9 @@ class ProductMediaUploadRequest(CamelModel):
 
     variant_id: uuid.UUID | None = None
     media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
-    role: str = Field(..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$")
+    role: str = Field(
+        ..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$"
+    )
     content_type: str = Field(
         ...,
         pattern=r"^(image|video|application|model)/[a-zA-Z0-9][a-zA-Z0-9!#$&\-^_.+]*$",
@@ -892,7 +935,9 @@ class ProductMediaExternalRequest(CamelModel):
 
     variant_id: uuid.UUID | None = None
     media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
-    role: str = Field(..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$")
+    role: str = Field(
+        ..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$"
+    )
     external_url: str = Field(..., min_length=1, max_length=2048, pattern=r"^https?://")
     sort_order: int = Field(0, ge=0)
 

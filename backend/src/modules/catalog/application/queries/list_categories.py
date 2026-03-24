@@ -11,7 +11,9 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.modules.catalog.application.queries.get_category import category_orm_to_read_model
+from src.modules.catalog.application.queries.get_category import (
+    category_orm_to_read_model,
+)
 from src.modules.catalog.application.queries.read_models import (
     CategoryListReadModel,
 )
@@ -48,7 +50,9 @@ class ListCategoriesHandler:
         Returns:
             Paginated list read model with items and total count.
         """
-        count_result = await self._session.execute(select(func.count()).select_from(OrmCategory))
+        count_result = await self._session.execute(
+            select(func.count()).select_from(OrmCategory)
+        )
         total: int = count_result.scalar_one()
 
         stmt = (

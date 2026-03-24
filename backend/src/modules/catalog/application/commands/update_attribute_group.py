@@ -63,7 +63,9 @@ class UpdateAttributeGroupHandler:
         self._uow = uow
         self._logger = logger.bind(handler="UpdateAttributeGroupHandler")
 
-    async def handle(self, command: UpdateAttributeGroupCommand) -> UpdateAttributeGroupResult:
+    async def handle(
+        self, command: UpdateAttributeGroupCommand
+    ) -> UpdateAttributeGroupResult:
         """Execute the update-attribute-group command.
 
         Args:
@@ -83,7 +85,9 @@ class UpdateAttributeGroupHandler:
 
             _SAFE_FIELDS = frozenset({"name_i18n", "sort_order"})
             safe_fields = command._provided_fields & _SAFE_FIELDS
-            update_kwargs: dict[str, Any] = {f: getattr(command, f) for f in safe_fields}
+            update_kwargs: dict[str, Any] = {
+                f: getattr(command, f) for f in safe_fields
+            }
             group.update(**update_kwargs)
 
             group.add_domain_event(

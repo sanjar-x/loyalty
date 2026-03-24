@@ -10,7 +10,10 @@ Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass, field
 
-from src.modules.catalog.domain.exceptions import ProductNotFoundError, VariantNotFoundError
+from src.modules.catalog.domain.exceptions import (
+    ProductNotFoundError,
+    VariantNotFoundError,
+)
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
 from src.shared.interfaces.logger import ILogger
@@ -124,15 +127,16 @@ class UpdateVariantHandler:
 
             if "default_price_amount" in command._provided_fields:
                 if command.default_price_amount is not None:
-                    currency = command.default_price_currency or variant.default_currency
+                    currency = (
+                        command.default_price_currency or variant.default_currency
+                    )
                     update_kwargs["default_price"] = Money(
                         amount=command.default_price_amount, currency=currency
                     )
                 else:
                     update_kwargs["default_price"] = None
 
-            if "default_price_currency" in command._provided_fields:
-                if command.default_price_currency is not None:
+            if "default_price_currency" in command._provided_fields and command.default_price_currency is not None:
                     update_kwargs["default_currency"] = command.default_price_currency
 
             if update_kwargs:

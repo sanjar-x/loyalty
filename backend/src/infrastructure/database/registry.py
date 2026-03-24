@@ -89,9 +89,9 @@ __all__ = [
     "StaffInvitationRoleModel",
     "StaffMemberModel",
     "StorageObject",
-    "Supplier",
     "SubdivisionCategoryModel",
     "SubdivisionCategoryTranslationModel",
     "SubdivisionModel",
     "SubdivisionTranslationModel",
+    "Supplier",
 ]

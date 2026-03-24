@@ -7,7 +7,12 @@ concrete implementations live in the infrastructure layer.
 
 from abc import ABC, abstractmethod
 
-from src.modules.geo.domain.value_objects import Country, Currency, Language, Subdivision
+from src.modules.geo.domain.value_objects import (
+    Country,
+    Currency,
+    Language,
+    Subdivision,
+)
 
 
 class ICountryRepository(ABC):

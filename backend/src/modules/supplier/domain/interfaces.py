@@ -39,7 +39,9 @@ class ISupplierQueryService(ABC):
     """
 
     @abstractmethod
-    async def get_supplier_info(self, supplier_id: uuid.UUID) -> SupplierInfo | None: ...
+    async def get_supplier_info(
+        self, supplier_id: uuid.UUID
+    ) -> SupplierInfo | None: ...
 
     @abstractmethod
     async def assert_supplier_active(self, supplier_id: uuid.UUID) -> SupplierInfo: ...

@@ -88,7 +88,9 @@ class GetCategoryTreeHandler:
         return roots
 
 
-def _prune_tree(nodes: list[CategoryNode], *, current_depth: int, max_depth: int) -> None:
+def _prune_tree(
+    nodes: list[CategoryNode], *, current_depth: int, max_depth: int
+) -> None:
     """Recursively delete children beyond *max_depth*.
 
     Depth 1 means only the nodes in *nodes* are kept (their children are
@@ -99,4 +101,6 @@ def _prune_tree(nodes: list[CategoryNode], *, current_depth: int, max_depth: int
             node.children = []
     else:
         for node in nodes:
-            _prune_tree(node.children, current_depth=current_depth + 1, max_depth=max_depth)
+            _prune_tree(
+                node.children, current_depth=current_depth + 1, max_depth=max_depth
+            )

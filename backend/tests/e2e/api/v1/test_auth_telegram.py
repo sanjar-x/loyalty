@@ -47,7 +47,9 @@ def _build_init_data(
     data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(params.items()))
 
     secret_key = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
-    hash_value = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+    hash_value = hmac.new(
+        secret_key, data_check_string.encode(), hashlib.sha256
+    ).hexdigest()
 
     params["hash"] = hash_value
     return urlencode(params)
@@ -192,7 +194,9 @@ async def test_login_telegram_deactivated_identity_returns_403(
     assert response.status_code == 403
 
 
-async def test_login_telegram_session_eviction(async_client: AsyncClient, db_session: AsyncSession):
+async def test_login_telegram_session_eviction(
+    async_client: AsyncClient, db_session: AsyncSession
+):
     user_id = 900030
     for _ in range(5):
         init_data = _build_init_data(user_id=user_id)

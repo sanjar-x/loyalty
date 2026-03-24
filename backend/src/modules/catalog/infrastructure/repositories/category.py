@@ -40,7 +40,9 @@ class CategoryRepository(
             sort_order=orm.sort_order,
         )
 
-    def _to_orm(self, entity: DomainCategory, orm: OrmCategory | None = None) -> OrmCategory:
+    def _to_orm(
+        self, entity: DomainCategory, orm: OrmCategory | None = None
+    ) -> OrmCategory:
         """Map a domain Category entity to an ORM row (create or update)."""
         if orm is None:
             orm = OrmCategory()
@@ -55,7 +57,9 @@ class CategoryRepository(
 
     async def get_all_ordered(self) -> list[DomainCategory]:
         """Return all categories ordered by level then sort_order."""
-        stmt = select(self.model).order_by(self.model.level.asc(), self.model.sort_order.asc())
+        stmt = select(self.model).order_by(
+            self.model.level.asc(), self.model.sort_order.asc()
+        )
         result = await self._session.execute(stmt)
         orms = result.scalars().all()
         return [self._to_domain(orm) for orm in orms]
@@ -82,7 +86,10 @@ class CategoryRepository(
     async def has_children(self, category_id: uuid.UUID) -> bool:
         """Return ``True`` if the category has at least one child."""
         stmt = select(
-            select(self.model.id).where(self.model.parent_id == category_id).limit(1).exists()
+            select(self.model.id)
+            .where(self.model.parent_id == category_id)
+            .limit(1)
+            .exists()
         )
         result = await self._session.execute(stmt)
         return bool(result.scalar())
@@ -91,14 +98,19 @@ class CategoryRepository(
         """Return ``True`` if any non-deleted product references this category."""
         stmt = select(
             select(OrmProduct.id)
-            .where(OrmProduct.primary_category_id == category_id, OrmProduct.deleted_at.is_(None))
+            .where(
+                OrmProduct.primary_category_id == category_id,
+                OrmProduct.deleted_at.is_(None),
+            )
             .limit(1)
             .exists()
         )
         result = await self._session.execute(stmt)
         return bool(result.scalar())
 
-    async def update_descendants_full_slug(self, old_prefix: str, new_prefix: str) -> None:
+    async def update_descendants_full_slug(
+        self, old_prefix: str, new_prefix: str
+    ) -> None:
         """Bulk-rename the ``full_slug`` prefix for all descendant categories.
 
         Executes a single ``UPDATE … SET full_slug = concat(...)`` to

@@ -91,15 +91,21 @@ class AdminDeactivateIdentityHandler:
 
             # 4. Not last admin — single query instead of N+1
             admin_count = await self._role_repo.count_identities_with_role("admin")
-            target_role_ids = await self._role_repo.get_identity_role_ids(command.identity_id)
+            target_role_ids = await self._role_repo.get_identity_role_ids(
+                command.identity_id
+            )
             admin_role = await self._role_repo.get_by_name("admin")
-            target_has_admin = admin_role is not None and admin_role.id in target_role_ids
+            target_has_admin = (
+                admin_role is not None and admin_role.id in target_role_ids
+            )
 
             if target_has_admin and admin_count <= 1:
                 raise LastAdminProtectionError()
 
             # 5. Deactivate and register aggregate immediately for event collection
-            identity.deactivate(reason=command.reason, deactivated_by=command.deactivated_by)
+            identity.deactivate(
+                reason=command.reason, deactivated_by=command.deactivated_by
+            )
             self._uow.register_aggregate(identity)
 
             # 6. Persist deactivation state (CRITICAL)

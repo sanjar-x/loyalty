@@ -28,7 +28,9 @@ async def test_dishka_middleware_attaches_to_broker():
     setup_dishka(container=container, broker=broker)
 
     # Dishka adds a ContainerMiddleware
-    has_container_mw = any("Container" in type(mw).__name__ for mw in broker.middlewares)
+    has_container_mw = any(
+        "Container" in type(mw).__name__ for mw in broker.middlewares
+    )
     assert has_container_mw is True
 
     await container.close()
@@ -48,7 +50,9 @@ async def test_dlq_middleware_creation():
         pool_size=1,
         max_overflow=0,
     )
-    session_factory = async_sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        bind=engine, autoflush=False, expire_on_commit=False
+    )
 
     middleware = DLQMiddleware(session_factory=session_factory)
     assert middleware is not None

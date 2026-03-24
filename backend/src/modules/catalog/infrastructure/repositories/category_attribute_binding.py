@@ -43,7 +43,9 @@ class CategoryAttributeBindingRepository(
             filter_settings=dict(orm.filter_settings) if orm.filter_settings else None,
         )
 
-    def _to_orm(self, entity: DomainBinding, orm: OrmBinding | None = None) -> OrmBinding:
+    def _to_orm(
+        self, entity: DomainBinding, orm: OrmBinding | None = None
+    ) -> OrmBinding:
         """Map a domain entity to an ORM row (create or update)."""
         if orm is None:
             orm = OrmBinding()
@@ -56,11 +58,16 @@ class CategoryAttributeBindingRepository(
         orm.filter_settings = entity.filter_settings
         return orm
 
-    async def check_binding_exists(self, category_id: uuid.UUID, attribute_id: uuid.UUID) -> bool:
+    async def check_binding_exists(
+        self, category_id: uuid.UUID, attribute_id: uuid.UUID
+    ) -> bool:
         """Return ``True`` if a binding for this pair already exists."""
         stmt = (
             select(OrmBinding.id)
-            .where(OrmBinding.category_id == category_id, OrmBinding.attribute_id == attribute_id)
+            .where(
+                OrmBinding.category_id == category_id,
+                OrmBinding.attribute_id == attribute_id,
+            )
             .limit(1)
         )
         result = await self._session.execute(stmt)
@@ -72,7 +79,10 @@ class CategoryAttributeBindingRepository(
         """Retrieve a binding by the category+attribute pair."""
         stmt = (
             select(OrmBinding)
-            .where(OrmBinding.category_id == category_id, OrmBinding.attribute_id == attribute_id)
+            .where(
+                OrmBinding.category_id == category_id,
+                OrmBinding.attribute_id == attribute_id,
+            )
             .limit(1)
         )
         result = await self._session.execute(stmt)
@@ -87,7 +97,9 @@ class CategoryAttributeBindingRepository(
         result = await self._session.execute(stmt)
         return {row[0] for row in result.all()}
 
-    async def bulk_update_sort_order(self, updates: list[tuple[uuid.UUID, int]]) -> None:
+    async def bulk_update_sort_order(
+        self, updates: list[tuple[uuid.UUID, int]]
+    ) -> None:
         """Bulk-update sort_order for multiple bindings in a single stmt."""
         if not updates:
             return
@@ -98,14 +110,19 @@ class CategoryAttributeBindingRepository(
             .where(OrmBinding.id.in_(binding_ids))
             .values(
                 sort_order=case(
-                    *[(OrmBinding.id == bid, order) for bid, order in id_to_order.items()],
+                    *[
+                        (OrmBinding.id == bid, order)
+                        for bid, order in id_to_order.items()
+                    ],
                     else_=OrmBinding.sort_order,
                 )
             )
         )
         await self._session.execute(stmt)
 
-    async def bulk_update_requirement_level(self, updates: list[tuple[uuid.UUID, str]]) -> None:
+    async def bulk_update_requirement_level(
+        self, updates: list[tuple[uuid.UUID, str]]
+    ) -> None:
         """Bulk-update requirement_level for multiple bindings in a single stmt."""
         if not updates:
             return
@@ -116,7 +133,10 @@ class CategoryAttributeBindingRepository(
             .where(OrmBinding.id.in_(binding_ids))
             .values(
                 requirement_level=case(
-                    *[(OrmBinding.id == bid, level) for bid, level in id_to_level.items()],
+                    *[
+                        (OrmBinding.id == bid, level)
+                        for bid, level in id_to_level.items()
+                    ],
                     else_=OrmBinding.requirement_level,
                 )
             )

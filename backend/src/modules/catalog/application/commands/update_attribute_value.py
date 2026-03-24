@@ -66,7 +66,9 @@ class UpdateAttributeValueHandler:
         self._uow = uow
         self._logger = logger.bind(handler="UpdateAttributeValueHandler")
 
-    async def handle(self, command: UpdateAttributeValueCommand) -> UpdateAttributeValueResult:
+    async def handle(
+        self, command: UpdateAttributeValueCommand
+    ) -> UpdateAttributeValueResult:
         """Execute the update-attribute-value command.
 
         Returns:

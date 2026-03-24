@@ -111,7 +111,9 @@ async def relay_outbox_batch(
     for row in rows:
         event_id = row.id
         event_type = row.event_type
-        correlation_id = getattr(row, "correlation_id", None) or ("relay-" + uuid.uuid4().hex[:12])
+        correlation_id = getattr(row, "correlation_id", None) or (
+            "relay-" + uuid.uuid4().hex[:12]
+        )
 
         structlog.contextvars.bind_contextvars(
             correlation_id=correlation_id,

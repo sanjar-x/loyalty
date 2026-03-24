@@ -48,7 +48,9 @@ class TestGetPresignedUrl:
 class TestGeneratePresignedPutUrl:
     async def test_generate_presigned_put_url_success(self):
         service, client = _make_service()
-        client.generate_presigned_url = AsyncMock(return_value="https://s3.example.com/put-url")
+        client.generate_presigned_url = AsyncMock(
+            return_value="https://s3.example.com/put-url"
+        )
 
         url = await service.generate_presigned_put_url(
             "uploads/file.jpg", content_type="image/jpeg", expiration=300
@@ -74,7 +76,9 @@ class TestObjectExists:
         result = await service.object_exists("my-object.png")
 
         assert result is True
-        client.head_object.assert_awaited_once_with(Bucket="test-bucket", Key="my-object.png")
+        client.head_object.assert_awaited_once_with(
+            Bucket="test-bucket", Key="my-object.png"
+        )
 
     async def test_object_exists_false_on_404(self):
         service, client = _make_service()
@@ -128,13 +132,17 @@ class TestDeleteObject:
 
         await service.delete_object("my-object.png")
 
-        client.delete_object.assert_awaited_once_with(Bucket="test-bucket", Key="my-object.png")
+        client.delete_object.assert_awaited_once_with(
+            Bucket="test-bucket", Key="my-object.png"
+        )
 
 
 class TestDeleteObjects:
     async def test_delete_objects_batch(self):
         service, client = _make_service()
-        client.delete_objects = AsyncMock(return_value={"Errors": [{"Key": "fail.png"}]})
+        client.delete_objects = AsyncMock(
+            return_value={"Errors": [{"Key": "fail.png"}]}
+        )
 
         failed = await service.delete_objects(["a.png", "b.png", "fail.png"])
 

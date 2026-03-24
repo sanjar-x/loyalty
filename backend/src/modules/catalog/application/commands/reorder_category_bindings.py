@@ -5,7 +5,9 @@ Command handler: bulk reorder category-attribute bindings.
 import uuid
 from dataclasses import dataclass, field
 
-from src.modules.catalog.application.queries.storefront import invalidate_storefront_cache
+from src.modules.catalog.application.queries.storefront import (
+    invalidate_storefront_cache,
+)
 from src.modules.catalog.domain.events import CategoryBindingsReorderedEvent
 from src.modules.catalog.domain.exceptions import CategoryNotFoundError
 from src.modules.catalog.domain.interfaces import (
@@ -65,7 +67,9 @@ class ReorderCategoryBindingsHandler:
             if category is None:
                 raise CategoryNotFoundError(category_id=command.category_id)
 
-            valid_ids = await self._binding_repo.list_ids_by_category(command.category_id)
+            valid_ids = await self._binding_repo.list_ids_by_category(
+                command.category_id
+            )
             requested_ids = {item.binding_id for item in command.items}
             invalid_ids = requested_ids - valid_ids
             if invalid_ids:
