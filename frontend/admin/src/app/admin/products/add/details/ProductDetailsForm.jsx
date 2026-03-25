@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import useProductForm from '@/hooks/useProductForm';
 import { fetchFormAttributes } from '@/services/attributes';
 import BrandSelect from './BrandSelect';
-import DeliverySection from './DeliverySection';
+import SupplierSection from './SupplierSection';
 import DynamicAttributes from './DynamicAttributes';
 import ImagesSection from './ImagesSection';
 import SizeTableSection from './SizeTableSection';
@@ -92,7 +92,7 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
         </div>
       </section>
 
-      <DeliverySection
+      <SupplierSection
         deliveryMode={form.state.deliveryMode}
         onDeliveryModeChange={(val) => form.setField('deliveryMode', val)}
         sourceUrl={form.state.sourceUrl}
