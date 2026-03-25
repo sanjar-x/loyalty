@@ -816,71 +816,6 @@ ProductListResponse = PaginatedResponse[ProductListItemResponse]
 
 
 # ---------------------------------------------------------------------------
-# Product media schemas
-# ---------------------------------------------------------------------------
-
-
-class ProductMediaUploadRequest(CamelModel):
-    """Request body for reserving a media upload slot."""
-
-    variant_id: uuid.UUID | None = None
-    media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
-    role: str = Field(
-        ..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$"
-    )
-    content_type: str = Field(
-        ...,
-        pattern=r"^(image|video|application|model)/[a-zA-Z0-9][a-zA-Z0-9!#$&\-^_.+]*$",
-        max_length=255,
-    )
-    sort_order: int = Field(0, ge=0)
-
-
-class ProductMediaUploadResponse(CamelModel):
-    """Response with presigned upload URL."""
-
-    id: uuid.UUID
-    presigned_upload_url: str
-    object_key: str
-
-
-class ProductMediaExternalRequest(CamelModel):
-    """Request body for adding an external media URL (e.g., YouTube)."""
-
-    variant_id: uuid.UUID | None = None
-    media_type: str = Field(..., pattern=r"^(image|video|model_3d|document)$")
-    role: str = Field(
-        ..., pattern=r"^(main|hover|gallery|hero_video|size_guide|packaging)$"
-    )
-    external_url: str = Field(..., min_length=1, max_length=2048, pattern=r"^https?://")
-    sort_order: int = Field(0, ge=0)
-
-
-class ProductMediaResponse(CamelModel):
-    """Media asset detail response."""
-
-    id: uuid.UUID
-    product_id: uuid.UUID
-    variant_id: uuid.UUID | None = None
-    media_type: str
-    role: str
-    sort_order: int
-    processing_status: str | None = None
-    public_url: str | None = None
-    is_external: bool
-    external_url: str | None = None
-
-
-ProductMediaListResponse = PaginatedResponse[ProductMediaResponse]
-
-
-class MediaConfirmResponse(CamelModel):
-    """Response returned after confirming a media upload."""
-
-    message: str = "Upload confirmed, processing started"
-
-
-# ---------------------------------------------------------------------------
 # ProductVariant request/response schemas
 # ---------------------------------------------------------------------------
 
@@ -975,30 +910,6 @@ class SKUMatrixGenerateResponse(CamelModel):
 
 
 ProductAttributeListResponse = PaginatedResponse[ProductAttributeResponse]
-
-
-class MediaProcessingWebhookRequest(CamelModel):
-    """Internal webhook body from AI-service after processing."""
-
-    object_key: str = Field(..., pattern=r"^[a-zA-Z0-9/_.-]+$", max_length=1024)
-    content_type: str = Field(
-        ...,
-        pattern=r"^[a-zA-Z0-9][a-zA-Z0-9!#$&\-^_.+]+/[a-zA-Z0-9][a-zA-Z0-9!#$&\-^_.+]+$",
-        max_length=255,
-    )
-    size_bytes: int = Field(..., ge=0)
-
-
-class MediaProcessingFailedRequest(CamelModel):
-    """Internal webhook body from AI-service on failure."""
-
-    error: str = Field(..., max_length=2000)
-
-
-class WebhookAckResponse(CamelModel):
-    """Acknowledgement response for internal webhooks."""
-
-    status: str = "ok"
 
 
 # ---------------------------------------------------------------------------
