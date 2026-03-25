@@ -38,6 +38,9 @@ from src.modules.catalog.application.commands.add_variant import AddVariantHandl
 from src.modules.catalog.application.commands.assign_product_attribute import (
     AssignProductAttributeHandler,
 )
+from src.modules.catalog.application.commands.bulk_assign_product_attributes import (
+    BulkAssignProductAttributesHandler,
+)
 from src.modules.catalog.application.commands.change_product_status import (
     ChangeProductStatusHandler,
 )
@@ -470,6 +473,9 @@ class ProductProvider(Provider):
     )
     assign_product_attribute_handler: CompositeDependencySource = provide(
         AssignProductAttributeHandler, scope=Scope.REQUEST
+    )
+    bulk_assign_product_attributes_handler: CompositeDependencySource = provide(
+        BulkAssignProductAttributesHandler, scope=Scope.REQUEST
     )
     delete_product_attribute_handler: CompositeDependencySource = provide(
         DeleteProductAttributeHandler, scope=Scope.REQUEST

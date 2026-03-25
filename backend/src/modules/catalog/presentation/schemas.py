@@ -758,6 +758,18 @@ class ProductAttributeAssignResponse(CamelModel):
     message: str
 
 
+class BulkAssignProductAttributesRequest(CamelModel):
+    """Request body for bulk product attribute assignment."""
+    items: list[ProductAttributeAssignRequest] = Field(..., min_length=1, max_length=50)
+
+
+class BulkAssignProductAttributesResponse(CamelModel):
+    """Response from bulk attribute assignment."""
+    assigned_count: int
+    pav_ids: list[uuid.UUID]
+    message: str
+
+
 class ProductAttributeResponse(CamelModel):
     """Single product-attribute assignment detail response."""
 
