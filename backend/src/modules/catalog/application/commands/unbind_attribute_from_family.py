@@ -77,9 +77,7 @@ class UnbindAttributeFromFamilyHandler:
         async with self._uow:
             binding = await self._binding_repo.get(command.binding_id)
             if binding is None or binding.family_id != command.family_id:
-                raise FamilyAttributeBindingNotFoundError(
-                    binding_id=command.binding_id
-                )
+                raise FamilyAttributeBindingNotFoundError(binding_id=command.binding_id)
 
             binding.add_domain_event(
                 FamilyAttributeBindingDeletedEvent(

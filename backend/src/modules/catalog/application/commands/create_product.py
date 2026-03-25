@@ -158,12 +158,16 @@ class CreateProductHandler:
                     media_asset = MediaAsset(
                         id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
                         product_id=product.id,
-                        variant_id=uuid.UUID(item["variant_id"]) if item.get("variant_id") else None,
+                        variant_id=uuid.UUID(item["variant_id"])
+                        if item.get("variant_id")
+                        else None,
                         media_type=item.get("media_type", "IMAGE"),
                         role=item.get("role", "GALLERY"),
                         sort_order=item.get("sort_order", 0),
                         is_external=item.get("is_external", False),
-                        storage_object_id=uuid.UUID(item["storage_object_id"]) if item.get("storage_object_id") else None,
+                        storage_object_id=uuid.UUID(item["storage_object_id"])
+                        if item.get("storage_object_id")
+                        else None,
                         url=item.get("url"),
                         image_variants=item.get("image_variants"),
                     )

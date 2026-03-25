@@ -1768,3 +1768,43 @@
   outline: none;
   border-color: #2d2d2d;
 }
+
+/* ── Skeleton / Loading placeholders ── */
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.skeletonGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skeletonLabel {
+  height: 20px;
+  width: 160px;
+  background: #f4f3f1;
+  border-radius: 4px;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.skeletonField {
+  height: 40px;
+  background: #f4f3f1;
+  border-radius: 8px;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.skeletonSelect {
+  height: 48px;
+  background: #f4f3f1;
+  border-radius: 8px;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

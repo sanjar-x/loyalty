@@ -103,9 +103,7 @@ class ReorderFamilyBindingsHandler:
                     binding_id=next(iter(invalid_ids))
                 )
 
-            updates = [
-                (item.binding_id, item.sort_order) for item in command.items
-            ]
+            updates = [(item.binding_id, item.sort_order) for item in command.items]
             await self._binding_repo.bulk_update_sort_order(updates)
             await self._uow.commit()
 

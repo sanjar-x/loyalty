@@ -71,7 +71,7 @@ export default async function AddProductDetailsPage({ params }) {
   const ancestors = findByFullSlug(tree, fullSlug) ?? [];
   const leaf = ancestors.at(-1) ?? null;
   const leafLabel = categoryLabel(leaf);
-  const leafCategoryId = leaf?.id ?? fullSlug;
+  const leafCategoryId = leaf?.id ?? null;
 
   return (
     <section className={styles.page}>

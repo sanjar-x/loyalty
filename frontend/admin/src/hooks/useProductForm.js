@@ -416,8 +416,12 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
   }, [state.variablePricing, state.perSkuPrices]);
 
   // --- Convenience: attribute handler for DynamicAttributes compatibility ---
-  // DynamicAttributes currently uses { [attributeId]: [valueId, ...] }
-  // This adapter maps between the two formats based on attribute level
+  // DynamicAttributes passes values as arrays: { [attributeId]: [valueId, ...] }
+  // This adapter maps between the two formats based on attribute level.
+  //
+  // Product-level: API contract (POST /products/{id}/attributes/bulk) accepts
+  // exactly ONE attributeValueId per attributeId — so we take selectedValues[0].
+  // DynamicAttributes enforces single-select UI for product-level attrs.
 
   const handleAttributeUpdate = useCallback(
     (attributeId, selectedValues, level) => {
@@ -428,7 +432,7 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
           valueIds: selectedValues,
         });
       } else {
-        // product level: single select → take first value
+        // Product-level: strictly single value per attribute (API constraint)
         const valueId = selectedValues[0] ?? null;
         if (valueId) {
           dispatch({ type: 'SET_PRODUCT_ATTR', attributeId, valueId });

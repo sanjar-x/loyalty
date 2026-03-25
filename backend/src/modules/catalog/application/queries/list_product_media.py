@@ -78,8 +78,6 @@ class ListProductMediaHandler:
             media_type=orm.media_type.value if orm.media_type else "",
             role=orm.role.value if orm.role else "",
             sort_order=orm.sort_order,
-            processing_status=orm.processing_status,
-            public_url=orm.public_url,
+            url=orm.url,
             is_external=orm.is_external,
-            external_url=orm.external_url,
         )

@@ -97,7 +97,10 @@ Authorization: Bearer <accessToken>
 
 ```
 POST /api/v1/catalog/products
+Authorization: Bearer <accessToken>
 ```
+
+**Permission:** `catalog:manage`
 
 ### Request
 
@@ -116,7 +119,7 @@ POST /api/v1/catalog/products
 ```
 
 **Обязательные:** `titleI18n` (мин. 1 язык), `slug` (^[a-z0-9-]+$), `brandId`, `primaryCategoryId`
-**Опциональные:** `descriptionI18n`, `supplierId`, `sourceUrl` (обязателен если supplier type = CROSS_BORDER), `countryOfOrigin` (ISO 3166-1 alpha-2), `tags`
+**Опциональные:** `descriptionI18n`, `supplierId`, `sourceUrl` (обязателен если supplier type = CROSS_BORDER; **immutable** — задаётся только при создании, в PATCH игнорируется), `countryOfOrigin` (ISO 3166-1 alpha-2), `tags`
 
 ### Response (201)
 
@@ -222,6 +225,7 @@ Authorization: Bearer <accessToken>
 ```
 
 Только `level: "variant"` атрибуты. Бэкенд строит cartesian product (3×2 = 6 SKU).
+`priceCurrency` — опциональное, default: `"RUB"`.
 
 > **`priceAmount` обязателен для публикации.** Если `null` → SKU создаются без цены → продукт нельзя перевести в PUBLISHED.
 
@@ -356,11 +360,19 @@ Effective price = sku.price ?? variant.defaultPrice ?? null
 
 ## Optimistic Locking
 
-Product и SKU имеют поле `version`. При PATCH запросах:
+Product и SKU имеют поле `version` (integer, начинается с 1).
 
-- Если `version` передан → бэкенд проверяет что version совпадает
-- Если не совпадает → `409 CONCURRENCY_ERROR` (другой пользователь изменил объект)
-- Frontend должен перезагрузить данные и повторить
+**В PATCH запросах `version` — опциональное поле:**
+
+- `PATCH /products/{id}` — `{ ..., "version": 3 }` (опционально)
+- `PATCH .../skus/{id}` — `{ ..., "version": 2 }` (опционально)
+
+**Поведение:**
+
+- Если `version` передан → бэкенд проверяет что version в БД совпадает
+- Если не совпадает → `409 CONCURRENCY_ERROR`
+- Если `version` не передан → обновление без проверки конкурентности
+- Frontend должен перезагрузить данные и повторить при 409
 
 ---
 
@@ -553,6 +565,8 @@ interface ProductAttribute {
   attributeValueId: string;
   attributeCode: string;
   attributeNameI18n: Record<string, string>;
+  attributeValueCode: string;
+  attributeValueNameI18n: Record<string, string>; // e.g. { ru: "Хлопок", en: "Cotton" }
 }
 
 // SKU in product response
@@ -745,7 +759,7 @@ GET    /api/v1/catalog/products/{id}/media               — список
 DELETE /api/v1/catalog/products/{id}/media/{mid}         — удалить
 ```
 
-### Storefront (public, read-only)
+### Storefront (read-only, mixed auth)
 
 ```
 GET    /api/v1/catalog/storefront/categories/{id}/form-attributes       — [catalog:manage] form для создания

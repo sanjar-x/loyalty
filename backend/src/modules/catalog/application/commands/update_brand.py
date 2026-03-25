@@ -125,10 +125,7 @@ class UpdateBrandHandler:
             await self._uow.commit()
 
         # Best-effort cleanup of old logo after successful commit
-        if (
-            old_logo_sid
-            and old_logo_sid != command.logo_storage_object_id
-        ):
+        if old_logo_sid and old_logo_sid != command.logo_storage_object_id:
             await self._image_backend.delete(old_logo_sid)
 
         self._logger.info("Brand updated", brand_id=str(brand.id))

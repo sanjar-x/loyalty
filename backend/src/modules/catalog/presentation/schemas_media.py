@@ -1,4 +1,5 @@
 """Schemas for media[] array in product create/update payloads."""
+
 from __future__ import annotations
 
 import uuid

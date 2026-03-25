@@ -6,18 +6,19 @@ Create Date: 2026-03-25 18:55:19.387244
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import MetaData  # noqa: F401
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 # revision identifiers, used by Alembic.
 revision: str = "52b8a4dcd72a"
-down_revision: Union[str, Sequence[str], None] = "c3a0c360de78"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "c3a0c360de78"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -68,7 +69,6 @@ def upgrade() -> None:
             comment="Image size variants: [{size, width, height, url}, ...]",
         ),
     )
-    # Recreate partial unique index without processing_status condition
     op.drop_index(
         "uix_media_single_main_per_variant",
         table_name="media_assets",
@@ -81,8 +81,7 @@ def upgrade() -> None:
         postgresql_where="role = 'MAIN'",
         postgresql_nulls_not_distinct=True,
     )
-    op.drop_column("media_assets", "processing_status")
-    op.drop_column("media_assets", "public_url")
+    op.drop_column("media_assets", "url")
     op.drop_column("media_assets", "processed_object_key")
     op.drop_column("media_assets", "raw_object_key")
     op.drop_column("media_assets", "external_url")
@@ -125,26 +124,15 @@ def downgrade() -> None:
     op.add_column(
         "media_assets",
         sa.Column(
-            "public_url",
+            "url",
             sa.VARCHAR(length=1024),
             autoincrement=False,
             nullable=True,
             comment="Final public URL after processing",
         ),
     )
-    op.add_column(
-        "media_assets",
-        sa.Column(
-            "processing_status",
-            sa.VARCHAR(length=30),
-            autoincrement=False,
-            nullable=True,
-            comment="FSM: PENDING_UPLOAD, PROCESSING, COMPLETED, FAILED",
-        ),
-    )
     op.drop_column("media_assets", "image_variants")
     op.drop_column("media_assets", "url")
-    # Restore partial unique index with processing_status condition
     op.drop_index(
         "uix_media_single_main_per_variant",
         table_name="media_assets",
@@ -154,7 +142,7 @@ def downgrade() -> None:
         "media_assets",
         ["product_id", "variant_id"],
         unique=True,
-        postgresql_where="role = 'MAIN' AND processing_status != 'FAILED'",
+        postgresql_where="role = 'MAIN'",
         postgresql_nulls_not_distinct=True,
     )
     op.add_column(

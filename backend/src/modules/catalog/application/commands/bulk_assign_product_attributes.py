@@ -87,8 +87,12 @@ class BulkAssignProductAttributesHandler:
             if category is not None and category.family_id is not None:
                 chain = await self._family_repo.get_ancestor_chain(category.family_id)
                 chain_ids = [f.id for f in chain]
-                all_bindings = await self._family_binding_repo.get_bindings_for_families(chain_ids)
-                all_exclusions = await self._exclusion_repo.get_exclusions_for_families(chain_ids)
+                all_bindings = (
+                    await self._family_binding_repo.get_bindings_for_families(chain_ids)
+                )
+                all_exclusions = await self._exclusion_repo.get_exclusions_for_families(
+                    chain_ids
+                )
 
                 effective_attr_ids = set()
                 for fam in chain:
@@ -118,7 +122,10 @@ class BulkAssignProductAttributesHandler:
 
             for item in command.items:
                 # Check family membership
-                if effective_attr_ids is not None and item.attribute_id not in effective_attr_ids:
+                if (
+                    effective_attr_ids is not None
+                    and item.attribute_id not in effective_attr_ids
+                ):
                     raise AttributeNotInFamilyError(
                         product_id=command.product_id,
                         attribute_id=item.attribute_id,

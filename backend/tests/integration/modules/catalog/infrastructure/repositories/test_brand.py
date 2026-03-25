@@ -7,7 +7,9 @@ from src.modules.catalog.infrastructure.repositories.brand import BrandRepositor
 async def test_brand_repository_add_and_get(db_session: AsyncSession):
     # Arrange
     repository = BrandRepository(session=db_session)
-    brand = Brand.create(name="Nike", slug="nike", logo_url="https://cdn.example.com/nike.png")
+    brand = Brand.create(
+        name="Nike", slug="nike", logo_url="https://cdn.example.com/nike.png"
+    )
 
     # Act
     added_brand = await repository.add(brand)

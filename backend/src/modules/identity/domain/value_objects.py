@@ -40,10 +40,12 @@ class AuthProvider(enum.StrEnum):
     APPLE = "apple"
 
 
-TRUSTED_EMAIL_PROVIDERS: frozenset[AuthProvider] = frozenset({
-    AuthProvider.GOOGLE,
-    AuthProvider.APPLE,
-})
+TRUSTED_EMAIL_PROVIDERS: frozenset[AuthProvider] = frozenset(
+    {
+        AuthProvider.GOOGLE,
+        AuthProvider.APPLE,
+    }
+)
 
 
 class AccountType(enum.StrEnum):

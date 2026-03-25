@@ -109,9 +109,7 @@ class UpdateAttributeFamilyHandler:
             self._uow.register_aggregate(family)
             await self._uow.commit()
 
-        self._logger.info(
-            "Attribute family updated", family_id=str(family.id)
-        )
+        self._logger.info("Attribute family updated", family_id=str(family.id))
 
         return UpdateAttributeFamilyResult(
             id=family.id,

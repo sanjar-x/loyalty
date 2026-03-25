@@ -10,7 +10,8 @@ export async function fetchSuppliers() {
     // Filter to active suppliers only
     const items = (data.items ?? []).filter((s) => s.isActive);
     return { items, total: items.length };
-  } catch {
+  } catch (err) {
+    console.error('[fetchSuppliers] Failed:', err);
     return { items: [], total: 0 };
   }
 }

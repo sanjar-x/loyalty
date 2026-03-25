@@ -1,4 +1,5 @@
 """HTTP client for server-to-server calls to ImageBackend."""
+
 from __future__ import annotations
 
 import uuid

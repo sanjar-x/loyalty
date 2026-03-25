@@ -139,8 +139,8 @@ class AddFamilyExclusionHandler:
             ancestor_bindings = await self._binding_repo.get_bindings_for_families(
                 ancestor_ids
             )
-            ancestor_exclusions = await self._exclusion_repo.get_exclusions_for_families(
-                ancestor_ids
+            ancestor_exclusions = (
+                await self._exclusion_repo.get_exclusions_for_families(ancestor_ids)
             )
 
             # Walk the chain root→parent (excluding self) to compute effective set

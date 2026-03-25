@@ -15,15 +15,15 @@ Decouple all image/file handling from Backend into a dedicated ImageBackend micr
 ## Architecture
 
 ```
-┌─────────────┐       ┌──────────────┐       ┌───────────┐
-│  Frontend   │──JWT──│ ImageBackend │──S3───│  Bucket   │
-│  (Next.js)  │       │  (FastAPI)   │       │  (MinIO)  │
-│             │       │              │       │           │
-│  • UI       │       │  • presigned │       │  • raw/   │
-│  • preview  │       │  • process   │       │  • public/│
-│  • SSE poll │       │  • SSE       │       │           │
-│  • submit   │       │  • cleanup   │       │           │
-└──────┬──────┘       └──────────────┘       └───────────┘
+┌─────────────┐       ┌──────────────┐       ┌────────────┐
+│  Frontend   │─key──│ ImageBackend │──S3───│  Bucket    │
+│  (Next.js)  │       │  (FastAPI)   │       │  (MinIO)   │
+│             │       │              │       │            │
+│  • UI       │       │  • presigned │       │  • raw/    │
+│  • preview  │       │  • process   │       │  • public/ │
+│  • SSE poll │       │  • SSE       │       │            │
+│  • submit   │       │  • cleanup   │       │            │
+└──────┬──────┘       └──────────────┘       └────────────┘
        │
        │ JWT
        │
@@ -39,151 +39,152 @@ Decouple all image/file handling from Backend into a dedicated ImageBackend micr
 └─────────────┘
 ```
 
+
 ### Responsibility Matrix
 
-| Service | Owns | Does NOT know about |
-|---------|------|---------------------|
-| **Frontend** | UI, local preview, orchestration between services, temporary state (storage_object_id <-> form) | S3 directly, image processing |
+| Service          | Owns                                                                                                                     | Does NOT know about                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| **Frontend**     | UI, local preview, orchestration between services, temporary state (storage_object_id <-> form)                          | S3 directly, image processing                              |
 | **ImageBackend** | Presigned URLs, upload/confirm, processing (resize, WebP, thumbnails), SSE status, S3 lifecycle, `storage_objects` table | Products, brands, variants, catalog — any business context |
-| **Backend** | Products, brands, variants, catalog, `media_assets` table (URL + metadata only) | S3, file processing, presigned URLs, processing statuses |
-| **Bucket (S3)** | Physical file storage (raw + processed) | Everything else |
+| **Backend**      | Products, brands, variants, catalog, `media_assets` table (URL + metadata only)                                          | S3, file processing, presigned URLs, processing statuses   |
+| **Bucket (S3)**  | Physical file storage (raw + processed)                                                                                  | Everything else                                            |
 
 ### Key Principle
 
-**ImageBackend is a generic image service.** Its API operates with `storage_object_id`, `content_type`, `public_url`. It does not know the words "product", "brand", "variant". Binding an image to a business entity is the responsibility of Frontend + Backend.
+**ImageBackend is a generic image service.** Its API operates with `storage_object_id`, `content_type`, `url`. It does not know the words "product", "brand", "variant". Binding an image to a business entity is the responsibility of Frontend + Backend.
 
 ---
 
 ## Upload Flow (Main Scenario)
 
 ```
-Frontend              ImageBackend                S3                 Backend
-   │                       │                      │                     │
-   │  ① POST /api/v1/media/upload                 │                     │
-   │  {content_type, filename}                    │                     │
-   │  Authorization: Bearer <JWT>                  │                     │
-   │──────────────────────>│                      │                     │
-   │                       │  validate JWT         │                     │
-   │                       │  create StorageObject │                     │
-   │                       │  generate S3 key:     │                     │
-   │                       │  raw/{storage_object_id}/{fn}              │
-   │                       │  gen presigned PUT ──>│                     │
-   │                       │<─────────────────────│                     │
-   │<──────────────────────│                      │                     │
-   │  201 {                │                      │                     │
-   │    storage_object_id, │                      │                     │
-   │    presigned_url,     │                      │                     │
-   │    expires_in: 300    │                      │                     │
-   │  }                    │                      │                     │
-   │                       │                      │                     │
-   │  ② PUT presigned_url  │                      │                     │
-   │  Content-Type: image/jpeg                    │                     │
-   │  <binary blob>        │                      │                     │
-   │─────────────────────────────────────────────>│                     │
-   │<─────────────────────────────────────────────│                     │
-   │  200 OK               │                      │                     │
-   │                       │                      │                     │
-   │  ③ POST /api/v1/media/{storage_object_id}/confirm                 │
-   │  Authorization: Bearer <JWT>                  │                     │
-   │──────────────────────>│                      │                     │
-   │                       │  HEAD raw/{id}/{fn} ─>│                     │
-   │                       │<──── 200 (exists) ───│                     │
-   │                       │  status → PROCESSING  │                     │
-   │                       │  dispatch bg task     │                     │
-   │<──────────────────────│                      │                     │
-   │  202 {status:         │                      │                     │
-   │    "processing"}      │                      │                     │
-   │                       │                      │                     │
-   │  ③b GET /api/v1/media/{storage_object_id}/status (SSE)            │
-   │  Authorization: Bearer <JWT>                  │                     │
-   │──────────────────────>│                      │                     │
-   │<──── SSE stream ─────│                      │                     │
-   │  event: status        │                      │                     │
-   │  data: {status:       │                      │                     │
-   │    "processing"}      │                      │                     │
-   │                       │  ④ Background worker: │                     │
-   │                       │  • download raw       │                     │
-   │                       │  • resize/webp/thumb  │                     │
-   │                       │  • PUT processed ────>│                     │
-   │                       │  • delete raw ───────>│                     │
-   │                       │  • status → COMPLETED │                     │
-   │                       │  • build public_url   │                     │
-   │  event: status        │                      │                     │
-   │  data: {status:       │                      │                     │
-   │    "completed",       │                      │                     │
-   │    storage_object_id, │                      │                     │
-   │    public_url,        │                      │                     │
-   │    variants: [        │                      │                     │
-   │      {size, url}...   │                      │                     │
-   │    ]                  │                      │                     │
-   │  }                    │                      │                     │
-   │                       │                      │                     │
-   │  ⑤ User finishes form, clicks "Create"       │                     │
-   │                       │                      │                     │
-   │  POST /api/v1/catalog/products               │                     │
-   │  {                    │                      │                     │
-   │    name, brand_id, ...,                      │                     │
-   │    media: [           │                      │                     │
-   │      {                │                      │                     │
-   │        public_url,    │                      │                     │
-   │        storage_object_id,                    │                     │
-   │        media_type: "IMAGE",                  │                     │
-   │        role: "MAIN",  │                      │                     │
-   │        variant_id: null,                     │                     │
-   │        sort_order: 0  │                      │                     │
-   │      }                │                      │                     │
-   │    ]                  │                      │                     │
-   │  }                    │                      │                     │
-   │──────────────────────────────────────────────────────────────────>│
-   │                       │                      │  create Product     │
-   │                       │                      │  create MediaAsset  │
-   │                       │                      │  records (URL only) │
-   │<──────────────────────────────────────────────────────────────────│
-   │  201 {product}        │                      │                     │
+Frontend                    ImageBackend                          S3                 Backend
+   │                              │                               │                    │
+   │  ① POST /api/v1/media/upload │                               │                    │
+   │  {content_type, filename}    │                               │                    │
+   │  X-API-Key: <key>            │                               │                    │
+   │─────────────────────────────>│                               │                    │
+   │                              │  validate API-key             │                    │
+   │                              │  create StorageObject         │                    │
+   │                              │  generate S3 key:             │                    │
+   │                              │  raw/{storage_object_id}/{fn} │                    │
+   │                              │  gen presigned PUT ──────────>│                    │
+   │                              │<──────────────────────────────│                    │
+   │<─────────────────────────────│                               │                    │
+   │  201 {                       │                               │                    │
+   │    storage_object_id,        │                               │                    │
+   │    presigned_url,            │                               │                    │
+   │    expires_in: 300           │                               │                    │
+   │  }                           │                               │                    │
+   │                              │                               │                    │
+   │  ② PUT presigned_url         │                               │                    │
+   │  Content-Type: image/jpeg    │                               │                    │
+   │  <binary blob>               │                               │                    │
+   │─────────────────────────────────────────────────────────────>│                    │
+   │<─────────────────────────────────────────────────────────────│                    │
+   │  200 OK                      │                               │                    │
+   │                              │                               │                    │
+   │  ③ POST /api/v1/media/{storage_object_id}/confirm            │                    │
+   │  X-API-Key: <key>                                            │                    │
+   │──────────────────────>       │                               │                    │
+   │                              │  HEAD raw/{id}/{fn} ─>        │                    │
+   │                              │<──── 200 (exists) ────────────│                    │
+   │                              │  status → PROCESSING          │                    │
+   │                              │  dispatch bg task             │                    │
+   │<──────────────────────       │                               │                    │
+   │  202 {status:                │                               │                    │
+   │    "processing"}             │                               │                    │
+   │                              │                               │                    │
+   │  ③b GET /api/v1/media/{storage_object_id}/status (SSE)       │                    │
+   │  X-API-Key: <key>                                            │                    │
+   │──────────────────────>       │                               │                    │
+   │<──── SSE stream ──────       │                               │                    │
+   │  event: status               │                               │                    │
+   │  data: {status:              │                               │                    │
+   │    "processing"}             │                               │                    │
+   │                              │ ④ Background worker:          │                    │
+   │                              │ • download raw                │                    │
+   │                              │ • resize/webp/thumb           │                    │
+   │                              │ • PUT processed ─────────────>│                    │
+   │                              │ • delete raw ────────────────>│                    │
+   │                              │ • status → COMPLETED          │                    │
+   │                              │ • build url                   │                    │
+   │  event: status               │                               │                    │
+   │  data: {status:              │                               │                    │
+   │    "completed",              │                               │                    │
+   │    storage_object_id,        │                               │                    │
+   │    url,                      │                               │                    │
+   │    variants: [               │                               │                    │
+   │      {size, url}...          │                               │                    │
+   │    ]                         │                               │                    │
+   │  }                           │                               │                    │
+   │                              │                               │                    │
+   │  ⑤ User finishes form, clicks "Create"                       │                    │
+   │                              │                               │                    │
+   │  POST /api/v1/catalog/products                               │                    │
+   │  {                           │                               │                    │
+   │    name, brand_id, ...,      │                               │                    │
+   │    media: [                  │                               │                    │
+   │      {                       │                               │                    │
+   │        url,                  │                               │                    │
+   │        storage_object_id,    │                               │                    │
+   │        media_type: "IMAGE",  │                               │                    │
+   │        role: "MAIN",         │                               │                    │
+   │        variant_id: null,     │                               │                    │
+   │        sort_order: 0         │                               │                    │
+   │      }                       │                               │                    │
+   │    ]                         │                               │                    │
+   │  }                           │                               │                    │
+   │──────────────────────────────────────────────────────────────────────────────────>│
+   │                              │                               │ create Product     │
+   │                              │                               │ create MediaAsset  │
+   │                              │                               │ records (URL only) │
+   │<──────────────────────────────────────────────────────────────────────────────────│
+   │  201 {product}               │                               │                    │
 ```
 
 ### Steps
 
-| Step | Who -> Who | What happens |
-|------|-----------|--------------|
-| 1 | Frontend -> ImageBackend | Request presigned URL. ImageBackend creates `StorageObject` (status: `PENDING_UPLOAD`), returns `storage_object_id` |
-| 2 | Frontend -> S3 | Direct file upload via presigned PUT URL |
-| 3 | Frontend -> ImageBackend | Confirm upload. ImageBackend verifies file in S3, starts processing. Returns `202 Accepted`. |
-| 3b | Frontend -> ImageBackend | Open SSE stream via `GET /status` to receive processing updates |
-| 4 | ImageBackend worker | Background processing: resize, WebP, thumbnails. On completion — push `completed` + `public_url` via SSE |
-| 5 | Frontend -> Backend | Create product with media links array. Backend saves `MediaAsset` records (URL + metadata only) |
+| Step | Who -> Who               | What happens                                                                                                        |
+| ---- | ------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| 1    | Frontend -> ImageBackend | Request presigned URL. ImageBackend creates `StorageObject` (status: `PENDING_UPLOAD`), returns `storage_object_id` |
+| 2    | Frontend -> S3           | Direct file upload via presigned PUT URL                                                                            |
+| 3    | Frontend -> ImageBackend | Confirm upload. ImageBackend verifies file in S3, starts processing. Returns `202 Accepted`.                        |
+| 3b   | Frontend -> ImageBackend | Open SSE stream via `GET /status` to receive processing updates                                                     |
+| 4    | ImageBackend worker      | Background processing: resize, WebP, thumbnails. On completion — push `completed` + `url` via SSE                   |
+| 5    | Frontend -> Backend      | Create product with media links array. Backend saves `MediaAsset` records (URL + metadata only)                     |
 
 ---
 
 ## Deletion Flow
 
 ```
-Frontend                        Backend                ImageBackend         S3
-   │                               │                        │                │
-   │  DELETE /api/v1/catalog/      │                        │                │
-   │  products/{id}/media/{media_id}                        │                │
-   │  Authorization: Bearer <JWT>   │                        │                │
-   │──────────────────────────────>│                        │                │
-   │                               │  ① delete MediaAsset   │                │
-   │                               │     from DB            │                │
-   │                               │                        │                │
-   │                               │  ② DELETE /api/v1/media/{storage_object_id}
-   │                               │  Authorization: API-key│                │
-   │                               │───────────────────────>│                │
-   │                               │                        │  delete files >│
-   │                               │                        │  delete record │
-   │                               │<───────────────────────│                │
-   │                               │  200 OK                │                │
-   │<──────────────────────────────│                        │                │
-   │  200 {deleted}                │                        │                │
+Frontend                        Backend                ImageBackend             S3
+   │                                │                        │                   │
+   │  DELETE /api/v1/catalog/       │                        │                   │
+   │  products/{id}/media/{media_id}│                        │                   │
+   │  Authorization: Bearer <JWT>   │                        │                   │
+   │───────────────────────────────>│                        │                   │
+   │                                │  ① delete MediaAsset   │                   │
+   │                                │     from DB            │                   │
+   │                                │                        │                   │
+   │                                │  ② DELETE /api/v1/media/{storage_object_id}│
+   │                                │  Authorization: API-key│                   │
+   │                                │───────────────────────>│                   │
+   │                                │                        │  delete files >   │
+   │                                │                        │  delete record    │
+   │                                │<───────────────────────│                   │
+   │                                │  200 OK                │                   │
+   │<───────────────────────────────│                        │                   │
+   │  200 {deleted}                 │                        │                   │
 ```
 
 ### Steps
 
-| Step | Who -> Who | What happens |
-|------|-----------|--------------|
-| 1 | Backend | Deletes `MediaAsset` record from DB, extracts `storage_object_id` |
-| 2 | Backend -> ImageBackend | HTTP call `DELETE /api/v1/media/{storage_object_id}`. ImageBackend deletes files from S3 + `StorageObject` record |
+| Step | Who -> Who              | What happens                                                                                                      |
+| ---- | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 1    | Backend                 | Deletes `MediaAsset` record from DB, extracts `storage_object_id`                                                 |
+| 2    | Backend -> ImageBackend | HTTP call `DELETE /api/v1/media/{storage_object_id}`. ImageBackend deletes files from S3 + `StorageObject` record |
 
 ### Fault Tolerance
 
@@ -202,28 +203,28 @@ Unified flow through ImageBackend. Brand stores only `logo_url` + `logo_storage_
 
 ```
 Frontend              ImageBackend                S3                 Backend
-   │                       │                      │                     │
-   │  ① Upload via shared flow:                   │                     │
-   │  POST /api/v1/media/upload                   │                     │
-   │  {content_type: "image/png", filename}       │                     │
-   │──────────────────────>│                      │                     │
-   │<── {storage_object_id, presigned_url} ───────│                     │
-   │                       │                      │                     │
-   │  ② PUT presigned_url ───────────────────────>│                     │
-   │                       │                      │                     │
-   │  ③ POST /api/v1/media/{storage_object_id}/confirm                 │
-   │──────────────────────>│                      │                     │
-   │<── SSE: completed     │                      │                     │
-   │  {storage_object_id, public_url}             │                     │
-   │                       │                      │                     │
-   │  ④ POST /api/v1/catalog/brands               │                     │
-   │  {name: "Nike",       │                      │                     │
-   │   logo_url: "https://cdn.../abc.webp",       │                     │
-   │   logo_storage_object_id: "..."}             │                     │
-   │──────────────────────────────────────────────────────────────────>│
-   │                       │                      │  create Brand       │
-   │<──────────────────────────────────────────────────────────────────│
-   │  201 {brand}          │                      │                     │
+   │                       │                          │                     │
+   │  ① Upload via shared flow:                       │                     │
+   │  POST /api/v1/media/upload                       │                     │
+   │  {content_type: "image/png", filename}           │                     │
+   │──────────────────────>│                          │                     │
+   │<── {storage_object_id, presigned_url} ───────────│                     │
+   │                       │                          │                     │
+   │  ② PUT presigned_url ───────────────────────────>│                     │
+   │                       │                          │                     │
+   │  ③ POST /api/v1/media/{storage_object_id}/confirm│                     │
+   │──────────────────────>│                          │                     │
+   │                       │                          │                     │
+   │<── SSE: completed {storage_object_id, url}       │                     │
+   │                       │                          │                     │
+   │  ④ POST /api/v1/catalog/brands                   │                     │
+   │  {name: "Nike",       │                          │                     │
+   │   logo_url: "https://cdn.../abc.webp",           │                     │
+   │   logo_storage_object_id: "..."}                 │                     │
+   │───────────────────────────────────────────────────────────────────────>│
+   │                       │                          │     create Brand    │
+   │<───────────────────────────────────────────────────────────────────────│
+   │  201 {brand}          │                          │                     │
 ```
 
 ### Brand Model Changes
@@ -265,7 +266,8 @@ class MediaAsset:
     is_external: bool        # True = external URL, not our S3
 
     storage_object_id: uuid.UUID | None   # reference to StorageObject in ImageBackend
-    public_url: str | None                # CDN URL
+    url: str | None                       # CDN URL (main processed image)
+    image_variants: list[dict] | None     # [{size, width, height, url}, ...] from ImageBackend
 
     created_at: datetime
     updated_at: datetime
@@ -274,35 +276,87 @@ class MediaAsset:
 ### MediaAsset (ORM)
 
 ```python
-class MediaAssetModel(Base):
+class MediaAsset(Base):
+    """ORM model for product media assets (business context).
+
+    Describes *how* a file is used in the catalog -- its role, display
+    order, optional product-variant binding, and image size variants.
+    Physical files live in ImageBackend (referenced by storage_object_id).
+    """
+
     __tablename__ = "media_assets"
 
-    id            = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
-    product_id    = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
-    variant_id    = mapped_column(ForeignKey("product_variants.id", ondelete="CASCADE"), nullable=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
+    )
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True
+    )
+    variant_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("product_variants.id", ondelete="CASCADE"), nullable=True, index=True
+    )
 
-    media_type    = mapped_column(Enum(MediaType, name="media_type_enum"), server_default=MediaType.IMAGE.name, index=True)
-    role          = mapped_column(Enum(MediaRole, name="media_role_enum"), server_default=MediaRole.GALLERY.name)
-    sort_order    = mapped_column(Integer, server_default=text("0"))
-    is_external   = mapped_column(Boolean, server_default=text("false"))
+    media_type: Mapped[MediaType] = mapped_column(
+        Enum(MediaType, name="media_type_enum"),
+        server_default=MediaType.IMAGE.name,
+        index=True,
+    )
+    role: Mapped[MediaRole] = mapped_column(
+        Enum(MediaRole, name="media_role_enum"),
+        server_default=MediaRole.GALLERY.name,
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
 
-    storage_object_id = mapped_column(UUID(as_uuid=True), nullable=True, unique=True, index=True,
-                                      comment="Unique ref to StorageObject in ImageBackend. NULL for external media. "
-                                              "PostgreSQL default: NULLs are distinct, so multiple is_external rows with NULL are allowed.")
-    public_url        = mapped_column(String(1024), nullable=True)
+    is_external: Mapped[bool] = mapped_column(
+        Boolean,
+        server_default=text("false"),
+        comment="True = external URL, not managed by ImageBackend",
+    )
 
-    created_at    = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
-    updated_at    = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
+    # Soft-link to the Storage module
+    storage_object_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        index=True,
+        nullable=True,
+        comment="Reference to storage_objects.id in ImageBackend",
+    )
 
-    product       = relationship("Product", back_populates="media_assets")
-    variant       = relationship("ProductVariant", back_populates="media_assets")
+    url: Mapped[str | None] = mapped_column(
+        String(1024),
+        nullable=True,
+        comment="Main processed URL from ImageBackend",
+    )
+    image_variants: Mapped[list[dict] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Image size variants: [{size, width, height, url}, ...]",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    product: Mapped[Product] = relationship("Product", back_populates="media_assets")
+    variant: Mapped[ProductVariant | None] = relationship(
+        "ProductVariant", back_populates="media_assets"
+    )
 
     __table_args__ = (
+        # Business rule: each variant may have at most one MAIN image
         Index(
             "uix_media_single_main_per_variant",
-            "product_id", "variant_id",
+            "product_id",
+            "variant_id",
             unique=True,
-            postgresql_where=text(f"role = '{MediaRole.MAIN.name}'"),
+            postgresql_where=text(
+                f"role = '{MediaRole.MAIN.name}'"
+            ),
             postgresql_nulls_not_distinct=True,
         ),
     )
@@ -314,14 +368,14 @@ class MediaAssetModel(Base):
 
 ### Endpoints
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `POST` | `/api/v1/media/upload` | JWT | Reserve upload slot, return presigned PUT URL |
-| `POST` | `/api/v1/media/{storage_object_id}/confirm` | JWT | Confirm upload, start processing. Returns `202 {status: "processing"}` |
-| `GET` | `/api/v1/media/{storage_object_id}/status` | JWT | SSE stream for processing status (primary status channel) |
-| `POST` | `/api/v1/media/external` | JWT | Import image from external URL |
-| `DELETE` | `/api/v1/media/{storage_object_id}` | API-key | Delete files from S3 + record. Server-to-server only |
-| `GET` | `/api/v1/media/{storage_object_id}` | JWT | Get metadata (public_url, variants, status) |
+| Method   | Path                                        | Auth    | Description                                                            |
+| -------- | ------------------------------------------- | ------- | ---------------------------------------------------------------------- |
+| `POST`   | `/api/v1/media/upload`                      | API-key | Reserve upload slot, return presigned PUT URL                          |
+| `POST`   | `/api/v1/media/{storage_object_id}/confirm` | API-key | Confirm upload, start processing. Returns `202 {status: "processing"}` |
+| `GET`    | `/api/v1/media/{storage_object_id}/status`  | API-key | SSE stream for processing status (primary status channel)              |
+| `POST`   | `/api/v1/media/external`                    | API-key | Import image from external URL                                         |
+| `DELETE` | `/api/v1/media/{storage_object_id}`         | API-key | Delete files from S3 + record. Server-to-server only                   |
+| `GET`    | `/api/v1/media/{storage_object_id}`         | API-key | Get metadata (url, variants, status)                                   |
 
 ### Request / Response Schemas
 
@@ -350,8 +404,8 @@ Frontend then opens SSE stream via `GET /status`:
 
 > **SSE Auth Note:** Browser `EventSource` API does not support custom headers.
 > Frontend must use `fetch()`-based SSE (e.g. `@microsoft/fetch-event-source`) to pass
-> `Authorization: Bearer <JWT>` header. Alternatively, pass a short-lived token as query
-> parameter: `GET /status?token=<jwt>` (ImageBackend validates both header and query).
+> `X-API-Key` header. Alternatively, pass the key as query parameter:
+> `GET /status?api_key=<key>` (ImageBackend validates both header and query).
 
 ```
 event: status
@@ -362,7 +416,7 @@ data: {}
 
 event: status
 data: {"status": "completed", "storage_object_id": "019614a1-...",
-       "public_url": "https://cdn.example.com/public/019614a1.webp",
+       "url": "https://cdn.example.com/public/019614a1.webp",
        "variants": [
          {"size": "thumbnail", "width": 150, "height": 150, "url": "https://cdn.example.com/public/019614a1_thumb.webp"},
          {"size": "medium", "width": 600, "height": 600, "url": "https://cdn.example.com/public/019614a1_md.webp"},
@@ -386,7 +440,7 @@ data: {"status": "failed", "storage_object_id": "019614a1-...", "error": "Unsupp
 // Response 201
 {
   "storage_object_id": "019614a1-...",
-  "public_url": "https://cdn.example.com/public/019614a1.webp",
+  "url": "https://cdn.example.com/public/019614a1.webp",
   "variants": [...]
 }
 ```
@@ -402,7 +456,7 @@ data: {"status": "failed", "storage_object_id": "019614a1-...", "error": "Unsupp
 {
   "storage_object_id": "019614a1-...",
   "status": "completed",
-  "public_url": "https://cdn.example.com/public/019614a1.webp",
+  "url": "https://cdn.example.com/public/019614a1.webp",
   "content_type": "image/webp",
   "size_bytes": 145320,
   "variants": [...],
@@ -427,7 +481,7 @@ Pipeline steps:
 4. Resize to thumbnail, medium, large (preserving aspect ratio, fit within bounds)
 5. Upload processed + variants to S3
 6. Delete raw from S3
-7. Update `StorageObject` status -> `COMPLETED`, set `public_url`
+7. Update `StorageObject` status -> `COMPLETED`, set `url`
 8. Push SSE event
 
 ### SSE Mechanics
@@ -437,7 +491,7 @@ Pipeline steps:
 - On reconnect: same `GET /status` — idempotent, always returns latest state
 - Timeout: 120 seconds. If processing not done — SSE closes, Frontend reconnects via `GET /status`
 - Heartbeat: `event: ping` every 15 seconds to keep connection alive
-- **Auth for SSE:** Frontend uses `fetch()`-based SSE client (e.g. `@microsoft/fetch-event-source`) to pass JWT header. Native `EventSource` does not support custom headers.
+- **Auth for SSE:** Frontend uses `fetch()`-based SSE client (e.g. `@microsoft/fetch-event-source`) to pass `X-API-Key` header. Native `EventSource` does not support custom headers.
 
 ---
 
@@ -454,22 +508,28 @@ Pipeline steps:
   "description": "...",
   "media": [
     {
-      "public_url": "https://cdn.example.com/public/aaa.webp",
+      "url": "https://cdn.example.com/public/aaa.webp",
       "storage_object_id": "aaa-...",
       "media_type": "IMAGE",
       "role": "MAIN",
       "variant_id": null,
       "sort_order": 0,
-      "is_external": false
+      "is_external": false,
+      "image_variants": [
+        {"size": "thumbnail", "width": 150, "height": 150, "url": "https://cdn.example.com/public/aaa_thumb.webp"},
+        {"size": "medium", "width": 600, "height": 600, "url": "https://cdn.example.com/public/aaa_md.webp"},
+        {"size": "large", "width": 1200, "height": 1200, "url": "https://cdn.example.com/public/aaa_lg.webp"}
+      ]
     },
     {
-      "public_url": "https://cdn.example.com/public/bbb.webp",
+      "url": "https://cdn.example.com/public/bbb.webp",
       "storage_object_id": "bbb-...",
       "media_type": "IMAGE",
       "role": "GALLERY",
       "variant_id": null,
       "sort_order": 1,
-      "is_external": false
+      "is_external": false,
+      "image_variants": [...]
     }
   ]
 }
@@ -481,23 +541,24 @@ Pipeline steps:
 
 Backend compares current `MediaAsset` records with incoming array:
 
-| Situation | Action |
-|-----------|--------|
-| `storage_object_id` in request but not in DB | Create new `MediaAsset` |
-| `storage_object_id` in DB but not in request | Delete `MediaAsset` + call `DELETE` in ImageBackend |
-| `storage_object_id` matches | Update `role`, `sort_order`, `variant_id` if changed |
-| `is_external: true` (no `storage_object_id`) | Compare by `public_url` |
+| Situation                                    | Action                                               |
+| -------------------------------------------- | ---------------------------------------------------- |
+| `storage_object_id` in request but not in DB | Create new `MediaAsset`                              |
+| `storage_object_id` in DB but not in request | Delete `MediaAsset` + call `DELETE` in ImageBackend  |
+| `storage_object_id` matches                  | Update `role`, `sort_order`, `variant_id` if changed |
+| `is_external: true` (no `storage_object_id`) | Compare by `url`                                     |
 
 ### Backend Validation
 
 ```
-- public_url: required, max 1024 chars, valid URL format
+- url: required, max 1024 chars, valid URL format
 - storage_object_id: required if is_external=false, UUID format
 - media_type: one of IMAGE, VIDEO, MODEL_3D, DOCUMENT
 - role: one of MAIN, HOVER, GALLERY, HERO_VIDEO, SIZE_GUIDE, PACKAGING
 - sort_order: int >= 0
 - is_external: bool, default false
-- variant_id: optional UUID, must reference existing variant of this product
+- image_variants: optional array of {size: str, width: int, height: int, url: str}
+- variant_id: optional UUID, must reference existing ProductVariant of this product
 - Max 1 MAIN role per variant_id (unique constraint)
 - Max 50 media items per product (application-level validation)
 ```
@@ -528,16 +589,16 @@ class ImageBackendClient:
 
 ## Error Handling and Edge Cases
 
-| Scenario | What happens | Consequence |
-|----------|-------------|-------------|
-| Frontend closed tab after upload, before submit | File processed in ImageBackend, Backend never got URL | Orphan in S3. ImageBackend cron cleans up. |
-| ImageBackend unavailable during upload | Frontend gets error from ImageBackend | Frontend shows "Upload service unavailable". Backend unaffected. |
-| Processing failed | SSE sends `status: failed` | Frontend shows error near preview. User can delete and re-upload. Image never reaches Backend. |
-| Backend unavailable during submit | Files already in S3, but MediaAsset not created | Frontend retry. Files safe in ImageBackend. |
-| ImageBackend unavailable during DELETE | Backend deleted MediaAsset, file remains | Backend logs warning. Orphan cleanup handles it. |
-| Duplicate storage_object_id | Frontend sends same `storage_object_id` twice | Backend rejects — unique constraint on `storage_object_id` in `media_assets` |
-| SSE disconnect during processing | Connection dropped | Frontend reconnects via `GET /status`. If already completed — gets result immediately. |
-| Presigned URL expired | Frontend didn't upload within 300 sec | Frontend requests new `POST /upload`. Old `StorageObject` is orphan, cleanup handles it. |
+| Scenario                                        | What happens                                          | Consequence                                                                                    |
+| ----------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Frontend closed tab after upload, before submit | File processed in ImageBackend, Backend never got URL | Orphan in S3. ImageBackend cron cleans up.                                                     |
+| ImageBackend unavailable during upload          | Frontend gets error from ImageBackend                 | Frontend shows "Upload service unavailable". Backend unaffected.                               |
+| Processing failed                               | SSE sends `status: failed`                            | Frontend shows error near preview. User can delete and re-upload. Image never reaches Backend. |
+| Backend unavailable during submit               | Files already in S3, but MediaAsset not created       | Frontend retry. Files safe in ImageBackend.                                                    |
+| ImageBackend unavailable during DELETE          | Backend deleted MediaAsset, file remains              | Backend logs warning. Orphan cleanup handles it.                                               |
+| Duplicate storage_object_id                     | Frontend sends same `storage_object_id` twice         | Backend rejects — unique constraint on `storage_object_id` in `media_assets`                   |
+| SSE disconnect during processing                | Connection dropped                                    | Frontend reconnects via `GET /status`. If already completed — gets result immediately.         |
+| Presigned URL expired                           | Frontend didn't upload within 300 sec                 | Frontend requests new `POST /upload`. Old `StorageObject` is orphan, cleanup handles it.       |
 
 ### Orphan Cleanup (ImageBackend Cron)
 
@@ -564,15 +625,15 @@ Phase 2 — Abandoned completed files (optional, requires cross-service check):
 
 ### Timeouts and Limits
 
-| Parameter | Value | Where |
-|-----------|-------|-------|
-| Presigned URL TTL | 300 sec (5 min) | ImageBackend |
-| Max file size | 50 MB | S3 presigned policy |
-| SSE timeout | 120 sec | ImageBackend |
-| SSE heartbeat | 15 sec | ImageBackend |
-| Processing timeout | 300 sec (5 min) | ImageBackend TaskIQ worker |
-| Backend -> ImageBackend HTTP timeout | 10 sec | Backend ImageBackendClient |
-| Orphan cleanup age | 24h (pending), 7d (unreferenced) | ImageBackend cron |
+| Parameter                            | Value                            | Where                      |
+| ------------------------------------ | -------------------------------- | -------------------------- |
+| Presigned URL TTL                    | 300 sec (5 min)                  | ImageBackend               |
+| Max file size                        | 50 MB                            | S3 presigned policy        |
+| SSE timeout                          | 120 sec                          | ImageBackend               |
+| SSE heartbeat                        | 15 sec                           | ImageBackend               |
+| Processing timeout                   | 300 sec (5 min)                  | ImageBackend TaskIQ worker |
+| Backend -> ImageBackend HTTP timeout | 10 sec                           | Backend ImageBackendClient |
+| Orphan cleanup age                   | 24h (pending), 7d (unreferenced) | ImageBackend cron          |
 
 ---
 
@@ -580,67 +641,69 @@ Phase 2 — Abandoned completed files (optional, requires cross-service check):
 
 ### Backend — Delete
 
-| What | File/Module |
-|------|------------|
-| Storage module entirely | `src/modules/storage/` |
-| `IBlobStorage`, `IStorageFacade` | `src/shared/interfaces/blob_storage.py`, `storage.py` |
-| `IStorageConfig` (S3 settings) | `src/shared/interfaces/config.py` |
-| `S3ClientFactory` | `src/infrastructure/storage/factory.py` |
-| S3 env vars | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `S3_BUCKET_NAME`, `S3_PUBLIC_BASE_URL` |
-| `MediaProcessingStatus` enum | `src/modules/catalog/domain/value_objects.py` |
-| MediaAsset FSM (factory methods, transitions) | `src/modules/catalog/domain/entities.py` |
-| Media domain events | `ProductMediaConfirmedEvent`, `ProductMediaProcessedEvent` in `events.py` |
-| Brand logo FSM + events | `Brand.logo_status`, `logo_file_id`, 5 methods, 3 events |
-| `BrandLogoProcessor` | `src/modules/catalog/application/services/media_processor.py` |
-| Brand storage consumers | `src/modules/storage/application/consumers/brand_events.py` |
-| Command handlers: `AddProductMedia`, `ConfirmProductMedia`, `CompleteProductMedia`, `FailProductMedia` | `src/modules/catalog/application/commands/` |
-| Internal webhook router | `src/modules/catalog/presentation/router_internal.py` |
-| Product media router (presigned, confirm, delete) | `src/modules/catalog/presentation/router_product_media.py` |
-| Media-related schemas (upload request, confirm, webhook) | `src/modules/catalog/presentation/schemas.py` |
-| `MediaAssetProvider` (old DI wiring) | `src/modules/catalog/presentation/dependencies.py` |
-| S3 key constants | `src/modules/catalog/application/constants.py` |
-| `storage_objects` table | Alembic migration (DROP TABLE) |
-| `processing_status`, `raw_object_key`, `processed_object_key`, `external_url` columns | Alembic migration (DROP COLUMN) |
+| What                                                                                                   | File Module                                                                                              |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Storage module entirely                                                                                | `src/modules/storage/`                                                                                   |
+| `IBlobStorage`, `IStorageFacade`                                                                       | `src/shared/interfaces/blob_storage.py`, `storage.py`                                                    |
+| `IStorageConfig` (S3 settings)                                                                         | `src/shared/interfaces/config.py`                                                                        |
+| `S3ClientFactory`                                                                                      | `src/infrastructure/storage/factory.py`                                                                  |
+| S3 env vars                                                                                            | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `S3_BUCKET_NAME`, `S3_PUBLIC_BASE_URL` |
+| `MediaProcessingStatus` enum                                                                           | `src/modules/catalog/domain/value_objects.py`                                                            |
+| MediaAsset FSM (factory methods, transitions)                                                          | `src/modules/catalog/domain/entities.py`                                                                 |
+| Media domain events                                                                                    | `ProductMediaConfirmedEvent`, `ProductMediaProcessedEvent` in `events.py`                                |
+| Brand logo FSM + events                                                                                | `Brand.logo_status`, `logo_file_id`, 5 methods, 3 events                                                 |
+| `BrandLogoProcessor`                                                                                   | `src/modules/catalog/application/services/media_processor.py`                                            |
+| Brand storage consumers                                                                                | `src/modules/storage/application/consumers/brand_events.py`                                              |
+| Command handlers: `AddProductMedia`, `ConfirmProductMedia`, `CompleteProductMedia`, `FailProductMedia` | `src/modules/catalog/application/commands/`                                                              |
+| Internal webhook router                                                                                | `src/modules/catalog/presentation/router_internal.py`                                                    |
+| Product media router (presigned, confirm, delete)                                                      | `src/modules/catalog/presentation/router_product_media.py`                                               |
+| Media-related schemas (upload request, confirm, webhook)                                               | `src/modules/catalog/presentation/schemas.py`                                                            |
+| `MediaAssetProvider` (old DI wiring)                                                                   | `src/modules/catalog/presentation/dependencies.py`                                                       |
+| S3 key constants                                                                                       | `src/modules/catalog/application/constants.py`                                                           |
+| `storage_objects` table                                                                                | Alembic migration (DROP TABLE)                                                                           |
+| `processing_status`, `raw_object_key`, `processed_object_key`, `external_url` columns                  | Alembic migration (DROP COLUMN)                                                                          |
 
 ### Backend — Modify
 
-| What | How |
-|------|-----|
-| `MediaAsset` entity | Simple dataclass: remove AggregateRoot, FSM, events |
-| `MediaAsset` ORM | Remove `processing_status`, `raw_object_key`, `processed_object_key`, `external_url`. Simplify partial index |
-| `Brand` entity | Replace logo FSM with `logo_url: str`, `logo_storage_object_id: uuid.UUID` |
-| `Brand` ORM | Remove `logo_status`, `logo_file_id`. Add `logo_storage_object_id` |
-| `MediaAssetRepository` | Simplify — remove `count_pending_uploads`, status-aware `has_main_for_variant` |
-| Product create/update handlers | Accept `media[]` array, do full-replace diff |
-| Brand create/update handlers | Accept `logo_url` + `logo_storage_object_id` |
-| `DeleteProductMediaHandler` | Delete record + call `ImageBackendClient.delete()` |
-| Product/Brand schemas | Add `media[]` to request, `logo_url`/`logo_storage_object_id` to brand request |
-| DI container | Remove StorageProvider, MediaAssetProvider. Add `ImageBackendClient` |
-| Config | Remove S3 vars. Add `IMAGE_BACKEND_URL`, `IMAGE_BACKEND_API_KEY` |
+| What                           | How                                                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `MediaAsset` entity            | Simple dataclass: remove AggregateRoot, FSM, events                                                          |
+| `MediaAsset` ORM               | Remove `processing_status`, `raw_object_key`, `processed_object_key`, `external_url`. Simplify partial index |
+| `Brand` entity                 | Replace logo FSM with `logo_url: str`, `logo_storage_object_id: uuid.UUID`                                   |
+| `Brand` ORM                    | Remove `logo_status`, `logo_file_id`. Add `logo_storage_object_id`                                           |
+| `MediaAssetRepository`         | Simplify — remove `count_pending_uploads`, status-aware `has_main_for_variant`                               |
+| Product create/update handlers | Accept `media[]` array, do full-replace diff                                                                 |
+| Brand create/update handlers   | Accept `logo_url` + `logo_storage_object_id`                                                                 |
+| `DeleteProductMediaHandler`    | Delete record + call `ImageBackendClient.delete()`                                                           |
+| Product/Brand schemas          | Add `media[]` to request, `logo_url`/`logo_storage_object_id` to brand request                               |
+| DI container                   | Remove StorageProvider, MediaAssetProvider. Add `ImageBackendClient`                                         |
+| Config                         | Remove S3 vars. Add `IMAGE_BACKEND_URL`, `IMAGE_BACKEND_API_KEY`                                             |
 
 ### Backend — Add
 
-| What | Purpose |
-|------|---------|
-| `ImageBackendClient` | HTTP client (httpx), one method `delete(storage_object_id)` |
-| `IMAGE_BACKEND_URL` env var | ImageBackend address |
-| `IMAGE_BACKEND_API_KEY` env var | API-key for server-to-server |
-| Alembic migration | DROP columns, DROP table, ADD `logo_storage_object_id` |
+| What                            | Purpose                                                     |
+| ------------------------------- | ----------------------------------------------------------- |
+| `ImageBackendClient`            | HTTP client (httpx), one method `delete(storage_object_id)` |
+| `IMAGE_BACKEND_URL` env var     | ImageBackend address                                        |
+| `IMAGE_BACKEND_API_KEY` env var | API-key for server-to-server                                |
+| Alembic migration               | DROP columns, DROP table, ADD `logo_storage_object_id`      |
 
 ### ImageBackend — Implement (in existing scaffold)
 
-| What | Scaffold status |
-|------|----------------|
-| JWT validation middleware | New (currently API-key only) |
-| `POST /upload` — presigned URL | Scaffold exists, refine |
-| `POST /{id}/confirm` — SSE stream | Scaffold exists, add SSE |
-| `GET /{id}/status` — SSE reconnect | New |
-| `POST /external` — import URL | Stub exists, implement |
-| `DELETE /{id}` — deletion | New |
-| `GET /{id}` — metadata | Stub exists, implement |
-| Image processing worker (Pillow) | New (Pillow in deps, no code yet) |
-| SSE mechanics (Redis pub/sub for push) | New |
-| Orphan cleanup cron | New |
+| What                                    | Scaffold status                         |
+| --------------------------------------- | --------------------------------------- |
+| API-key auth on all endpoints           | Exists in code, not wired to routes     |
+| `POST /upload` — presigned URL          | Scaffold exists, refine                 |
+| `POST /{id}/confirm` — start processing | Scaffold exists, add SSE                |
+| `GET /{id}/status` — SSE reconnect      | New                                     |
+| `POST /external` — import URL           | Stub exists, implement                  |
+| `DELETE /{id}` — deletion               | New                                     |
+| `GET /{id}` — metadata                  | Stub exists, implement                  |
+| Image processing worker (Pillow)        | New (Pillow in deps, no code yet)       |
+| SSE mechanics (Redis pub/sub for push)  | New                                     |
+| Orphan cleanup cron                     | New                                     |
+| `status` column on StorageObject        | Missing — must add to model + migration |
+| `url` column on StorageObject           | Missing — must add to model + migration |
 
 ---
 

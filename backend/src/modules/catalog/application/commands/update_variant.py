@@ -136,8 +136,11 @@ class UpdateVariantHandler:
                 else:
                     update_kwargs["default_price"] = None
 
-            if "default_price_currency" in command._provided_fields and command.default_price_currency is not None:
-                    update_kwargs["default_currency"] = command.default_price_currency
+            if (
+                "default_price_currency" in command._provided_fields
+                and command.default_price_currency is not None
+            ):
+                update_kwargs["default_currency"] = command.default_price_currency
 
             if update_kwargs:
                 variant.update(**update_kwargs)

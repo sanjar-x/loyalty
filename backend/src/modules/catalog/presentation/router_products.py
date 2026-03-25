@@ -108,7 +108,6 @@ async def create_product(
         description_i18n=request.description_i18n,
         supplier_id=request.supplier_id,
         source_url=request.source_url,
-        country_of_origin=request.country_of_origin,
         tags=request.tags,
     )
     result: CreateProductResult = await handler.handle(command)

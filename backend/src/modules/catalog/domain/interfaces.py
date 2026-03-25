@@ -428,14 +428,16 @@ class IMediaAssetRepository(ABC):
 
     @abstractmethod
     async def list_by_storage_ids(
-        self, storage_object_ids: list[uuid.UUID],
+        self,
+        storage_object_ids: list[uuid.UUID],
     ) -> list[DomainMediaAsset]:
         """Get media assets by their storage_object_ids."""
         ...
 
     @abstractmethod
     async def delete_by_product(
-        self, product_id: uuid.UUID,
+        self,
+        product_id: uuid.UUID,
     ) -> list[uuid.UUID]:
         """Delete all media for a product. Returns storage_object_ids for cleanup."""
         ...
@@ -491,7 +493,9 @@ class IAttributeFamilyRepository(ICatalogRepository[DomainAttributeFamily]):
         pass
 
 
-class IFamilyAttributeBindingRepository(ICatalogRepository[DomainFamilyAttributeBinding]):
+class IFamilyAttributeBindingRepository(
+    ICatalogRepository[DomainFamilyAttributeBinding]
+):
     """Repository contract for the FamilyAttributeBinding aggregate."""
 
     @abstractmethod
@@ -533,7 +537,9 @@ class IFamilyAttributeBindingRepository(ICatalogRepository[DomainFamilyAttribute
         pass
 
 
-class IFamilyAttributeExclusionRepository(ICatalogRepository[DomainFamilyAttributeExclusion]):
+class IFamilyAttributeExclusionRepository(
+    ICatalogRepository[DomainFamilyAttributeExclusion]
+):
     """Repository contract for the FamilyAttributeExclusion aggregate."""
 
     @abstractmethod

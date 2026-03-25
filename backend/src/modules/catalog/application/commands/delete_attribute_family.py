@@ -89,6 +89,4 @@ class DeleteAttributeFamilyHandler:
             await self._family_repo.delete(command.family_id)
             await self._uow.commit()
 
-        self._logger.info(
-            "Attribute family deleted", family_id=str(command.family_id)
-        )
+        self._logger.info("Attribute family deleted", family_id=str(command.family_id))

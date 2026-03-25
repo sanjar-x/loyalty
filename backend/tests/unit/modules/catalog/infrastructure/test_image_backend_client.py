@@ -80,7 +80,6 @@ async def test_delete_url_construction():
         await client.delete(sid)
 
     expected_url = (
-        "http://image-backend:8001/api/v1/media/"
-        "01961234-0000-0000-0000-000000000000"
+        "http://image-backend:8001/api/v1/media/01961234-0000-0000-0000-000000000000"
     )
     assert mock_delete.call_args[0][0] == expected_url

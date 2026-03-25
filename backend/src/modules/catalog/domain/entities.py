@@ -1487,8 +1487,8 @@ class MediaAsset:
     product_id: uuid.UUID
     variant_id: uuid.UUID | None
 
-    media_type: str          # IMAGE, VIDEO, MODEL_3D, DOCUMENT
-    role: str                # MAIN, HOVER, GALLERY, HERO_VIDEO, SIZE_GUIDE, PACKAGING
+    media_type: str  # IMAGE, VIDEO, MODEL_3D, DOCUMENT
+    role: str  # MAIN, HOVER, GALLERY, HERO_VIDEO, SIZE_GUIDE, PACKAGING
     sort_order: int
     is_external: bool = False
 

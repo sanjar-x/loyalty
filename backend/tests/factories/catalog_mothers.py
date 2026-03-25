@@ -8,7 +8,6 @@ from src.modules.catalog.domain.entities import (
     Attribute,
     AttributeGroup,
     AttributeValue,
-    Brand,
     Category,
 )
 from src.modules.catalog.domain.value_objects import (
@@ -20,55 +19,6 @@ from src.modules.catalog.domain.value_objects import (
 
 class BrandMothers:
     """Pre-built Brand aggregate configurations."""
-
-    @staticmethod
-    def without_logo() -> Brand:
-        """Brand with no logo -- simplest valid state."""
-        return Brand.create(
-            name="Test Brand", slug=f"test-brand-{uuid.uuid4().hex[:6]}"
-        )
-
-    @staticmethod
-    def with_pending_logo() -> Brand:
-        """Brand with logo in PENDING_UPLOAD state."""
-        brand = Brand.create(
-            name="Logo Brand", slug=f"logo-brand-{uuid.uuid4().hex[:6]}"
-        )
-        brand.init_logo_upload(
-            object_key=f"raw_uploads/catalog/brands/{brand.id}/logo_raw",
-            content_type="image/png",
-        )
-        brand.clear_domain_events()
-        return brand
-
-    @staticmethod
-    def with_processing_logo() -> Brand:
-        """Brand with logo in PROCESSING state (upload confirmed)."""
-        brand = BrandMothers.with_pending_logo()
-        brand.confirm_logo_upload()
-        brand.clear_domain_events()
-        return brand
-
-    @staticmethod
-    def with_completed_logo() -> Brand:
-        """Brand with logo in COMPLETED state."""
-        brand = BrandMothers.with_processing_logo()
-        brand.complete_logo_processing(
-            url="https://cdn.test/logo.webp",
-            object_key=f"processed/catalog/brands/{brand.id}/logo.webp",
-            content_type="image/webp",
-            size_bytes=2048,
-        )
-        brand.clear_domain_events()
-        return brand
-
-    @staticmethod
-    def with_failed_logo() -> Brand:
-        """Brand with logo in FAILED state."""
-        brand = BrandMothers.with_processing_logo()
-        brand.fail_logo_processing()
-        brand.clear_domain_events()
-        return brand
 
 
 class CategoryMothers:

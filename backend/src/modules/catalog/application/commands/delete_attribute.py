@@ -68,9 +68,7 @@ class DeleteAttributeHandler:
             if await self._family_binding_repo.has_bindings_for_attribute(
                 command.attribute_id
             ):
-                raise AttributeHasFamilyBindingsError(
-                    attribute_id=command.attribute_id
-                )
+                raise AttributeHasFamilyBindingsError(attribute_id=command.attribute_id)
 
             if await self._attribute_repo.has_product_attribute_values(
                 command.attribute_id

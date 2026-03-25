@@ -108,7 +108,6 @@ class BehaviorFlags:
             )
 
 
-
 class AttributeDataType(enum.StrEnum):
     """Allowed primitive types for catalog attribute values.
 

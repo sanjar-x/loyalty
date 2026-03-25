@@ -135,7 +135,9 @@ class StorefrontFilterableAttributesHandler:
 
         filter_attrs: list[StorefrontFilterAttributeReadModel] = []
         for attr in effective:
-            if not _effective_bool(attr.flag_overrides, "is_filterable", attr.is_filterable):
+            if not _effective_bool(
+                attr.flag_overrides, "is_filterable", attr.is_filterable
+            ):
                 continue
             filter_attrs.append(
                 StorefrontFilterAttributeReadModel(
@@ -197,11 +199,15 @@ class StorefrontCardAttributesHandler:
         )
 
         # Group by attribute group
-        groups_map: dict[uuid.UUID | None, list[StorefrontCardAttributeReadModel]] = defaultdict(list)
+        groups_map: dict[uuid.UUID | None, list[StorefrontCardAttributeReadModel]] = (
+            defaultdict(list)
+        )
         group_meta: dict[uuid.UUID | None, tuple[str | None, dict[str, Any], int]] = {}
 
         for attr in effective:
-            if not _effective_bool(attr.flag_overrides, "is_visible_on_card", attr.is_visible_on_card):
+            if not _effective_bool(
+                attr.flag_overrides, "is_visible_on_card", attr.is_visible_on_card
+            ):
                 continue
             groups_map[attr.group_id].append(
                 StorefrontCardAttributeReadModel(
@@ -282,7 +288,9 @@ class StorefrontComparisonAttributesHandler:
 
         comparison_attrs: list[StorefrontComparisonAttributeReadModel] = []
         for attr in effective:
-            if not _effective_bool(attr.flag_overrides, "is_comparable", attr.is_comparable):
+            if not _effective_bool(
+                attr.flag_overrides, "is_comparable", attr.is_comparable
+            ):
                 continue
             comparison_attrs.append(
                 StorefrontComparisonAttributeReadModel(
@@ -341,7 +349,9 @@ class StorefrontFormAttributesHandler:
         )
 
         # Group by attribute group -- form returns ALL attributes, no flag filter
-        groups_map: dict[uuid.UUID | None, list[StorefrontFormAttributeReadModel]] = defaultdict(list)
+        groups_map: dict[uuid.UUID | None, list[StorefrontFormAttributeReadModel]] = (
+            defaultdict(list)
+        )
         group_meta: dict[uuid.UUID | None, tuple[str | None, dict[str, Any], int]] = {}
 
         for attr in effective:

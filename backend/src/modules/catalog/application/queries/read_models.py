@@ -445,8 +445,7 @@ class MediaAssetReadModel(BaseModel):
     media_type: str
     role: str
     sort_order: int
-    processing_status: str | None = None
-    public_url: str | None = None
+    url: str | None = None
     is_external: bool
     external_url: str | None = None
 

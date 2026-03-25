@@ -166,7 +166,8 @@ class MediaAssetRepository(IMediaAssetRepository):
         return bool(result.scalar())
 
     async def list_by_storage_ids(
-        self, storage_object_ids: list[uuid.UUID],
+        self,
+        storage_object_ids: list[uuid.UUID],
     ) -> list[DomainMediaAsset]:
         """Get media assets by their storage_object_ids."""
         stmt = select(OrmMediaAsset).where(

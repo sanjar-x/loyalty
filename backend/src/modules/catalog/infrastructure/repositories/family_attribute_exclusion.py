@@ -68,9 +68,9 @@ class FamilyAttributeExclusionRepository(
         """
         if not family_ids:
             return {}
-        stmt = select(
-            OrmExclusion.family_id, OrmExclusion.attribute_id
-        ).where(OrmExclusion.family_id.in_(family_ids))
+        stmt = select(OrmExclusion.family_id, OrmExclusion.attribute_id).where(
+            OrmExclusion.family_id.in_(family_ids)
+        )
         result = await self._session.execute(stmt)
         exclusions_map: dict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
         for row in result.all():

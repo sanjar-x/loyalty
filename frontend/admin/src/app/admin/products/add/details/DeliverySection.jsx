@@ -1,33 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { ArrowIcon } from './icons';
 import styles from './page.module.css';
 
 const DELIVERY_OPTIONS = [
   { value: 'china', label: 'Из Китая' },
   { value: 'stock', label: 'Из наличия' },
 ];
-
-function ArrowIcon() {
-  return (
-    <svg
-      width="28"
-      height="28"
-      viewBox="0 0 28 28"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M5.8335 14H22.1668M22.1668 14L14.5835 6.41666M22.1668 14L14.5835 21.5833"
-        stroke="black"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 export default function DeliverySection() {
   const [deliveryMode, setDeliveryMode] = useState('china');

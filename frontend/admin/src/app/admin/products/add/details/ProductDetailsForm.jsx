@@ -212,7 +212,7 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
           disabled={!form.isPublishable || submit.submitting}
           onClick={() => handleSubmit('publish')}
         >
-          {submit.submitting ? submit.progress : 'Опубликовать'}
+          {submit.submitting ? submit.progress : 'На модерацию'}
         </button>
       </div>
     </>

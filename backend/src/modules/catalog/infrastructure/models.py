@@ -752,9 +752,7 @@ class MediaAsset(Base):
             "product_id",
             "variant_id",
             unique=True,
-            postgresql_where=text(
-                f"role = '{MediaRole.MAIN.name}'"
-            ),
+            postgresql_where=text(f"role = '{MediaRole.MAIN.name}'"),
             postgresql_nulls_not_distinct=True,
         ),
     )

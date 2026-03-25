@@ -766,9 +766,7 @@ class AttributeHasFamilyBindingsError(ConflictError):
 class AttributeLevelMismatchError(UnprocessableEntityError):
     """Raised when assigning an attribute at the wrong level (product vs variant)."""
 
-    def __init__(
-        self, attribute_id: uuid.UUID, expected_level: str, actual_level: str
-    ):
+    def __init__(self, attribute_id: uuid.UUID, expected_level: str, actual_level: str):
         super().__init__(
             message=f"Attribute level mismatch: expected '{expected_level}', got '{actual_level}'.",
             error_code="ATTRIBUTE_LEVEL_MISMATCH",

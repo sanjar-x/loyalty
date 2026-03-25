@@ -152,17 +152,36 @@ function RangeSliderField({ attribute, value, onChange }) {
 function AttributeField({ attribute, values, onUpdate }) {
   const selected = values[attribute.attributeId] ?? [];
   const level = attribute.level ?? 'product';
+  const isProductLevel = level === 'product';
 
   function handleToggle(valueId) {
-    const current = selected;
-    const next = current.includes(valueId)
-      ? current.filter((id) => id !== valueId)
-      : [...current, valueId];
-    onUpdate(attribute.attributeId, next, level);
+    if (isProductLevel) {
+      // Product-level: single select only (API allows one value per attribute).
+      // Clicking the active value deselects it; clicking another replaces.
+      const next = selected.includes(valueId) ? [] : [valueId];
+      onUpdate(attribute.attributeId, next, level);
+    } else {
+      const next = selected.includes(valueId)
+        ? selected.filter((id) => id !== valueId)
+        : [...selected, valueId];
+      onUpdate(attribute.attributeId, next, level);
+    }
   }
 
   function handleSet(next) {
     onUpdate(attribute.attributeId, next, level);
+  }
+
+  // Product-level attrs with toggle-based uiTypes (text_button, color_swatch,
+  // checkbox) must behave as single-select — fall through to dropdown instead.
+  if (isProductLevel && (attribute.uiType === 'checkbox')) {
+    return (
+      <DropdownField
+        attribute={attribute}
+        selected={selected}
+        onChange={handleSet}
+      />
+    );
   }
 
   switch (attribute.uiType) {
@@ -231,10 +250,10 @@ export default function DynamicAttributes({
   if (loading) {
     return (
       <section className={styles.card}>
-        <div className="space-y-4">
-          <div className="h-5 w-40 rounded bg-app-card animate-pulse" />
-          <div className="h-10 rounded-lg bg-app-card animate-pulse" />
-          <div className="h-10 rounded-lg bg-app-card animate-pulse" />
+        <div className={styles.skeletonGroup}>
+          <div className={styles.skeletonLabel} />
+          <div className={styles.skeletonField} />
+          <div className={styles.skeletonField} />
         </div>
       </section>
     );

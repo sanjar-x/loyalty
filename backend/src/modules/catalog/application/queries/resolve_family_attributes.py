@@ -173,7 +173,9 @@ class ResolveFamilyAttributesHandler:
         # 3. Load all bindings and exclusions for the chain
         chain_ids = [f.id for f in chain]
         all_bindings = await self._binding_repo.get_bindings_for_families(chain_ids)
-        all_exclusions = await self._exclusion_repo.get_exclusions_for_families(chain_ids)
+        all_exclusions = await self._exclusion_repo.get_exclusions_for_families(
+            chain_ids
+        )
 
         # 4. Merge: walk root -> leaf
         # effective maps attribute_id -> (binding, source_family_id, is_overridden)
@@ -194,14 +196,18 @@ class ResolveFamilyAttributesHandler:
         if not effective_attr_ids:
             result = EffectiveAttributeSetReadModel(family_id=family_id, attributes=[])
             await self._cache.set(
-                cache_key, json.dumps(result.model_dump(mode="json")), ttl=STOREFRONT_CACHE_TTL
+                cache_key,
+                json.dumps(result.model_dump(mode="json")),
+                ttl=STOREFRONT_CACHE_TTL,
             )
             return result
 
         stmt = (
             select(OrmAttribute)
             .where(OrmAttribute.id.in_(effective_attr_ids))
-            .options(selectinload(OrmAttribute.values), selectinload(OrmAttribute.group))
+            .options(
+                selectinload(OrmAttribute.values), selectinload(OrmAttribute.group)
+            )
         )
         attr_result = await self._session.execute(stmt)
         orm_attrs = {a.id: a for a in attr_result.unique().scalars().all()}
@@ -241,9 +247,15 @@ class ResolveFamilyAttributesHandler:
                     is_dictionary=orm_attr.is_dictionary,
                     level=orm_attr.level.value,
                     requirement_level=binding.requirement_level.value,
-                    validation_rules=dict(orm_attr.validation_rules) if orm_attr.validation_rules else None,
-                    flag_overrides=dict(binding.flag_overrides) if binding.flag_overrides else None,
-                    filter_settings=dict(binding.filter_settings) if binding.filter_settings else None,
+                    validation_rules=dict(orm_attr.validation_rules)
+                    if orm_attr.validation_rules
+                    else None,
+                    flag_overrides=dict(binding.flag_overrides)
+                    if binding.flag_overrides
+                    else None,
+                    filter_settings=dict(binding.filter_settings)
+                    if binding.filter_settings
+                    else None,
                     source_family_id=source_fid,
                     is_overridden=is_overridden,
                     values=values,

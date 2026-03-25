@@ -223,7 +223,7 @@ class ProductMediaResponse:
       "media": [
         {
           "id": "...",
-          "public_url": "https://...",
+          "url": "https://...",
           "role": "main",
           "sort_order": 0
         }

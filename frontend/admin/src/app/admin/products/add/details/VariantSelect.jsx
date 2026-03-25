@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { i18n } from '@/lib/utils';
-import { ChevronIcon } from './icons';
+import { CheckIcon, ChevronIcon, SmallCloseIcon } from './icons';
 import styles from './page.module.css';
 
 /**
@@ -15,27 +15,6 @@ import styles from './page.module.css';
  *   onChange: (attrId, valueIds) => void — callback when selection changes
  *   loading: boolean — show skeleton while form-attributes are loading
  */
-
-function CheckIcon() {
-  return (
-    <svg
-      width="14"
-      height="10"
-      viewBox="0 0 14 10"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M1 5.33333L4.6 9L13 1"
-        stroke="white"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 function VariantAttributeSelect({ attribute, selectedIds, onToggle }) {
   const [open, setOpen] = useState(false);
@@ -104,20 +83,7 @@ function VariantAttributeSelect({ attribute, selectedIds, onToggle }) {
                 >
                   <span>{i18n(val.valueI18N, val.code)}</span>
                   <span className={styles.sizeChipClose}>
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 12 12"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M0.75 0.75L5.75 5.75M10.75 10.75L5.75 5.75M5.75 5.75L10.3929 0.75M5.75 5.75L0.75 10.75"
-                        stroke="#7E7E7E"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                    </svg>
+                    <SmallCloseIcon />
                   </span>
                 </button>
               ))
@@ -138,11 +104,7 @@ function VariantAttributeSelect({ attribute, selectedIds, onToggle }) {
       </div>
 
       {open ? (
-        <div
-          className={styles.sizeDropdown}
-          role="listbox"
-          aria-label={label}
-        >
+        <div className={styles.sizeDropdown} role="listbox" aria-label={label}>
           <div className={styles.sizeOptionsList}>
             {attrValues.map((val) => {
               const checked = selectedSet.has(val.id);
@@ -182,7 +144,7 @@ export default function VariantSelect({
   loading = false,
 }) {
   if (loading) {
-    return <div className="h-12 rounded-lg bg-app-card animate-pulse" />;
+    return <div className={styles.skeletonSelect} />;
   }
 
   if (attributes.length === 0) return null;

@@ -114,7 +114,9 @@ class GenerateSKUMatrixHandler:
         self._uow = uow
         self._logger = logger.bind(handler="GenerateSKUMatrixHandler")
 
-    async def handle(self, command: GenerateSKUMatrixCommand) -> GenerateSKUMatrixResult:
+    async def handle(
+        self, command: GenerateSKUMatrixCommand
+    ) -> GenerateSKUMatrixResult:
         """Execute the generate-SKU-matrix command.
 
         Validates attribute level (must be VARIANT), attribute values exist,
@@ -196,8 +198,12 @@ class GenerateSKUMatrixHandler:
         if category is not None and category.family_id is not None:
             chain = await self._family_repo.get_ancestor_chain(category.family_id)
             chain_ids = [f.id for f in chain]
-            all_bindings = await self._family_binding_repo.get_bindings_for_families(chain_ids)
-            all_exclusions = await self._exclusion_repo.get_exclusions_for_families(chain_ids)
+            all_bindings = await self._family_binding_repo.get_bindings_for_families(
+                chain_ids
+            )
+            all_exclusions = await self._exclusion_repo.get_exclusions_for_families(
+                chain_ids
+            )
 
             effective_attr_ids = set()
             for fam in chain:
@@ -219,7 +225,10 @@ class GenerateSKUMatrixHandler:
                 )
 
             # Check family membership
-            if effective_attr_ids is not None and sel.attribute_id not in effective_attr_ids:
+            if (
+                effective_attr_ids is not None
+                and sel.attribute_id not in effective_attr_ids
+            ):
                 raise AttributeNotInFamilyError(
                     product_id=product.id,
                     attribute_id=sel.attribute_id,

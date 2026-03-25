@@ -120,8 +120,8 @@ class AssignProductAttributeHandler:
                 # Resolve effective attributes for the family
                 chain = await self._family_repo.get_ancestor_chain(category.family_id)
                 chain_ids = [f.id for f in chain]
-                all_bindings = await self._family_binding_repo.get_bindings_for_families(
-                    chain_ids
+                all_bindings = (
+                    await self._family_binding_repo.get_bindings_for_families(chain_ids)
                 )
                 all_exclusions = await self._exclusion_repo.get_exclusions_for_families(
                     chain_ids

@@ -100,7 +100,9 @@ class ListFamilyBindingsHandler:
                 sort_order=row.sort_order,
                 requirement_level=row.requirement_level.value,
                 flag_overrides=dict(row.flag_overrides) if row.flag_overrides else None,
-                filter_settings=dict(row.filter_settings) if row.filter_settings else None,
+                filter_settings=dict(row.filter_settings)
+                if row.filter_settings
+                else None,
             )
             for row in rows
         ]

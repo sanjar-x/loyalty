@@ -305,9 +305,7 @@ async def list_bindings(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
 ) -> FamilyAttributeBindingListResponse:
-    query = ListFamilyBindingsQuery(
-        family_id=family_id, offset=offset, limit=limit
-    )
+    query = ListFamilyBindingsQuery(family_id=family_id, offset=offset, limit=limit)
     result = await handler.handle(query)
     return FamilyAttributeBindingListResponse(
         items=[
@@ -492,9 +490,7 @@ async def list_exclusions(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
 ) -> FamilyAttributeExclusionListResponse:
-    query = ListFamilyExclusionsQuery(
-        family_id=family_id, offset=offset, limit=limit
-    )
+    query = ListFamilyExclusionsQuery(family_id=family_id, offset=offset, limit=limit)
     result = await handler.handle(query)
     return FamilyAttributeExclusionListResponse(
         items=[
