@@ -269,6 +269,7 @@ class Category(AggregateRoot):
     level: int
     sort_order: int
     family_id: uuid.UUID | None = None
+    effective_family_id: uuid.UUID | None = None
 
     # DDD-01: guard slug against direct mutation
     def __setattr__(self, name: str, value: object) -> None:
@@ -313,6 +314,7 @@ class Category(AggregateRoot):
             level=0,
             sort_order=sort_order,
             family_id=family_id,
+            effective_family_id=family_id,
         )
 
     @classmethod
@@ -354,6 +356,7 @@ class Category(AggregateRoot):
             level=parent.level + 1,
             sort_order=sort_order,
             family_id=family_id,
+            effective_family_id=family_id or parent.effective_family_id,
         )
 
     _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
@@ -389,6 +392,8 @@ class Category(AggregateRoot):
 
         if family_id is not ...:
             self.family_id = family_id
+            if family_id is not None:
+                self.effective_family_id = family_id
 
         if slug is not None and slug != self.slug:
             _validate_slug(slug, "Category")
@@ -425,6 +430,10 @@ class Category(AggregateRoot):
             raise CategoryHasChildrenError(category_id=self.id)
         if has_products:
             raise CategoryHasProductsError(category_id=self.id)
+
+    def set_effective_family_id(self, value: uuid.UUID | None) -> None:
+        """Set the computed effective_family_id (used by propagation logic)."""
+        self.effective_family_id = value
 
 
 # ============================================================================
