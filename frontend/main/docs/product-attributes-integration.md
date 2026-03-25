@@ -97,6 +97,25 @@ Authorization: Bearer <accessToken>
 POST /api/v1/catalog/products
 ```
 
+### Request
+
+```json
+{
+  "titleI18n": { "ru": "Название", "en": "Title" },
+  "slug": "product-slug",
+  "brandId": "uuid",
+  "primaryCategoryId": "uuid",
+  "descriptionI18n": { "ru": "Описание" },
+  "supplierId": "uuid | null",
+  "sourceUrl": "https://... | null",
+  "countryOfOrigin": "RU | null",
+  "tags": ["tag1", "tag2"]
+}
+```
+
+**Обязательные:** `titleI18n` (мин. 1 язык), `slug` (^[a-z0-9-]+$), `brandId`, `primaryCategoryId`
+**Опциональные:** `descriptionI18n`, `supplierId`, `sourceUrl` (обязателен если supplier type = CROSS_BORDER), `countryOfOrigin` (ISO 3166-1 alpha-2), `tags`
+
 ### Response (201)
 
 ```jsonc
@@ -218,7 +237,7 @@ SKU code генерируется автоматически (`{slug}-001`, `{sl
 
 ```
 POST /api/v1/catalog/products/{productId}/media/upload
-{ "mediaType": "image", "role": "main", "contentType": "image/jpeg", "sortOrder": 0 }
+{ "mediaType": "image", "role": "main", "contentType": "image/jpeg", "sortOrder": 0, "variantId": null }
 → 201 { "id": "media-uuid", "presignedUploadUrl": "https://s3...", "objectKey": "..." }
 ```
 
@@ -234,7 +253,7 @@ Body: <raw file bytes>
 
 ```
 POST /api/v1/catalog/products/{productId}/media/{mediaId}/confirm
-→ 200
+→ 202 Accepted { "message": "Upload confirmed, processing started" }
 ```
 
 **Роли медиа:** `main` | `hover` | `gallery` | `hero_video` | `size_guide` | `packaging`
@@ -260,16 +279,23 @@ ENRICHING → DRAFT (откатить)
 READY_FOR_REVIEW → ENRICHING (вернуть на доработку)
 ```
 
-### Предусловия для PUBLISHED
+### Предусловия
 
+**Для READY_FOR_REVIEW:**
+- Минимум 1 активный SKU
+
+**Для PUBLISHED:**
 - Минимум 1 активный SKU с ценой (`priceAmount > 0`)
+- Минимум 1 медиа-ассет
 
 ### Errors
 
 | Status | Code | Meaning |
 |--------|------|---------|
 | 422 | `INVALID_STATUS_TRANSITION` | Недопустимый переход (e.g., DRAFT → PUBLISHED) |
-| 422 | `PRODUCT_NOT_READY` | Не выполнены предусловия для публикации |
+| 422 | `PRODUCT_NOT_READY` | Нет активных SKU (для READY_FOR_REVIEW) или нет SKU с ценой / нет медиа (для PUBLISHED) |
+
+> **Response:** PATCH status возвращает полный `ProductResponse` с variants, SKUs, attributes.
 
 ---
 
