@@ -40,7 +40,6 @@ from src.modules.catalog.domain.value_objects import (
     AttributeDataType,
     AttributeLevel,
     AttributeUIType,
-    MediaProcessingStatus,
     MediaRole,
     MediaType,
     ProductStatus,
@@ -53,11 +52,7 @@ from src.modules.catalog.domain.value_objects import (
 
 
 class Brand(Base):
-    """ORM model for product brands (e.g. Nike, Adidas).
-
-    The ``logo_status`` column tracks the logo processing FSM
-    (PENDING_UPLOAD -> PROCESSING -> COMPLETED | FAILED).
-    """
+    """ORM model for product brands (e.g. Nike, Adidas)."""
 
     __tablename__ = "brands"
     __table_args__ = (
@@ -77,17 +72,11 @@ class Brand(Base):
     slug: Mapped[str] = mapped_column(
         String(255), comment="URL-safe identifier for routing"
     )
-    logo_file_id: Mapped[uuid.UUID | None] = mapped_column(
+    logo_storage_object_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         nullable=True,
         index=True,
-        comment="Soft-link to storage_objects.id (Storage module)",
-    )
-
-    logo_status: Mapped[MediaProcessingStatus | None] = mapped_column(
-        Enum(MediaProcessingStatus, native_enum=False, length=30),
-        nullable=True,
-        comment="FSM: current stage of logo upload/processing",
+        comment="Reference to storage_objects.id in ImageBackend",
     )
 
     logo_url: Mapped[str | None] = mapped_column(
@@ -728,31 +717,17 @@ class MediaAsset(Base):
         server_default=text("false"),
         comment="True when the resource is hosted externally (not in our S3)",
     )
-    external_url: Mapped[str | None] = mapped_column(
+
+    url: Mapped[str | None] = mapped_column(
         String(1024),
         nullable=True,
-        comment="Direct URL (e.g. youtube.com/...) when is_external is true",
+        comment="Public URL of the media asset",
     )
 
-    processing_status: Mapped[MediaProcessingStatus | None] = mapped_column(
-        Enum(MediaProcessingStatus, native_enum=False, length=30),
+    image_variants: Mapped[list[dict] | None] = mapped_column(
+        JSONB,
         nullable=True,
-        comment="FSM: PENDING_UPLOAD, PROCESSING, COMPLETED, FAILED",
-    )
-    raw_object_key: Mapped[str | None] = mapped_column(
-        String(1024),
-        nullable=True,
-        comment="S3 key for raw upload (before AI processing)",
-    )
-    processed_object_key: Mapped[str | None] = mapped_column(
-        String(1024),
-        nullable=True,
-        comment="S3 key for processed file (set on complete_processing)",
-    )
-    public_url: Mapped[str | None] = mapped_column(
-        String(1024),
-        nullable=True,
-        comment="Final public URL after processing",
+        comment="Image size variants: [{size, width, height, url}, ...]",
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -772,14 +747,13 @@ class MediaAsset(Base):
 
     __table_args__ = (
         # Business rule: each variant may have at most one MAIN image
-        # Excludes FAILED uploads to match application-level has_main_for_variant check.
         Index(
             "uix_media_single_main_per_variant",
             "product_id",
             "variant_id",
             unique=True,
             postgresql_where=text(
-                f"role = '{MediaRole.MAIN.name}' AND processing_status != 'FAILED'"
+                f"role = '{MediaRole.MAIN.name}'"
             ),
             postgresql_nulls_not_distinct=True,
         ),

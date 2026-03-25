@@ -50,7 +50,6 @@ from src.modules.identity.infrastructure.models import (
     StaffInvitationModel,
     StaffInvitationRoleModel,
 )
-from src.modules.storage.infrastructure.models import StorageObject
 from src.modules.supplier.infrastructure.models import Supplier
 from src.modules.user.infrastructure.models import CustomerModel, StaffMemberModel
 
@@ -92,7 +91,6 @@ __all__ = [
     "StaffInvitationModel",
     "StaffInvitationRoleModel",
     "StaffMemberModel",
-    "StorageObject",
     "SubdivisionCategoryModel",
     "SubdivisionCategoryTranslationModel",
     "SubdivisionModel",
