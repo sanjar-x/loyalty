@@ -25,12 +25,6 @@ from src.modules.catalog.application.commands.create_attribute_family import (
 from src.modules.catalog.application.commands.delete_attribute_family import (
     DeleteAttributeFamilyHandler,
 )
-from src.modules.catalog.application.commands.add_external_product_media import (
-    AddExternalProductMediaHandler,
-)
-from src.modules.catalog.application.commands.add_product_media import (
-    AddProductMediaHandler,
-)
 from src.modules.catalog.application.commands.add_sku import AddSKUHandler
 from src.modules.catalog.application.commands.generate_sku_matrix import (
     GenerateSKUMatrixHandler,
@@ -44,13 +38,6 @@ from src.modules.catalog.application.commands.bulk_assign_product_attributes imp
 )
 from src.modules.catalog.application.commands.change_product_status import (
     ChangeProductStatusHandler,
-)
-from src.modules.catalog.application.commands.complete_product_media import (
-    CompleteProductMediaHandler,
-    FailProductMediaHandler,
-)
-from src.modules.catalog.application.commands.confirm_product_media import (
-    ConfirmProductMediaUploadHandler,
 )
 from src.modules.catalog.application.commands.create_attribute import (
     CreateAttributeHandler,
@@ -171,7 +158,6 @@ from src.modules.catalog.application.queries.storefront import (
     StorefrontFilterableAttributesHandler,
     StorefrontFormAttributesHandler,
 )
-from src.modules.catalog.application.services.media_processor import BrandLogoProcessor
 from src.modules.catalog.domain.interfaces import (
     IAttributeFamilyRepository,
     IAttributeGroupRepository,
@@ -253,9 +239,6 @@ class BrandProvider(Provider):
     )
     delete_brand_handler: CompositeDependencySource = provide(
         DeleteBrandHandler, scope=Scope.REQUEST
-    )
-    brand_logo_processor: CompositeDependencySource = provide(
-        BrandLogoProcessor, scope=Scope.REQUEST
     )
 
 
@@ -511,23 +494,8 @@ class MediaAssetProvider(Provider):
         )
 
     # Command handlers
-    add_product_media_handler: CompositeDependencySource = provide(
-        AddProductMediaHandler, scope=Scope.REQUEST
-    )
-    confirm_product_media_handler: CompositeDependencySource = provide(
-        ConfirmProductMediaUploadHandler, scope=Scope.REQUEST
-    )
-    complete_product_media_handler: CompositeDependencySource = provide(
-        CompleteProductMediaHandler, scope=Scope.REQUEST
-    )
-    fail_product_media_handler: CompositeDependencySource = provide(
-        FailProductMediaHandler, scope=Scope.REQUEST
-    )
     delete_product_media_handler: CompositeDependencySource = provide(
         DeleteProductMediaHandler, scope=Scope.REQUEST
-    )
-    add_external_product_media_handler: CompositeDependencySource = provide(
-        AddExternalProductMediaHandler, scope=Scope.REQUEST
     )
 
     # Query handlers

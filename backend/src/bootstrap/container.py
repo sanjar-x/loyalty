@@ -28,10 +28,8 @@ from src.modules.catalog.presentation.dependencies import (
 )
 from src.modules.geo.presentation.dependencies import GeoProvider
 from src.modules.identity.infrastructure.provider import IdentityProvider
-from src.modules.storage.presentation.dependencies import StorageProvider
 from src.modules.supplier.presentation.dependencies import SupplierProvider
 from src.modules.user.infrastructure.provider import ProfileProvider
-from src.shared.interfaces.config import IStorageConfig
 
 logger: BoundLogger = structlog.get_logger(__name__)
 
@@ -44,11 +42,6 @@ class ConfigProvider(Provider):
         """Provide the global ``Settings`` singleton."""
         return settings
 
-    @provide(scope=Scope.APP)
-    def get_storage_config(self, s: Settings) -> IStorageConfig:
-        """Provide the storage configuration interface."""
-        return s
-
 
 def create_container() -> AsyncContainer:
     """Assemble and return the fully-configured Dishka IoC container."""
@@ -60,7 +53,6 @@ def create_container() -> AsyncContainer:
         CacheProvider(),
         SecurityProvider(),
         GeoProvider(),
-        StorageProvider(),
         CategoryProvider(),
         BrandProvider(),
         AttributeGroupProvider(),

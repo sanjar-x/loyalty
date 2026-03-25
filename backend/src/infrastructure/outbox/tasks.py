@@ -4,8 +4,6 @@ Relay: polls ``outbox_messages`` every minute via TaskIQ Beat.
 Pruning: daily cleanup of processed records older than 7 days (03:00 UTC).
 """
 
-import uuid
-
 import structlog
 from dishka.integrations.taskiq import FromDishka, inject
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -37,67 +35,6 @@ def _build_labels(correlation_id: str | None) -> dict[str, str]:
     if correlation_id:
         return {"correlation_id": correlation_id}
     return {}
-
-
-async def _handle_brand_logo_upload_initiated(
-    payload: dict, correlation_id: str | None = None
-) -> None:
-    """Register a StorageFile in the Storage module via consumer."""
-    from src.modules.storage.application.consumers.brand_events import (
-        handle_brand_logo_upload_initiated_event,
-    )
-
-    await (
-        handle_brand_logo_upload_initiated_event.kicker()
-        .with_labels(**_build_labels(correlation_id))
-        .kiq(
-            brand_id=payload["brand_id"],
-            object_key=payload["object_key"],
-            content_type=payload["content_type"],
-        )  # ty:ignore[no-matching-overload]
-    )
-
-
-async def _handle_brand_logo_confirmed(
-    payload: dict, correlation_id: str | None = None
-) -> None:
-    """Dispatch the brand logo processing task to TaskIQ."""
-    from src.modules.catalog.application.tasks import process_brand_logo_task
-
-    brand_id = uuid.UUID(payload["brand_id"])
-    await (
-        process_brand_logo_task.kicker()
-        .with_labels(**_build_labels(correlation_id))
-        .kiq(brand_id=brand_id)  # ty:ignore[no-matching-overload]
-    )
-
-
-async def _handle_brand_logo_processed(
-    payload: dict, correlation_id: str | None = None
-) -> None:
-    """Register a processed file in the Storage module."""
-    from src.modules.storage.application.consumers.brand_events import (
-        handle_brand_logo_processed_event,
-    )
-
-    await (
-        handle_brand_logo_processed_event.kicker()
-        .with_labels(**_build_labels(correlation_id))
-        .kiq(
-            brand_id=payload["brand_id"],
-            object_key=payload["object_key"],
-            content_type=payload["content_type"],
-            size_bytes=payload["size_bytes"],
-        )  # ty:ignore[no-matching-overload]
-    )
-
-
-# Register Catalog event mappings
-register_event_handler(
-    "BrandLogoUploadInitiatedEvent", _handle_brand_logo_upload_initiated
-)
-register_event_handler("BrandLogoConfirmedEvent", _handle_brand_logo_confirmed)
-register_event_handler("BrandLogoProcessedEvent", _handle_brand_logo_processed)
 
 
 # ---------------------------------------------------------------------------
