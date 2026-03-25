@@ -138,6 +138,18 @@ class ICategoryRepository(ICatalogRepository[DomainCategory]):
         """Bulk-update full_slug for all descendants when a parent's slug changes."""
         pass
 
+    @abstractmethod
+    async def propagate_effective_family_id(
+        self, category_id: uuid.UUID, effective_family_id: uuid.UUID | None
+    ) -> list[uuid.UUID]:
+        """Propagate effective_family_id to inheriting descendants via recursive CTE.
+
+        Only updates children (and their descendants) where family_id IS NULL.
+        Stops at nodes that have their own family_id.
+        Returns affected category IDs (excluding root) for cache invalidation.
+        """
+        pass
+
 
 class IAttributeGroupRepository(ICatalogRepository[DomainAttributeGroup]):
     """Repository contract for the AttributeGroup aggregate."""

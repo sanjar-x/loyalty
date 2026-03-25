@@ -8,7 +8,7 @@ slug uniqueness within a parent, child existence checks, and bulk
 
 import uuid
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 
 from src.modules.catalog.domain.entities import Category as DomainCategory
 from src.modules.catalog.domain.interfaces import ICategoryRepository
@@ -38,6 +38,8 @@ class CategoryRepository(
             full_slug=orm.full_slug,
             level=orm.level,
             sort_order=orm.sort_order,
+            family_id=orm.family_id,
+            effective_family_id=orm.effective_family_id,
         )
 
     def _to_orm(
@@ -53,6 +55,8 @@ class CategoryRepository(
         orm.full_slug = entity.full_slug
         orm.level = entity.level
         orm.sort_order = entity.sort_order
+        orm.family_id = entity.family_id
+        orm.effective_family_id = entity.effective_family_id
         return orm
 
     async def get_all_ordered(self) -> list[DomainCategory]:
@@ -127,3 +131,32 @@ class CategoryRepository(
             )
         )
         await self._session.execute(stmt)
+
+    async def propagate_effective_family_id(
+        self, category_id: uuid.UUID, effective_family_id: uuid.UUID | None
+    ) -> list[uuid.UUID]:
+        """Propagate effective_family_id to inheriting descendants via recursive CTE."""
+        cte_sql = text("""
+            WITH RECURSIVE subtree AS (
+                SELECT id
+                FROM categories
+                WHERE parent_id = :root_id AND family_id IS NULL
+                UNION ALL
+                SELECT c.id
+                FROM categories c
+                JOIN subtree s ON c.parent_id = s.id
+                WHERE c.family_id IS NULL
+            )
+            UPDATE categories
+            SET effective_family_id = :eff_fid
+            WHERE id IN (SELECT id FROM subtree)
+            RETURNING id
+        """)
+        result = await self._session.execute(
+            cte_sql,
+            {
+                "root_id": category_id,
+                "eff_fid": effective_family_id,
+            },
+        )
+        return [row[0] for row in result.all()]
