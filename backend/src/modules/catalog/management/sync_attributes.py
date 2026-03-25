@@ -112,6 +112,13 @@ _ASSIGN_FAMILY_TO_CATEGORY = text("""
     UPDATE categories SET family_id = :family_id WHERE slug = :slug AND parent_id IS NULL
 """)
 
+_PROPAGATE_EFFECTIVE_FAMILY = text("""
+    UPDATE categories
+    SET effective_family_id = :family_id
+    WHERE (slug = :slug AND parent_id IS NULL)
+       OR full_slug LIKE :slug || '/%'
+""")
+
 # ---------------------------------------------------------------------------
 # Seed data
 # ---------------------------------------------------------------------------
@@ -312,6 +319,15 @@ async def sync_attributes(
                 )
                 logger.info(
                     "category_family.assigned",
+                    category=fam["assign_to_category_slug"],
+                    family=fam["code"],
+                )
+                await session.execute(
+                    _PROPAGATE_EFFECTIVE_FAMILY,
+                    {"family_id": str(fam_id), "slug": fam["assign_to_category_slug"]},
+                )
+                logger.info(
+                    "effective_family_id.propagated",
                     category=fam["assign_to_category_slug"],
                     family=fam["code"],
                 )
