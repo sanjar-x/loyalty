@@ -376,20 +376,43 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
         valueIds,
       }));
     if (attributeSelections.length === 0) return null;
+
+    // Variable pricing: generate SKUs with null price, then PATCH each individually
+    // Flat pricing: generate all SKUs with the same price
+    const useFlat = !state.variablePricing;
+
     return {
       attributeSelections,
-      priceAmount:
-        state.priceAmount !== '' ? parseInt(state.priceAmount, 10) : null,
+      priceAmount: useFlat && state.priceAmount !== ''
+        ? parseInt(state.priceAmount, 10)
+        : null,
       priceCurrency: state.priceCurrency,
-      compareAtPriceAmount:
-        state.compareAtPrice !== '' ? parseInt(state.compareAtPrice, 10) : null,
+      compareAtPriceAmount: useFlat && state.compareAtPrice !== ''
+        ? parseInt(state.compareAtPrice, 10)
+        : null,
     };
   }, [
     state.variantAttrs,
+    state.variablePricing,
     state.priceAmount,
     state.priceCurrency,
     state.compareAtPrice,
   ]);
+
+  // Per-SKU price updates for variable pricing (used in submit flow Step 8)
+  // Returns array of { valueId, priceAmount, compareAtPriceAmount } for PATCH calls
+  const perSkuPriceUpdates = useMemo(() => {
+    if (!state.variablePricing) return [];
+    return Object.entries(state.perSkuPrices)
+      .filter(([, p]) => p.price && p.price !== '')
+      .map(([valueId, p]) => ({
+        valueId,
+        priceAmount: parseInt(p.price, 10),
+        compareAtPriceAmount: p.compareAt && p.compareAt !== ''
+          ? parseInt(p.compareAt, 10)
+          : null,
+      }));
+  }, [state.variablePricing, state.perSkuPrices]);
 
   // --- Convenience: attribute handler for DynamicAttributes compatibility ---
   // DynamicAttributes currently uses { [attributeId]: [valueId, ...] }
@@ -457,5 +480,6 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
     productPayload,
     bulkAttrsPayload,
     skuGeneratePayload,
+    perSkuPriceUpdates,
   };
 }
