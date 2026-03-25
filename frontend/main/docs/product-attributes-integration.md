@@ -18,23 +18,24 @@
 
 ```
 Step 1: Выбрать категорию          GET /catalog/categories/tree
-Step 2: Выбрать бренд              GET /catalog/brands
-Step 3: Заполнить основные поля    (title, slug, description...)
-Step 4: Создать продукт            POST /catalog/products
-          ↓ получаем productId
-Step 5: Загрузить атрибуты формы   GET /catalog/storefront/categories/{categoryId}/form-attributes
-          ↓ разделить атрибуты по level
-Step 6: Присвоить product-level    POST /catalog/products/{productId}/attributes
-        атрибуты (material, style)  (только где level = "product")
-Step 7: Создать варианты/SKU       POST .../variants, затем POST .../skus
-        с variant-level атрибутами  (size, color передаются в variantAttributes SKU)
-Step 8: Загрузить медиа            POST .../media/upload → upload to S3 → confirm
-Step 9: Сменить статус             PATCH /catalog/products/{productId}/status
+Step 2: Загрузить атрибуты формы   GET .../storefront/categories/{categoryId}/form-attributes
+          ↓ показать форму с атрибутами сразу
+Step 3: Выбрать бренд              GET /catalog/brands
+Step 4: Заполнить ВСЮ форму       (основные поля + product attrs + variant selections)
+Step 5: Создать продукт            POST /catalog/products  → productId
+Step 6: Bulk-присвоить attrs       POST /products/{id}/attributes/bulk
+        (product-level, одним запросом)
+Step 7: Создать variant + SKU      POST .../variants + POST .../skus/generate
+        (variant-level, бэкенд генерирует комбинации)
+Step 8: Загрузить медиа            POST .../media/upload → S3 → confirm
+Step 9: Сменить статус             PATCH .../products/{id}/status
 ```
 
-> **Важно:** Атрибуты привязываются на ДВУХ уровнях:
-> - `level: "product"` → `POST /products/{id}/attributes` (одинаковый для всех SKU)
-> - `level: "variant"` → передаются в `variantAttributes` при создании SKU
+> **Ключевые принципы:**
+> - Атрибуты формы загружаются **сразу после выбора категории** (Step 2), не после создания продукта
+> - `level: "product"` → bulk assign одним запросом `POST /products/{id}/attributes/bulk`
+> - `level: "variant"` → `POST .../skus/generate` (бэкенд генерирует SKU комбинации)
+> - Бэкенд **валидирует** что присваиваемые атрибуты входят в Family категории
 
 ---
 
@@ -311,60 +312,65 @@ await api.post(`/products/${productId}/variants/${variantId}/skus/generate`, {
 ## Пример реализации (pseudocode)
 
 ```typescript
-// 1. Загрузить атрибуты категории
+// ═══ Step 1-2: Выбрать категорию → сразу загрузить атрибуты ═══
+
 const { groups } = await api.get(
   `/catalog/storefront/categories/${categoryId}/form-attributes`,
 );
 
-// 2. Разделить по level
 const allAttrs = groups.flatMap(g => g.attributes);
 const productAttrs = allAttrs.filter(a => a.level === 'product');
 const variantAttrs = allAttrs.filter(a => a.level === 'variant');
 
-// 3. Отрендерить ДВЕ секции формы:
+// ═══ Step 3-4: Показать полную форму ═══
+// Секция A: основные поля (title, slug, brand...)
+// Секция B: product-level атрибуты (material, style) — single select per attr
+// Секция C: variant-level атрибуты (size, color) — multi-select (какие размеры/цвета)
 
-// Секция A: Product-level атрибуты (material, style, season...)
-// → пользователь выбирает по одному значению на атрибут
-// → отправляем в Step 6
+// ═══ Step 5: Создать продукт ═══
 
-// Секция B: Variant-level атрибуты (size, color...)
-// → пользователь выбирает НЕСКОЛЬКО значений (все доступные размеры/цвета)
-// → генерируем SKU-комбинации в Step 7
+const { id: productId } = await api.post('/catalog/products', {
+  titleI18n: { ru: 'Nike Air Force 1' },
+  slug: 'nike-air-force-1',
+  brandId: nikeBrandId,
+  primaryCategoryId: categoryId,
+});
 
-// 4. Step 6: Присвоить product-level атрибуты
-await Promise.all(
-  productAttrs
+// ═══ Step 6: Bulk-присвоить product-level атрибуты (один запрос) ═══
+
+await api.post(`/catalog/products/${productId}/attributes/bulk`, {
+  items: productAttrs
     .filter(attr => selectedProductAttrs[attr.attributeId])
-    .map(attr =>
-      api.post(`/catalog/products/${productId}/attributes`, {
-        attributeId: attr.attributeId,
-        attributeValueId: selectedProductAttrs[attr.attributeId],
-      })
-    )
-);
+    .map(attr => ({
+      attributeId: attr.attributeId,
+      attributeValueId: selectedProductAttrs[attr.attributeId],
+    })),
+});
+// → { assignedCount: 3, pavIds: [...], message: "Assigned 3 attributes" }
+// Бэкенд валидирует что все атрибуты входят в Family категории!
 
-// 5. Step 7: Создать variant + bulk-генерация SKU
-const variant = await api.post(
+// ═══ Step 7: Создать variant + bulk SKU (два запроса) ═══
+
+const { id: variantId } = await api.post(
   `/catalog/products/${productId}/variants`,
-  { nameI18n: { ru: 'Стандарт', en: 'Standard' } }
+  { nameI18n: { ru: 'Стандарт', en: 'Standard' } },
 );
 
-// Одним запросом — бэкенд сам генерирует все комбинации
 const skuResult = await api.post(
-  `/catalog/products/${productId}/variants/${variant.id}/skus/generate`,
+  `/catalog/products/${productId}/variants/${variantId}/skus/generate`,
   {
     attributeSelections: variantAttrs.map(attr => ({
       attributeId: attr.attributeId,
-      valueIds: selectedVariantValues[attr.attributeId], // массив выбранных значений
+      valueIds: selectedVariantValues[attr.attributeId],
     })),
     priceAmount: 5000,
     priceCurrency: 'RUB',
-  }
+  },
 );
-// skuResult = { createdCount: 6, skippedCount: 0, skuIds: [...], message: "..." }
+// → { createdCount: 6, skippedCount: 0, skuIds: [...] }
 ```
 
-> **SKU generation:** Бэкенд генерирует SKU комбинации атомарно в одной транзакции. SKU code генерируется автоматически (`{slug}-001`, `{slug}-002`...). Дубликаты пропускаются.
+> **Все bulk-операции атомарны:** Если один атрибут невалиден — откатывается вся транзакция. Бэкенд валидирует принадлежность атрибутов к Family категории.
 
 ---
 
