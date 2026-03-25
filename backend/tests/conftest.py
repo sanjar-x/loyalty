@@ -151,9 +151,17 @@ async def app_container(
     from src.infrastructure.logging.provider import LoggingProvider
     from src.infrastructure.security.provider import SecurityProvider
     from src.modules.catalog.presentation.dependencies import (
+        AttributeFamilyProvider,
+        AttributeGroupProvider,
+        AttributeProvider,
+        AttributeValueProvider,
         BrandProvider,
         CategoryProvider,
+        MediaAssetProvider,
+        ProductProvider,
+        StorefrontCatalogProvider,
     )
+    from src.modules.geo.presentation.dependencies import GeoProvider
     from src.modules.identity.infrastructure.provider import IdentityProvider
     from src.modules.supplier.presentation.dependencies import SupplierProvider
     from src.modules.user.infrastructure.provider import ProfileProvider
@@ -163,8 +171,16 @@ async def app_container(
         LoggingProvider(),
         CacheProvider(),
         SecurityProvider(),
+        GeoProvider(),
         CategoryProvider(),
         BrandProvider(),
+        AttributeGroupProvider(),
+        AttributeProvider(),
+        AttributeValueProvider(),
+        AttributeFamilyProvider(),
+        StorefrontCatalogProvider(),
+        ProductProvider(),
+        MediaAssetProvider(),
         IdentityProvider(),
         ProfileProvider(),
         SupplierProvider(),
