@@ -49,9 +49,6 @@ from src.modules.catalog.application.commands.complete_product_media import (
     CompleteProductMediaHandler,
     FailProductMediaHandler,
 )
-from src.modules.catalog.application.commands.confirm_brand_logo import (
-    ConfirmBrandLogoUploadHandler,
-)
 from src.modules.catalog.application.commands.confirm_product_media import (
     ConfirmProductMediaUploadHandler,
 )
@@ -244,9 +241,6 @@ class BrandProvider(Provider):
     )
     create_brand_handler: CompositeDependencySource = provide(
         CreateBrandHandler, scope=Scope.REQUEST
-    )
-    confirm_brand_logo_handler: CompositeDependencySource = provide(
-        ConfirmBrandLogoUploadHandler, scope=Scope.REQUEST
     )
     get_brand_handler: CompositeDependencySource = provide(
         GetBrandHandler, scope=Scope.REQUEST

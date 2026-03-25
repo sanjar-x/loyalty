@@ -89,7 +89,6 @@ class BrandReadModel(BaseModel):
     name: str
     slug: str
     logo_url: str | None = None
-    logo_status: str | None = None
 
 
 BrandListReadModel = PaginatedReadModel[BrandReadModel]

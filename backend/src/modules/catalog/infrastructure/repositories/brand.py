@@ -34,9 +34,8 @@ class BrandRepository(
             id=orm.id,
             name=orm.name,
             slug=orm.slug,
-            logo_status=orm.logo_status,
-            logo_file_id=orm.logo_file_id,
             logo_url=orm.logo_url,
+            logo_storage_object_id=orm.logo_storage_object_id,
         )
 
     def _to_orm(self, entity: DomainBrand, orm: OrmBrand | None = None) -> OrmBrand:
@@ -46,9 +45,8 @@ class BrandRepository(
         orm.id = entity.id
         orm.name = entity.name
         orm.slug = entity.slug
-        orm.logo_status = entity.logo_status
-        orm.logo_file_id = entity.logo_file_id
         orm.logo_url = entity.logo_url
+        orm.logo_storage_object_id = entity.logo_storage_object_id
         return orm
 
     async def get_by_slug(self, slug: str) -> DomainBrand | None:

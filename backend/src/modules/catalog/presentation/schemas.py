@@ -88,14 +88,6 @@ BoundedJsonDict = Annotated[dict[str, Any], AfterValidator(_validate_bounded_jso
 """A ``dict[str, Any]`` with size (10 KB) and nesting depth (4) limits."""
 
 
-class LogoMetadataRequest(CamelModel):
-    """Client-supplied metadata for a brand logo upload."""
-
-    filename: str = Field(..., max_length=255)
-    content_type: str = Field(..., pattern=r"^image/(jpeg|png|webp|gif|svg\+xml)$")
-    size: int | None = Field(None, ge=0)
-
-
 class CategoryCreateRequest(CamelModel):
     """Request body for creating a new category."""
 
@@ -172,19 +164,18 @@ CategoryListResponse = PaginatedResponse[CategoryResponse]
 
 
 class BrandCreateRequest(CamelModel):
-    """Request body for creating a new brand, with optional logo metadata."""
+    """Request body for creating a new brand, with optional logo fields."""
 
     name: str = Field(..., min_length=1, max_length=255)
     slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$")
-    logo: LogoMetadataRequest | None = None
+    logo_url: str | None = None
+    logo_storage_object_id: uuid.UUID | None = None
 
 
 class BrandCreateResponse(CamelModel):
-    """Response after brand creation, including an optional presigned upload URL."""
+    """Response after brand creation."""
 
     id: uuid.UUID
-    presigned_upload_url: str | None = None
-    object_key: str | None = None
 
 
 class BrandResponse(CamelModel):
@@ -194,7 +185,6 @@ class BrandResponse(CamelModel):
     name: str
     slug: str
     logo_url: str | None = None
-    logo_status: str | None = None
 
 
 class BrandUpdateRequest(CamelModel):
@@ -204,21 +194,20 @@ class BrandUpdateRequest(CamelModel):
     slug: str | None = Field(
         None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$"
     )
+    logo_url: str | None = None
+    logo_storage_object_id: uuid.UUID | None = None
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> BrandUpdateRequest:
-        if self.name is None and self.slug is None:
-            raise ValueError("At least one field (name or slug) must be provided")
+        if not self.model_fields_set:
+            raise ValueError(
+                "At least one field (name, slug, logoUrl, or logoStorageObjectId) "
+                "must be provided"
+            )
         return self
 
 
 BrandListResponse = PaginatedResponse[BrandResponse]
-
-
-class LogoConfirmResponse(CamelModel):
-    """Response after confirming logo upload."""
-
-    message: str = "Logo processing request accepted"
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 """
-FastAPI router for Brand CRUD and logo management endpoints.
+FastAPI router for Brand CRUD endpoints.
 
 All mutating endpoints require the ``catalog:manage`` permission.
 Read endpoints require the ``catalog:read`` permission (admin use).
@@ -12,15 +12,10 @@ import uuid
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, status
 
-from src.modules.catalog.application.commands.confirm_brand_logo import (
-    ConfirmBrandLogoUploadCommand,
-    ConfirmBrandLogoUploadHandler,
-)
 from src.modules.catalog.application.commands.create_brand import (
     CreateBrandCommand,
     CreateBrandHandler,
     CreateBrandResult,
-    LogoMetadata,
 )
 from src.modules.catalog.application.commands.delete_brand import (
     DeleteBrandCommand,
@@ -46,7 +41,6 @@ from src.modules.catalog.presentation.schemas import (
     BrandListResponse,
     BrandResponse,
     BrandUpdateRequest,
-    LogoConfirmResponse,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
@@ -70,25 +64,14 @@ async def create_brand(
     request: BrandCreateRequest,
     handler: FromDishka[CreateBrandHandler],
 ) -> BrandCreateResponse:
-    logo_meta = None
-    if request.logo:
-        logo_meta = LogoMetadata(
-            filename=request.logo.filename,
-            content_type=request.logo.content_type,
-            size=request.logo.size,
-        )
-
     command = CreateBrandCommand(
         name=request.name,
         slug=request.slug,
-        logo=logo_meta,
+        logo_url=request.logo_url,
+        logo_storage_object_id=request.logo_storage_object_id,
     )
     result: CreateBrandResult = await handler.handle(command)
-    return BrandCreateResponse(
-        id=result.brand_id,
-        presigned_upload_url=result.presigned_upload_url,
-        object_key=result.object_key,
-    )
+    return BrandCreateResponse(id=result.brand_id)
 
 
 @brand_router.get(
@@ -113,7 +96,6 @@ async def list_brands(
                 name=item.name,
                 slug=item.slug,
                 logo_url=item.logo_url,
-                logo_status=item.logo_status,
             )
             for item in result.items
         ],
@@ -141,7 +123,6 @@ async def get_brand(
         name=result.name,
         slug=result.slug,
         logo_url=result.logo_url,
-        logo_status=result.logo_status,
     )
 
 
@@ -150,7 +131,7 @@ async def get_brand(
     status_code=status.HTTP_200_OK,
     response_model=BrandResponse,
     summary="Update a brand",
-    description="Partially update brand fields like name or slug.",
+    description="Partially update brand fields like name, slug, or logo.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_brand(
@@ -169,7 +150,6 @@ async def update_brand(
         name=result.name,
         slug=result.slug,
         logo_url=result.logo_url,
-        logo_status=result.logo_status,
     )
 
 
@@ -186,20 +166,3 @@ async def delete_brand(
 ) -> None:
     command = DeleteBrandCommand(brand_id=brand_id)
     await handler.handle(command)
-
-
-@brand_router.post(
-    path="/{brand_id}/logo/confirm",
-    status_code=status.HTTP_202_ACCEPTED,
-    response_model=LogoConfirmResponse,
-    summary="Confirm logo upload",
-    description="Confirm that a logo was uploaded to S3 and start processing.",
-    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
-)
-async def confirm_logo_upload(
-    brand_id: uuid.UUID,
-    handler: FromDishka[ConfirmBrandLogoUploadHandler],
-) -> LogoConfirmResponse:
-    command = ConfirmBrandLogoUploadCommand(brand_id=brand_id)
-    await handler.handle(command)
-    return LogoConfirmResponse()
