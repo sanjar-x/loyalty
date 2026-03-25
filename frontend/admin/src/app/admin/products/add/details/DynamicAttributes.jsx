@@ -153,17 +153,18 @@ function RangeSliderField({ attribute, value, onChange }) {
 
 function AttributeField({ attribute, values, onUpdate }) {
   const selected = values[attribute.attributeId] ?? [];
+  const level = attribute.level ?? 'product';
 
   function handleToggle(valueId) {
     const current = selected;
     const next = current.includes(valueId)
       ? current.filter((id) => id !== valueId)
       : [...current, valueId];
-    onUpdate(attribute.attributeId, next);
+    onUpdate(attribute.attributeId, next, level);
   }
 
   function handleSet(next) {
-    onUpdate(attribute.attributeId, next);
+    onUpdate(attribute.attributeId, next, level);
   }
 
   switch (attribute.uiType) {
@@ -234,8 +235,8 @@ export default function DynamicAttributes({ categoryId, values, onChange }) {
       .finally(() => setLoading(false));
   }, [categoryId]);
 
-  function handleUpdate(attributeId, selectedValues) {
-    onChange?.({ ...values, [attributeId]: selectedValues });
+  function handleUpdate(attributeId, selectedValues, level) {
+    onChange?.(attributeId, selectedValues, level);
   }
 
   if (loading) {
