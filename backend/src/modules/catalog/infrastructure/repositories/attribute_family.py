@@ -146,6 +146,8 @@ class AttributeFamilyRepository(
         """Return category IDs that reference any of the given family IDs."""
         if not family_ids:
             return []
-        stmt = select(OrmCategory.id).where(OrmCategory.family_id.in_(family_ids))
+        stmt = select(OrmCategory.id).where(
+            OrmCategory.effective_family_id.in_(family_ids)
+        )
         result = await self._session.execute(stmt)
         return [row[0] for row in result.all()]
