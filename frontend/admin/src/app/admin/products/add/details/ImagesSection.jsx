@@ -5,6 +5,20 @@ import styles from './page.module.css';
 
 const MAX_IMAGES = 10;
 
+/**
+ * Controlled images section.
+ *
+ * Props:
+ *   images: Array<{ localId, url, alt, source, file? }> — from useProductForm
+ *   onAdd: (image) => void — add one image to hook state
+ *   onRemove: (localId) => void — remove by localId
+ *   onSet: (images) => void — replace all (for reorder)
+ *
+ * Media upload to S3 is deferred to submit flow (Step 8) because
+ * productId doesn't exist yet during form fill. Images are stored
+ * as local blob URLs (file uploads) or external URLs.
+ */
+
 function UploadIcon() {
   return (
     <svg
@@ -44,13 +58,19 @@ function ArrowIcon() {
   );
 }
 
-export default function ImagesSection() {
-  const [images, setImages] = useState([]);
+export default function ImagesSection({
+  images = [],
+  onAdd,
+  onRemove,
+  onSet,
+}) {
+  // Local-only state (not in hook)
   const [urlValue, setUrlValue] = useState('');
   const [urlFocused, setUrlFocused] = useState(false);
   const fileInputRef = useRef(null);
   const blobUrlsRef = useRef(new Set());
 
+  // Cleanup blob URLs on unmount
   useEffect(() => {
     const blobUrls = blobUrlsRef.current;
     return () => {
@@ -65,26 +85,20 @@ export default function ImagesSection() {
 
   function handleFileChange(event) {
     const files = Array.from(event.target.files ?? []);
+    if (!files.length) return;
 
-    if (!files.length) {
-      return;
-    }
+    const availableSlots = Math.max(MAX_IMAGES - images.length, 0);
 
-    setImages((current) => {
-      const availableSlots = Math.max(MAX_IMAGES - current.length, 0);
-
-      const nextItems = files.slice(0, availableSlots).map((file) => {
-        const url = URL.createObjectURL(file);
-        blobUrlsRef.current.add(url);
-        return {
-          id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
-          url,
-          alt: file.name || 'Изображение товара',
-          source: 'file',
-        };
+    files.slice(0, availableSlots).forEach((file) => {
+      const url = URL.createObjectURL(file);
+      blobUrlsRef.current.add(url);
+      onAdd?.({
+        localId: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        url,
+        alt: file.name || 'Изображение товара',
+        source: 'file',
       });
-
-      return [...current, ...nextItems].slice(0, MAX_IMAGES);
     });
 
     setUrlValue('');
@@ -96,32 +110,23 @@ export default function ImagesSection() {
     if (!nextUrl || images.length >= MAX_IMAGES) return;
     if (!nextUrl.startsWith('https://') && !nextUrl.startsWith('http://')) return;
 
-    setImages((current) =>
-      [
-        ...current,
-        {
-          id: `url-${Date.now()}`,
-          url: nextUrl,
-          alt: 'Изображение товара по URL',
-          source: 'url',
-        },
-      ].slice(0, MAX_IMAGES),
-    );
+    onAdd?.({
+      localId: `url-${Date.now()}`,
+      url: nextUrl,
+      alt: 'Изображение товара по URL',
+      source: 'url',
+    });
 
     setUrlValue('');
   }
 
-  function removeImage(imageId) {
-    setImages((current) => {
-      const target = current.find((image) => image.id === imageId);
-
-      if (target?.source === 'file' && target.url.startsWith('blob:')) {
-        URL.revokeObjectURL(target.url);
-        blobUrlsRef.current.delete(target.url);
-      }
-
-      return current.filter((image) => image.id !== imageId);
-    });
+  function handleRemove(localId, image) {
+    // Revoke blob URL if it was a file upload
+    if (image.source === 'file' && image.url?.startsWith('blob:')) {
+      URL.revokeObjectURL(image.url);
+      blobUrlsRef.current.delete(image.url);
+    }
+    onRemove?.(localId);
   }
 
   const imageCount = images.length;
@@ -154,7 +159,7 @@ export default function ImagesSection() {
           <>
             <div className={styles.imagesGallery}>
               {images.map((image) => (
-                <div key={image.id} className={styles.imagesGalleryItem}>
+                <div key={image.localId} className={styles.imagesGalleryItem}>
                   <img
                     src={image.url}
                     alt={image.alt}
@@ -163,7 +168,7 @@ export default function ImagesSection() {
                   <button
                     type="button"
                     className={styles.imagesRemoveButton}
-                    onClick={() => removeImage(image.id)}
+                    onClick={() => handleRemove(image.localId, image)}
                     aria-label="Удалить изображение"
                   >
                     <svg
@@ -229,6 +234,12 @@ export default function ImagesSection() {
                 onChange={(event) => setUrlValue(event.target.value)}
                 onFocus={() => setUrlFocused(true)}
                 onBlur={() => setUrlFocused(false)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    applyUrlImage();
+                  }
+                }}
                 className={styles.sizeTableUrlInput}
               />
             </div>
