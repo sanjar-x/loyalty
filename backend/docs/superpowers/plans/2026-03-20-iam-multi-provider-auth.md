@@ -21,48 +21,50 @@ This is a single subsystem (IAM Identity module refactor). The spec's "Future" i
 ## File Structure
 
 ### Files to CREATE
-| File | Responsibility |
-|------|---------------|
-| `alembic/versions/2026/03/20_0002_iam_multi_provider.py` | Migration A: extend schema, migrate data |
-| `alembic/versions/2026/03/20_0003_drop_telegram_credentials.py` | Migration B: drop old table (after deploy) |
-| `tests/unit/modules/identity/domain/test_session_timeouts.py` | Session idle/absolute timeout + touch() tests |
-| `tests/unit/modules/identity/domain/test_token_version.py` | Identity.bump_token_version() tests |
+
+| File                                                            | Responsibility                                |
+| --------------------------------------------------------------- | --------------------------------------------- |
+| `alembic/versions/2026/03/20_0002_iam_multi_provider.py`        | Migration A: extend schema, migrate data      |
+| `alembic/versions/2026/03/20_0003_drop_telegram_credentials.py` | Migration B: drop old table (after deploy)    |
+| `tests/unit/modules/identity/domain/test_session_timeouts.py`   | Session idle/absolute timeout + touch() tests |
+| `tests/unit/modules/identity/domain/test_token_version.py`      | Identity.bump_token_version() tests           |
 
 ### Files to MODIFY
-| File | What Changes |
-|------|-------------|
-| `src/modules/identity/domain/value_objects.py` | Rename `IdentityType` → `PrimaryAuthMethod`; add `AuthProvider`, `TRUSTED_EMAIL_PROVIDERS`; keep `IdentityType = PrimaryAuthMethod` alias |
-| `src/modules/identity/domain/entities.py` | Identity: add `token_version` + `bump_token_version()`; Session: add idle timeout fields + `touch()`; LinkedAccount: expand fields + `update_metadata()`; delete `TelegramCredentials` |
-| `src/modules/identity/domain/events.py` | Delete `TelegramIdentityCreatedEvent`; add `LinkedAccountCreatedEvent`, `LinkedAccountRemovedEvent`, `IdentityTokenVersionBumpedEvent` |
-| `src/modules/identity/domain/interfaces.py` | Delete `ITelegramCredentialsRepository`; expand `ILinkedAccountRepository` (6 new methods) |
-| `src/modules/identity/infrastructure/models.py` | IdentityModel: add `token_version`, rename `type`→`primary_auth_method`; SessionModel: add idle timeout columns; LinkedAccountModel: add new columns; delete `TelegramCredentialsModel` + relationship |
-| `src/modules/identity/infrastructure/repositories/linked_account_repository.py` | Implement expanded interface; update `_to_domain`/`add` for new fields; change `get_by_provider` return |
-| `src/modules/identity/infrastructure/repositories/identity_repository.py` | Update `_identity_to_domain`: `orm.type` → `orm.primary_auth_method`; `IdentityType` → `PrimaryAuthMethod`; `identity.type` → `identity.primary_auth_method`; add `token_version` field mapping |
-| `src/modules/identity/infrastructure/repositories/session_repository.py` | Update `_to_domain` + `add()`: map `last_active_at`, `idle_expires_at` new Session fields |
-| `src/modules/identity/infrastructure/provider.py` | Remove `ITelegramCredentialsRepository` binding; rewire `login_telegram_handler`; add session timeout config params |
-| `src/modules/identity/application/commands/login_telegram.py` | Replace `ITelegramCredentialsRepository` → `ILinkedAccountRepository`; emit `LinkedAccountCreatedEvent`; pass idle timeout config |
-| `src/modules/identity/application/commands/login.py` | Include `tv` claim; pass `idle_timeout_minutes` to `Session.create()` |
-| `src/modules/identity/application/commands/login_oidc.py` | Update `IdentityType.OIDC` → `PrimaryAuthMethod.OIDC` |
-| `src/modules/identity/application/commands/register.py` | Rename `IdentityType.LOCAL` → `PrimaryAuthMethod.LOCAL` |
-| `src/modules/identity/application/commands/refresh_token.py` | Add `session.touch()`; include `tv` claim in new JWT; persist session updates |
-| `src/modules/identity/application/commands/assign_role.py` | Call `identity.bump_token_version()` after role assignment |
-| `src/modules/identity/application/commands/revoke_role.py` | Call `identity.bump_token_version()` after role revocation |
-| `src/modules/identity/application/commands/logout_all.py` | Add `IIdentityRepository` dep; call `identity.bump_token_version()` |
-| `src/modules/identity/presentation/dependencies.py` | Add token version validation in `get_auth_context()` (Option A: DB check per request) |
-| `src/modules/identity/presentation/schemas.py` | Add `auth_methods: list[str]` and `username: str \| None` to `CustomerListItemResponse` and `CustomerDetailResponse` |
-| `src/modules/identity/application/queries/list_customers.py` | Add batch query for `linked_accounts`; add `auth_methods` + `username` to CustomerListItem |
-| `src/modules/identity/application/queries/get_customer_detail.py` | Add `auth_methods` + `username` to CustomerDetail |
-| `src/modules/identity/presentation/router_customers.py` | Pass `auth_methods`, `username` through to response schemas |
-| `src/infrastructure/database/registry.py` | Remove `TelegramCredentialsModel` import and `__all__` entry |
-| `src/bootstrap/config.py` | Add 4 new settings: `SESSION_IDLE_TIMEOUT_MINUTES`, `SESSION_ABSOLUTE_LIFETIME_HOURS`, `TELEGRAM_SESSION_IDLE_TIMEOUT_MINUTES`, `TELEGRAM_SESSION_ABSOLUTE_LIFETIME_HOURS` |
-| `src/modules/user/domain/entities.py` | Customer: add `username` field; update `create_from_identity()`; add to `_CUSTOMER_UPDATABLE_FIELDS` |
-| `src/modules/user/infrastructure/models.py` | CustomerModel: add `username` column |
-| `src/modules/user/application/consumers/identity_events.py` | Delete `create_customer_on_telegram_identity_created`; add `on_linked_account_created` |
-| `src/modules/identity/infrastructure/repositories/telegram_credentials_repo.py` | **DELETE FILE** |
-| `tests/factories/identity_mothers.py` | Update `LinkedAccountMothers` for new fields; update `IdentityType` → `PrimaryAuthMethod`; add `IdentityMothers.active_telegram()` |
-| `tests/unit/modules/identity/domain/test_telegram.py` | Delete `TestTelegramCredentials`, `TestTelegramIdentityCreatedEvent`; add `TestLinkedAccount`, `TestLinkedAccountCreatedEvent` |
-| `tests/unit/modules/user/domain/test_customer.py` | Add `username` field tests |
-| `tests/e2e/api/v1/test_auth_telegram.py` | Update SQL queries: `telegram_credentials` → `linked_accounts WHERE provider = 'telegram'` |
+
+| File                                                                            | What Changes                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/modules/identity/domain/value_objects.py`                                  | Rename `IdentityType` → `PrimaryAuthMethod`; add `AuthProvider`, `TRUSTED_EMAIL_PROVIDERS`; keep `IdentityType = PrimaryAuthMethod` alias                                                              |
+| `src/modules/identity/domain/entities.py`                                       | Identity: add `token_version` + `bump_token_version()`; Session: add idle timeout fields + `touch()`; LinkedAccount: expand fields + `update_metadata()`; delete `TelegramCredentials`                 |
+| `src/modules/identity/domain/events.py`                                         | Delete `TelegramIdentityCreatedEvent`; add `LinkedAccountCreatedEvent`, `LinkedAccountRemovedEvent`, `IdentityTokenVersionBumpedEvent`                                                                 |
+| `src/modules/identity/domain/interfaces.py`                                     | Delete `ITelegramCredentialsRepository`; expand `ILinkedAccountRepository` (6 new methods)                                                                                                             |
+| `src/modules/identity/infrastructure/models.py`                                 | IdentityModel: add `token_version`, rename `type`→`primary_auth_method`; SessionModel: add idle timeout columns; LinkedAccountModel: add new columns; delete `TelegramCredentialsModel` + relationship |
+| `src/modules/identity/infrastructure/repositories/linked_account_repository.py` | Implement expanded interface; update `_to_domain`/`add` for new fields; change `get_by_provider` return                                                                                                |
+| `src/modules/identity/infrastructure/repositories/identity_repository.py`       | Update `_identity_to_domain`: `orm.type` → `orm.primary_auth_method`; `IdentityType` → `PrimaryAuthMethod`; `identity.type` → `identity.primary_auth_method`; add `token_version` field mapping        |
+| `src/modules/identity/infrastructure/repositories/session_repository.py`        | Update `_to_domain` + `add()`: map `last_active_at`, `idle_expires_at` new Session fields                                                                                                              |
+| `src/modules/identity/infrastructure/provider.py`                               | Remove `ITelegramCredentialsRepository` binding; rewire `login_telegram_handler`; add session timeout config params                                                                                    |
+| `src/modules/identity/application/commands/login_telegram.py`                   | Replace `ITelegramCredentialsRepository` → `ILinkedAccountRepository`; emit `LinkedAccountCreatedEvent`; pass idle timeout config                                                                      |
+| `src/modules/identity/application/commands/login.py`                            | Include `tv` claim; pass `idle_timeout_minutes` to `Session.create()`                                                                                                                                  |
+| `src/modules/identity/application/commands/login_oidc.py`                       | Update `IdentityType.OIDC` → `PrimaryAuthMethod.OIDC`                                                                                                                                                  |
+| `src/modules/identity/application/commands/register.py`                         | Rename `IdentityType.LOCAL` → `PrimaryAuthMethod.LOCAL`                                                                                                                                                |
+| `src/modules/identity/application/commands/refresh_token.py`                    | Add `session.touch()`; include `tv` claim in new JWT; persist session updates                                                                                                                          |
+| `src/modules/identity/application/commands/assign_role.py`                      | Call `identity.bump_token_version()` after role assignment                                                                                                                                             |
+| `src/modules/identity/application/commands/revoke_role.py`                      | Call `identity.bump_token_version()` after role revocation                                                                                                                                             |
+| `src/modules/identity/application/commands/logout_all.py`                       | Add `IIdentityRepository` dep; call `identity.bump_token_version()`                                                                                                                                    |
+| `src/modules/identity/presentation/dependencies.py`                             | Add token version validation in `get_auth_context()` (Option A: DB check per request)                                                                                                                  |
+| `src/modules/identity/presentation/schemas.py`                                  | Add `auth_methods: list[str]` and `username: str \| None` to `CustomerListItemResponse` and `CustomerDetailResponse`                                                                                   |
+| `src/modules/identity/application/queries/list_customers.py`                    | Add batch query for `linked_accounts`; add `auth_methods` + `username` to CustomerListItem                                                                                                             |
+| `src/modules/identity/application/queries/get_customer_detail.py`               | Add `auth_methods` + `username` to CustomerDetail                                                                                                                                                      |
+| `src/modules/identity/presentation/router_customers.py`                         | Pass `auth_methods`, `username` through to response schemas                                                                                                                                            |
+| `src/infrastructure/database/registry.py`                                       | Remove `TelegramCredentialsModel` import and `__all__` entry                                                                                                                                           |
+| `src/bootstrap/config.py`                                                       | Add 4 new settings: `SESSION_IDLE_TIMEOUT_MINUTES`, `SESSION_ABSOLUTE_LIFETIME_HOURS`, `TELEGRAM_SESSION_IDLE_TIMEOUT_MINUTES`, `TELEGRAM_SESSION_ABSOLUTE_LIFETIME_HOURS`                             |
+| `src/modules/user/domain/entities.py`                                           | Customer: add `username` field; update `create_from_identity()`; add to `_CUSTOMER_UPDATABLE_FIELDS`                                                                                                   |
+| `src/modules/user/infrastructure/models.py`                                     | CustomerModel: add `username` column                                                                                                                                                                   |
+| `src/modules/user/application/consumers/identity_events.py`                     | Delete `create_customer_on_telegram_identity_created`; add `on_linked_account_created`                                                                                                                 |
+| `src/modules/identity/infrastructure/repositories/telegram_credentials_repo.py` | **DELETE FILE**                                                                                                                                                                                        |
+| `tests/factories/identity_mothers.py`                                           | Update `LinkedAccountMothers` for new fields; update `IdentityType` → `PrimaryAuthMethod`; add `IdentityMothers.active_telegram()`                                                                     |
+| `tests/unit/modules/identity/domain/test_telegram.py`                           | Delete `TestTelegramCredentials`, `TestTelegramIdentityCreatedEvent`; add `TestLinkedAccount`, `TestLinkedAccountCreatedEvent`                                                                         |
+| `tests/unit/modules/user/domain/test_customer.py`                               | Add `username` field tests                                                                                                                                                                             |
+| `tests/e2e/api/v1/test_auth_telegram.py`                                        | Update SQL queries: `telegram_credentials` → `linked_accounts WHERE provider = 'telegram'`                                                                                                             |
 
 ### Files with `IdentityType` imports (backward-compat alias handles these — update opportunistically)
 
@@ -81,6 +83,7 @@ These files import `IdentityType` which continues to work via the `IdentityType 
 ## Important: Migration Ordering
 
 The Alembic migration (Task 24) creates DB columns referenced by code changes in Tasks 1-23. During development:
+
 - **Unit tests** (domain layer, no DB) work immediately after code changes
 - **Integration/E2E tests** require running `alembic upgrade head` first (Task 24)
 - **Recommended workflow:** Apply Migration A (Task 24) to dev/test DB early, then work through code tasks 1-23. The migration is safe to run before code deployment because all new columns have defaults.
@@ -92,6 +95,7 @@ The Alembic migration (Task 24) creates DB columns referenced by code changes in
 ### Task 1: Domain Value Objects — Rename IdentityType → PrimaryAuthMethod + New Enums
 
 **Files:**
+
 - Modify: `src/modules/identity/domain/value_objects.py:11-22`
 
 - [ ] **Step 1: Write the failing test**
@@ -136,7 +140,7 @@ In `src/modules/identity/domain/value_objects.py`:
 3. Add `AuthProvider` enum and `TRUSTED_EMAIL_PROVIDERS` frozenset:
 
 ```python
-class PrimaryAuthMethod(str, enum.Enum):
+class PrimaryAuthMethod(enum.StrEnum):
     """Authentication method used by an identity."""
     LOCAL = "LOCAL"
     OIDC = "OIDC"
@@ -145,7 +149,7 @@ class PrimaryAuthMethod(str, enum.Enum):
 # Backward compatibility alias (remove after full migration)
 IdentityType = PrimaryAuthMethod
 
-class AuthProvider(str, enum.Enum):
+class AuthProvider(enum.StrEnum):
     """External authentication provider identifiers."""
     TELEGRAM = "telegram"
     GOOGLE = "google"
@@ -174,6 +178,7 @@ git commit -m "refactor(identity): rename IdentityType → PrimaryAuthMethod, ad
 ### Task 2: Domain — Identity token_version + bump_token_version()
 
 **Files:**
+
 - Modify: `src/modules/identity/domain/entities.py:37-60` (Identity class)
 - Create: `tests/unit/modules/identity/domain/test_token_version.py`
 
@@ -248,6 +253,7 @@ git commit -m "feat(identity): add token_version field for instant JWT invalidat
 ### Task 3: Domain — Session idle timeout (last_active_at, idle_expires_at, touch)
 
 **Files:**
+
 - Modify: `src/modules/identity/domain/entities.py:173-291` (Session class)
 - Create: `tests/unit/modules/identity/domain/test_session_timeouts.py`
 
@@ -335,12 +341,14 @@ Expected: FAIL — `Session.create()` doesn't accept `idle_timeout_minutes`
 In `src/modules/identity/domain/entities.py`, modify the `Session` class:
 
 1. Add fields after `activated_roles` (line 201):
+
 ```python
     last_active_at: datetime
     idle_expires_at: datetime
 ```
 
 2. Update `create()` factory (lines 203-238) — add `idle_timeout_minutes: int = 30` param, set both fields:
+
 ```python
     @classmethod
     def create(
@@ -371,6 +379,7 @@ In `src/modules/identity/domain/entities.py`, modify the `Session` class:
 ```
 
 3. Add `touch()` method after `ensure_valid()`:
+
 ```python
     def touch(self, idle_timeout_minutes: int) -> None:
         """Extend idle timeout on activity (refresh token use)."""
@@ -380,6 +389,7 @@ In `src/modules/identity/domain/entities.py`, modify the `Session` class:
 ```
 
 4. Update `ensure_valid()` to also check `idle_expires_at`:
+
 ```python
     def ensure_valid(self) -> None:
         if self.is_expired():
@@ -414,6 +424,7 @@ git commit -m "feat(identity): add Session idle/absolute dual timeout model (OWA
 ### Task 4: Domain — Expand LinkedAccount entity + delete TelegramCredentials
 
 **Files:**
+
 - Modify: `src/modules/identity/domain/entities.py:332-389` (LinkedAccount + TelegramCredentials)
 
 - [ ] **Step 1: Write test for expanded LinkedAccount**
@@ -474,6 +485,7 @@ Expected: FAIL — `LinkedAccount` doesn't accept `email_verified`, `provider_me
 In `src/modules/identity/domain/entities.py`:
 
 1. **Expand LinkedAccount** (lines 332-349) to:
+
 ```python
 @dataclass
 class LinkedAccount:
@@ -518,6 +530,7 @@ git commit -m "feat(identity): expand LinkedAccount fields, delete TelegramCrede
 ### Task 5: Domain Events — Replace TelegramIdentityCreatedEvent with LinkedAccount events
 
 **Files:**
+
 - Modify: `src/modules/identity/domain/events.py:165-184`
 
 - [ ] **Step 1: Write test for new events**
@@ -666,6 +679,7 @@ git commit -m "feat(identity): replace TelegramIdentityCreatedEvent with LinkedA
 ### Task 6: Domain Interfaces — Expand ILinkedAccountRepository, delete ITelegramCredentialsRepository
 
 **Files:**
+
 - Modify: `src/modules/identity/domain/interfaces.py:437-493`
 
 - [ ] **Step 1: Expand ILinkedAccountRepository**
@@ -674,6 +688,7 @@ In `src/modules/identity/domain/interfaces.py`:
 
 1. Change `get_by_provider()` return type (line 457) from `LinkedAccount | None` to `tuple[Identity, LinkedAccount] | None`
 2. Add 5 new abstract methods to `ILinkedAccountRepository`:
+
 ```python
     @abstractmethod
     async def update(self, account: LinkedAccount) -> None: ...
@@ -712,9 +727,10 @@ git commit -m "refactor(identity): expand ILinkedAccountRepository, delete ITele
 ### Task 7: Infrastructure — Update IdentityRepository (column rename + token_version mapping)
 
 **Files:**
+
 - Modify: `src/modules/identity/infrastructure/repositories/identity_repository.py:28-46,65-82`
 
-- [ ] **Step 1: Update _identity_to_domain mapper**
+- [ ] **Step 1: Update \_identity_to_domain mapper**
 
 At line 39, change `type=IdentityType(orm.type)` → `type=PrimaryAuthMethod(orm.primary_auth_method)`.
 At line 45, after `deactivated_by=orm.deactivated_by`, add: `token_version=orm.token_version,`.
@@ -742,11 +758,13 @@ git commit -m "refactor(identity): update IdentityRepository for column rename +
 ### Task 8: Infrastructure — Update SessionRepository (idle timeout field mapping)
 
 **Files:**
+
 - Modify: `src/modules/identity/infrastructure/repositories/session_repository.py:27-69`
 
-- [ ] **Step 1: Update _to_domain mapper**
+- [ ] **Step 1: Update \_to_domain mapper**
 
 At line 46, after `activated_roles=role_ids`, add:
+
 ```python
             last_active_at=orm.last_active_at,
             idle_expires_at=orm.idle_expires_at,
@@ -755,6 +773,7 @@ At line 46, after `activated_roles=role_ids`, add:
 - [ ] **Step 2: Update add() method**
 
 At line 65, after `expires_at=session.expires_at`, add:
+
 ```python
             last_active_at=session.last_active_at,
             idle_expires_at=session.idle_expires_at,
@@ -776,6 +795,7 @@ git commit -m "feat(identity): map Session idle timeout fields in SessionReposit
 ### Task 9: Infrastructure — Update ORM models (IdentityModel, SessionModel, LinkedAccountModel, delete TelegramCredentialsModel)
 
 **Files:**
+
 - Modify: `src/modules/identity/infrastructure/models.py`
 
 - [ ] **Step 1: Add token_version to IdentityModel**
@@ -783,6 +803,7 @@ git commit -m "feat(identity): map Session idle timeout fields in SessionReposit
 In `src/modules/identity/infrastructure/models.py`:
 
 After `deactivated_by` (line 83), add:
+
 ```python
     token_version: Mapped[int] = mapped_column(
         Integer,
@@ -797,6 +818,7 @@ Add `Integer` to the imports from sqlalchemy (line 11).
 - [ ] **Step 2: Rename IdentityModel.type → primary_auth_method**
 
 Change line 43-47:
+
 ```python
     primary_auth_method: Mapped[str] = mapped_column(
         Enum(PrimaryAuthMethod, native_enum=False, length=10),
@@ -810,6 +832,7 @@ Update import at line 28: `from src.modules.identity.domain.value_objects import
 - [ ] **Step 3: Add idle timeout columns to SessionModel**
 
 In `SessionModel` (after `expires_at` at line 440), add:
+
 ```python
     last_active_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
@@ -827,6 +850,7 @@ In `SessionModel` (after `expires_at` at line 440), add:
 - [ ] **Step 4: Expand LinkedAccountModel**
 
 In `LinkedAccountModel` (after `provider_email` at line 167), add:
+
 ```python
     email_verified: Mapped[bool] = mapped_column(
         Boolean,
@@ -860,6 +884,7 @@ Add `JSONB` to the postgresql dialect imports: `from sqlalchemy.dialects.postgre
 Delete the entire `TelegramCredentialsModel` class (lines 172-241).
 
 Delete the `telegram_credentials` relationship from `IdentityModel` (lines 98-102):
+
 ```python
     telegram_credentials: Mapped[TelegramCredentialsModel | None] = relationship(
         back_populates="identity",
@@ -876,6 +901,7 @@ Expected: `OK`
 - [ ] **Step 7: Update database registry**
 
 In `src/infrastructure/database/registry.py`:
+
 - Remove `TelegramCredentialsModel` from the import (line 33)
 - Remove `"TelegramCredentialsModel"` from `__all__` (line 62)
 
@@ -899,6 +925,7 @@ git commit -m "refactor(identity): update ORM models — token_version, idle tim
 ### Task 10: Infrastructure — Update LinkedAccountRepository
 
 **Files:**
+
 - Modify: `src/modules/identity/infrastructure/repositories/linked_account_repository.py`
 
 - [ ] **Step 1: Update `_to_domain()` and `add()` for new fields**
@@ -986,11 +1013,13 @@ git commit -m "refactor(identity): expand LinkedAccountRepository, delete Telegr
 ### Task 11: Config — Add session timeout settings
 
 **Files:**
+
 - Modify: `src/bootstrap/config.py:60-63`
 
 - [ ] **Step 1: Add new settings**
 
 After `MAX_ACTIVE_SESSIONS_PER_IDENTITY` (line 63), add:
+
 ```python
     SESSION_IDLE_TIMEOUT_MINUTES: int = 30
     SESSION_ABSOLUTE_LIFETIME_HOURS: int = 24
@@ -1010,6 +1039,7 @@ git commit -m "feat(config): add session idle/absolute timeout settings (OWASP/N
 ### Task 12: Infrastructure — Update DI provider.py
 
 **Files:**
+
 - Modify: `src/modules/identity/infrastructure/provider.py:140-178`
 
 - [ ] **Step 1: Remove TelegramCredentialsRepository binding**
@@ -1017,12 +1047,14 @@ git commit -m "feat(config): add session idle/absolute timeout settings (OWASP/N
 Delete lines 141-144 (the `telegram_creds_repo` provide).
 
 Remove imports:
+
 - `TelegramCredentialsRepository`
 - `ITelegramCredentialsRepository`
 
 - [ ] **Step 2: Rewire LoginTelegramHandler factory**
 
 Change `login_telegram_handler` factory (lines 153-178):
+
 - Remove `telegram_creds_repo: ITelegramCredentialsRepository` parameter
 - Add `linked_account_repo: ILinkedAccountRepository` parameter
 - Pass `linked_account_repo` instead of `telegram_creds_repo`
@@ -1054,6 +1086,7 @@ git commit -m "refactor(identity): rewire DI — remove TelegramCredentialsRepo,
 ### Task 13: Application — Refactor LoginTelegramHandler
 
 **Files:**
+
 - Modify: `src/modules/identity/application/commands/login_telegram.py`
 
 - [ ] **Step 1: Replace all Telegram credential references**
@@ -1071,7 +1104,7 @@ Full rewrite of `login_telegram.py`:
    - Session.create(): pass `idle_timeout_minutes=self._idle_timeout_minutes`
    - JWT payload: add `"tv": identity.token_version`
 
-4. **_provision_new_identity()** method:
+4. **\_provision_new_identity()** method:
    - Create `LinkedAccount` instead of `TelegramCredentials`
    - Build `provider_metadata` dict from `TelegramUserData` fields
    - Emit `LinkedAccountCreatedEvent` instead of `TelegramIdentityCreatedEvent`
@@ -1099,6 +1132,7 @@ git commit -m "refactor(identity): LoginTelegramHandler uses LinkedAccount inste
 ### Task 14: Application — Update LoginHandler (tv claim + idle timeout)
 
 **Files:**
+
 - Modify: `src/modules/identity/application/commands/login.py:141-164`
 
 - [ ] **Step 1: Add tv claim and idle timeout**
@@ -1106,6 +1140,7 @@ git commit -m "refactor(identity): LoginTelegramHandler uses LinkedAccount inste
 1. Add `idle_timeout_minutes: int = 30` to `LoginHandler.__init__()`
 2. In `handle()`, change `Session.create()` call to pass `idle_timeout_minutes=self._idle_timeout_minutes`
 3. In `handle()`, change JWT payload to include `"tv": identity.token_version`:
+
 ```python
             access_token = self._token_provider.create_access_token(
                 payload_data={
@@ -1128,18 +1163,21 @@ git commit -m "feat(identity): add tv claim and idle timeout to LoginHandler"
 ### Task 15: Application — Update RefreshTokenHandler (touch + token version check)
 
 **Files:**
+
 - Modify: `src/modules/identity/application/commands/refresh_token.py:77-147`
 
 - [ ] **Step 1: Add idle timeout and token version check**
 
 1. Add `idle_timeout_minutes: int = 30` to `RefreshTokenHandler.__init__()`
 2. After `identity.ensure_active()` (line 111), add token version check:
+
 ```python
             # Token version check — reject if JWT was issued before a security event
             # (Backward compat: tokens without tv claim get tv=1)
             # Note: We don't have the original JWT here, so we check on the session-level
             # Token version is enforced in get_auth_context dependency
 ```
+
 3. After `session.ensure_valid()` (line 105), add `session.touch(self._idle_timeout_minutes)`
 4. In JWT payload creation (line 122-127), add `"tv": identity.token_version`
 5. The `session_repo.update(session)` at line 119 will now also persist `last_active_at` and `idle_expires_at`
@@ -1156,6 +1194,7 @@ git commit -m "feat(identity): add session.touch() and tv claim to RefreshTokenH
 ### Task 16: Application — Update AssignRole, RevokeRole, LogoutAll (bump token_version)
 
 **Files:**
+
 - Modify: `src/modules/identity/application/commands/assign_role.py:103-127`
 - Modify: `src/modules/identity/application/commands/revoke_role.py:72-97`
 - Modify: `src/modules/identity/application/commands/logout_all.py:42-64`
@@ -1163,6 +1202,7 @@ git commit -m "feat(identity): add session.touch() and tv claim to RefreshTokenH
 - [ ] **Step 1: AssignRoleHandler — bump token version**
 
 After role assignment (line 108) and before emitting the event (line 118), add:
+
 ```python
             identity.bump_token_version()
 ```
@@ -1172,6 +1212,7 @@ The `identity` variable is already loaded at lines 77-82.
 - [ ] **Step 2: RevokeRoleHandler — bump token version**
 
 Need to load identity first. Add after line 72:
+
 ```python
             identity = await self._identity_repo.get(command.identity_id)
             if identity:
@@ -1184,6 +1225,7 @@ Add `IIdentityRepository` to constructor if not already there. Check the imports
 - [ ] **Step 3: LogoutAllHandler — bump token version**
 
 Add `IIdentityRepository` to constructor and `__init__()`. After revoking sessions, bump:
+
 ```python
         async with self._uow:
             revoked_ids = await self._session_repo.revoke_all_for_identity(command.identity_id)
@@ -1206,6 +1248,7 @@ git commit -m "feat(identity): bump token_version on role change and logout-all"
 ### Task 17: Application — Update RegisterHandler (PrimaryAuthMethod)
 
 **Files:**
+
 - Modify: `src/modules/identity/application/commands/register.py`
 
 - [ ] **Step 1: Update import**
@@ -1226,6 +1269,7 @@ git commit -m "refactor(identity): use PrimaryAuthMethod in RegisterHandler"
 ### Task 18: Presentation — Token version validation in get_auth_context
 
 **Files:**
+
 - Modify: `src/modules/identity/presentation/dependencies.py:24-84`
 
 - [ ] **Step 1: Add identity lookup and token version check**
@@ -1274,6 +1318,7 @@ git commit -m "feat(identity): add token version validation to get_auth_context 
 ### Task 19: User Module — Customer username field
 
 **Files:**
+
 - Modify: `src/modules/user/domain/entities.py:105-110,131-176`
 - Modify: `src/modules/user/infrastructure/models.py:40-65`
 - Test: `tests/unit/modules/user/domain/test_customer.py`
@@ -1326,6 +1371,7 @@ In `src/modules/user/domain/entities.py`:
 - [ ] **Step 4: Add username to CustomerModel**
 
 In `src/modules/user/infrastructure/models.py`, after `last_name` (line 53), add:
+
 ```python
     username: Mapped[str | None] = mapped_column(String(100), nullable=True)
 ```
@@ -1347,6 +1393,7 @@ git commit -m "feat(user): add username field to Customer entity and model"
 ### Task 20: Application — Update login_oidc.py (PrimaryAuthMethod)
 
 **Files:**
+
 - Modify: `src/modules/identity/application/commands/login_oidc.py`
 
 - [ ] **Step 1: Update import**
@@ -1366,6 +1413,7 @@ git commit -m "refactor(identity): use PrimaryAuthMethod in LoginOIDCHandler"
 ### Task 21: User Module — Replace Telegram consumer with LinkedAccount consumer
 
 **Files:**
+
 - Modify: `src/modules/user/application/consumers/identity_events.py:214-267`
 
 - [ ] **Step 1: Delete `create_customer_on_telegram_identity_created`**
@@ -1454,11 +1502,13 @@ git commit -m "refactor(user): replace Telegram consumer with generic LinkedAcco
 ### Task 22: Presentation — Response schemas (auth_methods + username)
 
 **Files:**
+
 - Modify: `src/modules/identity/presentation/schemas.py`
 
 - [ ] **Step 1: Add fields to CustomerListItemResponse**
 
 Add to the `CustomerListItemResponse` class:
+
 ```python
     username: str | None = None
     auth_methods: list[str] = []
@@ -1467,6 +1517,7 @@ Add to the `CustomerListItemResponse` class:
 - [ ] **Step 2: Add fields to CustomerDetailResponse**
 
 Add to `CustomerDetailResponse`:
+
 ```python
     username: str | None = None
     auth_methods: list[str] = []
@@ -1484,11 +1535,13 @@ git commit -m "feat(identity): add auth_methods and username to customer respons
 ### Task 23: Query — ListCustomersHandler (auth_methods + username)
 
 **Files:**
+
 - Modify: `src/modules/identity/application/queries/list_customers.py`
 
 - [ ] **Step 1: Add auth_methods and username to CustomerListItem**
 
 Add fields to the `CustomerListItem` dataclass:
+
 ```python
     username: str | None = None
     auth_methods: list[str] = field(default_factory=list)
@@ -1497,6 +1550,7 @@ Add fields to the `CustomerListItem` dataclass:
 - [ ] **Step 2: Add batch query for linked_accounts**
 
 After fetching the main customer rows (around line 154), add:
+
 ```python
     # Batch query: auth methods per customer
     identity_ids = [row.identity_id for row in rows]
@@ -1511,6 +1565,7 @@ After fetching the main customer rows (around line 154), add:
 - [ ] **Step 3: Build auth_methods per customer**
 
 When constructing `CustomerListItem`, add:
+
 ```python
     auth_methods = []
     if row.email:  # has local_credentials
@@ -1536,11 +1591,13 @@ git commit -m "feat(identity): add auth_methods + username to ListCustomersHandl
 ### Task 24: Query — GetCustomerDetailHandler (auth_methods + username)
 
 **Files:**
+
 - Modify: `src/modules/identity/application/queries/get_customer_detail.py`
 
 - [ ] **Step 1: Add auth_methods and username to CustomerDetail**
 
 Add to the `CustomerDetail` dataclass:
+
 ```python
     username: str | None = None
     auth_methods: list[str] = field(default_factory=list)
@@ -1549,6 +1606,7 @@ Add to the `CustomerDetail` dataclass:
 - [ ] **Step 2: Add linked_accounts query**
 
 After fetching the main customer detail, query linked_accounts for auth methods:
+
 ```python
     la_stmt = text("SELECT provider FROM linked_accounts WHERE identity_id = :id")
     la_result = await self._session.execute(la_stmt, {"id": identity_id})
@@ -1576,6 +1634,7 @@ git commit -m "feat(identity): add auth_methods + username to GetCustomerDetailH
 ### Task 25: Test Factories — Update identity_mothers.py
 
 **Files:**
+
 - Modify: `tests/factories/identity_mothers.py`
 
 - [ ] **Step 1: Update imports and factories**
@@ -1583,13 +1642,16 @@ git commit -m "feat(identity): add auth_methods + username to GetCustomerDetailH
 1. Change `IdentityType` import to `PrimaryAuthMethod` (or use both via alias)
 2. Update `IdentityMothers` methods to use `PrimaryAuthMethod`
 3. Add `IdentityMothers.active_telegram()`:
+
 ```python
     @staticmethod
     def active_telegram() -> Identity:
         """Standard active identity via Telegram."""
         return Identity.register(PrimaryAuthMethod.TELEGRAM)
 ```
+
 4. Update `LinkedAccountMothers.google()` and `github()` to include new fields:
+
 ```python
     @staticmethod
     def google(identity_id: uuid.UUID | None = None) -> LinkedAccount:
@@ -1606,7 +1668,9 @@ git commit -m "feat(identity): add auth_methods + username to GetCustomerDetailH
             updated_at=now,
         )
 ```
+
 5. Add `LinkedAccountMothers.telegram()`:
+
 ```python
     @staticmethod
     def telegram(identity_id: uuid.UUID | None = None) -> LinkedAccount:
@@ -1649,6 +1713,7 @@ git commit -m "test: update identity test mothers for multi-provider auth"
 ### Task 26: Alembic Migration A — Schema changes + data migration
 
 **Files:**
+
 - Create: `alembic/versions/2026/03/20_0002_iam_multi_provider.py`
 
 - [ ] **Step 1: Create migration**
@@ -1751,6 +1816,7 @@ git commit -m "migration: IAM multi-provider schema changes + telegram_credentia
 ### Task 27: E2E Tests — Update test_auth_telegram.py
 
 **Files:**
+
 - Modify: `tests/e2e/api/v1/test_auth_telegram.py`
 
 - [ ] **Step 1: Update SQL queries**
@@ -1758,10 +1824,13 @@ git commit -m "migration: IAM multi-provider schema changes + telegram_credentia
 Find all references to `telegram_credentials` table in the test file and replace with `linked_accounts WHERE provider = 'telegram'`.
 
 For example, if there's a query like:
+
 ```sql
 SELECT * FROM telegram_credentials WHERE identity_id = :id
 ```
+
 Replace with:
+
 ```sql
 SELECT * FROM linked_accounts WHERE identity_id = :id AND provider = 'telegram'
 ```
@@ -1785,6 +1854,7 @@ git commit -m "test(e2e): update Telegram auth tests for linked_accounts table"
 ### Task 28: Alembic Migration B — Drop telegram_credentials (post-deploy)
 
 **Files:**
+
 - Create: `alembic/versions/2026/03/20_0003_drop_telegram_credentials.py`
 
 - [ ] **Step 1: Create migration**
@@ -1852,6 +1922,7 @@ from src.modules.user.infrastructure.models import CustomerModel
 print('All imports OK')
 "
 ```
+
 Expected: `All imports OK`
 
 - [ ] **Step 4: Final commit tag**

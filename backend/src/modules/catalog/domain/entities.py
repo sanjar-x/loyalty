@@ -1,6 +1,7 @@
 """
-Catalog domain entities (Brand, Category, AttributeGroup, Attribute,
-CategoryAttributeBinding, ProductVariant, SKU, and Product aggregates).
+Catalog domain entities (Brand, Category, AttributeFamily,
+FamilyAttributeBinding, FamilyAttributeExclusion, AttributeGroup, Attribute,
+ProductVariant, SKU, and Product aggregates).
 
 Contains the core business logic for brand lifecycle management
 (including logo FSM transitions), hierarchical category trees,
@@ -38,6 +39,8 @@ from src.modules.catalog.domain.events import (
     VariantDeletedEvent,
 )
 from src.modules.catalog.domain.exceptions import (
+    AttributeFamilyHasCategoryReferencesError,
+    AttributeFamilyHasChildrenError,
     BrandHasProductsError,
     CannotDeletePublishedProductError,
     CategoryHasChildrenError,
@@ -96,6 +99,7 @@ def _generate_id() -> uuid.UUID:
 _PRODUCT_GUARDED_FIELDS: frozenset[str] = frozenset({"status"})
 _BRAND_GUARDED_FIELDS: frozenset[str] = frozenset({"slug"})
 _CATEGORY_GUARDED_FIELDS: frozenset[str] = frozenset({"slug"})
+_FAMILY_GUARDED_FIELDS: frozenset[str] = frozenset({"code", "parent_id", "level"})
 
 
 # ---------------------------------------------------------------------------
@@ -396,6 +400,7 @@ class Category(AggregateRoot):
     full_slug: str
     level: int
     sort_order: int
+    family_id: uuid.UUID | None = None
 
     # DDD-01: guard slug against direct mutation
     def __setattr__(self, name: str, value: object) -> None:
@@ -417,6 +422,7 @@ class Category(AggregateRoot):
         name_i18n: dict[str, str],
         slug: str,
         sort_order: int = 0,
+        family_id: uuid.UUID | None = None,
     ) -> Category:
         """Create a top-level (root) category.
 
@@ -424,6 +430,7 @@ class Category(AggregateRoot):
             name_i18n: Multilingual display name.
             slug: URL-safe identifier.
             sort_order: Display ordering among root categories.
+            family_id: Optional FK to an AttributeFamily.
 
         Returns:
             A new root Category with level=0.
@@ -437,6 +444,7 @@ class Category(AggregateRoot):
             full_slug=slug,
             level=0,
             sort_order=sort_order,
+            family_id=family_id,
         )
 
     @classmethod
@@ -446,6 +454,7 @@ class Category(AggregateRoot):
         slug: str,
         parent: Category,
         sort_order: int = 0,
+        family_id: uuid.UUID | None = None,
     ) -> Category:
         """Create a child category under the given parent.
 
@@ -454,6 +463,7 @@ class Category(AggregateRoot):
             slug: URL-safe identifier (unique within parent's children).
             parent: Parent category aggregate.
             sort_order: Display ordering among siblings.
+            family_id: Optional FK to an AttributeFamily.
 
         Returns:
             A new child Category with level = parent.level + 1.
@@ -475,13 +485,19 @@ class Category(AggregateRoot):
             full_slug=f"{parent.full_slug}/{slug}",
             level=parent.level + 1,
             sort_order=sort_order,
+            family_id=family_id,
         )
+
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {"name_i18n", "slug", "sort_order", "family_id"}
+    )
 
     def update(
         self,
         name_i18n: dict[str, str] | None = None,
         slug: str | None = None,
         sort_order: int | None = None,
+        family_id: uuid.UUID | None = ...,  # type: ignore[assignment]
     ) -> str | None:
         """Update category details and recompute full_slug if slug changed.
 
@@ -489,6 +505,7 @@ class Category(AggregateRoot):
             name_i18n: New multilingual name, or None to keep current.
             slug: New URL-safe slug, or None to keep current.
             sort_order: New sort position, or None to keep current.
+            family_id: New family FK, None to clear, or ``...`` (default) to keep current.
 
         Returns:
             The old ``full_slug`` if slug was changed (caller must cascade
@@ -501,6 +518,9 @@ class Category(AggregateRoot):
 
         if sort_order is not None:
             self.sort_order = sort_order
+
+        if family_id is not ...:
+            self.family_id = family_id
 
         if slug is not None and slug != self.slug:
             _validate_slug(slug, "Category")
@@ -537,6 +557,248 @@ class Category(AggregateRoot):
             raise CategoryHasChildrenError(category_id=self.id)
         if has_products:
             raise CategoryHasProductsError(category_id=self.id)
+
+
+# ============================================================================
+# AttributeFamily aggregate
+# ============================================================================
+
+
+@dataclass
+class AttributeFamily(AggregateRoot):
+    """Standalone aggregate defining a set of attributes for products.
+
+    Families form a tree hierarchy independent of categories. Child families
+    inherit parent attributes, can override settings, exclude inherited
+    attributes, and add their own.
+
+    Attributes:
+        id: Unique family identifier.
+        parent_id: FK to parent family, or None for root families. Immutable.
+        code: Machine-readable code, globally unique. Immutable.
+        name_i18n: Multilingual display name.
+        description_i18n: Multilingual description.
+        sort_order: Display ordering among siblings.
+        level: Depth in tree (0 = root). Derived from parent at creation.
+    """
+
+    id: uuid.UUID
+    parent_id: uuid.UUID | None
+    code: str
+    name_i18n: dict[str, str]
+    description_i18n: dict[str, str]
+    sort_order: int
+    level: int
+
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {"name_i18n", "description_i18n", "sort_order"}
+    )
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if name in _FAMILY_GUARDED_FIELDS and getattr(
+            self, "_AttributeFamily__initialized", False
+        ):
+            raise AttributeError(
+                f"Cannot set '{name}' directly on AttributeFamily. "
+                f"Use the appropriate method instead."
+            )
+        super().__setattr__(name, value)
+
+    def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
+        object.__setattr__(self, "_AttributeFamily__initialized", True)
+
+    @classmethod
+    def create_root(
+        cls,
+        *,
+        code: str,
+        name_i18n: dict[str, str],
+        description_i18n: dict[str, str] | None = None,
+        sort_order: int = 0,
+    ) -> AttributeFamily:
+        """Create a root (top-level) attribute family."""
+        return cls(
+            id=_generate_id(),
+            parent_id=None,
+            code=code,
+            name_i18n=name_i18n,
+            description_i18n=description_i18n or {},
+            sort_order=sort_order,
+            level=0,
+        )
+
+    @classmethod
+    def create_child(
+        cls,
+        *,
+        parent: AttributeFamily,
+        code: str,
+        name_i18n: dict[str, str],
+        description_i18n: dict[str, str] | None = None,
+        sort_order: int = 0,
+    ) -> AttributeFamily:
+        """Create a child attribute family under the given parent."""
+        return cls(
+            id=_generate_id(),
+            parent_id=parent.id,
+            code=code,
+            name_i18n=name_i18n,
+            description_i18n=description_i18n or {},
+            sort_order=sort_order,
+            level=parent.level + 1,
+        )
+
+    def update(self, **kwargs: Any) -> None:
+        """Update mutable family fields.
+
+        Only fields in ``_UPDATABLE_FIELDS`` are accepted.
+
+        Raises:
+            TypeError: If an unknown field name is passed.
+        """
+        unknown = set(kwargs) - self._UPDATABLE_FIELDS
+        if unknown:
+            raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
+
+        if "name_i18n" in kwargs and kwargs["name_i18n"] is not None:
+            self.name_i18n = kwargs["name_i18n"]
+        if "description_i18n" in kwargs and kwargs["description_i18n"] is not None:
+            self.description_i18n = kwargs["description_i18n"]
+        if "sort_order" in kwargs and kwargs["sort_order"] is not None:
+            self.sort_order = kwargs["sort_order"]
+
+    def validate_deletable(
+        self, *, has_children: bool, has_category_refs: bool
+    ) -> None:
+        """Validate that this family can be safely deleted.
+
+        Raises:
+            AttributeFamilyHasChildrenError: If the family has child families.
+            AttributeFamilyHasCategoryReferencesError: If categories reference it.
+        """
+        if has_children:
+            raise AttributeFamilyHasChildrenError(family_id=self.id)
+        if has_category_refs:
+            raise AttributeFamilyHasCategoryReferencesError(family_id=self.id)
+
+
+# ============================================================================
+# FamilyAttributeBinding aggregate
+# ============================================================================
+
+
+@dataclass
+class FamilyAttributeBinding(AggregateRoot):
+    """Binding between a family and an attribute with governance settings.
+
+    Controls which attributes apply to a family, their display order,
+    requirement level, optional behavior-flag overrides, and per-family
+    filter settings. Standalone aggregate with its own event lifecycle.
+
+    Attributes:
+        id: Unique binding identifier.
+        family_id: FK to the AttributeFamily aggregate.
+        attribute_id: FK to the Attribute aggregate.
+        sort_order: Display ordering of the attribute within the family.
+        requirement_level: Required / recommended / optional.
+        flag_overrides: Optional per-family overrides for global behavior flags.
+        filter_settings: Optional per-family filter configuration.
+    """
+
+    id: uuid.UUID
+    family_id: uuid.UUID
+    attribute_id: uuid.UUID
+    sort_order: int
+    requirement_level: RequirementLevel
+    flag_overrides: dict[str, Any] | None
+    filter_settings: dict[str, Any] | None
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        family_id: uuid.UUID,
+        attribute_id: uuid.UUID,
+        sort_order: int = 0,
+        requirement_level: RequirementLevel | None = None,
+        flag_overrides: dict[str, Any] | None = None,
+        filter_settings: dict[str, Any] | None = None,
+        binding_id: uuid.UUID | None = None,
+    ) -> FamilyAttributeBinding:
+        """Factory method to construct a new FamilyAttributeBinding."""
+        return cls(
+            id=binding_id or _generate_id(),
+            family_id=family_id,
+            attribute_id=attribute_id,
+            sort_order=sort_order,
+            requirement_level=requirement_level or RequirementLevel.OPTIONAL,
+            flag_overrides=flag_overrides,
+            filter_settings=filter_settings,
+        )
+
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "sort_order",
+            "requirement_level",
+            "flag_overrides",
+            "filter_settings",
+        }
+    )
+
+    def update(self, **kwargs: Any) -> None:
+        """Update mutable binding fields. family_id and attribute_id are immutable."""
+        unknown = set(kwargs) - self._UPDATABLE_FIELDS
+        if unknown:
+            raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
+
+        if "sort_order" in kwargs and kwargs["sort_order"] is not None:
+            self.sort_order = kwargs["sort_order"]
+        if "requirement_level" in kwargs and kwargs["requirement_level"] is not None:
+            self.requirement_level = kwargs["requirement_level"]
+        if "flag_overrides" in kwargs:
+            self.flag_overrides = kwargs["flag_overrides"]
+        if "filter_settings" in kwargs:
+            self.filter_settings = kwargs["filter_settings"]
+
+
+# ============================================================================
+# FamilyAttributeExclusion aggregate
+# ============================================================================
+
+
+@dataclass
+class FamilyAttributeExclusion(AggregateRoot):
+    """Exclusion of an inherited attribute from a family.
+
+    When a family excludes an attribute, it is removed from the effective
+    attribute set. Exclusions can only target attributes inherited from
+    ancestor families, not the family's own bindings.
+
+    Attributes:
+        id: Unique exclusion identifier.
+        family_id: FK to the AttributeFamily aggregate.
+        attribute_id: FK to the excluded Attribute.
+    """
+
+    id: uuid.UUID
+    family_id: uuid.UUID
+    attribute_id: uuid.UUID
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        family_id: uuid.UUID,
+        attribute_id: uuid.UUID,
+        exclusion_id: uuid.UUID | None = None,
+    ) -> FamilyAttributeExclusion:
+        """Factory method to construct a new FamilyAttributeExclusion."""
+        return cls(
+            id=exclusion_id or _generate_id(),
+            family_id=family_id,
+            attribute_id=attribute_id,
+        )
 
 
 # ============================================================================
@@ -1080,111 +1342,6 @@ class ProductAttributeValue:
             attribute_id=attribute_id,
             attribute_value_id=attribute_value_id,
         )
-
-
-# ============================================================================
-# ARCH-05: CategoryAttributeBinding -- child entity (not AggregateRoot)
-# ============================================================================
-
-
-@dataclass
-class CategoryAttributeBinding(AggregateRoot):
-    """Binding between a category and an attribute with governance settings.
-
-    Controls which attributes apply to a category, their display order,
-    requirement level for completeness scoring, optional behavior-flag
-    overrides, and per-category filter settings.
-
-    Extends AggregateRoot because bindings emit domain events and are
-    registered with UnitOfWork for Outbox persistence.
-
-    Attributes:
-        id: Unique binding identifier.
-        category_id: FK to the Category aggregate.
-        attribute_id: FK to the Attribute aggregate.
-        sort_order: Display ordering of the attribute within the category.
-        requirement_level: Required / recommended / optional (default: optional).
-        flag_overrides: Optional per-category overrides for global behavior flags.
-            Keys match attribute flag names; values override the global setting.
-            Example: ``{"is_filterable": True, "search_weight": 8}``.
-        filter_settings: Optional per-category filter configuration.
-            Example: ``{"filter_type": "range", "thresholds": [0, 5000, 10000]}``.
-    """
-
-    id: uuid.UUID
-    category_id: uuid.UUID
-    attribute_id: uuid.UUID
-    sort_order: int
-    requirement_level: RequirementLevel
-    flag_overrides: dict[str, Any] | None
-    filter_settings: dict[str, Any] | None
-
-    @classmethod
-    def create(
-        cls,
-        *,
-        category_id: uuid.UUID,
-        attribute_id: uuid.UUID,
-        sort_order: int = 0,
-        requirement_level: RequirementLevel | None = None,
-        flag_overrides: dict[str, Any] | None = None,
-        filter_settings: dict[str, Any] | None = None,
-        binding_id: uuid.UUID | None = None,
-    ) -> CategoryAttributeBinding:
-        """Factory method to construct a new CategoryAttributeBinding.
-
-        Args:
-            category_id: UUID of the category.
-            attribute_id: UUID of the attribute.
-            sort_order: Display ordering (default: 0).
-            requirement_level: Requirement level (default: OPTIONAL).
-            flag_overrides: Optional behavior flag overrides.
-            filter_settings: Optional filter configuration.
-            binding_id: Optional pre-generated UUID.
-
-        Returns:
-            A new CategoryAttributeBinding instance.
-        """
-        return cls(
-            id=binding_id or _generate_id(),
-            category_id=category_id,
-            attribute_id=attribute_id,
-            sort_order=sort_order,
-            requirement_level=requirement_level or RequirementLevel.OPTIONAL,
-            flag_overrides=flag_overrides,
-            filter_settings=filter_settings,
-        )
-
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "sort_order",
-            "requirement_level",
-            "flag_overrides",
-            "filter_settings",
-        }
-    )
-
-    def update(self, **kwargs: Any) -> None:
-        """Update mutable binding fields. category_id and attribute_id are immutable.
-
-        Only fields present in ``kwargs`` are applied. Pass ``None`` for
-        nullable fields (flag_overrides, filter_settings) to clear them.
-
-        Raises:
-            TypeError: If an unknown field name is passed.
-        """
-        unknown = set(kwargs) - self._UPDATABLE_FIELDS
-        if unknown:
-            raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
-
-        if "sort_order" in kwargs and kwargs["sort_order"] is not None:
-            self.sort_order = kwargs["sort_order"]
-        if "requirement_level" in kwargs and kwargs["requirement_level"] is not None:
-            self.requirement_level = kwargs["requirement_level"]
-        if "flag_overrides" in kwargs:
-            self.flag_overrides = kwargs["flag_overrides"]
-        if "filter_settings" in kwargs:
-            self.filter_settings = kwargs["filter_settings"]
 
 
 # ---------------------------------------------------------------------------

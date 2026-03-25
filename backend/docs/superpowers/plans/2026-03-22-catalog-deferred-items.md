@@ -198,6 +198,7 @@ class ListProductAttributesHandler:
 - [ ] **Step 3: Update ProductAttributeResponse schema**
 
 In `src/modules/catalog/presentation/schemas.py`, find `ProductAttributeResponse` and add the new fields:
+
 ```python
 class ProductAttributeResponse(CamelModel):
     """Single product-attribute assignment detail response."""
@@ -215,6 +216,7 @@ The new fields have defaults so existing code that constructs `ProductAttributeR
 - [ ] **Step 4: Update router_product_attributes.py**
 
 Update the import and response mapping:
+
 ```python
 # Change import from:
 from src.modules.catalog.application.queries.read_models import (

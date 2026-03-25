@@ -1,8 +1,8 @@
 """
 Catalog domain events.
 
-Events are emitted by Brand, Category, AttributeGroup, and Attribute
-aggregates during business operations, serialized to JSON via
+Events are emitted by Brand, Category, AttributeGroup, Attribute,
+and AttributeFamily aggregates during business operations, serialized to JSON via
 ``dataclasses.asdict()``, and stored atomically in the Outbox table.
 The infrastructure layer relays them to downstream consumers.
 
@@ -383,77 +383,133 @@ class AttributeValuesReorderedEvent(
 
 
 # ---------------------------------------------------------------------------
-# CategoryAttributeBinding events
+# AttributeFamily events
 # ---------------------------------------------------------------------------
 
 
 @dataclass
-class CategoryAttributeBindingCreatedEvent(
+class AttributeFamilyCreatedEvent(
+    CatalogEvent,
+    required_fields=("family_id",),
+    aggregate_id_field="family_id",
+):
+    """Emitted when a new attribute family is created."""
+
+    family_id: uuid.UUID | None = None
+    code: str = ""
+    parent_id: uuid.UUID | None = None
+    aggregate_type: str = "AttributeFamily"
+    event_type: str = "AttributeFamilyCreatedEvent"
+
+
+@dataclass
+class AttributeFamilyUpdatedEvent(
+    CatalogEvent,
+    required_fields=("family_id",),
+    aggregate_id_field="family_id",
+):
+    """Emitted when an attribute family is updated."""
+
+    family_id: uuid.UUID | None = None
+    aggregate_type: str = "AttributeFamily"
+    event_type: str = "AttributeFamilyUpdatedEvent"
+
+
+@dataclass
+class AttributeFamilyDeletedEvent(
+    CatalogEvent,
+    required_fields=("family_id",),
+    aggregate_id_field="family_id",
+):
+    """Emitted when an attribute family is deleted."""
+
+    family_id: uuid.UUID | None = None
+    code: str = ""
+    aggregate_type: str = "AttributeFamily"
+    event_type: str = "AttributeFamilyDeletedEvent"
+
+
+# ---------------------------------------------------------------------------
+# FamilyAttributeBinding events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class FamilyAttributeBindingCreatedEvent(
     CatalogEvent,
     required_fields=("binding_id",),
     aggregate_id_field="binding_id",
 ):
-    """Emitted when a category-attribute binding is created."""
+    """Emitted when an attribute is bound to a family."""
 
-    category_id: uuid.UUID | None = None
+    family_id: uuid.UUID | None = None
     attribute_id: uuid.UUID | None = None
     binding_id: uuid.UUID | None = None
-    aggregate_type: str = "CategoryAttributeBinding"
-    event_type: str = "CategoryAttributeBindingCreatedEvent"
+    aggregate_type: str = "FamilyAttributeBinding"
+    event_type: str = "FamilyAttributeBindingCreatedEvent"
 
 
 @dataclass
-class CategoryAttributeBindingUpdatedEvent(
+class FamilyAttributeBindingUpdatedEvent(
     CatalogEvent,
     required_fields=("binding_id",),
     aggregate_id_field="binding_id",
 ):
-    """Emitted when a category-attribute binding is updated."""
+    """Emitted when a family-attribute binding is updated."""
 
     binding_id: uuid.UUID | None = None
-    aggregate_type: str = "CategoryAttributeBinding"
-    event_type: str = "CategoryAttributeBindingUpdatedEvent"
+    aggregate_type: str = "FamilyAttributeBinding"
+    event_type: str = "FamilyAttributeBindingUpdatedEvent"
 
 
 @dataclass
-class CategoryAttributeBindingDeletedEvent(
+class FamilyAttributeBindingDeletedEvent(
     CatalogEvent,
     required_fields=("binding_id",),
     aggregate_id_field="binding_id",
 ):
-    """Emitted when a category-attribute binding is deleted."""
+    """Emitted when an attribute is unbound from a family."""
 
-    category_id: uuid.UUID | None = None
+    family_id: uuid.UUID | None = None
     attribute_id: uuid.UUID | None = None
     binding_id: uuid.UUID | None = None
-    aggregate_type: str = "CategoryAttributeBinding"
-    event_type: str = "CategoryAttributeBindingDeletedEvent"
+    aggregate_type: str = "FamilyAttributeBinding"
+    event_type: str = "FamilyAttributeBindingDeletedEvent"
+
+
+# ---------------------------------------------------------------------------
+# FamilyAttributeExclusion events
+# ---------------------------------------------------------------------------
 
 
 @dataclass
-class CategoryBindingsReorderedEvent(
+class FamilyAttributeExclusionAddedEvent(
     CatalogEvent,
-    required_fields=("category_id",),
-    aggregate_id_field="category_id",
+    required_fields=("exclusion_id",),
+    aggregate_id_field="exclusion_id",
 ):
-    """Emitted when category-attribute bindings are bulk-reordered."""
+    """Emitted when an inherited attribute is excluded from a family."""
 
-    category_id: uuid.UUID | None = None
-    aggregate_type: str = "CategoryAttributeBinding"
-    event_type: str = "CategoryBindingsReorderedEvent"
+    family_id: uuid.UUID | None = None
+    attribute_id: uuid.UUID | None = None
+    exclusion_id: uuid.UUID | None = None
+    aggregate_type: str = "FamilyAttributeExclusion"
+    event_type: str = "FamilyAttributeExclusionAddedEvent"
 
 
 @dataclass
-class RequirementLevelsUpdatedEvent(
+class FamilyAttributeExclusionRemovedEvent(
     CatalogEvent,
-    required_fields=("category_id",),
-    aggregate_id_field="category_id",
+    required_fields=("exclusion_id",),
+    aggregate_id_field="exclusion_id",
 ):
-    """Emitted when requirement levels are bulk-updated for a category's bindings."""
+    """Emitted when an attribute exclusion is removed from a family."""
 
-    category_id: uuid.UUID | None = None
-    aggregate_type: str = "CategoryAttributeBinding"
-    event_type: str = "RequirementLevelsUpdatedEvent"
+    family_id: uuid.UUID | None = None
+    attribute_id: uuid.UUID | None = None
+    exclusion_id: uuid.UUID | None = None
+    aggregate_type: str = "FamilyAttributeExclusion"
+    event_type: str = "FamilyAttributeExclusionRemovedEvent"
 
 
 # ---------------------------------------------------------------------------

@@ -16,6 +16,11 @@ from src.modules.catalog.application.commands.assign_product_attribute import (
     AssignProductAttributeHandler,
     AssignProductAttributeResult,
 )
+from src.modules.catalog.application.commands.bulk_assign_product_attributes import (
+    AttributeAssignmentItem,
+    BulkAssignProductAttributesCommand,
+    BulkAssignProductAttributesHandler,
+)
 from src.modules.catalog.application.commands.delete_product_attribute import (
     DeleteProductAttributeCommand,
     DeleteProductAttributeHandler,
@@ -25,6 +30,8 @@ from src.modules.catalog.application.queries.list_product_attributes import (
     ListProductAttributesQuery,
 )
 from src.modules.catalog.presentation.schemas import (
+    BulkAssignProductAttributesRequest,
+    BulkAssignProductAttributesResponse,
     ProductAttributeAssignRequest,
     ProductAttributeAssignResponse,
     ProductAttributeListResponse,
@@ -111,12 +118,45 @@ async def list_product_attributes(
                 attribute_value_id=item.attribute_value_id,
                 attribute_code=item.attribute_code,
                 attribute_name_i18n=item.attribute_name_i18n,
+                attribute_value_code=item.attribute_value_code,
+                attribute_value_name_i18n=item.attribute_value_name_i18n,
             )
             for item in result.items
         ],
         total=result.total,
         offset=result.offset,
         limit=result.limit,
+    )
+
+
+@product_attribute_router.post(
+    path="/bulk",
+    status_code=status.HTTP_201_CREATED,
+    response_model=BulkAssignProductAttributesResponse,
+    summary="Bulk assign attribute values to a product",
+    description="Assign multiple attribute values in a single transaction.",
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
+)
+async def bulk_assign_product_attributes(
+    product_id: uuid.UUID,
+    request: BulkAssignProductAttributesRequest,
+    handler: FromDishka[BulkAssignProductAttributesHandler],
+) -> BulkAssignProductAttributesResponse:
+    command = BulkAssignProductAttributesCommand(
+        product_id=product_id,
+        items=[
+            AttributeAssignmentItem(
+                attribute_id=item.attribute_id,
+                attribute_value_id=item.attribute_value_id,
+            )
+            for item in request.items
+        ],
+    )
+    result = await handler.handle(command)
+    return BulkAssignProductAttributesResponse(
+        assigned_count=result.assigned_count,
+        pav_ids=result.pav_ids,
+        message=f"Assigned {result.assigned_count} attributes",
     )
 
 

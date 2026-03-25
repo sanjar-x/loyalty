@@ -1,6 +1,9 @@
 from src.modules.catalog.infrastructure.repositories.attribute import (
     AttributeRepository,
 )
+from src.modules.catalog.infrastructure.repositories.attribute_family import (
+    AttributeFamilyRepository,
+)
 from src.modules.catalog.infrastructure.repositories.attribute_group import (
     AttributeGroupRepository,
 )
@@ -9,8 +12,11 @@ from src.modules.catalog.infrastructure.repositories.attribute_value import (
 )
 from src.modules.catalog.infrastructure.repositories.brand import BrandRepository
 from src.modules.catalog.infrastructure.repositories.category import CategoryRepository
-from src.modules.catalog.infrastructure.repositories.category_attribute_binding import (
-    CategoryAttributeBindingRepository,
+from src.modules.catalog.infrastructure.repositories.family_attribute_binding import (
+    FamilyAttributeBindingRepository,
+)
+from src.modules.catalog.infrastructure.repositories.family_attribute_exclusion import (
+    FamilyAttributeExclusionRepository,
 )
 from src.modules.catalog.infrastructure.repositories.media_asset import (
     MediaAssetRepository,
@@ -21,12 +27,14 @@ from src.modules.catalog.infrastructure.repositories.product_attribute_value imp
 )
 
 __all__ = [
+    "AttributeFamilyRepository",
     "AttributeGroupRepository",
     "AttributeRepository",
     "AttributeValueRepository",
     "BrandRepository",
-    "CategoryAttributeBindingRepository",
     "CategoryRepository",
+    "FamilyAttributeBindingRepository",
+    "FamilyAttributeExclusionRepository",
     "MediaAssetRepository",
     "ProductAttributeValueRepository",
     "ProductRepository",

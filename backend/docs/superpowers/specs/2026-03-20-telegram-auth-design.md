@@ -12,6 +12,7 @@
 Add Telegram Mini App authentication to the existing Identity module. Users opening the Mini App are authenticated instantly via Telegram's cryptographically signed `initData`. The system auto-provisions new users on first open and syncs profile data on subsequent opens.
 
 **Key architectural decisions:**
+
 - **Event-driven Customer creation** — `LoginTelegramHandler` emits `TelegramIdentityCreatedEvent`, a consumer in the User module creates the `Customer`. No cross-module coupling.
 - **Session eviction** — when session limit is reached, the oldest session is revoked (not rejected). Telegram UX must be frictionless.
 - **No new dependencies** — aiogram 3.26+ already provides `safe_parse_webapp_init_data`.
@@ -27,7 +28,7 @@ Add Telegram Mini App authentication to the existing Identity module. Users open
 Extend `IdentityType` enum:
 
 ```python
-class IdentityType(str, enum.Enum):
+class IdentityType(enum.StrEnum):
     LOCAL = "LOCAL"
     OIDC = "OIDC"
     TELEGRAM = "TELEGRAM"
@@ -826,6 +827,7 @@ def login_telegram_handler(
 ### POST /api/v1/auth/telegram
 
 **Request:**
+
 ```http
 POST /api/v1/auth/telegram HTTP/1.1
 Authorization: tma query_id=AAH...&user=%7B%22id%22%3A123...%7D&auth_date=1711929600&hash=abc...
@@ -833,12 +835,13 @@ Content-Length: 0
 ```
 
 **Response 200:**
+
 ```json
 {
-    "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-    "refreshToken": "dGhpcyBpcyBhIHNlY3Vy...",
-    "tokenType": "bearer",
-    "isNewUser": true
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "refreshToken": "dGhpcyBpcyBhIHNlY3Vy...",
+  "tokenType": "bearer",
+  "isNewUser": true
 }
 ```
 
@@ -857,19 +860,19 @@ Content-Length: 0
 
 **Table:** `telegram_credentials`
 
-| Column | Type | Constraints |
-|--------|------|-------------|
-| `identity_id` | UUID | PK, FK → identities(id) CASCADE |
-| `telegram_id` | BIGINT | UNIQUE, NOT NULL |
-| `first_name` | VARCHAR(100) | NOT NULL, DEFAULT '' |
-| `last_name` | VARCHAR(100) | NULLABLE |
-| `username` | VARCHAR(100) | NULLABLE |
-| `language_code` | VARCHAR(10) | NULLABLE |
-| `is_premium` | BOOLEAN | NOT NULL, DEFAULT false |
-| `photo_url` | VARCHAR(512) | NULLABLE |
-| `allows_write_to_pm` | BOOLEAN | NOT NULL, DEFAULT false |
-| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() |
-| `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() |
+| Column               | Type         | Constraints                     |
+| -------------------- | ------------ | ------------------------------- |
+| `identity_id`        | UUID         | PK, FK → identities(id) CASCADE |
+| `telegram_id`        | BIGINT       | UNIQUE, NOT NULL                |
+| `first_name`         | VARCHAR(100) | NOT NULL, DEFAULT ''            |
+| `last_name`          | VARCHAR(100) | NULLABLE                        |
+| `username`           | VARCHAR(100) | NULLABLE                        |
+| `language_code`      | VARCHAR(10)  | NULLABLE                        |
+| `is_premium`         | BOOLEAN      | NOT NULL, DEFAULT false         |
+| `photo_url`          | VARCHAR(512) | NULLABLE                        |
+| `allows_write_to_pm` | BOOLEAN      | NOT NULL, DEFAULT false         |
+| `created_at`         | TIMESTAMPTZ  | NOT NULL, DEFAULT now()         |
+| `updated_at`         | TIMESTAMPTZ  | NOT NULL, DEFAULT now()         |
 
 **Indexes:** `ix_telegram_credentials_telegram_id` (unique)
 
@@ -881,67 +884,67 @@ No changes to existing tables. `IdentityType` stored as VARCHAR — `TELEGRAM` v
 
 ### 9.1 Unit Tests (domain, no I/O)
 
-| Test | Validates |
-|------|-----------|
-| `test_telegram_user_data_immutable` | frozen=True enforcement |
-| `test_telegram_credentials_update_profile_detects_changes` | Returns True on change |
-| `test_telegram_credentials_update_profile_no_changes` | Returns False when same |
-| `test_telegram_credentials_photo_url_not_erased_by_none` | Privacy-safe photo handling |
-| `test_identity_register_telegram_type` | Correct type + account_type |
-| `test_telegram_event_requires_identity_id` | ValueError if None |
-| `test_telegram_event_sets_aggregate_id` | Auto-set from identity_id |
-| `test_valid_init_data_parses` | Happy path (mock aiogram) |
-| `test_invalid_signature_raises` | InvalidInitDataError |
-| `test_expired_auth_date_raises` | InitDataExpiredError with details |
-| `test_missing_user_raises` | InitDataMissingUserError |
-| `test_start_param_extracted` | Included in TelegramUserData |
-| `test_future_auth_date_raises` | Negative age (clock skew) rejected |
+| Test                                                       | Validates                          |
+| ---------------------------------------------------------- | ---------------------------------- |
+| `test_telegram_user_data_immutable`                        | frozen=True enforcement            |
+| `test_telegram_credentials_update_profile_detects_changes` | Returns True on change             |
+| `test_telegram_credentials_update_profile_no_changes`      | Returns False when same            |
+| `test_telegram_credentials_photo_url_not_erased_by_none`   | Privacy-safe photo handling        |
+| `test_identity_register_telegram_type`                     | Correct type + account_type        |
+| `test_telegram_event_requires_identity_id`                 | ValueError if None                 |
+| `test_telegram_event_sets_aggregate_id`                    | Auto-set from identity_id          |
+| `test_valid_init_data_parses`                              | Happy path (mock aiogram)          |
+| `test_invalid_signature_raises`                            | InvalidInitDataError               |
+| `test_expired_auth_date_raises`                            | InitDataExpiredError with details  |
+| `test_missing_user_raises`                                 | InitDataMissingUserError           |
+| `test_start_param_extracted`                               | Included in TelegramUserData       |
+| `test_future_auth_date_raises`                             | Negative age (clock skew) rejected |
 
 ### 9.2 Integration Tests (real DB)
 
-| Test | Scenario |
-|------|----------|
-| `test_login_telegram_new_user` | 200, isNewUser=true, records in DB |
-| `test_login_telegram_existing_user` | 200, isNewUser=false, profile synced |
-| `test_login_telegram_invalid_signature_401` | 401 INVALID_INIT_DATA |
-| `test_login_telegram_expired_401` | 401 INIT_DATA_EXPIRED |
-| `test_login_telegram_missing_tma_header_401` | 401 INVALID_AUTH_SCHEME |
-| `test_login_telegram_deactivated_403` | 403 IDENTITY_DEACTIVATED |
-| `test_login_telegram_session_eviction` | 6th login evicts oldest |
-| `test_refresh_after_telegram_login` | Standard refresh works |
-| `test_logout_after_telegram_login` | Standard logout works |
-| `test_telegram_referral_event` | Event contains start_param |
+| Test                                         | Scenario                             |
+| -------------------------------------------- | ------------------------------------ |
+| `test_login_telegram_new_user`               | 200, isNewUser=true, records in DB   |
+| `test_login_telegram_existing_user`          | 200, isNewUser=false, profile synced |
+| `test_login_telegram_invalid_signature_401`  | 401 INVALID_INIT_DATA                |
+| `test_login_telegram_expired_401`            | 401 INIT_DATA_EXPIRED                |
+| `test_login_telegram_missing_tma_header_401` | 401 INVALID_AUTH_SCHEME              |
+| `test_login_telegram_deactivated_403`        | 403 IDENTITY_DEACTIVATED             |
+| `test_login_telegram_session_eviction`       | 6th login evicts oldest              |
+| `test_refresh_after_telegram_login`          | Standard refresh works               |
+| `test_logout_after_telegram_login`           | Standard logout works                |
+| `test_telegram_referral_event`               | Event contains start_param           |
 
 ### 9.3 Architecture Tests
 
-| Test | Validates |
-|------|-----------|
-| `test_telegram_domain_no_infrastructure_imports` | Domain purity |
-| `test_telegram_credentials_shared_pk_pattern` | FK → identities (1:1) |
+| Test                                             | Validates             |
+| ------------------------------------------------ | --------------------- |
+| `test_telegram_domain_no_infrastructure_imports` | Domain purity         |
+| `test_telegram_credentials_shared_pk_pattern`    | FK → identities (1:1) |
 
 ---
 
 ## 10. Implementation Order
 
-| # | Task | Size |
-|---|------|------|
-| 1 | Value objects: `TelegramUserData`, extend `IdentityType` | S |
-| 2 | Entity: `TelegramCredentials` | S |
-| 3 | Event: `TelegramIdentityCreatedEvent` | S |
-| 4 | Exceptions: 3 new exception classes | S |
-| 5 | Interfaces: `ITelegramCredentialsRepository`, `ITelegramInitDataValidator`, `ISessionRepository.revoke_oldest_active` | S |
-| 6 | ORM: `TelegramCredentialsModel` + IdentityModel relationship | S |
-| 7 | Migration: `telegram_credentials` table | S |
-| 8 | Validator: `TelegramInitDataValidator` | M |
-| 9 | Repository: `TelegramCredentialsRepository` | M |
-| 10 | Session repo: `revoke_oldest_active` implementation | S |
-| 11 | Handler: `LoginTelegramHandler` | L |
-| 12 | Consumer: `create_customer_on_telegram_identity_created` (add to existing identity_events.py) | M |
-| 13 | Presentation: schema + router endpoint | M |
-| 14 | DI: provider wiring | S |
-| 15 | Config: new settings + .env.example | S |
-| 16 | Unit tests | M |
-| 17 | Integration tests | L |
+| #   | Task                                                                                                                  | Size |
+| --- | --------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | Value objects: `TelegramUserData`, extend `IdentityType`                                                              | S    |
+| 2   | Entity: `TelegramCredentials`                                                                                         | S    |
+| 3   | Event: `TelegramIdentityCreatedEvent`                                                                                 | S    |
+| 4   | Exceptions: 3 new exception classes                                                                                   | S    |
+| 5   | Interfaces: `ITelegramCredentialsRepository`, `ITelegramInitDataValidator`, `ISessionRepository.revoke_oldest_active` | S    |
+| 6   | ORM: `TelegramCredentialsModel` + IdentityModel relationship                                                          | S    |
+| 7   | Migration: `telegram_credentials` table                                                                               | S    |
+| 8   | Validator: `TelegramInitDataValidator`                                                                                | M    |
+| 9   | Repository: `TelegramCredentialsRepository`                                                                           | M    |
+| 10  | Session repo: `revoke_oldest_active` implementation                                                                   | S    |
+| 11  | Handler: `LoginTelegramHandler`                                                                                       | L    |
+| 12  | Consumer: `create_customer_on_telegram_identity_created` (add to existing identity_events.py)                         | M    |
+| 13  | Presentation: schema + router endpoint                                                                                | M    |
+| 14  | DI: provider wiring                                                                                                   | S    |
+| 15  | Config: new settings + .env.example                                                                                   | S    |
+| 16  | Unit tests                                                                                                            | M    |
+| 17  | Integration tests                                                                                                     | L    |
 
 S = <1h, M = 1-3h, L = 3-6h
 
@@ -949,23 +952,23 @@ S = <1h, M = 1-3h, L = 3-6h
 
 ## 11. Corrections vs Original SPEC
 
-| Issue | SPEC (was) | Design (now) |
-|-------|-----------|--------------|
-| `@dataclass` vs `attr.dataclass` | Standard `@dataclass` for entity | `attr.dataclass` (matches codebase) |
-| Domain events | `@dataclass(frozen=True)`, no `DomainEvent` base | `@dataclass`, inherits `DomainEvent`, has `__post_init__` |
-| Exceptions | `DomainException` base (doesn't exist) | Inherits `UnauthorizedError` (auto 401) |
-| Exception handler mapping | `_EXCEPTION_MAP` dict | No changes needed (hierarchy-based) |
-| `register_aggregate()` | Missing | Called for new users before commit |
-| Customer creation | Direct `ICustomerRepository` in handler | Event-driven consumer (bounded context isolation) |
-| Validator return type | `tuple[TelegramUserData, str \| None]` | `TelegramUserData` (start_param inside) |
-| Validator interface location | `shared/interfaces/security.py` | `identity/domain/interfaces.py` |
-| Session limit | `pass` placeholder | `revoke_oldest_active()` + cache invalidation |
-| `photo_url` sync | Blind overwrite | Don't erase with None (privacy settings) |
-| `auth_date` type | `int(time.time())` | `datetime.now(UTC) - parsed.auth_date` (aiogram returns datetime) |
-| `Identity.register_telegram()` | Defined but only one call site | Removed — call `Identity.register(TELEGRAM, CUSTOMER)` directly (YAGNI) |
-| Consumer pattern | Class-based with `__init__` + `handle()` | Functional `@broker.task` + `@inject` + `FromDishka` (matches existing consumers) |
-| Consumer idempotency | Missing | Added `customer_repo.get()` check before create |
-| Consumer `register_aggregate` | Missing | Added before `uow.commit()` |
-| Consumer referral code | `secrets.token_urlsafe(6)` | `generate_referral_code()` from domain services |
-| Future `auth_date` | Accepted (negative age passes check) | Rejected — `age < 0` raises `InitDataExpiredError` |
-| Session eviction race | Not documented | Documented as known low-risk limitation |
+| Issue                            | SPEC (was)                                       | Design (now)                                                                      |
+| -------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `@dataclass` vs `attr.dataclass` | Standard `@dataclass` for entity                 | `attr.dataclass` (matches codebase)                                               |
+| Domain events                    | `@dataclass(frozen=True)`, no `DomainEvent` base | `@dataclass`, inherits `DomainEvent`, has `__post_init__`                         |
+| Exceptions                       | `DomainException` base (doesn't exist)           | Inherits `UnauthorizedError` (auto 401)                                           |
+| Exception handler mapping        | `_EXCEPTION_MAP` dict                            | No changes needed (hierarchy-based)                                               |
+| `register_aggregate()`           | Missing                                          | Called for new users before commit                                                |
+| Customer creation                | Direct `ICustomerRepository` in handler          | Event-driven consumer (bounded context isolation)                                 |
+| Validator return type            | `tuple[TelegramUserData, str \| None]`           | `TelegramUserData` (start_param inside)                                           |
+| Validator interface location     | `shared/interfaces/security.py`                  | `identity/domain/interfaces.py`                                                   |
+| Session limit                    | `pass` placeholder                               | `revoke_oldest_active()` + cache invalidation                                     |
+| `photo_url` sync                 | Blind overwrite                                  | Don't erase with None (privacy settings)                                          |
+| `auth_date` type                 | `int(time.time())`                               | `datetime.now(UTC) - parsed.auth_date` (aiogram returns datetime)                 |
+| `Identity.register_telegram()`   | Defined but only one call site                   | Removed — call `Identity.register(TELEGRAM, CUSTOMER)` directly (YAGNI)           |
+| Consumer pattern                 | Class-based with `__init__` + `handle()`         | Functional `@broker.task` + `@inject` + `FromDishka` (matches existing consumers) |
+| Consumer idempotency             | Missing                                          | Added `customer_repo.get()` check before create                                   |
+| Consumer `register_aggregate`    | Missing                                          | Added before `uow.commit()`                                                       |
+| Consumer referral code           | `secrets.token_urlsafe(6)`                       | `generate_referral_code()` from domain services                                   |
+| Future `auth_date`               | Accepted (negative age passes check)             | Rejected — `age < 0` raises `InitDataExpiredError`                                |
+| Session eviction race            | Not documented                                   | Documented as known low-risk limitation                                           |

@@ -3,6 +3,7 @@
 > **Дата:** 2026-03-19
 > **Статус:** Ready for Implementation
 > **Входные документы:**
+>
 > - Backend Current State Analysis (1073 строки)
 > - Deep Research: 15+ платформ, 50+ источников
 > - Gap Analysis: 42 аспекта, 7 critical / 9 major / 6 minor / 20 OK
@@ -65,7 +66,7 @@ Events:
 **Файл:** `src/modules/identity/domain/value_objects.py`
 
 ```python
-class AccountType(str, enum.Enum):
+class AccountType(enum.StrEnum):
     """Тип аккаунта — определяет жизненный цикл и доступные роли.
 
     Immutable после создания Identity (как Okta User Types).
@@ -234,7 +235,7 @@ class StaffInvitation(AggregateRoot):
 **Файл:** `src/modules/identity/domain/value_objects.py`
 
 ```python
-class InvitationStatus(str, enum.Enum):
+class InvitationStatus(enum.StrEnum):
     """Статус приглашения сотрудника."""
 
     PENDING = "PENDING"
@@ -680,15 +681,15 @@ staff_invitations ← NEW
 **Prefix:** `/admin/staff`
 **Tag:** `Admin — Staff Management`
 
-| Method | Path | Permission | Handler | Request | Response | Status |
-|--------|------|-----------|---------|---------|----------|--------|
-| GET | `/admin/staff` | `staff:manage` | `ListStaffHandler` | query: offset, limit, search, role_id, is_active, sort_by, sort_order | `StaffListResponse` | 200 |
-| GET | `/admin/staff/{id}` | `staff:manage` | `GetStaffDetailHandler` | - | `StaffDetailResponse` | 200 |
-| POST | `/admin/staff/{id}/deactivate` | `staff:manage` | `AdminDeactivateIdentityHandler` | `{reason}` | `{message}` | 200 |
-| POST | `/admin/staff/{id}/reactivate` | `staff:manage` | `ReactivateIdentityHandler` | - | `{message}` | 200 |
-| POST | `/admin/staff/invitations` | `staff:invite` | `InviteStaffHandler` | `InviteStaffRequest` | `InviteStaffResponse` | 201 |
-| GET | `/admin/staff/invitations` | `staff:manage` | `ListInvitationsHandler` | query: offset, limit, status | `InvitationListResponse` | 200 |
-| DELETE | `/admin/staff/invitations/{id}` | `staff:manage` | `RevokeInvitationHandler` | - | `{message}` | 200 |
+| Method | Path                            | Permission     | Handler                          | Request                                                               | Response                 | Status |
+| ------ | ------------------------------- | -------------- | -------------------------------- | --------------------------------------------------------------------- | ------------------------ | ------ |
+| GET    | `/admin/staff`                  | `staff:manage` | `ListStaffHandler`               | query: offset, limit, search, role_id, is_active, sort_by, sort_order | `StaffListResponse`      | 200    |
+| GET    | `/admin/staff/{id}`             | `staff:manage` | `GetStaffDetailHandler`          | -                                                                     | `StaffDetailResponse`    | 200    |
+| POST   | `/admin/staff/{id}/deactivate`  | `staff:manage` | `AdminDeactivateIdentityHandler` | `{reason}`                                                            | `{message}`              | 200    |
+| POST   | `/admin/staff/{id}/reactivate`  | `staff:manage` | `ReactivateIdentityHandler`      | -                                                                     | `{message}`              | 200    |
+| POST   | `/admin/staff/invitations`      | `staff:invite` | `InviteStaffHandler`             | `InviteStaffRequest`                                                  | `InviteStaffResponse`    | 201    |
+| GET    | `/admin/staff/invitations`      | `staff:manage` | `ListInvitationsHandler`         | query: offset, limit, status                                          | `InvitationListResponse` | 200    |
+| DELETE | `/admin/staff/invitations/{id}` | `staff:manage` | `RevokeInvitationHandler`        | -                                                                     | `{message}`              | 200    |
 
 ### 4.2 Customer Management — НОВЫЕ endpoints
 
@@ -696,12 +697,12 @@ staff_invitations ← NEW
 **Prefix:** `/admin/customers`
 **Tag:** `Admin — Customer Management`
 
-| Method | Path | Permission | Handler | Request | Response | Status |
-|--------|------|-----------|---------|---------|----------|--------|
-| GET | `/admin/customers` | `customers:read` | `ListCustomersHandler` | query: offset, limit, search, is_active, sort_by, sort_order | `CustomerListResponse` | 200 |
-| GET | `/admin/customers/{id}` | `customers:read` | `GetCustomerDetailHandler` | - | `CustomerDetailResponse` | 200 |
-| POST | `/admin/customers/{id}/deactivate` | `customers:manage` | `AdminDeactivateIdentityHandler` | `{reason}` | `{message}` | 200 |
-| POST | `/admin/customers/{id}/reactivate` | `customers:manage` | `ReactivateIdentityHandler` | - | `{message}` | 200 |
+| Method | Path                               | Permission         | Handler                          | Request                                                      | Response                 | Status |
+| ------ | ---------------------------------- | ------------------ | -------------------------------- | ------------------------------------------------------------ | ------------------------ | ------ |
+| GET    | `/admin/customers`                 | `customers:read`   | `ListCustomersHandler`           | query: offset, limit, search, is_active, sort_by, sort_order | `CustomerListResponse`   | 200    |
+| GET    | `/admin/customers/{id}`            | `customers:read`   | `GetCustomerDetailHandler`       | -                                                            | `CustomerDetailResponse` | 200    |
+| POST   | `/admin/customers/{id}/deactivate` | `customers:manage` | `AdminDeactivateIdentityHandler` | `{reason}`                                                   | `{message}`              | 200    |
+| POST   | `/admin/customers/{id}/reactivate` | `customers:manage` | `ReactivateIdentityHandler`      | -                                                            | `{message}`              | 200    |
 
 ### 4.3 Invitation Acceptance — PUBLIC endpoints
 
@@ -709,10 +710,10 @@ staff_invitations ← NEW
 **Prefix:** `/invitations`
 **Tag:** `Staff Invitation`
 
-| Method | Path | Permission | Handler | Request | Response | Status |
-|--------|------|-----------|---------|---------|----------|--------|
-| GET | `/invitations/{token}/validate` | Public | `ValidateInvitationHandler` | - | `InvitationInfoResponse` | 200 |
-| POST | `/invitations/{token}/accept` | Public | `AcceptStaffInvitationHandler` | `AcceptInvitationRequest` | `TokenResponse` | 201 |
+| Method | Path                            | Permission | Handler                        | Request                   | Response                 | Status |
+| ------ | ------------------------------- | ---------- | ------------------------------ | ------------------------- | ------------------------ | ------ |
+| GET    | `/invitations/{token}/validate` | Public     | `ValidateInvitationHandler`    | -                         | `InvitationInfoResponse` | 200    |
+| POST   | `/invitations/{token}/accept`   | Public     | `AcceptStaffInvitationHandler` | `AcceptInvitationRequest` | `TokenResponse`          | 201    |
 
 ### 4.4 Pydantic Schemas
 
@@ -1091,19 +1092,19 @@ END $$;
 
 ### Overview
 
-| MT | Название | Layer | Type | Dependencies | Opus Calls |
-|----|---------|-------|------|-------------|------------|
-| MT-1 | AccountType + InvitationStatus VOs | Domain | simple | — | 2 |
-| MT-2 | Identity entity changes + StaffInvitation entity + exceptions | Domain | simple | MT-1 | 2 |
-| MT-3 | Customer + StaffMember entities + repo interfaces | Domain | simple | MT-1 | 2 |
-| MT-4 | Migrations (5 scripts) | Infra | complex | MT-1,2,3 | 3 |
-| MT-5 | ORM models + repositories (Customer, StaffMember, StaffInvitation) | Infra | complex | MT-4 | 3 |
-| MT-6 | InviteStaff + AcceptInvitation + RevokeInvitation commands | App | simple | MT-2,5 | 2 |
-| MT-7 | ListStaff + ListCustomers + ListInvitations queries | App | simple | MT-5 | 2 |
-| MT-8 | Event consumer split (Customer/Staff routing) | App | simple | MT-3,5 | 2 |
-| MT-9 | Schemas + Routers (staff, customers, invitations) | Presentation | complex | MT-6,7 | 3 |
-| MT-10 | DI registration + bootstrap + seed update | Cross-cutting | complex | MT-5,6,7,8,9 | 3 |
-| MT-11 | Hotfix: super_admin → admin + SoD in AssignRole | App | simple | MT-1 | 2 |
+| MT    | Название                                                           | Layer         | Type    | Dependencies | Opus Calls |
+| ----- | ------------------------------------------------------------------ | ------------- | ------- | ------------ | ---------- |
+| MT-1  | AccountType + InvitationStatus VOs                                 | Domain        | simple  | —            | 2          |
+| MT-2  | Identity entity changes + StaffInvitation entity + exceptions      | Domain        | simple  | MT-1         | 2          |
+| MT-3  | Customer + StaffMember entities + repo interfaces                  | Domain        | simple  | MT-1         | 2          |
+| MT-4  | Migrations (5 scripts)                                             | Infra         | complex | MT-1,2,3     | 3          |
+| MT-5  | ORM models + repositories (Customer, StaffMember, StaffInvitation) | Infra         | complex | MT-4         | 3          |
+| MT-6  | InviteStaff + AcceptInvitation + RevokeInvitation commands         | App           | simple  | MT-2,5       | 2          |
+| MT-7  | ListStaff + ListCustomers + ListInvitations queries                | App           | simple  | MT-5         | 2          |
+| MT-8  | Event consumer split (Customer/Staff routing)                      | App           | simple  | MT-3,5       | 2          |
+| MT-9  | Schemas + Routers (staff, customers, invitations)                  | Presentation  | complex | MT-6,7       | 3          |
+| MT-10 | DI registration + bootstrap + seed update                          | Cross-cutting | complex | MT-5,6,7,8,9 | 3          |
+| MT-11 | Hotfix: super_admin → admin + SoD in AssignRole                    | App           | simple  | MT-1         | 2          |
 
 ### Waves (parallelizable groups)
 

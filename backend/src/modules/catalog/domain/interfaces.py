@@ -22,7 +22,13 @@ from src.modules.catalog.domain.entities import AttributeValue as DomainAttribut
 from src.modules.catalog.domain.entities import Brand as DomainBrand
 from src.modules.catalog.domain.entities import Category as DomainCategory
 from src.modules.catalog.domain.entities import (
-    CategoryAttributeBinding as DomainBinding,
+    AttributeFamily as DomainAttributeFamily,
+)
+from src.modules.catalog.domain.entities import (
+    FamilyAttributeBinding as DomainFamilyAttributeBinding,
+)
+from src.modules.catalog.domain.entities import (
+    FamilyAttributeExclusion as DomainFamilyAttributeExclusion,
 )
 from src.modules.catalog.domain.entities import MediaAsset as DomainMediaAsset
 from src.modules.catalog.domain.entities import Product as DomainProduct
@@ -197,11 +203,6 @@ class IAttributeRepository(ICatalogRepository[DomainAttribute]):
         pass
 
     @abstractmethod
-    async def has_category_bindings(self, attribute_id: uuid.UUID) -> bool:
-        """Check whether the attribute is bound to at least one category."""
-        pass
-
-    @abstractmethod
     async def has_product_attribute_values(self, attribute_id: uuid.UUID) -> bool:
         """Check whether any products reference this attribute."""
         pass
@@ -273,63 +274,6 @@ class IAttributeValueRepository(ABC):
         Args:
             updates: List of (value_id, new_sort_order) tuples.
         """
-        pass
-
-
-class ICategoryAttributeBindingRepository(ABC):
-    """Repository contract for CategoryAttributeBinding entities."""
-
-    @abstractmethod
-    async def add(self, entity: DomainBinding) -> DomainBinding:
-        """Persist a new category-attribute binding."""
-        pass
-
-    @abstractmethod
-    async def get(self, binding_id: uuid.UUID) -> DomainBinding | None:
-        """Retrieve a binding by its unique identifier."""
-        pass
-
-    @abstractmethod
-    async def update(self, entity: DomainBinding) -> DomainBinding:
-        """Persist changes to an existing binding."""
-        pass
-
-    @abstractmethod
-    async def delete(self, binding_id: uuid.UUID) -> None:
-        """Delete a binding by its unique identifier."""
-        pass
-
-    @abstractmethod
-    async def check_binding_exists(
-        self, category_id: uuid.UUID, attribute_id: uuid.UUID
-    ) -> bool:
-        """Check whether a binding for this category+attribute pair exists."""
-        pass
-
-    @abstractmethod
-    async def get_by_category_and_attribute(
-        self, category_id: uuid.UUID, attribute_id: uuid.UUID
-    ) -> DomainBinding | None:
-        """Retrieve a binding by the category+attribute pair."""
-        pass
-
-    @abstractmethod
-    async def list_ids_by_category(self, category_id: uuid.UUID) -> set[uuid.UUID]:
-        """Return the set of binding IDs belonging to the given category."""
-        pass
-
-    @abstractmethod
-    async def bulk_update_sort_order(
-        self, updates: list[tuple[uuid.UUID, int]]
-    ) -> None:
-        """Bulk-update sort_order for multiple bindings atomically."""
-        pass
-
-    @abstractmethod
-    async def bulk_update_requirement_level(
-        self, updates: list[tuple[uuid.UUID, str]]
-    ) -> None:
-        """Bulk-update requirement_level for multiple bindings atomically."""
         pass
 
 
@@ -491,6 +435,119 @@ class IMediaAssetRepository(ABC):
         pass
 
 
+class IAttributeFamilyRepository(ICatalogRepository[DomainAttributeFamily]):
+    """Repository contract for the AttributeFamily aggregate."""
+
+    @abstractmethod
+    async def check_code_exists(self, code: str) -> bool:
+        """Check whether a family with the given code already exists."""
+        pass
+
+    @abstractmethod
+    async def check_code_exists_excluding(
+        self, code: str, exclude_id: uuid.UUID
+    ) -> bool:
+        """Check if a code is taken by another family."""
+        pass
+
+    @abstractmethod
+    async def has_children(self, family_id: uuid.UUID) -> bool:
+        """Check whether a family has any child families."""
+        pass
+
+    @abstractmethod
+    async def has_category_references(self, family_id: uuid.UUID) -> bool:
+        """Check whether any categories reference this family."""
+        pass
+
+    @abstractmethod
+    async def get_all_ordered(self) -> list[DomainAttributeFamily]:
+        """Retrieve all families ordered by level and sort_order."""
+        pass
+
+    @abstractmethod
+    async def get_ancestor_chain(
+        self, family_id: uuid.UUID
+    ) -> list[DomainAttributeFamily]:
+        """Return ancestor chain [root, ..., parent, self] using WITH RECURSIVE CTE."""
+        pass
+
+    @abstractmethod
+    async def get_descendant_ids(self, family_id: uuid.UUID) -> list[uuid.UUID]:
+        """Return all descendant family IDs using WITH RECURSIVE CTE."""
+        pass
+
+    @abstractmethod
+    async def get_category_ids_by_family_ids(
+        self, family_ids: list[uuid.UUID]
+    ) -> list[uuid.UUID]:
+        """Return category IDs that reference any of the given family IDs."""
+        pass
+
+
+class IFamilyAttributeBindingRepository(ICatalogRepository[DomainFamilyAttributeBinding]):
+    """Repository contract for the FamilyAttributeBinding aggregate."""
+
+    @abstractmethod
+    async def check_binding_exists(
+        self, family_id: uuid.UUID, attribute_id: uuid.UUID
+    ) -> bool:
+        """Return True if a binding for this pair already exists."""
+        pass
+
+    @abstractmethod
+    async def get_by_family_and_attribute(
+        self, family_id: uuid.UUID, attribute_id: uuid.UUID
+    ) -> DomainFamilyAttributeBinding | None:
+        """Retrieve a binding by the family+attribute pair."""
+        pass
+
+    @abstractmethod
+    async def list_ids_by_family(self, family_id: uuid.UUID) -> set[uuid.UUID]:
+        """Return the set of binding IDs belonging to the given family."""
+        pass
+
+    @abstractmethod
+    async def get_bindings_for_families(
+        self, family_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, list[DomainFamilyAttributeBinding]]:
+        """Batch-load all bindings for a list of family IDs."""
+        pass
+
+    @abstractmethod
+    async def bulk_update_sort_order(
+        self, updates: list[tuple[uuid.UUID, int]]
+    ) -> None:
+        """Bulk-update sort_order for multiple bindings."""
+        pass
+
+    @abstractmethod
+    async def has_bindings_for_attribute(self, attribute_id: uuid.UUID) -> bool:
+        """Check whether any family binds this attribute (for deletion guard)."""
+        pass
+
+
+class IFamilyAttributeExclusionRepository(ICatalogRepository[DomainFamilyAttributeExclusion]):
+    """Repository contract for the FamilyAttributeExclusion aggregate."""
+
+    @abstractmethod
+    async def check_exclusion_exists(
+        self, family_id: uuid.UUID, attribute_id: uuid.UUID
+    ) -> bool:
+        """Return True if an exclusion for this pair already exists."""
+        pass
+
+    @abstractmethod
+    async def get_exclusions_for_families(
+        self, family_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, set[uuid.UUID]]:
+        """Batch-load all exclusions for a list of family IDs.
+
+        Returns a dict mapping family_id to a set of excluded attribute_ids.
+        """
+        pass
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Read-only query interfaces (CQRS read side)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -533,9 +590,6 @@ if TYPE_CHECKING:
     )
     from src.modules.catalog.application.queries.read_models import (
         BrandReadModel as _BrandRM,
-    )
-    from src.modules.catalog.application.queries.read_models import (
-        CategoryAttributeBindingListReadModel as _BindingListRM,
     )
     from src.modules.catalog.application.queries.read_models import (
         CategoryListReadModel as _CategoryListRM,
@@ -661,21 +715,6 @@ class IAttributeReadRepository(ABC):
         limit: int = 50,
     ) -> _AttrValueListRM:
         """Return a paginated list of values for a given attribute."""
-        pass
-
-
-class ICategoryAttributeBindingReadRepository(ABC):
-    """Read-only query interface for category-attribute bindings."""
-
-    @abstractmethod
-    async def list_bindings(
-        self,
-        category_id: uuid.UUID,
-        *,
-        offset: int = 0,
-        limit: int = 50,
-    ) -> _BindingListRM:
-        """Return a paginated list of bindings for a category."""
         pass
 
 

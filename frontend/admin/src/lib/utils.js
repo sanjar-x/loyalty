@@ -45,6 +45,11 @@ export function buildFacetOptions(list, valueSelector) {
   };
 }
 
+export function i18n(obj, fallback = '') {
+  if (!obj || typeof obj !== 'object') return fallback;
+  return obj.ru ?? obj.en ?? Object.values(obj)[0] ?? fallback;
+}
+
 export async function copyToClipboard(text) {
   const value = String(text ?? '').trim();
   if (!value) return;

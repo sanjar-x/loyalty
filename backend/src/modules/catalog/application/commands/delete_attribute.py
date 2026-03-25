@@ -1,8 +1,8 @@
 """
 Command handler: delete an attribute.
 
-Verifies the attribute exists and is not bound to any categories before
-deletion. Emits ``AttributeDeletedEvent``.
+Verifies the attribute exists and is not bound to any families or products
+before deletion. Emits ``AttributeDeletedEvent``.
 Part of the application layer (CQRS write side).
 """
 
@@ -11,11 +11,14 @@ from dataclasses import dataclass
 
 from src.modules.catalog.domain.events import AttributeDeletedEvent
 from src.modules.catalog.domain.exceptions import (
-    AttributeHasCategoryBindingsError,
+    AttributeHasFamilyBindingsError,
     AttributeInUseByProductsError,
     AttributeNotFoundError,
 )
-from src.modules.catalog.domain.interfaces import IAttributeRepository
+from src.modules.catalog.domain.interfaces import (
+    IAttributeRepository,
+    IFamilyAttributeBindingRepository,
+)
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -37,10 +40,12 @@ class DeleteAttributeHandler:
     def __init__(
         self,
         attribute_repo: IAttributeRepository,
+        family_binding_repo: IFamilyAttributeBindingRepository,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
         self._attribute_repo = attribute_repo
+        self._family_binding_repo = family_binding_repo
         self._uow = uow
         self._logger = logger.bind(handler="DeleteAttributeHandler")
 
@@ -52,15 +57,18 @@ class DeleteAttributeHandler:
 
         Raises:
             AttributeNotFoundError: If the attribute does not exist.
-            AttributeHasCategoryBindingsError: If the attribute is bound to categories.
+            AttributeHasFamilyBindingsError: If the attribute is bound to families.
+            AttributeInUseByProductsError: If products reference this attribute.
         """
         async with self._uow:
             attribute = await self._attribute_repo.get(command.attribute_id)
             if attribute is None:
                 raise AttributeNotFoundError(attribute_id=command.attribute_id)
 
-            if await self._attribute_repo.has_category_bindings(command.attribute_id):
-                raise AttributeHasCategoryBindingsError(
+            if await self._family_binding_repo.has_bindings_for_attribute(
+                command.attribute_id
+            ):
+                raise AttributeHasFamilyBindingsError(
                     attribute_id=command.attribute_id
                 )
 

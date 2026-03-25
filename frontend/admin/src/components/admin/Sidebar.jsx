@@ -11,6 +11,7 @@ import ReturnsIcon from '@/assets/icons/returns.svg';
 import ReviewsIcon from '@/assets/icons/reviews.svg';
 import UsersIcon from '@/assets/icons/users.svg';
 import SettingsIcon from '@/assets/icons/settings.svg';
+import LogoutIcon from '@/assets/icons/logout.svg';
 
 const navItems = [
   { href: '/admin/orders', label: 'Заказы', Icon: OrdersIcon },
@@ -72,8 +73,8 @@ export function Sidebar() {
           onClick={logout}
           className="mt-auto flex items-center gap-3 rounded-2xl px-4 py-3 text-base leading-5 font-medium text-[#d2d0ca] transition-colors hover:bg-white/10 hover:text-white"
         >
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center text-lg">
-            &#x2192;
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center">
+            <LogoutIcon className={cn('h-5 w-5.5', iconClassName)} />
           </span>
           <span>Выйти</span>
         </button>
@@ -104,8 +105,8 @@ export function Sidebar() {
             onClick={logout}
             className="flex min-w-fit items-center gap-2 rounded-xl px-3.5 py-2.5 text-base leading-5 font-medium text-[#d2d0ca]"
           >
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-sm">
-              &#x2192;
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+              <LogoutIcon className={cn('h-4 w-4.5', iconClassName)} />
             </span>
             <span>Выйти</span>
           </button>

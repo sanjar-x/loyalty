@@ -31,7 +31,7 @@ SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 # ---------------------------------------------------------------------------
 
 
-class MediaType(str, enum.Enum):
+class MediaType(enum.StrEnum):
     """Discriminator for media asset file types.
 
     Members:
@@ -47,7 +47,7 @@ class MediaType(str, enum.Enum):
     DOCUMENT = "document"
 
 
-class MediaRole(str, enum.Enum):
+class MediaRole(enum.StrEnum):
     """Semantic role a media asset plays within a product gallery.
 
     Defines the business-level roles that media assets can fulfil,
@@ -108,7 +108,7 @@ class BehaviorFlags:
             )
 
 
-class MediaProcessingStatus(str, enum.Enum):
+class MediaProcessingStatus(enum.StrEnum):
     """Finite state machine (FSM) for media file processing lifecycle.
 
     Describes exclusively the business states of a media file's lifecycle,
@@ -127,7 +127,7 @@ class MediaProcessingStatus(str, enum.Enum):
     FAILED = "FAILED"
 
 
-class AttributeDataType(str, enum.Enum):
+class AttributeDataType(enum.StrEnum):
     """Allowed primitive types for catalog attribute values.
 
     Determines how attribute values are stored, validated, and
@@ -146,7 +146,7 @@ class AttributeDataType(str, enum.Enum):
     BOOLEAN = "boolean"
 
 
-class AttributeUIType(str, enum.Enum):
+class AttributeUIType(enum.StrEnum):
     """Widget hints for rendering an attribute filter on the storefront.
 
     Used by the presentation layer to select the appropriate UI component
@@ -167,7 +167,7 @@ class AttributeUIType(str, enum.Enum):
     RANGE_SLIDER = "range_slider"
 
 
-class AttributeLevel(str, enum.Enum):
+class AttributeLevel(enum.StrEnum):
     """Scope at which an attribute applies.
 
     Determines whether the attribute value is shared by all SKUs of a
@@ -260,7 +260,7 @@ def _validate_numeric_rules(rules: dict[str, Any]) -> None:
         raise ValueError("min_value cannot exceed max_value")
 
 
-class RequirementLevel(str, enum.Enum):
+class RequirementLevel(enum.StrEnum):
     """How mandatory an attribute is within a specific category.
 
     Used by category-attribute bindings to indicate whether the
@@ -277,7 +277,7 @@ class RequirementLevel(str, enum.Enum):
     OPTIONAL = "optional"
 
 
-class ProductStatus(str, enum.Enum):
+class ProductStatus(enum.StrEnum):
     """Lifecycle states for a product listing.
 
     Describes the FSM transitions a product passes through from

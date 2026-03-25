@@ -130,12 +130,14 @@ class IUsernameUniquenessChecker(ABC):
 ```
 
 Called from:
+
 - `create_profile_on_identity_registered` consumer (on registration)
 - `on_linked_account_created` consumer (on Telegram signup)
 - Customer profile update handler
 - Staff profile update handler (future)
 
 Error handling by context:
+
 - **Synchronous API** (profile update): raise `ConflictError(message="Username already taken", error_code="USERNAME_TAKEN")`
 - **Async event consumers** (registration, Telegram signup): log warning, create/update profile without username. The user can set username later via profile update. This prevents async event processing failures from blocking account creation.
 - **DB constraint fallback**: if a race condition bypasses the application check, catch `IntegrityError` on the UNIQUE index, log warning, and proceed without username (same graceful degradation).
@@ -184,6 +186,7 @@ Single migration replacing `2026_03_23_add_username_to_local_credentials.py`:
 ### Data Migration for Existing Duplicates
 
 Before adding the UNIQUE index on `customers.username`, run:
+
 ```sql
 UPDATE customers SET username = NULL
 WHERE id NOT IN (
@@ -194,4 +197,5 @@ WHERE id NOT IN (
 )
 AND username IS NOT NULL;
 ```
+
 This keeps the most recently updated row's username and NULLs the rest.

@@ -165,28 +165,6 @@ AttributeValueListReadModel = PaginatedReadModel[AttributeValueReadModel]
 
 
 # ---------------------------------------------------------------------------
-# CategoryAttributeBinding read models
-# ---------------------------------------------------------------------------
-
-
-class CategoryAttributeBindingReadModel(BaseModel):
-    """Read model for a single category-attribute binding."""
-
-    id: uuid.UUID
-    category_id: uuid.UUID
-    attribute_id: uuid.UUID
-    sort_order: int
-    requirement_level: str
-    flag_overrides: dict[str, Any] | None = None
-    filter_settings: dict[str, Any] | None = None
-
-
-CategoryAttributeBindingListReadModel = PaginatedReadModel[
-    CategoryAttributeBindingReadModel
-]
-
-
-# ---------------------------------------------------------------------------
 # Storefront read models
 # ---------------------------------------------------------------------------
 
@@ -388,6 +366,8 @@ class ProductAttributeValueReadModel(BaseModel):
     attribute_value_id: uuid.UUID
     attribute_code: str = ""
     attribute_name_i18n: dict[str, str] = Field(default_factory=dict)
+    attribute_value_code: str = ""
+    attribute_value_name_i18n: dict[str, str] = Field(default_factory=dict)
 
 
 class ProductReadModel(BaseModel):
@@ -484,3 +464,34 @@ class ProductAttributeReadModel(ProductAttributeValueReadModel):
     """
 
     pass
+
+
+# ---------------------------------------------------------------------------
+# AttributeFamily read models
+# ---------------------------------------------------------------------------
+
+
+class AttributeFamilyReadModel(BaseModel):
+    """Read model for a single attribute family."""
+
+    id: uuid.UUID
+    parent_id: uuid.UUID | None
+    code: str
+    name_i18n: dict[str, str]
+    description_i18n: dict[str, str]
+    sort_order: int
+    level: int
+
+
+AttributeFamilyListReadModel = PaginatedReadModel[AttributeFamilyReadModel]
+
+
+class AttributeFamilyTreeNode(BaseModel):
+    """Recursive tree node for the attribute family hierarchy read model."""
+
+    id: uuid.UUID
+    code: str
+    name_i18n: dict[str, str]
+    level: int
+    sort_order: int
+    children: list[AttributeFamilyTreeNode] = Field(default_factory=list)

@@ -31,6 +31,7 @@ Dependencies require this execution order:
 ### Task 1: Add `username` to StaffMember domain entity and ORM model
 
 **Files:**
+
 - Modify: `src/modules/user/domain/entities.py:120-206`
 - Modify: `src/modules/user/infrastructure/models.py:44-71`
 - Modify: `src/modules/user/infrastructure/repositories/staff_member_repository.py`
@@ -126,6 +127,7 @@ git commit -m "feat(user): add username to StaffMember entity and ORM"
 ### Task 2: Create `IUsernameUniquenessChecker` and implementation
 
 **Files:**
+
 - Modify: `src/modules/user/domain/interfaces.py`
 - Create: `src/modules/user/infrastructure/services/__init__.py`
 - Create: `src/modules/user/infrastructure/services/username_checker.py`
@@ -220,6 +222,7 @@ git commit -m "feat(user): add IUsernameUniquenessChecker service"
 This task does three things atomically: adds `username` to the event, passes it from RegisterHandler, and updates both consumers to use the uniqueness checker.
 
 **Files:**
+
 - Modify: `src/modules/identity/domain/events.py:14-42`
 - Modify: `src/modules/identity/application/commands/register.py`
 - Modify: `src/modules/user/application/consumers/identity_events.py`
@@ -352,6 +355,7 @@ git commit -m "feat: propagate username through events with uniqueness handling"
 ### Task 4: Remove `username` from `local_credentials` (Identity module)
 
 **Files:**
+
 - Modify: `src/modules/identity/domain/entities.py:161-177`
 - Modify: `src/modules/identity/infrastructure/models.py:106-145`
 - Modify: `src/modules/identity/infrastructure/repositories/identity_repository.py`
@@ -368,6 +372,7 @@ In `src/modules/identity/infrastructure/models.py`, remove the entire `username`
 - [ ] **Step 3: Remove `username` from repository mapper and persistence**
 
 In `src/modules/identity/infrastructure/repositories/identity_repository.py`:
+
 - `_credentials_to_domain()`: remove `username=orm.username`
 - `add_credentials()`: remove `username=credentials.username`
 
@@ -389,6 +394,7 @@ git commit -m "refactor(identity): remove username from local_credentials"
 ### Task 5: Rewrite `get_by_login()` with raw SQL JOIN
 
 **Files:**
+
 - Modify: `src/modules/identity/domain/interfaces.py`
 - Modify: `src/modules/identity/infrastructure/repositories/identity_repository.py`
 
@@ -471,6 +477,7 @@ git commit -m "feat(identity): rewrite get_by_login with raw SQL JOIN"
 ### Task 6: Update `create_admin.py` to create staff_members row
 
 **Files:**
+
 - Modify: `src/modules/identity/management/create_admin.py`
 
 - [ ] **Step 1: Update SQL and function**
@@ -478,6 +485,7 @@ git commit -m "feat(identity): rewrite get_by_login with raw SQL JOIN"
 Remove `username` from `_INSERT_CREDENTIALS` SQL and its parameter dict. Add `_INSERT_STAFF_MEMBER` SQL. Add the insert call in the function.
 
 New `_INSERT_CREDENTIALS`:
+
 ```python
 _INSERT_CREDENTIALS = text("""
     INSERT INTO local_credentials (identity_id, email, password_hash)
@@ -486,6 +494,7 @@ _INSERT_CREDENTIALS = text("""
 ```
 
 New SQL constant:
+
 ```python
 _INSERT_STAFF_MEMBER = text("""
     INSERT INTO staff_members (id, first_name, last_name, username, invited_by)
@@ -494,6 +503,7 @@ _INSERT_STAFF_MEMBER = text("""
 ```
 
 Update `_INSERT_CREDENTIALS` execute call — remove `"username": username` from the params dict:
+
 ```python
 await session.execute(
     _INSERT_CREDENTIALS,
@@ -506,6 +516,7 @@ await session.execute(
 ```
 
 Add after `_INSERT_IDENTITY_ROLE` execute:
+
 ```python
 await session.execute(
     _INSERT_STAFF_MEMBER,
@@ -525,6 +536,7 @@ git commit -m "feat(management): create_admin now inserts staff_members row"
 ### Task 7: Write Alembic migration
 
 **Files:**
+
 - Create: `alembic/versions/2026_03_24_unified_username.py`
 
 - [ ] **Step 1: Determine current head revision**
@@ -629,6 +641,7 @@ git commit -m "feat(migration): unified username indexes and staff_members.usern
 ### Task 8: Tests
 
 **Files:**
+
 - Modify: `tests/unit/modules/identity/presentation/test_schemas.py`
 - Modify: `tests/integration/modules/identity/application/commands/test_login.py`
 - Create: `tests/unit/modules/user/infrastructure/services/test_username_checker.py`

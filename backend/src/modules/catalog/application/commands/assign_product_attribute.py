@@ -14,13 +14,20 @@ from src.modules.catalog.domain.entities import ProductAttributeValue
 from src.modules.catalog.domain.exceptions import (
     AttributeNotDictionaryError,
     AttributeNotFoundError,
+    AttributeNotInFamilyError,
+    AttributeLevelMismatchError,
     AttributeValueNotFoundError,
     DuplicateProductAttributeError,
     ProductNotFoundError,
 )
+from src.modules.catalog.domain.value_objects import AttributeLevel
 from src.modules.catalog.domain.interfaces import (
+    IAttributeFamilyRepository,
     IAttributeRepository,
     IAttributeValueRepository,
+    ICategoryRepository,
+    IFamilyAttributeBindingRepository,
+    IFamilyAttributeExclusionRepository,
     IProductAttributeValueRepository,
     IProductRepository,
 )
@@ -68,6 +75,10 @@ class AssignProductAttributeHandler:
         pav_repo: IProductAttributeValueRepository,
         attribute_repo: IAttributeRepository,
         attribute_value_repo: IAttributeValueRepository,
+        category_repo: ICategoryRepository,
+        family_repo: IAttributeFamilyRepository,
+        family_binding_repo: IFamilyAttributeBindingRepository,
+        exclusion_repo: IFamilyAttributeExclusionRepository,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
@@ -75,6 +86,10 @@ class AssignProductAttributeHandler:
         self._pav_repo = pav_repo
         self._attribute_repo = attribute_repo
         self._attribute_value_repo = attribute_value_repo
+        self._category_repo = category_repo
+        self._family_repo = family_repo
+        self._family_binding_repo = family_binding_repo
+        self._exclusion_repo = exclusion_repo
         self._uow = uow
         self._logger = logger.bind(handler="AssignProductAttributeHandler")
 
@@ -99,10 +114,44 @@ class AssignProductAttributeHandler:
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
-            # --- Validate attribute exists and is a dictionary type ---
+            # --- Validate attribute belongs to product's category family ---
+            category = await self._category_repo.get(product.primary_category_id)
+            if category is not None and category.family_id is not None:
+                # Resolve effective attributes for the family
+                chain = await self._family_repo.get_ancestor_chain(category.family_id)
+                chain_ids = [f.id for f in chain]
+                all_bindings = await self._family_binding_repo.get_bindings_for_families(
+                    chain_ids
+                )
+                all_exclusions = await self._exclusion_repo.get_exclusions_for_families(
+                    chain_ids
+                )
+
+                effective_attr_ids: set[uuid.UUID] = set()
+                for fam in chain:
+                    # Apply exclusions first
+                    for excluded_id in all_exclusions.get(fam.id, set()):
+                        effective_attr_ids.discard(excluded_id)
+                    # Then add bindings
+                    for binding in all_bindings.get(fam.id, []):
+                        effective_attr_ids.add(binding.attribute_id)
+
+                if command.attribute_id not in effective_attr_ids:
+                    raise AttributeNotInFamilyError(
+                        product_id=command.product_id,
+                        attribute_id=command.attribute_id,
+                    )
+
+            # --- Validate attribute exists, is dictionary, and is product-level ---
             attribute = await self._attribute_repo.get(command.attribute_id)
             if attribute is None:
                 raise AttributeNotFoundError(attribute_id=command.attribute_id)
+            if attribute.level != AttributeLevel.PRODUCT:
+                raise AttributeLevelMismatchError(
+                    attribute_id=command.attribute_id,
+                    expected_level="product",
+                    actual_level=attribute.level.value,
+                )
             if not attribute.is_dictionary:
                 raise AttributeNotDictionaryError(attribute_id=command.attribute_id)
 

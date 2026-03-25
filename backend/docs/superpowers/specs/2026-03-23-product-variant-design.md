@@ -316,7 +316,7 @@ Project is NOT in production. Single migration:
    Note: Media with `attribute_value_id = NULL` (product-generic, e.g., size_guide) keeps `variant_id = NULL`.
 8. Drop `attribute_value_id` column from `media_assets`
 9. Remove `color_attribute` relationship and `ix_media_assets_product_attr` index from MediaAsset ORM
-9. Update indexes and constraints (rename `uix_media_single_main_per_color` → `uix_media_single_main_per_variant`)
+10. Update indexes and constraints (rename `uix_media_single_main_per_color` → `uix_media_single_main_per_variant`)
 
 ---
 

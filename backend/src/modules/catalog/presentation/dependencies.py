@@ -12,6 +12,18 @@ from dishka.dependency_source.composite import CompositeDependencySource
 from src.modules.catalog.application.commands.add_attribute_value import (
     AddAttributeValueHandler,
 )
+from src.modules.catalog.application.commands.add_family_exclusion import (
+    AddFamilyExclusionHandler,
+)
+from src.modules.catalog.application.commands.bind_attribute_to_family import (
+    BindAttributeToFamilyHandler,
+)
+from src.modules.catalog.application.commands.create_attribute_family import (
+    CreateAttributeFamilyHandler,
+)
+from src.modules.catalog.application.commands.delete_attribute_family import (
+    DeleteAttributeFamilyHandler,
+)
 from src.modules.catalog.application.commands.add_external_product_media import (
     AddExternalProductMediaHandler,
 )
@@ -19,15 +31,15 @@ from src.modules.catalog.application.commands.add_product_media import (
     AddProductMediaHandler,
 )
 from src.modules.catalog.application.commands.add_sku import AddSKUHandler
+from src.modules.catalog.application.commands.generate_sku_matrix import (
+    GenerateSKUMatrixHandler,
+)
 from src.modules.catalog.application.commands.add_variant import AddVariantHandler
 from src.modules.catalog.application.commands.assign_product_attribute import (
     AssignProductAttributeHandler,
 )
-from src.modules.catalog.application.commands.bind_attribute_to_category import (
-    BindAttributeToCategoryHandler,
-)
-from src.modules.catalog.application.commands.bulk_update_requirement_levels import (
-    BulkUpdateRequirementLevelsHandler,
+from src.modules.catalog.application.commands.bulk_assign_product_attributes import (
+    BulkAssignProductAttributesHandler,
 )
 from src.modules.catalog.application.commands.change_product_status import (
     ChangeProductStatusHandler,
@@ -78,14 +90,20 @@ from src.modules.catalog.application.commands.delete_variant import DeleteVarian
 from src.modules.catalog.application.commands.reorder_attribute_values import (
     ReorderAttributeValuesHandler,
 )
-from src.modules.catalog.application.commands.reorder_category_bindings import (
-    ReorderCategoryBindingsHandler,
+from src.modules.catalog.application.commands.reorder_family_bindings import (
+    ReorderFamilyBindingsHandler,
 )
-from src.modules.catalog.application.commands.unbind_attribute_from_category import (
-    UnbindAttributeFromCategoryHandler,
+from src.modules.catalog.application.commands.remove_family_exclusion import (
+    RemoveFamilyExclusionHandler,
+)
+from src.modules.catalog.application.commands.unbind_attribute_from_family import (
+    UnbindAttributeFromFamilyHandler,
 )
 from src.modules.catalog.application.commands.update_attribute import (
     UpdateAttributeHandler,
+)
+from src.modules.catalog.application.commands.update_attribute_family import (
+    UpdateAttributeFamilyHandler,
 )
 from src.modules.catalog.application.commands.update_attribute_group import (
     UpdateAttributeGroupHandler,
@@ -93,12 +111,12 @@ from src.modules.catalog.application.commands.update_attribute_group import (
 from src.modules.catalog.application.commands.update_attribute_value import (
     UpdateAttributeValueHandler,
 )
+from src.modules.catalog.application.commands.update_family_attribute_binding import (
+    UpdateFamilyAttributeBindingHandler,
+)
 from src.modules.catalog.application.commands.update_brand import UpdateBrandHandler
 from src.modules.catalog.application.commands.update_category import (
     UpdateCategoryHandler,
-)
-from src.modules.catalog.application.commands.update_category_attribute_binding import (
-    UpdateCategoryAttributeBindingHandler,
 )
 from src.modules.catalog.application.commands.update_product import UpdateProductHandler
 from src.modules.catalog.application.commands.update_sku import UpdateSKUHandler
@@ -119,15 +137,23 @@ from src.modules.catalog.application.queries.list_attribute_groups import (
 from src.modules.catalog.application.queries.list_attribute_values import (
     ListAttributeValuesHandler,
 )
+from src.modules.catalog.application.queries.list_attribute_families import (
+    GetAttributeFamilyHandler,
+    GetAttributeFamilyTreeHandler,
+    ListAttributeFamiliesHandler,
+)
 from src.modules.catalog.application.queries.list_attributes import (
     ListAttributesHandler,
 )
 from src.modules.catalog.application.queries.list_brands import ListBrandsHandler
+from src.modules.catalog.application.queries.list_family_bindings import (
+    ListFamilyBindingsHandler,
+)
+from src.modules.catalog.application.queries.list_family_exclusions import (
+    ListFamilyExclusionsHandler,
+)
 from src.modules.catalog.application.queries.list_categories import (
     ListCategoriesHandler,
-)
-from src.modules.catalog.application.queries.list_category_bindings import (
-    ListCategoryBindingsHandler,
 )
 from src.modules.catalog.application.queries.list_product_attributes import (
     ListProductAttributesHandler,
@@ -138,6 +164,9 @@ from src.modules.catalog.application.queries.list_product_media import (
 from src.modules.catalog.application.queries.list_products import ListProductsHandler
 from src.modules.catalog.application.queries.list_skus import ListSKUsHandler
 from src.modules.catalog.application.queries.list_variants import ListVariantsHandler
+from src.modules.catalog.application.queries.resolve_family_attributes import (
+    ResolveFamilyAttributesHandler,
+)
 from src.modules.catalog.application.queries.storefront import (
     StorefrontCardAttributesHandler,
     StorefrontComparisonAttributesHandler,
@@ -146,12 +175,14 @@ from src.modules.catalog.application.queries.storefront import (
 )
 from src.modules.catalog.application.services.media_processor import BrandLogoProcessor
 from src.modules.catalog.domain.interfaces import (
+    IAttributeFamilyRepository,
     IAttributeGroupRepository,
     IAttributeRepository,
     IAttributeValueRepository,
     IBrandRepository,
-    ICategoryAttributeBindingRepository,
     ICategoryRepository,
+    IFamilyAttributeBindingRepository,
+    IFamilyAttributeExclusionRepository,
     IMediaAssetRepository,
     IProductAttributeValueRepository,
     IProductRepository,
@@ -161,11 +192,19 @@ from src.modules.catalog.infrastructure.repositories import (
     AttributeRepository,
     AttributeValueRepository,
     BrandRepository,
-    CategoryAttributeBindingRepository,
     CategoryRepository,
     MediaAssetRepository,
     ProductAttributeValueRepository,
     ProductRepository,
+)
+from src.modules.catalog.infrastructure.repositories.attribute_family import (
+    AttributeFamilyRepository,
+)
+from src.modules.catalog.infrastructure.repositories.family_attribute_binding import (
+    FamilyAttributeBindingRepository,
+)
+from src.modules.catalog.infrastructure.repositories.family_attribute_exclusion import (
+    FamilyAttributeExclusionRepository,
 )
 
 
@@ -299,31 +338,73 @@ class AttributeValueProvider(Provider):
     )
 
 
-class CategoryAttributeBindingProvider(Provider):
-    """DI provider for category-attribute binding repositories and handlers."""
+class AttributeFamilyProvider(Provider):
+    """DI provider for attribute family repositories, command handlers, and query handlers."""
 
-    binding_repo: CompositeDependencySource = provide(
-        CategoryAttributeBindingRepository,
+    # Repositories
+    family_repo: CompositeDependencySource = provide(
+        AttributeFamilyRepository,
         scope=Scope.REQUEST,
-        provides=ICategoryAttributeBindingRepository,
+        provides=IAttributeFamilyRepository,
     )
-    bind_handler: CompositeDependencySource = provide(
-        BindAttributeToCategoryHandler, scope=Scope.REQUEST
+    binding_repo: CompositeDependencySource = provide(
+        FamilyAttributeBindingRepository,
+        scope=Scope.REQUEST,
+        provides=IFamilyAttributeBindingRepository,
     )
-    update_binding_handler: CompositeDependencySource = provide(
-        UpdateCategoryAttributeBindingHandler, scope=Scope.REQUEST
+    exclusion_repo: CompositeDependencySource = provide(
+        FamilyAttributeExclusionRepository,
+        scope=Scope.REQUEST,
+        provides=IFamilyAttributeExclusionRepository,
     )
-    unbind_handler: CompositeDependencySource = provide(
-        UnbindAttributeFromCategoryHandler, scope=Scope.REQUEST
+
+    # Command handlers
+    create_attribute_family_handler: CompositeDependencySource = provide(
+        CreateAttributeFamilyHandler, scope=Scope.REQUEST
     )
-    reorder_bindings_handler: CompositeDependencySource = provide(
-        ReorderCategoryBindingsHandler, scope=Scope.REQUEST
+    update_attribute_family_handler: CompositeDependencySource = provide(
+        UpdateAttributeFamilyHandler, scope=Scope.REQUEST
     )
-    bulk_update_requirement_handler: CompositeDependencySource = provide(
-        BulkUpdateRequirementLevelsHandler, scope=Scope.REQUEST
+    delete_attribute_family_handler: CompositeDependencySource = provide(
+        DeleteAttributeFamilyHandler, scope=Scope.REQUEST
     )
-    list_bindings_handler: CompositeDependencySource = provide(
-        ListCategoryBindingsHandler, scope=Scope.REQUEST
+    bind_attribute_to_family_handler: CompositeDependencySource = provide(
+        BindAttributeToFamilyHandler, scope=Scope.REQUEST
+    )
+    unbind_attribute_from_family_handler: CompositeDependencySource = provide(
+        UnbindAttributeFromFamilyHandler, scope=Scope.REQUEST
+    )
+    update_family_attribute_binding_handler: CompositeDependencySource = provide(
+        UpdateFamilyAttributeBindingHandler, scope=Scope.REQUEST
+    )
+    reorder_family_bindings_handler: CompositeDependencySource = provide(
+        ReorderFamilyBindingsHandler, scope=Scope.REQUEST
+    )
+    add_family_exclusion_handler: CompositeDependencySource = provide(
+        AddFamilyExclusionHandler, scope=Scope.REQUEST
+    )
+    remove_family_exclusion_handler: CompositeDependencySource = provide(
+        RemoveFamilyExclusionHandler, scope=Scope.REQUEST
+    )
+
+    # Query handlers
+    resolve_family_attributes_handler: CompositeDependencySource = provide(
+        ResolveFamilyAttributesHandler, scope=Scope.REQUEST
+    )
+    list_attribute_families_handler: CompositeDependencySource = provide(
+        ListAttributeFamiliesHandler, scope=Scope.REQUEST
+    )
+    get_attribute_family_handler: CompositeDependencySource = provide(
+        GetAttributeFamilyHandler, scope=Scope.REQUEST
+    )
+    get_attribute_family_tree_handler: CompositeDependencySource = provide(
+        GetAttributeFamilyTreeHandler, scope=Scope.REQUEST
+    )
+    list_family_bindings_handler: CompositeDependencySource = provide(
+        ListFamilyBindingsHandler, scope=Scope.REQUEST
+    )
+    list_family_exclusions_handler: CompositeDependencySource = provide(
+        ListFamilyExclusionsHandler, scope=Scope.REQUEST
     )
 
 
@@ -381,6 +462,9 @@ class ProductProvider(Provider):
     add_sku_handler: CompositeDependencySource = provide(
         AddSKUHandler, scope=Scope.REQUEST
     )
+    generate_sku_matrix_handler: CompositeDependencySource = provide(
+        GenerateSKUMatrixHandler, scope=Scope.REQUEST
+    )
     update_sku_handler: CompositeDependencySource = provide(
         UpdateSKUHandler, scope=Scope.REQUEST
     )
@@ -389,6 +473,9 @@ class ProductProvider(Provider):
     )
     assign_product_attribute_handler: CompositeDependencySource = provide(
         AssignProductAttributeHandler, scope=Scope.REQUEST
+    )
+    bulk_assign_product_attributes_handler: CompositeDependencySource = provide(
+        BulkAssignProductAttributesHandler, scope=Scope.REQUEST
     )
     delete_product_attribute_handler: CompositeDependencySource = provide(
         DeleteProductAttributeHandler, scope=Scope.REQUEST

@@ -17,6 +17,7 @@ from src.modules.catalog.application.queries.read_models import (
 )
 from src.modules.catalog.infrastructure.models import (
     Attribute as OrmAttribute,
+    AttributeValue as OrmAttributeValue,
 )
 from src.modules.catalog.infrastructure.models import (
     ProductAttributeValue as OrmProductAttributeValue,
@@ -66,9 +67,13 @@ class ListProductAttributesHandler:
         total: int = count_result.scalar_one()
 
         stmt = (
-            select(OrmProductAttributeValue, OrmAttribute)
+            select(OrmProductAttributeValue, OrmAttribute, OrmAttributeValue)
             .join(
                 OrmAttribute, OrmProductAttributeValue.attribute_id == OrmAttribute.id
+            )
+            .join(
+                OrmAttributeValue,
+                OrmProductAttributeValue.attribute_value_id == OrmAttributeValue.id,
             )
             .where(OrmProductAttributeValue.product_id == query.product_id)
             .order_by(OrmAttribute.code)
@@ -86,8 +91,10 @@ class ListProductAttributesHandler:
                 attribute_value_id=pav.attribute_value_id,
                 attribute_code=attr.code,
                 attribute_name_i18n=dict(attr.name_i18n),
+                attribute_value_code=attr_val.code,
+                attribute_value_name_i18n=dict(attr_val.value_i18n),
             )
-            for pav, attr in rows
+            for pav, attr, attr_val in rows
         ]
         return ProductAttributeListReadModel(
             items=items,

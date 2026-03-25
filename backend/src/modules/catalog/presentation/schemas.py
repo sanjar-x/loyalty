@@ -113,6 +113,7 @@ class CategoryCreateRequest(CamelModel):
         None, description="Parent category ID (optional)"
     )
     sort_order: int = Field(0, ge=0, description="Display ordering among siblings")
+    family_id: uuid.UUID | None = Field(None, description="Attribute family UUID.")
 
 
 class CategoryCreateResponse(CamelModel):
@@ -156,12 +157,13 @@ class CategoryUpdateRequest(CamelModel):
         None, min_length=3, max_length=255, pattern=r"^[a-z0-9-]+$"
     )
     sort_order: int | None = Field(None, ge=0)
+    family_id: uuid.UUID | None = Field(None, description="Attribute family UUID.")
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> CategoryUpdateRequest:
-        if self.name_i18n is None and self.slug is None and self.sort_order is None:
+        if not self.model_fields_set:
             raise ValueError(
-                "At least one field (nameI18n, slug, or sortOrder) must be provided"
+                "At least one field (nameI18n, slug, sortOrder, or familyId) must be provided"
             )
         return self
 
@@ -465,98 +467,6 @@ class ReorderAttributeValuesRequest(CamelModel):
 
 
 # ---------------------------------------------------------------------------
-# CategoryAttributeBinding schemas
-# ---------------------------------------------------------------------------
-
-
-class BindAttributeToCategoryRequest(CamelModel):
-    """Request body for binding an attribute to a category."""
-
-    attribute_id: uuid.UUID
-    sort_order: int = Field(0, ge=0, description="Display ordering within the category")
-    requirement_level: Literal["required", "recommended", "optional"] = Field(
-        "optional", examples=["required", "recommended", "optional"]
-    )
-    flag_overrides: BoundedJsonDict | None = Field(
-        None,
-        description="Per-category behavior flag overrides",
-        examples=[{"is_filterable": True, "search_weight": 8}],
-    )
-    filter_settings: BoundedJsonDict | None = Field(
-        None,
-        description="Per-category filter settings",
-        examples=[{"filter_type": "range", "thresholds": [0, 5000, 10000]}],
-    )
-
-
-class BindAttributeToCategoryResponse(CamelModel):
-    """Response after binding creation."""
-
-    id: uuid.UUID
-
-
-class CategoryAttributeBindingResponse(CamelModel):
-    """Full binding detail response."""
-
-    id: uuid.UUID
-    category_id: uuid.UUID
-    attribute_id: uuid.UUID
-    sort_order: int
-    requirement_level: str
-    flag_overrides: dict[str, Any] | None = None
-    filter_settings: dict[str, Any] | None = None
-
-
-class CategoryAttributeBindingUpdateRequest(CamelModel):
-    """Partial update request for a binding."""
-
-    sort_order: int | None = Field(None, ge=0)
-    requirement_level: Literal["required", "recommended", "optional"] | None = None
-    flag_overrides: BoundedJsonDict | None = None
-    filter_settings: BoundedJsonDict | None = None
-
-    @model_validator(mode="after")
-    def at_least_one_field(self) -> CategoryAttributeBindingUpdateRequest:
-        """Ensure at least one field is provided for update."""
-        if not self.model_fields_set:
-            raise ValueError("At least one field must be provided for update")
-        return self
-
-
-CategoryAttributeBindingListResponse = PaginatedResponse[
-    CategoryAttributeBindingResponse
-]
-
-
-class BindingReorderItemRequest(CamelModel):
-    """A single binding reorder instruction."""
-
-    binding_id: uuid.UUID
-    sort_order: int = Field(..., ge=0)
-
-
-class ReorderBindingsRequest(CamelModel):
-    """Request body for bulk-reordering bindings."""
-
-    items: list[BindingReorderItemRequest] = Field(..., min_length=1)
-
-
-class RequirementLevelUpdateItemRequest(CamelModel):
-    """A single requirement-level update instruction."""
-
-    binding_id: uuid.UUID
-    requirement_level: Literal["required", "recommended", "optional"] = Field(
-        ..., examples=["required", "recommended", "optional"]
-    )
-
-
-class BulkUpdateRequirementLevelsRequest(CamelModel):
-    """Request body for bulk-updating requirement levels."""
-
-    items: list[RequirementLevelUpdateItemRequest] = Field(..., min_length=1)
-
-
-# ---------------------------------------------------------------------------
 # Storefront schemas
 # ---------------------------------------------------------------------------
 
@@ -723,6 +633,7 @@ class ProductCreateResponse(CamelModel):
     """Response returned after successful product creation."""
 
     id: uuid.UUID
+    default_variant_id: uuid.UUID
     message: str
 
 
@@ -848,6 +759,18 @@ class ProductAttributeAssignResponse(CamelModel):
     message: str
 
 
+class BulkAssignProductAttributesRequest(CamelModel):
+    """Request body for bulk product attribute assignment."""
+    items: list[ProductAttributeAssignRequest] = Field(..., min_length=1, max_length=50)
+
+
+class BulkAssignProductAttributesResponse(CamelModel):
+    """Response from bulk attribute assignment."""
+    assigned_count: int
+    pav_ids: list[uuid.UUID]
+    message: str
+
+
 class ProductAttributeResponse(CamelModel):
     """Single product-attribute assignment detail response."""
 
@@ -857,6 +780,8 @@ class ProductAttributeResponse(CamelModel):
     attribute_value_id: uuid.UUID
     attribute_code: str = ""
     attribute_name_i18n: dict[str, str] = Field(default_factory=dict)
+    attribute_value_code: str = ""
+    attribute_value_name_i18n: dict[str, str] = Field(default_factory=dict)
 
 
 class ProductResponse(CamelModel):
@@ -1027,6 +952,34 @@ class ProductVariantUpdateResponse(CamelModel):
 SKUListResponse = PaginatedResponse[SKUResponse]
 
 
+class AttributeSelectionSchema(CamelModel):
+    """One attribute with multiple selected values for SKU matrix generation."""
+
+    attribute_id: uuid.UUID
+    value_ids: list[uuid.UUID] = Field(..., min_length=1)
+
+
+class SKUMatrixGenerateRequest(CamelModel):
+    """Request to generate SKU combinations from attribute selections."""
+
+    attribute_selections: list[AttributeSelectionSchema] = Field(..., min_length=1)
+    price_amount: int | None = Field(None, ge=0)
+    price_currency: str = Field(
+        "RUB", min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"
+    )
+    compare_at_price_amount: int | None = Field(None, ge=0)
+    is_active: bool = True
+
+
+class SKUMatrixGenerateResponse(CamelModel):
+    """Response from SKU matrix generation."""
+
+    created_count: int
+    skipped_count: int
+    sku_ids: list[uuid.UUID]
+    message: str
+
+
 # ---------------------------------------------------------------------------
 # ProductAttribute list response
 # ---------------------------------------------------------------------------
@@ -1057,3 +1010,205 @@ class WebhookAckResponse(CamelModel):
     """Acknowledgement response for internal webhooks."""
 
     status: str = "ok"
+
+
+# ---------------------------------------------------------------------------
+# AttributeFamily schemas
+# ---------------------------------------------------------------------------
+
+
+class AttributeFamilyCreateRequest(CamelModel):
+    """Request body for creating a new attribute family."""
+
+    code: str = Field(
+        ..., min_length=1, max_length=100, pattern=r"^[a-z0-9_]+$",
+        description="Unique machine-readable code.",
+    )
+    parent_id: uuid.UUID | None = Field(None, description="Parent family ID for child families.")
+    name_i18n: I18nDict = Field(..., min_length=1)
+    description_i18n: I18nDict | None = Field(default_factory=dict)
+    sort_order: int = Field(0, ge=0)
+
+
+class AttributeFamilyCreateResponse(CamelModel):
+    """Response for family creation."""
+    id: uuid.UUID
+    message: str = "Attribute family created"
+
+
+class AttributeFamilyResponse(CamelModel):
+    """Full attribute family representation."""
+    id: uuid.UUID
+    parent_id: uuid.UUID | None
+    code: str
+    name_i18n: dict[str, str]
+    description_i18n: dict[str, str]
+    sort_order: int
+    level: int
+
+
+class AttributeFamilyTreeResponse(CamelModel):
+    """Recursive tree node for the family hierarchy."""
+    id: uuid.UUID
+    code: str
+    name_i18n: dict[str, str]
+    level: int
+    sort_order: int
+    children: list["AttributeFamilyTreeResponse"] = []
+
+
+class AttributeFamilyUpdateRequest(CamelModel):
+    """Request body for updating an attribute family (PATCH semantics)."""
+    name_i18n: I18nDict | None = None
+    description_i18n: I18nDict | None = None
+    sort_order: int | None = Field(None, ge=0)
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> "AttributeFamilyUpdateRequest":
+        if self.name_i18n is None and self.description_i18n is None and self.sort_order is None:
+            raise ValueError("At least one of name_i18n, description_i18n, or sort_order must be provided")
+        return self
+
+
+class AttributeFamilyListResponse(CamelModel):
+    """Paginated list of attribute families."""
+    items: list[AttributeFamilyResponse]
+    total: int
+    offset: int
+    limit: int
+
+
+# ---------------------------------------------------------------------------
+# FamilyAttributeBinding schemas
+# ---------------------------------------------------------------------------
+
+
+class FamilyAttributeBindingRequest(CamelModel):
+    """Request body for binding an attribute to a family."""
+    attribute_id: uuid.UUID
+    sort_order: int = Field(0, ge=0)
+    requirement_level: str = Field(
+        "optional", pattern=r"^(required|recommended|optional)$"
+    )
+    flag_overrides: BoundedJsonDict | None = None
+    filter_settings: BoundedJsonDict | None = None
+
+
+class FamilyAttributeBindingResponse(CamelModel):
+    """Response for binding creation."""
+    id: uuid.UUID
+    message: str = "Attribute bound to family"
+
+
+class FamilyAttributeBindingDetailResponse(CamelModel):
+    """Detailed binding info."""
+    id: uuid.UUID
+    family_id: uuid.UUID
+    attribute_id: uuid.UUID
+    sort_order: int
+    requirement_level: str
+    flag_overrides: dict[str, Any] | None = None
+    filter_settings: dict[str, Any] | None = None
+
+
+class FamilyAttributeBindingListResponse(CamelModel):
+    """List of bindings for a family."""
+    items: list[FamilyAttributeBindingDetailResponse]
+    total: int
+    offset: int
+    limit: int
+
+
+class FamilyAttributeBindingUpdateRequest(CamelModel):
+    """PATCH request for updating a binding."""
+    sort_order: int | None = Field(None, ge=0)
+    requirement_level: str | None = Field(
+        None, pattern=r"^(required|recommended|optional)$"
+    )
+    flag_overrides: BoundedJsonDict | None = None
+    filter_settings: BoundedJsonDict | None = None
+
+
+class BindingReorderItemSchema(CamelModel):
+    """A single reorder item."""
+    binding_id: uuid.UUID
+    sort_order: int = Field(..., ge=0)
+
+
+class FamilyBindingReorderRequest(CamelModel):
+    """Request for reordering bindings."""
+    items: list[BindingReorderItemSchema] = Field(..., min_length=1)
+
+
+# ---------------------------------------------------------------------------
+# FamilyAttributeExclusion schemas
+# ---------------------------------------------------------------------------
+
+
+class FamilyAttributeExclusionRequest(CamelModel):
+    """Request for excluding an inherited attribute."""
+    attribute_id: uuid.UUID
+
+
+class FamilyAttributeExclusionResponse(CamelModel):
+    """Response for exclusion creation."""
+    id: uuid.UUID
+    message: str = "Attribute excluded from family"
+
+
+class FamilyAttributeExclusionDetailResponse(CamelModel):
+    """Detailed exclusion info."""
+    id: uuid.UUID
+    family_id: uuid.UUID
+    attribute_id: uuid.UUID
+
+
+class FamilyAttributeExclusionListResponse(CamelModel):
+    """List of exclusions for a family."""
+    items: list[FamilyAttributeExclusionDetailResponse]
+    total: int
+    offset: int
+    limit: int
+
+
+# ---------------------------------------------------------------------------
+# Effective attributes response
+# ---------------------------------------------------------------------------
+
+
+class EffectiveAttributeValueSchema(CamelModel):
+    """Value in the effective attribute set."""
+    id: uuid.UUID
+    code: str
+    slug: str
+    value_i18n: dict[str, str]
+    meta_data: dict[str, Any]
+    value_group: str | None = None
+    sort_order: int
+
+
+class EffectiveAttributeSchema(CamelModel):
+    """Attribute in the effective set."""
+    attribute_id: uuid.UUID
+    code: str
+    slug: str
+    name_i18n: dict[str, str]
+    description_i18n: dict[str, str]
+    data_type: str
+    ui_type: str
+    is_dictionary: bool
+    level: str
+    requirement_level: str
+    validation_rules: dict[str, Any] | None = None
+    flag_overrides: dict[str, Any] | None = None
+    filter_settings: dict[str, Any] | None = None
+    source_family_id: uuid.UUID
+    is_overridden: bool
+    values: list[EffectiveAttributeValueSchema] = []
+    sort_order: int
+
+
+class EffectiveAttributeSetResponse(CamelModel):
+    """Complete effective attribute set."""
+    family_id: uuid.UUID
+    attributes: list[EffectiveAttributeSchema]

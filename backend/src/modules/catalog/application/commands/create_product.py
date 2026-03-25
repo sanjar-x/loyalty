@@ -61,9 +61,11 @@ class CreateProductResult:
 
     Attributes:
         product_id: UUID of the newly created product.
+        default_variant_id: UUID of the auto-created default variant.
     """
 
     product_id: uuid.UUID
+    default_variant_id: uuid.UUID
 
 
 class CreateProductHandler:
@@ -149,4 +151,8 @@ class CreateProductHandler:
             self._uow.register_aggregate(product)
             await self._uow.commit()
 
-        return CreateProductResult(product_id=product.id)
+        default_variant_id = product.variants[0].id if product.variants else product.id
+        return CreateProductResult(
+            product_id=product.id,
+            default_variant_id=default_variant_id,
+        )
