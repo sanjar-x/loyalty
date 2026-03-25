@@ -8,6 +8,7 @@ export async function fetchFormAttributes(categoryId) {
   try {
     const res = await fetch(
       `/api/catalog/storefront/categories/${categoryId}/form-attributes`,
+      { credentials: 'include' },
     );
     if (!res.ok) return null;
     return res.json();

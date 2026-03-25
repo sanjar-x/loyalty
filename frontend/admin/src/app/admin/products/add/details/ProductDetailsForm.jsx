@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import useProductForm from '@/hooks/useProductForm';
+import { i18n } from '@/lib/utils';
 import { fetchFormAttributes } from '@/services/attributes';
 import BrandSelect from './BrandSelect';
 import SupplierSection from './SupplierSection';
@@ -34,6 +35,14 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
   const allAttrs = formData?.groups?.flatMap((g) => g.attributes) ?? [];
   const variantAttrs = allAttrs.filter((a) => a.level === 'variant');
 
+  // Collect selected variant values for variable pricing rows
+  const selectedVariantValues = variantAttrs.flatMap((attr) => {
+    const selectedIds = form.state.variantAttrs[attr.attributeId] ?? [];
+    return (attr.values ?? [])
+      .filter((v) => selectedIds.includes(v.id))
+      .map((v) => ({ ...v, attrName: i18n(attr.nameI18N, attr.code) }));
+  });
+
   return (
     <>
       <section className={styles.card}>
@@ -56,7 +65,9 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
           <VariantSelect
             attributes={variantAttrs}
             values={form.state.variantAttrs}
-            onChange={(attrId, valueIds) => form.setVariantAttr(attrId, valueIds)}
+            onChange={(attrId, valueIds) =>
+              form.setVariantAttr(attrId, valueIds)
+            }
             loading={attrsLoading}
           />
         </div>
@@ -72,6 +83,7 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
         excludeLevel="variant"
       />
 
+      {/* SizeTableSection: internal state — uploaded via media API (role: size_guide) in submit flow */}
       <SizeTableSection />
 
       <ImagesSection
@@ -80,17 +92,6 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
         onRemove={form.removeImage}
         onSet={form.setImages}
       />
-
-      <section className={styles.card}>
-        <div className={styles.switchRow}>
-          <h2 className={styles.switchLabel}>Оригинал</h2>
-          <ToggleSwitch
-            ariaLabel="Переключить оригинальность товара"
-            checked={form.state.isOriginal}
-            onChange={(val) => form.setField('isOriginal', val)}
-          />
-        </div>
-      </section>
 
       <SupplierSection
         deliveryMode={form.state.deliveryMode}
@@ -116,10 +117,37 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
 
         {form.state.variablePricing ? (
           <div className={styles.priceVariableList}>
-            {/* TODO: iterate over selected variant values from form-attributes */}
-            <p className={styles.cardSubtitle}>
-              Выберите размеры выше для вариативных цен
-            </p>
+            {selectedVariantValues.length > 0 ? (
+              selectedVariantValues.map((val) => (
+                <div key={val.id} className={styles.priceVariableRow}>
+                  <div className={styles.priceSizeBadge}>
+                    {i18n(val.valueI18N, val.code)}
+                  </div>
+                  <input
+                    className={styles.priceVariableInput}
+                    placeholder="Цена"
+                    aria-label={`Цена ${i18n(val.valueI18N, val.code)}`}
+                    value={form.state.perSkuPrices[val.id]?.price ?? ''}
+                    onChange={(e) =>
+                      form.setSkuPrice(val.id, { price: e.target.value })
+                    }
+                  />
+                  <input
+                    className={styles.priceVariableInput}
+                    placeholder="Закупочная цена"
+                    aria-label={`Закупочная цена ${i18n(val.valueI18N, val.code)}`}
+                    value={form.state.perSkuPrices[val.id]?.compareAt ?? ''}
+                    onChange={(e) =>
+                      form.setSkuPrice(val.id, { compareAt: e.target.value })
+                    }
+                  />
+                </div>
+              ))
+            ) : (
+              <p className={styles.cardSubtitle}>
+                Выберите размеры выше для вариативных цен
+              </p>
+            )}
           </div>
         ) : (
           <div className={styles.fieldRow}>
@@ -140,6 +168,24 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
           </div>
         )}
       </section>
+
+      {/* Submit buttons — inside ProductDetailsForm to access form state */}
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.secondaryButton}
+          disabled={!form.isValid}
+        >
+          Сохранить черновик
+        </button>
+        <button
+          type="button"
+          className={styles.primaryButton}
+          disabled={!form.isPublishable}
+        >
+          Опубликовать
+        </button>
+      </div>
     </>
   );
 }

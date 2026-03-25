@@ -47,18 +47,15 @@ function buildInitialState({ categoryId = null, defaultTitle = '' } = {}) {
     sourceUrl: '',
 
     // Price
-    priceAmount: '',      // string for input, convert to int on submit
-    compareAtPrice: '',   // string for input
+    priceAmount: '', // string for input, convert to int on submit
+    compareAtPrice: '', // string for input
     priceCurrency: 'RUB',
     variablePricing: false,
     // { [sizeValueId]: { price: string, compareAt: string } }
     perSkuPrices: {},
 
     // Media (local state, uploaded after product create)
-    images: [],  // [{ localId, file?, url?, source: "file"|"url", alt }]
-
-    // Flags
-    isOriginal: true,
+    images: [], // [{ localId, file?, url?, source: "file"|"url", alt }]
 
     // Tags
     tags: [],
@@ -170,11 +167,39 @@ function formReducer(state, action) {
 
 function transliterate(text) {
   const map = {
-    а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'yo',
-    ж: 'zh', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm',
-    н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u',
-    ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'shch',
-    ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya',
+    а: 'a',
+    б: 'b',
+    в: 'v',
+    г: 'g',
+    д: 'd',
+    е: 'e',
+    ё: 'yo',
+    ж: 'zh',
+    з: 'z',
+    и: 'i',
+    й: 'y',
+    к: 'k',
+    л: 'l',
+    м: 'm',
+    н: 'n',
+    о: 'o',
+    п: 'p',
+    р: 'r',
+    с: 's',
+    т: 't',
+    у: 'u',
+    ф: 'f',
+    х: 'kh',
+    ц: 'ts',
+    ч: 'ch',
+    ш: 'sh',
+    щ: 'shch',
+    ъ: '',
+    ы: 'y',
+    ь: '',
+    э: 'e',
+    ю: 'yu',
+    я: 'ya',
   };
   return text
     .toLowerCase()
@@ -258,89 +283,138 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
 
   // --- Derived / validation ---
 
+  // Minimum required fields for product creation (draft save)
   const isValid = useMemo(() => {
     if (!state.categoryId) return false;
     if (!state.brandId) return false;
     if (!state.titleRu.trim()) return false;
     if (!state.slug.trim()) return false;
-    // Price required for publishable products
+    return true;
+  }, [state.categoryId, state.brandId, state.titleRu, state.slug]);
+
+  // Stricter check: product can be published (has price + SKU attrs)
+  const isPublishable = useMemo(() => {
+    if (!isValid) return false;
+    // Need at least one variant attr with values for SKU generation
+    const hasVariantAttrs = Object.values(state.variantAttrs).some(
+      (ids) => ids.length > 0,
+    );
+    if (!hasVariantAttrs) return false;
+    // Need price
     if (state.variablePricing) {
-      const hasAnySkuPrice = Object.values(state.perSkuPrices).some(
+      return Object.values(state.perSkuPrices).some(
         (p) => p.price && parseInt(p.price, 10) > 0,
       );
-      if (!hasAnySkuPrice) return false;
-    } else {
-      if (!state.priceAmount || parseInt(state.priceAmount, 10) <= 0) return false;
     }
-    return true;
+    return state.priceAmount !== '' && parseInt(state.priceAmount, 10) > 0;
   }, [
-    state.categoryId, state.brandId, state.titleRu, state.slug,
-    state.variablePricing, state.priceAmount, state.perSkuPrices,
+    isValid,
+    state.variantAttrs,
+    state.variablePricing,
+    state.priceAmount,
+    state.perSkuPrices,
   ]);
 
   // Build API-ready payloads (no API calls — just data shaping)
 
-  const productPayload = useMemo(() => ({
-    titleI18N: {
-      ru: state.titleRu,
-      ...(state.titleEn ? { en: state.titleEn } : {}),
-    },
-    slug: state.slug,
-    brandId: state.brandId,
-    primaryCategoryId: state.categoryId,
-    ...(state.descriptionRu
-      ? { descriptionI18N: { ru: state.descriptionRu, ...(state.descriptionEn ? { en: state.descriptionEn } : {}) } }
-      : {}),
-    ...(state.supplierId ? { supplierId: state.supplierId } : {}),
-    ...(state.sourceUrl ? { sourceUrl: state.sourceUrl } : {}),
-    ...(state.countryOfOrigin ? { countryOfOrigin: state.countryOfOrigin } : {}),
-    ...(state.tags.length ? { tags: state.tags } : {}),
-  }), [
-    state.titleRu, state.titleEn, state.slug, state.brandId,
-    state.categoryId, state.descriptionRu, state.descriptionEn,
-    state.supplierId, state.sourceUrl, state.countryOfOrigin, state.tags,
-  ]);
+  const productPayload = useMemo(
+    () => ({
+      titleI18N: {
+        ru: state.titleRu,
+        ...(state.titleEn ? { en: state.titleEn } : {}),
+      },
+      slug: state.slug,
+      brandId: state.brandId,
+      primaryCategoryId: state.categoryId,
+      ...(state.descriptionRu
+        ? {
+            descriptionI18N: {
+              ru: state.descriptionRu,
+              ...(state.descriptionEn ? { en: state.descriptionEn } : {}),
+            },
+          }
+        : {}),
+      ...(state.supplierId ? { supplierId: state.supplierId } : {}),
+      ...(state.sourceUrl ? { sourceUrl: state.sourceUrl } : {}),
+      ...(state.countryOfOrigin
+        ? { countryOfOrigin: state.countryOfOrigin }
+        : {}),
+      ...(state.tags.length ? { tags: state.tags } : {}),
+    }),
+    [
+      state.titleRu,
+      state.titleEn,
+      state.slug,
+      state.brandId,
+      state.categoryId,
+      state.descriptionRu,
+      state.descriptionEn,
+      state.supplierId,
+      state.sourceUrl,
+      state.countryOfOrigin,
+      state.tags,
+    ],
+  );
 
-  const bulkAttrsPayload = useMemo(() => ({
-    items: Object.entries(state.productAttrs)
+  // null when empty — submit flow should skip the API call
+  const bulkAttrsPayload = useMemo(() => {
+    const items = Object.entries(state.productAttrs)
       .filter(([, valueId]) => valueId)
       .map(([attributeId, attributeValueId]) => ({
         attributeId,
         attributeValueId,
-      })),
-  }), [state.productAttrs]);
+      }));
+    return items.length > 0 ? { items } : null;
+  }, [state.productAttrs]);
 
-  const skuGeneratePayload = useMemo(() => ({
-    attributeSelections: Object.entries(state.variantAttrs)
+  // null when no variant attrs selected — submit flow should skip SKU generation
+  const skuGeneratePayload = useMemo(() => {
+    const attributeSelections = Object.entries(state.variantAttrs)
       .filter(([, valueIds]) => valueIds.length > 0)
       .map(([attributeId, valueIds]) => ({
         attributeId,
         valueIds,
-      })),
-    priceAmount: state.priceAmount !== '' ? parseInt(state.priceAmount, 10) : null,
-    priceCurrency: state.priceCurrency,
-    compareAtPriceAmount: state.compareAtPrice !== ''
-      ? parseInt(state.compareAtPrice, 10)
-      : null,
-  }), [state.variantAttrs, state.priceAmount, state.priceCurrency, state.compareAtPrice]);
+      }));
+    if (attributeSelections.length === 0) return null;
+    return {
+      attributeSelections,
+      priceAmount:
+        state.priceAmount !== '' ? parseInt(state.priceAmount, 10) : null,
+      priceCurrency: state.priceCurrency,
+      compareAtPriceAmount:
+        state.compareAtPrice !== '' ? parseInt(state.compareAtPrice, 10) : null,
+    };
+  }, [
+    state.variantAttrs,
+    state.priceAmount,
+    state.priceCurrency,
+    state.compareAtPrice,
+  ]);
 
   // --- Convenience: attribute handler for DynamicAttributes compatibility ---
   // DynamicAttributes currently uses { [attributeId]: [valueId, ...] }
   // This adapter maps between the two formats based on attribute level
 
-  const handleAttributeUpdate = useCallback((attributeId, selectedValues, level) => {
-    if (level === 'variant') {
-      dispatch({ type: 'SET_VARIANT_ATTR', attributeId, valueIds: selectedValues });
-    } else {
-      // product level: single select → take first value
-      const valueId = selectedValues[0] ?? null;
-      if (valueId) {
-        dispatch({ type: 'SET_PRODUCT_ATTR', attributeId, valueId });
+  const handleAttributeUpdate = useCallback(
+    (attributeId, selectedValues, level) => {
+      if (level === 'variant') {
+        dispatch({
+          type: 'SET_VARIANT_ATTR',
+          attributeId,
+          valueIds: selectedValues,
+        });
       } else {
-        dispatch({ type: 'CLEAR_PRODUCT_ATTR', attributeId });
+        // product level: single select → take first value
+        const valueId = selectedValues[0] ?? null;
+        if (valueId) {
+          dispatch({ type: 'SET_PRODUCT_ATTR', attributeId, valueId });
+        } else {
+          dispatch({ type: 'CLEAR_PRODUCT_ATTR', attributeId });
+        }
       }
-    }
-  }, []);
+    },
+    [],
+  );
 
   // Merge productAttrs + variantAttrs into one object for DynamicAttributes
   const allAttrValues = useMemo(() => {
@@ -357,6 +431,7 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
   return {
     state,
     isValid,
+    isPublishable,
 
     // Field setters
     setField,

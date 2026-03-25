@@ -137,14 +137,7 @@ export default async function AddProductDetailsPage({ params }) {
             </div>
           </section>
 
-          <div className={styles.actions}>
-            <button type="button" className={styles.secondaryButton}>
-              Сохранить черновик
-            </button>
-            <button type="button" className={styles.primaryButton}>
-              Опубликовать
-            </button>
-          </div>
+          {/* Submit buttons moved to ProductDetailsForm for form state access */}
         </aside>
       </div>
     </section>
