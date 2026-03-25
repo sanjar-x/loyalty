@@ -1,17 +1,38 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import useProductForm from '@/hooks/useProductForm';
+import { fetchFormAttributes } from '@/services/attributes';
 import BrandSelect from './BrandSelect';
 import DeliverySection from './DeliverySection';
 import DynamicAttributes from './DynamicAttributes';
 import ImagesSection from './ImagesSection';
-import SizeSelect from './SizeSelect';
 import SizeTableSection from './SizeTableSection';
 import ToggleSwitch from './ToggleSwitch';
+import VariantSelect from './VariantSelect';
 import styles from './page.module.css';
 
 export default function ProductDetailsForm({ leafLabel, categoryId }) {
   const form = useProductForm({ categoryId, defaultTitle: leafLabel });
+
+  // Load form-attributes once, share between DynamicAttributes and VariantSelect
+  const [formData, setFormData] = useState(null);
+  const [attrsLoading, setAttrsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!categoryId) {
+      setAttrsLoading(false);
+      return;
+    }
+    setAttrsLoading(true);
+    fetchFormAttributes(categoryId)
+      .then((data) => setFormData(data))
+      .finally(() => setAttrsLoading(false));
+  }, [categoryId]);
+
+  // Split attributes by level
+  const allAttrs = formData?.groups?.flatMap((g) => g.attributes) ?? [];
+  const variantAttrs = allAttrs.filter((a) => a.level === 'variant');
 
   return (
     <>
@@ -32,20 +53,23 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
             />
           </div>
 
-          <SizeSelect
-            value={form.state.variantAttrs}
+          <VariantSelect
+            attributes={variantAttrs}
+            values={form.state.variantAttrs}
             onChange={(attrId, valueIds) => form.setVariantAttr(attrId, valueIds)}
-            categoryId={categoryId}
+            loading={attrsLoading}
           />
         </div>
       </section>
 
       <DynamicAttributes
-        categoryId={categoryId}
+        formData={formData}
+        loading={attrsLoading}
         values={form.allAttrValues}
         onChange={(attrId, selectedValues, level) =>
           form.handleAttributeUpdate(attrId, selectedValues, level)
         }
+        excludeLevel="variant"
       />
 
       <SizeTableSection />

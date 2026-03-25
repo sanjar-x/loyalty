@@ -1,8 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { i18n } from '@/lib/utils';
-import { fetchFormAttributes } from '@/services/attributes';
 import styles from './page.module.css';
 
 function TextButtonField({ attribute, selected, onToggle }) {
@@ -219,22 +217,13 @@ function AttributeField({ attribute, values, onUpdate }) {
   }
 }
 
-export default function DynamicAttributes({ categoryId, values, onChange }) {
-  const [formData, setFormData] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!categoryId) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    fetchFormAttributes(categoryId)
-      .then((data) => setFormData(data))
-      .finally(() => setLoading(false));
-  }, [categoryId]);
-
+export default function DynamicAttributes({
+  formData,
+  loading,
+  values,
+  onChange,
+  excludeLevel,
+}) {
   function handleUpdate(attributeId, selectedValues, level) {
     onChange?.(attributeId, selectedValues, level);
   }
@@ -253,21 +242,32 @@ export default function DynamicAttributes({ categoryId, values, onChange }) {
 
   if (!formData?.groups?.length) return null;
 
-  return formData.groups.map((group) => (
-    <section key={group.groupId} className={styles.card}>
-      <h2 className={styles.cardTitle}>
-        {i18n(group.groupNameI18N, group.groupCode)}
-      </h2>
-      <div className={styles.fieldGroup}>
-        {group.attributes.map((attr) => (
-          <AttributeField
-            key={attr.attributeId}
-            attribute={attr}
-            values={values}
-            onUpdate={handleUpdate}
-          />
-        ))}
-      </div>
-    </section>
-  ));
+  return formData.groups
+    .map((group) => {
+      // Filter out attributes at the excluded level
+      const attrs = excludeLevel
+        ? group.attributes.filter((a) => a.level !== excludeLevel)
+        : group.attributes;
+
+      if (attrs.length === 0) return null;
+
+      return (
+        <section key={group.groupId} className={styles.card}>
+          <h2 className={styles.cardTitle}>
+            {i18n(group.groupNameI18N, group.groupCode)}
+          </h2>
+          <div className={styles.fieldGroup}>
+            {attrs.map((attr) => (
+              <AttributeField
+                key={attr.attributeId}
+                attribute={attr}
+                values={values}
+                onUpdate={handleUpdate}
+              />
+            ))}
+          </div>
+        </section>
+      );
+    })
+    .filter(Boolean);
 }
