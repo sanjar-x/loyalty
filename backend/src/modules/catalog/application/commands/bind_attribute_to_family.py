@@ -11,6 +11,9 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+from src.modules.catalog.application.queries.resolve_family_attributes import (
+    invalidate_family_effective_cache,
+)
 from src.modules.catalog.domain.entities import FamilyAttributeBinding
 from src.modules.catalog.domain.events import FamilyAttributeBindingCreatedEvent
 from src.modules.catalog.domain.exceptions import (
@@ -146,12 +149,9 @@ class BindAttributeToFamilyHandler:
             await self._uow.commit()
 
         try:
-            descendant_ids = await self._family_repo.get_descendant_ids(
-                command.family_id
+            await invalidate_family_effective_cache(
+                self._cache, self._family_repo, command.family_id
             )
-            all_ids = [command.family_id, *descendant_ids]
-            keys = [f"family:{fid}:effective_attrs" for fid in all_ids]
-            await self._cache.delete_many(keys)
         except Exception as exc:
             self._logger.warning("cache_invalidation_failed", error=str(exc))
 
