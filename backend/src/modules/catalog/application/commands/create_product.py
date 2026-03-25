@@ -10,7 +10,7 @@ product ID. Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass, field
 
-from src.modules.catalog.domain.entities import Product
+from src.modules.catalog.domain.entities import MediaAsset, Product
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
     CategoryNotFoundError,
@@ -19,6 +19,7 @@ from src.modules.catalog.domain.exceptions import (
 from src.modules.catalog.domain.interfaces import (
     IBrandRepository,
     ICategoryRepository,
+    IMediaAssetRepository,
     IProductRepository,
 )
 from src.modules.supplier.domain.exceptions import SourceUrlRequiredError
@@ -53,6 +54,7 @@ class CreateProductCommand:
     source_url: str | None = None
     country_of_origin: str | None = None
     tags: list[str] = field(default_factory=list)
+    media: list[dict] | None = None
 
 
 @dataclass(frozen=True)
@@ -81,6 +83,7 @@ class CreateProductHandler:
         brand_repo: IBrandRepository,
         category_repo: ICategoryRepository,
         supplier_query_service: ISupplierQueryService,
+        media_repo: IMediaAssetRepository,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
@@ -88,6 +91,7 @@ class CreateProductHandler:
         self._brand_repo = brand_repo
         self._category_repo = category_repo
         self._supplier_query_service = supplier_query_service
+        self._media_repo = media_repo
         self._uow = uow
         self._logger = logger.bind(handler="CreateProductHandler")
 
@@ -148,6 +152,23 @@ class CreateProductHandler:
             )
 
             await self._product_repo.add(product)
+
+            if command.media:
+                for item in command.media:
+                    media_asset = MediaAsset(
+                        id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
+                        product_id=product.id,
+                        variant_id=uuid.UUID(item["variant_id"]) if item.get("variant_id") else None,
+                        media_type=item.get("media_type", "IMAGE"),
+                        role=item.get("role", "GALLERY"),
+                        sort_order=item.get("sort_order", 0),
+                        is_external=item.get("is_external", False),
+                        storage_object_id=uuid.UUID(item["storage_object_id"]) if item.get("storage_object_id") else None,
+                        url=item.get("url"),
+                        image_variants=item.get("image_variants"),
+                    )
+                    await self._media_repo.add(media_asset)
+
             self._uow.register_aggregate(product)
             await self._uow.commit()
 

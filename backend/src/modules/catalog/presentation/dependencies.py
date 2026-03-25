@@ -9,6 +9,7 @@ providers are consumed by the FastAPI router layer via ``FromDishka``.
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 
+from src.bootstrap.config import Settings
 from src.modules.catalog.application.commands.add_attribute_value import (
     AddAttributeValueHandler,
 )
@@ -206,6 +207,7 @@ from src.modules.catalog.infrastructure.repositories.family_attribute_binding im
 from src.modules.catalog.infrastructure.repositories.family_attribute_exclusion import (
     FamilyAttributeExclusionRepository,
 )
+from src.modules.catalog.infrastructure.image_backend_client import ImageBackendClient
 
 
 class CategoryProvider(Provider):
@@ -505,6 +507,14 @@ class MediaAssetProvider(Provider):
     media_asset_repo: CompositeDependencySource = provide(
         MediaAssetRepository, scope=Scope.REQUEST, provides=IMediaAssetRepository
     )
+
+    @provide(scope=Scope.APP)
+    def image_backend_client(self, s: Settings) -> ImageBackendClient:
+        """Provide the ImageBackendClient singleton."""
+        return ImageBackendClient(
+            base_url=s.IMAGE_BACKEND_URL,
+            api_key=s.IMAGE_BACKEND_API_KEY.get_secret_value(),
+        )
 
     # Command handlers
     add_product_media_handler: CompositeDependencySource = provide(

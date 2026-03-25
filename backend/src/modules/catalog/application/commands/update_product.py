@@ -11,7 +11,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.modules.catalog.domain.entities import Product
+from src.modules.catalog.application.commands.sync_media import compute_media_diff
+from src.modules.catalog.domain.entities import MediaAsset, Product
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
     CategoryNotFoundError,
@@ -22,8 +23,10 @@ from src.modules.catalog.domain.exceptions import (
 from src.modules.catalog.domain.interfaces import (
     IBrandRepository,
     ICategoryRepository,
+    IMediaAssetRepository,
     IProductRepository,
 )
+from src.modules.catalog.infrastructure.image_backend_client import ImageBackendClient
 from src.shared.exceptions import UnprocessableEntityError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -61,6 +64,7 @@ class UpdateProductCommand:
     country_of_origin: str | None = None
     tags: list[str] | None = None
     version: int | None = None
+    media: list[dict] | None = None
     _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 
@@ -89,12 +93,16 @@ class UpdateProductHandler:
         product_repo: IProductRepository,
         brand_repo: IBrandRepository,
         category_repo: ICategoryRepository,
+        media_repo: IMediaAssetRepository,
+        image_backend: ImageBackendClient,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._brand_repo = brand_repo
         self._category_repo = category_repo
+        self._media_repo = media_repo
+        self._image_backend = image_backend
         self._uow = uow
         self._logger = logger.bind(handler="UpdateProductHandler")
 
@@ -179,6 +187,51 @@ class UpdateProductHandler:
             }
 
             product.update(**update_kwargs)
+
+            if command.media is not None:
+                existing = await self._media_repo.list_by_product(command.product_id)
+                current_dicts = [
+                    {
+                        "id": str(m.id),
+                        "storage_object_id": str(m.storage_object_id) if m.storage_object_id else None,
+                        "url": m.url,
+                        "role": m.role,
+                        "sort_order": m.sort_order,
+                        "variant_id": str(m.variant_id) if m.variant_id else None,
+                        "is_external": m.is_external,
+                    }
+                    for m in existing
+                ]
+                to_add, to_update, to_delete = compute_media_diff(current_dicts, command.media)
+
+                for item in to_delete:
+                    mid = uuid.UUID(item["id"])
+                    await self._media_repo.delete(mid)
+                    sid = item.get("storage_object_id")
+                    if sid:
+                        await self._image_backend.delete(uuid.UUID(sid))
+
+                for item in to_update:
+                    media = await self._media_repo.get(uuid.UUID(item["id"]))
+                    media.role = item["role"]
+                    media.sort_order = item["sort_order"]
+                    media.variant_id = uuid.UUID(item["variant_id"]) if item.get("variant_id") else None
+                    await self._media_repo.update(media)
+
+                for item in to_add:
+                    media_asset = MediaAsset(
+                        id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
+                        product_id=command.product_id,
+                        variant_id=uuid.UUID(item["variant_id"]) if item.get("variant_id") else None,
+                        media_type=item.get("media_type", "IMAGE"),
+                        role=item.get("role", "GALLERY"),
+                        sort_order=item.get("sort_order", 0),
+                        is_external=item.get("is_external", False),
+                        storage_object_id=uuid.UUID(item["storage_object_id"]) if item.get("storage_object_id") else None,
+                        url=item.get("url"),
+                        image_variants=item.get("image_variants"),
+                    )
+                    await self._media_repo.add(media_asset)
 
             await self._product_repo.update(product)
             self._uow.register_aggregate(product)
