@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import useProductForm from '@/hooks/useProductForm';
+import useSubmitProduct from '@/hooks/useSubmitProduct';
 import { i18n } from '@/lib/utils';
 import { fetchFormAttributes } from '@/services/attributes';
 import BrandSelect from './BrandSelect';
@@ -15,6 +16,7 @@ import styles from './page.module.css';
 
 export default function ProductDetailsForm({ leafLabel, categoryId }) {
   const form = useProductForm({ categoryId, defaultTitle: leafLabel });
+  const submit = useSubmitProduct();
 
   // Load form-attributes once, share between DynamicAttributes and VariantSelect
   const [formData, setFormData] = useState(null);
@@ -169,21 +171,37 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
         )}
       </section>
 
-      {/* Submit buttons — inside ProductDetailsForm to access form state */}
+      {/* Submit section */}
+      {submit.error && (
+        <div className={styles.card}>
+          <p className={styles.errorText}>
+            Ошибка: {submit.error.message}
+          </p>
+        </div>
+      )}
+
+      {submit.submitting && (
+        <div className={styles.card}>
+          <p className={styles.cardSubtitle}>{submit.progress}</p>
+        </div>
+      )}
+
       <div className={styles.actions}>
         <button
           type="button"
           className={styles.secondaryButton}
-          disabled={!form.isValid}
+          disabled={!form.isValid || submit.submitting}
+          onClick={() => submit.execute(form, 'draft')}
         >
-          Сохранить черновик
+          {submit.submitting ? submit.progress : 'Сохранить черновик'}
         </button>
         <button
           type="button"
           className={styles.primaryButton}
-          disabled={!form.isPublishable}
+          disabled={!form.isPublishable || submit.submitting}
+          onClick={() => submit.execute(form, 'publish')}
         >
-          Опубликовать
+          {submit.submitting ? submit.progress : 'Опубликовать'}
         </button>
       </div>
     </>
