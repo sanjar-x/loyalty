@@ -43,7 +43,6 @@ from src.modules.catalog.domain.exceptions import (
     CategoryHasProductsError,
     CategoryMaxDepthError,
     DuplicateVariantCombinationError,
-    InvalidMediaStateError,
     InvalidStatusTransitionError,
     LastVariantRemovalError,
     ProductNotReadyError,

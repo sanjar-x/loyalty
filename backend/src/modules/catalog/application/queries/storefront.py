@@ -46,7 +46,6 @@ from src.modules.catalog.domain.exceptions import CategoryNotFoundError
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------

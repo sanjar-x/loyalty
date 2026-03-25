@@ -14,6 +14,8 @@ from src.modules.catalog.domain.entities import AttributeFamily as DomainAttribu
 from src.modules.catalog.domain.interfaces import IAttributeFamilyRepository
 from src.modules.catalog.infrastructure.models import (
     AttributeFamily as OrmAttributeFamily,
+)
+from src.modules.catalog.infrastructure.models import (
     Category as OrmCategory,
 )
 from src.modules.catalog.infrastructure.repositories.base import BaseRepository
