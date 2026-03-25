@@ -163,6 +163,7 @@ DELETE /api/v1/catalog/products/{productId}/attributes/{attributeId}
 | 404 | `ATTRIBUTE_VALUE_NOT_FOUND` | Значение не найдено или не принадлежит атрибуту |
 | 422 | `ATTRIBUTE_NOT_DICTIONARY` | Атрибут не словарный, нельзя присвоить value |
 | 422 | `ATTRIBUTE_NOT_IN_FAMILY` | Атрибут не входит в Family категории продукта |
+| 422 | `ATTRIBUTE_LEVEL_MISMATCH` | Уровень атрибута не соответствует endpoint (ожидался `product`) |
 | 409 | `DUPLICATE_PRODUCT_ATTRIBUTE` | Этот атрибут уже присвоен продукту |
 
 > При ошибке в bulk запросе вся транзакция откатывается. Ответ содержит `attribute_id` проблемного атрибута в `details`.
@@ -262,7 +263,6 @@ READY_FOR_REVIEW → ENRICHING (вернуть на доработку)
 ### Предусловия для PUBLISHED
 
 - Минимум 1 активный SKU с ценой (`priceAmount > 0`)
-- Минимум 1 медиа-ассет
 
 ### Errors
 
@@ -514,6 +514,8 @@ interface SKUResponse {
   isActive: boolean;
   version: number;
   variantAttributes: Array<{ attributeId: string; attributeValueId: string }>;
+  createdAt: string;   // ISO 8601 datetime
+  updatedAt: string;   // ISO 8601 datetime
 }
 
 interface MoneySchema {
@@ -564,6 +566,10 @@ interface MoneySchema {
 | `DUPLICATE_VARIANT_COMBINATION` | 409 | SKU с такой комбинацией атрибутов уже есть |
 | `SKU_CODE_CONFLICT` | 409 | SKU code уже занят |
 | `VARIANT_NOT_FOUND` | 404 | Вариант не найден |
+| `ATTRIBUTE_NOT_FOUND` | 404 | Атрибут в `attributeSelections` не найден |
+| `ATTRIBUTE_VALUE_NOT_FOUND` | 404 | Значение в `valueIds` не найдено |
+| `ATTRIBUTE_NOT_IN_FAMILY` | 422 | Атрибут не входит в Family категории |
+| `ATTRIBUTE_LEVEL_MISMATCH` | 422 | Уровень атрибута не `variant` (передан product-level) |
 
 ### General
 
