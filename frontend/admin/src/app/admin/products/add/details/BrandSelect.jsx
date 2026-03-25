@@ -71,17 +71,18 @@ export default function BrandSelect({ value, onChange }) {
   const [brandsLoaded, setBrandsLoaded] = useState(false);
 
   // Derive selectedBrand from value prop + loaded brands list
-  const selectedBrand = value ? brands.find((b) => b.id === value) ?? null : null;
+  const selectedBrand = value
+    ? (brands.find((b) => b.id === value) ?? null)
+    : null;
   const [brandImagePreviewUrl, setBrandImagePreviewUrl] = useState('');
   const [brandImageName, setBrandImageName] = useState('');
   const [newBrandName, setNewBrandName] = useState('');
-  const [newBrandCategory, setNewBrandCategory] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
   const fileInputRef = useRef(null);
   const rootRef = useRef(null);
 
-  const isBrandFormComplete = Boolean(
-    brandImagePreviewUrl && newBrandName.trim() && newBrandCategory,
-  );
+  const isBrandFormComplete = Boolean(newBrandName.trim());
 
   const loadBrands = useCallback(async () => {
     if (brandsLoaded || brandsLoading) return;
@@ -169,6 +170,48 @@ export default function BrandSelect({ value, onChange }) {
     event.target.value = '';
   }
 
+  async function handleCreateBrand() {
+    if (!newBrandName.trim() || creating) return;
+    setCreating(true);
+    setCreateError('');
+
+    const slug = newBrandName
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9а-яё]+/gi, '-')
+      .replace(/^-+|-+$/g, '');
+
+    try {
+      const res = await fetch('/api/catalog/brands', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newBrandName.trim(), slug: slug || `brand-${Date.now()}` }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error?.message ?? data?.detail?.message ?? 'Ошибка создания бренда');
+      }
+      const data = await res.json();
+
+      // Add new brand to local list and select it
+      const newBrand = { id: data.id, name: newBrandName.trim(), slug };
+      setBrands((prev) => [...prev, newBrand]);
+      setBrandSections(groupBrandsByLetter([...brands, newBrand]));
+      onChange?.(newBrand);
+
+      // Reset modal
+      setNewBrandName('');
+      setBrandImagePreviewUrl('');
+      setBrandImageName('');
+      setIsAddModalOpen(false);
+    } catch (err) {
+      setCreateError(err.message);
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
     <div className={styles.brandSelect} ref={rootRef}>
       <button
@@ -203,9 +246,7 @@ export default function BrandSelect({ value, onChange }) {
             ) : (
               brandSections.map((section) => (
                 <section key={section.key} className={styles.brandSection}>
-                  <div className={styles.brandSectionHeader}>
-                    {section.key}
-                  </div>
+                  <div className={styles.brandSectionHeader}>{section.key}</div>
                   {section.brands.map((brand) => {
                     const isSelected = selectedBrand?.id === brand.id;
 
@@ -338,37 +379,32 @@ export default function BrandSelect({ value, onChange }) {
 
               <input
                 className={styles.brandModalInput}
-                placeholder="Название"
+                placeholder="Название бренда"
                 value={newBrandName}
-                onChange={(event) => setNewBrandName(event.target.value)}
+                onChange={(event) => {
+                  setNewBrandName(event.target.value);
+                  setCreateError('');
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') { event.preventDefault(); handleCreateBrand(); }
+                }}
               />
 
-              <div className={styles.brandModalSelectWrapper}>
-                <select
-                  value={newBrandCategory}
-                  className={styles.brandModalSelect}
-                  onChange={(event) => setNewBrandCategory(event.target.value)}
-                >
-                  <option value="" disabled>
-                    Категория
-                  </option>
-                  <option value="clothes">Одежда</option>
-                  <option value="shoes">Обувь</option>
-                  <option value="accessories">Аксессуары</option>
-                </select>
-                <span className={styles.brandModalSelectChevron}>
-                  <ChevronIcon />
-                </span>
-              </div>
+              {createError && (
+                <p style={{ color: '#e53e3e', fontSize: '13px', margin: '4px 0 0' }}>
+                  {createError}
+                </p>
+              )}
             </div>
 
             <div className={styles.brandModalActions}>
               <button
                 type="button"
                 className={styles.brandModalPrimaryButton}
-                disabled={!isBrandFormComplete}
+                disabled={!isBrandFormComplete || creating}
+                onClick={handleCreateBrand}
               >
-                Добавить бренд
+                {creating ? 'Создание...' : 'Добавить бренд'}
               </button>
             </div>
           </div>
