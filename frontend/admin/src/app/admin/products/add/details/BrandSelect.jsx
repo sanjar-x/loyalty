@@ -65,11 +65,13 @@ function BrandMark({ brand }) {
 export default function BrandSelect({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedBrand, setSelectedBrand] = useState(null);
   const [brands, setBrands] = useState([]);
   const [brandSections, setBrandSections] = useState([]);
   const [brandsLoading, setBrandsLoading] = useState(false);
   const [brandsLoaded, setBrandsLoaded] = useState(false);
+
+  // Derive selectedBrand from value prop + loaded brands list
+  const selectedBrand = value ? brands.find((b) => b.id === value) ?? null : null;
   const [brandImagePreviewUrl, setBrandImagePreviewUrl] = useState('');
   const [brandImageName, setBrandImageName] = useState('');
   const [newBrandName, setNewBrandName] = useState('');
@@ -96,6 +98,11 @@ export default function BrandSelect({ value, onChange }) {
       setBrandsLoading(false);
     }
   }, [brandsLoaded, brandsLoading]);
+
+  // Eagerly load brands on mount so selectedBrand can resolve from value prop
+  useEffect(() => {
+    loadBrands();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     return () => {
@@ -210,7 +217,6 @@ export default function BrandSelect({ value, onChange }) {
                         role="option"
                         aria-selected={isSelected}
                         onClick={() => {
-                          setSelectedBrand(brand);
                           onChange?.(brand);
                           setOpen(false);
                         }}
