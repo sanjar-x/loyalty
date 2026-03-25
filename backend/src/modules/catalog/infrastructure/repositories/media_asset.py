@@ -1,5 +1,5 @@
 """
-MediaAsset repository — Data Mapper implementation.
+MediaAsset repository -- Data Mapper implementation.
 
 Translates between :class:`~src.modules.catalog.domain.entities.MediaAsset`
 (domain) and the ``media_assets`` ORM table.  Provides per-product listing,
@@ -8,13 +8,12 @@ pessimistic locking, and a MAIN-role existence check used by upload validation.
 
 import uuid
 
-from sqlalchemy import delete, exists, func, select
+from sqlalchemy import delete, exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.entities import MediaAsset as DomainMediaAsset
 from src.modules.catalog.domain.interfaces import IMediaAssetRepository
 from src.modules.catalog.domain.value_objects import (
-    MediaProcessingStatus,
     MediaRole,
     MediaType,
 )
@@ -47,10 +46,6 @@ class MediaAssetRepository(IMediaAssetRepository):
 
     def _to_domain(self, orm: OrmMediaAsset) -> DomainMediaAsset:
         """Map an ORM MediaAsset row to a domain MediaAsset entity."""
-        processing_status: MediaProcessingStatus | None = None
-        if orm.processing_status is not None:
-            processing_status = MediaProcessingStatus(orm.processing_status)
-
         return DomainMediaAsset(
             id=orm.id,
             product_id=orm.product_id,
@@ -58,13 +53,12 @@ class MediaAssetRepository(IMediaAssetRepository):
             media_type=orm.media_type.value,
             role=orm.role.value,
             sort_order=orm.sort_order,
-            processing_status=processing_status,
-            storage_object_id=orm.storage_object_id,
             is_external=orm.is_external,
-            external_url=orm.external_url,
-            raw_object_key=orm.raw_object_key,
-            processed_object_key=orm.processed_object_key,
-            public_url=orm.public_url,
+            storage_object_id=orm.storage_object_id,
+            url=orm.url,
+            image_variants=orm.image_variants,
+            created_at=orm.created_at,
+            updated_at=orm.updated_at,
         )
 
     def _to_orm(
@@ -79,17 +73,10 @@ class MediaAssetRepository(IMediaAssetRepository):
         orm.media_type = MediaType(entity.media_type)
         orm.role = MediaRole(entity.role)
         orm.sort_order = entity.sort_order
-        orm.processing_status = (
-            entity.processing_status.value
-            if entity.processing_status is not None
-            else None
-        )
-        orm.storage_object_id = entity.storage_object_id
         orm.is_external = entity.is_external
-        orm.external_url = entity.external_url
-        orm.raw_object_key = entity.raw_object_key
-        orm.processed_object_key = entity.processed_object_key
-        orm.public_url = entity.public_url
+        orm.storage_object_id = entity.storage_object_id
+        orm.url = entity.url
+        orm.image_variants = entity.image_variants
         return orm
 
     # ------------------------------------------------------------------
@@ -111,7 +98,7 @@ class MediaAssetRepository(IMediaAssetRepository):
         return None
 
     async def get_for_update(self, media_id: uuid.UUID) -> DomainMediaAsset | None:
-        """Retrieve a media asset with a ``SELECT … FOR UPDATE`` row lock."""
+        """Retrieve a media asset with a ``SELECT ... FOR UPDATE`` row lock."""
         stmt = (
             select(OrmMediaAsset).where(OrmMediaAsset.id == media_id).with_for_update()
         )
@@ -168,7 +155,6 @@ class MediaAssetRepository(IMediaAssetRepository):
         conditions = [
             OrmMediaAsset.product_id == product_id,
             OrmMediaAsset.role == MediaRole.MAIN,
-            OrmMediaAsset.processing_status != MediaProcessingStatus.FAILED,
         ]
         if variant_id is None:
             conditions.append(OrmMediaAsset.variant_id.is_(None))
@@ -179,11 +165,22 @@ class MediaAssetRepository(IMediaAssetRepository):
         result = await self._session.execute(stmt)
         return bool(result.scalar())
 
-    async def count_pending_uploads(self, product_id: uuid.UUID) -> int:
-        """Count media assets in PENDING_UPLOAD state for a product."""
-        stmt = select(func.count()).where(
-            OrmMediaAsset.product_id == product_id,
-            OrmMediaAsset.processing_status == MediaProcessingStatus.PENDING_UPLOAD,
+    async def list_by_storage_ids(
+        self, storage_object_ids: list[uuid.UUID],
+    ) -> list[DomainMediaAsset]:
+        """Get media assets by their storage_object_ids."""
+        stmt = select(OrmMediaAsset).where(
+            OrmMediaAsset.storage_object_id.in_(storage_object_ids)
         )
         result = await self._session.execute(stmt)
-        return result.scalar_one()
+        return [self._to_domain(row) for row in result.scalars().all()]
+
+    async def delete_by_product(self, product_id: uuid.UUID) -> list[uuid.UUID]:
+        """Delete all media for a product. Returns storage_object_ids for cleanup."""
+        stmt = select(OrmMediaAsset).where(OrmMediaAsset.product_id == product_id)
+        result = await self._session.execute(stmt)
+        orms = result.scalars().all()
+        sids = [orm.storage_object_id for orm in orms if orm.storage_object_id]
+        for orm in orms:
+            await self._session.delete(orm)
+        return sids
