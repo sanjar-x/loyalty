@@ -1,19 +1,28 @@
-# Product Creation — Attribute Assignment Integration Guide
+# Product Creation — Attribute & AttributeFamily Integration Guide
 
-## Context
+## Architecture
 
-Фронтенд уже реализовал:
-- [x] Category tree (`GET /catalog/categories/tree`)
-- [x] Brand selection (`GET /catalog/brands`)
-- [ ] **Attribute assignment** ← этот документ
+Атрибуты продуктов управляются через систему **AttributeFamily** (семья атрибутов).
 
-> **Architecture update (2026-03-25):** Бэкенд перешёл на систему `AttributeFamily` вместо прямой привязки атрибутов к категориям. Категория теперь ссылается на `AttributeFamily` через поле `familyId`. Семьи (families) образуют иерархию с наследованием атрибутов: дочерняя семья наследует атрибуты родительской, может переопределять настройки и исключать унаследованные атрибуты. **Для фронтенда storefront API не изменился** — те же endpoints, те же response formats. Изменения касаются только admin panel (новые endpoints для управления семьями).
+```
+AttributeFamily "Одежда"
+├── clothing_size (optional)    ← наследуется всеми дочерними
+│
+└── AttributeFamily "Футболки" (extends "Одежда")
+    ├── clothing_size (→ required)   ← переопределён
+    └── material (recommended)       ← добавлен
+```
 
-После того как пользователь выбрал **категорию** и **бренд**, следующий шаг — запросить атрибуты этой категории и дать пользователю заполнить их.
+**Как это работает:**
+- `AttributeFamily` определяет набор атрибутов для группы продуктов
+- Семьи образуют иерархию: дочерняя наследует атрибуты родительской
+- Дочерняя может: добавить свои, переопределить настройки, исключить ненужные
+- `Category` ссылается на `AttributeFamily` через поле `familyId`
+- Один storefront endpoint возвращает **effective** (resolved) атрибуты для категории
 
 ---
 
-## Общий Flow создания продукта
+## Flow создания продукта
 
 ```
 Step 1: Выбрать категорию          GET /catalog/categories/tree
@@ -22,13 +31,14 @@ Step 3: Заполнить основные поля    (title, slug, descriptio
 Step 4: Создать продукт            POST /catalog/products
           ↓ получаем productId
 Step 5: Загрузить атрибуты формы   GET /catalog/storefront/categories/{categoryId}/form-attributes
+          ↓ бэкенд: category → familyId → resolve effective attrs
 Step 6: Присвоить атрибуты         POST /catalog/products/{productId}/attributes  (per attribute)
 Step 7: Создать варианты/SKU       POST .../variants, .../skus
-Step 8: Загрузить медиа            POST .../media/upload → upload to S3 → confirm
+Step 8: Загрузить медиа            POST .../media/upload → S3 → confirm
 Step 9: Сменить статус             PATCH /catalog/products/{productId}/status
 ```
 
-> **Важно:** Продукт создаётся ДО присвоения атрибутов. Атрибуты привязываются к уже существующему продукту.
+> **Важно:** Если у категории нет `familyId` — Step 5 вернёт пустой список атрибутов. Продукт можно создать без атрибутов.
 
 ---
 
@@ -43,6 +53,13 @@ Authorization: Bearer <accessToken>
 
 **Permission:** `catalog:manage`
 
+**Что происходит на бэкенде:**
+1. Загружается категория → берётся `familyId`
+2. Если `familyId = null` → возвращается пустой `groups: []`
+3. По `familyId` строится цепочка предков (root → ... → parent → self)
+4. Для каждой семьи в цепочке: сначала exclusions, потом bindings (overrides)
+5. Результат — **effective** набор атрибутов с полной метадатой
+
 ### Response
 
 ```jsonc
@@ -50,44 +67,44 @@ Authorization: Bearer <accessToken>
   "categoryId": "uuid",
   "groups": [
     {
-      "groupId": "uuid | null",          // null = атрибуты без группы
+      "groupId": "uuid | null",
       "groupCode": "physical | null",
-      "groupNameI18n": { "en": "Physical", "ru": "Физические" },
+      "groupNameI18n": { "en": "Physical", "ru": "Физические характеристики" },
       "groupSortOrder": 0,
       "attributes": [
         {
           "attributeId": "uuid",
-          "code": "color",                 // уникальный код атрибута
-          "slug": "color",
-          "nameI18n": { "en": "Color", "ru": "Цвет" },
-          "descriptionI18n": { "en": "Product color" },
+          "code": "clothing_size",
+          "slug": "clothing-size",
+          "nameI18n": { "en": "Clothing Size", "ru": "Размер одежды" },
+          "descriptionI18n": { "en": "Letter-based clothing size" },
           "dataType": "string",            // string | integer | float | boolean
-          "uiType": "color_swatch",        // КАК рендерить (см. таблицу ниже)
+          "uiType": "text_button",         // КАК рендерить (см. таблицу ниже)
           "isDictionary": true,            // true = выбор из values[], false = free input
           "level": "variant",              // product | variant
           "requirementLevel": "required",  // required | recommended | optional
-          "validationRules": null,         // или { "min_length": 1, "max_length": 100 }
-          "values": [                      // только если isDictionary = true
+          "validationRules": null,
+          "values": [
             {
-              "id": "uuid",               // ← это attributeValueId для assign
-              "code": "red",
-              "slug": "red",
-              "valueI18n": { "en": "Red", "ru": "Красный" },
-              "metaData": { "hex": "#FF0000" },  // для color_swatch
-              "valueGroup": "Warm tones",  // опционально, для группировки в UI
-              "sortOrder": 0
+              "id": "uuid",
+              "code": "s",
+              "slug": "s",
+              "valueI18n": { "en": "S", "ru": "S" },
+              "metaData": {},
+              "valueGroup": null,
+              "sortOrder": 3
             },
             {
               "id": "uuid",
-              "code": "blue",
-              "slug": "blue",
-              "valueI18n": { "en": "Blue", "ru": "Синий" },
-              "metaData": { "hex": "#0000FF" },
-              "valueGroup": "Cool tones",
-              "sortOrder": 1
+              "code": "m",
+              "slug": "m",
+              "valueI18n": { "en": "M", "ru": "M" },
+              "metaData": {},
+              "valueGroup": null,
+              "sortOrder": 4
             }
           ],
-          "sortOrder": 0
+          "sortOrder": 1
         }
       ]
     }
@@ -129,9 +146,9 @@ Content-Type: application/json
 
 ### Constraints
 
-- Один атрибут = одно значение на продукт. Повторное присвоение того же `attributeId` → **409 Conflict** (`DUPLICATE_PRODUCT_ATTRIBUTE`)
-- Только dictionary-атрибуты (`isDictionary: true`) могут быть присвоены. Non-dictionary → **400** (`ATTRIBUTE_NOT_DICTIONARY`)
-- `attributeValueId` должен принадлежать указанному `attributeId`, иначе → **404**
+- Один атрибут = одно значение на продукт. Повторное присвоение → **409** (`DUPLICATE_PRODUCT_ATTRIBUTE`)
+- Только dictionary-атрибуты (`isDictionary: true`). Non-dictionary → **400** (`ATTRIBUTE_NOT_DICTIONARY`)
+- `attributeValueId` должен принадлежать `attributeId`, иначе → **404**
 
 ### Errors
 
@@ -139,165 +156,124 @@ Content-Type: application/json
 |--------|------|---------|
 | 404 | `PRODUCT_NOT_FOUND` | Продукт не найден |
 | 404 | `ATTRIBUTE_NOT_FOUND` | Атрибут не найден |
-| 404 | `ATTRIBUTE_VALUE_NOT_FOUND` | Значение не найдёт или не принадлежит атрибуту |
-| 400 | `ATTRIBUTE_NOT_DICTIONARY` | Атрибут не словарный, нельзя присвоить value |
-| 409 | `DUPLICATE_PRODUCT_ATTRIBUTE` | Этот атрибут уже присвоен продукту |
+| 404 | `ATTRIBUTE_VALUE_NOT_FOUND` | Значение не найдено или не принадлежит атрибуту |
+| 400 | `ATTRIBUTE_NOT_DICTIONARY` | Атрибут не словарный |
+| 409 | `DUPLICATE_PRODUCT_ATTRIBUTE` | Атрибут уже присвоен |
 
 ---
 
-## Удаление атрибута с продукта
+## Удаление / Просмотр атрибутов продукта
 
 ```
 DELETE /api/v1/catalog/products/{productId}/attributes/{attributeId}
-Authorization: Bearer <accessToken>
-```
+→ 204 No Content
 
-**Response:** 204 No Content
-
----
-
-## Просмотр присвоенных атрибутов
-
-```
 GET /api/v1/catalog/products/{productId}/attributes?limit=50&offset=0
-Authorization: Bearer <accessToken>
-```
-
-**Permission:** `catalog:read`
-
-### Response
-
-```json
-{
-  "items": [
-    {
-      "id": "uuid",                          // ID записи привязки
-      "productId": "uuid",
-      "attributeId": "uuid",
-      "attributeValueId": "uuid",
-      "attributeCode": "color",
-      "attributeNameI18n": { "en": "Color", "ru": "Цвет" }
-    }
-  ],
-  "total": 5,
-  "offset": 0,
-  "limit": 50
-}
+→ 200 { items: [...], total, offset, limit }
 ```
 
 ---
 
-## Как рендерить UI по `uiType`
+## Как рендерить UI
 
-| `uiType` | Компонент | `metaData` use |
-|-----------|-----------|----------------|
-| `text_button` | Кнопки с текстом (как size selector: S, M, L) | — |
-| `color_swatch` | Цветные кружки/квадраты | `metaData.hex` → цвет фона |
-| `dropdown` | Select/Dropdown (одиночный выбор) | — |
-| `checkbox` | Чекбоксы (множественный выбор)* | — |
-| `range_slider` | Слайдер диапазона (для числовых) | — |
+### По `uiType`
 
-> *Примечание: Текущий бэкенд поддерживает только одно значение на атрибут. Для `checkbox` реализуйте как single-select пока.
+| `uiType` | Компонент | `metaData` |
+|-----------|-----------|------------|
+| `text_button` | Кнопки с текстом (S, M, L, XL) | — |
+| `color_swatch` | Цветные кружки | `metaData.hex` → цвет фона |
+| `dropdown` | Select/Dropdown | — |
+| `checkbox` | Чекбоксы (single-select пока) | — |
+| `range_slider` | Слайдер (для числовых) | — |
 
----
+### По `dataType`
 
-## Как рендерить по `dataType`
-
-| `dataType` | Если `isDictionary: true` | Если `isDictionary: false` |
-|------------|---------------------------|----------------------------|
+| `dataType` | `isDictionary: true` | `isDictionary: false` |
+|------------|----------------------|----------------------|
 | `string` | Выбор из `values[]` | Text input |
 | `integer` | Выбор из `values[]` | Number input (целое) |
 | `float` | Выбор из `values[]` | Number input (дробное) |
 | `boolean` | Выбор из `values[]` | Toggle/switch |
 
----
+### По `level`
 
-## Validation Rules (для non-dictionary атрибутов)
+| Level | Meaning | Frontend |
+|-------|---------|----------|
+| `product` | Одинаков для всех SKU | Показать на шаге атрибутов |
+| `variant` | Разный для каждого SKU | Показать при создании SKU |
 
-Когда `isDictionary: false`, поле `validationRules` содержит правила для input:
-
-**String:**
-```json
-{ "min_length": 1, "max_length": 255, "pattern": "^[a-zA-Z0-9]+$" }
-```
-
-**Integer / Float:**
-```json
-{ "min_value": 0, "max_value": 10000 }
-```
-
-**Boolean:** нет правил
-
----
-
-## `level`: product vs variant
-
-| Level | Meaning | Frontend behavior |
-|-------|---------|-------------------|
-| `product` | Общий для всего продукта | Показать на шаге атрибутов продукта |
-| `variant` | Разный для каждого SKU | Показать при создании SKU (`variantAttributes`) |
-
-**Пример:**
-- `material` (level: product) → один материал для всего продукта
-- `color` (level: variant) → разный цвет для каждого SKU
-- `size` (level: variant) → разный размер для каждого SKU
-
----
-
-## `requirementLevel`: что показывать пользователю
+### По `requirementLevel`
 
 | Level | UI | Validation |
 |-------|-----|------------|
-| `required` | Красная звёздочка *, блокирует сохранение | Обязательное поле |
-| `recommended` | Жёлтый индикатор, предупреждение | Warning, но не блокирует |
+| `required` | Красная звёздочка * | Блокирует сохранение |
+| `recommended` | Жёлтый индикатор | Warning, не блокирует |
 | `optional` | Обычное поле | Без валидации |
 
 ---
 
-## Пример реализации (pseudocode)
+## Validation Rules (non-dictionary атрибуты)
 
 ```typescript
-// 1. После создания продукта — загрузить атрибуты категории
-const formData = await api.get(
-  `/catalog/storefront/categories/${categoryId}/form-attributes`
-);
-
-// 2. Отрендерить форму по группам
-formData.groups.forEach(group => {
-  // Заголовок группы: group.groupNameI18n[locale]
-  group.attributes.forEach(attr => {
-    // Рендерить по attr.uiType + attr.isDictionary
-    // Показать label: attr.nameI18n[locale]
-    // Если isDictionary — показать attr.values как варианты
-    // requirementLevel → обязательность поля
-  });
-});
-
-// 3. При сабмите — отправить каждый заполненный атрибут
-for (const [attributeId, attributeValueId] of selectedAttributes) {
-  await api.post(`/catalog/products/${productId}/attributes`, {
-    attributeId,
-    attributeValueId
-  });
+interface ValidationRules {
+  min_length?: number;     // string
+  max_length?: number;     // string
+  pattern?: string;        // string (regex)
+  min_value?: number;      // integer/float
+  max_value?: number;      // integer/float
 }
 ```
 
 ---
 
-## Bulk-assign (если нужен)
+## Пример реализации
 
-Текущий бэкенд НЕ имеет bulk-assign endpoint. Каждый атрибут присваивается отдельным запросом. Для UX рекомендуется:
+```typescript
+// 1. Загрузить атрибуты после выбора категории
+const { groups } = await api.get(
+  `/catalog/storefront/categories/${categoryId}/form-attributes`
+);
 
-1. Собрать все выбранные атрибуты в форме
-2. Отправить все запросы параллельно (`Promise.all`)
-3. Показать ошибки по конкретным атрибутам, если какой-то из запросов failed
+// 2. Если groups пуст — у категории нет familyId, атрибутов нет
+if (groups.length === 0) {
+  // Пропустить шаг атрибутов
+}
+
+// 3. Отрендерить форму по группам
+groups.forEach(group => {
+  // Заголовок секции: group.groupNameI18n[locale]
+  group.attributes.forEach(attr => {
+    // Рендерить по attr.uiType + attr.isDictionary
+    // Label: attr.nameI18n[locale]
+    // Если isDictionary — показать attr.values как варианты
+    // requirementLevel → обязательность
+  });
+});
+
+// 4. При сабмите — отправить параллельно
+const results = await Promise.allSettled(
+  selectedAttributes.map(([attributeId, attributeValueId]) =>
+    api.post(`/catalog/products/${productId}/attributes`, {
+      attributeId,
+      attributeValueId,
+    })
+  )
+);
+
+// 5. Показать ошибки по конкретным атрибутам
+results.forEach((result, i) => {
+  if (result.status === 'rejected') {
+    showError(selectedAttributes[i][0], result.reason);
+  }
+});
+```
 
 ---
 
-## Полный TypeScript Interface
+## TypeScript Interfaces
 
 ```typescript
-// Response from GET /catalog/storefront/categories/{id}/form-attributes
+// GET /catalog/storefront/categories/{id}/form-attributes
 interface FormAttributesResponse {
   categoryId: string;
   groups: FormGroup[];
@@ -328,36 +304,35 @@ interface FormAttribute {
 }
 
 interface AttributeValue {
-  id: string;               // ← используй как attributeValueId при assign
+  id: string;
   code: string;
   slug: string;
   valueI18n: Record<string, string>;
-  metaData: Record<string, unknown>;  // e.g. { hex: "#FF0000" } for color_swatch
+  metaData: Record<string, unknown>;
   valueGroup: string | null;
   sortOrder: number;
 }
 
 interface ValidationRules {
-  min_length?: number;     // string only
-  max_length?: number;     // string only
-  pattern?: string;        // string only (regex)
-  min_value?: number;      // integer/float only
-  max_value?: number;      // integer/float only
+  min_length?: number;
+  max_length?: number;
+  pattern?: string;
+  min_value?: number;
+  max_value?: number;
 }
 
-// Request to POST /catalog/products/{id}/attributes
+// POST /catalog/products/{id}/attributes
 interface AssignAttributeRequest {
   attributeId: string;
   attributeValueId: string;
 }
 
-// Response from POST
 interface AssignAttributeResponse {
   id: string;
   message: string;
 }
 
-// Items from GET /catalog/products/{id}/attributes
+// GET /catalog/products/{id}/attributes
 interface ProductAttribute {
   id: string;
   productId: string;
@@ -370,92 +345,182 @@ interface ProductAttribute {
 
 ---
 
-## Admin Panel: AttributeFamily Management (NEW)
+## Admin Panel: AttributeFamily Management
 
-Для admin panel доступны новые endpoints для управления семьями атрибутов.
+### Концепция
+
+```
+AttributeFamily — определяет КАКИЕ атрибуты нужны продуктам.
+AttributeGroup  — определяет ГДЕ показывать атрибуты в UI (визуальная группировка).
+Category        — ссылается на Family через familyId.
+```
 
 ### Family CRUD
 
 ```
-POST   /api/v1/catalog/attribute-families          — создать семью
-GET    /api/v1/catalog/attribute-families          — список (paginated)
-GET    /api/v1/catalog/attribute-families/tree     — дерево семей
-GET    /api/v1/catalog/attribute-families/{id}     — получить семью
+POST   /api/v1/catalog/attribute-families          — создать
+GET    /api/v1/catalog/attribute-families          — список
+GET    /api/v1/catalog/attribute-families/tree     — дерево
+GET    /api/v1/catalog/attribute-families/{id}     — получить
 PATCH  /api/v1/catalog/attribute-families/{id}     — обновить
 DELETE /api/v1/catalog/attribute-families/{id}     — удалить
+```
+
+### Create Family
+
+```typescript
+// Корневая семья
+const clothing = await api.post('/catalog/attribute-families', {
+  code: 'clothing',              // unique, immutable, ^[a-z0-9_]+$
+  nameI18n: { ru: 'Одежда', en: 'Clothing' },
+  descriptionI18n: { ru: '...' },
+  sortOrder: 0,
+});
+// → { id: "uuid", message: "Attribute family created" }
+
+// Дочерняя семья (наследует атрибуты родителя)
+const tshirts = await api.post('/catalog/attribute-families', {
+  code: 't_shirts',
+  parentId: clothing.id,           // ← parent family
+  nameI18n: { ru: 'Футболки', en: 'T-shirts' },
+});
 ```
 
 ### Family Attribute Bindings
 
 ```
-POST   /api/v1/catalog/attribute-families/{id}/attributes           — привязать атрибут
-GET    /api/v1/catalog/attribute-families/{id}/attributes           — свои привязки
-GET    /api/v1/catalog/attribute-families/{id}/attributes/effective — resolved с наследованием
-PATCH  /api/v1/catalog/attribute-families/{id}/attributes/{bid}    — обновить привязку
-DELETE /api/v1/catalog/attribute-families/{id}/attributes/{bid}    — удалить привязку
-POST   /api/v1/catalog/attribute-families/{id}/attributes/reorder  — переупорядочить
+POST   .../attribute-families/{id}/attributes              — привязать
+GET    .../attribute-families/{id}/attributes              — свои привязки
+GET    .../attribute-families/{id}/attributes/effective    — resolved (с наследованием)
+PATCH  .../attribute-families/{id}/attributes/{bid}       — обновить
+DELETE .../attribute-families/{id}/attributes/{bid}       — удалить
+POST   .../attribute-families/{id}/attributes/reorder     — переупорядочить
+```
+
+```typescript
+// Привязать атрибут
+await api.post(`/catalog/attribute-families/${clothing.id}/attributes`, {
+  attributeId: sizeAttrId,
+  sortOrder: 1,
+  requirementLevel: 'optional',    // required | recommended | optional
+  flagOverrides: null,             // { isFilterable: true } — переопределить флаги
+  filterSettings: null,
+});
+
+// Получить effective атрибуты (с наследованием)
+const effective = await api.get(
+  `/catalog/attribute-families/${tshirts.id}/attributes/effective`
+);
+// → { familyId, attributes: [{ attributeId, code, requirementLevel, sourceFamilyId, ... }] }
+```
+
+### Effective Attributes Response
+
+```typescript
+interface EffectiveAttributeSetResponse {
+  familyId: string;
+  attributes: EffectiveAttribute[];
+}
+
+interface EffectiveAttribute {
+  attributeId: string;
+  code: string;
+  slug: string;
+  nameI18n: Record<string, string>;
+  descriptionI18n: Record<string, string>;
+  dataType: string;
+  uiType: string;
+  isDictionary: boolean;
+  level: string;
+  requirementLevel: string;
+  validationRules: Record<string, unknown> | null;
+  flagOverrides: Record<string, unknown> | null;
+  filterSettings: Record<string, unknown> | null;
+  sourceFamilyId: string;     // откуда унаследован
+  isOverridden: boolean;       // переопределён ли дочерней семьёй
+  values: AttributeValue[];
+  sortOrder: number;
+}
 ```
 
 ### Family Attribute Exclusions
 
 ```
-POST   /api/v1/catalog/attribute-families/{id}/exclusions              — исключить атрибут
-GET    /api/v1/catalog/attribute-families/{id}/exclusions              — список исключений
-DELETE /api/v1/catalog/attribute-families/{id}/exclusions/{eid}       — отменить исключение
+POST   .../attribute-families/{id}/exclusions              — исключить
+GET    .../attribute-families/{id}/exclusions              — список
+DELETE .../attribute-families/{id}/exclusions/{eid}        — отменить
 ```
-
-### Category → Family Assignment
-
-При создании/обновлении категории передаётся `familyId`:
-
-```json
-// PATCH /api/v1/catalog/categories/{id}
-{ "familyId": "uuid-of-family" }
-```
-
-### Пример: создать иерархию семей
 
 ```typescript
-// 1. Создать корневую семью "Одежда"
+// Исключить унаследованный атрибут (например, цвет не нужен для "Спортивных футболок")
+await api.post(`/catalog/attribute-families/${sportTshirts.id}/exclusions`, {
+  attributeId: colorAttrId,
+});
+```
+
+### Назначить Family категории
+
+```typescript
+// PATCH /api/v1/catalog/categories/{id}
+await api.patch(`/catalog/categories/${categoryId}`, {
+  familyId: tshirts.id,    // null — убрать привязку
+});
+```
+
+Теперь `GET .../storefront/categories/{categoryId}/form-attributes` вернёт effective атрибуты этой Family.
+
+---
+
+## Полный пример: настройка каталога
+
+```typescript
+// ═══ 1. Создать семьи ═══
+
 const clothing = await api.post('/catalog/attribute-families', {
   code: 'clothing',
   nameI18n: { ru: 'Одежда', en: 'Clothing' },
 });
 
-// 2. Привязать атрибуты к "Одежда"
+// ═══ 2. Привязать атрибут "Размер одежды" ═══
+
 await api.post(`/catalog/attribute-families/${clothing.id}/attributes`, {
-  attributeId: sizeAttrId,
+  attributeId: clothingSizeId,    // clothing_size [XXS-5XL]
+  sortOrder: 1,
   requirementLevel: 'optional',
 });
-await api.post(`/catalog/attribute-families/${clothing.id}/attributes`, {
-  attributeId: colorAttrId,
-  requirementLevel: 'required',
+
+// ═══ 3. Назначить семью категории "Одежда" ═══
+
+await api.patch(`/catalog/categories/${clothingCategoryId}`, {
+  familyId: clothing.id,
 });
 
-// 3. Создать дочернюю семью "Футболки" (наследует size, color)
-const tshirts = await api.post('/catalog/attribute-families', {
-  code: 't_shirts',
-  parentId: clothing.id,
-  nameI18n: { ru: 'Футболки', en: 'T-shirts' },
-});
+// ═══ 4. Теперь все дочерние категории (Футболки, Худи...) ═══
+// ═══ наследуют clothing_size через family ═══
 
-// 4. Добавить собственный атрибут "Материал"
-await api.post(`/catalog/attribute-families/${tshirts.id}/attributes`, {
-  attributeId: materialAttrId,
-  requirementLevel: 'recommended',
-});
+// При создании продукта в "Футболки":
+const formAttrs = await api.get(
+  `/catalog/storefront/categories/${tshirtsCategoryId}/form-attributes`
+);
+// → groups[0].attributes[0] = { code: "clothing_size", values: [XXS..5XL] }
 
-// 5. Переопределить size на required (было optional у родителя)
-await api.post(`/catalog/attribute-families/${tshirts.id}/attributes`, {
-  attributeId: sizeAttrId,
-  requirementLevel: 'required',
-});
-
-// 6. Получить effective атрибуты (size:required, color:required, material:recommended)
-const effective = await api.get(`/catalog/attribute-families/${tshirts.id}/attributes/effective`);
-
-// 7. Назначить семью категории
-await api.patch(`/catalog/categories/${tshirtCategoryId}`, {
-  familyId: tshirts.id,
+// Присвоить размер продукту:
+await api.post(`/catalog/products/${productId}/attributes`, {
+  attributeId: clothingSizeId,
+  attributeValueId: sizeM_ValueId,  // значение "M"
 });
 ```
+
+---
+
+## Response Format
+
+Все backend ответы используют **camelCase** (настроено через `CamelModel`). Трансформация ключей на фронте не нужна.
+
+## CORS
+
+```
+CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+```
+
+Allowed headers: `Authorization`, `Content-Type`, `X-Request-ID`
