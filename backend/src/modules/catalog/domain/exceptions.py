@@ -761,3 +761,17 @@ class AttributeHasFamilyBindingsError(ConflictError):
             error_code="ATTRIBUTE_HAS_FAMILY_BINDINGS",
             details={"attribute_id": str(attribute_id)},
         )
+
+
+class AttributeNotInFamilyError(UnprocessableEntityError):
+    """Raised when assigning an attribute not present in the product's category family."""
+
+    def __init__(self, product_id: uuid.UUID, attribute_id: uuid.UUID):
+        super().__init__(
+            message="Attribute is not in the product's category attribute family.",
+            error_code="ATTRIBUTE_NOT_IN_FAMILY",
+            details={
+                "product_id": str(product_id),
+                "attribute_id": str(attribute_id),
+            },
+        )
