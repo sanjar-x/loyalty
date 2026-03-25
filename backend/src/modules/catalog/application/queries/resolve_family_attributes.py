@@ -101,10 +101,35 @@ async def invalidate_family_effective_cache(
     family_repo: IAttributeFamilyRepository,
     family_id: uuid.UUID,
 ) -> None:
-    """Invalidate effective attribute cache for a family and all its descendants."""
+    """Invalidate effective attribute cache AND storefront caches.
+
+    When a family's bindings or exclusions change, we must invalidate:
+    1. The family effective-attribute cache for the family + all descendants
+    2. The per-category storefront caches for ALL categories that reference
+       any of the affected families (since storefront data derives from
+       effective attributes).
+    """
+    from src.modules.catalog.application.constants import (
+        storefront_card_cache_key,
+        storefront_comparison_cache_key,
+        storefront_filters_cache_key,
+        storefront_form_cache_key,
+    )
+
     descendant_ids = await family_repo.get_descendant_ids(family_id)
-    all_ids = [family_id, *descendant_ids]
-    keys = [family_effective_attrs_cache_key(fid) for fid in all_ids]
+    all_family_ids = [family_id, *descendant_ids]
+
+    # 1. Invalidate family effective-attribute caches
+    keys = [family_effective_attrs_cache_key(fid) for fid in all_family_ids]
+
+    # 2. Find categories referencing these families and invalidate storefront caches
+    category_ids = await family_repo.get_category_ids_by_family_ids(all_family_ids)
+    for cat_id in category_ids:
+        keys.append(storefront_filters_cache_key(cat_id))
+        keys.append(storefront_card_cache_key(cat_id))
+        keys.append(storefront_comparison_cache_key(cat_id))
+        keys.append(storefront_form_cache_key(cat_id))
+
     await cache.delete_many(keys)
 
 

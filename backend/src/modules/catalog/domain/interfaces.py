@@ -477,6 +477,13 @@ class IAttributeFamilyRepository(ICatalogRepository[DomainAttributeFamily]):
         """Return all descendant family IDs using WITH RECURSIVE CTE."""
         pass
 
+    @abstractmethod
+    async def get_category_ids_by_family_ids(
+        self, family_ids: list[uuid.UUID]
+    ) -> list[uuid.UUID]:
+        """Return category IDs that reference any of the given family IDs."""
+        pass
+
 
 class IFamilyAttributeBindingRepository(ICatalogRepository[DomainFamilyAttributeBinding]):
     """Repository contract for the FamilyAttributeBinding aggregate."""

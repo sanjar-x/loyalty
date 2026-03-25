@@ -98,8 +98,13 @@ def storefront_form_cache_key(category_id: uuid.UUID) -> str:
     return f"catalog:storefront:form:{category_id}"
 
 
-STOREFRONT_CACHE_TTL = 300
-"""TTL in seconds for storefront attribute cache entries (5 minutes)."""
+STOREFRONT_CACHE_TTL = 0
+"""TTL in seconds for storefront attribute cache entries (0 = no expiration).
+
+Attribute schemas are set once and rarely change. Caches are invalidated
+explicitly on every database mutation (binding, exclusion, family, or
+category family_id changes) rather than relying on TTL expiration.
+"""
 
 STOREFRONT_CACHE_PREFIX = "catalog:storefront:"
 """Common prefix for all storefront cache keys."""

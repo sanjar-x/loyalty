@@ -139,3 +139,16 @@ class AttributeFamilyRepository(
         """)
         result = await self._session.execute(cte_sql, {"family_id": family_id})
         return [row.id for row in result.all()]
+
+    async def get_category_ids_by_family_ids(
+        self, family_ids: list[uuid.UUID]
+    ) -> list[uuid.UUID]:
+        """Return category IDs that reference any of the given family IDs."""
+        if not family_ids:
+            return []
+        stmt = (
+            select(OrmCategory.id)
+            .where(OrmCategory.family_id.in_(family_ids))
+        )
+        result = await self._session.execute(stmt)
+        return [row[0] for row in result.all()]
