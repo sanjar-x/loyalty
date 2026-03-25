@@ -1,9 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchSuppliers } from '@/services/suppliers';
 import { ChevronIcon } from './icons';
 import styles from './page.module.css';
+
+// Map UI delivery mode → backend supplier type
+const DELIVERY_TYPE_MAP = {
+  china: 'cross_border',
+  stock: 'local',
+};
 
 /**
  * Supplier selection section — controlled component.
@@ -61,10 +67,29 @@ export default function SupplierSection({
   // Source URL focus state
   const [urlFocused, setUrlFocused] = useState(false);
 
+  // Filter suppliers by type matching current delivery mode
+  const expectedType = DELIVERY_TYPE_MAP[deliveryMode] ?? null;
+  const filteredSuppliers = useMemo(
+    () =>
+      expectedType
+        ? suppliers.filter((s) => s.type === expectedType)
+        : suppliers,
+    [suppliers, expectedType],
+  );
+
   // Derive selected supplier from supplierId + loaded list
   const selectedSupplier = supplierId
     ? suppliers.find((s) => s.id === supplierId) ?? null
     : null;
+
+  // Auto-reset supplier when delivery mode changes and current supplier doesn't match
+  useEffect(() => {
+    if (!supplierId || !suppliersLoaded) return;
+    const current = suppliers.find((s) => s.id === supplierId);
+    if (current && expectedType && current.type !== expectedType) {
+      onSupplierChange?.(null);
+    }
+  }, [deliveryMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadSuppliers = useCallback(async () => {
     if (suppliersLoaded || suppliersLoading) return;
@@ -170,12 +195,12 @@ export default function SupplierSection({
               <div className={styles.brandDropdownScrollArea}>
                 {suppliersLoading ? (
                   <div className={styles.brandSectionHeader}>Загрузка…</div>
-                ) : suppliers.length === 0 ? (
+                ) : filteredSuppliers.length === 0 ? (
                   <div className={styles.brandSectionHeader}>
                     Нет поставщиков
                   </div>
                 ) : (
-                  suppliers.map((supplier) => {
+                  filteredSuppliers.map((supplier) => {
                     const isSelected = supplierId === supplier.id;
                     return (
                       <button
