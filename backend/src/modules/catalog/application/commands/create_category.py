@@ -12,10 +12,14 @@ from dataclasses import dataclass
 from src.modules.catalog.application.constants import CATEGORY_TREE_CACHE_KEY
 from src.modules.catalog.domain.entities import Category
 from src.modules.catalog.domain.exceptions import (
+    AttributeFamilyNotFoundError,
     CategoryNotFoundError,
     CategorySlugConflictError,
 )
-from src.modules.catalog.domain.interfaces import ICategoryRepository
+from src.modules.catalog.domain.interfaces import (
+    IAttributeFamilyRepository,
+    ICategoryRepository,
+)
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -78,11 +82,13 @@ class CreateCategoryHandler:
     def __init__(
         self,
         category_repo: ICategoryRepository,
+        family_repo: IAttributeFamilyRepository,
         uow: IUnitOfWork,
         cache: ICacheService,
         logger: ILogger,
     ):
         self._category_repo: ICategoryRepository = category_repo
+        self._family_repo: IAttributeFamilyRepository = family_repo
         self._uow: IUnitOfWork = uow
         self._cache: ICacheService = cache
         self._logger: ILogger = logger.bind(handler="CreateCategoryHandler")
@@ -101,6 +107,11 @@ class CreateCategoryHandler:
             CategoryNotFoundError: If the specified parent does not exist.
             CategoryMaxDepthError: If the parent is already at max depth.
         """
+        if command.family_id is not None:
+            family = await self._family_repo.get(command.family_id)
+            if family is None:
+                raise AttributeFamilyNotFoundError(family_id=command.family_id)
+
         async with self._uow:
             is_slug_taken = await self._category_repo.check_slug_exists(
                 slug=command.slug, parent_id=command.parent_id

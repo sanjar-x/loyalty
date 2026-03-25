@@ -16,10 +16,14 @@ from src.modules.catalog.application.queries.storefront import (
 )
 from src.modules.catalog.domain.entities import Category
 from src.modules.catalog.domain.exceptions import (
+    AttributeFamilyNotFoundError,
     CategoryNotFoundError,
     CategorySlugConflictError,
 )
-from src.modules.catalog.domain.interfaces import ICategoryRepository
+from src.modules.catalog.domain.interfaces import (
+    IAttributeFamilyRepository,
+    ICategoryRepository,
+)
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -83,11 +87,13 @@ class UpdateCategoryHandler:
     def __init__(
         self,
         category_repo: ICategoryRepository,
+        family_repo: IAttributeFamilyRepository,
         uow: IUnitOfWork,
         cache: ICacheService,
         logger: ILogger,
     ):
         self._category_repo: ICategoryRepository = category_repo
+        self._family_repo: IAttributeFamilyRepository = family_repo
         self._uow: IUnitOfWork = uow
         self._cache: ICacheService = cache
         self._logger: ILogger = logger.bind(handler="UpdateCategoryHandler")
@@ -105,6 +111,11 @@ class UpdateCategoryHandler:
             CategoryNotFoundError: If the category does not exist.
             CategorySlugConflictError: If the new slug collides at the same level.
         """
+        if command.family_id is not ... and command.family_id is not None:
+            family = await self._family_repo.get(command.family_id)
+            if family is None:
+                raise AttributeFamilyNotFoundError(family_id=command.family_id)
+
         async with self._uow:
             category: Category | None = await self._category_repo.get_for_update(
                 command.category_id

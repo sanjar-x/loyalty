@@ -82,7 +82,9 @@ class RemoveFamilyExclusionHandler:
 
             # 2. Verify exclusion belongs to the specified family
             if exclusion.family_id != command.family_id:
-                raise AttributeFamilyNotFoundError(family_id=command.family_id)
+                raise FamilyAttributeExclusionNotFoundError(
+                    exclusion_id=command.exclusion_id
+                )
 
             # 3. Emit domain event
             exclusion.add_domain_event(

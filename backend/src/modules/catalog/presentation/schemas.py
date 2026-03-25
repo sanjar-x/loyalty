@@ -1094,7 +1094,7 @@ class BindingReorderItemSchema(CamelModel):
 
 class FamilyBindingReorderRequest(CamelModel):
     """Request for reordering bindings."""
-    items: list[BindingReorderItemSchema]
+    items: list[BindingReorderItemSchema] = Field(..., min_length=1)
 
 
 # ---------------------------------------------------------------------------
