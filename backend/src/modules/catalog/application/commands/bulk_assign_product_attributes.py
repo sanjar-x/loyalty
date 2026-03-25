@@ -2,6 +2,7 @@
 
 import uuid
 from dataclasses import dataclass, field
+from typing import Any
 
 from src.modules.catalog.domain.entities import ProductAttributeValue
 from src.modules.catalog.domain.exceptions import (
@@ -96,10 +97,26 @@ class BulkAssignProductAttributesHandler:
                     for binding in all_bindings.get(fam.id, []):
                         effective_attr_ids.add(binding.attribute_id)
 
-            # 3. Validate and create all assignments
+            # 3. Batch-prefetch all attributes and values (avoid N+1)
+            attr_ids = [item.attribute_id for item in command.items]
+            val_ids = [item.attribute_value_id for item in command.items]
+
+            attrs_by_id: dict[uuid.UUID, Any] = {}
+            for aid in attr_ids:
+                a = await self._attribute_repo.get(aid)
+                if a is not None:
+                    attrs_by_id[a.id] = a
+
+            vals_by_id: dict[uuid.UUID, Any] = {}
+            for vid in val_ids:
+                v = await self._attribute_value_repo.get(vid)
+                if v is not None:
+                    vals_by_id[v.id] = v
+
+            # 4. Validate and create all assignments
             pav_ids: list[uuid.UUID] = []
 
-            for i, item in enumerate(command.items):
+            for item in command.items:
                 # Check family membership
                 if effective_attr_ids is not None and item.attribute_id not in effective_attr_ids:
                     raise AttributeNotInFamilyError(
@@ -108,7 +125,7 @@ class BulkAssignProductAttributesHandler:
                     )
 
                 # Validate attribute exists, is dictionary, and is product-level
-                attribute = await self._attribute_repo.get(item.attribute_id)
+                attribute = attrs_by_id.get(item.attribute_id)
                 if attribute is None:
                     raise AttributeNotFoundError(attribute_id=item.attribute_id)
                 if attribute.level != AttributeLevel.PRODUCT:
@@ -121,7 +138,7 @@ class BulkAssignProductAttributesHandler:
                     raise AttributeNotDictionaryError(attribute_id=item.attribute_id)
 
                 # Validate value exists and belongs to attribute
-                attr_value = await self._attribute_value_repo.get(item.attribute_value_id)
+                attr_value = vals_by_id.get(item.attribute_value_id)
                 if attr_value is None:
                     raise AttributeValueNotFoundError(value_id=item.attribute_value_id)
                 if attr_value.attribute_id != item.attribute_id:

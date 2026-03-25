@@ -366,6 +366,8 @@ class ProductAttributeValueReadModel(BaseModel):
     attribute_value_id: uuid.UUID
     attribute_code: str = ""
     attribute_name_i18n: dict[str, str] = Field(default_factory=dict)
+    attribute_value_code: str = ""
+    attribute_value_name_i18n: dict[str, str] = Field(default_factory=dict)
 
 
 class ProductReadModel(BaseModel):

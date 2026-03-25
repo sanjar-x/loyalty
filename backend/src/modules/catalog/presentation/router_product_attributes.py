@@ -118,6 +118,8 @@ async def list_product_attributes(
                 attribute_value_id=item.attribute_value_id,
                 attribute_code=item.attribute_code,
                 attribute_name_i18n=item.attribute_name_i18n,
+                attribute_value_code=item.attribute_value_code,
+                attribute_value_name_i18n=item.attribute_value_name_i18n,
             )
             for item in result.items
         ],

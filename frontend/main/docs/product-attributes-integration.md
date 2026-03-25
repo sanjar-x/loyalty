@@ -95,7 +95,10 @@ Authorization: Bearer <accessToken>
 
 ```
 POST /api/v1/catalog/products
+Authorization: Bearer <accessToken>
 ```
+
+**Permission:** `catalog:manage`
 
 ### Request
 
@@ -114,7 +117,7 @@ POST /api/v1/catalog/products
 ```
 
 **Обязательные:** `titleI18n` (мин. 1 язык), `slug` (^[a-z0-9-]+$), `brandId`, `primaryCategoryId`
-**Опциональные:** `descriptionI18n`, `supplierId`, `sourceUrl` (обязателен если supplier type = CROSS_BORDER), `countryOfOrigin` (ISO 3166-1 alpha-2), `tags`
+**Опциональные:** `descriptionI18n`, `supplierId`, `sourceUrl` (обязателен если supplier type = CROSS_BORDER; **immutable** — задаётся только при создании, в PATCH игнорируется), `countryOfOrigin` (ISO 3166-1 alpha-2), `tags`
 
 ### Response (201)
 
@@ -173,6 +176,13 @@ DELETE /api/v1/catalog/products/{productId}/attributes/{attributeId}
 → 204
 ```
 
+> **Примечание:** `{attributeId}` — это UUID атрибута (не ID записи привязки). Удаляет привязку данного атрибута к продукту.
+
+```
+GET /api/v1/catalog/products/{productId}/attributes?limit=50&offset=0
+→ 200 { items: [ProductAttribute], total, offset, limit }
+```
+
 ### Errors
 
 | Status | Code | Meaning |
@@ -213,6 +223,7 @@ Authorization: Bearer <accessToken>
 ```
 
 Только `level: "variant"` атрибуты. Бэкенд строит cartesian product (3×2 = 6 SKU).
+`priceCurrency` — опциональное, default: `"RUB"`.
 
 > **`priceAmount` обязателен для публикации.** Если `null` → SKU создаются без цены → продукт нельзя перевести в PUBLISHED.
 
@@ -256,7 +267,10 @@ POST /api/v1/catalog/products/{productId}/media/{mediaId}/confirm
 → 202 Accepted { "message": "Upload confirmed, processing started" }
 ```
 
-**Роли медиа:** `main` | `hover` | `gallery` | `hero_video` | `size_guide` | `packaging`
+**Типы медиа (`mediaType`):** `image` | `video` | `model_3d` | `document`
+**Роли медиа (`role`):** `main` | `hover` | `gallery` | `hero_video` | `size_guide` | `packaging`
+**`variantId`** — опциональный, привязывает медиа к конкретному варианту (null = к продукту целиком).
+**`objectKey`** — S3 ключ, нужен только для отладки, фронтенд может игнорировать.
 
 > Минимум одно медиа с ролью `main` требуется для публикации продукта.
 
@@ -342,10 +356,17 @@ Effective price = sku.price ?? variant.defaultPrice ?? null
 
 ## Optimistic Locking
 
-Product и SKU имеют поле `version`. При PATCH запросах:
-- Если `version` передан → бэкенд проверяет что version совпадает
-- Если не совпадает → `409 CONCURRENCY_ERROR` (другой пользователь изменил объект)
-- Frontend должен перезагрузить данные и повторить
+Product и SKU имеют поле `version` (integer, начинается с 1).
+
+**В PATCH запросах `version` — опциональное поле:**
+- `PATCH /products/{id}` — `{ ..., "version": 3 }` (опционально)
+- `PATCH .../skus/{id}` — `{ ..., "version": 2 }` (опционально)
+
+**Поведение:**
+- Если `version` передан → бэкенд проверяет что version в БД совпадает
+- Если не совпадает → `409 CONCURRENCY_ERROR`
+- Если `version` не передан → обновление без проверки конкурентности
+- Frontend должен перезагрузить данные и повторить при 409
 
 ---
 
@@ -526,6 +547,8 @@ interface ProductAttribute {
   attributeValueId: string;
   attributeCode: string;
   attributeNameI18n: Record<string, string>;
+  attributeValueCode: string;
+  attributeValueNameI18n: Record<string, string>;  // e.g. { ru: "Хлопок", en: "Cotton" }
 }
 
 // SKU in product response
@@ -576,6 +599,7 @@ interface MoneySchema {
 | `ATTRIBUTE_VALUE_NOT_FOUND` | 404 | Значение не найдено |
 | `ATTRIBUTE_NOT_DICTIONARY` | 422 | Не словарный атрибут |
 | `ATTRIBUTE_NOT_IN_FAMILY` | 422 | Атрибут не входит в Family категории |
+| `ATTRIBUTE_LEVEL_MISMATCH` | 422 | Уровень атрибута не `product` (передан variant-level) |
 | `DUPLICATE_PRODUCT_ATTRIBUTE` | 409 | Уже присвоен |
 
 ### Product status errors
@@ -596,6 +620,7 @@ interface MoneySchema {
 | `ATTRIBUTE_VALUE_NOT_FOUND` | 404 | Значение в `valueIds` не найдено |
 | `ATTRIBUTE_NOT_IN_FAMILY` | 422 | Атрибут не входит в Family категории |
 | `ATTRIBUTE_LEVEL_MISMATCH` | 422 | Уровень атрибута не `variant` (передан product-level) |
+| `SKU_NOT_FOUND` | 404 | SKU не найден (для update/delete) |
 
 ### General
 
@@ -648,6 +673,70 @@ DELETE .../attribute-families/{id}/exclusions/{eid}
 ```json
 PATCH /api/v1/catalog/categories/{id}
 { "familyId": "uuid" }   // null — убрать привязку
+```
+
+---
+
+## Full Catalog API Reference
+
+Помимо creation flow, бэкенд предоставляет полный CRUD для всех сущностей.
+
+### Products
+
+```
+POST   /api/v1/catalog/products                          — создать (Step 5)
+GET    /api/v1/catalog/products                          — список (paginated, фильтры: status, brandId)
+GET    /api/v1/catalog/products/{id}                     — получить с variants/SKUs/attributes
+PATCH  /api/v1/catalog/products/{id}                     — обновить (version для optimistic locking)
+DELETE /api/v1/catalog/products/{id}                     — soft-delete (204)
+PATCH  /api/v1/catalog/products/{id}/status              — сменить статус (Step 9)
+```
+
+### Product Attributes
+
+```
+POST   /api/v1/catalog/products/{id}/attributes          — присвоить один (level: product only)
+POST   /api/v1/catalog/products/{id}/attributes/bulk     — bulk assign (Step 6)
+GET    /api/v1/catalog/products/{id}/attributes          — список присвоенных
+DELETE /api/v1/catalog/products/{id}/attributes/{attrId} — удалить привязку
+```
+
+### Variants
+
+```
+POST   /api/v1/catalog/products/{id}/variants            — создать (обычно не нужно — default auto-created)
+GET    /api/v1/catalog/products/{id}/variants            — список
+PATCH  /api/v1/catalog/products/{id}/variants/{vid}      — обновить
+DELETE /api/v1/catalog/products/{id}/variants/{vid}      — soft-delete
+```
+
+### SKUs
+
+```
+POST   .../variants/{vid}/skus                           — создать один SKU
+POST   .../variants/{vid}/skus/generate                  — bulk generate (Step 7)
+GET    .../variants/{vid}/skus                           — список
+PATCH  .../variants/{vid}/skus/{sid}                     — обновить (price, is_active, sku_code)
+DELETE .../variants/{vid}/skus/{sid}                     — soft-delete
+```
+
+### Media
+
+```
+POST   /api/v1/catalog/products/{id}/media/upload        — reserve slot (Step 8a)
+POST   /api/v1/catalog/products/{id}/media/{mid}/confirm — confirm (Step 8c)
+POST   /api/v1/catalog/products/{id}/media/external      — add external URL (YouTube, etc.)
+GET    /api/v1/catalog/products/{id}/media               — список
+DELETE /api/v1/catalog/products/{id}/media/{mid}         — удалить
+```
+
+### Storefront (read-only, mixed auth)
+
+```
+GET    /api/v1/catalog/storefront/categories/{id}/form-attributes       — [catalog:manage] form для создания
+GET    /api/v1/catalog/storefront/categories/{id}/filters               — [public] фильтры для каталога
+GET    /api/v1/catalog/storefront/categories/{id}/card-attributes       — [public] атрибуты для карточки товара
+GET    /api/v1/catalog/storefront/categories/{id}/comparison-attributes — [public] атрибуты для сравнения
 ```
 
 ### CORS
