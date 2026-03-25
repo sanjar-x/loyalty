@@ -67,6 +67,7 @@ class CreateCategoryResult:
     sort_order: int
     parent_id: uuid.UUID | None = None
     family_id: uuid.UUID | None = None
+    effective_family_id: uuid.UUID | None = None
 
 
 class CreateCategoryHandler:
@@ -159,4 +160,5 @@ class CreateCategoryHandler:
             sort_order=category.sort_order,
             parent_id=category.parent_id,
             family_id=category.family_id,
+            effective_family_id=category.effective_family_id,
         )

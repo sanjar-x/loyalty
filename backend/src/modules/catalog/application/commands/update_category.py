@@ -10,9 +10,12 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.modules.catalog.application.constants import CATEGORY_TREE_CACHE_KEY
-from src.modules.catalog.application.queries.storefront import (
-    invalidate_storefront_cache,
+from src.modules.catalog.application.constants import (
+    CATEGORY_TREE_CACHE_KEY,
+    storefront_card_cache_key,
+    storefront_comparison_cache_key,
+    storefront_filters_cache_key,
+    storefront_form_cache_key,
 )
 from src.modules.catalog.domain.entities import Category
 from src.modules.catalog.domain.exceptions import (
@@ -72,6 +75,7 @@ class UpdateCategoryResult:
     sort_order: int
     parent_id: uuid.UUID | None = None
     family_id: uuid.UUID | None = None
+    effective_family_id: uuid.UUID | None = None
 
 
 class UpdateCategoryHandler:
@@ -149,8 +153,25 @@ class UpdateCategoryHandler:
 
             old_full_slug = category.update(**update_kwargs)
 
+            # Scenario C: clear family_id → re-inherit from parent
+            if family_id_changed and command.family_id is None:
+                if category.parent_id is not None:
+                    parent = await self._category_repo.get(category.parent_id)
+                    new_effective = parent.effective_family_id if parent else None
+                else:
+                    new_effective = None
+                category.set_effective_family_id(new_effective)
+
             await self._category_repo.update(category)
             self._uow.register_aggregate(category)
+
+            # Propagate effective_family_id to inheriting descendants
+            affected_category_ids: list[uuid.UUID] = []
+            if family_id_changed:
+                descendant_ids = await self._category_repo.propagate_effective_family_id(
+                    category.id, category.effective_family_id
+                )
+                affected_category_ids = [category.id, *descendant_ids]
 
             if old_full_slug is not None:
                 await self._category_repo.update_descendants_full_slug(
@@ -167,13 +188,20 @@ class UpdateCategoryHandler:
                 "Failed to invalidate category tree cache", error=str(e)
             )
 
-        if family_id_changed:
+        if affected_category_ids:
             try:
-                await invalidate_storefront_cache(self._cache, command.category_id)
+                keys = []
+                for cat_id in affected_category_ids:
+                    keys.append(storefront_filters_cache_key(cat_id))
+                    keys.append(storefront_card_cache_key(cat_id))
+                    keys.append(storefront_comparison_cache_key(cat_id))
+                    keys.append(storefront_form_cache_key(cat_id))
+                await self._cache.delete_many(keys)
             except Exception as e:
                 self._logger.warning(
-                    "Failed to invalidate storefront cache after family_id change",
+                    "Failed to invalidate storefront caches after family_id change",
                     error=str(e),
+                    affected_count=len(affected_category_ids),
                 )
 
         self._logger.info("Category updated", category_id=str(category.id))
@@ -187,4 +215,5 @@ class UpdateCategoryHandler:
             sort_order=category.sort_order,
             parent_id=category.parent_id,
             family_id=category.family_id,
+            effective_family_id=category.effective_family_id,
         )
