@@ -110,30 +110,32 @@ export default function useSubmitProduct() {
         let uploaded = 0;
         setProgress(`${STEPS.media} (${uploaded}/${images.length})...`);
 
-        // Process images with max 3 concurrent
-        const chunks = [];
-        for (let i = 0; i < images.length; i += 3) {
-          chunks.push(images.slice(i, i + 3));
-        }
+        // Build upload tasks with pre-assigned roles by array index
+        // images[0] = main, rest = gallery — determined BEFORE parallel execution
+        const uploadTasks = images.map((image, idx) => ({
+          image,
+          role: idx === 0 ? 'main' : 'gallery',
+          sortOrder: idx,
+        }));
 
-        for (const chunk of chunks) {
+        // Process in chunks of 3 concurrent
+        for (let i = 0; i < uploadTasks.length; i += 3) {
+          const chunk = uploadTasks.slice(i, i + 3);
           const results = await Promise.allSettled(
-            chunk.map(async (image) => {
+            chunk.map(async ({ image, role, sortOrder }) => {
               if (image.source === 'url') {
-                // External URL → POST /media/external
                 await addExternalMedia(productId, {
                   externalUrl: image.url,
                   mediaType: 'image',
-                  role: uploaded === 0 ? 'main' : 'gallery',
-                  sortOrder: uploaded,
+                  role,
+                  sortOrder,
                 });
               } else if (image.file) {
-                // File upload → 3-step presigned URL flow
                 const slot = await reserveMediaUpload(productId, {
                   mediaType: 'image',
-                  role: uploaded === 0 ? 'main' : 'gallery',
+                  role,
                   contentType: image.file.type || 'image/jpeg',
-                  sortOrder: uploaded,
+                  sortOrder,
                 });
                 await uploadToS3(slot.presignedUploadUrl, image.file);
                 await confirmMedia(productId, slot.id);
@@ -141,13 +143,11 @@ export default function useSubmitProduct() {
             }),
           );
 
-          // Count successes
           for (const r of results) {
             if (r.status === 'fulfilled') uploaded++;
           }
           setProgress(`${STEPS.media} (${uploaded}/${images.length})...`);
 
-          // Log failures but don't stop
           const failures = results.filter((r) => r.status === 'rejected');
           if (failures.length > 0) {
             console.warn('Media upload failures:', failures.map((f) => f.reason));
