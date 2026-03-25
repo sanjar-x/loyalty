@@ -937,6 +937,34 @@ class ProductVariantUpdateResponse(CamelModel):
 SKUListResponse = PaginatedResponse[SKUResponse]
 
 
+class AttributeSelectionSchema(CamelModel):
+    """One attribute with multiple selected values for SKU matrix generation."""
+
+    attribute_id: uuid.UUID
+    value_ids: list[uuid.UUID] = Field(..., min_length=1)
+
+
+class SKUMatrixGenerateRequest(CamelModel):
+    """Request to generate SKU combinations from attribute selections."""
+
+    attribute_selections: list[AttributeSelectionSchema] = Field(..., min_length=1)
+    price_amount: int | None = Field(None, ge=0)
+    price_currency: str = Field(
+        "RUB", min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"
+    )
+    compare_at_price_amount: int | None = Field(None, ge=0)
+    is_active: bool = True
+
+
+class SKUMatrixGenerateResponse(CamelModel):
+    """Response from SKU matrix generation."""
+
+    created_count: int
+    skipped_count: int
+    sku_ids: list[uuid.UUID]
+    message: str
+
+
 # ---------------------------------------------------------------------------
 # ProductAttribute list response
 # ---------------------------------------------------------------------------

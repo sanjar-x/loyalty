@@ -19,6 +19,11 @@ from src.modules.catalog.application.commands.delete_sku import (
     DeleteSKUCommand,
     DeleteSKUHandler,
 )
+from src.modules.catalog.application.commands.generate_sku_matrix import (
+    AttributeSelection,
+    GenerateSKUMatrixCommand,
+    GenerateSKUMatrixHandler,
+)
 from src.modules.catalog.application.commands.update_sku import (
     UpdateSKUCommand,
     UpdateSKUHandler,
@@ -33,6 +38,8 @@ from src.modules.catalog.presentation.schemas import (
     SKUCreateRequest,
     SKUCreateResponse,
     SKUListResponse,
+    SKUMatrixGenerateRequest,
+    SKUMatrixGenerateResponse,
     SKUResponse,
     SKUUpdateRequest,
 )
@@ -103,6 +110,49 @@ async def list_skus(
         total=result.total,
         offset=result.offset,
         limit=result.limit,
+    )
+
+
+@sku_router.post(
+    path="/generate",
+    status_code=status.HTTP_201_CREATED,
+    response_model=SKUMatrixGenerateResponse,
+    summary="Generate SKU matrix from attribute selections",
+    description=(
+        "Generates all SKU combinations from the cartesian product of "
+        "attribute selections. Existing combinations are skipped. "
+        "All SKUs are created in a single transaction."
+    ),
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
+)
+async def generate_sku_matrix(
+    product_id: uuid.UUID,
+    variant_id: uuid.UUID,
+    request: SKUMatrixGenerateRequest,
+    handler: FromDishka[GenerateSKUMatrixHandler],
+) -> SKUMatrixGenerateResponse:
+    """Generate SKU combinations from attribute selections."""
+    command = GenerateSKUMatrixCommand(
+        product_id=product_id,
+        variant_id=variant_id,
+        attribute_selections=[
+            AttributeSelection(
+                attribute_id=sel.attribute_id,
+                value_ids=list(sel.value_ids),
+            )
+            for sel in request.attribute_selections
+        ],
+        price_amount=request.price_amount,
+        price_currency=request.price_currency,
+        compare_at_price_amount=request.compare_at_price_amount,
+        is_active=request.is_active,
+    )
+    result = await handler.handle(command)
+    return SKUMatrixGenerateResponse(
+        created_count=result.created_count,
+        skipped_count=result.skipped_count,
+        sku_ids=result.sku_ids,
+        message=f"Generated {result.created_count} SKUs, skipped {result.skipped_count} existing",
     )
 
 

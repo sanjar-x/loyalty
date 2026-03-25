@@ -31,6 +31,9 @@ from src.modules.catalog.application.commands.add_product_media import (
     AddProductMediaHandler,
 )
 from src.modules.catalog.application.commands.add_sku import AddSKUHandler
+from src.modules.catalog.application.commands.generate_sku_matrix import (
+    GenerateSKUMatrixHandler,
+)
 from src.modules.catalog.application.commands.add_variant import AddVariantHandler
 from src.modules.catalog.application.commands.assign_product_attribute import (
     AssignProductAttributeHandler,
@@ -455,6 +458,9 @@ class ProductProvider(Provider):
     )
     add_sku_handler: CompositeDependencySource = provide(
         AddSKUHandler, scope=Scope.REQUEST
+    )
+    generate_sku_matrix_handler: CompositeDependencySource = provide(
+        GenerateSKUMatrixHandler, scope=Scope.REQUEST
     )
     update_sku_handler: CompositeDependencySource = provide(
         UpdateSKUHandler, scope=Scope.REQUEST
