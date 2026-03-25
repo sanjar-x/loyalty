@@ -112,9 +112,16 @@ function formReducer(state, action) {
       const next = has
         ? current.filter((id) => id !== action.valueId)
         : [...current, action.valueId];
+      // Clean orphan price when removing a variant value
+      let nextPrices = state.perSkuPrices;
+      if (has && state.perSkuPrices[action.valueId]) {
+        nextPrices = { ...state.perSkuPrices };
+        delete nextPrices[action.valueId];
+      }
       return {
         ...state,
         variantAttrs: { ...state.variantAttrs, [action.attributeId]: next },
+        perSkuPrices: nextPrices,
       };
     }
 
@@ -256,13 +263,25 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
     if (!state.brandId) return false;
     if (!state.titleRu.trim()) return false;
     if (!state.slug.trim()) return false;
+    // Price required for publishable products
+    if (state.variablePricing) {
+      const hasAnySkuPrice = Object.values(state.perSkuPrices).some(
+        (p) => p.price && parseInt(p.price, 10) > 0,
+      );
+      if (!hasAnySkuPrice) return false;
+    } else {
+      if (!state.priceAmount || parseInt(state.priceAmount, 10) <= 0) return false;
+    }
     return true;
-  }, [state.categoryId, state.brandId, state.titleRu, state.slug]);
+  }, [
+    state.categoryId, state.brandId, state.titleRu, state.slug,
+    state.variablePricing, state.priceAmount, state.perSkuPrices,
+  ]);
 
   // Build API-ready payloads (no API calls — just data shaping)
 
   const productPayload = useMemo(() => ({
-    titleI18n: {
+    titleI18N: {
       ru: state.titleRu,
       ...(state.titleEn ? { en: state.titleEn } : {}),
     },
@@ -270,7 +289,7 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
     brandId: state.brandId,
     primaryCategoryId: state.categoryId,
     ...(state.descriptionRu
-      ? { descriptionI18n: { ru: state.descriptionRu, ...(state.descriptionEn ? { en: state.descriptionEn } : {}) } }
+      ? { descriptionI18N: { ru: state.descriptionRu, ...(state.descriptionEn ? { en: state.descriptionEn } : {}) } }
       : {}),
     ...(state.supplierId ? { supplierId: state.supplierId } : {}),
     ...(state.sourceUrl ? { sourceUrl: state.sourceUrl } : {}),
@@ -298,9 +317,9 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
         attributeId,
         valueIds,
       })),
-    priceAmount: state.priceAmount ? parseInt(state.priceAmount, 10) : null,
+    priceAmount: state.priceAmount !== '' ? parseInt(state.priceAmount, 10) : null,
     priceCurrency: state.priceCurrency,
-    compareAtPriceAmount: state.compareAtPrice
+    compareAtPriceAmount: state.compareAtPrice !== ''
       ? parseInt(state.compareAtPrice, 10)
       : null,
   }), [state.variantAttrs, state.priceAmount, state.priceCurrency, state.compareAtPrice]);
