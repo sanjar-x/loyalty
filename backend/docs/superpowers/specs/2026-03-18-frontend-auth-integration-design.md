@@ -9,33 +9,44 @@
 ## 1. Architecture Overview
 
 ```
-Browser                    Next.js Server (Route Handlers)         Backend API
-  |                              |                                    |
-  |-- POST /api/auth/login ----->|                                    |
-  |   {email, password}          |-- POST /api/v1/auth/login -------->|
-  |                              |<-- {accessToken, refreshToken} ----|
-  |                              |                                    |
-  |                              |-- Set-Cookie: access_token (httpOnly, 15min)
-  |                              |-- Set-Cookie: refresh_token (httpOnly, 30d)
-  |<-- 200 {success: true} -----|
-  |                              |
-  |-- GET /admin/orders -------->|                                    |
-  |                              |-- middleware.js checks cookie       |
-  |                              |-- cookie present -> pass through    |
-  |<-- HTML page ----------------|                                    |
-  |                              |
-  |-- GET /admin/orders -------->|  (no cookie)                       |
-  |                              |-- middleware.js: no cookie          |
-  |<-- 307 -> /login ------------|                                    |
-  |                              |
-  |-- POST /api/auth/refresh --->|  (automatic on 401)                |
-  |                              |-- POST /api/v1/auth/refresh ------>|
-  |                              |<-- {newAccess, newRefresh} --------|
-  |                              |-- Set-Cookie: updated tokens        |
-  |<-- 200 ---------------------|
+  Browser                          Next.js Server (Route Handlers)              Backend API
+     |                                        |                                      |
+     |                                        |                                      |
+     |  ── POST /api/auth/login ────────────► |                                      |
+     |     {email, password}                  |  ── POST /api/v1/auth/login ───────► |
+     |                                        |  ◄── {accessToken, refreshToken} ─── |
+     |                                        |                                      |
+     |                                        |  Set-Cookie: access_token            |
+     |                                        |    (httpOnly, secure, 15min)         |
+     |                                        |  Set-Cookie: refresh_token           |
+     |                                        |    (httpOnly, secure, 30d)           |
+     |                                        |                                      |
+     |  ◄── 200 {success: true} ───────────── |                                      |
+     |                                        |                                      |
+     ├────────────────────────────────────────┼──────────────────────────────────────┤
+     |                                        |                                      |
+     |  ── GET /admin/orders ───────────────► |                                      |
+     |                                        |  middleware.js: cookie present ✓     |
+     |  ◄── HTML page ─────────────────────── |                                      |
+     |                                        |                                      |
+     ├────────────────────────────────────────┼──────────────────────────────────────┤
+     |                                        |                                      |
+     |  ── GET /admin/orders ───────────────► |  (no cookie)                         |
+     |                                        |  middleware.js: no cookie ✗          |
+     |  ◄── 307 → /login ──────────────────── |                                      |
+     |                                        |                                      |
+     ├────────────────────────────────────────┼──────────────────────────────────────┤
+     |                                        |                                      |
+     |  ── POST /api/auth/refresh ──────────► |  (automatic on 401)                  |
+     |                                        |  ── POST /api/v1/auth/refresh ─────► |
+     |                                        |  ◄── {newAccess, newRefresh} ─────── |
+     |                                        |  Set-Cookie: updated tokens          |
+     |  ◄── 200 ───────────────────────────── |                                      |
+     |                                        |                                      |
 ```
 
 Key decisions:
+
 - Next.js Route Handlers (`/api/auth/*`) act as BFF proxy — client never talks to backend directly for auth
 - Tokens live in httpOnly cookies — JavaScript has no access
 - Middleware protects all `/admin/*` routes at Edge Runtime level
@@ -47,22 +58,22 @@ Key decisions:
 
 ### New files (9)
 
-| File | Type | Purpose |
-|------|------|---------|
-| `src/middleware.js` | Edge Runtime | Redirect unauthenticated -> `/login` |
-| `src/app/login/page.jsx` | Client Component | Email + password form |
-| `src/app/api/auth/login/route.js` | Route Handler | Proxy to backend, set cookies |
-| `src/app/api/auth/logout/route.js` | Route Handler | Call backend logout, clear cookies |
-| `src/app/api/auth/refresh/route.js` | Route Handler | Token rotation, update cookies |
-| `src/app/api/auth/me/route.js` | Route Handler | Return identity from access_token |
-| `src/lib/auth.js` | Server utility | Cookie helpers, JWT payload decode |
-| `src/lib/api-client.js` | Shared utility | Base fetch to `BACKEND_URL` |
-| `src/hooks/useAuth.js` | Client hook | `useAuth()` -> `{ user, logout, isLoading }` |
+| File                                | Type             | Purpose                                      |
+| ----------------------------------- | ---------------- | -------------------------------------------- |
+| `src/middleware.js`                 | Edge Runtime     | Redirect unauthenticated -> `/login`         |
+| `src/app/login/page.jsx`            | Client Component | Email + password form                        |
+| `src/app/api/auth/login/route.js`   | Route Handler    | Proxy to backend, set cookies                |
+| `src/app/api/auth/logout/route.js`  | Route Handler    | Call backend logout, clear cookies           |
+| `src/app/api/auth/refresh/route.js` | Route Handler    | Token rotation, update cookies               |
+| `src/app/api/auth/me/route.js`      | Route Handler    | Return identity from access_token            |
+| `src/lib/auth.js`                   | Server utility   | Cookie helpers, JWT payload decode           |
+| `src/lib/api-client.js`             | Shared utility   | Base fetch to `BACKEND_URL`                  |
+| `src/hooks/useAuth.js`              | Client hook      | `useAuth()` -> `{ user, logout, isLoading }` |
 
 ### Modified files (1)
 
-| File | Change |
-|------|--------|
+| File                       | Change                                                |
+| -------------------------- | ----------------------------------------------------- |
 | `src/app/admin/layout.jsx` | Add `AuthProvider` wrapper + logout button in sidebar |
 
 Note: `BACKEND_URL` is a server-side env var available via `process.env.BACKEND_URL` by default in Next.js — no `next.config.js` change needed.
@@ -102,12 +113,14 @@ JWT is NOT signature-verified in middleware (Edge Runtime has no Node.js crypto)
 ## 4. Login Page (`src/app/login/page.jsx`)
 
 UI:
+
 - Centered card on app-bg (#efeff0) background
 - Email input + Password input
 - "Войти" button
 - Error display by backend error code
 
 Flow:
+
 1. User enters email + password
 2. POST /api/auth/login (internal Route Handler)
 3. Success -> `router.push('/admin/orders')`
@@ -162,12 +175,12 @@ Flow:
 
 ## 6. Cookie Configuration
 
-| Cookie | Path | maxAge | httpOnly | secure | sameSite |
-|--------|------|--------|----------|--------|----------|
-| `access_token` | `/` | 900 (15m) | yes | yes* | lax |
-| `refresh_token` | `/` | 2592000 (30d) | yes | yes* | lax |
+| Cookie          | Path | maxAge        | httpOnly | secure | sameSite |
+| --------------- | ---- | ------------- | -------- | ------ | -------- |
+| `access_token`  | `/`  | 900 (15m)     | yes      | yes\*  | lax      |
+| `refresh_token` | `/`  | 2592000 (30d) | yes      | yes\*  | lax      |
 
-*`secure: true` in production, `false` in dev (http://localhost)
+\*`secure: true` in production, `false` in dev (http://localhost)
 
 Both cookies use `path=/` so middleware can read `refresh_token` on `/admin/*` requests for silent refresh. The refresh token is still protected: httpOnly (no JS access), secure (HTTPS only in prod), and the raw value is never exposed to the client.
 
@@ -210,6 +223,7 @@ BACKEND_URL=http://127.0.0.1:8000
 ## 9. Error Handling
 
 Backend error envelope:
+
 ```json
 {
   "error": {
@@ -224,16 +238,16 @@ Route Handlers proxy this structure to the client. Login page maps codes to Russ
 
 Relevant codes for auth flow:
 
-| HTTP | Code | UI Message |
-|------|------|------------|
-| 401 | `INVALID_CREDENTIALS` | Неверный email или пароль |
-| 401 | `INVALID_TOKEN` | (redirect to login, clear cookies) |
-| 401 | `TOKEN_EXPIRED` | (silent refresh, no UI) |
-| 401 | `SESSION_EXPIRED` | Сессия истекла (redirect to login) |
-| 401 | `SESSION_REVOKED` | Сессия отозвана (redirect to login) |
-| 401 | `REFRESH_TOKEN_REUSE` | Обнаружено повторное использование токена (redirect to login, clear cookies) |
-| 403 | `IDENTITY_DEACTIVATED` | Аккаунт деактивирован |
-| 429 | `MAX_SESSIONS_EXCEEDED` | Превышен лимит сессий (макс. 5) |
+| HTTP | Code                    | UI Message                                                                   |
+| ---- | ----------------------- | ---------------------------------------------------------------------------- |
+| 401  | `INVALID_CREDENTIALS`   | Неверный email или пароль                                                    |
+| 401  | `INVALID_TOKEN`         | (redirect to login, clear cookies)                                           |
+| 401  | `TOKEN_EXPIRED`         | (silent refresh, no UI)                                                      |
+| 401  | `SESSION_EXPIRED`       | Сессия истекла (redirect to login)                                           |
+| 401  | `SESSION_REVOKED`       | Сессия отозвана (redirect to login)                                          |
+| 401  | `REFRESH_TOKEN_REUSE`   | Обнаружено повторное использование токена (redirect to login, clear cookies) |
+| 403  | `IDENTITY_DEACTIVATED`  | Аккаунт деактивирован                                                        |
+| 429  | `MAX_SESSIONS_EXCEEDED` | Превышен лимит сессий (макс. 5)                                              |
 
 ---
 

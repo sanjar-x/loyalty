@@ -142,7 +142,9 @@ class Category(Base):
     )
 
     family_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("attribute_families.id", ondelete="SET NULL"), index=True, default=None
+        ForeignKey("attribute_families.id", ondelete="SET NULL"),
+        index=True,
+        default=None,
     )
 
     children: Mapped[list[Category]] = relationship(
@@ -216,12 +218,12 @@ class AttributeFamily(Base):
         "FamilyAttributeBinding", back_populates="family", cascade="all, delete-orphan"
     )
     exclusions: Mapped[list[FamilyAttributeExclusion]] = relationship(
-        "FamilyAttributeExclusion", back_populates="family", cascade="all, delete-orphan"
+        "FamilyAttributeExclusion",
+        back_populates="family",
+        cascade="all, delete-orphan",
     )
 
-    __table_args__ = (
-        Index("ix_attribute_families_level_sort", "level", "sort_order"),
-    )
+    __table_args__ = (Index("ix_attribute_families_level_sort", "level", "sort_order"),)
 
 
 class AttributeGroup(Base):
@@ -451,7 +453,7 @@ class FamilyAttributeBinding(Base):
     sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
     requirement_level: Mapped[RequirementLevel] = mapped_column(
         Enum(RequirementLevel, name="requirement_level_enum", create_type=False),
-        server_default=text("'optional'"),
+        server_default=text("'OPTIONAL'"),
     )
     flag_overrides: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     filter_settings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -506,9 +508,7 @@ class FamilyAttributeExclusion(Base):
     attribute: Mapped[Attribute] = relationship("Attribute")
 
     __table_args__ = (
-        UniqueConstraint(
-            "family_id", "attribute_id", name="uix_family_attr_exclusion"
-        ),
+        UniqueConstraint("family_id", "attribute_id", name="uix_family_attr_exclusion"),
     )
 
 

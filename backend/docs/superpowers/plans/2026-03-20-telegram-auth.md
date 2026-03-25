@@ -14,34 +14,35 @@
 
 ## File Map
 
-| Action | File | Responsibility |
-|--------|------|----------------|
-| Modify | `src/modules/identity/domain/value_objects.py` | Add `TELEGRAM` to `IdentityType`, add `TelegramUserData` VO |
-| Modify | `src/modules/identity/domain/entities.py` | Add `TelegramCredentials` entity |
-| Modify | `src/modules/identity/domain/events.py` | Add `TelegramIdentityCreatedEvent` |
-| Modify | `src/modules/identity/domain/exceptions.py` | Add 3 initData exception classes |
-| Modify | `src/modules/identity/domain/interfaces.py` | Add `ITelegramCredentialsRepository`, `ITelegramInitDataValidator`, extend `ISessionRepository` |
-| Modify | `src/modules/identity/infrastructure/models.py` | Add `TelegramCredentialsModel`, extend `IdentityModel` |
-| Create | `alembic/versions/2026/03/20_xxxx_add_telegram_credentials.py` | Migration |
-| Create | `src/infrastructure/security/telegram.py` | `TelegramInitDataValidator` |
-| Create | `src/modules/identity/infrastructure/repositories/telegram_credentials_repo.py` | `TelegramCredentialsRepository` |
-| Modify | `src/modules/identity/infrastructure/repositories/session_repository.py` | Add `revoke_oldest_active` |
-| Create | `src/modules/identity/application/commands/login_telegram.py` | Command, Result, Handler |
-| Modify | `src/modules/user/application/consumers/identity_events.py` | Add Telegram consumer |
-| Modify | `src/modules/identity/presentation/schemas.py` | Add `TelegramTokenResponse` |
-| Modify | `src/modules/identity/presentation/router_auth.py` | Add `/telegram` endpoint |
-| Modify | `src/modules/identity/infrastructure/provider.py` | DI wiring |
-| Modify | `src/bootstrap/config.py` | 2 new settings |
-| Modify | `.env.example` | Document new settings |
-| Create | `tests/unit/modules/identity/domain/test_telegram.py` | Domain unit tests |
-| Create | `tests/unit/infrastructure/security/test_telegram_validator.py` | Validator unit tests |
-| Create | `tests/e2e/api/v1/test_auth_telegram.py` | E2E integration tests |
+| Action | File                                                                            | Responsibility                                                                                  |
+| ------ | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Modify | `src/modules/identity/domain/value_objects.py`                                  | Add `TELEGRAM` to `IdentityType`, add `TelegramUserData` VO                                     |
+| Modify | `src/modules/identity/domain/entities.py`                                       | Add `TelegramCredentials` entity                                                                |
+| Modify | `src/modules/identity/domain/events.py`                                         | Add `TelegramIdentityCreatedEvent`                                                              |
+| Modify | `src/modules/identity/domain/exceptions.py`                                     | Add 3 initData exception classes                                                                |
+| Modify | `src/modules/identity/domain/interfaces.py`                                     | Add `ITelegramCredentialsRepository`, `ITelegramInitDataValidator`, extend `ISessionRepository` |
+| Modify | `src/modules/identity/infrastructure/models.py`                                 | Add `TelegramCredentialsModel`, extend `IdentityModel`                                          |
+| Create | `alembic/versions/2026/03/20_xxxx_add_telegram_credentials.py`                  | Migration                                                                                       |
+| Create | `src/infrastructure/security/telegram.py`                                       | `TelegramInitDataValidator`                                                                     |
+| Create | `src/modules/identity/infrastructure/repositories/telegram_credentials_repo.py` | `TelegramCredentialsRepository`                                                                 |
+| Modify | `src/modules/identity/infrastructure/repositories/session_repository.py`        | Add `revoke_oldest_active`                                                                      |
+| Create | `src/modules/identity/application/commands/login_telegram.py`                   | Command, Result, Handler                                                                        |
+| Modify | `src/modules/user/application/consumers/identity_events.py`                     | Add Telegram consumer                                                                           |
+| Modify | `src/modules/identity/presentation/schemas.py`                                  | Add `TelegramTokenResponse`                                                                     |
+| Modify | `src/modules/identity/presentation/router_auth.py`                              | Add `/telegram` endpoint                                                                        |
+| Modify | `src/modules/identity/infrastructure/provider.py`                               | DI wiring                                                                                       |
+| Modify | `src/bootstrap/config.py`                                                       | 2 new settings                                                                                  |
+| Modify | `.env.example`                                                                  | Document new settings                                                                           |
+| Create | `tests/unit/modules/identity/domain/test_telegram.py`                           | Domain unit tests                                                                               |
+| Create | `tests/unit/infrastructure/security/test_telegram_validator.py`                 | Validator unit tests                                                                            |
+| Create | `tests/e2e/api/v1/test_auth_telegram.py`                                        | E2E integration tests                                                                           |
 
 ---
 
 ### Task 1: Domain — Value Objects
 
 **Files:**
+
 - Modify: `src/modules/identity/domain/value_objects.py`
 - Create: `tests/unit/modules/identity/domain/test_telegram.py`
 
@@ -144,6 +145,7 @@ git commit -m "feat(identity): add IdentityType.TELEGRAM and TelegramUserData va
 ### Task 2: Domain — TelegramCredentials Entity
 
 **Files:**
+
 - Modify: `src/modules/identity/domain/entities.py`
 - Modify: `tests/unit/modules/identity/domain/test_telegram.py`
 
@@ -275,6 +277,7 @@ git commit -m "feat(identity): add TelegramCredentials domain entity"
 ### Task 3: Domain — Event, Exceptions, Interfaces
 
 **Files:**
+
 - Modify: `src/modules/identity/domain/events.py`
 - Modify: `src/modules/identity/domain/exceptions.py`
 - Modify: `src/modules/identity/domain/interfaces.py`
@@ -366,6 +369,7 @@ git commit -m "feat(identity): add Telegram domain event, exceptions, and interf
 ### Task 4: Infrastructure — ORM Model + Migration
 
 **Files:**
+
 - Modify: `src/modules/identity/infrastructure/models.py`
 - Create: `alembic/versions/2026/03/20_xxxx_add_telegram_credentials.py`
 
@@ -382,6 +386,7 @@ uv run alembic revision --autogenerate -m "add_telegram_credentials"
 - [ ] **Step 3: Review generated migration**
 
 Check the generated file has:
+
 - `op.create_table("telegram_credentials", ...)` with all columns
 - Unique index on `telegram_id`
 - No accidental changes to existing tables
@@ -421,6 +426,7 @@ git commit -m "feat(identity): add TelegramCredentialsModel and migration"
 ### Task 5: Infrastructure — Config + initData Validator
 
 **Files:**
+
 - Modify: `src/bootstrap/config.py`
 - Modify: `.env.example`
 - Create: `src/infrastructure/security/telegram.py`
@@ -590,6 +596,7 @@ git commit -m "feat(security): add TelegramInitDataValidator with HMAC + freshne
 ### Task 6: Infrastructure — Repository + Session Extension
 
 **Files:**
+
 - Create: `src/modules/identity/infrastructure/repositories/telegram_credentials_repo.py`
 - Modify: `src/modules/identity/infrastructure/repositories/session_repository.py`
 
@@ -644,11 +651,13 @@ git commit -m "feat(identity): add TelegramCredentialsRepository and session evi
 ### Task 7: Application — LoginTelegramHandler
 
 **Files:**
+
 - Create: `src/modules/identity/application/commands/login_telegram.py`
 
 - [ ] **Step 1: Implement command, result, and handler**
 
 Create `src/modules/identity/application/commands/login_telegram.py` with the exact code from design doc section 4.1 and 4.2. This includes:
+
 - `LoginTelegramCommand` (frozen dataclass)
 - `LoginTelegramResult` (frozen dataclass)
 - `LoginTelegramHandler` class with `handle()` and `_provision_new_identity()`
@@ -667,6 +676,7 @@ git commit -m "feat(identity): add LoginTelegramHandler with auto-provisioning"
 ### Task 8: Application — Event Consumer
 
 **Files:**
+
 - Modify: `src/modules/user/application/consumers/identity_events.py`
 
 - [ ] **Step 1: Add Telegram consumer to identity_events.py**
@@ -687,6 +697,7 @@ git commit -m "feat(user): add Telegram customer creation consumer with referral
 ### Task 9: Presentation — Schema + Router + DI
 
 **Files:**
+
 - Modify: `src/modules/identity/presentation/schemas.py`
 - Modify: `src/modules/identity/presentation/router_auth.py`
 - Modify: `src/modules/identity/infrastructure/provider.py`
@@ -730,6 +741,7 @@ git commit -m "feat(identity): add /auth/telegram endpoint with DI wiring"
 ### Task 10: E2E Tests
 
 **Files:**
+
 - Create: `tests/e2e/api/v1/test_auth_telegram.py`
 
 - [ ] **Step 1: Write E2E tests**

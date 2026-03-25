@@ -16,62 +16,62 @@
 
 ### New Files
 
-| File | Responsibility |
-|------|----------------|
-| `src/modules/catalog/domain/entities.py` (additions) | `AttributeFamily`, `FamilyAttributeBinding`, `FamilyAttributeExclusion` aggregate roots |
-| `src/modules/catalog/domain/interfaces.py` (additions) | `IAttributeFamilyRepository`, `IFamilyAttributeBindingRepository`, `IFamilyAttributeExclusionRepository` |
-| `src/modules/catalog/domain/events.py` (additions) | 8 new `CatalogEvent` subclasses |
-| `src/modules/catalog/domain/exceptions.py` (additions) | 9 new exception classes |
-| `src/modules/catalog/infrastructure/models.py` (additions) | 3 ORM models |
-| `src/modules/catalog/infrastructure/repositories/attribute_family.py` | Repository with recursive CTE queries |
-| `src/modules/catalog/infrastructure/repositories/family_attribute_binding.py` | Binding repository |
-| `src/modules/catalog/infrastructure/repositories/family_attribute_exclusion.py` | Exclusion repository |
-| `src/modules/catalog/application/commands/create_attribute_family.py` | Create handler |
-| `src/modules/catalog/application/commands/update_attribute_family.py` | Update handler |
-| `src/modules/catalog/application/commands/delete_attribute_family.py` | Delete handler |
-| `src/modules/catalog/application/commands/bind_attribute_to_family.py` | Bind handler |
-| `src/modules/catalog/application/commands/unbind_attribute_from_family.py` | Unbind handler |
-| `src/modules/catalog/application/commands/update_family_attribute_binding.py` | Update binding handler |
-| `src/modules/catalog/application/commands/reorder_family_bindings.py` | Reorder handler |
-| `src/modules/catalog/application/commands/add_family_exclusion.py` | Add exclusion handler |
-| `src/modules/catalog/application/commands/remove_family_exclusion.py` | Remove exclusion handler |
-| `src/modules/catalog/application/queries/resolve_family_attributes.py` | Effective attribute resolution + caching |
-| `src/modules/catalog/application/queries/list_attribute_families.py` | List + tree queries |
-| `src/modules/catalog/presentation/router_attribute_families.py` | All family REST endpoints |
-| `src/modules/catalog/presentation/schemas.py` (additions) | Family request/response schemas |
-| `alembic/versions/2026/03/25_*_attribute_family.py` | Migration |
+| File                                                                            | Responsibility                                                                                           |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `src/modules/catalog/domain/entities.py` (additions)                            | `AttributeFamily`, `FamilyAttributeBinding`, `FamilyAttributeExclusion` aggregate roots                  |
+| `src/modules/catalog/domain/interfaces.py` (additions)                          | `IAttributeFamilyRepository`, `IFamilyAttributeBindingRepository`, `IFamilyAttributeExclusionRepository` |
+| `src/modules/catalog/domain/events.py` (additions)                              | 8 new `CatalogEvent` subclasses                                                                          |
+| `src/modules/catalog/domain/exceptions.py` (additions)                          | 9 new exception classes                                                                                  |
+| `src/modules/catalog/infrastructure/models.py` (additions)                      | 3 ORM models                                                                                             |
+| `src/modules/catalog/infrastructure/repositories/attribute_family.py`           | Repository with recursive CTE queries                                                                    |
+| `src/modules/catalog/infrastructure/repositories/family_attribute_binding.py`   | Binding repository                                                                                       |
+| `src/modules/catalog/infrastructure/repositories/family_attribute_exclusion.py` | Exclusion repository                                                                                     |
+| `src/modules/catalog/application/commands/create_attribute_family.py`           | Create handler                                                                                           |
+| `src/modules/catalog/application/commands/update_attribute_family.py`           | Update handler                                                                                           |
+| `src/modules/catalog/application/commands/delete_attribute_family.py`           | Delete handler                                                                                           |
+| `src/modules/catalog/application/commands/bind_attribute_to_family.py`          | Bind handler                                                                                             |
+| `src/modules/catalog/application/commands/unbind_attribute_from_family.py`      | Unbind handler                                                                                           |
+| `src/modules/catalog/application/commands/update_family_attribute_binding.py`   | Update binding handler                                                                                   |
+| `src/modules/catalog/application/commands/reorder_family_bindings.py`           | Reorder handler                                                                                          |
+| `src/modules/catalog/application/commands/add_family_exclusion.py`              | Add exclusion handler                                                                                    |
+| `src/modules/catalog/application/commands/remove_family_exclusion.py`           | Remove exclusion handler                                                                                 |
+| `src/modules/catalog/application/queries/resolve_family_attributes.py`          | Effective attribute resolution + caching                                                                 |
+| `src/modules/catalog/application/queries/list_attribute_families.py`            | List + tree queries                                                                                      |
+| `src/modules/catalog/presentation/router_attribute_families.py`                 | All family REST endpoints                                                                                |
+| `src/modules/catalog/presentation/schemas.py` (additions)                       | Family request/response schemas                                                                          |
+| `alembic/versions/2026/03/25_*_attribute_family.py`                             | Migration                                                                                                |
 
 ### Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/modules/catalog/domain/entities.py` | Add `family_id` to `Category` entity + `_UPDATABLE_FIELDS` |
-| `src/modules/catalog/infrastructure/models.py` | Add `family_id` column to `Category` ORM, add `attribute_bindings` relationship removal |
-| `src/modules/catalog/application/queries/storefront.py` | Rewrite `_load_bindings_with_attributes()` → resolve via Family |
-| `src/modules/catalog/application/commands/create_category.py` | Accept optional `family_id` |
-| `src/modules/catalog/application/commands/update_category.py` | Accept optional `family_id` |
-| `src/modules/catalog/application/commands/delete_attribute.py` | Check `family_attribute_bindings` instead of `category_attribute_rules` |
-| `src/modules/catalog/domain/interfaces.py` → `IAttributeRepository` | Remove `has_category_bindings()` method |
-| `src/modules/catalog/infrastructure/repositories/attribute.py` | Remove `has_category_bindings()` implementation |
-| `src/modules/catalog/infrastructure/repositories/__init__.py` | Remove old binding repo export, add new repos |
-| `src/modules/catalog/presentation/schemas.py` | Add `familyId` to `CategoryCreateRequest` / `CategoryUpdateRequest` |
-| `src/modules/catalog/presentation/router_products.py` | Remove any old binding imports |
-| `src/modules/catalog/presentation/dependencies.py` | Replace `CategoryAttributeBindingProvider` with `AttributeFamilyProvider` |
-| `src/bootstrap/container.py` | Replace `CategoryAttributeBindingProvider()` with `AttributeFamilyProvider()` |
-| `src/api/router.py` | Replace `category_binding_router` with `attribute_family_router` |
+| File                                                                | Change                                                                                  |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `src/modules/catalog/domain/entities.py`                            | Add `family_id` to `Category` entity + `_UPDATABLE_FIELDS`                              |
+| `src/modules/catalog/infrastructure/models.py`                      | Add `family_id` column to `Category` ORM, add `attribute_bindings` relationship removal |
+| `src/modules/catalog/application/queries/storefront.py`             | Rewrite `_load_bindings_with_attributes()` → resolve via Family                         |
+| `src/modules/catalog/application/commands/create_category.py`       | Accept optional `family_id`                                                             |
+| `src/modules/catalog/application/commands/update_category.py`       | Accept optional `family_id`                                                             |
+| `src/modules/catalog/application/commands/delete_attribute.py`      | Check `family_attribute_bindings` instead of `category_attribute_rules`                 |
+| `src/modules/catalog/domain/interfaces.py` → `IAttributeRepository` | Remove `has_category_bindings()` method                                                 |
+| `src/modules/catalog/infrastructure/repositories/attribute.py`      | Remove `has_category_bindings()` implementation                                         |
+| `src/modules/catalog/infrastructure/repositories/__init__.py`       | Remove old binding repo export, add new repos                                           |
+| `src/modules/catalog/presentation/schemas.py`                       | Add `familyId` to `CategoryCreateRequest` / `CategoryUpdateRequest`                     |
+| `src/modules/catalog/presentation/router_products.py`               | Remove any old binding imports                                                          |
+| `src/modules/catalog/presentation/dependencies.py`                  | Replace `CategoryAttributeBindingProvider` with `AttributeFamilyProvider`               |
+| `src/bootstrap/container.py`                                        | Replace `CategoryAttributeBindingProvider()` with `AttributeFamilyProvider()`           |
+| `src/api/router.py`                                                 | Replace `category_binding_router` with `attribute_family_router`                        |
 
 ### Files to Delete
 
-| File |
-|------|
+| File                                                                            |
+| ------------------------------------------------------------------------------- |
 | `src/modules/catalog/infrastructure/repositories/category_attribute_binding.py` |
-| `src/modules/catalog/application/commands/bind_attribute_to_category.py` |
-| `src/modules/catalog/application/commands/unbind_attribute_from_category.py` |
+| `src/modules/catalog/application/commands/bind_attribute_to_category.py`        |
+| `src/modules/catalog/application/commands/unbind_attribute_from_category.py`    |
 | `src/modules/catalog/application/commands/update_category_attribute_binding.py` |
-| `src/modules/catalog/application/commands/reorder_category_bindings.py` |
-| `src/modules/catalog/application/commands/bulk_update_requirement_levels.py` |
-| `src/modules/catalog/application/queries/list_category_bindings.py` |
-| `src/modules/catalog/presentation/router_category_bindings.py` |
+| `src/modules/catalog/application/commands/reorder_category_bindings.py`         |
+| `src/modules/catalog/application/commands/bulk_update_requirement_levels.py`    |
+| `src/modules/catalog/application/queries/list_category_bindings.py`             |
+| `src/modules/catalog/presentation/router_category_bindings.py`                  |
 
 ---
 
@@ -80,6 +80,7 @@
 ### Task 1: Add Exception Classes
 
 **Files:**
+
 - Modify: `src/modules/catalog/domain/exceptions.py`
 
 - [ ] **Step 1: Add all new exception classes at the end of the file**
@@ -248,6 +249,7 @@ git commit -m "feat(catalog): add AttributeFamily exception classes"
 ### Task 2: Add Domain Events
 
 **Files:**
+
 - Modify: `src/modules/catalog/domain/events.py`
 
 - [ ] **Step 1: Add 8 new event classes after the existing `RequirementLevelsUpdatedEvent`**
@@ -403,6 +405,7 @@ git commit -m "feat(catalog): add AttributeFamily domain events, remove category
 ### Task 3: Add Domain Entities
 
 **Files:**
+
 - Modify: `src/modules/catalog/domain/entities.py`
 
 - [ ] **Step 1: Add guarded fields constant near existing ones (around line 98)**
@@ -413,9 +416,10 @@ _FAMILY_GUARDED_FIELDS: frozenset[str] = frozenset({"code", "parent_id", "level"
 
 - [ ] **Step 2: Add `AttributeFamily` entity after `Category` class**
 
-Follow the exact pattern from `Category` (create_root / create_child, __setattr__ guard, _UPDATABLE_FIELDS). See spec for all fields and methods.
+Follow the exact pattern from `Category` (create_root / create_child, **setattr** guard, \_UPDATABLE_FIELDS). See spec for all fields and methods.
 
 Key: `AttributeFamily` must have:
+
 - `__setattr__` guard for `_FAMILY_GUARDED_FIELDS`
 - `__attrs_post_init__` that sets `_AttributeFamily__initialized = True`
 - `create_root()` and `create_child(parent)` factory methods
@@ -425,6 +429,7 @@ Key: `AttributeFamily` must have:
 - [ ] **Step 3: Add `FamilyAttributeBinding` entity**
 
 Follow exact pattern from `CategoryAttributeBinding`:
+
 - Standalone `AggregateRoot`
 - `create()` factory method
 - `update(**kwargs)` with `_UPDATABLE_FIELDS = frozenset({"sort_order", "requirement_level", "flag_overrides", "filter_settings"})`
@@ -432,6 +437,7 @@ Follow exact pattern from `CategoryAttributeBinding`:
 - [ ] **Step 4: Add `FamilyAttributeExclusion` entity**
 
 Simple aggregate:
+
 - `create(family_id, attribute_id)` factory
 - No update method (immutable — create or delete only)
 
@@ -457,6 +463,7 @@ git commit -m "feat(catalog): add AttributeFamily/Binding/Exclusion entities, mo
 ### Task 4: Add Repository Interfaces
 
 **Files:**
+
 - Modify: `src/modules/catalog/domain/interfaces.py`
 
 - [ ] **Step 1: Add `IAttributeFamilyRepository`**
@@ -539,6 +546,7 @@ git commit -m "feat(catalog): add AttributeFamily repository interfaces"
 ### Task 5: Add ORM Models
 
 **Files:**
+
 - Modify: `src/modules/catalog/infrastructure/models.py`
 
 - [ ] **Step 1: Add `AttributeFamily` ORM model** after existing `Category` model
@@ -603,6 +611,7 @@ git commit -m "feat(catalog): add AttributeFamily ORM models, modify Category"
 ### Task 6: Create Alembic Migration
 
 **Files:**
+
 - Create: `alembic/versions/2026/03/25_*_attribute_family.py`
 
 - [ ] **Step 1: Generate migration**
@@ -637,11 +646,13 @@ git commit -m "feat(catalog): add migration for attribute families"
 ### Task 7: Implement AttributeFamily Repository
 
 **Files:**
+
 - Create: `src/modules/catalog/infrastructure/repositories/attribute_family.py`
 
 - [ ] **Step 1: Implement `AttributeFamilyRepository`** extending `BaseRepository[DomainAttributeFamily, OrmAttributeFamily]` and `IAttributeFamilyRepository`.
 
 Must include:
+
 - `_to_domain()` / `_to_orm()` mappings
 - `check_code_exists()` and `check_code_exists_excluding()` using `_field_exists()`
 - `has_children()` — check `parent_id = family_id` exists
@@ -662,11 +673,13 @@ git commit -m "feat(catalog): implement AttributeFamilyRepository with CTE queri
 ### Task 8: Implement FamilyAttributeBinding Repository
 
 **Files:**
+
 - Create: `src/modules/catalog/infrastructure/repositories/family_attribute_binding.py`
 
 - [ ] **Step 1: Implement repository** following `CategoryAttributeBindingRepository` pattern.
 
 Must include:
+
 - Standard `_to_domain()` / `_to_orm()`
 - `check_binding_exists()`
 - `get_by_family_and_attribute()`
@@ -687,11 +700,13 @@ git commit -m "feat(catalog): implement FamilyAttributeBindingRepository"
 ### Task 9: Implement FamilyAttributeExclusion Repository
 
 **Files:**
+
 - Create: `src/modules/catalog/infrastructure/repositories/family_attribute_exclusion.py`
 
 - [ ] **Step 1: Implement repository**
 
 Must include:
+
 - Standard `_to_domain()` / `_to_orm()`
 - `check_exclusion_exists()`
 - `get_exclusions_for_families(family_ids)` — batch load, return `dict[UUID, set[UUID]]`
@@ -708,6 +723,7 @@ git commit -m "feat(catalog): implement FamilyAttributeExclusionRepository"
 ### Task 10: Delete Old Category Binding Code
 
 **Files:**
+
 - Delete: `src/modules/catalog/infrastructure/repositories/category_attribute_binding.py`
 - Delete: `src/modules/catalog/application/commands/bind_attribute_to_category.py`
 - Delete: `src/modules/catalog/application/commands/unbind_attribute_from_category.py`
@@ -740,6 +756,7 @@ Remove `CategoryAttributeBindingRepository` from imports and `__all__`. (New rep
 - [ ] **Step 4: Remove `has_category_bindings()` from `IAttributeRepository` and `AttributeRepository`**
 
 This method queries the now-deleted `category_attribute_rules` table. Remove from:
+
 - `src/modules/catalog/domain/interfaces.py` → `IAttributeRepository.has_category_bindings()`
 - `src/modules/catalog/infrastructure/repositories/attribute.py` → implementation
 
@@ -767,6 +784,7 @@ git commit -m "refactor(catalog): remove old category-attribute binding code"
 ### Task 11: Create AttributeFamily Command Handlers
 
 **Files:**
+
 - Create: `src/modules/catalog/application/commands/create_attribute_family.py`
 - Create: `src/modules/catalog/application/commands/update_attribute_family.py`
 - Create: `src/modules/catalog/application/commands/delete_attribute_family.py`
@@ -774,6 +792,7 @@ git commit -m "refactor(catalog): remove old category-attribute binding code"
 - [ ] **Step 1: Implement `CreateAttributeFamilyHandler`**
 
 Follow `CreateCategoryHandler` pattern:
+
 1. Check `code` uniqueness via `family_repo.check_code_exists()`
 2. If `parent_id` provided → load parent, call `AttributeFamily.create_child(parent, ...)`
 3. If no `parent_id` → call `AttributeFamily.create_root(...)`
@@ -783,6 +802,7 @@ Follow `CreateCategoryHandler` pattern:
 - [ ] **Step 2: Implement `UpdateAttributeFamilyHandler`**
 
 Follow `UpdateCategoryHandler` pattern:
+
 1. Load family, validate exists
 2. Call `family.update(**safe_fields)` — only `name_i18n`, `description_i18n`, `sort_order`
 3. Emit `AttributeFamilyUpdatedEvent`
@@ -810,6 +830,7 @@ git commit -m "feat(catalog): add AttributeFamily CRUD command handlers"
 ### Task 12: Create Family Binding Command Handlers
 
 **Files:**
+
 - Create: `src/modules/catalog/application/commands/bind_attribute_to_family.py`
 - Create: `src/modules/catalog/application/commands/unbind_attribute_from_family.py`
 - Create: `src/modules/catalog/application/commands/update_family_attribute_binding.py`
@@ -838,12 +859,14 @@ git commit -m "feat(catalog): add family binding command handlers"
 ### Task 13: Create Exclusion Command Handlers
 
 **Files:**
+
 - Create: `src/modules/catalog/application/commands/add_family_exclusion.py`
 - Create: `src/modules/catalog/application/commands/remove_family_exclusion.py`
 
 - [ ] **Step 1: Implement `AddFamilyExclusionHandler`**
 
 Key validation logic:
+
 1. Load family, validate exists
 2. Load attribute, validate exists
 3. Check not in own bindings → `FamilyExclusionConflictsWithOwnBindingError`
@@ -871,6 +894,7 @@ git commit -m "feat(catalog): add family exclusion command handlers"
 ### Task 14: Implement Effective Attribute Resolution Query
 
 **Files:**
+
 - Create: `src/modules/catalog/application/queries/resolve_family_attributes.py`
 
 - [ ] **Step 1: Create `EffectiveAttributeReadModel`** (Pydantic BaseModel)
@@ -880,6 +904,7 @@ Fields: `attribute_id`, `code`, `slug`, `name_i18n`, `description_i18n`, `data_t
 - [ ] **Step 2: Implement `ResolveFamilyAttributesHandler`**
 
 Algorithm:
+
 1. Check Redis cache `family:{family_id}:effective_attrs`
 2. On miss: call `family_repo.get_ancestor_chain(family_id)` → chain
 3. Call `binding_repo.get_bindings_for_families(chain_ids)` + `exclusion_repo.get_exclusions_for_families(chain_ids)`
@@ -903,6 +928,7 @@ git commit -m "feat(catalog): implement effective attribute resolution with cach
 ### Task 15: Implement Family List/Tree Queries
 
 **Files:**
+
 - Create: `src/modules/catalog/application/queries/list_attribute_families.py`
 
 - [ ] **Step 1: Implement `ListAttributeFamiliesHandler`** — paginated list query.
@@ -923,11 +949,13 @@ git commit -m "feat(catalog): add family list/tree/get query handlers"
 ### Task 16: Rewrite Storefront Queries
 
 **Files:**
+
 - Modify: `src/modules/catalog/application/queries/storefront.py`
 
 - [ ] **Step 1: Replace `_load_bindings_with_attributes()`**
 
 New logic:
+
 1. Load category → get `family_id`
 2. If `family_id is None` → return empty list (no family = no attributes)
 3. Call `ResolveFamilyAttributesHandler.handle(family_id)` to get effective attributes
@@ -951,6 +979,7 @@ git commit -m "refactor(catalog): rewrite storefront queries to resolve through 
 ### Task 17: Modify Category Commands
 
 **Files:**
+
 - Modify: `src/modules/catalog/application/commands/create_category.py`
 - Modify: `src/modules/catalog/application/commands/update_category.py`
 
@@ -984,6 +1013,7 @@ git commit -m "feat(catalog): add family_id to category commands, update attribu
 ### Task 18: Add Family Schemas
 
 **Files:**
+
 - Modify: `src/modules/catalog/presentation/schemas.py`
 
 - [ ] **Step 1: Add family request/response schemas**
@@ -1066,11 +1096,13 @@ git commit -m "feat(catalog): add AttributeFamily presentation schemas"
 ### Task 19: Create Family Router
 
 **Files:**
+
 - Create: `src/modules/catalog/presentation/router_attribute_families.py`
 
 - [ ] **Step 1: Implement all endpoints** following existing router patterns (DishkaRoute, RequirePermission, FromDishka):
 
 Family CRUD:
+
 - `POST /` → create
 - `GET /` → list (paginated)
 - `GET /tree` → tree
@@ -1079,6 +1111,7 @@ Family CRUD:
 - `DELETE /{family_id}` → delete
 
 Family Bindings (nested under `/{family_id}/attributes`):
+
 - `POST /` → bind
 - `GET /` → list own bindings
 - `GET /effective` → resolved effective set
@@ -1087,6 +1120,7 @@ Family Bindings (nested under `/{family_id}/attributes`):
 - `POST /reorder` → reorder
 
 Family Exclusions (nested under `/{family_id}/exclusions`):
+
 - `POST /` → add exclusion
 - `GET /` → list exclusions
 - `DELETE /{exclusion_id}` → remove exclusion
@@ -1103,6 +1137,7 @@ git commit -m "feat(catalog): add AttributeFamily REST router with all endpoints
 ### Task 20: Wire Up DI and Router Registration
 
 **Files:**
+
 - Modify: `src/modules/catalog/presentation/dependencies.py`
 - Modify: `src/bootstrap/container.py`
 - Modify: `src/api/router.py`
@@ -1110,6 +1145,7 @@ git commit -m "feat(catalog): add AttributeFamily REST router with all endpoints
 - [ ] **Step 1: Replace `CategoryAttributeBindingProvider` with `AttributeFamilyProvider`**
 
 New provider registers:
+
 - `AttributeFamilyRepository` → `IAttributeFamilyRepository`
 - `FamilyAttributeBindingRepository` → `IFamilyAttributeBindingRepository`
 - `FamilyAttributeExclusionRepository` → `IFamilyAttributeExclusionRepository`
@@ -1169,6 +1205,7 @@ Expected: Shows latest migration as head.
 ### Task 22: Update Frontend Integration Docs
 
 **Files:**
+
 - Modify: `C:/Users/Sanjar/Desktop/loyality/frontend/main/docs/product-attributes-integration.md`
 
 - [ ] **Step 1: Update the doc to reflect new flow**

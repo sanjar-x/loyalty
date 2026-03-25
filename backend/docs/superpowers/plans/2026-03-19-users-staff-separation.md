@@ -340,7 +340,7 @@ class TestInvitationStatus:
 Add to `src/modules/identity/domain/value_objects.py` after `IdentityType`:
 
 ```python
-class AccountType(str, enum.Enum):
+class AccountType(enum.StrEnum):
     """Type of account — determines lifecycle and available roles.
 
     Immutable after Identity creation.
@@ -354,7 +354,7 @@ class AccountType(str, enum.Enum):
     STAFF = "STAFF"
 
 
-class InvitationStatus(str, enum.Enum):
+class InvitationStatus(enum.StrEnum):
     """Staff invitation lifecycle status.
 
     Attributes:

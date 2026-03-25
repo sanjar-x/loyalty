@@ -8,7 +8,7 @@ import enum
 from dataclasses import dataclass
 
 
-class PrimaryAuthMethod(str, enum.Enum):
+class PrimaryAuthMethod(enum.StrEnum):
     """Authentication method used by an identity.
 
     Attributes:
@@ -26,7 +26,7 @@ class PrimaryAuthMethod(str, enum.Enum):
 IdentityType = PrimaryAuthMethod
 
 
-class AuthProvider(str, enum.Enum):
+class AuthProvider(enum.StrEnum):
     """Third-party authentication provider identifier.
 
     Attributes:
@@ -40,12 +40,13 @@ class AuthProvider(str, enum.Enum):
     APPLE = "apple"
 
 
-TRUSTED_EMAIL_PROVIDERS: frozenset[AuthProvider] = frozenset(
-    {AuthProvider.GOOGLE, AuthProvider.APPLE}
-)
+TRUSTED_EMAIL_PROVIDERS: frozenset[AuthProvider] = frozenset({
+    AuthProvider.GOOGLE,
+    AuthProvider.APPLE,
+})
 
 
-class AccountType(str, enum.Enum):
+class AccountType(enum.StrEnum):
     """Distinguishes customer accounts from staff/admin accounts.
 
     Attributes:
@@ -57,7 +58,7 @@ class AccountType(str, enum.Enum):
     STAFF = "STAFF"
 
 
-class InvitationStatus(str, enum.Enum):
+class InvitationStatus(enum.StrEnum):
     """Lifecycle status of a staff invitation.
 
     Attributes:
