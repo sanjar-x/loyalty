@@ -283,17 +283,17 @@ for (const attr of productAttrs) {
   }
 }
 
-// Step 7: variant-level → передать при создании SKU
-// Каждая комбинация variant attrs = отдельный SKU
-await api.post(`/products/${productId}/variants/${variantId}/skus`, {
-  skuCode: 'AF1-WHT-42',
+// Step 7: variant-level → bulk-генерация SKU на бэкенде
+// Фронт отправляет ВЫБРАННЫЕ значения, бэкенд сам генерирует все комбинации
+await api.post(`/products/${productId}/variants/${variantId}/skus/generate`, {
+  attributeSelections: [
+    { attributeId: sizeAttrId, valueIds: [sizeS, sizeM, sizeL] },
+    { attributeId: colorAttrId, valueIds: [whiteId, blackId] },
+  ],
   priceAmount: 15000,
   priceCurrency: 'RUB',
-  variantAttributes: [
-    { attributeId: sizeAttrId, attributeValueId: size42ValueId },
-    { attributeId: colorAttrId, attributeValueId: whiteValueId },
-  ],
 });
+// → Backend создаёт 6 SKU (3×2) в одной транзакции, auto-generates skuCode
 ```
 
 ---
@@ -343,32 +343,28 @@ await Promise.all(
     )
 );
 
-// 5. Step 7: Создать variant + SKU с variant-level атрибутами
+// 5. Step 7: Создать variant + bulk-генерация SKU
 const variant = await api.post(
   `/catalog/products/${productId}/variants`,
   { nameI18n: { ru: 'Стандарт', en: 'Standard' } }
 );
 
-// Для каждой комбинации (size x color) — создать SKU
-for (const sizeValueId of selectedSizes) {
-  for (const colorValueId of selectedColors) {
-    await api.post(
-      `/catalog/products/${productId}/variants/${variant.id}/skus`,
-      {
-        skuCode: `SKU-${sizeCode}-${colorCode}`,
-        priceAmount: 5000,
-        priceCurrency: 'RUB',
-        variantAttributes: [
-          { attributeId: sizeAttrId, attributeValueId: sizeValueId },
-          { attributeId: colorAttrId, attributeValueId: colorValueId },
-        ],
-      }
-    );
+// Одним запросом — бэкенд сам генерирует все комбинации
+const skuResult = await api.post(
+  `/catalog/products/${productId}/variants/${variant.id}/skus/generate`,
+  {
+    attributeSelections: variantAttrs.map(attr => ({
+      attributeId: attr.attributeId,
+      valueIds: selectedVariantValues[attr.attributeId], // массив выбранных значений
+    })),
+    priceAmount: 5000,
+    priceCurrency: 'RUB',
   }
-}
+);
+// skuResult = { createdCount: 6, skippedCount: 0, skuIds: [...], message: "..." }
 ```
 
-> **Bulk-assign:** Бэкенд не имеет bulk endpoint. Используйте `Promise.all` / `Promise.allSettled` для параллельной отправки.
+> **SKU generation:** Бэкенд генерирует SKU комбинации атомарно в одной транзакции. SKU code генерируется автоматически (`{slug}-001`, `{slug}-002`...). Дубликаты пропускаются.
 
 ---
 
