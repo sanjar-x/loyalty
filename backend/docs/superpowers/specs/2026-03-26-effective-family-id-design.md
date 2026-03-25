@@ -15,6 +15,10 @@ if cat.family_id is None:
 
 At scale (millions of storefront read requests vs. rare writes by PMs/parsers), runtime tree traversal is wasteful — every read would pay for a parent lookup that yields the same answer until the next write.
 
+## Prerequisites
+
+**Repository mapper bug:** The category repository (`infrastructure/repositories/category.py`) currently does NOT map `family_id` in `_to_domain()` or `_to_orm()`. Both methods omit the field entirely. The storefront resolver only works today because it reads from the ORM model directly via `session.get()`, bypassing the repository. This must be fixed as part of this change — both `family_id` and `effective_family_id` must be added to `_to_domain()` and `_to_orm()`.
+
 ## Design
 
 ### Approach: Write-Time Denormalization
@@ -45,15 +49,24 @@ One Redis GET. No SQL. No tree traversal.
 
 When `family_id` changes on a category:
 
-1. Set own `effective_family_id`
+1. Compute own `effective_family_id` = new `family_id` ?? parent's `effective_family_id`
 2. Recursive CTE UPDATE: propagate to descendants where `family_id IS NULL`
-3. Invalidate Redis L1 + L2 caches for affected categories
+3. Invalidate Redis L2 caches for all affected categories
 
 ### Changes
 
 #### 1. Domain Entity (`domain/entities.py`)
 
-Add `effective_family_id: uuid.UUID | None = None` field to `Category`. Include in `_UPDATABLE_FIELDS`. Add to `create_root` and `create_child` factory methods (computed from parent or self).
+Add `effective_family_id: uuid.UUID | None = None` field to `Category`.
+
+**Factory methods compute it automatically:**
+- `create_root(family_id=X)`: `effective_family_id = family_id` (root has no parent)
+- `create_child(family_id=X, parent=P)`: `effective_family_id = family_id or parent.effective_family_id`
+
+**`effective_family_id` is a derived field — NOT in `_UPDATABLE_FIELDS`.** It is set only:
+- At construction (factory methods)
+- By dedicated domain method `set_effective_family_id()` for propagation
+- Never through the general `update(**kwargs)` API
 
 #### 2. ORM Model (`infrastructure/models.py`)
 
@@ -64,9 +77,11 @@ effective_family_id: Mapped[uuid.UUID | None] = mapped_column(
 )
 ```
 
-#### 3. Repository: Cascade Propagation (`ICategoryRepository` + implementation)
+#### 3. Repository Data Mapper Fix + Propagation
 
-New interface method:
+**Fix `_to_domain` and `_to_orm`** to include both `family_id` and `effective_family_id`.
+
+**New interface method on `ICategoryRepository`:**
 
 ```python
 @abstractmethod
@@ -74,7 +89,14 @@ async def propagate_effective_family_id(
     self, category_id: uuid.UUID, effective_family_id: uuid.UUID | None
 ) -> list[uuid.UUID]:
     """Propagate effective_family_id to inheriting descendants.
-    Returns all affected category IDs for cache invalidation."""
+
+    Only updates children (and their descendants) where family_id IS NULL,
+    meaning they inherit from their parent rather than having their own.
+    Stops at nodes that have their own family_id (they are propagation roots
+    for their own subtrees).
+
+    Returns all affected category IDs (excluding the root itself) for cache invalidation.
+    """
 ```
 
 Implementation uses a single recursive CTE:
@@ -97,12 +119,37 @@ Single SQL round-trip. `MAX_CATEGORY_DEPTH = 3` means max 2 recursion levels.
 
 #### 4. Command Handlers
 
-**`create_category`**: Set `effective_family_id` = own `family_id` or parent's `effective_family_id`.
+**`create_category`:**
+- Root: `effective_family_id = family_id`
+- Child: `effective_family_id = family_id or parent.effective_family_id`
+- Parent entity is already loaded in the handler (line 125), so `parent.effective_family_id` is available at zero cost.
 
-**`update_category`**: When `family_id` changes:
-1. Set own `effective_family_id` = new `family_id` or parent's `effective_family_id`
-2. Call `propagate_effective_family_id()` for descendants
-3. Invalidate storefront Redis caches for all affected category IDs
+**`update_category`** — three scenarios when `family_id` changes:
+
+**Scenario A: Set family_id (NULL → X)**
+```
+effective_family_id = X
+propagate X to inheriting descendants
+```
+
+**Scenario B: Change family_id (X → Y)**
+```
+effective_family_id = Y
+propagate Y to inheriting descendants
+```
+
+**Scenario C: Clear family_id (X → NULL)**
+```
+# Must look up parent's effective_family_id to re-inherit
+if parent_id is not None:
+    parent = await category_repo.get(parent_id)
+    effective_family_id = parent.effective_family_id
+else:
+    effective_family_id = None  # root with no family
+propagate effective_family_id to inheriting descendants
+```
+
+After propagation: invalidate storefront L2 caches for all affected category IDs (root + returned descendants).
 
 **`delete_category`**: No change needed (children already protected by `validate_deletable`).
 
@@ -121,21 +168,27 @@ if cat.effective_family_id is None:
 result = await resolver.handle(cat.effective_family_id)
 ```
 
-#### 6. Seed Script (`sync_attributes.py`)
+#### 6. Cache Invalidation for `get_category_ids_by_family_ids`
 
-After assigning family to root category, propagate to children:
+`IAttributeFamilyRepository.get_category_ids_by_family_ids()` must query against `effective_family_id` (not just `family_id`) so that when a family's bindings change, cache invalidation covers ALL categories that inherited the family — not just those with an explicit assignment.
+
+#### 7. Seed Script (`sync_attributes.py`)
+
+After assigning family to root category "clothing", propagate to all children using `full_slug LIKE` (safe because slugs are validated to lowercase alphanumeric + hyphens, no LIKE metacharacters):
 
 ```sql
 UPDATE categories
 SET effective_family_id = :family_id
-WHERE effective_family_id IS NULL
-  AND (id = :cat_id OR full_slug LIKE :root_slug || '/%')
+WHERE (slug = :slug AND parent_id IS NULL)
+   OR full_slug LIKE :root_slug || '/%'
 ```
 
-#### 7. Alembic Migration
+This sets `effective_family_id` on both the root "clothing" and all its children (tees, hoodies, jeans, etc.) in one statement.
 
-- Add `effective_family_id` column (nullable, FK, indexed)
-- Data migration: backfill from parent chain for existing categories
+#### 8. Alembic Migration
+
+- Add `effective_family_id` column (nullable, FK to `attribute_families.id`, indexed, `SET NULL` on delete)
+- Data migration: backfill existing categories — copy `family_id` to `effective_family_id` for roots, propagate down the tree for children
 
 ### Two-Tier Redis Cache (existing, unchanged)
 
@@ -152,10 +205,12 @@ L2 is per-category: filters/card/comparison/form projections.
 
 | Event | Redis action |
 |---|---|
-| PM sets `family_id` on category | Propagate effective → invalidate L2 for affected categories |
-| PM changes binding/exclusion on family | Invalidate L1 for family + descendants → L2 for all categories with that effective_family_id (already implemented) |
+| PM sets/changes/clears `family_id` on category | Propagate effective → batch-invalidate L2 for affected categories |
+| PM changes binding/exclusion on family | Invalidate L1 for family + descendants → L2 for all categories with that `effective_family_id` (already implemented, needs query fix per Section 6) |
 | PM changes attribute metadata | Invalidate L1 for families binding that attribute → L2 for related categories |
 | Parser creates/updates product | No Redis invalidation (schema unchanged) |
+
+**Cache invalidation reliability:** All L2 keys for affected categories are collected into a single `delete_many()` call within one try/except block. If it fails, the warning is logged — subsequent requests will rebuild from DB on cache miss. This matches the existing pattern in the codebase.
 
 ### Elasticsearch Integration (future)
 
@@ -172,14 +227,15 @@ ES integration is out of scope for this change.
 
 | File | Change |
 |---|---|
-| `src/modules/catalog/domain/entities.py` | Add `effective_family_id` field to Category |
-| `src/modules/catalog/infrastructure/models.py` | Add column + index |
+| `src/modules/catalog/domain/entities.py` | Add `effective_family_id` field + `set_effective_family_id()` method to Category |
+| `src/modules/catalog/infrastructure/models.py` | Add `effective_family_id` column + index |
 | `src/modules/catalog/domain/interfaces.py` | Add `propagate_effective_family_id` to ICategoryRepository |
-| `src/modules/catalog/infrastructure/repositories/category.py` | Implement propagation with recursive CTE |
-| `src/modules/catalog/application/commands/create_category.py` | Compute effective_family_id |
-| `src/modules/catalog/application/commands/update_category.py` | Propagate on family_id change + cache invalidation |
+| `src/modules/catalog/infrastructure/repositories/category.py` | Fix `_to_domain`/`_to_orm` for `family_id` + `effective_family_id`; implement propagation CTE |
+| `src/modules/catalog/infrastructure/repositories/attribute_family.py` | Fix `get_category_ids_by_family_ids` to query `effective_family_id` |
+| `src/modules/catalog/application/commands/create_category.py` | Compute `effective_family_id` from parent |
+| `src/modules/catalog/application/commands/update_category.py` | Propagate on `family_id` change (3 scenarios) + batch cache invalidation |
 | `src/modules/catalog/application/queries/storefront.py` | `family_id` → `effective_family_id` (1 line) |
-| `src/modules/catalog/management/sync_attributes.py` | Propagate after seed |
+| `src/modules/catalog/management/sync_attributes.py` | Propagate `effective_family_id` after seed |
 | `alembic/versions/2026/03/...` | Migration: add column + backfill |
 | `tests/` | Unit + integration tests for propagation |
 
