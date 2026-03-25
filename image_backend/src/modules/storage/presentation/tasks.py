@@ -1,4 +1,5 @@
 """Storage background tasks — image processing and orphan cleanup."""
+
 from __future__ import annotations
 
 import asyncio
@@ -83,12 +84,15 @@ async def process_image_task(
         await uow.commit()
 
         # 7. Push SSE
-        await sse.publish(sid, {
-            "status": "completed",
-            "storage_object_id": str(sid),
-            "url": public_url,
-            "variants": variants_meta,
-        })
+        await sse.publish(
+            sid,
+            {
+                "status": "completed",
+                "storage_object_id": str(sid),
+                "url": public_url,
+                "variants": variants_meta,
+            },
+        )
         log.info("Processing completed", url=public_url)
 
     except Exception:
@@ -96,11 +100,14 @@ async def process_image_task(
         storage_file.status = StorageStatus.FAILED
         await storage_repo.update(storage_file)
         await uow.commit()
-        await sse.publish(sid, {
-            "status": "failed",
-            "storage_object_id": str(sid),
-            "error": "Processing failed",
-        })
+        await sse.publish(
+            sid,
+            {
+                "status": "failed",
+                "storage_object_id": str(sid),
+                "error": "Processing failed",
+            },
+        )
         raise
 
 

@@ -1,4 +1,5 @@
 """Smoke tests for ImageBackend media API."""
+
 import pytest
 from httpx import AsyncClient, ASGITransport
 
@@ -7,6 +8,7 @@ from httpx import AsyncClient, ASGITransport
 def app():
     """Create a test app instance."""
     from src.bootstrap.web import create_app
+
     return create_app()
 
 

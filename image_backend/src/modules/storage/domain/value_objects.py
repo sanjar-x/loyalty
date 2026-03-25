@@ -1,4 +1,5 @@
 """Storage domain value objects."""
+
 from enum import StrEnum
 
 

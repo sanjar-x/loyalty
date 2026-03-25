@@ -1,4 +1,5 @@
 """ImageBackend API schemas — matches spec contract."""
+
 from __future__ import annotations
 
 import uuid

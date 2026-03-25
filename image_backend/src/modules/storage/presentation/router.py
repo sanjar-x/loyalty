@@ -68,9 +68,7 @@ async def request_upload(
 
     assert result.file_id is not None
     presigned_url = (
-        result.url_data
-        if isinstance(result.url_data, str)
-        else result.url_data["url"]
+        result.url_data if isinstance(result.url_data, str) else result.url_data["url"]
     )
     return UploadResponse(
         storage_object_id=result.file_id,
@@ -140,9 +138,7 @@ async def stream_status(
             status=storage_file.status.value,
             storage_object_id=storage_object_id,
             url=storage_file.url,
-            variants=[
-                MediaVariant(**v) for v in (storage_file.image_variants or [])
-            ],
+            variants=[MediaVariant(**v) for v in (storage_file.image_variants or [])],
         )
         yield {"event": "status", "data": current.model_dump_json(by_alias=True)}
 
@@ -188,9 +184,7 @@ async def get_metadata(
         url=storage_file.url,
         content_type=storage_file.content_type,
         size_bytes=storage_file.size_bytes,
-        variants=[
-            MediaVariant(**v) for v in (storage_file.image_variants or [])
-        ],
+        variants=[MediaVariant(**v) for v in (storage_file.image_variants or [])],
         created_at=storage_file.created_at,
     )
 

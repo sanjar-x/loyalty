@@ -1,4 +1,5 @@
 """SSE status streaming via Redis pub/sub."""
+
 from __future__ import annotations
 
 import asyncio
@@ -28,7 +29,7 @@ class SSEManager:
         *,
         timeout: float = 120.0,
         heartbeat: float = 15.0,
-    ) -> AsyncGenerator[dict | None, None]:
+    ) -> AsyncGenerator[dict | None]:
         """Yield status events. Yields None for heartbeat (ping).
         Stops after timeout or terminal status.
         """
@@ -51,4 +52,4 @@ class SSEManager:
                     yield None  # heartbeat
         finally:
             await pubsub.unsubscribe(channel)
-            await pubsub.aclose()
+            await pubsub.aclose()  # ty:ignore[unresolved-attribute]

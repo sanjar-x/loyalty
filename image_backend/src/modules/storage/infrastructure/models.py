@@ -12,11 +12,13 @@ from sqlalchemy import (
     TIMESTAMP,
     BigInteger,
     Boolean,
-    Enum as SAEnum,
     Index,
     String,
     func,
     text,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column

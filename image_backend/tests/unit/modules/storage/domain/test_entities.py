@@ -26,7 +26,12 @@ def test_storage_file_complete():
     sf.status = StorageStatus.COMPLETED
     sf.url = "https://cdn.example.com/public/x.webp"
     sf.image_variants = [
-        {"size": "thumbnail", "width": 150, "height": 150, "url": "https://cdn.example.com/public/x_thumb.webp"},
+        {
+            "size": "thumbnail",
+            "width": 150,
+            "height": 150,
+            "url": "https://cdn.example.com/public/x_thumb.webp",
+        },
     ]
     assert sf.status == StorageStatus.COMPLETED
     assert sf.url.endswith(".webp")
