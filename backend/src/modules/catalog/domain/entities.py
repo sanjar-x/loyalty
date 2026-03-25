@@ -3,8 +3,8 @@ Catalog domain entities (Brand, Category, AttributeFamily,
 FamilyAttributeBinding, FamilyAttributeExclusion, AttributeGroup, Attribute,
 ProductVariant, SKU, and Product aggregates).
 
-Contains the core business logic for brand lifecycle management
-(including logo FSM transitions), hierarchical category trees,
+Contains the core business logic for brand lifecycle management,
+hierarchical category trees,
 attribute group management, attribute definitions, and the Product
 aggregate root with its SKU child entities.
 Part of the domain layer -- zero infrastructure imports.
@@ -43,7 +43,6 @@ from src.modules.catalog.domain.exceptions import (
     CategoryHasProductsError,
     CategoryMaxDepthError,
     DuplicateVariantCombinationError,
-    InvalidLogoStateError,
     InvalidMediaStateError,
     InvalidStatusTransitionError,
     LastVariantRemovalError,
@@ -136,27 +135,21 @@ class _EventEmitterEntity:
 
 @dataclass
 class Brand(AggregateRoot):
-    """Brand aggregate root with logo processing FSM.
-
-    The logo lifecycle follows a strict state machine:
-    ``None`` -> ``PENDING_UPLOAD`` -> ``PROCESSING`` -> ``COMPLETED`` | ``FAILED``.
-    Each transition emits a domain event for the Transactional Outbox.
+    """Brand aggregate root.
 
     Attributes:
         id: Unique brand identifier.
         name: Display name of the brand.
         slug: URL-safe identifier, unique across all brands.
-        logo_status: Current state of the logo processing FSM, or None.
-        logo_file_id: Reference to the StorageObject record, if any.
-        logo_url: Public URL of the processed logo, set on completion.
+        logo_url: Public URL of the brand logo, or None.
+        logo_storage_object_id: Reference to the StorageObject record, or None.
     """
 
     id: uuid.UUID
     name: str
     slug: str
-    logo_status: MediaProcessingStatus | None = None
-    logo_file_id: uuid.UUID | None = None
     logo_url: str | None = None
+    logo_storage_object_id: uuid.UUID | None = None
 
     # DDD-01: guard slug against direct mutation
     def __setattr__(self, name: str, value: object) -> None:
@@ -178,8 +171,8 @@ class Brand(AggregateRoot):
         name: str,
         slug: str,
         brand_id: uuid.UUID | None = None,
-        logo_file_id: uuid.UUID | None = None,
-        logo_status: MediaProcessingStatus | None = None,
+        logo_url: str | None = None,
+        logo_storage_object_id: uuid.UUID | None = None,
     ) -> Brand:
         """Factory method to construct a new Brand aggregate.
 
@@ -187,8 +180,8 @@ class Brand(AggregateRoot):
             name: Display name.
             slug: URL-safe identifier.
             brand_id: Optional pre-generated UUID; generates uuid4 if omitted.
-            logo_file_id: Optional storage object reference.
-            logo_status: Initial logo FSM state.
+            logo_url: Optional public URL of the brand logo.
+            logo_storage_object_id: Optional storage object reference.
 
         Returns:
             A new Brand instance.
@@ -198,16 +191,24 @@ class Brand(AggregateRoot):
             id=brand_id or _generate_id(),
             name=name,
             slug=slug,
-            logo_file_id=logo_file_id,
-            logo_status=logo_status,
+            logo_url=logo_url,
+            logo_storage_object_id=logo_storage_object_id,
         )
 
-    def update(self, name: str | None = None, slug: str | None = None) -> None:
-        """Update brand details. Logo fields are managed separately via FSM methods.
+    def update(
+        self,
+        name: str | None = None,
+        slug: str | None = None,
+        logo_url: str | None = ...,  # type: ignore[assignment]
+        logo_storage_object_id: uuid.UUID | None = ...,  # type: ignore[assignment]
+    ) -> None:
+        """Update brand details.
 
         Args:
             name: New display name, or None to keep current.
             slug: New URL-safe slug, or None to keep current.
+            logo_url: New logo URL, None to clear, or ``...`` (default) to keep current.
+            logo_storage_object_id: New storage object ID, None to clear, or ``...`` (default) to keep current.
         """
         if name is not None:
             self.name = name
@@ -215,6 +216,10 @@ class Brand(AggregateRoot):
             _validate_slug(slug, "Brand")
             # Bypass the guard for controlled mutation via domain method
             object.__setattr__(self, "slug", slug)
+        if logo_url is not ...:
+            self.logo_url = logo_url
+        if logo_storage_object_id is not ...:
+            self.logo_storage_object_id = logo_storage_object_id
 
     # DDD-06: deletion guard
     def validate_deletable(self, *, has_products: bool) -> None:
@@ -228,138 +233,6 @@ class Brand(AggregateRoot):
         """
         if has_products:
             raise BrandHasProductsError(brand_id=self.id)
-
-    def init_logo_upload(self, object_key: str, content_type: str) -> None:
-        """Transition logo FSM to PENDING_UPLOAD and emit BrandLogoUploadInitiatedEvent.
-
-        Only allowed from ``None`` (no logo) or ``COMPLETED``/``FAILED`` (re-upload).
-
-        Args:
-            object_key: S3 key where the client will upload the raw logo.
-            content_type: Expected MIME type of the upload.
-
-        Raises:
-            InvalidLogoStateError: If current state is PENDING_UPLOAD or PROCESSING.
-        """
-        allowed = {None, MediaProcessingStatus.COMPLETED, MediaProcessingStatus.FAILED}
-        if self.logo_status not in allowed:
-            raise InvalidLogoStateError(
-                brand_id=self.id,
-                current_status=str(self.logo_status) if self.logo_status else "None",
-                expected_status="None, COMPLETED, or FAILED",
-            )
-        self.logo_status = MediaProcessingStatus.PENDING_UPLOAD
-
-        self.add_domain_event(
-            BrandLogoUploadInitiatedEvent(
-                brand_id=self.id,
-                object_key=object_key,
-                content_type=content_type,
-                aggregate_id=str(self.id),
-            )
-        )
-
-    def confirm_logo_upload(self) -> None:
-        """Transition logo FSM from PENDING_UPLOAD to PROCESSING.
-
-        Emits a ``BrandLogoConfirmedEvent`` to trigger background processing.
-
-        Raises:
-            InvalidLogoStateError: If current state is not PENDING_UPLOAD.
-        """
-        if self.logo_status != MediaProcessingStatus.PENDING_UPLOAD:
-            raise InvalidLogoStateError(
-                brand_id=self.id,
-                current_status=str(self.logo_status) if self.logo_status else "None",
-                expected_status=MediaProcessingStatus.PENDING_UPLOAD,
-            )
-        self.logo_status = MediaProcessingStatus.PROCESSING
-
-        self.add_domain_event(
-            BrandLogoConfirmedEvent(
-                brand_id=self.id,
-                aggregate_id=str(self.id),
-            )
-        )
-
-    def complete_logo_processing(
-        self, url: str, object_key: str, content_type: str, size_bytes: int
-    ) -> None:
-        """Transition logo FSM from PROCESSING to COMPLETED.
-
-        Sets the public logo URL and emits ``BrandLogoProcessedEvent``.
-
-        Args:
-            url: Public URL of the processed logo.
-            object_key: Final S3 key of the processed file.
-            content_type: MIME type of the processed file.
-            size_bytes: Size of the processed file in bytes.
-
-        Raises:
-            InvalidLogoStateError: If current state is not PROCESSING.
-        """
-        if self.logo_status != MediaProcessingStatus.PROCESSING:
-            raise InvalidLogoStateError(
-                brand_id=self.id,
-                current_status=str(self.logo_status) if self.logo_status else "None",
-                expected_status=MediaProcessingStatus.PROCESSING,
-            )
-        self.logo_url = url
-        self.logo_status = MediaProcessingStatus.COMPLETED
-
-        self.add_domain_event(
-            BrandLogoProcessedEvent(
-                brand_id=self.id,
-                object_key=object_key,
-                content_type=content_type,
-                size_bytes=size_bytes,
-                aggregate_id=str(self.id),
-            )
-        )
-
-    def fail_logo_processing(self) -> None:
-        """Transition logo FSM from PROCESSING to FAILED.
-
-        Raises:
-            InvalidLogoStateError: If current state is not PROCESSING.
-        """
-        if self.logo_status != MediaProcessingStatus.PROCESSING:
-            raise InvalidLogoStateError(
-                brand_id=self.id,
-                current_status=str(self.logo_status) if self.logo_status else "None",
-                expected_status=MediaProcessingStatus.PROCESSING,
-            )
-        self.logo_status = MediaProcessingStatus.FAILED
-
-    def retry_logo_upload(self, object_key: str, content_type: str) -> None:
-        """Re-initiate logo upload from FAILED state.
-
-        Transitions logo FSM from FAILED back to PENDING_UPLOAD and emits
-        a BrandLogoUploadInitiatedEvent so the upload slot is prepared again.
-
-        Args:
-            object_key: S3 key where the client will upload the new raw logo.
-            content_type: Expected MIME type of the upload.
-
-        Raises:
-            InvalidLogoStateError: If current state is not FAILED.
-        """
-        if self.logo_status != MediaProcessingStatus.FAILED:
-            raise InvalidLogoStateError(
-                brand_id=self.id,
-                current_status=str(self.logo_status) if self.logo_status else "None",
-                expected_status=MediaProcessingStatus.FAILED,
-            )
-        self.logo_status = MediaProcessingStatus.PENDING_UPLOAD
-
-        self.add_domain_event(
-            BrandLogoUploadInitiatedEvent(
-                brand_id=self.id,
-                object_key=object_key,
-                content_type=content_type,
-                aggregate_id=str(self.id),
-            )
-        )
 
 
 # ============================================================================
