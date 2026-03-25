@@ -427,12 +427,18 @@ class IMediaAssetRepository(ABC):
         pass
 
     @abstractmethod
-    async def count_pending_uploads(self, product_id: uuid.UUID) -> int:
-        """Count media assets in PENDING_UPLOAD state for a product.
+    async def list_by_storage_ids(
+        self, storage_object_ids: list[uuid.UUID],
+    ) -> list[DomainMediaAsset]:
+        """Get media assets by their storage_object_ids."""
+        ...
 
-        Used to enforce rate limiting on presigned URL generation (SEC-08).
-        """
-        pass
+    @abstractmethod
+    async def delete_by_product(
+        self, product_id: uuid.UUID,
+    ) -> list[uuid.UUID]:
+        """Delete all media for a product. Returns storage_object_ids for cleanup."""
+        ...
 
 
 class IAttributeFamilyRepository(ICatalogRepository[DomainAttributeFamily]):
