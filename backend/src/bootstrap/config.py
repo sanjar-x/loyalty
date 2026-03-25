@@ -95,12 +95,10 @@ class Settings(BaseSettings):
     REDISPASSWORD: SecretStr | None = None
     REDISDATABASE: int = 0
 
-    S3_ENDPOINT_URL: str
-    S3_ACCESS_KEY: SecretStr
-    S3_SECRET_KEY: SecretStr
-    S3_REGION: str
-    S3_BUCKET_NAME: str
-    S3_PUBLIC_BASE_URL: str
+    # ImageBackend (server-to-server)
+    IMAGE_BACKEND_URL: str = "http://localhost:8001"
+    IMAGE_BACKEND_API_KEY: SecretStr = SecretStr("")
+
     INTERNAL_WEBHOOK_SECRET: SecretStr = SecretStr("")
 
     RABBITMQ_PRIVATE_URL: str
