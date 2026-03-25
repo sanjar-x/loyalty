@@ -763,6 +763,23 @@ class AttributeHasFamilyBindingsError(ConflictError):
         )
 
 
+class AttributeLevelMismatchError(UnprocessableEntityError):
+    """Raised when assigning an attribute at the wrong level (product vs variant)."""
+
+    def __init__(
+        self, attribute_id: uuid.UUID, expected_level: str, actual_level: str
+    ):
+        super().__init__(
+            message=f"Attribute level mismatch: expected '{expected_level}', got '{actual_level}'.",
+            error_code="ATTRIBUTE_LEVEL_MISMATCH",
+            details={
+                "attribute_id": str(attribute_id),
+                "expected_level": expected_level,
+                "actual_level": actual_level,
+            },
+        )
+
+
 class AttributeNotInFamilyError(UnprocessableEntityError):
     """Raised when assigning an attribute not present in the product's category family."""
 

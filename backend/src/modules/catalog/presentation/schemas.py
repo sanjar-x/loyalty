@@ -633,6 +633,7 @@ class ProductCreateResponse(CamelModel):
     """Response returned after successful product creation."""
 
     id: uuid.UUID
+    default_variant_id: uuid.UUID
     message: str
 
 

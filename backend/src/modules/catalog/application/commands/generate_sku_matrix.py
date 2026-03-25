@@ -15,11 +15,23 @@ from itertools import product as cartesian_product
 from src.modules.catalog.application.constants import DEFAULT_CURRENCY
 from src.modules.catalog.domain.entities import Product
 from src.modules.catalog.domain.exceptions import (
+    AttributeLevelMismatchError,
+    AttributeNotFoundError,
+    AttributeNotInFamilyError,
+    AttributeValueNotFoundError,
     DuplicateVariantCombinationError,
     ProductNotFoundError,
 )
-from src.modules.catalog.domain.interfaces import IProductRepository
-from src.modules.catalog.domain.value_objects import Money
+from src.modules.catalog.domain.interfaces import (
+    IAttributeFamilyRepository,
+    IAttributeRepository,
+    IAttributeValueRepository,
+    ICategoryRepository,
+    IFamilyAttributeBindingRepository,
+    IFamilyAttributeExclusionRepository,
+    IProductRepository,
+)
+from src.modules.catalog.domain.value_objects import AttributeLevel, Money
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -83,29 +95,38 @@ class GenerateSKUMatrixHandler:
     def __init__(
         self,
         product_repo: IProductRepository,
+        attribute_repo: IAttributeRepository,
+        attribute_value_repo: IAttributeValueRepository,
+        category_repo: ICategoryRepository,
+        family_repo: IAttributeFamilyRepository,
+        family_binding_repo: IFamilyAttributeBindingRepository,
+        exclusion_repo: IFamilyAttributeExclusionRepository,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
+        self._attribute_repo = attribute_repo
+        self._attribute_value_repo = attribute_value_repo
+        self._category_repo = category_repo
+        self._family_repo = family_repo
+        self._family_binding_repo = family_binding_repo
+        self._exclusion_repo = exclusion_repo
         self._uow = uow
         self._logger = logger.bind(handler="GenerateSKUMatrixHandler")
 
     async def handle(self, command: GenerateSKUMatrixCommand) -> GenerateSKUMatrixResult:
         """Execute the generate-SKU-matrix command.
 
-        Args:
-            command: SKU matrix generation parameters.
-
-        Returns:
-            Result containing created/skipped counts and new SKU UUIDs.
-
-        Raises:
-            ProductNotFoundError: If no product exists with the given ID.
+        Validates attribute level (must be VARIANT), attribute values exist,
+        and attributes belong to the product's category family.
         """
         async with self._uow:
             product = await self._product_repo.get_with_variants(command.product_id)
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
+
+            # --- Validate attributes: level, values, family membership ---
+            await self._validate_selections(product, command.attribute_selections)
 
             # Build price/compare_at_price pair
             if command.price_amount is not None:
@@ -162,6 +183,55 @@ class GenerateSKUMatrixHandler:
             skipped_count=skipped,
             sku_ids=created_ids,
         )
+
+    async def _validate_selections(
+        self,
+        product: Product,
+        selections: list[AttributeSelection],
+    ) -> None:
+        """Validate that all attribute selections are variant-level, values exist, and belong to family."""
+        # Resolve effective attribute IDs from family (if category has family)
+        effective_attr_ids: set[uuid.UUID] | None = None
+        category = await self._category_repo.get(product.primary_category_id)
+        if category is not None and category.family_id is not None:
+            chain = await self._family_repo.get_ancestor_chain(category.family_id)
+            chain_ids = [f.id for f in chain]
+            all_bindings = await self._family_binding_repo.get_bindings_for_families(chain_ids)
+            all_exclusions = await self._exclusion_repo.get_exclusions_for_families(chain_ids)
+
+            effective_attr_ids = set()
+            for fam in chain:
+                for excluded_id in all_exclusions.get(fam.id, set()):
+                    effective_attr_ids.discard(excluded_id)
+                for binding in all_bindings.get(fam.id, []):
+                    effective_attr_ids.add(binding.attribute_id)
+
+        for sel in selections:
+            # Check attribute exists and is variant-level
+            attribute = await self._attribute_repo.get(sel.attribute_id)
+            if attribute is None:
+                raise AttributeNotFoundError(attribute_id=sel.attribute_id)
+            if attribute.level != AttributeLevel.VARIANT:
+                raise AttributeLevelMismatchError(
+                    attribute_id=sel.attribute_id,
+                    expected_level="variant",
+                    actual_level=attribute.level.value,
+                )
+
+            # Check family membership
+            if effective_attr_ids is not None and sel.attribute_id not in effective_attr_ids:
+                raise AttributeNotInFamilyError(
+                    product_id=product.id,
+                    attribute_id=sel.attribute_id,
+                )
+
+            # Validate all value_ids exist and belong to the attribute
+            for value_id in sel.value_ids:
+                attr_value = await self._attribute_value_repo.get(value_id)
+                if attr_value is None:
+                    raise AttributeValueNotFoundError(value_id=value_id)
+                if attr_value.attribute_id != sel.attribute_id:
+                    raise AttributeValueNotFoundError(value_id=value_id)
 
     @staticmethod
     def _build_combinations(

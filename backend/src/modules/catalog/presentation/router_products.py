@@ -112,7 +112,11 @@ async def create_product(
         tags=request.tags,
     )
     result: CreateProductResult = await handler.handle(command)
-    return ProductCreateResponse(id=result.product_id, message="Product created")
+    return ProductCreateResponse(
+        id=result.product_id,
+        default_variant_id=result.default_variant_id,
+        message="Product created",
+    )
 
 
 @product_router.get(

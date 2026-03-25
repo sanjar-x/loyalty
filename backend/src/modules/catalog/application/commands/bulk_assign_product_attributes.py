@@ -8,10 +8,12 @@ from src.modules.catalog.domain.exceptions import (
     AttributeNotDictionaryError,
     AttributeNotFoundError,
     AttributeNotInFamilyError,
+    AttributeLevelMismatchError,
     AttributeValueNotFoundError,
     DuplicateProductAttributeError,
     ProductNotFoundError,
 )
+from src.modules.catalog.domain.value_objects import AttributeLevel
 from src.modules.catalog.domain.interfaces import (
     IAttributeFamilyRepository,
     IAttributeRepository,
@@ -97,7 +99,7 @@ class BulkAssignProductAttributesHandler:
             # 3. Validate and create all assignments
             pav_ids: list[uuid.UUID] = []
 
-            for item in command.items:
+            for i, item in enumerate(command.items):
                 # Check family membership
                 if effective_attr_ids is not None and item.attribute_id not in effective_attr_ids:
                     raise AttributeNotInFamilyError(
@@ -105,10 +107,16 @@ class BulkAssignProductAttributesHandler:
                         attribute_id=item.attribute_id,
                     )
 
-                # Validate attribute exists and is dictionary
+                # Validate attribute exists, is dictionary, and is product-level
                 attribute = await self._attribute_repo.get(item.attribute_id)
                 if attribute is None:
                     raise AttributeNotFoundError(attribute_id=item.attribute_id)
+                if attribute.level != AttributeLevel.PRODUCT:
+                    raise AttributeLevelMismatchError(
+                        attribute_id=item.attribute_id,
+                        expected_level="product",
+                        actual_level=attribute.level.value,
+                    )
                 if not attribute.is_dictionary:
                     raise AttributeNotDictionaryError(attribute_id=item.attribute_id)
 
