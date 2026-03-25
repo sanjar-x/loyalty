@@ -1,9 +1,8 @@
 """
 Command handler: delete a product media asset.
 
-Deletes the MediaAsset DB record and attempts to clean up the associated raw
-S3 object (if present). S3 deletion errors are swallowed so that a missing
-or already-deleted object does not block the database record removal.
+Deletes the MediaAsset DB record and performs a best-effort cleanup call to
+ImageBackend (if a storage_object_id is present).
 Part of the application layer (CQRS write side).
 """
 
@@ -12,7 +11,7 @@ from dataclasses import dataclass
 
 from src.modules.catalog.domain.exceptions import MediaAssetNotFoundError
 from src.modules.catalog.domain.interfaces import IMediaAssetRepository
-from src.shared.interfaces.blob_storage import IBlobStorage
+from src.modules.catalog.infrastructure.image_backend_client import ImageBackendClient
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -31,18 +30,18 @@ class DeleteProductMediaCommand:
 
 
 class DeleteProductMediaHandler:
-    """Delete a product media asset and clean up its raw S3 object."""
+    """Delete a product media asset and clean up via ImageBackend."""
 
     def __init__(
         self,
         media_repo: IMediaAssetRepository,
-        blob_storage: IBlobStorage,
         uow: IUnitOfWork,
+        image_backend: ImageBackendClient,
         logger: ILogger,
     ) -> None:
         self._media_repo = media_repo
-        self._blob_storage = blob_storage
         self._uow = uow
+        self._image_backend = image_backend
         self._logger = logger.bind(handler="DeleteProductMediaHandler")
 
     async def handle(self, command: DeleteProductMediaCommand) -> None:
@@ -54,48 +53,23 @@ class DeleteProductMediaHandler:
         Raises:
             MediaAssetNotFoundError: If the media asset does not exist.
         """
-        raw_object_key: str | None = None
-        processed_object_key: str | None = None
-        is_external: bool = False
+        media = await self._media_repo.get(command.media_id)
+        if media is None:
+            raise MediaAssetNotFoundError(media_id=command.media_id)
 
-        async with self._uow:
-            media = await self._media_repo.get_for_update(command.media_id)
-            if media is None:
-                raise MediaAssetNotFoundError(media_id=command.media_id)
+        if media.product_id != command.product_id:
+            raise MediaAssetNotFoundError(
+                media_id=command.media_id, product_id=command.product_id
+            )
 
-            if media.product_id != command.product_id:
-                raise MediaAssetNotFoundError(
-                    media_id=command.media_id, product_id=command.product_id
-                )
+        storage_object_id = media.storage_object_id
 
-            raw_object_key = media.raw_object_key
-            processed_object_key = media.processed_object_key
-            is_external = media.is_external
+        await self._media_repo.delete(command.media_id)
+        await self._uow.commit()
 
-            await self._media_repo.delete(command.media_id)
-            await self._uow.commit()
-
-        # Best-effort S3 cleanup — errors are logged but do not propagate
-        if raw_object_key:
-            try:
-                await self._blob_storage.delete_object(raw_object_key)
-            except Exception:
-                self._logger.warning(
-                    "Failed to delete raw S3 object during media deletion",
-                    raw_object_key=raw_object_key,
-                    media_id=str(command.media_id),
-                )
-
-        # Best-effort cleanup of the processed S3 object (if any)
-        if processed_object_key and not is_external:
-            try:
-                await self._blob_storage.delete_object(processed_object_key)
-            except Exception:
-                self._logger.warning(
-                    "Failed to delete processed S3 object during media deletion",
-                    processed_object_key=processed_object_key,
-                    media_id=str(command.media_id),
-                )
+        # Best-effort ImageBackend cleanup (delete() swallows errors internally)
+        if storage_object_id:
+            await self._image_backend.delete(storage_object_id)
 
         self._logger.info(
             "Media asset deleted",
