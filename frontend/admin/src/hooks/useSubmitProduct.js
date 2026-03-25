@@ -51,7 +51,8 @@ export default function useSubmitProduct() {
     if (submitting) return;
     setSubmitting(true);
     setError(null);
-    setStep('creating');
+    let currentStep = 'creating';
+    setStep(currentStep);
     setProgress(STEPS.creating);
 
     let productId = null;
@@ -66,20 +67,23 @@ export default function useSubmitProduct() {
 
       // ── Step 2: Bulk assign product attrs ──
       if (form.bulkAttrsPayload) {
-        setStep('attrs');
+        currentStep = 'attrs';
+        setStep(currentStep);
         setProgress(STEPS.attrs);
         await bulkAssignAttrs(productId, form.bulkAttrsPayload);
       }
 
       // ── Step 3: Generate SKU matrix ──
       if (form.skuGeneratePayload) {
-        setStep('skus');
+        currentStep = 'skus';
+        setStep(currentStep);
         setProgress(STEPS.skus);
         await generateSkus(productId, variantId, form.skuGeneratePayload);
 
         // ── Step 4: Variable pricing ──
         if (form.perSkuPriceUpdates.length > 0) {
-          setStep('pricing');
+          currentStep = 'pricing';
+          setStep(currentStep);
           setProgress(STEPS.pricing);
 
           // Get SKUs to map valueId → skuId
@@ -106,7 +110,8 @@ export default function useSubmitProduct() {
       // ── Step 5: Upload media ──
       const images = form.state.images ?? [];
       if (images.length > 0) {
-        setStep('media');
+        currentStep = 'media';
+        setStep(currentStep);
         let uploaded = 0;
         setProgress(`${STEPS.media} (${uploaded}/${images.length})...`);
 
@@ -157,28 +162,29 @@ export default function useSubmitProduct() {
 
       // ── Step 6: Change status (publish mode only) ──
       if (mode === 'publish') {
-        setStep('status');
+        currentStep = 'status';
+        setStep(currentStep);
         setProgress(STEPS.status);
         await changeProductStatus(productId, 'enriching');
       }
 
-      setStep('done');
+      currentStep = 'done';
+      setStep(currentStep);
       setProgress(STEPS.done);
 
       return { productId, variantId };
     } catch (err) {
       setError({
-        step: step,
+        step: currentStep,
         message: err.message ?? 'Неизвестная ошибка',
         code: err.code,
       });
-      // Return partial result if product was created
       if (productId) return { productId, variantId, error: true };
       return null;
     } finally {
       setSubmitting(false);
     }
-  }, [submitting, step]);
+  }, [submitting]);
 
   const clearError = useCallback(() => setError(null), []);
 
