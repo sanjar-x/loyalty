@@ -85,8 +85,10 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
         excludeLevel="variant"
       />
 
-      {/* SizeTableSection: internal state — uploaded via media API (role: size_guide) in submit flow */}
-      <SizeTableSection />
+      <SizeTableSection
+        value={form.state.sizeGuide}
+        onChange={(val) => form.setField('sizeGuide', val)}
+      />
 
       <ImagesSection
         images={form.state.images}

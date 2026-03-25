@@ -56,6 +56,7 @@ function buildInitialState({ categoryId = null, defaultTitle = '' } = {}) {
 
     // Media (local state, uploaded after product create)
     images: [], // [{ localId, file?, url?, source: "file"|"url", alt }]
+    sizeGuide: null, // { file?, url, source: "file"|"url" } or null
 
     // Tags
     tags: [],

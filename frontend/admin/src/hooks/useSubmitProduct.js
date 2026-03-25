@@ -160,6 +160,32 @@ export default function useSubmitProduct() {
         }
       }
 
+      // ── Step 5b: Upload size guide ──
+      const sizeGuide = form.state.sizeGuide;
+      if (sizeGuide) {
+        try {
+          if (sizeGuide.source === 'url') {
+            await addExternalMedia(productId, {
+              externalUrl: sizeGuide.url,
+              mediaType: 'image',
+              role: 'size_guide',
+              sortOrder: 0,
+            });
+          } else if (sizeGuide.file) {
+            const slot = await reserveMediaUpload(productId, {
+              mediaType: 'image',
+              role: 'size_guide',
+              contentType: sizeGuide.file.type || 'image/jpeg',
+              sortOrder: 0,
+            });
+            await uploadToS3(slot.presignedUploadUrl, sizeGuide.file);
+            await confirmMedia(productId, slot.id);
+          }
+        } catch (err) {
+          console.warn('Size guide upload failed:', err);
+        }
+      }
+
       // ── Step 6: Change status (publish mode only) ──
       if (mode === 'publish') {
         currentStep = 'status';
