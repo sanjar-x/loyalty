@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import useProductForm from '@/hooks/useProductForm';
 import useSubmitProduct from '@/hooks/useSubmitProduct';
 import { i18n } from '@/lib/utils';
@@ -15,8 +16,16 @@ import VariantSelect from './VariantSelect';
 import styles from './page.module.css';
 
 export default function ProductDetailsForm({ leafLabel, categoryId }) {
+  const router = useRouter();
   const form = useProductForm({ categoryId, defaultTitle: leafLabel });
   const submit = useSubmitProduct();
+
+  async function handleSubmit(mode) {
+    const result = await submit.execute(form, mode);
+    if (result?.productId && !result.error) {
+      router.push('/admin/products');
+    }
+  }
 
   // Load form-attributes once, share between DynamicAttributes and VariantSelect
   const [formData, setFormData] = useState(null);
@@ -193,7 +202,7 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
           type="button"
           className={styles.secondaryButton}
           disabled={!form.isValid || submit.submitting}
-          onClick={() => submit.execute(form, 'draft')}
+          onClick={() => handleSubmit('draft')}
         >
           {submit.submitting ? submit.progress : 'Сохранить черновик'}
         </button>
@@ -201,7 +210,7 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
           type="button"
           className={styles.primaryButton}
           disabled={!form.isPublishable || submit.submitting}
-          onClick={() => submit.execute(form, 'publish')}
+          onClick={() => handleSubmit('publish')}
         >
           {submit.submitting ? submit.progress : 'Опубликовать'}
         </button>
