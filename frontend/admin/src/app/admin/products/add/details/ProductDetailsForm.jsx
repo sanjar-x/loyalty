@@ -1,69 +1,81 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import useProductForm from '@/hooks/useProductForm';
 import BrandSelect from './BrandSelect';
 import DeliverySection from './DeliverySection';
 import DynamicAttributes from './DynamicAttributes';
 import ImagesSection from './ImagesSection';
-import SizeSelect, { DEFAULT_SELECTED_SIZES, SIZE_OPTIONS } from './SizeSelect';
+import SizeSelect from './SizeSelect';
 import SizeTableSection from './SizeTableSection';
 import ToggleSwitch from './ToggleSwitch';
 import styles from './page.module.css';
 
-const SIZE_ORDER = new Map(SIZE_OPTIONS.map((size, index) => [size, index]));
-
-function sortSizes(sizes) {
-  return [...sizes].sort(
-    (left, right) =>
-      (SIZE_ORDER.get(left) ?? Number.MAX_SAFE_INTEGER) -
-      (SIZE_ORDER.get(right) ?? Number.MAX_SAFE_INTEGER),
-  );
-}
-
 export default function ProductDetailsForm({ leafLabel, categoryId }) {
-  const [selectedSizes, setSelectedSizes] = useState(DEFAULT_SELECTED_SIZES);
-  const [variablePricing, setVariablePricing] = useState(false);
-  const [attributeValues, setAttributeValues] = useState({});
-
-  const orderedSizes = useMemo(() => sortSizes(selectedSizes), [selectedSizes]);
+  const form = useProductForm({ categoryId, defaultTitle: leafLabel });
 
   return (
     <>
       <section className={styles.card}>
         <h2 className={styles.cardTitle}>Основные данные</h2>
         <div className={styles.fieldGroup}>
-          <BrandSelect />
+          <BrandSelect
+            value={form.state.brandId}
+            onChange={(brand) => form.setBrandId(brand.id, brand.name)}
+          />
 
           <div className={styles.floatingField}>
             <label className={styles.floatingLabel}>Название</label>
-            <input className={styles.floatingInput} defaultValue={leafLabel} />
+            <input
+              className={styles.floatingInput}
+              value={form.state.titleRu}
+              onChange={(e) => form.setTitleRu(e.target.value)}
+            />
           </div>
 
-          <SizeSelect value={orderedSizes} onChange={setSelectedSizes} />
+          <SizeSelect
+            value={form.state.variantAttrs}
+            onChange={(attrId, valueIds) => form.setVariantAttr(attrId, valueIds)}
+            categoryId={categoryId}
+          />
         </div>
       </section>
 
       <DynamicAttributes
         categoryId={categoryId}
-        values={attributeValues}
-        onChange={setAttributeValues}
+        values={form.allAttrValues}
+        onChange={(attrId, selectedValues, level) =>
+          form.handleAttributeUpdate(attrId, selectedValues, level)
+        }
       />
 
       <SizeTableSection />
 
-      <ImagesSection />
+      <ImagesSection
+        images={form.state.images}
+        onAdd={form.addImage}
+        onRemove={form.removeImage}
+        onSet={form.setImages}
+      />
 
       <section className={styles.card}>
         <div className={styles.switchRow}>
           <h2 className={styles.switchLabel}>Оригинал</h2>
           <ToggleSwitch
             ariaLabel="Переключить оригинальность товара"
-            initialChecked
+            checked={form.state.isOriginal}
+            onChange={(val) => form.setField('isOriginal', val)}
           />
         </div>
       </section>
 
-      <DeliverySection />
+      <DeliverySection
+        deliveryMode={form.state.deliveryMode}
+        onDeliveryModeChange={(val) => form.setField('deliveryMode', val)}
+        sourceUrl={form.state.sourceUrl}
+        onSourceUrlChange={(val) => form.setField('sourceUrl', val)}
+        supplierId={form.state.supplierId}
+        onSupplierChange={(val) => form.setField('supplierId', val)}
+      />
 
       <section className={styles.card}>
         <div className={styles.cardTitleRow}>
@@ -72,34 +84,35 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
             <span className={styles.toggleLabel}>Вариативная</span>
             <ToggleSwitch
               ariaLabel="Переключить вариативную цену"
-              checked={variablePricing}
-              onChange={setVariablePricing}
+              checked={form.state.variablePricing}
+              onChange={(val) => form.setField('variablePricing', val)}
             />
           </div>
         </div>
 
-        {variablePricing ? (
+        {form.state.variablePricing ? (
           <div className={styles.priceVariableList}>
-            {orderedSizes.map((size) => (
-              <div key={size} className={styles.priceVariableRow}>
-                <div className={styles.priceSizeBadge}>{size}</div>
-                <input
-                  className={styles.priceVariableInput}
-                  placeholder="Цена"
-                  aria-label="Цена"
-                />
-                <input
-                  className={styles.priceVariableInput}
-                  placeholder="Закупочная цена"
-                  aria-label="Закупочная цена"
-                />
-              </div>
-            ))}
+            {/* TODO: iterate over selected variant values from form-attributes */}
+            <p className={styles.cardSubtitle}>
+              Выберите размеры выше для вариативных цен
+            </p>
           </div>
         ) : (
           <div className={styles.fieldRow}>
-            <input className={styles.input} placeholder="Цена" aria-label="Цена" />
-            <input className={styles.input} placeholder="Закупочная цена" aria-label="Закупочная цена" />
+            <input
+              className={styles.input}
+              placeholder="Цена"
+              aria-label="Цена"
+              value={form.state.priceAmount}
+              onChange={(e) => form.setField('priceAmount', e.target.value)}
+            />
+            <input
+              className={styles.input}
+              placeholder="Закупочная цена"
+              aria-label="Закупочная цена"
+              value={form.state.compareAtPrice}
+              onChange={(e) => form.setField('compareAtPrice', e.target.value)}
+            />
           </div>
         )}
       </section>
