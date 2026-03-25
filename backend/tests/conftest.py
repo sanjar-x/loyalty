@@ -1,6 +1,5 @@
 # tests/conftest.py
 import asyncio
-import contextlib
 import contextvars
 import warnings
 from asyncio.events import AbstractEventLoop
@@ -19,10 +18,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from src.bootstrap.config import Settings
-from src.shared.interfaces.blob_storage import IBlobStorage
-from src.shared.interfaces.config import IStorageConfig
 from src.shared.interfaces.security import IOIDCProvider
-from tests.fakes.blob_storage import InMemoryBlobStorage
 from tests.fakes.oidc_provider import StubOIDCProvider
 
 warnings.filterwarnings(
@@ -95,12 +91,6 @@ def test_settings(db_url, redis_url, rabbitmq_url) -> Settings:
         PGDATABASE="postgres",
         REDISHOST="127.0.0.1",
         REDISPORT=6379,
-        S3_ENDPOINT_URL="http://127.0.0.1:9000",
-        S3_ACCESS_KEY=SecretStr("admin"),
-        S3_SECRET_KEY=SecretStr("password"),
-        S3_REGION="us-east-1",
-        S3_BUCKET_NAME="test-bucket",
-        S3_PUBLIC_BASE_URL="http://127.0.0.1:9000/test-bucket",
         RABBITMQ_PRIVATE_URL=rabbitmq_url,
         BOT_TOKEN=SecretStr(""),
     )
@@ -143,16 +133,8 @@ class TestOverridesProvider(Provider):
         await pool.disconnect()
 
     @provide(scope=Scope.APP, override=True)
-    async def blob_storage(self) -> IBlobStorage:
-        return InMemoryBlobStorage()
-
-    @provide(scope=Scope.APP, override=True)
     async def oidc_provider(self) -> IOIDCProvider:
         return StubOIDCProvider()
-
-    @provide(scope=Scope.APP, override=True)
-    async def storage_config(self) -> IStorageConfig:
-        return self.test_settings
 
 
 # ==========================================
@@ -173,7 +155,6 @@ async def app_container(
         CategoryProvider,
     )
     from src.modules.identity.infrastructure.provider import IdentityProvider
-    from src.modules.storage.presentation.dependencies import StorageProvider
     from src.modules.supplier.presentation.dependencies import SupplierProvider
     from src.modules.user.infrastructure.provider import ProfileProvider
 
@@ -182,7 +163,6 @@ async def app_container(
         LoggingProvider(),
         CacheProvider(),
         SecurityProvider(),
-        StorageProvider(),
         CategoryProvider(),
         BrandProvider(),
         IdentityProvider(),
@@ -218,25 +198,6 @@ async def test_engine(app_container: AsyncContainer) -> AsyncEngine:
     return engine
 
 
-@pytest.fixture(scope="session")
-async def setup_infrastructure(test_engine: AsyncEngine, test_settings: Settings):
-    """Create MinIO bucket for tests (if not exists)."""
-    from aiobotocore.session import get_session
-
-    session = get_session()
-    async with session.create_client(
-        "s3",
-        endpoint_url=test_settings.S3_ENDPOINT_URL,
-        aws_access_key_id=test_settings.S3_ACCESS_KEY,
-        aws_secret_access_key=test_settings.S3_SECRET_KEY,
-        region_name=test_settings.S3_REGION,
-    ) as s3_client:
-        with contextlib.suppress(Exception):
-            await s3_client.create_bucket(Bucket=test_settings.S3_BUCKET_NAME)
-
-    return True
-
-
 # ==========================================
 # 4. Test Isolation (Function Scope)
 # ==========================================
@@ -244,7 +205,7 @@ async def setup_infrastructure(test_engine: AsyncEngine, test_settings: Settings
 
 @pytest.fixture(scope="function")
 async def db_session(
-    test_engine: AsyncEngine, setup_infrastructure
+    test_engine: AsyncEngine,
 ) -> AsyncIterable[AsyncSession]:
     """Nested transaction per test — automatic rollback ensures pristine state."""
     async with test_engine.connect() as conn:

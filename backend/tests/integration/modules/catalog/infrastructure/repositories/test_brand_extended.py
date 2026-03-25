@@ -6,7 +6,6 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.entities import Brand
-from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 from src.modules.catalog.infrastructure.repositories.brand import BrandRepository
 
 
@@ -97,19 +96,17 @@ async def test_get_for_update(db_session: AsyncSession):
 
 async def test_brand_with_logo_fields(db_session: AsyncSession):
     repo = BrandRepository(session=db_session)
-    file_id = uuid.uuid4()
+    storage_object_id = uuid.uuid4()
     brand = Brand.create(
         name="WithLogo",
         slug="with-logo",
-        logo_file_id=file_id,
-        logo_status=MediaProcessingStatus.COMPLETED,
+        logo_url="https://cdn.example.com/logo.png",
+        logo_storage_object_id=storage_object_id,
     )
-    brand.logo_url = "https://cdn.example.com/logo.png"
     await repo.add(brand)
     await db_session.flush()
 
     fetched = await repo.get(brand.id)
     assert fetched is not None
-    assert fetched.logo_file_id == file_id
-    assert fetched.logo_status == MediaProcessingStatus.COMPLETED
+    assert fetched.logo_storage_object_id == storage_object_id
     assert fetched.logo_url == "https://cdn.example.com/logo.png"

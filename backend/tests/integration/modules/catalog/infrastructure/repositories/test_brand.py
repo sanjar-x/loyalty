@@ -1,15 +1,13 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.entities import Brand
-from src.modules.catalog.domain.value_objects import MediaProcessingStatus
 from src.modules.catalog.infrastructure.repositories.brand import BrandRepository
 
 
 async def test_brand_repository_add_and_get(db_session: AsyncSession):
     # Arrange
     repository = BrandRepository(session=db_session)
-    brand = Brand.create(name="Nike", slug="nike")
-    brand.logo_status = MediaProcessingStatus.PENDING_UPLOAD
+    brand = Brand.create(name="Nike", slug="nike", logo_url="https://cdn.example.com/nike.png")
 
     # Act
     added_brand = await repository.add(brand)
@@ -21,7 +19,7 @@ async def test_brand_repository_add_and_get(db_session: AsyncSession):
     assert fetched_brand.id == brand.id
     assert fetched_brand.name == "Nike"
     assert fetched_brand.slug == "nike"
-    assert fetched_brand.logo_status == MediaProcessingStatus.PENDING_UPLOAD
+    assert fetched_brand.logo_url == "https://cdn.example.com/nike.png"
 
 
 async def test_brand_repository_check_slug_exists(db_session: AsyncSession):

@@ -40,11 +40,8 @@ class TestBuildLabels:
 
 class TestEventHandlerRegistrations:
     async def test_event_handlers_registered(self):
-        """After module-level registration, all 6 event types must be present."""
+        """After module-level registration, all expected event types must be present."""
         expected_types = {
-            "BrandLogoUploadInitiatedEvent",
-            "BrandLogoConfirmedEvent",
-            "BrandLogoProcessedEvent",
             "identity_registered",
             "identity_deactivated",
             "role_assignment_changed",
