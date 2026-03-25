@@ -135,6 +135,12 @@ class Category(Base):
         index=True,
         default=None,
     )
+    effective_family_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("attribute_families.id", ondelete="SET NULL"),
+        index=True,
+        default=None,
+        comment="Computed: own family_id or inherited from nearest ancestor",
+    )
 
     children: Mapped[list[Category]] = relationship(
         "Category", back_populates="parent", cascade="all, delete-orphan"
