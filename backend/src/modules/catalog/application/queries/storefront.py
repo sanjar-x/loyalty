@@ -96,9 +96,9 @@ async def _resolve_effective_for_category(
     cat = await session.get(OrmCategory, category_id)
     if cat is None:
         raise CategoryNotFoundError(category_id=category_id)
-    if cat.family_id is None:
+    if cat.effective_family_id is None:
         return []
-    result = await resolver.handle(cat.family_id)
+    result = await resolver.handle(cat.effective_family_id)
     return result.attributes
 
 
