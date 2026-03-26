@@ -87,7 +87,7 @@ _UPSERT_VALUE = text("""
         sort_order     = EXCLUDED.sort_order
 """)
 
-_UPSERT_FAMILY = text("""
+_UPSERT_TEMPLATE = text("""
     INSERT INTO attribute_templates (id, code, name_i18n, description_i18n, sort_order)
     VALUES (:id, :code, cast(:name_i18n AS jsonb), cast(:description_i18n AS jsonb), :sort_order)
     ON CONFLICT (code) DO UPDATE SET
@@ -97,7 +97,7 @@ _UPSERT_FAMILY = text("""
     RETURNING id
 """)
 
-_UPSERT_FAMILY_BINDING = text("""
+_UPSERT_TEMPLATE_BINDING = text("""
     INSERT INTO template_attribute_bindings (id, template_id, attribute_id, sort_order, requirement_level)
     VALUES (:id, :template_id, :attribute_id, :sort_order, :requirement_level)
     ON CONFLICT (template_id, attribute_id) DO UPDATE SET
@@ -105,11 +105,11 @@ _UPSERT_FAMILY_BINDING = text("""
         requirement_level = EXCLUDED.requirement_level
 """)
 
-_ASSIGN_FAMILY_TO_CATEGORY = text("""
+_ASSIGN_TEMPLATE_TO_CATEGORY = text("""
     UPDATE categories SET template_id = :template_id WHERE slug = :slug AND parent_id IS NULL
 """)
 
-_PROPAGATE_EFFECTIVE_FAMILY = text("""
+_PROPAGATE_EFFECTIVE_TEMPLATE = text("""
     UPDATE categories
     SET effective_template_id = :template_id
     WHERE (slug = :slug AND parent_id IS NULL)
@@ -695,7 +695,7 @@ async def sync_attributes(
 
         for temp in SEED_FAMILIES:
             result = await session.execute(
-                _UPSERT_FAMILY,
+                _UPSERT_TEMPLATE,
                 {
                     "id": str(uuid.uuid7()),
                     "code": temp["code"],
@@ -714,7 +714,7 @@ async def sync_attributes(
             for binding in temp.get("bindings", []):
                 attr_db_id = attr_ids[binding["attribute_code"]]
                 await session.execute(
-                    _UPSERT_FAMILY_BINDING,
+                    _UPSERT_TEMPLATE_BINDING,
                     {
                         "id": str(uuid.uuid7()),
                         "template_id": str(temp_id),
@@ -732,7 +732,7 @@ async def sync_attributes(
             # Assign template to category
             if temp.get("assign_to_category_slug"):
                 await session.execute(
-                    _ASSIGN_FAMILY_TO_CATEGORY,
+                    _ASSIGN_TEMPLATE_TO_CATEGORY,
                     {
                         "template_id": str(temp_id),
                         "slug": temp["assign_to_category_slug"],
@@ -744,7 +744,7 @@ async def sync_attributes(
                     template=temp["code"],
                 )
                 await session.execute(
-                    _PROPAGATE_EFFECTIVE_FAMILY,
+                    _PROPAGATE_EFFECTIVE_TEMPLATE,
                     {
                         "template_id": str(temp_id),
                         "slug": temp["assign_to_category_slug"],

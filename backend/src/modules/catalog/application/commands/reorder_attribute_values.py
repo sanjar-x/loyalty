@@ -64,6 +64,15 @@ class ReorderAttributeValuesHandler:
         if not command.items:
             return
 
+        all_ids = [item.value_id for item in command.items]
+        if len(all_ids) != len(set(all_ids)):
+            seen: set[uuid.UUID] = set()
+            dups = {vid for vid in all_ids if vid in seen or seen.add(vid)}
+            raise ValidationError(
+                message=f"Duplicate value_id(s) in reorder request: {dups}",
+                details={"duplicate_ids": [str(d) for d in dups]},
+            )
+
         async with self._uow:
             attribute = await self._attribute_repo.get(command.attribute_id)
             if attribute is None:
@@ -72,7 +81,7 @@ class ReorderAttributeValuesHandler:
             valid_ids = await self._value_repo.list_ids_by_attribute(
                 command.attribute_id
             )
-            requested_ids = {item.value_id for item in command.items}
+            requested_ids = set(all_ids)
             invalid_ids = requested_ids - valid_ids
             if invalid_ids:
                 raise ValidationError(

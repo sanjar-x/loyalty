@@ -8,6 +8,9 @@ Emits ``AttributeValueDeletedEvent`` through the parent attribute.
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.application.queries.resolve_template_attributes import (
+    collect_attribute_cache_keys,
+)
 from src.modules.catalog.domain.events import AttributeValueDeletedEvent
 from src.modules.catalog.domain.exceptions import (
     AttributeNotFoundError,
@@ -16,8 +19,11 @@ from src.modules.catalog.domain.exceptions import (
 )
 from src.modules.catalog.domain.interfaces import (
     IAttributeRepository,
+    IAttributeTemplateRepository,
     IAttributeValueRepository,
+    ITemplateAttributeBindingRepository,
 )
+from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -37,11 +43,17 @@ class DeleteAttributeValueHandler:
         self,
         attribute_repo: IAttributeRepository,
         value_repo: IAttributeValueRepository,
+        binding_repo: ITemplateAttributeBindingRepository,
+        template_repo: IAttributeTemplateRepository,
+        cache: ICacheService,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
         self._attribute_repo = attribute_repo
         self._value_repo = value_repo
+        self._binding_repo = binding_repo
+        self._template_repo = template_repo
+        self._cache = cache
         self._uow = uow
         self._logger = logger.bind(handler="DeleteAttributeValueHandler")
 
@@ -73,6 +85,16 @@ class DeleteAttributeValueHandler:
                 )
             )
 
+            cache_keys = await collect_attribute_cache_keys(
+                command.attribute_id, self._binding_repo, self._template_repo,
+            )
+
             self._uow.register_aggregate(attribute)
             await self._value_repo.delete(command.value_id)
             await self._uow.commit()
+
+        try:
+            if cache_keys:
+                await self._cache.delete_many(cache_keys)
+        except Exception as exc:
+            self._logger.warning("cache_invalidation_failed", error=str(exc))

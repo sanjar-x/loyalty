@@ -99,6 +99,43 @@ def _validate_i18n_values(i18n_dict: dict[str, str], field_name: str) -> None:
         raise ValueError(f"{field_name} must not contain empty or blank values")
 
 
+_FILTER_SETTINGS_MAX_KEYS = 20
+_FILTER_SETTINGS_ALLOWED_KEYS = frozenset({
+    "widget",
+    "min",
+    "max",
+    "step",
+    "unit",
+    "collapsed",
+    "behavior",
+    "display",
+    "options",
+})
+
+
+def _validate_filter_settings(settings: dict[str, Any] | None) -> None:
+    """Basic structural validation for filter_settings JSON.
+
+    Ensures the dict is flat-ish (top-level key whitelist) and bounded
+    in size.  Full semantic validation is deferred to the frontend.
+    """
+    if settings is None:
+        return
+    if not isinstance(settings, dict):
+        raise ValueError("filter_settings must be a JSON object")
+    if len(settings) > _FILTER_SETTINGS_MAX_KEYS:
+        raise ValueError(
+            f"filter_settings has too many keys: {len(settings)} "
+            f"(max {_FILTER_SETTINGS_MAX_KEYS})"
+        )
+    unknown = settings.keys() - _FILTER_SETTINGS_ALLOWED_KEYS
+    if unknown:
+        raise ValueError(
+            f"filter_settings contains unknown keys: {', '.join(sorted(unknown))}. "
+            f"Allowed: {', '.join(sorted(_FILTER_SETTINGS_ALLOWED_KEYS))}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # DDD-01: Guarded fields set -- fields that may only be changed through
 # explicit domain methods, never by direct attribute assignment.
@@ -107,7 +144,7 @@ def _validate_i18n_values(i18n_dict: dict[str, str], field_name: str) -> None:
 _PRODUCT_GUARDED_FIELDS: frozenset[str] = frozenset({"status"})
 _BRAND_GUARDED_FIELDS: frozenset[str] = frozenset({"slug"})
 _CATEGORY_GUARDED_FIELDS: frozenset[str] = frozenset({"slug"})
-_FAMILY_GUARDED_FIELDS: frozenset[str] = frozenset({"code"})
+_TEMPLATE_GUARDED_FIELDS: frozenset[str] = frozenset({"code"})
 _ATTRIBUTE_GROUP_GUARDED_FIELDS: frozenset[str] = frozenset({"code"})
 _ATTRIBUTE_GUARDED_FIELDS: frozenset[str] = frozenset({"code", "slug"})
 
@@ -395,6 +432,7 @@ class Category(AggregateRoot):
             if not name_i18n:
                 raise ValueError("name_i18n must contain at least one language entry")
             _validate_i18n_values(name_i18n, "name_i18n")
+            validate_i18n_completeness(name_i18n, "name_i18n")
             self.name_i18n = name_i18n
 
         if sort_order is not None:
@@ -485,7 +523,7 @@ class AttributeTemplate(AggregateRoot):
     })
 
     def __setattr__(self, name: str, value: object) -> None:
-        if name in _FAMILY_GUARDED_FIELDS and getattr(
+        if name in _TEMPLATE_GUARDED_FIELDS and getattr(
             self, "_AttributeTemplate__initialized", False
         ):
             raise AttributeError(
@@ -537,10 +575,12 @@ class AttributeTemplate(AggregateRoot):
             if not kwargs["name_i18n"]:
                 raise ValueError("name_i18n must contain at least one entry")
             _validate_i18n_values(kwargs["name_i18n"], "name_i18n")
+            validate_i18n_completeness(kwargs["name_i18n"], "name_i18n")
             self.name_i18n = kwargs["name_i18n"]
         if "description_i18n" in kwargs:
             self.description_i18n = kwargs["description_i18n"] or {}
         if "sort_order" in kwargs and kwargs["sort_order"] is not None:
+            _validate_sort_order(kwargs["sort_order"], "AttributeTemplate")
             self.sort_order = kwargs["sort_order"]
 
     def validate_deletable(self, *, has_category_refs: bool) -> None:
@@ -613,12 +653,15 @@ class TemplateAttributeBinding(AggregateRoot):
     ) -> TemplateAttributeBinding:
         """Factory method to construct a new TemplateAttributeBinding."""
         _validate_sort_order(sort_order, "TemplateAttributeBinding")
+        _validate_filter_settings(filter_settings)
         return cls(
             id=binding_id or _generate_id(),
             template_id=template_id,
             attribute_id=attribute_id,
             sort_order=sort_order,
-            requirement_level=RequirementLevel.OPTIONAL if requirement_level is None else requirement_level,
+            requirement_level=RequirementLevel.OPTIONAL
+            if requirement_level is None
+            else requirement_level,
             filter_settings=filter_settings,
         )
 
@@ -640,6 +683,7 @@ class TemplateAttributeBinding(AggregateRoot):
         if "requirement_level" in kwargs and kwargs["requirement_level"] is not None:
             self.requirement_level = kwargs["requirement_level"]
         if "filter_settings" in kwargs:
+            _validate_filter_settings(kwargs["filter_settings"])
             self.filter_settings = kwargs["filter_settings"]
 
 
@@ -673,9 +717,7 @@ class AttributeGroup(AggregateRoot):
         if name in _ATTRIBUTE_GROUP_GUARDED_FIELDS and getattr(
             self, "_AttributeGroup__initialized", False
         ):
-            raise AttributeError(
-                f"Cannot set '{name}' directly on AttributeGroup."
-            )
+            raise AttributeError(f"Cannot set '{name}' directly on AttributeGroup.")
         super().__setattr__(name, value)
 
     def __attrs_post_init__(self) -> None:
@@ -735,6 +777,7 @@ class AttributeGroup(AggregateRoot):
             if not name_i18n:
                 raise ValueError("name_i18n must contain at least one language entry")
             _validate_i18n_values(name_i18n, "name_i18n")
+            validate_i18n_completeness(name_i18n, "name_i18n")
             self.name_i18n = name_i18n
 
         if sort_order is not None:
@@ -958,6 +1001,7 @@ class Attribute(AggregateRoot):
                 raise ValueError("name_i18n must contain at least one language entry")
             if name_i18n is not None:
                 _validate_i18n_values(name_i18n, "name_i18n")
+                validate_i18n_completeness(name_i18n, "name_i18n")
                 self.name_i18n = name_i18n
 
         if "description_i18n" in kwargs:
@@ -1144,6 +1188,7 @@ class AttributeValue:
                 raise ValueError("value_i18n must contain at least one language entry")
             if value_i18n is not None:
                 _validate_i18n_values(value_i18n, "value_i18n")
+                validate_i18n_completeness(value_i18n, "value_i18n")
                 self.value_i18n = value_i18n
 
         if "search_aliases" in kwargs and kwargs["search_aliases"] is not None:
@@ -1474,7 +1519,9 @@ class ProductVariant:
             if price is not None:
                 self.default_currency = price.currency
             else:
-                if not (len(currency) == 3 and currency.isascii() and currency.isupper()):
+                if not (
+                    len(currency) == 3 and currency.isascii() and currency.isupper()
+                ):
                     raise ValueError(
                         "default_currency must be exactly 3 uppercase ASCII letters"
                     )
@@ -1813,6 +1860,7 @@ class Product(AggregateRoot):
             if not kwargs["title_i18n"]:
                 raise ValueError("title_i18n must contain at least one language entry")
             _validate_i18n_values(kwargs["title_i18n"], "title_i18n")
+            validate_i18n_completeness(kwargs["title_i18n"], "title_i18n")
             self.title_i18n = kwargs["title_i18n"]
             changed = True
 

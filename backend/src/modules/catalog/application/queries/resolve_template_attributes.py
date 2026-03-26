@@ -107,6 +107,24 @@ async def resolve_effective_attribute_ids(
 # ---------------------------------------------------------------------------
 
 
+def _storefront_keys_for_categories(category_ids: list[uuid.UUID]) -> list[str]:
+    """Build the 4 storefront cache keys for each category."""
+    from src.modules.catalog.application.constants import (
+        storefront_card_cache_key,
+        storefront_comparison_cache_key,
+        storefront_filters_cache_key,
+        storefront_form_cache_key,
+    )
+
+    keys: list[str] = []
+    for cat_id in category_ids:
+        keys.append(storefront_filters_cache_key(cat_id))
+        keys.append(storefront_card_cache_key(cat_id))
+        keys.append(storefront_comparison_cache_key(cat_id))
+        keys.append(storefront_form_cache_key(cat_id))
+    return keys
+
+
 async def invalidate_template_effective_cache(
     cache: ICacheService,
     template_repo: IAttributeTemplateRepository,
@@ -118,23 +136,31 @@ async def invalidate_template_effective_cache(
     1. The template effective-attribute cache for this template
     2. The per-category storefront caches for all categories that reference it
     """
-    from src.modules.catalog.application.constants import (
-        storefront_card_cache_key,
-        storefront_comparison_cache_key,
-        storefront_filters_cache_key,
-        storefront_form_cache_key,
-    )
-
     keys = [template_effective_attrs_cache_key(template_id)]
-
     category_ids = await template_repo.get_category_ids_by_template_ids([template_id])
-    for cat_id in category_ids:
-        keys.append(storefront_filters_cache_key(cat_id))
-        keys.append(storefront_card_cache_key(cat_id))
-        keys.append(storefront_comparison_cache_key(cat_id))
-        keys.append(storefront_form_cache_key(cat_id))
-
+    keys.extend(_storefront_keys_for_categories(category_ids))
     await cache.delete_many(keys)
+
+
+async def collect_attribute_cache_keys(
+    attribute_id: uuid.UUID,
+    binding_repo: ITemplateAttributeBindingRepository,
+    template_repo: IAttributeTemplateRepository,
+) -> list[str]:
+    """Collect all cache keys affected by an attribute or its values changing.
+
+    Must be called **inside** the UoW (before commit) so the DB session
+    is still available.  Returns the list of Redis keys to delete
+    **after** commit.
+    """
+    template_ids = await binding_repo.get_template_ids_for_attribute(attribute_id)
+    if not template_ids:
+        return []
+
+    keys = [template_effective_attrs_cache_key(tid) for tid in template_ids]
+    category_ids = await template_repo.get_category_ids_by_template_ids(template_ids)
+    keys.extend(_storefront_keys_for_categories(category_ids))
+    return keys
 
 
 # ---------------------------------------------------------------------------

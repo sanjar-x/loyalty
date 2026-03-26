@@ -21,13 +21,16 @@ from src.modules.catalog.domain.exceptions import (
 )
 from src.modules.catalog.domain.interfaces import (
     IAttributeRepository,
+    IAttributeTemplateRepository,
     IAttributeValueRepository,
+    ITemplateAttributeBindingRepository,
 )
 from src.modules.catalog.domain.value_objects import (
     AttributeUIType,
     validate_i18n_completeness,
 )
 from src.shared.exceptions import ValidationError
+from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -83,11 +86,17 @@ class BulkAddAttributeValuesHandler:
         self,
         attribute_repo: IAttributeRepository,
         value_repo: IAttributeValueRepository,
+        binding_repo: ITemplateAttributeBindingRepository,
+        template_repo: IAttributeTemplateRepository,
+        cache: ICacheService,
         uow: IUnitOfWork,
         logger: ILogger,
     ):
         self._attribute_repo = attribute_repo
         self._value_repo = value_repo
+        self._binding_repo = binding_repo
+        self._template_repo = template_repo
+        self._cache = cache
         self._uow = uow
         self._logger = logger.bind(handler="BulkAddAttributeValuesHandler")
 
@@ -116,8 +125,10 @@ class BulkAddAttributeValuesHandler:
         # Check for duplicate codes within the batch
         batch_codes = [item.code for item in command.items]
         if len(batch_codes) != len(set(batch_codes)):
-            seen: set[str] = set()
-            duplicates = [c for c in batch_codes if c in seen or seen.add(c)]
+            code_counts: dict[str, int] = {}
+            for c in batch_codes:
+                code_counts[c] = code_counts.get(c, 0) + 1
+            duplicates = [c for c, n in code_counts.items() if n > 1]
             raise ValidationError(
                 message="Duplicate codes within the batch.",
                 error_code="BULK_DUPLICATE_CODES",
@@ -127,10 +138,10 @@ class BulkAddAttributeValuesHandler:
         # Check for duplicate slugs within the batch
         batch_slugs = [item.slug for item in command.items]
         if len(batch_slugs) != len(set(batch_slugs)):
-            seen_slugs: set[str] = set()
-            duplicates_slugs = [
-                s for s in batch_slugs if s in seen_slugs or seen_slugs.add(s)
-            ]
+            slug_counts: dict[str, int] = {}
+            for s in batch_slugs:
+                slug_counts[s] = slug_counts.get(s, 0) + 1
+            duplicates_slugs = [s for s, n in slug_counts.items() if n > 1]
             raise ValidationError(
                 message="Duplicate slugs within the batch.",
                 error_code="BULK_DUPLICATE_SLUGS",
@@ -205,7 +216,21 @@ class BulkAddAttributeValuesHandler:
                 created_ids.append(value.id)
 
             self._uow.register_aggregate(attribute)
+
+            from src.modules.catalog.application.queries.resolve_template_attributes import (
+                collect_attribute_cache_keys,
+            )
+            cache_keys = await collect_attribute_cache_keys(
+                command.attribute_id, self._binding_repo, self._template_repo,
+            )
+
             await self._uow.commit()
+
+        try:
+            if cache_keys:
+                await self._cache.delete_many(cache_keys)
+        except Exception as exc:
+            self._logger.warning("cache_invalidation_failed", error=str(exc))
 
         return BulkAddAttributeValuesResult(
             created_count=len(created_ids),

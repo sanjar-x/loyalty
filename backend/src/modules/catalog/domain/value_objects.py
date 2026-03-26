@@ -11,14 +11,11 @@ from typing import Any
 
 from attrs import frozen
 
-DEFAULT_CURRENCY = "RUB"
-"""Default ISO 4217 currency code used when none is specified."""
-
-DEFAULT_SEARCH_WEIGHT = 5
-"""Default search weight for new attributes."""
-
-REQUIRED_LOCALES: frozenset[str] = frozenset({"ru", "en"})
-"""Locales that must be present in every user-facing i18n field."""
+from src.modules.catalog.application.constants import (
+    DEFAULT_CURRENCY,  # noqa: F401 – re-export for entities.py
+    DEFAULT_SEARCH_WEIGHT,
+    REQUIRED_LOCALES,
+)
 
 
 def validate_i18n_completeness(
@@ -44,6 +41,7 @@ def validate_i18n_completeness(
             field_name=field_name,
             missing_locales=sorted(missing),
         )
+
 
 MIN_SEARCH_WEIGHT = 1
 MAX_SEARCH_WEIGHT = 10
@@ -241,6 +239,7 @@ def _validate_string_rules(rules: dict[str, Any]) -> None:
     """Validate string-specific rule values."""
     min_len = rules.get("min_length")
     max_len = rules.get("max_length")
+    pattern = rules.get("pattern")
     if min_len is not None and not isinstance(min_len, int):
         raise ValueError("min_length must be an integer")
     if max_len is not None and not isinstance(max_len, int):
@@ -251,6 +250,8 @@ def _validate_string_rules(rules: dict[str, Any]) -> None:
         raise ValueError("max_length must be non-negative")
     if min_len is not None and max_len is not None and min_len > max_len:
         raise ValueError("min_length cannot exceed max_length")
+    if pattern is not None and not isinstance(pattern, str):
+        raise ValueError("pattern must be a string")
 
 
 def _validate_numeric_rules(rules: dict[str, Any]) -> None:

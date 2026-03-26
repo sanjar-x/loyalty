@@ -86,11 +86,25 @@ class AttributeTemplateRepository(
     async def get_category_ids_by_template_ids(
         self, template_ids: list[uuid.UUID]
     ) -> list[uuid.UUID]:
-        """Return category IDs that reference any of the given template IDs."""
+        """Return category IDs that reference any of the given template IDs.
+
+        Checks both ``template_id`` (direct assignment) and
+        ``effective_template_id`` (inherited) to avoid missing categories
+        when propagation is stale.
+        """
         if not template_ids:
             return []
-        stmt = select(OrmCategory.id).where(
-            OrmCategory.effective_template_id.in_(template_ids)
-        ).limit(10_000)
+        from sqlalchemy import or_
+
+        stmt = (
+            select(OrmCategory.id)
+            .where(
+                or_(
+                    OrmCategory.template_id.in_(template_ids),
+                    OrmCategory.effective_template_id.in_(template_ids),
+                )
+            )
+            .limit(10_000)
+        )
         result = await self._session.execute(stmt)
         return [row[0] for row in result.all()]

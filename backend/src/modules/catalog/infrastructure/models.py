@@ -400,6 +400,16 @@ class AttributeValue(Base):
         comment="Inactive values hidden from storefront but preserved on existing products",
     )
 
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
     attribute: Mapped[Attribute] = relationship("Attribute", back_populates="values")
 
     __table_args__ = (

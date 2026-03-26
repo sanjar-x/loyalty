@@ -16,14 +16,6 @@ REQUIRED_LOCALES: frozenset[str] = frozenset({"ru", "en"})
 """Locales that must be present in every user-facing i18n field."""
 
 
-STOREFRONT_CACHE_TTL = 3600
-"""TTL in seconds for storefront attribute cache entries.
-
-Safety-net TTL ensures caches self-heal within 1 hour even if explicit
-invalidation fails (e.g. Redis temporarily unreachable after commit).
-Caches are still invalidated explicitly on every database mutation.
-"""
-
 CATEGORY_TREE_CACHE_KEY = "catalog:category_tree"
 """Redis cache key for the full category tree JSON payload."""
 
@@ -46,6 +38,15 @@ def storefront_comparison_cache_key(category_id: uuid.UUID) -> str:
 def storefront_form_cache_key(category_id: uuid.UUID) -> str:
     """Redis cache key for storefront form attributes of a category."""
     return f"catalog:storefront:form:{category_id}"
+
+
+STOREFRONT_CACHE_TTL = 3600
+"""TTL in seconds for storefront attribute cache entries.
+
+Safety-net TTL ensures caches self-heal within 1 hour even if explicit
+invalidation fails (e.g. Redis temporarily unreachable after commit).
+Caches are still invalidated explicitly on every database mutation.
+"""
 
 
 def template_effective_attrs_cache_key(template_id: uuid.UUID) -> str:

@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.constants import (
     CATEGORY_TREE_CACHE_KEY,
-    CATEGORY_TREE_CACHE_TTL_SECONDS,
+    STOREFRONT_CACHE_TTL,
 )
 from src.modules.catalog.application.queries.read_models import CategoryNode
 from src.modules.catalog.infrastructure.models import Category as OrmCategory
@@ -79,7 +79,7 @@ class GetCategoryTreeHandler:
         await self._cache.set(
             CATEGORY_TREE_CACHE_KEY,
             json.dumps(cache_payload),
-            ttl=CATEGORY_TREE_CACHE_TTL_SECONDS,
+            ttl=STOREFRONT_CACHE_TTL,
         )
 
         if max_depth is not None:

@@ -16,6 +16,7 @@ from abc import abstractmethod
 from typing import Any
 
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.interfaces import ICatalogRepository
@@ -76,6 +77,10 @@ class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType
     async def update(self, entity: EntityType) -> EntityType:
         """Merge updated domain state into the corresponding ORM row.
 
+        Catches ``IntegrityError`` from unique-constraint violations and
+        re-raises via :meth:`_translate_integrity_error` so that subclasses
+        can map them to domain exceptions.
+
         Raises:
             ValueError: If the entity has no ``id`` or the row is missing.
         """
@@ -88,8 +93,22 @@ class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType
             raise ValueError(f"Entity with id {pk} not found in the database")
 
         orm = self._to_orm(entity, orm)
-        await self._session.flush()
+        try:
+            await self._session.flush()
+        except IntegrityError as e:
+            self._translate_integrity_error(e, entity)
+            raise  # re-raise if subclass did not translate
         return self._to_domain(orm)
+
+    def _translate_integrity_error(
+        self, error: IntegrityError, entity: EntityType
+    ) -> None:
+        """Translate an ``IntegrityError`` into a domain exception.
+
+        Subclasses override this to inspect the constraint name and raise
+        the appropriate domain-specific error.  The default implementation
+        is a no-op, which lets the original ``IntegrityError`` propagate.
+        """
 
     async def delete(self, entity_id: uuid.UUID) -> None:
         """Delete a row by primary key.  Transaction control is in the UoW."""

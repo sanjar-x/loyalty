@@ -1,406 +1,209 @@
-# Полный каталог атрибутов качества ПО
+# Каталог атрибутов качества ПО
 
-> Источники: ISO 25010 (SQuaRE), ISO 25012 (Data Quality), OWASP, 12-Factor App, Clean Architecture, SRE Book, практика e-commerce.
+> Источники: ISO 25010:2023 (SQuaRE), ISO 25012 (Data Quality), OWASP, 12-Factor App, Clean Architecture, SRE Book, практика e-commerce.
 
 ---
 
-## I. Качество продукта (что видит пользователь)
+## 1. Functional correctness
 
-### 1. Функциональная пригодность
+| #   | Качество                   | Определение                                             |
+| --- | -------------------------- | ------------------------------------------------------- |
+| 1   | **Correctness**            | Результаты соответствуют спецификации                   |
+| 2   | **Completeness**           | Все требования реализованы                              |
+| 3   | **Accuracy**               | Вычисления и данные точны                               |
+| 4   | **Appropriateness**        | Функции решают реальную задачу пользователя             |
+| 104 | **Behavioral determinism** | Одинаковый input → одинаковый output (без hidden state) |
 
-| #   | Качество            | Определение                                                    |
-| --- | ------------------- | -------------------------------------------------------------- |
-| 1   | **Correctness**     | Результаты соответствуют спецификации                          |
-| 2   | **Completeness**    | Все требования реализованы                                     |
-| 3   | **Accuracy**        | Вычисления точны (цены, округления, агрегации)                 |
-| 4   | **Appropriateness** | Функции решают реальную задачу пользователя, не гипотетическую |
+## 2. Reliability & fault tolerance
 
-### 2. Надёжность
+| #   | Качество                  | Определение                                             |
+| --- | ------------------------- | ------------------------------------------------------- |
+| 5   | **Availability**          | Доступен когда нужен                                    |
+| 6   | **Recoverability**        | Восстанавливается после полного сбоя                    |
+| 7   | **Resilience**            | Устойчив к сбоям, перегрузкам и непредвиденным условиям |
+| 105 | **Backpressure handling** | Контролирует входящий поток при перегрузке              |
+| 106 | **Timeout management**    | Все внешние вызовы имеют timeout                        |
+| 108 | **Graceful shutdown**     | При остановке — дообрабатывает in-flight запросы        |
 
-| #   | Качество            | Определение                                                     |
-| --- | ------------------- | --------------------------------------------------------------- |
-| 5   | **Availability**    | Доступен когда нужен                                            |
-| 6   | **Fault tolerance** | Продолжает работать при частичном сбое (Redis down, ES down)    |
-| 7   | **Recoverability**  | Восстанавливается после полного сбоя                            |
-| 8   | **Resilience**      | Выдерживает непредвиденные условия (spike, bad data, disk full) |
-| 9   | **Data integrity**  | Данные не повреждаются и не теряются при любых условиях         |
-| 10  | **Consistency**     | Данные согласованы между PG, Redis, ES                          |
-| 11  | **Idempotency**     | Повторный вызов API даёт тот же результат (safe retry)          |
-| 12  | **Durability**      | Committed данные не теряются при crash                          |
+## 3. Data integrity & concurrency (ACID / CRDTs)
 
-### 3. Производительность
+| #   | Качество                    | Определение                                               |
+| --- | --------------------------- | --------------------------------------------------------- |
+| 8   | **Data integrity**          | Данные не повреждаются: FK, PK/UNIQUE, domain constraints |
+| 9   | **Data consistency**        | Данные согласованы между PG, Redis, ES                    |
+| 10  | **Idempotency**             | Повторный вызов API даёт тот же результат (safe retry)    |
+| 11  | **Durability**              | Committed данные не теряются при crash                    |
+| 12  | **Race condition freedom**  | Параллельные запросы не приводят к data corruption        |
+| 13  | **Deadlock freedom**        | Нет взаимных блокировок                                   |
+| 14  | **Optimistic concurrency**  | Конфликтующие UPDATE обнаруживаются (version/etag)        |
+| 15  | **Multi-tenancy isolation** | Данные и нагрузка одного tenant не влияют на другого      |
+
+## 4. Performance & efficiency (USE method)
 
 | #   | Качество                | Определение                                    |
 | --- | ----------------------- | ---------------------------------------------- |
-| 13  | **Latency**             | Время ответа API                               |
-| 14  | **Throughput**          | Количество запросов в секунду                  |
-| 15  | **Scalability**         | Способность расти под нагрузкой без деградации |
-| 16  | **Elasticity**          | Автоматическое масштабирование вверх/вниз      |
-| 17  | **Capacity**            | Максимум данных/users до деградации            |
-| 18  | **Resource efficiency** | CPU/RAM/disk usage per operation               |
-| 19  | **Cache effectiveness** | Cache hit rate, invalidation correctness       |
-| 20  | **Query efficiency**    | SQL round-trips per user action                |
-| 21  | **Payload efficiency**  | Размер API response                            |
-| 22  | **Cold start**          | Время до первого ответа после deploy           |
+| 16  | **Latency**             | Время ответа API                               |
+| 17  | **Throughput**          | Количество запросов в секунду                  |
+| 18  | **Scalability**         | Способность расти под нагрузкой без деградации |
+| 19  | **Elasticity**          | Автоматическое масштабирование вверх/вниз      |
+| 20  | **Capacity**            | Максимум данных/users до деградации            |
+| 21  | **Resource efficiency** | CPU/RAM/disk/cost per operation                |
+| 22  | **Cache effectiveness** | Cache hit rate, invalidation correctness       |
+| 23  | **Query efficiency**    | SQL round-trips per user action                |
+| 24  | **Payload efficiency**  | Размер API response                            |
+| 25  | **Cold start**          | Время до первого ответа после deploy           |
+| 107 | **Connection pooling**  | Переиспользование DB/HTTP/Redis connections    |
 
-### 4. Безопасность
+## 5. Security (OWASP / Zero Trust)
 
-| #   | Качество                  | Определение                                  |
-| --- | ------------------------- | -------------------------------------------- |
-| 23  | **Confidentiality**       | Данные доступны только авторизованным        |
-| 24  | **Authentication**        | Достоверная проверка личности                |
-| 25  | **Authorization**         | Правильный контроль доступа к ресурсам       |
-| 26  | **Input validation**      | Защита от injection, XSS, overflow           |
-| 27  | **Output encoding**       | Ответы не содержат executable content        |
-| 28  | **Secrets management**    | Пароли, ключи, токены не в коде и не в логах |
-| 29  | **Encryption at rest**    | Данные зашифрованы в хранилище               |
-| 30  | **Encryption in transit** | Данные зашифрованы при передаче              |
-| 31  | **Auditability**          | Все мутации логируются (кто, когда, что)     |
-| 32  | **Non-repudiation**       | Действие нельзя отрицать                     |
-| 33  | **Attack surface**        | Минимум точек входа для атаки                |
-| 34  | **Dependency security**   | Зависимости без known CVE                    |
-| 35  | **Rate limiting**         | Защита от brute-force и DDoS                 |
+| #   | Качество                         | Определение                                        |
+| --- | -------------------------------- | -------------------------------------------------- |
+| 26  | **Confidentiality**              | Данные доступны только авторизованным              |
+| 27  | **Authentication**               | Достоверная проверка личности                      |
+| 28  | **Authorization**                | Правильный контроль доступа к ресурсам             |
+| 29  | **Input validation**             | Защита от injection, XSS, overflow                 |
+| 30  | **Output encoding**              | Ответы не содержат executable content              |
+| 31  | **Secrets management**           | Пароли, ключи, токены не в коде и не в логах       |
+| 32  | **Encryption**                   | Данные зашифрованы при хранении и передаче         |
+| 33  | **Auditability**                 | Все мутации логируются (кто, когда, что)           |
+| 34  | **Non-repudiation**              | Действие нельзя отрицать                           |
+| 35  | **Attack surface**               | Минимум точек входа для атаки                      |
+| 36  | **Dependency security**          | Зависимости без known CVE                          |
+| 37  | **Rate limiting**                | Защита от brute-force и DDoS                       |
+| 38  | **Supply chain security (SBOM)** | Знание полного дерева зависимостей и их provenance |
 
-### 5. Удобство использования
+## 6. Usability & accessibility
 
 | #   | Качество                 | Определение                                          |
 | --- | ------------------------ | ---------------------------------------------------- |
-| 36  | **Learnability**         | Как быстро новый PM начинает продуктивно работать    |
-| 37  | **Error recovery**       | Понятные ошибки, возможность исправить без developer |
-| 38  | **Accessibility**        | Доступен для людей с ограничениями (WCAG 2.1)        |
-| 39  | **Internationalization** | Поддержка нескольких языков и локалей                |
-| 40  | **Responsiveness**       | UI адаптивен на mobile/tablet/desktop                |
+| 39  | **Learnability**         | Как быстро новый PM начинает продуктивно работать    |
+| 40  | **Error recovery**       | Понятные ошибки, возможность исправить без developer |
+| 41  | **Accessibility**        | Доступен для людей с ограничениями (WCAG 2.1)        |
+| 42  | **Internationalization** | Поддержка нескольких языков (ISO 639, ICU, CLDR)     |
+| 43  | **Responsiveness**       | UI адаптивен на mobile/tablet/desktop                |
 
----
+## 7. Interoperability & compatibility
 
-## II. Качество кода (что видит разработчик)
+| #   | Качество                      | Определение                                               |
+| --- | ----------------------------- | --------------------------------------------------------- |
+| 44  | **System interoperability**   | Обмен данными с внешними системами                        |
+| 45  | **Protocol compatibility**    | Поддержка стандартных протоколов (OAuth2, OpenID Connect) |
+| 46  | **Data format compatibility** | Import/export в стандартных форматах (CSV, XML, JSON-LD)  |
+| 47  | **Co-existence**              | Работает с другими системами, не конфликтуя за ресурсы    |
 
-### 6. Читаемость
+## 8. SOLID & Clean Architecture
 
-| #   | Качество                 | Определение                                               |
-| --- | ------------------------ | --------------------------------------------------------- |
-| 41  | **Readability**          | Код понятен при первом чтении                             |
-| 42  | **Naming clarity**       | Имена переменных/функций/классов говорят о назначении     |
-| 43  | **Commenting quality**   | Комментарии объясняют "зачем", не "что"                   |
-| 44  | **Cognitive complexity** | Количество ментальных переключений при чтении функции     |
-| 45  | **Visual structure**     | Одинаковый formatting, whitespace, ordering               |
-| 46  | **Intention clarity**    | Код показывает бизнес-намерение, не implementation detail |
+| #   | Качество                  | Определение                                           |
+| --- | ------------------------- | ----------------------------------------------------- |
+| 50  | **Loose coupling**        | Компоненты минимально зависят друг от друга           |
+| 51  | **Single responsibility** | Каждый класс/модуль/слой — одна причина для изменения |
+| 52  | **Open-closed**           | Расширение без модификации                            |
+| 53  | **Interface segregation** | Узкие интерфейсы вместо толстых (нет unused methods)  |
+| 54  | **Dependency inversion**  | Зависимости на абстракциях, направлены внутрь         |
+| 61  | **Encapsulation**         | Внутренности скрыты за публичным интерфейсом          |
 
-### 7. Структура и архитектура
+## 9. Maintainability & code health
 
-| #   | Качество                      | Определение                                                                  |
-| --- | ----------------------------- | ---------------------------------------------------------------------------- |
-| 47  | **Loose coupling**            | Компоненты минимально зависят друг от друга                                  |
-| 48  | **High cohesion**             | Связанная логика находится вместе                                            |
-| 49  | **Layer isolation**           | Domain не знает о infrastructure, presentation не знает о domain internals   |
-| 50  | **Dependency direction**      | Зависимости направлены внутрь (Hexagonal/Clean Architecture)                 |
-| 51  | **Single responsibility**     | Каждый класс/модуль — одна причина для изменения                             |
-| 52  | **Open-closed**               | Расширение без модификации (новый attribute type = 0 existing files changed) |
-| 53  | **Interface segregation**     | Узкие интерфейсы вместо толстых (нет unused methods)                         |
-| 54  | **Dependency inversion**      | Зависимости на абстракциях, не конкретиках                                   |
-| 55  | **Event-driven readiness**    | Система готова к async event processing                                      |
-| 56  | **Bounded context isolation** | Модули общаются через defined interfaces, не через shared DB tables          |
+| #   | Качество                   | Определение                                                 |
+| --- | -------------------------- | ----------------------------------------------------------- |
+| 48  | **Readability**            | Код понятен при первом чтении (naming, comments, structure) |
+| 49  | **Cognitive complexity**   | Количество ментальных переключений при чтении функции       |
+| 55  | **Event-driven readiness** | Система готова к async event processing                     |
+| 56  | **Composability**          | Модули можно комбинировать в новые workflows                |
+| 57  | **Modifiability**          | Легко внести типичное изменение                             |
+| 58  | **Stability**              | Изменение одного модуля не ломает другой                    |
+| 59  | **Modularity**             | Компоненты можно развивать независимо                       |
+| 60  | **DRY**                    | Нет дублирования бизнес-логики                              |
+| 62  | **Consistency**            | Одинаковые паттерны для одинаковых задач (код, API, UI)     |
+| 63  | **Discoverability**        | Нужный код можно найти по naming и структуре                |
+| 75  | **Brevity**                | Минимум кода для выражения идеи без потери ясности          |
+| 76  | **Absence of waste**       | Нет мёртвого кода, unused imports, лишних абстракций        |
+| 66  | **Technical debt ratio**   | Доля кода, который "нужно переписать"                       |
 
-### 8. Сопровождаемость
+## 10. Configuration (12-Factor)
 
-| #   | Качество                          | Определение                                  |
-| --- | --------------------------------- | -------------------------------------------- |
-| 57  | **Modifiability**                 | Легко внести типичное изменение              |
-| 58  | **Stability**                     | Изменение одного модуля не ломает другой     |
-| 59  | **Analyzability**                 | Легко найти причину бага                     |
-| 60  | **Modularity**                    | Компоненты можно развивать независимо        |
-| 61  | **DRY**                           | Нет дублирования бизнес-логики               |
-| 62  | **Encapsulation**                 | Внутренности скрыты за публичным интерфейсом |
-| 63  | **Consistency**                   | Одинаковые паттерны для одинаковых задач     |
-| 64  | **Discoverability**               | Нужный код можно найти по naming и структуре |
-| 65  | **Separation of concerns**        | Каждый слой/файл делает одно                 |
-| 66  | **Configuration externalization** | Настройки вне кода (env vars, config files)  |
-| 67  | **Technical debt ratio**          | Доля кода, который "нужно переписать"        |
+| #   | Качество                          | Определение                                 |
+| --- | --------------------------------- | ------------------------------------------- |
+| 64  | **Configuration externalization** | Настройки вне кода (env vars, config files) |
+| 65  | **Configuration validation**      | Невалидный config = fast fail при старте    |
+| 101 | **Environment parity**            | dev/staging/prod идентичны                  |
 
-### 9. Тестируемость
+## 11. Testing (Test Pyramid)
 
 | #   | Качество                | Определение                                           |
 | --- | ----------------------- | ----------------------------------------------------- |
-| 68  | **Testability**         | Код можно покрыть тестами без heroics                 |
-| 69  | **Test coverage**       | % кода, покрытого тестами                             |
-| 70  | **Test isolation**      | Каждый тест независим — порядок не имеет значения     |
-| 71  | **Test determinism**    | Тесты дают одинаковый результат каждый раз            |
-| 72  | **Mockability**         | Зависимости легко подменить через DI/interfaces       |
-| 73  | **Test speed**          | Тесты выполняются быстро (fast feedback loop)         |
-| 74  | **Test readability**    | Тесты читаются как спецификация (Arrange-Act-Assert)  |
-| 75  | **Mutation test score** | Тесты ловят реальные баги, не просто покрывают строки |
-
----
-
-## III. Качество данных
-
-### 10. Целостность данных
-
-| #   | Качество                    | Определение                                                  |
-| --- | --------------------------- | ------------------------------------------------------------ |
-| 76  | **Referential integrity**   | FK constraints соблюдены, нет orphan records                 |
-| 77  | **Domain integrity**        | Значения в допустимых диапазонах (CHECK, ENUM)               |
-| 78  | **Entity integrity**        | Каждая запись уникально идентифицируема (PK, UNIQUE)         |
-| 79  | **Transactional integrity** | Операции атомарны (all-or-nothing)                           |
-| 80  | **Cascade correctness**     | DELETE/UPDATE каскады не удаляют лишнее и не оставляют мусор |
-
-### 11. Качество данных (ISO 25012)
-
-| #   | Качество              | Определение                                               |
-| --- | --------------------- | --------------------------------------------------------- |
-| 81  | **Data validity**     | Данные соответствуют constraints (types, formats, ranges) |
-| 82  | **Data completeness** | Required поля заполнены                                   |
-| 83  | **Data uniqueness**   | Нет нежелательных дубликатов                              |
-| 84  | **Data timeliness**   | Данные актуальны (cache freshness, sync lag)              |
-| 85  | **Data traceability** | Происхождение и изменения прослеживаются                  |
-| 86  | **Data accuracy**     | Данные отражают реальный мир                              |
-
----
-
-## IV. Качество API
-
-### 12. Дизайн API
-
-| #   | Качество                   | Определение                                     |
-| --- | -------------------------- | ----------------------------------------------- |
-| 87  | **API consistency**        | Одинаковые conventions для всех endpoints       |
-| 88  | **API discoverability**    | Документация автоматическая и актуальная        |
-| 89  | **API versioning**         | Стратегия версионирования (path/header/query)   |
-| 90  | **Error clarity**          | Ошибки понятны и actionable для consumer        |
-| 91  | **Idempotent design**      | PUT/DELETE безопасны при retry                  |
-| 92  | **Pagination consistency** | Единый формат пагинации                         |
-| 93  | **HATEOAS / Hypermedia**   | Ответы содержат ссылки на связанные ресурсы     |
-| 94  | **Schema completeness**    | Все поля задокументированы с типами и примерами |
-| 95  | **Backward compatibility** | Новые версии не ломают существующих клиентов    |
-
-### 13. HTTP и REST
-
-| #   | Качество                    | Определение                                                     |
-| --- | --------------------------- | --------------------------------------------------------------- |
-| 96  | **HTTP semantics**          | Правильные методы (GET=read, POST=create, PATCH=partial update) |
-| 97  | **Status code correctness** | 200/201/204/400/401/403/404/409/422/500 используются правильно  |
-| 98  | **Content negotiation**     | Accept/Content-Type headers обрабатываются                      |
-| 99  | **Cache headers**           | ETag, Cache-Control, Last-Modified на cacheable endpoints       |
-| 100 | **CORS configuration**      | Правильные origins, methods, headers                            |
-
----
-
-## V. Операционное качество
-
-### 14. Развёртывание
-
-| #   | Качество                      | Определение                                                |
-| --- | ----------------------------- | ---------------------------------------------------------- |
-| 101 | **Deployability**             | Легко и безопасно деплоить                                 |
-| 102 | **Rollbackability**           | Можно откатить деплой быстро без data loss                 |
-| 103 | **Zero-downtime deploy**      | Деплой без прерывания сервиса                              |
-| 104 | **Database migration safety** | Миграции backward-compatible (old code + new schema works) |
-| 105 | **Feature flags**             | Новые фичи можно включать/выключать без deploy             |
-
-### 15. Наблюдаемость
-
-| #   | Качество                | Определение                                               |
-| --- | ----------------------- | --------------------------------------------------------- |
-| 106 | **Structured logging**  | Логи в JSON с correlation_id, user_id, request_id         |
-| 107 | **Metrics collection**  | RED metrics (Rate, Errors, Duration) per endpoint         |
-| 108 | **Distributed tracing** | Trace request через API → handler → DB → cache → response |
-| 109 | **Alerting**            | Автоматические alerts на аномалии (error spike, latency)  |
-| 110 | **Health checks**       | Readiness + liveness probes для orchestrator              |
-| 111 | **Debuggability**       | Достаточно информации для диагностики production issue    |
-
-### 16. Переносимость
-
-| #   | Качество               | Определение                                         |
-| --- | ---------------------- | --------------------------------------------------- |
-| 112 | **Portability**        | Работает на разных платформах без изменений         |
-| 113 | **Containerizability** | Работает в Docker/K8s                               |
-| 114 | **Cloud neutrality**   | Не привязан к AWS/GCP/Azure specific services       |
-| 115 | **Environment parity** | dev/staging/prod идентичны по поведению (12-Factor) |
-| 116 | **Installability**     | Новый разработчик запускает проект за <30 мин       |
-
-### 17. Устойчивость к нагрузке
-
-| #   | Качество                  | Определение                                       |
-| --- | ------------------------- | ------------------------------------------------- |
-| 117 | **Graceful degradation**  | При перегрузке — деградирует, не падает           |
-| 118 | **Backpressure handling** | Контролирует входящий поток при перегрузке        |
-| 119 | **Circuit breaking**      | Изолирует failing dependency, не каскадирует сбой |
-| 120 | **Timeout management**    | Все внешние вызовы имеют timeout                  |
-| 121 | **Connection pooling**    | Переиспользование DB/HTTP/Redis connections       |
-
----
-
-## VI. Бизнес-качество и процесс
-
-### 18. Ценность для бизнеса
-
-| #   | Качество                    | Определение                             |
-| --- | --------------------------- | --------------------------------------- |
-| 122 | **Time to market**          | Как быстро доставляется новая фича      |
-| 123 | **Cost of change**          | Сколько стоит типичное изменение        |
-| 124 | **Total cost of ownership** | Hosting + dev time + maintenance за год |
-| 125 | **ROI**                     | Возврат инвестиций от платформы         |
-| 126 | **Vendor lock-in**          | Стоимость миграции на другое решение    |
-
-### 19. Команда и процесс
-
-| #   | Качество                   | Определение                                    |
-| --- | -------------------------- | ---------------------------------------------- |
-| 127 | **Onboarding speed**       | За сколько дней новый dev продуктивен          |
-| 128 | **Bus factor**             | Сколько людей могут поддерживать систему       |
-| 129 | **Feature velocity**       | Features per sprint (тренд: растёт или падает) |
-| 130 | **Defect rate**            | Bugs per release                               |
-| 131 | **Code review throughput** | PR от создания до merge                        |
-
-### 20. Документация
-
-| #   | Качество                       | Определение                                 |
-| --- | ------------------------------ | ------------------------------------------- |
-| 132 | **Architecture documentation** | ADRs, diagrams, module overview актуальны   |
-| 133 | **API documentation**          | Все endpoints задокументированы с примерами |
-| 134 | **Runbook coverage**           | Процедуры для инцидентов задокументированы  |
-| 135 | **Inline documentation**       | Docstrings на public interfaces             |
-
-### 21. Соответствие стандартам
-
-| #   | Качество                 | Определение                                  |
-| --- | ------------------------ | -------------------------------------------- |
-| 136 | **GDPR compliance**      | Персональные данные обрабатываются по закону |
-| 137 | **PCI DSS**              | Платёжные данные защищены (если applicable)  |
-| 138 | **Accessibility (WCAG)** | Интерфейс доступен для людей с ограничениями |
-| 139 | **i18n/l10n standards**  | Корректная локализация (ISO 639, ICU, CLDR)  |
-
-### 22. Эстетика кода
-
-| #   | Качество             | Определение                                                  |
-| --- | -------------------- | ------------------------------------------------------------ |
-| 140 | **Symmetry**         | Одинаковые паттерны для одинаковых задач                     |
-| 141 | **Brevity**          | Минимум кода для выражения идеи без потери ясности           |
-| 142 | **Proportionality**  | Правильный размер файлов/функций/классов                     |
-| 143 | **Absence of waste** | Нет мёртвого кода, нет unused imports, нет лишних абстракций |
-| 144 | **Elegance**         | Решение просто, но полно — ничего не добавить и не убрать    |
-
----
-
-## VII. Приватность (ISO 25010:2023 — новая top-level характеристика)
-
-### 23. Privacy
-
-| #   | Качество                          | Определение                                                        |
-| --- | --------------------------------- | ------------------------------------------------------------------ |
-| 145 | **Data minimization**             | Собираются только необходимые данные                               |
-| 146 | **Purpose limitation**            | Данные используются строго по назначению                           |
-| 147 | **Consent management**            | Управление согласиями (opt-in/opt-out)                             |
-| 148 | **Right to erasure**              | Возможность полного удаления данных пользователя                   |
-| 149 | **Anonymization / Pseudonymization** | PII не хранятся в raw-виде где не нужны                         |
-
-> GDPR compliance (#136) — юридическое соответствие. Privacy — архитектурное свойство: можно «соответствовать GDPR» чек-листом, но не иметь возможности удалить все данные пользователя за 72 часа.
-
----
-
-## VIII. Совместимость и интеграция (ISO 25010 — отдельная категория)
-
-### 24. Interoperability
-
-| #   | Качество                    | Определение                                                                  |
-| --- | --------------------------- | ---------------------------------------------------------------------------- |
-| 150 | **System interoperability** | Обмен данными с внешними системами (1C, ERP, WMS, платёжные шлюзы)           |
-| 151 | **Protocol compatibility**  | Поддержка стандартных протоколов (OAuth2, OpenID Connect, webhooks)           |
-| 152 | **Data format compatibility** | Import/export в стандартных форматах (CSV, XML, JSON-LD)                   |
-| 153 | **Co-existence**            | Работает рядом с другими системами, не конфликтуя за ресурсы                 |
-
----
-
-## IX. Параллелизм и безопасность данных
-
-### 25. Concurrency
-
-| #   | Качество                    | Определение                                                        |
-| --- | --------------------------- | ------------------------------------------------------------------ |
-| 154 | **Race condition freedom**  | Параллельные запросы не приводят к data corruption                  |
-| 155 | **Deadlock freedom**        | Нет взаимных блокировок                                            |
-| 156 | **Optimistic concurrency**  | Конфликтующие UPDATE обнаруживаются (version/etag)                 |
-
-> Idempotency (#11) и Transactional integrity (#79) — про повтор и атомарность. Concurrency — про одновременный доступ: два менеджера редактируют один продукт — что произойдёт?
-
----
-
-## X. Воспроизводимость
-
-### 26. Reproducibility
-
-| #   | Качество                       | Определение                                                    |
-| --- | ------------------------------ | -------------------------------------------------------------- |
-| 157 | **Build reproducibility**      | Один и тот же commit даёт идентичный артефакт                  |
-| 158 | **Environment reproducibility** | `docker compose up` — и всё работает, без ручных шагов       |
-| 159 | **Behavioral determinism**     | Одинаковый input → одинаковый output (без hidden state)        |
-
-> Environment parity (#115) — про dev/staging/prod. Reproducibility — про гарантию, что два разработчика из одного commit получат идентичную среду.
-
----
-
-## XI. Developer Experience
-
-### 27. DX (за пределами onboarding)
-
-| #   | Качество               | Определение                                                                 |
-| --- | ---------------------- | --------------------------------------------------------------------------- |
-| 160 | **Local dev cycle time** | Время от изменения кода до проверки результата                            |
-| 161 | **Tooling quality**    | Линтеры, форматтеры, генераторы, миграции — работают без friction           |
-| 162 | **Error DX**           | Ошибки при разработке понятны и actionable (не stacktrace на 200 строк)     |
-| 163 | **Self-service**       | Разработчик может создать endpoint/миграцию/тест без помощи другого         |
-
-> Onboarding speed (#127) — про первые дни. DX — про каждый день. Если `make test` идёт 10 минут, velocity падает у всех.
-
----
-
-## XII. Эволюционируемость
-
-### 28. Schema & Data Evolution
-
-| #   | Качество                  | Определение                                                    |
-| --- | ------------------------- | -------------------------------------------------------------- |
-| 164 | **Schema evolvability**   | DB-схему можно менять без downtime и data loss                 |
-| 165 | **Data migration safety** | Данные корректно мигрируют между версиями схемы                |
-| 166 | **Forward compatibility** | Старый consumer понимает данные от нового producer             |
-
-> Database migration safety (#104) — про backward compatible миграции. Evolvability шире: как эволюционирует schema в event store, в API contracts, в кэше.
-
----
-
-## XIII. Стоимостная наблюдаемость
-
-### 29. Cost Observability
-
-| #   | Качество                    | Определение                                           |
-| --- | --------------------------- | ----------------------------------------------------- |
-| 167 | **Cost per request/user**   | Стоимость инфраструктуры per operation                |
-| 168 | **Cost anomaly detection**  | Алерты при неожиданном росте расходов                 |
-
-> TCO (#124) — бизнес-метрика. Cost observability — операционное качество: понимание, какой endpoint/фича/tenant генерирует расходы.
-
----
-
-## XIV. Дополнительные точечные атрибуты
-
-### 30. Прочее
-
-| #   | Качество                        | Определение                                                                          |
-| --- | ------------------------------- | ------------------------------------------------------------------------------------ |
-| 169 | **Composability**               | Модули можно комбинировать в новые workflows                                         |
-| 170 | **Multi-tenancy isolation**     | Данные и нагрузка одного tenant не влияют на другого                                 |
-| 171 | **Supply chain security (SBOM)** | Знание полного дерева зависимостей и их provenance                                  |
-| 172 | **Graceful shutdown**           | При остановке — дообрабатывает in-flight запросы, не теряет данные                    |
-| 173 | **Configuration validation**    | Невалидный config = fast fail при старте, а не runtime error через час                |
-| 174 | **API rate limit transparency** | Consumer знает свои лимиты через headers (`X-RateLimit-*`)                           |
-
----
-
-## Примечание: качества vs механизмы
-
-Каталог намеренно смешивает два уровня:
-
-- **Качества** (measurable properties): Latency, Availability, Coupling
-- **Механизмы** (ways to achieve qualities): Circuit breaking, Feature flags, Rate limiting
-
-Circuit breaking (#119) — не качество системы, а механизм достижения Fault tolerance (#6). Feature flags (#105) — механизм для Deployability (#101). Это не ошибка, но при аудите механизмы проверяются иначе, чем свойства: качество можно измерить метрикой, механизм — проверить наличие/отсутствие.
+| 67  | **Testability**         | Код можно покрыть тестами без heroics                 |
+| 68  | **Test coverage**       | % кода, покрытого тестами                             |
+| 69  | **Test isolation**      | Каждый тест независим — порядок не имеет значения     |
+| 70  | **Test determinism**    | Тесты дают одинаковый результат каждый раз            |
+| 71  | **Mockability**         | Зависимости легко подменить через DI/interfaces       |
+| 72  | **Test speed**          | Тесты выполняются быстро (fast feedback loop)         |
+| 73  | **Test readability**    | Тесты читаются как спецификация (Arrange-Act-Assert)  |
+| 74  | **Mutation test score** | Тесты ловят реальные баги, не просто покрывают строки |
+
+## 12. Data quality (ISO 25012)
+
+| #   | Качество                           | Определение                                   |
+| --- | ---------------------------------- | --------------------------------------------- |
+| 77  | **Data completeness**              | Required поля заполнены                       |
+| 78  | **Data uniqueness**                | Нет нежелательных дубликатов                  |
+| 79  | **Data timeliness**                | Данные актуальны (cache freshness, sync lag)  |
+| 80  | **Data traceability**              | Происхождение и изменения прослеживаются      |
+| 81  | **Schema & data migration safety** | DB-схему и данные можно безопасно мигрировать |
+
+## 13. API design (REST / contract)
+
+| #   | Качество                        | Определение                                               |
+| --- | ------------------------------- | --------------------------------------------------------- |
+| 82  | **Forward compatibility**       | Старый consumer понимает данные от нового producer        |
+| 83  | **Error clarity**               | Ошибки понятны и actionable для consumer                  |
+| 84  | **Pagination consistency**      | Единый формат пагинации                                   |
+| 85  | **Schema completeness**         | Все поля задокументированы с типами и примерами           |
+| 86  | **Backward compatibility**      | Новые версии не ломают существующих клиентов              |
+| 87  | **API rate limit transparency** | Consumer знает свои лимиты через headers (X-RateLimit)    |
+| 88  | **HTTP semantics**              | Правильные методы (GET, POST, PATCH)                      |
+| 89  | **Status code correctness**     | HTTP статусы используются правильно                       |
+| 90  | **Cache headers**               | ETag, Cache-Control, Last-Modified на cacheable endpoints |
+
+## 14. Deployability & CI/CD
+
+| #   | Качество                  | Определение                                   |
+| --- | ------------------------- | --------------------------------------------- |
+| 92  | **Rollbackability**       | Можно откатить деплой быстро без data loss    |
+| 93  | **Zero-downtime deploy**  | Деплой без прерывания сервиса                 |
+| 103 | **Build reproducibility** | Один и тот же commit даёт идентичный артефакт |
+
+## 15. Observability (SRE Golden Signals)
+
+| #   | Качество               | Определение                                               |
+| --- | ---------------------- | --------------------------------------------------------- |
+| 94  | **Structured logging** | Логи в JSON с correlation_id, user_id, request_id         |
+| 95  | **Metrics collection** | RED metrics (Rate, Errors, Duration) per endpoint         |
+| 96  | **Alerting**           | Автоматические alerts на аномалии (errors, latency, cost) |
+| 97  | **Health checks**      | Readiness + liveness probes для orchestrator              |
+| 98  | **Debuggability**      | Легко найти причину бага в dev и production               |
+
+## 16. Developer experience (DX)
+
+| #   | Качество                 | Определение                                             |
+| --- | ------------------------ | ------------------------------------------------------- |
+| 102 | **Installability**       | Новый разработчик запускает проект за <30 мин           |
+| 109 | **Local dev cycle time** | Время от изменения кода до проверки результата          |
+| 110 | **Tooling quality**      | Линтеры, форматтеры, генераторы — работают без friction |
+| 111 | **Error DX**             | Ошибки при разработке понятны и actionable              |
+| 112 | **Self-service**         | Разработчик может создать endpoint без помощи другого   |
+
+## 17. Documentation
+
+| #   | Качество                       | Определение                                |
+| --- | ------------------------------ | ------------------------------------------ |
+| 113 | **Architecture documentation** | ADRs, diagrams, module overview актуальны  |
+| 114 | **Runbook coverage**           | Процедуры для инцидентов задокументированы |
+| 115 | **Inline documentation**       | Docstrings на public interfaces            |
+
+## 18. Compliance (GDPR / PCI DSS)
+
+| #   | Качество            | Определение                                  |
+| --- | ------------------- | -------------------------------------------- |
+| 116 | **GDPR compliance** | Персональные данные обрабатываются по закону |
+| 117 | **PCI DSS**         | Платёжные данные защищены (если applicable)  |

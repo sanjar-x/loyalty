@@ -88,6 +88,12 @@ class ReorderTemplateBindingsHandler:
             TemplateAttributeBindingNotFoundError: If any binding ID does not
                 belong to the specified template.
         """
+        all_ids = [item.binding_id for item in command.items]
+        if len(all_ids) != len(set(all_ids)):
+            seen: set[uuid.UUID] = set()
+            dups = {bid for bid in all_ids if bid in seen or seen.add(bid)}
+            raise TemplateAttributeBindingNotFoundError(binding_id=next(iter(dups)))
+
         async with self._uow:
             template = await self._template_repo.get(command.template_id)
             if template is None:
@@ -96,7 +102,7 @@ class ReorderTemplateBindingsHandler:
             template_binding_ids = await self._binding_repo.list_ids_by_template(
                 command.template_id
             )
-            requested_ids = {item.binding_id for item in command.items}
+            requested_ids = set(all_ids)
             invalid_ids = requested_ids - template_binding_ids
             if invalid_ids:
                 raise TemplateAttributeBindingNotFoundError(

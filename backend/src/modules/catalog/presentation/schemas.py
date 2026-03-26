@@ -40,11 +40,20 @@ _MAX_I18N_ENTRIES = 20
 _MAX_I18N_VALUE_LENGTH = 10_000
 
 
+_REQUIRED_LOCALES = {"ru", "en"}
+
+
 def _validate_i18n_keys(value: dict[str, str]) -> dict[str, str]:
-    """Validate i18n dict: ISO 639-1 keys, bounded entries and value lengths."""
+    """Validate i18n dict: ISO 639-1 keys, required locales, bounded entries and value lengths."""
     if len(value) > _MAX_I18N_ENTRIES:
         raise ValueError(
             f"Too many language entries: {len(value)} (max {_MAX_I18N_ENTRIES})"
+        )
+    missing = _REQUIRED_LOCALES - value.keys()
+    if missing:
+        raise ValueError(
+            f"Missing required locales: {', '.join(sorted(missing))}. "
+            f"Both 'ru' and 'en' must be provided."
         )
     for key, val in value.items():
         if not _LANG_CODE_RE.match(key):

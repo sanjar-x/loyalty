@@ -518,7 +518,7 @@ class AttributeTemplateNotFoundError(NotFoundError):
     def __init__(self, template_id: uuid.UUID | str):
         super().__init__(
             message=f"Attribute template with ID {template_id} not found.",
-            error_code="ATTRIBUTE_FAMILY_NOT_FOUND",
+            error_code="ATTRIBUTE_TEMPLATE_NOT_FOUND",
             details={"template_id": str(template_id)},
         )
 
@@ -529,7 +529,7 @@ class AttributeTemplateCodeAlreadyExistsError(ConflictError):
     def __init__(self, code: str):
         super().__init__(
             message=f"Attribute template with code '{code}' already exists.",
-            error_code="ATTRIBUTE_FAMILY_CODE_CONFLICT",
+            error_code="ATTRIBUTE_TEMPLATE_CODE_CONFLICT",
             details={"code": code},
         )
 
@@ -540,7 +540,7 @@ class AttributeTemplateHasCategoryReferencesError(ConflictError):
     def __init__(self, template_id: uuid.UUID):
         super().__init__(
             message="Cannot delete attribute template: it is referenced by categories.",
-            error_code="ATTRIBUTE_FAMILY_HAS_CATEGORY_REFERENCES",
+            error_code="ATTRIBUTE_TEMPLATE_HAS_CATEGORY_REFERENCES",
             details={"template_id": str(template_id)},
         )
 
@@ -556,7 +556,7 @@ class TemplateAttributeBindingNotFoundError(NotFoundError):
     def __init__(self, binding_id: uuid.UUID):
         super().__init__(
             message=f"Template attribute binding with ID {binding_id} not found.",
-            error_code="FAMILY_ATTRIBUTE_BINDING_NOT_FOUND",
+            error_code="TEMPLATE_ATTRIBUTE_BINDING_NOT_FOUND",
             details={"binding_id": str(binding_id)},
         )
 
@@ -567,7 +567,7 @@ class TemplateAttributeBindingAlreadyExistsError(ConflictError):
     def __init__(self, template_id: uuid.UUID, attribute_id: uuid.UUID):
         super().__init__(
             message="This attribute is already bound to the template.",
-            error_code="FAMILY_ATTRIBUTE_BINDING_ALREADY_EXISTS",
+            error_code="TEMPLATE_ATTRIBUTE_BINDING_ALREADY_EXISTS",
             details={
                 "template_id": str(template_id),
                 "attribute_id": str(attribute_id),
@@ -581,7 +581,7 @@ class AttributeHasTemplateBindingsError(ConflictError):
     def __init__(self, attribute_id: uuid.UUID):
         super().__init__(
             message="Cannot delete attribute: it is bound to one or more attribute templates.",
-            error_code="ATTRIBUTE_HAS_FAMILY_BINDINGS",
+            error_code="ATTRIBUTE_HAS_TEMPLATE_BINDINGS",
             details={"attribute_id": str(attribute_id)},
         )
 
@@ -618,7 +618,7 @@ class AttributeNotInTemplateError(UnprocessableEntityError):
     def __init__(self, product_id: uuid.UUID, attribute_id: uuid.UUID):
         super().__init__(
             message="Attribute is not in the product's category attribute template.",
-            error_code="ATTRIBUTE_NOT_IN_FAMILY",
+            error_code="ATTRIBUTE_NOT_IN_TEMPLATE",
             details={
                 "product_id": str(product_id),
                 "attribute_id": str(attribute_id),
