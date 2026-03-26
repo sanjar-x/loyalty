@@ -36,6 +36,25 @@ def _project_i18n(i18n_dict: dict[str, str], lang: str) -> str:
     return ""
 
 
+def _cache_control(lang: str | None, *, private: bool = False) -> str:
+    """Return Cache-Control value accounting for locale projection.
+
+    When ``lang`` is provided the response body is locale-specific, so we
+    must prevent shared (CDN/proxy) caching to avoid cache-poisoning — the
+    same URL would otherwise serve different content for different ``?lang=``
+    values.  ``Vary`` cannot help here because ``lang`` is a query parameter,
+    not a request header.
+
+    * **No lang, public endpoint** → ``public, max-age=300, s-maxage=3600``
+      (safe to CDN-cache; the full i18n dict is locale-independent).
+    * **lang provided OR private endpoint** → ``private, max-age=300``
+      (browser-only cache).
+    """
+    if private or lang:
+        return "private, max-age=300"
+    return "public, max-age=300, s-maxage=3600"
+
+
 storefront_router = APIRouter(
     prefix="/storefront/categories/{category_id}",
     tags=["Storefront"],
@@ -66,7 +85,7 @@ async def get_filterable_attributes(
     ),
 ) -> StorefrontFilterListResponse:
     result = await handler.handle(category_id)
-    response.headers["Cache-Control"] = "public, max-age=300, s-maxage=3600"
+    response.headers["Cache-Control"] = _cache_control(lang)
     data = StorefrontFilterListResponse.model_validate(result, from_attributes=True)
     if lang:
         for attr in data.attributes:
@@ -96,7 +115,7 @@ async def get_card_attributes(
     ),
 ) -> StorefrontCardResponse:
     result = await handler.handle(category_id)
-    response.headers["Cache-Control"] = "public, max-age=300, s-maxage=3600"
+    response.headers["Cache-Control"] = _cache_control(lang)
     data = StorefrontCardResponse.model_validate(result, from_attributes=True)
     if lang:
         for group in data.groups:
@@ -127,7 +146,7 @@ async def get_comparison_attributes(
     ),
 ) -> StorefrontComparisonResponse:
     result = await handler.handle(category_id)
-    response.headers["Cache-Control"] = "public, max-age=300, s-maxage=3600"
+    response.headers["Cache-Control"] = _cache_control(lang)
     data = StorefrontComparisonResponse.model_validate(result, from_attributes=True)
     if lang:
         for attr in data.attributes:
@@ -159,7 +178,7 @@ async def get_form_attributes(
     ),
 ) -> StorefrontFormResponse:
     result = await handler.handle(category_id)
-    response.headers["Cache-Control"] = "private, max-age=300"
+    response.headers["Cache-Control"] = _cache_control(lang, private=True)
     data = StorefrontFormResponse.model_validate(result, from_attributes=True)
     if lang:
         for group in data.groups:
