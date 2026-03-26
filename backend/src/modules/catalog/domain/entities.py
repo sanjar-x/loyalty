@@ -64,7 +64,7 @@ from src.modules.catalog.domain.value_objects import (
     RequirementLevel,
     validate_validation_rules,
 )
-from src.shared.interfaces.entities import AggregateRoot, DomainEvent
+from src.shared.interfaces.entities import AggregateRoot
 
 GENERAL_GROUP_CODE = "general"
 """Code of the default attribute group that always exists and cannot be deleted."""
@@ -98,33 +98,6 @@ _FAMILY_GUARDED_FIELDS: frozenset[str] = frozenset({"code", "parent_id", "level"
 # ---------------------------------------------------------------------------
 # DUP-05: Partial-update mixin to eliminate repetitive update() boilerplate
 # ---------------------------------------------------------------------------
-
-
-# ---------------------------------------------------------------------------
-# ARCH-05: Lightweight entity base with event support (not an aggregate root)
-# ---------------------------------------------------------------------------
-
-
-class _EventEmitterEntity:
-    """Mixin for child entities that need domain event support.
-
-    Provides the same ``add_domain_event`` / ``domain_events`` /
-    ``clear_domain_events`` API as ``AggregateRoot`` but communicates
-    that this is a child entity, not a consistency boundary.
-    """
-
-    def __attrs_post_init__(self) -> None:
-        self._domain_events: list[DomainEvent] = []
-
-    def add_domain_event(self, event: DomainEvent) -> None:
-        self._domain_events.append(event)
-
-    def clear_domain_events(self) -> None:
-        self._domain_events.clear()
-
-    @property
-    def domain_events(self) -> list[DomainEvent]:
-        return self._domain_events.copy()
 
 
 # ============================================================================
@@ -755,11 +728,6 @@ class AttributeGroup(AggregateRoot):
 
         if sort_order is not None:
             self.sort_order = sort_order
-
-    @property
-    def is_general(self) -> bool:
-        """Return True if this is the protected default group."""
-        return self.code == GENERAL_GROUP_CODE
 
 
 # ============================================================================

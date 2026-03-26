@@ -452,22 +452,6 @@ class ProductRepository(IProductRepository):
         result = await self._session.execute(stmt)
         return result.first() is not None
 
-    async def get_by_slug(self, slug: str) -> DomainProduct | None:
-        """Retrieve a product by its URL slug, or ``None`` if not found.
-
-        Soft-deleted products are excluded. SKUs are NOT loaded.
-        """
-        stmt = (
-            select(OrmProduct)
-            .where(OrmProduct.slug == slug, OrmProduct.deleted_at.is_(None))
-            .limit(1)
-        )
-        result = await self._session.execute(stmt)
-        orm = result.scalar_one_or_none()
-        if orm is not None:
-            return self._to_domain_without_skus(orm)
-        return None
-
     async def _field_exists(
         self,
         field_name: str,
@@ -500,22 +484,6 @@ class ProductRepository(IProductRepository):
     ) -> bool:
         """Return ``True`` if the slug is taken by another non-deleted product."""
         return await self._field_exists("slug", slug, exclude_id=exclude_id)
-
-    async def get_for_update(self, product_id: uuid.UUID) -> DomainProduct | None:
-        """Retrieve a product with a pessimistic lock (SELECT FOR UPDATE).
-
-        SKUs are NOT loaded.
-        """
-        stmt = (
-            select(OrmProduct)
-            .where(OrmProduct.id == product_id, OrmProduct.deleted_at.is_(None))
-            .with_for_update()
-        )
-        result = await self._session.execute(stmt)
-        orm = result.scalar_one_or_none()
-        if orm is not None:
-            return self._to_domain_without_skus(orm)
-        return None
 
     async def get_for_update_with_variants(
         self, product_id: uuid.UUID

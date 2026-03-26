@@ -8,7 +8,7 @@ pessimistic locking, and a MAIN-role existence check used by upload validation.
 
 import uuid
 
-from sqlalchemy import delete, exists, select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.entities import MediaAsset as DomainMediaAsset
@@ -134,36 +134,6 @@ class MediaAssetRepository(IMediaAssetRepository):
         result = await self._session.execute(stmt)
         rows = result.scalars().all()
         return [self._to_domain(orm) for orm in rows]
-
-    async def list_by_variant(self, variant_id: uuid.UUID) -> list[DomainMediaAsset]:
-        """List all media assets for a variant, ordered by sort_order."""
-        stmt = (
-            select(OrmMediaAsset)
-            .where(OrmMediaAsset.variant_id == variant_id)
-            .order_by(OrmMediaAsset.sort_order)
-        )
-        result = await self._session.execute(stmt)
-        rows = result.scalars().all()
-        return [self._to_domain(orm) for orm in rows]
-
-    async def has_main_for_variant(
-        self,
-        product_id: uuid.UUID,
-        variant_id: uuid.UUID | None,
-    ) -> bool:
-        """Check if a MAIN media asset already exists for this product/variant combo."""
-        conditions = [
-            OrmMediaAsset.product_id == product_id,
-            OrmMediaAsset.role == MediaRole.MAIN,
-        ]
-        if variant_id is None:
-            conditions.append(OrmMediaAsset.variant_id.is_(None))
-        else:
-            conditions.append(OrmMediaAsset.variant_id == variant_id)
-
-        stmt = select(exists().where(*conditions))
-        result = await self._session.execute(stmt)
-        return bool(result.scalar())
 
     async def list_by_storage_ids(
         self,

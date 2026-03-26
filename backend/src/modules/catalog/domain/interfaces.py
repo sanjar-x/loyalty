@@ -17,13 +17,13 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from src.modules.catalog.domain.entities import Attribute as DomainAttribute
+from src.modules.catalog.domain.entities import (
+    AttributeFamily as DomainAttributeFamily,
+)
 from src.modules.catalog.domain.entities import AttributeGroup as DomainAttributeGroup
 from src.modules.catalog.domain.entities import AttributeValue as DomainAttributeValue
 from src.modules.catalog.domain.entities import Brand as DomainBrand
 from src.modules.catalog.domain.entities import Category as DomainCategory
-from src.modules.catalog.domain.entities import (
-    AttributeFamily as DomainAttributeFamily,
-)
 from src.modules.catalog.domain.entities import (
     FamilyAttributeBinding as DomainFamilyAttributeBinding,
 )
@@ -83,11 +83,6 @@ class IBrandRepository(ICatalogRepository[DomainBrand]):
         self, slug: str, exclude_id: uuid.UUID
     ) -> bool:
         """Check if a slug is taken by another brand (excluding given ID)."""
-        pass
-
-    @abstractmethod
-    async def get_by_slug(self, slug: str) -> DomainBrand | None:
-        """Retrieve a brand by its URL slug, or ``None``."""
         pass
 
     @abstractmethod
@@ -210,11 +205,6 @@ class IAttributeRepository(ICatalogRepository[DomainAttribute]):
         pass
 
     @abstractmethod
-    async def get_by_slug(self, slug: str) -> DomainAttribute | None:
-        """Retrieve an attribute by its URL slug."""
-        pass
-
-    @abstractmethod
     async def has_product_attribute_values(self, attribute_id: uuid.UUID) -> bool:
         """Check whether any products reference this attribute."""
         pass
@@ -297,11 +287,6 @@ class IProductRepository(ICatalogRepository[DomainProduct]):
     """
 
     @abstractmethod
-    async def get_by_slug(self, slug: str) -> DomainProduct | None:
-        """Retrieve a product by its URL slug."""
-        pass
-
-    @abstractmethod
     async def check_slug_exists(self, slug: str) -> bool:
         """Check whether a product with the given slug already exists."""
         pass
@@ -311,11 +296,6 @@ class IProductRepository(ICatalogRepository[DomainProduct]):
         self, slug: str, exclude_id: uuid.UUID
     ) -> bool:
         """Check if a slug is taken by another product (excluding given ID)."""
-        pass
-
-    @abstractmethod
-    async def get_for_update(self, product_id: uuid.UUID) -> DomainProduct | None:
-        """Retrieve a product with a pessimistic lock (SELECT FOR UPDATE)."""
         pass
 
     @abstractmethod
@@ -422,20 +402,6 @@ class IMediaAssetRepository(ABC):
     @abstractmethod
     async def list_by_product(self, product_id: uuid.UUID) -> list[DomainMediaAsset]:
         """List all media assets for a product, ordered by (variant_id, sort_order)."""
-        pass
-
-    @abstractmethod
-    async def list_by_variant(self, variant_id: uuid.UUID) -> list[DomainMediaAsset]:
-        """List all media assets for a specific variant, ordered by sort_order."""
-        pass
-
-    @abstractmethod
-    async def has_main_for_variant(
-        self,
-        product_id: uuid.UUID,
-        variant_id: uuid.UUID | None,
-    ) -> bool:
-        """Check if a MAIN media asset already exists for this product/variant combo."""
         pass
 
     @abstractmethod

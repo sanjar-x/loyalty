@@ -49,15 +49,6 @@ class BrandRepository(
         orm.logo_storage_object_id = entity.logo_storage_object_id
         return orm
 
-    async def get_by_slug(self, slug: str) -> DomainBrand | None:
-        """Look up a brand by its URL slug, or ``None`` if not found."""
-        stmt = select(OrmBrand).where(OrmBrand.slug == slug).limit(1)
-        result = await self._session.execute(stmt)
-        orm = result.scalar_one_or_none()
-        if orm:
-            return self._to_domain(orm)
-        return None
-
     async def check_slug_exists(self, slug: str) -> bool:
         """Return ``True`` if any brand already uses this slug."""
         stmt = select(OrmBrand.id).where(OrmBrand.slug == slug).limit(1)

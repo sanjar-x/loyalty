@@ -102,15 +102,6 @@ class AttributeRepository(
         """Return ``True`` if the slug is taken by another attribute."""
         return await self._field_exists("slug", slug, exclude_id=exclude_id)
 
-    async def get_by_slug(self, slug: str) -> DomainAttribute | None:
-        """Retrieve an attribute by its URL slug, or ``None`` if not found."""
-        stmt = select(OrmAttribute).where(OrmAttribute.slug == slug).limit(1)
-        result = await self._session.execute(stmt)
-        orm = result.scalar_one_or_none()
-        if orm:
-            return self._to_domain(orm)
-        return None
-
     async def has_product_attribute_values(self, attribute_id: uuid.UUID) -> bool:
         """Return ``True`` if any products reference this attribute."""
         stmt = select(
