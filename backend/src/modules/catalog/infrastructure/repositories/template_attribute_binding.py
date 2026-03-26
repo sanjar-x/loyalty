@@ -10,10 +10,12 @@ import uuid
 from collections import defaultdict
 
 from sqlalchemy import case, select, update
+from sqlalchemy.exc import IntegrityError
 
 from src.modules.catalog.domain.entities import (
     TemplateAttributeBinding as DomainBinding,
 )
+from src.modules.catalog.domain.exceptions import TemplateAttributeBindingAlreadyExistsError
 from src.modules.catalog.domain.interfaces import ITemplateAttributeBindingRepository
 from src.modules.catalog.infrastructure.models import (
     TemplateAttributeBinding as OrmBinding,
@@ -56,6 +58,22 @@ class TemplateAttributeBindingRepository(
         orm.requirement_level = entity.requirement_level
         orm.filter_settings = entity.filter_settings
         return orm
+
+    async def add(self, entity: DomainBinding) -> DomainBinding:
+        """Persist a new template-attribute binding and return the refreshed copy."""
+        orm = self._to_orm(entity)
+        self._session.add(orm)
+        try:
+            await self._session.flush()
+        except IntegrityError as e:
+            await self._session.rollback()
+            constraint = str(e.orig) if e.orig else str(e)
+            if "uix_template_attr_binding" in constraint:
+                raise TemplateAttributeBindingAlreadyExistsError(
+                    template_id=entity.template_id, attribute_id=entity.attribute_id
+                ) from e
+            raise
+        return self._to_domain(orm)
 
     async def check_binding_exists(
         self, template_id: uuid.UUID, attribute_id: uuid.UUID

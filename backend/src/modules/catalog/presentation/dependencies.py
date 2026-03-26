@@ -158,6 +158,7 @@ from src.modules.catalog.domain.interfaces import (
     IAttributeValueRepository,
     IBrandRepository,
     ICategoryRepository,
+    IImageBackendClient,
     IMediaAssetRepository,
     IProductAttributeValueRepository,
     IProductRepository,
@@ -463,7 +464,7 @@ class MediaAssetProvider(Provider):
     )
 
     @provide(scope=Scope.APP)
-    def image_backend_client(self, s: Settings) -> ImageBackendClient:
+    def image_backend_client(self, s: Settings) -> IImageBackendClient:
         """Provide the ImageBackendClient singleton."""
         return ImageBackendClient(
             base_url=s.IMAGE_BACKEND_URL,

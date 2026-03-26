@@ -23,10 +23,10 @@ from src.modules.catalog.domain.exceptions import (
 from src.modules.catalog.domain.interfaces import (
     IBrandRepository,
     ICategoryRepository,
+    IImageBackendClient,
     IMediaAssetRepository,
     IProductRepository,
 )
-from src.modules.catalog.infrastructure.image_backend_client import ImageBackendClient
 from src.shared.exceptions import UnprocessableEntityError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -94,7 +94,7 @@ class UpdateProductHandler:
         brand_repo: IBrandRepository,
         category_repo: ICategoryRepository,
         media_repo: IMediaAssetRepository,
-        image_backend: ImageBackendClient,
+        image_backend: IImageBackendClient,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
@@ -125,7 +125,7 @@ class UpdateProductHandler:
                 by the domain entity).
         """
         async with self._uow:
-            product = await self._product_repo.get_with_variants(command.product_id)
+            product = await self._product_repo.get_for_update_with_variants(command.product_id)
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
@@ -188,6 +188,7 @@ class UpdateProductHandler:
 
             product.update(**update_kwargs)
 
+            storage_ids_to_delete: list[uuid.UUID] = []
             if command.media is not None:
                 existing = await self._media_repo.list_by_product(command.product_id)
                 current_dicts = [
@@ -213,7 +214,7 @@ class UpdateProductHandler:
                     await self._media_repo.delete(mid)
                     sid = item.get("storage_object_id")
                     if sid:
-                        await self._image_backend.delete(uuid.UUID(sid))
+                        storage_ids_to_delete.append(uuid.UUID(sid))
 
                 for item in to_update:
                     media = await self._media_repo.get(uuid.UUID(item["id"]))
@@ -250,6 +251,10 @@ class UpdateProductHandler:
             await self._product_repo.update(product)
             self._uow.register_aggregate(product)
             await self._uow.commit()
+
+        # Best-effort ImageBackend cleanup AFTER successful commit
+        for sid in storage_ids_to_delete:
+            await self._image_backend.delete(sid)
 
         self._logger.info(
             "Product updated",

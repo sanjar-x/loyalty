@@ -11,6 +11,7 @@ conflict detection.
 import uuid
 
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.exc import StaleDataError
@@ -18,7 +19,10 @@ from sqlalchemy.orm.exc import StaleDataError
 from src.modules.catalog.domain.entities import SKU as DomainSKU
 from src.modules.catalog.domain.entities import Product as DomainProduct
 from src.modules.catalog.domain.entities import ProductVariant as DomainProductVariant
-from src.modules.catalog.domain.exceptions import ConcurrencyError
+from src.modules.catalog.domain.exceptions import (
+    ConcurrencyError,
+    ProductSlugConflictError,
+)
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money, ProductStatus
 from src.modules.catalog.infrastructure.models import SKU as OrmSKU
@@ -384,6 +388,12 @@ class ProductRepository(IProductRepository):
                 expected_version=entity.version,
                 actual_version=None,
             ) from None
+        except IntegrityError as e:
+            await self._session.rollback()
+            constraint = str(e.orig) if e.orig else str(e)
+            if "uix_products_slug" in constraint:
+                raise ProductSlugConflictError(slug=entity.slug) from e
+            raise
 
         return self._to_domain(orm)
 

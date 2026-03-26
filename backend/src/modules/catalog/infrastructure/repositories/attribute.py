@@ -9,8 +9,10 @@ and category binding checks for delete guards.
 import uuid
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from src.modules.catalog.domain.entities import Attribute as DomainAttribute
+from src.modules.catalog.domain.exceptions import AttributeCodeConflictError, AttributeSlugConflictError
 from src.modules.catalog.domain.interfaces import IAttributeRepository
 from src.modules.catalog.domain.value_objects import BehaviorFlags
 from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute
@@ -79,6 +81,22 @@ class AttributeRepository(
         orm.is_visible_on_card = entity.is_visible_on_card
         orm.validation_rules = entity.validation_rules
         return orm
+
+    async def add(self, entity: DomainAttribute) -> DomainAttribute:
+        """Persist a new attribute and return the refreshed copy."""
+        orm = self._to_orm(entity)
+        self._session.add(orm)
+        try:
+            await self._session.flush()
+        except IntegrityError as e:
+            await self._session.rollback()
+            constraint = str(e.orig) if e.orig else str(e)
+            if "uix_attributes_code" in constraint or "code" in constraint.lower():
+                raise AttributeCodeConflictError(code=entity.code) from e
+            if "uix_attributes_slug" in constraint or "slug" in constraint.lower():
+                raise AttributeSlugConflictError(slug=entity.slug) from e
+            raise
+        return self._to_domain(orm)
 
     async def get_many(self, ids: list[uuid.UUID]) -> dict[uuid.UUID, DomainAttribute]:
         """Batch-load multiple attributes by their UUIDs."""

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from src.modules.catalog.application.constants import CATEGORY_TREE_CACHE_KEY
 from src.modules.catalog.domain.entities import Category
+from src.modules.catalog.domain.events import CategoryCreatedEvent
 from src.modules.catalog.domain.exceptions import (
     AttributeTemplateNotFoundError,
     CategoryNotFoundError,
@@ -108,12 +109,14 @@ class CreateCategoryHandler:
             CategoryNotFoundError: If the specified parent does not exist.
             CategoryMaxDepthError: If the parent is already at max depth.
         """
-        if command.template_id is not None:
-            template = await self._template_repo.get(command.template_id)
-            if template is None:
-                raise AttributeTemplateNotFoundError(template_id=command.template_id)
-
         async with self._uow:
+            if command.template_id is not None:
+                template = await self._template_repo.get(command.template_id)
+                if template is None:
+                    raise AttributeTemplateNotFoundError(
+                        template_id=command.template_id
+                    )
+
             is_slug_taken = await self._category_repo.check_slug_exists(
                 slug=command.slug, parent_id=command.parent_id
             )
@@ -143,6 +146,13 @@ class CreateCategoryHandler:
                 )
 
             category = await self._category_repo.add(category)
+            category.add_domain_event(
+                CategoryCreatedEvent(
+                    category_id=category.id,
+                    slug=category.slug,
+                    aggregate_id=str(category.id),
+                )
+            )
             self._uow.register_aggregate(category)
             await self._uow.commit()
 

@@ -22,6 +22,7 @@ from sqlalchemy import (
     ARRAY,
     TIMESTAMP,
     Boolean,
+    CheckConstraint,
     Enum,
     ForeignKey,
     Index,
@@ -143,7 +144,7 @@ class Category(Base):
     )
 
     children: Mapped[list[Category]] = relationship(
-        "Category", back_populates="parent", cascade="all, delete-orphan"
+        "Category", back_populates="parent", cascade="save-update, merge"
     )
     parent: Mapped[Category] = relationship(
         "Category", back_populates="children", remote_side="Category.id"
@@ -349,9 +350,10 @@ class Attribute(Base):
         "AttributeGroup", back_populates="attributes"
     )
     values: Mapped[list[AttributeValue]] = relationship(
-        "AttributeValue", back_populates="attribute", cascade="all, delete-orphan"
+        "AttributeValue", back_populates="attribute", cascade="save-update, merge"
     )
     __table_args__ = (
+        CheckConstraint("search_weight BETWEEN 1 AND 10", name="ck_attributes_search_weight"),
         Index("uix_attributes_code", "code", unique=True),
         Index("uix_attributes_slug", "slug", unique=True),
         Index("ix_attributes_name_i18n_gin", "name_i18n", postgresql_using="gin"),
@@ -558,6 +560,11 @@ class Product(Base):
             "slug",
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "ix_products_published_at",
+            "published_at",
+            postgresql_where=text("deleted_at IS NULL AND published_at IS NOT NULL"),
         ),
         Index("ix_products_attributes_gin", "attributes", postgresql_using="gin"),
         Index("ix_products_title_gin", "title_i18n", postgresql_using="gin"),

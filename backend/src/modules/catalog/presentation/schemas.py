@@ -168,7 +168,7 @@ class BrandCreateRequest(CamelModel):
 
     name: str = Field(..., min_length=1, max_length=255)
     slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$")
-    logo_url: str | None = None
+    logo_url: str | None = Field(None, max_length=2048, pattern=r"^https?://")
     logo_storage_object_id: uuid.UUID | None = None
 
 
@@ -194,7 +194,7 @@ class BrandUpdateRequest(CamelModel):
     slug: str | None = Field(
         None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$"
     )
-    logo_url: str | None = None
+    logo_url: str | None = Field(None, max_length=2048, pattern=r"^https?://")
     logo_storage_object_id: uuid.UUID | None = None
 
     @model_validator(mode="after")
@@ -597,7 +597,7 @@ class ProductCreateRequest(CamelModel):
     description_i18n: I18nDict = Field(default_factory=dict)
     supplier_id: uuid.UUID | None = None
     source_url: str | None = Field(None, max_length=1024)
-    tags: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list, max_length=50)
 
 
 class ProductCreateResponse(CamelModel):
@@ -630,7 +630,7 @@ class ProductUpdateRequest(CamelModel):
     country_of_origin: str | None = Field(
         None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$"
     )
-    tags: list[str] | None = None
+    tags: list[str] | None = Field(None, max_length=50)
     version: int | None = None
 
     @model_validator(mode="after")
@@ -864,13 +864,13 @@ class AttributeSelectionSchema(CamelModel):
     """One attribute with multiple selected values for SKU matrix generation."""
 
     attribute_id: uuid.UUID
-    value_ids: list[uuid.UUID] = Field(..., min_length=1)
+    value_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=50)
 
 
 class SKUMatrixGenerateRequest(CamelModel):
     """Request to generate SKU combinations from attribute selections."""
 
-    attribute_selections: list[AttributeSelectionSchema] = Field(..., min_length=1)
+    attribute_selections: list[AttributeSelectionSchema] = Field(..., min_length=1, max_length=10)
     price_amount: int | None = Field(None, ge=0)
     price_currency: str = Field(
         "RUB", min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"

@@ -11,12 +11,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from src.modules.catalog.domain.entities import Brand
+from src.modules.catalog.domain.events import BrandUpdatedEvent
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
     BrandSlugConflictError,
 )
-from src.modules.catalog.domain.interfaces import IBrandRepository
-from src.modules.catalog.infrastructure.image_backend_client import ImageBackendClient
+from src.modules.catalog.domain.interfaces import IBrandRepository, IImageBackendClient
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -65,7 +65,7 @@ class UpdateBrandHandler:
         self,
         brand_repo: IBrandRepository,
         uow: IUnitOfWork,
-        image_backend: ImageBackendClient,
+        image_backend: IImageBackendClient,
         logger: ILogger,
     ) -> None:
         self._brand_repo = brand_repo
@@ -120,6 +120,12 @@ class UpdateBrandHandler:
                 f: getattr(command, f) for f in safe_fields
             }
             brand.update(**update_kwargs)
+            brand.add_domain_event(
+                BrandUpdatedEvent(
+                    brand_id=brand.id,
+                    aggregate_id=str(brand.id),
+                )
+            )
             await self._brand_repo.update(brand)
             self._uow.register_aggregate(brand)
             await self._uow.commit()

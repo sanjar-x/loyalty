@@ -8,9 +8,14 @@ a ``FOR UPDATE`` lock method used by the logo processing pipeline.
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from src.modules.catalog.domain.entities import Brand as DomainBrand
+from src.modules.catalog.domain.exceptions import (
+    BrandNameConflictError,
+    BrandSlugConflictError,
+)
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
@@ -48,6 +53,42 @@ class BrandRepository(
         orm.logo_url = entity.logo_url
         orm.logo_storage_object_id = entity.logo_storage_object_id
         return orm
+
+    async def add(self, entity: DomainBrand) -> DomainBrand:
+        """Persist a new brand and return the refreshed copy."""
+        orm = self._to_orm(entity)
+        self._session.add(orm)
+        try:
+            await self._session.flush()
+        except IntegrityError as e:
+            await self._session.rollback()
+            constraint = str(e.orig) if e.orig else str(e)
+            if "uix_brands_slug" in constraint:
+                raise BrandSlugConflictError(slug=entity.slug) from e
+            if "uix_brands_name" in constraint:
+                raise BrandNameConflictError(name=entity.name) from e
+            raise
+        return self._to_domain(orm)
+
+    async def check_name_exists(self, name: str) -> bool:
+        """Return ``True`` if any brand already uses this name."""
+        stmt = (
+            select(func.count()).select_from(self.model).where(self.model.name == name)
+        )
+        result = await self._session.execute(stmt)
+        return (result.scalar() or 0) > 0
+
+    async def check_name_exists_excluding(
+        self, name: str, exclude_id: uuid.UUID
+    ) -> bool:
+        """Return ``True`` if the name is taken by a brand other than *exclude_id*."""
+        stmt = (
+            select(func.count())
+            .select_from(self.model)
+            .where(self.model.name == name, self.model.id != exclude_id)
+        )
+        result = await self._session.execute(stmt)
+        return (result.scalar() or 0) > 0
 
     async def check_slug_exists(self, slug: str) -> bool:
         """Return ``True`` if any brand already uses this slug."""

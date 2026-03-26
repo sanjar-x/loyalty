@@ -10,6 +10,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from src.modules.catalog.domain.entities import AttributeValue
 from src.modules.catalog.domain.events import AttributeValueUpdatedEvent
 from src.modules.catalog.domain.exceptions import (
     AttributeNotFoundError,
@@ -103,9 +104,11 @@ class UpdateAttributeValueHandler:
                 if hex_val is not None and not _HEX_COLOR_RE.match(hex_val):
                     raise InvalidColorHexError(hex_value=hex_val)
 
-            # Only pass fields the client actually sent (tracked via _provided_fields).
+            # Only pass fields the client actually sent, intersected with
+            # the entity's declared updatable fields (defence-in-depth).
+            safe_fields = command._provided_fields & AttributeValue._UPDATABLE_FIELDS
             update_kwargs: dict[str, Any] = {
-                name: getattr(command, name) for name in command._provided_fields
+                name: getattr(command, name) for name in safe_fields
             }
 
             value.update(**update_kwargs)

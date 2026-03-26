@@ -34,6 +34,7 @@ from src.modules.catalog.domain.interfaces import (
     ITemplateAttributeBindingRepository,
 )
 from src.modules.catalog.domain.value_objects import AttributeLevel, Money
+from src.shared.exceptions import UnprocessableEntityError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -141,7 +142,20 @@ class GenerateSKUMatrixHandler:
                 price, compare_at_price = None, None
 
             # Generate cartesian product of attribute selections
+            MAX_SKU_COMBINATIONS = 1000
             combinations = self._build_combinations(command.attribute_selections)
+            if len(combinations) > MAX_SKU_COMBINATIONS:
+                raise UnprocessableEntityError(
+                    message=(
+                        f"Too many SKU combinations: {len(combinations)}. "
+                        f"Maximum is {MAX_SKU_COMBINATIONS}."
+                    ),
+                    error_code="SKU_MATRIX_TOO_LARGE",
+                    details={
+                        "combinations": len(combinations),
+                        "max": MAX_SKU_COMBINATIONS,
+                    },
+                )
 
             created_ids: list[uuid.UUID] = []
             skipped = 0
@@ -150,9 +164,15 @@ class GenerateSKUMatrixHandler:
                 # Auto-generate sku_code from product slug + index
                 sku_code = self._generate_sku_code(product, combo, i)
 
-                # Check if sku_code already exists; append suffix if so
-                if await self._product_repo.check_sku_code_exists(sku_code):
-                    sku_code = f"{sku_code}-{i + 1}"
+                # Check if sku_code already exists; retry with suffix if so
+                base_code = sku_code
+                suffix = 0
+                while await self._product_repo.check_sku_code_exists(sku_code):
+                    suffix += 1
+                    sku_code = f"{base_code}-{suffix}"
+                    if suffix > 10:  # Safety limit
+                        sku_code = f"{base_code}-{uuid.uuid4().hex[:6]}"
+                        break
 
                 try:
                     sku = product.add_sku(

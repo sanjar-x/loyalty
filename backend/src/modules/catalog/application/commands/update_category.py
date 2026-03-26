@@ -18,6 +18,7 @@ from src.modules.catalog.application.constants import (
     storefront_form_cache_key,
 )
 from src.modules.catalog.domain.entities import Category
+from src.modules.catalog.domain.events import CategoryUpdatedEvent
 from src.modules.catalog.domain.exceptions import (
     AttributeTemplateNotFoundError,
     CategoryNotFoundError,
@@ -115,12 +116,14 @@ class UpdateCategoryHandler:
             CategoryNotFoundError: If the category does not exist.
             CategorySlugConflictError: If the new slug collides at the same level.
         """
-        if command.template_id is not ... and command.template_id is not None:
-            template = await self._template_repo.get(command.template_id)
-            if template is None:
-                raise AttributeTemplateNotFoundError(template_id=command.template_id)
-
         async with self._uow:
+            if command.template_id is not ... and command.template_id is not None:
+                template = await self._template_repo.get(command.template_id)
+                if template is None:
+                    raise AttributeTemplateNotFoundError(
+                        template_id=command.template_id
+                    )
+
             category: Category | None = await self._category_repo.get_for_update(
                 command.category_id
             )
@@ -163,6 +166,12 @@ class UpdateCategoryHandler:
                 category.set_effective_template_id(new_effective)
 
             await self._category_repo.update(category)
+            category.add_domain_event(
+                CategoryUpdatedEvent(
+                    category_id=category.id,
+                    aggregate_id=str(category.id),
+                )
+            )
             self._uow.register_aggregate(category)
 
             # Propagate effective_template_id to inheriting descendants

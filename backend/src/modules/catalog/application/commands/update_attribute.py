@@ -9,9 +9,16 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from src.modules.catalog.domain.entities import Attribute
 from src.modules.catalog.domain.events import AttributeUpdatedEvent
-from src.modules.catalog.domain.exceptions import AttributeNotFoundError
-from src.modules.catalog.domain.interfaces import IAttributeRepository
+from src.modules.catalog.domain.exceptions import (
+    AttributeGroupNotFoundError,
+    AttributeNotFoundError,
+)
+from src.modules.catalog.domain.interfaces import (
+    IAttributeGroupRepository,
+    IAttributeRepository,
+)
 from src.modules.catalog.domain.value_objects import AttributeLevel, AttributeUIType
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -64,10 +71,12 @@ class UpdateAttributeHandler:
     def __init__(
         self,
         attribute_repo: IAttributeRepository,
+        group_repo: IAttributeGroupRepository,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
         self._attribute_repo = attribute_repo
+        self._group_repo = group_repo
         self._uow = uow
         self._logger = logger.bind(handler="UpdateAttributeHandler")
 
@@ -90,9 +99,16 @@ class UpdateAttributeHandler:
             if attribute is None:
                 raise AttributeNotFoundError(attribute_id=command.attribute_id)
 
-            # Only pass fields the client actually sent (tracked via _provided_fields).
+            if "group_id" in command._provided_fields and command.group_id is not None:
+                group = await self._group_repo.get(command.group_id)
+                if group is None:
+                    raise AttributeGroupNotFoundError(group_id=command.group_id)
+
+            # Only pass fields the client actually sent, intersected with
+            # the entity's declared updatable fields (defence-in-depth).
+            safe_fields = command._provided_fields & Attribute._UPDATABLE_FIELDS
             update_kwargs: dict[str, Any] = {
-                name: getattr(command, name) for name in command._provided_fields
+                name: getattr(command, name) for name in safe_fields
             }
 
             attribute.update(**update_kwargs)

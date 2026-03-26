@@ -37,12 +37,12 @@ def storefront_form_cache_key(category_id: uuid.UUID) -> str:
     return f"catalog:storefront:form:{category_id}"
 
 
-STOREFRONT_CACHE_TTL = 0
-"""TTL in seconds for storefront attribute cache entries (0 = no expiration).
+STOREFRONT_CACHE_TTL = 3600
+"""TTL in seconds for storefront attribute cache entries.
 
-Attribute schemas are set once and rarely change. Caches are invalidated
-explicitly on every database mutation (binding, template, or category
-template_id changes) rather than relying on TTL expiration.
+Safety-net TTL ensures caches self-heal within 1 hour even if explicit
+invalidation fails (e.g. Redis temporarily unreachable after commit).
+Caches are still invalidated explicitly on every database mutation.
 """
 
 

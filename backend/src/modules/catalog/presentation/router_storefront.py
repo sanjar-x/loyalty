@@ -159,7 +159,7 @@ async def get_form_attributes(
     ),
 ) -> StorefrontFormResponse:
     result = await handler.handle(category_id)
-    response.headers["Cache-Control"] = "public, max-age=300, s-maxage=3600"
+    response.headers["Cache-Control"] = "private, max-age=300"
     data = StorefrontFormResponse.model_validate(result, from_attributes=True)
     if lang:
         for group in data.groups:

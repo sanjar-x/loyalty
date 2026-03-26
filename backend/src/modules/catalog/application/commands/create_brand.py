@@ -10,6 +10,7 @@ import uuid
 from dataclasses import dataclass
 
 from src.modules.catalog.domain.entities import Brand
+from src.modules.catalog.domain.events import BrandCreatedEvent
 from src.modules.catalog.domain.exceptions import BrandSlugConflictError
 from src.modules.catalog.domain.interfaces import IBrandRepository
 from src.shared.interfaces.logger import ILogger
@@ -69,8 +70,6 @@ class CreateBrandHandler:
         Raises:
             BrandSlugConflictError: If the slug is already taken.
         """
-        brand_id = uuid.uuid4()
-
         async with self._uow:
             if await self._brand_repo.check_slug_exists(command.slug):
                 raise BrandSlugConflictError(slug=command.slug)
@@ -78,11 +77,17 @@ class CreateBrandHandler:
             brand = Brand.create(
                 name=command.name,
                 slug=command.slug,
-                brand_id=brand_id,
                 logo_url=command.logo_url,
                 logo_storage_object_id=command.logo_storage_object_id,
             )
             brand = await self._brand_repo.add(brand)
+            brand.add_domain_event(
+                BrandCreatedEvent(
+                    brand_id=brand.id,
+                    slug=brand.slug,
+                    aggregate_id=str(brand.id),
+                )
+            )
             self._uow.register_aggregate(brand)
             await self._uow.commit()
 

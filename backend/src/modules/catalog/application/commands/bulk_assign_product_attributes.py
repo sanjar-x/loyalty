@@ -89,19 +89,29 @@ class BulkAssignProductAttributesHandler:
                     category.effective_template_id,
                 )
 
-            # 3. Batch-prefetch all attributes and values (avoid N+1)
+            # 3. Check for duplicates within the batch
+            seen_attr_ids: set[uuid.UUID] = set()
+            for item in command.items:
+                if item.attribute_id in seen_attr_ids:
+                    raise DuplicateProductAttributeError(
+                        product_id=command.product_id,
+                        attribute_id=item.attribute_id,
+                    )
+                seen_attr_ids.add(item.attribute_id)
+
+            # 4. Batch-prefetch all attributes and values (avoid N+1)
             attr_ids = [item.attribute_id for item in command.items]
             val_ids = [item.attribute_value_id for item in command.items]
 
             attrs_by_id = await self._attribute_repo.get_many(attr_ids)
             vals_by_id = await self._attribute_value_repo.get_many(val_ids)
 
-            # 4. Bulk-check existing assignments (avoid N+1)
+            # 5. Bulk-check existing assignments (avoid N+1)
             existing_assignments = await self._pav_repo.check_assignments_exist_bulk(
                 command.product_id, attr_ids
             )
 
-            # 5. Validate and create all assignments
+            # 6. Validate and create all assignments
             pav_ids: list[uuid.UUID] = []
 
             for item in command.items:

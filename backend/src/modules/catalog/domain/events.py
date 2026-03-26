@@ -7,14 +7,14 @@ and AttributeTemplate aggregates during business operations, serialized to JSON 
 The infrastructure layer relays them to downstream consumers.
 
 Event Audit (2026-03-26):
-- 22 concrete events defined, 22 emitted (by command handlers or domain entities)
-- Brand (1): BrandDeletedEvent
-- Category (1): CategoryDeletedEvent
+- 27 concrete events defined, 27 emitted (by command handlers or domain entities)
+- Brand (3): Created / Updated / Deleted
+- Category (3): Created / Updated / Deleted
 - Attribute (3): Created / Updated / Deleted
 - AttributeValue (4): Added / Updated / Deleted / Reordered
 - AttributeTemplate (3): Created / Updated / Deleted
 - TemplateAttributeBinding (3): Created / Updated / Deleted
-- Product (3): Created / StatusChanged / Updated  (emitted from domain entity)
+- Product (4): Created / StatusChanged / Updated / Deleted  (emitted from domain entity)
 - Variant (2): Added / Deleted  (emitted from domain entity)
 - SKU (2): Added / Deleted  (emitted from domain entity)
 - 0 relay/subscription handlers wired (catalog events are recorded to Outbox
@@ -106,6 +106,33 @@ class CatalogEvent(DomainEvent):
 
 
 @dataclass
+class BrandCreatedEvent(
+    CatalogEvent,
+    required_fields=("brand_id",),
+    aggregate_id_field="brand_id",
+):
+    """Emitted when a new brand is created."""
+
+    brand_id: uuid.UUID | None = None
+    slug: str = ""
+    aggregate_type: str = "Brand"
+    event_type: str = "BrandCreatedEvent"
+
+
+@dataclass
+class BrandUpdatedEvent(
+    CatalogEvent,
+    required_fields=("brand_id",),
+    aggregate_id_field="brand_id",
+):
+    """Emitted when a brand is updated."""
+
+    brand_id: uuid.UUID | None = None
+    aggregate_type: str = "Brand"
+    event_type: str = "BrandUpdatedEvent"
+
+
+@dataclass
 class BrandDeletedEvent(
     CatalogEvent,
     required_fields=("brand_id",),
@@ -121,6 +148,33 @@ class BrandDeletedEvent(
 # ---------------------------------------------------------------------------
 # Category events
 # ---------------------------------------------------------------------------
+
+
+@dataclass
+class CategoryCreatedEvent(
+    CatalogEvent,
+    required_fields=("category_id",),
+    aggregate_id_field="category_id",
+):
+    """Emitted when a new category is created."""
+
+    category_id: uuid.UUID | None = None
+    slug: str = ""
+    aggregate_type: str = "Category"
+    event_type: str = "CategoryCreatedEvent"
+
+
+@dataclass
+class CategoryUpdatedEvent(
+    CatalogEvent,
+    required_fields=("category_id",),
+    aggregate_id_field="category_id",
+):
+    """Emitted when a category is updated."""
+
+    category_id: uuid.UUID | None = None
+    aggregate_type: str = "Category"
+    event_type: str = "CategoryUpdatedEvent"
 
 
 @dataclass
@@ -419,6 +473,20 @@ class ProductUpdatedEvent(
     product_id: uuid.UUID | None = None
     aggregate_type: str = "Product"
     event_type: str = "ProductUpdatedEvent"
+
+
+@dataclass
+class ProductDeletedEvent(
+    CatalogEvent,
+    required_fields=("product_id",),
+    aggregate_id_field="product_id",
+):
+    """Emitted when a product is soft-deleted."""
+
+    product_id: uuid.UUID | None = None
+    slug: str = ""
+    aggregate_type: str = "Product"
+    event_type: str = "ProductDeletedEvent"
 
 
 # ---------------------------------------------------------------------------

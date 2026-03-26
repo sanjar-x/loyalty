@@ -67,7 +67,7 @@ class DeleteCategoryHandler:
             CategoryHasProductsError: If the category still has associated products.
         """
         async with self._uow:
-            category = await self._category_repo.get(command.category_id)
+            category = await self._category_repo.get_for_update(command.category_id)
             if category is None:
                 raise CategoryNotFoundError(category_id=command.category_id)
 

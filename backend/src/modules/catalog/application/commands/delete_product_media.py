@@ -10,8 +10,10 @@ import uuid
 from dataclasses import dataclass
 
 from src.modules.catalog.domain.exceptions import MediaAssetNotFoundError
-from src.modules.catalog.domain.interfaces import IMediaAssetRepository
-from src.modules.catalog.infrastructure.image_backend_client import ImageBackendClient
+from src.modules.catalog.domain.interfaces import (
+    IImageBackendClient,
+    IMediaAssetRepository,
+)
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -36,7 +38,7 @@ class DeleteProductMediaHandler:
         self,
         media_repo: IMediaAssetRepository,
         uow: IUnitOfWork,
-        image_backend: ImageBackendClient,
+        image_backend: IImageBackendClient,
         logger: ILogger,
     ) -> None:
         self._media_repo = media_repo
@@ -53,21 +55,22 @@ class DeleteProductMediaHandler:
         Raises:
             MediaAssetNotFoundError: If the media asset does not exist.
         """
-        media = await self._media_repo.get(command.media_id)
-        if media is None:
-            raise MediaAssetNotFoundError(media_id=command.media_id)
+        async with self._uow:
+            media = await self._media_repo.get(command.media_id)
+            if media is None:
+                raise MediaAssetNotFoundError(media_id=command.media_id)
 
-        if media.product_id != command.product_id:
-            raise MediaAssetNotFoundError(
-                media_id=command.media_id, product_id=command.product_id
-            )
+            if media.product_id != command.product_id:
+                raise MediaAssetNotFoundError(
+                    media_id=command.media_id, product_id=command.product_id
+                )
 
-        storage_object_id = media.storage_object_id
+            storage_object_id = media.storage_object_id
 
-        await self._media_repo.delete(command.media_id)
-        await self._uow.commit()
+            await self._media_repo.delete(command.media_id)
+            await self._uow.commit()
 
-        # Best-effort ImageBackend cleanup (delete() swallows errors internally)
+        # Best-effort ImageBackend cleanup AFTER commit
         if storage_object_id:
             await self._image_backend.delete(storage_object_id)
 

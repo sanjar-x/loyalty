@@ -52,7 +52,7 @@ class DeleteBrandHandler:
             BrandHasProductsError: If the brand still has associated products.
         """
         async with self._uow:
-            brand = await self._brand_repo.get(command.brand_id)
+            brand = await self._brand_repo.get_for_update(command.brand_id)
             if brand is None:
                 raise BrandNotFoundError(brand_id=command.brand_id)
 

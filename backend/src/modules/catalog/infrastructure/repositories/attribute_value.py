@@ -9,14 +9,22 @@ checks scoped to the parent attribute and bulk sort-order updates.
 import uuid
 
 from sqlalchemy import case, select, update
+from sqlalchemy.exc import IntegrityError
 
 from src.modules.catalog.domain.entities import AttributeValue as DomainAttributeValue
+from src.modules.catalog.domain.exceptions import (
+    AttributeValueCodeConflictError,
+    AttributeValueSlugConflictError,
+)
 from src.modules.catalog.domain.interfaces import IAttributeValueRepository
 from src.modules.catalog.infrastructure.models import (
     AttributeValue as OrmAttributeValue,
 )
 from src.modules.catalog.infrastructure.models import (
     ProductAttributeValue as OrmProductAttributeValue,
+)
+from src.modules.catalog.infrastructure.models import (
+    SKUAttributeValueLink as OrmSKUAttributeValueLink,
 )
 from src.modules.catalog.infrastructure.repositories.base import BaseRepository
 
@@ -65,6 +73,22 @@ class AttributeValueRepository(
         orm.is_active = entity.is_active
         return orm
 
+    async def add(self, entity: DomainAttributeValue) -> DomainAttributeValue:
+        """Persist a new attribute value and return the refreshed copy."""
+        orm = self._to_orm(entity)
+        self._session.add(orm)
+        try:
+            await self._session.flush()
+        except IntegrityError as e:
+            await self._session.rollback()
+            constraint = str(e.orig) if e.orig else str(e)
+            if "code" in constraint.lower():
+                raise AttributeValueCodeConflictError(code=entity.code, attribute_id=entity.attribute_id) from e
+            if "slug" in constraint.lower():
+                raise AttributeValueSlugConflictError(slug=entity.slug, attribute_id=entity.attribute_id) from e
+            raise
+        return self._to_domain(orm)
+
     async def get_many(
         self, ids: list[uuid.UUID]
     ) -> dict[uuid.UUID, DomainAttributeValue]:
@@ -102,15 +126,27 @@ class AttributeValueRepository(
         return result.first() is not None
 
     async def has_product_references(self, value_id: uuid.UUID) -> bool:
-        """Return ``True`` if any products reference this attribute value."""
-        stmt = select(
+        """Return ``True`` if any products or SKUs reference this attribute value."""
+        # Check product-level EAV assignments
+        pav_stmt = select(
             select(OrmProductAttributeValue.id)
             .where(OrmProductAttributeValue.attribute_value_id == value_id)
             .limit(1)
             .exists()
         )
-        result = await self._session.execute(stmt)
-        return bool(result.scalar())
+        pav_result = await self._session.execute(pav_stmt)
+        if pav_result.scalar():
+            return True
+
+        # Check variant/SKU-level attribute assignments
+        sav_stmt = select(
+            select(OrmSKUAttributeValueLink.id)
+            .where(OrmSKUAttributeValueLink.attribute_value_id == value_id)
+            .limit(1)
+            .exists()
+        )
+        sav_result = await self._session.execute(sav_stmt)
+        return bool(sav_result.scalar())
 
     async def check_codes_exist(
         self, attribute_id: uuid.UUID, codes: list[str]

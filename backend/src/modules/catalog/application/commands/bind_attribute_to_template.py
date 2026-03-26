@@ -11,8 +11,12 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
-from src.modules.catalog.application.queries.resolve_template_attributes import (
-    invalidate_template_effective_cache,
+from src.modules.catalog.application.constants import (
+    storefront_card_cache_key,
+    storefront_comparison_cache_key,
+    storefront_filters_cache_key,
+    storefront_form_cache_key,
+    template_effective_attrs_cache_key,
 )
 from src.modules.catalog.domain.entities import TemplateAttributeBinding
 from src.modules.catalog.domain.events import TemplateAttributeBindingCreatedEvent
@@ -145,21 +149,28 @@ class BindAttributeToTemplateHandler:
 
             binding = await self._binding_repo.add(binding)
             self._uow.register_aggregate(binding)
+
+            # Pre-collect data for post-commit cache invalidation
+            affected_category_ids = (
+                await self._template_repo.get_category_ids_by_template_ids([
+                    command.template_id
+                ])
+            )
+
             await self._uow.commit()
 
+        # Cache invalidation after commit using pre-collected IDs
         try:
-            await invalidate_template_effective_cache(
-                self._cache, self._template_repo, command.template_id
-            )
+            keys = [template_effective_attrs_cache_key(command.template_id)]
+            for cat_id in affected_category_ids:
+                keys.append(storefront_filters_cache_key(cat_id))
+                keys.append(storefront_card_cache_key(cat_id))
+                keys.append(storefront_comparison_cache_key(cat_id))
+                keys.append(storefront_form_cache_key(cat_id))
+            if keys:
+                await self._cache.delete_many(keys)
         except Exception as exc:
             self._logger.warning("cache_invalidation_failed", error=str(exc))
-
-        # Count categories affected by this binding
-        affected_category_ids = (
-            await self._template_repo.get_category_ids_by_template_ids([
-                command.template_id
-            ])
-        )
 
         return BindAttributeToTemplateResult(
             binding_id=binding.id,

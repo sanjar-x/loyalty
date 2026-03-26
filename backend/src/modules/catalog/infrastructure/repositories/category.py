@@ -9,8 +9,10 @@ slug uniqueness within a parent, child existence checks, and bulk
 import uuid
 
 from sqlalchemy import func, select, text, update
+from sqlalchemy.exc import IntegrityError
 
 from src.modules.catalog.domain.entities import Category as DomainCategory
+from src.modules.catalog.domain.exceptions import CategorySlugConflictError
 from src.modules.catalog.domain.interfaces import ICategoryRepository
 from src.modules.catalog.infrastructure.models import Category as OrmCategory
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
@@ -58,6 +60,20 @@ class CategoryRepository(
         orm.template_id = entity.template_id
         orm.effective_template_id = entity.effective_template_id
         return orm
+
+    async def add(self, entity: DomainCategory) -> DomainCategory:
+        """Persist a new category and return the refreshed copy."""
+        orm = self._to_orm(entity)
+        self._session.add(orm)
+        try:
+            await self._session.flush()
+        except IntegrityError as e:
+            await self._session.rollback()
+            constraint = str(e.orig) if e.orig else str(e)
+            if "uix_categories_slug" in constraint:
+                raise CategorySlugConflictError(slug=entity.slug, parent_id=entity.parent_id) from e
+            raise
+        return self._to_domain(orm)
 
     async def get_all_ordered(self) -> list[DomainCategory]:
         """Return all categories ordered by level then sort_order."""

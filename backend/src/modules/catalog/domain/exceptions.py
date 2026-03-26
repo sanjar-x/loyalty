@@ -344,6 +344,17 @@ class BrandSlugConflictError(ConflictError):
         )
 
 
+class BrandNameConflictError(ConflictError):
+    """Raised when a brand name collides with an existing brand."""
+
+    def __init__(self, name: str):
+        super().__init__(
+            message=f"Brand with name '{name}' already exists.",
+            error_code="BRAND_NAME_CONFLICT",
+            details={"name": name},
+        )
+
+
 # ---------------------------------------------------------------------------
 # Attribute aggregate exceptions
 # ---------------------------------------------------------------------------
@@ -357,6 +368,17 @@ class AttributeNotFoundError(NotFoundError):
             message=f"Attribute with ID {attribute_id} not found.",
             error_code="ATTRIBUTE_NOT_FOUND",
             details={"attribute_id": str(attribute_id)},
+        )
+
+
+class AttributeGroupNotFoundError(NotFoundError):
+    """Raised when an attribute group lookup yields no result."""
+
+    def __init__(self, group_id: uuid.UUID | str):
+        super().__init__(
+            message=f"Attribute group with ID {group_id} not found.",
+            error_code="ATTRIBUTE_GROUP_NOT_FOUND",
+            details={"group_id": str(group_id)},
         )
 
 

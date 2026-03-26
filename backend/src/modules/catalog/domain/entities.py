@@ -27,6 +27,7 @@ from attrs import define
 
 from src.modules.catalog.domain.events import (
     ProductCreatedEvent,
+    ProductDeletedEvent,
     ProductStatusChangedEvent,
     ProductUpdatedEvent,
     SKUAddedEvent,
@@ -83,6 +84,12 @@ def _generate_id() -> uuid.UUID:
     return uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4()
 
 
+def _validate_sort_order(sort_order: int, entity_name: str) -> None:
+    """Validate that sort_order is non-negative."""
+    if sort_order < 0:
+        raise ValueError(f"{entity_name} sort_order must be non-negative")
+
+
 # ---------------------------------------------------------------------------
 # DDD-01: Guarded fields set -- fields that may only be changed through
 # explicit domain methods, never by direct attribute assignment.
@@ -92,6 +99,7 @@ _PRODUCT_GUARDED_FIELDS: frozenset[str] = frozenset({"status"})
 _BRAND_GUARDED_FIELDS: frozenset[str] = frozenset({"slug"})
 _CATEGORY_GUARDED_FIELDS: frozenset[str] = frozenset({"slug"})
 _FAMILY_GUARDED_FIELDS: frozenset[str] = frozenset({"code"})
+_ATTRIBUTE_GROUP_GUARDED_FIELDS: frozenset[str] = frozenset({"code"})
 
 
 # ---------------------------------------------------------------------------
@@ -158,6 +166,8 @@ class Brand(AggregateRoot):
             A new Brand instance.
         """
         _validate_slug(slug, "Brand")
+        if not name or not name.strip():
+            raise ValueError("Brand name must be non-empty")
         return cls(
             id=brand_id or _generate_id(),
             name=name,
@@ -182,6 +192,8 @@ class Brand(AggregateRoot):
             logo_storage_object_id: New storage object ID, None to clear, or ``...`` (default) to keep current.
         """
         if name is not None:
+            if not name or not name.strip():
+                raise ValueError("Brand name must be non-empty")
             self.name = name
         if slug is not None:
             _validate_slug(slug, "Brand")
@@ -276,6 +288,9 @@ class Category(AggregateRoot):
             A new root Category with level=0.
         """
         _validate_slug(slug, "Category")
+        if not name_i18n:
+            raise ValueError("name_i18n must contain at least one language entry")
+        _validate_sort_order(sort_order, "Category")
         return cls(
             id=_generate_id(),
             parent_id=None,
@@ -313,6 +328,9 @@ class Category(AggregateRoot):
             CategoryMaxDepthError: If the parent is already at max depth.
         """
         _validate_slug(slug, "Category")
+        if not name_i18n:
+            raise ValueError("name_i18n must contain at least one language entry")
+        _validate_sort_order(sort_order, "Category")
         if parent.level >= MAX_CATEGORY_DEPTH:
             raise CategoryMaxDepthError(
                 max_depth=MAX_CATEGORY_DEPTH, current_level=parent.level
@@ -359,15 +377,23 @@ class Category(AggregateRoot):
         old_full_slug: str | None = None
 
         if name_i18n is not None:
+            if not name_i18n:
+                raise ValueError("name_i18n must contain at least one language entry")
             self.name_i18n = name_i18n
 
         if sort_order is not None:
+            _validate_sort_order(sort_order, "Category")
             self.sort_order = sort_order
 
         if template_id is not ...:
             self.template_id = template_id
             if template_id is not None:
                 self.effective_template_id = template_id
+            else:
+                # Template cleared — effective must be recalculated by the
+                # handler (inherit from parent).  Reset to None here so the
+                # entity never silently retains a stale value.
+                self.effective_template_id = None
 
         if slug is not None and slug != self.slug:
             _validate_slug(slug, "Category")
@@ -466,6 +492,7 @@ class AttributeTemplate(AggregateRoot):
         sort_order: int = 0,
     ) -> AttributeTemplate:
         """Create a new attribute template (flat template)."""
+        _validate_sort_order(sort_order, "AttributeTemplate")
         return cls(
             id=_generate_id(),
             code=code,
@@ -562,6 +589,7 @@ class TemplateAttributeBinding(AggregateRoot):
         binding_id: uuid.UUID | None = None,
     ) -> TemplateAttributeBinding:
         """Factory method to construct a new TemplateAttributeBinding."""
+        _validate_sort_order(sort_order, "TemplateAttributeBinding")
         return cls(
             id=binding_id or _generate_id(),
             template_id=template_id,
@@ -584,6 +612,7 @@ class TemplateAttributeBinding(AggregateRoot):
             raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
 
         if "sort_order" in kwargs and kwargs["sort_order"] is not None:
+            _validate_sort_order(kwargs["sort_order"], "TemplateAttributeBinding")
             self.sort_order = kwargs["sort_order"]
         if "requirement_level" in kwargs and kwargs["requirement_level"] is not None:
             self.requirement_level = kwargs["requirement_level"]
@@ -616,6 +645,20 @@ class AttributeGroup(AggregateRoot):
     name_i18n: dict[str, str]
     sort_order: int
 
+    # DDD-01: guard code against direct mutation
+    def __setattr__(self, name: str, value: object) -> None:
+        if name in _ATTRIBUTE_GROUP_GUARDED_FIELDS and getattr(
+            self, "_AttributeGroup__initialized", False
+        ):
+            raise AttributeError(
+                f"Cannot set '{name}' directly on AttributeGroup."
+            )
+        super().__setattr__(name, value)
+
+    def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
+        object.__setattr__(self, "_AttributeGroup__initialized", True)
+
     @classmethod
     def create(
         cls,
@@ -640,6 +683,7 @@ class AttributeGroup(AggregateRoot):
         """
         if not name_i18n:
             raise ValueError("name_i18n must contain at least one language entry")
+        _validate_sort_order(sort_order, "AttributeGroup")
 
         return cls(
             id=group_id or _generate_id(),
@@ -668,6 +712,7 @@ class AttributeGroup(AggregateRoot):
             self.name_i18n = name_i18n
 
         if sort_order is not None:
+            _validate_sort_order(sort_order, "AttributeGroup")
             self.sort_order = sort_order
 
 
@@ -1005,6 +1050,7 @@ class AttributeValue:
         if not value_i18n:
             raise ValueError("value_i18n must contain at least one language entry")
         _validate_slug(slug, "AttributeValue")
+        _validate_sort_order(sort_order, "AttributeValue")
 
         return cls(
             id=value_id or _generate_id(),
@@ -1062,6 +1108,7 @@ class AttributeValue:
             self.value_group = kwargs["value_group"]  # nullable -- None clears it
 
         if "sort_order" in kwargs and kwargs["sort_order"] is not None:
+            _validate_sort_order(kwargs["sort_order"], "AttributeValue")
             self.sort_order = kwargs["sort_order"]
 
         if "is_active" in kwargs and kwargs["is_active"] is not None:
@@ -1194,8 +1241,6 @@ class SKU:
         "price",
         "compare_at_price",
         "is_active",
-        "variant_attributes",
-        "variant_hash",
     })
 
     def update(self, **kwargs: Any) -> None:
@@ -1215,35 +1260,45 @@ class SKU:
         if unknown:
             raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
 
-        if "sku_code" in kwargs:
-            self.sku_code = kwargs["sku_code"]
-        if "price" in kwargs:
-            self.price = kwargs["price"]
-        if "compare_at_price" in kwargs:
-            self.compare_at_price = kwargs["compare_at_price"]
-        if "is_active" in kwargs:
-            self.is_active = kwargs["is_active"]
-        if "variant_attributes" in kwargs:
-            self.variant_attributes = kwargs["variant_attributes"]
-        if "variant_hash" in kwargs:
-            self.variant_hash = kwargs["variant_hash"]
+        # Validate-then-mutate: compute new state before touching self
+        new_price = kwargs["price"] if "price" in kwargs else self.price
+        new_compare = (
+            kwargs["compare_at_price"]
+            if "compare_at_price" in kwargs
+            else self.compare_at_price
+        )
 
-        # Re-validate price constraint after any price-related change.
-        if self.price is None and self.compare_at_price is not None:
+        if new_price is None and new_compare is not None:
             raise ValueError("compare_at_price cannot be set when price is None")
-        if self.compare_at_price is not None:
-            if self.compare_at_price.amount <= 0:
+        if new_compare is not None:
+            if new_compare.amount <= 0:
                 raise ValueError("compare_at_price amount must be greater than zero")
-            if self.price is not None:
-                if self.compare_at_price.currency != self.price.currency:
+            if new_price is not None:
+                if new_compare.currency != new_price.currency:
                     raise ValueError(
-                        f"compare_at_price currency ({self.compare_at_price.currency}) "
-                        f"must match price currency ({self.price.currency})"
+                        f"compare_at_price currency ({new_compare.currency}) "
+                        f"must match price currency ({new_price.currency})"
                     )
-                if not self.compare_at_price > self.price:
+                if not new_compare > new_price:
                     raise ValueError("compare_at_price must be greater than price")
 
-        self.updated_at = datetime.now(UTC)
+        # All validation passed — safe to mutate
+        changed = False
+        if "sku_code" in kwargs:
+            self.sku_code = kwargs["sku_code"]
+            changed = True
+        if "price" in kwargs:
+            self.price = kwargs["price"]
+            changed = True
+        if "compare_at_price" in kwargs:
+            self.compare_at_price = kwargs["compare_at_price"]
+            changed = True
+        if "is_active" in kwargs:
+            self.is_active = kwargs["is_active"]
+            changed = True
+
+        if changed:
+            self.updated_at = datetime.now(UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -1307,6 +1362,7 @@ class ProductVariant:
         """
         if not name_i18n:
             raise ValueError("name_i18n must contain at least one language entry")
+        _validate_sort_order(sort_order, "ProductVariant")
         return cls(
             id=variant_id or _generate_id(),
             product_id=product_id,
@@ -1339,18 +1395,25 @@ class ProductVariant:
         if unknown:
             raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
 
+        changed = False
+
         if "name_i18n" in kwargs:
             if not kwargs["name_i18n"]:
                 raise ValueError("name_i18n must contain at least one language entry")
             self.name_i18n = kwargs["name_i18n"]
+            changed = True
         if "description_i18n" in kwargs:
             self.description_i18n = kwargs["description_i18n"]
+            changed = True
         if "sort_order" in kwargs:
+            _validate_sort_order(kwargs["sort_order"], "ProductVariant")
             self.sort_order = kwargs["sort_order"]
+            changed = True
         if "default_price" in kwargs:
             self.default_price = kwargs["default_price"]
             if kwargs["default_price"] is not None:
                 self.default_currency = kwargs["default_price"].currency
+            changed = True
         if "default_currency" in kwargs:
             currency = kwargs["default_currency"]
             if not (len(currency) == 3 and currency.isascii() and currency.isupper()):
@@ -1358,8 +1421,10 @@ class ProductVariant:
                     "default_currency must be exactly 3 uppercase ASCII letters"
                 )
             self.default_currency = currency
+            changed = True
 
-        self.updated_at = datetime.now(UTC)
+        if changed:
+            self.updated_at = datetime.now(UTC)
 
     def soft_delete(self) -> None:
         """Mark this variant and all its active SKUs as deleted."""
@@ -1675,6 +1740,13 @@ class Product(AggregateRoot):
         for variant in self.variants:
             if variant.deleted_at is None:
                 variant.soft_delete()
+        self.add_domain_event(
+            ProductDeletedEvent(
+                product_id=self.id,
+                slug=self.slug,
+                aggregate_id=str(self.id),
+            )
+        )
 
     def transition_status(self, new_status: ProductStatus) -> None:
         """Transition the product to a new lifecycle status.

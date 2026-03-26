@@ -219,6 +219,7 @@ class ResolveTemplateAttributesHandler:
                         sort_order=v.sort_order,
                     )
                     for v in sorted(orm_attr.values, key=lambda x: x.sort_order)
+                    if v.is_active
                 ]
 
             grp = orm_attr.group

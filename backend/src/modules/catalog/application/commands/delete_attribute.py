@@ -61,7 +61,7 @@ class DeleteAttributeHandler:
             AttributeInUseByProductsError: If products reference this attribute.
         """
         async with self._uow:
-            attribute = await self._attribute_repo.get(command.attribute_id)
+            attribute = await self._attribute_repo.get_for_update(command.attribute_id)
             if attribute is None:
                 raise AttributeNotFoundError(attribute_id=command.attribute_id)
 

@@ -13,9 +13,13 @@ from src.modules.catalog.domain.entities import Attribute
 from src.modules.catalog.domain.events import AttributeCreatedEvent
 from src.modules.catalog.domain.exceptions import (
     AttributeCodeConflictError,
+    AttributeGroupNotFoundError,
     AttributeSlugConflictError,
 )
-from src.modules.catalog.domain.interfaces import IAttributeRepository
+from src.modules.catalog.domain.interfaces import (
+    IAttributeGroupRepository,
+    IAttributeRepository,
+)
 from src.modules.catalog.domain.value_objects import (
     DEFAULT_SEARCH_WEIGHT,
     AttributeDataType,
@@ -83,10 +87,12 @@ class CreateAttributeHandler:
     def __init__(
         self,
         attribute_repo: IAttributeRepository,
+        group_repo: IAttributeGroupRepository,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
         self._attribute_repo = attribute_repo
+        self._group_repo = group_repo
         self._uow = uow
         self._logger = logger.bind(handler="CreateAttributeHandler")
 
@@ -108,6 +114,11 @@ class CreateAttributeHandler:
         validate_i18n_completeness(command.name_i18n, "name_i18n")
 
         async with self._uow:
+            if command.group_id is not None:
+                group = await self._group_repo.get(command.group_id)
+                if group is None:
+                    raise AttributeGroupNotFoundError(group_id=command.group_id)
+
             if await self._attribute_repo.check_code_exists(command.code):
                 raise AttributeCodeConflictError(code=command.code)
 

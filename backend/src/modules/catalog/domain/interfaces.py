@@ -33,6 +33,19 @@ from src.modules.catalog.domain.entities import (
 )
 
 
+class IImageBackendClient(ABC):
+    """Port for server-to-server media deletion calls.
+
+    The application layer depends on this abstraction; the concrete
+    HTTP adapter lives in the infrastructure layer.
+    """
+
+    @abstractmethod
+    async def delete(self, storage_object_id: uuid.UUID) -> None:
+        """Delete a media file by its storage object ID. Best-effort."""
+        pass
+
+
 class ICatalogRepository[T](ABC):
     """Generic CRUD repository contract for catalog aggregates.
 
@@ -84,6 +97,18 @@ class IBrandRepository(ICatalogRepository[DomainBrand]):
     @abstractmethod
     async def has_products(self, brand_id: uuid.UUID) -> bool:
         """Check whether any non-deleted products reference this brand."""
+        pass
+
+    @abstractmethod
+    async def check_name_exists(self, name: str) -> bool:
+        """Check whether a brand with the given name already exists."""
+        pass
+
+    @abstractmethod
+    async def check_name_exists_excluding(
+        self, name: str, exclude_id: uuid.UUID
+    ) -> bool:
+        """Check if a name is taken by another brand (excluding given ID)."""
         pass
 
 
