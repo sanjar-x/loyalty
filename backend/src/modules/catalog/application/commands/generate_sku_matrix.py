@@ -124,7 +124,7 @@ class GenerateSKUMatrixHandler:
         and attributes belong to the product's category template.
         """
         async with self._uow:
-            product = await self._product_repo.get_with_variants(command.product_id)
+            product = await self._product_repo.get_for_update_with_variants(command.product_id)
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
@@ -157,6 +157,13 @@ class GenerateSKUMatrixHandler:
                     },
                 )
 
+            # Pre-fetch existing SKU codes to avoid N+1
+            existing_codes: set[str] = set()
+            for v in product.variants:
+                for s in v.skus:
+                    if s.deleted_at is None:
+                        existing_codes.add(s.sku_code)
+
             created_ids: list[uuid.UUID] = []
             skipped = 0
 
@@ -167,7 +174,7 @@ class GenerateSKUMatrixHandler:
                 # Check if sku_code already exists; retry with suffix if so
                 base_code = sku_code
                 suffix = 0
-                while await self._product_repo.check_sku_code_exists(sku_code):
+                while sku_code in existing_codes:
                     suffix += 1
                     sku_code = f"{base_code}-{suffix}"
                     if suffix > 10:  # Safety limit
@@ -184,6 +191,7 @@ class GenerateSKUMatrixHandler:
                         variant_attributes=combo,
                     )
                     created_ids.append(sku.id)
+                    existing_codes.add(sku_code)
                 except DuplicateVariantCombinationError:
                     skipped += 1
                     continue

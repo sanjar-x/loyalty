@@ -44,12 +44,12 @@ def compute_media_diff(
     current_external = {
         c["url"]: c
         for c in current
-        if c.get("is_external") and not c.get("storage_object_id")
+        if c.get("is_external") and not c.get("storage_object_id") and c.get("url") is not None
     }
     incoming_external = {
         i["url"]: i
         for i in incoming
-        if i.get("is_external") and not i.get("storage_object_id")
+        if i.get("is_external") and not i.get("storage_object_id") and i.get("url") is not None
     }
     to_add.extend(
         i for url, i in incoming_external.items() if url not in current_external

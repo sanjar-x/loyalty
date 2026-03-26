@@ -230,8 +230,7 @@ class UpdateProductHandler:
                     await self._media_repo.update(media)
 
                 for item in to_add:
-                    media_asset = MediaAsset(
-                        id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
+                    media_asset = MediaAsset.create(
                         product_id=command.product_id,
                         variant_id=uuid.UUID(item["variant_id"])
                         if item.get("variant_id")

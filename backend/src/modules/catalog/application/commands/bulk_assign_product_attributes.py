@@ -74,6 +74,9 @@ class BulkAssignProductAttributesHandler:
     async def handle(
         self, command: BulkAssignProductAttributesCommand
     ) -> BulkAssignProductAttributesResult:
+        if len(command.items) > 100:
+            raise ValueError("Cannot assign more than 100 attributes at once")
+
         async with self._uow:
             # 1. Validate product exists
             product = await self._product_repo.get(command.product_id)

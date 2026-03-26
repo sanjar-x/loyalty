@@ -112,7 +112,7 @@ class UpdateSKUHandler:
             ValueError: If the resulting compare_at_price <= price.
         """
         async with self._uow:
-            product = await self._product_repo.get_with_variants(command.product_id)
+            product = await self._product_repo.get_for_update_with_variants(command.product_id)
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 

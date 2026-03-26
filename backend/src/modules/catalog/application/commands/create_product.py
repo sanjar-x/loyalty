@@ -153,10 +153,12 @@ class CreateProductHandler:
 
             await self._product_repo.add(product)
 
+            if command.media and len(command.media) > 100:
+                raise ValueError("Cannot attach more than 100 media items to a product")
+
             if command.media:
                 for item in command.media:
-                    media_asset = MediaAsset(
-                        id=uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4(),
+                    media_asset = MediaAsset.create(
                         product_id=product.id,
                         variant_id=uuid.UUID(item["variant_id"])
                         if item.get("variant_id")
