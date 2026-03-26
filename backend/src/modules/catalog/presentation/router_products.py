@@ -59,34 +59,6 @@ from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
 
 
-def build_update_product_command(
-    product_id: uuid.UUID,
-    request: ProductUpdateRequest,
-) -> UpdateProductCommand:
-    """Build an ``UpdateProductCommand`` from a PATCH request.
-
-    Inspects ``model_fields_set`` to forward only the fields the caller
-    explicitly provided, preserving the "absent means unchanged" semantics.
-
-    Args:
-        product_id: UUID of the product to update.
-        request: The validated PATCH request body.
-
-    Returns:
-        A fully typed ``UpdateProductCommand`` ready for the handler.
-    """
-    provided_fields = request.model_fields_set - {"version"}
-    update_kwargs = {
-        field_name: getattr(request, field_name) for field_name in provided_fields
-    }
-    return UpdateProductCommand(
-        product_id=product_id,
-        version=request.version,
-        _provided_fields=frozenset(provided_fields),
-        **update_kwargs,
-    )
-
-
 product_router = APIRouter(
     prefix="/products",
     tags=["Products"],
@@ -339,6 +311,8 @@ def _to_product_response(model: ProductReadModel) -> ProductResponse:
                 attribute_value_id=a.attribute_value_id,
                 attribute_code=a.attribute_code,
                 attribute_name_i18n=a.attribute_name_i18n,
+                attribute_value_code=getattr(a, "attribute_value_code", ""),
+                attribute_value_name_i18n=getattr(a, "attribute_value_name_i18n", {}),
             )
             for a in model.attributes
         ],

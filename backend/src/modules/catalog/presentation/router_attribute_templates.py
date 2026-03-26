@@ -327,6 +327,7 @@ async def update_binding(
     binding_id: uuid.UUID,
     request: TemplateAttributeBindingUpdateRequest,
     handler: FromDishka[UpdateTemplateAttributeBindingHandler],
+    list_handler: FromDishka[ListTemplateBindingsHandler],
 ) -> TemplateAttributeBindingDetailResponse:
     command = build_update_command(
         request,
@@ -338,6 +339,28 @@ async def update_binding(
         template_id=template_id,
     )
     result: UpdateTemplateAttributeBindingResult = await handler.handle(command)
+
+    # Re-fetch via list handler to get enriched attribute metadata.
+    bindings = await list_handler.handle(
+        ListTemplateBindingsQuery(template_id=template_id, offset=0, limit=1_000)
+    )
+    enriched = next((b for b in bindings.items if b.id == result.id), None)
+    if enriched is not None:
+        return TemplateAttributeBindingDetailResponse(
+            id=enriched.id,
+            template_id=enriched.template_id,
+            attribute_id=enriched.attribute_id,
+            sort_order=enriched.sort_order,
+            requirement_level=enriched.requirement_level,
+            filter_settings=enriched.filter_settings,
+            attribute_code=enriched.attribute_code,
+            attribute_name_i18n=enriched.attribute_name_i18n,
+            attribute_data_type=enriched.attribute_data_type,
+            attribute_ui_type=enriched.attribute_ui_type,
+            attribute_level=enriched.attribute_level,
+            attribute_is_filterable=enriched.attribute_is_filterable,
+        )
+    # Fallback: return basic fields if re-fetch didn't find the binding.
     return TemplateAttributeBindingDetailResponse(
         id=result.id,
         template_id=result.template_id,

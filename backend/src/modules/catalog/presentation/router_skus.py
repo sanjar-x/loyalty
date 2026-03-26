@@ -173,13 +173,6 @@ async def update_sku(
     list_handler: FromDishka[ListSKUsHandler],
 ) -> SKUResponse:
     """Apply a partial update to a SKU and return the updated state."""
-    # SEC-02: Verify the SKU belongs to the specified variant before update.
-    sku_list = await list_handler.handle(
-        ListSKUsQuery(product_id=product_id, variant_id=variant_id, limit=None)
-    )
-    if not any(s.id == sku_id for s in sku_list.items):
-        raise SKUNotFoundError(sku_id=sku_id)
-
     command = build_update_command(
         request,
         UpdateSKUCommand,
@@ -193,9 +186,11 @@ async def update_sku(
         sku_id=sku_id,
         version=request.version,
     )
+    # The handler already validates that the SKU belongs to the product
+    # (raises SKUNotFoundError if not found within the aggregate).
     result = await update_handler.handle(command)
 
-    # Fetch updated SKU list scoped to the variant and find the one we updated.
+    # Fetch updated SKU read model scoped to the variant.
     sku_list = await list_handler.handle(
         ListSKUsQuery(product_id=product_id, variant_id=variant_id, limit=None)
     )
@@ -217,19 +212,12 @@ async def delete_sku(
     variant_id: uuid.UUID,
     sku_id: uuid.UUID,
     handler: FromDishka[DeleteSKUHandler],
-    list_handler: FromDishka[ListSKUsHandler],
 ) -> None:
     """Soft-delete a SKU from the product variant.
 
-    Validates that the SKU belongs to the specified variant before
-    dispatching the delete command, preventing IDOR across variants.
+    The handler fetches the product aggregate and calls
+    ``Product.remove_sku()``, which raises ``SKUNotFoundError`` if the
+    SKU does not belong to the product -- no separate IDOR pre-check needed.
     """
-    # SEC-02: Verify the SKU belongs to the specified variant before deletion.
-    sku_list = await list_handler.handle(
-        ListSKUsQuery(product_id=product_id, variant_id=variant_id, limit=None)
-    )
-    if not any(s.id == sku_id for s in sku_list.items):
-        raise SKUNotFoundError(sku_id=sku_id)
-
     command = DeleteSKUCommand(product_id=product_id, sku_id=sku_id)
     await handler.handle(command)
