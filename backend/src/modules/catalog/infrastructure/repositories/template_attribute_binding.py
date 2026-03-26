@@ -66,7 +66,6 @@ class TemplateAttributeBindingRepository(
         try:
             await self._session.flush()
         except IntegrityError as e:
-            await self._session.rollback()
             constraint = str(e.orig) if e.orig else str(e)
             if "uix_template_attr_binding" in constraint:
                 raise TemplateAttributeBindingAlreadyExistsError(

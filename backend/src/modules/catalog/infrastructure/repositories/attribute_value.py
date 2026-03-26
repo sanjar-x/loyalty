@@ -80,7 +80,6 @@ class AttributeValueRepository(
         try:
             await self._session.flush()
         except IntegrityError as e:
-            await self._session.rollback()
             constraint = str(e.orig) if e.orig else str(e)
             if "code" in constraint.lower():
                 raise AttributeValueCodeConflictError(code=entity.code, attribute_id=entity.attribute_id) from e
@@ -178,7 +177,7 @@ class AttributeValueRepository(
         """Return the set of value IDs belonging to the given attribute."""
         stmt = select(OrmAttributeValue.id).where(
             OrmAttributeValue.attribute_id == attribute_id
-        )
+        ).limit(50_000)
         result = await self._session.execute(stmt)
         return {row[0] for row in result.all()}
 

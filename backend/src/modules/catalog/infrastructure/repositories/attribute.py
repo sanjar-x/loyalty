@@ -89,7 +89,6 @@ class AttributeRepository(
         try:
             await self._session.flush()
         except IntegrityError as e:
-            await self._session.rollback()
             constraint = str(e.orig) if e.orig else str(e)
             if "uix_attributes_code" in constraint or "code" in constraint.lower():
                 raise AttributeCodeConflictError(code=entity.code) from e

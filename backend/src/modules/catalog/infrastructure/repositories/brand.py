@@ -8,7 +8,7 @@ a ``FOR UPDATE`` lock method used by the logo processing pipeline.
 
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import exists, select
 from sqlalchemy.exc import IntegrityError
 
 from src.modules.catalog.domain.entities import Brand as DomainBrand
@@ -61,7 +61,6 @@ class BrandRepository(
         try:
             await self._session.flush()
         except IntegrityError as e:
-            await self._session.rollback()
             constraint = str(e.orig) if e.orig else str(e)
             if "uix_brands_slug" in constraint:
                 raise BrandSlugConflictError(slug=entity.slug) from e
@@ -72,23 +71,19 @@ class BrandRepository(
 
     async def check_name_exists(self, name: str) -> bool:
         """Return ``True`` if any brand already uses this name."""
-        stmt = (
-            select(func.count()).select_from(self.model).where(self.model.name == name)
-        )
+        stmt = select(exists().where(self.model.name == name))
         result = await self._session.execute(stmt)
-        return (result.scalar() or 0) > 0
+        return bool(result.scalar())
 
     async def check_name_exists_excluding(
         self, name: str, exclude_id: uuid.UUID
     ) -> bool:
         """Return ``True`` if the name is taken by a brand other than *exclude_id*."""
-        stmt = (
-            select(func.count())
-            .select_from(self.model)
-            .where(self.model.name == name, self.model.id != exclude_id)
+        stmt = select(
+            exists().where(self.model.name == name, self.model.id != exclude_id)
         )
         result = await self._session.execute(stmt)
-        return (result.scalar() or 0) > 0
+        return bool(result.scalar())
 
     async def check_slug_exists(self, slug: str) -> bool:
         """Return ``True`` if any brand already uses this slug."""

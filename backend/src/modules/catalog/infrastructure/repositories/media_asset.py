@@ -148,10 +148,15 @@ class MediaAssetRepository(IMediaAssetRepository):
 
     async def delete_by_product(self, product_id: uuid.UUID) -> list[uuid.UUID]:
         """Delete all media for a product. Returns storage_object_ids for cleanup."""
-        stmt = select(OrmMediaAsset).where(OrmMediaAsset.product_id == product_id)
+        # First collect storage_object_ids
+        stmt = select(OrmMediaAsset.storage_object_id).where(
+            OrmMediaAsset.product_id == product_id,
+            OrmMediaAsset.storage_object_id.isnot(None),
+        )
         result = await self._session.execute(stmt)
-        orms = result.scalars().all()
-        sids = [orm.storage_object_id for orm in orms if orm.storage_object_id]
-        for orm in orms:
-            await self._session.delete(orm)
+        sids = list(result.scalars().all())
+
+        # Bulk delete
+        del_stmt = delete(OrmMediaAsset).where(OrmMediaAsset.product_id == product_id)
+        await self._session.execute(del_stmt)
         return sids
