@@ -350,7 +350,7 @@ class Attribute(Base):
         "AttributeGroup", back_populates="attributes"
     )
     values: Mapped[list[AttributeValue]] = relationship(
-        "AttributeValue", back_populates="attribute", cascade="save-update, merge"
+        "AttributeValue", back_populates="attribute", cascade="all, delete-orphan"
     )
     __table_args__ = (
         CheckConstraint("search_weight BETWEEN 1 AND 10", name="ck_attributes_search_weight"),
@@ -439,7 +439,7 @@ class TemplateAttributeBinding(Base):
     sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
     requirement_level: Mapped[RequirementLevel] = mapped_column(
         Enum(RequirementLevel, name="requirement_level_enum", create_type=False),
-        server_default=text("'OPTIONAL'"),
+        server_default=RequirementLevel.OPTIONAL.name,
     )
     filter_settings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
@@ -622,7 +622,7 @@ class ProductVariant(Base):
         server_default=text("'RUB'"),
     )
     deleted_at: Mapped[datetime | None] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True
+        TIMESTAMP(timezone=True), nullable=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
@@ -636,7 +636,7 @@ class ProductVariant(Base):
         "SKU", back_populates="variant", cascade="all, delete-orphan"
     )
     media_assets: Mapped[list[MediaAsset]] = relationship(
-        "MediaAsset", back_populates="variant"
+        "MediaAsset", back_populates="variant", cascade="all, delete-orphan"
     )
 
     __table_args__ = (Index("ix_product_variants_product_id", "product_id"),)
@@ -723,6 +723,13 @@ class MediaAsset(Base):
             unique=True,
             postgresql_where=text(f"role = '{MediaRole.MAIN.name}'"),
             postgresql_nulls_not_distinct=True,
+        ),
+        # Composite index for list_by_product queries
+        Index(
+            "ix_media_assets_product_variant_sort",
+            "product_id",
+            "variant_id",
+            "sort_order",
         ),
     )
 
