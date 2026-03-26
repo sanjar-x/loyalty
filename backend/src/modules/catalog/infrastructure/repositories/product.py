@@ -389,7 +389,6 @@ class ProductRepository(IProductRepository):
                 actual_version=None,
             ) from None
         except IntegrityError as e:
-            await self._session.rollback()
             constraint = str(e.orig) if e.orig else str(e)
             if "uix_products_slug" in constraint:
                 raise ProductSlugConflictError(slug=entity.slug) from e
