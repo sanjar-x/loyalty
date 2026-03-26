@@ -10,17 +10,19 @@ attribute assignments are deferred to a future phase.
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.application.queries.resolve_family_attributes import (
+    resolve_effective_attribute_ids,
+)
 from src.modules.catalog.domain.entities import ProductAttributeValue
 from src.modules.catalog.domain.exceptions import (
+    AttributeLevelMismatchError,
     AttributeNotDictionaryError,
     AttributeNotFoundError,
     AttributeNotInFamilyError,
-    AttributeLevelMismatchError,
     AttributeValueNotFoundError,
     DuplicateProductAttributeError,
     ProductNotFoundError,
 )
-from src.modules.catalog.domain.value_objects import AttributeLevel
 from src.modules.catalog.domain.interfaces import (
     IAttributeFamilyRepository,
     IAttributeRepository,
@@ -31,6 +33,7 @@ from src.modules.catalog.domain.interfaces import (
     IProductAttributeValueRepository,
     IProductRepository,
 )
+from src.modules.catalog.domain.value_objects import AttributeLevel
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -117,25 +120,12 @@ class AssignProductAttributeHandler:
             # --- Validate attribute belongs to product's category family ---
             category = await self._category_repo.get(product.primary_category_id)
             if category is not None and category.family_id is not None:
-                # Resolve effective attributes for the family
-                chain = await self._family_repo.get_ancestor_chain(category.family_id)
-                chain_ids = [f.id for f in chain]
-                all_bindings = (
-                    await self._family_binding_repo.get_bindings_for_families(chain_ids)
+                effective_attr_ids = await resolve_effective_attribute_ids(
+                    self._family_repo,
+                    self._family_binding_repo,
+                    self._exclusion_repo,
+                    category.family_id,
                 )
-                all_exclusions = await self._exclusion_repo.get_exclusions_for_families(
-                    chain_ids
-                )
-
-                effective_attr_ids: set[uuid.UUID] = set()
-                for fam in chain:
-                    # Apply exclusions first
-                    for excluded_id in all_exclusions.get(fam.id, set()):
-                        effective_attr_ids.discard(excluded_id)
-                    # Then add bindings
-                    for binding in all_bindings.get(fam.id, []):
-                        effective_attr_ids.add(binding.attribute_id)
-
                 if command.attribute_id not in effective_attr_ids:
                     raise AttributeNotInFamilyError(
                         product_id=command.product_id,

@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 from src.modules.catalog.application.queries.resolve_family_attributes import (
     invalidate_family_effective_cache,
+    resolve_effective_attribute_ids,
 )
 from src.modules.catalog.domain.entities import FamilyAttributeExclusion
 from src.modules.catalog.domain.events import FamilyAttributeExclusionAddedEvent
@@ -128,34 +129,13 @@ class AddFamilyExclusionHandler:
                 )
 
             # 4. Resolve ancestor effective attributes to verify inheritance
-            chain = await self._family_repo.get_ancestor_chain(command.family_id)
-            ancestor_ids = [f.id for f in chain if f.id != command.family_id]
-
-            if not ancestor_ids:
-                # No ancestors means attribute can't be inherited
-                raise AttributeNotInheritedError(
-                    family_id=command.family_id,
-                    attribute_id=command.attribute_id,
-                )
-
-            ancestor_bindings = await self._binding_repo.get_bindings_for_families(
-                ancestor_ids
+            effective_attr_ids = await resolve_effective_attribute_ids(
+                self._family_repo,
+                self._binding_repo,
+                self._exclusion_repo,
+                command.family_id,
+                exclude_self=True,
             )
-            ancestor_exclusions = (
-                await self._exclusion_repo.get_exclusions_for_families(ancestor_ids)
-            )
-
-            # Walk the chain root→parent (excluding self) to compute effective set
-            effective_attr_ids: set[uuid.UUID] = set()
-            for ancestor in chain:
-                if ancestor.id == command.family_id:
-                    break  # don't include self
-                # Remove excluded attributes at this ancestor level
-                for exc_attr_id in ancestor_exclusions.get(ancestor.id, set()):
-                    effective_attr_ids.discard(exc_attr_id)
-                # Add own bindings at this ancestor level
-                for binding in ancestor_bindings.get(ancestor.id, []):
-                    effective_attr_ids.add(binding.attribute_id)
 
             if command.attribute_id not in effective_attr_ids:
                 raise AttributeNotInheritedError(

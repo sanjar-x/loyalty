@@ -31,7 +31,6 @@ from src.modules.catalog.infrastructure.models import (
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 
-
 # ---------------------------------------------------------------------------
 # Read Models
 # ---------------------------------------------------------------------------
@@ -89,6 +88,52 @@ class EffectiveAttributeSetReadModel(BaseModel):
 
     family_id: uuid.UUID
     attributes: list[EffectiveAttributeReadModel]
+
+
+# ---------------------------------------------------------------------------
+# Shared resolution logic (used by command handlers to avoid duplication)
+# ---------------------------------------------------------------------------
+
+
+async def resolve_effective_attribute_ids(
+    family_repo: IAttributeFamilyRepository,
+    binding_repo: IFamilyAttributeBindingRepository,
+    exclusion_repo: IFamilyAttributeExclusionRepository,
+    family_id: uuid.UUID,
+    *,
+    exclude_self: bool = False,
+) -> set[uuid.UUID]:
+    """Resolve the set of effective attribute IDs for a family.
+
+    Walks the ancestor chain root->leaf, applying exclusions then bindings
+    at each level to compute the final effective set.
+
+    Args:
+        family_id: The target family to resolve.
+        exclude_self: If True, stop before the target family itself
+            (used by exclusion handler to check inheritance from ancestors only).
+
+    Returns:
+        Set of attribute UUIDs in the effective set.
+    """
+    chain = await family_repo.get_ancestor_chain(family_id)
+    chain_ids = [f.id for f in chain if not exclude_self or f.id != family_id]
+    if not chain_ids:
+        return set()
+
+    all_bindings = await binding_repo.get_bindings_for_families(chain_ids)
+    all_exclusions = await exclusion_repo.get_exclusions_for_families(chain_ids)
+
+    effective: set[uuid.UUID] = set()
+    for family in chain:
+        if exclude_self and family.id == family_id:
+            break
+        for excluded_id in all_exclusions.get(family.id, set()):
+            effective.discard(excluded_id)
+        for binding in all_bindings.get(family.id, []):
+            effective.add(binding.attribute_id)
+
+    return effective
 
 
 # ---------------------------------------------------------------------------
