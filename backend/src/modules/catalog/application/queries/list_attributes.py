@@ -18,6 +18,7 @@ from src.modules.catalog.application.queries.read_models import (
 )
 from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute
 from src.shared.interfaces.logger import ILogger
+from src.shared.pagination import paginate
 
 
 def attribute_orm_to_read_model(orm: OrmAttribute) -> AttributeReadModel:
@@ -92,20 +93,15 @@ class ListAttributesHandler:
         """
         base = select(OrmAttribute)
         base = self._apply_filters(base, query)
+        base = base.order_by(OrmAttribute.code)
 
-        # Count
-        count_stmt = select(func.count()).select_from(base.subquery())
-        count_result = await self._session.execute(count_stmt)
-        total: int = count_result.scalar_one()
-
-        # Items
-        items_stmt = (
-            base.order_by(OrmAttribute.code).offset(query.offset).limit(query.limit)
+        items, total = await paginate(
+            self._session,
+            base,
+            offset=query.offset,
+            limit=query.limit,
+            mapper=attribute_orm_to_read_model,
         )
-        result = await self._session.execute(items_stmt)
-        rows = result.scalars().all()
-
-        items = [attribute_orm_to_read_model(orm) for orm in rows]
 
         return AttributeListReadModel(
             items=items,

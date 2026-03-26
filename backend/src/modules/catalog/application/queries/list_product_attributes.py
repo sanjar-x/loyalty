@@ -17,6 +17,8 @@ from src.modules.catalog.application.queries.read_models import (
 )
 from src.modules.catalog.infrastructure.models import (
     Attribute as OrmAttribute,
+)
+from src.modules.catalog.infrastructure.models import (
     AttributeValue as OrmAttributeValue,
 )
 from src.modules.catalog.infrastructure.models import (

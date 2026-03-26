@@ -8,7 +8,7 @@ Pydantic read model.
 
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.get_category import (
@@ -19,6 +19,7 @@ from src.modules.catalog.application.queries.read_models import (
 )
 from src.modules.catalog.infrastructure.models import Category as OrmCategory
 from src.shared.interfaces.logger import ILogger
+from src.shared.pagination import paginate
 
 
 @dataclass(frozen=True)
@@ -50,21 +51,17 @@ class ListCategoriesHandler:
         Returns:
             Paginated list read model with items and total count.
         """
-        count_result = await self._session.execute(
-            select(func.count()).select_from(OrmCategory)
+        base = select(OrmCategory).order_by(
+            OrmCategory.level, OrmCategory.sort_order, OrmCategory.name_i18n
         )
-        total: int = count_result.scalar_one()
 
-        stmt = (
-            select(OrmCategory)
-            .order_by(OrmCategory.level, OrmCategory.sort_order, OrmCategory.name_i18n)
-            .limit(query.limit)
-            .offset(query.offset)
+        items, total = await paginate(
+            self._session,
+            base,
+            offset=query.offset,
+            limit=query.limit,
+            mapper=category_orm_to_read_model,
         )
-        result = await self._session.execute(stmt)
-        rows = result.scalars().all()
-
-        items = [category_orm_to_read_model(orm) for orm in rows]
 
         return CategoryListReadModel(
             items=items,

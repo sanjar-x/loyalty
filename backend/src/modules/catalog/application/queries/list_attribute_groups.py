@@ -8,7 +8,7 @@ Pydantic read model.
 
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.get_attribute_group import (
@@ -21,6 +21,7 @@ from src.modules.catalog.infrastructure.models import (
     AttributeGroup as OrmAttributeGroup,
 )
 from src.shared.interfaces.logger import ILogger
+from src.shared.pagination import paginate
 
 
 @dataclass(frozen=True)
@@ -54,21 +55,17 @@ class ListAttributeGroupsHandler:
         Returns:
             Paginated list read model with items and total count.
         """
-        count_result = await self._session.execute(
-            select(func.count()).select_from(OrmAttributeGroup)
+        base = select(OrmAttributeGroup).order_by(
+            OrmAttributeGroup.sort_order, OrmAttributeGroup.code
         )
-        total = count_result.scalar_one()
 
-        stmt = (
-            select(OrmAttributeGroup)
-            .order_by(OrmAttributeGroup.sort_order, OrmAttributeGroup.code)
-            .limit(query.limit)
-            .offset(query.offset)
+        items, total = await paginate(
+            self._session,
+            base,
+            offset=query.offset,
+            limit=query.limit,
+            mapper=attribute_group_orm_to_read_model,
         )
-        result = await self._session.execute(stmt)
-        rows = result.scalars().all()
-
-        items = [attribute_group_orm_to_read_model(orm) for orm in rows]
 
         return AttributeGroupListReadModel(
             items=items,

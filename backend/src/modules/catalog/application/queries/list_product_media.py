@@ -3,7 +3,7 @@
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.read_models import (
@@ -12,6 +12,7 @@ from src.modules.catalog.application.queries.read_models import (
 )
 from src.modules.catalog.infrastructure.models import MediaAsset as OrmMediaAsset
 from src.shared.interfaces.logger import ILogger
+from src.shared.pagination import paginate
 
 
 @dataclass(frozen=True)
@@ -45,25 +46,22 @@ class ListProductMediaHandler:
         Returns:
             Tuple of (media read models, total count).
         """
-        count_stmt = (
-            select(func.count())
-            .select_from(OrmMediaAsset)
-            .where(OrmMediaAsset.product_id == query.product_id)
-        )
-        count_result = await self._session.execute(count_stmt)
-        total: int = count_result.scalar_one()
-
-        stmt = (
+        base = (
             select(OrmMediaAsset)
             .where(OrmMediaAsset.product_id == query.product_id)
             .order_by(OrmMediaAsset.variant_id, OrmMediaAsset.sort_order)
-            .limit(query.limit)
-            .offset(query.offset)
         )
-        result = await self._session.execute(stmt)
-        rows = result.scalars().all()
+
+        items, total = await paginate(
+            self._session,
+            base,
+            offset=query.offset,
+            limit=query.limit,
+            mapper=self._to_read_model,
+        )
+
         return MediaAssetListReadModel(
-            items=[self._to_read_model(orm) for orm in rows],
+            items=items,
             total=total,
             offset=query.offset,
             limit=query.limit,

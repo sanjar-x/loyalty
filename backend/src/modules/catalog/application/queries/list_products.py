@@ -8,7 +8,7 @@ Supports filtering by status and brand_id, with limit/offset pagination.
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.read_models import (
@@ -18,6 +18,7 @@ from src.modules.catalog.application.queries.read_models import (
 from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
 from src.shared.interfaces.logger import ILogger
+from src.shared.pagination import paginate
 
 
 @dataclass(frozen=True)
@@ -57,22 +58,15 @@ class ListProductsHandler:
         """
         base = select(OrmProduct)
         base = self._apply_filters(base, query)
+        base = base.order_by(OrmProduct.created_at.desc())
 
-        # Count
-        count_stmt = select(func.count()).select_from(base.subquery())
-        count_result = await self._session.execute(count_stmt)
-        total: int = count_result.scalar_one()
-
-        # Items
-        items_stmt = (
-            base.order_by(OrmProduct.created_at.desc())
-            .offset(query.offset)
-            .limit(query.limit)
+        items, total = await paginate(
+            self._session,
+            base,
+            offset=query.offset,
+            limit=query.limit,
+            mapper=self._to_read_model,
         )
-        result = await self._session.execute(items_stmt)
-        rows = result.scalars().all()
-
-        items = [self._to_read_model(orm) for orm in rows]
 
         return ProductListReadModel(
             items=items,

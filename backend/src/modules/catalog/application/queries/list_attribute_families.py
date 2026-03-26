@@ -9,7 +9,7 @@ Pydantic read models.
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.read_models import (
@@ -22,7 +22,7 @@ from src.modules.catalog.infrastructure.models import (
     AttributeFamily as OrmAttributeFamily,
 )
 from src.shared.interfaces.logger import ILogger
-
+from src.shared.pagination import paginate
 
 # ---------------------------------------------------------------------------
 # ORM -> Read Model converter
@@ -94,25 +94,19 @@ class ListAttributeFamiliesHandler:
         Returns:
             Paginated list read model with items and total count.
         """
-        count_result = await self._session.execute(
-            select(func.count()).select_from(OrmAttributeFamily)
+        base = select(OrmAttributeFamily).order_by(
+            OrmAttributeFamily.level,
+            OrmAttributeFamily.sort_order,
+            OrmAttributeFamily.code,
         )
-        total: int = count_result.scalar_one()
 
-        stmt = (
-            select(OrmAttributeFamily)
-            .order_by(
-                OrmAttributeFamily.level,
-                OrmAttributeFamily.sort_order,
-                OrmAttributeFamily.code,
-            )
-            .limit(query.limit)
-            .offset(query.offset)
+        items, total = await paginate(
+            self._session,
+            base,
+            offset=query.offset,
+            limit=query.limit,
+            mapper=family_orm_to_read_model,
         )
-        result = await self._session.execute(stmt)
-        rows = result.scalars().all()
-
-        items = [family_orm_to_read_model(orm) for orm in rows]
 
         return AttributeFamilyListReadModel(
             items=items,

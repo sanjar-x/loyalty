@@ -8,7 +8,7 @@ Pydantic read model.
 
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.get_brand import brand_orm_to_read_model
@@ -17,6 +17,7 @@ from src.modules.catalog.application.queries.read_models import (
 )
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 from src.shared.interfaces.logger import ILogger
+from src.shared.pagination import paginate
 
 
 @dataclass(frozen=True)
@@ -48,21 +49,15 @@ class ListBrandsHandler:
         Returns:
             Paginated list read model with items and total count.
         """
-        count_result = await self._session.execute(
-            select(func.count()).select_from(OrmBrand)
-        )
-        total = count_result.scalar_one()
+        base = select(OrmBrand).order_by(OrmBrand.name)
 
-        stmt = (
-            select(OrmBrand)
-            .order_by(OrmBrand.name)
-            .limit(query.limit)
-            .offset(query.offset)
+        items, total = await paginate(
+            self._session,
+            base,
+            offset=query.offset,
+            limit=query.limit,
+            mapper=brand_orm_to_read_model,
         )
-        result = await self._session.execute(stmt)
-        rows = result.scalars().all()
-
-        items = [brand_orm_to_read_model(orm) for orm in rows]
 
         return BrandListReadModel(
             items=items,

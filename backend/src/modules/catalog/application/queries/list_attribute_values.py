@@ -19,6 +19,7 @@ from src.modules.catalog.infrastructure.models import (
     AttributeValue as OrmAttributeValue,
 )
 from src.shared.interfaces.logger import ILogger
+from src.shared.pagination import paginate
 
 
 @dataclass(frozen=True)
@@ -63,21 +64,15 @@ class ListAttributeValuesHandler:
         if query.search:
             base = self._apply_search(base, query.search)
 
-        # Count
-        count_stmt = select(func.count()).select_from(base.subquery())
-        count_result = await self._session.execute(count_stmt)
-        total: int = count_result.scalar_one()
+        base = base.order_by(OrmAttributeValue.sort_order, OrmAttributeValue.code)
 
-        # Items
-        items_stmt = (
-            base.order_by(OrmAttributeValue.sort_order, OrmAttributeValue.code)
-            .offset(query.offset)
-            .limit(query.limit)
+        items, total = await paginate(
+            self._session,
+            base,
+            offset=query.offset,
+            limit=query.limit,
+            mapper=self._to_read_model,
         )
-        result = await self._session.execute(items_stmt)
-        rows = result.scalars().all()
-
-        items = [self._to_read_model(orm) for orm in rows]
 
         return AttributeValueListReadModel(
             items=items,

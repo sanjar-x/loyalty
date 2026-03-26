@@ -10,14 +10,14 @@ import uuid
 from dataclasses import dataclass
 
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.infrastructure.models import (
     FamilyAttributeExclusion as OrmExclusion,
 )
 from src.shared.interfaces.logger import ILogger
-
+from src.shared.pagination import paginate
 
 # ---------------------------------------------------------------------------
 # Read Models
@@ -71,35 +71,32 @@ class ListFamilyExclusionsHandler:
         self, query: ListFamilyExclusionsQuery
     ) -> FamilyExclusionListReadModel:
         """Retrieve a paginated exclusion list for a family."""
-        count_result = await self._session.execute(
-            select(func.count())
-            .select_from(OrmExclusion)
-            .where(OrmExclusion.family_id == query.family_id)
-        )
-        total: int = count_result.scalar_one()
-
-        stmt = (
+        base = (
             select(OrmExclusion)
             .where(OrmExclusion.family_id == query.family_id)
             .order_by(OrmExclusion.created_at)
-            .limit(query.limit)
-            .offset(query.offset)
         )
-        result = await self._session.execute(stmt)
-        rows = result.scalars().all()
 
-        items = [
-            FamilyExclusionReadModel(
-                id=row.id,
-                family_id=row.family_id,
-                attribute_id=row.attribute_id,
-            )
-            for row in rows
-        ]
+        items, total = await paginate(
+            self._session,
+            base,
+            offset=query.offset,
+            limit=query.limit,
+            mapper=self._to_read_model,
+        )
 
         return FamilyExclusionListReadModel(
             items=items,
             total=total,
             offset=query.offset,
             limit=query.limit,
+        )
+
+    @staticmethod
+    def _to_read_model(row: OrmExclusion) -> FamilyExclusionReadModel:
+        """Convert an ORM row to a read model."""
+        return FamilyExclusionReadModel(
+            id=row.id,
+            family_id=row.family_id,
+            attribute_id=row.attribute_id,
         )

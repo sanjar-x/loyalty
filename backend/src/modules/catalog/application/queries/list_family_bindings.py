@@ -10,14 +10,14 @@ import uuid
 from dataclasses import dataclass
 
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.infrastructure.models import (
     FamilyAttributeBinding as OrmBinding,
 )
 from src.shared.interfaces.logger import ILogger
-
+from src.shared.pagination import paginate
 
 # ---------------------------------------------------------------------------
 # Read Models
@@ -75,41 +75,38 @@ class ListFamilyBindingsHandler:
         self, query: ListFamilyBindingsQuery
     ) -> FamilyBindingListReadModel:
         """Retrieve a paginated binding list for a family."""
-        count_result = await self._session.execute(
-            select(func.count())
-            .select_from(OrmBinding)
-            .where(OrmBinding.family_id == query.family_id)
-        )
-        total: int = count_result.scalar_one()
-
-        stmt = (
+        base = (
             select(OrmBinding)
             .where(OrmBinding.family_id == query.family_id)
             .order_by(OrmBinding.sort_order)
-            .limit(query.limit)
-            .offset(query.offset)
         )
-        result = await self._session.execute(stmt)
-        rows = result.scalars().all()
 
-        items = [
-            FamilyBindingReadModel(
-                id=row.id,
-                family_id=row.family_id,
-                attribute_id=row.attribute_id,
-                sort_order=row.sort_order,
-                requirement_level=row.requirement_level.value,
-                flag_overrides=dict(row.flag_overrides) if row.flag_overrides else None,
-                filter_settings=dict(row.filter_settings)
-                if row.filter_settings
-                else None,
-            )
-            for row in rows
-        ]
+        items, total = await paginate(
+            self._session,
+            base,
+            offset=query.offset,
+            limit=query.limit,
+            mapper=self._to_read_model,
+        )
 
         return FamilyBindingListReadModel(
             items=items,
             total=total,
             offset=query.offset,
             limit=query.limit,
+        )
+
+    @staticmethod
+    def _to_read_model(row: OrmBinding) -> FamilyBindingReadModel:
+        """Convert an ORM row to a read model."""
+        return FamilyBindingReadModel(
+            id=row.id,
+            family_id=row.family_id,
+            attribute_id=row.attribute_id,
+            sort_order=row.sort_order,
+            requirement_level=row.requirement_level.value,
+            flag_overrides=dict(row.flag_overrides) if row.flag_overrides else None,
+            filter_settings=dict(row.filter_settings)
+            if row.filter_settings
+            else None,
         )
