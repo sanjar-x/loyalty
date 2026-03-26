@@ -23,6 +23,16 @@ class ImageBackendClient(IImageBackendClient):
             headers={"X-API-Key": api_key},
         )
 
+    async def aclose(self) -> None:
+        """Close the underlying HTTP client to release connections."""
+        await self._client.aclose()
+
+    async def __aenter__(self) -> ImageBackendClient:
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        await self.aclose()
+
     async def delete(self, storage_object_id: uuid.UUID) -> None:
         """DELETE /api/v1/media/{storage_object_id}. Best-effort."""
         url = f"{self._base_url}/api/v1/media/{storage_object_id}"
