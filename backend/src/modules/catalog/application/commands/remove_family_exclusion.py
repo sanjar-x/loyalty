@@ -11,7 +11,9 @@ Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.application.constants import family_effective_attrs_cache_key
+from src.modules.catalog.application.queries.resolve_family_attributes import (
+    invalidate_family_effective_cache,
+)
 from src.modules.catalog.domain.events import FamilyAttributeExclusionRemovedEvent
 from src.modules.catalog.domain.exceptions import (
     AttributeFamilyNotFoundError,
@@ -101,25 +103,16 @@ class RemoveFamilyExclusionHandler:
             await self._exclusion_repo.delete(command.exclusion_id)
             await self._uow.commit()
 
-        # 5. Cache invalidation: family + descendants
-        await self._invalidate_family_caches(command.family_id)
+        # 5. Cache invalidation: L1 (family effective attrs) + L2 (storefront per-category)
+        try:
+            await invalidate_family_effective_cache(
+                self._cache, self._family_repo, command.family_id
+            )
+        except Exception as exc:
+            self._logger.warning("cache_invalidation_failed", error=str(exc))
 
         self._logger.info(
             "family_exclusion_removed",
             exclusion_id=str(command.exclusion_id),
             family_id=str(command.family_id),
         )
-
-    async def _invalidate_family_caches(self, family_id: uuid.UUID) -> None:
-        """Invalidate effective-attribute caches for a family and all descendants."""
-        try:
-            descendant_ids = await self._family_repo.get_descendant_ids(family_id)
-            all_ids = [family_id, *descendant_ids]
-            cache_keys = [family_effective_attrs_cache_key(fid) for fid in all_ids]
-            await self._cache.delete_many(cache_keys)
-        except Exception as exc:
-            self._logger.warning(
-                "cache_invalidation_failed",
-                family_id=str(family_id),
-                error=str(exc),
-            )
