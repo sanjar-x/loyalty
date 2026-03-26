@@ -59,9 +59,12 @@ from src.modules.catalog.domain.value_objects import (
     AttributeLevel,
     AttributeUIType,
     BehaviorFlags,
+    MediaRole,
+    MediaType,
     Money,
     ProductStatus,
     RequirementLevel,
+    validate_i18n_completeness,
     validate_validation_rules,
 )
 from src.shared.interfaces.entities import AggregateRoot
@@ -90,6 +93,12 @@ def _validate_sort_order(sort_order: int, entity_name: str) -> None:
         raise ValueError(f"{entity_name} sort_order must be non-negative")
 
 
+def _validate_i18n_values(i18n_dict: dict[str, str], field_name: str) -> None:
+    """Validate that i18n dict values are non-blank."""
+    if any(not v or not v.strip() for v in i18n_dict.values()):
+        raise ValueError(f"{field_name} must not contain empty or blank values")
+
+
 # ---------------------------------------------------------------------------
 # DDD-01: Guarded fields set -- fields that may only be changed through
 # explicit domain methods, never by direct attribute assignment.
@@ -100,6 +109,7 @@ _BRAND_GUARDED_FIELDS: frozenset[str] = frozenset({"slug"})
 _CATEGORY_GUARDED_FIELDS: frozenset[str] = frozenset({"slug"})
 _FAMILY_GUARDED_FIELDS: frozenset[str] = frozenset({"code"})
 _ATTRIBUTE_GROUP_GUARDED_FIELDS: frozenset[str] = frozenset({"code"})
+_ATTRIBUTE_GUARDED_FIELDS: frozenset[str] = frozenset({"code", "slug"})
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +180,7 @@ class Brand(AggregateRoot):
             raise ValueError("Brand name must be non-empty")
         return cls(
             id=brand_id or _generate_id(),
-            name=name,
+            name=name.strip(),
             slug=slug,
             logo_url=logo_url,
             logo_storage_object_id=logo_storage_object_id,
@@ -194,7 +204,7 @@ class Brand(AggregateRoot):
         if name is not None:
             if not name or not name.strip():
                 raise ValueError("Brand name must be non-empty")
-            self.name = name
+            self.name = name.strip()
         if slug is not None:
             _validate_slug(slug, "Brand")
             # Bypass the guard for controlled mutation via domain method
@@ -290,6 +300,8 @@ class Category(AggregateRoot):
         _validate_slug(slug, "Category")
         if not name_i18n:
             raise ValueError("name_i18n must contain at least one language entry")
+        _validate_i18n_values(name_i18n, "name_i18n")
+        validate_i18n_completeness(name_i18n, "name_i18n")
         _validate_sort_order(sort_order, "Category")
         return cls(
             id=_generate_id(),
@@ -330,6 +342,8 @@ class Category(AggregateRoot):
         _validate_slug(slug, "Category")
         if not name_i18n:
             raise ValueError("name_i18n must contain at least one language entry")
+        _validate_i18n_values(name_i18n, "name_i18n")
+        validate_i18n_completeness(name_i18n, "name_i18n")
         _validate_sort_order(sort_order, "Category")
         if parent.level >= MAX_CATEGORY_DEPTH:
             raise CategoryMaxDepthError(
@@ -361,6 +375,7 @@ class Category(AggregateRoot):
         slug: str | None = None,
         sort_order: int | None = None,
         template_id: uuid.UUID | None = ...,  # type: ignore[assignment]
+        parent_effective_template_id: uuid.UUID | None = ...,  # type: ignore[assignment]
     ) -> str | None:
         """Update category details and recompute full_slug if slug changed.
 
@@ -379,6 +394,7 @@ class Category(AggregateRoot):
         if name_i18n is not None:
             if not name_i18n:
                 raise ValueError("name_i18n must contain at least one language entry")
+            _validate_i18n_values(name_i18n, "name_i18n")
             self.name_i18n = name_i18n
 
         if sort_order is not None:
@@ -389,10 +405,9 @@ class Category(AggregateRoot):
             self.template_id = template_id
             if template_id is not None:
                 self.effective_template_id = template_id
+            elif parent_effective_template_id is not ...:
+                self.effective_template_id = parent_effective_template_id
             else:
-                # Template cleared — effective must be recalculated by the
-                # handler (inherit from parent).  Reset to None here so the
-                # entity never silently retains a stale value.
                 self.effective_template_id = None
 
         if slug is not None and slug != self.slug:
@@ -404,8 +419,9 @@ class Category(AggregateRoot):
             if self.parent_id is None:
                 self.full_slug = slug
             else:
-                parent_prefix = self.full_slug.rsplit("/", 1)[0]
-                self.full_slug = f"{parent_prefix}/{slug}"
+                parts = self.full_slug.rsplit("/", 1)
+                parent_prefix = parts[0] if len(parts) > 1 else ""
+                self.full_slug = f"{parent_prefix}/{slug}" if parent_prefix else slug
 
         return old_full_slug
 
@@ -492,6 +508,10 @@ class AttributeTemplate(AggregateRoot):
         sort_order: int = 0,
     ) -> AttributeTemplate:
         """Create a new attribute template (flat template)."""
+        if not name_i18n:
+            raise ValueError("name_i18n must contain at least one entry")
+        _validate_i18n_values(name_i18n, "name_i18n")
+        validate_i18n_completeness(name_i18n, "name_i18n")
         _validate_sort_order(sort_order, "AttributeTemplate")
         return cls(
             id=_generate_id(),
@@ -514,9 +534,12 @@ class AttributeTemplate(AggregateRoot):
             raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
 
         if "name_i18n" in kwargs and kwargs["name_i18n"] is not None:
+            if not kwargs["name_i18n"]:
+                raise ValueError("name_i18n must contain at least one entry")
+            _validate_i18n_values(kwargs["name_i18n"], "name_i18n")
             self.name_i18n = kwargs["name_i18n"]
-        if "description_i18n" in kwargs and kwargs["description_i18n"] is not None:
-            self.description_i18n = kwargs["description_i18n"]
+        if "description_i18n" in kwargs:
+            self.description_i18n = kwargs["description_i18n"] or {}
         if "sort_order" in kwargs and kwargs["sort_order"] is not None:
             self.sort_order = kwargs["sort_order"]
 
@@ -595,7 +618,7 @@ class TemplateAttributeBinding(AggregateRoot):
             template_id=template_id,
             attribute_id=attribute_id,
             sort_order=sort_order,
-            requirement_level=requirement_level or RequirementLevel.OPTIONAL,
+            requirement_level=RequirementLevel.OPTIONAL if requirement_level is None else requirement_level,
             filter_settings=filter_settings,
         )
 
@@ -683,6 +706,8 @@ class AttributeGroup(AggregateRoot):
         """
         if not name_i18n:
             raise ValueError("name_i18n must contain at least one language entry")
+        _validate_i18n_values(name_i18n, "name_i18n")
+        validate_i18n_completeness(name_i18n, "name_i18n")
         _validate_sort_order(sort_order, "AttributeGroup")
 
         return cls(
@@ -709,6 +734,7 @@ class AttributeGroup(AggregateRoot):
         if name_i18n is not None:
             if not name_i18n:
                 raise ValueError("name_i18n must contain at least one language entry")
+            _validate_i18n_values(name_i18n, "name_i18n")
             self.name_i18n = name_i18n
 
         if sort_order is not None:
@@ -757,6 +783,19 @@ class Attribute(AggregateRoot):
     level: AttributeLevel
     behavior: BehaviorFlags = field(factory=BehaviorFlags)
     validation_rules: dict[str, Any] | None = None
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if name in _ATTRIBUTE_GUARDED_FIELDS and getattr(
+            self, "_Attribute__initialized", False
+        ):
+            raise AttributeError(
+                f"Cannot set '{name}' directly on Attribute. "
+                f"Code and slug are immutable after creation."
+            )
+        super().__setattr__(name, value)
+
+    def __attrs_post_init__(self) -> None:
+        object.__setattr__(self, "_Attribute__initialized", True)
 
     # Expose individual flags as properties for backward compatibility
     @property
@@ -837,6 +876,8 @@ class Attribute(AggregateRoot):
 
         if not name_i18n:
             raise ValueError("name_i18n must contain at least one language entry")
+        _validate_i18n_values(name_i18n, "name_i18n")
+        validate_i18n_completeness(name_i18n, "name_i18n")
 
         if behavior is None:
             # Build from individual flags; BehaviorFlags validates search_weight
@@ -916,10 +957,14 @@ class Attribute(AggregateRoot):
             if name_i18n is not None and not name_i18n:
                 raise ValueError("name_i18n must contain at least one language entry")
             if name_i18n is not None:
+                _validate_i18n_values(name_i18n, "name_i18n")
                 self.name_i18n = name_i18n
 
         if "description_i18n" in kwargs:
-            self.description_i18n = kwargs["description_i18n"] or {}
+            desc = kwargs["description_i18n"] or {}
+            if desc:
+                _validate_i18n_values(desc, "description_i18n")
+            self.description_i18n = desc
 
         if "ui_type" in kwargs and kwargs["ui_type"] is not None:
             self.ui_type = kwargs["ui_type"]
@@ -1049,6 +1094,8 @@ class AttributeValue:
         """
         if not value_i18n:
             raise ValueError("value_i18n must contain at least one language entry")
+        _validate_i18n_values(value_i18n, "value_i18n")
+        validate_i18n_completeness(value_i18n, "value_i18n")
         _validate_slug(slug, "AttributeValue")
         _validate_sort_order(sort_order, "AttributeValue")
 
@@ -1096,6 +1143,7 @@ class AttributeValue:
             if value_i18n is not None and not value_i18n:
                 raise ValueError("value_i18n must contain at least one language entry")
             if value_i18n is not None:
+                _validate_i18n_values(value_i18n, "value_i18n")
                 self.value_i18n = value_i18n
 
         if "search_aliases" in kwargs and kwargs["search_aliases"] is not None:
@@ -1232,6 +1280,8 @@ class SKU:
         The record is retained in the database; filters must exclude
         non-None ``deleted_at`` when listing active variants.
         """
+        if self.deleted_at is not None:
+            return
         now = datetime.now(UTC)
         self.deleted_at = now
         self.updated_at = now
@@ -1362,6 +1412,8 @@ class ProductVariant:
         """
         if not name_i18n:
             raise ValueError("name_i18n must contain at least one language entry")
+        _validate_i18n_values(name_i18n, "name_i18n")
+        validate_i18n_completeness(name_i18n, "name_i18n")
         _validate_sort_order(sort_order, "ProductVariant")
         return cls(
             id=variant_id or _generate_id(),
@@ -1400,6 +1452,7 @@ class ProductVariant:
         if "name_i18n" in kwargs:
             if not kwargs["name_i18n"]:
                 raise ValueError("name_i18n must contain at least one language entry")
+            _validate_i18n_values(kwargs["name_i18n"], "name_i18n")
             self.name_i18n = kwargs["name_i18n"]
             changed = True
         if "description_i18n" in kwargs:
@@ -1409,12 +1462,30 @@ class ProductVariant:
             _validate_sort_order(kwargs["sort_order"], "ProductVariant")
             self.sort_order = kwargs["sort_order"]
             changed = True
-        if "default_price" in kwargs:
+        if "default_price" in kwargs and "default_currency" in kwargs:
+            price = kwargs["default_price"]
+            currency = kwargs["default_currency"]
+            if price is not None and currency != price.currency:
+                raise ValueError(
+                    f"default_currency '{currency}' conflicts with "
+                    f"default_price currency '{price.currency}'"
+                )
+            self.default_price = price
+            if price is not None:
+                self.default_currency = price.currency
+            else:
+                if not (len(currency) == 3 and currency.isascii() and currency.isupper()):
+                    raise ValueError(
+                        "default_currency must be exactly 3 uppercase ASCII letters"
+                    )
+                self.default_currency = currency
+            changed = True
+        elif "default_price" in kwargs:
             self.default_price = kwargs["default_price"]
             if kwargs["default_price"] is not None:
                 self.default_currency = kwargs["default_price"].currency
             changed = True
-        if "default_currency" in kwargs:
+        elif "default_currency" in kwargs:
             currency = kwargs["default_currency"]
             if not (len(currency) == 3 and currency.isascii() and currency.isupper()):
                 raise ValueError(
@@ -1428,6 +1499,8 @@ class ProductVariant:
 
     def soft_delete(self) -> None:
         """Mark this variant and all its active SKUs as deleted."""
+        if self.deleted_at is not None:
+            return
         now = datetime.now(UTC)
         self.deleted_at = now
         self.updated_at = now
@@ -1453,8 +1526,8 @@ class MediaAsset:
     product_id: uuid.UUID
     variant_id: uuid.UUID | None
 
-    media_type: str  # IMAGE, VIDEO, MODEL_3D, DOCUMENT
-    role: str  # MAIN, HOVER, GALLERY, HERO_VIDEO, SIZE_GUIDE, PACKAGING
+    media_type: MediaType
+    role: MediaRole
     sort_order: int
     is_external: bool = False
 
@@ -1464,6 +1537,73 @@ class MediaAsset:
 
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        product_id: uuid.UUID,
+        variant_id: uuid.UUID | None = None,
+        media_type: str | MediaType,
+        role: str | MediaRole,
+        sort_order: int = 0,
+        is_external: bool = False,
+        storage_object_id: uuid.UUID | None = None,
+        url: str | None = None,
+        image_variants: list[dict] | None = None,
+    ) -> MediaAsset:
+        """Factory method to construct a new MediaAsset.
+
+        Args:
+            product_id: UUID of the owning Product aggregate.
+            variant_id: Optional UUID of the owning ProductVariant.
+            media_type: Media type as string or MediaType enum.
+            role: Media role as string or MediaRole enum.
+            sort_order: Display ordering (must be >= 0).
+            is_external: Whether the asset is externally hosted.
+            storage_object_id: Optional reference to a StorageObject record.
+            url: Optional public URL (required for external assets).
+            image_variants: Optional list of image variant metadata dicts.
+
+        Returns:
+            A new MediaAsset instance.
+
+        Raises:
+            ValueError: If media_type/role is invalid, sort_order < 0,
+                or an external asset has no URL.
+        """
+        if isinstance(media_type, str):
+            try:
+                media_type = MediaType(media_type.lower())
+            except ValueError:
+                raise ValueError(
+                    f"Invalid media_type '{media_type}'. "
+                    f"Must be one of: {', '.join(m.value for m in MediaType)}"
+                )
+        if isinstance(role, str):
+            try:
+                role = MediaRole(role.lower())
+            except ValueError:
+                raise ValueError(
+                    f"Invalid role '{role}'. "
+                    f"Must be one of: {', '.join(r.value for r in MediaRole)}"
+                )
+        if sort_order < 0:
+            raise ValueError("MediaAsset sort_order must be non-negative")
+        if is_external and not url:
+            raise ValueError("External media assets must have a URL")
+        return cls(
+            id=_generate_id(),
+            product_id=product_id,
+            variant_id=variant_id,
+            media_type=media_type,
+            role=role,
+            sort_order=sort_order,
+            is_external=is_external,
+            storage_object_id=storage_object_id,
+            url=url,
+            image_variants=image_variants,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -1601,6 +1741,8 @@ class Product(AggregateRoot):
         _validate_slug(slug, "Product")
         if not title_i18n:
             raise ValueError("title_i18n must contain at least one language entry")
+        _validate_i18n_values(title_i18n, "title_i18n")
+        validate_i18n_completeness(title_i18n, "title_i18n")
 
         product = cls(
             id=product_id or _generate_id(),
@@ -1670,11 +1812,12 @@ class Product(AggregateRoot):
         if "title_i18n" in kwargs:
             if not kwargs["title_i18n"]:
                 raise ValueError("title_i18n must contain at least one language entry")
+            _validate_i18n_values(kwargs["title_i18n"], "title_i18n")
             self.title_i18n = kwargs["title_i18n"]
             changed = True
 
         if "description_i18n" in kwargs:
-            self.description_i18n = kwargs["description_i18n"]
+            self.description_i18n = kwargs["description_i18n"] or {}
             changed = True
 
         if "slug" in kwargs:
