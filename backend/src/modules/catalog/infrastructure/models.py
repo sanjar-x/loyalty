@@ -9,7 +9,7 @@ entities using the Data Mapper pattern.
 Sections:
     1. Enumerations -- database-level enums for product status, media, etc.
     2. Taxonomy & Dictionaries -- Brand, Category, AttributeGroup, Attribute, AttributeValue.
-    3. Rules -- FamilyAttributeBinding, FamilyAttributeExclusion (governance).
+    3. Rules -- TemplateAttributeBinding (governance).
     4. Core Domain -- Supplier, Product, MediaAsset.
     5. Variations -- SKU and SKU <-> AttributeValue link table.
 """
@@ -130,16 +130,16 @@ class Category(Base):
         onupdate=func.now(),
     )
 
-    family_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("attribute_families.id", ondelete="SET NULL"),
+    template_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("attribute_templates.id", ondelete="SET NULL"),
         index=True,
         default=None,
     )
-    effective_family_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("attribute_families.id", ondelete="SET NULL"),
+    effective_template_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("attribute_templates.id", ondelete="SET NULL"),
         index=True,
         default=None,
-        comment="Computed: own family_id or inherited from nearest ancestor",
+        comment="Computed: own template_id or inherited from nearest ancestor",
     )
 
     children: Mapped[list[Category]] = relationship(
@@ -148,7 +148,7 @@ class Category(Base):
     parent: Mapped[Category] = relationship(
         "Category", back_populates="children", remote_side="Category.id"
     )
-    family: Mapped[AttributeFamily | None] = relationship("AttributeFamily")
+    template: Mapped[AttributeTemplate | None] = relationship("AttributeTemplate")
 
     __table_args__ = (
         Index(
@@ -167,20 +167,17 @@ class Category(Base):
     )
 
 
-class AttributeFamily(Base):
-    """ORM model for the attribute family hierarchy.
+class AttributeTemplate(Base):
+    """ORM model for attribute templates (flat templates).
 
-    Families form a tree via self-referential FK. Used to define which
-    attributes apply to products through polymorphic inheritance.
+    Each template is a top-level template that defines which attributes
+    apply to products via TemplateAttributeBinding governance rules.
     """
 
-    __tablename__ = "attribute_families"
+    __tablename__ = "attribute_templates"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
-    parent_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("attribute_families.id", ondelete="RESTRICT"), index=True
     )
     code: Mapped[str] = mapped_column(String(100), unique=True)
     name_i18n: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
@@ -188,7 +185,6 @@ class AttributeFamily(Base):
         JSONB, server_default=text("'{}'::jsonb")
     )
     sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
-    level: Mapped[int] = mapped_column(Integer, server_default=text("0"))
 
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
@@ -200,25 +196,12 @@ class AttributeFamily(Base):
         onupdate=func.now(),
     )
 
-    # Self-referential tree
-    children: Mapped[list[AttributeFamily]] = relationship(
-        "AttributeFamily", back_populates="parent", cascade="all, delete-orphan"
-    )
-    parent: Mapped[AttributeFamily | None] = relationship(
-        "AttributeFamily", back_populates="children", remote_side="AttributeFamily.id"
-    )
-
     # Child aggregates
-    bindings: Mapped[list[FamilyAttributeBinding]] = relationship(
-        "FamilyAttributeBinding", back_populates="family", cascade="all, delete-orphan"
-    )
-    exclusions: Mapped[list[FamilyAttributeExclusion]] = relationship(
-        "FamilyAttributeExclusion",
-        back_populates="family",
+    bindings: Mapped[list[TemplateAttributeBinding]] = relationship(
+        "TemplateAttributeBinding",
+        back_populates="template",
         cascade="all, delete-orphan",
     )
-
-    __table_args__ = (Index("ix_attribute_families_level_sort", "level", "sort_order"),)
 
 
 class AttributeGroup(Base):
@@ -344,11 +327,6 @@ class Attribute(Base):
     is_visible_on_card: Mapped[bool] = mapped_column(
         Boolean, server_default=text("false"), comment="Shown on product detail page"
     )
-    is_visible_in_catalog: Mapped[bool] = mapped_column(
-        Boolean,
-        server_default=text("false"),
-        comment="Shown in catalog listing preview",
-    )
 
     # Validation rules (type-specific constraints stored as JSONB)
     validation_rules: Mapped[dict[str, Any] | None] = mapped_column(
@@ -414,6 +392,11 @@ class AttributeValue(Base):
     )
     value_group: Mapped[str | None] = mapped_column(String(100), index=True)
     sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        server_default=text("true"),
+        comment="Inactive values hidden from storefront but preserved on existing products",
+    )
 
     attribute: Mapped[Attribute] = relationship("Attribute", back_populates="values")
 
@@ -424,23 +407,29 @@ class AttributeValue(Base):
         Index(
             "ix_attr_val_search_aliases_gin", "search_aliases", postgresql_using="gin"
         ),
+        Index(
+            "ix_attr_val_active",
+            "attribute_id",
+            "sort_order",
+            postgresql_where=text("is_active = true"),
+        ),
     )
 
 
-class FamilyAttributeBinding(Base):
-    """ORM model for family-attribute binding governance rules.
+class TemplateAttributeBinding(Base):
+    """ORM model for template-attribute binding governance rules.
 
-    Many-to-many link between AttributeFamily and Attribute with
-    sort ordering, requirement level, flag overrides, and filter settings.
+    Many-to-many link between AttributeTemplate and Attribute with
+    sort ordering, requirement level, and filter settings.
     """
 
-    __tablename__ = "family_attribute_bindings"
+    __tablename__ = "template_attribute_bindings"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
     )
-    family_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("attribute_families.id", ondelete="CASCADE"), index=True
+    template_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("attribute_templates.id", ondelete="CASCADE"), index=True
     )
     attribute_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("attributes.id", ondelete="CASCADE"), index=True
@@ -450,7 +439,6 @@ class FamilyAttributeBinding(Base):
         Enum(RequirementLevel, name="requirement_level_enum", create_type=False),
         server_default=text("'OPTIONAL'"),
     )
-    flag_overrides: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     filter_settings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
@@ -463,47 +451,15 @@ class FamilyAttributeBinding(Base):
         onupdate=func.now(),
     )
 
-    family: Mapped[AttributeFamily] = relationship(
-        "AttributeFamily", back_populates="bindings"
+    template: Mapped[AttributeTemplate] = relationship(
+        "AttributeTemplate", back_populates="bindings"
     )
     attribute: Mapped[Attribute] = relationship("Attribute")
 
     __table_args__ = (
-        UniqueConstraint("family_id", "attribute_id", name="uix_family_attr_binding"),
-    )
-
-
-class FamilyAttributeExclusion(Base):
-    """ORM model for family attribute exclusions.
-
-    Records which inherited attributes a family explicitly excludes
-    from its effective attribute set.
-    """
-
-    __tablename__ = "family_attribute_exclusions"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid7
-    )
-    family_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("attribute_families.id", ondelete="CASCADE"), index=True
-    )
-    attribute_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("attributes.id", ondelete="CASCADE"), index=True
-    )
-
-    created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        server_default=func.now(),
-    )
-
-    family: Mapped[AttributeFamily] = relationship(
-        "AttributeFamily", back_populates="exclusions"
-    )
-    attribute: Mapped[Attribute] = relationship("Attribute")
-
-    __table_args__ = (
-        UniqueConstraint("family_id", "attribute_id", name="uix_family_attr_exclusion"),
+        UniqueConstraint(
+            "template_id", "attribute_id", name="uix_template_attr_binding"
+        ),
     )
 
 

@@ -164,7 +164,11 @@ async def bulk_assign_product_attributes(
     path="/{attribute_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete an attribute assignment from a product",
-    description="Un-assign an attribute from the given product.",
+    description=(
+        "Delete a product's attribute assignment. Uses attribute_id "
+        "(not assignment ID) because each product has at most one value "
+        "per attribute."
+    ),
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_product_attribute(
@@ -172,7 +176,11 @@ async def delete_product_attribute(
     attribute_id: uuid.UUID,
     handler: FromDishka[DeleteProductAttributeHandler],
 ) -> None:
-    """Delete an attribute assignment from a product.
+    """Delete a product's attribute assignment.
+
+    The path uses ``attribute_id`` rather than the internal assignment
+    (``pav_id``) because the domain enforces a 0-or-1 cardinality
+    constraint: each product holds at most one value per attribute.
 
     Args:
         product_id: UUID of the target product.

@@ -28,10 +28,16 @@ class SSEManager:
         storage_object_id: uuid.UUID,
         *,
         timeout: float = 120.0,
-        heartbeat: float = 15.0,
+        poll_interval: float = 1.0,
     ) -> AsyncGenerator[dict | None]:
-        """Yield status events. Yields None for heartbeat (ping).
-        Stops after timeout or terminal status.
+        """Yield status dicts from Redis pub/sub.
+
+        Yields ``None`` when no message arrived within *poll_interval*
+        (caller decides whether to keep waiting or break).
+        Automatically stops after *timeout* seconds or on terminal status.
+
+        Keep-alive pings are NOT sent here — ``EventSourceResponse(ping=N)``
+        handles that at the transport level.
         """
         channel = self.channel_name(storage_object_id)
         pubsub = self._redis.pubsub()
@@ -41,7 +47,7 @@ class SSEManager:
             while asyncio.get_event_loop().time() < deadline:
                 msg = await pubsub.get_message(
                     ignore_subscribe_messages=True,
-                    timeout=heartbeat,
+                    timeout=poll_interval,
                 )
                 if msg and msg["type"] == "message":
                     data = json.loads(msg["data"])
@@ -49,7 +55,7 @@ class SSEManager:
                     if data.get("status") in ("completed", "failed"):
                         return
                 else:
-                    yield None  # heartbeat
+                    yield None  # no message yet
         finally:
             await pubsub.unsubscribe(channel)
             await pubsub.aclose()  # ty:ignore[unresolved-attribute]

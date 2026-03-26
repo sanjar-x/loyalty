@@ -8,7 +8,7 @@ Supports search by value_i18n and search_aliases across all languages.
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import Select, Text, func, select
+from sqlalchemy import Select, Text, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.read_models import (
@@ -85,11 +85,23 @@ class ListAttributeValuesHandler:
     def _apply_search(
         stmt: Select[tuple[OrmAttributeValue]], search: str
     ) -> Select[tuple[OrmAttributeValue]]:
-        """Apply full-text search across value_i18n values."""
+        """Apply full-text search across code, search_aliases, and value_i18n."""
         escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         pattern = f"%{escaped}%"
         stmt = stmt.where(
-            func.cast(OrmAttributeValue.value_i18n, Text()).ilike(pattern)
+            or_(
+                OrmAttributeValue.code.ilike(pattern),
+                # search_aliases array: unnest and match any element
+                select(literal_column("1"))
+                .select_from(
+                    func.unnest(OrmAttributeValue.search_aliases).alias("alias")
+                )
+                .where(literal_column("alias").ilike(pattern))
+                .correlate(OrmAttributeValue)
+                .exists(),
+                # existing JSONB search on value_i18n
+                func.cast(OrmAttributeValue.value_i18n, Text()).ilike(pattern),
+            )
         )
         return stmt
 
@@ -106,4 +118,5 @@ class ListAttributeValuesHandler:
             meta_data=orm.meta_data,
             value_group=orm.value_group,
             sort_order=orm.sort_order,
+            is_active=orm.is_active,
         )

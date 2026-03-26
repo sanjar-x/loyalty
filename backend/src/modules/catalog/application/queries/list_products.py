@@ -3,10 +3,12 @@ Query handler: paginated product listing with filters.
 
 Strict CQRS read side -- queries the ORM directly and returns read models.
 Supports filtering by status and brand_id, with limit/offset pagination.
+Supports sorting by newest, oldest, popularity, and name.
 """
 
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,12 +32,18 @@ class ListProductsQuery:
         limit: Maximum number of records to return.
         status: Filter by product status (e.g. "draft", "published").
         brand_id: Filter by brand UUID.
+        sort_by: Sort order — "newest", "oldest", "popularity",
+            "name_asc", or "name_desc".  Defaults to newest-first.
+        published_after: Only include products published on or after
+            this timestamp (useful for "New Arrivals" filter).
     """
 
     offset: int = 0
     limit: int = 50
     status: str | None = None
     brand_id: uuid.UUID | None = None
+    sort_by: str | None = None
+    published_after: datetime | None = None
 
 
 class ListProductsHandler:
@@ -58,7 +66,7 @@ class ListProductsHandler:
         """
         base = select(OrmProduct)
         base = self._apply_filters(base, query)
-        base = base.order_by(OrmProduct.created_at.desc())
+        base = self._apply_sorting(base, query)
 
         items, total = await paginate(
             self._session,
@@ -89,7 +97,35 @@ class ListProductsHandler:
             stmt = stmt.where(OrmProduct.status == status_enum)
         if query.brand_id is not None:
             stmt = stmt.where(OrmProduct.brand_id == query.brand_id)
+        if query.published_after is not None:
+            stmt = stmt.where(OrmProduct.published_at >= query.published_after)
         return stmt
+
+    @staticmethod
+    def _apply_sorting(
+        stmt: Select[OrmProduct], query: ListProductsQuery
+    ) -> Select[OrmProduct]:
+        """Apply sort ordering based on ``query.sort_by``."""
+        if query.sort_by == "newest":
+            return stmt.order_by(
+                OrmProduct.published_at.desc().nullslast(),
+                OrmProduct.created_at.desc(),
+            )
+        if query.sort_by == "oldest":
+            return stmt.order_by(
+                OrmProduct.published_at.asc().nullsfirst(),
+                OrmProduct.created_at.asc(),
+            )
+        if query.sort_by == "popularity":
+            return stmt.order_by(
+                OrmProduct.popularity_score.desc().nullslast(),
+            )
+        if query.sort_by == "name_asc":
+            return stmt.order_by(OrmProduct.slug.asc())
+        if query.sort_by == "name_desc":
+            return stmt.order_by(OrmProduct.slug.desc())
+        # Default: newest first by creation date
+        return stmt.order_by(OrmProduct.created_at.desc())
 
     @staticmethod
     def _to_read_model(orm: OrmProduct) -> ProductListItemReadModel:

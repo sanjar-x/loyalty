@@ -15,7 +15,6 @@ Architectural rules
 
 2. Query handlers in ``application.queries`` SHOULD depend on
    read-only repository interfaces defined in ``domain.interfaces``
-   (e.g. ``IProductReadRepository``, ``IStorefrontQueryService``)
    rather than injecting ``AsyncSession`` directly.  This satisfies
    the Dependency Inversion Principle and keeps the application layer
    decoupled from any specific persistence technology.
@@ -25,13 +24,6 @@ Architectural rules
    use SQLAlchemy, raw SQL, Elasticsearch, or any other data source
    and are responsible for mapping rows to the read models defined
    here.
-
-Migration note
-~~~~~~~~~~~~~~
-Several existing query handlers still inject ``AsyncSession`` and
-import ORM models directly.  This is a known technical-debt item
-(ARCH-01 / ARCH-02).  New query handlers should follow the interface
-pattern; existing ones will be migrated incrementally.
 """
 
 from __future__ import annotations
@@ -95,23 +87,6 @@ BrandListReadModel = PaginatedReadModel[BrandReadModel]
 
 
 # ---------------------------------------------------------------------------
-# AttributeGroup read models
-# ---------------------------------------------------------------------------
-
-
-class AttributeGroupReadModel(BaseModel):
-    """Read model for a single attribute group."""
-
-    id: uuid.UUID
-    code: str
-    name_i18n: dict[str, str]
-    sort_order: int
-
-
-AttributeGroupListReadModel = PaginatedReadModel[AttributeGroupReadModel]
-
-
-# ---------------------------------------------------------------------------
 # Attribute read models
 # ---------------------------------------------------------------------------
 
@@ -134,7 +109,6 @@ class AttributeReadModel(BaseModel):
     search_weight: int
     is_comparable: bool
     is_visible_on_card: bool
-    is_visible_in_catalog: bool
     validation_rules: dict[str, Any] | None = None
 
 
@@ -158,6 +132,7 @@ class AttributeValueReadModel(BaseModel):
     meta_data: dict[str, Any]
     value_group: str | None = None
     sort_order: int
+    is_active: bool = True
 
 
 AttributeValueListReadModel = PaginatedReadModel[AttributeValueReadModel]
@@ -190,6 +165,7 @@ class StorefrontFilterAttributeReadModel(BaseModel):
     data_type: str
     ui_type: str
     is_dictionary: bool
+    selection_mode: str = "multi"
     values: list[StorefrontValueReadModel]
     filter_settings: dict[str, Any] | None = None
     sort_order: int
@@ -211,6 +187,7 @@ class StorefrontCardAttributeReadModel(BaseModel):
     name_i18n: dict[str, Any]
     data_type: str
     ui_type: str
+    level: str
     requirement_level: str
     sort_order: int
 
@@ -264,6 +241,9 @@ class StorefrontFormAttributeReadModel(BaseModel):
     is_dictionary: bool
     level: str
     requirement_level: str
+    is_filterable: bool = False
+    is_visible_on_card: bool = False
+    is_comparable: bool = False
     validation_rules: dict[str, Any] | None = None
     values: list[StorefrontValueReadModel]
     sort_order: int
@@ -465,31 +445,18 @@ class ProductAttributeReadModel(ProductAttributeValueReadModel):
 
 
 # ---------------------------------------------------------------------------
-# AttributeFamily read models
+# AttributeTemplate read models
 # ---------------------------------------------------------------------------
 
 
-class AttributeFamilyReadModel(BaseModel):
-    """Read model for a single attribute family."""
+class AttributeTemplateReadModel(BaseModel):
+    """Read model for a single attribute template."""
 
     id: uuid.UUID
-    parent_id: uuid.UUID | None
     code: str
     name_i18n: dict[str, str]
     description_i18n: dict[str, str]
     sort_order: int
-    level: int
 
 
-AttributeFamilyListReadModel = PaginatedReadModel[AttributeFamilyReadModel]
-
-
-class AttributeFamilyTreeNode(BaseModel):
-    """Recursive tree node for the attribute family hierarchy read model."""
-
-    id: uuid.UUID
-    code: str
-    name_i18n: dict[str, str]
-    level: int
-    sort_order: int
-    children: list[AttributeFamilyTreeNode] = Field(default_factory=list)
+AttributeTemplateListReadModel = PaginatedReadModel[AttributeTemplateReadModel]

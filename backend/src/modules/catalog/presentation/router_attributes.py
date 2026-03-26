@@ -27,6 +27,10 @@ from src.modules.catalog.application.commands.update_attribute import (
     UpdateAttributeResult,
 )
 from src.modules.catalog.application.queries.get_attribute import GetAttributeHandler
+from src.modules.catalog.application.queries.get_attribute_usage import (
+    AttributeUsageQuery,
+    GetAttributeUsageHandler,
+)
 from src.modules.catalog.application.queries.list_attributes import (
     ListAttributesHandler,
     ListAttributesQuery,
@@ -46,6 +50,9 @@ from src.modules.catalog.presentation.schemas import (
     AttributeListResponse,
     AttributeResponse,
     AttributeUpdateRequest,
+    AttributeUsageCategoryItem,
+    AttributeUsageResponse,
+    AttributeUsageTemplateItem,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
@@ -84,7 +91,6 @@ async def create_attribute(
         search_weight=request.search_weight,
         is_comparable=request.is_comparable,
         is_visible_on_card=request.is_visible_on_card,
-        is_visible_in_catalog=request.is_visible_in_catalog,
         validation_rules=request.validation_rules,
     )
     result: CreateAttributeResult = await handler.handle(command)
@@ -145,7 +151,6 @@ async def list_attributes(
                 search_weight=item.search_weight,
                 is_comparable=item.is_comparable,
                 is_visible_on_card=item.is_visible_on_card,
-                is_visible_in_catalog=item.is_visible_in_catalog,
                 validation_rules=item.validation_rules,
             )
             for item in result.items
@@ -154,22 +159,6 @@ async def list_attributes(
         offset=result.offset,
         limit=result.limit,
     )
-
-
-@attribute_router.get(
-    path="/by-slug/{slug}",
-    status_code=status.HTTP_200_OK,
-    response_model=AttributeResponse,
-    summary="Get attribute by slug",
-    description="Retrieve a single attribute by its URL-friendly slug.",
-    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
-)
-async def get_attribute_by_slug(
-    slug: str,
-    handler: FromDishka[GetAttributeHandler],
-) -> AttributeResponse:
-    result: AttributeReadModel = await handler.handle_by_slug(slug)
-    return _to_attribute_response(result)
 
 
 @attribute_router.get(
@@ -233,6 +222,40 @@ async def delete_attribute(
     await handler.handle(command)
 
 
+@attribute_router.get(
+    path="/{attribute_id}/usage",
+    status_code=status.HTTP_200_OK,
+    response_model=AttributeUsageResponse,
+    summary="Get attribute usage analytics",
+    description="Shows which templates, categories, and products use this attribute.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
+)
+async def get_attribute_usage(
+    attribute_id: uuid.UUID,
+    handler: FromDishka[GetAttributeUsageHandler],
+) -> AttributeUsageResponse:
+    """Return usage analytics for a single attribute."""
+    query = AttributeUsageQuery(attribute_id=attribute_id)
+    result = await handler.handle(query)
+    return AttributeUsageResponse(
+        template_count=result.template_count,
+        templates=[
+            AttributeUsageTemplateItem(
+                id=t["id"], code=t["code"], name_i18n=t["name_i18n"]
+            )
+            for t in result.templates
+        ],
+        category_count=result.category_count,
+        categories=[
+            AttributeUsageCategoryItem(
+                id=c["id"], full_slug=c["full_slug"], name_i18n=c["name_i18n"]
+            )
+            for c in result.categories
+        ],
+        product_count=result.product_count,
+    )
+
+
 def _to_attribute_response(model: AttributeReadModel) -> AttributeResponse:
     """Convert a read model to a response schema."""
     return AttributeResponse(
@@ -251,6 +274,5 @@ def _to_attribute_response(model: AttributeReadModel) -> AttributeResponse:
         search_weight=model.search_weight,
         is_comparable=model.is_comparable,
         is_visible_on_card=model.is_visible_on_card,
-        is_visible_in_catalog=model.is_visible_in_catalog,
         validation_rules=model.validation_rules,
     )

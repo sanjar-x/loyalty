@@ -1,8 +1,8 @@
 """
 Storefront query handlers -- 4 read-only endpoints for the frontend.
 
-Pure CQRS read side: resolves effective attributes through AttributeFamily,
-applies flag-override resolution, and returns structured read models.
+Pure CQRS read side: resolves effective attributes through AttributeTemplate
+and returns structured read models.
 
 Handlers:
     1. StorefrontFilterableAttributesHandler -- filterable attributes + values
@@ -38,9 +38,9 @@ from src.modules.catalog.application.queries.read_models import (
     StorefrontFormReadModel,
     StorefrontValueReadModel,
 )
-from src.modules.catalog.application.queries.resolve_family_attributes import (
+from src.modules.catalog.application.queries.resolve_template_attributes import (
     EffectiveAttributeReadModel,
-    ResolveFamilyAttributesHandler,
+    ResolveTemplateAttributesHandler,
 )
 from src.modules.catalog.domain.exceptions import CategoryNotFoundError
 from src.shared.interfaces.cache import ICacheService
@@ -49,21 +49,6 @@ from src.shared.interfaces.logger import ILogger
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-
-
-def _effective_bool(
-    flag_overrides: dict[str, Any] | None,
-    flag_name: str,
-    global_default: bool,
-) -> bool:
-    """Resolve an effective boolean flag.
-
-    If ``flag_overrides`` contains the flag, use the override value;
-    otherwise fall back to the attribute's global default.
-    """
-    if flag_overrides and flag_name in flag_overrides:
-        return bool(flag_overrides[flag_name])
-    return global_default
 
 
 def _values_to_read_models(
@@ -86,18 +71,18 @@ def _values_to_read_models(
 
 async def _resolve_effective_for_category(
     session: AsyncSession,
-    resolver: ResolveFamilyAttributesHandler,
+    resolver: ResolveTemplateAttributesHandler,
     category_id: uuid.UUID,
 ) -> list[EffectiveAttributeReadModel]:
-    """Load category, get family_id, resolve effective attributes."""
+    """Load category, get template_id, resolve effective attributes."""
     from src.modules.catalog.infrastructure.models import Category as OrmCategory
 
     cat = await session.get(OrmCategory, category_id)
     if cat is None:
         raise CategoryNotFoundError(category_id=category_id)
-    if cat.effective_family_id is None:
+    if cat.effective_template_id is None:
         return []
-    result = await resolver.handle(cat.effective_family_id)
+    result = await resolver.handle(cat.effective_template_id)
     return result.attributes
 
 
@@ -112,7 +97,7 @@ class StorefrontFilterableAttributesHandler:
     def __init__(
         self,
         session: AsyncSession,
-        resolver: ResolveFamilyAttributesHandler,
+        resolver: ResolveTemplateAttributesHandler,
         cache: ICacheService,
         logger: ILogger,
     ):
@@ -134,10 +119,16 @@ class StorefrontFilterableAttributesHandler:
 
         filter_attrs: list[StorefrontFilterAttributeReadModel] = []
         for attr in effective:
-            if not _effective_bool(
-                attr.flag_overrides, "is_filterable", attr.is_filterable
-            ):
+            if not attr.is_filterable:
                 continue
+
+            # Derive selection_mode from ui_type; override from filter_settings
+            selection_mode = "single" if attr.ui_type == "dropdown" else "multi"
+            if attr.filter_settings and "behavior" in attr.filter_settings:
+                selection_mode = attr.filter_settings["behavior"].get(
+                    "selection_mode", selection_mode
+                )
+
             filter_attrs.append(
                 StorefrontFilterAttributeReadModel(
                     attribute_id=attr.attribute_id,
@@ -147,6 +138,7 @@ class StorefrontFilterableAttributesHandler:
                     data_type=attr.data_type,
                     ui_type=attr.ui_type,
                     is_dictionary=attr.is_dictionary,
+                    selection_mode=selection_mode,
                     values=_values_to_read_models(attr),
                     filter_settings=attr.filter_settings,
                     sort_order=attr.sort_order,
@@ -177,7 +169,7 @@ class StorefrontCardAttributesHandler:
     def __init__(
         self,
         session: AsyncSession,
-        resolver: ResolveFamilyAttributesHandler,
+        resolver: ResolveTemplateAttributesHandler,
         cache: ICacheService,
         logger: ILogger,
     ):
@@ -204,9 +196,7 @@ class StorefrontCardAttributesHandler:
         group_meta: dict[uuid.UUID | None, tuple[str | None, dict[str, Any], int]] = {}
 
         for attr in effective:
-            if not _effective_bool(
-                attr.flag_overrides, "is_visible_on_card", attr.is_visible_on_card
-            ):
+            if not attr.is_visible_on_card:
                 continue
             groups_map[attr.group_id].append(
                 StorefrontCardAttributeReadModel(
@@ -216,6 +206,7 @@ class StorefrontCardAttributesHandler:
                     name_i18n=attr.name_i18n,
                     data_type=attr.data_type,
                     ui_type=attr.ui_type,
+                    level=attr.level,
                     requirement_level=attr.requirement_level,
                     sort_order=attr.sort_order,
                 )
@@ -265,7 +256,7 @@ class StorefrontComparisonAttributesHandler:
     def __init__(
         self,
         session: AsyncSession,
-        resolver: ResolveFamilyAttributesHandler,
+        resolver: ResolveTemplateAttributesHandler,
         cache: ICacheService,
         logger: ILogger,
     ):
@@ -287,9 +278,7 @@ class StorefrontComparisonAttributesHandler:
 
         comparison_attrs: list[StorefrontComparisonAttributeReadModel] = []
         for attr in effective:
-            if not _effective_bool(
-                attr.flag_overrides, "is_comparable", attr.is_comparable
-            ):
+            if not attr.is_comparable:
                 continue
             comparison_attrs.append(
                 StorefrontComparisonAttributeReadModel(
@@ -327,7 +316,7 @@ class StorefrontFormAttributesHandler:
     def __init__(
         self,
         session: AsyncSession,
-        resolver: ResolveFamilyAttributesHandler,
+        resolver: ResolveTemplateAttributesHandler,
         cache: ICacheService,
         logger: ILogger,
     ):
@@ -366,6 +355,9 @@ class StorefrontFormAttributesHandler:
                     is_dictionary=attr.is_dictionary,
                     level=attr.level,
                     requirement_level=attr.requirement_level,
+                    is_filterable=attr.is_filterable,
+                    is_visible_on_card=attr.is_visible_on_card,
+                    is_comparable=attr.is_comparable,
                     validation_rules=attr.validation_rules,
                     values=_values_to_read_models(attr),
                     sort_order=attr.sort_order,
@@ -403,33 +395,3 @@ class StorefrontFormAttributesHandler:
             ttl=STOREFRONT_CACHE_TTL,
         )
         return result
-
-
-# ---------------------------------------------------------------------------
-# Cache invalidation
-# ---------------------------------------------------------------------------
-
-
-async def invalidate_storefront_cache(
-    cache: ICacheService,
-    category_id: uuid.UUID,
-) -> None:
-    """Delete all storefront cache entries for the given category.
-
-    Must be called whenever data that feeds the storefront queries changes:
-      - Attribute metadata updates  (name, flags, ui_type, ...)
-      - Attribute value additions / updates / deletions
-      - Family-attribute binding changes  (bind, unbind, reorder,
-        flag_overrides, filter_settings, requirement_level)
-
-    The category tree cache (``CATEGORY_TREE_CACHE_KEY``) is handled
-    separately in the category CRUD handlers; this function only covers
-    the per-category storefront attribute caches.
-    """
-    keys = [
-        storefront_filters_cache_key(category_id),
-        storefront_card_cache_key(category_id),
-        storefront_comparison_cache_key(category_id),
-        storefront_form_cache_key(category_id),
-    ]
-    await cache.delete_many(keys)

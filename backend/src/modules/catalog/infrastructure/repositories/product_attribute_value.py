@@ -79,6 +79,19 @@ class ProductAttributeValueRepository(
         result = await self._session.execute(stmt)
         return result.first() is not None
 
+    async def check_assignments_exist_bulk(
+        self, product_id: uuid.UUID, attribute_ids: list[uuid.UUID]
+    ) -> set[uuid.UUID]:
+        """Return set of attribute_ids that already have assignments for this product."""
+        if not attribute_ids:
+            return set()
+        stmt = select(OrmProductAttributeValue.attribute_id).where(
+            OrmProductAttributeValue.product_id == product_id,
+            OrmProductAttributeValue.attribute_id.in_(attribute_ids),
+        )
+        result = await self._session.execute(stmt)
+        return {row[0] for row in result.all()}
+
     async def get_by_product_and_attribute(
         self, product_id: uuid.UUID, attribute_id: uuid.UUID
     ) -> DomainProductAttributeValue | None:

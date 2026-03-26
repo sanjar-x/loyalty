@@ -1,5 +1,5 @@
 """
-Query handler: get a single attribute by ID or by slug.
+Query handler: get a single attribute by ID.
 
 Strict CQRS read side -- queries the ORM directly via AsyncSession
 and returns a read model DTO.
@@ -44,26 +44,5 @@ class GetAttributeHandler:
 
         if orm is None:
             raise AttributeNotFoundError(attribute_id=attribute_id)
-
-        return attribute_orm_to_read_model(orm)
-
-    async def handle_by_slug(self, slug: str) -> AttributeReadModel:
-        """Retrieve an attribute by slug.
-
-        Args:
-            slug: URL-safe slug of the attribute.
-
-        Returns:
-            Attribute read model.
-
-        Raises:
-            AttributeNotFoundError: If the attribute does not exist.
-        """
-        statement = select(OrmAttribute).where(OrmAttribute.slug == slug).limit(1)
-        result = await self._session.execute(statement)
-        orm = result.scalar_one_or_none()
-
-        if orm is None:
-            raise AttributeNotFoundError(attribute_id=slug)
 
         return attribute_orm_to_read_model(orm)

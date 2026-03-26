@@ -10,36 +10,36 @@
 ## ER Diagram
 
 ```
-                                ┌─────────────────────────────────────┐
-                                │            languages                │
-                                │─────────────────────────────────────│
-                                │ code          PK    VARCHAR(12)     │  ◄── IETF BCP 47
-                                │ iso639_1            VARCHAR(2)      │
-                                │ iso639_2            VARCHAR(3)      │
-                                │ iso639_3            VARCHAR(3)      │
-                                │ script              VARCHAR(4)      │
-                                │ name_en             VARCHAR(100)    │
-                                │ name_native         VARCHAR(100)    │
-                                │ direction           VARCHAR(3)      │
-                                │ is_active           BOOLEAN         │
-                                │ is_default          BOOLEAN         │
-                                │ sort_order          SMALLINT        │
-                                │ updated_at          TIMESTAMPTZ     │
-                                └──────────────┬──────────────────────┘
-                                               │
+                                 ┌─────────────────────────────────────┐
+                                 │            languages                │
+                                 │─────────────────────────────────────│
+                                 │ code          PK    VARCHAR(12)     │  ◄── IETF BCP 47
+                                 │ iso639_1            VARCHAR(2)      │
+                                 │ iso639_2            VARCHAR(3)      │
+                                 │ iso639_3            VARCHAR(3)      │
+                                 │ script              VARCHAR(4)      │
+                                 │ name_en             VARCHAR(100)    │
+                                 │ name_native         VARCHAR(100)    │
+                                 │ direction           VARCHAR(3)      │
+                                 │ is_active           BOOLEAN         │
+                                 │ is_default          BOOLEAN         │
+                                 │ sort_order          SMALLINT        │
+                                 │ updated_at          TIMESTAMPTZ     │
+                                 └──────────────┬──────────────────────┘
+                                                │
                           ┌────────────────────┬┴──────────────────────┐
                           │ FK lang_code       │ FK lang_code          │ FK lang_code
                           ▼                    ▼                       ▼
-  ┌───────────────────────────────┐  ┌──────────────────────────┐  ┌──────────────────────────────┐
-  │    country_translations       │  │  currency_translations   │  │  subdivision_translations     │
-  │───────────────────────────────│  │──────────────────────────│  │──────────────────────────────│
+  ┌───────────────────────────────┐  ┌──────────────────────────┐  ┌───────────────────────────────┐
+  │    country_translations       │  │  currency_translations   │  │    subdivision_translations   │
+  │───────────────────────────────│  │──────────────────────────│  │───────────────────────────────│
   │ id            PK  UUID        │  │ id         PK  UUID      │  │ id            PK  UUID        │
   │ country_code  FK  VARCHAR(2)  │  │ currency_  FK VARCHAR(3) │  │ subdivision_  FK VARCHAR(10)  │
   │ lang_code     FK  VARCHAR(12) │  │ lang_code  FK VARCHAR(12)│  │ lang_code     FK VARCHAR(12)  │
   │ name              VARCHAR(255)│  │ name         VARCHAR(100)│  │ name              VARCHAR(255)│
   │ official_name     VARCHAR(255)│  └──────────┬───────────────┘  │ official_name     VARCHAR(255)│
   └──────────┬────────────────────┘             │                  │ local_variant     VARCHAR(255)│
-             │                                  │                  └──────────┬───────────────────┘
+             │                                  │                  └──────────┬────────────────────┘
              │ FK country_code                  │ FK currency_code            │ FK subdivision_code
              ▼                                  ▼                             ▼
   ┌──────────────────────────┐     ┌──────────────────────────┐  ┌───────────────────────────────┐

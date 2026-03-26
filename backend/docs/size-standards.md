@@ -2,14 +2,14 @@
 
 ## Architecture Decision
 
-Размеры — это **разные системы измерения**, а не один атрибут с разными значениями. Каждая система размеров = отдельный `Attribute` в каталоге. `AttributeFamily` привязывает к категории только релевантные размерные атрибуты.
+Размеры — это **разные системы измерения**, а не один атрибут с разными значениями. Каждая система размеров = отдельный `Attribute` в каталоге. `AttributeTemplate` привязывает к категории только релевантные размерные атрибуты.
 
 ```
-Family "Одежда (верх)"    -> clothing_size [XXS-5XL]
-Family "Джинсы"           -> jeans_waist [W23-W56] + jeans_length [L28-L36]
-Family "Обувь"            -> shoe_size_eu [35-50.5]
-Family "Кепки (fitted)"   -> hat_fitted [6⅞-8¼]
-Family "Аксессуары"       -> one_size [OSFM]
+Template "Одежда (верх)"    -> clothing_size [XXS-5XL]
+Template "Джинсы"           -> jeans_waist [W23-W56] + jeans_length [L28-L36]
+Template "Обувь"            -> shoe_size_eu [35-50.5]
+Template "Кепки (fitted)"   -> hat_fitted [6⅞-8¼]
+Template "Аксессуары"       -> one_size [OSFM]
 ```
 
 ---
@@ -222,39 +222,39 @@ Streetwear ремни обычно продаются в alpha или inches:
 
 ---
 
-## Recommended Family Structure
+## Recommended Template Structure
 
 ```
-Family "Одежда" (clothing)
+Template "Одежда" (clothing)
 ├── binds: clothing_size [XXS-5XL] — required
 ├── assigned to: category "Одежда"
 │
-├── Family "Джинсы" (jeans) — extends "Одежда"
+├── Template "Джинсы" (jeans) — extends "Одежда"
 │   ├── excludes: clothing_size (джинсы не в S/M/L)
 │   ├── binds: jeans_waist [W26-W42] — required
 │   └── binds: jeans_length [L28-L36] — recommended
 │
-└── Family "Носки" (socks) — extends "Одежда"
+└── Template "Носки" (socks) — extends "Одежда"
     ├── overrides: clothing_size → sort_order=1, requirement=optional
     └── (носки часто в one_size или S/M/L)
 
-Family "Обувь" (footwear)
+Template "Обувь" (footwear)
 ├── binds: shoe_size_eu [35-50.5] — required
 └── assigned to: category "Обувь"
 
-Family "Аксессуары" (accessories)
+Template "Аксессуары" (accessories)
 ├── assigned to: category "Аксессуары"
 │
-├── Family "Кепки fitted" (fitted_caps) — extends "Аксессуары"
+├── Template "Кепки fitted" (fitted_caps) — extends "Аксессуары"
 │   └── binds: hat_fitted [6⅞-8] — required
 │
-├── Family "Снэпбеки/Бини" (snapback_beanie) — extends "Аксессуары"
+├── Template "Снэпбеки/Бини" (snapback_beanie) — extends "Аксессуары"
 │   └── binds: one_size [OSFM] — required
 │
-├── Family "Ремни" (belts) — extends "Аксессуары"
+├── Template "Ремни" (belts) — extends "Аксессуары"
 │   └── binds: belt_size [S-XL] — required
 │
-└── Family "Кольца" (rings) — extends "Аксессуары"
+└── Template "Кольца" (rings) — extends "Аксессуары"
     └── binds: ring_size [15-22mm] — required
 ```
 

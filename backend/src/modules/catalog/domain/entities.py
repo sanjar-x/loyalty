@@ -1,6 +1,6 @@
 """
-Catalog domain entities (Brand, Category, AttributeFamily,
-FamilyAttributeBinding, FamilyAttributeExclusion, AttributeGroup, Attribute,
+Catalog domain entities (Brand, Category, AttributeTemplate,
+TemplateAttributeBinding, AttributeGroup, Attribute,
 ProductVariant, SKU, and Product aggregates).
 
 Contains the core business logic for brand lifecycle management,
@@ -35,8 +35,7 @@ from src.modules.catalog.domain.events import (
     VariantDeletedEvent,
 )
 from src.modules.catalog.domain.exceptions import (
-    AttributeFamilyHasCategoryReferencesError,
-    AttributeFamilyHasChildrenError,
+    AttributeTemplateHasCategoryReferencesError,
     BrandHasProductsError,
     CannotDeletePublishedProductError,
     CategoryHasChildrenError,
@@ -92,7 +91,7 @@ def _generate_id() -> uuid.UUID:
 _PRODUCT_GUARDED_FIELDS: frozenset[str] = frozenset({"status"})
 _BRAND_GUARDED_FIELDS: frozenset[str] = frozenset({"slug"})
 _CATEGORY_GUARDED_FIELDS: frozenset[str] = frozenset({"slug"})
-_FAMILY_GUARDED_FIELDS: frozenset[str] = frozenset({"code", "parent_id", "level"})
+_FAMILY_GUARDED_FIELDS: frozenset[str] = frozenset({"code"})
 
 
 # ---------------------------------------------------------------------------
@@ -240,8 +239,8 @@ class Category(AggregateRoot):
     full_slug: str
     level: int
     sort_order: int
-    family_id: uuid.UUID | None = None
-    effective_family_id: uuid.UUID | None = None
+    template_id: uuid.UUID | None = None
+    effective_template_id: uuid.UUID | None = None
 
     # DDD-01: guard slug against direct mutation
     def __setattr__(self, name: str, value: object) -> None:
@@ -263,7 +262,7 @@ class Category(AggregateRoot):
         name_i18n: dict[str, str],
         slug: str,
         sort_order: int = 0,
-        family_id: uuid.UUID | None = None,
+        template_id: uuid.UUID | None = None,
     ) -> Category:
         """Create a top-level (root) category.
 
@@ -271,7 +270,7 @@ class Category(AggregateRoot):
             name_i18n: Multilingual display name.
             slug: URL-safe identifier.
             sort_order: Display ordering among root categories.
-            family_id: Optional FK to an AttributeFamily.
+            template_id: Optional FK to an AttributeTemplate.
 
         Returns:
             A new root Category with level=0.
@@ -285,8 +284,8 @@ class Category(AggregateRoot):
             full_slug=slug,
             level=0,
             sort_order=sort_order,
-            family_id=family_id,
-            effective_family_id=family_id,
+            template_id=template_id,
+            effective_template_id=template_id,
         )
 
     @classmethod
@@ -296,7 +295,7 @@ class Category(AggregateRoot):
         slug: str,
         parent: Category,
         sort_order: int = 0,
-        family_id: uuid.UUID | None = None,
+        template_id: uuid.UUID | None = None,
     ) -> Category:
         """Create a child category under the given parent.
 
@@ -305,7 +304,7 @@ class Category(AggregateRoot):
             slug: URL-safe identifier (unique within parent's children).
             parent: Parent category aggregate.
             sort_order: Display ordering among siblings.
-            family_id: Optional FK to an AttributeFamily.
+            template_id: Optional FK to an AttributeTemplate.
 
         Returns:
             A new child Category with level = parent.level + 1.
@@ -327,20 +326,23 @@ class Category(AggregateRoot):
             full_slug=f"{parent.full_slug}/{slug}",
             level=parent.level + 1,
             sort_order=sort_order,
-            family_id=family_id,
-            effective_family_id=family_id or parent.effective_family_id,
+            template_id=template_id,
+            effective_template_id=template_id or parent.effective_template_id,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {"name_i18n", "slug", "sort_order", "family_id"}
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "name_i18n",
+        "slug",
+        "sort_order",
+        "template_id",
+    })
 
     def update(
         self,
         name_i18n: dict[str, str] | None = None,
         slug: str | None = None,
         sort_order: int | None = None,
-        family_id: uuid.UUID | None = ...,  # type: ignore[assignment]
+        template_id: uuid.UUID | None = ...,  # type: ignore[assignment]
     ) -> str | None:
         """Update category details and recompute full_slug if slug changed.
 
@@ -348,7 +350,7 @@ class Category(AggregateRoot):
             name_i18n: New multilingual name, or None to keep current.
             slug: New URL-safe slug, or None to keep current.
             sort_order: New sort position, or None to keep current.
-            family_id: New family FK, None to clear, or ``...`` (default) to keep current.
+            template_id: New template FK, None to clear, or ``...`` (default) to keep current.
 
         Returns:
             The old ``full_slug`` if slug was changed (caller must cascade
@@ -362,10 +364,10 @@ class Category(AggregateRoot):
         if sort_order is not None:
             self.sort_order = sort_order
 
-        if family_id is not ...:
-            self.family_id = family_id
-            if family_id is not None:
-                self.effective_family_id = family_id
+        if template_id is not ...:
+            self.template_id = template_id
+            if template_id is not None:
+                self.effective_template_id = template_id
 
         if slug is not None and slug != self.slug:
             _validate_slug(slug, "Category")
@@ -403,103 +405,77 @@ class Category(AggregateRoot):
         if has_products:
             raise CategoryHasProductsError(category_id=self.id)
 
-    def set_effective_family_id(self, value: uuid.UUID | None) -> None:
-        """Set the computed effective_family_id (used by propagation logic)."""
-        self.effective_family_id = value
+    def set_effective_template_id(self, value: uuid.UUID | None) -> None:
+        """Set the computed effective_template_id (used by propagation logic)."""
+        self.effective_template_id = value
 
 
 # ============================================================================
-# AttributeFamily aggregate
+# AttributeTemplate aggregate
 # ============================================================================
 
 
 @dataclass
-class AttributeFamily(AggregateRoot):
-    """Standalone aggregate defining a set of attributes for products.
+class AttributeTemplate(AggregateRoot):
+    """Standalone aggregate defining a flat template of attributes for products.
 
-    Families form a tree hierarchy independent of categories. Child families
-    inherit parent attributes, can override settings, exclude inherited
-    attributes, and add their own.
+    Each template is a top-level template that governs which attributes apply
+    to products assigned to categories referencing this template.
 
     Attributes:
-        id: Unique family identifier.
-        parent_id: FK to parent family, or None for root families. Immutable.
+        id: Unique template identifier.
         code: Machine-readable code, globally unique. Immutable.
         name_i18n: Multilingual display name.
         description_i18n: Multilingual description.
-        sort_order: Display ordering among siblings.
-        level: Depth in tree (0 = root). Derived from parent at creation.
+        sort_order: Display ordering among templates.
     """
 
     id: uuid.UUID
-    parent_id: uuid.UUID | None
     code: str
     name_i18n: dict[str, str]
     description_i18n: dict[str, str]
     sort_order: int
-    level: int
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {"name_i18n", "description_i18n", "sort_order"}
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "name_i18n",
+        "description_i18n",
+        "sort_order",
+    })
 
     def __setattr__(self, name: str, value: object) -> None:
         if name in _FAMILY_GUARDED_FIELDS and getattr(
-            self, "_AttributeFamily__initialized", False
+            self, "_AttributeTemplate__initialized", False
         ):
             raise AttributeError(
-                f"Cannot set '{name}' directly on AttributeFamily. "
+                f"Cannot set '{name}' directly on AttributeTemplate. "
                 f"Use the appropriate method instead."
             )
         super().__setattr__(name, value)
 
     def __attrs_post_init__(self) -> None:
         super().__attrs_post_init__()
-        object.__setattr__(self, "_AttributeFamily__initialized", True)
+        object.__setattr__(self, "_AttributeTemplate__initialized", True)
 
     @classmethod
-    def create_root(
+    def create(
         cls,
         *,
         code: str,
         name_i18n: dict[str, str],
         description_i18n: dict[str, str] | None = None,
         sort_order: int = 0,
-    ) -> AttributeFamily:
-        """Create a root (top-level) attribute family."""
+    ) -> AttributeTemplate:
+        """Create a new attribute template (flat template)."""
         return cls(
             id=_generate_id(),
-            parent_id=None,
             code=code,
             name_i18n=name_i18n,
             description_i18n=description_i18n or {},
             sort_order=sort_order,
-            level=0,
-        )
-
-    @classmethod
-    def create_child(
-        cls,
-        *,
-        parent: AttributeFamily,
-        code: str,
-        name_i18n: dict[str, str],
-        description_i18n: dict[str, str] | None = None,
-        sort_order: int = 0,
-    ) -> AttributeFamily:
-        """Create a child attribute family under the given parent."""
-        return cls(
-            id=_generate_id(),
-            parent_id=parent.id,
-            code=code,
-            name_i18n=name_i18n,
-            description_i18n=description_i18n or {},
-            sort_order=sort_order,
-            level=parent.level + 1,
         )
 
     def update(self, **kwargs: Any) -> None:
-        """Update mutable family fields.
+        """Update mutable template fields.
 
         Only fields in ``_UPDATABLE_FIELDS`` are accepted.
 
@@ -517,86 +493,92 @@ class AttributeFamily(AggregateRoot):
         if "sort_order" in kwargs and kwargs["sort_order"] is not None:
             self.sort_order = kwargs["sort_order"]
 
-    def validate_deletable(
-        self, *, has_children: bool, has_category_refs: bool
-    ) -> None:
-        """Validate that this family can be safely deleted.
+    def validate_deletable(self, *, has_category_refs: bool) -> None:
+        """Validate that this template can be safely deleted.
 
         Raises:
-            AttributeFamilyHasChildrenError: If the family has child families.
-            AttributeFamilyHasCategoryReferencesError: If categories reference it.
+            AttributeTemplateHasCategoryReferencesError: If categories reference it.
         """
-        if has_children:
-            raise AttributeFamilyHasChildrenError(family_id=self.id)
         if has_category_refs:
-            raise AttributeFamilyHasCategoryReferencesError(family_id=self.id)
+            raise AttributeTemplateHasCategoryReferencesError(template_id=self.id)
 
 
 # ============================================================================
-# FamilyAttributeBinding aggregate
+# TemplateAttributeBinding aggregate
 # ============================================================================
 
 
 @dataclass
-class FamilyAttributeBinding(AggregateRoot):
-    """Binding between a family and an attribute with governance settings.
+class TemplateAttributeBinding(AggregateRoot):
+    """Binding between a template and an attribute with governance settings.
 
-    Controls which attributes apply to a family, their display order,
-    requirement level, optional behavior-flag overrides, and per-family
-    filter settings. Standalone aggregate with its own event lifecycle.
+    Controls which attributes apply to a template, their display order,
+    requirement level, and per-template filter settings.
+    Standalone aggregate with its own event lifecycle.
 
     Attributes:
         id: Unique binding identifier.
-        family_id: FK to the AttributeFamily aggregate.
+        template_id: FK to the AttributeTemplate aggregate.
         attribute_id: FK to the Attribute aggregate.
-        sort_order: Display ordering of the attribute within the family.
+        sort_order: Display ordering of the attribute within the template.
         requirement_level: Required / recommended / optional.
-        flag_overrides: Optional per-family overrides for global behavior flags.
-        filter_settings: Optional per-family filter configuration.
+        filter_settings: Optional per-template filter configuration.
     """
 
     id: uuid.UUID
-    family_id: uuid.UUID
+    template_id: uuid.UUID
     attribute_id: uuid.UUID
     sort_order: int
     requirement_level: RequirementLevel
-    flag_overrides: dict[str, Any] | None
     filter_settings: dict[str, Any] | None
+    """Opaque frontend configuration for filter UI rendering.
+
+    Stored as-is, never interpreted by the backend. Passed through to
+    storefront filter responses for frontend consumption.
+
+    Expected shape (to be formalized when frontend is implemented)::
+
+        {
+            "widget": "range_slider" | "checkbox_list" | "color_swatch",
+            "min": number | null,
+            "max": number | null,
+            "step": number | null,
+            "unit": string | null,
+            "collapsed": bool
+        }
+
+    Size limit: enforced by ``BoundedJsonDict`` schema (max 10 KB, max depth 4).
+    """
 
     @classmethod
     def create(
         cls,
         *,
-        family_id: uuid.UUID,
+        template_id: uuid.UUID,
         attribute_id: uuid.UUID,
         sort_order: int = 0,
         requirement_level: RequirementLevel | None = None,
-        flag_overrides: dict[str, Any] | None = None,
         filter_settings: dict[str, Any] | None = None,
         binding_id: uuid.UUID | None = None,
-    ) -> FamilyAttributeBinding:
-        """Factory method to construct a new FamilyAttributeBinding."""
+    ) -> TemplateAttributeBinding:
+        """Factory method to construct a new TemplateAttributeBinding."""
         return cls(
             id=binding_id or _generate_id(),
-            family_id=family_id,
+            template_id=template_id,
             attribute_id=attribute_id,
             sort_order=sort_order,
             requirement_level=requirement_level or RequirementLevel.OPTIONAL,
-            flag_overrides=flag_overrides,
             filter_settings=filter_settings,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "sort_order",
-            "requirement_level",
-            "flag_overrides",
-            "filter_settings",
-        }
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "sort_order",
+        "requirement_level",
+        "filter_settings",
+    })
 
     def update(self, **kwargs: Any) -> None:
-        """Update mutable binding fields. family_id and attribute_id are immutable."""
+        """Update mutable binding fields. template_id and attribute_id are immutable."""
         unknown = set(kwargs) - self._UPDATABLE_FIELDS
         if unknown:
             raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
@@ -605,49 +587,8 @@ class FamilyAttributeBinding(AggregateRoot):
             self.sort_order = kwargs["sort_order"]
         if "requirement_level" in kwargs and kwargs["requirement_level"] is not None:
             self.requirement_level = kwargs["requirement_level"]
-        if "flag_overrides" in kwargs:
-            self.flag_overrides = kwargs["flag_overrides"]
         if "filter_settings" in kwargs:
             self.filter_settings = kwargs["filter_settings"]
-
-
-# ============================================================================
-# FamilyAttributeExclusion aggregate
-# ============================================================================
-
-
-@dataclass
-class FamilyAttributeExclusion(AggregateRoot):
-    """Exclusion of an inherited attribute from a family.
-
-    When a family excludes an attribute, it is removed from the effective
-    attribute set. Exclusions can only target attributes inherited from
-    ancestor families, not the family's own bindings.
-
-    Attributes:
-        id: Unique exclusion identifier.
-        family_id: FK to the AttributeFamily aggregate.
-        attribute_id: FK to the excluded Attribute.
-    """
-
-    id: uuid.UUID
-    family_id: uuid.UUID
-    attribute_id: uuid.UUID
-
-    @classmethod
-    def create(
-        cls,
-        *,
-        family_id: uuid.UUID,
-        attribute_id: uuid.UUID,
-        exclusion_id: uuid.UUID | None = None,
-    ) -> FamilyAttributeExclusion:
-        """Factory method to construct a new FamilyAttributeExclusion."""
-        return cls(
-            id=exclusion_id or _generate_id(),
-            family_id=family_id,
-            attribute_id=attribute_id,
-        )
 
 
 # ============================================================================
@@ -793,10 +734,6 @@ class Attribute(AggregateRoot):
     def is_visible_on_card(self) -> bool:
         return self.behavior.is_visible_on_card
 
-    @property
-    def is_visible_in_catalog(self) -> bool:
-        return self.behavior.is_visible_in_catalog
-
     @classmethod
     def create(
         cls,
@@ -807,7 +744,7 @@ class Attribute(AggregateRoot):
         data_type: AttributeDataType,
         ui_type: AttributeUIType,
         is_dictionary: bool,
-        group_id: uuid.UUID,
+        group_id: uuid.UUID | None,
         description_i18n: dict[str, str] | None = None,
         level: AttributeLevel = AttributeLevel.PRODUCT,
         is_filterable: bool = False,
@@ -815,7 +752,6 @@ class Attribute(AggregateRoot):
         search_weight: int = DEFAULT_SEARCH_WEIGHT,
         is_comparable: bool = False,
         is_visible_on_card: bool = False,
-        is_visible_in_catalog: bool = False,
         validation_rules: dict[str, Any] | None = None,
         attribute_id: uuid.UUID | None = None,
         behavior: BehaviorFlags | None = None,
@@ -841,7 +777,6 @@ class Attribute(AggregateRoot):
             search_weight: Search ranking priority 1-10 (default: 5).
             is_comparable: Include in comparison table (default: False).
             is_visible_on_card: Show on product detail page (default: False).
-            is_visible_in_catalog: Show in listing preview (default: False).
             validation_rules: Type-specific validation constraints.
             attribute_id: Optional pre-generated UUID.
             behavior: Optional pre-built BehaviorFlags (overrides individual flags).
@@ -866,7 +801,6 @@ class Attribute(AggregateRoot):
                 search_weight=search_weight,
                 is_comparable=is_comparable,
                 is_visible_on_card=is_visible_on_card,
-                is_visible_in_catalog=is_visible_in_catalog,
             )
 
         validate_validation_rules(data_type, validation_rules)
@@ -886,35 +820,29 @@ class Attribute(AggregateRoot):
             validation_rules=validation_rules,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "name_i18n",
-            "description_i18n",
-            "ui_type",
-            "group_id",
-            "level",
-            "is_filterable",
-            "is_searchable",
-            "search_weight",
-            "is_comparable",
-            "is_visible_on_card",
-            "is_visible_in_catalog",
-            "validation_rules",
-            "behavior",
-        }
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "name_i18n",
+        "description_i18n",
+        "ui_type",
+        "group_id",
+        "level",
+        "is_filterable",
+        "is_searchable",
+        "search_weight",
+        "is_comparable",
+        "is_visible_on_card",
+        "validation_rules",
+        "behavior",
+    })
 
     # Individual behavior flag names mapped to BehaviorFlags field names
-    _BEHAVIOR_FLAG_NAMES: ClassVar[frozenset[str]] = frozenset(
-        {
-            "is_filterable",
-            "is_searchable",
-            "search_weight",
-            "is_comparable",
-            "is_visible_on_card",
-            "is_visible_in_catalog",
-        }
-    )
+    _BEHAVIOR_FLAG_NAMES: ClassVar[frozenset[str]] = frozenset({
+        "is_filterable",
+        "is_searchable",
+        "search_weight",
+        "is_comparable",
+        "is_visible_on_card",
+    })
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable attribute fields. Code, slug, and data_type are immutable.
@@ -996,11 +924,6 @@ class Attribute(AggregateRoot):
                             "is_visible_on_card", self.behavior.is_visible_on_card
                         )
                     ),
-                    is_visible_in_catalog=bool(
-                        flag_updates.get(
-                            "is_visible_in_catalog", self.behavior.is_visible_in_catalog
-                        )
-                    ),
                 )
 
         if "validation_rules" in kwargs:
@@ -1042,6 +965,7 @@ class AttributeValue:
     meta_data: dict[str, Any]
     value_group: str | None
     sort_order: int
+    is_active: bool = True
 
     @classmethod
     def create(
@@ -1055,6 +979,7 @@ class AttributeValue:
         meta_data: dict[str, Any] | None = None,
         value_group: str | None = None,
         sort_order: int = 0,
+        is_active: bool = True,
         value_id: uuid.UUID | None = None,
     ) -> AttributeValue:
         """Factory method to construct a new AttributeValue.
@@ -1068,6 +993,7 @@ class AttributeValue:
             meta_data: Optional arbitrary metadata.
             value_group: Optional grouping label.
             sort_order: Display ordering (default: 0).
+            is_active: Whether the value is active (default: True).
             value_id: Optional pre-generated UUID.
 
         Returns:
@@ -1090,17 +1016,17 @@ class AttributeValue:
             meta_data=meta_data or {},
             value_group=value_group,
             sort_order=sort_order,
+            is_active=is_active,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "value_i18n",
-            "search_aliases",
-            "meta_data",
-            "value_group",
-            "sort_order",
-        }
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "value_i18n",
+        "search_aliases",
+        "meta_data",
+        "value_group",
+        "sort_order",
+        "is_active",
+    })
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable fields. Code and slug are immutable after creation.
@@ -1137,6 +1063,9 @@ class AttributeValue:
 
         if "sort_order" in kwargs and kwargs["sort_order"] is not None:
             self.sort_order = kwargs["sort_order"]
+
+        if "is_active" in kwargs and kwargs["is_active"] is not None:
+            self.is_active = kwargs["is_active"]
 
 
 @dataclass
@@ -1260,16 +1189,14 @@ class SKU:
         self.deleted_at = now
         self.updated_at = now
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "sku_code",
-            "price",
-            "compare_at_price",
-            "is_active",
-            "variant_attributes",
-            "variant_hash",
-        }
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "sku_code",
+        "price",
+        "compare_at_price",
+        "is_active",
+        "variant_attributes",
+        "variant_hash",
+    })
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable SKU fields.
@@ -1391,15 +1318,13 @@ class ProductVariant:
             skus=[],
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "name_i18n",
-            "description_i18n",
-            "sort_order",
-            "default_price",
-            "default_currency",
-        }
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "name_i18n",
+        "description_i18n",
+        "sort_order",
+        "default_price",
+        "default_currency",
+    })
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable variant fields.
@@ -1642,18 +1567,16 @@ class Product(AggregateRoot):
         )
         return product
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "title_i18n",
-            "description_i18n",
-            "slug",
-            "brand_id",
-            "primary_category_id",
-            "supplier_id",
-            "country_of_origin",
-            "tags",
-        }
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "title_i18n",
+        "description_i18n",
+        "slug",
+        "brand_id",
+        "primary_category_id",
+        "supplier_id",
+        "country_of_origin",
+        "tags",
+    })
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable product fields.

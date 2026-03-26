@@ -6,6 +6,7 @@ uniqueness within the attribute, persists the value, and emits an
 ``AttributeValueAddedEvent``.
 """
 
+import re
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
@@ -17,13 +18,17 @@ from src.modules.catalog.domain.exceptions import (
     AttributeNotFoundError,
     AttributeValueCodeConflictError,
     AttributeValueSlugConflictError,
+    InvalidColorHexError,
 )
 from src.modules.catalog.domain.interfaces import (
     IAttributeRepository,
     IAttributeValueRepository,
 )
+from src.modules.catalog.domain.value_objects import AttributeUIType, validate_i18n_completeness
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
+
+_HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
 @dataclass(frozen=True)
@@ -84,6 +89,8 @@ class AddAttributeValueHandler:
             AttributeValueCodeConflictError: If the code is taken.
             AttributeValueSlugConflictError: If the slug is taken.
         """
+        validate_i18n_completeness(command.value_i18n, "value_i18n")
+
         async with self._uow:
             attribute = await self._attribute_repo.get(command.attribute_id)
             if attribute is None:
@@ -91,6 +98,11 @@ class AddAttributeValueHandler:
 
             if not attribute.is_dictionary:
                 raise AttributeNotDictionaryError(attribute_id=command.attribute_id)
+
+            if attribute.ui_type == AttributeUIType.COLOR_SWATCH and command.meta_data:
+                hex_val = command.meta_data.get("hex")
+                if hex_val is not None and not _HEX_COLOR_RE.match(hex_val):
+                    raise InvalidColorHexError(hex_value=hex_val)
 
             if await self._value_repo.check_code_exists(
                 command.attribute_id, command.code

@@ -12,12 +12,12 @@ from dataclasses import dataclass
 from src.modules.catalog.application.constants import CATEGORY_TREE_CACHE_KEY
 from src.modules.catalog.domain.entities import Category
 from src.modules.catalog.domain.exceptions import (
-    AttributeFamilyNotFoundError,
+    AttributeTemplateNotFoundError,
     CategoryNotFoundError,
     CategorySlugConflictError,
 )
 from src.modules.catalog.domain.interfaces import (
-    IAttributeFamilyRepository,
+    IAttributeTemplateRepository,
     ICategoryRepository,
 )
 from src.shared.interfaces.cache import ICacheService
@@ -34,14 +34,14 @@ class CreateCategoryCommand:
         slug: URL-safe identifier, unique within the parent level.
         parent_id: Parent category UUID, or None for a root category.
         sort_order: Display ordering among siblings.
-        family_id: Optional FK to an AttributeFamily.
+        template_id: Optional FK to an AttributeTemplate.
     """
 
     name_i18n: dict[str, str]
     slug: str
     parent_id: uuid.UUID | None = None
     sort_order: int = 0
-    family_id: uuid.UUID | None = None
+    template_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -56,7 +56,7 @@ class CreateCategoryResult:
         level: Depth in the tree (0 = root).
         sort_order: Display ordering.
         parent_id: Parent category UUID, or None.
-        family_id: Associated AttributeFamily UUID, or None.
+        template_id: Associated AttributeTemplate UUID, or None.
     """
 
     id: uuid.UUID
@@ -66,8 +66,8 @@ class CreateCategoryResult:
     level: int
     sort_order: int
     parent_id: uuid.UUID | None = None
-    family_id: uuid.UUID | None = None
-    effective_family_id: uuid.UUID | None = None
+    template_id: uuid.UUID | None = None
+    effective_template_id: uuid.UUID | None = None
 
 
 class CreateCategoryHandler:
@@ -83,13 +83,13 @@ class CreateCategoryHandler:
     def __init__(
         self,
         category_repo: ICategoryRepository,
-        family_repo: IAttributeFamilyRepository,
+        template_repo: IAttributeTemplateRepository,
         uow: IUnitOfWork,
         cache: ICacheService,
         logger: ILogger,
     ):
         self._category_repo: ICategoryRepository = category_repo
-        self._family_repo: IAttributeFamilyRepository = family_repo
+        self._template_repo: IAttributeTemplateRepository = template_repo
         self._uow: IUnitOfWork = uow
         self._cache: ICacheService = cache
         self._logger: ILogger = logger.bind(handler="CreateCategoryHandler")
@@ -108,10 +108,10 @@ class CreateCategoryHandler:
             CategoryNotFoundError: If the specified parent does not exist.
             CategoryMaxDepthError: If the parent is already at max depth.
         """
-        if command.family_id is not None:
-            family = await self._family_repo.get(command.family_id)
-            if family is None:
-                raise AttributeFamilyNotFoundError(family_id=command.family_id)
+        if command.template_id is not None:
+            template = await self._template_repo.get(command.template_id)
+            if template is None:
+                raise AttributeTemplateNotFoundError(template_id=command.template_id)
 
         async with self._uow:
             is_slug_taken = await self._category_repo.check_slug_exists(
@@ -132,14 +132,14 @@ class CreateCategoryHandler:
                     slug=command.slug,
                     parent=parent,
                     sort_order=command.sort_order,
-                    family_id=command.family_id,
+                    template_id=command.template_id,
                 )
             else:
                 category = Category.create_root(
                     name_i18n=command.name_i18n,
                     slug=command.slug,
                     sort_order=command.sort_order,
-                    family_id=command.family_id,
+                    template_id=command.template_id,
                 )
 
             category = await self._category_repo.add(category)
@@ -159,6 +159,6 @@ class CreateCategoryHandler:
             level=category.level,
             sort_order=category.sort_order,
             parent_id=category.parent_id,
-            family_id=category.family_id,
-            effective_family_id=category.effective_family_id,
+            template_id=category.template_id,
+            effective_template_id=category.effective_template_id,
         )

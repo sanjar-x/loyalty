@@ -17,6 +17,34 @@ DEFAULT_CURRENCY = "RUB"
 DEFAULT_SEARCH_WEIGHT = 5
 """Default search weight for new attributes."""
 
+REQUIRED_LOCALES: frozenset[str] = frozenset({"ru", "en"})
+"""Locales that must be present in every user-facing i18n field."""
+
+
+def validate_i18n_completeness(
+    i18n_dict: dict[str, str],
+    field_name: str = "name_i18n",
+) -> None:
+    """Raise ``MissingRequiredLocalesError`` if required locales are missing.
+
+    Args:
+        i18n_dict: The multilingual dictionary to validate.
+        field_name: Human-readable field name for the error message.
+
+    Raises:
+        MissingRequiredLocalesError: If any locale from ``REQUIRED_LOCALES``
+            is absent in *i18n_dict*.
+    """
+    missing = REQUIRED_LOCALES - set(i18n_dict.keys())
+    if missing:
+        # Import here to avoid circular imports (exceptions imports value_objects)
+        from src.modules.catalog.domain.exceptions import MissingRequiredLocalesError
+
+        raise MissingRequiredLocalesError(
+            field_name=field_name,
+            missing_locales=sorted(missing),
+        )
+
 MIN_SEARCH_WEIGHT = 1
 MAX_SEARCH_WEIGHT = 10
 
@@ -78,9 +106,9 @@ class BehaviorFlags:
     """Immutable value object grouping boolean behavior flags for an Attribute.
 
     Replaces the individual ``is_filterable``, ``is_searchable``,
-    ``is_comparable``, ``is_visible_on_card``, ``is_visible_in_catalog``
-    booleans and the ``search_weight`` integer that were previously
-    passed as separate parameters.
+    ``is_comparable``, ``is_visible_on_card`` booleans and the
+    ``search_weight`` integer that were previously passed as separate
+    parameters.
 
     Attributes:
         is_filterable: Available as filter on the storefront.
@@ -88,7 +116,6 @@ class BehaviorFlags:
         search_weight: Priority for search ranking (1-10, default 5).
         is_comparable: Shown in the product comparison table.
         is_visible_on_card: Shown on the product detail page.
-        is_visible_in_catalog: Shown in catalog listing preview.
     """
 
     is_filterable: bool = False
@@ -96,7 +123,6 @@ class BehaviorFlags:
     search_weight: int = DEFAULT_SEARCH_WEIGHT
     is_comparable: bool = False
     is_visible_on_card: bool = False
-    is_visible_in_catalog: bool = False
 
     def __attrs_post_init__(self) -> None:
         if not (MIN_SEARCH_WEIGHT <= self.search_weight <= MAX_SEARCH_WEIGHT):

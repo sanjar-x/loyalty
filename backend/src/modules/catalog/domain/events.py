@@ -1,10 +1,24 @@
 """
 Catalog domain events.
 
-Events are emitted by Brand, Category, AttributeGroup, Attribute,
-and AttributeFamily aggregates during business operations, serialized to JSON via
+Events are emitted by Brand, Category, Attribute,
+and AttributeTemplate aggregates during business operations, serialized to JSON via
 ``dataclasses.asdict()``, and stored atomically in the Outbox table.
 The infrastructure layer relays them to downstream consumers.
+
+Event Audit (2026-03-26):
+- 22 concrete events defined, 22 emitted (by command handlers or domain entities)
+- Brand (1): BrandDeletedEvent
+- Category (1): CategoryDeletedEvent
+- Attribute (3): Created / Updated / Deleted
+- AttributeValue (4): Added / Updated / Deleted / Reordered
+- AttributeTemplate (3): Created / Updated / Deleted
+- TemplateAttributeBinding (3): Created / Updated / Deleted
+- Product (3): Created / StatusChanged / Updated  (emitted from domain entity)
+- Variant (2): Added / Deleted  (emitted from domain entity)
+- SKU (2): Added / Deleted  (emitted from domain entity)
+- 0 relay/subscription handlers wired (catalog events are recorded to Outbox
+  but no consumer processes them yet — will be wired for ES sync)
 
 Typical usage:
     brand.add_domain_event(BrandLogoUploadInitiatedEvent(brand_id=brand.id, ...))
@@ -125,52 +139,6 @@ class CategoryDeletedEvent(
     slug: str = ""
     aggregate_type: str = "Category"
     event_type: str = "CategoryDeletedEvent"
-
-
-# ---------------------------------------------------------------------------
-# AttributeGroup events
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class AttributeGroupCreatedEvent(
-    CatalogEvent,
-    required_fields=("group_id",),
-    aggregate_id_field="group_id",
-):
-    """Emitted when a new attribute group is created."""
-
-    group_id: uuid.UUID | None = None
-    code: str = ""
-    aggregate_type: str = "AttributeGroup"
-    event_type: str = "AttributeGroupCreatedEvent"
-
-
-@dataclass
-class AttributeGroupUpdatedEvent(
-    CatalogEvent,
-    required_fields=("group_id",),
-    aggregate_id_field="group_id",
-):
-    """Emitted when an attribute group is updated."""
-
-    group_id: uuid.UUID | None = None
-    aggregate_type: str = "AttributeGroup"
-    event_type: str = "AttributeGroupUpdatedEvent"
-
-
-@dataclass
-class AttributeGroupDeletedEvent(
-    CatalogEvent,
-    required_fields=("group_id",),
-    aggregate_id_field="group_id",
-):
-    """Emitted when an attribute group is deleted."""
-
-    group_id: uuid.UUID | None = None
-    code: str = ""
-    aggregate_type: str = "AttributeGroup"
-    event_type: str = "AttributeGroupDeletedEvent"
 
 
 # ---------------------------------------------------------------------------
@@ -313,133 +281,97 @@ class AttributeValuesReorderedEvent(
 
 
 # ---------------------------------------------------------------------------
-# AttributeFamily events
+# AttributeTemplate events
 # ---------------------------------------------------------------------------
 
 
 @dataclass
-class AttributeFamilyCreatedEvent(
+class AttributeTemplateCreatedEvent(
     CatalogEvent,
-    required_fields=("family_id",),
-    aggregate_id_field="family_id",
+    required_fields=("template_id",),
+    aggregate_id_field="template_id",
 ):
-    """Emitted when a new attribute family is created."""
+    """Emitted when a new attribute template is created."""
 
-    family_id: uuid.UUID | None = None
+    template_id: uuid.UUID | None = None
     code: str = ""
-    parent_id: uuid.UUID | None = None
-    aggregate_type: str = "AttributeFamily"
-    event_type: str = "AttributeFamilyCreatedEvent"
+    aggregate_type: str = "AttributeTemplate"
+    event_type: str = "AttributeTemplateCreatedEvent"
 
 
 @dataclass
-class AttributeFamilyUpdatedEvent(
+class AttributeTemplateUpdatedEvent(
     CatalogEvent,
-    required_fields=("family_id",),
-    aggregate_id_field="family_id",
+    required_fields=("template_id",),
+    aggregate_id_field="template_id",
 ):
-    """Emitted when an attribute family is updated."""
+    """Emitted when an attribute template is updated."""
 
-    family_id: uuid.UUID | None = None
-    aggregate_type: str = "AttributeFamily"
-    event_type: str = "AttributeFamilyUpdatedEvent"
+    template_id: uuid.UUID | None = None
+    aggregate_type: str = "AttributeTemplate"
+    event_type: str = "AttributeTemplateUpdatedEvent"
 
 
 @dataclass
-class AttributeFamilyDeletedEvent(
+class AttributeTemplateDeletedEvent(
     CatalogEvent,
-    required_fields=("family_id",),
-    aggregate_id_field="family_id",
+    required_fields=("template_id",),
+    aggregate_id_field="template_id",
 ):
-    """Emitted when an attribute family is deleted."""
+    """Emitted when an attribute template is deleted."""
 
-    family_id: uuid.UUID | None = None
+    template_id: uuid.UUID | None = None
     code: str = ""
-    aggregate_type: str = "AttributeFamily"
-    event_type: str = "AttributeFamilyDeletedEvent"
+    aggregate_type: str = "AttributeTemplate"
+    event_type: str = "AttributeTemplateDeletedEvent"
 
 
 # ---------------------------------------------------------------------------
-# FamilyAttributeBinding events
+# TemplateAttributeBinding events
 # ---------------------------------------------------------------------------
 
 
 @dataclass
-class FamilyAttributeBindingCreatedEvent(
+class TemplateAttributeBindingCreatedEvent(
     CatalogEvent,
     required_fields=("binding_id",),
     aggregate_id_field="binding_id",
 ):
-    """Emitted when an attribute is bound to a family."""
+    """Emitted when an attribute is bound to a template."""
 
-    family_id: uuid.UUID | None = None
+    template_id: uuid.UUID | None = None
     attribute_id: uuid.UUID | None = None
     binding_id: uuid.UUID | None = None
-    aggregate_type: str = "FamilyAttributeBinding"
-    event_type: str = "FamilyAttributeBindingCreatedEvent"
+    aggregate_type: str = "TemplateAttributeBinding"
+    event_type: str = "TemplateAttributeBindingCreatedEvent"
 
 
 @dataclass
-class FamilyAttributeBindingUpdatedEvent(
+class TemplateAttributeBindingUpdatedEvent(
     CatalogEvent,
     required_fields=("binding_id",),
     aggregate_id_field="binding_id",
 ):
-    """Emitted when a family-attribute binding is updated."""
+    """Emitted when a template-attribute binding is updated."""
 
     binding_id: uuid.UUID | None = None
-    aggregate_type: str = "FamilyAttributeBinding"
-    event_type: str = "FamilyAttributeBindingUpdatedEvent"
+    aggregate_type: str = "TemplateAttributeBinding"
+    event_type: str = "TemplateAttributeBindingUpdatedEvent"
 
 
 @dataclass
-class FamilyAttributeBindingDeletedEvent(
+class TemplateAttributeBindingDeletedEvent(
     CatalogEvent,
     required_fields=("binding_id",),
     aggregate_id_field="binding_id",
 ):
-    """Emitted when an attribute is unbound from a family."""
+    """Emitted when an attribute is unbound from a template."""
 
-    family_id: uuid.UUID | None = None
+    template_id: uuid.UUID | None = None
     attribute_id: uuid.UUID | None = None
     binding_id: uuid.UUID | None = None
-    aggregate_type: str = "FamilyAttributeBinding"
-    event_type: str = "FamilyAttributeBindingDeletedEvent"
-
-
-# ---------------------------------------------------------------------------
-# FamilyAttributeExclusion events
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class FamilyAttributeExclusionAddedEvent(
-    CatalogEvent,
-    required_fields=("exclusion_id",),
-    aggregate_id_field="exclusion_id",
-):
-    """Emitted when an inherited attribute is excluded from a family."""
-
-    family_id: uuid.UUID | None = None
-    attribute_id: uuid.UUID | None = None
-    exclusion_id: uuid.UUID | None = None
-    aggregate_type: str = "FamilyAttributeExclusion"
-    event_type: str = "FamilyAttributeExclusionAddedEvent"
-
-
-@dataclass
-class FamilyAttributeExclusionRemovedEvent(
-    CatalogEvent,
-    required_fields=("exclusion_id",),
-    aggregate_id_field="exclusion_id",
-):
-    """Emitted when an attribute exclusion is removed from a family."""
-
-    family_id: uuid.UUID | None = None
-    attribute_id: uuid.UUID | None = None
-    exclusion_id: uuid.UUID | None = None
-    aggregate_type: str = "FamilyAttributeExclusion"
-    event_type: str = "FamilyAttributeExclusionRemovedEvent"
+    aggregate_type: str = "TemplateAttributeBinding"
+    event_type: str = "TemplateAttributeBindingDeletedEvent"
 
 
 # ---------------------------------------------------------------------------

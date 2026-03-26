@@ -8,7 +8,7 @@
 - [x] Brand selection (`GET /catalog/brands`)
 - [ ] **Attribute assignment** ← этот документ
 
-> **Architecture update (2026-03-25):** Бэкенд перешёл на систему `AttributeFamily` вместо прямой привязки атрибутов к категориям. Категория теперь ссылается на `AttributeFamily` через поле `familyId`. Семьи (families) образуют иерархию с наследованием атрибутов: дочерняя семья наследует атрибуты родительской, может переопределять настройки и исключать унаследованные атрибуты. **Для фронтенда storefront API не изменился** — те же endpoints, те же response formats. Изменения касаются только admin panel (новые endpoints для управления семьями).
+> **Architecture update (2026-03-25):** Бэкенд перешёл на систему `AttributeTemplate` вместо прямой привязки атрибутов к категориям. Категория теперь ссылается на `AttributeTemplate` через поле `templateId`. Семьи (templates) образуют иерархию с наследованием атрибутов: дочерняя семья наследует атрибуты родительской, может переопределять настройки и исключать унаследованные атрибуты. **Для фронтенда storefront API не изменился** — те же endpoints, те же response formats. Изменения касаются только admin panel (новые endpoints для управления семьями).
 
 После того как пользователь выбрал **категорию** и **бренд**, следующий шаг — запросить атрибуты этой категории и дать пользователю заполнить их.
 
@@ -380,94 +380,94 @@ interface ProductAttribute {
 
 ---
 
-## Admin Panel: AttributeFamily Management (NEW)
+## Admin Panel: AttributeTemplate Management (NEW)
 
 Для admin panel доступны новые endpoints для управления семьями атрибутов.
 
-### Family CRUD
+### Template CRUD
 
 ```
-POST   /api/v1/catalog/attribute-families          — создать семью
-GET    /api/v1/catalog/attribute-families          — список (paginated)
-GET    /api/v1/catalog/attribute-families/tree     — дерево семей
-GET    /api/v1/catalog/attribute-families/{id}     — получить семью
-PATCH  /api/v1/catalog/attribute-families/{id}     — обновить
-DELETE /api/v1/catalog/attribute-families/{id}     — удалить
+POST   /api/v1/catalog/attribute-templates          — создать семью
+GET    /api/v1/catalog/attribute-templates          — список (paginated)
+GET    /api/v1/catalog/attribute-templates/tree     — дерево семей
+GET    /api/v1/catalog/attribute-templates/{id}     — получить семью
+PATCH  /api/v1/catalog/attribute-templates/{id}     — обновить
+DELETE /api/v1/catalog/attribute-templates/{id}     — удалить
 ```
 
-### Family Attribute Bindings
+### Template Attribute Bindings
 
 ```
-POST   /api/v1/catalog/attribute-families/{id}/attributes           — привязать атрибут
-GET    /api/v1/catalog/attribute-families/{id}/attributes           — свои привязки
-GET    /api/v1/catalog/attribute-families/{id}/attributes/effective — resolved с наследованием
-PATCH  /api/v1/catalog/attribute-families/{id}/attributes/{bid}    — обновить привязку
-DELETE /api/v1/catalog/attribute-families/{id}/attributes/{bid}    — удалить привязку
-POST   /api/v1/catalog/attribute-families/{id}/attributes/reorder  — переупорядочить
+POST   /api/v1/catalog/attribute-templates/{id}/attributes           — привязать атрибут
+GET    /api/v1/catalog/attribute-templates/{id}/attributes           — свои привязки
+GET    /api/v1/catalog/attribute-templates/{id}/attributes/effective — resolved с наследованием
+PATCH  /api/v1/catalog/attribute-templates/{id}/attributes/{bid}    — обновить привязку
+DELETE /api/v1/catalog/attribute-templates/{id}/attributes/{bid}    — удалить привязку
+POST   /api/v1/catalog/attribute-templates/{id}/attributes/reorder  — переупорядочить
 ```
 
-### Family Attribute Exclusions
+### Template Attribute Exclusions
 
 ```
-POST   /api/v1/catalog/attribute-families/{id}/exclusions              — исключить атрибут
-GET    /api/v1/catalog/attribute-families/{id}/exclusions              — список исключений
-DELETE /api/v1/catalog/attribute-families/{id}/exclusions/{eid}       — отменить исключение
+POST   /api/v1/catalog/attribute-templates/{id}/exclusions              — исключить атрибут
+GET    /api/v1/catalog/attribute-templates/{id}/exclusions              — список исключений
+DELETE /api/v1/catalog/attribute-templates/{id}/exclusions/{eid}       — отменить исключение
 ```
 
-### Category → Family Assignment
+### Category → Template Assignment
 
-При создании/обновлении категории передаётся `familyId`:
+При создании/обновлении категории передаётся `templateId`:
 
 ```json
 // PATCH /api/v1/catalog/categories/{id}
-{ "familyId": "uuid-of-family" }
+{ "templateId": "uuid-of-template" }
 ```
 
 ### Пример: создать иерархию семей
 
 ```typescript
 // 1. Создать корневую семью "Одежда"
-const clothing = await api.post("/catalog/attribute-families", {
+const clothing = await api.post("/catalog/attribute-templates", {
   code: "clothing",
   nameI18n: { ru: "Одежда", en: "Clothing" },
 });
 
 // 2. Привязать атрибуты к "Одежда"
-await api.post(`/catalog/attribute-families/${clothing.id}/attributes`, {
+await api.post(`/catalog/attribute-templates/${clothing.id}/attributes`, {
   attributeId: sizeAttrId,
   requirementLevel: "optional",
 });
-await api.post(`/catalog/attribute-families/${clothing.id}/attributes`, {
+await api.post(`/catalog/attribute-templates/${clothing.id}/attributes`, {
   attributeId: colorAttrId,
   requirementLevel: "required",
 });
 
 // 3. Создать дочернюю семью "Футболки" (наследует size, color)
-const tshirts = await api.post("/catalog/attribute-families", {
+const tshirts = await api.post("/catalog/attribute-templates", {
   code: "t_shirts",
   parentId: clothing.id,
   nameI18n: { ru: "Футболки", en: "T-shirts" },
 });
 
 // 4. Добавить собственный атрибут "Материал"
-await api.post(`/catalog/attribute-families/${tshirts.id}/attributes`, {
+await api.post(`/catalog/attribute-templates/${tshirts.id}/attributes`, {
   attributeId: materialAttrId,
   requirementLevel: "recommended",
 });
 
 // 5. Переопределить size на required (было optional у родителя)
-await api.post(`/catalog/attribute-families/${tshirts.id}/attributes`, {
+await api.post(`/catalog/attribute-templates/${tshirts.id}/attributes`, {
   attributeId: sizeAttrId,
   requirementLevel: "required",
 });
 
 // 6. Получить effective атрибуты (size:required, color:required, material:recommended)
 const effective = await api.get(
-  `/catalog/attribute-families/${tshirts.id}/attributes/effective`,
+  `/catalog/attribute-templates/${tshirts.id}/attributes/effective`,
 );
 
 // 7. Назначить семью категории
 await api.patch(`/catalog/categories/${tshirtCategoryId}`, {
-  familyId: tshirts.id,
+  templateId: tshirts.id,
 });
 ```

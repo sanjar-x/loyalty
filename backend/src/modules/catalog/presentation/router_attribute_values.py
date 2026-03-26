@@ -16,6 +16,12 @@ from src.modules.catalog.application.commands.add_attribute_value import (
     AddAttributeValueHandler,
     AddAttributeValueResult,
 )
+from src.modules.catalog.application.commands.bulk_add_attribute_values import (
+    BulkAddAttributeValuesCommand,
+    BulkAddAttributeValuesHandler,
+    BulkAddAttributeValuesResult,
+    BulkValueItem,
+)
 from src.modules.catalog.application.commands.delete_attribute_value import (
     DeleteAttributeValueCommand,
     DeleteAttributeValueHandler,
@@ -25,10 +31,17 @@ from src.modules.catalog.application.commands.reorder_attribute_values import (
     ReorderAttributeValuesHandler,
     ReorderItem,
 )
+from src.modules.catalog.application.commands.set_attribute_value_active import (
+    SetAttributeValueActiveCommand,
+    SetAttributeValueActiveHandler,
+)
 from src.modules.catalog.application.commands.update_attribute_value import (
     UpdateAttributeValueCommand,
     UpdateAttributeValueHandler,
     UpdateAttributeValueResult,
+)
+from src.modules.catalog.application.queries.get_attribute_value import (
+    GetAttributeValueHandler,
 )
 from src.modules.catalog.application.queries.list_attribute_values import (
     ListAttributeValuesHandler,
@@ -38,11 +51,14 @@ from src.modules.catalog.application.queries.read_models import (
     AttributeValueListReadModel,
 )
 from src.modules.catalog.presentation.schemas import (
+    AttributeValueActiveResponse,
     AttributeValueCreateRequest,
     AttributeValueCreateResponse,
     AttributeValueListResponse,
     AttributeValueResponse,
     AttributeValueUpdateRequest,
+    BulkAddAttributeValuesRequest,
+    BulkAddAttributeValuesResponse,
     ReorderAttributeValuesRequest,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
@@ -82,6 +98,41 @@ async def add_attribute_value(
     return AttributeValueCreateResponse(id=result.value_id)
 
 
+@attribute_value_router.post(
+    path="/bulk",
+    status_code=status.HTTP_201_CREATED,
+    response_model=BulkAddAttributeValuesResponse,
+    summary="Bulk create attribute values",
+    description="Create up to 100 attribute values in a single request.",
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
+)
+async def bulk_add_attribute_values(
+    attribute_id: uuid.UUID,
+    request: BulkAddAttributeValuesRequest,
+    handler: FromDishka[BulkAddAttributeValuesHandler],
+) -> BulkAddAttributeValuesResponse:
+    command = BulkAddAttributeValuesCommand(
+        attribute_id=attribute_id,
+        items=[
+            BulkValueItem(
+                code=item.code,
+                slug=item.slug,
+                value_i18n=item.value_i18n,
+                search_aliases=item.search_aliases or [],
+                meta_data=item.meta_data or {},
+                value_group=item.value_group,
+                sort_order=item.sort_order,
+            )
+            for item in request.items
+        ],
+    )
+    result: BulkAddAttributeValuesResult = await handler.handle(command)
+    return BulkAddAttributeValuesResponse(
+        created_count=result.created_count,
+        ids=result.ids,
+    )
+
+
 @attribute_value_router.get(
     path="",
     status_code=status.HTTP_200_OK,
@@ -116,12 +167,41 @@ async def list_attribute_values(
                 meta_data=item.meta_data,
                 value_group=item.value_group,
                 sort_order=item.sort_order,
+                is_active=item.is_active,
             )
             for item in result.items
         ],
         total=result.total,
         offset=result.offset,
         limit=result.limit,
+    )
+
+
+@attribute_value_router.get(
+    path="/{value_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=AttributeValueResponse,
+    summary="Get a single attribute value",
+    description="Retrieve a single attribute value by ID, scoped to the parent attribute.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
+)
+async def get_attribute_value(
+    attribute_id: uuid.UUID,
+    value_id: uuid.UUID,
+    handler: FromDishka[GetAttributeValueHandler],
+) -> AttributeValueResponse:
+    result = await handler.handle(attribute_id=attribute_id, value_id=value_id)
+    return AttributeValueResponse(
+        id=result.id,
+        attribute_id=result.attribute_id,
+        code=result.code,
+        slug=result.slug,
+        value_i18n=result.value_i18n,
+        search_aliases=result.search_aliases,
+        meta_data=result.meta_data,
+        value_group=result.value_group,
+        sort_order=result.sort_order,
+        is_active=result.is_active,
     )
 
 
@@ -157,7 +237,52 @@ async def update_attribute_value(
         meta_data=result.meta_data or {},
         value_group=result.value_group,
         sort_order=result.sort_order,
+        is_active=result.is_active,
     )
+
+
+@attribute_value_router.patch(
+    path="/{value_id}/deactivate",
+    status_code=status.HTTP_200_OK,
+    response_model=AttributeValueActiveResponse,
+    summary="Deactivate an attribute value",
+    description="Hide value from storefront filters. Existing product assignments are preserved.",
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
+)
+async def deactivate_value(
+    attribute_id: uuid.UUID,
+    value_id: uuid.UUID,
+    handler: FromDishka[SetAttributeValueActiveHandler],
+) -> AttributeValueActiveResponse:
+    command = SetAttributeValueActiveCommand(
+        attribute_id=attribute_id,
+        value_id=value_id,
+        is_active=False,
+    )
+    result = await handler.handle(command)
+    return AttributeValueActiveResponse(id=result.id, is_active=result.is_active)
+
+
+@attribute_value_router.patch(
+    path="/{value_id}/activate",
+    status_code=status.HTTP_200_OK,
+    response_model=AttributeValueActiveResponse,
+    summary="Activate an attribute value",
+    description="Restore a previously deactivated value so it appears in storefront filters.",
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
+)
+async def activate_value(
+    attribute_id: uuid.UUID,
+    value_id: uuid.UUID,
+    handler: FromDishka[SetAttributeValueActiveHandler],
+) -> AttributeValueActiveResponse:
+    command = SetAttributeValueActiveCommand(
+        attribute_id=attribute_id,
+        value_id=value_id,
+        is_active=True,
+    )
+    result = await handler.handle(command)
+    return AttributeValueActiveResponse(id=result.id, is_active=result.is_active)
 
 
 @attribute_value_router.delete(

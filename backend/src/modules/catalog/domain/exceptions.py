@@ -290,7 +290,7 @@ class ConcurrencyError(ConflictError):
         entity_type: str,
         entity_id: uuid.UUID,
         expected_version: int,
-        actual_version: int,
+        actual_version: int | None,
     ) -> None:
         super().__init__(
             message=f"Concurrent modification detected for {entity_type} {entity_id}.",
@@ -299,7 +299,9 @@ class ConcurrencyError(ConflictError):
                 "entity_type": entity_type,
                 "entity_id": str(entity_id),
                 "expected_version": expected_version,
-                "actual_version": actual_version,
+                "actual_version": actual_version
+                if actual_version is not None
+                else "unknown",
             },
         )
 
@@ -339,55 +341,6 @@ class BrandSlugConflictError(ConflictError):
             message=f"Brand with slug '{slug}' already exists.",
             error_code="BRAND_SLUG_CONFLICT",
             details={"slug": slug},
-        )
-
-
-# ---------------------------------------------------------------------------
-# AttributeGroup aggregate exceptions
-# ---------------------------------------------------------------------------
-
-
-class AttributeGroupNotFoundError(NotFoundError):
-    """Raised when an attribute group lookup yields no result."""
-
-    def __init__(self, group_id: uuid.UUID | str):
-        super().__init__(
-            message=f"Attribute group with ID {group_id} not found.",
-            error_code="ATTRIBUTE_GROUP_NOT_FOUND",
-            details={"group_id": str(group_id)},
-        )
-
-
-class AttributeGroupCodeConflictError(ConflictError):
-    """Raised when an attribute group code collides with an existing group."""
-
-    def __init__(self, code: str):
-        super().__init__(
-            message=f"Attribute group with code '{code}' already exists.",
-            error_code="ATTRIBUTE_GROUP_CODE_CONFLICT",
-            details={"code": code},
-        )
-
-
-class AttributeGroupHasAttributesError(ConflictError):
-    """Raised when attempting to delete a group that still has attributes."""
-
-    def __init__(self, group_id: uuid.UUID):
-        super().__init__(
-            message="Cannot delete attribute group that still contains attributes.",
-            error_code="ATTRIBUTE_GROUP_HAS_ATTRIBUTES",
-            details={"group_id": str(group_id)},
-        )
-
-
-class AttributeGroupCannotDeleteGeneralError(UnprocessableEntityError):
-    """Raised when attempting to delete the protected 'general' group."""
-
-    def __init__(self) -> None:
-        super().__init__(
-            message="The 'general' attribute group cannot be deleted.",
-            error_code="ATTRIBUTE_GROUP_CANNOT_DELETE_GENERAL",
-            details={"code": "general"},
         )
 
 
@@ -500,6 +453,17 @@ class AttributeNotDictionaryError(UnprocessableEntityError):
         )
 
 
+class InvalidColorHexError(ValidationError):
+    """Raised when a color_swatch attribute value has an invalid hex color."""
+
+    def __init__(self, hex_value: str):
+        super().__init__(
+            message=f"Invalid hex color format: '{hex_value}'. Expected '#RRGGBB'.",
+            error_code="INVALID_COLOR_HEX",
+            details={"hex_value": hex_value},
+        )
+
+
 # ---------------------------------------------------------------------------
 # Media asset exceptions
 # ---------------------------------------------------------------------------
@@ -522,150 +486,92 @@ class MediaAssetNotFoundError(NotFoundError):
 
 
 # ---------------------------------------------------------------------------
-# AttributeFamily exceptions
+# AttributeTemplate exceptions
 # ---------------------------------------------------------------------------
 
 
-class AttributeFamilyNotFoundError(NotFoundError):
-    """Raised when an attribute family lookup yields no result."""
+class AttributeTemplateNotFoundError(NotFoundError):
+    """Raised when an attribute template lookup yields no result."""
 
-    def __init__(self, family_id: uuid.UUID | str):
+    def __init__(self, template_id: uuid.UUID | str):
         super().__init__(
-            message=f"Attribute family with ID {family_id} not found.",
+            message=f"Attribute template with ID {template_id} not found.",
             error_code="ATTRIBUTE_FAMILY_NOT_FOUND",
-            details={"family_id": str(family_id)},
+            details={"template_id": str(template_id)},
         )
 
 
-class AttributeFamilyCodeAlreadyExistsError(ConflictError):
-    """Raised when a family code conflicts with an existing one."""
+class AttributeTemplateCodeAlreadyExistsError(ConflictError):
+    """Raised when a template code conflicts with an existing one."""
 
     def __init__(self, code: str):
         super().__init__(
-            message=f"Attribute family with code '{code}' already exists.",
+            message=f"Attribute template with code '{code}' already exists.",
             error_code="ATTRIBUTE_FAMILY_CODE_CONFLICT",
             details={"code": code},
         )
 
 
-class AttributeFamilyHasChildrenError(ConflictError):
-    """Raised when attempting to delete a family that has children."""
+class AttributeTemplateHasCategoryReferencesError(ConflictError):
+    """Raised when attempting to delete a template referenced by categories."""
 
-    def __init__(self, family_id: uuid.UUID):
+    def __init__(self, template_id: uuid.UUID):
         super().__init__(
-            message="Cannot delete attribute family: it has child families.",
-            error_code="ATTRIBUTE_FAMILY_HAS_CHILDREN",
-            details={"family_id": str(family_id)},
-        )
-
-
-class AttributeFamilyHasCategoryReferencesError(ConflictError):
-    """Raised when attempting to delete a family referenced by categories."""
-
-    def __init__(self, family_id: uuid.UUID):
-        super().__init__(
-            message="Cannot delete attribute family: it is referenced by categories.",
+            message="Cannot delete attribute template: it is referenced by categories.",
             error_code="ATTRIBUTE_FAMILY_HAS_CATEGORY_REFERENCES",
-            details={"family_id": str(family_id)},
+            details={"template_id": str(template_id)},
         )
 
 
 # ---------------------------------------------------------------------------
-# FamilyAttributeBinding exceptions
+# TemplateAttributeBinding exceptions
 # ---------------------------------------------------------------------------
 
 
-class FamilyAttributeBindingNotFoundError(NotFoundError):
-    """Raised when a family-attribute binding lookup yields no result."""
+class TemplateAttributeBindingNotFoundError(NotFoundError):
+    """Raised when a template-attribute binding lookup yields no result."""
 
     def __init__(self, binding_id: uuid.UUID):
         super().__init__(
-            message=f"Family attribute binding with ID {binding_id} not found.",
+            message=f"Template attribute binding with ID {binding_id} not found.",
             error_code="FAMILY_ATTRIBUTE_BINDING_NOT_FOUND",
             details={"binding_id": str(binding_id)},
         )
 
 
-class FamilyAttributeBindingAlreadyExistsError(ConflictError):
-    """Raised when a family-attribute binding pair already exists."""
+class TemplateAttributeBindingAlreadyExistsError(ConflictError):
+    """Raised when a template-attribute binding pair already exists."""
 
-    def __init__(self, family_id: uuid.UUID, attribute_id: uuid.UUID):
+    def __init__(self, template_id: uuid.UUID, attribute_id: uuid.UUID):
         super().__init__(
-            message="This attribute is already bound to the family.",
+            message="This attribute is already bound to the template.",
             error_code="FAMILY_ATTRIBUTE_BINDING_ALREADY_EXISTS",
             details={
-                "family_id": str(family_id),
+                "template_id": str(template_id),
                 "attribute_id": str(attribute_id),
             },
         )
 
 
-# ---------------------------------------------------------------------------
-# FamilyAttributeExclusion exceptions
-# ---------------------------------------------------------------------------
-
-
-class FamilyAttributeExclusionNotFoundError(NotFoundError):
-    """Raised when a family attribute exclusion lookup yields no result."""
-
-    def __init__(self, exclusion_id: uuid.UUID):
-        super().__init__(
-            message=f"Family attribute exclusion with ID {exclusion_id} not found.",
-            error_code="FAMILY_ATTRIBUTE_EXCLUSION_NOT_FOUND",
-            details={"exclusion_id": str(exclusion_id)},
-        )
-
-
-class FamilyAttributeExclusionAlreadyExistsError(ConflictError):
-    """Raised when an exclusion for a family+attribute pair already exists."""
-
-    def __init__(self, family_id: uuid.UUID, attribute_id: uuid.UUID):
-        super().__init__(
-            message="This attribute is already excluded from the family.",
-            error_code="FAMILY_ATTRIBUTE_EXCLUSION_ALREADY_EXISTS",
-            details={
-                "family_id": str(family_id),
-                "attribute_id": str(attribute_id),
-            },
-        )
-
-
-class AttributeNotInheritedError(ValidationError):
-    """Raised when trying to exclude an attribute not inherited from ancestors."""
-
-    def __init__(self, family_id: uuid.UUID, attribute_id: uuid.UUID):
-        super().__init__(
-            message="Cannot exclude: attribute is not inherited from any ancestor family.",
-            error_code="ATTRIBUTE_NOT_INHERITED",
-            details={
-                "family_id": str(family_id),
-                "attribute_id": str(attribute_id),
-            },
-        )
-
-
-class FamilyExclusionConflictsWithOwnBindingError(ConflictError):
-    """Raised when trying to exclude an attribute that has a direct binding on the same family."""
-
-    def __init__(self, family_id: uuid.UUID, attribute_id: uuid.UUID):
-        super().__init__(
-            message="Cannot exclude: attribute has a direct binding on this family. Remove the binding first.",
-            error_code="FAMILY_EXCLUSION_CONFLICTS_WITH_OWN_BINDING",
-            details={
-                "family_id": str(family_id),
-                "attribute_id": str(attribute_id),
-            },
-        )
-
-
-class AttributeHasFamilyBindingsError(ConflictError):
-    """Raised when attempting to delete an attribute bound to families."""
+class AttributeHasTemplateBindingsError(ConflictError):
+    """Raised when attempting to delete an attribute bound to templates."""
 
     def __init__(self, attribute_id: uuid.UUID):
         super().__init__(
-            message="Cannot delete attribute: it is bound to one or more attribute families.",
+            message="Cannot delete attribute: it is bound to one or more attribute templates.",
             error_code="ATTRIBUTE_HAS_FAMILY_BINDINGS",
             details={"attribute_id": str(attribute_id)},
+        )
+
+
+class MissingRequiredLocalesError(ValidationError):
+    """Raised when an i18n field is missing one or more required locales."""
+
+    def __init__(self, field_name: str, missing_locales: list[str]):
+        super().__init__(
+            message=f"{field_name} is missing required locales: {', '.join(missing_locales)}",
+            error_code="MISSING_REQUIRED_LOCALES",
+            details={"field": field_name, "missing_locales": missing_locales},
         )
 
 
@@ -684,12 +590,12 @@ class AttributeLevelMismatchError(UnprocessableEntityError):
         )
 
 
-class AttributeNotInFamilyError(UnprocessableEntityError):
-    """Raised when assigning an attribute not present in the product's category family."""
+class AttributeNotInTemplateError(UnprocessableEntityError):
+    """Raised when assigning an attribute not present in the product's category template."""
 
     def __init__(self, product_id: uuid.UUID, attribute_id: uuid.UUID):
         super().__init__(
-            message="Attribute is not in the product's category attribute family.",
+            message="Attribute is not in the product's category attribute template.",
             error_code="ATTRIBUTE_NOT_IN_FAMILY",
             details={
                 "product_id": str(product_id),

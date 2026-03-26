@@ -6,6 +6,7 @@ Delegates to application-layer command/query handlers via Dishka DI.
 """
 
 import uuid
+from datetime import datetime
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, status
@@ -29,6 +30,10 @@ from src.modules.catalog.application.commands.update_product import (
     UpdateProductResult,
 )
 from src.modules.catalog.application.queries.get_product import GetProductHandler
+from src.modules.catalog.application.queries.get_product_completeness import (
+    GetProductCompletenessHandler,
+    ProductCompletenessQuery,
+)
 from src.modules.catalog.application.queries.list_products import (
     ListProductsHandler,
     ListProductsQuery,
@@ -39,7 +44,9 @@ from src.modules.catalog.application.queries.read_models import (
 from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.presentation.mappers import to_variant_response
 from src.modules.catalog.presentation.schemas import (
+    MissingAttributeItem,
     ProductAttributeResponse,
+    ProductCompletenessResponse,
     ProductCreateRequest,
     ProductCreateResponse,
     ProductListItemResponse,
@@ -132,6 +139,15 @@ async def list_products(
     limit: int = Query(default=50, ge=1, le=200),
     product_status: str | None = Query(default=None, alias="status"),
     brand_id: uuid.UUID | None = None,
+    sort_by: str | None = Query(
+        default=None,
+        pattern="^(newest|oldest|popularity|name_asc|name_desc)$",
+        description="Sort order: newest, oldest, popularity, name_asc, name_desc",
+    ),
+    published_after: datetime | None = Query(
+        default=None,
+        description="Only include products published on or after this timestamp",
+    ),
 ) -> ProductListResponse:
     """Retrieve a paginated list of products with optional filters."""
     query = ListProductsQuery(
@@ -139,6 +155,8 @@ async def list_products(
         limit=limit,
         status=product_status,
         brand_id=brand_id,
+        sort_by=sort_by,
+        published_after=published_after,
     )
     result = await handler.handle(query)
     return ProductListResponse(
@@ -159,6 +177,46 @@ async def list_products(
         total=result.total,
         offset=result.offset,
         limit=result.limit,
+    )
+
+
+@product_router.get(
+    path="/{product_id}/completeness",
+    status_code=status.HTTP_200_OK,
+    response_model=ProductCompletenessResponse,
+    summary="Check product attribute completeness",
+    description="Check product attribute completeness against template requirements.",
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
+)
+async def get_product_completeness(
+    product_id: uuid.UUID,
+    handler: FromDishka[GetProductCompletenessHandler],
+) -> ProductCompletenessResponse:
+    """Check product attribute completeness against template requirements."""
+    query = ProductCompletenessQuery(product_id=product_id)
+    result = await handler.handle(query)
+    return ProductCompletenessResponse(
+        is_complete=result.is_complete,
+        total_required=result.total_required,
+        filled_required=result.filled_required,
+        total_recommended=result.total_recommended,
+        filled_recommended=result.filled_recommended,
+        missing_required=[
+            MissingAttributeItem(
+                attribute_id=m["attribute_id"],
+                code=m["code"],
+                name_i18n=m["name_i18n"],
+            )
+            for m in result.missing_required
+        ],
+        missing_recommended=[
+            MissingAttributeItem(
+                attribute_id=m["attribute_id"],
+                code=m["code"],
+                name_i18n=m["name_i18n"],
+            )
+            for m in result.missing_recommended
+        ],
     )
 
 

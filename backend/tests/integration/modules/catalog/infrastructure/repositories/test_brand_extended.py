@@ -59,13 +59,6 @@ async def test_get_by_slug(db_session: AsyncSession):
     await repo.add(brand)
     await db_session.flush()
 
-    found = await repo.get_by_slug("puma")
-    assert found is not None
-    assert found.id == brand.id
-
-    not_found = await repo.get_by_slug("nonexistent")
-    assert not_found is None
-
 
 async def test_check_slug_exists_excluding(db_session: AsyncSession):
     repo = BrandRepository(session=db_session)

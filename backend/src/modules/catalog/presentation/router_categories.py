@@ -74,7 +74,7 @@ async def create_category(
         slug=request.slug,
         parent_id=request.parent_id,
         sort_order=request.sort_order,
-        family_id=request.family_id,
+        template_id=request.template_id,
     )
     category: CreateCategoryResult = await handler.handle(command)
     return CategoryCreateResponse(

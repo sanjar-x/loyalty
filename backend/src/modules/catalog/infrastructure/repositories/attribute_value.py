@@ -44,6 +44,7 @@ class AttributeValueRepository(
             meta_data=dict(orm.meta_data) if orm.meta_data else {},
             value_group=orm.value_group,
             sort_order=orm.sort_order,
+            is_active=orm.is_active,
         )
 
     def _to_orm(
@@ -61,7 +62,18 @@ class AttributeValueRepository(
         orm.meta_data = entity.meta_data
         orm.value_group = entity.value_group
         orm.sort_order = entity.sort_order
+        orm.is_active = entity.is_active
         return orm
+
+    async def get_many(
+        self, ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, DomainAttributeValue]:
+        """Batch-load multiple attribute values by their UUIDs."""
+        if not ids:
+            return {}
+        stmt = select(OrmAttributeValue).where(OrmAttributeValue.id.in_(ids))
+        result = await self._session.execute(stmt)
+        return {orm.id: self._to_domain(orm) for orm in result.scalars().all()}
 
     async def check_code_exists(self, attribute_id: uuid.UUID, code: str) -> bool:
         """Return ``True`` if the code is taken within this attribute."""
@@ -89,38 +101,6 @@ class AttributeValueRepository(
         result = await self._session.execute(stmt)
         return result.first() is not None
 
-    async def check_code_exists_excluding(
-        self, attribute_id: uuid.UUID, code: str, exclude_id: uuid.UUID
-    ) -> bool:
-        """Return ``True`` if the code is taken by another value within this attribute."""
-        stmt = (
-            select(OrmAttributeValue.id)
-            .where(
-                OrmAttributeValue.attribute_id == attribute_id,
-                OrmAttributeValue.code == code,
-                OrmAttributeValue.id != exclude_id,
-            )
-            .limit(1)
-        )
-        result = await self._session.execute(stmt)
-        return result.first() is not None
-
-    async def check_slug_exists_excluding(
-        self, attribute_id: uuid.UUID, slug: str, exclude_id: uuid.UUID
-    ) -> bool:
-        """Return ``True`` if the slug is taken by another value within this attribute."""
-        stmt = (
-            select(OrmAttributeValue.id)
-            .where(
-                OrmAttributeValue.attribute_id == attribute_id,
-                OrmAttributeValue.slug == slug,
-                OrmAttributeValue.id != exclude_id,
-            )
-            .limit(1)
-        )
-        result = await self._session.execute(stmt)
-        return result.first() is not None
-
     async def has_product_references(self, value_id: uuid.UUID) -> bool:
         """Return ``True`` if any products reference this attribute value."""
         stmt = select(
@@ -131,6 +111,32 @@ class AttributeValueRepository(
         )
         result = await self._session.execute(stmt)
         return bool(result.scalar())
+
+    async def check_codes_exist(
+        self, attribute_id: uuid.UUID, codes: list[str]
+    ) -> set[str]:
+        """Return the subset of codes that already exist for this attribute."""
+        if not codes:
+            return set()
+        stmt = select(OrmAttributeValue.code).where(
+            OrmAttributeValue.attribute_id == attribute_id,
+            OrmAttributeValue.code.in_(codes),
+        )
+        result = await self._session.execute(stmt)
+        return {row[0] for row in result.all()}
+
+    async def check_slugs_exist(
+        self, attribute_id: uuid.UUID, slugs: list[str]
+    ) -> set[str]:
+        """Return the subset of slugs that already exist for this attribute."""
+        if not slugs:
+            return set()
+        stmt = select(OrmAttributeValue.slug).where(
+            OrmAttributeValue.attribute_id == attribute_id,
+            OrmAttributeValue.slug.in_(slugs),
+        )
+        result = await self._session.execute(stmt)
+        return {row[0] for row in result.all()}
 
     async def list_ids_by_attribute(self, attribute_id: uuid.UUID) -> set[uuid.UUID]:
         """Return the set of value IDs belonging to the given attribute."""

@@ -50,7 +50,6 @@ class AttributeRepository(
                 search_weight=orm.search_weight,
                 is_comparable=bool(orm.is_comparable),
                 is_visible_on_card=bool(orm.is_visible_on_card),
-                is_visible_in_catalog=bool(orm.is_visible_in_catalog),
             ),
             validation_rules=dict(orm.validation_rules)
             if orm.validation_rules
@@ -78,9 +77,16 @@ class AttributeRepository(
         orm.search_weight = entity.search_weight
         orm.is_comparable = entity.is_comparable
         orm.is_visible_on_card = entity.is_visible_on_card
-        orm.is_visible_in_catalog = entity.is_visible_in_catalog
         orm.validation_rules = entity.validation_rules
         return orm
+
+    async def get_many(self, ids: list[uuid.UUID]) -> dict[uuid.UUID, DomainAttribute]:
+        """Batch-load multiple attributes by their UUIDs."""
+        if not ids:
+            return {}
+        stmt = select(OrmAttribute).where(OrmAttribute.id.in_(ids))
+        result = await self._session.execute(stmt)
+        return {orm.id: self._to_domain(orm) for orm in result.scalars().all()}
 
     async def check_code_exists(self, code: str) -> bool:
         """Return ``True`` if any attribute already uses this code."""
@@ -89,18 +95,6 @@ class AttributeRepository(
     async def check_slug_exists(self, slug: str) -> bool:
         """Return ``True`` if any attribute already uses this slug."""
         return await self._field_exists("slug", slug)
-
-    async def check_code_exists_excluding(
-        self, code: str, exclude_id: uuid.UUID
-    ) -> bool:
-        """Return ``True`` if the code is taken by another attribute."""
-        return await self._field_exists("code", code, exclude_id=exclude_id)
-
-    async def check_slug_exists_excluding(
-        self, slug: str, exclude_id: uuid.UUID
-    ) -> bool:
-        """Return ``True`` if the slug is taken by another attribute."""
-        return await self._field_exists("slug", slug, exclude_id=exclude_id)
 
     async def has_product_attribute_values(self, attribute_id: uuid.UUID) -> bool:
         """Return ``True`` if any products reference this attribute."""

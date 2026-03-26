@@ -19,12 +19,12 @@ from src.modules.catalog.application.constants import (
 )
 from src.modules.catalog.domain.entities import Category
 from src.modules.catalog.domain.exceptions import (
-    AttributeFamilyNotFoundError,
+    AttributeTemplateNotFoundError,
     CategoryNotFoundError,
     CategorySlugConflictError,
 )
 from src.modules.catalog.domain.interfaces import (
-    IAttributeFamilyRepository,
+    IAttributeTemplateRepository,
     ICategoryRepository,
 )
 from src.shared.interfaces.cache import ICacheService
@@ -41,14 +41,14 @@ class UpdateCategoryCommand:
         name_i18n: New multilingual display name, or None to keep current.
         slug: New URL-safe slug, or None to keep current.
         sort_order: New sort position, or None to keep current.
-        family_id: New AttributeFamily FK, None to clear, or ``...`` (default) to keep current.
+        template_id: New AttributeTemplate FK, None to clear, or ``...`` (default) to keep current.
     """
 
     category_id: uuid.UUID
     name_i18n: dict[str, str] | None = None
     slug: str | None = None
     sort_order: int | None = None
-    family_id: uuid.UUID | None = ...  # type: ignore[assignment]
+    template_id: uuid.UUID | None = ...  # type: ignore[assignment]
     _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 
@@ -64,7 +64,7 @@ class UpdateCategoryResult:
         level: Tree depth.
         sort_order: Updated sort position.
         parent_id: Parent category UUID, or None.
-        family_id: Associated AttributeFamily UUID, or None.
+        template_id: Associated AttributeTemplate UUID, or None.
     """
 
     id: uuid.UUID
@@ -74,8 +74,8 @@ class UpdateCategoryResult:
     level: int
     sort_order: int
     parent_id: uuid.UUID | None = None
-    family_id: uuid.UUID | None = None
-    effective_family_id: uuid.UUID | None = None
+    template_id: uuid.UUID | None = None
+    effective_template_id: uuid.UUID | None = None
 
 
 class UpdateCategoryHandler:
@@ -91,13 +91,13 @@ class UpdateCategoryHandler:
     def __init__(
         self,
         category_repo: ICategoryRepository,
-        family_repo: IAttributeFamilyRepository,
+        template_repo: IAttributeTemplateRepository,
         uow: IUnitOfWork,
         cache: ICacheService,
         logger: ILogger,
     ):
         self._category_repo: ICategoryRepository = category_repo
-        self._family_repo: IAttributeFamilyRepository = family_repo
+        self._template_repo: IAttributeTemplateRepository = template_repo
         self._uow: IUnitOfWork = uow
         self._cache: ICacheService = cache
         self._logger: ILogger = logger.bind(handler="UpdateCategoryHandler")
@@ -115,10 +115,10 @@ class UpdateCategoryHandler:
             CategoryNotFoundError: If the category does not exist.
             CategorySlugConflictError: If the new slug collides at the same level.
         """
-        if command.family_id is not ... and command.family_id is not None:
-            family = await self._family_repo.get(command.family_id)
-            if family is None:
-                raise AttributeFamilyNotFoundError(family_id=command.family_id)
+        if command.template_id is not ... and command.template_id is not None:
+            template = await self._template_repo.get(command.template_id)
+            if template is None:
+                raise AttributeTemplateNotFoundError(template_id=command.template_id)
 
         async with self._uow:
             category: Category | None = await self._category_repo.get_for_update(
@@ -144,32 +144,34 @@ class UpdateCategoryHandler:
                 f: getattr(command, f) for f in safe_fields
             }
 
-            # family_id uses Ellipsis sentinel; only pass through when explicitly provided
-            family_id_changed = False
-            if command.family_id is not ...:
-                old_family_id = category.family_id
-                update_kwargs["family_id"] = command.family_id
-                family_id_changed = command.family_id != old_family_id
+            # template_id uses Ellipsis sentinel; only pass through when explicitly provided
+            template_id_changed = False
+            if command.template_id is not ...:
+                old_template_id = category.template_id
+                update_kwargs["template_id"] = command.template_id
+                template_id_changed = command.template_id != old_template_id
 
             old_full_slug = category.update(**update_kwargs)
 
-            # Scenario C: clear family_id → re-inherit from parent
-            if family_id_changed and command.family_id is None:
+            # Scenario C: clear template_id → re-inherit from parent
+            if template_id_changed and command.template_id is None:
                 if category.parent_id is not None:
                     parent = await self._category_repo.get(category.parent_id)
-                    new_effective = parent.effective_family_id if parent else None
+                    new_effective = parent.effective_template_id if parent else None
                 else:
                     new_effective = None
-                category.set_effective_family_id(new_effective)
+                category.set_effective_template_id(new_effective)
 
             await self._category_repo.update(category)
             self._uow.register_aggregate(category)
 
-            # Propagate effective_family_id to inheriting descendants
+            # Propagate effective_template_id to inheriting descendants
             affected_category_ids: list[uuid.UUID] = []
-            if family_id_changed:
-                descendant_ids = await self._category_repo.propagate_effective_family_id(
-                    category.id, category.effective_family_id
+            if template_id_changed:
+                descendant_ids = (
+                    await self._category_repo.propagate_effective_template_id(
+                        category.id, category.effective_template_id
+                    )
                 )
                 affected_category_ids = [category.id, *descendant_ids]
 
@@ -199,7 +201,7 @@ class UpdateCategoryHandler:
                 await self._cache.delete_many(keys)
             except Exception as e:
                 self._logger.warning(
-                    "Failed to invalidate storefront caches after family_id change",
+                    "Failed to invalidate storefront caches after template_id change",
                     error=str(e),
                     affected_count=len(affected_category_ids),
                 )
@@ -214,6 +216,6 @@ class UpdateCategoryHandler:
             level=category.level,
             sort_order=category.sort_order,
             parent_id=category.parent_id,
-            family_id=category.family_id,
-            effective_family_id=category.effective_family_id,
+            template_id=category.template_id,
+            effective_template_id=category.effective_template_id,
         )

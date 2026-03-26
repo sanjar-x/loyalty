@@ -21,6 +21,7 @@ from src.modules.catalog.domain.value_objects import (
     AttributeDataType,
     AttributeLevel,
     AttributeUIType,
+    validate_i18n_completeness,
 )
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -45,7 +46,6 @@ class CreateAttributeCommand:
         search_weight: Search ranking priority 1-10.
         is_comparable: Include in comparison table.
         is_visible_on_card: Show on product detail page.
-        is_visible_in_catalog: Show in listing preview.
         validation_rules: Type-specific validation constraints.
     """
 
@@ -55,7 +55,7 @@ class CreateAttributeCommand:
     data_type: AttributeDataType
     ui_type: AttributeUIType
     is_dictionary: bool
-    group_id: uuid.UUID
+    group_id: uuid.UUID | None = None
     description_i18n: dict[str, str] = field(default_factory=dict)
     level: AttributeLevel = AttributeLevel.PRODUCT
     is_filterable: bool = False
@@ -63,7 +63,6 @@ class CreateAttributeCommand:
     search_weight: int = DEFAULT_SEARCH_WEIGHT
     is_comparable: bool = False
     is_visible_on_card: bool = False
-    is_visible_in_catalog: bool = False
     validation_rules: dict[str, Any] | None = None
 
 
@@ -106,6 +105,8 @@ class CreateAttributeHandler:
             ValueError: If name_i18n is empty, search_weight out of range,
                 or validation_rules invalid.
         """
+        validate_i18n_completeness(command.name_i18n, "name_i18n")
+
         async with self._uow:
             if await self._attribute_repo.check_code_exists(command.code):
                 raise AttributeCodeConflictError(code=command.code)
@@ -128,7 +129,6 @@ class CreateAttributeHandler:
                 search_weight=command.search_weight,
                 is_comparable=command.is_comparable,
                 is_visible_on_card=command.is_visible_on_card,
-                is_visible_in_catalog=command.is_visible_in_catalog,
                 validation_rules=command.validation_rules,
             )
 

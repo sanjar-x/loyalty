@@ -9,7 +9,7 @@ All endpoints are public (no auth required) and read-only.
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.modules.catalog.application.queries.storefront import (
     StorefrontCardAttributesHandler,
@@ -24,6 +24,17 @@ from src.modules.catalog.presentation.schemas import (
     StorefrontFormResponse,
 )
 from src.modules.identity.presentation.dependencies import RequirePermission
+
+
+def _project_i18n(i18n_dict: dict[str, str], lang: str) -> str:
+    """Project a single locale from an i18n dict with fallback chain."""
+    if lang in i18n_dict:
+        return i18n_dict[lang]
+    # Fallback: first available locale
+    if i18n_dict:
+        return next(iter(i18n_dict.values()))
+    return ""
+
 
 storefront_router = APIRouter(
     prefix="/storefront/categories/{category_id}",
@@ -46,9 +57,21 @@ storefront_router = APIRouter(
 async def get_filterable_attributes(
     category_id: uuid.UUID,
     handler: FromDishka[StorefrontFilterableAttributesHandler],
+    response: Response,
+    lang: str | None = Query(
+        None,
+        min_length=2,
+        max_length=5,
+        description="Locale code for i18n projection (e.g. 'ru', 'en')",
+    ),
 ) -> StorefrontFilterListResponse:
     result = await handler.handle(category_id)
-    return StorefrontFilterListResponse.model_validate(result, from_attributes=True)
+    response.headers["Cache-Control"] = "public, max-age=300, s-maxage=3600"
+    data = StorefrontFilterListResponse.model_validate(result, from_attributes=True)
+    if lang:
+        for attr in data.attributes:
+            attr.name = _project_i18n(attr.name_i18n, lang)
+    return data
 
 
 @storefront_router.get(
@@ -64,9 +87,22 @@ async def get_filterable_attributes(
 async def get_card_attributes(
     category_id: uuid.UUID,
     handler: FromDishka[StorefrontCardAttributesHandler],
+    response: Response,
+    lang: str | None = Query(
+        None,
+        min_length=2,
+        max_length=5,
+        description="Locale code for i18n projection (e.g. 'ru', 'en')",
+    ),
 ) -> StorefrontCardResponse:
     result = await handler.handle(category_id)
-    return StorefrontCardResponse.model_validate(result, from_attributes=True)
+    response.headers["Cache-Control"] = "public, max-age=300, s-maxage=3600"
+    data = StorefrontCardResponse.model_validate(result, from_attributes=True)
+    if lang:
+        for group in data.groups:
+            for attr in group.attributes:
+                attr.name = _project_i18n(attr.name_i18n, lang)
+    return data
 
 
 @storefront_router.get(
@@ -82,9 +118,21 @@ async def get_card_attributes(
 async def get_comparison_attributes(
     category_id: uuid.UUID,
     handler: FromDishka[StorefrontComparisonAttributesHandler],
+    response: Response,
+    lang: str | None = Query(
+        None,
+        min_length=2,
+        max_length=5,
+        description="Locale code for i18n projection (e.g. 'ru', 'en')",
+    ),
 ) -> StorefrontComparisonResponse:
     result = await handler.handle(category_id)
-    return StorefrontComparisonResponse.model_validate(result, from_attributes=True)
+    response.headers["Cache-Control"] = "public, max-age=300, s-maxage=3600"
+    data = StorefrontComparisonResponse.model_validate(result, from_attributes=True)
+    if lang:
+        for attr in data.attributes:
+            attr.name = _project_i18n(attr.name_i18n, lang)
+    return data
 
 
 @storefront_router.get(
@@ -102,6 +150,19 @@ async def get_comparison_attributes(
 async def get_form_attributes(
     category_id: uuid.UUID,
     handler: FromDishka[StorefrontFormAttributesHandler],
+    response: Response,
+    lang: str | None = Query(
+        None,
+        min_length=2,
+        max_length=5,
+        description="Locale code for i18n projection (e.g. 'ru', 'en')",
+    ),
 ) -> StorefrontFormResponse:
     result = await handler.handle(category_id)
-    return StorefrontFormResponse.model_validate(result, from_attributes=True)
+    response.headers["Cache-Control"] = "public, max-age=300, s-maxage=3600"
+    data = StorefrontFormResponse.model_validate(result, from_attributes=True)
+    if lang:
+        for group in data.groups:
+            for attr in group.attributes:
+                attr.name = _project_i18n(attr.name_i18n, lang)
+    return data

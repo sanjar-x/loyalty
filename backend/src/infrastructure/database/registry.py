@@ -11,18 +11,17 @@ from src.infrastructure.database.models.outbox import OutboxMessage
 from src.modules.catalog.infrastructure.models import (
     SKU,
     Attribute,
-    AttributeFamily,
     AttributeGroup,
+    AttributeTemplate,
     AttributeValue,
     Brand,
     Category,
-    FamilyAttributeBinding,
-    FamilyAttributeExclusion,
     MediaAsset,
     Product,
     ProductAttributeValue,
     ProductVariant,
     SKUAttributeValueLink,
+    TemplateAttributeBinding,
 )
 from src.modules.geo.infrastructure.models import (
     CountryCurrencyModel,
@@ -56,8 +55,8 @@ from src.modules.user.infrastructure.models import CustomerModel, StaffMemberMod
 __all__ = [
     "SKU",
     "Attribute",
-    "AttributeFamily",
     "AttributeGroup",
+    "AttributeTemplate",
     "AttributeValue",
     "Base",
     "Brand",
@@ -68,8 +67,6 @@ __all__ = [
     "CurrencyModel",
     "CurrencyTranslationModel",
     "CustomerModel",
-    "FamilyAttributeBinding",
-    "FamilyAttributeExclusion",
     "FailedTask",
     "IdentityModel",
     "IdentityRoleModel",
@@ -96,4 +93,5 @@ __all__ = [
     "SubdivisionModel",
     "SubdivisionTranslationModel",
     "Supplier",
+    "TemplateAttributeBinding",
 ]

@@ -1,0 +1,8 @@
+# Use this workspace to collaborate
+workspace:
+  id: d95b2b60-6cf8-4ed3-bd14-f519aeab2f40
+
+localResources:
+  specs:
+    - ..\frontend\admin\openapi.json
+    - ..\backend\docs\cdek_api\json\cdek_api_v2_openapi.json

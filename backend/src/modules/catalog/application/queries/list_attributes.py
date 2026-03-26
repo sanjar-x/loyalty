@@ -9,7 +9,7 @@ and behavior flags, plus search by name across languages.
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import Select, func, literal_column, select
+from sqlalchemy import Select, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.read_models import (
@@ -39,7 +39,6 @@ def attribute_orm_to_read_model(orm: OrmAttribute) -> AttributeReadModel:
         search_weight=orm.search_weight,
         is_comparable=orm.is_comparable,
         is_visible_on_card=orm.is_visible_on_card,
-        is_visible_in_catalog=orm.is_visible_in_catalog,
         validation_rules=dict(orm.validation_rules) if orm.validation_rules else None,
     )
 
@@ -132,9 +131,6 @@ class ListAttributesHandler:
         if query.is_comparable is not None:
             stmt = stmt.where(OrmAttribute.is_comparable == query.is_comparable)
         if query.search is not None:
-            # Search across all JSONB values using jsonb_each_text lateral join.
-            # This avoids CAST(jsonb AS text) ILIKE which bypasses GIN indexes
-            # and pollutes results with JSON keys/syntax characters.
             escaped = (
                 query.search.replace("\\", "\\\\")
                 .replace("%", "\\%")
@@ -142,10 +138,16 @@ class ListAttributesHandler:
             )
             search_pattern = f"%{escaped}%"
             stmt = stmt.where(
-                select(literal_column("1"))
-                .select_from(func.jsonb_each_text(OrmAttribute.name_i18n).alias("kv"))
-                .where(literal_column("kv.value").ilike(search_pattern))
-                .correlate(OrmAttribute)
-                .exists()
+                or_(
+                    OrmAttribute.code.ilike(search_pattern),
+                    OrmAttribute.slug.ilike(search_pattern),
+                    select(literal_column("1"))
+                    .select_from(
+                        func.jsonb_each_text(OrmAttribute.name_i18n).alias("kv")
+                    )
+                    .where(literal_column("kv.value").ilike(search_pattern))
+                    .correlate(OrmAttribute)
+                    .exists(),
+                )
             )
         return stmt

@@ -5,6 +5,7 @@ Applies partial updates to mutable fields. Code and slug are immutable.
 Emits ``AttributeValueUpdatedEvent`` through the parent attribute.
 """
 
+import re
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
@@ -13,13 +14,17 @@ from src.modules.catalog.domain.events import AttributeValueUpdatedEvent
 from src.modules.catalog.domain.exceptions import (
     AttributeNotFoundError,
     AttributeValueNotFoundError,
+    InvalidColorHexError,
 )
 from src.modules.catalog.domain.interfaces import (
     IAttributeRepository,
     IAttributeValueRepository,
 )
+from src.modules.catalog.domain.value_objects import AttributeUIType
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
+
+_HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
 @dataclass(frozen=True)
@@ -33,6 +38,7 @@ class UpdateAttributeValueCommand:
     meta_data: dict[str, Any] | None = None
     value_group: str | None = None
     sort_order: int | None = None
+    is_active: bool | None = None
     _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 
@@ -49,6 +55,7 @@ class UpdateAttributeValueResult:
     meta_data: dict[str, Any] | None
     value_group: str | None
     sort_order: int
+    is_active: bool
 
 
 class UpdateAttributeValueHandler:
@@ -87,6 +94,15 @@ class UpdateAttributeValueHandler:
             if value is None or value.attribute_id != command.attribute_id:
                 raise AttributeValueNotFoundError(value_id=command.value_id)
 
+            if (
+                "meta_data" in command._provided_fields
+                and command.meta_data
+                and attribute.ui_type == AttributeUIType.COLOR_SWATCH
+            ):
+                hex_val = command.meta_data.get("hex")
+                if hex_val is not None and not _HEX_COLOR_RE.match(hex_val):
+                    raise InvalidColorHexError(hex_value=hex_val)
+
             # Only pass fields the client actually sent (tracked via _provided_fields).
             update_kwargs: dict[str, Any] = {
                 name: getattr(command, name) for name in command._provided_fields
@@ -116,4 +132,5 @@ class UpdateAttributeValueHandler:
             meta_data=value.meta_data,
             value_group=value.value_group,
             sort_order=value.sort_order,
+            is_active=value.is_active,
         )

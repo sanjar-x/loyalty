@@ -151,9 +151,9 @@ async def app_container(
     from src.infrastructure.logging.provider import LoggingProvider
     from src.infrastructure.security.provider import SecurityProvider
     from src.modules.catalog.presentation.dependencies import (
-        AttributeFamilyProvider,
         AttributeGroupProvider,
         AttributeProvider,
+        AttributeTemplateProvider,
         AttributeValueProvider,
         BrandProvider,
         CategoryProvider,
@@ -177,7 +177,7 @@ async def app_container(
         AttributeGroupProvider(),
         AttributeProvider(),
         AttributeValueProvider(),
-        AttributeFamilyProvider(),
+        AttributeTemplateProvider(),
         StorefrontCatalogProvider(),
         ProductProvider(),
         MediaAssetProvider(),

@@ -33,7 +33,6 @@ class UpdateAttributeCommand:
         search_weight: New search weight, or None to keep current.
         is_comparable: New comparison flag, or None to keep current.
         is_visible_on_card: New card visibility flag, or None to keep current.
-        is_visible_in_catalog: New catalog visibility flag, or None to keep current.
         validation_rules: New rules dict, None to clear, or absent to keep.
     """
 
@@ -48,7 +47,6 @@ class UpdateAttributeCommand:
     search_weight: int | None = None
     is_comparable: bool | None = None
     is_visible_on_card: bool | None = None
-    is_visible_in_catalog: bool | None = None
     validation_rules: dict[str, Any] | None = None
     _provided_fields: frozenset[str] = field(default_factory=frozenset)
 

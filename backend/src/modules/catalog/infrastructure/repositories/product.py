@@ -226,6 +226,7 @@ class ProductRepository(IProductRepository):
             "supplier_id": orm.supplier_id,
             "country_of_origin": orm.country_of_origin,
             "tags": list(orm.tags) if orm.tags else [],
+            "source_url": orm.source_url,
             "version": orm.version,
             "deleted_at": orm.deleted_at,
             "created_at": orm.created_at,
@@ -286,12 +287,12 @@ class ProductRepository(IProductRepository):
         orm.title_i18n = entity.title_i18n
         orm.description_i18n = entity.description_i18n
         orm.tags = entity.tags  # type: ignore[assignment]
+        orm.source_url = entity.source_url
 
         # ORM-only fields: set defaults on create, preserve on update
         if is_create:
             orm.popularity_score = 0
             orm.is_visible = True
-            orm.source_url = None
             orm.attributes = {}
 
         return orm
@@ -381,7 +382,7 @@ class ProductRepository(IProductRepository):
                 entity_type="Product",
                 entity_id=entity.id,
                 expected_version=entity.version,
-                actual_version=-1,
+                actual_version=None,
             ) from None
 
         return self._to_domain(orm)
@@ -431,7 +432,7 @@ class ProductRepository(IProductRepository):
                 entity_type="Product",
                 entity_id=entity.id,
                 expected_version=entity.version,
-                actual_version=-1,
+                actual_version=None,
             ) from None
 
         return self._to_domain(orm)

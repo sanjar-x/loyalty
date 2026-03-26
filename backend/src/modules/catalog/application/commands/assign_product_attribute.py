@@ -10,7 +10,7 @@ attribute assignments are deferred to a future phase.
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.application.queries.resolve_family_attributes import (
+from src.modules.catalog.application.queries.resolve_template_attributes import (
     resolve_effective_attribute_ids,
 )
 from src.modules.catalog.domain.entities import ProductAttributeValue
@@ -18,20 +18,19 @@ from src.modules.catalog.domain.exceptions import (
     AttributeLevelMismatchError,
     AttributeNotDictionaryError,
     AttributeNotFoundError,
-    AttributeNotInFamilyError,
+    AttributeNotInTemplateError,
     AttributeValueNotFoundError,
     DuplicateProductAttributeError,
     ProductNotFoundError,
 )
 from src.modules.catalog.domain.interfaces import (
-    IAttributeFamilyRepository,
     IAttributeRepository,
+    IAttributeTemplateRepository,
     IAttributeValueRepository,
     ICategoryRepository,
-    IFamilyAttributeBindingRepository,
-    IFamilyAttributeExclusionRepository,
     IProductAttributeValueRepository,
     IProductRepository,
+    ITemplateAttributeBindingRepository,
 )
 from src.modules.catalog.domain.value_objects import AttributeLevel
 from src.shared.interfaces.logger import ILogger
@@ -79,9 +78,8 @@ class AssignProductAttributeHandler:
         attribute_repo: IAttributeRepository,
         attribute_value_repo: IAttributeValueRepository,
         category_repo: ICategoryRepository,
-        family_repo: IAttributeFamilyRepository,
-        family_binding_repo: IFamilyAttributeBindingRepository,
-        exclusion_repo: IFamilyAttributeExclusionRepository,
+        template_repo: IAttributeTemplateRepository,
+        template_binding_repo: ITemplateAttributeBindingRepository,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
@@ -90,9 +88,8 @@ class AssignProductAttributeHandler:
         self._attribute_repo = attribute_repo
         self._attribute_value_repo = attribute_value_repo
         self._category_repo = category_repo
-        self._family_repo = family_repo
-        self._family_binding_repo = family_binding_repo
-        self._exclusion_repo = exclusion_repo
+        self._template_repo = template_repo
+        self._template_binding_repo = template_binding_repo
         self._uow = uow
         self._logger = logger.bind(handler="AssignProductAttributeHandler")
 
@@ -117,17 +114,15 @@ class AssignProductAttributeHandler:
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
-            # --- Validate attribute belongs to product's category family ---
+            # --- Validate attribute belongs to product's category template ---
             category = await self._category_repo.get(product.primary_category_id)
-            if category is not None and category.family_id is not None:
+            if category is not None and category.effective_template_id is not None:
                 effective_attr_ids = await resolve_effective_attribute_ids(
-                    self._family_repo,
-                    self._family_binding_repo,
-                    self._exclusion_repo,
-                    category.family_id,
+                    self._template_binding_repo,
+                    category.effective_template_id,
                 )
                 if command.attribute_id not in effective_attr_ids:
-                    raise AttributeNotInFamilyError(
+                    raise AttributeNotInTemplateError(
                         product_id=command.product_id,
                         attribute_id=command.attribute_id,
                     )

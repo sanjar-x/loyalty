@@ -2,9 +2,8 @@
 
 import uuid
 from dataclasses import dataclass
-from typing import Any
 
-from src.modules.catalog.application.queries.resolve_family_attributes import (
+from src.modules.catalog.application.queries.resolve_template_attributes import (
     resolve_effective_attribute_ids,
 )
 from src.modules.catalog.domain.entities import ProductAttributeValue
@@ -12,20 +11,19 @@ from src.modules.catalog.domain.exceptions import (
     AttributeLevelMismatchError,
     AttributeNotDictionaryError,
     AttributeNotFoundError,
-    AttributeNotInFamilyError,
+    AttributeNotInTemplateError,
     AttributeValueNotFoundError,
     DuplicateProductAttributeError,
     ProductNotFoundError,
 )
 from src.modules.catalog.domain.interfaces import (
-    IAttributeFamilyRepository,
     IAttributeRepository,
+    IAttributeTemplateRepository,
     IAttributeValueRepository,
     ICategoryRepository,
-    IFamilyAttributeBindingRepository,
-    IFamilyAttributeExclusionRepository,
     IProductAttributeValueRepository,
     IProductRepository,
+    ITemplateAttributeBindingRepository,
 )
 from src.modules.catalog.domain.value_objects import AttributeLevel
 from src.shared.interfaces.logger import ILogger
@@ -58,9 +56,8 @@ class BulkAssignProductAttributesHandler:
         attribute_repo: IAttributeRepository,
         attribute_value_repo: IAttributeValueRepository,
         category_repo: ICategoryRepository,
-        family_repo: IAttributeFamilyRepository,
-        family_binding_repo: IFamilyAttributeBindingRepository,
-        exclusion_repo: IFamilyAttributeExclusionRepository,
+        template_repo: IAttributeTemplateRepository,
+        template_binding_repo: ITemplateAttributeBindingRepository,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
@@ -69,9 +66,8 @@ class BulkAssignProductAttributesHandler:
         self._attribute_repo = attribute_repo
         self._attribute_value_repo = attribute_value_repo
         self._category_repo = category_repo
-        self._family_repo = family_repo
-        self._family_binding_repo = family_binding_repo
-        self._exclusion_repo = exclusion_repo
+        self._template_repo = template_repo
+        self._template_binding_repo = template_binding_repo
         self._uow = uow
         self._logger = logger.bind(handler="BulkAssignProductAttributesHandler")
 
@@ -84,43 +80,37 @@ class BulkAssignProductAttributesHandler:
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
-            # 2. Resolve effective attribute IDs from family (if category has family)
+            # 2. Resolve effective attribute IDs from template (if category has template)
             effective_attr_ids: set[uuid.UUID] | None = None
             category = await self._category_repo.get(product.primary_category_id)
-            if category is not None and category.family_id is not None:
+            if category is not None and category.effective_template_id is not None:
                 effective_attr_ids = await resolve_effective_attribute_ids(
-                    self._family_repo,
-                    self._family_binding_repo,
-                    self._exclusion_repo,
-                    category.family_id,
+                    self._template_binding_repo,
+                    category.effective_template_id,
                 )
 
             # 3. Batch-prefetch all attributes and values (avoid N+1)
             attr_ids = [item.attribute_id for item in command.items]
             val_ids = [item.attribute_value_id for item in command.items]
 
-            attrs_by_id: dict[uuid.UUID, Any] = {}
-            for aid in attr_ids:
-                a = await self._attribute_repo.get(aid)
-                if a is not None:
-                    attrs_by_id[a.id] = a
+            attrs_by_id = await self._attribute_repo.get_many(attr_ids)
+            vals_by_id = await self._attribute_value_repo.get_many(val_ids)
 
-            vals_by_id: dict[uuid.UUID, Any] = {}
-            for vid in val_ids:
-                v = await self._attribute_value_repo.get(vid)
-                if v is not None:
-                    vals_by_id[v.id] = v
+            # 4. Bulk-check existing assignments (avoid N+1)
+            existing_assignments = await self._pav_repo.check_assignments_exist_bulk(
+                command.product_id, attr_ids
+            )
 
-            # 4. Validate and create all assignments
+            # 5. Validate and create all assignments
             pav_ids: list[uuid.UUID] = []
 
             for item in command.items:
-                # Check family membership
+                # Check template membership
                 if (
                     effective_attr_ids is not None
                     and item.attribute_id not in effective_attr_ids
                 ):
-                    raise AttributeNotInFamilyError(
+                    raise AttributeNotInTemplateError(
                         product_id=command.product_id,
                         attribute_id=item.attribute_id,
                     )
@@ -146,9 +136,7 @@ class BulkAssignProductAttributesHandler:
                     raise AttributeValueNotFoundError(value_id=item.attribute_value_id)
 
                 # Check no duplicate
-                if await self._pav_repo.check_assignment_exists(
-                    command.product_id, item.attribute_id
-                ):
+                if item.attribute_id in existing_assignments:
                     raise DuplicateProductAttributeError(
                         product_id=command.product_id,
                         attribute_id=item.attribute_id,
