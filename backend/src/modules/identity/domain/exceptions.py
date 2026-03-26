@@ -10,7 +10,6 @@ from src.shared.exceptions import (
     ForbiddenError,
     NotFoundError,
     UnauthorizedError,
-    UnprocessableEntityError,
 )
 
 
@@ -96,25 +95,6 @@ class MaxSessionsExceededError(AppException):
             status_code=429,
             error_code="MAX_SESSIONS_EXCEEDED",
             details={"max_sessions": max_sessions},
-        )
-
-
-class RoleHierarchyCycleError(UnprocessableEntityError):
-    """Raised when a role hierarchy operation would create a cycle.
-
-    Args:
-        parent_role_id: The parent role in the attempted assignment.
-        child_role_id: The child role in the attempted assignment.
-    """
-
-    def __init__(self, parent_role_id: str, child_role_id: str) -> None:
-        super().__init__(
-            message="Role hierarchy cycle detected",
-            error_code="ROLE_HIERARCHY_CYCLE",
-            details={
-                "parent_role_id": parent_role_id,
-                "child_role_id": child_role_id,
-            },
         )
 
 

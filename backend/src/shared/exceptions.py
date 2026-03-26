@@ -60,23 +60,6 @@ class NotFoundError(AppException):
         )
 
 
-class BadRequestError(AppException):
-    """Raised when the client sends a malformed or invalid request (HTTP 400)."""
-
-    def __init__(
-        self,
-        message: str = "Bad request",
-        error_code: str = "BAD_REQUEST",
-        details: dict[str, Any] | None = None,
-    ):
-        super().__init__(
-            message=message,
-            status_code=400,
-            error_code=error_code,
-            details=details,
-        )
-
-
 class UnauthorizedError(AppException):
     """Raised when authentication is required but missing or invalid (HTTP 401)."""
 
@@ -157,18 +140,3 @@ class UnprocessableEntityError(AppException):
         super().__init__(message, 422, error_code, details)
 
 
-class ServiceUnavailableError(AppException):
-    """Raised when an external dependency is temporarily unreachable (HTTP 503)."""
-
-    def __init__(
-        self,
-        message: str = "External service temporarily unavailable",
-        error_code: str = "SERVICE_UNAVAILABLE",
-        details: dict[str, Any] | None = None,
-    ):
-        super().__init__(
-            message=message,
-            status_code=503,
-            error_code=error_code,
-            details=details,
-        )

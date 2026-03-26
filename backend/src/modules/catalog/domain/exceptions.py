@@ -92,21 +92,6 @@ class ProductNotFoundError(NotFoundError):
         )
 
 
-class SKUOutOfStockError(ConflictError):
-    """Raised when a stock reservation exceeds available inventory."""
-
-    def __init__(self, sku_id: uuid.UUID, requested: int, available: int):
-        super().__init__(
-            message="Insufficient stock to fulfill the operation.",
-            error_code="SKU_OUT_OF_STOCK",
-            details={
-                "sku_id": str(sku_id),
-                "requested_quantity": requested,
-                "available_quantity": available,
-            },
-        )
-
-
 class InvalidStatusTransitionError(UnprocessableEntityError):
     """Raised when a product status transition violates the FSM rules.
 
@@ -357,49 +342,6 @@ class BrandSlugConflictError(ConflictError):
         )
 
 
-class LogoFileNotUploadedError(UnprocessableEntityError):
-    """Raised when a logo confirmation is attempted but the file is not in S3."""
-
-    def __init__(self, brand_id: uuid.UUID):
-        super().__init__(
-            message="Logo file has not been uploaded to storage.",
-            error_code="LOGO_FILE_NOT_UPLOADED",
-            details={"brand_id": str(brand_id)},
-        )
-
-
-class InvalidLogoStateError(UnprocessableEntityError):
-    """Raised when a logo FSM transition is attempted from an invalid state."""
-
-    def __init__(self, brand_id: uuid.UUID, current_status: str, expected_status: str):
-        super().__init__(
-            message=f"Invalid logo state. Current: {current_status}, expected: {expected_status}.",
-            error_code="INVALID_LOGO_STATE",
-            details={
-                "brand_id": str(brand_id),
-                "current_status": current_status,
-                "expected_status": expected_status,
-            },
-        )
-
-
-class InvalidMediaStateError(UnprocessableEntityError):
-    """Raised when a media asset FSM transition is invalid."""
-
-    def __init__(
-        self, media_id: uuid.UUID, current_status: str | None, expected_status: str
-    ) -> None:
-        super().__init__(
-            message=f"Media {media_id} is in state {current_status}, expected {expected_status}",
-            error_code="INVALID_MEDIA_STATE",
-            details={
-                "media_id": str(media_id),
-                "current_status": current_status,
-                "expected_status": expected_status,
-            },
-        )
-
-
 # ---------------------------------------------------------------------------
 # AttributeGroup aggregate exceptions
 # ---------------------------------------------------------------------------
@@ -498,17 +440,6 @@ class AttributeInUseByProductsError(ConflictError):
         )
 
 
-class AttributeDataTypeChangeError(UnprocessableEntityError):
-    """Raised when attempting to change an attribute's data type after creation."""
-
-    def __init__(self, attribute_id: uuid.UUID):
-        super().__init__(
-            message="Cannot change data type of an existing attribute.",
-            error_code="ATTRIBUTE_DATA_TYPE_CHANGE_NOT_ALLOWED",
-            details={"attribute_id": str(attribute_id)},
-        )
-
-
 # ---------------------------------------------------------------------------
 # AttributeValue exceptions
 # ---------------------------------------------------------------------------
@@ -574,20 +505,6 @@ class AttributeNotDictionaryError(UnprocessableEntityError):
 # ---------------------------------------------------------------------------
 
 
-class DuplicateMainMediaError(ConflictError):
-    """Raised when a MAIN media asset already exists for a product/variant combo."""
-
-    def __init__(self, product_id: uuid.UUID, variant_id: uuid.UUID | None) -> None:
-        super().__init__(
-            message="A MAIN media asset already exists for this product/variant.",
-            error_code="DUPLICATE_MAIN_MEDIA",
-            details={
-                "product_id": str(product_id),
-                "variant_id": str(variant_id) if variant_id else None,
-            },
-        )
-
-
 class MediaAssetNotFoundError(NotFoundError):
     """Raised when a media asset lookup yields no result."""
 
@@ -649,17 +566,6 @@ class AttributeFamilyHasCategoryReferencesError(ConflictError):
         super().__init__(
             message="Cannot delete attribute family: it is referenced by categories.",
             error_code="ATTRIBUTE_FAMILY_HAS_CATEGORY_REFERENCES",
-            details={"family_id": str(family_id)},
-        )
-
-
-class AttributeFamilyParentImmutableError(UnprocessableEntityError):
-    """Raised when attempting to change parent_id or level after creation."""
-
-    def __init__(self, family_id: uuid.UUID):
-        super().__init__(
-            message="Cannot change parent_id or level after family creation.",
-            error_code="ATTRIBUTE_FAMILY_PARENT_IMMUTABLE",
             details={"family_id": str(family_id)},
         )
 
