@@ -36,13 +36,25 @@ class PaginatedResponse(CamelModel, Generic[S]):
 _LANG_CODE_RE = re.compile(r"^[a-z]{2}$")
 
 
+_MAX_I18N_ENTRIES = 20
+_MAX_I18N_VALUE_LENGTH = 10_000
+
+
 def _validate_i18n_keys(value: dict[str, str]) -> dict[str, str]:
-    """Validate that all keys in an i18n dict are ISO 639-1 language codes."""
-    for key in value:
+    """Validate i18n dict: ISO 639-1 keys, bounded entries and value lengths."""
+    if len(value) > _MAX_I18N_ENTRIES:
+        raise ValueError(
+            f"Too many language entries: {len(value)} (max {_MAX_I18N_ENTRIES})"
+        )
+    for key, val in value.items():
         if not _LANG_CODE_RE.match(key):
             raise ValueError(
                 f"Invalid language code '{key}'. "
                 f"Keys must be ISO 639-1 two-letter lowercase codes (e.g. 'en', 'ru')."
+            )
+        if len(val) > _MAX_I18N_VALUE_LENGTH:
+            raise ValueError(
+                f"Value for '{key}' too long: {len(val)} chars (max {_MAX_I18N_VALUE_LENGTH})"
             )
     return value
 
@@ -168,7 +180,7 @@ class BrandCreateRequest(CamelModel):
 
     name: str = Field(..., min_length=1, max_length=255)
     slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$")
-    logo_url: str | None = Field(None, max_length=2048, pattern=r"^https?://")
+    logo_url: str | None = Field(None, max_length=2048, pattern=r"^https://")
     logo_storage_object_id: uuid.UUID | None = None
 
 
@@ -194,7 +206,7 @@ class BrandUpdateRequest(CamelModel):
     slug: str | None = Field(
         None, min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$"
     )
-    logo_url: str | None = Field(None, max_length=2048, pattern=r"^https?://")
+    logo_url: str | None = Field(None, max_length=2048, pattern=r"^https://")
     logo_storage_object_id: uuid.UUID | None = None
 
     @model_validator(mode="after")
@@ -362,7 +374,7 @@ class AttributeValueUpdateRequest(CamelModel):
         None, max_length=50
     )
     meta_data: BoundedJsonDict | None = None
-    value_group: str | None = None
+    value_group: str | None = Field(None, max_length=100)
     sort_order: int | None = Field(None, ge=0)
 
     @model_validator(mode="after")
@@ -428,7 +440,7 @@ class ReorderItemRequest(CamelModel):
 class ReorderAttributeValuesRequest(CamelModel):
     """Request body for bulk-reordering attribute values."""
 
-    items: list[ReorderItemRequest] = Field(..., min_length=1)
+    items: list[ReorderItemRequest] = Field(..., min_length=1, max_length=500)
 
 
 # ---------------------------------------------------------------------------
@@ -596,8 +608,8 @@ class ProductCreateRequest(CamelModel):
     primary_category_id: uuid.UUID
     description_i18n: I18nDict = Field(default_factory=dict)
     supplier_id: uuid.UUID | None = None
-    source_url: str | None = Field(None, max_length=1024)
-    tags: list[str] = Field(default_factory=list, max_length=50)
+    source_url: str | None = Field(None, max_length=1024, pattern=r"^https?://")
+    tags: list[Annotated[str, Field(max_length=200)]] = Field(default_factory=list, max_length=50)
 
 
 class ProductCreateResponse(CamelModel):
@@ -630,7 +642,7 @@ class ProductUpdateRequest(CamelModel):
     country_of_origin: str | None = Field(
         None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$"
     )
-    tags: list[str] | None = Field(None, max_length=50)
+    tags: list[Annotated[str, Field(max_length=200)]] | None = Field(None, max_length=50)
     version: int | None = None
 
     @model_validator(mode="after")
@@ -657,7 +669,7 @@ class SKUCreateRequest(CamelModel):
     price_currency: str = Field(..., min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
     compare_at_price_amount: int | None = Field(None, ge=0)
     is_active: bool = True
-    variant_attributes: list[VariantAttributePairSchema] = Field(default_factory=list)
+    variant_attributes: list[VariantAttributePairSchema] = Field(default_factory=list, max_length=50)
 
 
 class SKUCreateResponse(CamelModel):
@@ -677,7 +689,7 @@ class SKUUpdateRequest(CamelModel):
     )
     compare_at_price_amount: int | None = None
     is_active: bool | None = None
-    variant_attributes: list[VariantAttributePairSchema] | None = None
+    variant_attributes: list[VariantAttributePairSchema] | None = Field(None, max_length=50)
     version: int | None = None
 
     @model_validator(mode="after")
@@ -965,13 +977,9 @@ class AttributeTemplateUpdateRequest(CamelModel):
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> AttributeTemplateUpdateRequest:
-        if (
-            self.name_i18n is None
-            and self.description_i18n is None
-            and self.sort_order is None
-        ):
+        if not self.model_fields_set:
             raise ValueError(
-                "At least one of name_i18n, description_i18n, or sort_order must be provided"
+                "At least one of nameI18n, descriptionI18n, or sortOrder must be provided"
             )
         return self
 
@@ -1060,7 +1068,7 @@ class BindingReorderItemSchema(CamelModel):
 class TemplateBindingReorderRequest(CamelModel):
     """Request for reordering bindings."""
 
-    items: list[BindingReorderItemSchema] = Field(..., min_length=1)
+    items: list[BindingReorderItemSchema] = Field(..., min_length=1, max_length=500)
 
 
 # ---------------------------------------------------------------------------
