@@ -37,8 +37,6 @@
      │  POST /api/v1/media/upload                 │                      │
      │  {                                         │                      │
      │    contentType: "image/jpeg",              │                      │
-     │    mediaType: "product",                   │                      │
-     │    role: "main",                           │                      │
      │    filename: "photo.jpg"                   │                      │
      │  }                                         │                      │
      │  ─────────────────────────────────────────►│                      │
@@ -48,14 +46,14 @@
      │                     │                      │  ◄── presigned URL ─ │
      │                     │                      │                      │
      │                     │                      │  create record:      │
-     │                     │                      │    mediaId           │
-     │                     │                      │    status: "pending" │
+     │                     │                      │   storageObjectId    │
+     │                     │                      │   status: "pending"  │
      │                     │                      │                      │
      │  ◄── 201 ──────────────────────────────────│                      │
      │  {                                         │                      │
-     │    uploadUrl: "https://s3.../presigned",   │                      │
-     │    mediaId: "uuid-...",                    │                      │
-     │    status: "pending"                       │                      │
+     │    presignedUrl: "https://s3.../presigned",│                      │
+     │    storageObjectId: "uuid-...",            │                      │
+     │    expiresIn: 300                          │                      │
      │  }                                         │                      │
      │                     │                      │                      │
      │                     │                      │                      │
@@ -63,7 +61,7 @@
  │           STEP 2 — Загрузить файл напрямую в Bucket                       │
  └───┬─────────────────────┬──────────────────────┬──────────────────────┬───┘
      │                     │                      │                      │
-     │  PUT uploadUrl ─────────────────────────────────────────────────► │
+     │  PUT presignedUrl ──────────────────────────────────────────────► │
      │  (binary body, Content-Type: image/jpeg)   │                      │
      │                     │                      │                      │
      │  ◄── 200 OK ────────────────────────────────────────────────────  │
@@ -79,7 +77,7 @@
  │         STEP 3 — Подтвердить и запустить обработку                        │
  └───┬─────────────────────┬──────────────────────┬──────────────────────┬───┘
      │                     │                      │                      │
-     │  POST /api/v1/media/{mediaId}/confirm      │                      │
+     │  POST /api/v1/media/{storageObjectId}/confirm│                      │
      │  ─────────────────────────────────────────►│                      │
      │                     │                      │                      │
      │                     │                      │  verify file exists  │
@@ -106,17 +104,17 @@
      │                     │                      │  ── process ──┐      │
      │                     │                      │               │      │
      │                     │                      │   thumbnail (150x150)│
-     │                     │                      │   webp (optimized)   │
-     │                     │                      │   medium (800xAuto)  │
+     │                     │                      │   medium (600x600)   │
+     │                     │                      │   large (1200x1200)  │
      │                     │                      │               │      │
      │                     │                      │  ◄────────────┘      │
      │                     │                      │                      │
      │                     │                      │  ── PUT thumbnail ─► │
-     │                     │                      │  ── PUT webp ──────► │
      │                     │                      │  ── PUT medium ────► │
+     │                     │                      │  ── PUT large ─────► │
      │                     │                      │                      │
      │                     │                      │  update record:      │
-     │                     │                      │    status → "ready"  │
+     │                     │                      │  status → "completed"│
      │                     │                      │    variants: [...]   │
      │                     │                      │                      │
      │                     │                      │                      │
@@ -124,27 +122,28 @@
  │              STEP 5 — Frontend узнаёт о готовности (polling)              │
  └───┬─────────────────────┬──────────────────────┬──────────────────────┬───┘
      │                     │                      │                      │
-     │  GET /api/v1/media/{mediaId}               │                      │
+     │  GET /api/v1/media/{storageObjectId}        │                      │
      │  ─────────────────────────────────────────►│                      │
      │                     │                      │                      │
      │  ◄── 200 ──────────────────────────────────│                      │
      │  {                                         │                      │
-     │    mediaId: "uuid-...",                    │                      │
-     │    status: "ready",                        │                      │
+     │    storageObjectId: "uuid-...",            │                      │
+     │    status: "COMPLETED",                    │                      │
+     │    url: "https://cdn.../public/id.webp",   │                      │
+     │    contentType: "image/webp",              │                      │
+     │    sizeBytes: 102400,                      │                      │
      │    variants: [                             │                      │
-     │      { role: "original",                   │                      │
-     │        url: "https://cdn.../orig.jpg",     │                      │
-     │        width: 2400, height: 1600 },        │                      │
-     │      { role: "thumbnail",                  │                      │
-     │        url: "https://cdn.../thumb.jpg",    │                      │
-     │        width: 150, height: 150 },          │                      │
-     │      { role: "webp",                       │                      │
-     │        url: "https://cdn.../opt.webp",     │                      │
-     │        width: 2400, height: 1600 },        │                      │
-     │      { role: "medium",                     │                      │
-     │        url: "https://cdn.../med.jpg",      │                      │
-     │        width: 800, height: 533 }           │                      │
-     │    ]                                       │                      │
+     │      { size: "thumbnail",                  │                      │
+     │        url: "https://cdn.../thumb.webp",   │                      │
+     │        width: 150, height: 100 },          │                      │
+     │      { size: "medium",                     │                      │
+     │        url: "https://cdn.../md.webp",      │                      │
+     │        width: 600, height: 400 },          │                      │
+     │      { size: "large",                      │                      │
+     │        url: "https://cdn.../lg.webp",      │                      │
+     │        width: 1200, height: 800 }          │                      │
+     │    ],                                      │                      │
+     │    createdAt: "2026-03-27T..."             │                      │
      │  }                                         │                      │
      │                     │                      │                      │
      │  ┌──────────────────┐                      │                      │
@@ -155,23 +154,22 @@
      │                     │                      │                      │
      │                     │                      │                      │
  ┌───┴─────────────────────┴──────────────────────┴──────────────────────┴───┐
- │           STEP 6 — Привязать mediaId к продукту (Backend)                 │
+ │      STEP 6 — Привязать storageObjectId к продукту (Backend)              │
  └───┬─────────────────────┬──────────────────────┬──────────────────────┬───┘
      │                     │                      │                      │
      │  POST /api/v1/catalog/products             │                      │
      │  {                                         │                      │
      │    name: "Кроссовки",                      │                      │
      │    media: [                                │                      │
-     │      { mediaId: "uuid-...",                │                      │
-     │        role: "main" }                      │                      │
+     │      { storageObjectId: "uuid-..." }       │                      │
      │    ],                                      │                      │
      │    ...                                     │                      │
      │  }                                         │                      │
      │  ──────────────────►│                      │                      │
      │                     │                      │                      │
      │                     │  Backend сохраняет   │                      │
-     │                     │  mediaId как ссылку  │                      │
-     │                     │  (не файл, а UUID)   │                      │
+     │                     │  storageObjectId     │                      │
+     │                     │  как ссылку (UUID)   │                      │
      │                     │                      │                      │
      │  ◄── 201 ───────────│                      │                      │
      │                     │                      │                      │
@@ -186,9 +184,7 @@
      │                     │                      │                      │
      │  POST /api/v1/media/external               │                      │
      │  {                                         │                      │
-     │    externalUrl: "https://...",             │                      │
-     │    mediaType: "product",                   │                      │
-     │    role: "gallery"                         │                      │
+     │    url: "https://..."                      │                      │
      │  }                                         │                      │
      │  ─────────────────────────────────────────►│                      │
      │                     │                      │                      │
@@ -196,12 +192,12 @@
      │                     │                      │  process (all variants)
      │                     │                      │  ── write all ─────► │
      │                     │                      │                      │
-     │                     │                      │  status → "ready"    │
+     │                     │                      │ status → "completed" │
      │                     │                      │                      │
-     │  ◄── 200 ──────────────────────────────────│                      │
+     │  ◄── 201 Created ─────────────────────────│                      │
      │  {                                         │                      │
-     │    mediaId: "uuid-...",                    │                      │
-     │    status: "ready",                        │                      │
+     │    storageObjectId: "uuid-...",            │                      │
+     │    url: "https://cdn.../public/id.webp",   │                      │
      │    variants: [...]                         │                      │
      │  }                                         │                      │
      │                     │                      │                      │

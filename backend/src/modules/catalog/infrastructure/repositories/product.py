@@ -394,7 +394,12 @@ class ProductRepository(IProductRepository):
                 raise ProductSlugConflictError(slug=entity.slug) from e
             raise
 
-        return self._to_domain(orm)
+        # Return domain entity built from the original input + generated fields.
+        # Using _to_domain(orm) would trigger lazy-load of variant.skus in
+        # async context (MissingGreenlet).  Since add() only inserts, the
+        # caller already has the complete entity; we just need the DB-assigned
+        # version and timestamps.
+        return entity
 
     async def get(self, entity_id: uuid.UUID) -> DomainProduct | None:
         """Retrieve a product by primary key, or ``None`` if not found.
@@ -444,7 +449,10 @@ class ProductRepository(IProductRepository):
                 actual_version=None,
             ) from None
 
-        return self._to_domain(orm)
+        # Return the input domain entity instead of re-mapping from ORM.
+        # After flush(), ORM attributes are expired and _to_domain(orm)
+        # triggers lazy loads that fail in async context (MissingGreenlet).
+        return entity
 
     async def delete(self, entity_id: uuid.UUID) -> None:
         """Hard-delete a product row by primary key."""
@@ -510,7 +518,9 @@ class ProductRepository(IProductRepository):
             .options(
                 selectinload(
                     OrmProduct.variants.and_(OrmProductVariant.deleted_at.is_(None))
-                ).selectinload(OrmProductVariant.skus.and_(OrmSKU.deleted_at.is_(None)))
+                )
+                .selectinload(OrmProductVariant.skus.and_(OrmSKU.deleted_at.is_(None)))
+                .selectinload(OrmSKU.attribute_values)
             )
             .with_for_update()
         )
