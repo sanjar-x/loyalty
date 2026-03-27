@@ -505,6 +505,25 @@ class MediaAssetNotFoundError(NotFoundError):
         )
 
 
+class DuplicateMainMediaError(ConflictError):
+    """Raised when a variant already has a MAIN media asset."""
+
+    def __init__(
+        self,
+        product_id: uuid.UUID | str,
+        variant_id: uuid.UUID | str | None = None,
+    ):
+        scope = f"variant {variant_id}" if variant_id else "product (no variant)"
+        details: dict[str, str] = {"product_id": str(product_id)}
+        if variant_id is not None:
+            details["variant_id"] = str(variant_id)
+        super().__init__(
+            message=f"A MAIN media asset already exists for {scope}.",
+            error_code="DUPLICATE_MAIN_MEDIA",
+            details=details,
+        )
+
+
 # ---------------------------------------------------------------------------
 # AttributeTemplate exceptions
 # ---------------------------------------------------------------------------

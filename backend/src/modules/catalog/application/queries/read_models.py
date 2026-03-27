@@ -425,9 +425,12 @@ class MediaAssetReadModel(BaseModel):
     media_type: str
     role: str
     sort_order: int
+    storage_object_id: uuid.UUID | None = None
     url: str | None = None
     is_external: bool
-    external_url: str | None = None
+    image_variants: list[dict] | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 MediaAssetListReadModel = PaginatedReadModel[MediaAssetReadModel]

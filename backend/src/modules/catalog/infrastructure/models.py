@@ -355,7 +355,9 @@ class Attribute(Base):
         "AttributeValue", back_populates="attribute", cascade="all, delete-orphan"
     )
     __table_args__ = (
-        CheckConstraint("search_weight BETWEEN 1 AND 10", name="ck_attributes_search_weight"),
+        CheckConstraint(
+            "search_weight BETWEEN 1 AND 10", name="ck_attributes_search_weight"
+        ),
         Index("uix_attributes_code", "code", unique=True),
         Index("uix_attributes_slug", "slug", unique=True),
         Index("ix_attributes_name_i18n_gin", "name_i18n", postgresql_using="gin"),

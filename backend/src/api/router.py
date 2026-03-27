@@ -16,6 +16,7 @@ from src.modules.catalog.presentation.router_attribute_values import (
 from src.modules.catalog.presentation.router_attributes import attribute_router
 from src.modules.catalog.presentation.router_brands import brand_router
 from src.modules.catalog.presentation.router_categories import category_router
+from src.modules.catalog.presentation.router_media import media_router
 from src.modules.catalog.presentation.router_product_attributes import (
     product_attribute_router,
 )
@@ -44,6 +45,7 @@ router.include_router(product_router, prefix="/catalog")
 router.include_router(variant_router, prefix="/catalog")
 router.include_router(sku_router, prefix="/catalog")
 router.include_router(product_attribute_router, prefix="/catalog")
+router.include_router(media_router, prefix="/catalog")
 router.include_router(auth_router)
 router.include_router(admin_router)
 router.include_router(staff_admin_router)

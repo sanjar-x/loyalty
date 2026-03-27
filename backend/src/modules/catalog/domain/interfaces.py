@@ -446,6 +446,29 @@ class IMediaAssetRepository(ABC):
         """Delete all media for a product. Returns storage_object_ids for cleanup."""
         ...
 
+    @abstractmethod
+    async def bulk_update_sort_order(
+        self,
+        product_id: uuid.UUID,
+        updates: list[tuple[uuid.UUID, int]],
+    ) -> int:
+        """Bulk-update sort_order for media assets belonging to a product.
+
+        Returns the number of rows updated. If fewer rows than updates,
+        some media_ids did not belong to the given product.
+        """
+        ...
+
+    @abstractmethod
+    async def check_main_exists(
+        self,
+        product_id: uuid.UUID,
+        variant_id: uuid.UUID | None,
+        exclude_media_id: uuid.UUID | None = None,
+    ) -> bool:
+        """Check if a MAIN media asset exists for the given product+variant scope."""
+        ...
+
 
 class IAttributeTemplateRepository(ICatalogRepository[DomainAttributeTemplate]):
     """Repository contract for the AttributeTemplate aggregate."""

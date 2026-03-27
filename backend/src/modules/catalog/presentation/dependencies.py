@@ -13,6 +13,9 @@ from src.bootstrap.config import Settings
 from src.modules.catalog.application.commands.add_attribute_value import (
     AddAttributeValueHandler,
 )
+from src.modules.catalog.application.commands.add_product_media import (
+    AddProductMediaHandler,
+)
 from src.modules.catalog.application.commands.add_sku import AddSKUHandler
 from src.modules.catalog.application.commands.add_variant import AddVariantHandler
 from src.modules.catalog.application.commands.assign_product_attribute import (
@@ -81,6 +84,9 @@ from src.modules.catalog.application.commands.generate_sku_matrix import (
 from src.modules.catalog.application.commands.reorder_attribute_values import (
     ReorderAttributeValuesHandler,
 )
+from src.modules.catalog.application.commands.reorder_product_media import (
+    ReorderProductMediaHandler,
+)
 from src.modules.catalog.application.commands.reorder_template_bindings import (
     ReorderTemplateBindingsHandler,
 )
@@ -104,6 +110,9 @@ from src.modules.catalog.application.commands.update_category import (
     UpdateCategoryHandler,
 )
 from src.modules.catalog.application.commands.update_product import UpdateProductHandler
+from src.modules.catalog.application.commands.update_product_media import (
+    UpdateProductMediaHandler,
+)
 from src.modules.catalog.application.commands.update_sku import UpdateSKUHandler
 from src.modules.catalog.application.commands.update_template_attribute_binding import (
     UpdateTemplateAttributeBindingHandler,
@@ -490,8 +499,17 @@ class MediaAssetProvider(Provider):
         )
 
     # Command handlers
+    add_product_media_handler: CompositeDependencySource = provide(
+        AddProductMediaHandler, scope=Scope.REQUEST
+    )
+    update_product_media_handler: CompositeDependencySource = provide(
+        UpdateProductMediaHandler, scope=Scope.REQUEST
+    )
     delete_product_media_handler: CompositeDependencySource = provide(
         DeleteProductMediaHandler, scope=Scope.REQUEST
+    )
+    reorder_product_media_handler: CompositeDependencySource = provide(
+        ReorderProductMediaHandler, scope=Scope.REQUEST
     )
 
     # Query handlers

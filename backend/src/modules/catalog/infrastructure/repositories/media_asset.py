@@ -8,7 +8,7 @@ pessimistic locking, and a MAIN-role existence check used by upload validation.
 
 import uuid
 
-from sqlalchemy import delete, select
+from sqlalchemy import case, delete, exists, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.entities import MediaAsset as DomainMediaAsset
@@ -160,3 +160,55 @@ class MediaAssetRepository(IMediaAssetRepository):
         del_stmt = delete(OrmMediaAsset).where(OrmMediaAsset.product_id == product_id)
         await self._session.execute(del_stmt)
         return sids
+
+    async def bulk_update_sort_order(
+        self,
+        product_id: uuid.UUID,
+        updates: list[tuple[uuid.UUID, int]],
+    ) -> int:
+        """Bulk-update sort_order for media assets in a single statement."""
+        if not updates:
+            return 0
+        id_to_order = dict(updates)
+        media_ids = list(id_to_order.keys())
+
+        stmt = (
+            update(OrmMediaAsset)
+            .where(
+                OrmMediaAsset.id.in_(media_ids),
+                OrmMediaAsset.product_id == product_id,
+            )
+            .values(
+                sort_order=case(
+                    *[
+                        (OrmMediaAsset.id == mid, order)
+                        for mid, order in id_to_order.items()
+                    ],
+                    else_=OrmMediaAsset.sort_order,
+                )
+            )
+        )
+        result = await self._session.execute(stmt)
+        return result.rowcount  # type: ignore[return-value]
+
+    async def check_main_exists(
+        self,
+        product_id: uuid.UUID,
+        variant_id: uuid.UUID | None,
+        exclude_media_id: uuid.UUID | None = None,
+    ) -> bool:
+        """Check if a MAIN media asset exists for the given product+variant scope."""
+        conditions = [
+            OrmMediaAsset.product_id == product_id,
+            OrmMediaAsset.role == MediaRole.MAIN,
+        ]
+        if variant_id is None:
+            conditions.append(OrmMediaAsset.variant_id.is_(None))
+        else:
+            conditions.append(OrmMediaAsset.variant_id == variant_id)
+        if exclude_media_id is not None:
+            conditions.append(OrmMediaAsset.id != exclude_media_id)
+
+        stmt = select(exists().where(*conditions))
+        result = await self._session.execute(stmt)
+        return bool(result.scalar())

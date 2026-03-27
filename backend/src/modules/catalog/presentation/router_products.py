@@ -58,7 +58,6 @@ from src.modules.catalog.presentation.schemas import (
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
 
-
 product_router = APIRouter(
     prefix="/products",
     tags=["Products"],

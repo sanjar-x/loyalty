@@ -56,7 +56,7 @@ class DeleteProductMediaHandler:
             MediaAssetNotFoundError: If the media asset does not exist.
         """
         async with self._uow:
-            media = await self._media_repo.get(command.media_id)
+            media = await self._media_repo.get_for_update(command.media_id)
             if media is None:
                 raise MediaAssetNotFoundError(media_id=command.media_id)
 

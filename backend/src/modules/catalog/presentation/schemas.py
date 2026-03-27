@@ -1041,6 +1041,98 @@ ProductAttributeListResponse = PaginatedResponse[ProductAttributeResponse]
 
 
 # ---------------------------------------------------------------------------
+# MediaAsset schemas
+# ---------------------------------------------------------------------------
+
+
+class MediaAssetCreateRequest(CamelModel):
+    """Request body for adding a media asset to a product."""
+
+    storage_object_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
+    media_type: Literal["image", "video", "model_3d", "document"] = "image"
+    role: Literal[
+        "main", "hover", "gallery", "hero_video", "size_guide", "packaging"
+    ] = "gallery"
+    sort_order: int = Field(0, ge=0)
+    is_external: bool = False
+    url: str | None = Field(None, max_length=1024, pattern=r"^https?://")
+
+    @model_validator(mode="after")
+    def validate_media_source(self) -> MediaAssetCreateRequest:
+        """External assets must have a URL; internal assets must have a storageObjectId."""
+        if self.is_external and not self.url:
+            raise ValueError("External media assets must have a URL")
+        if not self.is_external and not self.storage_object_id:
+            raise ValueError("Internal media assets must have a storageObjectId")
+        return self
+
+
+class MediaAssetCreateResponse(CamelModel):
+    """Response returned after successful media asset creation."""
+
+    id: uuid.UUID
+    message: str
+
+
+class MediaAssetUpdateResponse(CamelModel):
+    """Response returned after successful media asset update."""
+
+    id: uuid.UUID
+    message: str
+
+
+class MediaAssetUpdateRequest(CamelModel):
+    """Partial update request for a media asset (PATCH semantics)."""
+
+    variant_id: uuid.UUID | None = None
+    role: Literal[
+        "main", "hover", "gallery", "hero_video", "size_guide", "packaging"
+    ] | None = None
+    sort_order: int | None = Field(None, ge=0)
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> MediaAssetUpdateRequest:
+        """Ensure at least one field is provided for update."""
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided")
+        return self
+
+
+class MediaAssetResponse(CamelModel):
+    """Full media asset detail response."""
+
+    id: uuid.UUID
+    product_id: uuid.UUID
+    variant_id: uuid.UUID | None = None
+    media_type: str
+    role: str
+    sort_order: int
+    storage_object_id: uuid.UUID | None = None
+    url: str | None = None
+    is_external: bool
+    image_variants: list[dict[str, Any]] | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+MediaAssetListResponse = PaginatedResponse[MediaAssetResponse]
+
+
+class ReorderMediaItemSchema(CamelModel):
+    """A single media asset reorder instruction."""
+
+    media_id: uuid.UUID
+    sort_order: int = Field(..., ge=0)
+
+
+class MediaAssetReorderRequest(CamelModel):
+    """Request body for bulk-reordering media assets."""
+
+    items: list[ReorderMediaItemSchema] = Field(..., min_length=1, max_length=100)
+
+
+# ---------------------------------------------------------------------------
 # AttributeTemplate schemas
 # ---------------------------------------------------------------------------
 
