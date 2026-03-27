@@ -9,7 +9,7 @@ Delegates to application-layer command/query handlers via Dishka DI.
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.modules.catalog.application.commands.bind_attribute_to_template import (
     BindAttributeToTemplateCommand,
@@ -150,10 +150,12 @@ async def clone_template(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_templates(
+    response: Response,
     handler: FromDishka[ListAttributeTemplatesHandler],
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
 ) -> AttributeTemplateListResponse:
+    response.headers["Cache-Control"] = "no-store"
     query = ListAttributeTemplatesQuery(offset=offset, limit=limit)
     result: AttributeTemplateListReadModel = await handler.handle(query)
     return AttributeTemplateListResponse(
@@ -183,8 +185,10 @@ async def list_templates(
 )
 async def get_template(
     template_id: uuid.UUID,
+    response: Response,
     handler: FromDishka[GetAttributeTemplateHandler],
 ) -> AttributeTemplateResponse:
+    response.headers["Cache-Control"] = "no-store"
     result: AttributeTemplateReadModel = await handler.handle(
         GetAttributeTemplateQuery(template_id=template_id)
     )
@@ -282,10 +286,12 @@ async def bind_attribute(
 )
 async def list_bindings(
     template_id: uuid.UUID,
+    response: Response,
     handler: FromDishka[ListTemplateBindingsHandler],
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
 ) -> TemplateAttributeBindingListResponse:
+    response.headers["Cache-Control"] = "no-store"
     query = ListTemplateBindingsQuery(
         template_id=template_id, offset=offset, limit=limit
     )

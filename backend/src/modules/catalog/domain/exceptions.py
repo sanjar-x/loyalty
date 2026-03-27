@@ -168,7 +168,7 @@ class SKUCodeConflictError(ConflictError):
         )
 
 
-class CannotDeletePublishedProductError(UnprocessableEntityError):
+class CannotDeletePublishedProductError(ConflictError):
     """Raised when attempting to delete a product that is currently published."""
 
     def __init__(self, product_id: uuid.UUID, current_status: str) -> None:
@@ -299,9 +299,7 @@ class ConcurrencyError(ConflictError):
                 "entity_type": entity_type,
                 "entity_id": str(entity_id),
                 "expected_version": expected_version,
-                "actual_version": actual_version
-                if actual_version is not None
-                else "unknown",
+                "actual_version": actual_version,
             },
         )
 

@@ -3,7 +3,7 @@
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.modules.catalog.application.commands.add_variant import (
     AddVariantCommand,
@@ -76,11 +76,13 @@ async def add_variant(
 )
 async def list_variants(
     product_id: uuid.UUID,
+    response: Response,
     handler: FromDishka[ListVariantsHandler],
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> ProductVariantListResponse:
     """Return paginated active variants for the given product."""
+    response.headers["Cache-Control"] = "no-store"
     query = ListVariantsQuery(product_id=product_id, offset=offset, limit=limit)
     result = await handler.handle(query)
     return ProductVariantListResponse(

@@ -10,8 +10,13 @@ Delegates to application-layer command/query handlers via Dishka DI.
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
+from src.modules.catalog.application.commands.bulk_create_attributes import (
+    BulkAttributeItem,
+    BulkCreateAttributesCommand,
+    BulkCreateAttributesHandler,
+)
 from src.modules.catalog.application.commands.create_attribute import (
     CreateAttributeCommand,
     CreateAttributeHandler,
@@ -53,6 +58,8 @@ from src.modules.catalog.presentation.schemas import (
     AttributeUsageCategoryItem,
     AttributeUsageResponse,
     AttributeUsageTemplateItem,
+    BulkCreateAttributesRequest,
+    BulkCreateAttributesResponse,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
@@ -97,6 +104,50 @@ async def create_attribute(
     return AttributeCreateResponse(id=result.attribute_id)
 
 
+@attribute_router.post(
+    path="/bulk",
+    status_code=status.HTTP_201_CREATED,
+    response_model=BulkCreateAttributesResponse,
+    summary="Bulk-create attributes (max 100)",
+    description="Create multiple attributes in a single transaction.",
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
+)
+async def bulk_create_attributes(
+    request: BulkCreateAttributesRequest,
+    handler: FromDishka[BulkCreateAttributesHandler],
+) -> BulkCreateAttributesResponse:
+    command = BulkCreateAttributesCommand(
+        items=[
+            BulkAttributeItem(
+                code=item.code,
+                slug=item.slug,
+                name_i18n=item.name_i18n,
+                description_i18n=item.description_i18n,
+                data_type=AttributeDataType(item.data_type),
+                ui_type=AttributeUIType(item.ui_type),
+                is_dictionary=item.is_dictionary,
+                group_id=item.group_id,
+                level=AttributeLevel(item.level),
+                is_filterable=item.is_filterable,
+                is_searchable=item.is_searchable,
+                search_weight=item.search_weight,
+                is_comparable=item.is_comparable,
+                is_visible_on_card=item.is_visible_on_card,
+                validation_rules=item.validation_rules,
+            )
+            for item in request.items
+        ],
+        skip_existing=request.skip_existing,
+    )
+    result = await handler.handle(command)
+    return BulkCreateAttributesResponse(
+        created_count=result.created_count,
+        skipped_count=result.skipped_count,
+        ids=result.ids,
+        skipped_codes=result.skipped_codes,
+    )
+
+
 @attribute_router.get(
     path="",
     status_code=status.HTTP_200_OK,
@@ -106,6 +157,7 @@ async def create_attribute(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_attributes(
+    response: Response,
     handler: FromDishka[ListAttributesHandler],
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
@@ -119,6 +171,7 @@ async def list_attributes(
     is_comparable: bool | None = Query(default=None),
     search: str | None = Query(default=None, min_length=1, max_length=100),
 ) -> AttributeListResponse:
+    response.headers["Cache-Control"] = "no-store"
     query = ListAttributesQuery(
         offset=offset,
         limit=limit,
@@ -171,8 +224,10 @@ async def list_attributes(
 )
 async def get_attribute(
     attribute_id: uuid.UUID,
+    response: Response,
     handler: FromDishka[GetAttributeHandler],
 ) -> AttributeResponse:
+    response.headers["Cache-Control"] = "no-store"
     result: AttributeReadModel = await handler.handle(attribute_id)
     return _to_attribute_response(result)
 
@@ -232,9 +287,11 @@ async def delete_attribute(
 )
 async def get_attribute_usage(
     attribute_id: uuid.UUID,
+    response: Response,
     handler: FromDishka[GetAttributeUsageHandler],
 ) -> AttributeUsageResponse:
     """Return usage analytics for a single attribute."""
+    response.headers["Cache-Control"] = "no-store"
     query = AttributeUsageQuery(attribute_id=attribute_id)
     result = await handler.handle(query)
     return AttributeUsageResponse(

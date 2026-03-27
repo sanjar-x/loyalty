@@ -9,7 +9,7 @@ Read endpoints require the ``catalog:read`` permission (admin use).
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.modules.catalog.application.commands.add_attribute_value import (
     AddAttributeValueCommand,
@@ -143,11 +143,13 @@ async def bulk_add_attribute_values(
 )
 async def list_attribute_values(
     attribute_id: uuid.UUID,
+    response: Response,
     handler: FromDishka[ListAttributeValuesHandler],
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
     search: str | None = Query(default=None, min_length=1, max_length=100),
 ) -> AttributeValueListResponse:
+    response.headers["Cache-Control"] = "no-store"
     query = ListAttributeValuesQuery(
         attribute_id=attribute_id,
         offset=offset,
@@ -188,8 +190,10 @@ async def list_attribute_values(
 async def get_attribute_value(
     attribute_id: uuid.UUID,
     value_id: uuid.UUID,
+    response: Response,
     handler: FromDishka[GetAttributeValueHandler],
 ) -> AttributeValueResponse:
+    response.headers["Cache-Control"] = "no-store"
     result = await handler.handle(attribute_id=attribute_id, value_id=value_id)
     return AttributeValueResponse(
         id=result.id,

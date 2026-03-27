@@ -27,6 +27,15 @@ from src.modules.catalog.application.commands.bulk_add_attribute_values import (
 from src.modules.catalog.application.commands.bulk_assign_product_attributes import (
     BulkAssignProductAttributesHandler,
 )
+from src.modules.catalog.application.commands.bulk_create_attributes import (
+    BulkCreateAttributesHandler,
+)
+from src.modules.catalog.application.commands.bulk_create_brands import (
+    BulkCreateBrandsHandler,
+)
+from src.modules.catalog.application.commands.bulk_create_categories import (
+    BulkCreateCategoriesHandler,
+)
 from src.modules.catalog.application.commands.change_product_status import (
     ChangeProductStatusHandler,
 )
@@ -192,6 +201,9 @@ class CategoryProvider(Provider):
     create_category_handler: CompositeDependencySource = provide(
         CreateCategoryHandler, scope=Scope.REQUEST
     )
+    bulk_create_categories_handler: CompositeDependencySource = provide(
+        BulkCreateCategoriesHandler, scope=Scope.REQUEST
+    )
     get_category_tree_handler: CompositeDependencySource = provide(
         GetCategoryTreeHandler, scope=Scope.REQUEST
     )
@@ -217,6 +229,9 @@ class BrandProvider(Provider):
     )
     create_brand_handler: CompositeDependencySource = provide(
         CreateBrandHandler, scope=Scope.REQUEST
+    )
+    bulk_create_brands_handler: CompositeDependencySource = provide(
+        BulkCreateBrandsHandler, scope=Scope.REQUEST
     )
     get_brand_handler: CompositeDependencySource = provide(
         GetBrandHandler, scope=Scope.REQUEST
@@ -256,6 +271,9 @@ class AttributeProvider(Provider):
     )
     create_attribute_handler: CompositeDependencySource = provide(
         CreateAttributeHandler, scope=Scope.REQUEST
+    )
+    bulk_create_attributes_handler: CompositeDependencySource = provide(
+        BulkCreateAttributesHandler, scope=Scope.REQUEST
     )
     update_attribute_handler: CompositeDependencySource = provide(
         UpdateAttributeHandler, scope=Scope.REQUEST

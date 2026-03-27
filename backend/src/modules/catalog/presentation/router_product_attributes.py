@@ -9,7 +9,7 @@ Delegates to application-layer command/query handlers via Dishka DI.
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.modules.catalog.application.commands.assign_product_attribute import (
     AssignProductAttributeCommand,
@@ -90,6 +90,7 @@ async def assign_product_attribute(
 )
 async def list_product_attributes(
     product_id: uuid.UUID,
+    response: Response,
     handler: FromDishka[ListProductAttributesHandler],
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
@@ -98,6 +99,7 @@ async def list_product_attributes(
 
     Args:
         product_id: UUID of the target product.
+        response: FastAPI response object for setting headers.
         handler: Injected query handler.
         limit: Maximum number of items to return.
         offset: Number of items to skip.
@@ -105,6 +107,7 @@ async def list_product_attributes(
     Returns:
         Paginated product attribute assignment responses.
     """
+    response.headers["Cache-Control"] = "no-store"
     query = ListProductAttributesQuery(
         product_id=product_id, offset=offset, limit=limit
     )

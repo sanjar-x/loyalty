@@ -10,8 +10,13 @@ Delegates to application-layer command/query handlers via Dishka DI.
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
+from src.modules.catalog.application.commands.bulk_create_categories import (
+    BulkCategoryItem,
+    BulkCreateCategoriesCommand,
+    BulkCreateCategoriesHandler,
+)
 from src.modules.catalog.application.commands.create_category import (
     CreateCategoryCommand,
     CreateCategoryHandler,
@@ -40,6 +45,9 @@ from src.modules.catalog.application.queries.read_models import (
     CategoryReadModel,
 )
 from src.modules.catalog.presentation.schemas import (
+    BulkCategoryCreatedItemResponse,
+    BulkCreateCategoriesRequest,
+    BulkCreateCategoriesResponse,
     CategoryCreateRequest,
     CategoryCreateResponse,
     CategoryListResponse,
@@ -82,6 +90,54 @@ async def create_category(
     )
 
 
+@category_router.post(
+    path="/bulk",
+    status_code=status.HTTP_201_CREATED,
+    response_model=BulkCreateCategoriesResponse,
+    summary="Bulk-create categories (max 200)",
+    description=(
+        "Create multiple categories in a single transaction. "
+        "Use 'ref' / 'parentRef' to build a tree within one request."
+    ),
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
+)
+async def bulk_create_categories(
+    request: BulkCreateCategoriesRequest,
+    handler: FromDishka[BulkCreateCategoriesHandler],
+) -> BulkCreateCategoriesResponse:
+    command = BulkCreateCategoriesCommand(
+        items=[
+            BulkCategoryItem(
+                name_i18n=item.name_i18n,
+                slug=item.slug,
+                parent_id=item.parent_id,
+                parent_ref=item.parent_ref,
+                ref=item.ref,
+                sort_order=item.sort_order,
+                template_id=item.template_id,
+            )
+            for item in request.items
+        ],
+        skip_existing=request.skip_existing,
+    )
+    result = await handler.handle(command)
+    return BulkCreateCategoriesResponse(
+        created_count=result.created_count,
+        skipped_count=result.skipped_count,
+        created=[
+            BulkCategoryCreatedItemResponse(
+                id=c.id,
+                slug=c.slug,
+                full_slug=c.full_slug,
+                level=c.level,
+                ref=c.ref,
+            )
+            for c in result.created
+        ],
+        skipped_slugs=result.skipped_slugs,
+    )
+
+
 @category_router.get(
     path="/tree",
     status_code=status.HTTP_200_OK,
@@ -91,11 +147,13 @@ async def create_category(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_category_tree(
+    response: Response,
     handler: FromDishka[GetCategoryTreeHandler],
     max_depth: int | None = Query(
         default=None, ge=1, le=10, description="Maximum tree depth to return"
     ),
 ) -> list[CategoryTreeResponse]:
+    response.headers["Cache-Control"] = "public, max-age=300, s-maxage=3600"
     roots: list[CategoryNode] = await handler.handle(max_depth=max_depth)
     return [CategoryTreeResponse.model_validate(r, from_attributes=True) for r in roots]
 
@@ -109,10 +167,12 @@ async def get_category_tree(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_categories(
+    response: Response,
     handler: FromDishka[ListCategoriesHandler],
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
 ) -> CategoryListResponse:
+    response.headers["Cache-Control"] = "no-store"
     query = ListCategoriesQuery(offset=offset, limit=limit)
     result: CategoryListReadModel = await handler.handle(query)
     return CategoryListResponse(
@@ -144,8 +204,10 @@ async def list_categories(
 )
 async def get_category(
     category_id: uuid.UUID,
+    response: Response,
     handler: FromDishka[GetCategoryHandler],
 ) -> CategoryResponse:
+    response.headers["Cache-Control"] = "no-store"
     result: CategoryReadModel = await handler.handle(category_id)
     return CategoryResponse(
         id=result.id,

@@ -9,7 +9,7 @@ Delegates to application-layer command/query handlers via Dishka DI.
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.modules.catalog.application.commands.add_sku import (
     AddSKUCommand,
@@ -96,11 +96,13 @@ async def add_sku(
 async def list_skus(
     product_id: uuid.UUID,
     variant_id: uuid.UUID,
+    response: Response,
     handler: FromDishka[ListSKUsHandler],
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> SKUListResponse:
     """Return paginated SKUs belonging to the given product."""
+    response.headers["Cache-Control"] = "no-store"
     query = ListSKUsQuery(
         product_id=product_id, variant_id=variant_id, offset=offset, limit=limit
     )

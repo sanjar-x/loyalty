@@ -10,8 +10,13 @@ Delegates to application-layer command/query handlers via Dishka DI.
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
+from src.modules.catalog.application.commands.bulk_create_brands import (
+    BulkBrandItem,
+    BulkCreateBrandsCommand,
+    BulkCreateBrandsHandler,
+)
 from src.modules.catalog.application.commands.create_brand import (
     CreateBrandCommand,
     CreateBrandHandler,
@@ -41,6 +46,8 @@ from src.modules.catalog.presentation.schemas import (
     BrandListResponse,
     BrandResponse,
     BrandUpdateRequest,
+    BulkCreateBrandsRequest,
+    BulkCreateBrandsResponse,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
@@ -74,6 +81,34 @@ async def create_brand(
     return BrandCreateResponse(id=result.brand_id)
 
 
+@brand_router.post(
+    path="/bulk",
+    status_code=status.HTTP_201_CREATED,
+    response_model=BulkCreateBrandsResponse,
+    summary="Bulk-create brands (max 100)",
+    description="Create multiple brands in a single transaction. Idempotent slugs are rejected.",
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
+)
+async def bulk_create_brands(
+    request: BulkCreateBrandsRequest,
+    handler: FromDishka[BulkCreateBrandsHandler],
+) -> BulkCreateBrandsResponse:
+    command = BulkCreateBrandsCommand(
+        items=[
+            BulkBrandItem(name=item.name, slug=item.slug, logo_url=item.logo_url)
+            for item in request.items
+        ],
+        skip_existing=request.skip_existing,
+    )
+    result = await handler.handle(command)
+    return BulkCreateBrandsResponse(
+        created_count=result.created_count,
+        skipped_count=result.skipped_count,
+        ids=result.ids,
+        skipped_slugs=result.skipped_slugs,
+    )
+
+
 @brand_router.get(
     path="",
     status_code=status.HTTP_200_OK,
@@ -83,10 +118,12 @@ async def create_brand(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_brands(
+    response: Response,
     handler: FromDishka[ListBrandsHandler],
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
 ) -> BrandListResponse:
+    response.headers["Cache-Control"] = "no-store"
     query = ListBrandsQuery(offset=offset, limit=limit)
     result: BrandListReadModel = await handler.handle(query)
     return BrandListResponse(
@@ -115,8 +152,10 @@ async def list_brands(
 )
 async def get_brand(
     brand_id: uuid.UUID,
+    response: Response,
     handler: FromDishka[GetBrandHandler],
 ) -> BrandResponse:
+    response.headers["Cache-Control"] = "no-store"
     result: BrandReadModel = await handler.handle(brand_id)
     return BrandResponse(
         id=result.id,

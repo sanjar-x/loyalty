@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
-from pydantic import AfterValidator, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, ConfigDict, Field, computed_field, model_validator
 
 from src.shared.schemas import CamelModel
 
@@ -26,6 +26,12 @@ class PaginatedResponse(CamelModel, Generic[S]):
     total: int
     offset: int
     limit: int
+
+    @computed_field
+    @property
+    def has_next(self) -> bool:
+        """True when more items exist beyond the current page."""
+        return self.offset + len(self.items) < self.total
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +190,57 @@ class CategoryUpdateRequest(CamelModel):
 CategoryListResponse = PaginatedResponse[CategoryResponse]
 
 
+class BulkCategoryItem(CamelModel):
+    """A single category within a bulk-create request."""
+
+    name_i18n: I18nDict = Field(..., min_length=1)
+    slug: str = Field(..., min_length=3, max_length=255, pattern=r"^[a-z0-9-]+$")
+    parent_id: uuid.UUID | None = Field(
+        None, description="Existing parent category UUID"
+    )
+    parent_ref: str | None = Field(
+        None,
+        max_length=100,
+        description="Reference to another item's 'ref' in this batch (for nested trees)",
+    )
+    ref: str | None = Field(
+        None,
+        max_length=100,
+        description="Key so other items can reference this one as parent",
+    )
+    sort_order: int = Field(0, ge=0)
+    template_id: uuid.UUID | None = None
+
+
+class BulkCreateCategoriesRequest(CamelModel):
+    """Request body for bulk-creating categories (max 200)."""
+
+    items: list[BulkCategoryItem] = Field(..., min_length=1, max_length=200)
+    skip_existing: bool = Field(
+        False,
+        description="If true, silently skip categories with conflicting slug instead of failing.",
+    )
+
+
+class BulkCategoryCreatedItemResponse(CamelModel):
+    """Info about a single created category in the bulk response."""
+
+    id: uuid.UUID
+    slug: str
+    full_slug: str
+    level: int
+    ref: str | None = None
+
+
+class BulkCreateCategoriesResponse(CamelModel):
+    """Response from bulk category creation."""
+
+    created_count: int
+    skipped_count: int
+    created: list[BulkCategoryCreatedItemResponse]
+    skipped_slugs: list[str]
+
+
 class BrandCreateRequest(CamelModel):
     """Request body for creating a new brand, with optional logo fields."""
 
@@ -229,6 +286,33 @@ class BrandUpdateRequest(CamelModel):
 
 
 BrandListResponse = PaginatedResponse[BrandResponse]
+
+
+class BulkBrandItem(CamelModel):
+    """A single brand within a bulk-create request."""
+
+    name: str = Field(..., min_length=1, max_length=255)
+    slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9-]+$")
+    logo_url: str | None = Field(None, max_length=2048, pattern=r"^https://")
+
+
+class BulkCreateBrandsRequest(CamelModel):
+    """Request body for bulk-creating brands (max 100)."""
+
+    items: list[BulkBrandItem] = Field(..., min_length=1, max_length=100)
+    skip_existing: bool = Field(
+        False,
+        description="If true, silently skip brands with existing slug/name instead of failing.",
+    )
+
+
+class BulkCreateBrandsResponse(CamelModel):
+    """Response from bulk brand creation."""
+
+    created_count: int
+    skipped_count: int
+    ids: list[uuid.UUID]
+    skipped_slugs: list[str]
 
 
 # ---------------------------------------------------------------------------
@@ -322,6 +406,25 @@ class AttributeUpdateRequest(CamelModel):
 
 
 AttributeListResponse = PaginatedResponse[AttributeResponse]
+
+
+class BulkCreateAttributesRequest(CamelModel):
+    """Request body for bulk-creating attributes (max 100)."""
+
+    items: list[AttributeCreateRequest] = Field(..., min_length=1, max_length=100)
+    skip_existing: bool = Field(
+        False,
+        description="If true, silently skip attributes with existing code/slug.",
+    )
+
+
+class BulkCreateAttributesResponse(CamelModel):
+    """Response from bulk attribute creation."""
+
+    created_count: int
+    skipped_count: int
+    ids: list[uuid.UUID]
+    skipped_codes: list[str]
 
 
 # ---------------------------------------------------------------------------
@@ -476,7 +579,9 @@ class StorefrontFilterAttributeResponse(CamelModel):
     code: str
     slug: str
     name_i18n: dict[str, str]
-    name: str | None = Field(None, description="Projected name from nameI18n when ?lang is specified")
+    name: str | None = Field(
+        None, description="Projected name from nameI18n when ?lang is specified"
+    )
     data_type: str
     ui_type: str
     is_dictionary: bool
@@ -500,7 +605,9 @@ class StorefrontCardAttributeResponse(CamelModel):
     code: str
     slug: str
     name_i18n: dict[str, str]
-    name: str | None = Field(None, description="Projected name from nameI18n when ?lang is specified")
+    name: str | None = Field(
+        None, description="Projected name from nameI18n when ?lang is specified"
+    )
     data_type: str
     ui_type: str
     level: str
@@ -532,7 +639,9 @@ class StorefrontComparisonAttributeResponse(CamelModel):
     code: str
     slug: str
     name_i18n: dict[str, str]
-    name: str | None = Field(None, description="Projected name from nameI18n when ?lang is specified")
+    name: str | None = Field(
+        None, description="Projected name from nameI18n when ?lang is specified"
+    )
     data_type: str
     ui_type: str
     sort_order: int
@@ -552,7 +661,9 @@ class StorefrontFormAttributeResponse(CamelModel):
     code: str
     slug: str
     name_i18n: dict[str, str]
-    name: str | None = Field(None, description="Projected name from nameI18n when ?lang is specified")
+    name: str | None = Field(
+        None, description="Projected name from nameI18n when ?lang is specified"
+    )
     description_i18n: dict[str, str]
     data_type: str
     ui_type: str
@@ -618,7 +729,9 @@ class ProductCreateRequest(CamelModel):
     description_i18n: I18nDict = Field(default_factory=dict)
     supplier_id: uuid.UUID | None = None
     source_url: str | None = Field(None, max_length=1024, pattern=r"^https?://")
-    tags: list[Annotated[str, Field(max_length=200)]] = Field(default_factory=list, max_length=50)
+    tags: list[Annotated[str, Field(max_length=200)]] = Field(
+        default_factory=list, max_length=50
+    )
 
 
 class ProductCreateResponse(CamelModel):
@@ -651,7 +764,9 @@ class ProductUpdateRequest(CamelModel):
     country_of_origin: str | None = Field(
         None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$"
     )
-    tags: list[Annotated[str, Field(max_length=200)]] | None = Field(None, max_length=50)
+    tags: list[Annotated[str, Field(max_length=200)]] | None = Field(
+        None, max_length=50
+    )
     version: int | None = None
 
     @model_validator(mode="after")
@@ -674,11 +789,15 @@ class SKUCreateRequest(CamelModel):
     """Request body for adding a SKU (variant) to a product."""
 
     sku_code: str = Field(..., min_length=1, max_length=100)
-    price_amount: int = Field(..., ge=0)
-    price_currency: str = Field(..., min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
+    price_amount: int | None = Field(None, ge=0)
+    price_currency: str = Field(
+        "RUB", min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"
+    )
     compare_at_price_amount: int | None = Field(None, ge=0)
     is_active: bool = True
-    variant_attributes: list[VariantAttributePairSchema] = Field(default_factory=list, max_length=50)
+    variant_attributes: list[VariantAttributePairSchema] = Field(
+        default_factory=list, max_length=50
+    )
 
 
 class SKUCreateResponse(CamelModel):
@@ -698,7 +817,9 @@ class SKUUpdateRequest(CamelModel):
     )
     compare_at_price_amount: int | None = None
     is_active: bool | None = None
-    variant_attributes: list[VariantAttributePairSchema] | None = Field(None, max_length=50)
+    variant_attributes: list[VariantAttributePairSchema] | None = Field(
+        None, max_length=50
+    )
     version: int | None = None
 
     @model_validator(mode="after")
@@ -891,7 +1012,9 @@ class AttributeSelectionSchema(CamelModel):
 class SKUMatrixGenerateRequest(CamelModel):
     """Request to generate SKU combinations from attribute selections."""
 
-    attribute_selections: list[AttributeSelectionSchema] = Field(..., min_length=1, max_length=10)
+    attribute_selections: list[AttributeSelectionSchema] = Field(
+        ..., min_length=1, max_length=10
+    )
     price_amount: int | None = Field(None, ge=0)
     price_currency: str = Field(
         "RUB", min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"
@@ -993,13 +1116,7 @@ class AttributeTemplateUpdateRequest(CamelModel):
         return self
 
 
-class AttributeTemplateListResponse(CamelModel):
-    """Paginated list of attribute templates."""
-
-    items: list[AttributeTemplateResponse]
-    total: int
-    offset: int
-    limit: int
+AttributeTemplateListResponse = PaginatedResponse[AttributeTemplateResponse]
 
 
 # ---------------------------------------------------------------------------
@@ -1045,13 +1162,9 @@ class TemplateAttributeBindingDetailResponse(CamelModel):
     attribute_is_filterable: bool = False
 
 
-class TemplateAttributeBindingListResponse(CamelModel):
-    """List of bindings for a template."""
-
-    items: list[TemplateAttributeBindingDetailResponse]
-    total: int
-    offset: int
-    limit: int
+TemplateAttributeBindingListResponse = PaginatedResponse[
+    TemplateAttributeBindingDetailResponse
+]
 
 
 class TemplateAttributeBindingUpdateRequest(CamelModel):

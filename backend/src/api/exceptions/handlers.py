@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from structlog.stdlib import BoundLogger
 
+from src.shared.context import get_request_id
 from src.shared.exceptions import AppException
 
 logger: BoundLogger = structlog.get_logger("api.exceptions")
@@ -45,6 +46,7 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
                 "code": exc.error_code,
                 "message": exc.message,
                 "details": exc.details or {},
+                "request_id": get_request_id(),
             }
         },
     )
@@ -83,6 +85,7 @@ async def validation_exception_handler(
                 "code": "VALIDATION_ERROR",
                 "message": "Input validation error.",
                 "details": details,
+                "request_id": get_request_id(),
             }
         },
     )
@@ -110,6 +113,7 @@ async def http_exception_handler(
                 "code": f"HTTP_ERROR_{exc.status_code}",
                 "message": str(exc.detail),
                 "details": {},
+                "request_id": get_request_id(),
             }
         },
     )
@@ -141,6 +145,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
                 "code": "INTERNAL_SERVER_ERROR",
                 "message": "Internal server error.",
                 "details": {},
+                "request_id": get_request_id(),
             }
         },
     )
