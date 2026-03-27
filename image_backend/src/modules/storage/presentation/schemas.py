@@ -19,6 +19,17 @@ class UploadResponse(CamelModel):
     expires_in: int = 300
 
 
+class ReuploadRequest(CamelModel):
+    content_type: str
+    filename: str | None = None
+
+
+class ReuploadResponse(CamelModel):
+    storage_object_id: uuid.UUID
+    presigned_url: str
+    expires_in: int = 300
+
+
 class ConfirmResponse(CamelModel):
     storage_object_id: uuid.UUID
     status: str = "processing"

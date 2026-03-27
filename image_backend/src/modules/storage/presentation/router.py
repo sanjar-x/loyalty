@@ -1,9 +1,7 @@
 """Media HTTP endpoints for the Image Backend microservice.
 
-Implements the full media lifecycle per spec
-(docs/superpowers/specs/2026-03-25-media-architecture-split-design.md):
-
   POST   /media/upload               → reserve slot, return presigned PUT URL
+  POST   /media/{id}/reupload        → replace image, keep same ID & URLs
   POST   /media/{id}/confirm         → verify S3, start background processing
   GET    /media/{id}/status           → SSE stream for processing status
   GET    /media/{id}                  → get metadata
@@ -37,6 +35,8 @@ from src.modules.storage.presentation.schemas import (
     ExternalImportResponse,
     MediaVariant,
     MetadataResponse,
+    ReuploadRequest,
+    ReuploadResponse,
     StatusEventData,
     UploadRequest,
     UploadResponse,
@@ -105,7 +105,62 @@ async def request_upload(
 
 
 # ---------------------------------------------------------------------------
-# 2. POST /{storage_object_id}/confirm — Verify S3, dispatch processing
+# 2. POST /{storage_object_id}/reupload — Replace image, keep same ID & URLs
+# ---------------------------------------------------------------------------
+@media_router.post(
+    "/{storage_object_id}/reupload",
+    response_model=ReuploadResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get a new presigned URL to replace the image (same ID & URLs)",
+)
+async def reupload(
+    storage_object_id: uuid.UUID,
+    body: ReuploadRequest,
+    repo: FromDishka[IStorageRepository],
+    blob_storage: FromDishka[IBlobStorage],
+    uow: FromDishka[IUnitOfWork],
+) -> ReuploadResponse:
+    storage_file = await repo.get_by_id(storage_object_id)
+    if not storage_file:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Storage object not found.",
+        )
+
+    if storage_file.status == StorageStatus.PROCESSING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot reupload while image is being processed.",
+        )
+
+    filename = body.filename or f"upload.{body.content_type.split('/')[-1]}"
+
+    # New raw key under the same ID — worker will overwrite public/{id}*.webp
+    object_key = f"raw/{storage_object_id}/{filename}"
+
+    presigned_url = await blob_storage.generate_presigned_put_url(
+        object_name=object_key,
+        content_type=body.content_type,
+        expiration=300,
+    )
+
+    # Reset to PENDING_UPLOAD so confirm → processing → completed cycle restarts
+    storage_file.object_key = object_key
+    storage_file.content_type = body.content_type
+    storage_file.filename = filename
+    storage_file.status = StorageStatus.PENDING_UPLOAD
+    await repo.update(storage_file)
+    await uow.commit()
+
+    return ReuploadResponse(
+        storage_object_id=storage_object_id,
+        presigned_url=presigned_url,
+        expires_in=300,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 3. POST /{storage_object_id}/confirm — Verify S3, dispatch processing
 # ---------------------------------------------------------------------------
 @media_router.post(
     "/{storage_object_id}/confirm",
