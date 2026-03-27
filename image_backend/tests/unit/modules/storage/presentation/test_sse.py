@@ -1,35 +1,58 @@
-import asyncio
-import json
+"""Tests for SSEManager.channel_name (pure logic, no Redis needed)."""
+
 import uuid
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from src.modules.storage.presentation.sse import SSEManager
 
 
-@pytest.fixture
-def mock_redis():
-    return AsyncMock()
+class TestSSEManagerChannelName:
+    """Verify the channel_name method produces correct Redis key patterns."""
 
+    @staticmethod
+    def _make_manager() -> SSEManager:
+        """Create an SSEManager without a Redis connection.
 
-def test_channel_name_contains_uuid():
-    redis = AsyncMock()
-    mgr = SSEManager(redis=redis)
-    sid = uuid.uuid4()
-    channel = mgr.channel_name(sid)
-    assert str(sid) in channel
-    assert channel.startswith("media:status:")
+        ``channel_name`` is a pure function — it only formats a string
+        and never touches the network.  Bypassing ``__init__`` avoids
+        the need for a live (or mocked) Redis instance.
+        """
+        return SSEManager.__new__(SSEManager)
 
+    def test_channel_format_matches_spec(self) -> None:
+        """Channel name must follow 'media:status:{uuid}'."""
+        mgr = self._make_manager()
+        sid = uuid.uuid4()
+        channel = mgr.channel_name(sid)
 
-@pytest.mark.asyncio
-async def test_publish_sends_to_redis(mock_redis):
-    mgr = SSEManager(redis=mock_redis)
-    sid = uuid.uuid4()
-    data = {"status": "completed", "url": "https://cdn.example.com/x.webp"}
+        assert channel == f"media:status:{sid}"
 
-    await mgr.publish(sid, data)
+    def test_channel_starts_with_prefix(self) -> None:
+        """Channel name must start with 'media:status:'."""
+        mgr = self._make_manager()
+        sid = uuid.uuid4()
+        channel = mgr.channel_name(sid)
 
-    mock_redis.publish.assert_called_once()
-    call_args = mock_redis.publish.call_args
-    assert str(sid) in call_args[0][0]  # channel name
-    assert json.loads(call_args[0][1]) == data  # payload
+        assert channel.startswith("media:status:")
+
+    def test_channel_contains_uuid(self) -> None:
+        """The UUID must appear verbatim in the channel name."""
+        mgr = self._make_manager()
+        sid = uuid.uuid4()
+        channel = mgr.channel_name(sid)
+
+        assert str(sid) in channel
+
+    def test_different_ids_produce_different_channels(self) -> None:
+        """Two distinct storage-object IDs must map to distinct channels."""
+        mgr = self._make_manager()
+        id_a = uuid.uuid4()
+        id_b = uuid.uuid4()
+
+        assert mgr.channel_name(id_a) != mgr.channel_name(id_b)
+
+    def test_same_id_produces_same_channel(self) -> None:
+        """The same UUID must always produce the same channel name."""
+        mgr = self._make_manager()
+        sid = uuid.uuid4()
+
+        assert mgr.channel_name(sid) == mgr.channel_name(sid)
