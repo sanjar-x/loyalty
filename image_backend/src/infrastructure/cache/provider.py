@@ -10,10 +10,8 @@ import redis.asyncio as redis
 import structlog
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
-from redis.asyncio.client import Redis
-from redis.asyncio.connection import ConnectionPool
 
-from src.bootstrap.config import settings
+from src.bootstrap.config import Settings
 from src.infrastructure.cache.redis import RedisService
 from src.shared.interfaces.cache import ICacheService
 
@@ -24,34 +22,28 @@ class CacheProvider(Provider):
     """Dishka provider that supplies Redis client and cache service bindings."""
 
     @provide(scope=Scope.APP)
-    async def redis_client(self) -> AsyncIterable[redis.Redis]:
-        """Create and yield a Redis client backed by a connection pool.
+    async def redis_client(self, settings: Settings) -> AsyncIterable[redis.Redis]:
+        """Create and yield a Redis client via ``Redis.from_url``.
 
-        The connection pool is initialized on first use and torn down when
-        the application scope is disposed.
+        The client is torn down when the application scope is disposed.
+
+        Args:
+            settings: Application settings containing the Redis URL.
 
         Yields:
             redis.Redis: An async Redis client instance.
         """
-        logger.info("Initializing Redis connection pool...", url=settings.redis_url)
+        logger.info("Initializing Redis client...", url=settings.redis_url)
 
-        pool: ConnectionPool = redis.ConnectionPool.from_url(
-            url=settings.redis_url,
-            max_connections=100,
-            socket_timeout=5.0,
-            socket_connect_timeout=2.0,
-            decode_responses=False,
-        )
-        client: Redis[bytes] = redis.Redis(connection_pool=pool)
+        client = redis.Redis.from_url(settings.redis_url)
 
         ping: bool = await client.ping()  # type: ignore[misc]
         logger.info("Redis connection established", ping=ping)
 
         yield client
 
-        logger.info("Closing Redis connection pool...")
-        await client.close()
-        await pool.disconnect()
+        logger.info("Closing Redis client...")
+        await client.aclose()
 
     cache_service: CompositeDependencySource = provide(
         source=RedisService, scope=Scope.APP, provides=ICacheService
