@@ -1,7 +1,8 @@
-"""Seed categories via single-item HTTP API (no bulk endpoint dependency).
+"""Seed categories via single-item HTTP API.
 
 Creates root categories first, fetches their IDs, then creates children.
-Uses slug-based duplicate detection: existing categories are skipped.
+Idempotent: existing categories are skipped but their IDs are resolved
+for child references. Lookup results are cached to avoid N+1 API calls.
 
 Called by seed/main.py as part of the seeding flow.
 """
@@ -23,7 +24,9 @@ def seed_categories(ctx: SeedContext) -> None:
     headers = {"Authorization": f"Bearer {ctx.token}"}
     url = f"{ctx.api_prefix}/catalog/categories"
 
-    # ref → id (resolved at creation time)
+    # Pre-load existing categories (for re-run idempotency)
+    slug_to_id = _load_all_categories(ctx)
+
     ref_map: dict[str, str] = {}
     created = skipped = failed = 0
 
@@ -33,17 +36,16 @@ def seed_categories(ctx: SeedContext) -> None:
         if item.get("parentRef"):
             parent_id = ref_map.get(item["parentRef"])
             if not parent_id:
-                # Parent was skipped → try to find it in DB
-                parent_id = _find_category_by_slug(ctx, item["parentRef"])
-                if not parent_id:
-                    print(
-                        f"    ! {item['slug']:<25} parent '{item['parentRef']}' not found"
-                    )
-                    failed += 1
-                    continue
+                parent_id = slug_to_id.get(item["parentRef"])
+            if not parent_id:
+                print(
+                    f"    ! {item['slug']:<25} parent '{item['parentRef']}' not found"
+                )
+                failed += 1
+                continue
 
-        body = {
-            "nameI18n": item["nameI18n"],
+        body: dict = {
+            "nameI18N": item["nameI18N"],
             "slug": item["slug"],
             "sortOrder": item.get("sortOrder", 0),
         }
@@ -56,19 +58,16 @@ def seed_categories(ctx: SeedContext) -> None:
 
         if r.status_code == 201:
             cat_id = r.json()["id"]
-            ref = item.get("ref")
-            if ref:
-                ref_map[ref] = cat_id
+            slug_to_id[item["slug"]] = cat_id
+            if item.get("ref"):
+                ref_map[item["ref"]] = cat_id
             level = "L0" if not parent_id else "L1"
             print(f"    + {item['slug']:<25} {cat_id} ({level})")
             created += 1
         elif r.status_code == 409:
-            # Exists → resolve ID for children
-            ref = item.get("ref")
-            if ref:
-                found_id = _find_category_by_slug(ctx, item["slug"])
-                if found_id:
-                    ref_map[ref] = found_id
+            existing_id = slug_to_id.get(item["slug"])
+            if item.get("ref") and existing_id:
+                ref_map[item["ref"]] = existing_id
             print(f"    ~ {item['slug']:<25} (exists)")
             skipped += 1
         else:
@@ -78,15 +77,12 @@ def seed_categories(ctx: SeedContext) -> None:
     print(f"  --- {created} created, {skipped} skipped, {failed} failed")
 
 
-def _find_category_by_slug(ctx: SeedContext, slug: str) -> str | None:
-    """Find category ID by slug via list endpoint."""
+def _load_all_categories(ctx: SeedContext) -> dict[str, str]:
+    """Pre-load all categories into slug->id cache (single API call)."""
     r = ctx.client.get(
         f"{ctx.api_prefix}/catalog/categories?limit=200",
         headers={"Authorization": f"Bearer {ctx.token}"},
     )
     if r.status_code != 200:
-        return None
-    for cat in r.json()["items"]:
-        if cat["slug"] == slug:
-            return cat["id"]
-    return None
+        return {}
+    return {cat["slug"]: cat["id"] for cat in r.json()["items"]}

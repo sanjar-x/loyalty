@@ -1,214 +1,214 @@
 [
   {
     "ref": "clothing",
-    "nameI18n": { "ru": "Одежда", "en": "Clothing" },
+    "nameI18N": { "ru": "Одежда", "en": "Clothing" },
     "slug": "clothing",
     "sortOrder": 1
   },
   {
     "ref": "footwear",
-    "nameI18n": { "ru": "Обувь", "en": "Footwear" },
+    "nameI18N": { "ru": "Обувь", "en": "Footwear" },
     "slug": "footwear",
     "sortOrder": 2
   },
   {
     "ref": "accessories",
-    "nameI18n": { "ru": "Аксессуары", "en": "Accessories" },
+    "nameI18N": { "ru": "Аксессуары", "en": "Accessories" },
     "slug": "accessories",
     "sortOrder": 3
   },
 
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Футболки", "en": "T-Shirts" },
+    "nameI18N": { "ru": "Футболки", "en": "T-Shirts" },
     "slug": "tees",
     "sortOrder": 1
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Худи", "en": "Hoodies" },
+    "nameI18N": { "ru": "Худи", "en": "Hoodies" },
     "slug": "hoodies",
     "sortOrder": 2
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Зип-худи", "en": "Zip Hoodies" },
+    "nameI18N": { "ru": "Зип-худи", "en": "Zip Hoodies" },
     "slug": "zip-hoodies",
     "sortOrder": 3
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Джинсы", "en": "Jeans" },
+    "nameI18N": { "ru": "Джинсы", "en": "Jeans" },
     "slug": "jeans",
     "sortOrder": 4
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Штаны", "en": "Pants" },
+    "nameI18N": { "ru": "Штаны", "en": "Pants" },
     "slug": "pants",
     "sortOrder": 5
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Шорты", "en": "Shorts" },
+    "nameI18N": { "ru": "Шорты", "en": "Shorts" },
     "slug": "shorts",
     "sortOrder": 6
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Майки", "en": "Tank Tops" },
+    "nameI18N": { "ru": "Майки", "en": "Tank Tops" },
     "slug": "tank-tops",
     "sortOrder": 7
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Лонгсливы", "en": "Long Sleeves" },
+    "nameI18N": { "ru": "Лонгсливы", "en": "Long Sleeves" },
     "slug": "long-sleeves",
     "sortOrder": 8
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Свитшоты", "en": "Sweatshirts" },
+    "nameI18N": { "ru": "Свитшоты", "en": "Sweatshirts" },
     "slug": "sweatshirts",
     "sortOrder": 9
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Свитеры", "en": "Sweaters" },
+    "nameI18N": { "ru": "Свитеры", "en": "Sweaters" },
     "slug": "sweaters",
     "sortOrder": 10
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Рубашки", "en": "Shirts" },
+    "nameI18N": { "ru": "Рубашки", "en": "Shirts" },
     "slug": "shirts",
     "sortOrder": 11
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Ветровки", "en": "Windbreakers" },
+    "nameI18N": { "ru": "Ветровки", "en": "Windbreakers" },
     "slug": "windbreakers",
     "sortOrder": 12
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Бомберы", "en": "Bomber Jackets" },
+    "nameI18N": { "ru": "Бомберы", "en": "Bomber Jackets" },
     "slug": "bomber-jackets",
     "sortOrder": 13
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Куртки", "en": "Jackets" },
+    "nameI18N": { "ru": "Куртки", "en": "Jackets" },
     "slug": "jackets",
     "sortOrder": 14
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Пуховики", "en": "Puffer Jackets" },
+    "nameI18N": { "ru": "Пуховики", "en": "Puffer Jackets" },
     "slug": "puffers",
     "sortOrder": 15
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Жилеты", "en": "Vests" },
+    "nameI18N": { "ru": "Жилеты", "en": "Vests" },
     "slug": "vests",
     "sortOrder": 16
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Носки", "en": "Socks" },
+    "nameI18N": { "ru": "Носки", "en": "Socks" },
     "slug": "socks",
     "sortOrder": 17
   },
   {
     "parentRef": "clothing",
-    "nameI18n": { "ru": "Нижнее бельё", "en": "Underwear" },
+    "nameI18N": { "ru": "Нижнее бельё", "en": "Underwear" },
     "slug": "underwear",
     "sortOrder": 18
   },
 
   {
     "parentRef": "footwear",
-    "nameI18n": { "ru": "Кроссовки", "en": "Sneakers" },
+    "nameI18N": { "ru": "Кроссовки", "en": "Sneakers" },
     "slug": "sneakers",
     "sortOrder": 1
   },
   {
     "parentRef": "footwear",
-    "nameI18n": { "ru": "Кеды", "en": "Canvas Shoes" },
+    "nameI18N": { "ru": "Кеды", "en": "Canvas Shoes" },
     "slug": "canvas-shoes",
     "sortOrder": 2
   },
   {
     "parentRef": "footwear",
-    "nameI18n": { "ru": "Туфли", "en": "Dress Shoes" },
+    "nameI18N": { "ru": "Туфли", "en": "Dress Shoes" },
     "slug": "dress-shoes",
     "sortOrder": 3
   },
   {
     "parentRef": "footwear",
-    "nameI18n": { "ru": "Шлепанцы", "en": "Slides" },
+    "nameI18N": { "ru": "Шлепанцы", "en": "Slides" },
     "slug": "slides",
     "sortOrder": 4
   },
   {
     "parentRef": "footwear",
-    "nameI18n": { "ru": "Ботинки", "en": "Boots" },
+    "nameI18N": { "ru": "Ботинки", "en": "Boots" },
     "slug": "boots",
     "sortOrder": 5
   },
 
   {
     "parentRef": "accessories",
-    "nameI18n": { "ru": "Сумки", "en": "Bags" },
+    "nameI18N": { "ru": "Сумки", "en": "Bags" },
     "slug": "bags",
     "sortOrder": 1
   },
   {
     "parentRef": "accessories",
-    "nameI18n": { "ru": "Часы", "en": "Watches" },
+    "nameI18N": { "ru": "Часы", "en": "Watches" },
     "slug": "watches",
     "sortOrder": 2
   },
   {
     "parentRef": "accessories",
-    "nameI18n": { "ru": "Украшения", "en": "Jewelry" },
+    "nameI18N": { "ru": "Украшения", "en": "Jewelry" },
     "slug": "jewelry",
     "sortOrder": 3
   },
   {
     "parentRef": "accessories",
-    "nameI18n": { "ru": "Рюкзаки", "en": "Backpacks" },
+    "nameI18N": { "ru": "Рюкзаки", "en": "Backpacks" },
     "slug": "backpacks",
     "sortOrder": 4
   },
   {
     "parentRef": "accessories",
-    "nameI18n": { "ru": "Ремни", "en": "Belts" },
+    "nameI18N": { "ru": "Ремни", "en": "Belts" },
     "slug": "belts",
     "sortOrder": 5
   },
   {
     "parentRef": "accessories",
-    "nameI18n": { "ru": "Кепки", "en": "Caps" },
+    "nameI18N": { "ru": "Кепки", "en": "Caps" },
     "slug": "caps",
     "sortOrder": 6
   },
   {
     "parentRef": "accessories",
-    "nameI18n": { "ru": "Шапки", "en": "Beanies" },
+    "nameI18N": { "ru": "Шапки", "en": "Beanies" },
     "slug": "beanies",
     "sortOrder": 7
   },
   {
     "parentRef": "accessories",
-    "nameI18n": { "ru": "Очки", "en": "Eyewear" },
+    "nameI18N": { "ru": "Очки", "en": "Eyewear" },
     "slug": "eyewear",
     "sortOrder": 8
   },
   {
     "parentRef": "accessories",
-    "nameI18n": { "ru": "Кошельки", "en": "Wallets" },
+    "nameI18N": { "ru": "Кошельки", "en": "Wallets" },
     "slug": "wallets",
     "sortOrder": 9
   }

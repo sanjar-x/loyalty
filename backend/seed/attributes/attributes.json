@@ -2,7 +2,7 @@
   "groups": [
     {
       "code": "physical",
-      "nameI18n": {
+      "nameI18N": {
         "ru": "Физические характеристики",
         "en": "Physical Characteristics"
       },
@@ -10,12 +10,12 @@
     },
     {
       "code": "appearance",
-      "nameI18n": { "ru": "Внешний вид", "en": "Appearance" },
+      "nameI18N": { "ru": "Внешний вид", "en": "Appearance" },
       "sortOrder": 2
     },
     {
       "code": "general",
-      "nameI18n": { "ru": "Общие", "en": "General" },
+      "nameI18N": { "ru": "Общие", "en": "General" },
       "sortOrder": 3
     }
   ],
@@ -25,8 +25,8 @@
       "code": "clothing_size",
       "slug": "clothing-size",
       "groupCode": "physical",
-      "nameI18n": { "ru": "Размер одежды", "en": "Clothing Size" },
-      "descriptionI18n": {
+      "nameI18N": { "ru": "Размер одежды", "en": "Clothing Size" },
+      "descriptionI18N": {
         "ru": "Буквенный размер",
         "en": "Letter-based size"
       },
@@ -40,22 +40,22 @@
         {
           "code": "xxs",
           "slug": "xxs",
-          "valueI18n": { "ru": "XXS", "en": "XXS" }
+          "valueI18N": { "ru": "XXS", "en": "XXS" }
         },
-        { "code": "xs", "slug": "xs", "valueI18n": { "ru": "XS", "en": "XS" } },
-        { "code": "s", "slug": "s", "valueI18n": { "ru": "S", "en": "S" } },
-        { "code": "m", "slug": "m", "valueI18n": { "ru": "M", "en": "M" } },
-        { "code": "l", "slug": "l", "valueI18n": { "ru": "L", "en": "L" } },
-        { "code": "xl", "slug": "xl", "valueI18n": { "ru": "XL", "en": "XL" } },
+        { "code": "xs", "slug": "xs", "valueI18N": { "ru": "XS", "en": "XS" } },
+        { "code": "s", "slug": "s", "valueI18N": { "ru": "S", "en": "S" } },
+        { "code": "m", "slug": "m", "valueI18N": { "ru": "M", "en": "M" } },
+        { "code": "l", "slug": "l", "valueI18N": { "ru": "L", "en": "L" } },
+        { "code": "xl", "slug": "xl", "valueI18N": { "ru": "XL", "en": "XL" } },
         {
           "code": "xxl",
           "slug": "xxl",
-          "valueI18n": { "ru": "XXL", "en": "XXL" }
+          "valueI18N": { "ru": "XXL", "en": "XXL" }
         },
         {
           "code": "xxxl",
           "slug": "xxxl",
-          "valueI18n": { "ru": "3XL", "en": "3XL" }
+          "valueI18N": { "ru": "3XL", "en": "3XL" }
         }
       ]
     },
@@ -63,8 +63,8 @@
       "code": "shoe_size",
       "slug": "shoe-size",
       "groupCode": "physical",
-      "nameI18n": { "ru": "Размер обуви", "en": "Shoe Size" },
-      "descriptionI18n": { "ru": "EU размер", "en": "EU size" },
+      "nameI18N": { "ru": "Размер обуви", "en": "Shoe Size" },
+      "descriptionI18N": { "ru": "EU размер", "en": "EU size" },
       "dataType": "float",
       "uiType": "text_button",
       "isDictionary": true,
@@ -75,52 +75,52 @@
         {
           "code": "eu36",
           "slug": "eu36",
-          "valueI18n": { "ru": "EU 36", "en": "EU 36" }
+          "valueI18N": { "ru": "EU 36", "en": "EU 36" }
         },
         {
           "code": "eu37",
           "slug": "eu37",
-          "valueI18n": { "ru": "EU 37", "en": "EU 37" }
+          "valueI18N": { "ru": "EU 37", "en": "EU 37" }
         },
         {
           "code": "eu38",
           "slug": "eu38",
-          "valueI18n": { "ru": "EU 38", "en": "EU 38" }
+          "valueI18N": { "ru": "EU 38", "en": "EU 38" }
         },
         {
           "code": "eu39",
           "slug": "eu39",
-          "valueI18n": { "ru": "EU 39", "en": "EU 39" }
+          "valueI18N": { "ru": "EU 39", "en": "EU 39" }
         },
         {
           "code": "eu40",
           "slug": "eu40",
-          "valueI18n": { "ru": "EU 40", "en": "EU 40" }
+          "valueI18N": { "ru": "EU 40", "en": "EU 40" }
         },
         {
           "code": "eu41",
           "slug": "eu41",
-          "valueI18n": { "ru": "EU 41", "en": "EU 41" }
+          "valueI18N": { "ru": "EU 41", "en": "EU 41" }
         },
         {
           "code": "eu42",
           "slug": "eu42",
-          "valueI18n": { "ru": "EU 42", "en": "EU 42" }
+          "valueI18N": { "ru": "EU 42", "en": "EU 42" }
         },
         {
           "code": "eu43",
           "slug": "eu43",
-          "valueI18n": { "ru": "EU 43", "en": "EU 43" }
+          "valueI18N": { "ru": "EU 43", "en": "EU 43" }
         },
         {
           "code": "eu44",
           "slug": "eu44",
-          "valueI18n": { "ru": "EU 44", "en": "EU 44" }
+          "valueI18N": { "ru": "EU 44", "en": "EU 44" }
         },
         {
           "code": "eu45",
           "slug": "eu45",
-          "valueI18n": { "ru": "EU 45", "en": "EU 45" }
+          "valueI18N": { "ru": "EU 45", "en": "EU 45" }
         }
       ]
     },
@@ -128,8 +128,8 @@
       "code": "color",
       "slug": "color",
       "groupCode": "appearance",
-      "nameI18n": { "ru": "Цвет", "en": "Color" },
-      "descriptionI18n": { "ru": "Основной цвет", "en": "Primary color" },
+      "nameI18N": { "ru": "Цвет", "en": "Color" },
+      "descriptionI18N": { "ru": "Основной цвет", "en": "Primary color" },
       "dataType": "string",
       "uiType": "color_swatch",
       "isDictionary": true,
@@ -142,61 +142,61 @@
         {
           "code": "black",
           "slug": "black",
-          "valueI18n": { "ru": "Чёрный", "en": "Black" },
+          "valueI18N": { "ru": "Чёрный", "en": "Black" },
           "metaData": { "hex": "#000000" }
         },
         {
           "code": "white",
           "slug": "white",
-          "valueI18n": { "ru": "Белый", "en": "White" },
+          "valueI18N": { "ru": "Белый", "en": "White" },
           "metaData": { "hex": "#FFFFFF" }
         },
         {
           "code": "gray",
           "slug": "gray",
-          "valueI18n": { "ru": "Серый", "en": "Gray" },
+          "valueI18N": { "ru": "Серый", "en": "Gray" },
           "metaData": { "hex": "#808080" }
         },
         {
           "code": "red",
           "slug": "red",
-          "valueI18n": { "ru": "Красный", "en": "Red" },
+          "valueI18N": { "ru": "Красный", "en": "Red" },
           "metaData": { "hex": "#FF0000" }
         },
         {
           "code": "blue",
           "slug": "blue",
-          "valueI18n": { "ru": "Синий", "en": "Blue" },
+          "valueI18N": { "ru": "Синий", "en": "Blue" },
           "metaData": { "hex": "#0000FF" }
         },
         {
           "code": "navy",
           "slug": "navy",
-          "valueI18n": { "ru": "Тёмно-синий", "en": "Navy" },
+          "valueI18N": { "ru": "Тёмно-синий", "en": "Navy" },
           "metaData": { "hex": "#000080" }
         },
         {
           "code": "green",
           "slug": "green",
-          "valueI18n": { "ru": "Зелёный", "en": "Green" },
+          "valueI18N": { "ru": "Зелёный", "en": "Green" },
           "metaData": { "hex": "#008000" }
         },
         {
           "code": "beige",
           "slug": "beige",
-          "valueI18n": { "ru": "Бежевый", "en": "Beige" },
+          "valueI18N": { "ru": "Бежевый", "en": "Beige" },
           "metaData": { "hex": "#F5F5DC" }
         },
         {
           "code": "brown",
           "slug": "brown",
-          "valueI18n": { "ru": "Коричневый", "en": "Brown" },
+          "valueI18N": { "ru": "Коричневый", "en": "Brown" },
           "metaData": { "hex": "#8B4513" }
         },
         {
           "code": "pink",
           "slug": "pink",
-          "valueI18n": { "ru": "Розовый", "en": "Pink" },
+          "valueI18N": { "ru": "Розовый", "en": "Pink" },
           "metaData": { "hex": "#FFC0CB" }
         }
       ]
@@ -205,8 +205,8 @@
       "code": "material",
       "slug": "material",
       "groupCode": "appearance",
-      "nameI18n": { "ru": "Материал", "en": "Material" },
-      "descriptionI18n": {
+      "nameI18N": { "ru": "Материал", "en": "Material" },
+      "descriptionI18N": {
         "ru": "Основной материал",
         "en": "Primary material"
       },
@@ -222,47 +222,47 @@
         {
           "code": "cotton",
           "slug": "cotton",
-          "valueI18n": { "ru": "Хлопок", "en": "Cotton" }
+          "valueI18N": { "ru": "Хлопок", "en": "Cotton" }
         },
         {
           "code": "polyester",
           "slug": "polyester",
-          "valueI18n": { "ru": "Полиэстер", "en": "Polyester" }
+          "valueI18N": { "ru": "Полиэстер", "en": "Polyester" }
         },
         {
           "code": "nylon",
           "slug": "nylon",
-          "valueI18n": { "ru": "Нейлон", "en": "Nylon" }
+          "valueI18N": { "ru": "Нейлон", "en": "Nylon" }
         },
         {
           "code": "leather",
           "slug": "leather",
-          "valueI18n": { "ru": "Кожа", "en": "Leather" }
+          "valueI18N": { "ru": "Кожа", "en": "Leather" }
         },
         {
           "code": "suede",
           "slug": "suede",
-          "valueI18n": { "ru": "Замша", "en": "Suede" }
+          "valueI18N": { "ru": "Замша", "en": "Suede" }
         },
         {
           "code": "canvas",
           "slug": "canvas",
-          "valueI18n": { "ru": "Канвас", "en": "Canvas" }
+          "valueI18N": { "ru": "Канвас", "en": "Canvas" }
         },
         {
           "code": "denim",
           "slug": "denim",
-          "valueI18n": { "ru": "Деним", "en": "Denim" }
+          "valueI18N": { "ru": "Деним", "en": "Denim" }
         },
         {
           "code": "fleece",
           "slug": "fleece",
-          "valueI18n": { "ru": "Флис", "en": "Fleece" }
+          "valueI18N": { "ru": "Флис", "en": "Fleece" }
         },
         {
           "code": "mesh",
           "slug": "mesh",
-          "valueI18n": { "ru": "Сетка", "en": "Mesh" }
+          "valueI18N": { "ru": "Сетка", "en": "Mesh" }
         }
       ]
     },
@@ -270,8 +270,8 @@
       "code": "gender",
       "slug": "gender",
       "groupCode": "general",
-      "nameI18n": { "ru": "Пол", "en": "Gender" },
-      "descriptionI18n": { "ru": "Целевой пол", "en": "Target gender" },
+      "nameI18N": { "ru": "Пол", "en": "Gender" },
+      "descriptionI18N": { "ru": "Целевой пол", "en": "Target gender" },
       "dataType": "string",
       "uiType": "text_button",
       "isDictionary": true,
@@ -282,17 +282,17 @@
         {
           "code": "male",
           "slug": "male",
-          "valueI18n": { "ru": "Мужской", "en": "Male" }
+          "valueI18N": { "ru": "Мужской", "en": "Male" }
         },
         {
           "code": "female",
           "slug": "female",
-          "valueI18n": { "ru": "Женский", "en": "Female" }
+          "valueI18N": { "ru": "Женский", "en": "Female" }
         },
         {
           "code": "unisex",
           "slug": "unisex",
-          "valueI18n": { "ru": "Унисекс", "en": "Unisex" }
+          "valueI18N": { "ru": "Унисекс", "en": "Unisex" }
         }
       ]
     },
@@ -300,8 +300,8 @@
       "code": "season",
       "slug": "season",
       "groupCode": "general",
-      "nameI18n": { "ru": "Сезон", "en": "Season" },
-      "descriptionI18n": { "ru": "Сезонность", "en": "Seasonality" },
+      "nameI18N": { "ru": "Сезон", "en": "Season" },
+      "descriptionI18N": { "ru": "Сезонность", "en": "Seasonality" },
       "dataType": "string",
       "uiType": "checkbox",
       "isDictionary": true,
@@ -313,22 +313,22 @@
         {
           "code": "spring-summer",
           "slug": "spring-summer",
-          "valueI18n": { "ru": "Весна-Лето", "en": "Spring-Summer" }
+          "valueI18N": { "ru": "Весна-Лето", "en": "Spring-Summer" }
         },
         {
           "code": "fall-winter",
           "slug": "fall-winter",
-          "valueI18n": { "ru": "Осень-Зима", "en": "Fall-Winter" }
+          "valueI18N": { "ru": "Осень-Зима", "en": "Fall-Winter" }
         },
         {
           "code": "all-season",
           "slug": "all-season",
-          "valueI18n": { "ru": "Всесезонный", "en": "All Season" }
+          "valueI18N": { "ru": "Всесезонный", "en": "All Season" }
         },
         {
           "code": "demi-season",
           "slug": "demi-season",
-          "valueI18n": { "ru": "Демисезон", "en": "Demi-Season" }
+          "valueI18N": { "ru": "Демисезон", "en": "Demi-Season" }
         }
       ]
     }
@@ -337,7 +337,7 @@
   "templates": [
     {
       "code": "clothing",
-      "nameI18n": { "ru": "Одежда", "en": "Clothing" },
+      "nameI18N": { "ru": "Одежда", "en": "Clothing" },
       "assignToCategorySlug": "clothing",
       "bindings": [
         {
@@ -349,27 +349,12 @@
           "attributeCode": "color",
           "sortOrder": 2,
           "requirementLevel": "required"
-        },
-        {
-          "attributeCode": "material",
-          "sortOrder": 3,
-          "requirementLevel": "recommended"
-        },
-        {
-          "attributeCode": "gender",
-          "sortOrder": 4,
-          "requirementLevel": "recommended"
-        },
-        {
-          "attributeCode": "season",
-          "sortOrder": 5,
-          "requirementLevel": "optional"
         }
       ]
     },
     {
       "code": "footwear",
-      "nameI18n": { "ru": "Обувь", "en": "Footwear" },
+      "nameI18N": { "ru": "Обувь", "en": "Footwear" },
       "assignToCategorySlug": "footwear",
       "bindings": [
         {
@@ -401,7 +386,7 @@
     },
     {
       "code": "accessories",
-      "nameI18n": { "ru": "Аксессуары", "en": "Accessories" },
+      "nameI18N": { "ru": "Аксессуары", "en": "Accessories" },
       "assignToCategorySlug": "accessories",
       "bindings": [
         {

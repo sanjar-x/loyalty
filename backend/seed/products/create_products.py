@@ -35,13 +35,13 @@ def _post(client: Any, url: str, token: str, body: dict) -> dict | None:
 
 
 def _load_lookup(ctx: SeedContext, path: str, key: str) -> dict[str, str]:
-    """Fetch a paginated list and build slug→id lookup."""
+    """Fetch a paginated list and build slug->id lookup."""
     data = _get(ctx.client, f"{ctx.api_prefix}{path}?limit=200", ctx.token)
     return {item[key]: item["id"] for item in data["items"]}
 
 
 def _load_attribute_values(ctx: SeedContext, attr_id: str) -> dict[str, str]:
-    """Fetch attribute values and build code→id lookup."""
+    """Fetch attribute values and build code->id lookup."""
     data = _get(
         ctx.client,
         f"{ctx.api_prefix}/catalog/attributes/{attr_id}/values?limit=200",
@@ -60,7 +60,7 @@ def seed_products(ctx: SeedContext) -> None:
     attributes = _load_lookup(ctx, "/catalog/attributes", "code")
 
     # Pre-load attribute values for all referenced attributes
-    attr_values: dict[str, dict[str, str]] = {}  # attr_code → {value_code → id}
+    attr_values: dict[str, dict[str, str]] = {}  # attr_code -> {value_code -> id}
     for attr_code, attr_id in attributes.items():
         attr_values[attr_code] = _load_attribute_values(ctx, attr_id)
 
@@ -90,11 +90,11 @@ def seed_products(ctx: SeedContext) -> None:
             f"{ctx.api_prefix}/catalog/products",
             ctx.token,
             {
-                "titleI18n": p["titleI18n"],
+                "titleI18N": p["titleI18N"],
                 "slug": p["slug"],
                 "brandId": brand_id,
                 "primaryCategoryId": category_id,
-                "descriptionI18n": p.get("descriptionI18n", {}),
+                "descriptionI18N": p.get("descriptionI18N", {}),
                 "tags": p.get("tags", []),
             },
         )

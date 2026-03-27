@@ -50,15 +50,16 @@ def seed_attributes(ctx: SeedContext) -> None:
 
     # ── 2. Attributes ──────────────────────────────────────────────────
     print("  [2/6] Attributes")
-    # Resolve group codes → IDs (groups created by management/sync_attributes)
+    # Resolve group codes -> IDs (groups created by management/sync_attributes)
     # If groups don't exist yet, create without group_id
-    attr_ids: dict[str, str] = {}  # code → id
+    attr_ids: dict[str, str] = {}  # code -> id
+    _attr_cache: dict[str, str] = {}  # lazy-loaded on first 409
 
     for attr in data["attributes"]:
         body: dict[str, Any] = {
             "code": attr["code"],
             "slug": attr["slug"],
-            "nameI18n": attr["nameI18n"],
+            "nameI18N": attr["nameI18N"],
             "dataType": attr["dataType"],
             "uiType": attr["uiType"],
             "isDictionary": attr.get("isDictionary", True),
@@ -69,16 +70,18 @@ def seed_attributes(ctx: SeedContext) -> None:
             "isComparable": attr.get("isComparable", False),
             "isVisibleOnCard": attr.get("isVisibleOnCard", False),
         }
-        if attr.get("descriptionI18n"):
-            body["descriptionI18n"] = attr["descriptionI18n"]
+        if attr.get("descriptionI18N"):
+            body["descriptionI18N"] = attr["descriptionI18N"]
 
         result = _post(ctx.client, f"{base}/catalog/attributes", ctx.token, body)
         if result:
             attr_ids[attr["code"]] = result["id"]
             print(f"    + {attr['code']:<20} {result['id']}")
         else:
-            # Exists → resolve ID
-            existing = _find_attribute_by_code(ctx, attr["code"])
+            # Exists -> resolve ID from cache
+            if not _attr_cache:
+                _attr_cache.update(_load_all_attributes(ctx))
+            existing = _attr_cache.get(attr["code"])
             if existing:
                 attr_ids[attr["code"]] = existing
                 print(f"    ~ {attr['code']:<20} (exists)")
@@ -101,7 +104,7 @@ def seed_attributes(ctx: SeedContext) -> None:
             item: dict[str, Any] = {
                 "code": v["code"],
                 "slug": v["slug"],
-                "valueI18n": v["valueI18n"],
+                "valueI18N": v["valueI18N"],
                 "sortOrder": v.get("sortOrder", 0),
             }
             if v.get("metaData"):
@@ -121,7 +124,8 @@ def seed_attributes(ctx: SeedContext) -> None:
 
     # ── 4. Attribute templates ─────────────────────────────────────────
     print("  [4/6] Templates")
-    template_ids: dict[str, str] = {}  # code → id
+    template_ids: dict[str, str] = {}  # code -> id
+    _tmpl_cache: dict[str, str] = {}  # lazy-loaded on first 409
 
     for tmpl in data.get("templates", []):
         result = _post(
@@ -130,7 +134,7 @@ def seed_attributes(ctx: SeedContext) -> None:
             ctx.token,
             {
                 "code": tmpl["code"],
-                "nameI18n": tmpl["nameI18n"],
+                "nameI18N": tmpl["nameI18N"],
                 "sortOrder": tmpl.get("sortOrder", 0),
             },
         )
@@ -138,7 +142,9 @@ def seed_attributes(ctx: SeedContext) -> None:
             template_ids[tmpl["code"]] = result["id"]
             print(f"    + {tmpl['code']:<20} {result['id']}")
         else:
-            existing = _find_template_by_code(ctx, tmpl["code"])
+            if not _tmpl_cache:
+                _tmpl_cache.update(_load_all_templates(ctx))
+            existing = _tmpl_cache.get(tmpl["code"])
             if existing:
                 template_ids[tmpl["code"]] = existing
                 print(f"    ~ {tmpl['code']:<20} (exists)")
@@ -152,11 +158,13 @@ def seed_attributes(ctx: SeedContext) -> None:
         for binding in tmpl.get("bindings", []):
             attr_id = attr_ids.get(binding["attributeCode"])
             if not attr_id:
-                print(f"    ! {tmpl['code']}/{binding['attributeCode']}: attr not found")
+                print(
+                    f"    ! {tmpl['code']}/{binding['attributeCode']}: attr not found"
+                )
                 continue
             result = _post(
                 ctx.client,
-                f"{base}/catalog/attribute-templates/{tmpl_id}/bindings",
+                f"{base}/catalog/attribute-templates/{tmpl_id}/attributes",
                 ctx.token,
                 {
                     "attributeId": attr_id,
@@ -170,57 +178,60 @@ def seed_attributes(ctx: SeedContext) -> None:
                 print(f"    ~ {tmpl['code']}/{binding['attributeCode']} (exists)")
 
     # ── 6. Assign templates to categories ──────────────────────────────
-    print("  [6/6] Category → template assignment")
+    # On re-run, template_id may already be set on the root category.
+    # UpdateCategoryHandler only runs CTE propagation when template_id
+    # actually changes. To ensure children get effective_template_id
+    # even on re-run, we do a clear->set cycle: PATCH null then PATCH id.
+    # This forces template_id_changed=True and triggers CTE propagation.
+    print("  [6/6] Category -> template assignment")
+    cat_cache = _load_all_categories(ctx)
     for tmpl in data.get("templates", []):
         cat_slug = tmpl.get("assignToCategorySlug")
         tmpl_id = template_ids.get(tmpl["code"])
         if not cat_slug or not tmpl_id:
             continue
 
-        cat_id = _find_category_by_slug(ctx, cat_slug)
+        cat_id = cat_cache.get(cat_slug)
         if not cat_id:
             print(f"    ! {cat_slug}: category not found")
             continue
 
-        r = ctx.client.patch(
-            f"{base}/catalog/categories/{cat_id}",
-            json={"templateId": tmpl_id},
-            headers={"Authorization": f"Bearer {ctx.token}"},
-        )
+        headers = {"Authorization": f"Bearer {ctx.token}"}
+        patch_url = f"{base}/catalog/categories/{cat_id}"
+
+        # Step A: clear template (forces change detection on next PATCH)
+        ctx.client.patch(patch_url, json={"templateId": None}, headers=headers)
+
+        # Step B: set template (triggers CTE propagation to all children)
+        r = ctx.client.patch(patch_url, json={"templateId": tmpl_id}, headers=headers)
         if r.status_code == 200:
-            print(f"    + {cat_slug} → {tmpl['code']}")
+            print(f"    + {cat_slug} -> {tmpl['code']} (propagated)")
         else:
-            print(f"    ! {cat_slug} → {tmpl['code']}: {r.status_code}")
+            print(f"    ! {cat_slug} -> {tmpl['code']}: {r.status_code}")
 
 
-# ── Lookup helpers ─────────────────────────────────────────────────────
+# ── Cached lookup helpers (single API call each) ──────────────────────
 
 
-def _find_attribute_by_code(ctx: SeedContext, code: str) -> str | None:
+def _load_all_attributes(ctx: SeedContext) -> dict[str, str]:
+    """code -> id"""
     items = _get_items(
         ctx.client, f"{ctx.api_prefix}/catalog/attributes?limit=200", ctx.token
     )
-    for item in items:
-        if item["code"] == code:
-            return item["id"]
-    return None
+    return {item["code"]: item["id"] for item in items}
 
 
-def _find_template_by_code(ctx: SeedContext, code: str) -> str | None:
+def _load_all_templates(ctx: SeedContext) -> dict[str, str]:
+    """code -> id"""
     items = _get_items(
         ctx.client, f"{ctx.api_prefix}/catalog/attribute-templates?limit=200", ctx.token
     )
-    for item in items:
-        if item["code"] == code:
-            return item["id"]
-    return None
+    return {item["code"]: item["id"] for item in items}
 
 
-def _find_category_by_slug(ctx: SeedContext, slug: str) -> str | None:
+def _load_all_categories(ctx: SeedContext) -> dict[str, str]:
+    """slug -> id"""
     items = _get_items(
         ctx.client, f"{ctx.api_prefix}/catalog/categories?limit=200", ctx.token
     )
-    for item in items:
-        if item["slug"] == slug:
-            return item["id"]
-    return None
+    return {item["slug"]: item["id"] for item in items}

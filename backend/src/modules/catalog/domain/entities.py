@@ -838,6 +838,7 @@ class Attribute(AggregateRoot):
         super().__setattr__(name, value)
 
     def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
         object.__setattr__(self, "_Attribute__initialized", True)
 
     # Expose individual flags as properties for backward compatibility

@@ -1,10 +1,10 @@
 [
   {
-    "titleI18n": { "ru": "Nike Air Max 90", "en": "Nike Air Max 90" },
+    "titleI18N": { "ru": "Nike Air Max 90", "en": "Nike Air Max 90" },
     "slug": "nike-air-max-90",
     "brandSlug": "nike",
     "categorySlug": "sneakers",
-    "descriptionI18n": {
+    "descriptionI18N": {
       "ru": "Легендарные кроссовки с технологией Air",
       "en": "Legendary sneakers with Air technology"
     },
@@ -38,11 +38,11 @@
     ]
   },
   {
-    "titleI18n": { "ru": "Adidas Ultraboost 23", "en": "Adidas Ultraboost 23" },
+    "titleI18N": { "ru": "Adidas Ultraboost 23", "en": "Adidas Ultraboost 23" },
     "slug": "adidas-ultraboost-23",
     "brandSlug": "adidas",
     "categorySlug": "sneakers",
-    "descriptionI18n": {
+    "descriptionI18N": {
       "ru": "Беговые кроссовки с Boost-подошвой",
       "en": "Running shoes with Boost sole"
     },
@@ -71,23 +71,19 @@
     ]
   },
   {
-    "titleI18n": {
+    "titleI18N": {
       "ru": "Nike Tech Fleece Hoodie",
       "en": "Nike Tech Fleece Hoodie"
     },
     "slug": "nike-tech-fleece-hoodie",
     "brandSlug": "nike",
     "categorySlug": "hoodies",
-    "descriptionI18n": {
+    "descriptionI18N": {
       "ru": "Худи из технологичного флиса",
       "en": "Hoodie made of tech fleece"
     },
     "tags": ["nike", "tech-fleece", "hoodie"],
-    "attributes": {
-      "gender": "male",
-      "season": "fall-winter",
-      "material": "fleece"
-    },
+    "attributes": {},
     "skus": [
       {
         "code": "NTF-HOD-BLK-M",
@@ -112,20 +108,16 @@
     ]
   },
   {
-    "titleI18n": { "ru": "Stüssy Basic Tee", "en": "Stüssy Basic Tee" },
+    "titleI18N": { "ru": "Stüssy Basic Tee", "en": "Stüssy Basic Tee" },
     "slug": "stussy-basic-tee",
     "brandSlug": "stussy",
     "categorySlug": "tees",
-    "descriptionI18n": {
+    "descriptionI18N": {
       "ru": "Базовая футболка с логотипом",
       "en": "Basic tee with logo"
     },
     "tags": ["stussy", "streetwear", "tee"],
-    "attributes": {
-      "gender": "unisex",
-      "season": "spring-summer",
-      "material": "cotton"
-    },
+    "attributes": {},
     "skus": [
       {
         "code": "STB-TEE-BLK-S",
@@ -150,23 +142,19 @@
     ]
   },
   {
-    "titleI18n": {
+    "titleI18N": {
       "ru": "Carhartt WIP Chase Sweatshirt",
       "en": "Carhartt WIP Chase Sweatshirt"
     },
     "slug": "carhartt-chase-sweatshirt",
     "brandSlug": "carhartt-wip",
     "categorySlug": "sweatshirts",
-    "descriptionI18n": {
+    "descriptionI18N": {
       "ru": "Классический свитшот с вышивкой",
       "en": "Classic sweatshirt with embroidery"
     },
     "tags": ["carhartt", "chase", "sweatshirt"],
-    "attributes": {
-      "gender": "male",
-      "season": "demi-season",
-      "material": "cotton"
-    },
+    "attributes": {},
     "skus": [
       {
         "code": "CWC-SWT-NVY-L",
@@ -186,23 +174,19 @@
     ]
   },
   {
-    "titleI18n": {
+    "titleI18N": {
       "ru": "The North Face Nuptse 700",
       "en": "The North Face Nuptse 700"
     },
     "slug": "tnf-nuptse-700",
     "brandSlug": "the-north-face",
     "categorySlug": "puffers",
-    "descriptionI18n": {
+    "descriptionI18N": {
       "ru": "Культовый пуховик с наполнителем 700 cuin",
       "en": "Iconic puffer jacket with 700 cuin fill"
     },
     "tags": ["tnf", "nuptse", "puffer", "winter"],
-    "attributes": {
-      "gender": "unisex",
-      "season": "fall-winter",
-      "material": "nylon"
-    },
+    "attributes": {},
     "skus": [
       {
         "code": "TNF-NUP-BLK-M",
@@ -222,20 +206,16 @@
     ]
   },
   {
-    "titleI18n": { "ru": "Levi's 501 Original", "en": "Levi's 501 Original" },
+    "titleI18N": { "ru": "Levi's 501 Original", "en": "Levi's 501 Original" },
     "slug": "levis-501-original",
     "brandSlug": "levis",
     "categorySlug": "jeans",
-    "descriptionI18n": {
+    "descriptionI18N": {
       "ru": "Оригинальные прямые джинсы",
       "en": "Original straight fit jeans"
     },
     "tags": ["levis", "501", "denim", "classic"],
-    "attributes": {
-      "gender": "male",
-      "season": "all-season",
-      "material": "denim"
-    },
+    "attributes": {},
     "skus": [
       {
         "code": "LV501-BLU-32",
@@ -255,14 +235,14 @@
     ]
   },
   {
-    "titleI18n": {
+    "titleI18N": {
       "ru": "Converse Chuck Taylor All Star",
       "en": "Converse Chuck Taylor All Star"
     },
     "slug": "converse-chuck-taylor",
     "brandSlug": "converse",
     "categorySlug": "canvas-shoes",
-    "descriptionI18n": {
+    "descriptionI18N": {
       "ru": "Классические кеды",
       "en": "Classic canvas shoes"
     },
@@ -296,11 +276,11 @@
     ]
   },
   {
-    "titleI18n": { "ru": "Dr. Martens 1460", "en": "Dr. Martens 1460" },
+    "titleI18N": { "ru": "Dr. Martens 1460", "en": "Dr. Martens 1460" },
     "slug": "dr-martens-1460",
     "brandSlug": "dr-martens",
     "categorySlug": "boots",
-    "descriptionI18n": {
+    "descriptionI18N": {
       "ru": "Культовые ботинки с 8 люверсами",
       "en": "Iconic 8-eye boots"
     },
@@ -329,20 +309,16 @@
     ]
   },
   {
-    "titleI18n": {
+    "titleI18N": {
       "ru": "Supreme Box Logo Hoodie",
       "en": "Supreme Box Logo Hoodie"
     },
     "slug": "supreme-box-logo-hoodie",
     "brandSlug": "supreme",
     "categorySlug": "hoodies",
-    "descriptionI18n": { "ru": "Худи с бокс-лого", "en": "Box logo hoodie" },
+    "descriptionI18N": { "ru": "Худи с бокс-лого", "en": "Box logo hoodie" },
     "tags": ["supreme", "box-logo", "streetwear", "hype"],
-    "attributes": {
-      "gender": "unisex",
-      "season": "fall-winter",
-      "material": "cotton"
-    },
+    "attributes": {},
     "skus": [
       {
         "code": "SUP-BOGO-RED-M",

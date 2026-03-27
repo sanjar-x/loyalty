@@ -1,7 +1,7 @@
 """Seed the local API with reference data.
 
 Runs steps in dependency order:
-  brands → categories → attributes → products
+  brands -> categories -> attributes -> products
 Each step is idempotent (conflicts are skipped, safe to re-run).
 
 Usage:
@@ -19,11 +19,12 @@ import httpx
 from seed.attributes.create_attributes import seed_attributes
 from seed.brands.create_brands import seed_brands
 from seed.categories.create_categories import seed_categories
+from seed.geo.create_currencies import seed_geo
 from seed.products.create_products import seed_products
 
 API_PREFIX = "/api/v1"
 DEFAULT_LOGIN = "sanjar68x@gmail.com"
-DEFAULT_PASSWORD = "Admin123!"
+DEFAULT_PASSWORD = "admin123"
 
 
 @dataclass
@@ -36,6 +37,7 @@ class SeedContext:
 
 
 STEPS: dict[str, tuple[str, Callable[[SeedContext], None]]] = {
+    "geo": ("Currencies (RUB, USD, EUR, UZS)", seed_geo),
     "brands": ("Brands (34)", seed_brands),
     "categories": ("Categories (35)", seed_categories),
     "attributes": ("Attrs + Values + Templates + Bindings", seed_attributes),
@@ -77,9 +79,7 @@ def run_steps(ctx: SeedContext, steps: list[str]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed local API with reference data")
-    parser.add_argument(
-        "--base-url", default="https://backend-production-43b6.up.railway.app"
-    )
+    parser.add_argument("--base-url", default="http://127.0.0.1:8000")
     parser.add_argument(
         "--step",
         help=f"Comma-separated steps. Available: {', '.join(STEPS)}",

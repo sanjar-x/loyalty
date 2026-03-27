@@ -11,7 +11,6 @@ import structlog
 from dishka.integrations.fastapi import setup_dishka
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from structlog.stdlib import BoundLogger
 
 from src.api.exceptions.handlers import setup_exception_handlers
@@ -21,7 +20,6 @@ from src.bootstrap.broker import broker
 from src.bootstrap.config import settings
 from src.bootstrap.container import create_container
 from src.bootstrap.logger import setup_logging
-from src.modules.identity.management.sync_system_roles import sync_system_roles
 
 setup_logging()
 
@@ -48,12 +46,6 @@ async def lifespan(app: FastAPI):
         version=settings.VERSION,
         environment=settings.ENVIRONMENT,
     )
-
-    # Sync system roles/permissions on every startup (idempotent upsert)
-    container = app.state.dishka_container
-    async with container() as app_scope:
-        factory = await app_scope.get(async_sessionmaker[AsyncSession])
-        await sync_system_roles(factory)
 
     if not broker.is_worker_process:
         logger.info("Starting TaskIQ broker within the API process...")
