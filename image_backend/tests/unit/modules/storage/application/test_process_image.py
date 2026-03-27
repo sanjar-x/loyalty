@@ -13,7 +13,6 @@ from src.modules.storage.application.commands.process_image import (
     resize_to_fit,
 )
 
-
 # ── helpers ──────────────────────────────────────────────────────────────
 
 

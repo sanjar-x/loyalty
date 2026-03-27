@@ -4,20 +4,19 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from dishka import FromDishka
-from taskiq import TaskiqDepends
 
+from src.bootstrap.broker import broker
 from src.modules.storage.application.commands.process_image import build_variants
+from src.modules.storage.domain.interfaces import IStorageRepository
 from src.modules.storage.domain.value_objects import StorageStatus
 from src.modules.storage.presentation.sse import SSEManager
 from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.config import IStorageConfig
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
-from src.modules.storage.domain.interfaces import IStorageRepository
-from src.bootstrap.broker import broker
 
 
 @broker.task(
@@ -130,7 +129,7 @@ async def cleanup_orphans_task(
 ) -> None:
     """Phase 1: delete PENDING_UPLOAD objects older than 24 hours."""
     log = logger.bind(task="cleanup_orphans")
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    cutoff = datetime.now(UTC) - timedelta(hours=24)
     orphans = await storage_repo.list_pending_expired(cutoff)
     log.info("Found orphans", count=len(orphans))
 
