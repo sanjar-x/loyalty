@@ -149,7 +149,9 @@ class Category(Base):
     parent: Mapped[Category] = relationship(
         "Category", back_populates="children", remote_side="Category.id"
     )
-    template: Mapped[AttributeTemplate | None] = relationship("AttributeTemplate")
+    template: Mapped[AttributeTemplate | None] = relationship(
+        "AttributeTemplate", foreign_keys=[template_id]
+    )
 
     __table_args__ = (
         Index(

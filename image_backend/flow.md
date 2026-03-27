@@ -186,7 +186,7 @@
      │                     │                      │                      │
      │  POST /api/v1/media/external               │                      │
      │  {                                         │                      │
-     │    externalUrl: "https://...",              │                      │
+     │    externalUrl: "https://...",             │                      │
      │    mediaType: "product",                   │                      │
      │    role: "gallery"                         │                      │
      │  }                                         │                      │
