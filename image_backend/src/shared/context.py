@@ -14,7 +14,8 @@ Typical usage:
 
 from contextvars import ContextVar
 
-_request_id_var: ContextVar[str] = ContextVar("request_id", default="UNKNOWN")
+request_id_ctx: ContextVar[str] = ContextVar("request_id", default="UNKNOWN")
+_request_id_var = request_id_ctx  # backward-compat alias
 
 
 def get_request_id() -> str:
