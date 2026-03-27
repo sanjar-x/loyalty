@@ -5,7 +5,8 @@ from __future__ import annotations
 import io
 import uuid
 
-from PIL import Image, Resampling
+from PIL import Image
+from PIL.Image import Resampling
 
 VARIANT_SIZES: dict[str, tuple[int, int]] = {
     "thumbnail": (150, 150),
