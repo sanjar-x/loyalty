@@ -1,5 +1,9 @@
 # tests/factories/catalog_mothers.py
-"""Object Mothers for Catalog module domain entities."""
+"""Object Mothers for Catalog module domain entities.
+
+Mothers are thin wrappers around the fluent Builders (per D-01).
+They provide preset configurations for common test scenarios.
+"""
 
 import uuid
 from typing import Any
@@ -8,17 +12,32 @@ from src.modules.catalog.domain.entities import (
     Attribute,
     AttributeGroup,
     AttributeValue,
+    Brand,
     Category,
 )
 from src.modules.catalog.domain.value_objects import (
     AttributeDataType,
     AttributeLevel,
     AttributeUIType,
+    BehaviorFlags,
 )
+from tests.factories.attribute_builder import AttributeBuilder, AttributeValueBuilder
+from tests.factories.attribute_group_builder import AttributeGroupBuilder
+from tests.factories.brand_builder import BrandBuilder
 
 
 class BrandMothers:
     """Pre-built Brand aggregate configurations."""
+
+    @staticmethod
+    def default() -> Brand:
+        """Default brand with sensible test defaults."""
+        return BrandBuilder().build()
+
+    @staticmethod
+    def with_logo() -> Brand:
+        """Brand with a logo URL."""
+        return BrandBuilder().with_logo("https://example.com/logo.png").build()
 
 
 class CategoryMothers:
@@ -31,7 +50,7 @@ class CategoryMothers:
     ) -> Category:
         """Root-level category (level=0, no parent)."""
         return Category.create_root(
-            name_i18n=name_i18n or {"en": "Electronics"},
+            name_i18n=name_i18n or {"en": "Electronics", "ru": "Электроника"},
             slug=slug or f"electronics-{uuid.uuid4().hex[:6]}",
             sort_order=0,
         )
@@ -45,7 +64,7 @@ class CategoryMothers:
         if parent is None:
             parent = CategoryMothers.root()
         return Category.create_child(
-            name_i18n=name_i18n or {"en": "Smartphones"},
+            name_i18n=name_i18n or {"en": "Smartphones", "ru": "Смартфоны"},
             slug=f"smartphones-{uuid.uuid4().hex[:6]}",
             parent=parent,
             sort_order=0,
@@ -56,11 +75,12 @@ class CategoryMothers:
         """Chain of nested categories up to the given depth."""
         categories: list[Category] = []
         names = ["Electronics", "Smartphones", "Android", "Samsung", "Galaxy"]
-        root = CategoryMothers.root(name_i18n={"en": names[0]})
+        ru_names = ["Электроника", "Смартфоны", "Андроид", "Самсунг", "Галакси"]
+        root = CategoryMothers.root(name_i18n={"en": names[0], "ru": ru_names[0]})
         categories.append(root)
         for i in range(1, min(depth, len(names))):
             child = Category.create_child(
-                name_i18n={"en": names[i]},
+                name_i18n={"en": names[i], "ru": ru_names[i]},
                 slug=f"{names[i].lower()}-{uuid.uuid4().hex[:6]}",
                 parent=categories[-1],
                 sort_order=0,
@@ -75,31 +95,36 @@ class AttributeGroupMothers:
     @staticmethod
     def general() -> AttributeGroup:
         """The default 'general' group that always exists."""
-        return AttributeGroup.create(
-            code="general",
-            name_i18n={"en": "General", "ru": "Общие"},
-            sort_order=0,
+        return (
+            AttributeGroupBuilder()
+            .with_code("general")
+            .with_name_i18n({"en": "General", "ru": "Общие"})
+            .build()
         )
 
     @staticmethod
     def physical() -> AttributeGroup:
         """Physical characteristics group."""
-        return AttributeGroup.create(
-            code=f"physical-{uuid.uuid4().hex[:6]}",
-            name_i18n={
+        return (
+            AttributeGroupBuilder()
+            .with_code(f"physical-{uuid.uuid4().hex[:6]}")
+            .with_name_i18n({
                 "en": "Physical Characteristics",
                 "ru": "Физические характеристики",
-            },
-            sort_order=1,
+            })
+            .with_sort_order(1)
+            .build()
         )
 
     @staticmethod
     def technical() -> AttributeGroup:
         """Technical specifications group."""
-        return AttributeGroup.create(
-            code=f"technical-{uuid.uuid4().hex[:6]}",
-            name_i18n={"en": "Technical", "ru": "Технические"},
-            sort_order=2,
+        return (
+            AttributeGroupBuilder()
+            .with_code(f"technical-{uuid.uuid4().hex[:6]}")
+            .with_name_i18n({"en": "Technical", "ru": "Технические"})
+            .with_sort_order(2)
+            .build()
         )
 
     @staticmethod
@@ -109,11 +134,12 @@ class AttributeGroupMothers:
         sort_order: int = 0,
     ) -> AttributeGroup:
         """Custom group with overridable fields."""
-        return AttributeGroup.create(
-            code=code or f"custom-{uuid.uuid4().hex[:6]}",
-            name_i18n=name_i18n or {"en": "Custom Group"},
-            sort_order=sort_order,
-        )
+        builder = AttributeGroupBuilder().with_sort_order(sort_order)
+        if code:
+            builder = builder.with_code(code)
+        if name_i18n:
+            builder = builder.with_name_i18n(name_i18n)
+        return builder.build()
 
 
 class AttributeMothers:
@@ -147,7 +173,7 @@ class AttributeMothers:
         return Attribute.create(
             code=code or f"screen-size-{uuid.uuid4().hex[:6]}",
             slug=f"screen-size-{uuid.uuid4().hex[:6]}",
-            name_i18n={"en": "Screen Size"},
+            name_i18n={"en": "Screen Size", "ru": "Размер экрана"},
             data_type=AttributeDataType.FLOAT,
             ui_type=AttributeUIType.RANGE_SLIDER,
             is_dictionary=False,
@@ -166,7 +192,7 @@ class AttributeMothers:
         return Attribute.create(
             code=code or f"waterproof-{uuid.uuid4().hex[:6]}",
             slug=f"waterproof-{uuid.uuid4().hex[:6]}",
-            name_i18n={"en": "Is Waterproof"},
+            name_i18n={"en": "Is Waterproof", "ru": "Водонепроницаемый"},
             data_type=AttributeDataType.BOOLEAN,
             ui_type=AttributeUIType.CHECKBOX,
             is_dictionary=False,
@@ -179,17 +205,23 @@ class AttributeMothers:
         group_id: uuid.UUID | None = None,
     ) -> Attribute:
         """Variant-level attribute (e.g. Size)."""
-        return Attribute.create(
-            code=code or f"size-{uuid.uuid4().hex[:6]}",
-            slug=f"size-{uuid.uuid4().hex[:6]}",
-            name_i18n={"en": "Size", "ru": "Размер"},
-            data_type=AttributeDataType.STRING,
-            ui_type=AttributeUIType.TEXT_BUTTON,
-            is_dictionary=True,
-            group_id=group_id or uuid.uuid4(),
-            level=AttributeLevel.VARIANT,
-            is_filterable=True,
-            is_visible_on_card=True,
+        return (
+            AttributeBuilder()
+            .with_code(code or f"size-{uuid.uuid4().hex[:6]}")
+            .with_slug(f"size-{uuid.uuid4().hex[:6]}")
+            .with_name_i18n({"en": "Size", "ru": "Размер"})
+            .with_data_type(AttributeDataType.STRING)
+            .with_ui_type(AttributeUIType.TEXT_BUTTON)
+            .as_dictionary()
+            .with_group_id(group_id or uuid.uuid4())
+            .at_variant_level()
+            .with_behavior(
+                BehaviorFlags(
+                    is_filterable=True,
+                    is_visible_on_card=True,
+                )
+            )
+            .build()
         )
 
 
@@ -199,46 +231,45 @@ class AttributeValueMothers:
     @staticmethod
     def color_red(attribute_id: uuid.UUID | None = None) -> AttributeValue:
         """Red color value with hex metadata."""
-        from src.modules.catalog.domain.entities import AttributeValue
-
-        return AttributeValue.create(
-            attribute_id=attribute_id or uuid.uuid4(),
-            code=f"red-{uuid.uuid4().hex[:6]}",
-            slug=f"red-{uuid.uuid4().hex[:6]}",
-            value_i18n={"en": "Red", "ru": "Красный"},
-            search_aliases=["scarlet", "crimson"],
-            meta_data={"hex": "#FF0000"},
-            value_group="Warm tones",
-            sort_order=0,
+        return (
+            AttributeValueBuilder()
+            .with_attribute_id(attribute_id or uuid.uuid4())
+            .with_code(f"red-{uuid.uuid4().hex[:6]}")
+            .with_slug(f"red-{uuid.uuid4().hex[:6]}")
+            .with_value_i18n({"en": "Red", "ru": "Красный"})
+            .with_search_aliases(["scarlet", "crimson"])
+            .with_meta_data({"hex": "#FF0000"})
+            .with_value_group("Warm tones")
+            .build()
         )
 
     @staticmethod
     def color_blue(attribute_id: uuid.UUID | None = None) -> AttributeValue:
         """Blue color value with hex metadata."""
-        from src.modules.catalog.domain.entities import AttributeValue
-
-        return AttributeValue.create(
-            attribute_id=attribute_id or uuid.uuid4(),
-            code=f"blue-{uuid.uuid4().hex[:6]}",
-            slug=f"blue-{uuid.uuid4().hex[:6]}",
-            value_i18n={"en": "Blue", "ru": "Синий"},
-            search_aliases=["navy", "azure"],
-            meta_data={"hex": "#0000FF"},
-            value_group="Cool tones",
-            sort_order=1,
+        return (
+            AttributeValueBuilder()
+            .with_attribute_id(attribute_id or uuid.uuid4())
+            .with_code(f"blue-{uuid.uuid4().hex[:6]}")
+            .with_slug(f"blue-{uuid.uuid4().hex[:6]}")
+            .with_value_i18n({"en": "Blue", "ru": "Синий"})
+            .with_search_aliases(["navy", "azure"])
+            .with_meta_data({"hex": "#0000FF"})
+            .with_value_group("Cool tones")
+            .with_sort_order(1)
+            .build()
         )
 
     @staticmethod
     def size_xl(attribute_id: uuid.UUID | None = None) -> AttributeValue:
         """XL size value (no metadata)."""
-        from src.modules.catalog.domain.entities import AttributeValue
-
-        return AttributeValue.create(
-            attribute_id=attribute_id or uuid.uuid4(),
-            code=f"xl-{uuid.uuid4().hex[:6]}",
-            slug=f"xl-{uuid.uuid4().hex[:6]}",
-            value_i18n={"en": "XL", "ru": "XL"},
-            sort_order=3,
+        return (
+            AttributeValueBuilder()
+            .with_attribute_id(attribute_id or uuid.uuid4())
+            .with_code(f"xl-{uuid.uuid4().hex[:6]}")
+            .with_slug(f"xl-{uuid.uuid4().hex[:6]}")
+            .with_value_i18n({"en": "XL", "ru": "XL"})
+            .with_sort_order(3)
+            .build()
         )
 
     @staticmethod
@@ -256,6 +287,6 @@ class AttributeValueMothers:
             attribute_id=attribute_id or uuid.uuid4(),
             code=code or f"val-{uuid.uuid4().hex[:6]}",
             slug=slug or f"val-{uuid.uuid4().hex[:6]}",
-            value_i18n=value_i18n or {"en": "Custom Value"},
+            value_i18n=value_i18n or {"en": "Custom Value", "ru": "Пользовательское значение"},
             **kwargs,
         )
