@@ -50,11 +50,12 @@ Plans:
   1. Every entity class (Brand, Category, Product, ProductVariant, SKU, Attribute, AttributeTemplate, AttributeGroup, TemplateAttributeBinding) has tests for its factory method (create/constructor) covering valid inputs and validation rejection of invalid inputs
   2. Every entity update method is tested for both successful mutation and rejection of invalid state transitions
   3. All value objects (Money, BehaviorFlags, ProductStatus, slugs, i18n names) are tested for immutability, equality, validation rules, and edge cases (zero money, empty strings, Unicode slugs)
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md — Brand entity + Category entity + all value objects (Money, BehaviorFlags, enums, i18n, slug, validation rules)
+- [ ] 02-02-PLAN.md — Product aggregate + ProductVariant + SKU entity tests
+- [ ] 02-03-PLAN.md — Attribute + AttributeValue + AttributeTemplate + TemplateAttributeBinding + AttributeGroup tests
 
 ### Phase 3: Product Aggregate Behavior
 **Goal**: The Product aggregate's complex behavioral invariants -- state machine, variant uniqueness, cascade deletes, attribute governance, and event emission -- are proven correct
@@ -172,7 +173,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | Phase | Plans Complete | Status | Completed |
 | ----- | -------------- | ------ | --------- |
 | 1. Test Infrastructure | 0/4 | Gap closure planned | - |
-| 2. Value Objects & Entity Foundations | 0/0 | Not started | - |
+| 2. Value Objects & Entity Foundations | 0/3 | Planned | - |
 | 3. Product Aggregate Behavior | 0/0 | Not started | - |
 | 4. Brand, Category & Attribute Command Handlers | 0/0 | Not started | - |
 | 5. Product & Variant Command Handlers | 0/0 | Not started | - |
