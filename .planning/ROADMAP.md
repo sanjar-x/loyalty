@@ -101,8 +101,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Fix FakeTemplateAttributeBindingRepository stubs + test all 7 Product command handlers
-- [ ] 05-02-PLAN.md — Test all 3 Variant command handlers (AddVariant, UpdateVariant, DeleteVariant)
+- [x] 05-01-PLAN.md — Fix FakeTemplateAttributeBindingRepository stubs + test all 7 Product command handlers
+- [x] 05-02-PLAN.md — Test all 3 Variant command handlers (AddVariant, UpdateVariant, DeleteVariant)
 
 ### Phase 6: SKU, Media & Cross-Cutting Commands
 **Goal**: SKU and media handlers are tested, and cross-cutting concerns (event emission, bulk atomicity, FK/uniqueness errors) are verified across ALL command handlers
@@ -180,7 +180,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 2. Value Objects & Entity Foundations | 0/3 | Planned | - |
 | 3. Product Aggregate Behavior | 0/2 | Planned | - |
 | 4. Brand, Category & Attribute Command Handlers | 0/3 | Planned | - |
-| 5. Product & Variant Command Handlers | 0/0 | Not started | - |
+| 5. Product & Variant Command Handlers | 2/2 | Complete | 2026-03-28 |
 | 6. SKU, Media & Cross-Cutting Commands | 0/3 | Planned | - |
 | 7. Repository & Data Integrity | 0/3 | Planned | - |
 | 8. API Contract Validation | 0/3 | Planned | - |

@@ -58,6 +58,8 @@ Progress: [####......] 43%
 | Phase 04 P01 | 5min | 2 tasks | 4 files |
 | Phase 04 P02 | 3min | 1 tasks | 1 files |
 | Phase 04 P03 | 5min | 1 tasks | 1 files |
+| Phase 05 P01 | 30min | 2 tasks | 1 files |
+| Phase 05 P02 | 30min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -77,6 +79,10 @@ Recent decisions affecting current work:
 - [Phase 04]: Used object.__setattr__ for all attrs entity field mutations in fake repos (attrs guards field assignment)
 - [Phase 04]: Used exc_info.value.error_code instead of pytest.raises(match=) for ValidationError assertions because error_code is in the exception details, not its str() representation
 - [Phase 04]: Used _store instead of items property for fake repo assertions (concrete repos extend interface ABCs, not FakeRepository base)
+- [Phase 05]: FakeTemplateAttributeBindingRepository stubs were already fixed in a prior session -- no changes needed to fake_catalog_repos.py
+- [Phase 05]: Used AttributeUIType.DROPDOWN (not SELECT which doesn't exist in the enum)
+- [Phase 05]: ChangeProductStatus test uses DRAFT->ENRICHING (simplest valid FSM transition) since PUBLISHED requires active SKUs with prices
+- [Phase 05]: Supplier module dependency resolved via AsyncMock(spec=ISupplierQueryService) -- no shared test stub needed
 
 ### Pending Todos
 
@@ -85,7 +91,7 @@ None yet.
 ### Blockers/Concerns
 
 - Phase 3: Optimistic locking version_id_col configuration needs inspection during Phase 7 planning
-- Phase 5: Supplier module dependency (ISupplierQueryService.assert_supplier_active) needs a shared test stub
+- Phase 5: RESOLVED -- Supplier module dependency handled via AsyncMock(spec=ISupplierQueryService)
 - Phase 7: Event clearing mechanism in UoW commit path needs verification
 
 ## Session Continuity
