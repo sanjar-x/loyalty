@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: Product Aggregate Behavior** - Unit tests for FSM, variant hash, soft-delete cascade, attribute governance, and domain events
 - [ ] **Phase 4: Brand, Category & Attribute Command Handlers** - Unit tests for all supporting entity command handlers
 - [ ] **Phase 5: Product & Variant Command Handlers** - Unit tests for product lifecycle and variant management handlers
-- [ ] **Phase 6: SKU, Media & Cross-Cutting Commands** - Unit tests for SKU/media handlers plus event emission, bulk atomicity, and error paths
+- [x] **Phase 6: SKU, Media & Cross-Cutting Commands** - Unit tests for SKU/media handlers plus event emission, bulk atomicity, and error paths (2026-03-28)
 - [x] **Phase 7: Repository & Data Integrity** - Integration tests for all catalog repositories against real PostgreSQL with schema constraint audit (2026-03-28)
 - [ ] **Phase 8: API Contract Validation** - Integration tests for all catalog endpoints covering HTTP contracts, authorization, lifecycle, and pagination
 - [x] **Phase 9: Entity God-Class Refactoring** - Split 2,220-line entities.py into separate files with backward-compatible re-exports (2026-03-28)
@@ -117,9 +117,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Implement missing fake repo methods + SKU handler unit tests (CMD-06)
-- [ ] 06-02-PLAN.md — Media handler unit tests (CMD-07)
-- [ ] 06-03-PLAN.md — Cross-cutting tests: event audit gaps, bulk atomicity, FK/uniqueness errors (CMD-08, CMD-09, CMD-10)
+- [x] 06-01-PLAN.md — Implement missing fake repo methods + SKU handler unit tests (CMD-06)
+- [x] 06-02-PLAN.md — Media handler unit tests (CMD-07)
+- [x] 06-03-PLAN.md — Cross-cutting tests: event audit gaps, bulk atomicity, FK/uniqueness errors (CMD-08, CMD-09, CMD-10)
 
 ### Phase 7: Repository & Data Integrity
 **Goal**: All catalog repository implementations are proven correct against real PostgreSQL -- Data Mapper roundtrips, schema constraints, soft-delete filtering, and ORM mapping fidelity
@@ -181,7 +181,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 3. Product Aggregate Behavior | 0/2 | Planned | - |
 | 4. Brand, Category & Attribute Command Handlers | 0/3 | Planned | - |
 | 5. Product & Variant Command Handlers | 2/2 | Complete | 2026-03-28 |
-| 6. SKU, Media & Cross-Cutting Commands | 0/3 | Planned | - |
+| 6. SKU, Media & Cross-Cutting Commands | 3/3 | Complete | 2026-03-28 |
 | 7. Repository & Data Integrity | 3/3 | Complete | 2026-03-28 |
 | 8. API Contract Validation | 0/3 | Planned | - |
 | 9. Entity God-Class Refactoring | 2/2 | Complete | 2026-03-28 |
