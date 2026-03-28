@@ -40,7 +40,7 @@ Plans:
 - [x] 01-01-PLAN.md — Install test dependencies + build fluent entity Builders + ORM factories
 - [x] 01-02-PLAN.md — Build FakeUnitOfWork with dict-based fake catalog repositories
 - [x] 01-03-PLAN.md — Build composable Hypothesis strategies + N+1 query detection utility
-- [ ] 01-04-PLAN.md — Gap closure: install 4 missing deps + fix FakeMediaAssetRepository stubs
+- [x] 01-04-PLAN.md — Gap closure: install 4 missing deps + fix FakeMediaAssetRepository stubs
 
 ### Phase 2: Value Objects & Entity Foundations
 **Goal**: Every entity factory method, update method, and value object is proven correct through unit tests with zero infrastructure dependencies
