@@ -1,109 +1,99 @@
-# Requirements: LoyaltyMarket Order Lifecycle
+# Requirements: EAV Catalog Hardening
 
 **Defined:** 2026-03-28
-**Core Value:** Customer can place an order from any product source and the platform handles fulfillment invisibly
+**Core Value:** The EAV Catalog module must be provably correct and thoroughly tested — it is the foundation for cart, checkout, and order management.
 
 ## v1 Requirements
 
 Requirements for this milestone. Each maps to roadmap phases.
 
-### Infrastructure
+### Test Infrastructure
 
-- [ ] **INFRA-01**: Outbox relay must not silently consume unknown event types — unhandled events remain unprocessed for later retry
+- [ ] **INFRA-01**: Install and configure new test dependencies (hypothesis, schemathesis, respx, dirty-equals, pytest-randomly, pytest-timeout)
+- [ ] **INFRA-02**: Create test data builders/factories for all catalog entities (Product, ProductVariant, SKU, Attribute, AttributeTemplate, TemplateAttributeBinding, AttributeGroup, Brand, Category)
+- [ ] **INFRA-03**: Build FakeUnitOfWork for command handler unit test isolation
+- [ ] **INFRA-04**: Build hypothesis strategies for attrs-based domain models
+- [ ] **INFRA-05**: Implement N+1 query detection via SQLAlchemy `after_cursor_execute` event context manager
 
-### Cart
+### Domain Model Validation
 
-- [ ] **CART-01**: Customer can add a product SKU to their cart from the product page
-- [ ] **CART-02**: Customer can view their cart with all added items, quantities, and current prices
-- [ ] **CART-03**: Customer can update item quantity in the cart
-- [ ] **CART-04**: Customer can remove an item from the cart
-- [ ] **CART-05**: Cart persists server-side (Redis) and survives Telegram Mini App session restarts
-- [ ] **CART-06**: Cart items are validated against catalog SKUs (unavailable items flagged)
-- [ ] **CART-07**: Cart displays current prices (re-enriched from catalog on each view)
+- [ ] **DOM-01**: Unit tests for all entity factory methods and update methods across all 9+ entity/aggregate classes
+- [ ] **DOM-02**: Unit tests for Product FSM transitions — all valid paths (draft→active, active→archived, etc.) and all invalid paths
+- [ ] **DOM-03**: Unit tests for variant hash uniqueness enforcement and collision detection
+- [ ] **DOM-04**: Unit tests for soft-delete cascade behavior across Product→Variant→SKU hierarchy
+- [ ] **DOM-05**: Unit tests for all value objects — immutability, validation rules, edge cases
+- [ ] **DOM-06**: Unit tests for attribute template governance chain (Category → effective template → bindings → attribute assignment validation)
+- [ ] **DOM-07**: Unit tests for domain event emission — correct events emitted at correct lifecycle points
 
-### Checkout
+### Command Handler Testing
 
-- [ ] **CHKOUT-01**: Customer can proceed to checkout from the cart
-- [ ] **CHKOUT-02**: Checkout pre-fills customer name and phone from Telegram profile (editable)
-- [ ] **CHKOUT-03**: Customer can enter a delivery address as free text
-- [ ] **CHKOUT-04**: Customer can add order notes (free text instructions)
-- [ ] **CHKOUT-05**: Customer confirms selected size/variant for each item before placing order
-- [ ] **CHKOUT-06**: Customer can enter customs data (passport/INN) for cross-border items
-- [ ] **CHKOUT-07**: Product data (name, price, image, variant, supplier) is snapshot at order creation time — order remains valid even if products change later
+- [ ] **CMD-01**: Unit tests for all Brand command handlers (create, update, delete, bulk_create)
+- [ ] **CMD-02**: Unit tests for all Category command handlers (create, update, delete, reorder, assign_template)
+- [ ] **CMD-03**: Unit tests for all Attribute command handlers (create_template, update_template, delete_template, create_group, manage_bindings)
+- [ ] **CMD-04**: Unit tests for all Product command handlers (create, update, delete, change_status, assign_attributes)
+- [ ] **CMD-05**: Unit tests for all Variant command handlers (add_variant, update_variant, remove_variant)
+- [ ] **CMD-06**: Unit tests for all SKU command handlers (add_sku, update_sku, remove_sku, generate_sku_matrix)
+- [ ] **CMD-07**: Unit tests for all Media command handlers (sync_media, reorder_media)
+- [ ] **CMD-08**: Verify domain event emission in all command handlers that produce events
+- [ ] **CMD-09**: Test bulk operation atomicity — bulk_create_brands and generate_sku_matrix rollback on partial failure
+- [ ] **CMD-10**: Test FK-not-found and uniqueness conflict error paths across all handlers
 
-### Order Backend
+### Repository & Data Integrity
 
-- [ ] **ORD-01**: Order is created atomically from cart contents (cart cleared on success)
-- [ ] **ORD-02**: Order stores full item details as immutable snapshots (no foreign keys to live catalog)
-- [ ] **ORD-03**: Each order item has independent status tracking (item-level state machine, not order-level)
-- [ ] **ORD-04**: Order status FSM supports core states: pending_payment, confirmed, processing, shipped, delivered, cancelled
-- [ ] **ORD-05**: Order status FSM is extensible for future states (warehouse, customs, logistics stages)
-- [ ] **ORD-06**: Order records supplier/marketplace source attribution per item
-- [ ] **ORD-07**: Order has a human-readable order number for admin/customer reference
-- [ ] **ORD-08**: Order status changes are recorded in an audit history with timestamps and optional reason
+- [ ] **REPO-01**: Integration tests for Product repository — full 3-level variant/SKU Data Mapper roundtrip (create, read, update, delete)
+- [ ] **REPO-02**: Integration tests for Brand, Category, Attribute repositories — CRUD operations with real PostgreSQL
+- [ ] **REPO-03**: Schema constraint audit — verify all FK, unique, and check constraints are correctly defined in migrations
+- [ ] **REPO-04**: Soft-delete filter audit — verify `deleted_at IS NULL` filtering in every repository method and query handler
+- [ ] **REPO-05**: ORM-to-domain mapping fidelity — verify all entity fields survive roundtrip through ORM models
 
-### Admin
+### API Contract Validation
 
-- [ ] **ADM-01**: Admin can view a list of all orders with pagination
-- [ ] **ADM-02**: Admin can filter orders by status, date range, and source type (Chinese marketplace vs local supplier)
-- [ ] **ADM-03**: Admin can search orders by order number or customer name/phone
-- [ ] **ADM-04**: Admin can view full order details: items, customer info, delivery address, supplier source, status timeline
-- [ ] **ADM-05**: Admin can manually update status per order item (with reason/notes)
-- [ ] **ADM-06**: Admin can assign/reassign supplier or marketplace source to an order item
-- [ ] **ADM-07**: Admin can view order analytics: order counts by status, revenue totals, source breakdown
+- [ ] **API-01**: Integration tests for all catalog admin REST endpoints — correct HTTP methods, status codes, response shapes
+- [ ] **API-02**: Integration tests for storefront query endpoints — product listing, filtering, detail views
+- [ ] **API-03**: Authorization enforcement tests — verify RequirePermission on all protected endpoints
+- [ ] **API-04**: Full lifecycle integration tests — create product → add variants → generate SKU matrix → activate → query storefront
+- [ ] **API-05**: Pagination behavior tests — offset, limit, total count, empty results, boundary conditions
 
-### Customer UI
+### Entity Refactoring
 
-- [ ] **CUST-01**: Customer can view their order history (list of past and active orders)
-- [ ] **CUST-02**: Customer can view order details with item-level status tracking
-- [ ] **CUST-03**: Cart page in Telegram Mini App with add, remove, update quantity functionality
-- [ ] **CUST-04**: Checkout page in Telegram Mini App connected to real backend (not localStorage)
-
-### Notifications
-
-- [ ] **NOTIF-01**: Customer receives Telegram bot message when an order item status changes
-- [ ] **NOTIF-02**: Notification includes order number, item name, and new status in human-readable format
+- [ ] **REF-01**: Split `backend/src/modules/catalog/domain/entities.py` (2,220 lines) into separate files per entity/aggregate
+- [ ] **REF-02**: Create `entities/__init__.py` with backward-compatible re-exports preserving all 50+ existing import sites
+- [ ] **REF-03**: Verify all existing tests pass after the split with zero import changes in consuming code
 
 ## v2 Requirements
 
-Deferred to future milestones. Tracked but not in current roadmap.
+Deferred to future release. Tracked but not in current roadmap.
 
-### Payment Integration
+### Performance Validation
 
-- **PAY-01**: Customer can pay for order online via payment gateway (YooKassa/Tinkoff)
-- **PAY-02**: Order status automatically transitions on payment confirmation webhook
-- **PAY-03**: Refund processing for cancelled/returned orders
+- **PERF-01**: N+1 query detection across all catalog query handlers
+- **PERF-02**: Pagination efficiency audit — evaluate cursor-based pagination for high-volume endpoints
+- **PERF-03**: Load testing with Locust for catalog endpoints under concurrent access
 
-### Logistics Integration
+### Advanced Testing
 
-- **LOG-01**: PVZ pickup point selection from CDEK/Yandex Delivery/Pochta Russia APIs
-- **LOG-02**: Automatic tracking number import from logistics partners
-- **LOG-03**: Real-time delivery status sync from logistics APIs
+- **ADV-01**: Schemathesis API fuzzing from OpenAPI spec
+- **ADV-02**: Concurrent session tests for optimistic locking on Product aggregate
+- **ADV-03**: Property-based testing for EAV attribute combinatorial state
+- **ADV-04**: Orphaned attribute value detection and cleanup
 
-### Dynamic Pricing
+### Documentation
 
-- **PRICE-01**: Automatic price parsing from Chinese marketplace listings
-- **PRICE-02**: Currency conversion (CNY → RUB) with configurable markup
-- **PRICE-03**: Price sync scheduler (periodic re-calculation)
-
-### Social Features
-
-- **FAV-01**: Customer can save products to favorites/wishlist
-- **REV-01**: Customer can leave reviews after order completion
-- **PROMO-01**: Promocode/discount system at checkout
+- **DOC-01**: API contract documentation for all catalog endpoints
+- **DOC-02**: Domain model documentation — entity relationships, invariants, FSM diagrams
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Payment gateway integration | Orders created as pending_payment, handled offline — gateway in future milestone |
-| Logistics API integration (CDEK, Yandex, Pochta) | Admin tracks manually — APIs in future milestone |
-| PVZ picker from API | Requires logistics APIs — free text address for now |
-| Dynamic pricing / marketplace parsing | Admin sets fixed prices — automation in future milestone |
-| Inventory/stock management | Pure dropshipping model — no warehouse |
-| Real-time chat / customer support | Out of platform scope for now |
-| Multi-currency display | Single currency (RUB) — cross-border pricing deferred |
-| Bulk order import | Not needed at current scale |
+| Order module / cart / checkout | Future milestone — depends on this hardening work |
+| Payment integration | Future milestone |
+| Frontend changes or tests | This milestone is backend catalog only |
+| Other module testing (identity, user, geo) | Separate effort, different milestone |
+| Refactoring away from EAV pattern | EAV is a deliberate architectural choice |
+| Search/filtering backend for storefront | Future milestone |
+| Admin frontend fixes (mock data, TypeScript) | Separate effort |
+| 100% test coverage target | Diminishing returns — aim for meaningful coverage of business logic |
 
 ## Traceability
 
@@ -112,46 +102,45 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | INFRA-01 | — | Pending |
-| CART-01 | — | Pending |
-| CART-02 | — | Pending |
-| CART-03 | — | Pending |
-| CART-04 | — | Pending |
-| CART-05 | — | Pending |
-| CART-06 | — | Pending |
-| CART-07 | — | Pending |
-| CHKOUT-01 | — | Pending |
-| CHKOUT-02 | — | Pending |
-| CHKOUT-03 | — | Pending |
-| CHKOUT-04 | — | Pending |
-| CHKOUT-05 | — | Pending |
-| CHKOUT-06 | — | Pending |
-| CHKOUT-07 | — | Pending |
-| ORD-01 | — | Pending |
-| ORD-02 | — | Pending |
-| ORD-03 | — | Pending |
-| ORD-04 | — | Pending |
-| ORD-05 | — | Pending |
-| ORD-06 | — | Pending |
-| ORD-07 | — | Pending |
-| ORD-08 | — | Pending |
-| ADM-01 | — | Pending |
-| ADM-02 | — | Pending |
-| ADM-03 | — | Pending |
-| ADM-04 | — | Pending |
-| ADM-05 | — | Pending |
-| ADM-06 | — | Pending |
-| ADM-07 | — | Pending |
-| CUST-01 | — | Pending |
-| CUST-02 | — | Pending |
-| CUST-03 | — | Pending |
-| CUST-04 | — | Pending |
-| NOTIF-01 | — | Pending |
-| NOTIF-02 | — | Pending |
+| INFRA-02 | — | Pending |
+| INFRA-03 | — | Pending |
+| INFRA-04 | — | Pending |
+| INFRA-05 | — | Pending |
+| DOM-01 | — | Pending |
+| DOM-02 | — | Pending |
+| DOM-03 | — | Pending |
+| DOM-04 | — | Pending |
+| DOM-05 | — | Pending |
+| DOM-06 | — | Pending |
+| DOM-07 | — | Pending |
+| CMD-01 | — | Pending |
+| CMD-02 | — | Pending |
+| CMD-03 | — | Pending |
+| CMD-04 | — | Pending |
+| CMD-05 | — | Pending |
+| CMD-06 | — | Pending |
+| CMD-07 | — | Pending |
+| CMD-08 | — | Pending |
+| CMD-09 | — | Pending |
+| CMD-10 | — | Pending |
+| REPO-01 | — | Pending |
+| REPO-02 | — | Pending |
+| REPO-03 | — | Pending |
+| REPO-04 | — | Pending |
+| REPO-05 | — | Pending |
+| API-01 | — | Pending |
+| API-02 | — | Pending |
+| API-03 | — | Pending |
+| API-04 | — | Pending |
+| API-05 | — | Pending |
+| REF-01 | — | Pending |
+| REF-02 | — | Pending |
+| REF-03 | — | Pending |
 
 **Coverage:**
-- v1 requirements: 36 total
+- v1 requirements: 35 total
 - Mapped to phases: 0
-- Unmapped: 36 ⚠️
+- Unmapped: 35 ⚠️
 
 ---
 *Requirements defined: 2026-03-28*
