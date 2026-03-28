@@ -66,9 +66,11 @@ class TestCategoryEffectiveTemplateId:
         assert cat.effective_template_id == fid
 
     def test_update_clear_template_id_does_not_clear_effective(self):
-        """When clearing template_id, handler must explicitly set effective."""
+        """When clearing template_id without providing parent_effective_template_id,
+        effective_template_id is also cleared. The handler is responsible for
+        passing parent_effective_template_id if it wants inheritance preserved."""
         fid = uuid.uuid4()
         cat = Category.create_root(name_i18n=_i18n("R"), slug="r", template_id=fid)
         cat.update(template_id=None)
-        # effective is NOT cleared by update() — handler must call set_effective_template_id()
-        assert cat.effective_template_id == fid
+        # effective IS cleared because parent_effective_template_id was not provided
+        assert cat.effective_template_id is None
