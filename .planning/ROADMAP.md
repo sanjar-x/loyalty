@@ -87,7 +87,7 @@ Plans:
 Plans:
 - [x] 04-01-PLAN.md — Implement 7 missing fake repo methods + Brand handler unit tests (CMD-01)
 - [x] 04-02-PLAN.md — Category handler unit tests (CMD-02)
-- [ ] 04-03-PLAN.md — Attribute/Template/Binding handler unit tests (CMD-03)
+- [x] 04-03-PLAN.md — Attribute/Template/Binding handler unit tests (CMD-03)
 
 ### Phase 5: Product & Variant Command Handlers
 **Goal**: All command handlers for the Product aggregate core (product CRUD, status changes, attribute assignment, variant management) are proven correct

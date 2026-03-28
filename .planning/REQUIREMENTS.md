@@ -29,7 +29,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 - [x] **CMD-01**: Unit tests for all Brand command handlers (create, update, delete, bulk_create)
 - [x] **CMD-02**: Unit tests for all Category command handlers (create, update, delete, reorder, assign_template)
-- [ ] **CMD-03**: Unit tests for all Attribute command handlers (create_template, update_template, delete_template, create_group, manage_bindings)
+- [x] **CMD-03**: Unit tests for all Attribute command handlers (create_template, update_template, delete_template, create_group, manage_bindings)
 - [ ] **CMD-04**: Unit tests for all Product command handlers (create, update, delete, change_status, assign_attributes)
 - [ ] **CMD-05**: Unit tests for all Variant command handlers (add_variant, update_variant, remove_variant)
 - [ ] **CMD-06**: Unit tests for all SKU command handlers (add_sku, update_sku, remove_sku, generate_sku_matrix)
@@ -115,7 +115,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DOM-07 | Phase 3 | Complete |
 | CMD-01 | Phase 4 | Complete |
 | CMD-02 | Phase 4 | Complete |
-| CMD-03 | Phase 4 | Pending |
+| CMD-03 | Phase 4 | Complete |
 | CMD-04 | Phase 5 | Pending |
 | CMD-05 | Phase 5 | Pending |
 | CMD-06 | Phase 6 | Pending |
