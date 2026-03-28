@@ -4,202 +4,233 @@
 
 ## Tech Debt
 
-**Stubbed-out cart and favorites hooks (frontend/main):**
-- Issue: `useCart` at `frontend/main/components/blocks/cart/useCart.ts` returns hardcoded empty arrays and no-op callbacks. Every cart operation (add, remove, setQuantity, toggleFavorite) does nothing. Similarly, `useItemFavorites` at `frontend/main/lib/hooks/useItemFavorites.ts` is completely stubbed with `// TODO: connect to API`.
-- Files: `frontend/main/components/blocks/cart/useCart.ts`, `frontend/main/lib/hooks/useItemFavorites.ts`
-- Impact: Cart and favorites functionality is non-functional for end users. The checkout page (`frontend/main/app/checkout/page.tsx`) imports useCart but operates on empty data. Any features depending on cart state (checkout flow, badge counts in `frontend/main/components/layout/Footer.tsx`) are broken.
-- Fix approach: Implement RTK Query endpoints in `frontend/main/lib/store/api.ts` for cart CRUD and favorites, then wire hooks to use them. Backend cart/favorites endpoints need to be built first if not present.
-
-**Non-semantic CSS class names across main frontend:**
-- Issue: CSS module classes use auto-generated names like `.c1`, `.c170`, `.tw67` instead of descriptive names. 448 occurrences across 24 files.
-- Files: `frontend/main/app/checkout/page.module.css` (1661 lines), `frontend/main/app/checkout/pickup/page.module.css`, `frontend/main/app/trash/page.module.css`, and others.
-- Impact: CSS is unreadable and unmaintainable. Developers cannot understand layout intent from class names. Refactoring any component requires tracing numeric class names back and forth between TSX and CSS files.
-- Fix approach: Rename classes to semantic names (e.g., `.c170` to `.cardHolderError`) incrementally per page component. Prioritize `checkout/page.module.css` and `checkout/pickup/page.module.css` as the largest files.
-
-**Admin frontend entirely in JavaScript (no TypeScript):**
-- Issue: The admin app (`frontend/admin/src/`) contains 145 `.js`/`.jsx` files and zero `.ts`/`.tsx` files, while the main app is fully TypeScript (154 `.ts`/`.tsx` files, 0 JS).
-- Files: All files under `frontend/admin/src/`
-- Impact: No compile-time type safety in the admin panel. Refactoring is error-prone. API response shapes are not validated. Inconsistency between the two frontend apps makes it harder for developers to context-switch.
-- Fix approach: Gradually migrate admin files from JS to TSX, starting with the API proxy layer (`frontend/admin/src/lib/api-client.js`, `frontend/admin/src/proxy.js`) and shared utilities (`frontend/admin/src/lib/auth.js`, `frontend/admin/src/lib/utils.js`).
-
-**Monolithic page components (1000+ lines):**
-- Issue: Several page components contain entire features in a single file with inline state, validation, modals, and rendering.
-- Files: `frontend/main/app/checkout/page.tsx` (1645 lines), `frontend/main/app/checkout/pickup/page.tsx` (1597 lines), `frontend/main/app/search/page.tsx` (1159 lines), `frontend/main/app/product/[id]/page.tsx` (790 lines), `frontend/main/app/trash/page.tsx` (753 lines)
-- Impact: Difficult to test, review, or modify individual features. State logic is entangled with UI rendering. Custom hooks like `useAnimatedPresence` are defined inline instead of extracted.
-- Fix approach: Extract custom hooks (e.g., `useCheckoutRecipient`, `useCheckoutCard`, `useCheckoutCustoms`), break modals into separate components, and move validation logic to dedicated utilities.
-
-**Duplicated components and patterns:**
-- Issue: `StatsIcon` is duplicated between `frontend/admin/src/app/admin/settings/staff/page.jsx` and `frontend/admin/src/app/admin/settings/promocodes/page.jsx` (both files note the TODO). API proxy patterns are also reimplemented differently between the admin (`frontend/admin/src/lib/api-client.js` with `backendFetch`) and main (`frontend/main/app/api/backend/[...path]/route.ts` with a full proxy) frontend apps.
-- Files: `frontend/admin/src/app/admin/settings/staff/page.jsx`, `frontend/admin/src/app/admin/settings/promocodes/page.jsx`, `frontend/admin/src/lib/api-client.js`, `frontend/main/app/api/backend/[...path]/route.ts`
-- Impact: Bug fixes must be applied in multiple places. Inconsistent proxy behavior between admin and main apps.
-- Fix approach: Extract `StatsIcon` to a shared component. Consider unifying the backend proxy approach across both apps.
-
-**Many unconnected frontend features (TODO: connect to API):**
-- Issue: Multiple frontend features are marked as not yet wired to backend APIs.
+**Admin Frontend: Hardcoded Seed Data Instead of API Integration:**
+- Issue: Most admin service modules use local in-memory seed data arrays instead of actual backend API calls. Orders, users, reviews, staff, promocodes, and referrals all read from static `@/data/*.js` files, meaning the admin panel operates as a UI prototype for these features, not a production tool.
 - Files:
-  - `frontend/main/components/blocks/catalog/BrandsList.tsx:51` - brand listing
-  - `frontend/main/app/product/[id]/page.tsx:386,390` - product page features
-  - `frontend/main/app/profile/about/page.tsx:25,43,61,79` - legal document links (user agreement, public offer, privacy policy, consent)
-  - `frontend/main/app/profile/settings/page.tsx:424,451` - pickup point management
-  - `frontend/main/app/profile/purchased/review/[id]/ReviewClient.tsx:344` - review submission
-  - `frontend/admin/src/components/admin/TopMetrics.jsx:9` - date range filter
-  - `frontend/admin/src/components/admin/products/ProductMetrics.jsx:11,17` - product metrics (hardcoded percentages)
-- Impact: UI is rendered but features are non-functional. Users see buttons and forms that do nothing.
-- Fix approach: Prioritize by user-facing impact. Review submission, brand listing, and pickup point management should be connected first.
+  - `frontend/admin/src/services/orders.js` (imports `ordersSeed`)
+  - `frontend/admin/src/services/users.js` (imports `usersSeed`)
+  - `frontend/admin/src/services/reviews.js` (imports `reviewsSeed`)
+  - `frontend/admin/src/services/staff.js` (imports `staffSeed`)
+  - `frontend/admin/src/services/promocodes.js` (imports `promocodesSeed`)
+  - `frontend/admin/src/services/referrals.js` (imports `referralsSeed`)
+  - `frontend/admin/src/data/orders.js`, `frontend/admin/src/data/products.js`, etc.
+- Impact: Admin users see fake data; any changes (e.g., order status updates) are lost on page reload. Real backend endpoints for orders, reviews, referrals, and promocodes do not exist yet.
+- Fix approach: Build backend modules for orders, reviews, referrals, and promocodes. Replace seed imports in service files with `fetch('/api/...')` calls, following the pattern already used in `frontend/admin/src/services/brands.js` and `frontend/admin/src/services/suppliers.js`.
 
-**Product entity file at 2220 lines:**
-- Issue: `backend/src/modules/catalog/domain/entities.py` contains Brand, Category, AttributeTemplate, TemplateAttributeBinding, AttributeGroup, Attribute, AttributeValue, ProductVariant, SKU, and Product domain entities all in a single file.
-- Files: `backend/src/modules/catalog/domain/entities.py` (2220 lines)
-- Impact: Hard to navigate and maintain. A change to Brand entity requires opening a 2200-line file. Git merge conflicts are more likely.
-- Fix approach: Split into separate files per aggregate root: `brand.py`, `category.py`, `attribute_template.py`, `attribute.py`, `product.py`. Keep a barrel `__init__.py` re-exporting all entities for backward compatibility.
+**Admin Frontend: Plain JavaScript (No TypeScript):**
+- Issue: The entire admin frontend (`frontend/admin/src/`) uses `.js`/`.jsx` files with zero TypeScript. The main frontend (`frontend/main/`) uses TypeScript. This creates a type-safety gap in the admin panel where runtime bugs are harder to catch.
+- Files: All files under `frontend/admin/src/` (0 `.ts`/`.tsx` files found)
+- Impact: Refactoring the admin panel is error-prone; no compile-time type checking; API response shapes are implicitly trusted.
+- Fix approach: Incrementally rename `.jsx` to `.tsx` starting with service and hook files. Add TypeScript interfaces for API responses.
+
+**Catalog Domain Entity God-File (2,220 lines):**
+- Issue: `backend/src/modules/catalog/domain/entities.py` contains Brand, Category, AttributeTemplate, TemplateAttributeBinding, AttributeGroup, Attribute, ProductVariant, SKU, and Product aggregates all in a single file. At 2,220 lines, this is the largest file in the backend by a significant margin.
+- Files: `backend/src/modules/catalog/domain/entities.py`
+- Impact: Difficult to navigate, high merge-conflict risk, cognitive overload when modifying any single entity.
+- Fix approach: Split into separate files per aggregate root: `brand.py`, `category.py`, `attribute.py`, `attribute_template.py`, `product.py` (with ProductVariant + SKU). Keep a barrel `__init__.py` for backward-compatible imports.
+
+**Catalog DI Provider Mega-File (518 lines):**
+- Issue: `backend/src/modules/catalog/presentation/dependencies.py` registers all catalog command handlers, query handlers, and repositories in a single Dishka provider file. With 45 command handlers alone, this file is bloated with imports.
+- Files: `backend/src/modules/catalog/presentation/dependencies.py`
+- Impact: Adding any new catalog feature requires editing this file, which grows monotonically.
+- Fix approach: Split into per-subdomain providers (e.g., `BrandProvider`, `AttributeProvider`, `ProductProvider`) in separate files and compose them in the container.
+
+**Multiple Unimplemented Frontend Features (TODOs):**
+- Issue: Numerous TODO comments mark unimplemented functionality across both frontends.
+- Files:
+  - `frontend/main/lib/hooks/useItemFavorites.ts` - Favorites API stub (returns empty data)
+  - `frontend/main/app/product/[id]/page.tsx` - "connect to API" comments on lines 386/390
+  - `frontend/main/app/profile/about/page.tsx` - 4 unimplemented legal document links
+  - `frontend/main/app/profile/settings/page.tsx` - Pickup point add/edit not implemented
+  - `frontend/main/app/profile/purchased/review/[id]/ReviewClient.tsx` - Review submission stub
+  - `frontend/main/components/blocks/catalog/BrandsList.tsx` - Brands API not connected
+- Impact: Users encounter dead-end UI flows for favorites, reviews, and legal pages.
+- Fix approach: Prioritize favorites and reviews as they affect core UX. Legal document links can point to static pages initially.
+
+**Hardcoded Domain in Admin Staff Invite:**
+- Issue: Staff invitation link domain is hardcoded as `invite.admin.loyaltymarket.ru`.
+- Files: `frontend/admin/src/app/admin/settings/staff/page.jsx` (line 133)
+- Impact: Broken in non-production environments; requires code change to use different domain.
+- Fix approach: Use `NEXT_PUBLIC_INVITE_DOMAIN` environment variable as the TODO suggests.
+
+**Duplicated StatsIcon Component:**
+- Issue: `StatsIcon` SVG component is duplicated in two admin pages.
+- Files:
+  - `frontend/admin/src/app/admin/settings/promocodes/page.jsx`
+  - `frontend/admin/src/app/admin/settings/staff/page.jsx`
+- Impact: Minor; duplicated code that diverges over time.
+- Fix approach: Extract to `frontend/admin/src/components/icons/StatsIcon.jsx`.
 
 ## Known Bugs
 
-**Order details page returns null (no data source):**
-- Symptoms: `OrderDetailsClient.tsx` comments say "Previously used getMockOrderById - now returns null (no mock data)". The order detail view renders with no data.
-- Files: `frontend/main/app/profile/orders/[id]/OrderDetailsClient.tsx:357`
-- Trigger: Navigate to any order detail page.
-- Workaround: None. The page is non-functional.
+**Image Backend Auth Bypass in Dev Mode:**
+- Symptoms: When `INTERNAL_API_KEY` is an empty string (default), authentication is completely disabled. The `verify_api_key` dependency returns immediately without validating anything.
+- Files: `image_backend/src/api/dependencies/auth.py` (line 31: `if not internal_key: return`)
+- Trigger: Deploy image_backend without setting `INTERNAL_API_KEY` env var.
+- Workaround: Always set `INTERNAL_API_KEY` in all environments, including dev.
 
-**Console.log left in production code:**
-- Symptoms: Debug `console.log` statements in button onClick handlers.
-- Files: `frontend/main/app/profile/reviews/[brand]/page.tsx:545,552` -- `console.log("buyNow", ...)` and `console.log("addToCart", ...)` in click handlers that should trigger real actions.
-- Trigger: Click "Buy Now" or "Add to Cart" on the brand reviews page.
-- Workaround: None. The buttons only log to console.
+**Outbox Relay: Silently Marks Unknown Events as Processed:**
+- Symptoms: When an outbox event has an `event_type` that has no registered handler, the relay logs a warning but still marks it as processed (line 143-147). If a handler is deployed later, those events are lost.
+- Files: `backend/src/infrastructure/outbox/relay.py` (lines 137-148)
+- Trigger: Deploy new domain events before deploying the corresponding consumer handler.
+- Workaround: Deploy consumer handlers before producers, or change the relay to leave unknown events unprocessed.
 
 ## Security Considerations
 
-**Sensitive PII stored in localStorage (checkout page):**
-- Risk: Passport series, passport number, issue date, birth date, INN (tax ID), and payment card details (last 4, expiry, holder name) are persisted in `localStorage` across sessions. localStorage is accessible to any JavaScript running on the same origin, including XSS payloads and browser extensions.
-- Files: `frontend/main/app/checkout/page.tsx` (lines 99-191, keys: `loyaltymarket_checkout_customs_v1`, `loyaltymarket_checkout_card_v1`, `loyaltymarket_checkout_recipient_v1`)
-- Current mitigation: None. Data is stored in plaintext JSON.
-- Recommendations: Move sensitive data to `sessionStorage` (cleared on tab close) at minimum. For card data, use a payment gateway's hosted fields or tokenization service instead of collecting card numbers directly. For passport data, avoid client-side persistence entirely and submit directly to the backend.
+**No API Rate Limiting on Backend HTTP Endpoints:**
+- Risk: Login, registration, and all authenticated endpoints lack HTTP-level rate limiting. The bot has throttling (`backend/src/bot/middlewares/throttling.py`), but the REST API does not.
+- Files: `backend/src/bootstrap/web.py`, `backend/src/modules/identity/presentation/router_auth.py`
+- Current mitigation: None at the application level.
+- Recommendations: Add rate limiting middleware (e.g., `slowapi` or a custom Redis-based limiter) on `/auth/login`, `/auth/register`, `/auth/refresh` at minimum. Consider per-IP and per-identity limits.
 
-**Payment card numbers handled directly in frontend:**
-- Risk: The checkout page collects full card numbers, expiry, and CVV in browser state (`CheckoutCardDraft` interface with `numberDigits`, `exp`, `cvc`, `holder`). This likely violates PCI-DSS requirements. Card data flows through application JavaScript before (presumably) being sent to a backend.
-- Files: `frontend/main/app/checkout/page.tsx` (lines 72-77, 1510-1595)
-- Current mitigation: Only `last4`, `exp`, and `holder` are persisted to localStorage. Full card number and CVV are kept only in React state.
-- Recommendations: Replace with a PCI-compliant payment gateway integration (Stripe Elements, Yandex Pay, etc.) that uses iframe-based card collection.
+**CSP Allows unsafe-inline and unsafe-eval (Admin Frontend):**
+- Risk: The admin frontend's Content-Security-Policy includes `'unsafe-inline' 'unsafe-eval'` for scripts, which significantly weakens XSS protection.
+- Files: `frontend/admin/next.config.js` (line 16)
+- Current mitigation: The admin is behind authentication. The main frontend does not set CSP headers at all (only X-Frame-Options and X-Content-Type-Options via middleware).
+- Recommendations: Use nonce-based CSP for the admin. Add CSP headers to the main frontend middleware.
 
-**No API rate limiting on HTTP endpoints:**
-- Risk: The backend API has no rate limiting middleware. Only the Telegram bot has throttling (`backend/src/bot/middlewares/throttling.py`). Authentication endpoints (`/api/v1/auth/login`, `/api/v1/auth/telegram`) are vulnerable to brute-force attacks.
-- Files: `backend/src/bootstrap/web.py`, `backend/src/bot/middlewares/throttling.py`
-- Current mitigation: JWT expiry (15 min access, 30 day refresh) limits damage from compromised tokens.
-- Recommendations: Add rate limiting middleware (e.g., slowapi or a custom Redis-based limiter). Prioritize auth endpoints, then apply globally with per-IP limits.
+**Admin Frontend CSP connect-src Restricts to 'self' Only:**
+- Risk: The admin CSP sets `connect-src 'self'` which blocks fetch requests to any external domain. If the admin ever needs to call an external API (e.g., for image uploads to S3 presigned URLs), these requests will be blocked by the browser.
+- Files: `frontend/admin/next.config.js` (line 16)
+- Current mitigation: All API calls currently route through the Next.js BFF proxy (`/api/*` routes), so `connect-src 'self'` works today.
+- Recommendations: When adding direct-to-S3 uploads from the admin, expand `connect-src` to include the S3 domain.
 
-**Image backend external import lacks SSRF protection:**
-- Risk: The `POST /media/external` endpoint accepts an arbitrary URL and fetches it server-side using `httpx.AsyncClient`. No validation prevents requests to internal/private IP ranges (127.0.0.1, 10.x.x.x, 169.254.x.x, etc.).
-- Files: `image_backend/src/modules/storage/presentation/router.py` (lines 337-404), `image_backend/src/modules/storage/presentation/schemas.py` (line 53-54 -- `url: str` with no validation)
-- Current mitigation: 10 MB file size limit and 30s timeout. API key required (but disabled when `INTERNAL_API_KEY` is empty).
-- Recommendations: Validate the URL scheme (only `http`/`https`), resolve DNS and reject private/loopback/link-local IP ranges before fetching. Add URL pattern allowlist if possible.
+**Browser Debug Auth Includes Hardcoded User Credentials:**
+- Risk: `frontend/main/lib/auth/debug.ts` contains a hardcoded Telegram user ID (`7427756366`) and username (`yokub_janovich`). While debug mode is properly gated to non-production, these are real-looking credentials committed to source.
+- Files: `frontend/main/lib/auth/debug.ts`
+- Current mitigation: `isBrowserDebugAuthEnabled()` returns false when `NODE_ENV === "production"`.
+- Recommendations: Use generic placeholder data (e.g., `telegram_id: "0000000000"`) to avoid any confusion with real accounts.
 
-**Image backend API key auth can be disabled:**
-- Risk: When `INTERNAL_API_KEY` is empty string (the default), the `verify_api_key` dependency returns immediately without checking, making all image backend endpoints publicly accessible.
-- Files: `image_backend/src/api/dependencies/auth.py` (lines 30-31)
-- Current mitigation: Presumably the key is set in production deployment.
-- Recommendations: Fail-closed: require the key in non-dev environments. Add an explicit check like `if settings.ENVIRONMENT != "dev" and not internal_key: raise`.
+**JWT Access Token Valid for 15 Minutes After Logout:**
+- Risk: After logout, the access token remains valid until its JWT expiry (default 15 minutes). This is documented in a design comment but represents a window of unauthorized access.
+- Files: `backend/src/modules/identity/presentation/dependencies.py` (lines 59-64, design comment)
+- Current mitigation: Token version validation (`tv` claim vs `identity.token_version`) catches global invalidations. Session-level revocation is not checked.
+- Recommendations: For sensitive operations, add a lightweight Redis blacklist check for revoked session IDs.
 
-**Debug/mock auth generates predictable tokens:**
-- Risk: In development mode, the Telegram auth endpoint generates tokens like `debug_{tg_id}_{timestamp}` which are not real JWTs and bypass all backend authentication.
-- Files: `frontend/main/app/api/auth/telegram/route.ts` (lines 104-111), `frontend/main/lib/auth/debug.ts` (hardcoded debug user with `tg_id: "7427756366"`)
-- Current mitigation: Protected by `NODE_ENV !== "production"` check and localhost-only guard in `isLocalBrowserDebugRequest`.
-- Recommendations: Ensure `BROWSER_DEBUG_AUTH` env var is never set in production. Consider removing the mock token fallback entirely and always requiring a running backend.
-
-**Hardcoded admin domain URL:**
-- Risk: Invite link generation uses a hardcoded domain: `https://invite.admin.loyaltymarket.ru/{token}`.
-- Files: `frontend/admin/src/app/admin/settings/staff/page.jsx:133`
+**Wildcard Remote Image Patterns:**
+- Risk: The admin frontend allows loading images from any HTTPS hostname (`hostname: '**'` in `next.config.js` image configuration).
+- Files: `frontend/admin/next.config.js` (line 23)
 - Current mitigation: None.
-- Recommendations: Move domain to `NEXT_PUBLIC_INVITE_DOMAIN` environment variable as the TODO suggests.
+- Recommendations: Restrict to known image hosting domains (S3 bucket domain, CDN domain).
 
 ## Performance Bottlenecks
 
-**Linear SKU search in Product aggregate:**
-- Problem: `find_sku()` and `remove_sku()` iterate through all variants and all SKUs with nested loops. `add_sku()` checks variant hash uniqueness across all SKUs.
-- Files: `backend/src/modules/catalog/domain/entities.py` (lines 2157-2195)
-- Cause: SKUs are stored as flat lists on variants. No index/hash map for lookup.
-- Improvement path: For products with many variants and SKUs, consider adding a `_sku_by_id` dict for O(1) lookup, or a `_variant_hashes` set for O(1) duplicate checking. Only matters for products with 50+ SKUs.
+**COUNT(*) Subquery on Every Paginated Endpoint:**
+- Problem: The shared `paginate()` helper executes a `SELECT COUNT(*) FROM (base_query)` subquery on every paginated request, doubling the query load.
+- Files: `backend/src/shared/pagination.py` (line 34)
+- Cause: Standard offset-based pagination always needs the total count for UI pagination controls.
+- Improvement path: For list-heavy endpoints (products, attributes), consider cursor-based pagination or caching total counts with short TTL. For admin endpoints with moderate traffic, the current approach is acceptable.
 
-**Checkout page single-file bundle size:**
-- Problem: The checkout page (`frontend/main/app/checkout/page.tsx`, 1645 lines) and its CSS module (1661 lines) are loaded as a single chunk. All modals (recipient, customs, card) and their validation logic are included even if the user never opens them.
-- Files: `frontend/main/app/checkout/page.tsx`, `frontend/main/app/checkout/page.module.css`
-- Cause: Everything is in one "use client" component with no code splitting.
-- Improvement path: Use `React.lazy()` and `Suspense` for modals. Extract modal components to separate files that are dynamically imported.
+**Catalog Domain Entities: Nested Loop Searches:**
+- Problem: `Product.find_sku()` and `Product.remove_sku()` iterate through all variants and their SKUs with nested loops to find a single SKU by ID. `Product.add_sku()` also iterates all variants' SKUs to check for duplicate hashes.
+- Files: `backend/src/modules/catalog/domain/entities.py` (lines 2124-2170, 2172-2195)
+- Cause: Pure domain entities without indexing; in-memory scans are O(variants * skus).
+- Improvement path: Maintain a private `dict[UUID, SKU]` index on the Product aggregate for O(1) lookups. For typical products (1-5 variants, 1-50 SKUs each), current performance is acceptable but will degrade with large variant matrices.
+
+**External Image Import Downloads Entire File Into Memory:**
+- Problem: The image_backend external import endpoint downloads the entire external image (up to 10 MB) into memory before processing.
+- Files: `image_backend/src/modules/storage/presentation/router.py` (lines 349-357, `response.content`)
+- Cause: httpx `response.content` buffers the full response body.
+- Improvement path: Use `response.aiter_bytes()` for streaming download with size-checking, or accept this for the 10 MB limit.
 
 ## Fragile Areas
 
-**Checkout page state management (localStorage + React state):**
-- Files: `frontend/main/app/checkout/page.tsx` (lines 97-191)
-- Why fragile: State is split across 5 localStorage keys and React state. Read/write functions have manual JSON parse/serialize with empty catch blocks. Any schema change to stored data (e.g., adding a field to `CheckoutRecipient`) silently returns `null` on read, causing the form to reset.
-- Safe modification: Always maintain backward compatibility in read functions. Add version keys to localStorage data for migration support.
-- Test coverage: Zero tests. No unit tests for any frontend code.
+**Category Tree Slug Cascade:**
+- Files:
+  - `backend/src/modules/catalog/application/commands/update_category.py`
+  - `backend/src/modules/catalog/domain/entities.py` (Category entity)
+  - `backend/src/modules/catalog/infrastructure/repositories/category.py`
+- Why fragile: Renaming a category slug triggers `update_descendants_full_slug()` to rewrite all descendant `full_slug` values via string prefix replacement. If the operation partially fails or the cache invalidation after commit fails, the category tree can have inconsistent slugs. Also, the `effective_template_id` propagation via `propagate_effective_template_id()` runs in the same transaction.
+- Safe modification: Always test slug changes with deep category trees (3+ levels). Verify both `full_slug` and `effective_template_id` on descendants after changes.
+- Test coverage: Unit tests exist for `test_category_effective_family.py` but no integration tests for the full cascade with real DB.
 
-**Outbox relay (event-driven messaging):**
-- Files: `backend/src/infrastructure/outbox/relay.py`, `backend/src/infrastructure/outbox/tasks.py`
-- Why fragile: Uses raw SQL with `FOR UPDATE SKIP LOCKED` for concurrent processing. The event handler registry is a module-level mutable dict (`_EVENT_HANDLERS`). If a handler is not registered for an event type, the event is silently skipped (logged as warning).
-- Safe modification: Always register handlers before starting the relay. Test with concurrent workers to verify SKIP LOCKED behavior.
-- Test coverage: Unit tests exist (`backend/tests/unit/infrastructure/outbox/test_relay.py`, `backend/tests/unit/infrastructure/outbox/test_tasks.py`).
+**Admin Frontend BFF Proxy (Catch-All Route):**
+- Files: `frontend/main/app/api/backend/[...path]/route.ts`
+- Why fragile: This single catch-all route proxies ALL HTTP methods to the backend. It handles path encoding, trailing slash normalization, header filtering, timeout management, and error formatting. Any change can break API calls from the entire main frontend.
+- Safe modification: Add integration tests for edge cases (encoded paths, trailing slashes, large request bodies). The current extensive error-detail extraction (lines 121-184) suggests past debugging difficulty.
+- Test coverage: No tests.
 
-**Empty catch blocks throughout frontend:**
-- Files: At least 30+ instances across `frontend/main/` and `frontend/admin/` (found in `TelegramProvider.tsx`, `checkout/page.tsx`, `InviteLinkActions.tsx`, `PriceSheet.tsx`, and many others)
-- Why fragile: Errors are swallowed silently. When something breaks in production, there is no visibility. localStorage parsing failures, clipboard API failures, and Telegram SDK failures all fail silently.
-- Safe modification: Replace empty `catch {}` blocks with at minimum `catch { /* intentionally ignored: clipboard not supported */ }` comments, or better, log to an error tracking service.
-- Test coverage: None.
+**Outbox Relay Event Dispatch:**
+- Files:
+  - `backend/src/infrastructure/outbox/relay.py`
+  - `backend/src/infrastructure/outbox/tasks.py`
+  - `backend/src/bootstrap/scheduler.py`
+- Why fragile: The relay uses `FOR UPDATE SKIP LOCKED` for concurrent safety but fetches event IDs in one transaction, then re-locks each event individually in separate transactions. A slow handler or network issue can cause the relay batch to take a long time, potentially triggering duplicate processing if the scheduler fires the next relay before the current one finishes.
+- Safe modification: Ensure relay batch size and scheduler interval are tuned together. Monitor `outbox_messages` table size for unprocessed event buildup.
+- Test coverage: Unit tests in `backend/tests/unit/infrastructure/outbox/test_relay.py`.
+
+**ImageBackend Client (Best-Effort Deletes):**
+- Files: `backend/src/modules/catalog/infrastructure/image_backend_client.py`
+- Why fragile: The `ImageBackendClient.delete()` method silently swallows all exceptions and only logs warnings. If the image backend is down, media records in the main backend will reference deleted products but the S3 files will remain orphaned.
+- Safe modification: Consider adding a dead-letter mechanism or scheduled cleanup job for orphaned S3 objects.
+- Test coverage: Unit test exists at `backend/tests/unit/modules/catalog/infrastructure/test_image_backend_client.py`.
 
 ## Scaling Limits
 
-**Single database migration file:**
-- Current capacity: The backend has a single Alembic migration (`backend/alembic/versions/2026/03/27_0911_19_7ce70774f240_init.py`). The image backend has one migration as well.
-- Limit: As the schema evolves, having started from a single init migration means there is no migration history to rollback to intermediate states.
-- Scaling path: Standard practice -- create incremental migrations for every schema change going forward. Never modify the init migration.
+**Single Alembic Migration File:**
+- Current capacity: One migration file covers the entire initial schema (`backend/alembic/versions/2026/03/27_0911_19_7ce70774f240_init.py`).
+- Limit: All schema changes are in a single migration. As the application grows, running migrations in production will lock tables for longer.
+- Scaling path: Standard practice going forward -- create incremental migrations for each schema change.
 
-**No CI/CD pipeline:**
-- Current capacity: No GitHub Actions, GitLab CI, or any CI/CD configuration detected. No root `.gitignore`. No docker-compose for local development.
-- Limit: All testing, linting, and deployment are manual. No automated quality gates prevent broken code from being merged.
-- Scaling path: Add GitHub Actions with: lint (ruff + eslint), test (pytest + vitest), build check (docker build), and deploy stages.
+**Connection Pool Sizing:**
+- Current capacity: `pool_size=15`, `max_overflow=10` (25 max connections) in `backend/src/infrastructure/database/provider.py` (line 54-55).
+- Limit: With 25 max DB connections per API process, scaling to multiple API replicas will multiply connection count against PostgreSQL's `max_connections`.
+- Scaling path: Use PgBouncer or another connection pooler in front of PostgreSQL when scaling beyond 3-4 API replicas.
 
 ## Dependencies at Risk
 
-**Python 3.14 (pre-release):**
-- Risk: The Dockerfile uses `python:3.14-slim-trixie`. Python 3.14 is not yet released (scheduled for October 2026). Using a pre-release Python version in production risks encountering bugs in the runtime itself.
-- Files: `backend/Dockerfile`
-- Impact: Build failures, runtime bugs, or incompatible packages when the final 3.14 release changes behavior.
-- Migration plan: Pin to a stable Python version (3.12 or 3.13) for production. Use 3.14 only in a development/testing branch.
+**Python 3.14 (Pre-Release):**
+- Risk: Both Dockerfiles use `python:3.14-slim-trixie`. Python 3.14 is scheduled for release in October 2026 and is currently in pre-release. Running pre-release Python in production risks encountering bugs in the interpreter, and some dependencies may not be fully compatible.
+- Files: `backend/Dockerfile`, `image_backend/Dockerfile`
+- Impact: Potential runtime issues with C extensions or async behavior.
+- Migration plan: Pin to a stable release (e.g., `python:3.13-slim-bookworm`) until 3.14 reaches GA.
 
 ## Missing Critical Features
 
-**No frontend test suite:**
-- Problem: Both frontend applications (admin and main) have zero test files. No `.test.ts`, `.test.tsx`, `.spec.ts`, or `.spec.tsx` files exist anywhere under `frontend/`.
-- Blocks: Refactoring any component safely. Validating checkout flow logic. Ensuring Telegram auth flow works after changes.
+**No CI/CD Pipeline:**
+- Problem: No GitHub Actions, GitLab CI, or any CI/CD configuration files exist in the repository. No `.github/workflows/`, no `.gitlab-ci.yml`.
+- Blocks: Automated testing, linting enforcement, deployment automation, and merge-request quality gates.
 
-**No error monitoring/tracking:**
-- Problem: No Sentry, Datadog, LogRocket, or similar error tracking integration in either frontend app. Backend uses structlog for logging but no external monitoring service.
-- Blocks: Detecting production errors. Understanding user-facing failures. Measuring error rates.
+**No Backend Modules for Orders, Payments, or Shipping:**
+- Problem: The backend has modules for `catalog`, `identity`, `user`, `geo`, and `supplier`, but no modules for orders, payments, shipping/delivery, reviews, referrals, or promocodes -- all of which have admin UI pages using seed data.
+- Blocks: Completing the admin panel API integration; launching any commerce flow.
+
+**No Error Tracking / APM:**
+- Problem: No Sentry, Datadog, or similar error tracking integration. Errors are logged via structlog but there is no alerting or aggregation service.
+- Files: `backend/src/infrastructure/logging/` (structlog only)
+- Blocks: Proactive production monitoring; crash reporting.
 
 ## Test Coverage Gaps
 
-**No tests for geo module:**
-- What's not tested: The entire `backend/src/modules/geo/` module (countries, currencies, subdivisions, languages) has no unit or integration tests.
-- Files: `backend/src/modules/geo/domain/`, `backend/src/modules/geo/infrastructure/`, `backend/src/modules/geo/application/`
-- Risk: Geo data queries, value object validation (currency codes, country codes), and i18n handling could break unnoticed.
-- Priority: Medium -- geo data is mostly reference data loaded from seeds.
+**Zero Frontend Tests:**
+- What's not tested: Both frontend applications (`frontend/admin/` and `frontend/main/`) have no test files whatsoever.
+- Files: All files under `frontend/admin/src/` and `frontend/main/`
+- Risk: UI regressions, broken API integrations, and auth flow bugs go undetected.
+- Priority: High -- the main frontend's auth flow (`TelegramProvider`, cookie helpers, BFF proxy) and checkout flow are critical paths with complex logic.
 
-**No tests for bot module:**
-- What's not tested: All Telegram bot handlers, callbacks, keyboards, and middlewares.
-- Files: `backend/src/bot/handlers/`, `backend/src/bot/callbacks/`, `backend/src/bot/middlewares/`, `backend/src/bot/keyboards/`
-- Risk: Bot command handling, user identification middleware, throttling behavior, and error handling could break without detection.
-- Priority: Medium -- bot is an auxiliary interface.
+**Backend Catalog Domain: No Unit Tests for Product Aggregate:**
+- What's not tested: The 2,220-line `Product` aggregate root (including `add_variant`, `add_sku`, `remove_sku`, `remove_variant`, status transitions, and media management) has no unit tests.
+- Files: `backend/src/modules/catalog/domain/entities.py` (Product, ProductVariant, SKU entities)
+- Risk: Product creation/SKU generation/variant management are core business operations. Logic errors in variant hash computation, duplicate detection, or status transitions would go unnoticed.
+- Priority: High -- Product is the most complex aggregate in the system.
 
-**Catalog module has low test coverage relative to complexity:**
-- What's not tested: Only 9 test files for the largest module (2220-line entity file, 913-line models file, 1354-line schemas file, 557-line product repository). Product CRUD commands, SKU generation, media sync, attribute value operations, and storefront queries lack dedicated tests.
-- Files: `backend/src/modules/catalog/application/commands/` (15+ command handlers), `backend/src/modules/catalog/application/queries/` (7 query handlers)
-- Risk: The most business-critical module (product catalog) has the highest risk of undetected regressions.
-- Priority: High -- catalog is the core business domain.
+**Backend Catalog Commands: Sparse Test Coverage:**
+- What's not tested: Of 45 catalog command handlers, only a handful have integration tests (e.g., `test_create_brand.py`). Most command handlers for attributes, templates, products, variants, and SKUs are untested.
+- Files: `backend/src/modules/catalog/application/commands/` (45 files, ~2 tested)
+- Risk: Business rule enforcement in commands like `generate_sku_matrix.py` (313 lines) and `bulk_assign_product_attributes.py` is unverified.
+- Priority: High.
 
-**Zero frontend tests:**
-- What's not tested: All 154 TypeScript files in the main app and 145 JavaScript files in the admin app.
-- Files: All files under `frontend/main/` and `frontend/admin/src/`
-- Risk: Checkout validation logic, authentication flows, Telegram SDK integration, cart behavior, search/filter functionality -- all untested.
-- Priority: High -- user-facing code with complex client-side logic.
+**Backend Geo Module: No Tests:**
+- What's not tested: The entire geo module (city/region/country queries and repositories) has no test files.
+- Files: `backend/src/modules/geo/`
+- Risk: Low -- geo data is read-only reference data.
+- Priority: Low.
+
+**Image Backend: Minimal Coverage:**
+- What's not tested: Router endpoints (upload, confirm, reupload, delete, external import), SSE streaming, and the S3 integration layer.
+- Files: `image_backend/src/modules/storage/presentation/router.py`, `image_backend/src/infrastructure/storage/factory.py`
+- Risk: The presigned-URL upload flow and image processing pipeline are untested end-to-end.
+- Priority: Medium.
 
 ---
 
