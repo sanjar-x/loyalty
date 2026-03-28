@@ -82,11 +82,12 @@ Plans:
   2. All Category handlers (create, update, delete, reorder, assign_template) pass happy-path tests and reject invalid inputs (circular parent, missing category, template conflict)
   3. All Attribute handlers (create_template, update_template, delete_template, create_group, manage_bindings) pass happy-path tests and reject invalid inputs (duplicate binding, missing template)
   4. Every handler test verifies UoW.commit() is called on success and not called on validation failure
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md — Implement 7 missing fake repo methods + Brand handler unit tests (CMD-01)
+- [ ] 04-02-PLAN.md — Category handler unit tests (CMD-02)
+- [ ] 04-03-PLAN.md — Attribute/Template/Binding handler unit tests (CMD-03)
 
 ### Phase 5: Product & Variant Command Handlers
 **Goal**: All command handlers for the Product aggregate core (product CRUD, status changes, attribute assignment, variant management) are proven correct
@@ -175,7 +176,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 1. Test Infrastructure | 0/4 | Gap closure planned | - |
 | 2. Value Objects & Entity Foundations | 0/3 | Planned | - |
 | 3. Product Aggregate Behavior | 0/2 | Planned | - |
-| 4. Brand, Category & Attribute Command Handlers | 0/0 | Not started | - |
+| 4. Brand, Category & Attribute Command Handlers | 0/3 | Planned | - |
 | 5. Product & Variant Command Handlers | 0/0 | Not started | - |
 | 6. SKU, Media & Cross-Cutting Commands | 0/0 | Not started | - |
 | 7. Repository & Data Integrity | 0/0 | Not started | - |
