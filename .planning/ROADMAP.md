@@ -98,11 +98,11 @@ Plans:
   2. All Variant handlers (add_variant, update_variant, remove_variant) pass happy-path tests and correctly reject duplicate variant hash combinations
   3. Every handler test verifies the correct domain entity method is invoked and UoW commits the result
   4. Error paths (product not found, invalid status transition, supplier inactive) return the correct exception types
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
+- [ ] 05-01-PLAN.md — Fix FakeTemplateAttributeBindingRepository stubs + test all 7 Product command handlers
+- [ ] 05-02-PLAN.md — Test all 3 Variant command handlers (AddVariant, UpdateVariant, DeleteVariant)
 
 ### Phase 6: SKU, Media & Cross-Cutting Commands
 **Goal**: SKU and media handlers are tested, and cross-cutting concerns (event emission, bulk atomicity, FK/uniqueness errors) are verified across ALL command handlers
