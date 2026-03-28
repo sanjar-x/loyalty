@@ -6,11 +6,11 @@
 
 ## Summary
 
-Phase 4 tests the application layer command handlers for Brand, Category, and Attribute entities. The testing infrastructure (FakeUoW, 10 fake repos, entity builders) was built in Phase 1 and is ready. The primary work is writing test files that exercise each handler's happy path, validation rejection paths, and UoW commit/no-commit assertions.
+Phase 4 tests the application layer command handlers for Brand, Category, and Attribute entities (including AttributeTemplate, AttributeGroup, and TemplateAttributeBinding). The testing infrastructure (FakeUoW, 10 fake repos, entity builders) was built in Phase 1 and is production-ready. The primary work is writing test files that exercise each handler's happy path, validation rejection paths, and UoW commit/no-commit assertions.
 
-There are **19 distinct command handlers** in scope across three entity domains. Several handlers depend on cross-cutting concerns (ICacheService, IImageBackendClient, `invalidate_template_effective_cache` utility) that must be mocked with AsyncMock per D-04. Four fake repository methods currently raise `NotImplementedError` with "Phase 4 needs it" markers and must be implemented before tests can pass. Three additional methods marked "Phase 5" are also called by handlers in scope and need implementation.
+There are **19 distinct command handlers** in scope across three entity domains. Several handlers depend on cross-cutting services (ICacheService, IImageBackendClient, `invalidate_template_effective_cache` utility) that must be mocked with AsyncMock per D-04. Seven fake repository methods currently raise `NotImplementedError` and must be implemented before the corresponding handler tests can pass.
 
-**Primary recommendation:** Implement the 7 missing fake repo methods first, then write 3 test files (one per entity domain) with one test class per handler, using FakeUoW as the sole test double for repositories and UoW.
+**Primary recommendation:** Implement the 7 missing fake repo methods first (Wave 0), then write 3 test files (one per entity domain) with one test class per handler, using FakeUoW as the sole test double for repositories and UoW.
 
 <user_constraints>
 ## User Constraints (from CONTEXT.md)
@@ -40,356 +40,385 @@ None -- discussion stayed within phase scope.
 
 | ID | Description | Research Support |
 |----|-------------|------------------|
-| CMD-01 | Unit tests for all Brand command handlers (create, update, delete, bulk_create) | 4 handlers identified with full source code; FakeUoW + FakeBrandRepository ready; BrandBuilder available |
-| CMD-02 | Unit tests for all Category command handlers (create, update, delete, reorder, assign_template) | 5 handlers identified (create, update, delete, bulk_create; "reorder" and "assign_template" are within update_category); FakeUoW + FakeCategoryRepository ready but needs 2 method implementations; CategoryBuilder available |
-| CMD-03 | Unit tests for all Attribute command handlers (create_template, update_template, delete_template, create_group, manage_bindings) | 10 handlers identified covering templates, attributes, and bindings; FakeUoW + 4 fake repos ready but need 5 method implementations; AttributeTemplateBuilder + AttributeBuilder + TemplateAttributeBindingBuilder + AttributeGroupBuilder available |
+| CMD-01 | Unit tests for all Brand command handlers (create, update, delete, bulk_create) | 4 handlers identified, all source read, FakeUoW + BrandBuilder ready, IImageBackendClient needs AsyncMock for UpdateBrandHandler |
+| CMD-02 | Unit tests for all Category command handlers (create, update, delete, reorder, assign_template) | 5 handlers identified (create, update, delete, bulk_create, reorder not present -- see note), ICacheService needs AsyncMock, 2 fake repo methods need implementation |
+| CMD-03 | Unit tests for all Attribute command handlers (create_template, update_template, delete_template, create_group, manage_bindings) | 10 handlers identified across Attribute/Template/Binding domains, ICacheService needs AsyncMock, 5 fake repo methods need implementation |
 </phase_requirements>
 
 ## Standard Stack
 
-### Core
+### Core (already installed -- test-only)
 | Library | Version | Purpose | Why Standard |
 |---------|---------|---------|--------------|
-| pytest | 9.0.2 | Test runner | Already installed, configured in `backend/pytest.ini` |
-| pytest-asyncio | >=1.3.0 | Async test support | `asyncio_mode = auto` configured -- all async tests auto-detected |
-| pytest-timeout | (installed) | Test timeout | 30s default timeout per test |
+| pytest | 9.0.2 | Test runner | Project standard |
+| pytest-asyncio | 1.3.0 | Async test support | `asyncio_mode = auto` in pytest.ini |
+| pytest-timeout | (installed) | Per-test timeout safety | 30s default in pytest.ini |
 
-### Supporting
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| unittest.mock (MagicMock/AsyncMock) | stdlib | Mock cross-module deps | Only for ILogger, ICacheService, IImageBackendClient per D-04 |
+### Supporting (already built in Phase 1)
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| FakeUnitOfWork | `tests/fakes/fake_uow.py` | In-memory UoW with event collection |
+| FakeBrandRepository | `tests/fakes/fake_catalog_repos.py` | Dict-backed Brand repo |
+| FakeCategoryRepository | `tests/fakes/fake_catalog_repos.py` | Dict-backed Category repo |
+| FakeAttributeRepository | `tests/fakes/fake_catalog_repos.py` | Dict-backed Attribute repo |
+| FakeAttributeTemplateRepository | `tests/fakes/fake_catalog_repos.py` | Dict-backed Template repo |
+| FakeTemplateAttributeBindingRepository | `tests/fakes/fake_catalog_repos.py` | Dict-backed Binding repo |
+| FakeAttributeGroupRepository | `tests/fakes/fake_catalog_repos.py` | Dict-backed Group repo |
+| BrandBuilder | `tests/factories/brand_builder.py` | Fluent Brand entity builder |
+| CategoryBuilder | `tests/factories/builders.py` | Fluent Category entity builder |
+| AttributeBuilder | `tests/factories/attribute_builder.py` | Fluent Attribute entity builder |
+| AttributeTemplateBuilder | `tests/factories/attribute_template_builder.py` | Fluent Template entity builder |
+| TemplateAttributeBindingBuilder | `tests/factories/attribute_template_builder.py` | Fluent Binding entity builder |
+| AttributeGroupBuilder | `tests/factories/attribute_group_builder.py` | Fluent Group entity builder |
 
-### Not Used in This Phase
-| Library | Reason |
-|---------|--------|
-| polyfactory | Entity builders already exist; no ORM factory needed |
-| hypothesis | Property-based testing not needed for handler orchestration tests |
-| testcontainers | Unit tests only; no real DB |
-
-**No installation needed.** All dependencies are already in the project.
+### No Additional Dependencies
+No new packages need to be installed. Everything is already in the project.
 
 ## Architecture Patterns
 
-### Test File Structure (per D-01, D-02)
+### Test File Structure (per D-01 + D-02)
 ```
 backend/tests/unit/modules/catalog/application/commands/
-    __init__.py                          # exists
-    test_brand_handlers.py               # NEW - CMD-01
-    test_category_handlers.py            # NEW - CMD-02
-    test_attribute_handlers.py           # NEW - CMD-03
+    __init__.py
+    test_brand_handlers.py          # CMD-01: TestCreateBrand, TestUpdateBrand, TestDeleteBrand, TestBulkCreateBrands
+    test_category_handlers.py       # CMD-02: TestCreateCategory, TestUpdateCategory, TestDeleteCategory, TestBulkCreateCategories
+    test_attribute_handlers.py      # CMD-03: TestCreateAttribute, TestUpdateAttribute, TestDeleteAttribute,
+                                    #         TestCreateAttributeTemplate, TestUpdateAttributeTemplate,
+                                    #         TestDeleteAttributeTemplate, TestCloneAttributeTemplate,
+                                    #         TestBindAttributeToTemplate, TestUnbindAttributeFromTemplate,
+                                    #         TestReorderTemplateBindings, TestUpdateTemplateAttributeBinding,
+                                    #         TestBulkCreateAttributes
 ```
 
-### Handler-to-Test-Class Mapping
+### Test Directory Note
+The directory `backend/tests/unit/modules/catalog/application/commands/` does NOT exist yet. It must be created with an `__init__.py` file. The parent `backend/tests/unit/modules/catalog/application/` exists and has `__init__.py`.
 
-**test_brand_handlers.py (4 handlers)**
-| Handler | Test Class | Key Tests |
-|---------|------------|-----------|
-| CreateBrandHandler | TestCreateBrand | happy path, slug conflict |
-| UpdateBrandHandler | TestUpdateBrand | happy path, not found, slug conflict, logo cleanup |
-| DeleteBrandHandler | TestDeleteBrand | happy path, not found, has products |
-| BulkCreateBrandsHandler | TestBulkCreateBrands | happy path, skip existing, slug conflict strict, name conflict strict, batch limit, duplicate slugs, duplicate names |
+### Handler Test Pattern (canonical)
 
-**test_category_handlers.py (5 handlers)**
-| Handler | Test Class | Key Tests |
-|---------|------------|-----------|
-| CreateCategoryHandler | TestCreateCategory | root happy path, child happy path, slug conflict, parent not found, template_id not found |
-| UpdateCategoryHandler | TestUpdateCategory | happy path, not found, slug conflict, template change propagation, slug change descendant cascade |
-| DeleteCategoryHandler | TestDeleteCategory | happy path, not found, has children, has products |
-| BulkCreateCategoriesHandler | TestBulkCreateCategories | happy path flat, parent_ref tree, skip existing, batch limit, duplicate refs |
-
-**test_attribute_handlers.py (10 handlers)**
-| Handler | Test Class | Key Tests |
-|---------|------------|-----------|
-| CreateAttributeTemplateHandler | TestCreateAttributeTemplate | happy path, code conflict |
-| UpdateAttributeTemplateHandler | TestUpdateAttributeTemplate | happy path, not found |
-| DeleteAttributeTemplateHandler | TestDeleteAttributeTemplate | happy path, not found, has category references |
-| CloneAttributeTemplateHandler | TestCloneAttributeTemplate | happy path (bindings copied), source not found, code conflict |
-| CreateAttributeHandler | TestCreateAttribute | happy path, code conflict, slug conflict, group not found |
-| UpdateAttributeHandler | TestUpdateAttribute | happy path, not found, group not found |
-| DeleteAttributeHandler | TestDeleteAttribute | happy path, not found, has template bindings, has product values |
-| BindAttributeToTemplateHandler | TestBindAttributeToTemplate | happy path, template not found, attribute not found, already bound |
-| UnbindAttributeFromTemplateHandler | TestUnbindAttributeFromTemplate | happy path, binding not found, wrong template ownership |
-| UpdateTemplateAttributeBindingHandler | TestUpdateTemplateAttributeBinding | happy path, not found, wrong template ownership |
-
-### Pattern: Handler Test Setup (canonical pattern for ALL tests)
+Every handler test follows this exact structure:
 
 ```python
-"""Unit tests for Brand command handlers."""
-
 import uuid
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from tests.fakes.fake_uow import FakeUnitOfWork
+from tests.factories.brand_builder import BrandBuilder
 from src.modules.catalog.application.commands.create_brand import (
     CreateBrandCommand,
     CreateBrandHandler,
+    CreateBrandResult,
 )
 from src.modules.catalog.domain.events import BrandCreatedEvent
 from src.modules.catalog.domain.exceptions import BrandSlugConflictError
-from tests.factories.brand_builder import BrandBuilder
-from tests.fakes.fake_uow import FakeUnitOfWork
 
 
 def make_logger():
-    """Create a MagicMock logger satisfying ILogger protocol."""
+    """Create a MagicMock ILogger with bind() chain support."""
     logger = MagicMock()
     logger.bind = MagicMock(return_value=logger)
     return logger
 
 
-def make_cache():
-    """Create an AsyncMock cache satisfying ICacheService protocol."""
-    from unittest.mock import AsyncMock
-    return AsyncMock()
-
-
 class TestCreateBrand:
+    """Tests for CreateBrandHandler."""
+
     async def test_creates_brand_and_commits(self):
         uow = FakeUnitOfWork()
+        logger = make_logger()
         handler = CreateBrandHandler(
             brand_repo=uow.brands,
             uow=uow,
-            logger=make_logger(),
+            logger=logger,
         )
         command = CreateBrandCommand(name="Nike", slug="nike")
 
         result = await handler.handle(command)
 
+        # Assert entity persisted
         assert result.brand_id in uow.brands.items
+        brand = uow.brands.items[result.brand_id]
+        assert brand.name == "Nike"
+        assert brand.slug == "nike"
+
+        # Assert UoW committed
         assert uow.committed is True
+
+        # Assert domain event collected
+        assert any(
+            isinstance(e, BrandCreatedEvent) and e.brand_id == result.brand_id
+            for e in uow.collected_events
+        )
 
     async def test_rejects_duplicate_slug(self):
         uow = FakeUnitOfWork()
-        # Pre-seed a brand with the same slug
         existing = BrandBuilder().with_slug("nike").build()
         await uow.brands.add(existing)
-
+        logger = make_logger()
         handler = CreateBrandHandler(
-            brand_repo=uow.brands,
-            uow=uow,
-            logger=make_logger(),
+            brand_repo=uow.brands, uow=uow, logger=logger,
         )
-        command = CreateBrandCommand(name="Nike 2", slug="nike")
+        command = CreateBrandCommand(name="Nike Copy", slug="nike")
 
         with pytest.raises(BrandSlugConflictError):
             await handler.handle(command)
 
-        assert uow.committed is False
-
-    async def test_emits_brand_created_event(self):
-        uow = FakeUnitOfWork()
-        handler = CreateBrandHandler(
-            brand_repo=uow.brands,
-            uow=uow,
-            logger=make_logger(),
-        )
-        command = CreateBrandCommand(name="Nike", slug="nike")
-
-        await handler.handle(command)
-
-        assert len(uow.collected_events) == 1
-        assert isinstance(uow.collected_events[0], BrandCreatedEvent)
-```
-
-### Pattern: Handler with External Dependencies (UpdateBrand with IImageBackendClient)
-
-```python
-class TestUpdateBrand:
-    async def test_updates_brand_and_commits(self):
-        uow = FakeUnitOfWork()
-        brand = BrandBuilder().with_name("Old Name").with_slug("old-slug").build()
-        await uow.brands.add(brand)
-
-        handler = UpdateBrandHandler(
-            brand_repo=uow.brands,
-            uow=uow,
-            image_backend=AsyncMock(),  # D-04: AsyncMock for cross-module dep
-            logger=make_logger(),
-        )
-        command = UpdateBrandCommand(
-            brand_id=brand.id,
-            name="New Name",
-            _provided_fields=frozenset({"name"}),
-        )
-
-        result = await handler.handle(command)
-
-        assert result.name == "New Name"
-        assert uow.committed is True
-```
-
-### Pattern: Validation Failure Prevents Commit (D-07)
-
-```python
-    async def test_not_found_does_not_commit(self):
-        uow = FakeUnitOfWork()
-        handler = DeleteBrandHandler(
-            brand_repo=uow.brands,
-            uow=uow,
-            logger=make_logger(),
-        )
-        command = DeleteBrandCommand(brand_id=uuid.uuid4())
-
-        with pytest.raises(BrandNotFoundError):
-            await handler.handle(command)
-
+        # UoW must NOT be committed on validation failure
         assert uow.committed is False
 ```
 
-### Anti-Patterns to Avoid
-- **AsyncMock for repos/UoW:** D-03 explicitly forbids this. Use FakeUoW.brands / FakeUoW.categories / etc.
-- **Constructing entities manually:** Use builders (BrandBuilder, CategoryBuilder, etc.) from Phase 1.
-- **Testing domain logic in handler tests:** Handler tests verify orchestration (repo calls, commit, events). Domain logic correctness was verified in Phase 2-3.
-- **Testing cache invalidation side effects:** Cache is an AsyncMock -- don't assert cache.delete was called with specific keys. The handler's purpose is orchestration, not cache key correctness.
+### Cross-Module Dependency Mocking Pattern (per D-04)
+
+Handlers that depend on ICacheService or IImageBackendClient get inline AsyncMock:
+
+```python
+def make_cache():
+    """Create an AsyncMock ICacheService."""
+    cache = AsyncMock()
+    cache.delete = AsyncMock()
+    cache.delete_many = AsyncMock()
+    return cache
+
+
+def make_image_backend():
+    """Create an AsyncMock IImageBackendClient."""
+    return AsyncMock()
+```
+
+### FakeUoW Wiring Pattern
+
+FakeUoW auto-creates all 10 repos and wires cross-repo references. Access repos via `uow.brands`, `uow.categories`, etc. Pass the same repo instance to both handler constructor AND pre-seed it for test setup:
+
+```python
+uow = FakeUnitOfWork()
+# Pre-seed state
+existing_brand = BrandBuilder().with_slug("taken").build()
+await uow.brands.add(existing_brand)
+
+# Handler uses the SAME repo instance
+handler = CreateBrandHandler(brand_repo=uow.brands, uow=uow, logger=make_logger())
+```
 
 ## Don't Hand-Roll
 
 | Problem | Don't Build | Use Instead | Why |
 |---------|-------------|-------------|-----|
-| Repository test doubles | Custom mock classes | FakeUoW (Phase 1) | Already has all 10 repos with cross-repo wiring |
-| Entity construction | Manual field setting | Builders (BrandBuilder, etc.) | Builders call .create() factory, ensuring valid entities |
-| Logger mock | Complex protocol mock | `make_logger()` MagicMock | ILogger is sync protocol; MagicMock suffices |
-| Cache service mock | Real Redis | AsyncMock() | Cache calls are fire-and-forget; handler catches exceptions |
-| IImageBackendClient mock | HTTP client mock | AsyncMock() | Only UpdateBrand uses it; best-effort delete after commit |
+| In-memory repository state | Custom dict wrappers | `FakeUnitOfWork` + its `.brands`, `.categories`, etc. | Already wired with cross-repo references for has_products, has_children |
+| Domain entity construction | Manual `Brand(id=..., name=..., ...)` | Builders (BrandBuilder, CategoryBuilder, etc.) | Builders call `Entity.create()` which generates uuid7, validates invariants |
+| Async mock for ILogger | Custom logger stub | `MagicMock()` with `bind=MagicMock(return_value=logger)` | Logger is sync Protocol, only bind() needs chaining |
+| Async mock for ICacheService | FakeCacheService class | Inline `AsyncMock()` | Cache calls are fire-and-forget best-effort in handlers (wrapped in try/except); don't need stateful behavior |
 
-## Fake Repository Methods Requiring Implementation
+## Handler Inventory
 
-**CRITICAL: These `NotImplementedError` methods MUST be implemented in `fake_catalog_repos.py` before tests can pass.**
+### CMD-01: Brand Handlers (4 handlers)
 
-### Phase 4 Tagged (already identified for this phase)
-| Repo | Method | Called By | Implementation |
-|------|--------|-----------|---------------|
-| FakeCategoryRepository | `update_descendants_full_slug(old_prefix, new_prefix)` | UpdateCategoryHandler | Scan `_store`, replace `full_slug` prefix for matching categories |
-| FakeCategoryRepository | `propagate_effective_template_id(category_id, effective_template_id)` | UpdateCategoryHandler | Recursive scan of `_store` for children with `template_id IS NULL` |
-| FakeAttributeGroupRepository | `move_attributes_to_group(source_group_id, target_group_id)` | Not directly in scope handlers -- but tagged Phase 4; implement if needed |
-| FakeAttributeTemplateRepository | `get_category_ids_by_template_ids(template_ids)` | BindAttributeToTemplateHandler, unbind (via invalidate_template_effective_cache) |
+| Handler | File | Dependencies | Key Validations |
+|---------|------|-------------|-----------------|
+| CreateBrandHandler | `create_brand.py` | IBrandRepository, IUnitOfWork, ILogger | Slug uniqueness |
+| UpdateBrandHandler | `update_brand.py` | IBrandRepository, IUnitOfWork, **IImageBackendClient**, ILogger | Not-found, slug uniqueness excluding self, old logo cleanup |
+| DeleteBrandHandler | `delete_brand.py` | IBrandRepository, IUnitOfWork, ILogger | Not-found, has-products guard |
+| BulkCreateBrandsHandler | `bulk_create_brands.py` | IBrandRepository, IUnitOfWork, ILogger | Batch limit (100), intra-batch duplicate slugs/names, per-item slug/name uniqueness, skip_existing mode |
 
-### Phase 5 Tagged (but called by handlers in scope)
-| Repo | Method | Called By | Implementation |
-|------|--------|-----------|---------------|
-| FakeTemplateAttributeBindingRepository | `get_bindings_for_templates(template_ids)` | CloneAttributeTemplateHandler | Group `_store` values by `template_id` |
-| FakeTemplateAttributeBindingRepository | `bulk_update_sort_order(updates)` | ReorderTemplateBindingsHandler | Update `sort_order` on matching bindings in `_store` |
-| FakeTemplateAttributeBindingRepository | `get_template_ids_for_attribute(attribute_id)` | UpdateAttributeHandler, DeleteAttributeHandler (via `collect_attribute_cache_keys`) |
+### CMD-02: Category Handlers (4 handlers)
 
-**Note:** ReorderTemplateBindingsHandler is not explicitly in CMD-03 scope ("reorder" in CMD-02 refers to category reorder, which is actually handled by `update_category`). However, `reorder_template_bindings` and `update_template_attribute_binding` are part of "manage_bindings" in CMD-03.
+| Handler | File | Dependencies | Key Validations |
+|---------|------|-------------|-----------------|
+| CreateCategoryHandler | `create_category.py` | ICategoryRepository, IAttributeTemplateRepository, IUnitOfWork, **ICacheService**, ILogger | Template-not-found, slug uniqueness at parent level, parent-not-found, root vs child branching |
+| UpdateCategoryHandler | `update_category.py` | ICategoryRepository, IAttributeTemplateRepository, IUnitOfWork, **ICacheService**, ILogger | Template-not-found, not-found, slug uniqueness excluding self, full_slug cascade, effective_template_id propagation, storefront cache invalidation |
+| DeleteCategoryHandler | `delete_category.py` | ICategoryRepository, IUnitOfWork, **ICacheService**, ILogger | Not-found, has-children guard, has-products guard |
+| BulkCreateCategoriesHandler | `bulk_create_categories.py` | ICategoryRepository, IAttributeTemplateRepository, IUnitOfWork, **ICacheService**, ILogger | Batch limit (200), duplicate refs, parent_id/parent_ref mutual exclusion, intra-batch parent_ref resolution, skip_existing |
+
+**NOTE on CMD-02 scope:** The REQUIREMENTS.md mentions "reorder" and "assign_template" for categories. There is NO dedicated `reorder_categories.py` handler in the codebase. Category reorder is handled via `UpdateCategoryCommand.sort_order`. Template assignment is done via `UpdateCategoryCommand.template_id`. The 4 handlers above cover all category command operations.
+
+### CMD-03: Attribute Handlers (11 handlers)
+
+| Handler | File | Dependencies | Key Validations |
+|---------|------|-------------|-----------------|
+| CreateAttributeHandler | `create_attribute.py` | IAttributeRepository, IAttributeGroupRepository, IUnitOfWork, ILogger | i18n completeness, group-not-found, code uniqueness, slug uniqueness |
+| UpdateAttributeHandler | `update_attribute.py` | IAttributeRepository, IAttributeGroupRepository, ITemplateAttributeBindingRepository, IAttributeTemplateRepository, **ICacheService**, IUnitOfWork, ILogger | Not-found, group-not-found, _provided_fields safe-field intersection, cache key collection |
+| DeleteAttributeHandler | `delete_attribute.py` | IAttributeRepository, ITemplateAttributeBindingRepository, IAttributeTemplateRepository, **ICacheService**, IUnitOfWork, ILogger | Not-found, has-template-bindings guard, has-product-values guard, cache key collection |
+| BulkCreateAttributesHandler | `bulk_create_attributes.py` | IAttributeRepository, IAttributeGroupRepository, IUnitOfWork, ILogger | Batch limit (100), duplicate codes/slugs in batch, i18n validation, group validation, skip_existing |
+| CreateAttributeTemplateHandler | `create_attribute_template.py` | IAttributeTemplateRepository, IUnitOfWork, ILogger | i18n completeness, code uniqueness |
+| UpdateAttributeTemplateHandler | `update_attribute_template.py` | IAttributeTemplateRepository, IUnitOfWork, ILogger | Not-found, _provided_fields safe-field intersection |
+| DeleteAttributeTemplateHandler | `delete_attribute_template.py` | IAttributeTemplateRepository, IUnitOfWork, ILogger | Not-found, has-category-references guard |
+| CloneAttributeTemplateHandler | `clone_attribute_template.py` | IAttributeTemplateRepository, ITemplateAttributeBindingRepository, IUnitOfWork, ILogger | i18n completeness, source-not-found, new-code uniqueness, binding duplication |
+| BindAttributeToTemplateHandler | `bind_attribute_to_template.py` | IAttributeTemplateRepository, IAttributeRepository, ITemplateAttributeBindingRepository, IUnitOfWork, **ICacheService**, ILogger | Template-not-found, attribute-not-found, duplicate binding, cache invalidation |
+| UnbindAttributeFromTemplateHandler | `unbind_attribute_from_template.py` | IAttributeTemplateRepository, ITemplateAttributeBindingRepository, IUnitOfWork, **ICacheService**, ILogger | Binding not-found OR ownership mismatch, cache invalidation |
+| UpdateTemplateAttributeBindingHandler | `update_template_attribute_binding.py` | IAttributeTemplateRepository, ITemplateAttributeBindingRepository, IUnitOfWork, **ICacheService**, ILogger | Binding not-found OR ownership mismatch, _provided_fields safe-field intersection |
+| ReorderTemplateBindingsHandler | `reorder_template_bindings.py` | IAttributeTemplateRepository, ITemplateAttributeBindingRepository, IUnitOfWork, **ICacheService**, ILogger | Duplicate binding IDs, template-not-found, binding ownership validation, bulk sort update |
+
+**Total: 19 handlers (4 Brand + 4 Category + 11 Attribute/Template/Binding)**
+
+## Fake Repository Methods Needing Implementation
+
+Seven methods currently raise `NotImplementedError` and are called by Phase 4 handlers. These MUST be implemented before the corresponding handler tests can run.
+
+| Repo Class | Method | Called By | Implementation Complexity |
+|------------|--------|-----------|--------------------------|
+| FakeCategoryRepository | `update_descendants_full_slug(old_prefix, new_prefix)` | UpdateCategoryHandler | LOW -- iterate `_store`, replace prefix in `full_slug` for matching categories |
+| FakeCategoryRepository | `propagate_effective_template_id(category_id, effective_template_id)` | UpdateCategoryHandler | MEDIUM -- BFS/DFS over `_store` finding descendants, update `effective_template_id` on inheriting ones |
+| FakeAttributeTemplateRepository | `get_category_ids_by_template_ids(template_ids)` | BindAttributeToTemplate, UnbindAttribute, ReorderBindings, UpdateBinding handlers (via cache invalidation) | MEDIUM -- needs cross-repo reference to category store (like brands._product_store pattern) |
+| FakeTemplateAttributeBindingRepository | `get_bindings_for_templates(template_ids)` | CloneAttributeTemplateHandler | LOW -- filter `_store` by template_id, group into dict |
+| FakeTemplateAttributeBindingRepository | `bulk_update_sort_order(updates)` | ReorderTemplateBindingsHandler | LOW -- iterate updates, set sort_order on matching bindings |
+| FakeTemplateAttributeBindingRepository | `get_template_ids_for_attribute(attribute_id)` | UpdateAttribute, DeleteAttribute handlers (via `collect_attribute_cache_keys`) | LOW -- filter `_store` by attribute_id, return unique template_ids |
+
+**Cross-repo wiring needed:** `FakeAttributeTemplateRepository.get_category_ids_by_template_ids` needs a `_category_store` reference wired in `FakeUnitOfWork.__init__()`, similar to how `brands._product_store` is wired.
+
+**Also note:** `FakeAttributeTemplateRepository.has_category_references()` currently returns `False` always. For DeleteAttributeTemplateHandler tests that verify the guard, this needs real scanning logic (check if any category in category_store has `template_id == template_id` or `effective_template_id == template_id`). This requires a `_category_store` cross-ref which is the same one needed for `get_category_ids_by_template_ids`.
 
 ## Common Pitfalls
 
-### Pitfall 1: FakeUoW `committed` Resets on __aenter__
-**What goes wrong:** If you create a FakeUoW, call a handler (which enters `async with self._uow`), and then try to assert `uow.committed`, it could be reset if you accidentally enter the context again.
-**Why it happens:** `FakeUoW.__aenter__()` resets `_committed = False`.
-**How to avoid:** Create one FakeUoW per test. Never reuse between handler invocations.
-**Warning signs:** `uow.committed is False` even after a successful handler call.
+### Pitfall 1: FakeUoW Context Manager Resets Aggregates
+**What goes wrong:** Asserting `uow.committed` inside an `async with uow:` block or checking events before commit.
+**Why it happens:** FakeUoW's `__aexit__` clears `_aggregates` list (matching real UoW behavior). The handler calls commit() inside the context manager, so events are already collected. But after the context manager exits on exception, aggregates are cleared.
+**How to avoid:** Always assert `uow.committed` and `uow.collected_events` AFTER the handler call returns (outside the handler's context manager scope). For rejection tests, the handler raises inside `async with self._uow:` which triggers rollback; assert `uow.committed is False`.
+**Warning signs:** `uow.collected_events` is empty even though handler calls `register_aggregate + commit`.
 
-### Pitfall 2: Exceptions Raised Inside `async with self._uow` Prevent Commit
-**What goes wrong:** Domain exceptions (NotFoundError, ConflictError) are raised inside the `async with self._uow:` block. The `__aexit__` detects `exc_type` and calls rollback, clearing aggregates.
-**Why it happens:** This is correct behavior -- FakeUoW mirrors real UoW: exception -> rollback -> no commit.
-**How to avoid:** Assert `uow.committed is False` for rejection paths. This is the D-07 pattern.
-**Warning signs:** None -- this is expected.
+### Pitfall 2: Cache Calls After UoW Commit (try/except)
+**What goes wrong:** Tests asserting cache.delete() was called fail because the handler wraps cache calls in try/except and swallows exceptions.
+**Why it happens:** All Category and template-binding handlers call cache invalidation AFTER the `async with self._uow:` block, in a `try/except Exception` that logs a warning but does not re-raise.
+**How to avoid:** Use `AsyncMock()` for cache (it never raises). Optionally assert `cache.delete.assert_awaited_once()` or `cache.delete_many.assert_awaited()` to verify cache invalidation happens. BUT: do not test cache failure paths unless explicitly desired -- these are best-effort operations.
+**Warning signs:** Test passes even when cache mock is not configured.
 
-### Pitfall 3: `_provided_fields` Must Be Set for Update Commands
-**What goes wrong:** Update handlers (UpdateBrand, UpdateCategory, UpdateAttributeTemplate) use `command._provided_fields` to determine which fields were explicitly sent by the client. If you forget to set `_provided_fields`, the handler passes an empty dict to `entity.update()`, causing no changes.
-**Why it happens:** The `_provided_fields` frozenset is intersected with `_SAFE_FIELDS` to determine what to update. Empty intersection = no update.
-**How to avoid:** Always include `_provided_fields=frozenset({"name", "slug"})` (or whichever fields you're updating) in test UpdateCommand instances.
-**Warning signs:** Test passes but entity state doesn't change.
+### Pitfall 3: _provided_fields on Update Commands
+**What goes wrong:** Update handler does nothing because `_provided_fields` is empty.
+**Why it happens:** UpdateBrandCommand, UpdateCategoryCommand, UpdateAttributeCommand, UpdateAttributeTemplateCommand, and UpdateTemplateAttributeBindingCommand all have `_provided_fields: frozenset[str]` defaulting to `frozenset()`. The handler intersects this with safe fields to determine what to update. If test creates command without setting `_provided_fields`, no fields are updated.
+**How to avoid:** Always construct update commands with explicit `_provided_fields`:
+```python
+command = UpdateBrandCommand(
+    brand_id=brand.id,
+    name="New Name",
+    slug="new-slug",
+    _provided_fields=frozenset({"name", "slug"}),
+)
+```
+**Warning signs:** Handler "succeeds" but entity fields are unchanged.
 
-### Pitfall 4: `template_id` Uses Ellipsis Sentinel in UpdateCategoryCommand
-**What goes wrong:** `UpdateCategoryCommand.template_id` defaults to `...` (Ellipsis), not `None`. Setting it to `None` means "clear the template". Leaving it as `...` means "don't change".
-**Why it happens:** Three-state semantics: absent (keep) vs None (clear) vs UUID (set new).
-**How to avoid:** When testing template assignment changes, explicitly set `template_id=some_uuid` or `template_id=None`. When testing non-template updates, leave it as default `...`.
-**Warning signs:** Template propagation tests fail because the handler sees `...` and skips the template logic.
+### Pitfall 4: Ellipsis Sentinel in UpdateCategoryCommand.template_id
+**What goes wrong:** Tests for template_id clearing/inheriting don't trigger the right code path.
+**Why it happens:** `UpdateCategoryCommand.template_id` defaults to `...` (Ellipsis), not `None`. The handler checks `command.template_id is not ...` to determine if template_id was explicitly provided. Setting `template_id=None` means "clear the template"; leaving it as `...` means "keep current".
+**How to avoid:** Explicitly set `template_id=None` when testing template clearing. Use default (`...`) when template_id should not change.
+**Warning signs:** Template propagation logic is never triggered.
 
-### Pitfall 5: Cache and IImageBackendClient Are Post-Commit Side Effects
-**What goes wrong:** Tests fail because cache.delete or image_backend.delete raises an exception.
-**Why it happens:** Handlers call these after `await self._uow.commit()` and wrap them in try/except.
-**How to avoid:** Use `AsyncMock()` which returns coroutines by default. The handler swallows exceptions from cache/image calls.
-**Warning signs:** Handler raises unexpected error from mock not being properly async.
+### Pitfall 5: UpdateBrandHandler Depends on IImageBackendClient
+**What goes wrong:** Test instantiation of UpdateBrandHandler fails because constructor requires `image_backend` parameter.
+**Why it happens:** UpdateBrandHandler has 4 constructor params: `brand_repo`, `uow`, `image_backend`, `logger`. This is the only Brand handler with a cross-module dependency. The image_backend.delete() is called AFTER uow commit for logo cleanup -- it is best-effort.
+**How to avoid:** Always pass `image_backend=AsyncMock()` when constructing UpdateBrandHandler.
+**Warning signs:** TypeError on handler construction.
 
-### Pitfall 6: `invalidate_template_effective_cache` and `collect_attribute_cache_keys` Call Repo Methods
-**What goes wrong:** Several attribute handlers import utility functions from `resolve_template_attributes.py` that make additional repo calls (`get_category_ids_by_template_ids`, `get_template_ids_for_attribute`). These are called AFTER commit and wrapped in try/except, but the fake repo methods currently raise `NotImplementedError`.
-**Why it happens:** These utility functions run outside the UoW context manager but still call repo methods.
-**How to avoid:** Implement the missing fake repo methods OR ensure the handler's try/except catches the error. Implementing is cleaner.
-**Warning signs:** Tests crash with `NotImplementedError` from unimplemented fake methods.
+### Pitfall 6: invalidate_template_effective_cache is a Module-Level Function
+**What goes wrong:** Attempting to mock `invalidate_template_effective_cache` as an instance method.
+**Why it happens:** Several handlers (unbind, reorder, update_binding) call `invalidate_template_effective_cache(self._cache, self._template_repo, template_id)` as a standalone async function from `src.modules.catalog.application.queries.resolve_template_attributes`. This function calls `template_repo.get_category_ids_by_template_ids()` which raises NotImplementedError in the fake.
+**How to avoid:** Implement `FakeAttributeTemplateRepository.get_category_ids_by_template_ids()` rather than trying to mock the utility function. The function takes a cache and template_repo -- if the fake repo works, the function works.
+**Warning signs:** NotImplementedError at test runtime from fake repo.
 
-### Pitfall 7: Domain Events Cleared After Commit
-**What goes wrong:** After `uow.commit()`, aggregate events are cleared (moved to `collected_events`). Trying to read `brand.domain_events` after commit returns empty.
-**Why it happens:** FakeUoW.commit() calls `aggregate.clear_domain_events()` after extending `collected_events`.
-**How to avoid:** Assert events via `uow.collected_events`, not via entity's `domain_events`.
-**Warning signs:** `assert len(brand.domain_events) == 1` fails.
+### Pitfall 7: BulkCreateBrandsHandler Checks Name Uniqueness
+**What goes wrong:** Tests for bulk brand creation miss the name uniqueness check.
+**Why it happens:** `BulkCreateBrandsHandler` checks BOTH `check_slug_exists` AND `check_name_exists` for each item. `FakeBrandRepository.check_name_exists()` is already implemented.
+**How to avoid:** Test both slug conflict and name conflict rejection paths for bulk brands.
+**Warning signs:** Missing test coverage for BrandNameConflictError.
 
 ## Code Examples
 
-### make_logger() Helper (reuse across all 3 test files)
+### Handler Construction with FakeUoW + Cross-Module Mocks
 
 ```python
-from unittest.mock import MagicMock
+# Category handler with ICacheService
+uow = FakeUnitOfWork()
+cache = AsyncMock()
+logger = make_logger()
+handler = CreateCategoryHandler(
+    category_repo=uow.categories,
+    template_repo=uow.attribute_templates,
+    uow=uow,
+    cache=cache,
+    logger=logger,
+)
 
-def make_logger():
-    """MagicMock satisfying ILogger protocol (sync methods + bind)."""
-    logger = MagicMock()
-    logger.bind = MagicMock(return_value=logger)
-    return logger
+# Attribute handler with many repos
+handler = UpdateAttributeHandler(
+    attribute_repo=uow.attributes,
+    group_repo=uow.attribute_groups,
+    binding_repo=uow.template_bindings,
+    template_repo=uow.attribute_templates,
+    cache=AsyncMock(),
+    uow=uow,
+    logger=make_logger(),
+)
 ```
 
-### make_cache() Helper (for Category and Attribute handlers)
+### Testing Domain Event Collection
 
 ```python
-from unittest.mock import AsyncMock
+async def test_emits_brand_created_event(self):
+    uow = FakeUnitOfWork()
+    handler = CreateBrandHandler(
+        brand_repo=uow.brands, uow=uow, logger=make_logger(),
+    )
+    result = await handler.handle(
+        CreateBrandCommand(name="Nike", slug="nike")
+    )
 
-def make_cache():
-    """AsyncMock satisfying ICacheService protocol."""
-    return AsyncMock()
+    events = [e for e in uow.collected_events if isinstance(e, BrandCreatedEvent)]
+    assert len(events) == 1
+    assert events[0].brand_id == result.brand_id
+    assert events[0].slug == "nike"
 ```
 
-### FakeCategoryRepository.update_descendants_full_slug (implementation needed)
+### Testing Rejection Path (Not-Found)
 
 ```python
-async def update_descendants_full_slug(
-    self, old_prefix: str, new_prefix: str
-) -> None:
-    """Replace full_slug prefix for all descendants matching old_prefix."""
-    for cat in self._store.values():
-        if cat.full_slug.startswith(old_prefix + "/"):
-            new_full_slug = new_prefix + cat.full_slug[len(old_prefix):]
-            # Use object.__setattr__ since attrs entities may guard fields
-            object.__setattr__(cat, 'full_slug', new_full_slug)
+async def test_rejects_nonexistent_brand(self):
+    uow = FakeUnitOfWork()
+    handler = DeleteBrandHandler(
+        brand_repo=uow.brands, uow=uow, logger=make_logger(),
+    )
+    command = DeleteBrandCommand(brand_id=uuid.uuid4())
+
+    with pytest.raises(BrandNotFoundError):
+        await handler.handle(command)
+
+    assert uow.committed is False
 ```
 
-### FakeCategoryRepository.propagate_effective_template_id (implementation needed)
+### Testing Update with _provided_fields
 
 ```python
-async def propagate_effective_template_id(
-    self, category_id: uuid.UUID, effective_template_id: uuid.UUID | None
-) -> list[uuid.UUID]:
-    """Propagate effective_template_id to children with template_id=None."""
-    affected: list[uuid.UUID] = []
-    queue = [category_id]
-    while queue:
-        parent_id = queue.pop(0)
-        for cat in self._store.values():
-            if cat.parent_id == parent_id and cat.id != category_id:
-                if cat.template_id is None:
-                    object.__setattr__(cat, 'effective_template_id', effective_template_id)
-                    affected.append(cat.id)
-                    queue.append(cat.id)
-                # If cat has its own template_id, stop propagation down that branch
-    return affected
+async def test_partial_update_only_changes_provided_fields(self):
+    uow = FakeUnitOfWork()
+    brand = BrandBuilder().with_name("Old").with_slug("old").build()
+    await uow.brands.add(brand)
+    handler = UpdateBrandHandler(
+        brand_repo=uow.brands,
+        uow=uow,
+        image_backend=AsyncMock(),
+        logger=make_logger(),
+    )
+    command = UpdateBrandCommand(
+        brand_id=brand.id,
+        name="New",
+        _provided_fields=frozenset({"name"}),
+    )
+
+    result = await handler.handle(command)
+
+    assert result.name == "New"
+    assert result.slug == "old"  # Unchanged -- not in _provided_fields
 ```
 
-### FakeTemplateAttributeBindingRepository.get_bindings_for_templates (implementation needed)
+### Implementing Missing Fake Repo Method (example)
 
 ```python
+# In FakeTemplateAttributeBindingRepository:
 async def get_bindings_for_templates(
     self, template_ids: list[uuid.UUID]
 ) -> dict[uuid.UUID, list[DomainTemplateAttributeBinding]]:
-    """Group bindings by template_id for the requested templates."""
-    result: dict[uuid.UUID, list[DomainTemplateAttributeBinding]] = {
-        tid: [] for tid in template_ids
-    }
+    result: dict[uuid.UUID, list[DomainTemplateAttributeBinding]] = {}
+    tid_set = set(template_ids)
     for binding in self._store.values():
-        if binding.template_id in result:
-            result[binding.template_id].append(binding)
+        if binding.template_id in tid_set:
+            result.setdefault(binding.template_id, []).append(binding)
     return result
 ```
 
@@ -398,125 +427,72 @@ async def get_bindings_for_templates(
 ### Test Framework
 | Property | Value |
 |----------|-------|
-| Framework | pytest 9.0.2 + pytest-asyncio (auto mode) |
+| Framework | pytest 9.0.2 + pytest-asyncio 1.3.0 |
 | Config file | `backend/pytest.ini` |
-| Quick run command | `cd backend && uv run pytest tests/unit/modules/catalog/application/commands/ -x --no-cov -q` |
-| Full suite command | `cd backend && uv run pytest tests/unit/ -x --no-cov -q` |
+| Quick run command | `cd backend && uv run pytest tests/unit/modules/catalog/application/commands/ -x -q --no-cov` |
+| Full suite command | `cd backend && uv run pytest tests/unit/ -x -q --no-cov` |
 
-### Phase Requirements -> Test Map
+### Phase Requirements to Test Map
 | Req ID | Behavior | Test Type | Automated Command | File Exists? |
 |--------|----------|-----------|-------------------|-------------|
-| CMD-01 | Brand handlers: create, update, delete, bulk_create | unit | `cd backend && uv run pytest tests/unit/modules/catalog/application/commands/test_brand_handlers.py -x --no-cov -q` | Wave 0 |
-| CMD-02 | Category handlers: create, update, delete, bulk_create | unit | `cd backend && uv run pytest tests/unit/modules/catalog/application/commands/test_category_handlers.py -x --no-cov -q` | Wave 0 |
-| CMD-03 | Attribute handlers: templates, attributes, bindings | unit | `cd backend && uv run pytest tests/unit/modules/catalog/application/commands/test_attribute_handlers.py -x --no-cov -q` | Wave 0 |
+| CMD-01 | Brand create/update/delete/bulk_create handlers | unit | `uv run pytest tests/unit/modules/catalog/application/commands/test_brand_handlers.py -x --no-cov` | Wave 0 |
+| CMD-02 | Category create/update/delete/bulk_create handlers | unit | `uv run pytest tests/unit/modules/catalog/application/commands/test_category_handlers.py -x --no-cov` | Wave 0 |
+| CMD-03 | Attribute/Template/Binding create/update/delete/clone/bind/unbind/reorder/bulk handlers | unit | `uv run pytest tests/unit/modules/catalog/application/commands/test_attribute_handlers.py -x --no-cov` | Wave 0 |
 
 ### Sampling Rate
-- **Per task commit:** `cd backend && uv run pytest tests/unit/modules/catalog/application/commands/ -x --no-cov -q`
-- **Per wave merge:** `cd backend && uv run pytest tests/unit/ -x --no-cov -q`
-- **Phase gate:** Full suite green before `/gsd:verify-work`
+- **Per task commit:** `cd backend && uv run pytest tests/unit/modules/catalog/application/commands/ -x -q --no-cov`
+- **Per wave merge:** `cd backend && uv run pytest tests/unit/ -x -q --no-cov`
+- **Phase gate:** Full unit suite green before `/gsd:verify-work`
 
 ### Wave 0 Gaps
-- [ ] `backend/tests/unit/modules/catalog/application/commands/test_brand_handlers.py` -- covers CMD-01
-- [ ] `backend/tests/unit/modules/catalog/application/commands/test_category_handlers.py` -- covers CMD-02
-- [ ] `backend/tests/unit/modules/catalog/application/commands/test_attribute_handlers.py` -- covers CMD-03
-- [ ] Implement 4 `NotImplementedError` methods in `backend/tests/fakes/fake_catalog_repos.py` tagged for Phase 4
-- [ ] Implement 3 `NotImplementedError` methods in `backend/tests/fakes/fake_catalog_repos.py` tagged for Phase 5 but needed by in-scope handlers
-
-## Handler Inventory (Complete Scope)
-
-### Brand Domain (CMD-01) -- 4 handlers
-| Handler | File | Dependencies | Exceptions |
-|---------|------|-------------|------------|
-| CreateBrandHandler | `create_brand.py` | IBrandRepository, IUnitOfWork, ILogger | BrandSlugConflictError |
-| UpdateBrandHandler | `update_brand.py` | IBrandRepository, IUnitOfWork, IImageBackendClient, ILogger | BrandNotFoundError, BrandSlugConflictError |
-| DeleteBrandHandler | `delete_brand.py` | IBrandRepository, IUnitOfWork, ILogger | BrandNotFoundError, BrandHasProductsError |
-| BulkCreateBrandsHandler | `bulk_create_brands.py` | IBrandRepository, IUnitOfWork, ILogger | ValidationError, BrandSlugConflictError, BrandNameConflictError |
-
-### Category Domain (CMD-02) -- 4 handlers (update covers reorder + assign_template)
-| Handler | File | Dependencies | Exceptions |
-|---------|------|-------------|------------|
-| CreateCategoryHandler | `create_category.py` | ICategoryRepository, IAttributeTemplateRepository, IUnitOfWork, ICacheService, ILogger | CategorySlugConflictError, CategoryNotFoundError, AttributeTemplateNotFoundError |
-| UpdateCategoryHandler | `update_category.py` | ICategoryRepository, IAttributeTemplateRepository, IUnitOfWork, ICacheService, ILogger | CategoryNotFoundError, CategorySlugConflictError, AttributeTemplateNotFoundError |
-| DeleteCategoryHandler | `delete_category.py` | ICategoryRepository, IUnitOfWork, ICacheService, ILogger | CategoryNotFoundError, CategoryHasChildrenError, CategoryHasProductsError |
-| BulkCreateCategoriesHandler | `bulk_create_categories.py` | ICategoryRepository, IAttributeTemplateRepository, IUnitOfWork, ICacheService, ILogger | ValidationError, CategoryNotFoundError, CategorySlugConflictError, AttributeTemplateNotFoundError |
-
-### Attribute Domain (CMD-03) -- 10 handlers
-| Handler | File | Dependencies | Exceptions |
-|---------|------|-------------|------------|
-| CreateAttributeTemplateHandler | `create_attribute_template.py` | IAttributeTemplateRepository, IUnitOfWork, ILogger | AttributeTemplateCodeAlreadyExistsError |
-| UpdateAttributeTemplateHandler | `update_attribute_template.py` | IAttributeTemplateRepository, IUnitOfWork, ILogger | AttributeTemplateNotFoundError |
-| DeleteAttributeTemplateHandler | `delete_attribute_template.py` | IAttributeTemplateRepository, IUnitOfWork, ILogger | AttributeTemplateNotFoundError, AttributeTemplateHasCategoryReferencesError |
-| CloneAttributeTemplateHandler | `clone_attribute_template.py` | IAttributeTemplateRepository, ITemplateAttributeBindingRepository, IUnitOfWork, ILogger | AttributeTemplateNotFoundError, AttributeTemplateCodeAlreadyExistsError |
-| CreateAttributeHandler | `create_attribute.py` | IAttributeRepository, IAttributeGroupRepository, IUnitOfWork, ILogger | AttributeCodeConflictError, AttributeSlugConflictError, AttributeGroupNotFoundError |
-| UpdateAttributeHandler | `update_attribute.py` | IAttributeRepository, IAttributeGroupRepository, ITemplateAttributeBindingRepository, IAttributeTemplateRepository, ICacheService, IUnitOfWork, ILogger | AttributeNotFoundError, AttributeGroupNotFoundError |
-| DeleteAttributeHandler | `delete_attribute.py` | IAttributeRepository, ITemplateAttributeBindingRepository, IAttributeTemplateRepository, ICacheService, IUnitOfWork, ILogger | AttributeNotFoundError, AttributeHasTemplateBindingsError, AttributeInUseByProductsError |
-| BindAttributeToTemplateHandler | `bind_attribute_to_template.py` | IAttributeTemplateRepository, IAttributeRepository, ITemplateAttributeBindingRepository, IUnitOfWork, ICacheService, ILogger | AttributeTemplateNotFoundError, AttributeNotFoundError, TemplateAttributeBindingAlreadyExistsError |
-| UnbindAttributeFromTemplateHandler | `unbind_attribute_from_template.py` | IAttributeTemplateRepository, ITemplateAttributeBindingRepository, IUnitOfWork, ICacheService, ILogger | TemplateAttributeBindingNotFoundError |
-| UpdateTemplateAttributeBindingHandler | `update_template_attribute_binding.py` | IAttributeTemplateRepository, ITemplateAttributeBindingRepository, IUnitOfWork, ICacheService, ILogger | TemplateAttributeBindingNotFoundError |
-
-**Not in scope for this phase (despite existing):**
-- ReorderTemplateBindingsHandler (`reorder_template_bindings.py`) -- Consider including under CMD-03 "manage_bindings" since it manages template bindings. If planner includes it, the `bulk_update_sort_order` fake method must be implemented.
-
-## Cross-Module Dependencies Requiring AsyncMock
-
-| Interface | Handlers Using It | Mock Pattern |
-|-----------|-------------------|-------------|
-| ILogger | ALL handlers | `make_logger()` -- MagicMock with `.bind()` returning self |
-| ICacheService | All Category handlers, BindAttribute, UnbindAttribute, UpdateAttribute, DeleteAttribute, UpdateBinding | `make_cache()` -- AsyncMock() |
-| IImageBackendClient | UpdateBrandHandler only | `AsyncMock()` inline |
-| `invalidate_template_effective_cache` | UnbindAttributeFromTemplate, UpdateTemplateAttributeBinding, ReorderTemplateBindings | Calls `template_repo.get_category_ids_by_template_ids` internally -- fake method must be implemented |
-| `collect_attribute_cache_keys` | UpdateAttribute, DeleteAttribute | Calls `binding_repo.get_template_ids_for_attribute` and `template_repo.get_category_ids_by_template_ids` -- fake methods must be implemented |
+- [ ] `backend/tests/unit/modules/catalog/application/commands/__init__.py` -- directory + marker
+- [ ] 7 fake repo methods need implementation in `backend/tests/fakes/fake_catalog_repos.py`
+- [ ] 1 cross-repo wiring needed in `backend/tests/fakes/fake_uow.py` (attribute_templates._category_store)
+- [ ] `has_category_references()` in FakeAttributeTemplateRepository needs real scanning logic (not just `return False`)
 
 ## Open Questions
 
-1. **ReorderTemplateBindingsHandler scope inclusion**
-   - What we know: CMD-03 says "manage_bindings" which could include reorder. The handler exists and is a binding management operation.
-   - What's unclear: Whether "manage_bindings" in CMD-03 includes reorder or just CRUD (bind/unbind/update).
-   - Recommendation: Include it under CMD-03 since it's a binding management operation. Implementing `bulk_update_sort_order` fake is straightforward.
+1. **CategoryBuilder lacks `with_template_id` method**
+   - What we know: `CategoryBuilder` in `tests/factories/builders.py` does not support `template_id` parameter. Category handlers accept `template_id` in create commands.
+   - What's unclear: Whether to extend CategoryBuilder or use `Category.create_root(template_id=...)` directly in tests.
+   - Recommendation: Extend CategoryBuilder with `.with_template_id(tid)` if multiple tests need it, otherwise construct Category directly for template-related tests. Claude's discretion per D-05.
 
-2. **CategoryBuilder template_id support**
-   - What we know: The existing `CategoryBuilder` in `builders.py` doesn't have `.with_template_id()`.
-   - What's unclear: Whether we need to extend it or just use `Category.create_root(..., template_id=...)` directly.
-   - Recommendation: Use `Category.create_root()` / `Category.create_child()` directly for tests needing template_id, since it's only a few tests.
+2. **BulkCreateCategories: parent_ref intra-batch resolution**
+   - What we know: The handler resolves `parent_ref` within the batch, creating trees in a single call. FakeCategoryRepository.add() stores categories, and subsequent items can reference them.
+   - What's unclear: Whether the fake repo's `check_slug_exists(slug, parent_id)` correctly handles categories added within the same batch (same transaction).
+   - Recommendation: It should work because FakeCategoryRepo stores to `_store` on `add()`, and `check_slug_exists` scans `_store`. But this needs verification during implementation.
 
-3. **attrs entity field mutation in fake repos**
-   - What we know: Domain entities use `attrs @define` which may guard fields. The `update_descendants_full_slug` and `propagate_effective_template_id` implementations need to mutate `full_slug` and `effective_template_id` on existing entities.
-   - What's unclear: Whether `object.__setattr__` works or if we need to use the entity's own update mechanism.
-   - Recommendation: Use `object.__setattr__` since fake repos need to simulate DB-level bulk updates that bypass domain entity methods.
-
-## Project Constraints (from CLAUDE.md)
-
-- **Architecture:** Must follow existing hexagonal/CQRS patterns -- commands through domain, queries direct to ORM
-- **Testing:** Use existing test infrastructure (pytest, testcontainers, polyfactory) -- in this phase, pytest only
-- **asyncio_mode = auto:** No need for `@pytest.mark.asyncio` decorators; all async tests auto-detected
-- **Test discovery:** `python_classes = Test*`, `python_functions = test_*` -- follow these naming conventions
-- **Code style:** Ruff linting with line-length 88, target Python 3.14
-- **Imports:** Full paths from `src.` root (e.g., `from src.modules.catalog.application.commands.create_brand import ...`)
-- **Test imports:** `from tests.factories.*` and `from tests.fakes.*`
-- **GSD Workflow:** Do not make direct repo edits outside a GSD workflow unless explicitly asked
+3. **UpdateCategoryHandler: effective_template_id propagation complexity**
+   - What we know: When template_id changes on a category, the handler calls `propagate_effective_template_id()` which must walk the descendant tree and update `effective_template_id` on categories that inherit (don't have their own `template_id`).
+   - What's unclear: The exact inheritance logic for effective_template_id in the fake.
+   - Recommendation: Implement a simplified version: find all descendants via parent_id chain, update `effective_template_id` on those with `template_id is None`, return their IDs. Test with a small 2-3 level tree.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Source code: All 19 command handler files read directly
-- Source code: `backend/tests/fakes/fake_uow.py` and `fake_catalog_repos.py` -- complete implementation reviewed
-- Source code: All 6 builder files reviewed (brand, category, attribute, attribute_template, attribute_group, attribute_value)
-- Source code: `backend/src/modules/catalog/domain/exceptions.py` -- all exception classes reviewed
-- Source code: `backend/src/modules/catalog/domain/interfaces.py` -- all repository interfaces reviewed
-- Source code: `backend/src/shared/interfaces/` (ILogger, ICacheService, IUnitOfWork) -- protocols reviewed
-- Config: `backend/pytest.ini` -- pytest configuration reviewed
-- Existing pattern: `backend/tests/unit/modules/user/application/commands/test_commands.py` -- handler test pattern with make_uow()/make_logger()
+- Direct source code reading of all 19 command handler files in `backend/src/modules/catalog/application/commands/`
+- Direct source code reading of `backend/tests/fakes/fake_uow.py` and `backend/tests/fakes/fake_catalog_repos.py`
+- Direct source code reading of all 7 builder files in `backend/tests/factories/`
+- Direct source code reading of `backend/src/modules/catalog/domain/exceptions.py` (all exception classes)
+- Direct source code reading of `backend/src/modules/catalog/domain/interfaces.py` (all repository interfaces)
+- Direct source code reading of `backend/src/shared/interfaces/cache.py` (ICacheService protocol)
+- Direct reading of `backend/pytest.ini` (test configuration)
+- Existing test pattern in `backend/tests/unit/modules/user/application/commands/test_commands.py`
 
 ### Secondary (MEDIUM confidence)
-- Code examples for fake repo implementations are estimates; the exact `object.__setattr__` approach for attrs entities may need verification during implementation
+- Cross-referencing NotImplementedError stubs against handler call sites
+
+### Tertiary (LOW confidence)
+- None -- all findings are from direct source reading.
 
 ## Metadata
 
 **Confidence breakdown:**
-- Standard stack: HIGH - all libraries already installed and configured
-- Architecture: HIGH - existing handler test pattern observed in user module, FakeUoW fully reviewed
-- Pitfalls: HIGH - all pitfalls identified from reading actual handler source code and FakeUoW implementation
-- Fake repo gaps: HIGH - all `NotImplementedError` methods identified with exact handler call sites
+- Standard stack: HIGH -- all tooling already installed and configured
+- Architecture: HIGH -- test patterns established by existing tests, FakeUoW + builders proven in Phase 1-3
+- Handler inventory: HIGH -- every handler file read in full, all dependencies and validations catalogued
+- Fake repo gaps: HIGH -- every NotImplementedError cross-referenced against handler call sites
+- Pitfalls: HIGH -- identified from actual source code patterns, not speculation
 
 **Research date:** 2026-03-28
-**Valid until:** 2026-04-28 (stable -- all research is based on existing source code, not external libraries)
+**Valid until:** 2026-04-28 (stable -- no expected changes to handler source during this milestone)
