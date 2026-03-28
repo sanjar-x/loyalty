@@ -55,7 +55,7 @@ Plans:
 Plans:
 - [ ] 02-01-PLAN.md — Brand entity + Category entity + all value objects (Money, BehaviorFlags, enums, i18n, slug, validation rules)
 - [ ] 02-02-PLAN.md — Product aggregate + ProductVariant + SKU entity tests
-- [ ] 02-03-PLAN.md — Attribute + AttributeValue + AttributeTemplate + TemplateAttributeBinding + AttributeGroup tests
+- [x] 02-03-PLAN.md — Attribute + AttributeValue + AttributeTemplate + TemplateAttributeBinding + AttributeGroup tests
 
 ### Phase 3: Product Aggregate Behavior
 **Goal**: The Product aggregate's complex behavioral invariants -- state machine, variant uniqueness, cascade deletes, attribute governance, and event emission -- are proven correct
@@ -70,7 +70,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — FSM transitions + variant hash uniqueness + soft-delete cascade tests
+- [x] 03-01-PLAN.md — FSM transitions + variant hash uniqueness + soft-delete cascade tests
 - [ ] 03-02-PLAN.md — Domain event emission + attribute governance surface + variant/SKU management tests
 
 ### Phase 4: Brand, Category & Attribute Command Handlers
