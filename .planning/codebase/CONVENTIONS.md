@@ -4,441 +4,296 @@
 
 ## Project Structure
 
-The codebase is a **Python 3.14 monorepo** with three service boundaries:
-- **backend/** -- Main API (FastAPI + CQRS + Clean Architecture)
-- **image_backend/** -- Image processing microservice (same stack, smaller scope)
-- **frontend/** -- Two Next.js apps (`frontend/admin` in JSX, `frontend/main` in TypeScript)
+The codebase is a multi-service monorepo with three main subsystems:
+- **backend/** -- Main API (Python, FastAPI, Clean Architecture + CQRS)
+- **image_backend/** -- Image processing microservice (same stack, same conventions)
+- **frontend/admin/** -- Admin panel (Next.js 16, React 19, JSX, no TypeScript)
+- **frontend/main/** -- Customer-facing Telegram Mini App (Next.js 16, React 19, TypeScript)
 
----
+## Naming Patterns
 
-## Backend Python Conventions
-
-### Naming Patterns
+### Python (backend, image_backend)
 
 **Files:**
 - Use `snake_case.py` for all Python files
-- One command handler per file, named after the action: `create_brand.py`, `delete_category.py`, `update_product.py`
-- One query handler per file: `list_brands.py`, `get_brand.py`, `list_categories.py`
-- Router files prefixed with `router_`: `router_auth.py`, `router_brands.py`, `router_products.py`
-- ORM models collected in a single `models.py` per module: `backend/src/modules/catalog/infrastructure/models.py`
-- Domain entities collected in `entities.py`, value objects in `value_objects.py`, exceptions in `exceptions.py`
-- Domain interfaces in `interfaces.py` per module
+- Domain layer: `entities.py`, `value_objects.py`, `exceptions.py`, `interfaces.py`, `events.py`, `constants.py`
+- Commands: one command per file, named after the action: `create_brand.py`, `update_category.py`, `delete_product.py`
+- Queries: one query per file, named after the read: `list_brands.py`, `get_category.py`, `get_category_tree.py`
+- Repositories: named after the aggregate: `brand.py`, `category.py`, `product.py`
+- Routers: prefixed with `router_`: `router_brands.py`, `router_categories.py`, `router_storefront.py`
+- ORM models: `models.py` (single file per module's infrastructure layer)
+- Schemas: `schemas.py` (single file per module's presentation layer)
 
-**Classes:**
-- Domain entities: PascalCase attrs `@dataclass` -- `Identity`, `Session`, `Brand`, `Category`
-- Aggregate roots extend `AggregateRoot` mixin: `class Identity(AggregateRoot):`
-- Command DTOs: `@dataclass(frozen=True)` with `Command` suffix -- `CreateBrandCommand`, `LoginCommand`
-- Result DTOs: `@dataclass(frozen=True)` with `Result` suffix -- `CreateBrandResult`, `LoginResult`
-- Query DTOs: `@dataclass(frozen=True)` with `Query` suffix -- `ListBrandsQuery`
-- Handlers: PascalCase with `Handler` suffix -- `CreateBrandHandler`, `ListBrandsHandler`
-- Repositories: `I` prefix for interface (ABC), no prefix for implementation -- `IBrandRepository` / `BrandRepository`
-- ORM models: PascalCase, some with `Model` suffix (identity module uses `IdentityModel`, `SessionModel`) while catalog module uses bare names (`Brand`, `Category`)
-- Pydantic schemas: PascalCase with `Request`/`Response` suffix -- `LoginRequest`, `TokenResponse`, `RegisterResponse`
-- DI Providers: PascalCase with `Provider` suffix -- `BrandProvider`, `IdentityProvider`, `CacheProvider`
-- Exceptions: PascalCase with `Error` suffix -- `NotFoundError`, `InvalidCredentialsError`
-- Domain events: PascalCase with `Event` suffix -- `IdentityDeactivatedEvent`, `StaffInvitedEvent`
-
-**Functions/Methods:**
+**Functions:**
 - Use `snake_case` for all functions and methods
-- Command/query handler entry point is always `async def handle(self, command/query) -> ResultType:`
-- Repository methods: `add`, `get`, `update`, `delete`, `check_slug_exists`, `get_by_email`, `get_for_update`
-- Factory classmethods on entities: `Brand.create(...)`, `Session.create(...)`, `Identity.register(...)`
-- Domain mutation methods: `identity.deactivate(reason=...)`, `session.revoke()`, `session.rotate_refresh_token(...)`
-- Validation guard methods named `ensure_*`: `identity.ensure_active()`, `session.ensure_valid()`
+- Async functions: `async def handle(...)`, `async def get(...)`, `async def add(...)`
+- Validators: prefixed with `_validate_`: `_validate_slug()`, `_validate_sort_order()`
+- Factory methods on entities: `Entity.create(...)`, `Entity.create_root(...)`, `Entity.create_child(...)`
 
 **Variables:**
 - Use `snake_case` for all variables
-- Private instance attributes prefixed with `_`: `self._session`, `self._brand_repo`, `self._uow`
-- Constants: `UPPER_SNAKE_CASE` -- `GENERAL_GROUP_CODE`, `DEFAULT_CURRENCY`, `VARIANT_SIZES`
+- Private attributes: prefixed with `_`: `self._brand_repo`, `self._uow`, `self._logger`
+- Constants: `UPPER_SNAKE_CASE`: `MAX_CATEGORY_DEPTH`, `GENERAL_GROUP_CODE`, `DEFAULT_CURRENCY`
+- ClassVar guarded fields: `_PRODUCT_GUARDED_FIELDS`, `_UPDATABLE_FIELDS`
 
-**Enumerations:**
-- Use `enum.StrEnum` for all enums: `ProductStatus`, `IdentityType`, `AccountType`, `StorageStatus`
-- Enum values are `UPPER_CASE` strings matching their name: `LOCAL = "LOCAL"`, `CUSTOMER = "CUSTOMER"`
+**Types / Classes:**
+- Use `PascalCase` for all classes
+- Domain entities: bare names: `Brand`, `Category`, `Product`, `SKU`
+- Value objects: descriptive names: `Money`, `BehaviorFlags`, `ProductStatus`
+- Exceptions: suffixed with `Error`: `BrandNotFoundError`, `CategoryMaxDepthError`, `InvalidStatusTransitionError`
+- Repository interfaces: prefixed with `I`: `IBrandRepository`, `ICategoryRepository`, `IProductRepository`
+- Generic base: `ICatalogRepository[T]`
+- Commands: suffixed with `Command`: `CreateBrandCommand`, `UpdateCategoryCommand`
+- Handlers: suffixed with `Handler`: `CreateBrandHandler`, `ListBrandsHandler`
+- Results: suffixed with `Result`: `CreateBrandResult`, `UpdateBrandResult`
+- Events: suffixed with `Event`: `BrandCreatedEvent`, `ProductStatusChangedEvent`
+- Read models: suffixed with `ReadModel`: `BrandReadModel`, `BrandListReadModel`
+- Pydantic schemas: suffixed with `Request`/`Response`: `BrandCreateRequest`, `BrandResponse`
+- ORM factories (tests): suffixed with `ModelFactory`: `BrandModelFactory`
+- Object Mothers (tests): suffixed with `Mothers`: `IdentityMothers`, `CategoryMothers`
+- Test builders (tests): suffixed with `Builder`: `RoleBuilder`, `SessionBuilder`, `CategoryBuilder`
 
-### Code Style
+**Enums:**
+- Use `StrEnum` for all domain enums (enables string-based DB mapping without translation)
+- Values are lowercase strings: `ProductStatus.DRAFT = "draft"`, `AttributeDataType.STRING = "string"`
 
-**Formatting:**
-- Tool: **Ruff** (formatter + linter combined)
-- Line length: 88 characters (Black-compatible default)
-- Target: Python 3.14
-- Config: `backend/pyproject.toml` `[tool.ruff]` and `image_backend/pyproject.toml` `[tool.ruff]`
+### JavaScript/TypeScript (frontend)
 
-**Linting:**
-- Tool: **Ruff** with rules: `E, F, W, I, UP, B, SIM, RUF`
-- Ignored rules: `E501` (line length handled by formatter), `RUF001/2/3` (Cyrillic text allowed), `B008` (function calls in defaults for FastAPI Depends), `UP042/UP046`
-- Import sorting: isort-compatible, `known-first-party = ["src"]`
-- Config: `backend/pyproject.toml` `[tool.ruff.lint]`
+**Files:**
+- React components: `PascalCase.jsx` -- `Modal.jsx`, `Badge.jsx`, `ProductRow.jsx`
+- Non-component files: `camelCase.js` / `kebab-case.js` -- `api-client.js`, `dayjs.js`
+- Next.js route files: `route.js`, `page.jsx`, `layout.jsx`, `loading.jsx`, `error.jsx`
+- Hooks: `use` prefix: `useAuth.jsx`, `useBodyScrollLock.js`
+- Frontend/main (TypeScript): `kebab-case.ts` -- `cookie-helpers.ts`, `brand-image.ts`
 
-**Type Checking:**
-- Tool: **mypy** with `disallow_untyped_defs = true` and `warn_return_any = true`
-- Plugin: `pydantic.mypy`
-- Tests exempt from `disallow_untyped_defs` via `[[tool.mypy.overrides]]`
-- Config: `backend/pyproject.toml` `[tool.mypy]`
+**Functions:**
+- React components: `PascalCase` -- `export function Modal({ open, onClose, ... })`
+- Hooks: `camelCase` with `use` prefix -- `useAuth()`, `useBodyScrollLock()`
+- Utility functions: `camelCase` -- `backendFetch()`, `formatPrice()`
 
-**Run commands:**
-```bash
-make lint          # uv run ruff check .
-make format        # uv run ruff check --fix . && uv run ruff format .
-make typecheck     # uv run mypy .
+**Variables:**
+- `camelCase` for local variables and props
+- `UPPER_SNAKE_CASE` for constants: `BACKEND_URL`
+
+## Code Style
+
+**Formatting (Python):**
+- Ruff as formatter and linter (replaces Black + isort + flake8)
+- Line length: 88 characters
+- Target Python version: 3.14
+- Config in `backend/pyproject.toml` and `image_backend/pyproject.toml`
+
+**Linting (Python):**
+- Ruff rules: `["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]`
+- Suppressed rules: `["E501", "RUF001", "RUF002", "RUF003", "B008", "UP042", "UP046"]` (long lines, unicode chars, `Depends()` in signatures, PEP 695 types)
+- isort first-party: `["src"]`
+
+**Type Checking (Python):**
+- mypy with `disallow_untyped_defs = true` for production code
+- `disallow_untyped_defs = false` for tests (relaxed)
+- `pydantic.mypy` plugin enabled
+- Config in `backend/pyproject.toml` `[tool.mypy]`
+
+**Formatting (Frontend):**
+- Admin panel: Prettier with `prettier-plugin-tailwindcss`
+- ESLint with `eslint-config-next`
+
+## Import Organization
+
+### Python
+
+**Order:**
+1. Standard library imports
+2. Third-party imports (FastAPI, SQLAlchemy, attrs, etc.)
+3. First-party imports from `src.*`
+4. Test-only imports from `tests.*`
+
+**Path Aliases:**
+- No aliases. All imports use full paths from `src.` root: `from src.modules.catalog.domain.entities import Brand`
+- Tests import from `tests.factories.*`: `from tests.factories.identity_mothers import IdentityMothers`
+
+**Ruff isort config enforces first-party detection:**
+```toml
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
 ```
 
-### Import Organization
+### JavaScript/TypeScript
 
-**Order (enforced by Ruff isort):**
-1. Standard library (`uuid`, `datetime`, `dataclasses`, `hashlib`, `enum`)
-2. Third-party packages (`fastapi`, `sqlalchemy`, `attrs`, `dishka`, `structlog`, `pydantic`)
-3. First-party (`src.*`)
-4. Local (`tests.*`)
+**Pattern:**
+- `'use client'` directive at top when needed
+- React imports first
+- Third-party libraries second
+- Local imports (`@/`, `../`) last
 
-**Path style:**
-- Always use absolute imports from `src`: `from src.modules.catalog.domain.entities import Brand`
-- Never use relative imports
-- No path aliases configured
+## Error Handling
 
-**Example (from `backend/src/modules/identity/application/commands/login.py`):**
+### Domain Exception Hierarchy
+
+All expected errors extend a shared base class hierarchy defined in `backend/src/shared/exceptions.py`:
+
 ```python
-import uuid
-from dataclasses import dataclass
-
-from src.modules.identity.domain.entities import Session
-from src.modules.identity.domain.exceptions import (
-    InvalidCredentialsError,
-    MaxSessionsExceededError,
-)
-from src.modules.identity.domain.interfaces import (
-    IIdentityRepository,
-    IRoleRepository,
-    ISessionRepository,
-)
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.security import IPasswordHasher, ITokenProvider
-from src.shared.interfaces.uow import IUnitOfWork
+AppException (base)
+├── NotFoundError        (404)
+├── UnauthorizedError    (401)
+├── ForbiddenError       (403)
+├── ConflictError        (409)
+├── ValidationError      (400)
+└── UnprocessableEntityError (422)
 ```
 
-### Error Handling
+**Convention:** Each domain module defines concrete exceptions that extend these bases.
+- Name: `{Entity}{Issue}Error` -- e.g., `BrandNotFoundError`, `CategoryMaxDepthError`
+- Constructor: Always pass `message`, `error_code`, and `details` to super()
+- `error_code`: `UPPER_SNAKE_CASE` string constant -- e.g., `"CATEGORY_NOT_FOUND"`, `"BRAND_SLUG_CONFLICT"`
+- `details`: dict with relevant entity IDs as strings
 
-**Exception Hierarchy:**
-All expected errors inherit from `AppException` in `backend/src/shared/exceptions.py`:
-```
-AppException (base, 500)
-  +-- NotFoundError (404)
-  +-- UnauthorizedError (401)
-  +-- ForbiddenError (403)
-  +-- ConflictError (409)
-  +-- ValidationError (400)
-  +-- UnprocessableEntityError (422)
-```
+Example pattern from `backend/src/modules/catalog/domain/exceptions.py`:
 
-**Module-Specific Exceptions:**
-Each module defines its own exceptions extending the shared hierarchy in `domain/exceptions.py`:
 ```python
-# backend/src/modules/identity/domain/exceptions.py
-class InvalidCredentialsError(UnauthorizedError):
-    def __init__(self) -> None:
+class BrandNotFoundError(NotFoundError):
+    def __init__(self, brand_id: uuid.UUID | str):
         super().__init__(
-            message="Invalid email or password",
-            error_code="INVALID_CREDENTIALS",
+            message=f"Brand with ID {brand_id} not found.",
+            error_code="BRAND_NOT_FOUND",
+            details={"brand_id": str(brand_id)},
         )
 ```
 
-**Convention: Every exception has a machine-readable `error_code`.**
-- Error codes are `UPPER_SNAKE_CASE` strings: `"INVALID_CREDENTIALS"`, `"SESSION_EXPIRED"`, `"INVITATION_REVOKED"`
-- Error codes MUST be unique across the codebase
-- Always provide `message`, `error_code`; optionally `details` dict for additional context
+### Global Exception Handler
 
-**Global Exception Handler:**
-All exceptions are caught and serialized to a uniform JSON envelope in `backend/src/api/exceptions/handlers.py`:
+Registered in `backend/src/api/exceptions/handlers.py`. Converts all `AppException` subclasses into a uniform JSON envelope:
+
 ```json
 {
   "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable message",
-    "details": {},
-    "request_id": "uuid-hex"
+    "code": "BRAND_NOT_FOUND",
+    "message": "Brand with ID ... not found.",
+    "details": {"brand_id": "..."},
+    "request_id": "..."
   }
 }
 ```
 
-Four handlers registered in order:
-1. `AppException` -> business error (status from exception)
-2. `RequestValidationError` -> 422 with per-field details
-3. `StarletteHTTPException` -> framework HTTP errors (404, 405, etc.)
-4. `Exception` -> catch-all 500 (generic message, no leak)
+### Domain Validation
 
-**UnitOfWork catches `IntegrityError`:**
-- `sqlstate 23503` (FK violation) -> `UnprocessableEntityError`
-- Other integrity errors -> `ConflictError`
-- Defined in `backend/src/infrastructure/database/uow.py`
+- Domain entities validate in `create()` factory methods and `update()` methods
+- Raise `ValueError` for invariant violations (caught by global handler as 422/500)
+- Raise specific domain exceptions (e.g., `CategoryMaxDepthError`) for business rule violations
+- Use `__setattr__` guard pattern (DDD-01) to prevent direct mutation of guarded fields:
 
-**Pattern: Guard methods on domain entities raise exceptions.**
 ```python
-# backend/src/modules/identity/domain/entities.py
-def ensure_active(self) -> None:
-    if not self.is_active:
-        raise IdentityDeactivatedError()
+_PRODUCT_GUARDED_FIELDS: frozenset[str] = frozenset({"status"})
+
+def __setattr__(self, name: str, value: object) -> None:
+    if name in _PRODUCT_GUARDED_FIELDS and getattr(self, "_Product__initialized", False):
+        raise AttributeError("Cannot set 'status' directly. Use transition_status().")
+    super().__setattr__(name, value)
 ```
 
-### Logging
+### Command Handler Error Flow
 
-**Framework:** structlog (wrapped behind `ILogger` protocol)
+1. Handler validates preconditions (slug uniqueness, entity existence) via repository calls
+2. Delegates business logic to domain entity factory/methods (which raise `ValueError` or domain exceptions)
+3. Persists via repository, registers aggregate for outbox events, commits via UoW
 
-**Protocol:** `backend/src/shared/interfaces/logger.py` -- `ILogger` with `bind()`, `debug()`, `info()`, `warning()`, `error()`, `critical()`, `exception()`
-
-**Configuration:** `backend/src/bootstrap/logger.py`
-- Dev: coloured console with call-site info (filename, function, line number)
-- Prod: JSON lines to stdout for log aggregator ingestion
-
-**Pattern: Bind handler context on construction:**
 ```python
-def __init__(self, ..., logger: ILogger) -> None:
-    self._logger = logger.bind(handler="CreateBrandHandler")
+async with self._uow:
+    if await self._brand_repo.check_slug_exists(command.slug):
+        raise BrandSlugConflictError(slug=command.slug)
+    brand = Brand.create(name=command.name, slug=command.slug)
+    brand = await self._brand_repo.add(brand)
+    brand.add_domain_event(BrandCreatedEvent(...))
+    self._uow.register_aggregate(brand)
+    await self._uow.commit()
 ```
 
-**Structured event strings use dot-notation:**
+## Logging
+
+**Framework:** structlog (structured JSON logging)
+
+**Port pattern:** Application code depends on `ILogger` protocol (`backend/src/shared/interfaces/logger.py`), not structlog directly. Concrete structlog adapter injected via Dishka DI.
+
+**Patterns:**
+- Bind handler name at construction: `self._logger = logger.bind(handler="CreateBrandHandler")`
+- Log after successful operations: `self._logger.info("Brand created", brand_id=str(brand.id))`
+- Use structured key-value pairs, not string interpolation
+- Log levels: `info` for success, `warning` for client errors (4xx), `error` for server errors (5xx)
+
+## Comments
+
+**When to Comment:**
+- Module-level docstrings on every Python file explaining purpose and layer placement
+- Class-level docstrings with Attributes section listing all fields
+- Method-level docstrings with Args/Returns/Raises sections (Google style)
+- Inline comments for DDD pattern markers: `# DDD-01: guard slug against direct mutation`
+- Architecture decision markers: `# ARCH-03: Domain enums moved from infrastructure`
+
+**Docstring Style:**
 ```python
-self._logger.info("identity.login.success", identity_id=str(identity.id), ip=command.ip_address)
-self._logger.warning("identity.login.failed", login=command.login, reason="invalid_credentials")
-self._logger.info("password.rehashed", identity_id=str(identity.id))
-```
+def transition_status(self, new_status: ProductStatus) -> None:
+    """Transition the product to a new lifecycle status.
 
-**Always stringify UUIDs** when passing to log fields: `identity_id=str(identity.id)`
-
-**Access logging:** `backend/src/api/middlewares/logger.py` -- `AccessLoggerMiddleware` ASGI middleware that:
-- Generates or propagates `X-Request-ID` (stored in ContextVar via `backend/src/shared/context.py`)
-- Extracts client IP from `X-Forwarded-For`
-- Binds `request_id`, `ip`, `method`, `path` to structlog context
-- Injects `X-Process-Time-Ms` and `X-Request-ID` response headers
-- Emits a single access-log line at severity based on status code (info < 400, warning 4xx, error 5xx)
-
-### Comments and Docstrings
-
-**Module-level docstrings are mandatory.** Every `.py` file starts with a triple-quoted docstring explaining purpose.
-
-**Class and method docstrings follow Google-style format** with `Args:`, `Returns:`, `Raises:` sections:
-```python
-def handle(self, command: LoginCommand) -> LoginResult:
-    """Execute the login command.
+    Validates the transition against the FSM table defined in
+    ``_ALLOWED_TRANSITIONS``.
 
     Args:
-        command: The login command with credentials and client info.
-
-    Returns:
-        A result containing access and refresh tokens.
+        new_status: The target ProductStatus value.
 
     Raises:
-        InvalidCredentialsError: If email is not found or password is wrong.
-        IdentityDeactivatedError: If the identity is deactivated.
+        InvalidStatusTransitionError: If transition is not allowed.
     """
 ```
 
-**Section separators** use commented lines within files:
-```python
-# ---------------------------------------------------------------------------
-# Authentication schemas
-# ---------------------------------------------------------------------------
-```
+## Function Design
 
-### Domain Entity Design
+**Command handlers:**
+- One public method: `async def handle(self, command: XCommand) -> XResult`
+- Dependencies injected via `__init__` and stored as `_private_attrs`
+- Return a frozen dataclass result (not the entity itself)
 
-**Use attrs `@dataclass` (NOT stdlib dataclasses) for domain entities:**
-```python
-from attr import dataclass
-from src.shared.interfaces.entities import AggregateRoot
+**Query handlers:**
+- One public method: `async def handle(self, query: XQuery) -> ReadModel`
+- Inject `AsyncSession` directly (CQRS read side skips UoW/repositories)
+- Return Pydantic read models, not domain entities
 
-@dataclass
-class Brand(AggregateRoot):
-    id: uuid.UUID
-    name: str
-    slug: str
-```
+**Domain entity factory methods:**
+- `@classmethod def create(cls, *, keyword_only_args) -> Self`
+- Validate all invariants before constructing
+- Generate UUIDs internally (uuid7 preferred, uuid4 fallback)
 
-**Use stdlib `@dataclass(frozen=True)` for Commands, Queries, Results, and Events.**
+**Partial update pattern:**
+- `_UPDATABLE_FIELDS: ClassVar[frozenset[str]]` whitelist on entities
+- `update(**kwargs)` rejects unknown fields via `TypeError`
+- Uses `...` (Ellipsis) sentinel for "keep current" on nullable fields
 
-**Use Pydantic `BaseModel` (via `CamelModel`) only in the presentation layer for API schemas.**
+## Module Design
 
-**Use `enum.StrEnum` for value objects that are simple enumerations.**
+**Exports:**
+- No barrel `__init__.py` re-exports in production code (most `__init__.py` files are empty)
+- Each file exports its own classes/functions directly
+- Tests use `__init__.py` as empty markers for pytest discovery
 
-**Use stdlib `@dataclass(frozen=True, slots=True)` for immutable value objects:**
-```python
-# backend/src/modules/identity/domain/value_objects.py
-@dataclass(frozen=True, slots=True)
-class TelegramUserData:
-    telegram_id: int
-    first_name: str
-    ...
-```
+**API Schema Convention:**
+- All Pydantic schemas inherit from `CamelModel` (`backend/src/shared/schemas.py`)
+- `CamelModel` auto-converts `snake_case` Python fields to `camelCase` JSON
+- Request schemas: `BrandCreateRequest`, `BrandUpdateRequest`
+- Response schemas: `BrandResponse`, `BrandListResponse`
+- Generic pagination: `PaginatedResponse[S]`
+- i18n fields validated with custom `I18nDict` annotated type
 
-### Presentation Layer (API Schemas)
+**Router Convention:**
+- Each router file defines one `APIRouter` with prefix and tags
+- Uses `DishkaRoute` for automatic DI injection
+- `FromDishka[HandlerType]` for handler injection in endpoint params
+- Permission checks via `Depends(RequirePermission(codename="catalog:manage"))`
+- Mutating endpoints: POST (201), PATCH (200), DELETE (204)
+- Read endpoints: GET (200) with `Cache-Control: no-store` header
 
-**All schemas inherit from `CamelModel`** (`backend/src/shared/schemas.py`) -- automatic `snake_case` -> `camelCase` alias generation:
-```python
-from src.shared.schemas import CamelModel
-
-class TokenResponse(CamelModel):
-    access_token: str   # serialized as "accessToken"
-    refresh_token: str  # serialized as "refreshToken"
-```
-
-**Use `Field(...)` for validation constraints:**
-```python
-password: str = Field(..., min_length=8, max_length=128)
-name: str = Field(..., min_length=2, max_length=100, pattern=r"^[a-z_]+$")
-```
-
-**Use `model_validator(mode="after")` for cross-field validation:**
-```python
-@model_validator(mode="after")
-def at_least_one_field(self) -> Self:
-    if self.name is None and self.description is None:
-        raise ValueError("At least one field must be provided")
-    return self
-```
-
-### Router (Presentation) Pattern
-
-**Use Dishka for DI, NOT FastAPI Depends:**
-```python
-from dishka.integrations.fastapi import DishkaRoute, FromDishka
-
-router = APIRouter(prefix="/brands", tags=["Brands"], route_class=DishkaRoute)
-
-@router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_brand(
-    body: CreateBrandRequest,
-    handler: FromDishka[CreateBrandHandler],
-) -> CreateBrandResponse:
-```
-
-**Router files are thin** -- map HTTP request to Command/Query, call `handler.handle(...)`, map result to Response schema. No business logic in routers.
-
-**Authentication via `Auth` annotated dependency:**
-```python
-from src.modules.identity.presentation.dependencies import Auth
-
-@router.post("/logout")
-async def logout(auth: Auth, handler: FromDishka[LogoutHandler]) -> MessageResponse:
-    await handler.handle(LogoutCommand(session_id=auth.session_id))
-    return MessageResponse(message="Logged out successfully")
-```
-
-**Permission enforcement via `RequirePermission` dependency:**
-```python
-@router.post("/", dependencies=[Depends(RequirePermission("catalog:manage"))])
-async def create_brand(...):
-```
-
-### CQRS Conventions
-
-**Commands (write side):**
-- Handler depends on repository interfaces (`IBrandRepository`), `IUnitOfWork`, `ILogger`
-- Always wrap mutations in `async with self._uow:` block
-- Call `self._uow.register_aggregate(entity)` before `await self._uow.commit()` to persist domain events
-- File location: `backend/src/modules/{module}/application/commands/{action}.py`
-
-**Queries (read side):**
-- Handler depends on `AsyncSession` (raw SQLAlchemy) directly -- NO repository, NO UoW
-- Uses raw SQL via `sqlalchemy.text()` for read-side performance
-- Returns Pydantic read models (not domain entities)
-- File location: `backend/src/modules/{module}/application/queries/{action}.py`
-
-### Dependency Injection
-
-**Framework:** Dishka (async-first Python DI container)
-
-**Provider pattern:** One `Provider` class per feature area, registered in `backend/src/bootstrap/container.py`:
-```python
-class BrandProvider(Provider):
-    @provide(scope=Scope.REQUEST)
-    async def brand_repo(self, session: AsyncSession) -> IBrandRepository:
-        return BrandRepository(session=session)
-
-    create_brand_handler = provide(CreateBrandHandler, scope=Scope.REQUEST)
-```
-
-**Scopes:** `Scope.APP` for singletons (engine, redis, settings), `Scope.REQUEST` for per-request (session, handlers, repos)
-
-**Composition root:** `backend/src/bootstrap/container.py` -- `create_container()` assembles all providers
-
-### Data Mapper Pattern
-
-Repositories translate between domain entities and ORM models using explicit `_to_domain()` and `_to_orm()` methods. Domain entities NEVER touch SQLAlchemy.
-
-**Base repository** at `backend/src/modules/catalog/infrastructure/repositories/base.py` provides generic CRUD:
-```python
-class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType]):
-    model: type[ModelType]
-
-    @abstractmethod
-    def _to_domain(self, orm: ModelType) -> EntityType: ...
-
-    @abstractmethod
-    def _to_orm(self, entity: EntityType, orm: ModelType | None = None) -> ModelType: ...
-```
-
-### Domain Event Pattern
-
-**Events are stdlib `@dataclass` extending `DomainEvent`** (`backend/src/shared/interfaces/entities.py`):
-- Must override `aggregate_type` and `event_type` with non-empty defaults (enforced at class definition time via `__init_subclass__`)
-- Events accumulate on `AggregateRoot._domain_events` via `add_domain_event()`
-- `UnitOfWork.commit()` flushes events to the `outbox_messages` table atomically (Transactional Outbox)
-- Consumer handlers in `backend/src/modules/{module}/application/consumers/` process events
-
-### Configuration
-
-**Settings pattern:** Pydantic Settings with `@lru_cache` singleton in `backend/src/bootstrap/config.py`:
-```python
-class Settings(BaseSettings):
-    SECRET_KEY: SecretStr
-    PGHOST: str
-    # ...
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
-
-@lru_cache
-def get_settings() -> Settings:
-    return Settings()
-```
-
----
-
-## Frontend Conventions
-
-### frontend/admin (JavaScript/JSX)
-
-**Language:** JavaScript (no TypeScript)
-**Framework:** Next.js 16 with App Router
-**Path alias:** `@/*` maps to `src/*` (configured in `frontend/admin/jsconfig.json`)
-**Styling:** Tailwind CSS 4 + CSS Modules (`layout.module.css`)
-**Utility:** `clsx` for conditional classes, `tailwind-merge` for merging Tailwind classes
-**Components:** PascalCase filenames: `Sidebar.jsx`, `BrandSelect.jsx`, `ProductDetailsForm.jsx`
-**Pages:** Next.js App Router convention: `page.jsx`, `layout.jsx`, `loading.jsx`, `error.jsx`, `not-found.jsx`
-**API Routes:** Next.js route handlers in `src/app/api/` proxying to backend API
-**Formatting:** Prettier with `prettier-plugin-tailwindcss`
-**Linting:** ESLint 9 with `@next/eslint-plugin-next` core-web-vitals config
-**Date handling:** dayjs
-
-### frontend/main (TypeScript/TSX)
-
-**Language:** TypeScript (strict mode)
-**Framework:** Next.js 16 with App Router
-**Path alias:** `@/*` maps to `./*` (configured in `frontend/main/tsconfig.json`)
-**Styling:** No Tailwind detected -- uses CSS Modules (`ProductCard.module.css`)
-**State management:** Redux Toolkit with RTK Query (`@reduxjs/toolkit`)
-  - API client: `frontend/main/lib/store/api.ts` with `createApi` and auto-reauth
-  - Auth slice: `frontend/main/lib/store/authSlice.ts`
-  - Store hooks: `frontend/main/lib/store/hooks.ts`
-**Components:** PascalCase filenames: `ProductCard.tsx`, `ProfileHeader.tsx`, `CatalogTabs.tsx`
-  - Feature-organized under `components/blocks/{feature}/`
-  - Custom hooks: `useCart.ts`, `useItemFavorites.ts`, `useBackButton.ts`
-**Pages:** Next.js App Router convention: `page.tsx`, `layout.tsx`, `loading.tsx`
-**Icons:** Lucide React (`lucide-react`)
-**Utility:** `clsx` for classes via `frontend/main/lib/format/cn.ts`
-**Telegram SDK:** Custom hooks wrapping `window.Telegram.WebApp` in `frontend/main/lib/telegram/`
-**Middleware:** Edge middleware in `frontend/main/middleware.ts` for security headers and CSRF
-**Linting:** ESLint 9 with `eslint-config-next/core-web-vitals`
-
-### Frontend Testing
-
-**No test files exist** in either frontend project. No test framework is configured.
+**DI Container:**
+- Dishka as the DI framework
+- Each module has a `dependencies.py` (presentation layer) or `provider.py` (infrastructure layer) with Dishka Provider classes
+- Scopes: `APP` for singletons (engine, redis), `REQUEST` for per-request (session, handlers)
 
 ---
 

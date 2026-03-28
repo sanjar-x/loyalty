@@ -2,332 +2,248 @@
 
 **Analysis Date:** 2026-03-28
 
-## Architecture Overview
-
-Four deployable units with clearly defined communication paths:
-
-```
-[Telegram Client]
-    |
-    v
-[Frontend Main]  ----BFF proxy----> [Backend API]
-  (Next.js)        /api/backend/*     (FastAPI)
-    |                                    |
-    +-- /api/dadata/* --> [DaData API]   +-- httpx --> [Image Backend]
-    |                                    |              (FastAPI)
-    +-- /api/auth/* (cookie mgmt)        +-- outbox --> [RabbitMQ] --> [Workers]
-                                         |
-[Frontend Admin] ----server fetch----> [Backend API]
-  (Next.js)        via BACKEND_URL
-```
-
 ## APIs & External Services
 
-**DaData (Russian address standardization):**
-- Purpose: Address suggestion and geocoding for delivery/pickup features
-- Endpoints:
-  - Suggest: `https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address`
-  - Clean: `https://cleaner.dadata.ru/api/v1/clean/address`
-- Auth: Token-based (`Authorization: Token <token>`) + optional `X-Secret` header
-- Env vars: `DADATA_TOKEN`, `DADATA_SECRET`
-- Proxy routes (BFF pattern -- secrets never reach the browser):
-  - `frontend/main/app/api/dadata/suggest/address/route.ts`
-  - `frontend/main/app/api/dadata/clean/address/route.ts`
-- Params: `query` (string), `count` (1-10, default 5), bounded from `city` to `settlement`
-
 **Telegram Bot API:**
-- Purpose: Bot for user interaction (commands, inline keyboards, FSM flows)
-- SDK: Aiogram `>=3.26.0`
-- Auth: `BOT_TOKEN` env var
-- Bot factory: `backend/src/bot/factory.py`
-- Handlers: `backend/src/bot/handlers/` (common, nav, errors, registry)
+- Purpose: Telegram bot for user interaction (commands, inline keyboards, FSM flows)
+- SDK: `aiogram >=3.26.0`
+- Auth: `BOT_TOKEN` env var (SecretStr in `backend/src/bootstrap/config.py`)
+- Implementation: `backend/src/bot/factory.py` creates Bot + Dispatcher
+- Middleware chain: LoggingMiddleware -> UserIdentifyMiddleware -> ThrottlingMiddleware
+- FSM storage: Redis-backed via `aiogram.fsm.storage.redis.RedisStorage`
+- Commands: `/start`, `/help`, `/cancel` (set in `backend/src/bot/factory.py`)
+- Webhook support: `BOT_WEBHOOK_URL`, `BOT_WEBHOOK_SECRET` env vars
+- Handlers: `backend/src/bot/handlers/` (common, errors, nav)
 - Keyboards: `backend/src/bot/keyboards/` (inline, reply)
-- Callbacks: `backend/src/bot/callbacks/base.py`
-- FSM storage: Redis-backed
-- Webhook mode: optional (`BOT_WEBHOOK_URL`, `BOT_WEBHOOK_SECRET`)
-- Throttle: configurable rate (`THROTTLE_RATE`, default 0.5s)
 
-**Telegram Mini App (WebApp API):**
-- Purpose: Customer-facing web application embedded in Telegram
-- Client SDK: `window.Telegram.WebApp` (injected by Telegram client at runtime)
-- Core wrapper: `frontend/main/lib/telegram/core.ts`
-- Hooks library: `frontend/main/lib/telegram/hooks/` (30+ hooks covering all WebApp APIs)
-  - `useTelegram.ts`, `useBackButton.ts`, `useMainButton.ts`, `useHaptic.ts`, `useViewport.ts`, `usePopup.ts`, `useQrScanner.ts`, `useBiometric.ts`, `useCloudStorage.ts`, `useFullscreen.ts`, etc.
-- Types: `frontend/main/lib/telegram/types.ts`, `frontend/main/lib/types/telegram-globals.d.ts`
-- Auth flow:
-  1. Mini App loads, captures `initData` from `window.Telegram.WebApp`
-  2. Frontend POSTs to `/api/auth/telegram` (Next.js BFF route)
-  3. BFF forwards `Authorization: tma <initData>` to `backend /api/v1/auth/telegram`
-  4. Backend validates initData HMAC-SHA256 via `backend/src/infrastructure/security/telegram.py`
-  5. Backend creates/finds identity, returns JWT access + refresh tokens
-  6. BFF sets HTTP-only cookies (`access_token`, `refresh_token`)
-- Route: `frontend/main/app/api/auth/telegram/route.ts`
-- Debug mode: `BROWSER_DEBUG_AUTH=true` allows auth without Telegram client (dev only)
+**Telegram Mini App (WebApp) Auth:**
+- Purpose: Authenticate Telegram users in the main customer frontend
+- Flow: Frontend sends `initData` -> Next.js BFF (`frontend/main/app/api/auth/telegram/route.ts`) -> Backend IAM (`/api/v1/auth/telegram`)
+- Validation: HMAC-SHA256 via `aiogram.utils.web_app.safe_parse_webapp_init_data` (`backend/src/infrastructure/security/telegram.py`)
+- Freshness: `TELEGRAM_INIT_DATA_MAX_AGE` (default 300 seconds)
+- Token flow: Backend returns JWT accessToken + opaque refreshToken -> BFF sets HttpOnly cookies
+- Frontend SDK: `frontend/main/lib/telegram/` (custom hooks wrapping `window.Telegram.WebApp`)
+- Script: `https://telegram.org/js/telegram-web-app.js` loaded in `frontend/main/app/layout.tsx`
 
-## Inter-Service Communication
+**DaData (Address Suggestions):**
+- Purpose: Russian address autocomplete for city/settlement lookup
+- API: `https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address`
+- Implementation: `frontend/main/app/api/dadata/suggest/address/route.ts` (server-side proxy)
+- Also: `frontend/main/app/api/dadata/clean/address/route.ts` (address cleaning)
+- Auth: `DADATA_TOKEN` env var (Token-based Authorization header), optional `DADATA_SECRET` (X-Secret header)
+- Scope: Suggestions bounded from `city` to `settlement`
 
-**Backend -> Image Backend (HTTP, server-to-server):**
-- Purpose: Media asset lifecycle management (upload orchestration, deletion)
-- Transport: httpx `AsyncClient`
-- Auth: `X-API-Key` header (env var: `IMAGE_BACKEND_API_KEY` on backend, `INTERNAL_API_KEY` on image_backend)
-- Base URL: env var `IMAGE_BACKEND_URL` (default: `http://localhost:8001`)
-- Image Backend API prefix: `/api/v1/media/`
-- Endpoints consumed:
-  - `POST /media/upload` - Reserve upload slot, get presigned PUT URL
-  - `POST /media/{id}/reupload` - Replace image, keep same ID
-  - `POST /media/{id}/confirm` - Trigger background processing
-  - `GET /media/{id}/status` - SSE stream for processing status
-  - `GET /media/{id}` - Get metadata
-  - `DELETE /media/{id}` - Delete files + record
-  - `POST /media/external` - Import from external URL
-- Auth validation: `image_backend/src/api/dependencies/auth.py` (HMAC-safe comparison, disableable in dev)
-
-**Frontend Main -> Backend (HTTP BFF Proxy):**
-- Purpose: All client API requests proxied through Next.js server (cookie-to-bearer conversion)
-- Proxy route: `frontend/main/app/api/backend/[...path]/route.ts`
-- Methods: GET, POST, PUT, PATCH, DELETE (all proxied)
-- Auth injection: Reads `access_token` from HTTP-only cookie, sets `Authorization: Bearer` header upstream
-- Timeout: 25 seconds (AbortController)
-- Header filtering: Only forwards `accept`, `content-type`, `accept-language`
-- Response header forwarding: `content-type`, `content-length`, `content-disposition`, `cache-control`, `x-total-count`
-- Error handling: Returns 502 with generic message (never leaks upstream URLs/IPs)
-
-**Frontend Main -> Backend (Auth routes):**
-- `/api/auth/telegram` - Telegram initData login (`frontend/main/app/api/auth/telegram/route.ts`)
-- `/api/auth/refresh` - Token refresh (`frontend/main/app/api/auth/refresh/route.ts`)
-- `/api/auth/logout` - Session logout (`frontend/main/app/api/auth/logout/route.ts`)
-- RTK Query auto-reauth: On 401, refreshes tokens via `/api/auth/refresh` with mutex to prevent stampede (`frontend/main/lib/store/api.ts`)
-
-**Frontend Admin -> Backend (Server-Side Fetch):**
-- Purpose: Server-side data fetching + mutation for admin panel
-- Client: `frontend/admin/src/lib/api-client.js` (`backendFetch()` helper)
-- Auth: Cookie-based JWT, middleware refresh in `frontend/admin/src/proxy.js`
-- Base URL: env var `BACKEND_URL` (e.g., `http://127.0.0.1:8000`)
-- Login: `frontend/admin/src/app/api/auth/login/route.js` -> `POST /api/v1/auth/login`
-- Token refresh: `frontend/admin/src/proxy.js` middleware on `/admin/:path*`
-- API routes proxy pattern: `frontend/admin/src/app/api/` mirrors backend routes
-
-**Async Event Processing (Outbox -> RabbitMQ -> TaskIQ Workers):**
-- Pattern: Transactional Outbox with Polling Publisher
-- Outbox table: `outbox_messages` in PostgreSQL (backend DB)
-- Relay: `backend/src/infrastructure/outbox/relay.py`
-  - Uses `FOR UPDATE SKIP LOCKED` for concurrent relay workers
-  - Per-event transaction isolation
-- Broker config: `backend/src/bootstrap/broker.py`
-  - Exchange: `taskiq_rpc_exchange`
-  - Queue: `taskiq_background_jobs`
-  - QoS prefetch: 10
-- Event handlers registered via `register_event_handler()` in `backend/src/infrastructure/outbox/relay.py`
-- Task consumers:
-  - `backend/src/infrastructure/outbox/tasks.py` - Relay + pruning scheduled tasks
-  - `backend/src/modules/identity/application/consumers/role_events.py` - Permission cache invalidation
-  - `backend/src/modules/user/application/consumers/identity_events.py` - Profile creation on registration
-- Scheduled tasks (via TaskIQ Beat / `backend/src/bootstrap/scheduler.py`):
-  - Outbox relay: every minute
-  - Outbox pruning: daily at 03:00 UTC (deletes processed records >7 days old)
-- DLQ: Failed tasks persisted to `failed_tasks` table via `backend/src/infrastructure/logging/dlq_middleware.py`
+**Image Backend (Internal Microservice):**
+- Purpose: Image upload, resize, thumbnail generation, WebP conversion
+- Protocol: HTTP REST (server-to-server)
+- Client: `backend/src/modules/catalog/infrastructure/image_backend_client.py` (httpx AsyncClient)
+- Auth: API key via `X-API-Key` header
+- Base URL: `IMAGE_BACKEND_URL` env var (default `http://localhost:8001`)
+- API key: `IMAGE_BACKEND_API_KEY` env var
+- Operations: DELETE `/api/v1/media/{storage_object_id}` (best-effort cleanup)
+- Image backend validates: `INTERNAL_API_KEY` in `image_backend/src/api/dependencies/auth.py`
 
 ## Data Storage
 
-**PostgreSQL 18:**
-- Separate databases per service:
-  - Backend: env var `PGDATABASE` (default: `enterprise`)
-  - Image Backend: env var `PGDATABASE` (default: `image_backend`)
-- Driver: `postgresql+asyncpg` (async)
-- Connection config: individual PG* env vars (not a connection URL)
-- ORM: SQLAlchemy 2.1 async
-- Migrations: Alembic with date-based subdirectory structure
-  - Backend: `backend/alembic/`
-  - Image Backend: `image_backend/alembic/`
-- Key tables (backend): `outbox_messages`, `failed_tasks`, plus module-specific tables
-- Key tables (image_backend): `storage_files`, `failed_tasks`
+**PostgreSQL (Primary Database):**
+- Version: 18 Alpine (Docker)
+- Separate databases: `enterprise` (backend), `image_backend` (image service)
+- Driver: `asyncpg` (async, binary protocol)
+- ORM: SQLAlchemy 2.1+ async mode with `DeclarativeBase`
+- Connection pool: `AsyncAdaptedQueuePool` (size=15, max_overflow=10, recycle=3600s)
+- Connection settings: `statement_timeout=30s`, `idle_in_transaction_session_timeout=60s`, timezone=UTC
+- Naming conventions: `backend/src/infrastructure/database/base.py` (ix_, uq_, ck_, fk_, pk_ prefixes)
+- Migrations: Alembic with date-based subdirectories (`backend/alembic/versions/2026/03/`)
+- UoW pattern: `backend/src/infrastructure/database/uow.py` (IUnitOfWork interface)
+- Isolation: READ COMMITTED
 
-**Redis 8.4:**
-- Shared instance, separated by database number:
-  - Backend: DB 0 (general cache, permission caching, bot FSM)
-  - Image Backend: DB 1 (SSE pub/sub, processing state)
-- Connection: `redis[hiredis]` async client
-- Docker config: 256MB max, `allkeys-lru` eviction policy
-- Use cases:
-  - Permission caching (TTL 300s, invalidated via async events)
-  - Bot FSM state/data storage
-  - Image processing SSE pub/sub
-  - General key-value caching (`backend/src/infrastructure/cache/redis.py`)
-- Error handling: Cache failures logged but never propagate (graceful degradation)
+**Database Models (Backend):**
+- Catalog: `Product`, `ProductVariant`, `SKU`, `Category`, `Brand`, `Attribute`, `AttributeGroup`, `AttributeValue`, `AttributeTemplate`, `TemplateAttributeBinding`, `ProductAttributeValue`, `SKUAttributeValueLink`, `MediaAsset` (`backend/src/modules/catalog/infrastructure/models.py`)
+- Identity/IAM: `IdentityModel`, `RoleModel`, `PermissionModel`, `SessionModel`, `LinkedAccountModel`, `LocalCredentialsModel`, `RoleHierarchyModel`, `RolePermissionModel`, `IdentityRoleModel`, `SessionRoleModel`, `StaffInvitationModel`, `StaffInvitationRoleModel` (`backend/src/modules/identity/infrastructure/models.py`)
+- Geo: `CountryModel`, `CountryTranslationModel`, `CurrencyModel`, `CurrencyTranslationModel`, `LanguageModel`, `SubdivisionModel`, `SubdivisionTranslationModel`, `SubdivisionCategoryModel`, `SubdivisionCategoryTranslationModel`, `CountryCurrencyModel` (`backend/src/modules/geo/infrastructure/models.py`)
+- User: `CustomerModel`, `StaffMemberModel` (`backend/src/modules/user/infrastructure/models.py`)
+- Supplier: `Supplier` (`backend/src/modules/supplier/infrastructure/models.py`)
+- Infrastructure: `OutboxMessage`, `FailedTask` (`backend/src/infrastructure/database/models/`)
 
-**S3-Compatible Object Storage (MinIO dev / AWS S3 prod):**
-- Used by: Image Backend only
-- Client: `aiobotocore` via `image_backend/src/infrastructure/storage/factory.py`
-- Service: `image_backend/src/modules/storage/infrastructure/service.py` (S3StorageService)
-- Pattern: Ephemeral single-use S3 clients (context-manager, TCP torn down per operation)
-- Bucket: env var `S3_BUCKET_NAME` (default: `media-bucket`)
-- Public URL: env var `S3_PUBLIC_BASE_URL`
-- Key layout:
-  - `raw/{storage_object_id}/{filename}` - Original uploads
-  - `public/{storage_object_id}.webp` - Processed main image
-  - `public/{storage_object_id}_{suffix}.webp` - Variants (thumb, md, lg)
-- Operations: streaming upload (multipart 5MB parts), download, presigned URLs (PUT + GET), batch delete, copy, HEAD
-- Presigned URL TTL: 300 seconds (configurable via `PRESIGNED_URL_TTL`)
-- Max file size: 50MB (configurable via `MAX_FILE_SIZE`)
-- External import max: 10MB per file
+**Redis (Cache + Session Store):**
+- Version: 8.4 Alpine (Docker)
+- Driver: `redis-py` async with `hiredis` C extension
+- Connection pool: max 100 connections, socket timeout 5s, connect timeout 2s
+- Provider: `backend/src/infrastructure/cache/provider.py`
+- Implementation: `backend/src/infrastructure/cache/redis.py` (RedisService -> ICacheService)
+- Uses:
+  - Permission cache (cache-aside pattern, TTL from `SESSION_PERMISSIONS_CACHE_TTL`)
+  - Aiogram FSM state storage (separate connection in `backend/src/bot/factory.py`)
+  - General caching via `ICacheService` interface
+- Backend uses DB 0; Image backend uses DB 1
 
-**RabbitMQ 4.2.4:**
-- Purpose: Message broker for TaskIQ background tasks
-- Exchange: `taskiq_rpc_exchange` (auto-declared)
-- Queue: `taskiq_background_jobs` (auto-declared)
-- Connection: AMQP URL via `RABBITMQ_PRIVATE_URL`
-- Management UI: port 15672 (dev)
+**S3/MinIO (Object Storage):**
+- Purpose: Image file storage (upload, serve)
+- Provider: MinIO (dev), S3-compatible in production
+- Client: `aiobotocore` via `S3ClientFactory` (`image_backend/src/infrastructure/storage/factory.py`)
+- Config: `S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `S3_BUCKET_NAME`
+- Public URL: `S3_PUBLIC_BASE_URL` (for generating public-facing image URLs)
+- Ephemeral client pattern: each operation gets its own short-lived client
+- Retry: 3 attempts, standard mode; timeouts: connect 5s, read 60s
+
+**RabbitMQ (Message Broker):**
+- Version: 4.2.4 Management Alpine (Docker)
+- Client: TaskIQ via `taskiq-aio-pika` (`AioPikaBroker`)
+- Exchange: `taskiq_rpc_exchange` (declared, direct)
+- Queue: `taskiq_background_jobs` (declared, QoS prefetch=10)
+- Connection: `RABBITMQ_PRIVATE_URL` env var (AMQP URL)
+- Configuration: `backend/src/bootstrap/broker.py`
+- Management console: port 15672
 
 ## Authentication & Identity
 
-**Auth Provider:** Custom IAM (Identity & Access Management)
-- Module: `backend/src/modules/identity/`
-- Security infrastructure: `backend/src/infrastructure/security/`
+**Auth Provider: Custom IAM (Identity & Access Management)**
+- Implementation: Full custom RBAC system in `backend/src/modules/identity/`
+- Identity types: Staff (email/password), Customer (Telegram), Linked accounts
 
-**Authentication Methods:**
-1. **Email/password** (admin panel login)
-   - Endpoint: `POST /api/v1/auth/login`
-   - Password hashing: Argon2id primary, Bcrypt legacy fallback
-   - Implementation: `backend/src/infrastructure/security/password.py`
-2. **Telegram Mini App** (customer login)
-   - Endpoint: `POST /api/v1/auth/telegram`
-   - HMAC-SHA256 validation of Telegram `initData`
-   - Implementation: `backend/src/infrastructure/security/telegram.py`
-   - Uses aiogram's `safe_parse_webapp_init_data()` + custom freshness check
+**Authentication Flows:**
+1. **Telegram Mini App Auth** (customers):
+   - Client sends `initData` string from Telegram WebApp SDK
+   - BFF proxy: `frontend/main/app/api/auth/telegram/route.ts` -> `POST /api/v1/auth/telegram`
+   - Backend validates HMAC-SHA256 signature using bot token
+   - Returns JWT access token (15min) + opaque refresh token (7 days for Telegram users)
+   - Tokens stored in HttpOnly cookies by BFF
 
-**Token Strategy:**
-- Access token: JWT (HS256), 15-minute expiry
-  - Claims: `sub` (identity_id), `exp`, `iat`, `jti`
-  - Implementation: `backend/src/infrastructure/security/jwt.py`
-- Refresh token: Opaque (`secrets.token_urlsafe(32)`), SHA-256 hash stored in DB
-  - Standard expiry: 30 days
-  - Telegram expiry: 7 days
-  - Rotation on use (old token invalidated)
-- Auth dependency: `backend/src/api/dependencies/auth.py` (extracts identity_id from JWT, binds to structlog context)
+2. **Email/Password Auth** (staff/admin):
+   - Login: `POST /api/v1/auth/login` -> returns JWT access + refresh tokens
+   - Tokens stored in HttpOnly cookies by admin BFF
+   - Cookie management: `frontend/admin/src/lib/auth.js`
 
-**Session Management (configured in `backend/src/bootstrap/config.py`):**
-- Max active sessions per identity: 5
-- Session idle timeout: 30 min (standard), 1440 min / 24h (Telegram)
-- Session absolute lifetime: 24h (standard), 168h / 7 days (Telegram)
+3. **Token Refresh:**
+   - Frontend: `POST /api/auth/refresh` (BFF route)
+   - RTK Query auto-refresh: `frontend/main/lib/store/api.ts` (mutex pattern prevents token stampede)
+   - Backend: validates refresh token hash against database
 
-**RBAC:**
-- Cache-aside permission resolver
-  - Primary: Redis cache per session (TTL 300s)
-  - Fallback: CTE-based PostgreSQL query
-  - Implementation: `backend/src/infrastructure/security/authorization.py`
-  - Invalidation: async event via outbox when role assignment changes
+**Authorization:**
+- RBAC with role hierarchy (`RoleHierarchyModel`)
+- Permission resolver: `backend/src/infrastructure/security/authorization.py`
+- Cache-aside: Permissions cached in Redis with configurable TTL
+- Session-based: `SessionModel` with `SessionRoleModel` for per-session role snapshots
+- Session limits: `MAX_ACTIVE_SESSIONS_PER_IDENTITY=5`, idle timeout 30min, absolute lifetime 24h
+- Telegram sessions: longer timeouts (idle 1440min, absolute 168h)
 
-**Frontend Cookie Management:**
-- Frontend Main:
-  - HTTP-only cookies: `access_token` (15min), `refresh_token` (30 days)
-  - SameSite=Lax, Secure in production
-  - Auto-refresh: RTK Query baseQuery with 401 retry + single-flight mutex
-  - Cookie helpers: `frontend/main/lib/auth/cookie-helpers.ts`
-- Frontend Admin:
-  - Same cookie pattern
-  - Middleware refresh: `frontend/admin/src/proxy.js` (checks JWT exp, refreshes server-side)
-  - Cookie helpers: `frontend/admin/src/lib/auth.js`
+**Password Hashing:**
+- Algorithm: Argon2id (primary), bcrypt (fallback)
+- Library: `pwdlib[argon2,bcrypt]`
+- Implementation: `backend/src/infrastructure/security/password.py`
+
+**JWT:**
+- Algorithm: HS256
+- Library: PyJWT
+- Access token TTL: 15 minutes (configurable via `ACCESS_TOKEN_EXPIRE_MINUTES`)
+- Claims: `exp`, `iat`, `jti` (UUID)
+- Implementation: `backend/src/infrastructure/security/jwt.py`
 
 ## Monitoring & Observability
 
 **Structured Logging:**
-- Framework: structlog `>=25.5.0`
-- Dev mode: Colored console output with call-site info (filename, function, line number)
-- Production: JSON lines to stdout (for log aggregator ingestion)
-- Config: `backend/src/bootstrap/logger.py`
-- Processors: contextvars merge, logger name, log level, timestamps (ISO UTC), stack info, unicode decoder
-- Access logging: Custom middleware `backend/src/api/middlewares/logger.py`
-- TaskIQ logging: `backend/src/infrastructure/logging/taskiq_middleware.py`
-- Correlation IDs: bound via `structlog.contextvars.bind_contextvars()`
+- Library: `structlog >=25.5.0`
+- Adapter: `backend/src/infrastructure/logging/adapter.py` (StructlogAdapter -> ILogger)
+- Access logging middleware: `backend/src/api/middlewares/logger.py`
+- TaskIQ logging middleware: `backend/src/infrastructure/logging/taskiq_middleware.py`
+- Context vars: `correlation_id`, `event_id`, `event_type` bound per request/task
 
 **Error Tracking:**
-- No external error tracking service detected (no Sentry, Datadog, Bugsnag, etc.)
+- No external error tracking service detected (no Sentry, Datadog, etc.)
+- DLQ middleware: Failed TaskIQ tasks persisted to `FailedTask` table (`backend/src/infrastructure/logging/dlq_middleware.py`)
 
-**DLQ (Dead Letter Queue):**
-- Failed TaskIQ tasks persisted to `failed_tasks` PostgreSQL table
-- Uses dedicated DB engine (not Dishka request-scoped session)
-- Implementation: `backend/src/infrastructure/logging/dlq_middleware.py`
-- Model: `backend/src/infrastructure/database/models/failed_task.py`
+**Health Checks:**
+- Backend: `GET /health` returns `{"status": "ok", "environment": "..."}` (`backend/src/bootstrap/web.py`)
+- Image backend: Same pattern (`image_backend/src/bootstrap/web.py`)
+- Docker healthchecks: PostgreSQL (`pg_isready`), Redis (`redis-cli ping`), RabbitMQ (`rabbitmq-diagnostics ping`), MinIO (`curl /minio/health/live`)
 
 ## CI/CD & Deployment
 
-**Backend + Image Backend:**
-- Platform: Railway
-- Build: Dockerfile-based (configured in `railway.toml`)
-- Backend entrypoint: `backend/scripts/entrypoint.sh`
-  1. Runs `alembic upgrade head` (auto-migrate on deploy)
-  2. Starts `uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}`
-- Image Backend: Direct CMD `uvicorn main:app --host 0.0.0.0 --port 8001`
-
-**Frontend Main:**
-- Platform: Netlify
-- Build: `npm run build`
-- Plugin: `@netlify/plugin-nextjs`
-- Config: `frontend/main/netlify.toml`
-
-**Frontend Admin:**
-- Deployment target not explicitly configured (no netlify.toml, vercel.json, etc.)
-- Standard Next.js build output (`next build --webpack`)
+**Hosting:**
+- Railway (PaaS) for both Python backends
+  - `backend/railway.toml` - Dockerfile builder
+  - `image_backend/railway.toml` - Dockerfile builder
+- Frontend deployment target: Not explicitly configured (likely Vercel or Railway)
 
 **CI Pipeline:**
-- Not detected (no `.github/workflows/`, `.gitlab-ci.yml`, Jenkinsfile, or similar)
+- No CI configuration detected (no `.github/workflows/`, no `.gitlab-ci.yml`)
 
-## Security Headers
+**Docker:**
+- Backend Dockerfile: `backend/Dockerfile` (multi-stage with `uv` for fast installs)
+- Image backend Dockerfile: `image_backend/Dockerfile`
+- Docker Compose: `backend/docker-compose.yml` (shared infrastructure for local dev)
 
-**Frontend Admin (`frontend/admin/next.config.js`):**
-- `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: DENY`
-- `Referrer-Policy: strict-origin-when-cross-origin`
-- `Content-Security-Policy`: self + unsafe-inline/eval for scripts/styles, blob/data for images
-- `Strict-Transport-Security`: max-age=63072000; includeSubDomains; preload
-- `Permissions-Policy`: camera=(), microphone=(), geolocation=()
-- `poweredByHeader: false` (removes X-Powered-By)
+## Event-Driven Architecture
 
-**Frontend Main (`frontend/main/middleware.ts`):**
-- Edge middleware CSRF protection: Origin header validation on POST `/api/auth/*`
-- `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: SAMEORIGIN` (allows Telegram iframe embedding)
-- `Referrer-Policy: strict-origin-when-cross-origin`
+**Outbox Pattern:**
+- Purpose: Reliable domain event publishing (transactional outbox)
+- Table: `outbox_messages` (event_type, payload, correlation_id, processed_at)
+- Relay: Polls every minute via TaskIQ Beat (`backend/src/infrastructure/outbox/tasks.py`)
+- Concurrency: `FOR UPDATE SKIP LOCKED` for parallel relay workers
+- Pruning: Daily at 03:00 UTC, deletes records older than 7 days
 
-**Image Backend:**
-- API-key authentication on all endpoints (`X-API-Key` header or `api_key` query param for SSE)
-- HMAC-safe key comparison (`hmac.compare_digest`)
-- Auth disableable when `INTERNAL_API_KEY` is empty (dev convenience)
+**Domain Events:**
+- `identity_registered` -> Creates customer/staff profile (`backend/src/modules/user/application/consumers/identity_events.py`)
+- `identity_deactivated` -> Anonymizes customer data (GDPR) (`backend/src/modules/user/application/consumers/identity_events.py`)
+- `role_assignment_changed` -> Invalidates permission cache (`backend/src/modules/identity/application/consumers/role_events.py`)
+
+**TaskIQ Queues:**
+- `taskiq_background_jobs` - Default job queue
+- `outbox_relay` - Outbox polling
+- `outbox_pruning` - Outbox cleanup
+
+## Frontend BFF Proxy
+
+**Main Frontend (`frontend/main/app/api/backend/[...path]/route.ts`):**
+- Catch-all proxy: All HTTP methods (GET, POST, PUT, PATCH, DELETE)
+- Injects `Authorization: Bearer <access_token>` from HttpOnly cookies
+- Timeout: 25 seconds
+- Filters upstream headers (allowlist: accept, content-type, accept-language)
+- Safe response header forwarding (content-type, content-length, cache-control, x-total-count)
+- Error handling: Returns 502 on upstream failure with sanitized error messages
+
+**Admin Frontend (`frontend/admin/src/lib/api-client.js`):**
+- Simple `backendFetch()` wrapper around `fetch()`
+- Uses `BACKEND_URL` env var for server-side API calls
+- Auth cookies managed via `frontend/admin/src/lib/auth.js`
+
+## Environment Configuration
+
+**Required env vars (Backend):**
+- `SECRET_KEY` - JWT signing secret
+- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` - PostgreSQL connection
+- `REDISHOST`, `REDISPORT` - Redis connection
+- `RABBITMQ_PRIVATE_URL` - RabbitMQ AMQP URL
+- `BOT_TOKEN` - Telegram bot token
+
+**Required env vars (Image Backend):**
+- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` - PostgreSQL connection
+- `REDISHOST`, `REDISPORT` - Redis connection
+- `RABBITMQ_PRIVATE_URL` - RabbitMQ AMQP URL
+- `S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `S3_BUCKET_NAME`, `S3_PUBLIC_BASE_URL` - S3 storage
+
+**Required env vars (Frontend - Main):**
+- `BACKEND_API_BASE_URL` - Backend server URL for BFF proxy
+- `DADATA_TOKEN` - DaData API token (server-side only)
+
+**Required env vars (Frontend - Admin):**
+- `BACKEND_URL` - Backend server URL for API calls
+
+**Env file locations:**
+- `backend/.env` (present, gitignored)
+- `backend/.env.example` (committed, safe reference)
+- `image_backend/.env.example` (committed, safe reference)
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- Telegram Bot webhook (optional): `BOT_WEBHOOK_URL` + `BOT_WEBHOOK_SECRET`
-- Image Backend media endpoints (API-key protected): `POST /api/v1/media/*`
+- Telegram Bot webhook: `BOT_WEBHOOK_URL` (optional; polling mode available as fallback)
+- Internal webhook: `INTERNAL_WEBHOOK_SECRET` configured but usage not yet widespread
 
 **Outgoing:**
-- None detected (all async processing is internal via outbox + RabbitMQ)
-
-## Environment Configuration Summary
-
-**Required env vars (Backend):**
-- `SECRET_KEY` - JWT signing (critical, no default)
-- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` - PostgreSQL
-- `REDISHOST`, `REDISPORT` - Redis
-- `RABBITMQ_PRIVATE_URL` - RabbitMQ AMQP URL
-- `BOT_TOKEN` - Telegram Bot token
-
-**Required env vars (Image Backend):**
-- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` - PostgreSQL
-- `REDISHOST`, `REDISPORT` - Redis
-- `S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `S3_BUCKET_NAME`, `S3_PUBLIC_BASE_URL` - S3
-- `RABBITMQ_PRIVATE_URL` - RabbitMQ
-
-**Required env vars (Frontend Main):**
-- `BACKEND_API_BASE_URL` - Backend server URL for BFF proxy
-
-**Required env vars (Frontend Admin):**
-- `BACKEND_URL` - Backend server URL for server-side fetch
-
-**Secrets storage:**
-- Development: `.env` files (gitignored)
-- Templates: `.env.example` committed in `backend/` and `image_backend/`, `.env.local.example` in `frontend/admin/`, `.env.example` in `frontend/main/`
-- Production: Railway environment variables (Python services), Netlify env vars (frontend main)
+- Backend -> Image Backend: DELETE calls for media cleanup (`backend/src/modules/catalog/infrastructure/image_backend_client.py`)
+- Frontend -> DaData: Address suggestion/cleaning requests (proxied through BFF)
+- Frontend -> Telegram WebApp: SDK callbacks via `window.Telegram.WebApp` methods
 
 ---
 

@@ -5,197 +5,113 @@
 ## Test Framework
 
 **Runner:**
-- pytest >= 9.0.2
-- pytest-asyncio >= 1.3.0 (auto mode -- all `async def test_*` detected automatically)
-- Config: `backend/pyproject.toml` `[tool.pytest.ini_options]` + `backend/pytest.ini` (detailed)
+- pytest 9.x (via `uv run pytest`)
+- Config: `backend/pyproject.toml` `[tool.pytest.ini_options]` and `backend/pytest.ini`
+- Note: `pytest.ini` takes precedence and contains the full configuration
 
 **Assertion Library:**
-- Standard `assert` statements (pytest rewriting)
-- `pytest.raises(ExceptionClass)` for expected exceptions
+- Plain `assert` statements (pytest native)
+- `pytest.raises(ExceptionType)` for exception testing
 
-**Async Mode:**
-- `asyncio_mode = "auto"` -- no need for `@pytest.mark.asyncio` on individual tests (though some files still use `pytestmark = pytest.mark.asyncio` for explicitness)
+**Async Support:**
+- pytest-asyncio 1.3+ with `asyncio_mode = "auto"` (all `async def test_*` are auto-detected)
 - Session-scoped event loop: `asyncio_default_fixture_loop_scope = session`
-- All tests share a single event loop across the session
+- Session-scoped test loop: `asyncio_default_test_loop_scope = session`
 
 **Run Commands:**
 ```bash
-uv run pytest tests/ -v              # Run all tests
-uv run pytest tests/unit/ -v         # Unit tests only
-uv run pytest tests/integration/ -v  # Integration tests only
-uv run pytest tests/e2e/ -v          # E2E tests only
-uv run pytest tests/architecture/ -v # Architecture fitness functions
-make test                            # Equivalent to running all tests
-make test-unit                       # Unit only
-make test-integration                # Integration only
-make test-e2e                        # E2E only
-make test-architecture               # Architecture only
+uv run pytest tests/ -v                  # Run all tests
+uv run pytest tests/unit/ -v             # Unit tests only
+uv run pytest tests/integration/ -v      # Integration tests only
+uv run pytest tests/e2e/ -v              # E2E tests only
+uv run pytest tests/architecture/ -v     # Architecture fitness tests
+make test                                # All tests (via Makefile)
+make test-unit                           # Unit tests (via Makefile)
+make test-integration                    # Integration tests
+make test-e2e                            # E2E tests
+make test-architecture                   # Architecture tests
 ```
 
 ## Test File Organization
 
-**Location:** Separate `tests/` directory tree mirroring `src/` structure
+**Location:**
+- Separate `tests/` directory (not co-located with source)
+- Mirror the `src/` module structure under each test category
 
 **Naming:**
-- Test files: `test_*.py` (prefix convention)
-- Test classes: `Test*` (e.g., `TestIdentity`, `TestSession`, `TestStorageFileCreate`)
-- Test functions: `test_*` (e.g., `test_create_brand_handler_without_logo`)
+- Test files: `test_*.py`
+- Test classes: `Test*` (e.g., `TestIdentity`, `TestCustomer`, `TestSupplierCreate`)
+- Test functions: `test_*` (e.g., `test_create_brand_e2e_success`)
 
-**Structure (backend):**
+**Structure:**
 ```
 backend/tests/
-  __init__.py
-  conftest.py                          # Root fixtures: DB, Redis, Dishka container, event loop
-  architecture/
-    conftest.py                        # pytestmark = pytest.mark.architecture
-    test_boundaries.py                 # Architectural fitness functions (pytest-archon)
-  unit/
-    conftest.py                        # (minimal/empty)
-    infrastructure/
-      database/...
-      logging/
-        test_dlq_middleware.py
-      outbox/
-        test_relay.py
-        test_tasks.py
-      security/
-        test_telegram_validator.py
-    modules/
-      catalog/
-        application/
-          test_sync_product_media.py
-        domain/
-          test_category_effective_family.py
-        infrastructure/
-          test_image_backend_client.py
-      identity/
-        application/
-          commands/
-            test_admin_commands.py
-          consumers/
-            test_role_events.py
-        domain/
-          test_entities.py
-          test_events.py
-          test_exceptions.py
-          test_session_timeouts.py
-          test_telegram.py
-          test_token_version.py
-          test_value_objects.py
-        management/
-          test_sync_system_roles.py
-        presentation/
-          test_schemas.py
-      supplier/
-        domain/
-          test_entities.py
-      user/
-        application/
-          commands/
-            test_commands.py
-          consumers/
-            test_identity_events.py
-        domain/
-          test_customer.py
-          test_entities.py
-          test_referral_code.py
-          test_staff_member.py
-        presentation/
-          test_schemas.py
-    shared/
-      test_domain_event.py
-      test_schemas.py
-  integration/
-    conftest.py                        # db_session fixture (nested transaction per test)
-    bootstrap/
-      test_broker.py
-      test_worker_init.py
-    modules/
-      catalog/
-        application/
-          commands/
-            test_create_brand.py
-        infrastructure/
-          repositories/
-            test_brand.py
-            test_brand_extended.py
-            test_category.py
-            test_category_effective_family.py
-            test_category_extended.py
-      identity/
-        application/
-          commands/
-            test_login.py
-          queries/
-            test_get_identity_roles.py
-            test_list_permissions.py
-            test_list_roles.py
-        infrastructure/
-          repositories/
-            test_identity_repo_extended.py
-            test_permission_repo.py
-            test_role_repo.py
-            test_session_repo.py
-            test_session_repo_extended.py
-      supplier/
-        infrastructure/
-          repositories/
-            test_supplier.py
-        test_supplier_crud.py
-        test_supplier_lifecycle.py
-  e2e/
-    conftest.py                        # FastAPI app, AsyncClient, authenticated/admin clients
-    api/v1/
-      test_auth.py
-      test_auth_telegram.py
-      test_brands.py
-      test_categories.py
-      test_users.py
-  factories/
-    __init__.py
-    builders.py                        # Fluent Test Data Builders (RoleBuilder, SessionBuilder, CategoryBuilder)
-    catalog_factories.py
-    catalog_mothers.py
-    identity_mothers.py                # Object Mothers (IdentityMothers, SessionMothers, RoleMothers, etc.)
-    orm_factories.py                   # Polyfactory-based ORM model factories
-    schema_factories.py
-    storage_factories.py
-  fakes/
-    __init__.py
-    oidc_provider.py                   # StubOIDCProvider for tests
-  load/
-    locustfile.py                      # Locust load test entry point (currently empty)
-    scenarios/
-      auth_flow.py
-      browse_catalog.py
-      mixed_workload.py
+├── conftest.py                          # Root conftest: event loop, DB/Redis URLs, DI container, db_session fixture
+├── architecture/
+│   ├── conftest.py                      # pytestmark = pytest.mark.architecture
+│   └── test_boundaries.py              # pytest-archon layer/module rules
+├── unit/
+│   ├── infrastructure/
+│   │   ├── database/models/            # ORM model unit tests
+│   │   ├── logging/                    # Logging infrastructure tests
+│   │   ├── outbox/                     # Outbox pattern tests
+│   │   └── security/                   # Security infrastructure tests
+│   ├── modules/
+│   │   ├── catalog/
+│   │   │   ├── application/            # Command handler unit tests (mocked deps)
+│   │   │   ├── domain/                 # Domain entity pure-logic tests
+│   │   │   └── infrastructure/         # Repository mapping tests
+│   │   ├── identity/
+│   │   │   ├── application/commands/   # Command handler tests
+│   │   │   ├── application/consumers/  # Event consumer tests
+│   │   │   ├── domain/                 # Entity, VO, event, exception tests
+│   │   │   ├── management/             # System role sync tests
+│   │   │   └── presentation/           # Schema validation tests
+│   │   ├── supplier/domain/            # Supplier entity tests
+│   │   └── user/
+│   │       ├── application/commands/   # Profile command tests
+│   │       ├── application/consumers/  # Event consumer tests
+│   │       ├── domain/                 # Customer entity tests
+│   │       └── presentation/           # Schema tests
+│   └── shared/                         # Shared kernel tests
+├── integration/
+│   ├── conftest.py                     # Overrides db_session with nested-transaction rollback
+│   ├── bootstrap/                      # App bootstrap tests
+│   └── modules/
+│       ├── catalog/
+│       │   ├── application/commands/   # Command handler tests with real DB
+│       │   └── infrastructure/repositories/  # Repository tests with real DB
+│       ├── identity/application/       # Identity handler integration tests
+│       └── supplier/infrastructure/    # Supplier repo integration tests
+├── e2e/
+│   ├── conftest.py                     # FastAPI app, httpx AsyncClient, auth fixtures
+│   └── api/v1/                         # HTTP round-trip tests per endpoint group
+│       ├── test_auth.py
+│       ├── test_auth_telegram.py
+│       ├── test_brands.py
+│       ├── test_categories.py
+│       └── test_users.py
+├── load/
+│   ├── locustfile.py                   # Locust runner
+│   └── scenarios/                      # Load test scenarios
+│       ├── auth_flow.py
+│       ├── browse_catalog.py
+│       └── mixed_workload.py
+├── factories/
+│   ├── builders.py                     # Fluent Builder pattern
+│   ├── catalog_mothers.py             # Object Mother pattern (catalog domain)
+│   ├── identity_mothers.py            # Object Mother pattern (identity domain)
+│   ├── orm_factories.py               # Polyfactory ORM model factories
+│   ├── schema_factories.py            # Pydantic schema factories
+│   └── storage_factories.py           # Storage-related factories
+└── fakes/
+    └── oidc_provider.py               # Stub OIDC provider for tests
 ```
 
-**Structure (image_backend):**
-```
-image_backend/tests/
-  __init__.py
-  integration/
-    __init__.py
-    test_upload_flow.py
-  unit/
-    __init__.py
-    modules/
-      storage/
-        application/
-          test_process_image.py         # TDD tests for image processing pure functions
-        domain/
-          test_entities.py              # StorageFile entity tests
-          test_value_objects.py
-        presentation/
-          test_sse.py
-```
+## Test Types and Markers
 
-## Test Markers (Test Pyramid)
-
-Five registered markers define the test pyramid:
-```python
-# backend/pytest.ini
+**Registered markers** (in `backend/pytest.ini`):
+```ini
 markers =
     architecture: Fitness functions and boundary enforcement
     unit: Domain-layer pure logic, zero I/O
@@ -204,31 +120,25 @@ markers =
     load: Resilience and threshold testing (Locust)
 ```
 
-**Run by marker:**
-```bash
-uv run pytest -m unit              # Unit tests only
-uv run pytest -m integration       # Integration tests only
-uv run pytest -m architecture      # Architecture fitness functions
-uv run pytest -m "not load"        # Everything except load tests
-```
+**Test counts (as of analysis date):**
+- Unit tests: 28 test files
+- Integration tests: 20 test files
+- E2E tests: 5 test files
+- Architecture tests: 1 test file
+- Load test scenarios: 4 files
 
-**Strict markers enabled:** `--strict-markers` prevents typos in marker names.
+**Strict markers enforced:** `--strict-markers` prevents typos in marker names.
 
-## Test Types and Patterns
+## Test Structure
 
-### Unit Tests
+### Unit Test Pattern (Domain Entity)
 
-**Scope:** Domain entities, value objects, domain events, presentation schemas, and application command handlers (with mocked dependencies)
-**I/O:** Zero I/O. No database, no network, no filesystem.
-**Speed:** < 0.01s per test
-
-**Domain entity tests** (`tests/unit/modules/*/domain/test_entities.py`):
-- Organized by entity with `class TestEntityName:` grouping
-- Test factory methods, mutations, guard methods, and domain event emission
-- Use Object Mothers from `tests/factories/` for pre-built configurations
+Tests are organized in `TestClassName` classes with one assertion per test method. Use factory methods or Object Mothers to set up entities:
 
 ```python
 # backend/tests/unit/modules/identity/domain/test_entities.py
+from tests.factories.identity_mothers import IdentityMothers
+
 class TestIdentity:
     def test_register_creates_active_identity(self):
         identity = Identity.register(IdentityType.LOCAL)
@@ -252,99 +162,157 @@ class TestIdentity:
             identity.ensure_active()
 ```
 
-**Image backend domain tests** use the same class-per-concept pattern with fine-grained assertions:
-```python
-# image_backend/tests/unit/modules/storage/domain/test_entities.py
-class TestStorageFileCreate:
-    def test_create_generates_a_uuid(self):
-        sf = StorageFile.create(bucket_name="b", object_key="raw/x/f.jpg", content_type="image/jpeg")
-        assert isinstance(sf.id, uuid.UUID)
+### Unit Test Pattern (Command Handler with Mocks)
 
-    def test_create_sets_status_to_pending_upload(self):
-        sf = StorageFile.create(bucket_name="b", object_key="raw/x/f.jpg", content_type="image/jpeg")
-        assert sf.status == StorageStatus.PENDING_UPLOAD
-
-class TestStorageFileDefaults:
-    def test_size_bytes_defaults_to_zero(self):
-        sf = StorageFile.create(bucket_name="b", object_key="k", content_type="image/png")
-        assert sf.size_bytes == 0
-```
-
-**Application handler unit tests** (`tests/unit/modules/*/application/commands/test_*.py`):
-- Mock all dependencies with `AsyncMock` / `MagicMock`
-- Use local helper functions `make_uow()`, `make_logger()`, `make_identity()`, `make_role()`
-- Each test class has a `_make_handler()` factory method for DRY handler construction
-- Verify side effects via `assert_awaited_once_with()`, `assert_called_once_with()`
+Use `unittest.mock.AsyncMock` and `MagicMock` for dependencies:
 
 ```python
-# backend/tests/unit/modules/identity/application/commands/test_admin_commands.py
-def make_uow() -> AsyncMock:
+# backend/tests/unit/modules/user/application/commands/test_commands.py
+from unittest.mock import AsyncMock, MagicMock
+
+def make_uow():
     uow = AsyncMock()
     uow.__aenter__ = AsyncMock(return_value=uow)
     uow.__aexit__ = AsyncMock(return_value=False)
     uow.register_aggregate = MagicMock()
     return uow
 
-def make_logger() -> MagicMock:
+def make_logger():
     logger = MagicMock()
     logger.bind = MagicMock(return_value=logger)
-    logger.info = MagicMock()
-    logger.warning = MagicMock()
     return logger
 
-class TestAdminDeactivateIdentityHandler:
-    def _make_handler(self, identity_repo=None, ...) -> AdminDeactivateIdentityHandler:
-        return AdminDeactivateIdentityHandler(
-            identity_repo=identity_repo or AsyncMock(), ...
-        )
+class TestUpdateProfileHandler:
+    async def test_update_profile_success(self):
+        customer = MagicMock()
+        customer_repo = AsyncMock()
+        customer_repo.get = AsyncMock(return_value=customer)
+        uow = make_uow()
+        logger = make_logger()
 
-    async def test_admin_deactivate_success(self) -> None:
-        identity = make_identity(identity_id=identity_id, is_active=True)
-        identity_repo = AsyncMock()
-        identity_repo.get.return_value = identity
-        handler = self._make_handler(identity_repo=identity_repo, ...)
+        handler = UpdateProfileHandler(customer_repo=customer_repo, uow=uow, logger=logger)
+        command = UpdateProfileCommand(customer_id=uuid.uuid4(), first_name="Alice")
+
         await handler.handle(command)
-        assert identity.is_active is False
-        identity_repo.update.assert_awaited_once_with(identity)
+
+        customer.update_profile.assert_called_once_with(first_name="Alice", ...)
         uow.commit.assert_awaited_once()
+
+    async def test_update_profile_not_found(self):
+        customer_repo = AsyncMock()
+        customer_repo.get = AsyncMock(return_value=None)
+        handler = UpdateProfileHandler(customer_repo=customer_repo, uow=make_uow(), logger=make_logger())
+
+        with pytest.raises(CustomerNotFoundError):
+            await handler.handle(UpdateProfileCommand(customer_id=uuid.uuid4(), first_name="Bob"))
 ```
 
-**Pure function TDD tests** (image_backend):
-- Test image processing functions with real PIL Image objects
-- Use `@pytest.fixture()` for shared test data
-- Verify output dimensions, format, aspect ratio, file size
+### Integration Test Pattern (Repository)
+
+Uses real PostgreSQL via `db_session` fixture. Follow Arrange-Act-Assert with comments:
 
 ```python
-# image_backend/tests/unit/modules/storage/application/test_process_image.py
-class TestResizeToFit:
-    def test_preserves_aspect_ratio_landscape(self):
-        img = Image.new("RGB", (2000, 1000))
-        resized = resize_to_fit(img, 600, 600)
-        assert resized.width == 600
-        assert resized.height == 300
+# backend/tests/integration/modules/catalog/infrastructure/repositories/test_brand.py
+async def test_brand_repository_add_and_get(db_session: AsyncSession):
+    # Arrange
+    repository = BrandRepository(session=db_session)
+    brand = Brand.create(name="Nike", slug="nike", logo_url="https://cdn.example.com/nike.png")
 
-class TestBuildVariants:
-    @pytest.fixture()
-    def raw_large(self) -> bytes:
-        return _make_test_image(2000, 1500)
+    # Act
+    added_brand = await repository.add(brand)
+    fetched_brand = await repository.get(brand.id)
 
-    def test_produces_three_variant_meta(self, result):
-        _, variants_meta, _ = result
-        assert len(variants_meta) == 3
+    # Assert
+    assert added_brand.id == brand.id
+    assert fetched_brand is not None
+    assert fetched_brand.name == "Nike"
 ```
 
-### Integration Tests
+### Integration Test Pattern (Command Handler via DI)
 
-**Scope:** Repository implementations and command handlers with real PostgreSQL via docker-compose
-**I/O:** Real database (PostgreSQL), sometimes Redis
-**Speed:** Variable, depends on DB setup
+Uses the Dishka container to get a fully wired handler:
 
-**Database isolation pattern: nested transactions per test.**
-Each test gets a `db_session` fixture that wraps in a savepoint, rolls back after test:
 ```python
-# backend/tests/integration/conftest.py
+# backend/tests/integration/modules/catalog/application/commands/test_create_brand.py
+async def test_create_brand_handler_without_logo(
+    app_container: AsyncContainer, db_session: AsyncSession
+):
+    # Arrange
+    async with app_container() as request_container:
+        handler = await request_container.get(CreateBrandHandler)
+        command = CreateBrandCommand(name="TestBrand", slug="testbrand")
+
+        # Act
+        result = await handler.handle(command)
+
+    # Assert
+    assert result.brand_id is not None
+    orm_brand = await db_session.get(OrmBrand, result.brand_id)
+    assert orm_brand is not None
+    assert orm_brand.slug == "testbrand"
+```
+
+### E2E Test Pattern (HTTP Round-Trip)
+
+Uses `httpx.AsyncClient` with `ASGITransport`:
+
+```python
+# backend/tests/e2e/api/v1/test_brands.py
+async def test_create_brand_e2e_success(
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+):
+    payload = {
+        "name": "E2E Brand",
+        "slug": "e2e-brand",
+        "logoUrl": "https://cdn.example.com/brands/e2e.webp",
+    }
+
+    response = await admin_client.post("/api/v1/catalog/brands", json=payload)
+
+    assert response.status_code == 201
+    data = response.json()
+    assert "id" in data
+```
+
+### Architecture Fitness Test Pattern
+
+Uses `pytest-archon` for static import analysis:
+
+```python
+# backend/tests/architecture/test_boundaries.py
+def test_domain_layer_is_pure():
+    """Domain MUST NOT import from any outer layer."""
+    (
+        archrule("domain_independence")
+        .match("src.modules.*.domain.*")
+        .should_not_import("src.modules.*.application.*")
+        .should_not_import("src.modules.*.infrastructure.*")
+        .should_not_import("src.modules.*.presentation.*")
+        .should_not_import("src.api.*")
+        .should_not_import("src.bootstrap.*")
+        .check("src")
+    )
+```
+
+## Database Isolation Strategy
+
+### Root conftest (`backend/tests/conftest.py`)
+
+**Session-scoped infrastructure:**
+- Single event loop for entire test session
+- Single async engine with `NullPool` (no connection pooling in tests)
+- `Base.metadata.drop_all` / `create_all` once per session
+- Dishka container created once per session with `TestOverridesProvider`
+
+**Function-scoped isolation:**
+- Each test gets a `db_session` wrapped in a nested transaction (savepoint)
+- Session stored in `contextvars.ContextVar` so Dishka injects the same session into handlers
+- Automatic rollback after each test -- no data leaks between tests
+
+```python
 @pytest.fixture(scope="function")
-async def db_session(test_engine: AsyncEngine) -> AsyncGeneratorType:
+async def db_session(test_engine: AsyncEngine) -> AsyncIterable[AsyncSession]:
     async with test_engine.connect() as conn:
         transaction = await conn.begin()
         await conn.begin_nested()
@@ -359,202 +327,71 @@ async def db_session(test_engine: AsyncEngine) -> AsyncGeneratorType:
         await transaction.rollback()
 ```
 
-**Repository tests** use Arrange-Act-Assert with direct repository instantiation:
-```python
-# backend/tests/integration/modules/catalog/infrastructure/repositories/test_brand.py
-async def test_brand_repository_add_and_get(db_session: AsyncSession):
-    # Arrange
-    repository = BrandRepository(session=db_session)
-    brand = Brand.create(name="Nike", slug="nike", logo_url="https://cdn.example.com/nike.png")
-    # Act
-    added_brand = await repository.add(brand)
-    fetched_brand = await repository.get(brand.id)
-    # Assert
-    assert fetched_brand is not None
-    assert fetched_brand.name == "Nike"
-```
+### Redis Isolation
 
-**Command handler integration tests** use the Dishka container to resolve handlers:
-```python
-# backend/tests/integration/modules/identity/application/commands/test_login.py
-async def test_login_returns_tokens_for_valid_credentials(
-    app_container: AsyncContainer, db_session: AsyncSession
-):
-    # Register first
-    async with app_container() as request:
-        reg_handler = await request.get(RegisterHandler)
-        await reg_handler.handle(RegisterCommand(email="login@example.com", password="S3cure!Pass"))
+- `_flush_redis` fixture flushes Redis after each test
+- Not autouse at root level -- applied via integration/e2e conftest to avoid triggering DI container for unit tests
 
-    # Login
-    async with app_container() as request:
-        login_handler = await request.get(LoginHandler)
-        result = await login_handler.handle(LoginCommand(
-            login="login@example.com", password="S3cure!Pass",
-            ip_address="127.0.0.1", user_agent="TestAgent/1.0",
-        ))
+### ContextVar Reset
 
-    assert result.access_token is not None
-    assert result.refresh_token is not None
-```
-
-### E2E Tests
-
-**Scope:** Full HTTP round-trips through FastAPI routers
-**Client:** httpx `AsyncClient` with `ASGITransport` (in-process, no real HTTP server)
-
-**Fixtures** in `backend/tests/e2e/conftest.py`:
-- `fastapi_app` -- session-scoped, patches `create_container` to use test container
-- `async_client` -- session-scoped httpx client
-- `authenticated_client` -- function-scoped, registers + logs in, sets `Authorization: Bearer` header
-- `admin_client` -- function-scoped, registers + logs in + seeds Redis with admin permissions via cache injection
-
-```python
-# backend/tests/e2e/api/v1/test_auth.py
-async def test_register_returns_201_with_identity_id(
-    async_client: AsyncClient, db_session: AsyncSession
-):
-    email = f"reg-{uuid.uuid4().hex[:8]}@test.com"
-    response = await async_client.post(
-        "/api/v1/auth/register",
-        json={"email": email, "password": "S3cure!Pass"},
-    )
-    assert response.status_code == 201
-    data = response.json()
-    assert "identityId" in data
-
-async def test_login_returns_401_for_wrong_password(
-    async_client: AsyncClient, db_session: AsyncSession
-):
-    email = f"bad-{uuid.uuid4().hex[:8]}@test.com"
-    await async_client.post("/api/v1/auth/register", json={"email": email, "password": "S3cure!Pass"})
-    response = await async_client.post("/api/v1/auth/login", json={"email": email, "password": "WrongPassword!"})
-    assert response.status_code == 401
-```
-
-**E2E test conventions:**
-- Use unique emails per test via `f"prefix-{uuid.uuid4().hex[:8]}@test.com"` pattern
-- Validate camelCase JSON keys (e.g., `"identityId"`, `"accessToken"`)
-- Always depend on `db_session` fixture even if not directly used (ensures transaction rollback)
-
-### Architecture Fitness Functions
-
-**Tool:** pytest-archon
-**Location:** `backend/tests/architecture/test_boundaries.py`
-**Marker:** `pytest.mark.architecture`
-
-Seven rules enforce Clean Architecture layer boundaries:
-
-1. **Domain layer purity** -- domain MUST NOT import application, infrastructure, or presentation
-2. **Domain has zero framework imports** -- no SQLAlchemy, FastAPI, Dishka, Redis, Pydantic in domain (parameterized per module)
-3. **Application layer boundaries** -- application MUST NOT import infrastructure or presentation (excludes CQRS queries and consumers)
-4. **Infrastructure independence** -- infrastructure MUST NOT import presentation
-5. **Cross-module isolation** -- modules MUST NOT import each other's internals (with declared exceptions for presentation-layer auth dependencies)
-6. **Shared kernel independence** -- `src/shared/` MUST NOT import from any business module
-7. **No reverse layer dependencies** -- Domain <- Application <- Infrastructure <- Presentation (parameterized per module)
-
-```python
-# backend/tests/architecture/test_boundaries.py
-MODULES = ["catalog", "identity", "user"]
-
-def test_domain_layer_is_pure():
-    (
-        archrule("domain_independence")
-        .match("src.modules.*.domain.*")
-        .should_not_import("src.modules.*.application.*")
-        .should_not_import("src.modules.*.infrastructure.*")
-        .should_not_import("src.modules.*.presentation.*")
-        .should_not_import("src.api.*")
-        .should_not_import("src.bootstrap.*")
-        .check("src")
-    )
-
-@pytest.mark.parametrize("module", MODULES)
-def test_domain_has_zero_framework_imports(module: str):
-    (
-        archrule(f"{module}_domain_no_frameworks")
-        .match(f"src.modules.{module}.domain.*")
-        .should_not_import("sqlalchemy.*")
-        .should_not_import("fastapi.*")
-        .should_not_import("dishka.*")
-        .should_not_import("redis.*")
-        .should_not_import("taskiq.*")
-        .should_not_import("pydantic.*")
-        .should_not_import("alembic.*")
-        .check("src")
-    )
-```
-
-**Allowed cross-module dependencies** are explicitly declared:
-```python
-ALLOWED_CROSS_MODULE = {
-    ("user", "identity"): {"src.modules.user.presentation.*"},
-    ("catalog", "identity"): {"src.modules.catalog.presentation.*"},
-}
-```
-
-### Load Tests
-
-**Framework:** Locust >= 2.43.3
-**Location:** `backend/tests/load/locustfile.py` (currently empty) + `backend/tests/load/scenarios/`
-**Scenarios:** `auth_flow.py`, `browse_catalog.py`, `mixed_workload.py`
-**Marker:** `pytest.mark.load`
+- `_reset_context_vars` (autouse) resets the `request_id` ContextVar per test to prevent cross-test contamination
 
 ## Mocking
 
-**Framework:** `unittest.mock` (standard library) -- `AsyncMock`, `MagicMock`
+**Framework:** `unittest.mock` (stdlib) -- `AsyncMock`, `MagicMock`, `patch`
 
-**Patterns:**
+**Patterns for unit tests:**
 
-**Mock UnitOfWork (use in every command handler unit test):**
 ```python
-def make_uow() -> AsyncMock:
+# UnitOfWork mock (async context manager)
+def make_uow():
     uow = AsyncMock()
     uow.__aenter__ = AsyncMock(return_value=uow)
     uow.__aexit__ = AsyncMock(return_value=False)
     uow.register_aggregate = MagicMock()
     return uow
-```
 
-**Mock Logger (use in every handler unit test):**
-```python
-def make_logger() -> MagicMock:
+# Logger mock (bind returns self)
+def make_logger():
     logger = MagicMock()
     logger.bind = MagicMock(return_value=logger)
-    logger.info = MagicMock()
-    logger.warning = MagicMock()
     return logger
+
+# Repository mock (async methods)
+customer_repo = AsyncMock()
+customer_repo.get = AsyncMock(return_value=customer_entity)
 ```
 
-**Mock Repositories:** Use `AsyncMock()` with `.return_value` for simple cases:
+**E2E auth mock pattern:**
 ```python
-identity_repo = AsyncMock()
-identity_repo.get.return_value = identity
-role_repo = AsyncMock()
-role_repo.get_identity_role_ids.return_value = [admin_role.id]
+# Seed Redis cache with permissions to bypass DB permission checks
+redis_client = await app_container.get(aioredis.Redis)
+await redis_client.set(f"perms:{session_id}", json.dumps(["catalog:manage"]), ex=300)
 ```
 
-**Test Fakes:** `backend/tests/fakes/oidc_provider.py` -- `StubOIDCProvider` implements `IOIDCProvider` interface for tests
+**OIDC provider stub:**
+```python
+# backend/tests/fakes/oidc_provider.py -- StubOIDCProvider injected via TestOverridesProvider
+```
 
-**What to mock in unit tests:**
-- All repository interfaces (`IIdentityRepository`, `IBrandRepository`, etc.)
+**What to mock (unit tests):**
+- Repositories (all `I*Repository` interfaces)
 - `IUnitOfWork`
 - `ILogger`
-- `IPasswordHasher`, `ITokenProvider`
-- `IOIDCProvider` (replaced with `StubOIDCProvider` in `tests/fakes/`)
+- External service clients
 
-**What NOT to mock:**
-- Domain entities -- test them directly
-- Value objects and enums
-- In integration tests: repositories, database session, command handlers (they use real DB)
+**What NOT to mock (integration/e2e):**
+- Database (use real PostgreSQL)
+- Redis (use real Redis, flushed per test)
+- SQLAlchemy sessions and engine
+- Dishka DI container
 
 ## Fixtures and Factories
 
-**Four patterns coexist:**
+### Object Mothers (`tests/factories/*_mothers.py`)
 
-### 1. Object Mothers (preferred for domain entities)
-Location: `backend/tests/factories/identity_mothers.py`, `backend/tests/factories/catalog_mothers.py`
+Pre-configured domain entity builders for common test scenarios. Each module has its own Mothers class:
 
-Pre-built domain entity configurations with descriptive static method names:
 ```python
 # backend/tests/factories/identity_mothers.py
 class IdentityMothers:
@@ -570,164 +407,196 @@ class IdentityMothers:
         return identity
 
     @staticmethod
-    def with_session(ip_address="127.0.0.1", user_agent="TestAgent/1.0") -> tuple[Identity, Session, str]:
+    def with_session() -> tuple[Identity, Session, str]:
         identity = Identity.register(PrimaryAuthMethod.LOCAL)
         raw_token = f"refresh-{uuid.uuid4().hex}"
-        session = Session.create(identity_id=identity.id, refresh_token=raw_token, ...)
+        session = Session.create(identity_id=identity.id, ...)
         return identity, session, raw_token
-
-class SessionMothers:
-    @staticmethod
-    def active(identity_id=None) -> tuple[Session, str]: ...
-    @staticmethod
-    def expired(identity_id=None) -> Session: ...
-    @staticmethod
-    def revoked(identity_id=None) -> Session: ...
-
-class RoleMothers:
-    @staticmethod
-    def customer() -> Role: ...
-    @staticmethod
-    def admin() -> Role: ...
-
-class PermissionMothers:
-    @staticmethod
-    def brand_create() -> Permission: ...
 ```
 
-### 2. Fluent Test Data Builders (for complex construction)
-Location: `backend/tests/factories/builders.py`
+```python
+# backend/tests/factories/catalog_mothers.py
+class CategoryMothers:
+    @staticmethod
+    def root(name_i18n=None, slug=None) -> Category:
+        return Category.create_root(
+            name_i18n=name_i18n or {"en": "Electronics"},
+            slug=slug or f"electronics-{uuid.uuid4().hex[:6]}",
+        )
+
+    @staticmethod
+    def deep_nested(depth: int = 3) -> list[Category]:
+        # Returns chain of parent->child->grandchild
+```
+
+### Fluent Builders (`tests/factories/builders.py`)
+
+For complex entities requiring step-by-step construction:
 
 ```python
 # backend/tests/factories/builders.py
 class SessionBuilder:
-    def with_identity(self, identity_id: uuid.UUID) -> SessionBuilder: ...
-    def with_roles(self, role_ids: list[uuid.UUID]) -> SessionBuilder: ...
-    def expired(self) -> SessionBuilder: ...
-    def revoked(self) -> SessionBuilder: ...
-    def build(self) -> tuple[Session, str]: ...
+    def __init__(self) -> None:
+        self._identity_id = uuid.uuid4()
+        self._refresh_token = f"refresh-{uuid.uuid4().hex}"
+        ...
 
-class CategoryBuilder:
-    def with_name_i18n(self, name_i18n: dict[str, str]) -> CategoryBuilder: ...
-    def with_slug(self, slug: str) -> CategoryBuilder: ...
-    def under(self, parent: Category) -> CategoryBuilder: ...
-    def build(self) -> Category: ...
+    def with_identity(self, identity_id: uuid.UUID) -> SessionBuilder:
+        self._identity_id = identity_id
+        return self
+
+    def expired(self) -> SessionBuilder:
+        self._expired = True
+        return self
+
+    def build(self) -> tuple[Session, str]:
+        session = Session.create(...)
+        return session, self._refresh_token
 ```
 
-### 3. Polyfactory ORM Factories (for database seeding)
-Location: `backend/tests/factories/orm_factories.py`
-Library: polyfactory >= 3.3.0
+### ORM Factories (`tests/factories/orm_factories.py`)
+
+Uses `polyfactory` (Pydantic/SQLAlchemy factory library) for auto-generating ORM model instances:
 
 ```python
+# backend/tests/factories/orm_factories.py
 from polyfactory.factories.sqlalchemy_factory import SQLAlchemyFactory
-
-class IdentityModelFactory(SQLAlchemyFactory):
-    __model__ = IdentityModel
-    __set_relationships__ = True
 
 class BrandModelFactory(SQLAlchemyFactory):
     __model__ = BrandModel
     __set_relationships__ = True
 ```
 
-### 4. Local helper functions (in test files)
-For simpler cases, test files define `make_*` helpers inline:
-```python
-def make_identity(identity_id=None, is_active=True) -> Identity:
-    return Identity(id=identity_id or uuid.uuid4(), ...)
-```
+### Location Summary
+
+| Pattern | Location | Use Case |
+|---------|----------|----------|
+| Object Mothers | `backend/tests/factories/*_mothers.py` | Domain entity creation with sensible defaults |
+| Fluent Builders | `backend/tests/factories/builders.py` | Complex entity construction with chainable API |
+| ORM Factories | `backend/tests/factories/orm_factories.py` | Auto-generated ORM model instances for DB seeding |
+| Fakes/Stubs | `backend/tests/fakes/` | Stub implementations of external service ports |
 
 ## Coverage
 
-**Requirements:** Coverage is auto-collected via `--cov=src` in `backend/pytest.ini`
+**Requirements:**
+- Coverage automatically collected on every test run via `--cov=src`
+- Reports: terminal (skip-covered) + XML (for CI/SonarQube)
+- `.coverage` SQLite file and `coverage.xml` present in `backend/`
 
-**Addopts:**
-```ini
-addopts = -v --strict-markers --cov=src --cov-report=term-missing:skip-covered --cov-report=xml
-```
-
-**Coverage output:**
-- Terminal: `term-missing:skip-covered` (only shows files with uncovered lines)
-- XML: `coverage.xml` for CI integration (SonarQube/GitLab)
-
-**View coverage:**
+**View Coverage:**
 ```bash
-uv run pytest tests/ -v              # Auto-generates coverage report
-make coverage                        # Runs with HTML report
+uv run pytest tests/ --cov=src --cov-report=term-missing      # Terminal report
+uv run pytest tests/ --cov=src --cov-report=html               # HTML report
+make coverage                                                   # Via Makefile
 ```
 
-## Test Infrastructure
+**Default addopts** (from `backend/pytest.ini`):
+```ini
+addopts =
+    -v
+    --strict-markers
+    --cov=src
+    --cov-report=term-missing:skip-covered
+    --cov-report=xml
+```
 
-**Database:** Real PostgreSQL (localhost:5432) -- requires running containers via `docker compose up -d`
-- Tables are dropped and recreated per session via `Base.metadata.drop_all` / `create_all`
-- Each test gets a savepoint-based isolated session (auto-rollback)
-- Fail-fast check: if DB unreachable, `pytest.exit()` immediately with message to start containers
+## Test Types Detail
 
-**Redis:** Real Redis (localhost:6379) -- flushed per test in integration/e2e scopes via `_flush_redis` fixture
+### Unit Tests
+- **Scope:** Domain entities, value objects, event classes, schema validation, command handlers (with mocked deps)
+- **I/O:** Zero -- no database, no network, no filesystem
+- **Speed:** < 0.01s per test
+- **Convention:** No `db_session` fixture. Use Object Mothers, Builders, or direct construction.
 
-**RabbitMQ:** Real RabbitMQ (localhost:5672) -- used in broker integration tests
+### Integration Tests
+- **Scope:** Repositories with real PostgreSQL, command handlers with real DI container + DB
+- **I/O:** Database (PostgreSQL via `db_session`), Redis (via `_flush_redis`)
+- **Convention:** Use `db_session` fixture for DB access, `app_container` for DI-wired handlers
+- **Isolation:** Nested transaction rollback per test
 
-**Testcontainers:** Available as a dev dependency (`testcontainers[minio,postgres,rabbitmq,redis]>=4.14.1`) but the current `conftest.py` connects to localhost containers instead
+### E2E Tests
+- **Scope:** Full HTTP round-trips through FastAPI routers
+- **I/O:** In-process ASGI transport (no real HTTP server)
+- **Client:** `httpx.AsyncClient` with `ASGITransport(app=fastapi_app)`
+- **Auth:** `authenticated_client` (regular user) and `admin_client` (with permissions seeded in Redis) fixtures
+- **Convention:** Assert on HTTP status codes and JSON response shape
 
-**DI Container in Tests:** Full Dishka container is assembled in `backend/tests/conftest.py` with `TestOverridesProvider` that overrides:
-- `Settings` with hardcoded test values
-- `AsyncEngine` with NullPool (no connection pooling in tests)
-- `AsyncSession` via ContextVar injection (so Dishka injects the test-scoped session)
-- `redis.Redis` client
-- `IOIDCProvider` with `StubOIDCProvider` stub
+### Architecture Tests
+- **Scope:** Static import analysis across all `src/` modules
+- **Tool:** `pytest-archon` (import graph checker)
+- **Rules enforced:**
+  1. Domain layer is pure (no outer layer imports)
+  2. Domain has zero framework imports (no SQLAlchemy, FastAPI, Dishka, etc.)
+  3. Application layer does not import Infrastructure or Presentation (with exceptions for CQRS queries and event consumers)
+  4. Infrastructure does not import Presentation
+  5. Cross-module isolation (modules cannot import each other's internals, with explicit exceptions)
+  6. Shared kernel is independent of business modules
+  7. No reverse layer dependencies within a module
 
-**ContextVar Isolation:** Autouse fixture `_reset_context_vars` resets `request_id` ContextVar per test to prevent cross-test contamination.
+### Load Tests
+- **Framework:** Locust
+- **Location:** `backend/tests/load/`
+- **Scenarios:** `auth_flow.py`, `browse_catalog.py`, `mixed_workload.py`
+- **Runner:** `backend/tests/load/locustfile.py`
 
-## Frontend Testing
+## Common Patterns
 
-**No test files or test frameworks exist** in either `frontend/admin` or `frontend/main`. No test configuration is present in either `package.json`.
+### Async Testing
 
-## Common Patterns Summary
+All async tests are auto-detected (`asyncio_mode = "auto"`). No `@pytest.mark.asyncio` decorator needed for most tests. Some files include `pytestmark = pytest.mark.asyncio` for explicitness.
 
-**Async Testing:**
 ```python
-# All async tests are auto-detected (asyncio_mode = "auto")
-async def test_login_returns_tokens(app_container, db_session):
-    async with app_container() as request:
-        handler = await request.get(LoginHandler)
-        result = await handler.handle(command)
-    assert result.access_token is not None
+async def test_brand_repository_add_and_get(db_session: AsyncSession):
+    repository = BrandRepository(session=db_session)
+    brand = Brand.create(name="Nike", slug="nike")
+    added_brand = await repository.add(brand)
+    assert added_brand.id == brand.id
 ```
 
-**Error Testing:**
+### Error Testing
+
 ```python
-async def test_login_raises_invalid_credentials(app_container, db_session):
-    with pytest.raises(InvalidCredentialsError):
-        async with app_container() as request:
-            handler = await request.get(LoginHandler)
-            await handler.handle(bad_command)
+def test_create_empty_name_raises(self):
+    with pytest.raises(ValueError, match="name is required"):
+        Supplier.create(name="", supplier_type=SupplierType.LOCAL, region="Moscow")
+
+def test_ensure_active_raises_when_deactivated(self):
+    identity = Identity.register(IdentityType.LOCAL)
+    identity.deactivate(reason="test")
+    with pytest.raises(IdentityDeactivatedError):
+        identity.ensure_active()
 ```
 
-**Domain Event Verification:**
+### Domain Event Testing
+
 ```python
 def test_deactivate_emits_event(self):
     identity = Identity.register(IdentityType.LOCAL)
-    identity.deactivate(reason="test")
+    identity.deactivate(reason="user_request")
     events = identity.domain_events
     assert len(events) == 1
-    assert isinstance(events[0], IdentityDeactivatedEvent)
-    assert events[0].identity_id == identity.id
+    event = events[0]
+    assert isinstance(event, IdentityDeactivatedEvent)
+    assert event.identity_id == identity.id
+    assert event.reason == "user_request"
 ```
 
-**Mock Verification:**
+### Guard Field Testing (DDD-01 pattern)
+
 ```python
-identity_repo.update.assert_awaited_once_with(identity)
-uow.register_aggregate.assert_called_once_with(identity)
-uow.commit.assert_awaited_once()
-permission_resolver.invalidate_many.assert_awaited_once_with(revoked_ids)
+def test_create_child_own_template_overrides_parent(self):
+    parent_fid = uuid.uuid4()
+    child_fid = uuid.uuid4()
+    parent = Category.create_root(name_i18n=_i18n("P"), slug="p", template_id=parent_fid)
+    child = Category.create_child(
+        name_i18n=_i18n("C"), slug="c", parent=parent, template_id=child_fid
+    )
+    assert child.effective_template_id == child_fid
 ```
 
-**Adding a New Test:**
-1. **Unit test for domain entity:** Create `tests/unit/modules/{module}/domain/test_{entity}.py` with `class Test{Entity}:` grouping
-2. **Unit test for command handler:** Create `tests/unit/modules/{module}/application/commands/test_{action}.py`, define `make_uow()`, `make_logger()`, handler factory, then test all happy/error paths
-3. **Integration test for repository:** Create `tests/integration/modules/{module}/infrastructure/repositories/test_{entity}.py`, inject `db_session: AsyncSession`, instantiate repository directly
-4. **Integration test for command handler:** Create `tests/integration/modules/{module}/application/commands/test_{action}.py`, inject `app_container: AsyncContainer` and `db_session: AsyncSession`, resolve handler via container
-5. **E2E test for endpoint:** Create `tests/e2e/api/v1/test_{resource}.py`, use `async_client`, `authenticated_client`, or `admin_client` fixture
+## Frontend Testing
+
+**Status:** No test infrastructure in either frontend project. No test files, no test runner config, no test dependencies in `package.json`.
 
 ---
 

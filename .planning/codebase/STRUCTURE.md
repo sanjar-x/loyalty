@@ -6,368 +6,323 @@
 
 ```
 loyality/
-├── backend/                        # Main Python backend (FastAPI + TaskIQ)
-│   ├── alembic/                    # Database migrations
-│   │   └── versions/2026/03/       # Migration files (YYYY/MM structure)
-│   ├── docs/                       # Backend-specific documentation
-│   │   ├── api/                    # API flow docs
-│   │   ├── cdek_api/               # CDEK delivery API reference
-│   │   ├── russian_post_api/       # Russian Post API reference
-│   │   └── yandex_delivery_api/    # Yandex Delivery API reference
-│   ├── scripts/                    # Utility scripts
-│   ├── seed/                       # Seed data loaders
-│   │   ├── attributes/             # Attribute seed data
-│   │   ├── brands/                 # Brand seed data
-│   │   ├── categories/             # Category seed data
-│   │   ├── geo/                    # Country/currency seed data
-│   │   └── products/               # Product seed data
-│   ├── src/                        # Application source code
-│   │   ├── api/                    # HTTP gateway (routers, middleware, exceptions)
-│   │   ├── bootstrap/              # App composition root (web, worker, scheduler, config)
-│   │   ├── bot/                    # Telegram bot (Aiogram)
-│   │   ├── infrastructure/         # Shared infrastructure (DB, cache, security, outbox, logging)
-│   │   ├── modules/                # Bounded contexts
-│   │   │   ├── catalog/            # Product catalog (brands, categories, attributes, products, SKUs, media)
-│   │   │   ├── geo/                # Geography (countries, currencies, languages, subdivisions)
-│   │   │   ├── identity/           # IAM (auth, RBAC, sessions, roles, invitations)
-│   │   │   ├── supplier/           # Supplier management
-│   │   │   └── user/               # User profiles (customers, staff members)
-│   │   └── shared/                 # Shared kernel (interfaces, exceptions, pagination)
-│   └── tests/                      # Test suite
-│       ├── architecture/           # Architectural boundary tests (pytest-archon)
-│       ├── e2e/                    # End-to-end API tests
-│       ├── factories/              # Test data factories
-│       ├── fakes/                  # Fake implementations for unit tests
-│       ├── integration/            # Integration tests (DB-backed)
-│       ├── load/                   # Load test scenarios
-│       └── unit/                   # Unit tests (mirror src/ structure)
-├── image_backend/                  # Image processing microservice (FastAPI)
-│   ├── alembic/                    # Separate migration chain
-│   ├── src/                        # Same Clean Architecture as main backend
-│   │   ├── api/                    # HTTP gateway
-│   │   ├── bootstrap/              # Composition root
-│   │   ├── infrastructure/         # DB, cache, storage adapters
-│   │   ├── modules/storage/        # Single bounded context: media storage
-│   │   └── shared/                 # Shared kernel
-│   └── tests/                      # Unit + integration tests
+├── backend/                    # Main Python backend (FastAPI)
+│   ├── main.py                 # ASGI entry point
+│   ├── pyproject.toml          # Python dependencies (uv)
+│   ├── pytest.ini              # Test configuration
+│   ├── alembic/                # Database migrations
+│   │   ├── alembic.ini
+│   │   ├── env.py
+│   │   └── versions/2026/03/   # Migration scripts
+│   ├── scripts/                # Dev utilities (entrypoint.sh, seed_dev.sql)
+│   ├── seed/                   # Data seeding scripts
+│   │   ├── __main__.py         # Seed entry point (python -m seed)
+│   │   ├── main.py             # Seed orchestrator
+│   │   ├── attributes/         # Attribute seeding
+│   │   ├── brands/             # Brand seeding
+│   │   ├── categories/         # Category seeding
+│   │   ├── geo/                # Geo/currency seeding
+│   │   └── products/           # Product seeding
+│   ├── src/                    # Application source code
+│   │   ├── api/                # Cross-cutting HTTP layer
+│   │   │   ├── router.py       # Root router (aggregates all module routers)
+│   │   │   ├── dependencies/   # Shared auth dependencies
+│   │   │   ├── exceptions/     # Centralized exception handlers
+│   │   │   └── middlewares/    # Access logging middleware
+│   │   ├── bootstrap/          # App wiring & process entry points
+│   │   │   ├── config.py       # Pydantic Settings (env vars)
+│   │   │   ├── container.py    # Dishka DI composition root
+│   │   │   ├── web.py          # FastAPI app factory
+│   │   │   ├── worker.py       # TaskIQ worker entry point
+│   │   │   ├── scheduler.py    # TaskIQ Beat scheduler entry point
+│   │   │   ├── broker.py       # RabbitMQ broker configuration
+│   │   │   ├── bot.py          # Telegram bot factory (empty stub)
+│   │   │   └── logger.py       # structlog configuration
+│   │   ├── bot/                # Telegram bot (aiogram)
+│   │   │   ├── factory.py      # Bot & Dispatcher creation
+│   │   │   ├── callbacks/      # Callback query handlers
+│   │   │   ├── filters/        # Custom message filters
+│   │   │   ├── handlers/       # Message/command handlers
+│   │   │   ├── keyboards/      # Inline & reply keyboards
+│   │   │   ├── middlewares/    # Bot middleware (throttling, logging, user identify)
+│   │   │   └── states/         # FSM state groups
+│   │   ├── infrastructure/     # Cross-cutting infra (shared across modules)
+│   │   │   ├── cache/          # Redis cache service & DI provider
+│   │   │   ├── database/       # SQLAlchemy engine, session, UoW, base model, registry
+│   │   │   ├── logging/        # Logging adapters & TaskIQ middleware
+│   │   │   ├── outbox/         # Transactional Outbox relay & scheduled tasks
+│   │   │   └── security/       # JWT, password hashing, RBAC resolver, Telegram auth
+│   │   ├── modules/            # Bounded context modules
+│   │   │   ├── catalog/        # Product catalog (brands, categories, attributes, products, SKUs, media)
+│   │   │   ├── geo/            # Geography (countries, currencies, languages, subdivisions)
+│   │   │   ├── identity/       # IAM (authentication, sessions, roles, permissions, invitations)
+│   │   │   ├── supplier/       # Supplier management
+│   │   │   └── user/           # User profiles (customer, staff member)
+│   │   └── shared/             # Shared kernel (interfaces, exceptions, pagination)
+│   ├── tests/                  # Test suite
+│   │   ├── architecture/       # Architectural boundary enforcement tests
+│   │   ├── e2e/                # End-to-end API tests
+│   │   ├── integration/        # Integration tests (DB-backed)
+│   │   ├── factories/          # Test factories, builders, mothers
+│   │   └── fakes/              # Fake implementations for testing
+│   └── docs/                   # Backend documentation
+│       ├── api/                # API flow docs
+│       ├── research/           # Architecture research notes
+│       └── reference/          # Reference documentation
+├── image_backend/              # Image processing microservice (FastAPI)
+│   ├── main.py                 # ASGI entry point
+│   ├── pyproject.toml          # Dependencies
+│   ├── alembic/                # Separate migrations
+│   ├── src/                    # Same layered structure as backend
+│   │   ├── api/                # HTTP layer
+│   │   ├── bootstrap/          # App wiring
+│   │   ├── infrastructure/     # Cache, DB, logging, blob storage
+│   │   ├── modules/storage/    # Single "storage" bounded context
+│   │   └── shared/             # Shared kernel
+│   └── tests/                  # Tests
 ├── frontend/
-│   ├── admin/                      # Admin panel (Next.js 16, JSX, Tailwind)
-│   │   ├── src/
-│   │   │   ├── app/                # Next.js App Router pages + API routes
-│   │   │   ├── assets/icons/       # SVG icons (imported via @svgr/webpack)
-│   │   │   ├── components/         # React components
-│   │   │   ├── data/               # Static data
-│   │   │   ├── hooks/              # Custom React hooks
-│   │   │   ├── lib/                # Utilities (api-client, auth, dayjs, etc.)
-│   │   │   └── services/           # Service modules (API call wrappers)
-│   │   └── public/                 # Static assets
-│   └── main/                       # Customer Telegram Mini App (Next.js 16, TSX, Tailwind)
-│       ├── app/                    # Next.js App Router pages + API routes
-│       ├── components/             # React components
-│       │   ├── blocks/             # Feature-specific component groups
-│       │   ├── ios/                # iOS-specific fixes
-│       │   ├── layout/             # Header, Footer, Layout
-│       │   ├── providers/          # Context providers (StoreProvider)
-│       │   └── ui/                 # Reusable UI primitives
-│       ├── lib/                    # Shared utilities
-│       │   ├── auth/               # Cookie helpers, auth logic
-│       │   ├── format/             # Formatters (price, date, image URLs)
-│       │   ├── hooks/              # Custom hooks
-│       │   ├── store/              # Redux store + RTK Query api
-│       │   ├── telegram/           # Telegram WebApp SDK hooks + provider
-│       │   └── types/              # TypeScript type definitions
-│       ├── public/                 # Static assets (fonts, icons, images)
-│       └── scripts/                # Build/utility scripts
-├── postman/                        # Postman collections and environments
-├── docs/                           # Root-level documentation
-│   └── superpowers/                # Feature specs and plans
-└── .planning/                      # GSD planning documents
-    └── codebase/                   # Codebase analysis (this file)
+│   ├── admin/                  # Admin dashboard (Next.js 16)
+│   │   ├── src/app/            # App Router pages & API routes
+│   │   ├── src/components/     # UI components (admin-specific + shadcn/ui)
+│   │   ├── src/hooks/          # Custom React hooks
+│   │   ├── src/lib/            # Utilities and helpers
+│   │   ├── src/data/           # Static data
+│   │   └── src/assets/         # Icons & static assets
+│   └── main/                   # Customer storefront (Next.js 16)
+│       ├── app/                # App Router pages & API routes
+│       └── (similar structure)
+├── .planning/                  # Project planning docs
+├── .postman/                   # Postman collection
+├── postman/                    # Postman environments
+└── docs/                       # Project-level documentation
 ```
 
 ## Directory Purposes
 
-**`backend/src/modules/{module}/`** (Bounded Context Module):
-- Purpose: Self-contained business capability following Clean Architecture
-- Internal structure (consistent across all modules):
-  ```
-  {module}/
-  ├── domain/
-  │   ├── entities.py           # Domain entities (attrs dataclasses + AggregateRoot)
-  │   ├── value_objects.py      # Enums, value types, validation constants
-  │   ├── events.py             # Domain event dataclasses
-  │   ├── exceptions.py         # Domain-specific exceptions
-  │   ├── interfaces.py         # Repository port interfaces (ABC)
-  │   ├── constants.py          # Business rule constants
-  │   └── services.py           # Domain services (if needed)
-  ├── application/
-  │   ├── commands/              # One file per command handler
-  │   │   └── create_brand.py   # Contains Command dataclass + Handler class
-  │   ├── queries/               # One file per query handler
-  │   │   ├── list_brands.py    # Contains Query dataclass + Handler class
-  │   │   └── read_models.py    # Pydantic read models for CQRS read side
-  │   └── consumers/             # Cross-module event consumers (TaskIQ tasks)
-  ├── infrastructure/
-  │   ├── models.py              # SQLAlchemy ORM models
-  │   ├── repositories/          # Repository implementations (Data Mapper)
-  │   │   └── base.py           # Generic BaseRepository with _to_domain/_to_orm
-  │   ├── provider.py            # Dishka DI provider (for modules that use it)
-  │   └── {service}.py          # External API clients, query services
-  ├── presentation/
-  │   ├── router_*.py            # FastAPI routers (one per aggregate/resource)
-  │   ├── schemas.py             # Pydantic request/response schemas
-  │   ├── dependencies.py        # Dishka Provider classes for all handlers
-  │   ├── mappers.py             # DTO mapping helpers
-  │   └── update_helpers.py      # Partial-update command builders
-  └── management/                # CLI/management commands (optional)
-      └── create_admin.py        # Bootstrap scripts
-  ```
-- Key files per module:
-  - Catalog: `backend/src/modules/catalog/` -- largest module with 11+ routers, 40+ commands
-  - Identity: `backend/src/modules/identity/` -- auth, RBAC, sessions, staff invitations
-  - User: `backend/src/modules/user/` -- customer + staff profiles, referral codes
-  - Geo: `backend/src/modules/geo/` -- read-only reference data (countries, currencies)
-  - Supplier: `backend/src/modules/supplier/` -- supplier CRUD
+**`backend/src/modules/{module}/`:**
+- Purpose: Self-contained bounded context with all business logic
+- Contains: Four sub-directories following hexagonal architecture
+- Key pattern: Each module is independently developable; inter-module communication is via domain events (Outbox) or direct repository queries
 
-**`backend/src/infrastructure/`** (Shared Infrastructure):
+**`backend/src/modules/{module}/domain/`:**
+- Purpose: Pure business logic with zero infrastructure dependencies
+- Contains: `entities.py` (attrs dataclasses with factory methods), `value_objects.py` (enums, frozen dataclasses), `events.py` (DomainEvent subclasses), `interfaces.py` (abstract repository contracts), `exceptions.py` (domain-specific errors), `constants.py`
+- Key files:
+  - `backend/src/modules/catalog/domain/entities.py`: Brand, Category, Product (aggregate roots), SKU, ProductVariant, Attribute, MediaAsset
+  - `backend/src/modules/identity/domain/entities.py`: Identity, Role, Session, Permission
+
+**`backend/src/modules/{module}/application/`:**
+- Purpose: Use case orchestration (CQRS handlers)
+- Contains: `commands/` (one file per write operation), `queries/` (one file per read operation), `queries/read_models.py` (Pydantic DTOs), `consumers/` (event-driven task handlers)
+- Key pattern: Each command handler file contains: a frozen `Command` dataclass, an optional `Result` dataclass, and a `Handler` class
+
+**`backend/src/modules/{module}/infrastructure/`:**
+- Purpose: Concrete implementations of domain interfaces
+- Contains: `models.py` (SQLAlchemy ORM models), `repositories/*.py` (repository implementations), `provider.py` (Dishka DI provider), external clients
+- Key files:
+  - `backend/src/modules/catalog/infrastructure/repositories/base.py`: Generic Data Mapper base class
+  - `backend/src/modules/catalog/infrastructure/models.py`: All catalog ORM models
+
+**`backend/src/modules/{module}/presentation/`:**
+- Purpose: HTTP API surface (routers, schemas, DI wiring)
+- Contains: `router_*.py` (FastAPI routers, one per entity/resource), `schemas.py` (Pydantic request/response schemas), `dependencies.py` (Dishka Provider classes), `mappers.py` (DTO mapping functions)
+- Key pattern: Each router file handles CRUD for one resource type
+
+**`backend/src/modules/{module}/management/`:**
+- Purpose: Administrative/CLI scripts for one-time or infrequent operations
+- Contains: Scripts like `create_admin.py`, `sync_system_roles.py`, `sync_suppliers.py`
+- Exists in: `identity`, `supplier` modules
+
+**`backend/src/infrastructure/`:**
 - Purpose: Cross-cutting infrastructure shared by all modules
-- `database/base.py`: SQLAlchemy `DeclarativeBase` definition
-- `database/provider.py`: Dishka provider for AsyncEngine, sessionmaker, session, IUnitOfWork
-- `database/uow.py`: UnitOfWork implementation (Outbox event extraction + commit)
-- `database/registry.py`: ORM model registry for Alembic autogenerate
-- `database/models/outbox.py`: OutboxMessage ORM model
-- `database/models/failed_task.py`: DLQ failed task ORM model
-- `cache/redis.py`: Redis cache service implementation
-- `cache/provider.py`: Dishka provider for Redis
-- `security/jwt.py`: JWT token encode/decode
-- `security/password.py`: Password hashing (bcrypt/argon2)
-- `security/authorization.py`: PermissionResolver (cache-aside Redis + recursive CTE)
-- `security/telegram.py`: Telegram initData validation
-- `outbox/relay.py`: Outbox polling publisher (FOR UPDATE SKIP LOCKED)
-- `outbox/tasks.py`: TaskIQ scheduled tasks (relay + pruning) + event handler registry
-- `logging/adapter.py`: structlog adapter implementing ILogger
-- `logging/dlq_middleware.py`: TaskIQ middleware for dead letter queue persistence
+- Contains: Database engine/session/UoW (`database/`), Redis cache (`cache/`), Outbox relay (`outbox/`), Security (JWT, passwords, RBAC) (`security/`), Logging adapters (`logging/`)
 
-**`backend/src/api/`** (HTTP Gateway):
-- Purpose: Cross-cutting HTTP concerns
-- `router.py`: Root APIRouter that includes all module routers under `/catalog`, `/auth`, etc.
-- `exceptions/handlers.py`: Global exception -> JSON error envelope mapping
-- `middlewares/logger.py`: Access logging middleware with correlation ID binding
-- `dependencies/`: Shared FastAPI dependencies
+**`backend/src/shared/`:**
+- Purpose: Shared kernel -- interfaces and utilities used by all modules
+- Contains:
+  - `interfaces/entities.py`: `IBase` protocol, `DomainEvent` base, `AggregateRoot` mixin
+  - `interfaces/uow.py`: `IUnitOfWork` abstract class
+  - `interfaces/auth.py`: `AuthContext` dataclass
+  - `interfaces/cache.py`: `ICacheService` protocol
+  - `interfaces/security.py`: `ITokenProvider`, `IPermissionResolver` protocols
+  - `interfaces/logger.py`: `ILogger` protocol
+  - `exceptions.py`: `AppException` hierarchy (NotFound, Unauthorized, Forbidden, Conflict, Validation, UnprocessableEntity)
+  - `pagination.py`: Generic `paginate()` helper for CQRS queries
+  - `schemas.py`: `CamelModel` base with automatic snake_case -> camelCase aliasing
+  - `context.py`: Request ID propagation via `ContextVar`
 
-**`backend/src/shared/`** (Shared Kernel):
-- Purpose: Interfaces and base types used by all modules
-- `interfaces/entities.py`: `IBase`, `DomainEvent`, `AggregateRoot`
-- `interfaces/uow.py`: `IUnitOfWork` protocol
-- `interfaces/logger.py`: `ILogger` protocol
-- `interfaces/cache.py`: `ICacheService` protocol
-- `interfaces/security.py`: `ITokenProvider`, `IPermissionResolver` protocols
-- `interfaces/auth.py`: `AuthContext` dataclass
-- `exceptions.py`: `AppException` hierarchy (NotFoundError, ConflictError, etc.)
-- `pagination.py`: Generic `paginate()` helper for query handlers
-- `schemas.py`: Shared Pydantic schemas
-- `context.py`: Request-scoped context variables (request_id)
+**`backend/src/api/`:**
+- Purpose: Cross-cutting HTTP concerns (routing aggregation, middleware, exception handlers)
+- Key files:
+  - `router.py`: Aggregates all module routers under `/api/v1` prefix
+  - `exceptions/handlers.py`: Uniform JSON error envelope for all exception types
+  - `dependencies/auth.py`: Shared JWT extraction dependency
+  - `middlewares/logger.py`: Access logging with request/response timing
 
-**`backend/src/bot/`** (Telegram Bot):
-- Purpose: Aiogram-based Telegram bot
-- `factory.py`: Bot + Dispatcher creation, middleware chain, router registration
-- `handlers/`: Message/command handlers organized by feature
-- `callbacks/`: Callback query handlers
-- `keyboards/`: Inline and reply keyboard builders
-- `middlewares/`: Bot-level middleware (logging, throttling, user identification)
-- `filters/`: Custom Aiogram filters
-- `states/`: FSM state definitions
-
-**`frontend/main/`** (Customer Mini App):
-- Purpose: Telegram Mini App for customers (shopping, orders, profiles)
-- `app/`: Next.js App Router -- pages and API routes
-- `app/api/backend/[...path]/route.ts`: Catch-all proxy to Python backend (key architectural component)
-- `app/api/auth/`: Auth API routes (telegram login, refresh, logout)
-- `app/api/dadata/`: DaData address suggestion proxy routes
-- `components/blocks/`: Feature-grouped components (cart, catalog, favorites, product, profile, search, promo, reviews, telegram)
-- `components/ui/`: Reusable primitives (Button, BottomSheet)
-- `components/layout/`: Layout components (Header, Footer, Layout)
-- `lib/store/`: Redux Toolkit store with RTK Query (`api.ts`, `authSlice.ts`, `store.ts`, `hooks.ts`)
-- `lib/telegram/`: Telegram WebApp SDK wrapper with 25+ hooks (useTelegram, useMainButton, useHaptic, etc.)
-- `lib/auth/`: Cookie management for auth tokens (`cookie-helpers.ts`, `cookies.ts`)
-- `lib/types/`: TypeScript type definitions (`api.ts`, `user.ts`, `catalog.ts`, `auth.ts`, `ui.ts`)
-- `lib/format/`: Formatters (`price.ts`, `date.ts`, `product-image.ts`, `brand-image.ts`, `cn.ts`)
-
-**`frontend/admin/`** (Admin Panel):
-- Purpose: Internal admin dashboard for managing products, orders, users, settings
-- `src/app/admin/`: Admin pages (products, orders, users, reviews, returns, settings)
-- `src/app/admin/settings/`: Settings sub-pages (brands, categories, pricing-formulas, promocodes, referrals, roles, staff, suppliers)
-- `src/app/admin/products/add/details/[...slug]/`: Product creation wizard
-- `src/app/api/`: BFF proxy routes to Python backend (auth, catalog, categories, admin/identities, admin/roles)
-- `src/components/admin/`: Admin-specific components (products/, orders/, reviews/, settings/, users/)
-- `src/components/ui/`: Shared UI components
-- `src/services/`: API call wrappers per resource (`products.js`, `orders.js`, `staff.js`, `categories.js`, `brands.js`, `attributes.js`, `suppliers.js`, `users.js`, `promocodes.js`, `referrals.js`, `reviews.js`)
-- `src/lib/api-client.js`: Base fetch wrapper for backend calls (`backendFetch()`)
-- `src/lib/auth.js`: Auth utilities
-- `src/lib/constants.js`: App constants
-- `src/lib/utils.js`: General utilities
-- `src/lib/dayjs.js`: dayjs date library configuration
-- Note: Uses JSX (not TypeScript) unlike the main frontend
+**`backend/src/bootstrap/`:**
+- Purpose: Composition root -- wires the entire application
+- Key files:
+  - `config.py`: `Settings` class (Pydantic Settings, loads from `.env`)
+  - `container.py`: `create_container()` assembles all Dishka providers
+  - `web.py`: `create_app()` FastAPI factory (CORS, middleware, routers, DI, health check)
+  - `worker.py`: TaskIQ worker initialization (critical import order for Dishka + task registration)
+  - `scheduler.py`: TaskIQ Beat scheduler with outbox relay/pruning schedules
+  - `broker.py`: AioPikaBroker (RabbitMQ) configuration
 
 ## Key File Locations
 
 **Entry Points:**
-- `backend/src/bootstrap/web.py`: FastAPI app factory (`create_app()`)
-- `backend/src/bootstrap/worker.py`: TaskIQ worker entry point (critical init order)
-- `backend/src/bootstrap/scheduler.py`: TaskIQ Beat scheduler
-- `backend/src/bootstrap/config.py`: Pydantic Settings (env vars)
-- `backend/src/bootstrap/container.py`: Dishka container assembly (composition root)
-- `backend/src/api/router.py`: Root API router (all module routers aggregated here)
-- `image_backend/src/bootstrap/web.py`: Image backend app factory
-- `frontend/main/app/layout.tsx`: Main frontend root layout
-- `frontend/admin/src/app/layout.jsx`: Admin frontend root layout
+- `backend/main.py`: Web API ASGI entry point -> calls `create_app()`
+- `backend/src/bootstrap/worker.py`: TaskIQ worker entry point
+- `backend/src/bootstrap/scheduler.py`: TaskIQ Beat scheduler entry point
+- `image_backend/main.py`: Image backend ASGI entry point
 
 **Configuration:**
-- `backend/src/bootstrap/config.py`: All backend settings (`Settings` class)
-- `backend/alembic.ini`: Alembic config
-- `image_backend/src/bootstrap/config.py`: Image backend settings
-- `frontend/main/package.json`: Main frontend dependencies
-- `frontend/admin/package.json`: Admin frontend dependencies
-- `frontend/main/middleware.ts`: Next.js edge middleware (security headers, CSRF)
+- `backend/src/bootstrap/config.py`: All environment variables and computed fields
+- `backend/pyproject.toml`: Python dependencies (managed by uv)
+- `backend/alembic.ini`: Alembic migration configuration
+- `backend/pytest.ini`: Test configuration and markers
 
 **Core Logic:**
-- `backend/src/modules/catalog/domain/entities.py`: Product, Brand, Category, SKU, Variant, Attribute entities
-- `backend/src/modules/identity/domain/entities.py`: Identity, Session, Role entities
-- `backend/src/modules/user/domain/entities.py`: Customer, StaffMember entities
-- `backend/src/infrastructure/database/uow.py`: UnitOfWork with Outbox event persistence
-- `backend/src/infrastructure/outbox/relay.py`: Outbox relay polling publisher
-- `backend/src/infrastructure/security/authorization.py`: RBAC permission resolver
+- `backend/src/modules/catalog/domain/entities.py`: Product aggregate root with FSM, variants, SKUs
+- `backend/src/modules/identity/domain/entities.py`: Identity/session/role domain model
+- `backend/src/infrastructure/database/uow.py`: UnitOfWork with outbox event persistence
+- `backend/src/infrastructure/outbox/relay.py`: Outbox polling publisher
+- `backend/src/infrastructure/security/authorization.py`: RBAC permission resolver with Redis cache
 
 **Testing:**
-- `backend/tests/architecture/test_boundaries.py`: Architectural fitness functions
-- `backend/tests/unit/`: Unit tests mirroring `src/` structure
-- `backend/tests/integration/`: Integration tests with real DB
-- `backend/tests/factories/`: Test data factories
-- `backend/tests/fakes/`: Fake implementations for unit testing
+- `backend/tests/conftest.py`: Root test configuration
+- `backend/tests/e2e/conftest.py`: E2E test fixtures (HTTP client, auth helpers)
+- `backend/tests/factories/`: Test data factories and builders
+- `backend/tests/architecture/test_boundaries.py`: Architectural boundary enforcement
+
+**ORM Model Registry:**
+- `backend/src/infrastructure/database/registry.py`: Imports all ORM models for Alembic auto-generation
+- `backend/src/infrastructure/database/base.py`: Shared SQLAlchemy `Base` with naming conventions
 
 ## Naming Conventions
 
-**Files (Backend - Python):**
-- Modules: `snake_case.py` (e.g., `create_brand.py`, `router_brands.py`)
-- One command handler per file: `{verb}_{noun}.py` (e.g., `create_brand.py`, `delete_product.py`, `change_product_status.py`)
-- One query handler per file: `{verb}_{noun}.py` (e.g., `list_brands.py`, `get_brand.py`)
-- Routers: `router_{resource}.py` (e.g., `router_brands.py`, `router_products.py`)
-- ORM models: `models.py` within each module's infrastructure
-- Read models: `read_models.py` within each module's `application/queries/`
-
-**Files (Frontend - TypeScript/JSX):**
-- Components: `PascalCase.tsx` or `PascalCase.jsx` (e.g., `ProductCard.tsx`, `OrderCard.jsx`)
-- Hooks: `camelCase.ts` prefixed with `use` (e.g., `useCart.ts`, `useTelegram.ts`)
-- API routes: `route.ts` or `route.js` (Next.js convention)
-- Pages: `page.tsx` or `page.jsx` (Next.js convention)
-- CSS modules: `{name}.module.css`
+**Files:**
+- Python modules: `snake_case.py`
+- Command handlers: `verb_noun.py` (e.g., `create_product.py`, `delete_brand.py`, `change_product_status.py`)
+- Query handlers: `get_noun.py` or `list_nouns.py` (e.g., `get_brand.py`, `list_brands.py`)
+- Routers: `router_{resource}.py` (e.g., `router_brands.py`, `router_products.py`) or `router.py` for single-resource modules
+- ORM models: `models.py` (one file per module containing all ORM models for that module)
 
 **Directories:**
-- Backend modules: `snake_case` (e.g., `catalog/`, `identity/`)
-- Backend layers: `domain/`, `application/`, `infrastructure/`, `presentation/`
-- Frontend components: `PascalCase` for component-specific dirs, `kebab-case` for route segments
+- Modules: `snake_case` matching the bounded context name (e.g., `catalog`, `identity`, `user`, `geo`, `supplier`)
+- Layer directories: `domain/`, `application/`, `infrastructure/`, `presentation/`
+- Sub-layers: `commands/`, `queries/`, `repositories/`, `consumers/`
 
 **Classes:**
-- Domain entities: `PascalCase` (e.g., `Brand`, `Product`, `Identity`)
-- Command handlers: `{Verb}{Noun}Handler` (e.g., `CreateBrandHandler`)
-- Query handlers: `{Verb}{Noun}Handler` or `List{Noun}Handler` (e.g., `ListBrandsHandler`, `GetBrandHandler`)
-- Commands: `{Verb}{Noun}Command` (e.g., `CreateBrandCommand`)
-- Queries: `{Verb}{Noun}Query` or `List{Noun}Query` (e.g., `ListBrandsQuery`)
-- Repositories: `{Entity}Repository` (e.g., `BrandRepository`)
-- Interfaces: `I{Name}` prefix (e.g., `IBrandRepository`, `IUnitOfWork`, `ILogger`)
-- DI Providers: `{Feature}Provider` (e.g., `CategoryProvider`, `BrandProvider`)
-- Exceptions: descriptive with `Error` suffix (e.g., `BrandSlugConflictError`, `CategoryMaxDepthError`)
+- Domain entities: `PascalCase` (e.g., `Product`, `Brand`, `Category`)
+- Command dataclasses: `{Verb}{Noun}Command` (e.g., `CreateProductCommand`, `UpdateBrandCommand`)
+- Command result dataclasses: `{Verb}{Noun}Result` (e.g., `CreateProductResult`)
+- Handler classes: `{Verb}{Noun}Handler` (e.g., `CreateProductHandler`, `ListBrandsHandler`)
+- Repository interfaces: `I{Noun}Repository` (e.g., `IBrandRepository`, `IProductRepository`)
+- Repository implementations: `{Noun}Repository` (e.g., `BrandRepository`, `ProductRepository`)
+- DI providers: `{Noun}Provider` (e.g., `BrandProvider`, `CategoryProvider`, `DatabaseProvider`)
+- ORM models: `PascalCase` matching the domain entity or suffixed with `Model` (e.g., `Brand`, `IdentityModel`, `SessionModel`)
+- Read models: `{Noun}ReadModel` or `{Noun}ListReadModel` (e.g., `BrandReadModel`, `BrandListReadModel`)
+- Pydantic schemas: `{Noun}{Action}Request` / `{Noun}{Action}Response` (e.g., `BrandCreateRequest`, `BrandResponse`)
+
+**Enums and Constants:**
+- Enum classes: `PascalCase` (e.g., `ProductStatus`, `AttributeDataType`, `MediaRole`)
+- Constants: `UPPER_SNAKE_CASE` (e.g., `MAX_CATEGORY_DEPTH`, `DEFAULT_CURRENCY`)
 
 ## Where to Add New Code
 
-**New Backend Module (Bounded Context):**
-1. Create `backend/src/modules/{new_module}/` with `domain/`, `application/`, `infrastructure/`, `presentation/` directories
-2. Define entities in `domain/entities.py` inheriting from `AggregateRoot`
-3. Define repository interfaces in `domain/interfaces.py` extending `ICatalogRepository[T]` or custom ABC
-4. Create command handlers in `application/commands/` (one file per command)
-5. Create query handlers in `application/queries/` (one file per query, with `read_models.py`)
-6. Implement ORM models in `infrastructure/models.py`
-7. Implement repositories in `infrastructure/repositories/`
-8. Register DI providers in `presentation/dependencies.py`
-9. Create FastAPI routers in `presentation/router_*.py`
-10. Add routers to `backend/src/api/router.py`
-11. Add DI providers to `backend/src/bootstrap/container.py`
-12. Register ORM models in `backend/src/infrastructure/database/registry.py`
-13. Add architectural boundary test parameters in `backend/tests/architecture/test_boundaries.py`
-14. Generate Alembic migration: `alembic revision --autogenerate -m "description"`
+**New Bounded Context Module:**
+1. Create `backend/src/modules/{module_name}/` with subdirectories: `domain/`, `application/`, `infrastructure/`, `presentation/`
+2. Domain: Create `entities.py`, `interfaces.py`, `exceptions.py`, `events.py`, `value_objects.py`
+3. Infrastructure: Create `models.py` (ORM), `repositories/` directory, `provider.py` (if independent DI)
+4. Application: Create `commands/` and `queries/` directories with handlers
+5. Presentation: Create `router.py`, `schemas.py`, `dependencies.py`
+6. Register ORM models in `backend/src/infrastructure/database/registry.py`
+7. Register DI providers in `backend/src/bootstrap/container.py`
+8. Register router in `backend/src/api/router.py`
+9. Create Alembic migration: `alembic revision --autogenerate -m "add {module} tables"`
 
-**New Command Handler (Write Operation):**
+**New Command (Write Operation):**
 1. Create `backend/src/modules/{module}/application/commands/{verb}_{noun}.py`
-2. Define frozen `@dataclass` Command and Result classes
-3. Create Handler class with `__init__(self, repo: IRepo, uow: IUnitOfWork, logger: ILogger)`
-4. Implement `async def handle(self, command: Command) -> Result`
-5. Register handler in `presentation/dependencies.py` Provider: `provide(HandlerClass, scope=Scope.REQUEST)`
-6. Add route in appropriate `presentation/router_*.py` using `FromDishka[HandlerClass]`
+2. Define frozen `{Verb}{Noun}Command` dataclass with input fields
+3. Define `{Verb}{Noun}Result` dataclass (if needed)
+4. Create `{Verb}{Noun}Handler` class with constructor-injected dependencies and `async def handle()` method
+5. Register handler in the module's `presentation/dependencies.py` Dishka provider
+6. Add router endpoint in `presentation/router_{resource}.py`
 
-**New Query Handler (Read Operation):**
-1. Create `backend/src/modules/{module}/application/queries/{verb}_{noun}.py`
-2. Define frozen `@dataclass` Query class
-3. Create Handler class with `__init__(self, session: AsyncSession, logger: ILogger)` (no UoW)
-4. Query ORM models directly via SQLAlchemy `select()`, use `paginate()` helper
-5. Return Pydantic read model from `read_models.py`
-6. Register in DI provider and add route as above
+**New Query (Read Operation):**
+1. Create `backend/src/modules/{module}/application/queries/{action}_{noun}.py`
+2. Define frozen `{Action}{Noun}Query` dataclass with filter/pagination params
+3. Add read model to `application/queries/read_models.py` (if new shape needed)
+4. Create `{Action}{Noun}Handler` class injecting `AsyncSession` and `ILogger`
+5. Use `paginate()` helper from `backend/src/shared/pagination.py` for list queries
+6. Register handler in module's `presentation/dependencies.py`
+7. Add router endpoint
 
-**New Domain Event + Consumer:**
-1. Define event in `backend/src/modules/{source}/domain/events.py` as `@dataclass` inheriting `DomainEvent`
-2. Emit event in the source aggregate: `self.add_domain_event(MyEvent(...))`
-3. Create consumer in `backend/src/modules/{target}/application/consumers/`
-4. Register consumer task import in `backend/src/bootstrap/worker.py`
-5. Register event handler in `backend/src/infrastructure/outbox/tasks.py`
+**New Domain Entity:**
+1. Add attrs `@dataclass` to `backend/src/modules/{module}/domain/entities.py`
+2. Include `classmethod create()` factory method with validation
+3. Add `update()` method with guarded fields pattern if needed
+4. Define repository interface in `domain/interfaces.py`
+5. Create SQLAlchemy ORM model in `infrastructure/models.py`
+6. Create repository implementation in `infrastructure/repositories/`
+7. Register ORM model in `backend/src/infrastructure/database/registry.py`
 
-**New Frontend Page (Main):**
-1. Create `frontend/main/app/{route}/page.tsx`
-2. Create feature components in `frontend/main/components/blocks/{feature}/`
-3. Add RTK Query endpoints in `frontend/main/lib/store/api.ts` if calling backend
-4. Add types in `frontend/main/lib/types/`
+**New Domain Event:**
+1. Add `@dataclass` subclass of `DomainEvent` to `backend/src/modules/{module}/domain/events.py`
+2. Override `aggregate_type` and `event_type` with non-empty string defaults
+3. Emit via `aggregate.add_domain_event(MyEvent(...))` in entity methods
+4. Register handler in `backend/src/infrastructure/outbox/tasks.py` via `register_event_handler()`
+5. Create consumer task in `backend/src/modules/{module}/application/consumers/`
+6. Import consumer in `backend/src/bootstrap/worker.py`
 
 **New Frontend Page (Admin):**
-1. Create `frontend/admin/src/app/admin/{route}/page.jsx`
-2. Create components in `frontend/admin/src/components/admin/{feature}/`
-3. Add API proxy route in `frontend/admin/src/app/api/` if needed
-4. Add service wrapper in `frontend/admin/src/services/{resource}.js`
+1. Create `frontend/admin/src/app/admin/{section}/page.tsx` for the page
+2. Create `frontend/admin/src/app/api/{resource}/route.ts` for API proxy
+3. Create components in `frontend/admin/src/components/admin/{section}/`
 
-**New API Route (Frontend BFF Proxy):**
-- Main: `frontend/main/app/api/{path}/route.ts` (TypeScript)
-- Admin: `frontend/admin/src/app/api/{path}/route.js` (JavaScript)
-- Most backend calls go through the catch-all proxy (`frontend/main/app/api/backend/[...path]/route.ts`), so explicit routes are only needed for auth or special server-side logic
+**New Migration:**
+- Run: `cd backend && alembic revision --autogenerate -m "description"`
+- Migrations live in: `backend/alembic/versions/YYYY/MM/`
 
 ## Special Directories
 
-**`backend/alembic/versions/`:**
-- Purpose: Database migration files
-- Generated: Yes (via `alembic revision --autogenerate`)
-- Committed: Yes
-- Structure: `YYYY/MM/` subdirectories
-
-**`backend/seed/`:**
-- Purpose: Reference data population scripts (categories, brands, attributes, geo)
-- Generated: No (manually maintained)
-- Committed: Yes
-
-**`backend/tests/fakes/`:**
-- Purpose: In-memory fake implementations of repository interfaces for unit testing
+**`backend/src/infrastructure/outbox/`:**
+- Purpose: Transactional Outbox pattern implementation (relay, pruning, event handler registry)
 - Generated: No
 - Committed: Yes
 
-**`frontend/main/.next/` and `frontend/admin/.next/`:**
-- Purpose: Next.js build output and dev cache
-- Generated: Yes
-- Committed: No (should be in .gitignore)
+**`backend/alembic/versions/`:**
+- Purpose: Database migration scripts (auto-generated + manual)
+- Generated: Partially (via `--autogenerate`)
+- Committed: Yes
 
-**`backend/.venv/` and `image_backend/.venv/`:**
-- Purpose: Python virtual environments
+**`backend/seed/`:**
+- Purpose: Development/staging data seeding (categories, brands, attributes, products, geo data)
+- Generated: No
+- Committed: Yes
+
+**`backend/tests/factories/`:**
+- Purpose: Test data factories and object mothers for unit/integration tests
+- Generated: No
+- Committed: Yes
+- Key files: `catalog_mothers.py` (domain entity factories), `orm_factories.py` (ORM model factories), `builders.py` (builder pattern for complex test scenarios)
+
+**`backend/.venv/`:**
+- Purpose: Python virtual environment
+- Generated: Yes (via `uv sync`)
+- Committed: No
+
+**`frontend/admin/.next/`:**
+- Purpose: Next.js build cache
 - Generated: Yes
 - Committed: No
 
-**`backend/src/bot/`:**
-- Purpose: Telegram bot (Aiogram) -- `factory.py` is implemented, `bootstrap/bot.py` is empty
-- Generated: No
-- Committed: Yes
+**`frontend/admin/node_modules/`:**
+- Purpose: NPM dependencies
+- Generated: Yes
+- Committed: No
 
 ---
 
