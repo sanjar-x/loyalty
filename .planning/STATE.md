@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-03-28T12:33:34.917Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-03-28T12:28:59.968Z"
 last_activity: 2026-03-28
 progress:
   total_phases: 9
@@ -52,7 +52,7 @@ Progress: [..........] 0%
 - Trend: -
 
 *Updated after each plan completion*
-| Phase 01 P01 | 10min | 3 tasks | 15 files |
+| Phase 01 P02 | 5min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -63,9 +63,7 @@ Recent decisions affecting current work:
 
 - [Roadmap]: Bottom-up testing order (domain -> handlers -> repos -> API) to avoid mock-heavy tests hiding real bugs
 - [Roadmap]: Entity god-class split deferred to Phase 9 (last) so 400+ tests exist as safety net
-- [Phase 01]: pytest-timeout uses thread method for Windows compatibility
-- [Phase 01]: SKUBuilder uses Product.add_sku() since SKU has no standalone create()
-- [Phase 01]: Builder i18n defaults include both ru and en keys per REQUIRED_LOCALES
+- [Phase 01]: Cross-repo references wired via shared dict refs for realistic has_products/has_children/has_attributes in FakeUoW
 
 ### Pending Todos
 
@@ -79,6 +77,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-28T12:33:34.913Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-03-28T12:28:59.905Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
