@@ -148,11 +148,12 @@ Plans:
   3. Every protected endpoint rejects unauthenticated requests and requests without the required permission (RequirePermission enforcement verified)
   4. A full product lifecycle (create product, add variants, generate SKU matrix, activate, query storefront) works end-to-end through the API layer
   5. Pagination returns correct offset, limit, total count for normal pages, empty results, and boundary conditions (offset beyond total, limit=0)
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
+- [ ] 08-01-PLAN.md — Brand, Category, Attribute, AttributeValue, AttributeTemplate endpoint tests + shared conftest
+- [ ] 08-02-PLAN.md — Product, Variant, SKU, ProductAttribute, Media endpoint tests
+- [ ] 08-03-PLAN.md — Storefront, auth enforcement, full lifecycle, pagination tests
 
 ### Phase 9: Entity God-Class Refactoring
 **Goal**: The 2,220-line entities.py is split into separate, maintainable files with zero breakage in any existing code or tests
@@ -182,5 +183,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 5. Product & Variant Command Handlers | 0/0 | Not started | - |
 | 6. SKU, Media & Cross-Cutting Commands | 0/3 | Planned | - |
 | 7. Repository & Data Integrity | 0/3 | Planned | - |
-| 8. API Contract Validation | 0/0 | Not started | - |
+| 8. API Contract Validation | 0/3 | Planned | - |
 | 9. Entity God-Class Refactoring | 0/0 | Not started | - |
