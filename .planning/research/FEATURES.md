@@ -1,258 +1,223 @@
-# Feature Research
+# Feature Research: EAV Catalog Hardening
 
-**Domain:** Cross-border e-commerce order lifecycle for a marketplace aggregator (Poizon/Taobao/1688 + local Russian suppliers)
+**Domain:** Testing, Validation, and Correctness for a Production-Ready EAV Catalog
 **Researched:** 2026-03-28
 **Confidence:** HIGH
 
 ## Feature Landscape
 
-### Table Stakes (Users Expect These)
+This is a hardening milestone, not a feature milestone. "Features" here mean testing and validation capabilities that make the existing EAV catalog production-ready. The catalog already has 46 command handlers, 22 query handlers, 11 router files, and a rich domain model. What it lacks is proof that any of it works correctly (1.1% test-to-source ratio, 44 of 46 commands untested).
 
-Features users assume exist. Missing these = product feels incomplete.
+### Table Stakes (Must Have or the Catalog Is Unreliable)
 
-#### Cart (Customer-Facing)
-
-| Feature | Why Expected | Complexity | Notes |
-|---------|-------------|------------|-------|
-| Unified cart (all sources mixed) | Core platform value -- customer shouldn't know product origins | MEDIUM | Cart already has a `useCart` stub with the right interface (id, name, price, quantity, size, image). Backend must persist cart server-side, keyed to user identity. localStorage-only cart loses data across devices and after Telegram cache clears |
-| Add to cart with size/variant pre-selected | Every apparel e-commerce app does this; sneaker/streetwear customers expect size selection before cart add | LOW | Product page already renders variants. Cart item needs `sku_id` (not just `product_id`) to capture the exact variant |
-| Quantity adjustment in cart | Users buy multiples of the same item; missing this forces remove+re-add | LOW | Already in `useCart` interface (`setQuantity`). Just needs backend backing |
-| Remove item from cart | Table stakes -- no explanation needed | LOW | Already in `useCart` interface (`removeItem`, `removeMany`) |
-| Cart item count badge on navigation | Users expect visual feedback of cart contents at all times | LOW | Telegram Mini Apps support bottom nav bar; badge on cart icon shows item count |
-| Cart persistence across sessions | If user closes Telegram and reopens, cart must survive. localStorage is unreliable in Telegram WebApps (cache may be cleared) | MEDIUM | Server-side cart persistence is necessary. Cart should be a backend resource, not just frontend state |
-| Line item price display in RUB | Prices are set manually in RUB -- customer sees final ruble price, never yuan | LOW | Already the pricing model per PROJECT.md |
-
-#### Checkout (Customer-Facing)
+Features users (downstream developers, the order system) expect. Missing these means the catalog cannot be trusted as a foundation.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|-------------|------------|-------|
-| Checkout summary with item list, sizes, prices | Every e-commerce checkout shows what you're buying | LOW | Existing checkout page already renders grouped items with size, article, price. Needs to pull from real cart API |
-| Delivery address input (free text) | Users must tell platform where to ship | LOW | PROJECT.md explicitly scopes this as free text field. No PVZ API integration needed yet |
-| Recipient info (name, phone, email) | Required for delivery and cross-border customs. Russian customs law requires real recipient data for international parcels | MEDIUM | Existing checkout page already has recipient modal with FIO, phone (+7 format), email. Needs backend persistence per order, not just localStorage |
-| Customs data collection (passport, INN) for cross-border items | Russian customs (FTS Order 1060) requires passport series/number, issue date, birth date, INN for international parcels | MEDIUM | Existing checkout page already has customs data modal. Only required when order contains items from Chinese sources. Must be stored securely |
-| Order total calculation (subtotal + delivery estimate) | Users need to know final cost before confirming | LOW | Existing checkout calculates subtotal. Delivery pricing is "from 99 RUB" as placeholder -- acceptable for MVP with manual pricing |
-| Order placement confirmation | User clicks "place order" and sees confirmation that order was created | LOW | Simple confirmation screen/modal after successful POST to backend |
-| Pre-filled data from Telegram identity | Telegram provides name and sometimes phone -- use it to reduce friction | LOW | `identity` module already handles Telegram auth. Pre-fill recipient name from Telegram profile data |
+| Domain entity unit tests (Product aggregate) | Product is the central aggregate root -- FSM transitions, variant/SKU management, hash computation, soft-delete cascading, domain event emission all need proof of correctness | HIGH | Product.create(), transition_status(), add_variant(), remove_variant(), add_sku(), remove_sku(), find_sku(), soft_delete(), update(), compute_variant_hash() -- each with happy path + error paths. ~40-60 test cases. |
+| Domain entity unit tests (Brand, Category, Attribute) | Every entity has factory methods with validation, update methods with guarded fields, and deletion guards -- all untested | MEDIUM | Brand (create, update, validate_deletable), Category (create_root, create_child, update, effective_template inheritance, max depth), Attribute (create, update, BehaviorFlags), AttributeValue (create, update), AttributeTemplate (create, update) |
+| Value object unit tests (Money, BehaviorFlags, ProductStatus FSM) | Money enforces non-negative amounts, currency matching, compare_at > price invariant. BehaviorFlags validates search_weight range. ProductStatus defines the lifecycle FSM. Bugs here corrupt pricing and status across the entire catalog | MEDIUM | Money: construction, from_primitives(), comparison operators, cross-currency rejection. BehaviorFlags: weight range. ProductStatus: enum completeness. Also slug validation, i18n validation, validation_rules per data type |
+| Command handler unit tests (all 46 handlers) | 44 of 46 handlers are untested. These orchestrate all write operations -- product creation, variant management, SKU matrix generation, attribute assignment, category tree management. A bug in any handler silently corrupts catalog data | HIGH | Each handler needs: happy path, FK-not-found, slug/code conflict, authorization-relevant validation, UoW commit verification, domain event emission. Mock repositories and UoW. Estimated 200-300 test cases total |
+| Query handler unit/integration tests (all 22 handlers) | Query handlers bypass the domain layer and read directly from ORM. Untested queries may return incorrect read models, wrong pagination, or stale data -- directly impacting storefront display and admin UI | MEDIUM | Key queries: get_product (with variants/SKUs), list_products (pagination, filtering), get_product_completeness (template requirement matching), storefront queries (filterable, card, comparison, form attributes), get_category_tree (hierarchical ordering) |
+| Integration tests for Product repository (CRUD + eager loading) | The Product repository has the most complex mapping: Product -> Variants -> SKUs -> variant_attributes, with soft-delete filtering, pessimistic locking (get_for_update_with_variants), and Data Mapper conversions. ORM-to-domain and domain-to-ORM fidelity must be verified | HIGH | Test: add product with variants and SKUs, get with eager loading, update with new SKUs, soft-delete cascading, optimistic locking (version field), variant_attributes roundtrip through JSONB/link table |
+| Integration tests for Category repository (tree operations) | Category repo has unique operations: hierarchical slug propagation (update_descendants_full_slug), effective_template_id propagation via recursive CTE. These are SQL-heavy and cannot be verified with mocks | MEDIUM | Test: create tree 3 levels deep, rename parent slug (verify descendants updated), set template on parent (verify CTE propagation), delete leaf vs delete parent-with-children guard |
+| Integration tests for Brand/Attribute/AttributeValue repositories | Simpler CRUD but still need: slug/code uniqueness enforcement, has_products/has_product_attribute_values deletion guards, bulk operations (get_many, check_codes_exist) | MEDIUM | Lower risk than Product but still untested. Focus on uniqueness constraint behavior and FK guard queries |
+| API contract integration tests (catalog endpoints) | 11 router files expose the catalog API. Without endpoint tests, request schema validation, response shape, HTTP status codes, and RBAC enforcement are unverified. The order system will depend on these contracts | HIGH | Test each endpoint's happy path + key error cases. Verify: Pydantic input validation, correct HTTP status codes (201, 404, 409, 422), response schema shape (camelCase aliasing), RequirePermission enforcement. Use httpx AsyncClient with DI override |
+| Data integrity validation (schema constraints + migrations) | EAV systems are notorious for constraint-free data. Verify that unique indexes, FK constraints, check constraints, and NOT NULL constraints actually exist in the database schema and match domain rules | MEDIUM | Inspect alembic migrations or live schema. Verify: brands(slug) unique, brands(name) unique, categories(slug, parent_id) unique, products(slug) unique, sku_attribute_values FK integrity, product_attribute_values FK integrity. Test constraint violation behavior |
+| Product status FSM integration test (full lifecycle) | The FSM (DRAFT -> ENRICHING -> READY_FOR_REVIEW -> PUBLISHED -> ARCHIVED -> DRAFT) has readiness checks that span multiple aggregates (active SKUs, priced SKUs, media assets). This cross-aggregate validation can only be fully tested with integration tests | MEDIUM | Create product, add variant, add SKU with price, add media, walk through every valid transition. Verify: can't publish without active SKU, can't publish without priced SKU, can't publish without media, can't delete published product, can archive published, can revert to draft from archived |
+| Domain event emission verification | 27 domain events defined. Events are emitted during entity operations and persisted to the Outbox. If events are missing or have wrong payloads, downstream consumers (future ES sync, notifications) will break silently | LOW | Test that each entity operation emits the expected event with correct fields. This is naturally covered by entity unit tests if they assert on domain_events property after each operation |
+| Soft-delete correctness across the aggregate | Products, Variants, and SKUs all support soft-delete. Cascade behavior (product soft-delete -> variant soft-delete -> SKU soft-delete) must be verified. Queries must correctly filter out deleted records | MEDIUM | Unit tests: verify cascade in domain entity. Integration tests: verify repository queries exclude deleted records. Verify deleted_at timestamps are set, verify idempotent re-deletion |
 
-#### Order Tracking (Customer-Facing)
+### Differentiators (Competitive Advantage in Quality)
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|-------------|------------|-------|
-| Order list in profile | Users need to see their order history. Every e-commerce app has "My Orders" | LOW | Customer frontend already has `/profile/orders` page with `OrdersClient.tsx` -- currently renders empty array. Needs real API |
-| Order detail view with items and status | Clicking an order shows what's in it and current state | MEDIUM | Frontend already has `/profile/orders/[id]` with status-specific views (in-transit, pickup, received, cancelled). Needs real data |
-| Basic status display (placed, in transit, at pickup, received, cancelled) | Users need to know where their order is. These 5 states match the existing frontend design | LOW | Status labels already defined in frontend constants: placed, in_transit, pickup_point, received, canceled |
-| Order number visible and copyable | Users share order numbers with support | LOW | Already implemented in admin frontend with `CopyMark` component |
-
-#### Admin Order Management
-
-| Feature | Why Expected | Complexity | Notes |
-|---------|-------------|------------|-------|
-| Order list with status filtering | Admin needs to see orders grouped by state (placed, in transit, at pickup, cancelled, received) | LOW | Admin frontend already has full UI: `StatusTabs`, `OrderFilters`, `ReasonFilters`, `OrdersList` -- all using seed data. Replace seed with API |
-| Order detail view (items, customer, address, totals) | Admin needs full order context to handle fulfillment | LOW | `OrderDetailsView` already renders customer info, pickup address, customs data, item list with per-item status, totals breakdown. Replace hardcoded data with API |
-| Per-item status management | Cross-border orders may have items from different sources; each item can progress independently (one item ships from China, another from local supplier) | MEDIUM | `OrderStatusModal` already implements per-item status dropdown (Placed/In Transit/Cancelled) with Chinese track number input per item. This is the core admin workflow |
-| Search by order number | Admin needs to find specific orders quickly | LOW | Already in `useOrderFilters` hook -- searches by `orderNumber` |
-| Date range filtering | Admin needs to see orders within a time period for reporting | LOW | Already in `useOrderFilters` with `dateRange` state and dayjs filtering |
-| Sort by date (newest/oldest) | Basic data table functionality | LOW | Already in `useOrderFilters` with `sortBy` state |
-| Top metrics dashboard (order counts, totals) | Admin needs quick overview of business state | LOW | `TopMetrics` component exists in admin, renders against date-filtered orders |
-| Source attribution badge (from China / local) | Admin must know which orders involve cross-border logistics vs local fulfillment | LOW | Already rendered as "Iz Kitaya" badge in `OrderCard` and `OrderDetailsView` based on `fromChina` flag |
-
-### Differentiators (Competitive Advantage)
-
-Features that set the product apart. Not required, but valuable.
+Features that elevate the catalog from "tested" to "confidently production-ready." Not strictly required for basic correctness, but significantly reduce risk.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Telegram bot order notifications | Push notification via Telegram when order status changes -- users are already in Telegram, so notification delivery is near-100%. Other platforms require SMS (costs money) or email (low open rate) | MEDIUM | PROJECT.md lists this as nice-to-have. Bot service already exists. Event system (Transactional Outbox + RabbitMQ) can trigger bot messages on order state transitions |
-| Seamless cross-border/local mix in one order | Customer adds a Poizon sneaker and a local-supplier hoodie to same cart and checks out once. Platform handles the split fulfillment invisibly. Most Russian Poizon resellers are single-source shops | HIGH | This is the core platform value per PROJECT.md. Backend must support an order containing items from multiple supplier sources, with potentially different fulfillment timelines. Admin sees per-item source and can manage each independently |
-| Admin status pipeline with drag-and-drop | Kanban-style board where admin drags orders between status columns. More intuitive than list view for small teams managing 50-200 daily orders | MEDIUM | Not in current UI. Would be a v2 enhancement. Current list-with-tabs approach is functional for MVP |
-| Order history audit log | Every status change, admin action, and timestamp recorded. Valuable for customer disputes and operational review | MEDIUM | Standard in professional OMS. Implement as append-only event log on order aggregate. "Order History" button already exists in admin detail view (currently non-functional) |
-| Customer-facing order tracking timeline | Visual step-by-step progress bar (Ordered -> Purchased from supplier -> In transit to Russia -> Customs -> Delivered to pickup -> Ready for pickup). Cross-border customers are anxious about wait times; a detailed timeline reduces support inquiries | HIGH | Not in current milestone scope but high value. Requires tracking granular internal states beyond the 5 customer-facing statuses. Design internal state machine with more states than exposed externally |
-| Smart checkout prefill (remember last recipient/address) | Returning customers don't re-enter recipient and address. Existing checkout already reads/writes localStorage for this. Backend persistence would make it cross-device | LOW | Checkout page already implements localStorage-based recipient memory. Could promote to user profile data on backend |
-| Admin notes/comments on orders | Admin can attach internal notes to orders (e.g., "waiting for supplier response", "customs issue resolved") | LOW | Simple text field append to order. High operational value for team communication |
-| Cancellation reason tracking | When admin cancels an order or item, record why (not for sale, customs rejection, customer request, etc.) | LOW | Admin frontend already has reason filters: not_for_sale, release_refusal, storage_expired. Backend needs to persist cancellation reason per item |
+| N+1 query detection in integration tests | EAV systems are notorious for N+1 queries due to the pivot table pattern. Detect them automatically during test runs rather than discovering them in production via slow page loads | LOW | Use SQLAlchemy event hooks or `sqlalchemy.testing.mock` to count queries per test. Flag tests that exceed expected query count. Critical for: get_product_with_variants, list_products, storefront queries |
+| Property-based testing for variant hash uniqueness | The variant_hash (SHA-256 of sorted attribute pairs) is the SKU deduplication mechanism. A collision means two different attribute combinations produce the same hash, causing silent data loss. Property-based testing can explore the hash space far better than hand-written cases | MEDIUM | Use hypothesis library. Generate random attribute_id/value_id pairs, verify: (1) different inputs produce different hashes, (2) same inputs in different order produce same hash, (3) different variant_ids with same attributes produce different hashes |
+| Optimistic locking (version field) concurrency tests | Products and SKUs have a `version` field for optimistic locking. Without testing, concurrent updates could silently overwrite each other. The ConcurrencyError exception exists but may never be triggered if the repository doesn't actually check versions | MEDIUM | Integration test: load product twice, update both copies, verify second save raises ConcurrencyError. Verify version is incremented on each save |
+| Test data builders (Object Mother / Builder pattern) | 46 command handlers each need test data. Without builders, test files will be 80% boilerplate and 20% assertions. Builders make tests readable and maintainable | MEDIUM | Build factories for: Product (with variants, SKUs, attributes), Brand, Category (with tree), Attribute (with values), AttributeTemplate (with bindings). Use polyfactory (already in deps) or hand-rolled builders |
+| API response schema snapshot tests | Lock down API response shapes so that changes to read models or Pydantic schemas are caught before they break frontend integrations | LOW | Serialize response JSON, compare against stored snapshot. Catch: accidental field removal, type changes, missing camelCase aliasing. Particularly important for storefront endpoints that the main frontend consumes |
+| Completeness checker integration test | get_product_completeness compares product attributes against template requirements. This spans 4 tables (product, category, template_bindings, product_attribute_values). A bug here means the enrichment workflow shows wrong status | MEDIUM | Create template with required/recommended/optional attributes, assign some to product, verify completeness result matches expectations. Edge cases: no template on category, empty template, all attributes filled |
+| Migration integrity audit | Verify that alembic migration history is linear, all migrations apply cleanly to an empty database, and the resulting schema matches the ORM models | LOW | Run alembic upgrade head on an empty testcontainer database. Use alembic check to verify no model/schema drift. This catches schema rot early |
+| Bulk operation correctness tests | bulk_create_brands, bulk_create_categories, bulk_create_attributes, bulk_assign_product_attributes, generate_sku_matrix -- these batch operations have complex validation and partial-failure semantics | MEDIUM | Test: all succeed, some fail (duplicate codes), all fail. Verify atomicity (all-or-nothing within UoW). SKU matrix generation: verify cartesian product correctness, MAX_SKU_COMBINATIONS limit |
+| Storefront query caching correctness | Storefront queries use Redis cache (storefront_cache_key patterns, STOREFRONT_CACHE_TTL). Cached results must be invalidated when underlying data changes | MEDIUM | Integration test: query storefront, update attribute, query again (should reflect change after cache TTL or invalidation). Verify cache keys are correctly scoped to category_id |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+### Anti-Features (Things to Deliberately NOT Do During Hardening)
 
-Features that seem good but create problems.
+Things that seem productive but would derail the hardening milestone.
 
 | Feature | Why Requested | Why Problematic | Alternative |
-|---------|-------------|-----------------|-------------|
-| Real-time inventory/stock tracking | "Show if item is in stock" | This is a dropshipping aggregator -- there is no inventory. Poizon/Taobao/1688 stock is dynamic and unparseable in real-time. Showing "in stock" creates false promises when marketplace items might sell out between browse and purchase | Show estimated availability instead ("usually available"). Let admin mark products as temporarily unavailable. Handle stock-out as a cancellation reason post-order |
-| Automated price sync from Chinese marketplaces | "Auto-update prices from Poizon/Taobao" | Exchange rates fluctuate, marketplace prices change without notice, scraping is legally grey and technically fragile. Automated pricing creates margin risk and compliance headaches | Admin sets manual RUB prices (current model). This is correct for early stage. Automated pricing is a future milestone with proper API partnerships |
-| Payment gateway integration in this milestone | "Let users pay in-app" | Adds massive complexity: PCI compliance considerations, payment provider integration, refund flows, failed payment handling, split payment edge cases. Offline payment (bank transfer) works for early volume | Create order as `pending_payment`. Admin confirms payment manually. Gateway integration is explicitly out of scope per PROJECT.md |
-| Full logistics API integration (CDEK/Pochta/Yandex) | "Auto-track via carrier APIs" | Each carrier API has different authentication, webhook formats, status mappings, and rate-limiting. Integrating 3 carriers simultaneously delays the order management core | Admin enters tracking info manually. Customer sees status as updated by admin. Logistics APIs are a separate future milestone per PROJECT.md |
-| Customer self-service order cancellation | "Let customers cancel orders themselves" | Cross-border orders involve purchasing from Chinese marketplaces -- once placed with the supplier, the item may already be bought or shipped. Self-service cancellation creates impossible refund scenarios | Customer requests cancellation via Telegram chat. Admin evaluates whether cancellation is possible based on fulfillment stage, then manually cancels if feasible |
-| Multi-currency display (show CNY + RUB) | "Show original Chinese price" | Reveals margin to customer. Creates confusion with fluctuating exchange rates. Customers may try to calculate "real" price and feel overcharged | Show only RUB prices. The platform's value is abstracting away the cross-border complexity, including pricing. Admin sees supplier cost internally |
-| Complex discount/promocode engine | "Build a full promotion system" | Discount rules interact with shipping, per-item vs per-order, stacking rules, etc. Engineering effort is disproportionate to early-stage value | Defer to future milestone per PROJECT.md. If needed urgently, simple fixed-amount discount applied at order level only |
-| Real-time chat within order details | "Let customer and admin chat about specific orders" | Requires WebSocket infrastructure, message persistence, notification routing, unread counts. Telegram itself is already the communication channel | Use Telegram chat for customer support. Admin can link to Telegram conversation from order. The Telegram bot already exists |
+|---------|--------------|-----------------|-------------|
+| Refactor away from EAV pattern | "EAV is an anti-pattern, use JSONB columns instead" | EAV is a deliberate architectural choice with existing infrastructure (templates, bindings, completeness checker). Refactoring now would touch every layer and delay the order system by months | Keep EAV; harden what exists. The pattern's weaknesses are mitigated by the rich domain model and template system already built |
+| Add search/filtering backend | "We need Elasticsearch for product discovery" | Search is a separate bounded context. Mixing it into the hardening milestone creates a moving target -- you can't test what's still being built | Defer to a dedicated search milestone. The storefront query handlers already exist and should be tested as-is |
+| Frontend test coverage | "Zero frontend tests is a risk" | True, but this milestone is backend catalog only. Frontend testing requires different tools (Vitest, Playwright), different expertise, and different scope | Keep as a separate milestone per PROJECT.md out-of-scope |
+| Performance optimization | "Fix the COUNT(*) pagination and N+1 queries" | Optimization without tests is dangerous -- you might "fix" performance while breaking correctness. Testing must come first | Test first, detect N+1s via instrumentation, then optimize in a later phase with tests as a safety net |
+| Add new catalog features (reviews, ratings, wishlists) | "While we're in the catalog, let's add X" | Scope creep. Every new feature is untested code added to an already-untested module. The goal is to prove existing code works, not add more unproven code | After hardening, new features can be built with TDD because test infrastructure will exist |
+| End-to-end tests through the full frontend-to-backend stack | "Real users use the UI, so test the UI" | E2E tests are slow, brittle, and the frontend is full of stubs (cart, checkout, favorites are all non-functional). E2E tests on top of stubs test nothing | Focus on API contract tests (httpx AsyncClient) which verify the backend's public interface without frontend dependencies |
+| 100% code coverage target | "We should aim for complete coverage" | Coverage percentage is a vanity metric. 100% coverage with weak assertions proves nothing. The god-class entity file alone is 2,220 lines -- covering every branch there while also covering 46 handlers would take unreasonable time | Target meaningful coverage: all command handlers, all domain entity methods, critical query handlers. Prioritize by risk (product/SKU operations > attribute group reordering) |
+| Automated load/stress testing | "We need to verify it handles production traffic" | The system has no users yet. Load testing without correctness testing is measuring the speed of a broken system | Defer until after correctness is established and the order system exists to generate realistic load patterns |
 
 ## Feature Dependencies
 
 ```
-[Product Catalog (existing)]
+[Value Object Tests (Money, BehaviorFlags, etc.)]
     |
     v
-[Cart Backend] ----requires----> [User Identity (existing)]
-    |                                  |
-    v                                  v
-[Checkout Flow] ----requires----> [Geo/Address (existing, for suggestions)]
+[Domain Entity Unit Tests (Product, Brand, Category, etc.)]
+    |
+    +---> [Domain Event Emission Verification] (covered by entity tests)
     |
     v
-[Order Creation] ----requires----> [Supplier Attribution (existing)]
+[Test Data Builders / Factories]
+    |
+    +---> [Command Handler Unit Tests (46 handlers)]
+    |         |
+    |         +---> [Soft-Delete Correctness Tests] (covered in handler + entity tests)
+    |
+    +---> [Query Handler Tests (22 handlers)]
     |
     v
-[Order State Machine]
+[Repository Integration Tests (Product, Category, Brand, Attribute)]
     |
-    +---> [Admin Order List + Filters]
-    |         |
-    |         v
-    |     [Admin Order Detail]
-    |         |
-    |         v
-    |     [Admin Per-Item Status Management]
+    +---> [Optimistic Locking Tests]
     |
-    +---> [Customer Order List]
-    |         |
-    |         v
-    |     [Customer Order Detail]
+    +---> [N+1 Query Detection]
     |
-    +---> [Order Events / History Log] --enhances--> [Telegram Bot Notifications]
+    v
+[API Contract Integration Tests (11 routers)]
+    |
+    +---> [API Response Snapshot Tests]
+    |
+    v
+[Cross-Cutting Integration Tests]
+    +---> [Product Status FSM Full Lifecycle]
+    +---> [Completeness Checker Integration]
+    +---> [Bulk Operation Correctness]
+    +---> [Storefront Query Caching]
+
+[Data Integrity Validation (schema audit)] -- independent, can run in parallel
+
+[Migration Integrity Audit] -- independent, can run in parallel
 ```
 
 ### Dependency Notes
 
-- **Cart Backend requires User Identity:** Cart must be associated with an authenticated user. Identity module already provides JWT-based user identification.
-- **Checkout Flow requires Cart Backend:** Cannot create an order without items in cart.
-- **Order Creation requires Supplier Attribution:** Each order item must reference which supplier/marketplace source it comes from, so admin knows fulfillment routing. Supplier module already exists.
-- **Admin Per-Item Status Management requires Order State Machine:** Status transitions must be validated against allowed state transitions.
-- **Order Events enhances Telegram Bot Notifications:** Event-sourced status changes can trigger bot messages, but notifications are not required for order management to function.
-- **Customer Order Detail requires Order State Machine:** Customer view maps internal states to simplified customer-facing statuses.
+- **Domain Entity Tests before Command Handler Tests:** Command handlers delegate to domain entities. If entity methods are broken, handler tests will fail for wrong reasons. Test entities first to establish a trusted foundation.
+- **Test Data Builders before Handler Tests:** Without builders, writing 200-300 handler test cases is impractical. Builders pay for themselves immediately.
+- **Value Object Tests before Entity Tests:** Entities compose value objects (Money in SKU, BehaviorFlags in Attribute, ProductStatus in Product). Value object bugs cascade into entity test failures.
+- **Repository Integration Tests before API Tests:** API tests implicitly depend on repositories. If the repository mapping is wrong, API tests fail with confusing errors. Test the data layer first.
+- **Command Handler Tests before Cross-Cutting Tests:** Cross-cutting tests (FSM lifecycle, completeness) exercise multiple handlers in sequence. They are hard to debug if individual handlers are untested.
 
 ## MVP Definition
 
-### Launch With (v1) -- This Milestone
+### Launch With (v1 -- Minimum for Production Confidence)
 
-Minimum viable order lifecycle -- what's needed to take and manage orders.
+The absolute minimum to trust the catalog before building the order system on top of it.
 
-- [x] **Cart backend** (server-side persistence, CRUD, user-scoped) -- Foundation for checkout
-- [x] **Cart frontend integration** (replace `useCart` stub with real RTK Query hooks) -- Enables add-to-cart flow
-- [x] **Checkout flow** (collect recipient, address, customs data for cross-border items, create order) -- Enables order placement
-- [x] **Order creation** (persist order with items, customer info, supplier source, delivery info) -- Core data model
-- [x] **Order state machine** (5 states: pending_payment, placed, in_transit, pickup_point, received + cancelled) -- Enable status tracking
-- [x] **Admin order list** (replace seed data with real API, maintain existing filter/search/sort UX) -- Admin can see orders
-- [x] **Admin order detail** (replace hardcoded data with real API, customer info, items, totals) -- Admin can inspect orders
-- [x] **Admin per-item status update** (change individual item statuses, add Chinese track numbers) -- Admin can manage fulfillment
-- [x] **Customer order list** (replace empty array with real API in `/profile/orders`) -- Customer can see their orders
-- [x] **Customer order detail** (basic view with items, status, totals) -- Customer can check order status
+- [ ] Value object unit tests (Money, BehaviorFlags, slug validation, i18n validation) -- foundation for everything else, catches pricing and data type bugs
+- [ ] Product aggregate unit tests (create, FSM, add/remove variant, add/remove SKU, soft-delete, variant hash) -- the core aggregate root that everything depends on
+- [ ] Brand, Category, Attribute entity unit tests -- remaining aggregates with business rules
+- [ ] Test data builders for Product, Brand, Category, Attribute -- enables writing handler tests efficiently
+- [ ] Command handler unit tests for all 46 handlers -- proves every write operation is correct
+- [ ] Product repository integration tests (CRUD + eager loading + soft-delete) -- proves ORM mapping fidelity for the most complex aggregate
+- [ ] Category repository integration tests (tree operations + template propagation) -- recursive CTE is SQL-only logic
+- [ ] Entity god-class split (entities.py -> entities/ package) -- prerequisite for maintainable test files; 2,220 lines in one file makes targeted testing painful
+- [ ] Data integrity validation (schema constraint audit) -- one-time verification that DB constraints match domain rules
 
 ### Add After Validation (v1.x)
 
-Features to add once the core order flow is proven with real customers.
+Features to add once core testing is in place and bugs from v1 are fixed.
 
-- [ ] **Telegram bot notifications on status changes** -- Add when order volume shows customers are checking app for updates (trigger: >10 support inquiries/day about order status)
-- [ ] **Order history audit log** -- Add when multiple admins manage orders or customer disputes arise (trigger: >1 admin, or first dispute)
-- [ ] **Admin order notes/comments** -- Add when team grows beyond solo operator (trigger: second team member)
-- [ ] **Cancellation reason persistence** -- Add when data is needed to identify fulfillment problems (trigger: cancellation rate >10%)
-- [ ] **Smart checkout prefill from user profile (backend-backed)** -- Add when repeat purchase rate is measurable (trigger: >20% repeat customers)
-- [ ] **Customer-facing order tracking timeline** -- Add when cross-border order anxiety causes support load (trigger: >30% of support inquiries are "where is my order?")
+- [ ] Query handler tests for all 22 handlers -- add once command-side is proven correct
+- [ ] API contract integration tests for all 11 routers -- add once repository and handler layers are tested
+- [ ] Product status FSM full lifecycle integration test -- add once individual handlers are tested
+- [ ] Completeness checker integration test -- add once attribute template flow is tested
+- [ ] Optimistic locking concurrency tests -- add once Product repository tests pass
 
 ### Future Consideration (v2+)
 
-Features to defer until product-market fit is established.
+Features to defer until after the hardening milestone is complete.
 
-- [ ] **Payment gateway integration** -- Defer until order volume justifies gateway costs and PCI scope
-- [ ] **Logistics API integration (CDEK, Yandex Delivery, Pochta)** -- Defer until manual tracking becomes operationally unsustainable
-- [ ] **PVZ pickup point selection via API** -- Defer until logistics APIs are integrated
-- [ ] **Automated pricing with currency conversion** -- Defer until supplier API partnerships are formalized
-- [ ] **Admin kanban board view** -- Defer until list view becomes unwieldy (>200 orders/day)
-- [ ] **Favorites/wishlist integration with cart** -- Defer per PROJECT.md
-- [ ] **Promocode/discount engine** -- Defer per PROJECT.md
-- [ ] **Customer self-service returns** -- Defer until return policy is formalized
+- [ ] Property-based testing for variant hash -- defer until basic hash tests prove the mechanism works
+- [ ] N+1 query detection instrumentation -- defer until after correctness; apply during performance milestone
+- [ ] API response snapshot tests -- defer until API contracts stabilize after bug fixes
+- [ ] Storefront query caching correctness -- defer until caching strategy is finalized
+- [ ] Bulk operation stress tests -- defer until after basic bulk operation correctness is proven
+- [ ] Migration integrity audit -- low risk, run once before deployment
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|-----------|-------------------|----------|
-| Cart backend + frontend integration | HIGH | MEDIUM | P1 |
-| Checkout flow with order creation | HIGH | MEDIUM | P1 |
-| Order state machine (5 states) | HIGH | MEDIUM | P1 |
-| Admin order list (real API) | HIGH | LOW | P1 |
-| Admin order detail (real API) | HIGH | LOW | P1 |
-| Admin per-item status management | HIGH | MEDIUM | P1 |
-| Customer order list (real API) | HIGH | LOW | P1 |
-| Customer order detail (basic) | MEDIUM | LOW | P1 |
-| Telegram bot notifications | MEDIUM | MEDIUM | P2 |
-| Order history audit log | MEDIUM | MEDIUM | P2 |
-| Admin notes on orders | LOW | LOW | P2 |
-| Cancellation reason tracking | MEDIUM | LOW | P2 |
-| Checkout prefill from backend | LOW | LOW | P3 |
-| Customer tracking timeline | HIGH | HIGH | P3 |
-| Payment gateway | HIGH | HIGH | P3 |
-| Logistics API integration | MEDIUM | HIGH | P3 |
+| Product aggregate unit tests | HIGH | MEDIUM | P1 |
+| Value object unit tests | HIGH | LOW | P1 |
+| Brand/Category/Attribute entity tests | HIGH | MEDIUM | P1 |
+| Test data builders | HIGH | MEDIUM | P1 |
+| Command handler unit tests (46 handlers) | HIGH | HIGH | P1 |
+| Product repository integration tests | HIGH | MEDIUM | P1 |
+| Category repository integration tests | HIGH | MEDIUM | P1 |
+| Entity god-class split | MEDIUM | LOW | P1 |
+| Data integrity validation | HIGH | LOW | P1 |
+| Query handler tests (22 handlers) | MEDIUM | MEDIUM | P2 |
+| API contract integration tests | MEDIUM | HIGH | P2 |
+| FSM lifecycle integration test | MEDIUM | MEDIUM | P2 |
+| Completeness checker test | MEDIUM | LOW | P2 |
+| Optimistic locking tests | MEDIUM | LOW | P2 |
+| N+1 query detection | LOW | LOW | P3 |
+| Property-based hash testing | LOW | MEDIUM | P3 |
+| API snapshot tests | LOW | LOW | P3 |
+| Storefront caching tests | LOW | MEDIUM | P3 |
+| Migration integrity audit | LOW | LOW | P3 |
 
 **Priority key:**
-- P1: Must have for this milestone -- order lifecycle cannot function without it
-- P2: Should have, add when operational needs demand it
-- P3: Nice to have, future milestone territory
+- P1: Must have for production confidence -- blocks order system
+- P2: Should have, significantly reduces risk -- add when P1 is done
+- P3: Nice to have, catches edge cases -- future milestone
 
-## Competitor Feature Analysis
+## EAV-Specific Testing Concerns
 
-| Feature | Poizon Resellers (VK/Telegram shops) | Ozon/Wildberries (Russian marketplaces) | Our Approach |
-|---------|--------------------------------------|----------------------------------------|-------------|
-| Cart | Usually none -- "DM to order" | Full cart with multi-seller support | Unified server-side cart mixing all sources transparently |
-| Checkout | Manual via chat messages | Multi-step with address book, saved cards, PVZ selection | Streamlined single-page checkout in Telegram Mini App. Free text address for now, PVZ selection later |
-| Order tracking | Manual updates via Telegram chat | Real-time with carrier API tracking, maps, ETA | Admin-managed status updates visible to customer. Manual but structured -- better than chat-based tracking |
-| Payment | Bank transfer with screenshot proof | Online payment with multiple methods | Order created as pending_payment, confirmed offline. Gateway integration future milestone |
-| Customs data | Collected ad-hoc via chat | Not applicable (domestic) | Structured customs data form at checkout for cross-border items, stored securely |
-| Multi-source fulfillment | N/A (single source) | Separate orders per seller | One order, multiple items from different sources. Admin manages per-item status independently. Customer sees one unified order |
-| Admin management | Spreadsheets or no system | Full OMS with automation | Purpose-built admin panel with status tabs, per-item management, Chinese track numbers, source badges |
+EAV systems have unique correctness risks that traditional relational models don't. These must be explicitly addressed in the test plan.
 
-## Order State Machine Design Notes
+### 1. Attribute-Value Type Mismatch
+**Risk:** An attribute defined as `INTEGER` could receive a string value through the EAV pivot table because the DB stores all values as a generic reference (attribute_value_id) rather than typed columns.
+**Mitigation:** The system uses dictionary attributes with pre-defined values (AttributeValue entities), not freeform values. Test that command handlers reject attribute values that don't belong to the specified attribute (attribute_value.attribute_id != command.attribute_id).
 
-The existing frontend already defines 5 statuses: `placed`, `in_transit`, `pickup_point`, `canceled`, `received`.
+### 2. Orphaned Attribute Values
+**Risk:** Deleting an attribute leaves orphaned ProductAttributeValue rows pointing to a non-existent attribute. Queries return stale or broken data.
+**Mitigation:** Test deletion guards: `has_product_attribute_values()` on Attribute, `has_product_references()` on AttributeValue. Integration test: attempt to delete attribute in use, verify ConflictError.
 
-**Recommended backend state machine (internal, more granular):**
+### 3. Template-Product Consistency Drift
+**Risk:** A product is created under category A (with template T1). Category A's template is later changed to T2. Product's existing attributes may no longer match the new template requirements.
+**Mitigation:** Test the completeness checker's behavior when templates change after product creation. This is a known EAV consistency challenge.
 
-```
-pending_payment --> placed --> processing --> in_transit --> at_pickup --> received
-                      |           |              |            |
-                      v           v              v            v
-                   cancelled   cancelled      cancelled    cancelled
-```
+### 4. Variant Hash Collision
+**Risk:** Two different attribute combinations produce the same SHA-256 hash, allowing duplicate SKUs.
+**Mitigation:** Unit test: verify hash determinism (same input = same output), order independence, variant_id inclusion (different variants can both have empty attributes). Property-based testing in v2.
 
-**Internal states (backend):**
-- `pending_payment` -- Order created, awaiting payment confirmation
-- `placed` -- Payment confirmed, order accepted
-- `processing` -- Admin is procuring from supplier (buying from Poizon/Taobao/1688 or local supplier)
-- `in_transit` -- Shipped, moving toward customer
-- `at_pickup` -- Arrived at pickup point, awaiting customer collection
-- `received` -- Customer confirmed receipt
-- `cancelled` -- Terminated at any pre-receipt stage
+### 5. Effective Template Inheritance Consistency
+**Risk:** Category tree has template inheritance (effective_template_id). Moving a category, changing a parent's template, or deleting a template could leave effective_template_id stale across descendants.
+**Mitigation:** Integration test the recursive CTE propagation in `propagate_effective_template_id()`. Test: set template on root, verify leaf inherits; change root template, verify leaf updates; remove root template, verify leaf clears.
 
-**Customer-facing status mapping:**
-- `pending_payment` --> "Ожидает оплаты"
-- `placed` / `processing` --> "Оформлен" (customer doesn't need to know about internal procurement)
-- `in_transit` --> "В пути"
-- `at_pickup` --> "В пункте выдачи"
-- `received` --> "Получен"
-- `cancelled` --> "Отменён"
-
-This allows the backend to have richer state transitions for admin/operational use while presenting a simple 5-status view to customers, matching the existing frontend design.
-
-**Per-item vs per-order status:** The admin UI already supports per-item status management (via `OrderStatusModal`). The backend should track status at the item level, with the order-level status derived as an aggregate (using logic similar to the existing `resolveOrderStatus` function in `frontend/admin/src/lib/orders.js`).
+### 6. Soft-Delete Leaks in Queries
+**Risk:** A query forgets to filter `deleted_at IS NULL`, returning deleted products/variants/SKUs to the storefront or admin UI.
+**Mitigation:** Integration test: create product, soft-delete it, verify it doesn't appear in list queries, get queries, or storefront queries.
 
 ## Sources
 
-- Baymard Institute Checkout UX Research 2025: https://baymard.com/blog/current-state-of-checkout-ux
-- ArchiMetric UML State Machine for E-Commerce: https://www.archimetric.com/case-study-uml-state-machine-diagram-for-e-commerce-order-lifecycle/
-- commercetools State Machine Documentation: https://docs.commercetools.com/learning-model-your-business-structure/state-machines/state-machines-page
-- WeSupply Split Shipment Tracking Guide: https://wesupplylabs.com/the-best-guide-to-unified-tracking-for-split-or-multi-shipment-orders/
-- BAZU Telegram Mini Apps E-Commerce Guide: https://bazucompany.com/blog/creating-an-online-store-with-telegram-mini-apps-a-comprehensive-guide/
-- Poizon International Shipping & Tracking: https://www.poizon.com/trends/international-shipping-and-tracking
-- Trafiki Shopping Cart UX Guide 2026: https://www.trafiki-ecommerce.com/marketing-knowledge-hub/the-ultimate-guide-to-shopping-cart-ux/
-- Ryviu Managing Split Orders Across Suppliers: https://www.ryviu.com/blog/manage-split-orders
-- Existing codebase analysis: admin seed data, checkout page, order components, useCart stub, constants
+- Codebase analysis: `backend/src/modules/catalog/domain/entities.py` (2,220 lines, 9+ entity classes)
+- Codebase analysis: `backend/src/modules/catalog/application/commands/` (46 command handlers)
+- Codebase analysis: `backend/src/modules/catalog/application/queries/` (22 query handlers)
+- Codebase analysis: `backend/tests/` (796 LOC existing catalog tests, 1.1% test-to-source ratio)
+- [DDD & Testing Strategy](http://www.taimila.com/blog/ddd-and-testing-strategy/) -- aggregate as unit of testing
+- [Testing Strategies in DDD](https://dev.to/ruben_alapont/testing-strategies-in-domain-driven-design-ddd-2d93) -- unit/integration/E2E layering
+- [Domain-Driven Design & Unit Tests](https://www.jamesmichaelhickey.com/ddd-unit-tests/) -- Classical school for aggregate testing
+- [EAV Anti-pattern Analysis](https://cedanet.com.au/antipatterns/eav.php) -- EAV constraint and integrity issues
+- [EAV: A Fascinating but Dangerous Pattern](https://dev.to/giuliopanda/eav-a-fascinating-but-often-dangerous-pattern-200j) -- validation and query challenges
+- [Entity-attribute-value model (Wikipedia)](https://en.wikipedia.org/wiki/Entity%E2%80%93attribute%E2%80%93value_model) -- metadata correctness criticality
+- [Antipathy for EAV Data Models](https://www.sqlservercentral.com/articles/antipathy-for-entity-attribute-value-data-models) -- DRI impossibility, constraint challenges
 
 ---
-*Feature research for: Cross-border e-commerce order lifecycle*
+*Feature research for: EAV Catalog Hardening*
 *Researched: 2026-03-28*

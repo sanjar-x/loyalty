@@ -1,178 +1,189 @@
 # Pitfalls Research
 
-**Domain:** Cross-border e-commerce order lifecycle (marketplace aggregator, DDD modular monolith)
+**Domain:** EAV Catalog Hardening -- Testing & Refactoring a DDD/CQRS E-Commerce Catalog Module
 **Researched:** 2026-03-28
-**Confidence:** HIGH (domain-specific, grounded in codebase analysis and industry patterns)
+**Confidence:** HIGH (based on codebase analysis + domain research + established patterns)
 
 ## Critical Pitfalls
 
-### Pitfall 1: Flat State Machine That Cannot Model Multi-Source Fulfillment
+### Pitfall 1: Testing Mocks That Lie -- Unit Tests Pass But Integration Breaks
 
 **What goes wrong:**
-The admin seed data uses a flat, order-level state (`placed -> in_transit -> pickup_point -> received | canceled`). If the real backend replicates this, a single order containing both a local-supplier item (ships in 2 days) and a cross-border item (ships in 14 days) cannot represent that one item is delivered while the other is still clearing customs. The entire order appears "stuck" in an ambiguous intermediate state. Admin operators cannot advance individual line items, and customers see misleading status information.
+Unit tests for the 44 untested command handlers are written with mock repositories that return perfectly shaped data, but the actual SQLAlchemy repository mapping (domain-to-ORM and back) silently corrupts data. The `ProductRepository._sku_to_orm()` method has a 30-line diff-based sync for `SKUAttributeValueLink` rows. The `_sync_variants()` method reconciles nested collections across three levels (Product -> Variant -> SKU -> AttributeValueLinks). Mocking these away means unit tests verify handler orchestration logic, but never catch mapping bugs -- which is where real EAV catalog bugs live.
 
 **Why it happens:**
-The seed data in `frontend/admin/src/data/orders.js` and the `resolveOrderStatus()` function in `frontend/admin/src/lib/orders.js` already encode a flat order-level status derived from per-item statuses via string comparison (e.g., `statuses.every(s => s === 'Otmenen')`). Developers naturally replicate this pattern in the backend domain model, treating order status as a single field rather than a composite derived from line-item states.
+CQRS handler unit tests naturally mock the repository interface (`IProductRepository`). The handler code itself is often simple orchestration -- fetch, validate FKs, call domain method, persist. The complex logic lives in (a) domain entity methods and (b) repository mapping. Mocking the repository removes (b) from the test entirely. Teams feel productive because 44 handlers get "tested" quickly, but the actual failure surface (Data Mapper layer, ORM relationship sync, Money VO decomposition) is untouched.
 
 **How to avoid:**
-Design the state machine at the **OrderItem** (or fulfillment-group) level, not the Order level. Each `OrderItem` tracks its own lifecycle: `pending -> confirmed -> sourced -> shipped -> in_transit -> delivered | canceled`. The Order aggregate computes its display status by aggregating child states (e.g., "partially shipped" when some items are shipped and others are not). This is the "sub-order" or "fulfillment group" pattern used by Shopify, WooCommerce, and every marketplace aggregator at scale.
-
-Concretely:
-- `Order` has `status` as a **computed property** (no column), derived from its `OrderItem` states.
-- `OrderItem` has `status` as a **persisted enum column** with explicit transition rules.
-- The admin UI shows per-item status badges, not just an order-level badge.
-- Transition commands operate on `OrderItem`, not `Order` (e.g., `MarkItemShipped`, not `MarkOrderShipped`).
+1. Write domain entity unit tests FIRST -- these test `Product.add_sku()`, `Product.transition_status()`, `Product.add_variant()` etc. with no mocks at all. Pure Python, fast, and they cover the real business rules.
+2. Write integration tests for the Product repository specifically -- roundtrip tests that create a Product with variants/SKUs, persist, reload, and verify every field survived. Cover the `_sync_variants` and `_sync_skus_for_variant` reconciliation paths.
+3. Only then write handler-level tests: unit tests with mocked repos for handler orchestration (FK validation, error paths), plus a small set of integration tests for the most complex handlers (`create_product`, `generate_sku_matrix`, `add_sku`, `change_product_status`).
 
 **Warning signs:**
-- A single `status` column on the `orders` table with no corresponding column on `order_items`.
-- Admin status-change endpoint accepts `order_id` + `new_status` without specifying which items.
-- The `resolveOrderStatus` function in the frontend grows increasingly complex with special cases.
+- All 44 handler tests written in under 2 days -- if it was that fast, mapping logic was not tested.
+- Zero `db_session` fixture usage in unit tests -- means no real DB roundtrip.
+- Mock return values are hand-crafted dicts instead of domain entities built through factory methods.
+- `ProductRepository.update()` never called in any test (the most complex method with 3-level sync).
 
 **Phase to address:**
-Phase 1 (Domain modeling) -- this is a foundational design decision that is extremely expensive to change after data exists.
+Phase 1 (Domain model analysis + entity tests) and Phase 2 (Repository integration tests) -- before handler tests.
 
 ---
 
-### Pitfall 2: Cart-to-Order Price/Product Drift (Missing Snapshot)
+### Pitfall 2: God-Class Split Breaks Import Compatibility Silently
 
 **What goes wrong:**
-The cart references products by ID, but between adding to cart and placing an order, the admin may change the product's price, deactivate the SKU, or even delete the product. If the order creation command reads the current catalog state, the customer pays a different price than what they saw. Worse, if a product was deleted, the order creation fails entirely or creates an order with broken references.
+Splitting `entities.py` (2,220 lines, 9+ classes) into separate files (`brand.py`, `category.py`, `product.py`, etc.) breaks every module that imports from the old path. The codebase has cross-references everywhere: `from src.modules.catalog.domain.entities import Product, Brand, Category, SKU`. One missed re-export in `entities/__init__.py` and a handler fails at import time -- but only if that specific handler is actually invoked. Python does not eagerly validate all imports.
+
+More dangerously, the entities share private module-level helpers (`_validate_slug`, `_validate_i18n_values`, `_generate_id`, `_validate_sort_order`, and the `_*_GUARDED_FIELDS` frozensets). Moving classes to separate files requires either duplicating these helpers or creating a shared `_helpers.py` module. Getting this wrong causes subtle `NameError` or `ImportError` at runtime, not at import time.
 
 **Why it happens:**
-In a dropshipping model with admin-set prices, price changes are frequent (exchange rates shift, supplier costs change). The codebase has no inventory tracking (PROJECT.md: "No warehouse: Pure dropshipping"), so there is no stock-reservation mechanism that would naturally force a "lock" at cart time. The cart hook (`useCart.ts`) stores only `id`, `price`, `quantity` -- a thin reference, not a snapshot.
+The refactoring seems straightforward -- "just move each class to its own file." But Python module initialization order matters. Circular imports between entity files (e.g., `Product` references `ProductVariant` which references `SKU`) require careful ordering or deferred imports. The `__setattr__` guard pattern used across 6 entities references module-level frozensets that must be importable in the new file location.
 
 **How to avoid:**
-Snapshot product data at **two moments**:
-1. **Cart addition:** Store `sku_id`, `product_name`, `variant_name`, `price_rub`, `image_url`, and `supplier_id` in the cart item row (server-side cart). Display this cached data in the cart UI.
-2. **Order creation:** Re-validate against the catalog. If price changed, warn the user (or reject). Copy all product details into `order_items` as immutable snapshot fields -- the order must be readable even if the product is later deleted.
-
-The `OrderItem` entity must contain: `product_name`, `variant_name`, `sku_code`, `price_at_order_time`, `image_url`, `supplier_id`, `supplier_type` -- none of these should be foreign-key lookups.
+1. Create `entities/` package directory with `__init__.py` that re-exports every public name from the old `entities.py` -- maintaining backward compatibility.
+2. Extract shared helpers into `entities/_helpers.py` first. Verify all tests pass.
+3. Move one entity at a time, starting with the simplest (Brand, AttributeGroup) that have no intra-entity dependencies.
+4. Move Product last because it depends on ProductVariant and SKU.
+5. After each file move, run the full test suite AND run `python -c "from src.modules.catalog.domain.entities import Product, Brand, Category, SKU, ..."` to verify import compatibility.
+6. Keep the re-export `__init__.py` permanently -- never force downstream code to change import paths.
 
 **Warning signs:**
-- `order_items` table has `product_id` FK but no `product_name` or `price_at_order_time` columns.
-- Displaying an order requires joining to the `products` table.
-- Deleting a product causes `IntegrityError` on historical orders.
+- `ImportError` or `AttributeError` in tests that were passing before the split.
+- Circular import errors (`ImportError: cannot import name 'X' from partially initialized module`).
+- `NameError: name '_validate_slug' is not defined` at runtime in a handler path.
 
 **Phase to address:**
-Phase 1 (Domain modeling) for the Order entity design; Phase 2 (Cart implementation) for the server-side cart with snapshot behavior.
+Phase 3 or later -- do this AFTER test coverage is in place, so the split can be verified against existing tests. Never refactor structure before having tests.
 
 ---
 
-### Pitfall 3: Client-Side Cart Without Server-Side Persistence
+### Pitfall 3: Optimistic Locking Not Tested -- Concurrency Bugs Ship to Production
 
 **What goes wrong:**
-The current `useCart.ts` is a stub returning an empty array. If the cart is implemented purely in frontend state (localStorage, Redux, React state), the following break: (a) cart contents are lost when the user switches devices or clears browser data, (b) the Telegram Mini App's WebView storage is unreliable and can be cleared by the OS, (c) there is no server-side validation at cart time, so deleted/deactivated products accumulate in the cart, (d) the admin has no visibility into active carts for analytics or debugging.
+The Product aggregate has a `version` field for optimistic locking, and the repository catches `StaleDataError`. But the version field is never actually incremented in the domain entity -- it relies on the ORM's `version_id_col` on the database side. The repository's `_to_orm()` method explicitly says "Only set version and timestamps on create; let DB handle them on update." This means the domain entity's `version` is always stale after an update. If two concurrent requests both load version=1, both modify the product, and both try to persist -- the optimistic lock SHOULD reject one. But if the version field in the ORM model is not properly configured with `version_id_col`, both writes succeed silently, and the last one wins.
+
+Additionally, the `_sync_variants()` / `_sync_skus_for_variant()` methods modify child collections but do NOT bump the parent Product's version. Per the research, "the version number managed by SQLAlchemy is only bumped on the table where the INSERT/UPDATE/DELETE is happening." So adding a SKU to a variant may not trigger a version conflict at the Product level, even though it should.
 
 **Why it happens:**
-The checkout page (`frontend/main/app/checkout/page.tsx`) already stores selected IDs, recipient data, customs data, and card info in `localStorage`. This pattern suggests a client-first approach. Developers may continue this pattern for the cart itself, especially since the backend has no cart module yet.
+Optimistic locking is easy to implement on paper but hard to verify. Teams add the `version` field and assume it works. Testing requires actually simulating concurrent transactions, which is awkward in a test environment where everything runs sequentially by default.
 
 **How to avoid:**
-Implement a **server-side cart** in the backend `order` module (or a dedicated `cart` module). The cart is persisted in PostgreSQL, keyed by `user_id`. The frontend calls `POST /cart/items`, `DELETE /cart/items/{id}`, `PATCH /cart/items/{id}` -- standard CRUD. On add, the server validates the SKU exists and is active, snapshots the price, and stores it. The frontend cart hook becomes a thin RTK Query wrapper.
-
-For Telegram Mini App specifically: localStorage persistence is not guaranteed across app restarts on some Android devices. A server-side cart with the user's `identity_id` as the key eliminates this risk entirely.
+1. Write a specific integration test that: (a) loads a Product in two separate sessions, (b) modifies it in both, (c) commits the first, (d) verifies the second raises `ConcurrencyError`.
+2. Verify the ORM model (`infrastructure/models.py`) has `version_id_col` properly configured on the Product table.
+3. Add an `updated_at` touch in every domain mutation method (already present in most methods via `self.updated_at = datetime.now(UTC)`) and ensure the ORM model's `onupdate` triggers a version bump.
+4. Test the child-entity-only update path: load product, add SKU only (no product-level field changes), verify version is bumped.
 
 **Warning signs:**
-- Cart data lives only in `localStorage` or React state.
-- No `/cart` endpoints in the backend API.
-- Users report "my cart was empty when I came back" on Telegram.
+- No test file with "concurrency" or "version" or "optimistic" in the name.
+- The `version` field is always 1 in test assertions (never tested that it increments).
+- Two browser tabs editing the same product simultaneously silently overwrite each other.
 
 **Phase to address:**
-Phase 2 (Cart implementation) -- must be server-side from the start.
+Phase 2 (Repository integration tests) -- include a dedicated concurrency test section.
 
 ---
 
-### Pitfall 4: Optimistic Concurrency Missing on Order Status Transitions
+### Pitfall 4: EAV Attribute Integrity -- Orphan Values and Type Mismatches
 
 **What goes wrong:**
-Two admin operators view the same order simultaneously. Operator A changes status from `placed` to `confirmed`. Operator B, still seeing `placed`, changes status to `canceled`. Without optimistic locking, the last write wins -- the order ends up canceled even though it was already confirmed and possibly already communicated to the supplier. This is a classic lost-update problem.
+The EAV system has a layered attribute governance chain: `Category -> (effective) AttributeTemplate -> TemplateAttributeBinding -> Attribute -> AttributeValue`. A product's valid attributes are determined by its category's effective template. But the system currently has no mechanism to detect or clean up:
+
+1. **Orphan attribute values**: If an attribute is unbound from a template, existing products' attribute values for that attribute become "orphans" -- the data remains but is no longer governed.
+2. **Template drift**: A category's `effective_template_id` is computed at creation time (`template_id or parent.effective_template_id`). If a parent category's template changes later, child categories' effective templates are NOT automatically recomputed.
+3. **Level mismatch data**: The `generate_sku_matrix` handler validates `AttributeLevel.VARIANT`, but `assign_product_attribute` may not enforce `AttributeLevel.PRODUCT`. Tests that do not verify both paths end up with variant-level attributes assigned at product level or vice versa.
 
 **Why it happens:**
-The existing `Supplier` entity uses a `version` field for optimistic locking, but the admin order service (`frontend/admin/src/services/orders.js`) performs in-memory mutations with no concurrency control: `orders = orders.map(...)`. When the real backend is built, developers may forget to add version checking because the prototype never needed it.
+EAV systems push schema enforcement out of the database and into application code. There are no foreign key constraints that prevent assigning an attribute value for attribute A to a product that should only have attributes B and C. The "template bindings" concept is essentially a soft-schema that must be enforced by every command handler independently.
 
 **How to avoid:**
-- Add a `version: int` field to the `Order` aggregate (following the `Supplier` entity pattern already in the codebase).
-- Every state-transition command must include the expected `version`. The repository uses `WHERE id = :id AND version = :expected_version` in the UPDATE.
-- On version mismatch, return HTTP 409 Conflict. The admin UI should show "This order was modified by another operator. Please refresh."
-- Also enforce **valid transition rules** in the domain: the `OrderItem.transition_to(new_status)` method should raise `InvalidStatusTransitionError` if the transition is not allowed (e.g., `delivered -> placed` is invalid).
+1. Write integration tests that verify the full governance chain: create category with template, bind attributes, create product, assign attribute values -- then verify only valid attributes are accepted.
+2. Write negative tests: try assigning an attribute not in the template, verify rejection.
+3. Write a test for template drift: change parent category's template, verify child's effective_template_id behavior.
+4. Consider adding a database-level check constraint or trigger for attribute level validation on `product_attribute_values` and `sku_attribute_value_links`.
 
 **Warning signs:**
-- Order entity has no `version` field.
-- Status update endpoint accepts only `order_id` + `new_status` (no version).
-- Two browser tabs can change the same order's status without conflict detection.
+- Product detail pages showing attributes that do not belong to the product's category.
+- `AttributeNotInTemplateError` never raised in any test.
+- Attribute values in the database referencing deleted or unbound attributes.
 
 **Phase to address:**
-Phase 1 (Domain modeling) for the version field and transition rules; Phase 3 (Admin API) for the HTTP 409 response handling.
+Phase 1 (Domain model analysis) to catalog the governance rules, Phase 2 (Integration tests) to verify them.
 
 ---
 
-### Pitfall 5: Cross-Module Coupling Between Order and Catalog
+### Pitfall 5: Async SQLAlchemy Lazy-Load Landmines in Tests
 
 **What goes wrong:**
-The `order` module directly imports or depends on `catalog` domain entities, repositories, or query handlers. This violates bounded context boundaries. When the catalog module evolves (e.g., product entity restructuring -- already identified as tech debt in CONCERNS.md with the 2,220-line god-file), the order module breaks. Worse, the order module starts needing catalog's database session, creating transactional coupling.
+The codebase explicitly warns about this in comments: "Using `_to_domain(orm)` would trigger lazy-load of variant.skus in async context (MissingGreenlet)." The async SQLAlchemy session cannot lazily load relationships. The existing code carefully uses `selectinload` chains and `_to_domain_without_skus()` to avoid this. But test code often builds queries or accesses ORM objects differently than production code. A test that passes in isolation but triggers a `MissingGreenlet` error under slightly different session lifecycle is a common failure mode.
+
+Specifically, the `db_session` fixture uses nested transactions with `join_transaction_mode="create_savepoint"`. The UoW `commit()` in production commits the outer transaction, but in tests, the commit hits a savepoint. If the UoW implementation's `commit()` expires the session (SQLAlchemy default behavior), subsequent access to ORM attributes in the test's assertion phase triggers `MissingGreenlet` because the session's savepoint context has changed.
 
 **Why it happens:**
-Order creation needs product information (name, price, image, supplier). The obvious approach is to inject `ProductRepository` into the order creation command handler. The codebase already has `pytest-archon` for architecture boundary enforcement, but it only catches violations if properly configured for the new module.
+Async SQLAlchemy's session lifecycle is fundamentally different from sync SQLAlchemy. The `expire_on_commit=False` setting (already present in the test conftest) mitigates this, but developers writing new tests may not understand why it exists. They may also access ORM objects outside the session scope, or use `session.refresh()` without awaiting it properly.
 
 **How to avoid:**
-Follow the DDD integration patterns already established in the codebase (outbox + RabbitMQ):
-1. **At order creation time:** The frontend sends the `sku_id` to the order API. The order command handler calls a **Catalog Anti-Corruption Layer** (a thin interface in the order module, e.g., `CatalogReader`) that makes an internal HTTP call or reads from a read-model/cache to get product details. It does NOT import catalog domain entities.
-2. **Simpler alternative for this milestone:** Since the order creation endpoint receives data from the frontend (which already has the product details from the catalog API), accept the product snapshot in the request body. The command handler validates `sku_id` exists via a lightweight check, then stores the snapshot.
-3. **Add pytest-archon rules** for the new `order` module: `order` must not import from `catalog.domain`, `catalog.application`, or `catalog.infrastructure`.
+1. Always use `expire_on_commit=False` in test sessions (already configured -- do not change this).
+2. In test assertions, query the database with a fresh `session.get()` call rather than accessing attributes on the ORM object returned by the handler. The existing `test_create_brand.py` demonstrates this pattern correctly: it re-fetches `orm_brand = await db_session.get(OrmBrand, result.brand_id)`.
+3. Never access relationship attributes on ORM objects outside an eager-load context in tests. Always use `selectinload` or re-query.
+4. Document the "assertion pattern" in a test helper or convention guide.
 
 **Warning signs:**
-- `from src.modules.catalog.domain.entities import Product` appearing in order module files.
-- Order creation handler injects `ProductRepository`.
-- Order and catalog share the same SQLAlchemy session/UnitOfWork instance in a single request.
+- `sqlalchemy.exc.MissingGreenlet` errors in tests.
+- Tests that pass individually but fail when run in a batch.
+- Tests that access `product.variants[0].skus[0].price` on an ORM object without explicit eager loading.
 
 **Phase to address:**
-Phase 1 (Domain modeling) for establishing the anti-corruption layer interface; enforced throughout all phases via pytest-archon rules.
+Phase 2 (Repository integration tests) -- establish the assertion pattern early, before writing 40+ handler tests.
 
 ---
 
-### Pitfall 6: Outbox Events Lost for New Order Event Types
+### Pitfall 6: Soft-Delete Leaking Into Queries -- Invisible Zombie Records
 
 **What goes wrong:**
-The outbox relay (`backend/src/infrastructure/outbox/relay.py`, lines 137-147) silently marks unknown event types as processed. If the order module emits new domain events (e.g., `OrderCreatedEvent`, `OrderItemStatusChangedEvent`) but the relay handlers are not registered yet, those events are permanently lost -- marked as processed without any handler executing. This is already documented in CONCERNS.md as a known bug.
+The Product, ProductVariant, and SKU entities all support soft-delete via `deleted_at` timestamp. Every query, every repository method, every listing endpoint must filter `WHERE deleted_at IS NULL`. A single missed filter returns "deleted" products to the storefront, to the admin panel, or to count aggregations. The domain entity methods (`find_variant`, `find_sku`) correctly filter `deleted_at is None`, but the repository's listing/query methods and the CQRS read-side queries (which bypass the domain layer entirely) must independently implement this filter.
 
 **Why it happens:**
-The relay was built when only catalog events existed and no handlers were wired. The "skip unknown" behavior was a pragmatic choice to prevent the outbox table from growing unboundedly. But for order events (which may trigger Telegram notifications, analytics updates, or future payment webhooks), losing events is unacceptable.
+Soft-delete is a cross-cutting concern that cannot be centralized in a single place. The domain layer checks it, the repository layer checks it, and the query layer checks it -- each independently. Adding a new query or endpoint without the soft-delete filter is an easy oversight, especially for CQRS read-side queries that use raw SQL or direct ORM queries.
 
 **How to avoid:**
-Before deploying the order module:
-1. **Fix the relay bug:** Unknown event types should be left unprocessed (remove lines 143-147 that mark them processed), or moved to a dead-letter table. This is a prerequisite, not optional.
-2. **Register order event handlers** in the relay before deploying order event producers. Even if the handlers are no-ops initially, they prevent the "silently consumed" behavior.
-3. **Add a monitoring query** that alerts when `outbox_messages` has unprocessed events older than N minutes.
+1. Write a systematic test for every list/get endpoint that creates a soft-deleted entity alongside an active one and verifies the deleted one is NOT returned.
+2. For the CQRS read-side queries, add soft-delete filter tests to every query handler.
+3. Consider adding a SQLAlchemy ORM-level `where_criteria` on the Product/Variant/SKU models that automatically applies `deleted_at IS NULL` to relationship loads (using `relationship(... , primaryjoin=...)` with the filter).
+4. Write an architectural test that scans all query files for `SELECT` statements and flags any that reference `products`, `product_variants`, or `skus` tables without a `deleted_at` filter.
 
 **Warning signs:**
-- Order events appear in `outbox_messages` with `processed_at IS NOT NULL` but no downstream effect.
-- Telegram notifications never fire despite order events being emitted.
-- The `outbox_messages` table shows order events being processed in under 1ms (no real handler ran).
+- Storefront showing products the admin "deleted" days ago.
+- Count mismatches between admin list (filtered) and dashboard aggregates (unfiltered).
+- `list_products` returns different counts than expected after a delete operation in tests.
 
 **Phase to address:**
-Phase 0 (Pre-work / infrastructure fix) -- this must be fixed before the order module ships.
+Phase 2 (Integration tests) -- include soft-delete assertions in every repository and query test.
 
 ---
 
-### Pitfall 7: Admin UI Replacing Seed Data Without Preserving Filter/UX Contracts
+### Pitfall 7: Domain Event Accumulation Without Clearing
 
 **What goes wrong:**
-The admin panel has a sophisticated order filtering system (`useOrderFilters.js`) with status tabs, reason filters, date ranges, and sort modes -- all built against the seed data shape. When the backend API replaces the seed data, the field names, status enums, filter logic, and pagination behavior must exactly match. A mismatch causes silent data loss (e.g., orders not appearing in any tab because their status string does not match any tab's filter).
+The `AggregateRoot.add_domain_event()` appends events to an in-memory list. The `UnitOfWork.commit()` is supposed to extract and persist these events to the Outbox table. But if a handler performs multiple operations on the same aggregate (e.g., `add_variant` then `add_sku` then `transition_status`), the aggregate accumulates 3+ domain events. If `commit()` is called multiple times (which the UoW pattern should prevent but the async context manager might not guarantee), events could be duplicated. Conversely, if `clear_domain_events()` is called prematurely (e.g., in a retry path), events are lost.
+
+In the existing codebase, `Product.create()` emits `ProductCreatedEvent`, `Product.add_variant()` emits `VariantAddedEvent`, `Product.add_sku()` emits `SKUAddedEvent`, and `Product.transition_status()` emits `ProductStatusChangedEvent`. A product creation flow that auto-creates a default variant emits BOTH `ProductCreatedEvent` and the implicit variant event. Tests that verify event emission must account for this multiplicity.
 
 **Why it happens:**
-The seed data uses specific status strings (`placed`, `in_transit`, `pickup_point`, `canceled`, `received`) and a `reasonFilter` field with values (`release_refusal`, `not_for_sale`, `storage_expired`). The admin code does hard string comparisons against these values. If the backend uses different enum names (e.g., `PLACED` vs `placed`, or `awaiting_pickup` vs `pickup_point`), orders fall through every filter.
+Domain events are an implementation detail that test writers often ignore ("I am testing the command, not the events"). But the Outbox relay processes these events to trigger downstream side effects. If event assertions are skipped, a handler refactoring might accidentally suppress or duplicate events, breaking downstream consumers (e.g., cache invalidation, search index updates) without any test catching it.
 
 **How to avoid:**
-1. **Document the status contract** between backend API and admin frontend before implementation. The backend enum values must match the strings in `useOrderFilters.js` and the seed data.
-2. **Use the seed data as the API response contract:** Write the backend serialization to produce the exact shape that `getOrders()` currently returns (including `orderNumber`, `trackId`, `status`, `fromChina`, `items[].title`, `items[].price`, `items[].size`, etc.).
-3. **Replace incrementally:** First, make the API return data in the same shape. Then modify the frontend to use `fetch()` instead of `getOrders()` (following the pattern in `services/brands.js`). Only then evolve the API shape if needed.
+1. In every command handler unit test, assert the count AND types of domain events emitted.
+2. For `Product.create()`, explicitly verify that both `ProductCreatedEvent` and `VariantAddedEvent` are NOT both emitted (the current code only emits `ProductCreatedEvent` from `create()` -- the default variant is created without a separate event, which is intentional but must be verified).
+3. Write an integration test that verifies events actually appear in the Outbox table after a handler execution.
 
 **Warning signs:**
-- After switching from seed to API, some status tabs show 0 orders.
-- The `TopMetrics` component shows different totals than the sum of tab counts.
-- Date filtering stops working because the backend returns ISO strings in a different timezone format.
+- No test ever accesses `product.domain_events` or `aggregate.domain_events`.
+- Outbox relay processing duplicate events in staging/production.
+- Downstream consumers receiving unexpected event sequences.
 
 **Phase to address:**
-Phase 3 (Admin API integration) -- define the contract in Phase 1, implement in Phase 3.
+Phase 1 (Domain entity tests) for event emission verification, Phase 3 (Handler tests) for end-to-end event flow.
 
 ---
 
@@ -182,24 +193,23 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Single `status` column on `orders` table (no per-item status) | Simpler schema, faster initial dev | Cannot model partial fulfillment; requires rewrite when adding logistics APIs | Never -- the platform's core value is multi-source fulfillment |
-| Client-side-only cart (localStorage) | No backend work needed for cart | Lost carts on device switch, no validation, no admin visibility, Telegram storage unreliability | Never -- Telegram Mini App storage is unreliable |
-| Hardcoded status strings in frontend without a shared enum | No extra abstraction layer | Status rename requires changes in 5+ files, easy to miss one | Only in prototype phase (which is ending) |
-| Storing only `sku_id` in order items (no snapshot) | Simpler schema, normalized data | Historical orders break when products change; requires catalog join for every order display | Never for a commerce system |
-| Skipping `version` field on Order aggregate | Slightly simpler domain model | Lost updates when multiple admins work simultaneously | Only if single-admin operation is permanently guaranteed |
-| Monolithic checkout page (1,645 lines in `checkout/page.tsx`) | All logic in one place for prototyping | Unmaintainable; any change risks breaking unrelated checkout steps; impossible to test | Only during prototype; must be decomposed before adding real order creation |
+| Mocking all repos in handler tests | Fast to write, 44 handlers "covered" in days | Zero confidence in mapping layer; bugs discovered in production | Only after repo integration tests exist AND domain entity tests cover business rules |
+| Skipping negative test cases | Faster to get to "green" | Invalid inputs accepted silently; data corruption in EAV values | Never -- EAV systems require more negative tests than positive ones because the schema is soft |
+| Testing only the happy path for status FSM | One test per transition is quick | Invalid transitions allowed; products published without SKUs | Never -- the FSM has 5 states x multiple transitions, each with preconditions |
+| Using `pytest.mark.skip` for flaky async tests | Unblocks CI | Accumulates silently; real bugs hidden behind "known flaky" label | Only with a linked ticket and max 1-week expiry |
+| Copy-pasting test fixtures between handler tests | Quick setup | Fixture changes require updating 44 test files | Never -- use shared conftest fixtures and factory functions |
 
 ## Integration Gotchas
 
-Common mistakes when connecting to external services and internal modules.
+Common mistakes when connecting components within this system.
 
 | Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| Catalog -> Order (product data) | Importing catalog domain entities directly into order module | Use an Anti-Corruption Layer: a `CatalogReadService` interface in the order module, implemented by an infrastructure adapter that calls catalog query endpoints or reads a denormalized view |
-| Outbox Relay -> Order Events | Deploying order event producers before registering relay handlers | Register handlers (even no-op stubs) before deploying the event-producing code; fix the relay's "mark unknown as processed" bug first |
-| Admin Frontend -> Order API | Assuming the API response shape matches the seed data structure | Write an explicit API-to-UI mapper in the service layer; never pass raw API responses directly to components |
-| Telegram Mini App -> Backend Cart | Trusting `localStorage` for cart persistence | Always treat client storage as a cache; the server-side cart is the source of truth; sync on app open |
-| Checkout Page -> Order Creation | Sending only IDs at checkout (product_id, sku_id) and fetching everything server-side | Send the full snapshot from the frontend for display, but validate server-side; store the validated snapshot in the order |
+|-------------|---------------|------------------|
+| UoW + Savepoint Tests | Calling `uow.commit()` in test code, expecting rollback to still work -- commit hits the savepoint, but the outer transaction rollback still cleans up | Trust the existing `db_session` fixture's nested transaction pattern. Do NOT call `session.rollback()` inside handler code if it already uses `async with self._uow`. Let the fixture handle cleanup. |
+| Dishka DI in Tests | Resolving handlers from the container but forgetting to be inside `async with app_container()` request scope | Always wrap handler resolution in `async with app_container() as request_container:` as shown in existing `test_create_brand.py` |
+| Cross-Module Dependencies | `CreateProductHandler` depends on `ISupplierQueryService` from the supplier module. Mocking it incorrectly (e.g., returning wrong SupplierType) causes `SourceUrlRequiredError` in unexpected test paths | Create a shared test helper `stub_supplier_service()` that returns a consistent default, and override it explicitly in supplier-specific test scenarios |
+| Domain Entity Construction | Creating domain entities directly via `__init__` instead of through factory methods (`Product.create()`, `Category.create_child()`) -- bypasses validation and guard initialization | Always use factory methods in tests. They validate inputs and properly initialize guards (`__attrs_post_init__`, `__initialized` flags). A `Product` built via `__init__` will not have `_Product__initialized` set correctly. |
+| ORM Enum Mapping | Domain uses `ProductStatus.DRAFT` (Python StrEnum), ORM uses `ProductStatus` mapped through SQLAlchemy `Enum()`. Comparing domain enum to ORM enum can fail on `.value` vs direct comparison | Always reconstruct domain enums from ORM values: `ProductStatus(orm.status.value)` as the repo already does. Never compare raw ORM enum to domain enum directly. |
 
 ## Performance Traps
 
@@ -207,11 +217,10 @@ Patterns that work at small scale but fail as usage grows.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Loading all orders for admin filtering (current seed pattern: `getOrders()` returns all) | Admin page becomes slow, browser memory spikes | Server-side pagination and filtering from the start; the existing `paginate()` helper supports this | 500+ orders (within first months of operation) |
-| COUNT(*) subquery on orders list (existing `pagination.py` pattern) | Admin order list page takes 2-3 seconds on large datasets | For the admin list, the existing pattern is acceptable up to ~50k orders. Add a composite index on `(status, created_at DESC)` to the orders table. Consider cursor-based pagination only if it becomes a bottleneck. | 50k+ orders |
-| N+1 query: loading order items for each order in a list | Order list endpoint takes O(n) queries where n = number of orders per page | Use `selectinload(Order.items)` in the SQLAlchemy query for the orders list endpoint. One query for orders, one query for all their items. | Noticeable at 20+ orders per page |
-| Unindexed `user_id` on cart table | Cart retrieval slows as user count grows | Add index on `cart_items.user_id` from the start | 10k+ users with active carts |
-| Fetching full product details for cart display via catalog API on every cart page load | Cart page is slow, adds load to catalog module | Cache product snapshots in the cart item row; only re-validate on checkout | 50+ concurrent cart viewers |
+| N+1 in variant/SKU loading | Product list page takes 5+ seconds; DB shows hundreds of SELECT queries for 20 products | Always use `selectinload` chains when loading Products with variants. The `get_for_update_with_variants()` method does this correctly -- verify all query handlers follow the same pattern. | 50+ products with 3+ variants each |
+| `COUNT(*)` subquery on every paginated list | Admin product list slows down as catalog grows; pagination adds 200ms+ per request | Already identified in CONCERNS.md. For hardening phase: measure baseline query times and add a performance assertion in integration tests. Do not fix pagination now, but document the baseline. | 5,000+ products |
+| Full aggregate reload on every mutation | `ProductRepository.update()` does `selectinload(variants).selectinload(skus).selectinload(attribute_values)` on every update, even if only a product-level field changed | Acceptable for now given catalog size. If update latency becomes an issue, add a "light update" path for product-level-only changes. Log a performance warning if the aggregate has 100+ SKUs. | 50+ SKUs per product |
+| Cartesian explosion in SKU matrix generation | `generate_sku_matrix` already caps at 1,000 combinations, but 5 attributes x 10 values each = 100,000 combinations before the cap is checked | The cap exists (MAX_SKU_COMBINATIONS = 1000) but test should verify it is enforced. Also verify the error message is user-friendly. | 4+ attributes selected with 5+ values each |
 
 ## Security Mistakes
 
@@ -219,87 +228,78 @@ Domain-specific security issues beyond general web security.
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| No rate limiting on order creation endpoint | An attacker or buggy client creates thousands of orders, overwhelming admin workflow and potentially triggering downstream effects (supplier communications) | Add rate limiting per user: max 5 orders per minute. The backend currently has no rate limiting at all (documented in CONCERNS.md). |
-| Trusting client-submitted prices in order creation | A malicious user modifies the price in the request body to pay less | Always re-validate price server-side against the catalog at order creation time. The client-submitted price is for display only; the server-side price is authoritative. |
-| Exposing supplier details to customers | Cross-border supplier names, IDs, or internal notes leak to the customer-facing API | The customer order API response should contain `source_type: "cross_border" | "local"` and delivery estimates, but never supplier names, IDs, or internal metadata. Admin API is separate. |
-| PII in order data without encryption at rest | Customer passport data (passport series, number, INN) from the customs form is stored in plaintext. If the database is breached, all customer identity documents are exposed. | Encrypt PII fields (passport, INN) at the application level before storing. Use a separate encryption key from the database credentials. This is especially critical because Russian customs data includes government-issued identification. |
-| Admin order status changes without audit trail | An admin changes an order from `delivered` to `canceled` (to issue a refund), and there is no record of who did it or when | Store every status transition as an `OrderStatusHistory` record: `order_item_id, old_status, new_status, changed_by, changed_at, reason`. This is both a security and a business requirement. |
+| EAV attribute injection via unvalidated JSON | Attacker submits arbitrary attribute codes/values that are not in the template, creating phantom data in the EAV tables | Verify `generate_sku_matrix._validate_selections()` and `assign_product_attribute` both enforce template membership. Write tests for rejected attribute IDs. |
+| Price manipulation via SKU update | Negative prices, zero-currency prices, or compare_at_price lower than price accepted without validation | The `Money` value object should enforce non-negative amounts and currency validity. Write tests that submit negative price_amount and verify rejection. |
+| Soft-delete bypass in admin API | Admin deletes a product but it remains accessible at `/product/{id}` because the get endpoint does not filter `deleted_at` | Already covered in Pitfall 6. Verify every public-facing endpoint filters soft-deleted records. |
+| Slug collision after update | Product A has slug "nike-air-max", Product B updates its slug to "nike-air-max" -- the `check_slug_exists` method exists but tests must verify it is called on update, not just create | Write a test that creates two products, then updates the second to have the first's slug, and verify `ProductSlugConflictError` is raised. |
 
 ## UX Pitfalls
 
 Common user experience mistakes in this domain.
 
 | Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| Admin sees order-level status only, not per-item status | When an order has 3 items from different sources, the admin cannot tell which item is delayed; they must check externally | Show per-item status badges in the order list and detail views. The seed data already has items as an array -- extend each item with its own status. |
-| No bulk status update for admin | Admin processes 50 orders daily; changing status one-by-one is tedious | Add a checkbox selection with "Change status for selected" action. This is a table-stakes feature for order management. |
-| Customer checkout stores sensitive data (passport, card) in localStorage | Data persists on shared/public devices; violates PCI-DSS spirit; users cannot "log out" of their customs data | Store sensitive form data only in React state (memory). Persist only non-sensitive fields (name, email) in localStorage. Never store full card numbers client-side (the current checkout page stores card last4 + expiry, which is borderline acceptable but full CVV handling is dangerous). |
-| No order confirmation screen after checkout | Customer clicks "Pay" and... nothing visible happens (the current checkout page's pay button has an empty `onClick` for non-split payments) | Show an immediate "Order placed" confirmation with order number, then redirect to order details. Use optimistic UI: show confirmation immediately, handle backend errors gracefully. |
-| Mixed-source orders show no delivery time differentiation | Customer expects same delivery for all items, but cross-border takes 2-3 weeks while local takes 2-3 days | Group items by delivery timeline in the checkout summary (the frontend already groups by `deliveryText` -- ensure the backend provides meaningful delivery estimates per source type). |
-| Admin order detail page is a static view (current `OrderDetailsView` component) | Admin cannot take actions (change status, add notes, contact customer) from the detail page | The detail page should be the primary workspace for order management, with inline status changes, note addition, and action buttons. |
+|---------|------------|-----------------|
+| Publishing product without prices | Product appears on storefront with no price -- users cannot purchase | The FSM already checks for priced SKUs on PUBLISHED transition. Verify this with tests. Surface the specific missing-price error to admin UI. |
+| Deleting an attribute breaks existing products silently | Admin removes "Color" attribute; all products with color values now have orphan data | `delete_attribute` handler should check for existing product attribute values. Write a test verifying this protection exists (or document that it should be added). |
+| Category template change invalidates child products | Admin changes "Shoes" category template; all shoe products now have attributes that do not match the new template | Template changes should cascade a "revalidation" or at minimum a warning. For hardening: document this as a known limitation and add it to CONCERNS. |
 
 ## "Looks Done But Isn't" Checklist
 
 Things that appear complete but are missing critical pieces.
 
-- [ ] **Order creation endpoint:** Often missing idempotency key -- verify that double-submitting the checkout form does not create duplicate orders (use a client-generated idempotency token in the request header)
-- [ ] **Cart item validation:** Often missing "is this SKU still active?" check -- verify that deactivated/deleted products are removed or flagged when the cart is loaded
-- [ ] **Order status transitions:** Often missing "who changed it and why" -- verify that every transition is logged with `admin_id`, `timestamp`, and optional `reason` text
-- [ ] **Order total calculation:** Often missing edge cases -- verify behavior when: promo code reduces total below zero, all items are canceled (total should be zero), single item is canceled (total should recalculate)
-- [ ] **Admin order list pagination:** Often missing -- verify that the admin fetches pages from the API, not all orders at once (the current seed data pattern loads everything client-side)
-- [ ] **Order number generation:** Often using UUID which is unfriendly for phone support -- verify that a human-readable order number is generated (e.g., `LM-20260328-00001`) separate from the internal UUID
-- [ ] **Cross-border customs flag:** Often a boolean (`fromChina`) that does not scale -- verify that the source type comes from the supplier entity's `type` field (`CROSS_BORDER` vs `LOCAL`), not a hardcoded boolean
-- [ ] **Order event emission:** Often missing -- verify that `OrderCreatedEvent` and `OrderItemStatusChangedEvent` are emitted to the outbox and that relay handlers are registered
-- [ ] **Error handling on order creation failure:** Often missing rollback UX -- verify that if order creation fails after the user clicks "Pay", the cart items are preserved (not cleared)
+- [ ] **Product.create() auto-variant**: Creates a default variant, but tests must verify the variant has the correct `name_i18n` (copies from product title) and that `product.variants` is non-empty after creation.
+- [ ] **Status FSM preconditions**: `transition_status()` checks for active SKUs when going to PUBLISHED or READY_FOR_REVIEW. But does it check that at least one SKU has a price? The code says yes -- verify with tests for each invalid transition.
+- [ ] **Variant hash uniqueness**: `compute_variant_hash()` includes `variant_id` in the hash so different variants can both have empty-attributes SKUs. Test this edge case explicitly -- two variants, each with one SKU with no attributes, should NOT collide.
+- [ ] **Soft-delete cascade**: `Product.soft_delete()` cascades to variants, which cascade to SKUs. Test the full cascade: product with 2 variants, 3 SKUs each -- after soft_delete, all 8 entities have non-null `deleted_at`.
+- [ ] **Domain event emission after multi-step operations**: After `create_product` (which auto-creates variant), verify exactly one `ProductCreatedEvent` is in the event list, not zero and not two.
+- [ ] **Category effective_template_id inheritance**: `Category.create_child()` computes `effective_template_id = template_id or parent.effective_template_id`. Test that a grandchild category inherits from grandparent when parent has no template.
+- [ ] **Money VO roundtrip**: Money is decomposed to `price` (integer) + `currency` (string) in ORM. Verify that `compare_at_price > price` constraint is enforced somewhere (in domain or DB). Verify currency is preserved through roundtrip.
+- [ ] **update() sentinel pattern**: Multiple entities use `...` (Ellipsis) as sentinel for "keep current value." Tests must verify that passing `None` clears the field while not passing it at all keeps the current value -- these are different behaviors.
+- [ ] **Guard bypass in update methods**: Guarded fields (`status`, `slug`, `code`) use `object.__setattr__()` to bypass the `__setattr__` guard. Tests must verify both that direct assignment raises `AttributeError` AND that the official method (e.g., `transition_status()`) succeeds.
 
 ## Recovery Strategies
 
 When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| Flat order-level state machine (no per-item status) | HIGH | Requires database migration to add `status` to `order_items`, backfill existing orders, rewrite all admin status-change logic, and update both frontend apps. Estimated 2-3 sprint disruption. |
-| Missing price snapshots in order items | HIGH | Requires migration to add snapshot columns, a backfill script that reads current catalog data (lossy -- historical prices are gone), and audit of all order display code. Historical accuracy is permanently lost. |
-| Client-only cart replaced with server-side | MEDIUM | Create the server-side cart table and API. Write a migration path where the frontend checks for localStorage cart data on first load and syncs it to the server. Handle conflicts (item no longer exists). |
-| Outbox events lost for order types | HIGH | Lost events cannot be recovered. Must re-emit events for all affected orders by scanning the orders table and creating synthetic events. Downstream consumers must handle idempotent re-processing. |
-| Cross-module coupling (order imports catalog) | MEDIUM | Extract an interface, create an infrastructure adapter, update imports. Tedious but mechanical. The pytest-archon rules catch this early if configured. |
-| Admin UI status mismatch with backend enums | LOW | Fix the enum mapping in the API serializer or the frontend service layer. Small change, but requires testing every filter tab. |
-| No optimistic locking on orders | MEDIUM | Add `version` column with migration (default 1), update repository to use version checks, update all command handlers to pass version. Existing orders get version=1. |
+|---------|--------------|----------------|
+| Import breakage from entity split | LOW | Revert the file split (git revert). Re-export from `__init__.py`. All downstream code continues working. |
+| Mock-heavy tests hiding real bugs | MEDIUM | Identify the untested repository paths. Write targeted integration tests for the specific mapping methods (`_sync_variants`, `_sku_to_orm`). Do not rewrite all handler tests -- supplement them. |
+| Orphan EAV data from template changes | HIGH | Write a data migration script that joins product_attribute_values against template bindings and flags orphans. Admin review + bulk cleanup. Cannot be automated safely without human verification. |
+| Optimistic locking not working | MEDIUM | Add `version_id_col` to ORM model if missing. Write the concurrent-session test. Deploy fix. Existing data is unaffected -- the risk is overwritten data, which cannot be recovered without audit logs. |
+| Soft-delete leaks in queries | LOW | Add `WHERE deleted_at IS NULL` to the offending query. Write the test. Redeploy. No data loss -- records were not actually deleted, just incorrectly visible. |
+| Async MissingGreenlet in tests | LOW | Add `selectinload` to the offending query, or restructure the test to use `session.get()` for assertions. Pattern is well-established in existing tests. |
 
 ## Pitfall-to-Phase Mapping
 
 How roadmap phases should address these pitfalls.
 
 | Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| Flat state machine (no per-item status) | Phase 1: Domain Modeling | Order entity has `items` collection; each `OrderItem` has its own `status` enum and `transition_to()` method; `Order.status` is a computed property |
-| Missing price/product snapshots | Phase 1: Domain Modeling | `OrderItem` entity has `product_name`, `price_at_order_time`, `image_url`, `supplier_id` fields that are not FKs |
-| Client-side-only cart | Phase 2: Cart Implementation | Backend has `/cart` endpoints; `useCart.ts` calls the API; no `localStorage` for cart items |
-| Missing optimistic locking | Phase 1: Domain Modeling | `Order` has `version` field; status-change command includes `expected_version`; repository UPDATE includes `WHERE version = :v` |
-| Cross-module coupling | Phase 1: Domain Modeling | `pytest-archon` rule added: order module cannot import from catalog module; `CatalogReadService` interface defined in order module |
-| Outbox relay bug (lost events) | Phase 0: Pre-work | Relay no longer marks unknown event types as processed; monitoring query exists for stale unprocessed events |
-| Admin UI/API contract mismatch | Phase 3: Admin Integration | Status enum values documented and tested; integration test verifies API response shape matches frontend expectations |
-| Missing audit trail | Phase 1: Domain Modeling | `OrderStatusHistory` entity exists; every `transition_to()` call creates a history record |
-| PII exposure (customs data) | Phase 2: Cart/Checkout | Passport and INN fields are encrypted at rest; customer API never returns raw PII |
-| No idempotency on order creation | Phase 2: Checkout Flow | Order creation endpoint accepts `Idempotency-Key` header; duplicate requests return the existing order |
-| Checkout page monolith (1,645 lines) | Phase 2: Checkout Flow | Checkout page decomposed into `<DeliverySection>`, `<RecipientSection>`, `<CustomsSection>`, `<PaymentSection>`, `<OrderSummary>` components |
-| No rate limiting on order creation | Phase 3: Admin/API Hardening | Rate limit middleware applied to `POST /orders` (per-user) |
+|---------|-----------------|--------------|
+| Mock-heavy tests hiding real bugs | Phase 1 (Domain entity tests) + Phase 2 (Repo integration tests) | Domain entity test file exists for Product with 20+ test cases. Repository roundtrip test exists with variant/SKU sync. |
+| God-class split breaking imports | Phase 4 (Refactoring -- after tests exist) | All tests pass after split. `python -c "from src.modules.catalog.domain.entities import ..."` succeeds for all public names. |
+| Optimistic locking untested | Phase 2 (Repository integration tests) | Test file contains concurrent-session test that verifies `ConcurrencyError`. |
+| EAV attribute integrity gaps | Phase 1 (Domain analysis) + Phase 2 (Integration tests) | Negative tests exist for invalid attribute assignment. Template governance chain tested end-to-end. |
+| Async lazy-load landmines | Phase 2 (Repository integration tests -- establish pattern) | All integration tests follow the "re-fetch for assertions" pattern. No `MissingGreenlet` in CI. |
+| Soft-delete leaks | Phase 2 (Integration tests) + Phase 3 (Query handler tests) | Every list/get test includes a "soft-deleted entity is excluded" assertion. |
+| Domain event accumulation | Phase 1 (Domain entity tests) + Phase 3 (Handler tests) | Event emission assertions present in every command handler test. |
 
 ## Sources
 
-- Codebase analysis: `frontend/admin/src/data/orders.js`, `frontend/admin/src/lib/orders.js`, `frontend/admin/src/hooks/useOrderFilters.js`, `frontend/admin/src/services/orders.js`, `frontend/main/app/checkout/page.tsx`, `frontend/main/components/blocks/cart/useCart.ts`, `backend/src/infrastructure/outbox/relay.py`, `backend/src/modules/supplier/domain/entities.py`, `backend/src/shared/interfaces/entities.py`
-- Project documentation: `.planning/PROJECT.md`, `.planning/codebase/CONCERNS.md`
-- [Shopify: How to Manage Split Orders](https://www.shopify.com/blog/split-order) -- sub-order pattern for multi-source fulfillment
-- [Spocket: How to Manage Split Orders for Your E-commerce Business](https://www.spocket.co/blogs/how-to-manage-split-orders-for-your-e-commerce-business)
-- [SSENSE Tech: DDD Beyond the Basics - Mastering Aggregate Design](https://medium.com/ssense-tech/ddd-beyond-the-basics-mastering-aggregate-design-26591e218c8c) -- aggregate invariants and boundary design
-- [SSENSE Tech: Handling Eventual Consistency with Distributed Systems](https://medium.com/ssense-tech/handling-eventual-consistency-with-distributed-system-9235687ea5b3) -- read-after-write pitfalls
-- [Sylius: Race conditions in inventory tracking, order, payment status](https://github.com/Sylius/Sylius/issues/2776) -- concurrency bugs in order systems
-- [statemachine.app: Common pitfalls to avoid when working with state machines](https://statemachine.app/article/Common_pitfalls_to_avoid_when_working_with_state_machines.html)
-- [Fluent Commerce: Enterprise Order Management UX](https://fluentcommerce.com/resources/blog/enterprise-order-management-ux-4-points-to-consider/) -- admin UX considerations
-- [commercetools: State machines](https://docs.commercetools.com/learning-model-your-business-structure/state-machines/state-machines-page) -- commercial OMS state machine patterns
-- [Medium: How I Eliminated Inventory Race Conditions in a Production E-Commerce System](https://medium.com/@chaturvediinitin/how-i-eliminated-inventory-race-conditions-in-a-production-e-commerce-system-2302ba81846b)
-- [Extensiv: Understanding the Challenges in Cross-Border Fulfillment](https://www.extensiv.com/blog/cross-border-fulfillment)
+- Codebase analysis: `backend/src/modules/catalog/domain/entities.py`, `backend/src/modules/catalog/infrastructure/repositories/product.py`, `backend/src/modules/catalog/application/commands/create_product.py`, `backend/src/modules/catalog/application/commands/generate_sku_matrix.py`
+- [EAV Anti-pattern analysis](https://cedanet.com.au/antipatterns/eav.php)
+- [EAV design in PostgreSQL](https://www.cybertec-postgresql.com/en/entity-attribute-value-eav-design-in-postgresql-dont-do-it/)
+- [DDD Aggregate Root design and the "God Aggregate" problem](https://fsck.sh/en/blog/ddd-eventsourcing-aggregates/)
+- [DDD Testing Strategy](http://www.taimila.com/blog/ddd-and-testing-strategy/)
+- [Testing strategies for CQRS applications](https://reintech.io/blog/testing-strategies-cqrs-applications)
+- [Optimistic locking with SQLAlchemy -- child entity version bumping issue](https://github.com/cosmicpython/code/issues/53)
+- [Optimistic locking in SQLAlchemy](https://oneuptime.com/blog/post/2026-01-25-optimistic-locking-sqlalchemy/view)
+- [SQLAlchemy nested transaction testing](https://github.com/sqlalchemy/sqlalchemy/discussions/11658)
+- [Transactional unit tests with async SQLAlchemy](https://www.core27.co/post/transactional-unit-tests-with-pytest-and-async-sqlalchemy)
+- [N+1 problem in SQLAlchemy -- selectinload](https://sgoel.dev/posts/handling-the-n-1-selects-problem-in-sqlalchemy/)
+- [Refactoring God Class in Python](https://softwarepatternslexicon.com/patterns-python/11/2/4/)
+- [Mocks for Commands, Stubs for Queries](https://blog.ploeh.dk/2013/10/23/mocks-for-commands-stubs-for-queries/)
 
 ---
-*Pitfalls research for: Cross-border e-commerce order lifecycle (LoyaltyMarket)*
+*Pitfalls research for: EAV Catalog Hardening*
 *Researched: 2026-03-28*

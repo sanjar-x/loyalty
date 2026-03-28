@@ -1,183 +1,228 @@
 # Project Research Summary
 
-**Project:** LoyaltyMarket — Cross-border e-commerce marketplace aggregator
-**Domain:** Order lifecycle management (cart, checkout, orders, admin fulfillment) in an existing DDD modular monolith
+**Project:** Loyality -- EAV Catalog Hardening
+**Domain:** Testing, validation, and correctness for a production EAV catalog in a DDD/CQRS e-commerce backend
 **Researched:** 2026-03-28
 **Confidence:** HIGH
 
 ## Executive Summary
 
-LoyaltyMarket needs an order lifecycle module built into its existing Python/FastAPI DDD modular monolith. The platform aggregates products from Chinese marketplaces (Poizon, Taobao, 1688) and local Russian suppliers, selling through a Telegram Mini App with a separate admin panel. The research conclusively shows that **no new dependencies are required** -- the existing stack (Python 3.14, FastAPI, SQLAlchemy 2.1, PostgreSQL, attrs, Dishka, TaskIQ/RabbitMQ, Transactional Outbox) fully covers every need. The order module follows identical patterns to the existing catalog module: attrs domain entities, hand-rolled FSM with dict-based transition tables, CQRS command/query handlers, and Dishka DI wiring. The most critical architectural decision is to use a **server-side cart persisted in PostgreSQL** (not Redis, not localStorage) within the same `order` bounded context, enabling atomic cart-to-order conversion in a single database transaction.
+This project is a testing and validation milestone for an existing EAV (Entity-Attribute-Value) catalog module inside a Python/FastAPI/SQLAlchemy DDD modular monolith. The catalog already has 46 command handlers, 22 query handlers, 11 router files, and a rich domain model with 9+ entity classes -- but only 1.1% test coverage. 44 of 46 command handlers are completely untested. The goal is not to build new features but to prove the existing code is correct before the order system is built on top of it.
 
-The recommended approach is to model the state machine at the **OrderItem level, not the Order level**. This is the single most important design decision. The platform's core value proposition is mixing cross-border and local items in one order, which means items progress through fulfillment independently (a local item ships in 2 days while a Poizon sneaker takes 14 days through customs). A flat order-level state machine cannot represent this and would require an expensive rewrite once real orders arrive. The Order aggregate's status should be a computed property derived from its child items' statuses.
+Experts harden EAV systems by testing bottom-up: value objects first, then domain entities (pure unit tests with zero infrastructure), then command handler orchestration (mocked repositories), then repository Data Mapper fidelity (real PostgreSQL), then query handlers and API contracts. This order matters because EAV systems push schema enforcement out of the database and into application code -- a bug in a value object or entity method cascades into every handler that uses it. The existing test infrastructure (pytest, pytest-asyncio, testcontainers, polyfactory, nested transaction fixtures) is solid; the gap is purely coverage. New tooling needed is minimal: hypothesis for property-based EAV invariant testing, schemathesis for API contract fuzzing, respx for HTTP mocking, dirty-equals for readable assertions, and pytest-randomly/pytest-timeout for test reliability.
 
-The key risks are: (1) the outbox relay silently discards unknown event types, which must be fixed before deploying order event producers or events will be permanently lost; (2) the admin frontend has a sophisticated filter/sort/tab system built against seed data with specific status strings and response shapes -- the backend API must match this contract exactly or orders will silently disappear from the UI; (3) customer PII (passport data, INN for customs) requires encryption at rest given Russian data protection requirements. All three risks have clear mitigation strategies documented in the pitfalls research.
+The key risks are: (1) writing mock-heavy handler tests that pass while real Data Mapper bugs go undetected -- mitigated by requiring domain entity tests and repository integration tests before handler tests; (2) splitting the 2,220-line god-class entity file before tests exist to verify the split -- mitigated by deferring the split until after Phase 1 tests are in place; (3) EAV-specific integrity issues like orphaned attribute values, template drift, and soft-delete leaks in queries -- mitigated by systematic negative testing at every layer. The total estimated scope is 550-700 test cases across 5 phases.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new Python dependencies are needed. The order module is built entirely on the existing stack, following the same patterns established in the catalog module. See [STACK.md](./STACK.md) for full details.
+The production stack (Python 3.14, FastAPI, SQLAlchemy 2.1 async, PostgreSQL 18, Dishka DI) and core test infrastructure (pytest 9.x, pytest-asyncio, testcontainers, polyfactory, pytest-archon) are already in place and should not change. Research identified six new testing dependencies to add and two small custom utilities to build. See `.planning/research/STACK.md` for full details.
 
-**Core technologies (all existing):**
-- **Hand-rolled FSM (dict-based transition table):** Order/item status management -- consistent with `Product.transition_status()` pattern already in the codebase
-- **PostgreSQL JSONB (via SQLAlchemy):** Product snapshots in order line items -- captures point-in-time product data so orders survive catalog changes
-- **PostgreSQL (not Redis):** Server-side cart storage -- persistence guarantees matter more than sub-millisecond latency for a Telegram Mini App; keeps cart and order in the same transaction boundary
-- **Existing Money value object (integer subunits):** Price handling in orders -- already battle-tested, stores amounts as kopecks, eliminates floating-point arithmetic errors
-- **Transactional Outbox + RabbitMQ/TaskIQ:** Order domain events -- enables future notifications and analytics without architectural changes
+**New testing dependencies:**
+- **hypothesis (>=6.151.5):** Property-based testing for EAV domain invariants -- combinatorial attribute-value states that example-based tests miss
+- **schemathesis (>=4.13.0):** Auto-generates API contract test cases from FastAPI's OpenAPI spec -- covers 44+ endpoints without manual case writing
+- **dirty-equals (>=0.11):** Readable assertion helpers for API responses with UUIDs, timestamps, and nested objects
+- **respx (>=0.22.0):** Mock httpx requests to the image backend service -- the canonical httpx mocking library
+- **pytest-randomly (>=3.16.0):** Randomize test order to detect hidden inter-test dependencies as the suite scales
+- **pytest-timeout (>=2.4.0):** 30-second default timeout to catch hanging async tests with real DB connections
 
-**Critical version notes:** None. All existing dependencies are compatible. `uv sync` installs everything needed.
+**Custom utilities to build (not libraries):**
+- Query count assertion context manager using SQLAlchemy `after_cursor_execute` events (replaces unmaintained nplusone)
+- Hypothesis strategies for EAV domain types (attribute values, i18n names, slugs)
 
 ### Expected Features
 
-The existing admin and customer frontends already have significant UI scaffolding (seed data, filter hooks, status tabs, checkout forms) that needs to be connected to real backend APIs. See [FEATURES.md](./FEATURES.md) for the full feature landscape.
+This is a hardening milestone, not a feature milestone. "Features" are testing and validation capabilities. See `.planning/research/FEATURES.md` for the full prioritization matrix.
 
-**Must have (table stakes -- P1):**
-- Server-side cart with CRUD (add, update quantity, remove, clear) -- replaces `useCart` stub
-- Checkout flow collecting recipient info, delivery address, and customs data for cross-border items
-- Order creation with product snapshots, supplier attribution, and per-item status tracking
-- Order state machine with 7 internal states mapped to 5 customer-facing statuses
-- Admin order list with status tabs, search, date filtering, sort -- replacing seed data with real API
-- Admin per-item status management with Chinese tracking number input
-- Customer order list and detail views -- replacing empty arrays with real data
+**Must have (P1 -- blocks the order system):**
+- Value object unit tests (Money, BehaviorFlags, slug/i18n validation)
+- Product aggregate unit tests (FSM, variant/SKU management, soft-delete cascade, variant hash)
+- Brand, Category, Attribute entity unit tests
+- Test data builders (ProductBuilder, attribute fixtures, FakeUnitOfWork)
+- Command handler unit tests for all 46 handlers (~200-300 test cases)
+- Product repository integration tests (CRUD, eager loading, soft-delete, variant sync)
+- Category repository integration tests (tree operations, recursive CTE template propagation)
+- Entity god-class split (prerequisite for maintainable test organization)
+- Data integrity validation (schema constraint audit)
 
-**Should have (differentiators -- P2):**
-- Telegram bot notifications on order status changes (near-100% delivery rate vs email/SMS)
-- Order history audit log (every status change recorded with who/when/why)
-- Admin notes/comments on orders (team communication)
-- Cancellation reason tracking (operational intelligence)
+**Should have (P2 -- significantly reduces risk):**
+- Query handler tests for all 22 handlers
+- API contract integration tests for all 11 routers
+- Product status FSM full lifecycle integration test
+- Completeness checker integration test
+- Optimistic locking concurrency tests
 
-**Defer (v2+):**
-- Payment gateway integration (PCI scope, refund flows -- keep offline payment)
-- Logistics API integration (CDEK, Pochta, Yandex -- keep manual tracking)
-- Automated pricing/currency conversion (keep admin-set RUB prices)
-- Customer self-service cancellation (cross-border makes this dangerous)
-- Promo code/discount engine (disproportionate effort for early stage)
+**Defer (P3/v2+):**
+- Property-based testing for variant hash collisions
+- N+1 query detection instrumentation
+- API response snapshot tests
+- Storefront query caching correctness
+- Migration integrity audit
+
+**Anti-features (deliberately excluded):**
+- Refactoring away from EAV pattern
+- Search/Elasticsearch integration
+- Frontend test coverage
+- Performance optimization before correctness
+- 100% code coverage target
+- Automated load testing
 
 ### Architecture Approach
 
-Cart and Order live in a single `order` bounded context within the modular monolith. Cart is a persistent aggregate root in PostgreSQL (one per customer, created lazily). Order is an aggregate root owning OrderLineItem child entities, each containing immutable product snapshots. Cross-module data access uses query service interfaces (e.g., `ICatalogQueryService`) defined in the order domain layer, with infrastructure implementations that read catalog ORM models directly -- same pattern as the existing `ISupplierQueryService`. Cart-to-order conversion happens in a single UoW transaction (atomic: cart cleared + order created). See [ARCHITECTURE.md](./ARCHITECTURE.md) for full component diagrams and data flows.
+The testing architecture follows the existing hexagonal/CQRS layer boundaries. The domain layer (pure Python entities, value objects, events) gets pure unit tests with zero dependencies. Command handlers get unit tests with mocked repository interfaces and UoW. Repositories get integration tests against real PostgreSQL via testcontainers. Query handlers get integration tests with seeded data. API routers get E2E tests with httpx AsyncClient. This layering mirrors the production architecture and ensures each layer's correctness is verified independently before higher layers are tested. See `.planning/research/ARCHITECTURE.md` for component-level test strategies.
 
-**Major components:**
-1. **Cart Aggregate** -- holds items a customer intends to purchase; per-customer singleton in PostgreSQL; no FK constraints to catalog (uses query services for enrichment)
-2. **Order Aggregate with OrderLineItem children** -- immutable record of what was purchased; each line item has its own status FSM and product snapshot; order-level status is computed
-3. **Cross-Module Query Services** -- `ICatalogQueryService` (product/SKU snapshots for checkout), `ICustomerQueryService` (pre-fill contact info from Telegram profile)
-4. **PlaceOrderHandler** -- application-layer orchestrator that loads cart, snapshots catalog data, validates availability/prices, creates order, clears cart in one transaction
-5. **Presentation Layer** -- separate routers for customer cart, customer orders, and admin order management with different auth guards and response payloads
+**Major components and their test strategies:**
+1. **Domain Layer (9+ entities, value objects, 27 events)** -- Pure unit tests, ~150-200 cases. No mocks, no DB, fastest to write and run.
+2. **Command Handlers (46 handlers)** -- Unit tests with AsyncMock repos/UoW, ~200-250 cases. Test orchestration logic only.
+3. **Repository Implementations (6 priority repos)** -- Integration tests with real PostgreSQL, ~100-120 cases. Validate Data Mapper fidelity.
+4. **Query Handlers (22 handlers)** -- Integration tests with seeded data, ~60-80 cases. Verify SQL generation and read model mapping.
+5. **API Routers (11 files)** -- E2E tests via httpx AsyncClient, ~30-40 cases. Verify HTTP contracts and error mapping.
 
 ### Critical Pitfalls
 
-Top 7 pitfalls ranked by recovery cost. See [PITFALLS.md](./PITFALLS.md) for the complete analysis.
+Top 5 pitfalls from `.planning/research/PITFALLS.md`, ordered by risk:
 
-1. **Flat order-level state machine** -- Design FSM at the OrderItem level from day one. Order status is a computed property. Recovery cost if missed: HIGH (database migration, logic rewrite, 2-3 sprint disruption).
-2. **Outbox relay silently discards unknown event types** -- Fix the relay bug (lines 137-147 in `relay.py`) before deploying order events. Register handlers even as no-ops. Recovery cost if missed: HIGH (lost events are unrecoverable).
-3. **Missing product/price snapshots in order items** -- Snapshot all display-relevant data into OrderLineItem at checkout. Never join back to catalog tables for order display. Recovery cost if missed: HIGH (historical price accuracy permanently lost).
-4. **Client-side-only cart** -- Must be server-side from the start. Telegram Mini App localStorage is unreliable across restarts. Recovery cost if missed: MEDIUM.
-5. **Missing optimistic locking on orders** -- Add `version` field to Order aggregate following existing Supplier entity pattern. Return HTTP 409 on concurrent modifications. Recovery cost if missed: MEDIUM.
-6. **Cross-module coupling (order imports catalog entities)** -- Use `ICatalogQueryService` interface + infrastructure adapter. Enforce with pytest-archon boundary rules. Recovery cost if missed: MEDIUM.
-7. **Admin UI/API status string mismatch** -- Document the status contract before implementation. Backend enum values must match seed data strings exactly (`placed`, `in_transit`, `pickup_point`, `canceled`, `received`). Recovery cost if missed: LOW but insidious.
+1. **Mock-heavy handler tests hiding real bugs** -- The most dangerous pattern. Writing 44 handler tests with mocked repos feels productive but tests zero Data Mapper logic. Prevent by writing domain entity tests and repository integration tests BEFORE handler tests. If all 44 handler tests are written in under 2 days, mapping logic was not tested.
+
+2. **God-class split breaking import compatibility** -- Splitting `entities.py` (2,220 lines) seems simple but risks `ImportError` and `NameError` at runtime due to circular imports, shared private helpers, and module initialization order. Prevent by doing the split AFTER tests exist, moving one entity at a time (simplest first), and maintaining a re-export `__init__.py` permanently.
+
+3. **Optimistic locking silently not working** -- Product has a `version` field but it may not be properly configured with SQLAlchemy's `version_id_col`. Child entity changes (add SKU) may not bump the parent version. Prevent with a dedicated concurrent-session integration test.
+
+4. **EAV attribute integrity gaps** -- Orphaned attribute values after template unbinding, template drift when parent category templates change, level mismatches between product-level and variant-level attributes. Prevent with systematic negative tests for the full attribute governance chain.
+
+5. **Async SQLAlchemy lazy-load landmines** -- `MissingGreenlet` errors when test code accesses relationships not eagerly loaded. Prevent by establishing the "re-fetch for assertions" pattern (`session.get()` after handler execution) in the earliest integration tests.
 
 ## Implications for Roadmap
 
-Based on combined research, here is the recommended phase structure. The ordering is driven by three factors: (1) dependency chains from the architecture build order, (2) the "fix infrastructure bugs before they eat your events" principle, and (3) grouping backend and frontend work that shares the same domain context.
+Based on research, the work should be structured in 5 phases with strict ordering. The ordering is driven by three principles: (a) test the layers with zero dependencies first, (b) verify each layer before testing layers that depend on it, (c) defer structural refactoring until tests exist to verify it.
 
-### Phase 0: Infrastructure Pre-Work
-**Rationale:** The outbox relay bug (silently discarding unknown event types) must be fixed before any order events are emitted. This is a prerequisite, not optional. Without this fix, `OrderCreatedEvent` and `OrderStatusChangedEvent` will be silently consumed and permanently lost.
-**Delivers:** Fixed outbox relay (unknown events left unprocessed or moved to dead-letter table), monitoring query for stale unprocessed events, order event handler stubs registered in relay.
-**Addresses:** No features directly -- pure infrastructure hardening.
-**Avoids:** Pitfall 6 (outbox events lost for new order event types).
+### Phase 1: Foundation -- Domain Model Tests + Test Infrastructure
 
-### Phase 1: Domain Foundation
-**Rationale:** Everything depends on the domain layer. Entities, value objects, FSM, events, exceptions, and interfaces must exist before any handler, repository, or API can be built. Getting the OrderItem-level FSM right here prevents the most expensive pitfall.
-**Delivers:** `Order` aggregate root, `OrderLineItem` with per-item status FSM, `Cart` aggregate, all value objects (`OrderStatus`, `ProductSnapshot`, `SupplierSource`, `DeliveryAddress`, `ContactInfo`, `Money` reuse), domain events, repository interfaces, cross-module query service interfaces. ORM models and Alembic migration for `orders`, `order_items`, `order_status_history`, `carts`, `cart_items` tables. Repository implementations. Unit tests for FSM transitions, aggregate invariants, and value object equality.
-**Addresses:** Order state machine (FEATURES P1), order creation data model (FEATURES P1), optimistic locking (version field).
-**Avoids:** Pitfall 1 (flat state machine), Pitfall 2 (missing snapshots), Pitfall 4 (missing optimistic locking), Pitfall 5 (cross-module coupling).
+**Rationale:** Domain entities are pure Python with zero infrastructure dependencies. They are the fastest tests to write, the fastest to run, and they establish a trusted foundation. Every higher layer depends on domain correctness. Test infrastructure (builders, fake UoW, attribute fixtures) must be built here to enable Phase 2 efficiency.
 
-### Phase 2: Cart and Checkout Backend
-**Rationale:** Cart is a prerequisite for order creation. The checkout flow is the cart-to-order conversion that connects the two aggregates. Building these together keeps the transactional boundary clean (single UoW commit for cart clear + order create).
-**Delivers:** Cart command handlers (add, update, remove, clear), cart query handler (get cart with live prices from catalog), checkout/PlaceOrder command handler (validates cart, snapshots products, creates order, clears cart atomically), cart API routes (`POST /cart/items`, `DELETE /cart/items/{sku_id}`, `PATCH /cart/items/{sku_id}`, `GET /cart`), checkout API route (`POST /checkout`). Cross-module query service implementations (`CatalogQueryService`, `CustomerQueryService`). Dishka DI wiring.
-**Addresses:** Cart backend (FEATURES P1), checkout flow (FEATURES P1), order creation (FEATURES P1).
-**Avoids:** Pitfall 3 (client-side-only cart), Pitfall 2 (price drift at checkout -- re-validates prices).
+**Delivers:**
+- Value object unit tests (Money, BehaviorFlags, ProductStatus, slug/i18n validation)
+- Product aggregate unit tests (~40-60 cases: create, FSM, add/remove variant, add/remove SKU, soft-delete cascade, variant hash, domain events)
+- Brand, Category, Attribute, AttributeValue, AttributeTemplate entity unit tests
+- ProductBuilder, attribute fixtures, FakeUnitOfWork, catalog-specific conftest
+- Hypothesis strategies for EAV domain types
 
-### Phase 3: Order Management Backend
-**Rationale:** With orders being created via checkout, the backend now needs query and status-management endpoints for both admin and customer views. Admin order management is the primary daily workflow -- the order list with filters, detail view, and per-item status updates.
-**Delivers:** Customer order endpoints (`GET /orders`, `GET /orders/{id}`), admin order endpoints (`GET /admin/orders` with pagination/filtering/sorting, `GET /admin/orders/{id}`, `PATCH /admin/orders/{id}/items/{item_id}/status`), order status transition logic with audit trail (`OrderStatusHistory` records), human-readable order number generation (e.g., `LM-20260328-00001`). Integration tests verifying API response shapes match admin frontend expectations.
-**Addresses:** Admin order list/detail/per-item management (FEATURES P1), customer order list/detail (FEATURES P1), order status transitions (FEATURES P1).
-**Avoids:** Pitfall 7 (admin UI/API contract mismatch -- response shape validated by integration tests).
+**Features from FEATURES.md:** P1 value object tests, P1 entity tests, P1 test data builders, domain event emission verification
+**Avoids pitfall:** #1 (mock tests hiding real bugs -- domain tests verify real business logic), #7 (domain event accumulation -- verify event counts here)
 
-### Phase 4: Frontend Integration
-**Rationale:** Backend APIs are complete and tested. Frontend work replaces seed data and stubs with real API calls. Admin and customer frontends can be developed in parallel since they consume independent API surfaces.
-**Delivers:** Customer Mini App -- `useCart` hook connected to real cart API via RTK Query, checkout page connected to `POST /checkout`, order list/detail pages connected to real order API. Admin Panel -- `getOrders()` service replaced with real API calls, `OrderStatusModal` connected to per-item status endpoint, `TopMetrics` driven by real data. Incremental replacement: first make API return seed-compatible shapes, then swap data source.
-**Addresses:** Cart frontend integration (FEATURES P1), all admin order management UI (FEATURES P1), all customer order views (FEATURES P1).
-**Avoids:** Pitfall 7 (admin UI/API mismatch -- incremental replacement strategy).
+### Phase 2: Command Handler Unit Tests
 
-### Phase 5: Hardening and Notifications (v1.x)
-**Rationale:** Core order lifecycle is live. This phase adds operational maturity features triggered by real usage data.
-**Delivers:** Telegram bot notifications on order status changes (via outbox consumer), rate limiting on order creation endpoint, idempotency key support on checkout, PII encryption for customs data (passport, INN), admin order notes, cancellation reason tracking.
-**Addresses:** Telegram notifications (FEATURES P2), order history audit log (FEATURES P2), admin notes (FEATURES P2), cancellation reasons (FEATURES P2).
-**Avoids:** Security pitfalls (PII exposure, missing rate limiting, duplicate order creation).
+**Rationale:** 44 of 46 handlers untested -- this is the single largest coverage gap and the highest-risk area. With domain entities proven correct in Phase 1, handler tests focus purely on orchestration: does the handler call the right repos, enforce the right preconditions, and raise the right exceptions? Mock repos/UoW for speed.
+
+**Delivers:**
+- Unit tests for all 46 command handlers (~200-250 cases: happy path, FK-not-found, slug/code conflict, UoW commit verification, domain event emission)
+- Priority handlers first: CreateProduct, ChangeProductStatus, GenerateSkuMatrix, AssignProductAttribute, bulk operations
+
+**Features from FEATURES.md:** P1 command handler unit tests
+**Avoids pitfall:** #1 (by testing orchestration only -- not pretending to test mapping), #7 (event emission assertions in every handler test)
+
+### Phase 3: Repository + Integration Tests
+
+**Rationale:** Repositories implement the Data Mapper pattern with complex mapping logic (`_sync_variants`, `_sku_to_orm`, Money VO decomposition, JSONB i18n). These must be tested against real PostgreSQL because SQLite misses PostgreSQL-specific behaviors (JSONB, recursive CTEs, FOR UPDATE). This phase catches the bugs that mocked handler tests cannot.
+
+**Delivers:**
+- Product repository integration tests (CRUD roundtrip, eager loading, variant/SKU sync, soft-delete filtering, optimistic locking)
+- Category repository integration tests (tree operations, slug propagation, recursive CTE template inheritance)
+- Brand, Attribute, AttributeValue, TemplateBinding repository tests
+- N+1 query detection utility (assert_query_count context manager)
+- Optimistic locking concurrency test
+- Data integrity validation (schema constraint audit)
+
+**Features from FEATURES.md:** P1 Product/Category repo tests, P2 optimistic locking, P1 data integrity validation
+**Avoids pitfall:** #1 (Data Mapper bugs caught here), #3 (optimistic locking verified), #4 (EAV integrity tested with real DB), #5 (async lazy-load patterns established), #6 (soft-delete filtering verified)
+
+### Phase 4: Query Handlers + API Contract Tests
+
+**Rationale:** Query handlers bypass the domain layer and read directly from ORM. They need real data and real PostgreSQL to verify SQL generation, pagination, and read model mapping. API contract tests exercise the full HTTP stack. Both depend on Phases 1-3 for correctness at lower layers.
+
+**Delivers:**
+- Query handler integration tests for all 22 handlers (~60-80 cases: pagination, filtering, tree queries, completeness checker)
+- API contract integration tests for all 11 routers (~30-40 cases: request validation, HTTP status codes, response schema, RBAC enforcement)
+- Schemathesis fuzz testing against OpenAPI spec
+- Product status FSM full lifecycle integration test
+- Completeness checker integration test
+- Storefront query soft-delete and caching correctness
+
+**Features from FEATURES.md:** P2 query handler tests, P2 API contract tests, P2 FSM lifecycle test, P2 completeness checker
+**Avoids pitfall:** #6 (soft-delete leaks in every query verified), #5 (async patterns already established in Phase 3)
+
+### Phase 5: Entity God-Class Split + Cleanup
+
+**Rationale:** The 2,220-line `entities.py` must be split for long-term maintainability, but ONLY after comprehensive tests exist to verify the refactoring. With 400+ tests in place from Phases 1-4, the split can be done safely with immediate feedback on any import breakage.
+
+**Delivers:**
+- Split `entities.py` into `entities/` package (brand.py, category.py, product.py, attribute.py, etc.)
+- Shared helpers extracted to `entities/_helpers.py`
+- Backward-compatible `entities/__init__.py` with re-exports
+- Full test suite green after split
+
+**Features from FEATURES.md:** P1 entity god-class split (sequenced last for safety)
+**Avoids pitfall:** #2 (split AFTER tests exist, move one entity at a time, verify after each move)
 
 ### Phase Ordering Rationale
 
-- **Phase 0 before everything** because the outbox bug causes silent, permanent data loss for order events. Deploying order features without this fix means lost events that cannot be recovered.
-- **Phase 1 before Phase 2** because cart handlers and checkout handlers depend on domain entities, repository interfaces, and ORM models. The domain layer is the foundation.
-- **Phase 2 before Phase 3** because order management endpoints are meaningless without orders to manage. Checkout must be functional first.
-- **Phase 3 before Phase 4** because frontend integration requires stable, tested backend APIs. Building frontend against shifting APIs creates waste.
-- **Phase 4 can partially overlap Phase 3** -- the cart frontend can be built as soon as Phase 2 completes, while admin frontend waits for Phase 3 admin endpoints.
-- **Phase 5 is post-launch** -- triggered by operational metrics, not scheduled by date.
+- **Phases 1-2 before 3-4:** Domain and handler tests are fast (no DB) and catch business logic bugs. They establish a safety net before touching infrastructure.
+- **Phase 3 before 4:** Repository mapping correctness must be proven before API tests, which implicitly depend on repositories. A broken repository causes confusing failures in API tests.
+- **Phase 5 last:** Refactoring without tests is dangerous. 400+ tests from Phases 1-4 provide the safety net for a safe structural change.
+- **Value objects before entities, entities before handlers, handlers before repos:** Each layer validates the one below it. A Money bug caught in Phase 1 prevents cascading failures in Phases 2-4.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 2 (Cart and Checkout):** The cart-to-order conversion involves multiple cross-module query service calls in a single transaction. The exact data shape returned by `ICatalogQueryService.get_skus_snapshot_bulk()` needs careful design to include all fields the frontend needs. Research the existing catalog ORM model joins to determine what is efficiently queryable.
-- **Phase 4 (Frontend Integration):** The admin frontend has 1,645 lines in `checkout/page.tsx` and complex filter hooks built against seed data. The exact contract between API responses and frontend expectations needs mapping before implementation. The existing `resolveOrderStatus()` function and `useOrderFilters` hook define the contract from the frontend side.
+- **Phase 1:** LOW risk -- domain entities are pure Python, well-documented patterns. May need research on hypothesis strategy design for the specific EAV attribute type system.
+- **Phase 3:** MEDIUM risk -- the Product repository `_sync_variants()` and `_sync_skus_for_variant()` methods are complex 3-level reconciliation. Need to understand the exact mapping logic to write effective integration tests. The optimistic locking behavior with `version_id_col` on child entities needs investigation.
+- **Phase 4:** LOW risk -- API contract testing with httpx AsyncClient is well-established. Schemathesis integration with FastAPI is documented.
 
-Phases with standard patterns (skip `/gsd:research-phase`):
-- **Phase 0 (Infrastructure Pre-Work):** Small, well-scoped bug fix in the outbox relay. The fix is already identified (remove lines 137-147 that mark unknown events as processed).
-- **Phase 1 (Domain Foundation):** Follows established patterns from the catalog module exactly. The entity, repository, and FSM patterns are directly portable.
-- **Phase 3 (Order Management Backend):** Standard CQRS query handlers and FastAPI routes. Follows existing catalog module patterns.
+Phases with standard patterns (skip research-phase):
+- **Phase 2:** Command handler unit tests follow a mechanical pattern (mock repos, call handler, assert result/exception). The 46 handlers share the same DI structure.
+- **Phase 5:** Entity file split is a standard Python module refactoring. The only complexity is circular imports, which is manageable with deferred imports.
 
 ## Confidence Assessment
 
-| Area         | Confidence | Notes |
-| ------------ | ---------- | ----- |
-| Stack        | HIGH       | No new dependencies needed. All technologies are already in production in the catalog module. Sources include codebase analysis and official documentation. |
-| Features     | HIGH       | Extensive existing frontend scaffolding (seed data, UI components, hooks) defines feature requirements precisely. Competitor analysis and Baymard UX research validate table-stakes list. |
-| Architecture | HIGH       | Architecture follows existing codebase patterns verbatim (same aggregate style, same CQRS pattern, same DI wiring, same outbox events). Multiple DDD and e-commerce architecture sources confirm the approach. |
-| Pitfalls     | HIGH       | Pitfalls are grounded in codebase analysis (specific file references, line numbers) and validated against industry patterns (Shopify split-order, Sylius concurrency bugs, commercetools state machines). |
+| Area | Confidence | Notes |
+|------|------------|-------|
+| Stack | HIGH | All recommended tools verified on PyPI with 2025/2026 releases. Versions cross-checked against project's pyproject.toml. No speculative recommendations. |
+| Features | HIGH | Feature list derived directly from codebase analysis (line counts, handler counts, entity inspection). Priority ordering based on dependency analysis, not guesswork. |
+| Architecture | HIGH | Testing strategy mirrors the existing hexagonal/CQRS architecture. Layer boundaries and component responsibilities verified against codebase conventions. |
+| Pitfalls | HIGH | Pitfalls identified from codebase-specific analysis (the _sync_variants mapping, the version field, the 2,220-line god-class) and validated against domain literature (EAV anti-patterns, async SQLAlchemy gotchas, DDD testing strategies). |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Per-item vs per-order status derivation logic:** The exact algorithm for computing order-level display status from item-level statuses needs specification during Phase 1 planning. The frontend's `resolveOrderStatus()` provides a starting point but uses string comparisons against seed data statuses that may not map 1:1 to the backend's richer internal states.
-- **Customs data encryption approach:** Phase 5 calls for PII encryption at rest, but the specific encryption library, key management strategy, and performance impact on queries are not researched. This needs investigation before Phase 5 planning.
-- **Order number format:** The "Looks Done But Isn't" checklist flags that UUIDs are unfriendly for phone support. The exact format (e.g., `LM-YYYYMMDD-NNNNN`) and uniqueness guarantee mechanism (database sequence vs. application logic) need specification in Phase 1.
-- **Cart staleness handling:** When a user returns to a cart with items whose products have been deactivated or repriced, the UX for handling stale items (remove automatically? show warning? update price silently?) is not fully specified.
-- **Admin bulk status updates:** Identified as a UX pitfall but not included in any phase. If admin processes 50+ orders daily, this becomes operationally necessary. Monitor after launch.
+- **Optimistic locking configuration:** The `version_id_col` configuration on the Product ORM model needs to be inspected during Phase 3 planning. If it is not configured, this is a bug to fix, not just a test to write.
+- **Template drift behavior:** The research identified that `effective_template_id` is computed at category creation time but may not update when parent templates change. The actual behavior of `propagate_effective_template_id()` needs verification during Phase 3 implementation.
+- **Supplier module dependency:** `CreateProductHandler` depends on `ISupplierQueryService.assert_supplier_active()`. A shared test stub for this cross-module dependency needs to be designed during Phase 2 planning.
+- **Event clearing mechanism:** The exact lifecycle of `clear_domain_events()` in the UoW commit path needs verification. If events are cleared before Outbox persistence, they are lost silently.
+- **Brand/Attribute repo test overlap:** Some repository tests already exist (partially for Brand). Phase 3 planning should audit existing coverage to avoid duplication.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Existing codebase analysis: catalog module domain entities, supplier query service pattern, Product FSM, Money value object, outbox relay implementation, admin seed data and filter hooks, customer checkout page and cart stub
-- Project documentation: `.planning/PROJECT.md`, `.planning/codebase/CONCERNS.md`
-- [SQLAlchemy 2.1 PostgreSQL JSONB docs](https://docs.sqlalchemy.org/en/21/dialects/postgresql.html)
-- [Redis shopping cart patterns](https://redis.io/learn/howtos/shoppingcart) (evaluated and rejected in favor of PostgreSQL for this use case)
+- Codebase analysis: `backend/src/modules/catalog/domain/entities.py` (2,220 lines, 9+ entity classes)
+- Codebase analysis: `backend/src/modules/catalog/application/commands/` (46 command handlers, 44 untested)
+- Codebase analysis: `backend/src/modules/catalog/application/queries/` (22 query handlers)
+- Codebase analysis: `backend/tests/` (796 LOC existing catalog tests, 1.1% test-to-source ratio)
+- Codebase analysis: `backend/src/modules/catalog/infrastructure/repositories/product.py` (Data Mapper implementation)
+- PyPI package verification: hypothesis 6.151.5, schemathesis 4.13.0, dirty-equals 0.11, respx 0.22.0, pytest-randomly 3.16.0, pytest-timeout 2.4.0
+- SQLAlchemy 2.1 event documentation: `after_cursor_execute` for query counting
 
 ### Secondary (MEDIUM confidence)
-- [Baymard Institute Checkout UX Research 2025](https://baymard.com/blog/current-state-of-checkout-ux)
-- [ArchiMetric UML State Machine for E-Commerce](https://www.archimetric.com/case-study-uml-state-machine-diagram-for-e-commerce-order-lifecycle/)
-- [commercetools State Machine Documentation](https://docs.commercetools.com/learning-model-your-business-structure/state-machines/state-machines-page)
-- [Walmart: Implementing Cart Service with DDD & Hexagonal Architecture](https://medium.com/walmartglobaltech/implementing-cart-service-with-ddd-hexagonal-port-adapter-architecture-part-2-d9c00e290ab)
-- [SSENSE: DDD Beyond the Basics - Mastering Aggregate Design](https://medium.com/ssense-tech/ddd-beyond-the-basics-mastering-aggregate-design-26591e218c8c)
-- [Martin Fowler: DDD Aggregate](https://martinfowler.com/bliki/DDD_Aggregate.html)
-- [python-statemachine PyPI](https://pypi.org/project/python-statemachine/) (evaluated and rejected)
-- [transitions GitHub](https://github.com/pytransitions/transitions) (evaluated and rejected)
+- [DDD Testing Strategy](http://www.taimila.com/blog/ddd-and-testing-strategy/) -- aggregate as unit of testing
+- [Testing Strategies in DDD](https://dev.to/ruben_alapont/testing-strategies-in-domain-driven-design-ddd-2d93) -- unit/integration/E2E layering
+- [Schemathesis + FastAPI guide](https://testdriven.io/blog/fastapi-hypothesis/) -- integration pattern
+- [CQRS Testing Strategies](https://reintech.io/blog/testing-strategies-cqrs-applications) -- command/query test separation
+- [Optimistic locking in SQLAlchemy](https://oneuptime.com/blog/post/2026-01-25-optimistic-locking-sqlalchemy/view) -- version_id_col behavior
 
 ### Tertiary (LOW confidence)
-- [Shopify: How to Manage Split Orders](https://www.shopify.com/blog/split-order) -- sub-order pattern validation
-- [Sylius: Race conditions in inventory tracking, order, payment status](https://github.com/Sylius/Sylius/issues/2776) -- concurrency pitfall validation
-- [BAZU Telegram Mini Apps E-Commerce Guide](https://bazucompany.com/blog/creating-an-online-store-with-telegram-mini-apps-a-comprehensive-guide/)
+- EAV anti-pattern analysis (general domain literature, not codebase-specific): constraint enforcement limitations, orphan data risks
+- Child entity version bumping discussion (GitHub issue, not official SQLAlchemy docs): version bump behavior for nested collection changes
 
 ---
 *Research completed: 2026-03-28*

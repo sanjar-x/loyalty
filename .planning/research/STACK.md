@@ -1,159 +1,262 @@
-# Stack Research: Order Lifecycle Management
+# Stack Research: EAV Catalog Hardening — Testing & Validation Tooling
 
-**Domain:** E-commerce order lifecycle (cart, checkout, orders, admin management) in an existing DDD modular monolith
+**Domain:** Testing, validation, and quality assurance for Python/FastAPI/SQLAlchemy EAV catalog system
 **Researched:** 2026-03-28
 **Confidence:** HIGH
 
+## Context
+
+The existing production stack (Python 3.14, FastAPI, SQLAlchemy 2.1 async, PostgreSQL 18, Dishka DI) is already decided and deployed. This research focuses exclusively on **testing, validation, and quality assurance tooling** needed to harden the EAV Catalog module — not the application stack itself.
+
+The codebase already has a pytest-based test infrastructure (pytest 9.x, pytest-asyncio 1.3+, testcontainers, polyfactory, pytest-archon) with well-designed fixtures for DB isolation (nested transaction rollback), DI container overrides, and Redis cleanup. The gap is coverage: 44 of 46 catalog command handlers are untested, and the test-to-source ratio for catalog is 1.1%.
+
+---
+
 ## Recommended Stack
 
-This research covers only **new** technologies and patterns needed for the order lifecycle milestone. The existing stack (Python 3.14, FastAPI, SQLAlchemy 2.1, PostgreSQL, attrs, Dishka, TaskIQ/RabbitMQ, Transactional Outbox) is established and not re-evaluated here.
+### Core Testing Framework (Already in Place)
 
-### Core Technologies
+These are **already installed and configured** — do not change them. Listed for completeness.
+
+| Technology | Version | Purpose | Status |
+|------------|---------|---------|--------|
+| pytest | >=9.0.2 | Test runner, assertion engine, fixture system | Installed |
+| pytest-asyncio | >=1.3.0 | Async test auto-detection (mode: auto) | Installed |
+| pytest-cov | >=7.0.0 | Coverage collection (--cov=src) | Installed |
+| pytest-archon | >=0.0.7 | Architecture fitness functions (import boundary tests) | Installed |
+| polyfactory | >=3.3.0 | SQLAlchemy ORM model factories, Pydantic schema factories | Installed |
+| testcontainers | >=4.14.1 | Docker-based PostgreSQL/Redis/RabbitMQ for integration tests | Installed |
+| Locust | >=2.43.3 | Load/performance testing scenarios | Installed |
+| mypy | >=1.19.1 | Static type checking (strict mode, pydantic plugin) | Installed |
+| Ruff | latest | Linting + formatting (py314 target) | Installed |
+
+**Confidence:** HIGH — versions verified against `backend/pyproject.toml` and `backend/pytest.ini`.
+
+### New: Validation & Contract Testing
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| Hand-rolled FSM (dict-based transition table) | N/A | Order state machine | The codebase already uses this exact pattern in `Product.transition_status()` with `_ALLOWED_TRANSITIONS: ClassVar[dict]`. Consistency trumps library features; the order FSM has ~6 states and ~8 transitions -- well within hand-rolled territory. Adding a library dependency for this would violate the existing architectural style for zero benefit. |
-| `Decimal` (stdlib) via existing `Money` value object | N/A | Price snapshotting in orders | The codebase already has a battle-tested `Money` frozen value object (`catalog/domain/value_objects.py`) storing amounts as integer subunits (kopecks). Reuse it in the order module -- no new dependency needed. |
-| PostgreSQL JSONB (via SQLAlchemy `JSONB` type) | Already in stack | Order item snapshots (product title, price, variant info at time of purchase) | Orders must capture a point-in-time snapshot of product data. JSONB columns on the `order_items` table store denormalized product/variant/SKU details so orders remain valid even if products are later modified or deleted. Already supported by the existing SQLAlchemy + asyncpg stack. |
-| Redis (existing) | Already in stack | Cart storage | Carts are ephemeral, high-write, low-durability structures. Redis hashes with TTL provide sub-millisecond reads/writes, automatic expiration of abandoned carts, and zero database load. The existing Redis infrastructure (redis 7.3, hiredis) handles this with no additions. |
+| hypothesis | >=6.151.5 | Property-based testing for EAV domain invariants | Has built-in attrs strategy inference via `builds()` and `from_type()`. Finds edge cases in attribute value combinations, category tree invariants, and SKU matrix generation that example-based tests miss. The EAV pattern has a combinatorial explosion of valid/invalid states that property-based testing was designed for. |
+| schemathesis | >=4.13.0 | API contract testing from OpenAPI schema | FastAPI auto-generates OpenAPI specs. Schemathesis fuzzes every endpoint against that spec, catching response schema violations, 500 errors, and edge cases in catalog CRUD. Uses Hypothesis internally. |
+| dirty-equals | >=0.11 | Declarative assertion helpers for API response testing | Makes assertions like `assert response_data == {"id": IsUUID(), "name": "Nike", "created_at": IsDatetime()}` readable. Built by the Pydantic author (Samuel Colvin), designed specifically for API response testing. |
 
-### Supporting Libraries
+**Confidence:** HIGH — all three verified on PyPI with recent 2025/2026 releases. Hypothesis and Schemathesis are the de facto standard for property-based and contract testing in the Python ecosystem.
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| No new Python dependencies required | -- | -- | The order module is built entirely on the existing stack. The patterns (attrs entities, CQRS handlers, Dishka DI, Transactional Outbox events, Pydantic schemas) are identical to the `catalog` module. |
+### New: HTTP Mocking
 
-### Key Patterns (Not Libraries)
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| respx | >=0.22.0 | Mock httpx requests to image backend service | The catalog module calls the image backend via httpx (`ImageBackendClient`). respx is the standard httpx mock library — provides pytest fixtures, pattern matching, and response side effects. Version 0.22.0 confirmed compatible with httpx 0.28+. |
 
-These are architectural patterns implemented with existing tools, not new dependencies:
+**Confidence:** HIGH — respx is the canonical httpx mocking library. No real alternatives exist for httpx-specific mocking.
 
-| Pattern | Implementation | Purpose |
-|---------|---------------|---------|
-| Cart-as-Redis-Hash | `HSET cart:{user_id} sku:{sku_id} {json_payload}` with 7-day TTL | Ephemeral cart storage. Each hash field is a cart line item with quantity, snapshot price, and SKU reference. |
-| Cart-to-Order Conversion | Command handler reads Redis cart, validates SKU availability/prices, creates `Order` aggregate with `OrderItem` child entities, then deletes the cart key | Atomic checkout flow. Cart is ephemeral (Redis); Order is durable (PostgreSQL). |
-| Order Item Snapshot | `OrderItem` stores denormalized product_title, variant_name, sku_code, unit_price, quantity, supplier_id, source_type at creation time | Immutable record of what was ordered. Never joins back to product tables for display. |
-| Order FSM with Guarded Transitions | `Order._ALLOWED_TRANSITIONS` dict + `Order.transition_status()` method, identical to `Product.transition_status()` | Enforces valid state changes, emits `OrderStatusChangedEvent` domain events, uses `object.__setattr__` bypass for guarded fields. |
-| Outbox Events for Order Lifecycle | `OrderCreatedEvent`, `OrderStatusChangedEvent`, `OrderCancelledEvent` as `DomainEvent` subclasses | Cross-module communication (future: notifications, analytics, logistics). Already supported by the Transactional Outbox + RabbitMQ infrastructure. |
+### New: Test Quality & Reliability
 
-### Development Tools
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| pytest-randomly | >=3.16.0 | Randomize test execution order | Detects hidden inter-test dependencies (test A passes only because test B runs first). Prints seed for reproducibility. Critical when scaling from ~20 to hundreds of catalog tests. |
+| pytest-timeout | >=2.4.0 | Abort hanging async tests | Async tests with real DB can hang on deadlocks or connection pool exhaustion. Default 30s timeout catches these early instead of blocking CI indefinitely. |
+
+**Confidence:** HIGH — both are mature, widely-used pytest plugins with active maintenance.
+
+### New: Performance Validation
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| SQLAlchemy event listeners (built-in) | N/A (part of SQLAlchemy 2.1) | N+1 query detection via `after_execute` / `do_orm_execute` events | Build a lightweight `assert_query_count` context manager using SQLAlchemy's built-in event system. Works with async sessions. Better than `nplusone` (unmaintained, no async/SA 2.x support). |
+
+**Confidence:** HIGH — uses SQLAlchemy's own documented event API. No external dependency needed.
+
+### Development Tools (Already in Place, No Changes)
 
 | Tool | Purpose | Notes |
 |------|---------|-------|
-| Alembic (existing) | Order module migrations | Follow existing date-based subdirectory convention. Single migration for `orders`, `order_items`, and `order_status_history` tables. |
-| pytest + testcontainers (existing) | Order module tests | Follow existing test structure: `tests/unit/order/`, `tests/integration/order/`, `tests/e2e/order/`. |
-| pytest-archon (existing) | Architecture boundary enforcement | Add `order` module to existing boundary rules in `tests/architecture/test_boundaries.py`. |
+| pytest (Makefile targets) | `make test-unit`, `make test-integration`, `make test-e2e` | Well-organized test pyramid commands |
+| Docker Compose | PostgreSQL 18, Redis 8.4, RabbitMQ 4.2.4 for local tests | Already configured in `backend/docker-compose.yml` |
+| Ruff | Linting test files (same config as source) | Already configured |
+
+---
 
 ## Installation
 
 ```bash
-# No new dependencies needed.
-# The order module uses only existing stack components.
-#
-# If starting from scratch:
-cd backend
-uv sync  # installs all existing deps from uv.lock
+# New testing dependencies — add to [dependency-groups] dev in backend/pyproject.toml
+uv add --group dev "hypothesis>=6.151.5"
+uv add --group dev "schemathesis>=4.13.0"
+uv add --group dev "dirty-equals>=0.11"
+uv add --group dev "respx>=0.22.0"
+uv add --group dev "pytest-randomly>=3.16.0"
+uv add --group dev "pytest-timeout>=2.4.0"
 ```
+
+**pytest.ini additions:**
+
+```ini
+# Add to existing addopts:
+addopts =
+    -v
+    --strict-markers
+    --cov=src
+    --cov-report=term-missing:skip-covered
+    --cov-report=xml
+    --timeout=30
+
+# Add timeout default (30s per test — generous for integration tests with real DB)
+timeout = 30
+```
+
+---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|------------------------|
-| Hand-rolled FSM (dict table) | `python-statemachine` 3.0.0 | When the FSM has 15+ states, compound/parallel states, or needs visual diagram generation. Order lifecycle has ~6 states -- a library adds coupling without proportional value. The existing codebase already has the hand-rolled pattern; switching one module to a library while others use dicts would be inconsistent. |
-| Hand-rolled FSM (dict table) | `transitions` 0.9.4 | When you need hierarchical state machines with nested states or dynamic model decoration. Same consistency argument applies. `transitions` also decorates model instances with trigger methods, which conflicts with the codebase's guarded-field pattern (`__setattr__` override). |
-| Redis Hash for cart | PostgreSQL `carts` table | When cart data must survive Redis restarts (e.g., high-value B2B carts). For this marketplace with ~$20-200 average order values and manual payment, Redis with 7-day TTL is appropriate. Lost carts are a minor UX annoyance, not a business crisis. |
-| Redis Hash for cart | Client-side cart (localStorage in Telegram Mini App) | When zero backend infrastructure is desired. Not viable here because: (a) Telegram Mini Apps have limited localStorage, (b) cart must be validated server-side before checkout, (c) admin needs visibility into abandoned carts later. |
-| JSONB snapshot on OrderItem | Separate `order_item_snapshots` table with normalized columns | When you need to query across historical snapshots (e.g., "all orders containing product X"). For this milestone, JSONB on the order_items row is simpler and queries are always by order_id, not by product attributes across orders. |
-| Existing `Money` VO (integer subunits) | `immoney` 0.11.0 | When multi-currency arithmetic with Overdraft types is needed. This platform uses single-currency (RUB) with admin-set prices. The existing `Money(amount=int, currency=str)` frozen VO is sufficient. `immoney` requires Python >=3.10 (compatible) but adds conceptual overhead (SubunitFraction, Overdraft) that this domain does not need. |
-| Existing `Money` VO | `stockholm` | When you need GraphQL/Protobuf serialization of monetary amounts. Not applicable here. |
-| `structlog` event logging for audit | Dedicated `order_audit_log` table | When regulatory compliance requires tamper-evident audit trails. For now, order status history is captured via `order_status_history` table (who changed what, when) and domain events in the outbox. A dedicated audit table can be added later without architectural changes. |
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| hypothesis | Only example-based tests | EAV systems have combinatorial state spaces (attributes x types x categories x variants). Example tests miss edge cases that property tests find automatically. |
+| schemathesis | Manual endpoint testing | 44+ command handlers means dozens of API endpoints. Manual testing is incomplete and doesn't catch schema drift. Schemathesis auto-generates thousands of test cases from the OpenAPI spec. |
+| dirty-equals | Raw dict comparison | API responses contain UUIDs, timestamps, and nested objects. `assert response == {...}` is brittle. dirty-equals makes assertions readable and maintainable. |
+| respx | unittest.mock.patch on httpx | Patching internals is fragile. respx provides a purpose-built httpx mock with pattern matching, side effects, and a pytest fixture. |
+| pytest-randomly | Fixed test order | Fixed ordering hides coupling between tests. Randomization surfaces it before it causes flaky CI. |
+| SQLAlchemy events for N+1 | nplusone library | nplusone's last meaningful release was years ago. It does not support async SQLAlchemy or SQLAlchemy 2.x. Building a 20-line context manager on SQLAlchemy events is simpler and fully async-compatible. |
+| pytest-timeout | No timeout | Async tests with real PostgreSQL can deadlock. Without timeout, CI hangs for 10+ minutes before failing. |
+
+---
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `python-statemachine` or `transitions` for Order FSM | Adds an external dependency for a 6-state machine when the codebase already has a proven hand-rolled pattern (`Product._ALLOWED_TRANSITIONS`). Library mixins/decorators conflict with the project's attrs + AggregateRoot + guarded-field conventions. Would be the only module using a state machine library, creating inconsistency. | Hand-rolled dict-based FSM transition table on the Order aggregate, identical to Product's pattern. |
-| SQLAlchemy `Enum` type for order status column | PostgreSQL native enums cannot be altered without migration gymnastics (`ALTER TYPE ... ADD VALUE` is not transactional). Adding new order states later (e.g., `awaiting_shipment`, `partially_fulfilled`) would require careful migration. | `String` / `VARCHAR` column storing `StrEnum.value`. Validate at the domain layer (Order entity), not at the database layer. Same pattern used by `ProductStatus` in the catalog module. |
-| Celery for async order processing | The project already uses TaskIQ + RabbitMQ with Dishka integration. Celery would be a parallel, redundant task system with its own broker config, worker lifecycle, and DI story. | TaskIQ tasks triggered via the existing Transactional Outbox relay pattern. |
-| SQLModel | Combines Pydantic + SQLAlchemy models into one class. Conflicts with the project's strict layer separation (domain entities are attrs classes, ORM models are separate SQLAlchemy declarative classes, schemas are Pydantic). | Keep the existing clean separation: attrs domain entities, SQLAlchemy ORM models, Pydantic request/response schemas. |
-| Event Sourcing for orders | Full event sourcing (append-only event store, projections, event replay) is massive architectural overhead. The existing Transactional Outbox pattern already captures domain events for cross-module communication. Order state is simple enough for CRUD + status history table. | Standard CRUD with Order aggregate + `order_status_history` table for audit trail + Transactional Outbox for event propagation. |
-| Separate Cart microservice | The project is a modular monolith. Extracting cart into a separate service adds network latency, deployment complexity, and distributed transaction headaches for a team that doesn't need independent scaling yet. | Cart as a thin infrastructure concern (Redis operations in the `order` module's infrastructure layer), not a separate bounded context. |
-| Floating-point for prices | IEEE 754 floating-point arithmetic causes rounding errors in financial calculations (e.g., `0.1 + 0.2 != 0.3`). | Use the existing `Money` value object which stores amounts as integer subunits (kopecks). All arithmetic happens on integers. |
+| nplusone | Unmaintained, no async support, no SQLAlchemy 2.x support. Last significant update predates SA 2.0. | Custom `assert_query_count` context manager using SQLAlchemy `after_execute` event listener (20 lines of code). |
+| factory_boy | Older factory library. Does not understand SQLAlchemy 2.x async sessions natively. Project already uses polyfactory which is newer, supports SA 2.x, and has built-in Pydantic integration. | polyfactory (already installed) + Object Mothers pattern (already in use). |
+| pytest-flask-sqlalchemy | Flask-specific. This project uses FastAPI with Dishka DI, not Flask. | Existing `db_session` fixture with nested transaction rollback (already working). |
+| pytest-sqlalchemy-mock | Uses in-memory SQLite instead of real PostgreSQL. Misses PostgreSQL-specific behaviors critical for EAV (JSONB, array types, recursive CTEs for category trees). | testcontainers with real PostgreSQL (already configured). |
+| pytest-xdist (for now) | Parallel test execution adds complexity to DB isolation. The current test suite is small (~100 tests). Adding parallelism is premature — revisit when test count exceeds 500+. | Sequential execution with `pytest-timeout` to catch hangs. |
+| pytest-sugar / pytest-clarity | Cosmetic output improvements. Add noise to CI logs and can conflict with `--cov-report=term-missing`. Not worth the dependency for a hardening milestone. | Default pytest verbose output (`-v`). |
+| Faker (standalone) | General-purpose fake data. The project already has polyfactory for typed factories and Object Mothers for domain-specific construction. Adding Faker separately creates two data generation patterns. | polyfactory (has optional Faker integration if locale-specific data is ever needed). |
 
-## Stack Patterns by Variant
+---
 
-**Cart storage pattern:**
-- Use Redis Hash (`cart:{user_id}`) with fields per SKU ID
-- Each field value is a JSON string: `{"sku_id": "...", "quantity": 2, "added_at": "...", "price_snapshot": {"amount": 15000, "currency": "RUB"}}`
-- Set TTL on the cart key (7 days) for automatic abandoned cart cleanup
-- Cart operations are infrastructure-level (no domain entity for Cart -- it's a transient data structure, not a business aggregate)
-- Because: Cart has no meaningful invariants beyond "quantity > 0" and "SKU exists". Making it a full DDD aggregate with repository + UoW adds ceremony without business value. The real invariants (price validation, SKU availability) are checked at checkout time.
+## Stack Patterns by Test Type
 
-**Order aggregate pattern:**
-- `Order` is an AggregateRoot (attrs `@dataclass`) owning `OrderItem` child entities
-- Order stores: customer_id, status, delivery_address (text), contact_phone, contact_name, notes, total_amount (Money), created_at, updated_at
-- OrderItem stores: sku_id (reference), quantity, unit_price (Money), product_snapshot (JSONB dict with title, variant, sku_code, image_url, supplier info)
-- Order.create() factory method calculates total from items, sets status to `pending_payment`
-- Because: This follows the exact same aggregate pattern as `Product` with owned child entities (`ProductVariant`, `SKU`)
+**Unit tests (domain entities, command handlers with mocked deps):**
+- Use Object Mothers (`tests/factories/catalog_mothers.py`) for domain entities
+- Use `unittest.mock.AsyncMock` for repository/UoW mocking (already established)
+- Use `hypothesis` with `@given` + `builds()` for property-based invariant testing on attrs domain models
+- Use `dirty-equals` for structured assertion matching
 
-**Order status flow (simplified for this milestone):**
-- `pending_payment` -> `confirmed` -> `processing` -> `shipped` -> `delivered`
-- `pending_payment` -> `cancelled` (customer cancellation)
-- `confirmed` -> `cancelled` (admin cancellation)
-- `processing` -> `cancelled` (admin cancellation before shipment)
-- Because: Designed for extensibility. Future states (`awaiting_shipment`, `partially_fulfilled`, `refunded`) can be added by extending the transition dict without structural changes.
+**Integration tests (repositories, handlers with real DB):**
+- Use `db_session` fixture (nested transaction rollback) — already working
+- Use `polyfactory` ORM factories for seeding test data
+- Use `assert_query_count` context manager for N+1 detection
+- Use `respx` to mock image backend HTTP calls
 
-**If full event sourcing is needed later:**
-- The Transactional Outbox already captures all order events
-- Add a read-side projection that materializes from outbox events
-- No architectural rewrite needed -- just add consumers
-- Because: The outbox pattern is a stepping stone to event sourcing if the business requires it
+**E2E / API contract tests:**
+- Use `httpx.AsyncClient` with `ASGITransport` — already working
+- Use `schemathesis` for fuzz testing all catalog endpoints against OpenAPI schema
+- Use `dirty-equals` for response payload assertions
+
+**Property-based tests (EAV domain invariants):**
+- Use `hypothesis` with custom strategies for:
+  - Attribute value validation across types (string, number, boolean, select)
+  - Category tree depth/hierarchy invariants
+  - SKU matrix generation correctness
+  - Product status FSM transitions
+  - Slug generation uniqueness
+
+---
 
 ## Version Compatibility
 
 | Package | Compatible With | Notes |
-|---------|----------------|-------|
-| attrs >=25.4.0 | Python 3.14, SQLAlchemy 2.1 | Used for Order and OrderItem domain entities. `@dataclass` (from attrs, not stdlib) and `@frozen` for value objects. Confirmed working in existing catalog module. |
-| SQLAlchemy >=2.1.0b1 | asyncpg >=0.31.0, PostgreSQL 18 | JSONB type for order item snapshots. `MutableDict.as_mutable(JSONB)` if change tracking is needed (unlikely for immutable snapshots). |
-| redis >=7.3.0 | Python 3.14 | Async Redis client for cart operations. Already configured with hiredis C extension. |
-| Pydantic (via FastAPI) | Python 3.14 | Request/response schemas for order endpoints. Pydantic v2 `condecimal` / `conint` for price validation at the API boundary. |
-| Dishka >=1.9.1 | FastAPI, TaskIQ | DI for order command/query handlers, repository implementations. Same provider pattern as existing modules. |
+|---------|-----------------|-------|
+| hypothesis >=6.151.5 | Python 3.14, attrs >=25.4.0 | Built-in attrs introspection for `builds()` and `from_type()`. |
+| schemathesis >=4.13.0 | FastAPI >=0.115.0, hypothesis >=6.x | Uses Hypothesis internally. Reads OpenAPI schema from FastAPI app. |
+| dirty-equals >=0.11 | Python 3.8+, Pydantic v2 | Created by Pydantic author. Works with any assertion framework. |
+| respx >=0.22.0 | httpx >=0.25.0 (project uses >=0.28.1) | Version 0.22.0 specifically fixed httpx 0.28 compatibility. |
+| pytest-randomly >=3.16.0 | pytest >=9.0.2 | Drop-in plugin, no configuration needed beyond install. |
+| pytest-timeout >=2.4.0 | pytest >=9.0.2, pytest-asyncio >=1.3.0 | Works with async tests. Supports `thread` and `signal` timeout methods. |
+| polyfactory >=3.3.0 | SQLAlchemy >=2.1.0b1 | Already installed. SQLAlchemyFactory handles relationships, association proxies. |
 
-## Order Module Structure (Following Existing Convention)
+---
 
+## Custom Tooling to Build (Not External Libraries)
+
+These are small utilities (10-30 lines each) to build inside the test suite rather than installing packages:
+
+### 1. Query Count Assertion Context Manager
+
+```python
+# tests/helpers/query_counter.py
+from contextlib import contextmanager
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncSession
+
+@contextmanager
+def assert_query_count(session: AsyncSession, expected: int):
+    """Assert that exactly `expected` SQL queries are executed within the block."""
+    queries = []
+    sync_conn = session.sync_session.bind
+
+    def _record(conn, cursor, statement, parameters, context, executemany):
+        queries.append(statement)
+
+    event.listen(sync_conn, "after_cursor_execute", _record)
+    try:
+        yield queries
+    finally:
+        event.remove(sync_conn, "after_cursor_execute", _record)
+    assert len(queries) == expected, (
+        f"Expected {expected} queries, got {len(queries)}:\n"
+        + "\n".join(f"  {i+1}. {q[:120]}" for i, q in enumerate(queries))
+    )
 ```
-backend/src/modules/order/
-    domain/
-        entities.py       # Order (AggregateRoot), OrderItem (child entity)
-        value_objects.py   # OrderStatus (StrEnum), DeliveryAddress, ContactInfo
-        events.py          # OrderCreatedEvent, OrderStatusChangedEvent, OrderCancelledEvent
-        exceptions.py      # InvalidOrderTransitionError, EmptyCartError, etc.
-        interfaces.py      # IOrderRepository, ICartService (port)
-    application/
-        commands/          # CreateOrderCommand, CancelOrderCommand, UpdateOrderStatusCommand
-        queries/           # GetOrderQuery, ListOrdersQuery (admin), ListCustomerOrdersQuery
-    infrastructure/
-        repositories/      # SQLAlchemy OrderRepository
-        cart/              # RedisCartService (implements ICartService port)
-        models.py          # ORM models: OrderModel, OrderItemModel, OrderStatusHistoryModel
-        provider.py        # Dishka DI wiring
-    presentation/
-        router_customer.py # POST /cart/items, DELETE /cart/items/{sku_id}, POST /checkout, GET /orders
-        router_admin.py    # GET /admin/orders, GET /admin/orders/{id}, PATCH /admin/orders/{id}/status
-        schemas.py         # Pydantic request/response models
-        dependencies.py    # Dishka providers for order module
+
+### 2. Hypothesis Strategies for EAV Domain
+
+```python
+# tests/strategies/catalog_strategies.py
+from hypothesis import strategies as st
+
+# Attribute value strategies by type
+eav_attribute_values = st.one_of(
+    st.text(min_size=1, max_size=500),           # string attributes
+    st.integers(min_value=0, max_value=999999),   # numeric attributes
+    st.booleans(),                                 # boolean attributes
+    st.floats(min_value=0, allow_nan=False, allow_infinity=False),  # decimal attributes
+)
+
+# i18n name strategy (required for categories, brands)
+i18n_names = st.fixed_dictionaries({
+    "en": st.text(min_size=1, max_size=100),
+    "ru": st.text(min_size=1, max_size=100),
+})
+
+# Slug strategy (URL-safe strings)
+slugs = st.from_regex(r"[a-z0-9][a-z0-9-]{2,48}[a-z0-9]", fullmatch=True)
 ```
+
+---
 
 ## Sources
 
-- [python-statemachine PyPI](https://pypi.org/project/python-statemachine/) -- v3.0.0 released 2026-02-24, Python >=3.9. Evaluated and rejected for consistency reasons. **MEDIUM confidence** (verified via PyPI).
-- [transitions GitHub](https://github.com/pytransitions/transitions) -- v0.9.4, lightweight FSM. Evaluated and rejected due to model decoration conflicts with attrs guarded fields. **MEDIUM confidence** (verified via GitHub).
-- [Existing Product FSM pattern](../codebase/ARCHITECTURE.md) -- `Product._ALLOWED_TRANSITIONS` dict + `transition_status()` method. **HIGH confidence** (verified in codebase).
-- [Existing Money value object](../codebase/STACK.md) -- `Money(amount=int, currency=str)` frozen attrs class with integer subunit storage. **HIGH confidence** (verified in codebase).
-- [Redis shopping cart patterns](https://redis.io/learn/howtos/shoppingcart) -- Redis hashes for cart storage, industry standard pattern. **MEDIUM confidence** (Redis official docs).
-- [immoney PyPI](https://pypi.org/project/immoney/) -- v0.11.0, released 2024-10-19, Python >=3.10. Evaluated and rejected as overkill for single-currency use case. **MEDIUM confidence** (verified via PyPI).
-- [Walmart cart DDD article](https://medium.com/walmartglobaltech/implementing-cart-service-with-ddd-hexagonal-port-adapter-architecture-part-1-4dab93b3fa9f) -- Cart as aggregate in hexagonal architecture. **LOW confidence** (single blog post, but aligns with DDD literature).
-- [PostgreSQL JSONB in SQLAlchemy 2.1](https://docs.sqlalchemy.org/en/21/dialects/postgresql.html) -- JSONB type documentation. **HIGH confidence** (official docs).
+- [pytest PyPI](https://pypi.org/project/pytest/) — version 9.0.2 confirmed (HIGH confidence)
+- [pytest-asyncio PyPI](https://pypi.org/project/pytest-asyncio/) — version 1.3.0 confirmed (HIGH confidence)
+- [hypothesis PyPI](https://pypi.org/project/hypothesis/) — version 6.151.5+ confirmed (HIGH confidence)
+- [hypothesis docs: attrs support](https://hypothesis.readthedocs.io/en/latest/data.html) — builds()/from_type() attrs introspection confirmed (HIGH confidence)
+- [schemathesis PyPI](https://pypi.org/project/schemathesis/) — version 4.13.0 confirmed (HIGH confidence)
+- [schemathesis + FastAPI guide](https://testdriven.io/blog/fastapi-hypothesis/) — integration pattern verified (MEDIUM confidence)
+- [dirty-equals PyPI](https://pypi.org/project/dirty-equals/) — version 0.11 confirmed (HIGH confidence)
+- [respx PyPI](https://pypi.org/project/respx/) — version 0.22.0, httpx 0.28 compat confirmed (HIGH confidence)
+- [respx httpx 0.28 fix PR](https://github.com/lundberg/respx/pull/278) — compatibility verified (HIGH confidence)
+- [pytest-randomly PyPI](https://pypi.org/project/pytest-randomly/) — active maintenance confirmed (HIGH confidence)
+- [pytest-timeout PyPI](https://pypi.org/project/pytest-timeout/) — version 2.4.0 confirmed (HIGH confidence)
+- [SQLAlchemy event docs](https://docs.sqlalchemy.org/en/21/orm/events.html) — after_cursor_execute for query counting (HIGH confidence)
+- [nplusone GitHub](https://github.com/jmcarp/nplusone) — unmaintained, no SA 2.x/async support (HIGH confidence on "avoid" recommendation)
+- [polyfactory docs: SQLAlchemy](https://polyfactory.litestar.dev/latest/usage/library_factories/sqlalchemy_factory.html) — SA 2.x support confirmed (HIGH confidence)
+- [pytest-cov PyPI](https://pypi.org/project/pytest-cov/) — version 7.0.0 confirmed (HIGH confidence)
+- [coverage.py docs](https://coverage.readthedocs.io/) — version 7.13.5, branch coverage supported (HIGH confidence)
+- [Locust PyPI](https://pypi.org/project/locust/) — version 2.43.3 confirmed (HIGH confidence)
 
 ---
-*Stack research for: Order lifecycle management in existing DDD modular monolith*
+
+*Stack research for: EAV Catalog Hardening — Testing & Validation Tooling*
 *Researched: 2026-03-28*
