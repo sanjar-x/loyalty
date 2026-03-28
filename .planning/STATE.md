@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-03-28T14:29:39Z"
-last_activity: 2026-03-28 -- Completed 02-01 (Brand, Category, value objects tests)
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-03-28T14:31:19Z"
+last_activity: 2026-03-28 -- Plan 02-02 completed
 progress:
   total_phases: 9
   completed_phases: 0
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-28)
 Phase: 02 (value-objects-entity-foundations) — EXECUTING
 Plan: 2 of 3
 Status: Executing Phase 02
-Last activity: 2026-03-28 -- Completed 02-01 (Brand, Category, value objects tests)
+Last activity: 2026-03-28 -- Plan 02-02 completed (Product aggregate + entity tests)
 
 Progress: [####......] 43%
 
@@ -53,7 +53,7 @@ Progress: [####......] 43%
 
 *Updated after each plan completion*
 | Phase 01 P03 | 6min | 2 tasks | 11 files |
-| Phase 02 P01 | 4min | 2 tasks | 4 files |
+| Phase 02 P02 | 6min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -66,7 +66,8 @@ Recent decisions affecting current work:
 - [Roadmap]: Entity god-class split deferred to Phase 9 (last) so 400+ tests exist as safety net
 - [Phase 01]: Used segment-based regex for slug generation to avoid hypothesis edge cases with hyphens
 - [Phase 01]: Query counter accesses sync_connection (not async) per SQLAlchemy event API requirements
-- [Phase 02]: Fixed failing test assertion -- Category.update(template_id=None) clears effective_template_id when parent_effective_template_id not provided
+- [Phase 02]: Product.update() returns None (not old_slug) -- plan interface was inaccurate, tests adapted
+- [Phase 02]: clear_domain_events() before each event assertion block to avoid ProductCreatedEvent conflation
 
 ### Pending Todos
 
@@ -80,6 +81,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-28T14:29:39Z
-Stopped at: Completed 02-01-PLAN.md
-Resume file: .planning/phases/02-value-objects-entity-foundations/02-01-SUMMARY.md
+Last session: 2026-03-28T14:31:19Z
+Stopped at: Completed 02-02-PLAN.md
+Resume file: .planning/phases/02-value-objects-entity-foundations/02-02-SUMMARY.md
