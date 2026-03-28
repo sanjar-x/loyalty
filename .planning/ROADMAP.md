@@ -53,7 +53,7 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Brand entity + Category entity + all value objects (Money, BehaviorFlags, enums, i18n, slug, validation rules)
+- [x] 02-01-PLAN.md — Brand entity + Category entity + all value objects (Money, BehaviorFlags, enums, i18n, slug, validation rules)
 - [ ] 02-02-PLAN.md — Product aggregate + ProductVariant + SKU entity tests
 - [x] 02-03-PLAN.md — Attribute + AttributeValue + AttributeTemplate + TemplateAttributeBinding + AttributeGroup tests
 
