@@ -2,14 +2,6 @@
 
 **Analysis Date:** 2026-03-28
 
-## Project Structure
-
-The codebase is a multi-service monorepo with three main subsystems:
-- **backend/** -- Main API (Python, FastAPI, Clean Architecture + CQRS)
-- **image_backend/** -- Image processing microservice (same stack, same conventions)
-- **frontend/admin/** -- Admin panel (Next.js 16, React 19, JSX, no TypeScript)
-- **frontend/main/** -- Customer-facing Telegram Mini App (Next.js 16, React 19, TypeScript)
-
 ## Naming Patterns
 
 ### Python (backend, image_backend)
@@ -103,8 +95,8 @@ The codebase is a multi-service monorepo with three main subsystems:
 ### Python
 
 **Order:**
-1. Standard library imports
-2. Third-party imports (FastAPI, SQLAlchemy, attrs, etc.)
+1. Standard library imports (`uuid`, `datetime`, `typing`, `dataclasses`)
+2. Third-party imports (`attrs`, `sqlalchemy`, `fastapi`, `pydantic`, `dishka`)
 3. First-party imports from `src.*`
 4. Test-only imports from `tests.*`
 
@@ -132,23 +124,23 @@ known-first-party = ["src"]
 
 All expected errors extend a shared base class hierarchy defined in `backend/src/shared/exceptions.py`:
 
-```python
-AppException (base)
-├── NotFoundError        (404)
-├── UnauthorizedError    (401)
-├── ForbiddenError       (403)
-├── ConflictError        (409)
-├── ValidationError      (400)
-└── UnprocessableEntityError (422)
+```
+AppException (base, 500)
++-- NotFoundError        (404)
++-- UnauthorizedError    (401)
++-- ForbiddenError       (403)
++-- ConflictError        (409)
++-- ValidationError      (400)
++-- UnprocessableEntityError (422)
 ```
 
-**Convention:** Each domain module defines concrete exceptions that extend these bases.
+**Convention:** Each domain module defines concrete exceptions that extend these bases in `backend/src/modules/{module}/domain/exceptions.py`.
 - Name: `{Entity}{Issue}Error` -- e.g., `BrandNotFoundError`, `CategoryMaxDepthError`
 - Constructor: Always pass `message`, `error_code`, and `details` to super()
 - `error_code`: `UPPER_SNAKE_CASE` string constant -- e.g., `"CATEGORY_NOT_FOUND"`, `"BRAND_SLUG_CONFLICT"`
 - `details`: dict with relevant entity IDs as strings
 
-Example pattern from `backend/src/modules/catalog/domain/exceptions.py`:
+Exception constructor pattern from `backend/src/modules/catalog/domain/exceptions.py`:
 
 ```python
 class BrandNotFoundError(NotFoundError):
@@ -180,7 +172,9 @@ Registered in `backend/src/api/exceptions/handlers.py`. Converts all `AppExcepti
 - Domain entities validate in `create()` factory methods and `update()` methods
 - Raise `ValueError` for invariant violations (caught by global handler as 422/500)
 - Raise specific domain exceptions (e.g., `CategoryMaxDepthError`) for business rule violations
-- Use `__setattr__` guard pattern (DDD-01) to prevent direct mutation of guarded fields:
+- Use `__setattr__` guard pattern (DDD-01) to prevent direct mutation of guarded fields
+
+DDD-01 guard pattern from `backend/src/modules/catalog/domain/entities.py`:
 
 ```python
 _PRODUCT_GUARDED_FIELDS: frozenset[str] = frozenset({"status"})
@@ -198,6 +192,7 @@ def __setattr__(self, name: str, value: object) -> None:
 3. Persists via repository, registers aggregate for outbox events, commits via UoW
 
 ```python
+# Pattern from backend/src/modules/catalog/application/commands/create_brand.py
 async with self._uow:
     if await self._brand_repo.check_slug_exists(command.slug):
         raise BrandSlugConflictError(slug=command.slug)
@@ -247,12 +242,13 @@ def transition_status(self, new_status: ProductStatus) -> None:
 
 ## Function Design
 
-**Command handlers:**
+**Command handlers** (one per file in `backend/src/modules/{module}/application/commands/`):
 - One public method: `async def handle(self, command: XCommand) -> XResult`
 - Dependencies injected via `__init__` and stored as `_private_attrs`
 - Return a frozen dataclass result (not the entity itself)
+- Command is a frozen `@dataclass(frozen=True)`
 
-**Query handlers:**
+**Query handlers** (one per file in `backend/src/modules/{module}/application/queries/`):
 - One public method: `async def handle(self, query: XQuery) -> ReadModel`
 - Inject `AsyncSession` directly (CQRS read side skips UoW/repositories)
 - Return Pydantic read models, not domain entities
@@ -260,12 +256,20 @@ def transition_status(self, new_status: ProductStatus) -> None:
 **Domain entity factory methods:**
 - `@classmethod def create(cls, *, keyword_only_args) -> Self`
 - Validate all invariants before constructing
-- Generate UUIDs internally (uuid7 preferred, uuid4 fallback)
+- Generate UUIDs internally (uuid7 preferred via `uuid.uuid7()`, uuid4 fallback)
 
 **Partial update pattern:**
 - `_UPDATABLE_FIELDS: ClassVar[frozenset[str]]` whitelist on entities
 - `update(**kwargs)` rejects unknown fields via `TypeError`
 - Uses `...` (Ellipsis) sentinel for "keep current" on nullable fields
+- Guarded fields are mutated via `object.__setattr__()` bypass within the domain method
+
+**Deletion guards (DDD-06):**
+```python
+def validate_deletable(self, *, has_products: bool) -> None:
+    if has_products:
+        raise BrandHasProductsError(brand_id=self.id)
+```
 
 ## Module Design
 
@@ -276,11 +280,12 @@ def transition_status(self, new_status: ProductStatus) -> None:
 
 **API Schema Convention:**
 - All Pydantic schemas inherit from `CamelModel` (`backend/src/shared/schemas.py`)
-- `CamelModel` auto-converts `snake_case` Python fields to `camelCase` JSON
+- `CamelModel` auto-converts `snake_case` Python fields to `camelCase` JSON via `alias_generator=to_camel`
+- `populate_by_name=True` allows Python-side access via snake_case
 - Request schemas: `BrandCreateRequest`, `BrandUpdateRequest`
 - Response schemas: `BrandResponse`, `BrandListResponse`
-- Generic pagination: `PaginatedResponse[S]`
-- i18n fields validated with custom `I18nDict` annotated type
+- Generic pagination: `PaginatedResponse[S]` with computed `has_next` field
+- i18n fields validated with custom `I18nDict` annotated type (requires both `ru` and `en` locales)
 
 **Router Convention:**
 - Each router file defines one `APIRouter` with prefix and tags
@@ -294,6 +299,48 @@ def transition_status(self, new_status: ProductStatus) -> None:
 - Dishka as the DI framework
 - Each module has a `dependencies.py` (presentation layer) or `provider.py` (infrastructure layer) with Dishka Provider classes
 - Scopes: `APP` for singletons (engine, redis), `REQUEST` for per-request (session, handlers)
+- Composition root: `backend/src/bootstrap/container.py`
+
+## Domain Entity Architecture
+
+**attrs-based entities** (from `backend/src/modules/catalog/domain/entities.py`):
+```python
+from attr import dataclass, field
+from src.shared.interfaces.entities import AggregateRoot
+
+@dataclass
+class Brand(AggregateRoot):
+    id: uuid.UUID
+    name: str
+    slug: str
+    logo_url: str | None = None
+
+    @classmethod
+    def create(cls, name: str, slug: str, ...) -> Brand:
+        _validate_slug(slug, "Brand")
+        return cls(id=_generate_id(), name=name.strip(), slug=slug, ...)
+
+    def update(self, name: str | None = None, slug: str | None = None) -> None:
+        if name is not None:
+            self.name = name.strip()
+        if slug is not None:
+            object.__setattr__(self, "slug", slug)  # bypass guard
+```
+
+**AggregateRoot mixin** (from `backend/src/shared/interfaces/entities.py`):
+- Provides `add_domain_event()`, `clear_domain_events()`, `domain_events` property
+- Events collected in-memory, flushed to Outbox on UnitOfWork commit
+- `__attrs_post_init__` initializes `_domain_events` list
+
+**Domain Events** (frozen dataclasses in `backend/src/modules/{module}/domain/events.py`):
+- Must override `aggregate_type` and `event_type` with non-empty defaults
+- `__init_subclass__` enforces this at class definition time with `TypeError`
+- Include `event_id` (uuid4), `occurred_at` (UTC), `aggregate_id` (str)
+
+**Repository Interfaces** (from `backend/src/modules/catalog/domain/interfaces.py`):
+- Generic base: `ICatalogRepository[T](ABC)` with `add`, `get`, `update`, `delete`
+- Module-specific repos extend with extra query methods (e.g., `check_slug_exists`, `get_for_update`, `has_products`)
+- External service ports defined as ABCs (e.g., `IImageBackendClient`)
 
 ---
 
