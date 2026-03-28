@@ -114,11 +114,12 @@ Plans:
   3. Every command handler that produces domain events is verified to emit the correct event type and payload (systematic audit across all 46 handlers)
   4. Bulk operations (bulk_create_brands, generate_sku_matrix) roll back completely on partial failure -- no partial state persists
   5. FK-not-found and uniqueness conflict error paths are tested across all handlers that reference related entities
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
+- [ ] 06-01-PLAN.md — Implement missing fake repo methods + SKU handler unit tests (CMD-06)
+- [ ] 06-02-PLAN.md — Media handler unit tests (CMD-07)
+- [ ] 06-03-PLAN.md — Cross-cutting tests: event audit gaps, bulk atomicity, FK/uniqueness errors (CMD-08, CMD-09, CMD-10)
 
 ### Phase 7: Repository & Data Integrity
 **Goal**: All catalog repository implementations are proven correct against real PostgreSQL -- Data Mapper roundtrips, schema constraints, soft-delete filtering, and ORM mapping fidelity
@@ -179,7 +180,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 3. Product Aggregate Behavior | 0/2 | Planned | - |
 | 4. Brand, Category & Attribute Command Handlers | 0/3 | Planned | - |
 | 5. Product & Variant Command Handlers | 0/0 | Not started | - |
-| 6. SKU, Media & Cross-Cutting Commands | 0/0 | Not started | - |
+| 6. SKU, Media & Cross-Cutting Commands | 0/3 | Planned | - |
 | 7. Repository & Data Integrity | 0/3 | Planned | - |
 | 8. API Contract Validation | 0/0 | Not started | - |
 | 9. Entity God-Class Refactoring | 0/0 | Not started | - |
