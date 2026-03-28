@@ -70,7 +70,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — FSM transitions + variant hash uniqueness + soft-delete cascade tests
+- [x] 03-01-PLAN.md — FSM transitions + variant hash uniqueness + soft-delete cascade tests
 - [ ] 03-02-PLAN.md — Domain event emission + attribute governance surface + variant/SKU management tests
 
 ### Phase 4: Brand, Category & Attribute Command Handlers

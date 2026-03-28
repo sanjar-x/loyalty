@@ -516,3 +516,328 @@ class TestSoftDeleteCascade:
         product.soft_delete()
 
         assert product.deleted_at is not None
+
+
+# ============================================================================
+# TestProductDomainEvents -- per D-14, D-15, D-16
+# ============================================================================
+
+
+class TestProductDomainEvents:
+    """Tests for domain event emission at all lifecycle points.
+
+    Verifies that each Product operation emits the correct event type with
+    the expected aggregate_id and payload fields. Event ordering across
+    multiple operations is also tested.
+    """
+
+    def test_create_emits_product_created_event(self):
+        """D-15: Product.create() emits exactly one ProductCreatedEvent."""
+        product = ProductBuilder().build()
+
+        events = product.domain_events
+        assert len(events) == 1
+
+        event = events[0]
+        assert isinstance(event, ProductCreatedEvent)
+        assert event.product_id == product.id
+        assert event.slug == product.slug
+        assert event.aggregate_id == str(product.id)
+
+    def test_update_emits_product_updated_event(self):
+        """D-15: product.update() emits ProductUpdatedEvent."""
+        product = ProductBuilder().build()
+        product.clear_domain_events()
+
+        product.update(title_i18n={"en": "Updated", "ru": "Обновлено"})
+
+        events = product.domain_events
+        assert len(events) == 1
+
+        event = events[0]
+        assert isinstance(event, ProductUpdatedEvent)
+        assert event.product_id == product.id
+        assert event.aggregate_id == str(product.id)
+
+    def test_soft_delete_emits_product_deleted_event(self):
+        """D-15: product.soft_delete() emits ProductDeletedEvent."""
+        product = ProductBuilder().build()
+        product.clear_domain_events()
+
+        product.soft_delete()
+
+        events = product.domain_events
+        assert len(events) == 1
+
+        event = events[0]
+        assert isinstance(event, ProductDeletedEvent)
+        assert event.product_id == product.id
+        assert event.slug == product.slug
+        assert event.aggregate_id == str(product.id)
+
+    def test_transition_status_emits_status_changed_event(self):
+        """D-15: product.transition_status() emits ProductStatusChangedEvent."""
+        product = ProductBuilder().build()
+        product.clear_domain_events()
+
+        product.transition_status(ProductStatus.ENRICHING)
+
+        events = product.domain_events
+        assert len(events) == 1
+
+        event = events[0]
+        assert isinstance(event, ProductStatusChangedEvent)
+        assert event.product_id == product.id
+        assert event.old_status == "draft"
+        assert event.new_status == "enriching"
+        assert event.aggregate_id == str(product.id)
+
+    def test_add_variant_emits_variant_added_event(self):
+        """D-15: product.add_variant() emits VariantAddedEvent."""
+        product = ProductBuilder().build()
+        product.clear_domain_events()
+
+        variant = product.add_variant(
+            name_i18n={"en": "V2", "ru": "В2"},
+        )
+
+        events = product.domain_events
+        assert len(events) == 1
+
+        event = events[0]
+        assert isinstance(event, VariantAddedEvent)
+        assert event.product_id == product.id
+        assert event.variant_id == variant.id
+        assert event.aggregate_id == str(product.id)
+
+    def test_remove_variant_emits_variant_deleted_event(self):
+        """D-15: product.remove_variant() emits VariantDeletedEvent."""
+        product = ProductBuilder().build()
+        second_variant = product.add_variant(
+            name_i18n={"en": "V2", "ru": "В2"},
+        )
+        second_variant_id = second_variant.id
+        product.clear_domain_events()
+
+        product.remove_variant(second_variant_id)
+
+        events = product.domain_events
+        assert len(events) == 1
+
+        event = events[0]
+        assert isinstance(event, VariantDeletedEvent)
+        assert event.product_id == product.id
+        assert event.variant_id == second_variant_id
+
+    def test_add_sku_emits_sku_added_event(self):
+        """D-15: product.add_sku() emits SKUAddedEvent."""
+        product = ProductBuilder().build()
+        variant = product.variants[0]
+        product.clear_domain_events()
+
+        sku = product.add_sku(variant.id, sku_code="SKU-EVT")
+
+        events = product.domain_events
+        assert len(events) == 1
+
+        event = events[0]
+        assert isinstance(event, SKUAddedEvent)
+        assert event.product_id == product.id
+        assert event.variant_id == variant.id
+        assert event.sku_id == sku.id
+        assert event.aggregate_id == str(product.id)
+
+    def test_remove_sku_emits_sku_deleted_event(self):
+        """D-15: product.remove_sku() emits SKUDeletedEvent."""
+        product = ProductBuilder().build()
+        variant = product.variants[0]
+        sku = product.add_sku(variant.id, sku_code="SKU-DEL")
+        sku_id = sku.id
+        variant_id = variant.id
+        product.clear_domain_events()
+
+        product.remove_sku(sku_id)
+
+        events = product.domain_events
+        assert len(events) == 1
+
+        event = events[0]
+        assert isinstance(event, SKUDeletedEvent)
+        assert event.product_id == product.id
+        assert event.variant_id == variant_id
+        assert event.sku_id == sku_id
+
+    def test_event_accumulation_multiple_operations(self):
+        """D-16: Multiple operations accumulate events in order."""
+        product = ProductBuilder().build()
+        variant = product.variants[0]
+        product.clear_domain_events()
+
+        # 3 operations in sequence
+        product.transition_status(ProductStatus.ENRICHING)
+        product.add_sku(variant.id, sku_code="SKU-ACC")
+        product.add_variant(name_i18n={"en": "V3", "ru": "В3"})
+
+        events = product.domain_events
+        assert len(events) == 3
+        assert isinstance(events[0], ProductStatusChangedEvent)
+        assert isinstance(events[1], SKUAddedEvent)
+        assert isinstance(events[2], VariantAddedEvent)
+
+    def test_clear_domain_events_resets_list(self):
+        """D-16: clear_domain_events() empties the event list."""
+        product = ProductBuilder().build()
+
+        # Product.create() emits at least 1 event
+        assert len(product.domain_events) >= 1
+
+        product.clear_domain_events()
+
+        assert len(product.domain_events) == 0
+
+
+# ============================================================================
+# TestProductAttributeValue -- per D-01, D-02
+# ============================================================================
+
+
+class TestProductAttributeValue:
+    """Tests for the ProductAttributeValue entity-side surface.
+
+    Validates that ProductAttributeValue.create() produces correct 4-field
+    entities with auto-generated or explicit IDs.
+    """
+
+    def test_create_returns_correct_fields(self):
+        """ProductAttributeValue.create() populates all 4 fields correctly."""
+        product_id = uuid.uuid4()
+        attribute_id = uuid.uuid4()
+        attribute_value_id = uuid.uuid4()
+
+        pav = ProductAttributeValue.create(
+            product_id=product_id,
+            attribute_id=attribute_id,
+            attribute_value_id=attribute_value_id,
+        )
+
+        assert pav.product_id == product_id
+        assert pav.attribute_id == attribute_id
+        assert pav.attribute_value_id == attribute_value_id
+        assert pav.id is not None
+
+    def test_create_with_explicit_pav_id(self):
+        """ProductAttributeValue.create() uses explicit pav_id when provided."""
+        product_id = uuid.uuid4()
+        attribute_id = uuid.uuid4()
+        attribute_value_id = uuid.uuid4()
+        explicit_id = uuid.uuid4()
+
+        pav = ProductAttributeValue.create(
+            product_id=product_id,
+            attribute_id=attribute_id,
+            attribute_value_id=attribute_value_id,
+            pav_id=explicit_id,
+        )
+
+        assert pav.id == explicit_id
+
+    def test_create_generates_unique_ids(self):
+        """Two PAVs created without explicit IDs have different auto-generated IDs."""
+        product_id = uuid.uuid4()
+        attribute_id = uuid.uuid4()
+        attribute_value_id = uuid.uuid4()
+
+        pav1 = ProductAttributeValue.create(
+            product_id=product_id,
+            attribute_id=attribute_id,
+            attribute_value_id=attribute_value_id,
+        )
+        pav2 = ProductAttributeValue.create(
+            product_id=product_id,
+            attribute_id=attribute_id,
+            attribute_value_id=attribute_value_id,
+        )
+
+        assert pav1.id != pav2.id
+
+
+# ============================================================================
+# TestVariantSKUManagement -- per D-17, D-18
+# ============================================================================
+
+
+class TestVariantSKUManagement:
+    """Tests for variant/SKU management edge cases.
+
+    Covers remove_variant guards, find_variant/find_sku soft-delete filtering,
+    and add_sku validation against deleted variants.
+    """
+
+    def test_remove_variant_raises_last_variant_removal(self):
+        """D-17: Cannot remove the only active variant from a product."""
+        product = ProductBuilder().build()
+        assert len(product.variants) == 1
+
+        with pytest.raises(LastVariantRemovalError):
+            product.remove_variant(product.variants[0].id)
+
+    def test_remove_variant_succeeds_with_multiple_variants(self):
+        """Removing a variant works when at least 2 active variants exist."""
+        product = ProductBuilder().build()
+        first_variant_id = product.variants[0].id
+        product.add_variant(name_i18n={"en": "V2", "ru": "В2"})
+
+        product.remove_variant(first_variant_id)
+
+        active_variants = [v for v in product.variants if v.deleted_at is None]
+        assert len(active_variants) == 1
+
+    def test_remove_variant_raises_not_found_for_nonexistent(self):
+        """Removing a nonexistent variant raises VariantNotFoundError."""
+        product = ProductBuilder().build()
+
+        with pytest.raises(VariantNotFoundError):
+            product.remove_variant(uuid.uuid4())
+
+    def test_find_variant_returns_none_for_soft_deleted(self):
+        """D-18: find_variant returns None for a soft-deleted variant."""
+        product = ProductBuilder().build()
+        second_variant = product.add_variant(
+            name_i18n={"en": "V2", "ru": "В2"},
+        )
+        second_variant_id = second_variant.id
+
+        product.remove_variant(second_variant_id)
+
+        assert product.find_variant(second_variant_id) is None
+
+    def test_find_sku_returns_none_for_soft_deleted(self):
+        """D-18: find_sku returns None for a soft-deleted SKU."""
+        product = ProductBuilder().build()
+        variant = product.variants[0]
+        sku = product.add_sku(variant.id, sku_code="SKU-DEL-FIND")
+        sku_id = sku.id
+
+        product.remove_sku(sku_id)
+
+        assert product.find_sku(sku_id) is None
+
+    def test_remove_sku_raises_not_found_for_nonexistent(self):
+        """Removing a nonexistent SKU raises SKUNotFoundError."""
+        product = ProductBuilder().build()
+
+        with pytest.raises(SKUNotFoundError):
+            product.remove_sku(uuid.uuid4())
+
+    def test_add_sku_raises_variant_not_found_for_deleted_variant(self):
+        """Adding a SKU to a soft-deleted variant raises VariantNotFoundError."""
+        product = ProductBuilder().build()
+        second_variant = product.add_variant(
+            name_i18n={"en": "V2", "ru": "В2"},
+        )
+        second_variant_id = second_variant.id
+
+        product.remove_variant(second_variant_id)
+
+        with pytest.raises(VariantNotFoundError):
+            product.add_sku(second_variant_id, sku_code="SKU-FAIL")
