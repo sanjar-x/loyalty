@@ -85,7 +85,7 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Implement 7 missing fake repo methods + Brand handler unit tests (CMD-01)
+- [x] 04-01-PLAN.md — Implement 7 missing fake repo methods + Brand handler unit tests (CMD-01)
 - [ ] 04-02-PLAN.md — Category handler unit tests (CMD-02)
 - [ ] 04-03-PLAN.md — Attribute/Template/Binding handler unit tests (CMD-03)
 
