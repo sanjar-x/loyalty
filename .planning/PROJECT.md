@@ -80,6 +80,12 @@ The EAV Catalog module must be provably correct and thoroughly tested — it is 
 | Keep EAV pattern | Deliberate architectural choice for flexible product attributes | — Pending |
 | Split entity god-class | 2,220 lines in single file hurts maintainability and testability | — Pending |
 | Manual buying agent model | No marketplace API integrations needed — human agents order from Poizon/Taobao/etc. | — Pending |
+| Bottom-up testing order | Domain → handlers → repos → API ensures mock-heavy tests don't hide real bugs | Validated in Phase 1 |
+| pytest-timeout thread method | Windows dev environment requires thread-based timeout (not signal) | Validated in Phase 1 |
+
+## Current State
+
+Phase 1 (Test Infrastructure) complete -- all test tooling, factories, and utilities in place. 37 unit tests pass. 6 test dependencies installed. FakeUnitOfWork with 10 fake catalog repositories operational. Hypothesis strategies and N+1 query detection ready.
 
 ## Evolution
 
@@ -99,4 +105,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-28 after initialization*
+*Last updated: 2026-03-28 after Phase 01 completion*
