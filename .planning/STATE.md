@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Phase 1 context gathered
-last_updated: "2026-03-28T10:52:47.762Z"
-last_activity: 2026-03-28 -- Roadmap created with 9 phases covering 35 requirements
+status: executing
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-03-28T12:33:34.917Z"
+last_activity: 2026-03-28
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 0
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-28)
 
 **Core value:** The EAV Catalog module must be provably correct and thoroughly tested -- it is the foundation for cart, checkout, and order management.
-**Current focus:** Phase 1: Test Infrastructure
+**Current focus:** Phase 01 — test-infrastructure
 
 ## Current Position
 
-Phase: 1 of 9 (Test Infrastructure)
-Plan: 0 of 0 in current phase
-Status: Ready to plan
-Last activity: 2026-03-28 -- Roadmap created with 9 phases covering 35 requirements
+Phase: 01 (test-infrastructure) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-03-28
 
 Progress: [..........] 0%
 
@@ -52,6 +52,7 @@ Progress: [..........] 0%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 01 P01 | 10min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,9 @@ Recent decisions affecting current work:
 
 - [Roadmap]: Bottom-up testing order (domain -> handlers -> repos -> API) to avoid mock-heavy tests hiding real bugs
 - [Roadmap]: Entity god-class split deferred to Phase 9 (last) so 400+ tests exist as safety net
+- [Phase 01]: pytest-timeout uses thread method for Windows compatibility
+- [Phase 01]: SKUBuilder uses Product.add_sku() since SKU has no standalone create()
+- [Phase 01]: Builder i18n defaults include both ru and en keys per REQUIRED_LOCALES
 
 ### Pending Todos
 
@@ -75,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-28T10:52:47.757Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-test-infrastructure/01-CONTEXT.md
+Last session: 2026-03-28T12:33:34.913Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None

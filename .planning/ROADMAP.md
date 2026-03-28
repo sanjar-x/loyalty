@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Install test dependencies + build fluent entity Builders + ORM factories
+- [x] 01-01-PLAN.md — Install test dependencies + build fluent entity Builders + ORM factories
 - [ ] 01-02-PLAN.md — Build FakeUnitOfWork with dict-based fake catalog repositories
 - [ ] 01-03-PLAN.md — Build composable Hypothesis strategies + N+1 query detection utility
 
