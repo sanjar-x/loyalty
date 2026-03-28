@@ -594,9 +594,13 @@ class FakeMediaAssetRepository(IMediaAssetRepository):
         product_id: uuid.UUID,
         updates: list[tuple[uuid.UUID, int]],
     ) -> int:
-        raise NotImplementedError(
-            "bulk_update_sort_order: fill in when Phase 6 needs it"
-        )
+        updated = 0
+        for media_id, new_sort_order in updates:
+            media = self._store.get(media_id)
+            if media is not None and media.product_id == product_id:
+                media.sort_order = new_sort_order
+                updated += 1
+        return updated
 
     async def check_main_exists(
         self,
@@ -604,9 +608,17 @@ class FakeMediaAssetRepository(IMediaAssetRepository):
         variant_id: uuid.UUID | None,
         exclude_media_id: uuid.UUID | None = None,
     ) -> bool:
-        raise NotImplementedError(
-            "check_main_exists: fill in when Phase 6 needs it"
-        )
+        from src.modules.catalog.domain.value_objects import MediaRole
+
+        for media in self._store.values():
+            if (
+                media.product_id == product_id
+                and media.variant_id == variant_id
+                and media.role == MediaRole.MAIN
+                and (exclude_media_id is None or media.id != exclude_media_id)
+            ):
+                return True
+        return False
 
 
 # ============================================================================
