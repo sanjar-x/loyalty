@@ -101,47 +101,47 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| INFRA-04 | — | Pending |
-| INFRA-05 | — | Pending |
-| DOM-01 | — | Pending |
-| DOM-02 | — | Pending |
-| DOM-03 | — | Pending |
-| DOM-04 | — | Pending |
-| DOM-05 | — | Pending |
-| DOM-06 | — | Pending |
-| DOM-07 | — | Pending |
-| CMD-01 | — | Pending |
-| CMD-02 | — | Pending |
-| CMD-03 | — | Pending |
-| CMD-04 | — | Pending |
-| CMD-05 | — | Pending |
-| CMD-06 | — | Pending |
-| CMD-07 | — | Pending |
-| CMD-08 | — | Pending |
-| CMD-09 | — | Pending |
-| CMD-10 | — | Pending |
-| REPO-01 | — | Pending |
-| REPO-02 | — | Pending |
-| REPO-03 | — | Pending |
-| REPO-04 | — | Pending |
-| REPO-05 | — | Pending |
-| API-01 | — | Pending |
-| API-02 | — | Pending |
-| API-03 | — | Pending |
-| API-04 | — | Pending |
-| API-05 | — | Pending |
-| REF-01 | — | Pending |
-| REF-02 | — | Pending |
-| REF-03 | — | Pending |
+| INFRA-01 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Pending |
+| INFRA-04 | Phase 1 | Pending |
+| INFRA-05 | Phase 1 | Pending |
+| DOM-01 | Phase 2 | Pending |
+| DOM-02 | Phase 3 | Pending |
+| DOM-03 | Phase 3 | Pending |
+| DOM-04 | Phase 3 | Pending |
+| DOM-05 | Phase 2 | Pending |
+| DOM-06 | Phase 3 | Pending |
+| DOM-07 | Phase 3 | Pending |
+| CMD-01 | Phase 4 | Pending |
+| CMD-02 | Phase 4 | Pending |
+| CMD-03 | Phase 4 | Pending |
+| CMD-04 | Phase 5 | Pending |
+| CMD-05 | Phase 5 | Pending |
+| CMD-06 | Phase 6 | Pending |
+| CMD-07 | Phase 6 | Pending |
+| CMD-08 | Phase 6 | Pending |
+| CMD-09 | Phase 6 | Pending |
+| CMD-10 | Phase 6 | Pending |
+| REPO-01 | Phase 7 | Pending |
+| REPO-02 | Phase 7 | Pending |
+| REPO-03 | Phase 7 | Pending |
+| REPO-04 | Phase 7 | Pending |
+| REPO-05 | Phase 7 | Pending |
+| API-01 | Phase 8 | Pending |
+| API-02 | Phase 8 | Pending |
+| API-03 | Phase 8 | Pending |
+| API-04 | Phase 8 | Pending |
+| API-05 | Phase 8 | Pending |
+| REF-01 | Phase 9 | Pending |
+| REF-02 | Phase 9 | Pending |
+| REF-03 | Phase 9 | Pending |
 
 **Coverage:**
 - v1 requirements: 35 total
-- Mapped to phases: 0
-- Unmapped: 35 ⚠️
+- Mapped to phases: 35
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-28*
-*Last updated: 2026-03-28 after initial definition*
+*Last updated: 2026-03-28 after roadmap creation*
