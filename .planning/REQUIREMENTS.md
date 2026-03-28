@@ -17,7 +17,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Domain Model Validation
 
-- [ ] **DOM-01**: Unit tests for all entity factory methods and update methods across all 9+ entity/aggregate classes
+- [x] **DOM-01**: Unit tests for all entity factory methods and update methods across all 9+ entity/aggregate classes
 - [ ] **DOM-02**: Unit tests for Product FSM transitions — all valid paths (draft→active, active→archived, etc.) and all invalid paths
 - [ ] **DOM-03**: Unit tests for variant hash uniqueness enforcement and collision detection
 - [ ] **DOM-04**: Unit tests for soft-delete cascade behavior across Product→Variant→SKU hierarchy
@@ -106,7 +106,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-03 | Phase 1 | Complete |
 | INFRA-04 | Phase 1 | Complete |
 | INFRA-05 | Phase 1 | Complete |
-| DOM-01 | Phase 2 | Pending |
+| DOM-01 | Phase 2 | Complete |
 | DOM-02 | Phase 3 | Pending |
 | DOM-03 | Phase 3 | Pending |
 | DOM-04 | Phase 3 | Pending |
