@@ -130,11 +130,12 @@ Plans:
   3. All FK, unique, and check constraints in the migration files are verified to reject invalid data at the database level (not just application level)
   4. Every repository method and query handler that reads data correctly filters out soft-deleted records (deleted_at IS NULL) with no leaks
   5. All entity fields survive a full create-read roundtrip through ORM models without data loss or type coercion errors
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
+- [ ] 07-01-PLAN.md — Product Repository 3-Level Roundtrip & ORM Mapping Fidelity (REPO-01, REPO-05)
+- [ ] 07-02-PLAN.md — Attribute, Template & Supporting Repository CRUD Integration Tests (REPO-02, REPO-05)
+- [ ] 07-03-PLAN.md — Schema Constraint Audit & Soft-Delete Filter Verification (REPO-03, REPO-04)
 
 ### Phase 8: API Contract Validation
 **Goal**: All catalog REST endpoints are proven to return correct HTTP status codes, response shapes, authorization enforcement, and pagination behavior through the full HTTP stack
@@ -179,6 +180,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 4. Brand, Category & Attribute Command Handlers | 0/3 | Planned | - |
 | 5. Product & Variant Command Handlers | 0/0 | Not started | - |
 | 6. SKU, Media & Cross-Cutting Commands | 0/0 | Not started | - |
-| 7. Repository & Data Integrity | 0/0 | Not started | - |
+| 7. Repository & Data Integrity | 0/3 | Planned | - |
 | 8. API Contract Validation | 0/0 | Not started | - |
 | 9. Entity God-Class Refactoring | 0/0 | Not started | - |
