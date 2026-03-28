@@ -116,6 +116,7 @@ class FakeUnitOfWork(IUnitOfWork):
         self.categories._product_store = self.products._store
         self.categories._child_store = self.categories._store
         self.attribute_groups._attribute_store = self.attributes._store
+        self.attribute_templates._category_store = self.categories._store
 
     async def __aenter__(self) -> FakeUnitOfWork:
         """Enter the transactional context and reset tracking state."""

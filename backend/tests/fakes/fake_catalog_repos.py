@@ -182,16 +182,28 @@ class FakeCategoryRepository(ICategoryRepository):
     async def update_descendants_full_slug(
         self, old_prefix: str, new_prefix: str
     ) -> None:
-        raise NotImplementedError(
-            "update_descendants_full_slug: fill in when Phase 4 needs it"
-        )
+        search_prefix = old_prefix + "/"
+        for cat in self._store.values():
+            if cat.full_slug.startswith(search_prefix):
+                new_full_slug = new_prefix + cat.full_slug[len(old_prefix):]
+                object.__setattr__(cat, "full_slug", new_full_slug)
 
     async def propagate_effective_template_id(
         self, category_id: uuid.UUID, effective_template_id: uuid.UUID | None
     ) -> list[uuid.UUID]:
-        raise NotImplementedError(
-            "propagate_effective_template_id: fill in when Phase 4 needs it"
-        )
+        affected: list[uuid.UUID] = []
+        queue: list[uuid.UUID] = [category_id]
+        while queue:
+            current_id = queue.pop(0)
+            for cat in self._store.values():
+                if cat.parent_id == current_id and cat.id != category_id:
+                    if cat.template_id is not None:
+                        # Stop propagation: this category has its own template
+                        continue
+                    object.__setattr__(cat, "effective_template_id", effective_template_id)
+                    affected.append(cat.id)
+                    queue.append(cat.id)
+        return affected
 
 
 # ============================================================================
@@ -241,9 +253,9 @@ class FakeAttributeGroupRepository(IAttributeGroupRepository):
     async def move_attributes_to_group(
         self, source_group_id: uuid.UUID, target_group_id: uuid.UUID
     ) -> None:
-        raise NotImplementedError(
-            "move_attributes_to_group: fill in when Phase 4 needs it"
-        )
+        for attr in self._attribute_store.values():
+            if attr.group_id == source_group_id:
+                object.__setattr__(attr, "group_id", target_group_id)
 
 
 # ============================================================================
@@ -603,10 +615,15 @@ class FakeMediaAssetRepository(IMediaAssetRepository):
 
 
 class FakeAttributeTemplateRepository(IAttributeTemplateRepository):
-    """In-memory AttributeTemplate repository with dict-based storage."""
+    """In-memory AttributeTemplate repository with dict-based storage.
+
+    Cross-repo reference ``_category_store`` is wired by FakeUoW for
+    ``has_category_references()`` and ``get_category_ids_by_template_ids()`` checks.
+    """
 
     def __init__(self) -> None:
         self._store: dict[uuid.UUID, DomainAttributeTemplate] = {}
+        self._category_store: dict[uuid.UUID, DomainCategory] = {}
 
     async def add(
         self, entity: DomainAttributeTemplate
@@ -632,15 +649,20 @@ class FakeAttributeTemplateRepository(IAttributeTemplateRepository):
         return any(t.code == code for t in self._store.values())
 
     async def has_category_references(self, template_id: uuid.UUID) -> bool:
-        # Would need cross-repo reference to category store; returns False
-        return False
+        return any(
+            cat.template_id == template_id or cat.effective_template_id == template_id
+            for cat in self._category_store.values()
+        )
 
     async def get_category_ids_by_template_ids(
         self, template_ids: list[uuid.UUID]
     ) -> list[uuid.UUID]:
-        raise NotImplementedError(
-            "get_category_ids_by_template_ids: fill in when Phase 4 needs it"
-        )
+        tid_set = set(template_ids)
+        return [
+            cat.id
+            for cat in self._category_store.values()
+            if cat.template_id in tid_set or cat.effective_template_id in tid_set
+        ]
 
 
 # ============================================================================
@@ -694,16 +716,20 @@ class FakeTemplateAttributeBindingRepository(ITemplateAttributeBindingRepository
     async def get_bindings_for_templates(
         self, template_ids: list[uuid.UUID]
     ) -> dict[uuid.UUID, list[DomainTemplateAttributeBinding]]:
-        raise NotImplementedError(
-            "get_bindings_for_templates: fill in when Phase 5 needs it"
-        )
+        result: dict[uuid.UUID, list[DomainTemplateAttributeBinding]] = {
+            tid: [] for tid in template_ids
+        }
+        for binding in self._store.values():
+            if binding.template_id in result:
+                result[binding.template_id].append(binding)
+        return result
 
     async def bulk_update_sort_order(
         self, updates: list[tuple[uuid.UUID, int]]
     ) -> None:
-        raise NotImplementedError(
-            "bulk_update_sort_order: fill in when Phase 5 needs it"
-        )
+        for binding_id, new_sort_order in updates:
+            if binding_id in self._store:
+                object.__setattr__(self._store[binding_id], "sort_order", new_sort_order)
 
     async def has_bindings_for_attribute(
         self, attribute_id: uuid.UUID
@@ -715,6 +741,8 @@ class FakeTemplateAttributeBindingRepository(ITemplateAttributeBindingRepository
     async def get_template_ids_for_attribute(
         self, attribute_id: uuid.UUID
     ) -> list[uuid.UUID]:
-        raise NotImplementedError(
-            "get_template_ids_for_attribute: fill in when Phase 5 needs it"
-        )
+        return [
+            b.template_id
+            for b in self._store.values()
+            if b.attribute_id == attribute_id
+        ]
