@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 4: Brand, Category & Attribute Command Handlers** - Unit tests for all supporting entity command handlers
 - [ ] **Phase 5: Product & Variant Command Handlers** - Unit tests for product lifecycle and variant management handlers
 - [ ] **Phase 6: SKU, Media & Cross-Cutting Commands** - Unit tests for SKU/media handlers plus event emission, bulk atomicity, and error paths
-- [ ] **Phase 7: Repository & Data Integrity** - Integration tests for all catalog repositories against real PostgreSQL with schema constraint audit
+- [x] **Phase 7: Repository & Data Integrity** - Integration tests for all catalog repositories against real PostgreSQL with schema constraint audit (2026-03-28)
 - [ ] **Phase 8: API Contract Validation** - Integration tests for all catalog endpoints covering HTTP contracts, authorization, lifecycle, and pagination
 - [x] **Phase 9: Entity God-Class Refactoring** - Split 2,220-line entities.py into separate files with backward-compatible re-exports (2026-03-28)
 
@@ -134,9 +134,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 07-01-PLAN.md — Product Repository 3-Level Roundtrip & ORM Mapping Fidelity (REPO-01, REPO-05)
-- [ ] 07-02-PLAN.md — Attribute, Template & Supporting Repository CRUD Integration Tests (REPO-02, REPO-05)
-- [ ] 07-03-PLAN.md — Schema Constraint Audit & Soft-Delete Filter Verification (REPO-03, REPO-04)
+- [x] 07-01-PLAN.md — Product Repository 3-Level Roundtrip & ORM Mapping Fidelity (REPO-01, REPO-05)
+- [x] 07-02-PLAN.md — Attribute, Template & Supporting Repository CRUD Integration Tests (REPO-02, REPO-05)
+- [x] 07-03-PLAN.md — Schema Constraint Audit & Soft-Delete Filter Verification (REPO-03, REPO-04)
 
 ### Phase 8: API Contract Validation
 **Goal**: All catalog REST endpoints are proven to return correct HTTP status codes, response shapes, authorization enforcement, and pagination behavior through the full HTTP stack
@@ -182,6 +182,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 4. Brand, Category & Attribute Command Handlers | 0/3 | Planned | - |
 | 5. Product & Variant Command Handlers | 2/2 | Complete | 2026-03-28 |
 | 6. SKU, Media & Cross-Cutting Commands | 0/3 | Planned | - |
-| 7. Repository & Data Integrity | 0/3 | Planned | - |
+| 7. Repository & Data Integrity | 3/3 | Complete | 2026-03-28 |
 | 8. API Contract Validation | 0/3 | Planned | - |
 | 9. Entity God-Class Refactoring | 2/2 | Complete | 2026-03-28 |
