@@ -577,6 +577,25 @@ class FakeMediaAssetRepository(IMediaAssetRepository):
             self._store.pop(m.id, None)
         return storage_ids
 
+    async def bulk_update_sort_order(
+        self,
+        product_id: uuid.UUID,
+        updates: list[tuple[uuid.UUID, int]],
+    ) -> int:
+        raise NotImplementedError(
+            "bulk_update_sort_order: fill in when Phase 6 needs it"
+        )
+
+    async def check_main_exists(
+        self,
+        product_id: uuid.UUID,
+        variant_id: uuid.UUID | None,
+        exclude_media_id: uuid.UUID | None = None,
+    ) -> bool:
+        raise NotImplementedError(
+            "check_main_exists: fill in when Phase 6 needs it"
+        )
+
 
 # ============================================================================
 # 9. FakeAttributeTemplateRepository
