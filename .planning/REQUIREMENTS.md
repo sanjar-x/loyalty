@@ -56,9 +56,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Entity Refactoring
 
-- [ ] **REF-01**: Split `backend/src/modules/catalog/domain/entities.py` (2,220 lines) into separate files per entity/aggregate
-- [ ] **REF-02**: Create `entities/__init__.py` with backward-compatible re-exports preserving all 50+ existing import sites
-- [ ] **REF-03**: Verify all existing tests pass after the split with zero import changes in consuming code
+- [x] **REF-01**: Split `backend/src/modules/catalog/domain/entities.py` (2,220 lines) into separate files per entity/aggregate
+- [x] **REF-02**: Create `entities/__init__.py` with backward-compatible re-exports preserving all 50+ existing import sites
+- [x] **REF-03**: Verify all existing tests pass after the split with zero import changes in consuming code
 
 ## v2 Requirements
 
@@ -133,9 +133,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-03 | Phase 8 | Pending |
 | API-04 | Phase 8 | Pending |
 | API-05 | Phase 8 | Pending |
-| REF-01 | Phase 9 | Pending |
-| REF-02 | Phase 9 | Pending |
-| REF-03 | Phase 9 | Pending |
+| REF-01 | Phase 9 | Complete |
+| REF-02 | Phase 9 | Complete |
+| REF-03 | Phase 9 | Complete |
 
 **Coverage:**
 - v1 requirements: 35 total

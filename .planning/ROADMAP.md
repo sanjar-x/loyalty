@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 6: SKU, Media & Cross-Cutting Commands** - Unit tests for SKU/media handlers plus event emission, bulk atomicity, and error paths
 - [ ] **Phase 7: Repository & Data Integrity** - Integration tests for all catalog repositories against real PostgreSQL with schema constraint audit
 - [ ] **Phase 8: API Contract Validation** - Integration tests for all catalog endpoints covering HTTP contracts, authorization, lifecycle, and pagination
-- [ ] **Phase 9: Entity God-Class Refactoring** - Split 2,220-line entities.py into separate files with backward-compatible re-exports
+- [x] **Phase 9: Entity God-Class Refactoring** - Split 2,220-line entities.py into separate files with backward-compatible re-exports (2026-03-28)
 
 ## Phase Details
 
@@ -163,11 +163,11 @@ Plans:
   1. Each entity/aggregate class (Brand, Category, Product, ProductVariant, SKU, Attribute, AttributeTemplate, AttributeGroup, TemplateAttributeBinding) lives in its own file under an entities/ package directory
   2. An `entities/__init__.py` re-exports every public name so that all 50+ existing import sites continue to work with zero changes
   3. The full test suite (all tests from Phases 1-8) passes with zero failures after the split, confirming no import breakage or circular dependency issues
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [x] 09-01: TBD
-- [x] 09-02: TBD
+- [x] 09-01-PLAN.md — Create entities/ package with 14 files (shared helpers + 12 entity modules + __init__.py)
+- [x] 09-02-PLAN.md — Delete monolithic entities.py, clean caches, verify full test suite
 
 ## Progress
 
@@ -184,4 +184,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 6. SKU, Media & Cross-Cutting Commands | 0/3 | Planned | - |
 | 7. Repository & Data Integrity | 0/3 | Planned | - |
 | 8. API Contract Validation | 0/3 | Planned | - |
-| 9. Entity God-Class Refactoring | 0/0 | Not started | - |
+| 9. Entity God-Class Refactoring | 2/2 | Complete | 2026-03-28 |
