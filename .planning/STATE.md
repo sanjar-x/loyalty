@@ -96,9 +96,10 @@ None yet.
 - Phase 3: Optimistic locking version_id_col configuration needs inspection during Phase 7 planning
 - Phase 5: RESOLVED -- Supplier module dependency handled via AsyncMock(spec=ISupplierQueryService)
 - Phase 7: Event clearing mechanism in UoW commit path needs verification
+- Phase 8: BLOCKER -- Docker Desktop not running, E2E tests could not be verified at runtime. Tests are syntactically correct and follow existing patterns but need `docker compose up -d` then `uv run python -m pytest tests/e2e/api/v1/catalog/ -x -q --timeout=120` to confirm
 
 ## Session Continuity
 
-Last session: 2026-03-28T22:18:00.000Z
-Stopped at: Completed Phase 06 (all 3 plans)
+Last session: 2026-03-28T23:00:00.000Z
+Stopped at: Completed Phase 08 (all 3 plans)
 Resume file: None
