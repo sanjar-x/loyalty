@@ -12,8 +12,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [ ] **INFRA-01**: Install and configure new test dependencies (hypothesis, schemathesis, respx, dirty-equals, pytest-randomly, pytest-timeout)
 - [ ] **INFRA-02**: Create test data builders/factories for all catalog entities (Product, ProductVariant, SKU, Attribute, AttributeTemplate, TemplateAttributeBinding, AttributeGroup, Brand, Category)
 - [x] **INFRA-03**: Build FakeUnitOfWork for command handler unit test isolation
-- [ ] **INFRA-04**: Build hypothesis strategies for attrs-based domain models
-- [ ] **INFRA-05**: Implement N+1 query detection via SQLAlchemy `after_cursor_execute` event context manager
+- [x] **INFRA-04**: Build hypothesis strategies for attrs-based domain models
+- [x] **INFRA-05**: Implement N+1 query detection via SQLAlchemy `after_cursor_execute` event context manager
 
 ### Domain Model Validation
 
@@ -104,8 +104,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-01 | Phase 1 | Pending |
 | INFRA-02 | Phase 1 | Pending |
 | INFRA-03 | Phase 1 | Complete |
-| INFRA-04 | Phase 1 | Pending |
-| INFRA-05 | Phase 1 | Pending |
+| INFRA-04 | Phase 1 | Complete |
+| INFRA-05 | Phase 1 | Complete |
 | DOM-01 | Phase 2 | Pending |
 | DOM-02 | Phase 3 | Pending |
 | DOM-03 | Phase 3 | Pending |
