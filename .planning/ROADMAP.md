@@ -151,9 +151,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — Brand, Category, Attribute, AttributeValue, AttributeTemplate endpoint tests + shared conftest
-- [ ] 08-02-PLAN.md — Product, Variant, SKU, ProductAttribute, Media endpoint tests
-- [ ] 08-03-PLAN.md — Storefront, auth enforcement, full lifecycle, pagination tests
+- [x] 08-01-PLAN.md — Brand, Category, Attribute, AttributeValue, AttributeTemplate endpoint tests + shared conftest
+- [x] 08-02-PLAN.md — Product, Variant, SKU, ProductAttribute, Media endpoint tests
+- [x] 08-03-PLAN.md — Storefront, auth enforcement, full lifecycle, pagination tests
 
 ### Phase 9: Entity God-Class Refactoring
 **Goal**: The 2,220-line entities.py is split into separate, maintainable files with zero breakage in any existing code or tests

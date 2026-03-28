@@ -48,11 +48,11 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### API Contract Validation
 
-- [ ] **API-01**: Integration tests for all catalog admin REST endpoints — correct HTTP methods, status codes, response shapes
-- [ ] **API-02**: Integration tests for storefront query endpoints — product listing, filtering, detail views
-- [ ] **API-03**: Authorization enforcement tests — verify RequirePermission on all protected endpoints
-- [ ] **API-04**: Full lifecycle integration tests — create product → add variants → generate SKU matrix → activate → query storefront
-- [ ] **API-05**: Pagination behavior tests — offset, limit, total count, empty results, boundary conditions
+- [x] **API-01**: Integration tests for all catalog admin REST endpoints — correct HTTP methods, status codes, response shapes
+- [x] **API-02**: Integration tests for storefront query endpoints — product listing, filtering, detail views
+- [x] **API-03**: Authorization enforcement tests — verify RequirePermission on all protected endpoints
+- [x] **API-04**: Full lifecycle integration tests — create product → add variants → generate SKU matrix → activate → query storefront
+- [x] **API-05**: Pagination behavior tests — offset, limit, total count, empty results, boundary conditions
 
 ### Entity Refactoring
 
@@ -128,11 +128,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REPO-03 | Phase 7 | Pending |
 | REPO-04 | Phase 7 | Pending |
 | REPO-05 | Phase 7 | Pending |
-| API-01 | Phase 8 | Pending |
-| API-02 | Phase 8 | Pending |
-| API-03 | Phase 8 | Pending |
-| API-04 | Phase 8 | Pending |
-| API-05 | Phase 8 | Pending |
+| API-01 | Phase 8 | Complete |
+| API-02 | Phase 8 | Complete |
+| API-03 | Phase 8 | Complete |
+| API-04 | Phase 8 | Complete |
+| API-05 | Phase 8 | Complete |
 | REF-01 | Phase 9 | Complete |
 | REF-02 | Phase 9 | Complete |
 | REF-03 | Phase 9 | Complete |
