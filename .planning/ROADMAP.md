@@ -67,11 +67,11 @@ Plans:
   3. Soft-deleting a Product cascades deleted_at through all its Variants and their SKUs, and restoring reverses the cascade
   4. Assigning an attribute to a product that violates the template governance chain (wrong template, wrong level, unbound attribute) is rejected with a clear error
   5. Every domain lifecycle event (ProductCreated, StatusChanged, VariantAdded, SKUGenerated, etc.) is emitted at the correct point with correct payload
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md — FSM transitions + variant hash uniqueness + soft-delete cascade tests
+- [ ] 03-02-PLAN.md — Domain event emission + attribute governance surface + variant/SKU management tests
 
 ### Phase 4: Brand, Category & Attribute Command Handlers
 **Goal**: All command handlers for supporting entities (Brand, Category, Attribute/Template/Group) are proven to orchestrate correctly -- calling the right repositories, enforcing preconditions, and committing through UoW
@@ -174,7 +174,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | ----- | -------------- | ------ | --------- |
 | 1. Test Infrastructure | 0/4 | Gap closure planned | - |
 | 2. Value Objects & Entity Foundations | 0/3 | Planned | - |
-| 3. Product Aggregate Behavior | 0/0 | Not started | - |
+| 3. Product Aggregate Behavior | 0/2 | Planned | - |
 | 4. Brand, Category & Attribute Command Handlers | 0/0 | Not started | - |
 | 5. Product & Variant Command Handlers | 0/0 | Not started | - |
 | 6. SKU, Media & Cross-Cutting Commands | 0/0 | Not started | - |
