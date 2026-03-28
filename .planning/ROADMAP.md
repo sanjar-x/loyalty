@@ -166,8 +166,8 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 09-01: TBD
-- [ ] 09-02: TBD
+- [x] 09-01: TBD
+- [x] 09-02: TBD
 
 ## Progress
 
