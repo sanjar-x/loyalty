@@ -34,11 +34,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. A test can execute a command handler using FakeUnitOfWork without touching the database and verify repository interactions
   4. Hypothesis can generate valid EAV domain model instances (attribute values, i18n names, slugs) and shrink failures to minimal examples
   5. A test can wrap a database session in the N+1 query detection context manager and assert exact query counts
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md — Install test dependencies + build fluent entity Builders + ORM factories
+- [ ] 01-02-PLAN.md — Build FakeUnitOfWork with dict-based fake catalog repositories
+- [ ] 01-03-PLAN.md — Build composable Hypothesis strategies + N+1 query detection utility
 
 ### Phase 2: Value Objects & Entity Foundations
 **Goal**: Every entity factory method, update method, and value object is proven correct through unit tests with zero infrastructure dependencies
@@ -169,7 +170,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 | ----- | -------------- | ------ | --------- |
-| 1. Test Infrastructure | 0/0 | Not started | - |
+| 1. Test Infrastructure | 0/3 | Planning complete | - |
 | 2. Value Objects & Entity Foundations | 0/0 | Not started | - |
 | 3. Product Aggregate Behavior | 0/0 | Not started | - |
 | 4. Brand, Category & Attribute Command Handlers | 0/0 | Not started | - |
