@@ -13,8 +13,8 @@ This roadmap fixes 14 integration issues that prevent the admin panel's product 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Backend Schema Fixes** - Make descriptionI18n truly optional and add countryOfOrigin to ProductCreateRequest
-- [ ] **Phase 2: Frontend i18n & Spec Alignment** - Enforce dual-locale i18n payloads and update spec naming convention
-- [ ] **Phase 3: BFF Media Proxy Infrastructure** - Create imageBackendFetch() utility with X-API-Key auth targeting IMAGE_BACKEND_URL
+- [x] **Phase 2: Frontend i18n & Spec Alignment** - Enforce dual-locale i18n payloads and update spec naming convention
+- [x] **Phase 3: BFF Media Proxy Infrastructure** - Create imageBackendFetch() utility with X-API-Key auth targeting IMAGE_BACKEND_URL
 - [ ] **Phase 4: BFF Upload Route** - Proxy /api/media/upload to image_backend with correct URL mapping and request filtering
 - [ ] **Phase 5: BFF Confirm & External Routes** - Proxy confirm and external import routes to image_backend
 - [ ] **Phase 6: Frontend Media Field Alignment** - Fix field names and request schemas to match image_backend API
