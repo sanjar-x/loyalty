@@ -116,8 +116,10 @@ Plans:
   1. Admin product form displays missing required/recommended attributes sourced from completeness endpoint
   2. Admin FSM UI shows all 5 valid transitions and disables invalid ones based on current product status
   3. All PATCH requests from admin include version field from the last-fetched product for optimistic locking
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 2 plans
+Plans:
+- [ ] 08-01-PLAN.md — BFF proxy routes (product detail + completeness), service functions, FSM constants
+- [ ] 08-02-PLAN.md — Product detail page with CompletenessPanel, StatusTransitionBar, and version tracking
 
 ## Progress
 
@@ -133,4 +135,4 @@ Phases execute in numeric order. Phases 1, 2, 3 are independent and can parallel
 | 5. BFF Confirm & External Routes  | 1/1            | Complete    | 2026-03-30 |
 | 6. Frontend Media Field Alignment | 1/1            | Complete    | 2026-03-30 |
 | 7. Frontend Media Status Polling  | 1/1            | Complete    | 2026-03-30 |
-| 8. Admin UI Enhancements          | 0/TBD          | Not started | -          |
+| 8. Admin UI Enhancements          | 0/2            | Not started | -          |
