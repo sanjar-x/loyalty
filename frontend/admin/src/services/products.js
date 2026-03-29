@@ -60,8 +60,9 @@ export async function updateSku(productId, variantId, skuId, payload) {
   );
 }
 
-export async function reserveMediaUpload(productId, payload) {
-  return api(`/api/catalog/products/${productId}/media/upload`, jsonOpts(payload));
+export async function reserveMediaUpload(payload) {
+  // payload = { contentType, filename }
+  return api('/api/media/upload', jsonOpts(payload));
 }
 
 export async function uploadToS3(presignedUrl, file) {
@@ -78,12 +79,13 @@ export async function uploadToS3(presignedUrl, file) {
   }
 }
 
-export async function confirmMedia(productId, mediaId) {
-  return api(`/api/catalog/products/${productId}/media/${mediaId}/confirm`, { method: 'POST' });
+export async function confirmMedia(storageObjectId) {
+  return api(`/api/media/${storageObjectId}/confirm`, { method: 'POST' });
 }
 
-export async function addExternalMedia(productId, payload) {
-  return api(`/api/catalog/products/${productId}/media/external`, jsonOpts(payload));
+export async function addExternalMedia(payload) {
+  // payload = { url }
+  return api('/api/media/external', jsonOpts(payload));
 }
 
 export async function changeProductStatus(productId, status) {
