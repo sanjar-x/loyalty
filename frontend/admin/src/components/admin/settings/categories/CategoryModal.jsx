@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
+import { buildI18nPayload } from '@/lib/utils';
 
 const ERROR_MESSAGES = {
   CATEGORY_SLUG_CONFLICT:
@@ -64,8 +65,8 @@ export function CategoryModal({
       const method = isEdit ? 'PATCH' : 'POST';
 
       const body = isEdit
-        ? { name, slug, sortOrder }
-        : { name, slug, parentId, sortOrder };
+        ? { nameI18N: buildI18nPayload(name, ''), slug, sortOrder }
+        : { nameI18N: buildI18nPayload(name, ''), slug, parentId, sortOrder };
 
       const res = await fetch(url, {
         method,

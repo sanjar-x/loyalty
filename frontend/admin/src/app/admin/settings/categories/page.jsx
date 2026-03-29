@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { CategoryTree } from '@/components/admin/settings/categories/CategoryTree';
 import { CategoryModal } from '@/components/admin/settings/categories/CategoryModal';
 import { CategorySkeleton } from '@/components/admin/settings/categories/CategorySkeleton';
+import { i18n } from '@/lib/utils';
 
 export default function CategoriesPage() {
   const [tree, setTree] = useState([]);
@@ -41,7 +42,7 @@ export default function CategoriesPage() {
       mode: 'edit',
       category: {
         id: category.id,
-        name: category.name,
+        name: i18n(category.nameI18N),
         slug: category.slug,
         sortOrder: category.sortOrder,
       },

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { i18n } from '@/lib/utils';
 
 export function CategoryNode({ node, level = 0, onAddChild, onEdit }) {
   const [expanded, setExpanded] = useState(level === 0);
@@ -26,7 +27,7 @@ export function CategoryNode({ node, level = 0, onAddChild, onEdit }) {
         )}
 
         <span className="flex-1 truncate text-sm text-[#22252b]">
-          {node.name}
+          {i18n(node.nameI18N)}
         </span>
 
         <span className="hidden text-xs text-[#878b93] group-hover:inline">
