@@ -154,3 +154,24 @@ class TestAttributeEndpoints:
         assert "templateCount" in data
         assert "categoryCount" in data
         assert "productCount" in data
+
+
+class TestAttributeSchemaFixes:
+    """Tests for attribute description_i18n optional fix."""
+
+    async def test_create_attribute_without_description(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ):
+        """POST /attributes with minimal required fields, NO descriptionI18n -> 201."""
+        suffix = uuid.uuid4().hex[:8]
+        payload = {
+            "code": f"color_{suffix}",
+            "slug": f"color-{suffix}",
+            "nameI18n": {"ru": "Цвет", "en": "Color"},
+            "dataType": "string",
+            "uiType": "dropdown",
+            "isDictionary": True,
+            "level": "product",
+        }
+        resp = await admin_client.post("/api/v1/catalog/attributes", json=payload)
+        assert resp.status_code == 201
