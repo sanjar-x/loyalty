@@ -332,7 +332,7 @@ class AttributeCreateRequest(CamelModel):
     name_i18n: I18nDict = Field(
         ..., min_length=1, examples=[{"en": "Color", "ru": "Цвет"}]
     )
-    description_i18n: I18nDict = Field(default_factory=dict)
+    description_i18n: I18nDict | None = None
     data_type: Literal["string", "integer", "float", "boolean"] = Field(
         ..., examples=["string"]
     )
@@ -726,9 +726,12 @@ class ProductCreateRequest(CamelModel):
     )
     brand_id: uuid.UUID
     primary_category_id: uuid.UUID
-    description_i18n: I18nDict = Field(default_factory=dict)
+    description_i18n: I18nDict | None = None
     supplier_id: uuid.UUID | None = None
     source_url: str | None = Field(None, max_length=1024, pattern=r"^https?://")
+    country_of_origin: str | None = Field(
+        None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$"
+    )
     tags: list[Annotated[str, Field(max_length=200)]] = Field(
         default_factory=list, max_length=50
     )
@@ -1171,7 +1174,7 @@ class AttributeTemplateCreateRequest(CamelModel):
         description="Unique machine-readable code.",
     )
     name_i18n: I18nDict = Field(..., min_length=1)
-    description_i18n: I18nDict | None = Field(default_factory=dict)
+    description_i18n: I18nDict | None = None
     sort_order: int = Field(0, ge=0)
 
 
