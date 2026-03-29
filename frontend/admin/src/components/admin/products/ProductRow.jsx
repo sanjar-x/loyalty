@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRef } from 'react';
 import { cn, formatCurrency, pluralizeRu } from '@/lib/utils';
 import { CopyMark } from '@/components/ui/CopyMark';
@@ -190,13 +191,13 @@ export function ProductRow({
 
       <div className={styles.actionsCell}>
         <div className={styles.actionsRow}>
-          <button
-            type="button"
+          <Link
+            href={`/admin/products/${p.id}`}
             className={styles.iconButton}
             aria-label="Редактировать"
           >
             <PencilIcon className={styles.icon24} />
-          </button>
+          </Link>
           <RowActions
             open={openMenuId === p.id}
             onToggle={() =>
