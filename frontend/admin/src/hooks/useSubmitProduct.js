@@ -10,6 +10,7 @@ import {
   reserveMediaUpload,
   uploadToS3,
   confirmMedia,
+  pollMediaStatus,
   addExternalMedia,
   changeProductStatus,
 } from '@/services/products';
@@ -35,7 +36,7 @@ const STEPS = {
   attrs: 'Назначение атрибутов...',
   skus: 'Генерация SKU...',
   pricing: 'Установка цен...',
-  media: 'Загрузка изображений',
+  media: 'Загрузка и обработка изображений',
   status: 'Отправка на модерацию...',
   done: 'Готово',
 };
@@ -137,6 +138,7 @@ export default function useSubmitProduct() {
                 });
                 await uploadToS3(slot.presignedUrl, image.file);
                 await confirmMedia(slot.storageObjectId);
+                await pollMediaStatus(slot.storageObjectId);
               }
             }),
           );
@@ -166,6 +168,7 @@ export default function useSubmitProduct() {
             });
             await uploadToS3(slot.presignedUrl, sizeGuide.file);
             await confirmMedia(slot.storageObjectId);
+            await pollMediaStatus(slot.storageObjectId);
           }
         } catch (err) {
           console.warn('Size guide upload failed:', err);
