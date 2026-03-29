@@ -5,7 +5,7 @@ export function getProducts() {
 }
 
 // ---------------------------------------------------------------------------
-// Product creation API
+// Product API
 // ---------------------------------------------------------------------------
 
 async function api(url, options = {}) {
@@ -32,6 +32,22 @@ function jsonOpts(body) {
 
 export async function createProduct(payload) {
   return api('/api/catalog/products', jsonOpts(payload));
+}
+
+export async function getProduct(productId) {
+  return api(`/api/catalog/products/${productId}`);
+}
+
+export async function getProductCompleteness(productId) {
+  return api(`/api/catalog/products/${productId}/completeness`);
+}
+
+export async function updateProduct(productId, payload) {
+  return api(`/api/catalog/products/${productId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function bulkAssignAttrs(productId, payload) {
