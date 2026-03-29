@@ -32,9 +32,9 @@ Requirements for fixing all integration issues identified in audit.md.
 
 ### Admin UI Enhancements
 
-- [ ] **UI-01**: Admin product form displays missing required/recommended attributes from completeness endpoint
-- [ ] **UI-02**: Admin FSM UI supports all 5 transitions (DRAFT<->ENRICHING, ENRICHING->READY_FOR_REVIEW, READY_FOR_REVIEW->PUBLISHED, PUBLISHED->ARCHIVED, ARCHIVED->DRAFT)
-- [ ] **UI-03**: Admin sends version field in all PATCH requests for optimistic locking support
+- [x] **UI-01**: Admin product form displays missing required/recommended attributes from completeness endpoint
+- [x] **UI-02**: Admin FSM UI supports all 5 transitions (DRAFT<->ENRICHING, ENRICHING->READY_FOR_REVIEW, READY_FOR_REVIEW->PUBLISHED, PUBLISHED->ARCHIVED, ARCHIVED->DRAFT)
+- [x] **UI-03**: Admin sends version field in all PATCH requests for optimistic locking support
 
 ## v2 Requirements
 
@@ -70,9 +70,9 @@ Requirements for fixing all integration issues identified in audit.md.
 | MEDIA-01 | Phase 6 | Complete |
 | MEDIA-02 | Phase 6 | Complete |
 | MEDIA-03 | Phase 7 | Complete |
-| UI-01 | Phase 8 | Pending |
-| UI-02 | Phase 8 | Pending |
-| UI-03 | Phase 8 | Pending |
+| UI-01 | Phase 8 | Complete |
+| UI-02 | Phase 8 | Complete |
+| UI-03 | Phase 8 | Complete |
 
 **Coverage:**
 - v1 requirements: 14 total

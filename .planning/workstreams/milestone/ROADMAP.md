@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: BFF Confirm & External Routes** - Proxy confirm and external import routes to image_backend
 - [x] **Phase 6: Frontend Media Field Alignment** - Fix field names and request schemas to match image_backend API
 - [x] **Phase 7: Frontend Media Status Polling** - Poll processing status before attaching media to product
-- [ ] **Phase 8: Admin UI Enhancements** - Completeness endpoint, full FSM transitions, and optimistic locking
+- [x] **Phase 8: Admin UI Enhancements** - Completeness endpoint, full FSM transitions, and optimistic locking
 
 ## Phase Details
 
@@ -135,4 +135,4 @@ Phases execute in numeric order. Phases 1, 2, 3 are independent and can parallel
 | 5. BFF Confirm & External Routes  | 1/1            | Complete    | 2026-03-30 |
 | 6. Frontend Media Field Alignment | 1/1            | Complete    | 2026-03-30 |
 | 7. Frontend Media Status Polling  | 1/1            | Complete    | 2026-03-30 |
-| 8. Admin UI Enhancements          | 0/2            | Not started | -          |
+| 8. Admin UI Enhancements          | 2/2            | Complete    | 2026-03-30 |
