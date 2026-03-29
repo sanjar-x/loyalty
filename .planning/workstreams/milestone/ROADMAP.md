@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: BFF Media Proxy Infrastructure** - Create imageBackendFetch() utility with X-API-Key auth targeting IMAGE_BACKEND_URL
 - [x] **Phase 4: BFF Upload Route** - Proxy /api/media/upload to image_backend with correct URL mapping and request filtering
 - [x] **Phase 5: BFF Confirm & External Routes** - Proxy confirm and external import routes to image_backend
-- [ ] **Phase 6: Frontend Media Field Alignment** - Fix field names and request schemas to match image_backend API
+- [x] **Phase 6: Frontend Media Field Alignment** - Fix field names and request schemas to match image_backend API
 - [ ] **Phase 7: Frontend Media Status Polling** - Poll processing status before attaching media to product
 - [ ] **Phase 8: Admin UI Enhancements** - Completeness endpoint, full FSM transitions, and optimistic locking
 
@@ -94,7 +94,7 @@ Plans:
   3. Admin frontend sends {contentType, filename} in upload request (not {mimeType, fileName, mediaType, role})
 **Plans**: 1 plan
 Plans:
-- [ ] 06-01-PLAN.md — Fix media service functions and orchestration callsites to use correct BFF routes, request schemas, and response fields
+- [x] 06-01-PLAN.md — Fix media service functions and orchestration callsites to use correct BFF routes, request schemas, and response fields
 
 ### Phase 7: Frontend Media Status Polling
 **Goal**: Admin frontend waits for media processing completion before displaying uploaded media
@@ -130,6 +130,6 @@ Phases execute in numeric order. Phases 1, 2, 3 are independent and can parallel
 | 3. BFF Media Proxy Infrastructure | 1/1            | Complete    | 2026-03-30 |
 | 4. BFF Upload Route               | 1/1            | Complete    | 2026-03-30 |
 | 5. BFF Confirm & External Routes  | 1/1            | Complete    | 2026-03-30 |
-| 6. Frontend Media Field Alignment | 0/1            | Planned     | -          |
+| 6. Frontend Media Field Alignment | 1/1            | Complete    | 2026-03-30 |
 | 7. Frontend Media Status Polling  | 0/TBD          | Not started | -          |
 | 8. Admin UI Enhancements          | 0/TBD          | Not started | -          |
