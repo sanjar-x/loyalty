@@ -83,6 +83,33 @@ export async function confirmMedia(storageObjectId) {
   return api(`/api/media/${storageObjectId}/confirm`, { method: 'POST' });
 }
 
+const POLL_INTERVALS = [500, 1000, 2000];
+
+export async function pollMediaStatus(storageObjectId, { maxWait = 60000 } = {}) {
+  const start = Date.now();
+  let attempt = 0;
+
+  while (Date.now() - start < maxWait) {
+    const data = await api(`/api/media/${storageObjectId}`);
+
+    if (data.status === 'COMPLETED') return data;
+
+    if (data.status === 'FAILED') {
+      const error = new Error('Media processing failed');
+      error.code = 'MEDIA_PROCESSING_FAILED';
+      throw error;
+    }
+
+    const delay = POLL_INTERVALS[Math.min(attempt, POLL_INTERVALS.length - 1)];
+    await new Promise((r) => setTimeout(r, delay));
+    attempt++;
+  }
+
+  const error = new Error('Media processing timed out');
+  error.code = 'MEDIA_PROCESSING_TIMEOUT';
+  throw error;
+}
+
 export async function addExternalMedia(payload) {
   // payload = { url }
   return api('/api/media/external', jsonOpts(payload));
