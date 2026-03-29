@@ -79,6 +79,14 @@
 | frontend/main вне scope | API слой не подключён вообще — отдельный проект | — Pending |
 | Все 14 проблем в scope | Minor-проблемы (completeness, FSM UI, version) улучшают UX и предотвращают future bugs | — Pending |
 
+## Current Milestone: v1.0 Backend Schema Fixes
+
+**Goal:** Исправить расхождения в Pydantic request-схемах ProductCreateRequest — descriptionI18n сделать truly optional, добавить countryOfOrigin.
+
+**Target features:**
+- descriptionI18n: Optional[I18nDict] = None вместо I18nDict = Field(default_factory=dict)
+- countryOfOrigin: добавить в ProductCreateRequest (уже есть в ProductUpdateRequest)
+
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
@@ -97,4 +105,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-29 after initialization*
+*Last updated: 2026-03-29 after milestone v1.0 Backend Schema Fixes started*
