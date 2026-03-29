@@ -129,21 +129,14 @@ export default function useSubmitProduct() {
           const results = await Promise.allSettled(
             chunk.map(async ({ image, role, sortOrder }) => {
               if (image.source === 'url') {
-                await addExternalMedia(productId, {
-                  externalUrl: image.url,
-                  mediaType: 'image',
-                  role,
-                  sortOrder,
-                });
+                await addExternalMedia({ url: image.url });
               } else if (image.file) {
-                const slot = await reserveMediaUpload(productId, {
-                  mediaType: 'image',
-                  role,
+                const slot = await reserveMediaUpload({
                   contentType: image.file.type || 'image/jpeg',
-                  sortOrder,
+                  filename: image.file.name,
                 });
-                await uploadToS3(slot.presignedUploadUrl, image.file);
-                await confirmMedia(productId, slot.id);
+                await uploadToS3(slot.presignedUrl, image.file);
+                await confirmMedia(slot.storageObjectId);
               }
             }),
           );
@@ -165,21 +158,14 @@ export default function useSubmitProduct() {
       if (sizeGuide) {
         try {
           if (sizeGuide.source === 'url') {
-            await addExternalMedia(productId, {
-              externalUrl: sizeGuide.url,
-              mediaType: 'image',
-              role: 'size_guide',
-              sortOrder: 0,
-            });
+            await addExternalMedia({ url: sizeGuide.url });
           } else if (sizeGuide.file) {
-            const slot = await reserveMediaUpload(productId, {
-              mediaType: 'image',
-              role: 'size_guide',
+            const slot = await reserveMediaUpload({
               contentType: sizeGuide.file.type || 'image/jpeg',
-              sortOrder: 0,
+              filename: sizeGuide.file.name,
             });
-            await uploadToS3(slot.presignedUploadUrl, sizeGuide.file);
-            await confirmMedia(productId, slot.id);
+            await uploadToS3(slot.presignedUrl, sizeGuide.file);
+            await confirmMedia(slot.storageObjectId);
           }
         } catch (err) {
           console.warn('Size guide upload failed:', err);
