@@ -28,7 +28,7 @@ Requirements for fixing all integration issues identified in audit.md.
 
 - [x] **MEDIA-01**: Admin frontend uses correct field names from image_backend responses (presignedUrl, storageObjectId)
 - [x] **MEDIA-02**: Admin frontend sends correct upload request schema to image_backend ({contentType, filename})
-- [ ] **MEDIA-03**: Admin frontend polls media processing status before attaching to product (wait for COMPLETED)
+- [x] **MEDIA-03**: Admin frontend polls media processing status before attaching to product (wait for COMPLETED)
 
 ### Admin UI Enhancements
 
@@ -69,7 +69,7 @@ Requirements for fixing all integration issues identified in audit.md.
 | BFF-04 | Phase 5 | Complete |
 | MEDIA-01 | Phase 6 | Complete |
 | MEDIA-02 | Phase 6 | Complete |
-| MEDIA-03 | Phase 7 | Pending |
+| MEDIA-03 | Phase 7 | Complete |
 | UI-01 | Phase 8 | Pending |
 | UI-02 | Phase 8 | Pending |
 | UI-03 | Phase 8 | Pending |

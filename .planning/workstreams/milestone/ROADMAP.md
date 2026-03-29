@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: BFF Upload Route** - Proxy /api/media/upload to image_backend with correct URL mapping and request filtering
 - [x] **Phase 5: BFF Confirm & External Routes** - Proxy confirm and external import routes to image_backend
 - [x] **Phase 6: Frontend Media Field Alignment** - Fix field names and request schemas to match image_backend API
-- [ ] **Phase 7: Frontend Media Status Polling** - Poll processing status before attaching media to product
+- [x] **Phase 7: Frontend Media Status Polling** - Poll processing status before attaching media to product
 - [ ] **Phase 8: Admin UI Enhancements** - Completeness endpoint, full FSM transitions, and optimistic locking
 
 ## Phase Details
@@ -106,7 +106,7 @@ Plans:
   3. User sees processing indicator while media is being processed
 **Plans**: 1 plan
 Plans:
-- [ ] 07-01-PLAN.md — BFF GET media route, pollMediaStatus with backoff, wire into useSubmitProduct
+- [x] 07-01-PLAN.md — BFF GET media route, pollMediaStatus with backoff, wire into useSubmitProduct
 
 ### Phase 8: Admin UI Enhancements
 **Goal**: Admin product form uses completeness endpoint, supports all FSM transitions, and sends version for optimistic locking
@@ -132,5 +132,5 @@ Phases execute in numeric order. Phases 1, 2, 3 are independent and can parallel
 | 4. BFF Upload Route               | 1/1            | Complete    | 2026-03-30 |
 | 5. BFF Confirm & External Routes  | 1/1            | Complete    | 2026-03-30 |
 | 6. Frontend Media Field Alignment | 1/1            | Complete    | 2026-03-30 |
-| 7. Frontend Media Status Polling  | 0/1            | Not started | -          |
+| 7. Frontend Media Status Polling  | 1/1            | Complete    | 2026-03-30 |
 | 8. Admin UI Enhancements          | 0/TBD          | Not started | -          |
