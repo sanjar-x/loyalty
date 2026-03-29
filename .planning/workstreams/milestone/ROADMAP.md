@@ -43,7 +43,10 @@ Plans:
   1. Admin product form always sends both ru and en locales in every i18n field (empty en falls back to ru value)
   2. Backend never returns 422 "Missing required locales" when admin form submits i18n fields
   3. product-creation-flow.md spec uses I18N (uppercase N) naming convention matching actual backend output
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — Fix admin form i18n payloads (product form + category modal/display) with shared helper
+- [ ] 02-02-PLAN.md — Update product-creation-flow.md spec (I18N naming, to_camel explanation, Phase 1 changes)
 
 ### Phase 3: BFF Media Proxy Infrastructure
 **Goal**: Admin BFF has a working HTTP client for image_backend with correct auth and error handling
@@ -118,7 +121,7 @@ Phases execute in numeric order. Phases 1, 2, 3 are independent and can parallel
 | Phase                             | Plans Complete | Status      | Completed  |
 | --------------------------------- | -------------- | ----------- | ---------- |
 | 1. Backend Schema Fixes           | 1/1            | Complete    | 2026-03-29 |
-| 2. Frontend i18n & Spec Alignment | 0/TBD          | Not started | -          |
+| 2. Frontend i18n & Spec Alignment | 0/2            | Not started | -          |
 | 3. BFF Media Proxy Infrastructure | 0/TBD          | Not started | -          |
 | 4. BFF Upload Route               | 0/TBD          | Not started | -          |
 | 5. BFF Confirm & External Routes  | 0/TBD          | Not started | -          |
