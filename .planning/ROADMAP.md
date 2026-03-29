@@ -31,7 +31,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. API consumer can POST /products without descriptionI18n field and receive 201 (not 422)
   2. API consumer can POST /products with countryOfOrigin field and the value persists in the created product
   3. Existing product creation requests with descriptionI18n still work unchanged (backward compatible)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 01-01-PLAN.md — Fix ProductCreateRequest schema (optional descriptionI18n + countryOfOrigin) with e2e tests
 
 ### Phase 2: Frontend i18n & Spec Alignment
 **Goal**: Admin form always sends valid i18n payloads and spec documentation matches actual backend behavior
@@ -115,7 +117,7 @@ Phases execute in numeric order. Phases 1, 2, 3 are independent and can parallel
 
 | Phase                             | Plans Complete | Status      | Completed |
 | --------------------------------- | -------------- | ----------- | --------- |
-| 1. Backend Schema Fixes           | 0/TBD          | Not started | -         |
+| 1. Backend Schema Fixes           | 0/1            | Planned     | -         |
 | 2. Frontend i18n & Spec Alignment | 0/TBD          | Not started | -         |
 | 3. BFF Media Proxy Infrastructure | 0/TBD          | Not started | -         |
 | 4. BFF Upload Route               | 0/TBD          | Not started | -         |
