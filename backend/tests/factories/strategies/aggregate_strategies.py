@@ -22,7 +22,6 @@ from src.modules.catalog.domain.entities import (
 )
 from tests.factories.strategies.entity_strategies import (
     attribute_groups,
-    attribute_values,
     attributes,
     products,
 )

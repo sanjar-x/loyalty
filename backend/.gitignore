@@ -58,3 +58,17 @@ deploy/docker/*
 # ВАЖНО: Файлы миграций (alembic/versions/*.py) и alembic.ini ИГНОРИРОВАТЬ НЕЛЬЗЯ!
 # Они должны отслеживаться в Git для поддержания актуальной схемы БД на всех серверах.
 seed/
+
+# ── GSD baseline (auto-generated) ──
+.gsd
+*~
+*.code-workspace
+node_modules/
+.next/
+*.pyc
+.venv/
+target/
+vendor/
+coverage/
+.cache/
+tmp/

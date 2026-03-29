@@ -1,9 +1,15 @@
 # tests/conftest.py
 import asyncio
 import contextvars
+import os
 import warnings
 from asyncio.events import AbstractEventLoop
 from collections.abc import AsyncIterable
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 
 import pytest
 import redis.asyncio as redis
@@ -64,33 +70,47 @@ def _reset_context_vars():
 
 @pytest.fixture(scope="session")
 def db_url() -> str:
-    return "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/postgres"
+    host = os.environ.get("PGHOST", "127.0.0.1")
+    port = os.environ.get("PGPORT", "5432")
+    user = os.environ.get("PGUSER", "postgres")
+    password = os.environ.get("PGPASSWORD", "postgres")
+    database = os.environ.get("TEST_PGDATABASE", "railway_test" if host != "127.0.0.1" else "postgres")
+    return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
 
 
 @pytest.fixture(scope="session")
 def redis_url() -> str:
-    return "redis://:password@127.0.0.1:6379/0"
+    host = os.environ.get("REDISHOST", "127.0.0.1")
+    port = os.environ.get("REDISPORT", "6379")
+    password = os.environ.get("REDISPASSWORD", "password")
+    db = os.environ.get("REDISDATABASE", "0")
+    return f"redis://:{password}@{host}:{port}/{db}"
 
 
 @pytest.fixture(scope="session")
 def rabbitmq_url() -> str:
-    return "amqp://admin:password@127.0.0.1:5672/"
+    return os.environ.get("RABBITMQ_PRIVATE_URL", "amqp://admin:password@127.0.0.1:5672/")
 
 
 @pytest.fixture(scope="session")
 def test_settings(db_url, redis_url, rabbitmq_url) -> Settings:
+    host = os.environ.get("PGHOST", "127.0.0.1")
+    port = int(os.environ.get("PGPORT", "5432"))
+    user = os.environ.get("PGUSER", "postgres")
+    password = os.environ.get("PGPASSWORD", "postgres")
+    database = os.environ.get("TEST_PGDATABASE", "railway_test" if host != "127.0.0.1" else "postgres")
     return Settings(
         PROJECT_NAME="Enterprise API - Test",
         ENVIRONMENT="test",
         DEBUG=True,
         SECRET_KEY=SecretStr("test-secret"),
-        PGHOST="127.0.0.1",
-        PGPORT=5432,
-        PGUSER="postgres",
-        PGPASSWORD=SecretStr("postgres"),
-        PGDATABASE="postgres",
-        REDISHOST="127.0.0.1",
-        REDISPORT=6379,
+        PGHOST=host,
+        PGPORT=port,
+        PGUSER=user,
+        PGPASSWORD=SecretStr(password),
+        PGDATABASE=database,
+        REDISHOST=os.environ.get("REDISHOST", "127.0.0.1"),
+        REDISPORT=int(os.environ.get("REDISPORT", "6379")),
         RABBITMQ_PRIVATE_URL=rabbitmq_url,
         BOT_TOKEN=SecretStr(""),
     )
@@ -193,7 +213,7 @@ async def app_container(
 
 
 @pytest.fixture(scope="session")
-async def test_engine(app_container: AsyncContainer) -> AsyncEngine:
+async def test_engine(app_container: AsyncContainer, db_url: str) -> AsyncEngine:
     engine = await app_container.get(AsyncEngine)
 
     # Fail-fast DB connectivity check
@@ -205,11 +225,30 @@ async def test_engine(app_container: AsyncContainer) -> AsyncEngine:
             f"Database unreachable: {e}. Start containers: docker compose up -d"
         )
 
-    from src.infrastructure.database.registry import Base
-
+    # Clean slate: drop and recreate public schema (removes tables, ENUMs, etc.)
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("DROP SCHEMA public CASCADE"))
+        await conn.execute(text("CREATE SCHEMA public"))
+
+    # Run Alembic migrations via subprocess (can't call command.upgrade in async loop)
+    import subprocess
+
+    # Override PGDATABASE to use the test database (not production)
+    test_database = os.environ.get(
+        "TEST_PGDATABASE",
+        "railway_test" if os.environ.get("PGHOST", "127.0.0.1") != "127.0.0.1" else "postgres",
+    )
+    alembic_env = {**os.environ, "PGDATABASE": test_database}
+    result = subprocess.run(
+        ["uv", "run", "alembic", "upgrade", "head"],
+        cwd=str(Path(__file__).resolve().parent.parent),
+        env=alembic_env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        pytest.exit(f"Alembic migration failed: {result.stderr}")
 
     return engine
 

@@ -11,14 +11,12 @@ Part of Phase 07 -- Repository & Data Integrity (REPO-01, REPO-05).
 
 import uuid
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.modules.catalog.domain.entities import Product, ProductVariant, SKU
+from src.modules.catalog.domain.entities import Product
 from src.modules.catalog.domain.value_objects import Money, ProductStatus
 from src.modules.catalog.infrastructure.repositories.product import ProductRepository
 from tests.utils.query_counter import assert_query_count
-
 
 # =========================================================================
 # Task 07-01-02: Product create-read roundtrip with full field verification
@@ -362,9 +360,7 @@ class TestMoneyVODecomposition:
         fetched = await repo.get_with_variants(product.id)
         assert fetched is not None
         # Find the variant we added (not the default one)
-        priced_variants = [
-            v for v in fetched.variants if v.default_price is not None
-        ]
+        priced_variants = [v for v in fetched.variants if v.default_price is not None]
         assert len(priced_variants) == 1
         assert priced_variants[0].default_price.amount == 5000
         assert priced_variants[0].default_price.currency == "RUB"

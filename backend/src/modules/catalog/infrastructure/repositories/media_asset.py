@@ -189,7 +189,7 @@ class MediaAssetRepository(IMediaAssetRepository):
             )
         )
         result = await self._session.execute(stmt)
-        return result.rowcount  # type: ignore[return-value]
+        return result.rowcount
 
     async def check_main_exists(
         self,

@@ -14,6 +14,8 @@ import uuid
 from hypothesis import strategies as st
 
 from src.modules.catalog.domain.value_objects import (
+    MAX_SEARCH_WEIGHT,
+    MIN_SEARCH_WEIGHT,
     AttributeDataType,
     AttributeLevel,
     AttributeUIType,
@@ -21,10 +23,7 @@ from src.modules.catalog.domain.value_objects import (
     MediaRole,
     MediaType,
     Money,
-    ProductStatus,
     RequirementLevel,
-    MIN_SEARCH_WEIGHT,
-    MAX_SEARCH_WEIGHT,
 )
 
 
@@ -73,9 +72,7 @@ def i18n_names(
     return _merged()
 
 
-def valid_slugs(
-    min_length: int = 1, max_length: int = 40
-) -> st.SearchStrategy[str]:
+def valid_slugs(min_length: int = 1, max_length: int = 40) -> st.SearchStrategy[str]:
     """Generate strings matching ^[a-z0-9]+(-[a-z0-9]+)*$.
 
     Uses a segment-based approach per research pitfall #3 to avoid
@@ -94,9 +91,7 @@ def valid_slugs(
     ).filter(lambda s: min_length <= len(s) <= max_length)
 
 
-def valid_codes(
-    min_length: int = 1, max_length: int = 30
-) -> st.SearchStrategy[str]:
+def valid_codes(min_length: int = 1, max_length: int = 30) -> st.SearchStrategy[str]:
     """Generate machine-readable codes (like slugs but for attribute/group codes).
 
     Same pattern as slugs: lowercase alphanumeric with hyphens.
