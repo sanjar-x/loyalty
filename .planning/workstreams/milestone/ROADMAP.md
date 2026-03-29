@@ -104,8 +104,9 @@ Plans:
   1. After upload confirm, admin frontend polls or subscribes for processing status
   2. Media is only displayed/attached to product after status reaches COMPLETED
   3. User sees processing indicator while media is being processed
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 1 plan
+Plans:
+- [ ] 07-01-PLAN.md — BFF GET media route, pollMediaStatus with backoff, wire into useSubmitProduct
 
 ### Phase 8: Admin UI Enhancements
 **Goal**: Admin product form uses completeness endpoint, supports all FSM transitions, and sends version for optimistic locking
@@ -131,5 +132,5 @@ Phases execute in numeric order. Phases 1, 2, 3 are independent and can parallel
 | 4. BFF Upload Route               | 1/1            | Complete    | 2026-03-30 |
 | 5. BFF Confirm & External Routes  | 1/1            | Complete    | 2026-03-30 |
 | 6. Frontend Media Field Alignment | 1/1            | Complete    | 2026-03-30 |
-| 7. Frontend Media Status Polling  | 0/TBD          | Not started | -          |
+| 7. Frontend Media Status Polling  | 0/1            | Not started | -          |
 | 8. Admin UI Enhancements          | 0/TBD          | Not started | -          |
