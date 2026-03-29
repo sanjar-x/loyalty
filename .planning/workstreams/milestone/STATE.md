@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-03-29T17:11:34.000Z"
-last_activity: 2026-03-29 -- Plan 01-01 complete (BKND-01, BKND-02 fixes)
+stopped_at: Phase 1 complete, verified
+last_updated: "2026-03-29T17:20:00.000Z"
+last_activity: 2026-03-29 -- Phase 1 complete, 9/9 must-haves verified
 progress:
   total_phases: 8
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 1
   completed_plans: 1
   percent: 12
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Сквозной flow создания товара (form -> draft -> media upload -> SKU -> attributes -> publish) должен работать end-to-end через admin panel без ошибок интеграции.
-**Current focus:** Phase 1: Backend Schema Fixes (Plan 1 complete)
+**Current focus:** Phase 2: Frontend i18n & Spec Alignment (or Phase 3: BFF Media Proxy Infrastructure — independent)
 
 ## Current Position
 
-Phase: 1 of 8 (Backend Schema Fixes)
-Plan: 1 of 1 in current phase
-Status: Phase 1 complete
-Last activity: 2026-03-29 -- Plan 01-01 complete (BKND-01, BKND-02 fixes)
+Phase: 2 of 8 (next — Phases 2, 3 are independent, can parallelize)
+Plan: 0 of TBD in current phase
+Status: Phase 1 complete, ready for Phase 2/3
+Last activity: 2026-03-29 -- Phase 1 complete, 9/9 must-haves verified
 
-Progress: [#.........] 12%
+Progress: [█░░░░░░░░░] 12%
 
 ## Performance Metrics
 
@@ -78,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-29T17:11:34.000Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-03-29T17:20:00.000Z
+Stopped at: Phase 1 complete, verified
 Resume file: .planning/workstreams/milestone/phases/01-backend-schema-fixes/01-01-SUMMARY.md

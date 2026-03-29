@@ -73,11 +73,11 @@
 
 ## Key Decisions
 
-| Decision | Rationale | Outcome |
-|----------|-----------|---------|
+| Decision                     | Rationale                                                                                    | Outcome   |
+| ---------------------------- | -------------------------------------------------------------------------------------------- | --------- |
 | BFF → image_backend напрямую | Main backend не должен быть прокси для binary uploads. BFF уже имеет IMAGE_BACKEND_URL в env | — Pending |
-| frontend/main вне scope | API слой не подключён вообще — отдельный проект | — Pending |
-| Все 14 проблем в scope | Minor-проблемы (completeness, FSM UI, version) улучшают UX и предотвращают future bugs | — Pending |
+| frontend/main вне scope      | API слой не подключён вообще — отдельный проект                                              | — Pending |
+| Все 14 проблем в scope       | Minor-проблемы (completeness, FSM UI, version) улучшают UX и предотвращают future bugs       | — Pending |
 
 ## Current Milestone: v1.0 Backend Schema Fixes
 
