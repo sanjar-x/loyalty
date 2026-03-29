@@ -1,7 +1,7 @@
 # Requirements: Product Creation Flow Integration Fix
 
 **Defined:** 2026-03-29
-**Core Value:** Сквозной flow создания товара (form → draft → media upload → SKU → attributes → publish) должен работать end-to-end через admin panel без ошибок интеграции.
+**Core Value:** Сквозной flow создания товара (form -> draft -> media upload -> SKU -> attributes -> publish) должен работать end-to-end через admin panel без ошибок интеграции.
 
 ## v1 Requirements
 
@@ -33,7 +33,7 @@ Requirements for fixing all integration issues identified in audit.md.
 ### Admin UI Enhancements
 
 - [ ] **UI-01**: Admin product form displays missing required/recommended attributes from completeness endpoint
-- [ ] **UI-02**: Admin FSM UI supports all 5 transitions (DRAFT↔ENRICHING, ENRICHING→READY_FOR_REVIEW, READY_FOR_REVIEW→PUBLISHED, PUBLISHED→ARCHIVED, ARCHIVED→DRAFT)
+- [ ] **UI-02**: Admin FSM UI supports all 5 transitions (DRAFT<->ENRICHING, ENRICHING->READY_FOR_REVIEW, READY_FOR_REVIEW->PUBLISHED, PUBLISHED->ARCHIVED, ARCHIVED->DRAFT)
 - [ ] **UI-03**: Admin sends version field in all PATCH requests for optimistic locking support
 
 ## v2 Requirements
@@ -48,37 +48,37 @@ Requirements for fixing all integration issues identified in audit.md.
 
 | Feature | Reason |
 |---------|--------|
-| frontend/main API layer | API completely unconnected, separate project — user decision |
+| frontend/main API layer | API completely unconnected, separate project -- user decision |
 | frontend/main TypeScript type fixes | Deferred until API layer is connected |
 | Image backend changes | All endpoints already correct per audit |
 | New product features (bulk operations, import/export) | Not part of integration fix |
-| Backend i18n naming change | Backend uses I18N (uppercase) correctly via to_camel — no change needed |
+| Backend i18n naming change | Backend uses I18N (uppercase) correctly via to_camel -- no change needed |
 | SSE streaming for media status | Polling is simpler and deployment-safe; SSE can be added later |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BKND-01 | TBD | Pending |
-| BKND-02 | TBD | Pending |
-| I18N-01 | TBD | Pending |
-| I18N-02 | TBD | Pending |
-| BFF-01 | TBD | Pending |
-| BFF-02 | TBD | Pending |
-| BFF-03 | TBD | Pending |
-| BFF-04 | TBD | Pending |
-| MEDIA-01 | TBD | Pending |
-| MEDIA-02 | TBD | Pending |
-| MEDIA-03 | TBD | Pending |
-| UI-01 | TBD | Pending |
-| UI-02 | TBD | Pending |
-| UI-03 | TBD | Pending |
+| BKND-01 | Phase 1 | Pending |
+| BKND-02 | Phase 1 | Pending |
+| I18N-01 | Phase 2 | Pending |
+| I18N-02 | Phase 2 | Pending |
+| BFF-01 | Phase 3 | Pending |
+| BFF-02 | Phase 4 | Pending |
+| BFF-03 | Phase 5 | Pending |
+| BFF-04 | Phase 5 | Pending |
+| MEDIA-01 | Phase 6 | Pending |
+| MEDIA-02 | Phase 6 | Pending |
+| MEDIA-03 | Phase 7 | Pending |
+| UI-01 | Phase 8 | Pending |
+| UI-02 | Phase 8 | Pending |
+| UI-03 | Phase 8 | Pending |
 
 **Coverage:**
 - v1 requirements: 14 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 14
+- Mapped to phases: 14
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-29*
-*Last updated: 2026-03-29 after initial definition*
+*Last updated: 2026-03-29 after roadmap creation*
