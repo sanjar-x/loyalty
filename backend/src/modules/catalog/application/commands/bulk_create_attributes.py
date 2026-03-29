@@ -48,7 +48,7 @@ class BulkAttributeItem:
     ui_type: AttributeUIType
     is_dictionary: bool = True
     group_id: uuid.UUID | None = None
-    description_i18n: dict[str, str] = field(default_factory=dict)
+    description_i18n: dict[str, str] | None = None
     level: AttributeLevel = AttributeLevel.PRODUCT
     is_filterable: bool = False
     is_searchable: bool = False

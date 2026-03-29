@@ -49,7 +49,7 @@ class CreateProductCommand:
     slug: str
     brand_id: uuid.UUID
     primary_category_id: uuid.UUID
-    description_i18n: dict[str, str] = field(default_factory=dict)
+    description_i18n: dict[str, str] | None = None
     supplier_id: uuid.UUID | None = None
     source_url: str | None = None
     country_of_origin: str | None = None

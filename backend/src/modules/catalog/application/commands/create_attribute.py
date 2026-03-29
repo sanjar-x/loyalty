@@ -6,7 +6,7 @@ an ``AttributeCreatedEvent``. Part of the application layer (CQRS write side).
 """
 
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from src.modules.catalog.domain.entities import Attribute
@@ -60,7 +60,7 @@ class CreateAttributeCommand:
     ui_type: AttributeUIType
     is_dictionary: bool
     group_id: uuid.UUID | None = None
-    description_i18n: dict[str, str] = field(default_factory=dict)
+    description_i18n: dict[str, str] | None = None
     level: AttributeLevel = AttributeLevel.PRODUCT
     is_filterable: bool = False
     is_searchable: bool = False

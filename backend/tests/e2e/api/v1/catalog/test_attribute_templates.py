@@ -204,3 +204,21 @@ class TestTemplateBindingEndpoints:
             },
         )
         assert resp.status_code == 204
+
+
+class TestAttributeTemplateSchemaFixes:
+    """Tests for attribute template description_i18n optional fix."""
+
+    async def test_create_template_without_description(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ):
+        """POST /attribute-templates with minimal fields, NO descriptionI18n -> 201."""
+        suffix = uuid.uuid4().hex[:8]
+        payload = {
+            "code": f"tmpl_{suffix}",
+            "nameI18n": {"ru": "Обувь", "en": "Footwear"},
+        }
+        resp = await admin_client.post(
+            "/api/v1/catalog/attribute-templates", json=payload
+        )
+        assert resp.status_code == 201

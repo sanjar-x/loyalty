@@ -214,3 +214,142 @@ class TestProductEndpoints:
             "missingRequired", "missingRecommended",
         ):
             assert field in data, f"Missing camelCase field: {field}"
+
+
+class TestProductSchemaFixes:
+    """Tests for BKND-01 (optional descriptionI18n) and BKND-02 (countryOfOrigin)."""
+
+    # ── BKND-01: descriptionI18n truly optional ──
+
+    async def test_create_product_without_description(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ):
+        """POST /products without descriptionI18n key -> 201."""
+        brand = await create_brand(admin_client)
+        cat = await create_category(admin_client)
+        payload = {
+            "titleI18n": {"ru": "Товар", "en": "Product"},
+            "slug": f"prod-{uuid.uuid4().hex[:8]}",
+            "brandId": str(brand["id"]),
+            "primaryCategoryId": str(cat["id"]),
+        }
+        resp = await admin_client.post("/api/v1/catalog/products", json=payload)
+        assert resp.status_code == 201
+        assert "id" in resp.json()
+
+    async def test_create_product_null_description(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ):
+        """POST /products with descriptionI18n explicitly set to null -> 201."""
+        brand = await create_brand(admin_client)
+        cat = await create_category(admin_client)
+        payload = {
+            "titleI18n": {"ru": "Товар", "en": "Product"},
+            "slug": f"prod-{uuid.uuid4().hex[:8]}",
+            "brandId": str(brand["id"]),
+            "primaryCategoryId": str(cat["id"]),
+            "descriptionI18n": None,
+        }
+        resp = await admin_client.post("/api/v1/catalog/products", json=payload)
+        assert resp.status_code == 201
+
+    async def test_create_product_with_description(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ):
+        """POST /products with valid descriptionI18n -> 201 (backward compat)."""
+        brand = await create_brand(admin_client)
+        cat = await create_category(admin_client)
+        payload = {
+            "titleI18n": {"ru": "Товар", "en": "Product"},
+            "slug": f"prod-{uuid.uuid4().hex[:8]}",
+            "brandId": str(brand["id"]),
+            "primaryCategoryId": str(cat["id"]),
+            "descriptionI18n": {"ru": "Описание", "en": "Description"},
+        }
+        resp = await admin_client.post("/api/v1/catalog/products", json=payload)
+        assert resp.status_code == 201
+
+    async def test_product_description_stored_as_empty_dict(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ):
+        """Create without descriptionI18n, GET -> descriptionI18n == {} (not null).
+
+        Verifies domain None-to-{} conversion at Product.create() line 193.
+        """
+        brand = await create_brand(admin_client)
+        cat = await create_category(admin_client)
+        payload = {
+            "titleI18n": {"ru": "Товар", "en": "Product"},
+            "slug": f"prod-{uuid.uuid4().hex[:8]}",
+            "brandId": str(brand["id"]),
+            "primaryCategoryId": str(cat["id"]),
+        }
+        resp = await admin_client.post("/api/v1/catalog/products", json=payload)
+        assert resp.status_code == 201
+        product_id = resp.json()["id"]
+
+        get_resp = await admin_client.get(
+            f"/api/v1/catalog/products/{product_id}"
+        )
+        assert get_resp.status_code == 200
+        assert get_resp.json()["descriptionI18n"] == {}
+
+    # ── BKND-02: countryOfOrigin in ProductCreateRequest ──
+
+    async def test_create_product_with_country_of_origin(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ):
+        """POST with countryOfOrigin: "CN" -> 201, GET confirms persistence."""
+        brand = await create_brand(admin_client)
+        cat = await create_category(admin_client)
+        payload = {
+            "titleI18n": {"ru": "Товар", "en": "Product"},
+            "slug": f"prod-{uuid.uuid4().hex[:8]}",
+            "brandId": str(brand["id"]),
+            "primaryCategoryId": str(cat["id"]),
+            "countryOfOrigin": "CN",
+        }
+        resp = await admin_client.post("/api/v1/catalog/products", json=payload)
+        assert resp.status_code == 201
+        product_id = resp.json()["id"]
+
+        get_resp = await admin_client.get(
+            f"/api/v1/catalog/products/{product_id}"
+        )
+        assert get_resp.status_code == 200
+        assert get_resp.json()["countryOfOrigin"] == "CN"
+
+    async def test_create_product_invalid_country_code_returns_422(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ):
+        """POST with countryOfOrigin: "X" (too short) -> 422."""
+        brand = await create_brand(admin_client)
+        cat = await create_category(admin_client)
+        payload = {
+            "titleI18n": {"ru": "Товар", "en": "Product"},
+            "slug": f"prod-{uuid.uuid4().hex[:8]}",
+            "brandId": str(brand["id"]),
+            "primaryCategoryId": str(cat["id"]),
+            "countryOfOrigin": "X",
+        }
+        resp = await admin_client.post("/api/v1/catalog/products", json=payload)
+        assert resp.status_code == 422
+
+    async def test_create_product_lowercase_country_code_returns_422(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ):
+        """POST with countryOfOrigin: "cn" (lowercase) -> 422.
+
+        Verifies regex ^[A-Z]{2}$ is case-sensitive.
+        """
+        brand = await create_brand(admin_client)
+        cat = await create_category(admin_client)
+        payload = {
+            "titleI18n": {"ru": "Товар", "en": "Product"},
+            "slug": f"prod-{uuid.uuid4().hex[:8]}",
+            "brandId": str(brand["id"]),
+            "primaryCategoryId": str(cat["id"]),
+            "countryOfOrigin": "cn",
+        }
+        resp = await admin_client.post("/api/v1/catalog/products", json=payload)
+        assert resp.status_code == 422
