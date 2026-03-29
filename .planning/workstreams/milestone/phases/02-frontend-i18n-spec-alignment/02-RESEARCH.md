@@ -1,12 +1,12 @@
 # Phase 2: Frontend i18n & Spec Alignment - Research
 
-**Researched:** 2026-03-29 (re-research: deeper verification)
+**Researched:** 2026-03-30 (forced re-research: full re-verification against current source)
 **Domain:** Admin frontend i18n payload correctness + specification accuracy
 **Confidence:** HIGH
 
 ## Summary
 
-Phase 2 fixes three classes of i18n bugs in the admin frontend and corrects the product creation spec. Research verified every claim from the previous iteration by reading all source files line-by-line, running the backend `to_camel` function empirically, and tracing data flow from form through BFF to backend schemas.
+Phase 2 fixes three classes of i18n bugs in the admin frontend and corrects the product creation spec. This re-research re-verified every claim by reading all source files and confirming all line numbers, code patterns, and backend schema expectations are unchanged since the 2026-03-29 research.
 
 **Bug class 1 -- Conditional locale inclusion (useProductForm.js):** The product form conditionally includes the `en` locale using spread syntax (`...(state.titleEn ? { en: state.titleEn } : {})`). When the user leaves `en` empty, the backend receives only `{ru: "..."}` and returns 422 "Missing required locales" because `_REQUIRED_LOCALES = {"ru", "en"}` in `schemas.py:49`.
 
@@ -47,8 +47,18 @@ None -- discussion stayed within phase scope.
 | ID | Description | Research Support |
 |----|-------------|------------------|
 | I18N-01 | Admin form always sends both ru+en locales in all i18n fields (fallback: ru value used for empty en) | Verified 3 bugs: (1) useProductForm.js lines 325, 334 conditionally omit `en`; (2) CategoryModal.jsx line 66-68 sends plain `name` instead of `nameI18N` dict; (3) CategoryNode.jsx line 29 and CategoriesPage.jsx line 44 read `name` but response has `nameI18N`. BrandSelect and RoleModal confirmed clean. |
-| I18N-02 | Spec product-creation-flow.md updated to reflect actual backend naming convention (titleI18N, uppercase N) | Verified empirically: `to_camel("name_i18n")` = `nameI18N`. Spec has exactly 19 `I18n` occurrences (confirmed via grep), 1 `I18N` occurrence (in the incorrect explanation). Lines 36-37 wrong: says `.capitalize()` but Pydantic uses `.title()`. Phase 1 changes (countryOfOrigin, truly optional descriptionI18N) not reflected. |
+| I18N-02 | Spec product-creation-flow.md updated to reflect actual backend naming convention (titleI18N, uppercase N) | Verified: `to_camel("name_i18n")` = `nameI18N`. Spec has exactly 19 `I18n` occurrences (confirmed via grep), 1 `I18N` occurrence (in the incorrect explanation at line 37). Lines 36-37 wrong: says `.capitalize()` but Pydantic uses `.title()`. Phase 1 changes (countryOfOrigin, truly optional descriptionI18N) not reflected in spec. |
 </phase_requirements>
+
+## Project Constraints (from CLAUDE.md)
+
+- **I18n convention:** Backend returns `I18N` (uppercase N) -- this is fact, frontend adapts
+- **Backend contracts:** Do not break existing API contracts -- only extend (add fields, make optional)
+- **Architecture:** Admin BFF proxy -> backend directly for catalog operations
+- **Tech stack:** No changes -- existing FastAPI, Next.js, Pydantic
+- **Admin frontend:** JavaScript (ES2017+), no TypeScript
+- **Code formatting:** Prettier ^3.6.2 with prettier-plugin-tailwindcss for admin frontend
+- **Schemas:** All schemas inherit from CamelModel (auto snake_case-to-camelCase aliasing)
 
 ## Standard Stack
 
@@ -103,7 +113,7 @@ class CamelModel(BaseModel):
     model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 ```
 
-**Verified empirically (ran in backend venv):**
+**Verified empirically (ran in backend venv previously, result stable):**
 ```
 to_camel("name_i18n")        -> "nameI18N"
 to_camel("title_i18n")       -> "titleI18N"
@@ -112,7 +122,7 @@ to_camel("value_i18n")       -> "valueI18N"
 to_camel("group_name_i18n")  -> "groupNameI18N"
 ```
 
-**Actual algorithm** (verified by reading source):
+**Actual algorithm** (verified by reading Pydantic source):
 1. `to_pascal(snake)` calls `snake.title()` -- Python's `.title()` capitalizes every letter after a non-alpha character (including digits and underscores)
 2. For `i18n`: `_` -> `I` (after underscore), `1` stays, `8` stays, `n` -> `N` (after digit 8, which is non-alpha)
 3. Regex removes `_` between alphanumeric and uppercase: `Name_I18N` -> `NameI18N`
@@ -131,7 +141,7 @@ export function i18n(obj, fallback = '') {
 }
 ```
 
-Some components already use this correctly:
+Components already using this correctly:
 - `services/categories.js:36` -- `i18n(node.nameI18N, node.label ?? fallback)` -- CORRECT pattern
 - `DynamicAttributes.jsx` -- `i18n(attribute.nameI18N)` -- CORRECT pattern
 - `ProductDetailsForm.jsx:54` -- `i18n(attr.nameI18N, attr.code)` -- CORRECT pattern
@@ -258,12 +268,12 @@ function handleEdit(category) {
 ### Write-Path (POST/PATCH) Forms
 | Form | Endpoint | Backend Schema | i18n Issue? | Action |
 |------|----------|---------------|-------------|--------|
-| `useProductForm.js` | `POST /catalog/products` | `ProductCreateRequest` -- `title_i18n: I18nDict`, `description_i18n: I18nDict | None` | YES -- `en` omitted when empty (lines 325, 334) | Fix: always include `{ru, en}` with fallback |
+| `useProductForm.js` | `POST /catalog/products` | `ProductCreateRequest` -- `title_i18n: I18nDict`, `description_i18n: I18nDict \| None` | YES -- `en` omitted when empty (lines 325, 334) | Fix: always include `{ru, en}` with fallback |
 | `CategoryModal.jsx` (create) | `POST /categories` | `CategoryCreateRequest` -- `name_i18n: I18nDict` (required) | YES -- sends plain `name` string (line 67-68) | Fix: send `nameI18N: buildI18nPayload(name, '')` |
-| `CategoryModal.jsx` (edit) | `PATCH /categories/{id}` | `CategoryUpdateRequest` -- `name_i18n: I18nDict | None` | YES -- sends plain `name` string (line 67) | Fix: send `nameI18N: buildI18nPayload(name, '')` |
+| `CategoryModal.jsx` (edit) | `PATCH /categories/{id}` | `CategoryUpdateRequest` -- `name_i18n: I18nDict \| None` | YES -- sends plain `name` string (line 67) | Fix: send `nameI18N: buildI18nPayload(name, '')` |
 | `BrandSelect.jsx` | `POST /catalog/brands` | `BrandCreateRequest` -- `name: str` (plain) | NO | Confirmed: `BrandCreateRequest` at schemas.py:244-251 uses `name: str`, not i18n dict |
-| `RoleModal.jsx` (create) | `POST /admin/roles` | `CreateRoleRequest` -- `name: str`, `description: str | None` | NO | Confirmed: identity schemas.py:132-133 uses `name: str` |
-| `RoleModal.jsx` (edit) | `PATCH /admin/roles/{id}` | `UpdateRoleRequest` -- `name: str | None`, `description: str | None` | NO | Confirmed: identity schemas.py:291-292 uses `name: str` |
+| `RoleModal.jsx` (create) | `POST /admin/roles` | `CreateRoleRequest` -- `name: str`, `description: str \| None` | NO | Confirmed: identity schemas.py:132-133 uses `name: str` |
+| `RoleModal.jsx` (edit) | `PATCH /admin/roles/{id}` | `UpdateRoleRequest` -- `name: str \| None`, `description: str \| None` | NO | Confirmed: identity schemas.py:291-292 uses `name: str` |
 | `RolePermissionsModal.jsx` | `PUT /admin/roles/{id}/permissions` | `{ permissionIds: [...] }` | NO | No i18n fields -- sends UUIDs only |
 | `UserDetailModal.jsx` | `POST /admin/identities/{id}/roles` | `{ roleId: "..." }` | NO | No i18n fields -- sends UUID only |
 
@@ -301,7 +311,7 @@ All camelCase i18n field references use `I18n` (lowercase n) but backend produce
 | 717 | `nameI18n` | `nameI18N` |
 | 854 | `titleI18n` | `titleI18N` |
 
-**Total: 19 `I18n` occurrences confirmed by grep.**
+**Total: 19 `I18n` occurrences confirmed by grep on 2026-03-30.**
 
 ### Category 2: Incorrect Technical Explanation (lines 36-37)
 **Current (WRONG):**
@@ -317,7 +327,7 @@ All camelCase i18n field references use `I18n` (lowercase n) but backend produce
 
 ### Category 3: Missing Phase 1 Changes
 1. **`countryOfOrigin`** -- now exists in `ProductCreateRequest` (added in Phase 1, `schemas.py:732-734`). Not mentioned in Step 1 request JSON example (line 158-172) or validation table (lines 177-186).
-2. **`descriptionI18N`** -- validation table at line 183 says "Опционально" which is correct, but the note about the old `default_factory=dict` behavior (audit issue #7) is now resolved. The schema now shows `description_i18n: I18nDict | None = None`.
+2. **`descriptionI18N`** -- validation table at line 183 says "Опционально" which is correct, but the schema is now `description_i18n: I18nDict | None = None` (not `default_factory=dict`).
 
 ### Category 4: Storefront Response Examples Missing `en` Locale
 Lines 93, 102, 113-114: JSON examples show i18n dicts with only `{"ru": "..."}` -- missing the `en` key. While the backend does not enforce required locales on response models (only on request `I18nDict`), showing single-locale examples is misleading for a document that emphasizes "both ru and en are required." Recommend adding both locales for documentation consistency.
@@ -382,7 +392,7 @@ Note: The fix is in CategoriesPage.jsx where `category.name` is constructed, not
 
 ### Fix: CategoriesPage.jsx (lines 39-48) -- handleEdit
 ```javascript
-// BEFORE (buggy):
+// AFTER (fixed):
 import { i18n } from '@/lib/utils';
 function handleEdit(category) {
   setModal({
@@ -475,21 +485,22 @@ body.description = description || undefined;
 ## Sources
 
 ### Primary (HIGH confidence)
-- **Pydantic `to_camel` empirical verification:** Ran `uv run python -c "from pydantic.alias_generators import to_camel; print(to_camel('name_i18n'))"` in backend venv -- confirmed `nameI18N` (uppercase N)
-- **Pydantic `to_camel` source code:** Read via `inspect.getsource()` -- confirmed algorithm: `to_pascal(snake)` calls `.title()`, NOT `.capitalize()`
-- **Backend catalog schemas:** `backend/src/modules/catalog/presentation/schemas.py` -- read `CategoryCreateRequest` (line 118), `CategoryUpdateRequest` (line 171), `CategoryTreeResponse` (line 145), `BrandCreateRequest` (line 244), `ProductCreateRequest` (line 717), i18n validator (line 52-74)
-- **Backend identity schemas:** `backend/src/modules/identity/presentation/schemas.py` -- read `CreateRoleRequest` (line 124), `UpdateRoleRequest` (line 281)
-- **CamelModel source:** `backend/src/shared/schemas.py` (line 20-28) -- confirmed `alias_generator=to_camel` with `populate_by_name=True`
-- **Frontend source files:** Read line-by-line: `useProductForm.js` (lines 310-370), `CategoryModal.jsx` (all 231 lines), `CategoryNode.jsx` (all 69 lines), `CategoriesPage.jsx` (all 101 lines), `CategoryTree.jsx` (all 22 lines), `BrandSelect.jsx` (lines 175-204), `RoleModal.jsx` (all 189 lines), `RolePermissionsModal.jsx` (lines 66-85), `UserDetailModal.jsx` (lines 70-89), `lib/utils.js` (all 81 lines)
-- **BFF route files:** Read all 3 category BFF routes (POST, PATCH/DELETE, tree GET) -- confirmed JSON pass-through
-- **Spec file:** `product-creation-flow.md` -- 921 lines, 19 `I18n` occurrences confirmed by grep
-- **i18n usage scan:** grep for `nameI18N`, `nameI18n`, `node.name`, `category.name` across entire admin frontend
+- **Backend catalog schemas (re-verified 2026-03-30):** `backend/src/modules/catalog/presentation/schemas.py` -- read `CategoryCreateRequest` (line 118), `CategoryUpdateRequest` (line 171), `CategoryTreeResponse` (line 145), `BrandCreateRequest` (line 244), `ProductCreateRequest` (line 717), i18n validator (line 52-74)
+- **Backend identity schemas (re-verified 2026-03-30):** `backend/src/modules/identity/presentation/schemas.py` -- read `CreateRoleRequest` (line 124), `UpdateRoleRequest` (line 281)
+- **CamelModel source (re-verified 2026-03-30):** `backend/src/shared/schemas.py` (line 20-28) -- confirmed `alias_generator=to_camel` with `populate_by_name=True`
+- **Frontend source files (re-verified 2026-03-30):** Read line-by-line: `useProductForm.js` (491 lines, bugs at 325 and 334), `CategoryModal.jsx` (231 lines, bug at 42 and 66-68), `CategoryNode.jsx` (69 lines, bug at 29), `CategoriesPage.jsx` (101 lines, bug at 44), `BrandSelect.jsx` (403 lines, line 189 clean), `lib/utils.js` (81 lines, i18n helper at 48-51), `services/categories.js` (37 lines, correct pattern at 36)
+- **BFF route files (re-verified 2026-03-30):** Read all 3 category BFF routes -- confirmed JSON pass-through unchanged
+- **Spec file (re-verified 2026-03-30):** `product-creation-flow.md` -- 921 lines, 19 `I18n` occurrences confirmed by grep
+- **RoleModal.jsx, RolePermissionsModal.jsx, UserDetailModal.jsx (re-verified 2026-03-30):** All confirmed no i18n fields in payloads
+- **Pydantic `to_camel` behavior:** Previously verified empirically in backend venv -- result `nameI18N` (uppercase N) is stable and matches Pydantic source algorithm
 
 ### Secondary (MEDIUM confidence)
 - **Audit findings:** `audit.md` -- issues #4 and #14 confirmed by direct code inspection
 - **services/categories.js pattern:** Shows `i18n(node.nameI18N)` as the correct read pattern already established in the codebase
 
 ## Metadata
+
+**Re-verification result:** ALL line numbers, code patterns, and findings from 2026-03-29 research confirmed unchanged. No code has been modified in any of the audited files. All bugs still present at exact same lines.
 
 **Confidence breakdown:**
 - Standard stack: HIGH -- no new libraries, only existing code modifications
@@ -498,5 +509,5 @@ body.description = description || undefined;
 - Spec inaccuracies: HIGH -- all 19 `I18n` occurrences confirmed by grep; `to_camel` algorithm verified by reading source code; Phase 1 changes verified against actual schema code
 - Write-path audit: HIGH -- all 8 write-path forms in admin frontend audited; backend schema for each verified
 
-**Research date:** 2026-03-29
-**Valid until:** 2026-04-28 (stable -- no library upgrades expected)
+**Research date:** 2026-03-30
+**Valid until:** 2026-04-29 (stable -- no library upgrades expected)
