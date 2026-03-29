@@ -50,6 +50,14 @@ export function i18n(obj, fallback = '') {
   return obj.ru ?? obj.en ?? Object.values(obj)[0] ?? fallback;
 }
 
+/**
+ * Build an i18n payload with both ru and en locales.
+ * When en is empty/falsy, copies the ru value as fallback.
+ */
+export function buildI18nPayload(ru, en) {
+  return { ru, en: en || ru };
+}
+
 export async function copyToClipboard(text) {
   const value = String(text ?? '').trim();
   if (!value) return;

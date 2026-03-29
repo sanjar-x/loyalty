@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useReducer } from 'react';
+import { buildI18nPayload } from '@/lib/utils';
 
 /**
  * Unified state hook for the product creation form.
@@ -320,19 +321,13 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
 
   const productPayload = useMemo(
     () => ({
-      titleI18N: {
-        ru: state.titleRu,
-        ...(state.titleEn ? { en: state.titleEn } : {}),
-      },
+      titleI18N: buildI18nPayload(state.titleRu, state.titleEn),
       slug: state.slug,
       brandId: state.brandId,
       primaryCategoryId: state.categoryId,
       ...(state.descriptionRu
         ? {
-            descriptionI18N: {
-              ru: state.descriptionRu,
-              ...(state.descriptionEn ? { en: state.descriptionEn } : {}),
-            },
+            descriptionI18N: buildI18nPayload(state.descriptionRu, state.descriptionEn),
           }
         : {}),
       ...(state.supplierId ? { supplierId: state.supplierId } : {}),
