@@ -15,8 +15,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Backend Schema Fixes** - Make descriptionI18n truly optional and add countryOfOrigin to ProductCreateRequest
 - [x] **Phase 2: Frontend i18n & Spec Alignment** - Enforce dual-locale i18n payloads and update spec naming convention
 - [x] **Phase 3: BFF Media Proxy Infrastructure** - Create imageBackendFetch() utility with X-API-Key auth targeting IMAGE_BACKEND_URL
-- [ ] **Phase 4: BFF Upload Route** - Proxy /api/media/upload to image_backend with correct URL mapping and request filtering
-- [ ] **Phase 5: BFF Confirm & External Routes** - Proxy confirm and external import routes to image_backend
+- [x] **Phase 4: BFF Upload Route** - Proxy /api/media/upload to image_backend with correct URL mapping and request filtering
+- [x] **Phase 5: BFF Confirm & External Routes** - Proxy confirm and external import routes to image_backend
 - [ ] **Phase 6: Frontend Media Field Alignment** - Fix field names and request schemas to match image_backend API
 - [ ] **Phase 7: Frontend Media Status Polling** - Poll processing status before attaching media to product
 - [ ] **Phase 8: Admin UI Enhancements** - Completeness endpoint, full FSM transitions, and optimistic locking
@@ -70,7 +70,7 @@ Plans:
   3. Response returns presignedUrl and storageObjectId from image_backend to the browser
 **Plans**: 1 plan
 Plans:
-- [ ] 04-01-PLAN.md — Create POST /api/media/upload BFF proxy route with field stripping and auth gating
+- [x] 04-01-PLAN.md — Create POST /api/media/upload BFF proxy route with field stripping and auth gating
 
 ### Phase 5: BFF Confirm & External Routes
 **Goal**: Admin BFF correctly proxies media confirm and external import requests to image_backend
@@ -82,7 +82,7 @@ Plans:
   3. Both routes use imageBackendFetch() with X-API-Key auth (not backendFetch with JWT)
 **Plans**: 1 plan
 Plans:
-- [ ] 05-01-PLAN.md — Create BFF confirm and external import proxy routes using imageBackendFetch()
+- [x] 05-01-PLAN.md — Create BFF confirm and external import proxy routes using imageBackendFetch()
 
 ### Phase 6: Frontend Media Field Alignment
 **Goal**: Admin frontend uses correct field names and request schemas when communicating with image_backend via BFF
@@ -127,8 +127,8 @@ Phases execute in numeric order. Phases 1, 2, 3 are independent and can parallel
 | 1. Backend Schema Fixes           | 1/1            | Complete    | 2026-03-29 |
 | 2. Frontend i18n & Spec Alignment | 2/2            | Complete    | 2026-03-30 |
 | 3. BFF Media Proxy Infrastructure | 1/1            | Complete    | 2026-03-30 |
-| 4. BFF Upload Route               | 0/1            | Planning    | -          |
-| 5. BFF Confirm & External Routes  | 0/1            | Planning    | -          |
+| 4. BFF Upload Route               | 1/1            | Complete    | 2026-03-30 |
+| 5. BFF Confirm & External Routes  | 1/1            | Complete    | 2026-03-30 |
 | 6. Frontend Media Field Alignment | 0/TBD          | Not started | -          |
 | 7. Frontend Media Status Polling  | 0/TBD          | Not started | -          |
 | 8. Admin UI Enhancements          | 0/TBD          | Not started | -          |

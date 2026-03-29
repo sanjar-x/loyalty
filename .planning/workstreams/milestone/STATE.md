@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 3 complete
-last_updated: "2026-03-30T01:40:00.000Z"
-last_activity: 2026-03-30 -- Phase 03 complete, Phases 4+5 unblocked
+stopped_at: Phases 4+5 complete
+last_updated: "2026-03-30T02:00:00.000Z"
+last_activity: 2026-03-30 -- Phases 04+05 complete, Phase 6 unblocked
 progress:
   total_phases: 8
-  completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
-  percent: 37
+  completed_phases: 5
+  total_plans: 6
+  completed_plans: 6
+  percent: 62
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Сквозной flow создания товара (form -> draft -> media upload -> SKU -> attributes -> publish) должен работать end-to-end через admin panel без ошибок интеграции.
-**Current focus:** Phase 04 — BFF Upload Route (+ Phase 05 in parallel)
+**Current focus:** Phase 06 — Frontend Media Field Alignment
 
 ## Current Position
 
-Phase: 04 of 8 (next up — Phase 05 also unblocked)
+Phase: 06 of 8 (next up)
 Plan: 0 of TBD
-Status: Phase 03 complete, Phases 4+5 next
-Last activity: 2026-03-30 -- Phase 03 verified, 3/3 must-haves passed
+Status: Phases 04+05 complete, Phase 06 next
+Last activity: 2026-03-30 -- All BFF media routes complete (upload, confirm, external)
 
-Progress: [███░░░░░░░] 37%
+Progress: [██████░░░░] 62%
 
 ## Performance Metrics
 

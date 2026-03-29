@@ -20,9 +20,9 @@ Requirements for fixing all integration issues identified in audit.md.
 ### BFF Media Proxy
 
 - [x] **BFF-01**: Admin BFF has imageBackendFetch() utility targeting IMAGE_BACKEND_URL with X-API-Key auth
-- [ ] **BFF-02**: Admin BFF route /api/media/upload proxies to image_backend POST /api/v1/media/upload
-- [ ] **BFF-03**: Admin BFF route /api/media/{id}/confirm proxies to image_backend POST /api/v1/media/{id}/confirm
-- [ ] **BFF-04**: Admin BFF route /api/media/external proxies to image_backend POST /api/v1/media/external
+- [x] **BFF-02**: Admin BFF route /api/media/upload proxies to image_backend POST /api/v1/media/upload
+- [x] **BFF-03**: Admin BFF route /api/media/{id}/confirm proxies to image_backend POST /api/v1/media/{id}/confirm
+- [x] **BFF-04**: Admin BFF route /api/media/external proxies to image_backend POST /api/v1/media/external
 
 ### Frontend Media Integration
 
@@ -64,9 +64,9 @@ Requirements for fixing all integration issues identified in audit.md.
 | I18N-01 | Phase 2 | Complete |
 | I18N-02 | Phase 2 | Complete |
 | BFF-01 | Phase 3 | Complete |
-| BFF-02 | Phase 4 | Pending |
-| BFF-03 | Phase 5 | Pending |
-| BFF-04 | Phase 5 | Pending |
+| BFF-02 | Phase 4 | Complete |
+| BFF-03 | Phase 5 | Complete |
+| BFF-04 | Phase 5 | Complete |
 | MEDIA-01 | Phase 6 | Pending |
 | MEDIA-02 | Phase 6 | Pending |
 | MEDIA-03 | Phase 7 | Pending |
