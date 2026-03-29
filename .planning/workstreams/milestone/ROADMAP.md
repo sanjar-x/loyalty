@@ -92,8 +92,9 @@ Plans:
   1. Admin frontend reads presignedUrl (not presignedUploadUrl) from upload response
   2. Admin frontend reads storageObjectId (not id) from upload response
   3. Admin frontend sends {contentType, filename} in upload request (not {mimeType, fileName, mediaType, role})
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 1 plan
+Plans:
+- [ ] 06-01-PLAN.md — Fix media service functions and orchestration callsites to use correct BFF routes, request schemas, and response fields
 
 ### Phase 7: Frontend Media Status Polling
 **Goal**: Admin frontend waits for media processing completion before displaying uploaded media
@@ -129,6 +130,6 @@ Phases execute in numeric order. Phases 1, 2, 3 are independent and can parallel
 | 3. BFF Media Proxy Infrastructure | 1/1            | Complete    | 2026-03-30 |
 | 4. BFF Upload Route               | 1/1            | Complete    | 2026-03-30 |
 | 5. BFF Confirm & External Routes  | 1/1            | Complete    | 2026-03-30 |
-| 6. Frontend Media Field Alignment | 0/TBD          | Not started | -          |
+| 6. Frontend Media Field Alignment | 0/1            | Planned     | -          |
 | 7. Frontend Media Status Polling  | 0/TBD          | Not started | -          |
 | 8. Admin UI Enhancements          | 0/TBD          | Not started | -          |
