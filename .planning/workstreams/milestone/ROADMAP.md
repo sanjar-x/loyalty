@@ -79,8 +79,9 @@ Plans:
   1. POST /api/media/{id}/confirm in admin BFF forwards to image_backend POST /api/v1/media/{id}/confirm
   2. POST /api/media/external in admin BFF forwards to image_backend POST /api/v1/media/external
   3. Both routes use imageBackendFetch() with X-API-Key auth (not backendFetch with JWT)
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 1 plan
+Plans:
+- [ ] 05-01-PLAN.md — Create BFF confirm and external import proxy routes using imageBackendFetch()
 
 ### Phase 6: Frontend Media Field Alignment
 **Goal**: Admin frontend uses correct field names and request schemas when communicating with image_backend via BFF
@@ -126,7 +127,7 @@ Phases execute in numeric order. Phases 1, 2, 3 are independent and can parallel
 | 2. Frontend i18n & Spec Alignment | 2/2            | Complete    | 2026-03-30 |
 | 3. BFF Media Proxy Infrastructure | 1/1            | Complete    | 2026-03-30 |
 | 4. BFF Upload Route               | 0/TBD          | Not started | -          |
-| 5. BFF Confirm & External Routes  | 0/TBD          | Not started | -          |
+| 5. BFF Confirm & External Routes  | 0/1            | Planning    | -          |
 | 6. Frontend Media Field Alignment | 0/TBD          | Not started | -          |
 | 7. Frontend Media Status Polling  | 0/TBD          | Not started | -          |
 | 8. Admin UI Enhancements          | 0/TBD          | Not started | -          |
