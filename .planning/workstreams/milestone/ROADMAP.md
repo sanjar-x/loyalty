@@ -68,8 +68,9 @@ Plans:
   1. POST /api/media/upload in admin BFF forwards to image_backend POST /api/v1/media/upload (not main backend)
   2. BFF strips product-specific fields (mediaType, role, sortOrder) before forwarding to image_backend
   3. Response returns presignedUrl and storageObjectId from image_backend to the browser
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 1 plan
+Plans:
+- [ ] 04-01-PLAN.md — Create POST /api/media/upload BFF proxy route with field stripping and auth gating
 
 ### Phase 5: BFF Confirm & External Routes
 **Goal**: Admin BFF correctly proxies media confirm and external import requests to image_backend
@@ -126,7 +127,7 @@ Phases execute in numeric order. Phases 1, 2, 3 are independent and can parallel
 | 1. Backend Schema Fixes           | 1/1            | Complete    | 2026-03-29 |
 | 2. Frontend i18n & Spec Alignment | 2/2            | Complete    | 2026-03-30 |
 | 3. BFF Media Proxy Infrastructure | 1/1            | Complete    | 2026-03-30 |
-| 4. BFF Upload Route               | 0/TBD          | Not started | -          |
+| 4. BFF Upload Route               | 0/1            | Planning    | -          |
 | 5. BFF Confirm & External Routes  | 0/1            | Planning    | -          |
 | 6. Frontend Media Field Alignment | 0/TBD          | Not started | -          |
 | 7. Frontend Media Status Polling  | 0/TBD          | Not started | -          |
