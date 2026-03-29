@@ -56,7 +56,9 @@ Plans:
   1. imageBackendFetch() utility exists and sends X-API-Key header (not JWT Bearer) to IMAGE_BACKEND_URL
   2. imageBackendFetch() returns structured error (502) when image_backend is unreachable
   3. IMAGE_BACKEND_URL and IMAGE_BACKEND_API_KEY are configured as server-only env vars in admin frontend
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 03-01-PLAN.md — Create imageBackendFetch() utility and configure image_backend env vars
 
 ### Phase 4: BFF Upload Route
 **Goal**: Admin BFF correctly proxies media upload requests to image_backend
@@ -122,7 +124,7 @@ Phases execute in numeric order. Phases 1, 2, 3 are independent and can parallel
 | --------------------------------- | -------------- | ----------- | ---------- |
 | 1. Backend Schema Fixes           | 1/1            | Complete    | 2026-03-29 |
 | 2. Frontend i18n & Spec Alignment | 2/2            | Complete    | 2026-03-30 |
-| 3. BFF Media Proxy Infrastructure | 0/TBD          | Not started | -          |
+| 3. BFF Media Proxy Infrastructure | 0/1            | Not started | -          |
 | 4. BFF Upload Route               | 0/TBD          | Not started | -          |
 | 5. BFF Confirm & External Routes  | 0/TBD          | Not started | -          |
 | 6. Frontend Media Field Alignment | 0/TBD          | Not started | -          |
