@@ -14,8 +14,8 @@ Requirements for fixing all integration issues identified in audit.md.
 
 ### Frontend i18n
 
-- [ ] **I18N-01**: Admin form always sends both ru+en locales in all i18n fields (fallback: ru value used for empty en)
-- [ ] **I18N-02**: Spec product-creation-flow.md updated to reflect actual backend naming convention (titleI18N, uppercase N)
+- [x] **I18N-01**: Admin form always sends both ru+en locales in all i18n fields (fallback: ru value used for empty en)
+- [x] **I18N-02**: Spec product-creation-flow.md updated to reflect actual backend naming convention (titleI18N, uppercase N)
 
 ### BFF Media Proxy
 
@@ -61,8 +61,8 @@ Requirements for fixing all integration issues identified in audit.md.
 |-------------|-------|--------|
 | BKND-01 | Phase 1 | Complete |
 | BKND-02 | Phase 1 | Complete |
-| I18N-01 | Phase 2 | Pending |
-| I18N-02 | Phase 2 | Pending |
+| I18N-01 | Phase 2 | Complete |
+| I18N-02 | Phase 2 | Complete |
 | BFF-01 | Phase 3 | Pending |
 | BFF-02 | Phase 4 | Pending |
 | BFF-03 | Phase 5 | Pending |
