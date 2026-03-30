@@ -136,3 +136,18 @@ Phases execute in numeric order. Phases 1, 2, 3 are independent and can parallel
 | 6. Frontend Media Field Alignment | 1/1            | Complete    | 2026-03-30 |
 | 7. Frontend Media Status Polling  | 1/1            | Complete    | 2026-03-30 |
 | 8. Admin UI Enhancements          | 2/2            | Complete    | 2026-03-30 |
+
+## Backlog
+
+### Phase 999.1: Product List → Real API + Media Attach (BACKLOG)
+**Goal:** Connect product list page to real backend API (replace mock seed data) and add media-to-product attachment after upload processing
+**Requirements:** TBD
+**Plans:** 0 plans
+**Tech debt from v1.0 audit:**
+- Product list uses mock seed data with non-UUID IDs — navigation to product detail broken
+- Uploaded media not attached to product entity after processing (role/sortOrder tracked but attach API call missing)
+- `updateProduct()` service function exists but no edit form calls it (optimistic locking ready but unexercised)
+- S3 CORS configuration needed for browser direct upload
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
