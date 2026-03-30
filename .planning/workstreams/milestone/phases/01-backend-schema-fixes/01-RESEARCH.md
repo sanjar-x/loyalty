@@ -40,10 +40,10 @@ The same `I18nDict = Field(default_factory=dict)` anti-pattern exists in `Attrib
 <phase_requirements>
 ## Phase Requirements
 
-| ID | Description | Research Support |
-|----|-------------|------------------|
-| BKND-01 | User can create product without descriptionI18n (field truly optional: `I18nDict \| None = None`) | Full trace from schema through domain to ORM completed; root cause identified as `_validate_i18n_keys` failing on empty dict; fix verified in existing update-schema pattern |
-| BKND-02 | User can set countryOfOrigin when creating product (field added to ProductCreateRequest and wired through command) | Command already has field (create_product.py:55); domain accepts it (product.py:160); ORM column exists (models.py:518); only schema + router wiring missing |
+| ID      | Description                                                                                                        | Research Support                                                                                                                                                             |
+| ------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BKND-01 | User can create product without descriptionI18n (field truly optional: `I18nDict \| None = None`)                  | Full trace from schema through domain to ORM completed; root cause identified as `_validate_i18n_keys` failing on empty dict; fix verified in existing update-schema pattern |
+| BKND-02 | User can set countryOfOrigin when creating product (field added to ProductCreateRequest and wired through command) | Command already has field (create_product.py:55); domain accepts it (product.py:160); ORM column exists (models.py:518); only schema + router wiring missing                 |
 </phase_requirements>
 
 ## Critical Finding: D-05 Conflict with NOT NULL Constraint
@@ -74,47 +74,47 @@ The same `I18nDict = Field(default_factory=dict)` anti-pattern exists in `Attrib
 
 ### Current State (BUGGY) -- ProductCreateRequest
 
-| Layer | File:Line | Type | Value When Omitted | Problem |
-|-------|-----------|------|-------------------|---------|
-| Schema | schemas.py:729 | `I18nDict = Field(default_factory=dict)` | `{}` | `_validate_i18n_keys({})` raises "Missing required locales: en, ru" |
-| Router | router_products.py:86 | `request.description_i18n` | never reached | 422 before router |
-| Command | create_product.py:52 | `dict[str, str] = field(default_factory=dict)` | never reached | -- |
-| Handler | create_product.py:145-147 | conditional | never reached | -- |
-| Domain | product.py:193 | `description_i18n or {}` | never reached | -- |
-| ORM | models.py:514-515 | `Mapped[dict[str, Any]]` NOT NULL | never reached | -- |
-| DB | migration:1607-1610 | JSONB NOT NULL, default `'{}'::jsonb` | never reached | -- |
+| Layer   | File:Line                 | Type                                           | Value When Omitted | Problem                                                             |
+| ------- | ------------------------- | ---------------------------------------------- | ------------------ | ------------------------------------------------------------------- |
+| Schema  | schemas.py:729            | `I18nDict = Field(default_factory=dict)`       | `{}`               | `_validate_i18n_keys({})` raises "Missing required locales: en, ru" |
+| Router  | router_products.py:86     | `request.description_i18n`                     | never reached      | 422 before router                                                   |
+| Command | create_product.py:52      | `dict[str, str] = field(default_factory=dict)` | never reached      | --                                                                  |
+| Handler | create_product.py:145-147 | conditional                                    | never reached      | --                                                                  |
+| Domain  | product.py:193            | `description_i18n or {}`                       | never reached      | --                                                                  |
+| ORM     | models.py:514-515         | `Mapped[dict[str, Any]]` NOT NULL              | never reached      | --                                                                  |
+| DB      | migration:1607-1610       | JSONB NOT NULL, default `'{}'::jsonb`          | never reached      | --                                                                  |
 
 ### After Fix -- ProductCreateRequest
 
-| Layer | File:Line | Type | Value When Omitted | Behavior |
-|-------|-----------|------|-------------------|----------|
-| Schema | schemas.py:729 | `I18nDict \| None = None` | `None` | Pydantic union: None bypasses `_validate_i18n_keys` entirely |
-| Router | router_products.py:86 | `request.description_i18n` | `None` | Passed to command |
-| Command | create_product.py:52 | `dict[str, str] = field(default_factory=dict)` | `None` (**type mismatch needs fix**) | Needs `dict[str, str] \| None = None` |
-| Handler | create_product.py:145-147 | `if command.description_i18n` | `None` (falsy) | Passes `None` to domain |
-| Domain | product.py:193 | `description_i18n or {}` | `None or {} = {}` | Converts to `{}` |
-| ORM | models.py:514-515 | `Mapped[dict[str, Any]]` NOT NULL | `{}` | Stored as `'{}'::jsonb` |
-| DB | migration:1607-1610 | JSONB NOT NULL | `{}` | Persisted successfully |
+| Layer   | File:Line                 | Type                                           | Value When Omitted                   | Behavior                                                     |
+| ------- | ------------------------- | ---------------------------------------------- | ------------------------------------ | ------------------------------------------------------------ |
+| Schema  | schemas.py:729            | `I18nDict \| None = None`                      | `None`                               | Pydantic union: None bypasses `_validate_i18n_keys` entirely |
+| Router  | router_products.py:86     | `request.description_i18n`                     | `None`                               | Passed to command                                            |
+| Command | create_product.py:52      | `dict[str, str] = field(default_factory=dict)` | `None` (**type mismatch needs fix**) | Needs `dict[str, str] \| None = None`                        |
+| Handler | create_product.py:145-147 | `if command.description_i18n`                  | `None` (falsy)                       | Passes `None` to domain                                      |
+| Domain  | product.py:193            | `description_i18n or {}`                       | `None or {} = {}`                    | Converts to `{}`                                             |
+| ORM     | models.py:514-515         | `Mapped[dict[str, Any]]` NOT NULL              | `{}`                                 | Stored as `'{}'::jsonb`                                      |
+| DB      | migration:1607-1610       | JSONB NOT NULL                                 | `{}`                                 | Persisted successfully                                       |
 
 ### Current State (BUGGY) -- AttributeCreateRequest
 
-| Layer | File:Line | Type | Value When Omitted | Problem |
-|-------|-----------|------|-------------------|---------|
-| Schema | schemas.py:335 | `I18nDict = Field(default_factory=dict)` | `{}` | Same bug: `_validate_i18n_keys({})` raises 422 |
-| Router | router_attributes.py:90 | `request.description_i18n` | never reached | -- |
-| Command | create_attribute.py:63 | `dict[str, str] = field(default_factory=dict)` | never reached | -- |
-| Domain | attribute.py:189 | `description_i18n or {}` | never reached | -- |
-| ORM | models.py:292-293 | `Mapped[dict[str, Any]]` NOT NULL | never reached | -- |
+| Layer   | File:Line               | Type                                           | Value When Omitted | Problem                                        |
+| ------- | ----------------------- | ---------------------------------------------- | ------------------ | ---------------------------------------------- |
+| Schema  | schemas.py:335          | `I18nDict = Field(default_factory=dict)`       | `{}`               | Same bug: `_validate_i18n_keys({})` raises 422 |
+| Router  | router_attributes.py:90 | `request.description_i18n`                     | never reached      | --                                             |
+| Command | create_attribute.py:63  | `dict[str, str] = field(default_factory=dict)` | never reached      | --                                             |
+| Domain  | attribute.py:189        | `description_i18n or {}`                       | never reached      | --                                             |
+| ORM     | models.py:292-293       | `Mapped[dict[str, Any]]` NOT NULL              | never reached      | --                                             |
 
 ### Current State (SUBTLY BUGGY) -- AttributeTemplateCreateRequest
 
-| Layer | File:Line | Type | Value When Omitted | Problem |
-|-------|-----------|------|-------------------|---------|
-| Schema | schemas.py:1174 | `I18nDict \| None = Field(default_factory=dict)` | `{}` | Type allows None, but **default is `dict`** so omitted field gets `{}`, which triggers `_validate_i18n_keys({})` and raises 422 |
-| Router | router_attribute_templates.py:112 | `request.description_i18n` | never reached | -- |
-| Command | create_attribute_template.py:35 | `dict[str, str] \| None = None` | never reached | -- |
-| Domain | attribute_template.py:90 | `description_i18n or {}` | never reached | -- |
-| ORM | models.py:187-188 | `Mapped[dict]` NOT NULL | never reached | -- |
+| Layer   | File:Line                         | Type                                             | Value When Omitted | Problem                                                                                                                         |
+| ------- | --------------------------------- | ------------------------------------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Schema  | schemas.py:1174                   | `I18nDict \| None = Field(default_factory=dict)` | `{}`               | Type allows None, but **default is `dict`** so omitted field gets `{}`, which triggers `_validate_i18n_keys({})` and raises 422 |
+| Router  | router_attribute_templates.py:112 | `request.description_i18n`                       | never reached      | --                                                                                                                              |
+| Command | create_attribute_template.py:35   | `dict[str, str] \| None = None`                  | never reached      | --                                                                                                                              |
+| Domain  | attribute_template.py:90          | `description_i18n or {}`                         | never reached      | --                                                                                                                              |
+| ORM     | models.py:187-188                 | `Mapped[dict]` NOT NULL                          | never reached      | --                                                                                                                              |
 
 **Review concern #1 CONFIRMED:** `AttributeTemplateCreateRequest` line 1174 already has `I18nDict | None` in the type but defaults to `dict`. Fix is to change `Field(default_factory=dict)` to `None` (not add `| None` to type).
 
@@ -122,15 +122,15 @@ The same `I18nDict = Field(default_factory=dict)` anti-pattern exists in `Attrib
 
 ### Current State -- CreateProductCommand already supports it
 
-| Layer | File:Line | Has Field? | Notes |
-|-------|-----------|-----------|-------|
-| Schema (create) | schemas.py:717-734 | **NO** | Missing from ProductCreateRequest |
-| Schema (update) | schemas.py:764-765 | YES | `country_of_origin: str \| None = Field(None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")` |
-| Router (create) | router_products.py:81-90 | **NOT WIRED** | `country_of_origin` not in CreateProductCommand() call |
-| Router (update) | Uses `build_update_command` | YES | Auto-wired via reflection |
-| Command | create_product.py:55 | YES | `country_of_origin: str \| None = None` |
-| Domain | product.py:160 | YES | `country_of_origin: str \| None = None` in `Product.create()` |
-| ORM | models.py:518 | YES | `Mapped[str \| None] = mapped_column(String(2))` |
+| Layer           | File:Line                   | Has Field?    | Notes                                                                                             |
+| --------------- | --------------------------- | ------------- | ------------------------------------------------------------------------------------------------- |
+| Schema (create) | schemas.py:717-734          | **NO**        | Missing from ProductCreateRequest                                                                 |
+| Schema (update) | schemas.py:764-765          | YES           | `country_of_origin: str \| None = Field(None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")` |
+| Router (create) | router_products.py:81-90    | **NOT WIRED** | `country_of_origin` not in CreateProductCommand() call                                            |
+| Router (update) | Uses `build_update_command` | YES           | Auto-wired via reflection                                                                         |
+| Command         | create_product.py:55        | YES           | `country_of_origin: str \| None = None`                                                           |
+| Domain          | product.py:160              | YES           | `country_of_origin: str \| None = None` in `Product.create()`                                     |
+| ORM             | models.py:518               | YES           | `Mapped[str \| None] = mapped_column(String(2))`                                                  |
 
 **Fix requires exactly 2 changes:** add field to schema, wire in router.
 
@@ -138,25 +138,25 @@ The same `I18nDict = Field(default_factory=dict)` anti-pattern exists in `Attrib
 
 ### Required Changes (BKND-01 + BKND-02)
 
-| # | File | Line | Current | Target | Reason |
-|---|------|------|---------|--------|--------|
-| 1 | `backend/src/modules/catalog/presentation/schemas.py` | 729 | `description_i18n: I18nDict = Field(default_factory=dict)` | `description_i18n: I18nDict \| None = None` | BKND-01: make description optional |
-| 2 | `backend/src/modules/catalog/presentation/schemas.py` | 731 (after adding field) | -- | `country_of_origin: str \| None = Field(None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")` | BKND-02: add country_of_origin field |
-| 3 | `backend/src/modules/catalog/presentation/router_products.py` | 81-90 | No `country_of_origin` in `CreateProductCommand()` call | Add `country_of_origin=request.country_of_origin,` | BKND-02: wire field to command |
-| 4 | `backend/src/modules/catalog/application/commands/create_product.py` | 52 | `description_i18n: dict[str, str] = field(default_factory=dict)` | `description_i18n: dict[str, str] \| None = None` | BKND-01: allow None through command |
+| #   | File                                                                 | Line                     | Current                                                          | Target                                                                                            | Reason                               |
+| --- | -------------------------------------------------------------------- | ------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| 1   | `backend/src/modules/catalog/presentation/schemas.py`                | 729                      | `description_i18n: I18nDict = Field(default_factory=dict)`       | `description_i18n: I18nDict \| None = None`                                                       | BKND-01: make description optional   |
+| 2   | `backend/src/modules/catalog/presentation/schemas.py`                | 731 (after adding field) | --                                                               | `country_of_origin: str \| None = Field(None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")` | BKND-02: add country_of_origin field |
+| 3   | `backend/src/modules/catalog/presentation/router_products.py`        | 81-90                    | No `country_of_origin` in `CreateProductCommand()` call          | Add `country_of_origin=request.country_of_origin,`                                                | BKND-02: wire field to command       |
+| 4   | `backend/src/modules/catalog/application/commands/create_product.py` | 52                       | `description_i18n: dict[str, str] = field(default_factory=dict)` | `description_i18n: dict[str, str] \| None = None`                                                 | BKND-01: allow None through command  |
 
 ### Discretionary Changes (Attribute description_i18n fixes -- reviewer recommended)
 
-| # | File | Line | Current | Target | Reason |
-|---|------|------|---------|--------|--------|
-| 5 | `backend/src/modules/catalog/presentation/schemas.py` | 335 | `description_i18n: I18nDict = Field(default_factory=dict)` | `description_i18n: I18nDict \| None = None` | Same anti-pattern as BKND-01 |
-| 6 | `backend/src/modules/catalog/presentation/schemas.py` | 1174 | `description_i18n: I18nDict \| None = Field(default_factory=dict)` | `description_i18n: I18nDict \| None = None` | Type already correct, only default needs change |
+| #   | File                                                  | Line | Current                                                            | Target                                      | Reason                                          |
+| --- | ----------------------------------------------------- | ---- | ------------------------------------------------------------------ | ------------------------------------------- | ----------------------------------------------- |
+| 5   | `backend/src/modules/catalog/presentation/schemas.py` | 335  | `description_i18n: I18nDict = Field(default_factory=dict)`         | `description_i18n: I18nDict \| None = None` | Same anti-pattern as BKND-01                    |
+| 6   | `backend/src/modules/catalog/presentation/schemas.py` | 1174 | `description_i18n: I18nDict \| None = Field(default_factory=dict)` | `description_i18n: I18nDict \| None = None` | Type already correct, only default needs change |
 
 ### Response Schema Change (conditional on D-05 override)
 
-| # | File | Line | Current | Target | Reason |
-|---|------|------|---------|--------|--------|
-| 7 | `backend/src/modules/catalog/presentation/schemas.py` | 908 | `description_i18n: dict[str, str]` | No change needed | Domain converts None to `{}`, response will always get `{}` not null |
+| #   | File                                                  | Line | Current                            | Target           | Reason                                                               |
+| --- | ----------------------------------------------------- | ---- | ---------------------------------- | ---------------- | -------------------------------------------------------------------- |
+| 7   | `backend/src/modules/catalog/presentation/schemas.py` | 908  | `description_i18n: dict[str, str]` | No change needed | Domain converts None to `{}`, response will always get `{}` not null |
 
 ## Architecture Patterns
 
@@ -204,11 +204,11 @@ This validates ISO 3166-1 alpha-2 (2 uppercase letters). Note: does not validate
 
 ## Don't Hand-Roll
 
-| Problem | Don't Build | Use Instead | Why |
-|---------|-------------|-------------|-----|
-| i18n field validation | Custom None-handling middleware | Pydantic union type `I18nDict \| None = None` | Pydantic handles None/validator bypass automatically |
-| Country code regex | External country-code library | Pydantic `Field(pattern=r"^[A-Z]{2}$")` | Already proven in update schema; full ISO validation not needed now |
-| Command field wiring | Auto-mapping utility | Explicit keyword arguments in router | CreateProductCommand has only 9 fields; explicit wiring is clearer |
+| Problem               | Don't Build                     | Use Instead                                   | Why                                                                 |
+| --------------------- | ------------------------------- | --------------------------------------------- | ------------------------------------------------------------------- |
+| i18n field validation | Custom None-handling middleware | Pydantic union type `I18nDict \| None = None` | Pydantic handles None/validator bypass automatically                |
+| Country code regex    | External country-code library   | Pydantic `Field(pattern=r"^[A-Z]{2}$")`       | Already proven in update schema; full ISO validation not needed now |
+| Command field wiring  | Auto-mapping utility            | Explicit keyword arguments in router          | CreateProductCommand has only 9 fields; explicit wiring is clearer  |
 
 ## Common Pitfalls
 
@@ -355,17 +355,17 @@ class ProductCreateRequest(CamelModel):
 
 ### Existing Test Files (relevant to this phase)
 
-| File | Type | Content | Needs Modification |
-|------|------|---------|-------------------|
-| `backend/tests/e2e/api/v1/catalog/test_products.py` | E2E | Product CRUD endpoints; `create_product` helper omits `descriptionI18n` | YES -- add tests for optional description and country_of_origin |
-| `backend/tests/e2e/api/v1/catalog/test_attributes.py` | E2E | Attribute CRUD; `create_attribute` helper omits `descriptionI18n` | YES -- add test for optional description (if discretionary fixes included) |
-| `backend/tests/e2e/api/v1/catalog/test_attribute_templates.py` | E2E | Template CRUD; `create_attribute_template` helper omits `descriptionI18n` | YES -- add test for optional description (if discretionary fixes included) |
-| `backend/tests/e2e/api/v1/catalog/conftest.py` | E2E shared | Helper functions for creating test entities | NO -- helpers already omit optional fields, which will now succeed |
-| `backend/tests/unit/modules/catalog/domain/test_product.py` | Unit | Product entity tests | NO -- domain already handles None correctly |
-| `backend/tests/unit/modules/catalog/application/commands/test_product_handlers.py` | Unit | Product command handler tests | Optional -- could add None description_i18n case |
-| `backend/tests/unit/modules/catalog/application/commands/test_attribute_handlers.py` | Unit | Attribute/Template handler tests | Optional -- could add None description_i18n case |
-| `backend/tests/unit/modules/catalog/domain/test_attribute.py` | Unit | Attribute entity tests | NO -- domain already handles None |
-| `backend/tests/unit/modules/catalog/domain/test_attribute_template.py` | Unit | Template entity tests | NO -- domain already handles None |
+| File                                                                                 | Type       | Content                                                                   | Needs Modification                                                         |
+| ------------------------------------------------------------------------------------ | ---------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `backend/tests/e2e/api/v1/catalog/test_products.py`                                  | E2E        | Product CRUD endpoints; `create_product` helper omits `descriptionI18n`   | YES -- add tests for optional description and country_of_origin            |
+| `backend/tests/e2e/api/v1/catalog/test_attributes.py`                                | E2E        | Attribute CRUD; `create_attribute` helper omits `descriptionI18n`         | YES -- add test for optional description (if discretionary fixes included) |
+| `backend/tests/e2e/api/v1/catalog/test_attribute_templates.py`                       | E2E        | Template CRUD; `create_attribute_template` helper omits `descriptionI18n` | YES -- add test for optional description (if discretionary fixes included) |
+| `backend/tests/e2e/api/v1/catalog/conftest.py`                                       | E2E shared | Helper functions for creating test entities                               | NO -- helpers already omit optional fields, which will now succeed         |
+| `backend/tests/unit/modules/catalog/domain/test_product.py`                          | Unit       | Product entity tests                                                      | NO -- domain already handles None correctly                                |
+| `backend/tests/unit/modules/catalog/application/commands/test_product_handlers.py`   | Unit       | Product command handler tests                                             | Optional -- could add None description_i18n case                           |
+| `backend/tests/unit/modules/catalog/application/commands/test_attribute_handlers.py` | Unit       | Attribute/Template handler tests                                          | Optional -- could add None description_i18n case                           |
+| `backend/tests/unit/modules/catalog/domain/test_attribute.py`                        | Unit       | Attribute entity tests                                                    | NO -- domain already handles None                                          |
+| `backend/tests/unit/modules/catalog/domain/test_attribute_template.py`               | Unit       | Template entity tests                                                     | NO -- domain already handles None                                          |
 
 ### New Tests Required
 
@@ -382,20 +382,20 @@ The planner should create these test cases (E2E is primary -- exercises full sta
 ## Validation Architecture
 
 ### Test Framework
-| Property | Value |
-|----------|-------|
-| Framework | pytest 9.x + pytest-asyncio (mode: auto) |
-| Config file | `backend/pyproject.toml` [tool.pytest.ini_options] |
-| Quick run command | `cd backend && uv run pytest tests/e2e/api/v1/catalog/test_products.py -x -q` |
-| Full suite command | `cd backend && uv run pytest tests/e2e/api/v1/catalog/ -x -q` |
+| Property           | Value                                                                         |
+| ------------------ | ----------------------------------------------------------------------------- |
+| Framework          | pytest 9.x + pytest-asyncio (mode: auto)                                      |
+| Config file        | `backend/pyproject.toml` [tool.pytest.ini_options]                            |
+| Quick run command  | `cd backend && uv run pytest tests/e2e/api/v1/catalog/test_products.py -x -q` |
+| Full suite command | `cd backend && uv run pytest tests/e2e/api/v1/catalog/ -x -q`                 |
 
 ### Phase Requirements to Test Map
-| Req ID | Behavior | Test Type | Automated Command | File Exists? |
-|--------|----------|-----------|-------------------|-------------|
-| BKND-01 | Create product without descriptionI18n returns 201 | E2E | `uv run pytest tests/e2e/api/v1/catalog/test_products.py -k "without_description" -x` | Wave 0 |
-| BKND-01 | Create product with descriptionI18n still works (backward compat) | E2E | `uv run pytest tests/e2e/api/v1/catalog/test_products.py -k "with_description" -x` | Wave 0 |
-| BKND-02 | Create product with countryOfOrigin persists value | E2E | `uv run pytest tests/e2e/api/v1/catalog/test_products.py -k "country_of_origin" -x` | Wave 0 |
-| BKND-02 | Invalid countryOfOrigin rejected with 422 | E2E | `uv run pytest tests/e2e/api/v1/catalog/test_products.py -k "invalid_country" -x` | Wave 0 |
+| Req ID  | Behavior                                                          | Test Type | Automated Command                                                                     | File Exists? |
+| ------- | ----------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------- | ------------ |
+| BKND-01 | Create product without descriptionI18n returns 201                | E2E       | `uv run pytest tests/e2e/api/v1/catalog/test_products.py -k "without_description" -x` | Wave 0       |
+| BKND-01 | Create product with descriptionI18n still works (backward compat) | E2E       | `uv run pytest tests/e2e/api/v1/catalog/test_products.py -k "with_description" -x`    | Wave 0       |
+| BKND-02 | Create product with countryOfOrigin persists value                | E2E       | `uv run pytest tests/e2e/api/v1/catalog/test_products.py -k "country_of_origin" -x`   | Wave 0       |
+| BKND-02 | Invalid countryOfOrigin rejected with 422                         | E2E       | `uv run pytest tests/e2e/api/v1/catalog/test_products.py -k "invalid_country" -x`     | Wave 0       |
 
 ### Sampling Rate
 - **Per task commit:** `cd backend && uv run pytest tests/e2e/api/v1/catalog/test_products.py -x -q`

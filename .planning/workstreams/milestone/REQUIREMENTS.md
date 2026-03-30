@@ -46,33 +46,33 @@ Requirements for fixing all integration issues identified in audit.md.
 
 ## Out of Scope
 
-| Feature | Reason |
-|---------|--------|
-| frontend/main API layer | API completely unconnected, separate project -- user decision |
-| frontend/main TypeScript type fixes | Deferred until API layer is connected |
-| Image backend changes | All endpoints already correct per audit |
-| New product features (bulk operations, import/export) | Not part of integration fix |
-| Backend i18n naming change | Backend uses I18N (uppercase) correctly via to_camel -- no change needed |
-| SSE streaming for media status | Polling is simpler and deployment-safe; SSE can be added later |
+| Feature                                               | Reason                                                                   |
+| ----------------------------------------------------- | ------------------------------------------------------------------------ |
+| frontend/main API layer                               | API completely unconnected, separate project -- user decision            |
+| frontend/main TypeScript type fixes                   | Deferred until API layer is connected                                    |
+| Image backend changes                                 | All endpoints already correct per audit                                  |
+| New product features (bulk operations, import/export) | Not part of integration fix                                              |
+| Backend i18n naming change                            | Backend uses I18N (uppercase) correctly via to_camel -- no change needed |
+| SSE streaming for media status                        | Polling is simpler and deployment-safe; SSE can be added later           |
 
 ## Traceability
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| BKND-01 | Phase 1 | Complete |
-| BKND-02 | Phase 1 | Complete |
-| I18N-01 | Phase 2 | Complete |
-| I18N-02 | Phase 2 | Complete |
-| BFF-01 | Phase 3 | Complete |
-| BFF-02 | Phase 4 | Complete |
-| BFF-03 | Phase 5 | Complete |
-| BFF-04 | Phase 5 | Complete |
-| MEDIA-01 | Phase 6 | Complete |
-| MEDIA-02 | Phase 6 | Complete |
-| MEDIA-03 | Phase 7 | Complete |
-| UI-01 | Phase 8 | Complete |
-| UI-02 | Phase 8 | Complete |
-| UI-03 | Phase 8 | Complete |
+| Requirement | Phase   | Status   |
+| ----------- | ------- | -------- |
+| BKND-01     | Phase 1 | Complete |
+| BKND-02     | Phase 1 | Complete |
+| I18N-01     | Phase 2 | Complete |
+| I18N-02     | Phase 2 | Complete |
+| BFF-01      | Phase 3 | Complete |
+| BFF-02      | Phase 4 | Complete |
+| BFF-03      | Phase 5 | Complete |
+| BFF-04      | Phase 5 | Complete |
+| MEDIA-01    | Phase 6 | Complete |
+| MEDIA-02    | Phase 6 | Complete |
+| MEDIA-03    | Phase 7 | Complete |
+| UI-01       | Phase 8 | Complete |
+| UI-02       | Phase 8 | Complete |
+| UI-03       | Phase 8 | Complete |
 
 **Coverage:**
 - v1 requirements: 14 total

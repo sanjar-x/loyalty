@@ -34,20 +34,20 @@ must_haves:
 
 ### Observable Truths
 
-| # | Truth | Status | Evidence |
-|---|-------|--------|----------|
-| 1 | imageBackendFetch() sends X-API-Key header (not Authorization Bearer) to IMAGE_BACKEND_URL | VERIFIED | Line 15: `'X-API-Key': IMAGE_BACKEND_API_KEY`. Grep confirms zero occurrences of `Authorization` in the file. Line 11 builds URL from `IMAGE_BACKEND_URL`. |
-| 2 | imageBackendFetch() returns structured 502 error when image_backend is unreachable | VERIFIED | Lines 23-35: catch block returns `{ ok: false, status: 502, data: { error: { code: 'IMAGE_BACKEND_UNAVAILABLE', message: 'Image service unreachable', details: {} } } }` |
-| 3 | IMAGE_BACKEND_URL and IMAGE_BACKEND_API_KEY are server-only env vars (no NEXT_PUBLIC_ prefix) | VERIFIED | Lines 1-2 read `process.env.IMAGE_BACKEND_URL` and `process.env.IMAGE_BACKEND_API_KEY`. Grep confirms zero occurrences of `NEXT_PUBLIC_` in the file. |
+| #   | Truth                                                                                         | Status   | Evidence                                                                                                                                                                 |
+| --- | --------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | imageBackendFetch() sends X-API-Key header (not Authorization Bearer) to IMAGE_BACKEND_URL    | VERIFIED | Line 15: `'X-API-Key': IMAGE_BACKEND_API_KEY`. Grep confirms zero occurrences of `Authorization` in the file. Line 11 builds URL from `IMAGE_BACKEND_URL`.               |
+| 2   | imageBackendFetch() returns structured 502 error when image_backend is unreachable            | VERIFIED | Lines 23-35: catch block returns `{ ok: false, status: 502, data: { error: { code: 'IMAGE_BACKEND_UNAVAILABLE', message: 'Image service unreachable', details: {} } } }` |
+| 3   | IMAGE_BACKEND_URL and IMAGE_BACKEND_API_KEY are server-only env vars (no NEXT_PUBLIC_ prefix) | VERIFIED | Lines 1-2 read `process.env.IMAGE_BACKEND_URL` and `process.env.IMAGE_BACKEND_API_KEY`. Grep confirms zero occurrences of `NEXT_PUBLIC_` in the file.                    |
 
 **Score:** 3/3 truths verified
 
 ### Required Artifacts
 
-| Artifact | Expected | Status | Details |
-|----------|----------|--------|---------|
-| `frontend/admin/src/lib/image-api-client.js` | imageBackendFetch() utility with X-API-Key auth + 502 error handling | VERIFIED | 36 lines, exports `imageBackendFetch`, uses `X-API-Key` header, has try/catch with structured 502, has console.warn startup guards |
-| `frontend/admin/.env.local.example` | Documentation of IMAGE_BACKEND_URL and IMAGE_BACKEND_API_KEY env vars | VERIFIED | Contains `IMAGE_BACKEND_URL=http://127.0.0.1:8001`, `IMAGE_BACKEND_API_KEY=dev-api-key`, preserves original `BACKEND_URL` line, includes descriptive comment |
+| Artifact                                     | Expected                                                              | Status   | Details                                                                                                                                                      |
+| -------------------------------------------- | --------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `frontend/admin/src/lib/image-api-client.js` | imageBackendFetch() utility with X-API-Key auth + 502 error handling  | VERIFIED | 36 lines, exports `imageBackendFetch`, uses `X-API-Key` header, has try/catch with structured 502, has console.warn startup guards                           |
+| `frontend/admin/.env.local.example`          | Documentation of IMAGE_BACKEND_URL and IMAGE_BACKEND_API_KEY env vars | VERIFIED | Contains `IMAGE_BACKEND_URL=http://127.0.0.1:8001`, `IMAGE_BACKEND_API_KEY=dev-api-key`, preserves original `BACKEND_URL` line, includes descriptive comment |
 
 **Artifact detail: image-api-client.js**
 
@@ -63,10 +63,10 @@ must_haves:
 
 ### Key Link Verification
 
-| From | To | Via | Status | Details |
-|------|----|-----|--------|---------|
-| `image-api-client.js` | `image_backend /api/v1/media/*` | `fetch()` with `X-API-Key` header | VERIFIED | Line 15: `'X-API-Key': IMAGE_BACKEND_API_KEY` matches `image_backend/src/api/dependencies/auth.py` which reads `Header(None, alias="X-API-Key")`. URL construction at line 11: `` `${IMAGE_BACKEND_URL}${path}` `` allows callers to pass paths like `/api/v1/media/upload`. |
-| `image-api-client.js` (NOT modified) | `api-client.js` | Separate utility | VERIFIED | `api-client.js` was NOT modified (git diff confirms no changes). The two utilities are independent, targeting different services with different auth. |
+| From                                 | To                              | Via                               | Status   | Details                                                                                                                                                                                                                                                                      |
+| ------------------------------------ | ------------------------------- | --------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `image-api-client.js`                | `image_backend /api/v1/media/*` | `fetch()` with `X-API-Key` header | VERIFIED | Line 15: `'X-API-Key': IMAGE_BACKEND_API_KEY` matches `image_backend/src/api/dependencies/auth.py` which reads `Header(None, alias="X-API-Key")`. URL construction at line 11: `` `${IMAGE_BACKEND_URL}${path}` `` allows callers to pass paths like `/api/v1/media/upload`. |
+| `image-api-client.js` (NOT modified) | `api-client.js`                 | Separate utility                  | VERIFIED | `api-client.js` was NOT modified (git diff confirms no changes). The two utilities are independent, targeting different services with different auth.                                                                                                                        |
 
 ### Data-Flow Trace (Level 4)
 
@@ -74,28 +74,28 @@ Not applicable. This is a utility/infrastructure module that does not render dyn
 
 ### Behavioral Spot-Checks
 
-| Behavior | Command | Result | Status |
-|----------|---------|--------|--------|
-| Module syntax valid | grep for `export async function imageBackendFetch` | Found at line 7 | PASS |
-| All 9 plan verification checks | Node.js content checks (export, X-API-Key, env vars, 502, no NEXT_PUBLIC_, no Authorization, catch) | All 9 checks pass | PASS |
-| Existing api-client.js unmodified | `git diff 4b22c7f~1..4b22c7f -- frontend/admin/src/lib/api-client.js` | Empty diff (no changes) | PASS |
-| Import path resolves | jsconfig.json has `@/* -> src/*`, next.config.js has webpack alias `@ -> src` | `@/lib/image-api-client` resolves to `src/lib/image-api-client.js` | PASS |
+| Behavior                          | Command                                                                                             | Result                                                             | Status |
+| --------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------ |
+| Module syntax valid               | grep for `export async function imageBackendFetch`                                                  | Found at line 7                                                    | PASS   |
+| All 9 plan verification checks    | Node.js content checks (export, X-API-Key, env vars, 502, no NEXT_PUBLIC_, no Authorization, catch) | All 9 checks pass                                                  | PASS   |
+| Existing api-client.js unmodified | `git diff 4b22c7f~1..4b22c7f -- frontend/admin/src/lib/api-client.js`                               | Empty diff (no changes)                                            | PASS   |
+| Import path resolves              | jsconfig.json has `@/* -> src/*`, next.config.js has webpack alias `@ -> src`                       | `@/lib/image-api-client` resolves to `src/lib/image-api-client.js` | PASS   |
 
 Step 7b note: Cannot test the actual fetch behavior without running a server. The function wraps native `fetch()` which is well-understood. The structural checks above confirm correct auth header, URL construction, and error handling patterns.
 
 ### Requirements Coverage
 
-| Requirement | Source Plan | Description | Status | Evidence |
-|-------------|------------|-------------|--------|----------|
-| BFF-01 | 03-01-PLAN.md | Admin BFF has imageBackendFetch() utility targeting IMAGE_BACKEND_URL with X-API-Key auth | SATISFIED | `image-api-client.js` exports `imageBackendFetch()`, sends `X-API-Key` header to `IMAGE_BACKEND_URL`, returns structured 502 on failure, env vars are server-only |
+| Requirement | Source Plan   | Description                                                                               | Status    | Evidence                                                                                                                                                          |
+| ----------- | ------------- | ----------------------------------------------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BFF-01      | 03-01-PLAN.md | Admin BFF has imageBackendFetch() utility targeting IMAGE_BACKEND_URL with X-API-Key auth | SATISFIED | `image-api-client.js` exports `imageBackendFetch()`, sends `X-API-Key` header to `IMAGE_BACKEND_URL`, returns structured 502 on failure, env vars are server-only |
 
 **Orphaned requirements check:** REQUIREMENTS.md maps only BFF-01 to Phase 3. Plan 03-01 claims BFF-01. No orphaned requirements.
 
 ### Anti-Patterns Found
 
-| File | Line | Pattern | Severity | Impact |
-|------|------|---------|----------|--------|
-| (none) | - | - | - | - |
+| File   | Line | Pattern | Severity | Impact |
+| ------ | ---- | ------- | -------- | ------ |
+| (none) | -    | -       | -        | -      |
 
 No anti-patterns detected:
 - No TODO/FIXME/HACK/PLACEHOLDER comments

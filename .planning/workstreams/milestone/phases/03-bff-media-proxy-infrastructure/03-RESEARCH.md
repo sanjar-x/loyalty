@@ -33,18 +33,18 @@ None -- discuss phase skipped.
 <phase_requirements>
 ## Phase Requirements
 
-| ID | Description | Research Support |
-|----|-------------|------------------|
+| ID     | Description                                                                               | Research Support                                                                                                                                                 |
+| ------ | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | BFF-01 | Admin BFF has imageBackendFetch() utility targeting IMAGE_BACKEND_URL with X-API-Key auth | Existing `backendFetch()` pattern documented; image_backend auth mechanism verified (X-API-Key header, hmac.compare_digest); env var naming convention confirmed |
 </phase_requirements>
 
 ## Standard Stack
 
 ### Core
-| Library | Version | Purpose | Why Standard |
-|---------|---------|---------|--------------|
-| Next.js | 16.2.0 | App Router with Route Handlers for BFF proxy | Already installed and used for all existing BFF routes |
-| next/server | (bundled) | `NextResponse` for structured JSON responses | Used in every existing route handler |
+| Library     | Version   | Purpose                                      | Why Standard                                           |
+| ----------- | --------- | -------------------------------------------- | ------------------------------------------------------ |
+| Next.js     | 16.2.0    | App Router with Route Handlers for BFF proxy | Already installed and used for all existing BFF routes |
+| next/server | (bundled) | `NextResponse` for structured JSON responses | Used in every existing route handler                   |
 
 ### Supporting
 No additional libraries needed. The native `fetch` API (available in Node.js 18+, which Next.js 16 requires) is used by the existing `backendFetch()` and should be used for `imageBackendFetch()` as well.
@@ -158,10 +158,10 @@ This pattern reads the env var at module load time (top-level const). It works b
 
 ## Don't Hand-Roll
 
-| Problem | Don't Build | Use Instead | Why |
-|---------|-------------|-------------|-----|
-| HTTP client | Custom retry/timeout/connection-pool logic | Native `fetch()` with simple try/catch | Matches existing `backendFetch()` pattern; no need for axios/got/undici wrapper |
-| Error envelope | Custom error class hierarchy | Plain object `{ error: { code, message, details } }` | Matches the uniform backend error envelope used throughout all BFF routes |
+| Problem        | Don't Build                                | Use Instead                                          | Why                                                                             |
+| -------------- | ------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------- |
+| HTTP client    | Custom retry/timeout/connection-pool logic | Native `fetch()` with simple try/catch               | Matches existing `backendFetch()` pattern; no need for axios/got/undici wrapper |
+| Error envelope | Custom error class hierarchy               | Plain object `{ error: { code, message, details } }` | Matches the uniform backend error envelope used throughout all BFF routes       |
 
 **Key insight:** The existing `backendFetch()` is 17 lines of code. `imageBackendFetch()` should be similarly concise. The value is in correctness (right URL, right auth header, right error handling), not in sophistication.
 
@@ -268,10 +268,10 @@ const { ok, status, data } = await backendFetch(
 
 ## State of the Art
 
-| Old Approach | Current Approach | When Changed | Impact |
-|--------------|------------------|--------------|--------|
-| All BFF routes proxy through main backend | Media routes should proxy directly to image_backend | This phase | Eliminates the 404 errors from missing main backend routes |
-| Single `backendFetch()` utility | Two utilities: `backendFetch()` + `imageBackendFetch()` | This phase | Separate auth mechanisms for different backend services |
+| Old Approach                              | Current Approach                                        | When Changed | Impact                                                     |
+| ----------------------------------------- | ------------------------------------------------------- | ------------ | ---------------------------------------------------------- |
+| All BFF routes proxy through main backend | Media routes should proxy directly to image_backend     | This phase   | Eliminates the 404 errors from missing main backend routes |
+| Single `backendFetch()` utility           | Two utilities: `backendFetch()` + `imageBackendFetch()` | This phase   | Separate auth mechanisms for different backend services    |
 
 **Current state of the three broken routes:**
 - `POST /api/catalog/products/{id}/media/upload` -- uses `backendFetch()` which targets main backend (no such endpoint) -> 404
