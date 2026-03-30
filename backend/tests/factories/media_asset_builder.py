@@ -63,9 +63,7 @@ class MediaAssetBuilder:
         self._url = url
         return self
 
-    def with_storage_object_id(
-        self, storage_object_id: uuid.UUID
-    ) -> MediaAssetBuilder:
+    def with_storage_object_id(self, storage_object_id: uuid.UUID) -> MediaAssetBuilder:
         self._storage_object_id = storage_object_id
         return self
 

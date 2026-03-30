@@ -152,9 +152,9 @@ class BindAttributeToTemplateHandler:
 
             # Pre-collect data for post-commit cache invalidation
             affected_category_ids = (
-                await self._template_repo.get_category_ids_by_template_ids([
-                    command.template_id
-                ])
+                await self._template_repo.get_category_ids_by_template_ids(
+                    [command.template_id]
+                )
             )
 
             await self._uow.commit()

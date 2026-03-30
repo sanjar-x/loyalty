@@ -28,7 +28,9 @@ async def create_brand(
     if logo_url is not None:
         payload["logoUrl"] = logo_url
     resp = await client.post("/api/v1/catalog/brands", json=payload)
-    assert resp.status_code == 201, f"create_brand failed: {resp.status_code} {resp.text}"
+    assert resp.status_code == 201, (
+        f"create_brand failed: {resp.status_code} {resp.text}"
+    )
     return resp.json()
 
 
@@ -50,7 +52,9 @@ async def create_category(
     if template_id is not None:
         payload["templateId"] = str(template_id)
     resp = await client.post("/api/v1/catalog/categories", json=payload)
-    assert resp.status_code == 201, f"create_category failed: {resp.status_code} {resp.text}"
+    assert resp.status_code == 201, (
+        f"create_category failed: {resp.status_code} {resp.text}"
+    )
     return resp.json()
 
 
@@ -90,7 +94,9 @@ async def create_attribute(
         **kwargs,
     }
     resp = await client.post("/api/v1/catalog/attributes", json=payload)
-    assert resp.status_code == 201, f"create_attribute failed: {resp.status_code} {resp.text}"
+    assert resp.status_code == 201, (
+        f"create_attribute failed: {resp.status_code} {resp.text}"
+    )
     return resp.json()
 
 

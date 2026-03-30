@@ -60,7 +60,12 @@ class TestMediaAssetRoundtrip:
             storage_object_id=storage_id,
             url="https://cdn.example.com/img.jpg",
             image_variants=[
-                {"size": "thumb", "width": 100, "height": 100, "url": "https://cdn.example.com/thumb.jpg"}
+                {
+                    "size": "thumb",
+                    "width": 100,
+                    "height": 100,
+                    "url": "https://cdn.example.com/thumb.jpg",
+                }
             ],
         )
         await repo.add(asset)
@@ -74,7 +79,12 @@ class TestMediaAssetRoundtrip:
         assert fetched.role == MediaRole.GALLERY
         assert isinstance(fetched.role, MediaRole)
         assert fetched.image_variants == [
-            {"size": "thumb", "width": 100, "height": 100, "url": "https://cdn.example.com/thumb.jpg"}
+            {
+                "size": "thumb",
+                "width": 100,
+                "height": 100,
+                "url": "https://cdn.example.com/thumb.jpg",
+            }
         ]
         assert fetched.url == "https://cdn.example.com/img.jpg"
         assert fetched.is_external is False
@@ -148,7 +158,10 @@ class TestMediaAssetRoundtrip:
         await db_session.flush()
 
         assert await repo.check_main_exists(_seed_product.id, variant_id=None) is True
-        assert await repo.check_main_exists(_seed_product.id, variant_id=uuid.uuid4()) is False
+        assert (
+            await repo.check_main_exists(_seed_product.id, variant_id=uuid.uuid4())
+            is False
+        )
 
     async def test_bulk_update_sort_order(
         self,

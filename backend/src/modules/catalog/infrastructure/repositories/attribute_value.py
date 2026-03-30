@@ -82,9 +82,13 @@ class AttributeValueRepository(
         except IntegrityError as e:
             constraint = str(e.orig) if e.orig else str(e)
             if "code" in constraint.lower():
-                raise AttributeValueCodeConflictError(code=entity.code, attribute_id=entity.attribute_id) from e
+                raise AttributeValueCodeConflictError(
+                    code=entity.code, attribute_id=entity.attribute_id
+                ) from e
             if "slug" in constraint.lower():
-                raise AttributeValueSlugConflictError(slug=entity.slug, attribute_id=entity.attribute_id) from e
+                raise AttributeValueSlugConflictError(
+                    slug=entity.slug, attribute_id=entity.attribute_id
+                ) from e
             raise
         return self._to_domain(orm)
 
@@ -175,9 +179,11 @@ class AttributeValueRepository(
 
     async def list_ids_by_attribute(self, attribute_id: uuid.UUID) -> set[uuid.UUID]:
         """Return the set of value IDs belonging to the given attribute."""
-        stmt = select(OrmAttributeValue.id).where(
-            OrmAttributeValue.attribute_id == attribute_id
-        ).limit(50_000)
+        stmt = (
+            select(OrmAttributeValue.id)
+            .where(OrmAttributeValue.attribute_id == attribute_id)
+            .limit(50_000)
+        )
         result = await self._session.execute(stmt)
         return {row[0] for row in result.all()}
 

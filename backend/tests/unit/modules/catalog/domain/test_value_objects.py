@@ -60,40 +60,26 @@ class TestMoney:
             m.amount = 2000
 
     def test_equality(self):
-        assert Money(amount=100, currency="RUB") == Money(
-            amount=100, currency="RUB"
-        )
+        assert Money(amount=100, currency="RUB") == Money(amount=100, currency="RUB")
 
     def test_inequality_different_amount(self):
-        assert Money(amount=100, currency="RUB") != Money(
-            amount=200, currency="RUB"
-        )
+        assert Money(amount=100, currency="RUB") != Money(amount=200, currency="RUB")
 
     def test_lt_same_currency(self):
-        assert Money(amount=100, currency="RUB") < Money(
-            amount=200, currency="RUB"
-        )
+        assert Money(amount=100, currency="RUB") < Money(amount=200, currency="RUB")
 
     def test_le_same_currency(self):
-        assert Money(amount=100, currency="RUB") <= Money(
-            amount=100, currency="RUB"
-        )
+        assert Money(amount=100, currency="RUB") <= Money(amount=100, currency="RUB")
 
     def test_gt_same_currency(self):
-        assert Money(amount=200, currency="RUB") > Money(
-            amount=100, currency="RUB"
-        )
+        assert Money(amount=200, currency="RUB") > Money(amount=100, currency="RUB")
 
     def test_ge_same_currency(self):
-        assert Money(amount=200, currency="RUB") >= Money(
-            amount=200, currency="RUB"
-        )
+        assert Money(amount=200, currency="RUB") >= Money(amount=200, currency="RUB")
 
     def test_comparison_different_currency_raises(self):
         with pytest.raises(ValueError, match="different currencies"):
-            Money(amount=100, currency="RUB") < Money(
-                amount=200, currency="USD"
-            )
+            Money(amount=100, currency="RUB") < Money(amount=200, currency="USD")
 
     def test_from_primitives_with_compare_at(self):
         price, compare = Money.from_primitives(1000, "RUB", compare_at_amount=2000)
@@ -186,9 +172,7 @@ class TestValidateValidationRules:
 
     def test_string_invalid_keys_raises(self):
         with pytest.raises(ValueError):
-            validate_validation_rules(
-                AttributeDataType.STRING, {"min_value": 1}
-            )
+            validate_validation_rules(AttributeDataType.STRING, {"min_value": 1})
 
     def test_numeric_valid_keys(self):
         validate_validation_rules(
@@ -197,15 +181,11 @@ class TestValidateValidationRules:
 
     def test_numeric_invalid_keys_raises(self):
         with pytest.raises(ValueError):
-            validate_validation_rules(
-                AttributeDataType.INTEGER, {"min_length": 1}
-            )
+            validate_validation_rules(AttributeDataType.INTEGER, {"min_length": 1})
 
     def test_boolean_rejects_all_keys(self):
         with pytest.raises(ValueError):
-            validate_validation_rules(
-                AttributeDataType.BOOLEAN, {"min_value": 0}
-            )
+            validate_validation_rules(AttributeDataType.BOOLEAN, {"min_value": 0})
 
     def test_string_min_exceeds_max_raises(self):
         with pytest.raises(ValueError, match="min_length cannot exceed max_length"):

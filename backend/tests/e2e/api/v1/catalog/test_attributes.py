@@ -103,18 +103,26 @@ class TestAttributeEndpoints:
         assert resp.status_code == 200
         data = resp.json()
         for field in (
-            "id", "code", "slug", "nameI18n", "dataType", "uiType",
-            "isDictionary", "level", "isFilterable", "isSearchable",
-            "searchWeight", "isComparable", "isVisibleOnCard",
+            "id",
+            "code",
+            "slug",
+            "nameI18n",
+            "dataType",
+            "uiType",
+            "isDictionary",
+            "level",
+            "isFilterable",
+            "isSearchable",
+            "searchWeight",
+            "isComparable",
+            "isVisibleOnCard",
         ):
             assert field in data, f"Missing camelCase field: {field}"
 
     async def test_get_attribute_not_found_returns_404(
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
-        resp = await admin_client.get(
-            f"/api/v1/catalog/attributes/{uuid.uuid4()}"
-        )
+        resp = await admin_client.get(f"/api/v1/catalog/attributes/{uuid.uuid4()}")
         assert resp.status_code == 404
 
     # ── PATCH /attributes/{id} ──
@@ -135,9 +143,7 @@ class TestAttributeEndpoints:
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
         created = await create_attribute(admin_client)
-        resp = await admin_client.delete(
-            f"/api/v1/catalog/attributes/{created['id']}"
-        )
+        resp = await admin_client.delete(f"/api/v1/catalog/attributes/{created['id']}")
         assert resp.status_code == 204
 
     # ── GET /attributes/{id}/usage ──

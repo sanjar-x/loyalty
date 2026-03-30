@@ -111,7 +111,9 @@ class TestMediaAssetCreate:
         assert asset.storage_object_id == storage_id
 
     def test_create_with_image_variants(self):
-        img_variants = [{"size": "thumbnail", "url": "https://cdn.example.com/thumb.jpg"}]
+        img_variants = [
+            {"size": "thumbnail", "url": "https://cdn.example.com/thumb.jpg"}
+        ]
         asset = MediaAsset.create(
             product_id=uuid.uuid4(),
             media_type=MediaType.IMAGE,

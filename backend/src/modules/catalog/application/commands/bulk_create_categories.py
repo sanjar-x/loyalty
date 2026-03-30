@@ -184,7 +184,9 @@ class BulkCreateCategoriesHandler:
                 if item.template_id is not None:
                     template = await self._template_repo.get(item.template_id)
                     if template is None:
-                        raise AttributeTemplateNotFoundError(template_id=item.template_id)
+                        raise AttributeTemplateNotFoundError(
+                            template_id=item.template_id
+                        )
 
                 # Create domain entity
                 if parent is not None:
@@ -216,13 +218,15 @@ class BulkCreateCategoriesHandler:
                 if item.ref:
                     ref_map[item.ref] = category
 
-                created.append(BulkCategoryCreatedItem(
-                    id=category.id,
-                    slug=category.slug,
-                    full_slug=category.full_slug,
-                    level=category.level,
-                    ref=item.ref,
-                ))
+                created.append(
+                    BulkCategoryCreatedItem(
+                        id=category.id,
+                        slug=category.slug,
+                        full_slug=category.full_slug,
+                        level=category.level,
+                        ref=item.ref,
+                    )
+                )
 
             await self._uow.commit()
 

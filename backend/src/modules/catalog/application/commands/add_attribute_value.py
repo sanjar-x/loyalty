@@ -26,7 +26,10 @@ from src.modules.catalog.domain.interfaces import (
     IAttributeValueRepository,
     ITemplateAttributeBindingRepository,
 )
-from src.modules.catalog.domain.value_objects import AttributeUIType, validate_i18n_completeness
+from src.modules.catalog.domain.value_objects import (
+    AttributeUIType,
+    validate_i18n_completeness,
+)
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -153,8 +156,11 @@ class AddAttributeValueHandler:
             from src.modules.catalog.application.queries.resolve_template_attributes import (
                 collect_attribute_cache_keys,
             )
+
             cache_keys = await collect_attribute_cache_keys(
-                command.attribute_id, self._binding_repo, self._template_repo,
+                command.attribute_id,
+                self._binding_repo,
+                self._template_repo,
             )
 
             await self._uow.commit()

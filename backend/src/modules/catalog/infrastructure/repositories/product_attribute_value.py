@@ -58,9 +58,11 @@ class ProductAttributeValueRepository(
         self, product_id: uuid.UUID
     ) -> list[DomainProductAttributeValue]:
         """List all attribute assignments for a given product."""
-        stmt = select(OrmProductAttributeValue).where(
-            OrmProductAttributeValue.product_id == product_id
-        ).order_by(OrmProductAttributeValue.attribute_id)
+        stmt = (
+            select(OrmProductAttributeValue)
+            .where(OrmProductAttributeValue.product_id == product_id)
+            .order_by(OrmProductAttributeValue.attribute_id)
+        )
         result = await self._session.execute(stmt)
         return [self._to_domain(orm) for orm in result.scalars().all()]
 

@@ -28,9 +28,7 @@ class TestCategoryCreateRoot:
     """Factory method tests for Category.create_root() per D-03."""
 
     def test_create_root_valid(self):
-        cat = Category.create_root(
-            name_i18n=_i18n("Electronics"), slug="electronics"
-        )
+        cat = Category.create_root(name_i18n=_i18n("Electronics"), slug="electronics")
         assert cat.name_i18n["en"] == "Electronics"
         assert cat.name_i18n["ru"] == "Electronics"
         assert cat.slug == "electronics"
@@ -48,9 +46,7 @@ class TestCategoryCreateRoot:
         assert cat.effective_template_id == tid
 
     def test_create_root_without_template(self):
-        cat = Category.create_root(
-            name_i18n=_i18n("Electronics"), slug="electronics"
-        )
+        cat = Category.create_root(name_i18n=_i18n("Electronics"), slug="electronics")
         assert cat.template_id is None
         assert cat.effective_template_id is None
 
@@ -66,15 +62,11 @@ class TestCategoryCreateRoot:
 
     def test_create_root_rejects_invalid_slug(self):
         with pytest.raises(ValueError, match="slug must be non-empty"):
-            Category.create_root(
-                name_i18n=_i18n("Electronics"), slug="Bad Slug!"
-            )
+            Category.create_root(name_i18n=_i18n("Electronics"), slug="Bad Slug!")
 
     def test_create_root_rejects_missing_locale(self):
         with pytest.raises(MissingRequiredLocalesError):
-            Category.create_root(
-                name_i18n={"en": "Only English"}, slug="electronics"
-            )
+            Category.create_root(name_i18n={"en": "Only English"}, slug="electronics")
 
     def test_create_root_rejects_blank_i18n_values(self):
         with pytest.raises(ValueError, match="must not contain empty or blank"):
@@ -134,9 +126,7 @@ class TestCategoryCreateChild:
 
     def test_create_child_max_depth_enforcement(self):
         # MAX_CATEGORY_DEPTH = 3
-        root = Category.create_root(
-            name_i18n=_i18n("L0"), slug="l0"
-        )  # level 0
+        root = Category.create_root(name_i18n=_i18n("L0"), slug="l0")  # level 0
         child = Category.create_child(
             name_i18n=_i18n("L1"), slug="l1", parent=root
         )  # level 1
@@ -156,12 +146,8 @@ class TestCategoryCreateChild:
             )
 
     def test_create_child_level_2_allowed(self):
-        root = Category.create_root(
-            name_i18n=_i18n("L0"), slug="l0"
-        )
-        child = Category.create_child(
-            name_i18n=_i18n("L1"), slug="l1", parent=root
-        )
+        root = Category.create_root(name_i18n=_i18n("L0"), slug="l0")
+        child = Category.create_child(name_i18n=_i18n("L1"), slug="l1", parent=root)
         grandchild = Category.create_child(
             name_i18n=_i18n("L2"), slug="l2", parent=child
         )
@@ -181,38 +167,28 @@ class TestCategoryUpdate:
     """Update method tests for Category.update()."""
 
     def test_update_name_i18n(self):
-        cat = Category.create_root(
-            name_i18n=_i18n("Old Name"), slug="old-name"
-        )
+        cat = Category.create_root(name_i18n=_i18n("Old Name"), slug="old-name")
         cat.update(name_i18n=_i18n("New Name"))
         assert cat.name_i18n["en"] == "New Name"
 
     def test_update_slug_returns_old_full_slug(self):
-        cat = Category.create_root(
-            name_i18n=_i18n("Test"), slug="old"
-        )
+        cat = Category.create_root(name_i18n=_i18n("Test"), slug="old")
         result = cat.update(slug="new")
         assert result == "old"
         assert cat.slug == "new"
 
     def test_update_without_slug_returns_none(self):
-        cat = Category.create_root(
-            name_i18n=_i18n("Test"), slug="test"
-        )
+        cat = Category.create_root(name_i18n=_i18n("Test"), slug="test")
         result = cat.update(name_i18n=_i18n("X"))
         assert result is None
 
     def test_update_sort_order(self):
-        cat = Category.create_root(
-            name_i18n=_i18n("Test"), slug="test"
-        )
+        cat = Category.create_root(name_i18n=_i18n("Test"), slug="test")
         cat.update(sort_order=10)
         assert cat.sort_order == 10
 
     def test_update_template_id_recomputes_effective(self):
-        cat = Category.create_root(
-            name_i18n=_i18n("Test"), slug="test"
-        )
+        cat = Category.create_root(name_i18n=_i18n("Test"), slug="test")
         new_id = uuid.uuid4()
         cat.update(template_id=new_id)
         assert cat.effective_template_id == new_id
@@ -236,16 +212,12 @@ class TestCategoryUpdate:
         assert cat.effective_template_id == parent_tid
 
     def test_update_rejects_invalid_slug(self):
-        cat = Category.create_root(
-            name_i18n=_i18n("Test"), slug="test"
-        )
+        cat = Category.create_root(name_i18n=_i18n("Test"), slug="test")
         with pytest.raises(ValueError):
             cat.update(slug="Bad Slug!")
 
     def test_update_rejects_negative_sort_order(self):
-        cat = Category.create_root(
-            name_i18n=_i18n("Test"), slug="test"
-        )
+        cat = Category.create_root(name_i18n=_i18n("Test"), slug="test")
         with pytest.raises(ValueError, match="sort_order must be non-negative"):
             cat.update(sort_order=-1)
 
@@ -254,12 +226,8 @@ class TestCategoryGuard:
     """DDD-01 guard: __setattr__ prevents direct slug mutation."""
 
     def test_direct_slug_assignment_raises(self):
-        cat = Category.create_root(
-            name_i18n=_i18n("Test"), slug="test"
-        )
-        with pytest.raises(
-            AttributeError, match="Cannot set 'slug' directly"
-        ):
+        cat = Category.create_root(name_i18n=_i18n("Test"), slug="test")
+        with pytest.raises(AttributeError, match="Cannot set 'slug' directly"):
             cat.slug = "hacked"
 
 
@@ -267,22 +235,16 @@ class TestCategoryDeletion:
     """validate_deletable() deletion guard tests."""
 
     def test_deletable_when_no_children_no_products(self):
-        cat = Category.create_root(
-            name_i18n=_i18n("Test"), slug="test"
-        )
+        cat = Category.create_root(name_i18n=_i18n("Test"), slug="test")
         cat.validate_deletable(has_children=False, has_products=False)
 
     def test_not_deletable_when_has_children(self):
-        cat = Category.create_root(
-            name_i18n=_i18n("Test"), slug="test"
-        )
+        cat = Category.create_root(name_i18n=_i18n("Test"), slug="test")
         with pytest.raises(CategoryHasChildrenError):
             cat.validate_deletable(has_children=True, has_products=False)
 
     def test_not_deletable_when_has_products(self):
-        cat = Category.create_root(
-            name_i18n=_i18n("Test"), slug="test"
-        )
+        cat = Category.create_root(name_i18n=_i18n("Test"), slug="test")
         with pytest.raises(CategoryHasProductsError):
             cat.validate_deletable(has_children=False, has_products=True)
 
@@ -291,9 +253,7 @@ class TestCategorySetEffectiveTemplateId:
     """Tests for Category.set_effective_template_id()."""
 
     def test_set_to_uuid(self):
-        cat = Category.create_root(
-            name_i18n=_i18n("Test"), slug="test"
-        )
+        cat = Category.create_root(name_i18n=_i18n("Test"), slug="test")
         tid = uuid.uuid4()
         cat.set_effective_template_id(tid)
         assert cat.effective_template_id == tid

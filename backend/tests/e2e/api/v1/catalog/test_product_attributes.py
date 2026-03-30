@@ -33,9 +33,7 @@ async def _setup_product_with_attribute(
     # 1. Create attribute template
     template = await create_attribute_template(client)
     # 2. Create attribute (product-level, dictionary)
-    attr = await create_attribute(
-        client, level="product", is_dictionary=True
-    )
+    attr = await create_attribute(client, level="product", is_dictionary=True)
     # 3. Bind attribute to template
     await bind_attribute_to_template(
         client, template["id"], attr["id"], requirement_level="optional"

@@ -85,12 +85,14 @@ class SKU:
         self.deleted_at = now
         self.updated_at = now
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "sku_code",
-        "price",
-        "compare_at_price",
-        "is_active",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "sku_code",
+            "price",
+            "compare_at_price",
+            "is_active",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable SKU fields.

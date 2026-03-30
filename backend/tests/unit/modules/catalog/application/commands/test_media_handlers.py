@@ -71,8 +71,14 @@ def _seed_product(uow, slug=None):
     return product
 
 
-def _seed_media(uow, product_id, variant_id=None, role="gallery", sort_order=0,
-                storage_object_id=None):
+def _seed_media(
+    uow,
+    product_id,
+    variant_id=None,
+    role="gallery",
+    sort_order=0,
+    storage_object_id=None,
+):
     """Create and seed a MediaAsset into the fake UoW."""
     media = MediaAsset.create(
         product_id=product_id,
@@ -391,9 +397,7 @@ class TestDeleteProductMedia:
         uow = FakeUnitOfWork()
         product = _seed_product(uow)
         storage_id = uuid.uuid4()
-        media = _seed_media(
-            uow, product_id=product.id, storage_object_id=storage_id
-        )
+        media = _seed_media(uow, product_id=product.id, storage_object_id=storage_id)
         image_backend = _make_image_backend()
 
         handler = DeleteProductMediaHandler(
@@ -416,9 +420,7 @@ class TestDeleteProductMedia:
     async def test_no_cleanup_when_no_storage_object(self):
         uow = FakeUnitOfWork()
         product = _seed_product(uow)
-        media = _seed_media(
-            uow, product_id=product.id, storage_object_id=None
-        )
+        media = _seed_media(uow, product_id=product.id, storage_object_id=None)
         image_backend = _make_image_backend()
 
         handler = DeleteProductMediaHandler(
@@ -482,9 +484,7 @@ class TestDeleteProductMedia:
         uow = FakeUnitOfWork()
         product = _seed_product(uow)
         storage_id = uuid.uuid4()
-        media = _seed_media(
-            uow, product_id=product.id, storage_object_id=storage_id
-        )
+        media = _seed_media(uow, product_id=product.id, storage_object_id=storage_id)
 
         call_order = []
         original_commit = uow.commit

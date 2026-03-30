@@ -112,9 +112,7 @@ class TestAddVariant:
 
         assert uow.committed is True
         updated = uow.products._store[product.id]
-        new_variant = next(
-            v for v in updated.variants if v.id == result.variant_id
-        )
+        new_variant = next(v for v in updated.variants if v.id == result.variant_id)
         assert new_variant.default_price == Money(amount=5000, currency="RUB")
 
     async def test_product_not_found(self):

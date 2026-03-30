@@ -44,7 +44,9 @@ class TestSKUConstruction:
     def test_rejects_compare_at_without_price(self):
         product = ProductBuilder().build()
         variant_id = product.variants[0].id
-        with pytest.raises(ValueError, match="compare_at_price cannot be set when price is None"):
+        with pytest.raises(
+            ValueError, match="compare_at_price cannot be set when price is None"
+        ):
             product.add_sku(
                 variant_id,
                 sku_code="SKU-NOPR",
@@ -55,7 +57,9 @@ class TestSKUConstruction:
     def test_rejects_compare_at_less_than_price(self):
         product = ProductBuilder().build()
         variant_id = product.variants[0].id
-        with pytest.raises(ValueError, match="compare_at_price must be greater than price"):
+        with pytest.raises(
+            ValueError, match="compare_at_price must be greater than price"
+        ):
             product.add_sku(
                 variant_id,
                 sku_code="SKU-LOW",
@@ -66,7 +70,9 @@ class TestSKUConstruction:
     def test_rejects_compare_at_equal_to_price(self):
         product = ProductBuilder().build()
         variant_id = product.variants[0].id
-        with pytest.raises(ValueError, match="compare_at_price must be greater than price"):
+        with pytest.raises(
+            ValueError, match="compare_at_price must be greater than price"
+        ):
             product.add_sku(
                 variant_id,
                 sku_code="SKU-EQ",
@@ -131,7 +137,9 @@ class TestSKUUpdate:
             .with_compare_at_price(Money(2000, "RUB"))
             .build()
         )
-        with pytest.raises(ValueError, match="compare_at_price must be greater than price"):
+        with pytest.raises(
+            ValueError, match="compare_at_price must be greater than price"
+        ):
             sku.update(price=Money(3000, "RUB"))
 
 

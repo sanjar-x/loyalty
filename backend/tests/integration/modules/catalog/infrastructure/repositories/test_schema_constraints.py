@@ -317,22 +317,39 @@ class TestUniqueConstraints:
         """Two attributes with same code raises IntegrityError."""
         group_id = uuid.uuid4()
         group = OrmAttributeGroup(
-            id=group_id, code="uq-grp", name_i18n={"en": "G", "ru": "Г"}, sort_order=0,
+            id=group_id,
+            code="uq-grp",
+            name_i18n={"en": "G", "ru": "Г"},
+            sort_order=0,
         )
         db_session.add(group)
         await db_session.flush()
 
         a1 = OrmAttribute(
-            id=uuid.uuid4(), code="dup-code", slug="slug-1", group_id=group_id,
-            name_i18n={"en": "A1", "ru": "А1"}, description_i18n={},
-            data_type=AttributeDataType.STRING, ui_type=AttributeUIType.TEXT_BUTTON,
-            is_dictionary=True, level=AttributeLevel.PRODUCT, search_weight=5,
+            id=uuid.uuid4(),
+            code="dup-code",
+            slug="slug-1",
+            group_id=group_id,
+            name_i18n={"en": "A1", "ru": "А1"},
+            description_i18n={},
+            data_type=AttributeDataType.STRING,
+            ui_type=AttributeUIType.TEXT_BUTTON,
+            is_dictionary=True,
+            level=AttributeLevel.PRODUCT,
+            search_weight=5,
         )
         a2 = OrmAttribute(
-            id=uuid.uuid4(), code="dup-code", slug="slug-2", group_id=group_id,
-            name_i18n={"en": "A2", "ru": "А2"}, description_i18n={},
-            data_type=AttributeDataType.STRING, ui_type=AttributeUIType.TEXT_BUTTON,
-            is_dictionary=True, level=AttributeLevel.PRODUCT, search_weight=5,
+            id=uuid.uuid4(),
+            code="dup-code",
+            slug="slug-2",
+            group_id=group_id,
+            name_i18n={"en": "A2", "ru": "А2"},
+            description_i18n={},
+            data_type=AttributeDataType.STRING,
+            ui_type=AttributeUIType.TEXT_BUTTON,
+            is_dictionary=True,
+            level=AttributeLevel.PRODUCT,
+            search_weight=5,
         )
         db_session.add(a1)
         await db_session.flush()
@@ -349,22 +366,39 @@ class TestUniqueConstraints:
         """Two attributes with same slug raises IntegrityError."""
         group_id = uuid.uuid4()
         group = OrmAttributeGroup(
-            id=group_id, code="uq-slug-grp", name_i18n={"en": "G", "ru": "Г"}, sort_order=0,
+            id=group_id,
+            code="uq-slug-grp",
+            name_i18n={"en": "G", "ru": "Г"},
+            sort_order=0,
         )
         db_session.add(group)
         await db_session.flush()
 
         a1 = OrmAttribute(
-            id=uuid.uuid4(), code="code-1", slug="dup-slug", group_id=group_id,
-            name_i18n={"en": "A1", "ru": "А1"}, description_i18n={},
-            data_type=AttributeDataType.STRING, ui_type=AttributeUIType.TEXT_BUTTON,
-            is_dictionary=True, level=AttributeLevel.PRODUCT, search_weight=5,
+            id=uuid.uuid4(),
+            code="code-1",
+            slug="dup-slug",
+            group_id=group_id,
+            name_i18n={"en": "A1", "ru": "А1"},
+            description_i18n={},
+            data_type=AttributeDataType.STRING,
+            ui_type=AttributeUIType.TEXT_BUTTON,
+            is_dictionary=True,
+            level=AttributeLevel.PRODUCT,
+            search_weight=5,
         )
         a2 = OrmAttribute(
-            id=uuid.uuid4(), code="code-2", slug="dup-slug", group_id=group_id,
-            name_i18n={"en": "A2", "ru": "А2"}, description_i18n={},
-            data_type=AttributeDataType.STRING, ui_type=AttributeUIType.TEXT_BUTTON,
-            is_dictionary=True, level=AttributeLevel.PRODUCT, search_weight=5,
+            id=uuid.uuid4(),
+            code="code-2",
+            slug="dup-slug",
+            group_id=group_id,
+            name_i18n={"en": "A2", "ru": "А2"},
+            description_i18n={},
+            data_type=AttributeDataType.STRING,
+            ui_type=AttributeUIType.TEXT_BUTTON,
+            is_dictionary=True,
+            level=AttributeLevel.PRODUCT,
+            search_weight=5,
         )
         db_session.add(a1)
         await db_session.flush()
@@ -384,7 +418,8 @@ class TestUniqueConstraints:
 
         # Duplicate code under same attribute
         v = OrmAttributeValue(
-            id=uuid.uuid4(), attribute_id=attr_id,
+            id=uuid.uuid4(),
+            attribute_id=attr_id,
             code="val-1",  # already exists from seed
             slug="val-1-dup",
             value_i18n={"en": "Dup", "ru": "Дуп"},
@@ -402,20 +437,29 @@ class TestUniqueConstraints:
     ) -> None:
         """Two bindings with same (template_id, attribute_id) raises IntegrityError."""
         template = OrmAttributeTemplate(
-            id=uuid.uuid4(), code="pair-uq-template",
-            name_i18n={"en": "T", "ru": "Ш"}, description_i18n={}, sort_order=0,
+            id=uuid.uuid4(),
+            code="pair-uq-template",
+            name_i18n={"en": "T", "ru": "Ш"},
+            description_i18n={},
+            sort_order=0,
         )
         db_session.add(template)
         await db_session.flush()
 
         attr_id = seed_attribute_with_values["attribute_id"]
         b1 = OrmBinding(
-            id=uuid.uuid4(), template_id=template.id, attribute_id=attr_id,
-            sort_order=0, requirement_level=RequirementLevel.OPTIONAL,
+            id=uuid.uuid4(),
+            template_id=template.id,
+            attribute_id=attr_id,
+            sort_order=0,
+            requirement_level=RequirementLevel.OPTIONAL,
         )
         b2 = OrmBinding(
-            id=uuid.uuid4(), template_id=template.id, attribute_id=attr_id,
-            sort_order=1, requirement_level=RequirementLevel.REQUIRED,
+            id=uuid.uuid4(),
+            template_id=template.id,
+            attribute_id=attr_id,
+            sort_order=1,
+            requirement_level=RequirementLevel.REQUIRED,
         )
         db_session.add(b1)
         await db_session.flush()
@@ -435,18 +479,26 @@ class TestUniqueConstraints:
         cat_id = seed_product_deps["category_id"]
 
         p1 = OrmProduct(
-            id=uuid.uuid4(), brand_id=brand_id, primary_category_id=cat_id,
-            slug="partial-uq", title_i18n={"en": "P1", "ru": "П1"},
-            status=ProductStatus.DRAFT, deleted_at=None,
+            id=uuid.uuid4(),
+            brand_id=brand_id,
+            primary_category_id=cat_id,
+            slug="partial-uq",
+            title_i18n={"en": "P1", "ru": "П1"},
+            status=ProductStatus.DRAFT,
+            deleted_at=None,
         )
         db_session.add(p1)
         await db_session.flush()
 
         # Second active product with same slug -- should fail
         p2 = OrmProduct(
-            id=uuid.uuid4(), brand_id=brand_id, primary_category_id=cat_id,
-            slug="partial-uq", title_i18n={"en": "P2", "ru": "П2"},
-            status=ProductStatus.DRAFT, deleted_at=None,
+            id=uuid.uuid4(),
+            brand_id=brand_id,
+            primary_category_id=cat_id,
+            slug="partial-uq",
+            title_i18n={"en": "P2", "ru": "П2"},
+            status=ProductStatus.DRAFT,
+            deleted_at=None,
         )
         async with db_session.begin_nested():
             db_session.add(p2)
@@ -455,9 +507,13 @@ class TestUniqueConstraints:
 
         # Soft-deleted product with same slug -- should succeed
         p3 = OrmProduct(
-            id=uuid.uuid4(), brand_id=brand_id, primary_category_id=cat_id,
-            slug="partial-uq", title_i18n={"en": "P3", "ru": "П3"},
-            status=ProductStatus.DRAFT, deleted_at=datetime.now(UTC),
+            id=uuid.uuid4(),
+            brand_id=brand_id,
+            primary_category_id=cat_id,
+            slug="partial-uq",
+            title_i18n={"en": "P3", "ru": "П3"},
+            status=ProductStatus.DRAFT,
+            deleted_at=datetime.now(UTC),
         )
         db_session.add(p3)
         await db_session.flush()  # should succeed
@@ -557,17 +613,27 @@ class TestCheckConstraints:
         """Check constraint rejects search_weight outside 1-10 range."""
         group_id = uuid.uuid4()
         group = OrmAttributeGroup(
-            id=group_id, code="ck-grp", name_i18n={"en": "G", "ru": "Г"}, sort_order=0,
+            id=group_id,
+            code="ck-grp",
+            name_i18n={"en": "G", "ru": "Г"},
+            sort_order=0,
         )
         db_session.add(group)
         await db_session.flush()
 
         # Below min (0)
         a_low = OrmAttribute(
-            id=uuid.uuid4(), code="ck-low", slug="ck-low", group_id=group_id,
-            name_i18n={"en": "Low", "ru": "Низкий"}, description_i18n={},
-            data_type=AttributeDataType.STRING, ui_type=AttributeUIType.TEXT_BUTTON,
-            is_dictionary=True, level=AttributeLevel.PRODUCT, search_weight=0,
+            id=uuid.uuid4(),
+            code="ck-low",
+            slug="ck-low",
+            group_id=group_id,
+            name_i18n={"en": "Low", "ru": "Низкий"},
+            description_i18n={},
+            data_type=AttributeDataType.STRING,
+            ui_type=AttributeUIType.TEXT_BUTTON,
+            is_dictionary=True,
+            level=AttributeLevel.PRODUCT,
+            search_weight=0,
         )
         async with db_session.begin_nested():
             db_session.add(a_low)
@@ -576,10 +642,17 @@ class TestCheckConstraints:
 
         # Above max (11)
         a_high = OrmAttribute(
-            id=uuid.uuid4(), code="ck-high", slug="ck-high", group_id=group_id,
-            name_i18n={"en": "High", "ru": "Высокий"}, description_i18n={},
-            data_type=AttributeDataType.STRING, ui_type=AttributeUIType.TEXT_BUTTON,
-            is_dictionary=True, level=AttributeLevel.PRODUCT, search_weight=11,
+            id=uuid.uuid4(),
+            code="ck-high",
+            slug="ck-high",
+            group_id=group_id,
+            name_i18n={"en": "High", "ru": "Высокий"},
+            description_i18n={},
+            data_type=AttributeDataType.STRING,
+            ui_type=AttributeUIType.TEXT_BUTTON,
+            is_dictionary=True,
+            level=AttributeLevel.PRODUCT,
+            search_weight=11,
         )
         async with db_session.begin_nested():
             db_session.add(a_high)
@@ -588,10 +661,17 @@ class TestCheckConstraints:
 
         # Valid (5) -- should succeed
         a_ok = OrmAttribute(
-            id=uuid.uuid4(), code="ck-ok", slug="ck-ok", group_id=group_id,
-            name_i18n={"en": "OK", "ru": "ОК"}, description_i18n={},
-            data_type=AttributeDataType.STRING, ui_type=AttributeUIType.TEXT_BUTTON,
-            is_dictionary=True, level=AttributeLevel.PRODUCT, search_weight=5,
+            id=uuid.uuid4(),
+            code="ck-ok",
+            slug="ck-ok",
+            group_id=group_id,
+            name_i18n={"en": "OK", "ru": "ОК"},
+            description_i18n={},
+            data_type=AttributeDataType.STRING,
+            ui_type=AttributeUIType.TEXT_BUTTON,
+            is_dictionary=True,
+            level=AttributeLevel.PRODUCT,
+            search_weight=5,
         )
         db_session.add(a_ok)
         await db_session.flush()  # should succeed
@@ -745,7 +825,9 @@ class TestCascadeDeletes:
         await db_session.flush()
 
         result = await db_session.execute(
-            text("SELECT COUNT(*) FROM product_attribute_values WHERE product_id = :id"),
+            text(
+                "SELECT COUNT(*) FROM product_attribute_values WHERE product_id = :id"
+            ),
             {"id": str(product.id)},
         )
         assert result.scalar() == 0
@@ -757,27 +839,39 @@ class TestCascadeDeletes:
         """Hard-deleting an Attribute cascades to AttributeValues."""
         group_id = uuid.uuid4()
         group = OrmAttributeGroup(
-            id=group_id, code="casc-attr-grp",
-            name_i18n={"en": "G", "ru": "Г"}, sort_order=0,
+            id=group_id,
+            code="casc-attr-grp",
+            name_i18n={"en": "G", "ru": "Г"},
+            sort_order=0,
         )
         db_session.add(group)
         await db_session.flush()
 
         attr_id = uuid.uuid4()
         attr = OrmAttribute(
-            id=attr_id, code="casc-attr", slug="casc-attr", group_id=group_id,
-            name_i18n={"en": "A", "ru": "А"}, description_i18n={},
-            data_type=AttributeDataType.STRING, ui_type=AttributeUIType.TEXT_BUTTON,
-            is_dictionary=True, level=AttributeLevel.PRODUCT, search_weight=5,
+            id=attr_id,
+            code="casc-attr",
+            slug="casc-attr",
+            group_id=group_id,
+            name_i18n={"en": "A", "ru": "А"},
+            description_i18n={},
+            data_type=AttributeDataType.STRING,
+            ui_type=AttributeUIType.TEXT_BUTTON,
+            is_dictionary=True,
+            level=AttributeLevel.PRODUCT,
+            search_weight=5,
         )
         db_session.add(attr)
         await db_session.flush()
 
         for i in range(3):
             v = OrmAttributeValue(
-                id=uuid.uuid4(), attribute_id=attr_id,
-                code=f"casc-val-{i}", slug=f"casc-val-{i}",
-                value_i18n={"en": f"V{i}", "ru": f"З{i}"}, sort_order=i,
+                id=uuid.uuid4(),
+                attribute_id=attr_id,
+                code=f"casc-val-{i}",
+                slug=f"casc-val-{i}",
+                value_i18n={"en": f"V{i}", "ru": f"З{i}"},
+                sort_order=i,
             )
             db_session.add(v)
         await db_session.flush()
@@ -802,8 +896,11 @@ class TestCascadeDeletes:
         """Hard-deleting a Template cascades to Bindings."""
         template_id = uuid.uuid4()
         template = OrmAttributeTemplate(
-            id=template_id, code="casc-template",
-            name_i18n={"en": "T", "ru": "Ш"}, description_i18n={}, sort_order=0,
+            id=template_id,
+            code="casc-template",
+            name_i18n={"en": "T", "ru": "Ш"},
+            description_i18n={},
+            sort_order=0,
         )
         db_session.add(template)
         await db_session.flush()
@@ -812,26 +909,37 @@ class TestCascadeDeletes:
             # Need separate attributes for unique constraint
             grp_id = uuid.uuid4()
             grp = OrmAttributeGroup(
-                id=grp_id, code=f"casc-bind-grp-{i}",
-                name_i18n={"en": f"G{i}", "ru": f"Г{i}"}, sort_order=i,
+                id=grp_id,
+                code=f"casc-bind-grp-{i}",
+                name_i18n={"en": f"G{i}", "ru": f"Г{i}"},
+                sort_order=i,
             )
             db_session.add(grp)
             await db_session.flush()
 
             a_id = uuid.uuid4()
             a = OrmAttribute(
-                id=a_id, code=f"casc-bind-attr-{i}", slug=f"casc-bind-attr-{i}",
+                id=a_id,
+                code=f"casc-bind-attr-{i}",
+                slug=f"casc-bind-attr-{i}",
                 group_id=grp_id,
-                name_i18n={"en": f"A{i}", "ru": f"А{i}"}, description_i18n={},
-                data_type=AttributeDataType.STRING, ui_type=AttributeUIType.TEXT_BUTTON,
-                is_dictionary=True, level=AttributeLevel.PRODUCT, search_weight=5,
+                name_i18n={"en": f"A{i}", "ru": f"А{i}"},
+                description_i18n={},
+                data_type=AttributeDataType.STRING,
+                ui_type=AttributeUIType.TEXT_BUTTON,
+                is_dictionary=True,
+                level=AttributeLevel.PRODUCT,
+                search_weight=5,
             )
             db_session.add(a)
             await db_session.flush()
 
             b = OrmBinding(
-                id=uuid.uuid4(), template_id=template_id, attribute_id=a_id,
-                sort_order=i, requirement_level=RequirementLevel.OPTIONAL,
+                id=uuid.uuid4(),
+                template_id=template_id,
+                attribute_id=a_id,
+                sort_order=i,
+                requirement_level=RequirementLevel.OPTIONAL,
             )
             db_session.add(b)
         await db_session.flush()
@@ -843,7 +951,9 @@ class TestCascadeDeletes:
         await db_session.flush()
 
         result = await db_session.execute(
-            text("SELECT COUNT(*) FROM template_attribute_bindings WHERE template_id = :id"),
+            text(
+                "SELECT COUNT(*) FROM template_attribute_bindings WHERE template_id = :id"
+            ),
             {"id": str(template_id)},
         )
         assert result.scalar() == 0
@@ -904,17 +1014,25 @@ class TestRestrictDeletes:
     ) -> None:
         """Deleting a parent Category with child categories raises IntegrityError."""
         parent = OrmCategory(
-            id=uuid.uuid4(), parent_id=None, slug="parent-restrict",
-            full_slug="parent-restrict", level=0,
-            name_i18n={"en": "Parent", "ru": "Родитель"}, sort_order=0,
+            id=uuid.uuid4(),
+            parent_id=None,
+            slug="parent-restrict",
+            full_slug="parent-restrict",
+            level=0,
+            name_i18n={"en": "Parent", "ru": "Родитель"},
+            sort_order=0,
         )
         db_session.add(parent)
         await db_session.flush()
 
         child = OrmCategory(
-            id=uuid.uuid4(), parent_id=parent.id, slug="child-restrict",
-            full_slug="parent-restrict/child-restrict", level=1,
-            name_i18n={"en": "Child", "ru": "Дочерний"}, sort_order=0,
+            id=uuid.uuid4(),
+            parent_id=parent.id,
+            slug="child-restrict",
+            full_slug="parent-restrict/child-restrict",
+            level=1,
+            name_i18n={"en": "Child", "ru": "Дочерний"},
+            sort_order=0,
         )
         db_session.add(child)
         await db_session.flush()

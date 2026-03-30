@@ -138,7 +138,5 @@ class TestBrandEndpoints:
     async def test_delete_brand_not_found_returns_404(
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
-        resp = await admin_client.delete(
-            f"/api/v1/catalog/brands/{uuid.uuid4()}"
-        )
+        resp = await admin_client.delete(f"/api/v1/catalog/brands/{uuid.uuid4()}")
         assert resp.status_code == 404

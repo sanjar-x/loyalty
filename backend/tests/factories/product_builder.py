@@ -52,15 +52,11 @@ class ProductBuilder:
         self._brand_id = brand_id
         return self
 
-    def with_category_id(
-        self, category_id: uuid.UUID
-    ) -> ProductBuilder:
+    def with_category_id(self, category_id: uuid.UUID) -> ProductBuilder:
         self._primary_category_id = category_id
         return self
 
-    def with_description_i18n(
-        self, description_i18n: dict[str, str]
-    ) -> ProductBuilder:
+    def with_description_i18n(self, description_i18n: dict[str, str]) -> ProductBuilder:
         self._description_i18n = description_i18n
         return self
 
@@ -72,9 +68,7 @@ class ProductBuilder:
         self._source_url = source_url
         return self
 
-    def with_country_of_origin(
-        self, country_of_origin: str
-    ) -> ProductBuilder:
+    def with_country_of_origin(self, country_of_origin: str) -> ProductBuilder:
         self._country_of_origin = country_of_origin
         return self
 

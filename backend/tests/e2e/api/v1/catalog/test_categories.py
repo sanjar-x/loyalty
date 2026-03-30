@@ -39,7 +39,10 @@ class TestCategoryEndpoints:
     ):
         resp = await admin_client.post(
             "/api/v1/catalog/categories",
-            json={"nameI18n": {"en": "Only English"}, "slug": f"bad-{uuid.uuid4().hex[:8]}"},
+            json={
+                "nameI18n": {"en": "Only English"},
+                "slug": f"bad-{uuid.uuid4().hex[:8]}",
+            },
         )
         assert resp.status_code == 422
 
@@ -106,9 +109,7 @@ class TestCategoryEndpoints:
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
         created = await create_category(admin_client)
-        resp = await admin_client.get(
-            f"/api/v1/catalog/categories/{created['id']}"
-        )
+        resp = await admin_client.get(f"/api/v1/catalog/categories/{created['id']}")
         assert resp.status_code == 200
         data = resp.json()
         assert data["id"] == created["id"]
@@ -135,7 +136,5 @@ class TestCategoryEndpoints:
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
         created = await create_category(admin_client)
-        resp = await admin_client.delete(
-            f"/api/v1/catalog/categories/{created['id']}"
-        )
+        resp = await admin_client.delete(f"/api/v1/catalog/categories/{created['id']}")
         assert resp.status_code == 204

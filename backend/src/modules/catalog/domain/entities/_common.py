@@ -42,17 +42,19 @@ def _validate_i18n_values(i18n_dict: dict[str, str], field_name: str) -> None:
 
 
 _FILTER_SETTINGS_MAX_KEYS = 20
-_FILTER_SETTINGS_ALLOWED_KEYS = frozenset({
-    "widget",
-    "min",
-    "max",
-    "step",
-    "unit",
-    "collapsed",
-    "behavior",
-    "display",
-    "options",
-})
+_FILTER_SETTINGS_ALLOWED_KEYS = frozenset(
+    {
+        "widget",
+        "min",
+        "max",
+        "step",
+        "unit",
+        "collapsed",
+        "behavior",
+        "display",
+        "options",
+    }
+)
 
 
 def _validate_filter_settings(settings: dict[str, Any] | None) -> None:

@@ -29,11 +29,7 @@ class TestBrand:
 
     def test_create_with_logo(self):
         obj_id = uuid.uuid4()
-        brand = (
-            BrandBuilder()
-            .with_logo("https://img.co/logo.png", obj_id)
-            .build()
-        )
+        brand = BrandBuilder().with_logo("https://img.co/logo.png", obj_id).build()
         assert brand.logo_url == "https://img.co/logo.png"
         assert brand.logo_storage_object_id == obj_id
 
@@ -79,9 +75,7 @@ class TestBrandUpdate:
 
     def test_update_logo_url_to_none_clears_it(self):
         brand = (
-            BrandBuilder()
-            .with_logo("https://img.co/logo.png", uuid.uuid4())
-            .build()
+            BrandBuilder().with_logo("https://img.co/logo.png", uuid.uuid4()).build()
         )
         assert brand.logo_url is not None
         brand.update(logo_url=None)
@@ -89,11 +83,7 @@ class TestBrandUpdate:
 
     def test_update_logo_url_omitted_keeps_current(self):
         original_url = "https://img.co/logo.png"
-        brand = (
-            BrandBuilder()
-            .with_logo(original_url, uuid.uuid4())
-            .build()
-        )
+        brand = BrandBuilder().with_logo(original_url, uuid.uuid4()).build()
         brand.update(name="New Name")
         assert brand.logo_url == original_url
 
@@ -103,9 +93,7 @@ class TestBrandGuard:
 
     def test_direct_slug_assignment_raises(self):
         brand = BrandBuilder().with_name("Nike").with_slug("nike").build()
-        with pytest.raises(
-            AttributeError, match="Cannot set 'slug' directly"
-        ):
+        with pytest.raises(AttributeError, match="Cannot set 'slug' directly"):
             brand.slug = "hacked"
 
 

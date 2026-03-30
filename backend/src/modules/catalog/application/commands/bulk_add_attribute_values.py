@@ -220,8 +220,11 @@ class BulkAddAttributeValuesHandler:
             from src.modules.catalog.application.queries.resolve_template_attributes import (
                 collect_attribute_cache_keys,
             )
+
             cache_keys = await collect_attribute_cache_keys(
-                command.attribute_id, self._binding_repo, self._template_repo,
+                command.attribute_id,
+                self._binding_repo,
+                self._template_repo,
             )
 
             await self._uow.commit()

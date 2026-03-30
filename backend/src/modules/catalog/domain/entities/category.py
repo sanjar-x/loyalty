@@ -164,12 +164,14 @@ class Category(AggregateRoot):
             effective_template_id=template_id or parent.effective_template_id,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "name_i18n",
-        "slug",
-        "sort_order",
-        "template_id",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "name_i18n",
+            "slug",
+            "sort_order",
+            "template_id",
+        }
+    )
 
     def update(
         self,

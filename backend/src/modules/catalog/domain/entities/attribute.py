@@ -196,29 +196,33 @@ class Attribute(AggregateRoot):
             validation_rules=validation_rules,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "name_i18n",
-        "description_i18n",
-        "ui_type",
-        "group_id",
-        "level",
-        "is_filterable",
-        "is_searchable",
-        "search_weight",
-        "is_comparable",
-        "is_visible_on_card",
-        "validation_rules",
-        "behavior",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "name_i18n",
+            "description_i18n",
+            "ui_type",
+            "group_id",
+            "level",
+            "is_filterable",
+            "is_searchable",
+            "search_weight",
+            "is_comparable",
+            "is_visible_on_card",
+            "validation_rules",
+            "behavior",
+        }
+    )
 
     # Individual behavior flag names mapped to BehaviorFlags field names
-    _BEHAVIOR_FLAG_NAMES: ClassVar[frozenset[str]] = frozenset({
-        "is_filterable",
-        "is_searchable",
-        "search_weight",
-        "is_comparable",
-        "is_visible_on_card",
-    })
+    _BEHAVIOR_FLAG_NAMES: ClassVar[frozenset[str]] = frozenset(
+        {
+            "is_filterable",
+            "is_searchable",
+            "search_weight",
+            "is_comparable",
+            "is_visible_on_card",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable attribute fields. Code, slug, and data_type are immutable.

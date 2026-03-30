@@ -150,14 +150,20 @@ class TestProductAttributeValueRoundtrip:
         await repo.add(pav)
         await db_session.flush()
 
-        assert await repo.check_assignment_exists(
-            _seed_pav_deps["product_id"],
-            _seed_pav_deps["attribute_id"],
-        ) is True
-        assert await repo.check_assignment_exists(
-            _seed_pav_deps["product_id"],
-            uuid.uuid4(),
-        ) is False
+        assert (
+            await repo.check_assignment_exists(
+                _seed_pav_deps["product_id"],
+                _seed_pav_deps["attribute_id"],
+            )
+            is True
+        )
+        assert (
+            await repo.check_assignment_exists(
+                _seed_pav_deps["product_id"],
+                uuid.uuid4(),
+            )
+            is False
+        )
 
     async def test_pav_get_by_product_and_attribute(
         self,

@@ -58,9 +58,7 @@ async def test_full_product_lifecycle(
         value_i18n={"ru": "Синий", "en": "Blue"},
     )
     await bind_attribute_to_template(admin_client, template["id"], attr["id"])
-    category = await create_category(
-        admin_client, template_id=template["id"]
-    )
+    category = await create_category(admin_client, template_id=template["id"])
 
     # Step 2: Create product (DRAFT status)
     product_resp = await admin_client.post(
@@ -136,9 +134,7 @@ async def test_full_product_lifecycle(
     assert product_data["publishedAt"] is not None
 
     # Step 6: Verify product detail has all nested data
-    detail_resp = await admin_client.get(
-        f"/api/v1/catalog/products/{product_id}"
-    )
+    detail_resp = await admin_client.get(f"/api/v1/catalog/products/{product_id}")
     assert detail_resp.status_code == 200
     detail = detail_resp.json()
     assert detail["status"] == "published"

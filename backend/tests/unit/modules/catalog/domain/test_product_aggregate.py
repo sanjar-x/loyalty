@@ -331,8 +331,12 @@ class TestVariantHashUniqueness:
         attr_b = uuid.uuid4()
         val_b = uuid.uuid4()
 
-        hash_ab = Product.compute_variant_hash(variant_id, [(attr_a, val_a), (attr_b, val_b)])
-        hash_ba = Product.compute_variant_hash(variant_id, [(attr_b, val_b), (attr_a, val_a)])
+        hash_ab = Product.compute_variant_hash(
+            variant_id, [(attr_a, val_a), (attr_b, val_b)]
+        )
+        hash_ba = Product.compute_variant_hash(
+            variant_id, [(attr_b, val_b), (attr_a, val_a)]
+        )
 
         assert hash_ab == hash_ba
 

@@ -192,9 +192,9 @@ class ResolveTemplateAttributesHandler:
             return EffectiveAttributeSetReadModel.model_validate(json.loads(cached))
 
         # 2. Load bindings for this template (flat — no ancestor chain walk)
-        all_bindings = await self._binding_repo.get_bindings_for_templates([
-            template_id
-        ])
+        all_bindings = await self._binding_repo.get_bindings_for_templates(
+            [template_id]
+        )
         bindings = all_bindings.get(template_id, [])
 
         # 4. Build effective map (simplified — no tree walk, no overrides)

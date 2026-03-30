@@ -160,9 +160,7 @@ class TestTemplateBindingEndpoints:
     ):
         tmpl = await create_attribute_template(admin_client)
         attr = await create_attribute(admin_client)
-        binding = await bind_attribute_to_template(
-            admin_client, tmpl["id"], attr["id"]
-        )
+        binding = await bind_attribute_to_template(admin_client, tmpl["id"], attr["id"])
         resp = await admin_client.patch(
             f"/api/v1/catalog/attribute-templates/{tmpl['id']}/attributes/{binding['id']}",
             json={"requirementLevel": "required"},
@@ -176,9 +174,7 @@ class TestTemplateBindingEndpoints:
     ):
         tmpl = await create_attribute_template(admin_client)
         attr = await create_attribute(admin_client)
-        binding = await bind_attribute_to_template(
-            admin_client, tmpl["id"], attr["id"]
-        )
+        binding = await bind_attribute_to_template(admin_client, tmpl["id"], attr["id"])
         resp = await admin_client.delete(
             f"/api/v1/catalog/attribute-templates/{tmpl['id']}/attributes/{binding['id']}"
         )

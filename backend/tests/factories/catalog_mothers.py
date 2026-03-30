@@ -108,10 +108,12 @@ class AttributeGroupMothers:
         return (
             AttributeGroupBuilder()
             .with_code(f"physical-{uuid.uuid4().hex[:6]}")
-            .with_name_i18n({
-                "en": "Physical Characteristics",
-                "ru": "Физические характеристики",
-            })
+            .with_name_i18n(
+                {
+                    "en": "Physical Characteristics",
+                    "ru": "Физические характеристики",
+                }
+            )
             .with_sort_order(1)
             .build()
         )
@@ -287,6 +289,7 @@ class AttributeValueMothers:
             attribute_id=attribute_id or uuid.uuid4(),
             code=code or f"val-{uuid.uuid4().hex[:6]}",
             slug=slug or f"val-{uuid.uuid4().hex[:6]}",
-            value_i18n=value_i18n or {"en": "Custom Value", "ru": "Пользовательское значение"},
+            value_i18n=value_i18n
+            or {"en": "Custom Value", "ru": "Пользовательское значение"},
             **kwargs,
         )

@@ -12,7 +12,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from src.modules.catalog.domain.entities import Attribute as DomainAttribute
-from src.modules.catalog.domain.exceptions import AttributeCodeConflictError, AttributeSlugConflictError
+from src.modules.catalog.domain.exceptions import (
+    AttributeCodeConflictError,
+    AttributeSlugConflictError,
+)
 from src.modules.catalog.domain.interfaces import IAttributeRepository
 from src.modules.catalog.domain.value_objects import BehaviorFlags
 from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute

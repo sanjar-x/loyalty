@@ -56,7 +56,10 @@ class TestStorefrontEndpoints:
     # ── GET .../filters ──
 
     async def test_get_filterable_attributes_success(
-        self, admin_client: AsyncClient, async_client: AsyncClient, db_session: AsyncSession
+        self,
+        admin_client: AsyncClient,
+        async_client: AsyncClient,
+        db_session: AsyncSession,
     ):
         setup = await _setup_category_with_template(admin_client)
         # Public endpoint -- use async_client (no auth)
@@ -71,13 +74,24 @@ class TestStorefrontEndpoints:
         if len(data["attributes"]) > 0:
             attr = data["attributes"][0]
             for field in (
-                "attributeId", "code", "slug", "nameI18n", "dataType",
-                "uiType", "isDictionary", "selectionMode", "values", "sortOrder",
+                "attributeId",
+                "code",
+                "slug",
+                "nameI18n",
+                "dataType",
+                "uiType",
+                "isDictionary",
+                "selectionMode",
+                "values",
+                "sortOrder",
             ):
                 assert field in attr, f"Missing camelCase field: {field}"
 
     async def test_get_filterable_attributes_with_lang_projection(
-        self, admin_client: AsyncClient, async_client: AsyncClient, db_session: AsyncSession
+        self,
+        admin_client: AsyncClient,
+        async_client: AsyncClient,
+        db_session: AsyncSession,
     ):
         setup = await _setup_category_with_template(admin_client)
         resp = await async_client.get(
@@ -91,7 +105,10 @@ class TestStorefrontEndpoints:
             assert "name" in attr  # Projected name field present
 
     async def test_storefront_filters_no_template_returns_empty(
-        self, admin_client: AsyncClient, async_client: AsyncClient, db_session: AsyncSession
+        self,
+        admin_client: AsyncClient,
+        async_client: AsyncClient,
+        db_session: AsyncSession,
     ):
         # Category without template -> empty attributes
         cat = await create_category(admin_client)
@@ -105,7 +122,10 @@ class TestStorefrontEndpoints:
     # ── GET .../card-attributes ──
 
     async def test_get_card_attributes_success(
-        self, admin_client: AsyncClient, async_client: AsyncClient, db_session: AsyncSession
+        self,
+        admin_client: AsyncClient,
+        async_client: AsyncClient,
+        db_session: AsyncSession,
     ):
         setup = await _setup_category_with_template(admin_client)
         resp = await async_client.get(
@@ -119,7 +139,10 @@ class TestStorefrontEndpoints:
     # ── GET .../comparison-attributes ──
 
     async def test_get_comparison_attributes_success(
-        self, admin_client: AsyncClient, async_client: AsyncClient, db_session: AsyncSession
+        self,
+        admin_client: AsyncClient,
+        async_client: AsyncClient,
+        db_session: AsyncSession,
     ):
         setup = await _setup_category_with_template(admin_client)
         resp = await async_client.get(
@@ -145,7 +168,10 @@ class TestStorefrontEndpoints:
         assert "groups" in data
 
     async def test_storefront_form_attributes_requires_auth(
-        self, admin_client: AsyncClient, async_client: AsyncClient, db_session: AsyncSession
+        self,
+        admin_client: AsyncClient,
+        async_client: AsyncClient,
+        db_session: AsyncSession,
     ):
         setup = await _setup_category_with_template(admin_client)
         # Anonymous request to form-attributes -> 401

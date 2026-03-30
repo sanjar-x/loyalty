@@ -92,13 +92,15 @@ class ProductVariant:
             skus=[],
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "name_i18n",
-        "description_i18n",
-        "sort_order",
-        "default_price",
-        "default_currency",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "name_i18n",
+            "description_i18n",
+            "sort_order",
+            "default_price",
+            "default_currency",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable variant fields.

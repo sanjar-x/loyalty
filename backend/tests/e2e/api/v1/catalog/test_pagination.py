@@ -112,9 +112,7 @@ class TestProductsPagination:
                     "primaryCategoryId": str(cat["id"]),
                 },
             )
-        resp = await admin_client.get(
-            "/api/v1/catalog/products", params={"limit": 2}
-        )
+        resp = await admin_client.get("/api/v1/catalog/products", params={"limit": 2})
         assert resp.status_code == 200
         assert len(resp.json()["items"]) <= 2
 
@@ -137,16 +135,12 @@ class TestPaginationEdgeCases:
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
         """limit=200 (max allowed) should not error."""
-        resp = await admin_client.get(
-            "/api/v1/catalog/brands", params={"limit": 200}
-        )
+        resp = await admin_client.get("/api/v1/catalog/brands", params={"limit": 200})
         assert resp.status_code == 200
 
     async def test_pagination_limit_exceeds_max_returns_422(
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
         """limit=201 exceeds le=200 validation -> 422."""
-        resp = await admin_client.get(
-            "/api/v1/catalog/brands", params={"limit": 201}
-        )
+        resp = await admin_client.get("/api/v1/catalog/brands", params={"limit": 201})
         assert resp.status_code == 422

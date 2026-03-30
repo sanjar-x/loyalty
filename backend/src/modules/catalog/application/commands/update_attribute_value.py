@@ -137,7 +137,9 @@ class UpdateAttributeValueHandler:
             self._uow.register_aggregate(attribute)
 
             cache_keys = await collect_attribute_cache_keys(
-                command.attribute_id, self._binding_repo, self._template_repo,
+                command.attribute_id,
+                self._binding_repo,
+                self._template_repo,
             )
 
             await self._uow.commit()

@@ -109,9 +109,9 @@ class CloneAttributeTemplateHandler:
             )
 
             # 4. Load all bindings for source template
-            bindings_map = await self._binding_repo.get_bindings_for_templates([
-                command.source_template_id
-            ])
+            bindings_map = await self._binding_repo.get_bindings_for_templates(
+                [command.source_template_id]
+            )
             source_bindings = bindings_map.get(command.source_template_id, [])
 
             # 5. Create new bindings for the cloned template

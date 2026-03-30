@@ -51,9 +51,7 @@ class ReorderProductMediaHandler:
     async def handle(self, command: ReorderProductMediaCommand) -> None:
         """Execute the reorder-product-media command."""
         async with self._uow:
-            updates = [
-                (item.media_id, item.sort_order) for item in command.items
-            ]
+            updates = [(item.media_id, item.sort_order) for item in command.items]
             updated = await self._media_repo.bulk_update_sort_order(
                 command.product_id, updates
             )

@@ -74,7 +74,9 @@ def db_url() -> str:
     port = os.environ.get("PGPORT", "5432")
     user = os.environ.get("PGUSER", "postgres")
     password = os.environ.get("PGPASSWORD", "postgres")
-    database = os.environ.get("TEST_PGDATABASE", "railway_test" if host != "127.0.0.1" else "postgres")
+    database = os.environ.get(
+        "TEST_PGDATABASE", "railway_test" if host != "127.0.0.1" else "postgres"
+    )
     return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
 
 
@@ -89,7 +91,9 @@ def redis_url() -> str:
 
 @pytest.fixture(scope="session")
 def rabbitmq_url() -> str:
-    return os.environ.get("RABBITMQ_PRIVATE_URL", "amqp://admin:password@127.0.0.1:5672/")
+    return os.environ.get(
+        "RABBITMQ_PRIVATE_URL", "amqp://admin:password@127.0.0.1:5672/"
+    )
 
 
 @pytest.fixture(scope="session")
@@ -98,7 +102,9 @@ def test_settings(db_url, redis_url, rabbitmq_url) -> Settings:
     port = int(os.environ.get("PGPORT", "5432"))
     user = os.environ.get("PGUSER", "postgres")
     password = os.environ.get("PGPASSWORD", "postgres")
-    database = os.environ.get("TEST_PGDATABASE", "railway_test" if host != "127.0.0.1" else "postgres")
+    database = os.environ.get(
+        "TEST_PGDATABASE", "railway_test" if host != "127.0.0.1" else "postgres"
+    )
     return Settings(
         PROJECT_NAME="Enterprise API - Test",
         ENVIRONMENT="test",
@@ -236,7 +242,9 @@ async def test_engine(app_container: AsyncContainer, db_url: str) -> AsyncEngine
     # Override PGDATABASE to use the test database (not production)
     test_database = os.environ.get(
         "TEST_PGDATABASE",
-        "railway_test" if os.environ.get("PGHOST", "127.0.0.1") != "127.0.0.1" else "postgres",
+        "railway_test"
+        if os.environ.get("PGHOST", "127.0.0.1") != "127.0.0.1"
+        else "postgres",
     )
     alembic_env = {**os.environ, "PGDATABASE": test_database}
     result = subprocess.run(

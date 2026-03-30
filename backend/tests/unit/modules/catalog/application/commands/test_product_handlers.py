@@ -949,9 +949,7 @@ class TestAssignProductAttribute:
         brand = _seed_brand(uow)
         product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
         group = _seed_attribute_group(uow)
-        attr = _seed_attribute(
-            uow, group_id=group.id, level=AttributeLevel.VARIANT
-        )
+        attr = _seed_attribute(uow, group_id=group.id, level=AttributeLevel.VARIANT)
 
         handler = self._make_handler(uow)
 

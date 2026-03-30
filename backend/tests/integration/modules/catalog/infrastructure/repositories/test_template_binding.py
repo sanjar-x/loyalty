@@ -173,14 +173,20 @@ class TestBindingRoundtrip:
         await repo.add(binding)
         await db_session.flush()
 
-        assert await repo.check_binding_exists(
-            _seed_binding_deps["template_1_id"],
-            _seed_binding_deps["attr_3_id"],
-        ) is True
-        assert await repo.check_binding_exists(
-            _seed_binding_deps["template_1_id"],
-            uuid.uuid4(),
-        ) is False
+        assert (
+            await repo.check_binding_exists(
+                _seed_binding_deps["template_1_id"],
+                _seed_binding_deps["attr_3_id"],
+            )
+            is True
+        )
+        assert (
+            await repo.check_binding_exists(
+                _seed_binding_deps["template_1_id"],
+                uuid.uuid4(),
+            )
+            is False
+        )
 
     async def test_get_bindings_for_templates(
         self,
@@ -211,10 +217,12 @@ class TestBindingRoundtrip:
         await repo.add(b3)
         await db_session.flush()
 
-        result = await repo.get_bindings_for_templates([
-            _seed_binding_deps["template_1_id"],
-            _seed_binding_deps["template_2_id"],
-        ])
+        result = await repo.get_bindings_for_templates(
+            [
+                _seed_binding_deps["template_1_id"],
+                _seed_binding_deps["template_2_id"],
+            ]
+        )
 
         assert _seed_binding_deps["template_1_id"] in result
         assert _seed_binding_deps["template_2_id"] in result

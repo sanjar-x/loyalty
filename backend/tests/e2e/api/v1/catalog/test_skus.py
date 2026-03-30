@@ -104,8 +104,16 @@ class TestSKUEndpoints:
         assert len(data["items"]) >= 1
         item = data["items"][0]
         for field in (
-            "id", "productId", "variantId", "skuCode", "price",
-            "isActive", "version", "createdAt", "updatedAt", "variantAttributes",
+            "id",
+            "productId",
+            "variantId",
+            "skuCode",
+            "price",
+            "isActive",
+            "version",
+            "createdAt",
+            "updatedAt",
+            "variantAttributes",
         ):
             assert field in item, f"Missing camelCase field: {field}"
 
@@ -156,9 +164,7 @@ class TestSKUEndpoints:
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
         # Create variant-level dictionary attribute with 2 values
-        attr = await create_attribute(
-            admin_client, level="variant", is_dictionary=True
-        )
+        attr = await create_attribute(admin_client, level="variant", is_dictionary=True)
         v1 = await create_attribute_value(
             admin_client,
             attr["id"],

@@ -216,16 +216,18 @@ class Product(AggregateRoot):
         )
         return product
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "title_i18n",
-        "description_i18n",
-        "slug",
-        "brand_id",
-        "primary_category_id",
-        "supplier_id",
-        "country_of_origin",
-        "tags",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "title_i18n",
+            "description_i18n",
+            "slug",
+            "brand_id",
+            "primary_category_id",
+            "supplier_id",
+            "country_of_origin",
+            "tags",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable product fields.

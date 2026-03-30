@@ -138,5 +138,3 @@ class UnprocessableEntityError(AppException):
         details: dict[str, Any] | None = None,
     ):
         super().__init__(message, 422, error_code, details)
-
-

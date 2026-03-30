@@ -235,7 +235,10 @@ class TestProductSoftDeleteFiltering:
         await db_session.flush()
 
         # Even with a different exclude_id, soft-deleted slug should not be found
-        assert await repo.check_slug_exists_excluding("sd-slug-excl", uuid.uuid4()) is False
+        assert (
+            await repo.check_slug_exists_excluding("sd-slug-excl", uuid.uuid4())
+            is False
+        )
 
     async def test_check_sku_code_exists_excludes_soft_deleted(
         self,

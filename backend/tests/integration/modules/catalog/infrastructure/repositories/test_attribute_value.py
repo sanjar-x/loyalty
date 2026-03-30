@@ -186,8 +186,12 @@ class TestAttributeValueQueries:
         await repo.add(val2)
         await db_session.flush()
 
-        assert await repo.check_slug_exists(_seed_attrs["attr1_id"], "same-slug") is True
-        assert await repo.check_slug_exists(_seed_attrs["attr1_id"], "other-slug") is False
+        assert (
+            await repo.check_slug_exists(_seed_attrs["attr1_id"], "same-slug") is True
+        )
+        assert (
+            await repo.check_slug_exists(_seed_attrs["attr1_id"], "other-slug") is False
+        )
 
     async def test_get_many(
         self,

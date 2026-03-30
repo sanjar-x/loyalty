@@ -106,8 +106,15 @@ class TestAttributeValueEndpoints:
         assert resp.status_code == 200
         data = resp.json()
         for field in (
-            "id", "attributeId", "code", "slug", "valueI18n",
-            "searchAliases", "metaData", "sortOrder", "isActive",
+            "id",
+            "attributeId",
+            "code",
+            "slug",
+            "valueI18n",
+            "searchAliases",
+            "metaData",
+            "sortOrder",
+            "isActive",
         ):
             assert field in data, f"Missing camelCase field: {field}"
 

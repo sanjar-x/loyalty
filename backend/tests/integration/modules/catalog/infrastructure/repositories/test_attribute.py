@@ -73,7 +73,10 @@ class TestAttributeRoundtrip:
         assert fetched.code == "color"
         assert fetched.slug == "color"
         assert fetched.name_i18n == {"en": "Color", "ru": "Цвет"}
-        assert fetched.description_i18n == {"en": "Product color", "ru": "Цвет продукта"}
+        assert fetched.description_i18n == {
+            "en": "Product color",
+            "ru": "Цвет продукта",
+        }
         assert fetched.data_type == AttributeDataType.STRING
         assert fetched.ui_type == AttributeUIType.COLOR_SWATCH
         assert fetched.level == AttributeLevel.VARIANT

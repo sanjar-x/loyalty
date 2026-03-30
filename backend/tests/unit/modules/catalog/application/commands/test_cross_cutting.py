@@ -118,15 +118,21 @@ def _seed_product_with_template(uow):
     uow.attributes._store[attr.id] = attr
 
     val1 = AttributeValue.create(
-        attribute_id=attr.id, code="s", slug="s",
+        attribute_id=attr.id,
+        code="s",
+        slug="s",
         value_i18n={"en": "S", "ru": "S"},
     )
     val2 = AttributeValue.create(
-        attribute_id=attr.id, code="m", slug="m",
+        attribute_id=attr.id,
+        code="m",
+        slug="m",
         value_i18n={"en": "M", "ru": "M"},
     )
     val3 = AttributeValue.create(
-        attribute_id=attr.id, code="l", slug="l",
+        attribute_id=attr.id,
+        code="l",
+        slug="l",
         value_i18n={"en": "L", "ru": "L"},
     )
     uow.attribute_values._store[val1.id] = val1
@@ -221,9 +227,7 @@ class TestEventAuditGaps:
         handler = DeleteSKUHandler(
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
-        await handler.handle(
-            DeleteSKUCommand(product_id=product.id, sku_id=sku.id)
-        )
+        await handler.handle(DeleteSKUCommand(product_id=product.id, sku_id=sku.id))
 
         del_events = [e for e in uow.collected_events if isinstance(e, SKUDeletedEvent)]
         assert len(del_events) == 1
@@ -354,8 +358,7 @@ class TestBulkAtomicity:
 
         # No SKUs should have been created (validation fails before the creation loop)
         total_skus = sum(
-            len([s for s in v.skus if s.deleted_at is None])
-            for v in product.variants
+            len([s for s in v.skus if s.deleted_at is None]) for v in product.variants
         )
         assert total_skus == 0
         assert uow.committed is False

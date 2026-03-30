@@ -85,11 +85,13 @@ class TemplateAttributeBinding(AggregateRoot):
             filter_settings=filter_settings,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "sort_order",
-        "requirement_level",
-        "filter_settings",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "sort_order",
+            "requirement_level",
+            "filter_settings",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable binding fields. template_id and attribute_id are immutable."""

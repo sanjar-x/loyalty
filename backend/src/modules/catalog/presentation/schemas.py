@@ -1089,9 +1089,10 @@ class MediaAssetUpdateRequest(CamelModel):
     """Partial update request for a media asset (PATCH semantics)."""
 
     variant_id: uuid.UUID | None = None
-    role: Literal[
-        "main", "hover", "gallery", "hero_video", "size_guide", "packaging"
-    ] | None = None
+    role: (
+        Literal["main", "hover", "gallery", "hero_video", "size_guide", "packaging"]
+        | None
+    ) = None
     sort_order: int | None = Field(None, ge=0)
 
     @model_validator(mode="after")

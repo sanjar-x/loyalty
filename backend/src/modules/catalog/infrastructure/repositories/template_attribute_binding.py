@@ -15,7 +15,9 @@ from sqlalchemy.exc import IntegrityError
 from src.modules.catalog.domain.entities import (
     TemplateAttributeBinding as DomainBinding,
 )
-from src.modules.catalog.domain.exceptions import TemplateAttributeBindingAlreadyExistsError
+from src.modules.catalog.domain.exceptions import (
+    TemplateAttributeBindingAlreadyExistsError,
+)
 from src.modules.catalog.domain.interfaces import ITemplateAttributeBindingRepository
 from src.modules.catalog.infrastructure.models import (
     TemplateAttributeBinding as OrmBinding,

@@ -75,7 +75,9 @@ class GetAttributeUsageHandler:
         """
         # Verify the attribute exists
         attr_exists = await self._session.execute(
-            select(OrmAttribute.id).where(OrmAttribute.id == query.attribute_id).limit(1)
+            select(OrmAttribute.id)
+            .where(OrmAttribute.id == query.attribute_id)
+            .limit(1)
         )
         if attr_exists.scalar_one_or_none() is None:
             raise AttributeNotFoundError(attribute_id=query.attribute_id)

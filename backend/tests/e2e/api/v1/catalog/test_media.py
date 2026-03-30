@@ -100,8 +100,13 @@ class TestMediaEndpoints:
         assert "total" in data
         item = data["items"][0]
         for field in (
-            "id", "productId", "mediaType", "role", "sortOrder",
-            "isExternal", "url",
+            "id",
+            "productId",
+            "mediaType",
+            "role",
+            "sortOrder",
+            "isExternal",
+            "url",
         ):
             assert field in item, f"Missing camelCase field: {field}"
 

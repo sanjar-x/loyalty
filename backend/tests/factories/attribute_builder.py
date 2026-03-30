@@ -99,9 +99,7 @@ class AttributeBuilder:
         self._behavior = behavior
         return self
 
-    def with_validation_rules(
-        self, rules: dict[str, Any]
-    ) -> AttributeBuilder:
+    def with_validation_rules(self, rules: dict[str, Any]) -> AttributeBuilder:
         self._validation_rules = rules
         return self
 

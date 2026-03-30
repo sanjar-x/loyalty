@@ -213,9 +213,7 @@ class TestProductSoftDelete:
     def test_soft_delete_cascades_to_skus(self):
         product = ProductBuilder().build()
         variant_id = product.variants[0].id
-        sku = product.add_sku(
-            variant_id, sku_code="SKU-DEL", price=Money(1000, "RUB")
-        )
+        sku = product.add_sku(variant_id, sku_code="SKU-DEL", price=Money(1000, "RUB"))
         product.soft_delete()
         assert sku.deleted_at is not None
 
@@ -236,9 +234,7 @@ class TestProductSoftDelete:
         product = ProductBuilder().build()
         # Add a priced SKU so the product can transition to PUBLISHED
         variant_id = product.variants[0].id
-        product.add_sku(
-            variant_id, sku_code="SKU-PUB", price=Money(1000, "RUB")
-        )
+        product.add_sku(variant_id, sku_code="SKU-PUB", price=Money(1000, "RUB"))
         # Walk the FSM: DRAFT -> ENRICHING -> READY_FOR_REVIEW -> PUBLISHED
         product.transition_status(ProductStatus.ENRICHING)
         product.transition_status(ProductStatus.READY_FOR_REVIEW)
@@ -335,13 +331,9 @@ class TestProductSKUManagement:
         attr_id = uuid.uuid4()
         val_id = uuid.uuid4()
         attrs = [(attr_id, val_id)]
-        product.add_sku(
-            variant_id, sku_code="SKU-A", variant_attributes=attrs
-        )
+        product.add_sku(variant_id, sku_code="SKU-A", variant_attributes=attrs)
         with pytest.raises(DuplicateVariantCombinationError):
-            product.add_sku(
-                variant_id, sku_code="SKU-B", variant_attributes=attrs
-            )
+            product.add_sku(variant_id, sku_code="SKU-B", variant_attributes=attrs)
 
     def test_add_sku_unknown_variant_raises(self):
         product = ProductBuilder().build()

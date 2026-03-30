@@ -54,9 +54,7 @@ class TestUnauthenticatedAccess:
         self, async_client: AsyncClient, db_session: AsyncSession
     ):
         """DELETE /catalog/categories/{uuid} without Bearer token -> 401."""
-        resp = await async_client.delete(
-            f"/api/v1/catalog/categories/{uuid.uuid4()}"
-        )
+        resp = await async_client.delete(f"/api/v1/catalog/categories/{uuid.uuid4()}")
         assert resp.status_code == 401
 
 

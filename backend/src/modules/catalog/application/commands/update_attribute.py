@@ -139,7 +139,9 @@ class UpdateAttributeHandler:
 
             # Pre-collect cache keys before commit (session still open)
             cache_keys = await collect_attribute_cache_keys(
-                command.attribute_id, self._binding_repo, self._template_repo,
+                command.attribute_id,
+                self._binding_repo,
+                self._template_repo,
             )
 
             await self._uow.commit()

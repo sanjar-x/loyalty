@@ -48,11 +48,13 @@ class AttributeTemplate(AggregateRoot):
     description_i18n: dict[str, str]
     sort_order: int
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "name_i18n",
-        "description_i18n",
-        "sort_order",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "name_i18n",
+            "description_i18n",
+            "sort_order",
+        }
+    )
 
     def __setattr__(self, name: str, value: object) -> None:
         if name in _TEMPLATE_GUARDED_FIELDS and getattr(

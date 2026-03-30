@@ -27,7 +27,10 @@ class TestAttributeTemplateRoundtrip:
         template = AttributeTemplate.create(
             code="electronics",
             name_i18n={"en": "Electronics", "ru": "Электроника"},
-            description_i18n={"en": "Template for electronics", "ru": "Шаблон для электроники"},
+            description_i18n={
+                "en": "Template for electronics",
+                "ru": "Шаблон для электроники",
+            },
             sort_order=1,
         )
         await repo.add(template)
@@ -38,7 +41,10 @@ class TestAttributeTemplateRoundtrip:
         assert fetched is not None
         assert fetched.code == "electronics"
         assert fetched.name_i18n == {"en": "Electronics", "ru": "Электроника"}
-        assert fetched.description_i18n == {"en": "Template for electronics", "ru": "Шаблон для электроники"}
+        assert fetched.description_i18n == {
+            "en": "Template for electronics",
+            "ru": "Шаблон для электроники",
+        }
         assert fetched.sort_order == 1
 
     async def test_template_check_code_exists(

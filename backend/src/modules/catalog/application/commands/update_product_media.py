@@ -101,10 +101,13 @@ class UpdateProductMediaHandler:
 
             # Check MAIN uniqueness when changing role to MAIN
             new_role = command.role if "role" in command._provided_fields else None
-            if new_role == MediaRole.MAIN.value and await self._media_repo.check_main_exists(
-                command.product_id,
-                new_variant_id,
-                exclude_media_id=command.media_id,
+            if (
+                new_role == MediaRole.MAIN.value
+                and await self._media_repo.check_main_exists(
+                    command.product_id,
+                    new_variant_id,
+                    exclude_media_id=command.media_id,
+                )
             ):
                 raise DuplicateMainMediaError(
                     product_id=command.product_id,

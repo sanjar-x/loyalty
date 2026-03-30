@@ -190,11 +190,7 @@ class TestAttributeUpdate:
         assert attr.search_weight == 7
 
     def test_update_validation_rules(self):
-        attr = (
-            AttributeBuilder()
-            .with_data_type(AttributeDataType.STRING)
-            .build()
-        )
+        attr = AttributeBuilder().with_data_type(AttributeDataType.STRING).build()
         attr.update(validation_rules={"min_length": 5})
         assert attr.validation_rules == {"min_length": 5}
 
@@ -239,33 +235,23 @@ class TestAttributeGuard:
 class TestAttributeProperties:
     def test_is_filterable_delegates_to_behavior(self):
         attr = (
-            AttributeBuilder()
-            .with_behavior(BehaviorFlags(is_filterable=True))
-            .build()
+            AttributeBuilder().with_behavior(BehaviorFlags(is_filterable=True)).build()
         )
         assert attr.is_filterable is True
 
     def test_is_searchable_delegates(self):
         attr = (
-            AttributeBuilder()
-            .with_behavior(BehaviorFlags(is_searchable=True))
-            .build()
+            AttributeBuilder().with_behavior(BehaviorFlags(is_searchable=True)).build()
         )
         assert attr.is_searchable is True
 
     def test_search_weight_delegates(self):
-        attr = (
-            AttributeBuilder()
-            .with_behavior(BehaviorFlags(search_weight=8))
-            .build()
-        )
+        attr = AttributeBuilder().with_behavior(BehaviorFlags(search_weight=8)).build()
         assert attr.search_weight == 8
 
     def test_is_comparable_delegates(self):
         attr = (
-            AttributeBuilder()
-            .with_behavior(BehaviorFlags(is_comparable=True))
-            .build()
+            AttributeBuilder().with_behavior(BehaviorFlags(is_comparable=True)).build()
         )
         assert attr.is_comparable is True
 

@@ -108,11 +108,13 @@ class UpdateTemplateAttributeBindingHandler:
                     binding_id=command.binding_id
                 )
 
-            _SAFE_FIELDS = frozenset({
-                "sort_order",
-                "requirement_level",
-                "filter_settings",
-            })
+            _SAFE_FIELDS = frozenset(
+                {
+                    "sort_order",
+                    "requirement_level",
+                    "filter_settings",
+                }
+            )
             safe_fields = command._provided_fields & _SAFE_FIELDS
             update_kwargs: dict[str, Any] = {
                 f: getattr(command, f) for f in safe_fields

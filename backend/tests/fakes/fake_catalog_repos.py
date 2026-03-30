@@ -92,9 +92,7 @@ class FakeBrandRepository(IBrandRepository):
     async def check_slug_exists_excluding(
         self, slug: str, exclude_id: uuid.UUID
     ) -> bool:
-        return any(
-            b.slug == slug and b.id != exclude_id for b in self._store.values()
-        )
+        return any(b.slug == slug and b.id != exclude_id for b in self._store.values())
 
     async def has_products(self, brand_id: uuid.UUID) -> bool:
         return any(
@@ -108,9 +106,7 @@ class FakeBrandRepository(IBrandRepository):
     async def check_name_exists_excluding(
         self, name: str, exclude_id: uuid.UUID
     ) -> bool:
-        return any(
-            b.name == name and b.id != exclude_id for b in self._store.values()
-        )
+        return any(b.name == name and b.id != exclude_id for b in self._store.values())
 
 
 # ============================================================================
@@ -147,17 +143,12 @@ class FakeCategoryRepository(ICategoryRepository):
     async def get_all_ordered(self) -> list[DomainCategory]:
         return sorted(self._store.values(), key=lambda c: (c.level, c.sort_order))
 
-    async def check_slug_exists(
-        self, slug: str, parent_id: uuid.UUID | None
-    ) -> bool:
+    async def check_slug_exists(self, slug: str, parent_id: uuid.UUID | None) -> bool:
         return any(
-            c.slug == slug and c.parent_id == parent_id
-            for c in self._store.values()
+            c.slug == slug and c.parent_id == parent_id for c in self._store.values()
         )
 
-    async def get_for_update(
-        self, category_id: uuid.UUID
-    ) -> DomainCategory | None:
+    async def get_for_update(self, category_id: uuid.UUID) -> DomainCategory | None:
         return self._store.get(category_id)
 
     async def check_slug_exists_excluding(
@@ -169,9 +160,7 @@ class FakeCategoryRepository(ICategoryRepository):
         )
 
     async def has_children(self, category_id: uuid.UUID) -> bool:
-        return any(
-            c.parent_id == category_id for c in self._child_store.values()
-        )
+        return any(c.parent_id == category_id for c in self._child_store.values())
 
     async def has_products(self, category_id: uuid.UUID) -> bool:
         return any(
@@ -185,7 +174,7 @@ class FakeCategoryRepository(ICategoryRepository):
         search_prefix = old_prefix + "/"
         for cat in self._store.values():
             if cat.full_slug.startswith(search_prefix):
-                new_full_slug = new_prefix + cat.full_slug[len(old_prefix):]
+                new_full_slug = new_prefix + cat.full_slug[len(old_prefix) :]
                 object.__setattr__(cat, "full_slug", new_full_slug)
 
     async def propagate_effective_template_id(
@@ -200,7 +189,9 @@ class FakeCategoryRepository(ICategoryRepository):
                     if cat.template_id is not None:
                         # Stop propagation: this category has its own template
                         continue
-                    object.__setattr__(cat, "effective_template_id", effective_template_id)
+                    object.__setattr__(
+                        cat, "effective_template_id", effective_template_id
+                    )
                     affected.append(cat.id)
                     queue.append(cat.id)
         return affected
@@ -246,9 +237,7 @@ class FakeAttributeGroupRepository(IAttributeGroupRepository):
         return None
 
     async def has_attributes(self, group_id: uuid.UUID) -> bool:
-        return any(
-            a.group_id == group_id for a in self._attribute_store.values()
-        )
+        return any(a.group_id == group_id for a in self._attribute_store.values())
 
     async def move_attributes_to_group(
         self, source_group_id: uuid.UUID, target_group_id: uuid.UUID
@@ -283,16 +272,10 @@ class FakeAttributeRepository(IAttributeRepository):
     async def delete(self, entity_id: uuid.UUID) -> None:
         self._store.pop(entity_id, None)
 
-    async def get_many(
-        self, ids: list[uuid.UUID]
-    ) -> dict[uuid.UUID, DomainAttribute]:
-        return {
-            aid: self._store[aid] for aid in ids if aid in self._store
-        }
+    async def get_many(self, ids: list[uuid.UUID]) -> dict[uuid.UUID, DomainAttribute]:
+        return {aid: self._store[aid] for aid in ids if aid in self._store}
 
-    async def get_for_update(
-        self, attribute_id: uuid.UUID
-    ) -> DomainAttribute | None:
+    async def get_for_update(self, attribute_id: uuid.UUID) -> DomainAttribute | None:
         return self._store.get(attribute_id)
 
     async def check_code_exists(self, code: str) -> bool:
@@ -356,14 +339,8 @@ class FakeAttributeValueRepository(IAttributeValueRepository):
         # Would need cross-repo reference to product_attribute_values store
         return False
 
-    async def list_ids_by_attribute(
-        self, attribute_id: uuid.UUID
-    ) -> set[uuid.UUID]:
-        return {
-            v.id
-            for v in self._store.values()
-            if v.attribute_id == attribute_id
-        }
+    async def list_ids_by_attribute(self, attribute_id: uuid.UUID) -> set[uuid.UUID]:
+        return {v.id for v in self._store.values() if v.attribute_id == attribute_id}
 
     async def check_codes_exist(
         self, attribute_id: uuid.UUID, codes: list[str]
@@ -418,8 +395,7 @@ class FakeProductRepository(IProductRepository):
 
     async def check_slug_exists(self, slug: str) -> bool:
         return any(
-            p.slug == slug and p.deleted_at is None
-            for p in self._store.values()
+            p.slug == slug and p.deleted_at is None for p in self._store.values()
         )
 
     async def check_slug_exists_excluding(
@@ -436,9 +412,7 @@ class FakeProductRepository(IProductRepository):
         # In-memory entities already carry variants
         return self._store.get(product_id)
 
-    async def get_with_variants(
-        self, product_id: uuid.UUID
-    ) -> DomainProduct | None:
+    async def get_with_variants(self, product_id: uuid.UUID) -> DomainProduct | None:
         # In-memory entities already carry variants
         return self._store.get(product_id)
 
@@ -478,9 +452,7 @@ class FakeProductAttributeValueRepository(IProductAttributeValueRepository):
         self._store[entity.id] = entity
         return entity
 
-    async def get(
-        self, pav_id: uuid.UUID
-    ) -> DomainProductAttributeValue | None:
+    async def get(self, pav_id: uuid.UUID) -> DomainProductAttributeValue | None:
         return self._store.get(pav_id)
 
     async def delete(self, pav_id: uuid.UUID) -> None:
@@ -489,11 +461,7 @@ class FakeProductAttributeValueRepository(IProductAttributeValueRepository):
     async def list_by_product(
         self, product_id: uuid.UUID
     ) -> list[DomainProductAttributeValue]:
-        return [
-            pav
-            for pav in self._store.values()
-            if pav.product_id == product_id
-        ]
+        return [pav for pav in self._store.values() if pav.product_id == product_id]
 
     async def get_by_product_and_attribute(
         self, product_id: uuid.UUID, attribute_id: uuid.UUID
@@ -539,9 +507,7 @@ class FakeMediaAssetRepository(IMediaAssetRepository):
     async def get(self, media_id: uuid.UUID) -> DomainMediaAsset | None:
         return self._store.get(media_id)
 
-    async def get_for_update(
-        self, media_id: uuid.UUID
-    ) -> DomainMediaAsset | None:
+    async def get_for_update(self, media_id: uuid.UUID) -> DomainMediaAsset | None:
         return self._store.get(media_id)
 
     async def update(self, media: DomainMediaAsset) -> DomainMediaAsset:
@@ -551,9 +517,7 @@ class FakeMediaAssetRepository(IMediaAssetRepository):
     async def delete(self, media_id: uuid.UUID) -> None:
         self._store.pop(media_id, None)
 
-    async def list_by_product(
-        self, product_id: uuid.UUID
-    ) -> list[DomainMediaAsset]:
+    async def list_by_product(self, product_id: uuid.UUID) -> list[DomainMediaAsset]:
         return sorted(
             [m for m in self._store.values() if m.product_id == product_id],
             key=lambda m: (
@@ -567,23 +531,15 @@ class FakeMediaAssetRepository(IMediaAssetRepository):
         storage_object_ids: list[uuid.UUID],
     ) -> list[DomainMediaAsset]:
         sid_set = set(storage_object_ids)
-        return [
-            m
-            for m in self._store.values()
-            if m.storage_object_id in sid_set
-        ]
+        return [m for m in self._store.values() if m.storage_object_id in sid_set]
 
     async def delete_by_product(
         self,
         product_id: uuid.UUID,
     ) -> list[uuid.UUID]:
-        to_remove = [
-            m for m in self._store.values() if m.product_id == product_id
-        ]
+        to_remove = [m for m in self._store.values() if m.product_id == product_id]
         storage_ids = [
-            m.storage_object_id
-            for m in to_remove
-            if m.storage_object_id is not None
+            m.storage_object_id for m in to_remove if m.storage_object_id is not None
         ]
         for m in to_remove:
             self._store.pop(m.id, None)
@@ -637,20 +593,14 @@ class FakeAttributeTemplateRepository(IAttributeTemplateRepository):
         self._store: dict[uuid.UUID, DomainAttributeTemplate] = {}
         self._category_store: dict[uuid.UUID, DomainCategory] = {}
 
-    async def add(
-        self, entity: DomainAttributeTemplate
-    ) -> DomainAttributeTemplate:
+    async def add(self, entity: DomainAttributeTemplate) -> DomainAttributeTemplate:
         self._store[entity.id] = entity
         return entity
 
-    async def get(
-        self, entity_id: uuid.UUID
-    ) -> DomainAttributeTemplate | None:
+    async def get(self, entity_id: uuid.UUID) -> DomainAttributeTemplate | None:
         return self._store.get(entity_id)
 
-    async def update(
-        self, entity: DomainAttributeTemplate
-    ) -> DomainAttributeTemplate:
+    async def update(self, entity: DomainAttributeTemplate) -> DomainAttributeTemplate:
         self._store[entity.id] = entity
         return entity
 
@@ -694,9 +644,7 @@ class FakeTemplateAttributeBindingRepository(ITemplateAttributeBindingRepository
         self._store[entity.id] = entity
         return entity
 
-    async def get(
-        self, entity_id: uuid.UUID
-    ) -> DomainTemplateAttributeBinding | None:
+    async def get(self, entity_id: uuid.UUID) -> DomainTemplateAttributeBinding | None:
         return self._store.get(entity_id)
 
     async def update(
@@ -716,14 +664,8 @@ class FakeTemplateAttributeBindingRepository(ITemplateAttributeBindingRepository
             for b in self._store.values()
         )
 
-    async def list_ids_by_template(
-        self, template_id: uuid.UUID
-    ) -> set[uuid.UUID]:
-        return {
-            b.id
-            for b in self._store.values()
-            if b.template_id == template_id
-        }
+    async def list_ids_by_template(self, template_id: uuid.UUID) -> set[uuid.UUID]:
+        return {b.id for b in self._store.values() if b.template_id == template_id}
 
     async def get_bindings_for_templates(
         self, template_ids: list[uuid.UUID]
@@ -741,14 +683,12 @@ class FakeTemplateAttributeBindingRepository(ITemplateAttributeBindingRepository
     ) -> None:
         for binding_id, new_sort_order in updates:
             if binding_id in self._store:
-                object.__setattr__(self._store[binding_id], "sort_order", new_sort_order)
+                object.__setattr__(
+                    self._store[binding_id], "sort_order", new_sort_order
+                )
 
-    async def has_bindings_for_attribute(
-        self, attribute_id: uuid.UUID
-    ) -> bool:
-        return any(
-            b.attribute_id == attribute_id for b in self._store.values()
-        )
+    async def has_bindings_for_attribute(self, attribute_id: uuid.UUID) -> bool:
+        return any(b.attribute_id == attribute_id for b in self._store.values())
 
     async def get_template_ids_for_attribute(
         self, attribute_id: uuid.UUID

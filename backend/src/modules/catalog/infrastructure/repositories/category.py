@@ -70,15 +70,19 @@ class CategoryRepository(
         except IntegrityError as e:
             constraint = str(e.orig) if e.orig else str(e)
             if "uix_categories_slug" in constraint:
-                raise CategorySlugConflictError(slug=entity.slug, parent_id=entity.parent_id) from e
+                raise CategorySlugConflictError(
+                    slug=entity.slug, parent_id=entity.parent_id
+                ) from e
             raise
         return self._to_domain(orm)
 
     async def get_all_ordered(self) -> list[DomainCategory]:
         """Return all categories ordered by level then sort_order."""
-        stmt = select(self.model).order_by(
-            self.model.level.asc(), self.model.sort_order.asc()
-        ).limit(10_000)
+        stmt = (
+            select(self.model)
+            .order_by(self.model.level.asc(), self.model.sort_order.asc())
+            .limit(10_000)
+        )
         result = await self._session.execute(stmt)
         orms = result.scalars().all()
         return [self._to_domain(orm) for orm in orms]

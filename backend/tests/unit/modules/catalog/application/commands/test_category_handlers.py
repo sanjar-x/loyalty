@@ -285,7 +285,10 @@ class TestUpdateCategory:
         )
 
         assert uow.committed is True
-        assert result.name_i18n == {"en": "Consumer Electronics", "ru": "Бытовая электроника"}
+        assert result.name_i18n == {
+            "en": "Consumer Electronics",
+            "ru": "Бытовая электроника",
+        }
 
     async def test_rejects_not_found(self):
         uow = FakeUnitOfWork()
@@ -442,7 +445,10 @@ class TestUpdateCategory:
         result = await handler.handle(
             UpdateCategoryCommand(
                 category_id=cat.id,
-                name_i18n={"en": "Updated Electronics", "ru": "Обновленная электроника"},
+                name_i18n={
+                    "en": "Updated Electronics",
+                    "ru": "Обновленная электроника",
+                },
                 _provided_fields=frozenset({"name_i18n"}),
             )
         )
@@ -554,9 +560,7 @@ class TestDeleteCategory:
         )
 
         with pytest.raises(CategoryNotFoundError):
-            await handler.handle(
-                DeleteCategoryCommand(category_id=uuid.uuid4())
-            )
+            await handler.handle(DeleteCategoryCommand(category_id=uuid.uuid4()))
 
         assert uow.committed is False
 
@@ -582,9 +586,7 @@ class TestDeleteCategory:
         )
 
         with pytest.raises(CategoryHasChildrenError):
-            await handler.handle(
-                DeleteCategoryCommand(category_id=parent.id)
-            )
+            await handler.handle(DeleteCategoryCommand(category_id=parent.id))
 
         assert uow.committed is False
 
@@ -608,9 +610,7 @@ class TestDeleteCategory:
         )
 
         with pytest.raises(CategoryHasProductsError):
-            await handler.handle(
-                DeleteCategoryCommand(category_id=cat.id)
-            )
+            await handler.handle(DeleteCategoryCommand(category_id=cat.id))
 
         assert uow.committed is False
 

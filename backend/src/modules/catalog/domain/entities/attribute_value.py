@@ -111,14 +111,16 @@ class AttributeValue:
             is_active=is_active,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
-        "value_i18n",
-        "search_aliases",
-        "meta_data",
-        "value_group",
-        "sort_order",
-        "is_active",
-    })
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "value_i18n",
+            "search_aliases",
+            "meta_data",
+            "value_group",
+            "sort_order",
+            "is_active",
+        }
+    )
 
     def update(self, **kwargs: Any) -> None:
         """Update mutable fields. Code and slug are immutable after creation.

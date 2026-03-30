@@ -196,7 +196,8 @@ class TestCreateAttributeTemplate:
         result = await handler.handle(cmd)
 
         events = [
-            e for e in uow.collected_events
+            e
+            for e in uow.collected_events
             if isinstance(e, AttributeTemplateCreatedEvent)
         ]
         assert len(events) == 1
@@ -268,7 +269,8 @@ class TestUpdateAttributeTemplate:
         await handler.handle(cmd)
 
         events = [
-            e for e in uow.collected_events
+            e
+            for e in uow.collected_events
             if isinstance(e, AttributeTemplateUpdatedEvent)
         ]
         assert len(events) == 1
@@ -355,7 +357,8 @@ class TestDeleteAttributeTemplate:
         await handler.handle(cmd)
 
         events = [
-            e for e in uow.collected_events
+            e
+            for e in uow.collected_events
             if isinstance(e, AttributeTemplateDeletedEvent)
         ]
         assert len(events) == 1
@@ -474,7 +477,8 @@ class TestCloneAttributeTemplate:
         result = await handler.handle(cmd)
 
         events = [
-            e for e in uow.collected_events
+            e
+            for e in uow.collected_events
             if isinstance(e, AttributeTemplateCreatedEvent)
         ]
         assert len(events) == 1
@@ -628,8 +632,7 @@ class TestCreateAttribute:
         result = await handler.handle(cmd)
 
         events = [
-            e for e in uow.collected_events
-            if isinstance(e, AttributeCreatedEvent)
+            e for e in uow.collected_events if isinstance(e, AttributeCreatedEvent)
         ]
         assert len(events) == 1
         assert events[0].attribute_id == result.attribute_id
@@ -738,8 +741,7 @@ class TestUpdateAttribute:
         await handler.handle(cmd)
 
         events = [
-            e for e in uow.collected_events
-            if isinstance(e, AttributeUpdatedEvent)
+            e for e in uow.collected_events if isinstance(e, AttributeUpdatedEvent)
         ]
         assert len(events) == 1
         assert events[0].attribute_id == attr.id
@@ -857,8 +859,7 @@ class TestDeleteAttribute:
         await handler.handle(cmd)
 
         events = [
-            e for e in uow.collected_events
-            if isinstance(e, AttributeDeletedEvent)
+            e for e in uow.collected_events if isinstance(e, AttributeDeletedEvent)
         ]
         assert len(events) == 1
         assert events[0].attribute_id == attr.id
@@ -915,7 +916,9 @@ class TestBulkCreateAttributes:
 
     async def test_skip_existing_mode(self):
         uow = FakeUnitOfWork()
-        existing = AttributeBuilder().with_code("existing").with_slug("existing").build()
+        existing = (
+            AttributeBuilder().with_code("existing").with_slug("existing").build()
+        )
         await uow.attributes.add(existing)
 
         handler = BulkCreateAttributesHandler(
@@ -1066,8 +1069,7 @@ class TestBulkCreateAttributes:
         await handler.handle(cmd)
 
         events = [
-            e for e in uow.collected_events
-            if isinstance(e, AttributeCreatedEvent)
+            e for e in uow.collected_events if isinstance(e, AttributeCreatedEvent)
         ]
         assert len(events) == 2
 
@@ -1205,7 +1207,8 @@ class TestBindAttributeToTemplate:
         result = await handler.handle(cmd)
 
         events = [
-            e for e in uow.collected_events
+            e
+            for e in uow.collected_events
             if isinstance(e, TemplateAttributeBindingCreatedEvent)
         ]
         assert len(events) == 1
@@ -1328,7 +1331,8 @@ class TestUnbindAttributeFromTemplate:
         await handler.handle(cmd)
 
         events = [
-            e for e in uow.collected_events
+            e
+            for e in uow.collected_events
             if isinstance(e, TemplateAttributeBindingDeletedEvent)
         ]
         assert len(events) == 1
@@ -1459,7 +1463,8 @@ class TestUpdateTemplateAttributeBinding:
         await handler.handle(cmd)
 
         events = [
-            e for e in uow.collected_events
+            e
+            for e in uow.collected_events
             if isinstance(e, TemplateAttributeBindingUpdatedEvent)
         ]
         assert len(events) == 1

@@ -80,9 +80,7 @@ class TestCreateBrand:
             logger=make_logger(),
         )
 
-        result = await handler.handle(
-            CreateBrandCommand(name="Nike", slug="nike")
-        )
+        result = await handler.handle(CreateBrandCommand(name="Nike", slug="nike"))
 
         assert uow.committed is True
         assert result.brand_id in uow.brands._store
@@ -99,9 +97,7 @@ class TestCreateBrand:
         )
 
         with pytest.raises(BrandSlugConflictError):
-            await handler.handle(
-                CreateBrandCommand(name="Nike New", slug="nike")
-            )
+            await handler.handle(CreateBrandCommand(name="Nike New", slug="nike"))
 
         assert uow.committed is False
 
@@ -113,9 +109,7 @@ class TestCreateBrand:
             logger=make_logger(),
         )
 
-        await handler.handle(
-            CreateBrandCommand(name="Adidas", slug="adidas")
-        )
+        await handler.handle(CreateBrandCommand(name="Adidas", slug="adidas"))
 
         assert len(uow.collected_events) == 1
         assert isinstance(uow.collected_events[0], BrandCreatedEvent)
@@ -313,9 +307,7 @@ class TestDeleteBrand:
         )
 
         with pytest.raises(BrandNotFoundError):
-            await handler.handle(
-                DeleteBrandCommand(brand_id=uuid.uuid4())
-            )
+            await handler.handle(DeleteBrandCommand(brand_id=uuid.uuid4()))
 
         assert uow.committed is False
 
@@ -334,9 +326,7 @@ class TestDeleteBrand:
         )
 
         with pytest.raises(BrandHasProductsError):
-            await handler.handle(
-                DeleteBrandCommand(brand_id=brand.id)
-            )
+            await handler.handle(DeleteBrandCommand(brand_id=brand.id))
 
         assert uow.committed is False
 
@@ -469,8 +459,7 @@ class TestBulkCreateBrands:
         )
 
         items = [
-            BulkBrandItem(name=f"Brand {i}", slug=f"brand-{i}")
-            for i in range(101)
+            BulkBrandItem(name=f"Brand {i}", slug=f"brand-{i}") for i in range(101)
         ]
 
         with pytest.raises(ValidationError) as exc_info:
