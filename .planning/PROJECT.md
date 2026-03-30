@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Исправление интеграционных расхождений между backend, admin frontend и image_backend в Product Creation Flow. Аудит выявил 14 проблем (6 critical, 4 major, 4 minor), из-за которых сквозной flow создания товара от формы до публикации не работает. Основные блокеры: отсутствующие media proxy-маршруты, несовпадение i18n-полей, несовпадение request/response schemas между frontend и image_backend.
+Административная панель для управления товарным каталогом маркетплейса. Сквозной flow создания товара (form → draft → media upload → SKU → attributes → publish) работает end-to-end через admin panel. Исправлены все 14 интеграционных расхождений между backend, admin frontend и image_backend, выявленных аудитом 2026-03-29.
 
 ## Core Value
 
@@ -28,25 +28,21 @@
 
 ### Active
 
-#### Critical (Blockers)
+(None — all v1.0 requirements shipped. See v2 backlog: Phase 999.1)
 
-- [ ] Admin BFF media proxy routes to image_backend (upload/confirm/external) — issue #1
-- [ ] Admin frontend field name alignment with image_backend responses — issue #2
-- [ ] Admin frontend request schema alignment with image_backend upload API — issue #3
-- [ ] Admin frontend always sends both ru+en locales in i18n fields — issue #4
+### Shipped in v1.0
 
-#### Major
-
-- [ ] Backend descriptionI18n truly optional in ProductCreateRequest — issue #7
-- [ ] Backend countryOfOrigin in ProductCreateRequest — issue #8
-- [ ] Admin frontend media processing status polling — issue #9
-
-#### Minor
-
-- [ ] Admin frontend uses completeness endpoint — issue #11
-- [ ] Admin frontend FSM UI supports all transitions — issue #12
-- [ ] Admin frontend sends version in PATCH requests — issue #13
-- [ ] Spec updated: I18n → I18N naming convention — issue #14
+- ✓ Admin BFF media proxy routes (upload/confirm/external/status GET) — v1.0 Phase 3-5, 7
+- ✓ Admin frontend field name alignment (presignedUrl, storageObjectId) — v1.0 Phase 6
+- ✓ Admin frontend request schema alignment ({contentType, filename}) — v1.0 Phase 6
+- ✓ Admin frontend dual-locale i18n (buildI18nPayload helper) — v1.0 Phase 2
+- ✓ Backend descriptionI18N truly optional — v1.0 Phase 1
+- ✓ Backend countryOfOrigin field — v1.0 Phase 1
+- ✓ Admin frontend media processing status polling — v1.0 Phase 7
+- ✓ Admin frontend completeness endpoint display — v1.0 Phase 8
+- ✓ Admin frontend FSM UI (5 statuses, 7 transitions) — v1.0 Phase 8
+- ✓ Admin frontend version tracking infrastructure — v1.0 Phase 8
+- ✓ Spec I18N naming convention corrected — v1.0 Phase 2
 
 ### Out of Scope
 
@@ -57,12 +53,13 @@
 
 ## Context
 
-- Product Creation Flow реализован по спецификации `product-creation-flow.md`
-- Аудит интеграции выполнен 2026-03-29, результаты в `audit.md`
-- Backend и image_backend корректны сами по себе — проблемы только на стыках
-- Admin BFF (Next.js API routes) проксирует запросы через `backendFetch()` к main backend
-- Для media операций нужно направить BFF напрямую на image_backend (решение: отдельный `imageBackendFetch()`)
-- `populate_by_name=True` в backend Pydantic — принимает оба варианта i18n полей на вход, но отдаёт только `I18N`
+- Product Creation Flow реализован по спецификации `product-creation-flow.md` (обновлена в Phase 2)
+- v1.0 shipped 2026-03-30: все 14 integration issues из audit.md исправлены
+- Admin BFF: `backendFetch()` → main backend, `imageBackendFetch()` → image_backend (X-API-Key auth)
+- Media pipeline: reserve → S3 upload → confirm → pollMediaStatus (exponential backoff) → COMPLETED
+- i18n: `buildI18nPayload(ru, en)` для записи, `i18n(obj)` для чтения — обе в `lib/utils.js`
+- Product detail page: CompletenessPanel + StatusTransitionBar + version tracking
+- Tech debt: product list page uses mock data, media not attached to product entity, updateProduct() unused
 
 ## Constraints
 
@@ -73,19 +70,18 @@
 
 ## Key Decisions
 
-| Decision                     | Rationale                                                                                    | Outcome   |
-| ---------------------------- | -------------------------------------------------------------------------------------------- | --------- |
-| BFF → image_backend напрямую | Main backend не должен быть прокси для binary uploads. BFF уже имеет IMAGE_BACKEND_URL в env | — Pending |
-| frontend/main вне scope      | API слой не подключён вообще — отдельный проект                                              | — Pending |
-| Все 14 проблем в scope       | Minor-проблемы (completeness, FSM UI, version) улучшают UX и предотвращают future bugs       | — Pending |
+| Decision                     | Rationale                                                                                    | Outcome     |
+| ---------------------------- | -------------------------------------------------------------------------------------------- | ----------- |
+| BFF → image_backend напрямую | Main backend не должен быть прокси для binary uploads. BFF уже имеет IMAGE_BACKEND_URL в env | ✓ Good      |
+| frontend/main вне scope      | API слой не подключён вообще — отдельный проект                                              | ✓ Good      |
+| Все 14 проблем в scope       | Minor-проблемы (completeness, FSM UI, version) улучшают UX и предотвращают future bugs       | ✓ Good      |
+| Polling вместо SSE           | Railway может буферизовать SSE; polling проще и deployment-safe                              | ✓ Good      |
+| buildI18nPayload(ru, en)     | Единая точка формирования i18n payloads, en || ru fallback                                   | ✓ Good      |
+| Product detail read-only     | Edit form — отдельная задача, version tracking infrastructure готова                         | ⚠️ Revisit |
 
-## Current Milestone: v1.0 Backend Schema Fixes
+## Current State
 
-**Goal:** Исправить расхождения в Pydantic request-схемах ProductCreateRequest — descriptionI18n сделать truly optional, добавить countryOfOrigin.
-
-**Target features:**
-- descriptionI18n: Optional[I18nDict] = None вместо I18nDict = Field(default_factory=dict)
-- countryOfOrigin: добавить в ProductCreateRequest (уже есть в ProductUpdateRequest)
+v1.0 shipped 2026-03-30. All 14 integration issues resolved. Next: connect product list to real API, add media-to-product attachment, build product edit form.
 
 ## Evolution
 
@@ -105,4 +101,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-29 after milestone v1.0 Backend Schema Fixes started*
+*Last updated: 2026-03-30 after v1.0 milestone completed*
