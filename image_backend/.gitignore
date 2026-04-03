@@ -45,7 +45,6 @@ Thumbs.db
 ehthumbs.db
 
 # Docker
-.dockerignore
 deploy/docker/*
 
 # Worktrees

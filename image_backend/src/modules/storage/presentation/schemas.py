@@ -5,6 +5,8 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
+from pydantic import Field
+
 from src.shared.schemas import CamelModel
 
 
@@ -46,7 +48,7 @@ class StatusEventData(CamelModel):
     status: str
     storage_object_id: uuid.UUID
     url: str | None = None
-    variants: list[MediaVariant] = []
+    variants: list[MediaVariant] = Field(default_factory=list)
     error: str | None = None
 
 
@@ -57,7 +59,7 @@ class ExternalImportRequest(CamelModel):
 class ExternalImportResponse(CamelModel):
     storage_object_id: uuid.UUID
     url: str
-    variants: list[MediaVariant] = []
+    variants: list[MediaVariant] = Field(default_factory=list)
 
 
 class MetadataResponse(CamelModel):
@@ -66,7 +68,7 @@ class MetadataResponse(CamelModel):
     url: str | None = None
     content_type: str | None = None
     size_bytes: int = 0
-    variants: list[MediaVariant] = []
+    variants: list[MediaVariant] = Field(default_factory=list)
     created_at: datetime | None = None
 
 

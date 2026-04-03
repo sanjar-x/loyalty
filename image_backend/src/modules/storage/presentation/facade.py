@@ -255,7 +255,7 @@ class StorageFacade(IStorageFacade):
                 file was not uploaded to S3.
         """
         async with self._uow:
-            storage_file = await self._storage_repo.get_by_key(file_id)
+            storage_file = await self._storage_repo.get_by_id(file_id)
 
         if not storage_file:
             raise ValidationError(message="File record not found.")
@@ -284,7 +284,7 @@ class StorageFacade(IStorageFacade):
             ValidationError: If the file record is not found.
         """
         async with self._uow:
-            storage_file = await self._storage_repo.get_by_key(file_id)
+            storage_file = await self._storage_repo.get_by_id(file_id)
             if not storage_file:
                 raise ValidationError(message="File record not found.")
 

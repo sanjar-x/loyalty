@@ -30,10 +30,7 @@ def convert_to_webp(
 ) -> bytes:
     """Convert raw image bytes to WebP format."""
     img = Image.open(io.BytesIO(raw_data))
-    if img.mode in ("RGBA", "LA", "P"):
-        img = img.convert("RGBA")
-    else:
-        img = img.convert("RGB")
+    img = img.convert("RGBA") if img.mode in ("RGBA", "LA", "P") else img.convert("RGB")
     if max_size:
         img = resize_to_fit(img, *max_size)
     buf = io.BytesIO()

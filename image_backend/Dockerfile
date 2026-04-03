@@ -10,7 +10,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /app
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.2 /uv /usr/local/bin/uv
 
 COPY pyproject.toml uv.lock ./
 
@@ -20,5 +20,13 @@ COPY . .
 RUN uv sync --frozen --no-dev --no-editable
 
 RUN chmod +x scripts/entrypoint.sh
+
+RUN groupadd --gid 1000 appuser && \
+    useradd --uid 1000 --gid appuser --no-create-home appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 8000
 
 CMD ["./scripts/entrypoint.sh"]

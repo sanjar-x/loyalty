@@ -25,7 +25,7 @@ logger = structlog.get_logger(__name__)
 
 DBA_CONNECT_ARGS = {
     "server_settings": {
-        "application_name": "enterprise_api",
+        "application_name": "image_backend",
         "statement_timeout": "30000",
         "idle_in_transaction_session_timeout": "60000",
         "timezone": "UTC",

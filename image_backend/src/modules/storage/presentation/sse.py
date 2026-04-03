@@ -43,8 +43,8 @@ class SSEManager:
         pubsub = self._redis.pubsub()
         await pubsub.subscribe(channel)
         try:
-            deadline = asyncio.get_event_loop().time() + timeout
-            while asyncio.get_event_loop().time() < deadline:
+            deadline = asyncio.get_running_loop().time() + timeout
+            while asyncio.get_running_loop().time() < deadline:
                 msg = await pubsub.get_message(
                     ignore_subscribe_messages=True,
                     timeout=poll_interval,

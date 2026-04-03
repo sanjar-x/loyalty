@@ -17,6 +17,7 @@ from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.config import IStorageConfig
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
+from src.shared.streams import bytes_to_async_stream
 
 
 @broker.task(
@@ -40,7 +41,7 @@ async def process_image_task(
     log = logger.bind(storage_object_id=storage_object_id)
     log.info("Processing image started")
 
-    storage_file = await storage_repo.get_by_key(sid)
+    storage_file = await storage_repo.get_by_id(sid)
     if not storage_file:
         log.error("StorageFile not found")
         return
@@ -61,13 +62,13 @@ async def process_image_task(
         # 3. Upload main
         main_key = f"public/{sid}.webp"
         await blob_storage.upload_stream(
-            main_key, _bytes_to_stream(main_bytes), "image/webp"
+            main_key, bytes_to_async_stream(main_bytes), "image/webp"
         )
 
         # 4. Upload variants
         for s3_key, data in variants_data.items():
             await blob_storage.upload_stream(
-                s3_key, _bytes_to_stream(data), "image/webp"
+                s3_key, bytes_to_async_stream(data), "image/webp"
             )
 
         # 5. Delete raw
@@ -108,11 +109,6 @@ async def process_image_task(
             },
         )
         raise
-
-
-async def _bytes_to_stream(data: bytes):
-    """Wrap bytes as an async iterator for upload_stream."""
-    yield data
 
 
 @broker.task(

@@ -181,6 +181,7 @@ class TestConvertToWebp:
         random.seed(42)
         img = Image.new("RGB", (200, 200))
         pixels = img.load()
+        assert pixels is not None
         for x in range(200):
             for y in range(200):
                 pixels[x, y] = (

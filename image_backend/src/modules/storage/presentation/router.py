@@ -47,13 +47,14 @@ from src.shared.interfaces.blob_storage import IBlobStorage
 from src.shared.interfaces.config import IStorageConfig
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
+from src.shared.streams import bytes_to_async_stream
+from src.shared.validators import validate_external_url, validate_image_content_type
 
 media_router = APIRouter(route_class=DishkaRoute)
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-MAX_EXTERNAL_FILE_SIZE = 10 * 1024 * 1024  # 10 MB per spec
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +73,8 @@ async def request_upload(
     config: FromDishka[IStorageConfig],
     uow: FromDishka[IUnitOfWork],
 ) -> UploadResponse:
+    validate_image_content_type(body.content_type)
+
     filename = body.filename or f"upload.{body.content_type.split('/')[-1]}"
 
     # Create StorageFile record first to get the ID
@@ -133,6 +136,8 @@ async def reupload(
             detail="Cannot reupload while image is being processed.",
         )
 
+    validate_image_content_type(body.content_type)
+
     filename = body.filename or f"upload.{body.content_type.split('/')[-1]}"
 
     # New raw key under the same ID — worker will overwrite public/{id}*.webp
@@ -173,6 +178,7 @@ async def confirm_upload(
     repo: FromDishka[IStorageRepository],
     blob_storage: FromDishka[IBlobStorage],
     uow: FromDishka[IUnitOfWork],
+    config: FromDishka[IStorageConfig],
 ) -> ConfirmResponse:
     storage_file = await repo.get_by_id(storage_object_id)
     if not storage_file:
@@ -181,12 +187,26 @@ async def confirm_upload(
             detail="Storage object not found.",
         )
 
-    # Verify the file actually exists in S3 (HEAD check)
-    exists = await blob_storage.object_exists(storage_file.object_key)
-    if not exists:
+    # Guard: only PENDING_UPLOAD files can be confirmed
+    if storage_file.status != StorageStatus.PENDING_UPLOAD:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot confirm: file status is '{storage_file.status.value}', expected 'PENDING_UPLOAD'.",
+        )
+
+    # Verify the file actually exists in S3 and check size (HEAD)
+    metadata = await blob_storage.get_object_metadata(storage_file.object_key)
+    if not metadata:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="File not found in S3. Upload may not have completed.",
+        )
+
+    file_size = metadata.get("content_length", 0)
+    if file_size > config.MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"File too large: {file_size} bytes (max {config.MAX_FILE_SIZE}).",
         )
 
     # Transition: PENDING_UPLOAD → PROCESSING
@@ -345,7 +365,10 @@ async def import_external(
     log = logger.bind(external_url=body.url)
     log.info("External import started")
 
-    # 1. Download (max 10 MB, 30s timeout per spec)
+    # 0. Validate URL (SSRF protection)
+    validate_external_url(body.url)
+
+    # 1. Download (max file size, 30s timeout per spec)
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(body.url, follow_redirects=True)
         if response.status_code != 200:
@@ -355,10 +378,10 @@ async def import_external(
             )
         raw_data = response.content
 
-    if len(raw_data) > MAX_EXTERNAL_FILE_SIZE:
+    if len(raw_data) > config.MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"File too large: {len(raw_data)} bytes (max {MAX_EXTERNAL_FILE_SIZE}).",
+            detail=f"File too large: {len(raw_data)} bytes (max {config.MAX_FILE_SIZE}).",
         )
 
     sid = uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4()
@@ -373,9 +396,9 @@ async def import_external(
 
     # 3. Upload main + variants to S3
     main_key = f"public/{sid}.webp"
-    await blob_storage.upload_stream(main_key, _bytes_stream(main_bytes), "image/webp")
+    await blob_storage.upload_stream(main_key, bytes_to_async_stream(main_bytes), "image/webp")
     for s3_key, data in variants_data.items():
-        await blob_storage.upload_stream(s3_key, _bytes_stream(data), "image/webp")
+        await blob_storage.upload_stream(s3_key, bytes_to_async_stream(data), "image/webp")
 
     # 4. Create DB record (already COMPLETED — no background processing needed)
     public_url = f"{config.S3_PUBLIC_BASE_URL.rstrip('/')}/{main_key}"
@@ -402,11 +425,3 @@ async def import_external(
         url=public_url,
         variants=[MediaVariant(**v) for v in variants_meta],
     )
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-async def _bytes_stream(data: bytes):
-    """Wrap bytes as an async iterator for upload_stream."""
-    yield data

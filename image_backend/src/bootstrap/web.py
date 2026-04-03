@@ -65,14 +65,14 @@ def create_app() -> FastAPI:
 
     if settings.CORS_ORIGINS:
         app.add_middleware(
-            CORSMiddleware,  # ty:ignore[invalid-argument-type]
+            CORSMiddleware,
             allow_origins=settings.CORS_ORIGINS,
             allow_credentials=True,
             allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
         )
 
-    app.add_middleware(AccessLoggerMiddleware)  # ty:ignore[invalid-argument-type]
+    app.add_middleware(AccessLoggerMiddleware)
 
     setup_exception_handlers(app)
     app.include_router(router=router, prefix=settings.API_V1_STR)

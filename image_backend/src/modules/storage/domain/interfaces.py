@@ -40,18 +40,6 @@ class IStorageRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_key(self, key: uuid.UUID) -> StorageFile | None:
-        """Retrieve a storage file by its internal UUID.
-
-        Args:
-            key: The internal identifier of the storage file.
-
-        Returns:
-            The matching ``StorageFile``, or ``None`` if not found.
-        """
-        pass
-
-    @abstractmethod
     async def get_active_by_key(
         self, bucket_name: str, object_key: str
     ) -> StorageFile | None:

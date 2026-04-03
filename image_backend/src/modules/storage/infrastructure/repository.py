@@ -136,21 +136,6 @@ class StorageObjectRepository(IStorageRepository):
         orm.filename = storage_file.filename
         orm.last_modified_in_s3 = storage_file.last_modified_in_s3
 
-    async def get_by_key(self, key: uuid.UUID) -> StorageFile | None:
-        """Retrieve file metadata by its internal UUID.
-
-        Typically used by other modules to look up a file they hold
-        a reference to.
-
-        Args:
-            key: The internal UUID of the storage file.
-
-        Returns:
-            The matching ``StorageFile``, or ``None`` if not found.
-        """
-        orm = await self._session.get(StorageObject, key)
-        return self._to_domain(orm) if orm else None
-
     async def get_active_by_key(
         self, bucket_name: str, object_key: str
     ) -> StorageFile | None:

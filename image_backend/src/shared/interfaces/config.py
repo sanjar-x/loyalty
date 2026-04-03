@@ -25,3 +25,4 @@ class IStorageConfig(Protocol):
 
     S3_BUCKET_NAME: str
     S3_PUBLIC_BASE_URL: str
+    MAX_FILE_SIZE: int
