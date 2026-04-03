@@ -19,4 +19,6 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY . .
 RUN uv sync --frozen --no-dev --no-editable
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+RUN chmod +x scripts/entrypoint.sh
+
+CMD ["./scripts/entrypoint.sh"]

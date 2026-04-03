@@ -37,7 +37,7 @@ class CacheProvider(Provider):
 
         client = redis.Redis.from_url(settings.redis_url)
 
-        ping: bool = await client.ping()  # type: ignore[misc]
+        ping: bool = await client.ping()  # ty:ignore[invalid-await]
         logger.info("Redis connection established", ping=ping)
 
         yield client

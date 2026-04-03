@@ -17,7 +17,7 @@
     "CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS": "250000",
     "CLAUDE_CODE_SUBAGENT_MODEL": "claude-opus-4-6",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "BASH_MAX_OUTPUT_LENGTH": "500000",
+    "BASH_MAX_OUTPUT_LENGTH": "150000",
     "MAX_MCP_OUTPUT_TOKENS": "250000",
     "TASK_MAX_OUTPUT_LENGTH": "65536",
     "CLAUDE_ENABLE_STREAM_WATCHDOG": "1",
@@ -28,7 +28,8 @@
     "PATH": "/home/sanjar/.nvm/versions/node/v24.14.1/bin:/home/sanjar/.local/bin:/usr/local/bin:/usr/bin:/bin"
   },
   "permissions": {
-    "defaultMode": "bypassPermissions"
+    "defaultMode": "bypassPermissions",
+    "additionalDirectories": ["/home/sanjar/Desktop/Knowledge"]
   },
   "model": "opus",
   "enableAllProjectMcpServers": true,

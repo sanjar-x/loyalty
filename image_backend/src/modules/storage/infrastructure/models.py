@@ -97,7 +97,7 @@ class StorageObject(Base):
 
     # -- Processing lifecycle --
 
-    status: Mapped[str] = mapped_column(
+    status: Mapped[StorageStatus] = mapped_column(
         SAEnum(StorageStatus, name="storage_status_enum", create_type=True),
         server_default=StorageStatus.PENDING_UPLOAD.value,
         index=True,

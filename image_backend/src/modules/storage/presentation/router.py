@@ -195,7 +195,7 @@ async def confirm_upload(
     await uow.commit()
 
     # Dispatch background processing task
-    await process_image_task.kiq(str(storage_object_id))
+    await process_image_task.kiq(str(storage_object_id))  # ty:ignore[no-matching-overload]
 
     return ConfirmResponse(storage_object_id=storage_object_id)
 

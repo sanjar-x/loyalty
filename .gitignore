@@ -1,5 +1,8 @@
 backend/.hypothesis/
 
+# ── Claude Code local settings (personal paths, tokens, permissions) ──
+**/.claude/settings.local.json
+
 # ── GSD baseline (auto-generated) ──
 .gsd
 .DS_Store

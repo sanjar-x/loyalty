@@ -58,4 +58,4 @@ class SSEManager:
                     yield None  # no message yet
         finally:
             await pubsub.unsubscribe(channel)
-            await pubsub.aclose()  # ty:ignore[unresolved-attribute]
+            await pubsub.aclose()
