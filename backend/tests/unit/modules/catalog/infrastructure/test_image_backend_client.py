@@ -11,7 +11,7 @@ pytestmark = pytest.mark.asyncio
 
 async def test_delete_sends_correct_request():
     client = ImageBackendClient(
-        base_url="http://image-backend:8001",
+        base_url="http://image-backend:8080",
         api_key="test-key",
     )
     sid = uuid.uuid4()
@@ -49,7 +49,7 @@ async def test_delete_best_effort_on_network_error():
 async def test_delete_best_effort_on_server_error():
     """delete() should not raise on 500 response."""
     client = ImageBackendClient(
-        base_url="http://image-backend:8001",
+        base_url="http://image-backend:8080",
         api_key="test-key",
     )
     sid = uuid.uuid4()
@@ -66,7 +66,7 @@ async def test_delete_best_effort_on_server_error():
 async def test_delete_url_construction():
     """Verify the DELETE URL is correctly constructed."""
     client = ImageBackendClient(
-        base_url="http://image-backend:8001/",  # trailing slash
+        base_url="http://image-backend:8080/",  # trailing slash
         api_key="key",
     )
     sid = uuid.UUID("01961234-0000-0000-0000-000000000000")
@@ -80,6 +80,6 @@ async def test_delete_url_construction():
         await client.delete(sid)
 
     expected_url = (
-        "http://image-backend:8001/api/v1/media/01961234-0000-0000-0000-000000000000"
+        "http://image-backend:8080/api/v1/media/01961234-0000-0000-0000-000000000000"
     )
     assert mock_delete.call_args[0][0] == expected_url
