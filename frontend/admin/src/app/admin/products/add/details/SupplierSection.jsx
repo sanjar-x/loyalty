@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchSuppliers } from '@/services/suppliers';
-import { ArrowIcon, ChevronIcon } from './icons';
+import { ChevronIcon } from './icons';
 import styles from './page.module.css';
 
 // Map UI delivery mode → backend supplier type

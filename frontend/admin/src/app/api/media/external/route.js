@@ -12,10 +12,12 @@ export async function POST(request) {
   }
 
   const body = await request.json();
+  const { url } = body;
+  const imagePayload = { url };
 
   const { ok, status, data } = await imageBackendFetch('/api/v1/media/external', {
     method: 'POST',
-    body: JSON.stringify(body),
+    body: JSON.stringify(imagePayload),
   });
 
   return NextResponse.json(

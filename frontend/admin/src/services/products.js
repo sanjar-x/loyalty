@@ -131,6 +131,11 @@ export async function addExternalMedia(payload) {
   return api('/api/media/external', jsonOpts(payload));
 }
 
+export async function associateMedia(productId, payload) {
+  // payload = { storageObjectId, variantId, role, sortOrder, mediaType, isExternal }
+  return api(`/api/catalog/products/${productId}/media`, jsonOpts(payload));
+}
+
 export async function changeProductStatus(productId, status) {
   return api(`/api/catalog/products/${productId}/status`, {
     method: 'PATCH',

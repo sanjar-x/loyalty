@@ -209,7 +209,8 @@ function transliterate(text) {
     .map((c) => map[c] ?? c)
     .join('')
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 255);
 }
 
 // ---------------------------------------------------------------------------
@@ -294,7 +295,7 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
     return true;
   }, [state.categoryId, state.brandId, state.titleRu, state.slug]);
 
-  // Stricter check: product can be published (has price + SKU attrs)
+  // Stricter check: product can be published (has price + SKU attrs + media)
   const isPublishable = useMemo(() => {
     if (!isValid) return false;
     // Need at least one variant attr with values for SKU generation
@@ -302,6 +303,8 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
       (ids) => ids.length > 0,
     );
     if (!hasVariantAttrs) return false;
+    // Need at least one image (PUBLISHED guard requires >= 1 media asset)
+    if (state.images.length === 0) return false;
     // Need price
     if (state.variablePricing) {
       return Object.values(state.perSkuPrices).some(
@@ -312,6 +315,7 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
   }, [
     isValid,
     state.variantAttrs,
+    state.images,
     state.variablePricing,
     state.priceAmount,
     state.perSkuPrices,

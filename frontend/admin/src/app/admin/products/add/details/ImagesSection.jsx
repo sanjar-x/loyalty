@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import ImageViewer from './ImageViewer';
 import { ArrowIcon, SmallCloseIcon, UploadIcon } from './icons';
 import styles from './page.module.css';
 
@@ -11,6 +12,7 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet }) {
   const [urlFocused, setUrlFocused] = useState(false);
   const [dragIndex, setDragIndex] = useState(null);
   const [dropIndex, setDropIndex] = useState(null);
+  const [viewerIndex, setViewerIndex] = useState(null);
   const fileInputRef = useRef(null);
   const blobUrlsRef = useRef(new Set());
 
@@ -161,6 +163,8 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet }) {
                       src={image.url}
                       alt={image.alt}
                       className={styles.imagesPreviewImage}
+                      onClick={() => setViewerIndex(idx)}
+                      style={{ cursor: 'pointer' }}
                     />
                     <button
                       type="button"
@@ -213,6 +217,41 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet }) {
           </div>
         ) : null}
       </div>
+
+      {viewerIndex !== null && (
+        <ImageViewer
+          images={images}
+          initialIndex={viewerIndex}
+          onClose={() => setViewerIndex(null)}
+          onRemove={(localId, image) => {
+            handleRemove(localId, image);
+            if (images.length <= 1) setViewerIndex(null);
+          }}
+          onReplace={(localId, newImage) => {
+            // Track new blob URLs for cleanup
+            if (newImage.url?.startsWith('blob:')) {
+              blobUrlsRef.current.add(newImage.url);
+            }
+            if (newImage.originalUrl?.startsWith('blob:')) {
+              blobUrlsRef.current.add(newImage.originalUrl);
+            }
+            // Revoke old cropped blob URL, but NOT if it's the originalUrl
+            const oldImage = images.find((img) => img.localId === localId);
+            if (
+              oldImage?.url?.startsWith('blob:') &&
+              oldImage.url !== newImage.url &&
+              oldImage.url !== newImage.originalUrl
+            ) {
+              URL.revokeObjectURL(oldImage.url);
+              blobUrlsRef.current.delete(oldImage.url);
+            }
+            const updated = images.map((img) =>
+              img.localId === localId ? newImage : img,
+            );
+            onSet?.(updated);
+          }}
+        />
+      )}
     </section>
   );
 }

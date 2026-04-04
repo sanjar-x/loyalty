@@ -12,6 +12,7 @@ import {
   confirmMedia,
   pollMediaStatus,
   addExternalMedia,
+  associateMedia,
   changeProductStatus,
 } from '@/services/products';
 
@@ -129,8 +130,20 @@ export default function useSubmitProduct() {
           const chunk = uploadTasks.slice(i, i + 3);
           const results = await Promise.allSettled(
             chunk.map(async ({ image, role, sortOrder }) => {
+              let storageObjectId = null;
+
               if (image.source === 'url') {
-                await addExternalMedia({ url: image.url });
+                const ext = await addExternalMedia({ url: image.url });
+                storageObjectId = ext.storageObjectId;
+                await associateMedia(productId, {
+                  storageObjectId,
+                  variantId,
+                  role,
+                  sortOrder,
+                  mediaType: 'image',
+                  isExternal: true,
+                  url: image.url,
+                });
               } else if (image.file) {
                 const slot = await reserveMediaUpload({
                   contentType: image.file.type || 'image/jpeg',
@@ -139,6 +152,14 @@ export default function useSubmitProduct() {
                 await uploadToS3(slot.presignedUrl, image.file);
                 await confirmMedia(slot.storageObjectId);
                 await pollMediaStatus(slot.storageObjectId);
+                storageObjectId = slot.storageObjectId;
+                await associateMedia(productId, {
+                  storageObjectId,
+                  variantId,
+                  role,
+                  sortOrder,
+                  mediaType: 'image',
+                });
               }
             }),
           );
@@ -159,8 +180,11 @@ export default function useSubmitProduct() {
       const sizeGuide = form.state.sizeGuide;
       if (sizeGuide) {
         try {
+          let sgStorageObjectId = null;
+
           if (sizeGuide.source === 'url') {
-            await addExternalMedia({ url: sizeGuide.url });
+            const ext = await addExternalMedia({ url: sizeGuide.url });
+            sgStorageObjectId = ext.storageObjectId;
           } else if (sizeGuide.file) {
             const slot = await reserveMediaUpload({
               contentType: sizeGuide.file.type || 'image/jpeg',
@@ -169,6 +193,17 @@ export default function useSubmitProduct() {
             await uploadToS3(slot.presignedUrl, sizeGuide.file);
             await confirmMedia(slot.storageObjectId);
             await pollMediaStatus(slot.storageObjectId);
+            sgStorageObjectId = slot.storageObjectId;
+          }
+
+          if (sgStorageObjectId) {
+            await associateMedia(productId, {
+              storageObjectId: sgStorageObjectId,
+              variantId,
+              role: 'size_guide',
+              sortOrder: 0,
+              mediaType: 'image',
+            });
           }
         } catch (err) {
           console.warn('Size guide upload failed:', err);
@@ -176,11 +211,14 @@ export default function useSubmitProduct() {
       }
 
       // ── Step 6: Change status (publish mode only) ──
+      // FSM: draft → enriching → ready_for_review → published
       if (mode === 'publish') {
         currentStep = 'status';
         setStep(currentStep);
         setProgress(STEPS.status);
         await changeProductStatus(productId, 'enriching');
+        await changeProductStatus(productId, 'ready_for_review');
+        await changeProductStatus(productId, 'published');
       }
 
       currentStep = 'done';

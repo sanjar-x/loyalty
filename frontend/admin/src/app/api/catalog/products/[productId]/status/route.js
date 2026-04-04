@@ -2,11 +2,16 @@ import { NextResponse } from 'next/server';
 import { backendFetch } from '@/lib/api-client';
 import { getAccessToken } from '@/lib/auth';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function PATCH(request, { params }) {
   const token = await getAccessToken();
   if (!token) return NextResponse.json({ error: { code: 'UNAUTHORIZED' } }, { status: 401 });
 
   const { productId } = await params;
+  if (!UUID_RE.test(productId)) {
+    return NextResponse.json({ error: { code: 'INVALID_ID', message: 'Invalid product ID', details: {} } }, { status: 400 });
+  }
   const body = await request.json();
 
   const { ok, status, data } = await backendFetch(

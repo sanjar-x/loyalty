@@ -10,13 +10,18 @@ export async function POST(request, { params }) {
 
   const { productId } = await params;
   if (!UUID_RE.test(productId)) {
-    return NextResponse.json({ error: { code: 'INVALID_ID', message: 'Invalid product ID', details: {} } }, { status: 400 });
+    return NextResponse.json(
+      { error: { code: 'INVALID_ID', message: 'Invalid product ID', details: {} } },
+      { status: 400 },
+    );
   }
   const body = await request.json();
+  const { storageObjectId, variantId, role, sortOrder, mediaType, isExternal, url } = body;
+  const payload = { storageObjectId, variantId, role, sortOrder, mediaType, isExternal, url };
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/products/${productId}/attributes/bulk`,
-    { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+    `/api/v1/catalog/products/${productId}/media`,
+    { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) },
   );
 
   return NextResponse.json(data ?? { error: { code: 'SERVICE_UNAVAILABLE' } }, { status: ok ? 201 : (status || 502) });
