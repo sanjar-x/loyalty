@@ -1177,6 +1177,95 @@
   object-position: center;
 }
 
+/* ── Image upload status overlays ── */
+.imagesUploadOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.82);
+  z-index: 2;
+}
+
+.imagesUploadSpinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid #e0dedb;
+  border-top-color: #2d2d2d;
+  border-radius: 50%;
+  animation: uploadSpin 0.65s linear infinite;
+}
+
+@keyframes uploadSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.imagesUploadLabel {
+  color: #8c8c8c;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+}
+
+/* Processing badge — yellow, non-blocking */
+.imagesProcessingBadge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Failed badge — red with retry */
+.imagesFailedBadge {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+}
+
+.imagesFailedBadgeText {
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.imagesRetryButton {
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: #2d2d2d;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.imagesRetryButton:hover {
+  background: #1a1a1a;
+}
+
 /* ── Switch / Toggle row ── */
 .switchRow {
   display: flex;

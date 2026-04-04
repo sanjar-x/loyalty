@@ -7,7 +7,7 @@ import styles from './page.module.css';
 
 const MAX_IMAGES = 10;
 
-export default function ImagesSection({ images = [], onAdd, onRemove, onSet }) {
+export default function ImagesSection({ images = [], onAdd, onRemove, onSet, uploads = {}, onRetry, onImageCropped }) {
   const [urlValue, setUrlValue] = useState('');
   const [urlFocused, setUrlFocused] = useState(false);
   const [dragIndex, setDragIndex] = useState(null);
@@ -137,11 +137,16 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet }) {
                 const isDragging = dragIndex === idx;
                 const isDropTarget = dropIndex === idx && dragIndex !== idx;
 
+                const uploadState = uploads[image.localId];
+                const isUploading = uploadState?.status === 'uploading';
+                const isProcessing = uploadState?.status === 'processing';
+                const isFailed = uploadState?.status === 'failed';
+
                 return (
                   <div
                     key={image.localId}
                     className={styles.imagesGalleryItem}
-                    draggable
+                    draggable={!isUploading}
                     role="listitem"
                     aria-label={`Изображение ${idx + 1} из ${imageCount}. Перетащите для изменения порядка`}
                     onDragStart={(e) => handleDragStart(e, idx)}
@@ -153,19 +158,40 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet }) {
                       opacity: isDragging ? 0.4 : 1,
                       outline: isDropTarget ? '2px dashed #000' : 'none',
                       outlineOffset: isDropTarget ? '-2px' : '0',
-                      cursor: 'grab',
+                      cursor: isUploading ? 'default' : 'grab',
                     }}
                   >
                     {idx === 0 && (
                       <span className={styles.imagesMainBadge}>Главное</span>
                     )}
                     <img
-                      src={image.url}
+                      src={uploadState?.url || image.url}
                       alt={image.alt}
                       className={styles.imagesPreviewImage}
-                      onClick={() => setViewerIndex(idx)}
-                      style={{ cursor: 'pointer' }}
+                      onClick={() => { if (!isUploading) setViewerIndex(idx); }}
+                      style={{ cursor: isUploading ? 'default' : 'pointer' }}
                     />
+                    {isUploading && (
+                      <div className={styles.imagesUploadOverlay}>
+                        <div className={styles.imagesUploadSpinner} />
+                        <span className={styles.imagesUploadLabel}>Загрузка...</span>
+                      </div>
+                    )}
+                    {isProcessing && (
+                      <span className={styles.imagesProcessingBadge}>Обработка</span>
+                    )}
+                    {isFailed && (
+                      <div className={styles.imagesFailedBadge}>
+                        <span className={styles.imagesFailedBadgeText}>Ошибка</span>
+                        <button
+                          type="button"
+                          className={styles.imagesRetryButton}
+                          onClick={(e) => { e.stopPropagation(); onRetry?.(image); }}
+                        >
+                          Повторить
+                        </button>
+                      </div>
+                    )}
                     <button
                       type="button"
                       className={styles.imagesRemoveButton}
@@ -249,6 +275,7 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet }) {
               img.localId === localId ? newImage : img,
             );
             onSet?.(updated);
+            onImageCropped?.(newImage);
           }}
         />
       )}

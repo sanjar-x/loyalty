@@ -10,7 +10,7 @@ import {
   reserveMediaUpload,
   uploadToS3,
   confirmMedia,
-  pollMediaStatus,
+  subscribeMediaStatus,
   addExternalMedia,
   associateMedia,
   changeProductStatus,
@@ -49,7 +49,7 @@ export default function useSubmitProduct() {
   const [error, setError] = useState(null);       // { step, message }
   const [createdProductId, setCreatedProductId] = useState(null);
 
-  const execute = useCallback(async (form, mode = 'draft') => {
+  const execute = useCallback(async (form, mode = 'draft', imageUploads = {}) => {
     if (submitting) return;
     setSubmitting(true);
     setError(null);
@@ -110,6 +110,8 @@ export default function useSubmitProduct() {
       }
 
       // ── Step 5: Upload media ──
+      // Uses pre-uploaded storageObjectIds from useImageUpload when available,
+      // falls back to full upload (reserve → S3 → confirm → poll) otherwise.
       const images = form.state.images ?? [];
       if (images.length > 0) {
         currentStep = 'media';
@@ -123,27 +125,22 @@ export default function useSubmitProduct() {
           image,
           role: idx === 0 ? 'main' : 'gallery',
           sortOrder: idx,
+          preUploaded: imageUploads[image.localId],
         }));
 
         // Process in chunks of 3 concurrent
         for (let i = 0; i < uploadTasks.length; i += 3) {
           const chunk = uploadTasks.slice(i, i + 3);
           const results = await Promise.allSettled(
-            chunk.map(async ({ image, role, sortOrder }) => {
+            chunk.map(async ({ image, role, sortOrder, preUploaded }) => {
               let storageObjectId = null;
 
-              if (image.source === 'url') {
+              // Use pre-uploaded storageObjectId if available
+              if (preUploaded?.status === 'completed' && preUploaded.storageObjectId) {
+                storageObjectId = preUploaded.storageObjectId;
+              } else if (image.source === 'url') {
                 const ext = await addExternalMedia({ url: image.url });
                 storageObjectId = ext.storageObjectId;
-                await associateMedia(productId, {
-                  storageObjectId,
-                  variantId,
-                  role,
-                  sortOrder,
-                  mediaType: 'image',
-                  isExternal: true,
-                  url: image.url,
-                });
               } else if (image.file) {
                 const slot = await reserveMediaUpload({
                   contentType: image.file.type || 'image/jpeg',
@@ -151,14 +148,18 @@ export default function useSubmitProduct() {
                 });
                 await uploadToS3(slot.presignedUrl, image.file);
                 await confirmMedia(slot.storageObjectId);
-                await pollMediaStatus(slot.storageObjectId);
+                await subscribeMediaStatus(slot.storageObjectId);
                 storageObjectId = slot.storageObjectId;
+              }
+
+              if (storageObjectId) {
                 await associateMedia(productId, {
                   storageObjectId,
                   variantId,
                   role,
                   sortOrder,
                   mediaType: 'image',
+                  ...(image.source === 'url' ? { isExternal: true, url: image.url } : {}),
                 });
               }
             }),
@@ -192,7 +193,7 @@ export default function useSubmitProduct() {
             });
             await uploadToS3(slot.presignedUrl, sizeGuide.file);
             await confirmMedia(slot.storageObjectId);
-            await pollMediaStatus(slot.storageObjectId);
+            await subscribeMediaStatus(slot.storageObjectId);
             sgStorageObjectId = slot.storageObjectId;
           }
 

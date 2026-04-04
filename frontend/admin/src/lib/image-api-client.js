@@ -4,6 +4,10 @@ const IMAGE_BACKEND_API_KEY = process.env.IMAGE_BACKEND_API_KEY;
 if (!IMAGE_BACKEND_URL) console.warn('[image-api-client] IMAGE_BACKEND_URL is not set');
 if (!IMAGE_BACKEND_API_KEY) console.warn('[image-api-client] IMAGE_BACKEND_API_KEY is not set');
 
+export function getImageBackendSSEUrl(storageObjectId) {
+  return `${IMAGE_BACKEND_URL}/api/v1/media/${storageObjectId}/status`;
+}
+
 export async function imageBackendFetch(path, options = {}) {
   const { headers = {}, ...rest } = options;
 

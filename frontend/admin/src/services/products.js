@@ -82,13 +82,20 @@ export async function reserveMediaUpload(payload) {
 }
 
 export async function uploadToS3(presignedUrl, file) {
-  const res = await fetch(presignedUrl, {
-    method: 'PUT',
-    body: file,
-    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+  // Upload through BFF proxy to avoid CSP connect-src restrictions.
+  // The presigned URL points to an external S3 domain that the browser cannot reach directly.
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('presignedUrl', presignedUrl);
+
+  const res = await fetch('/api/media/s3-upload', {
+    method: 'POST',
+    body: formData,
+    credentials: 'include',
   });
   if (!res.ok) {
-    const error = new Error('File upload to S3 failed');
+    const data = await res.json().catch(() => null);
+    const error = new Error(data?.error?.message || 'File upload to S3 failed');
     error.code = 'S3_UPLOAD_FAILED';
     error.status = res.status;
     throw error;
@@ -99,31 +106,82 @@ export async function confirmMedia(storageObjectId) {
   return api(`/api/media/${storageObjectId}/confirm`, { method: 'POST' });
 }
 
-const POLL_INTERVALS = [500, 1000, 2000];
+const S3_ORIGIN = 'https://t3.storage.dev/loyality';
+const PUBLIC_ORIGIN = 'https://loyality.t3.tigrisfiles.io';
 
-export async function pollMediaStatus(storageObjectId, { maxWait = 60000 } = {}) {
-  const start = Date.now();
-  let attempt = 0;
+export function extractRawUrl(presignedUrl) {
+  const [urlWithoutQuery] = presignedUrl.split('?');
+  return urlWithoutQuery.replace(S3_ORIGIN, PUBLIC_ORIGIN);
+}
 
-  while (Date.now() - start < maxWait) {
-    const data = await api(`/api/media/${storageObjectId}`);
+export function subscribeMediaStatus(storageObjectId, { timeout = 120_000, signal } = {}) {
+  return new Promise((resolve, reject) => {
+    const url = `/api/media/${storageObjectId}/status`;
+    const eventSource = new EventSource(url);
+    let settled = false;
 
-    if (data.status === 'COMPLETED') return data;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      eventSource.close();
+      const err = new Error('Media processing timed out');
+      err.code = 'MEDIA_PROCESSING_TIMEOUT';
+      reject(err);
+    }, timeout);
 
-    if (data.status === 'FAILED') {
-      const error = new Error('Media processing failed');
-      error.code = 'MEDIA_PROCESSING_FAILED';
-      throw error;
+    function cleanup() {
+      clearTimeout(timeoutId);
+      eventSource.close();
     }
 
-    const delay = POLL_INTERVALS[Math.min(attempt, POLL_INTERVALS.length - 1)];
-    await new Promise((r) => setTimeout(r, delay));
-    attempt++;
-  }
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(new DOMException('Aborted', 'AbortError'));
+      });
+    }
 
-  const error = new Error('Media processing timed out');
-  error.code = 'MEDIA_PROCESSING_TIMEOUT';
-  throw error;
+    eventSource.addEventListener('status', (event) => {
+      if (settled) return;
+
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+
+      const status = (data.status || '').toUpperCase();
+
+      if (status === 'COMPLETED') {
+        settled = true;
+        cleanup();
+        resolve({
+          status: 'COMPLETED',
+          url: data.url,
+          variants: data.variants || [],
+          storageObjectId: data.storageObjectId || data.storage_object_id,
+        });
+      } else if (status === 'FAILED') {
+        settled = true;
+        cleanup();
+        const err = new Error(data.error || 'Media processing failed');
+        err.code = 'MEDIA_PROCESSING_FAILED';
+        reject(err);
+      }
+    });
+
+    eventSource.onerror = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      const err = new Error('SSE connection lost');
+      err.code = 'SSE_CONNECTION_ERROR';
+      reject(err);
+    };
+  });
 }
 
 export async function addExternalMedia(payload) {
