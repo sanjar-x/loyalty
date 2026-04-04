@@ -16,7 +16,7 @@ docker compose up -d          # Postgres 18, Redis 8.4, RabbitMQ 4.2, MinIO
 uv sync
 
 # Dev server
-uv run uvicorn main:app --reload --port 8000
+uv run uvicorn main:app --reload --port 8080
 
 # Tests (docker compose services required for non-unit tests)
 make test                     # all tests
@@ -116,14 +116,14 @@ class CreateFooHandler:
 Uniform JSON envelope: `{"error": {"code", "message", "details", "request_id"}}`.
 Exception hierarchy in `src/shared/exceptions.py`:
 
-| Exception | HTTP | When to use |
-|---|---|---|
-| `NotFoundError` | 404 | Resource doesn't exist |
-| `UnauthorizedError` | 401 | Missing/invalid auth token |
-| `ForbiddenError` | 403 | Insufficient permissions |
-| `ValidationError` | 400 | Business-rule violation on input |
-| `ConflictError` | 409 | Duplicate slug, version mismatch |
-| `UnprocessableEntityError` | 422 | FK violation, business logic cannot process |
+| Exception                  | HTTP | When to use                                 |
+| -------------------------- | ---- | ------------------------------------------- |
+| `NotFoundError`            | 404  | Resource doesn't exist                      |
+| `UnauthorizedError`        | 401  | Missing/invalid auth token                  |
+| `ForbiddenError`           | 403  | Insufficient permissions                    |
+| `ValidationError`          | 400  | Business-rule violation on input            |
+| `ConflictError`            | 409  | Duplicate slug, version mismatch            |
+| `UnprocessableEntityError` | 422  | FK violation, business logic cannot process |
 
 ### Transactional Outbox
 

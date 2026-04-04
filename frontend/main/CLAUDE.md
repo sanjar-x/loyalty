@@ -24,7 +24,7 @@ No test runner configured. Audit scripts available: `node scripts/audit-unused-p
 ## Environment Variables
 
 ```
-BACKEND_API_BASE_URL=http://localhost:8000   # Backend API (server-side only)
+BACKEND_API_BASE_URL=http://localhost:8080   # Backend API (server-side only)
 BROWSER_DEBUG_AUTH=true                       # Dev-only: mock auth without Telegram
 NEXT_PUBLIC_BROWSER_DEBUG_AUTH=true
 COOKIE_DOMAIN=                                # Leave empty for localhost

@@ -1569,7 +1569,7 @@ item2 = CartItem(
 cart.items = [item1, item2]
 
 # Применяем промокод "WELCOME10" — скидка 10% на корзину
-cart_discount = Money(Decimal('580000'), Currency.UZS)  # 10% от 5,800,000
+cart_discount = Money(Decimal('580800'), Currency.UZS)  # 10% от 5,800,000
 
 # Распределяем по items:
 # item1: 5,500,000 / 5,800,000 × 580,000 = 550,000

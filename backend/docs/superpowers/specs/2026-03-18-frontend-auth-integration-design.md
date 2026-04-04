@@ -80,7 +80,7 @@ Note: `BACKEND_URL` is a server-side env var available via `process.env.BACKEND_
 
 ### New env file (1)
 
-`.env.local` with `BACKEND_URL=http://127.0.0.1:8000`
+`.env.local` with `BACKEND_URL=http://127.0.0.1:8080`
 
 ---
 
@@ -215,7 +215,7 @@ Both cookies use `path=/` so middleware can read `refresh_token` on `/admin/*` r
 ### `.env.local` (new)
 
 ```
-BACKEND_URL=http://127.0.0.1:8000
+BACKEND_URL=http://127.0.0.1:8080
 ```
 
 ---

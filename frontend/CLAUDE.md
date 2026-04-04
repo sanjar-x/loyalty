@@ -39,7 +39,7 @@ npm run format   # prettier --write .
 ### main/.env
 
 ```
-BACKEND_API_BASE_URL=http://localhost:8000   # Backend API (server-side only)
+BACKEND_API_BASE_URL=http://localhost:8080   # Backend API (server-side only)
 BROWSER_DEBUG_AUTH=true                       # Dev-only: mock auth without Telegram/backend
 NEXT_PUBLIC_BROWSER_DEBUG_AUTH=true
 COOKIE_DOMAIN=                                # Leave empty for localhost
@@ -50,7 +50,7 @@ DADATA_SECRET=...
 ### admin/.env.local
 
 ```
-BACKEND_URL=http://127.0.0.1:8000
+BACKEND_URL=http://127.0.0.1:8080
 IMAGE_BACKEND_URL=http://127.0.0.1:8001
 IMAGE_BACKEND_API_KEY=dev-api-key
 ```

@@ -8,7 +8,7 @@ from locust import HttpUser, between, task
 
 class AuthFlowUser(HttpUser):
     wait_time = between(1, 3)
-    host = "http://localhost:8000"
+    host = "http://localhost:8080"
 
     def on_start(self):
         self.email = f"load-{uuid.uuid4().hex[:8]}@test.com"

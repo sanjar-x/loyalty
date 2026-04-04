@@ -8,7 +8,7 @@ from locust import HttpUser, between, task
 
 class MixedWorkloadUser(HttpUser):
     wait_time = between(0.5, 2)
-    host = "http://localhost:8000"
+    host = "http://localhost:8080"
 
     @task(8)
     def browse_categories(self):

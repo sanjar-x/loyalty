@@ -99,17 +99,17 @@ python -m src.modules.catalog.management.sync_categories
 **5. Start the API server:**
 
 ```bash
-uv run uvicorn src.bootstrap.web:create_app --factory --reload --host 0.0.0.0 --port 8000
+uv run uvicorn src.bootstrap.web:create_app --factory --reload --host 0.0.0.0 --port 8080
 ```
 
 **6. Open the interactive docs:**
 
-Visit [http://localhost:8000/docs](http://localhost:8000/docs) — register a user, grab a token, and start calling endpoints.
+Visit [http://localhost:8080/docs](http://localhost:8080/docs) — register a user, grab a token, and start calling endpoints.
 
 **7. Verify it works:**
 
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8080/health
 # {"status":"ok","environment":"dev"}
 ```
 
@@ -149,7 +149,7 @@ uv run alembic upgrade head
 
 ```bash
 docker build -f deploy/docker/Dockerfile -t enterprise-api .
-docker run --env-file .env -p 8000:8000 enterprise-api
+docker run --env-file .env -p 8080:8080 enterprise-api
 ```
 
 ### Common Issues
@@ -169,7 +169,7 @@ docker run --env-file .env -p 8000:8000 enterprise-api
 
 ```bash
 # Register a new identity
-curl -X POST http://localhost:8000/api/v1/auth/register \
+curl -X POST http://localhost:8080/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email": "john@example.com", "password": "SecurePass123!"}'
 ```
@@ -180,7 +180,7 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
 
 ```bash
 # Login to get tokens
-curl -X POST http://localhost:8000/api/v1/auth/login \
+curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "john@example.com", "password": "SecurePass123!"}'
 ```
@@ -195,7 +195,7 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 ### Create a Brand (Protected Endpoint)
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/catalog/brands \
+curl -X POST http://localhost:8080/api/v1/catalog/brands \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -221,19 +221,19 @@ curl -X POST http://localhost:8000/api/v1/catalog/brands \
 
 ```bash
 # Create root category
-curl -X POST http://localhost:8000/api/v1/catalog/categories \
+curl -X POST http://localhost:8080/api/v1/catalog/categories \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{"name": "Footwear", "slug": "footwear"}'
 
 # Create child category
-curl -X POST http://localhost:8000/api/v1/catalog/categories \
+curl -X POST http://localhost:8080/api/v1/catalog/categories \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
   -d '{"name": "Sneakers", "slug": "sneakers", "parentId": "<footwear_id>"}'
 
 # Fetch the full tree
-curl http://localhost:8000/api/v1/catalog/categories/tree
+curl http://localhost:8080/api/v1/catalog/categories/tree
 ```
 
 ```json

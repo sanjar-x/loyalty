@@ -4,13 +4,13 @@ Modular monolith with three deployable services and two frontends.
 
 ## Components
 
-| Component | Path | Tech | Port | Deployment |
-|-----------|------|------|------|------------|
-| Backend | `backend/` | FastAPI, Python 3.14, Clean Architecture | 8000 | Railway |
-| Image Backend | `image_backend/` | FastAPI, Python 3.14, Pillow, aiobotocore | 8001 | Railway |
-| Frontend Main | `frontend/main/` | Next.js 16, TypeScript, React 19, Redux Toolkit | 3000 | Netlify |
-| Frontend Admin | `frontend/admin/` | Next.js 16, JSX, Tailwind CSS 4 | 3000 | Netlify |
-| Telegram Bot | `backend/src/bot/` | Aiogram 3, FSM states | — | Railway |
+| Component      | Path               | Tech                                            | Port | Deployment |
+| -------------- | ------------------ | ----------------------------------------------- | ---- | ---------- |
+| Backend        | `backend/`         | FastAPI, Python 3.14, Clean Architecture        | 8080 | Railway    |
+| Image Backend  | `image_backend/`   | FastAPI, Python 3.14, Pillow, aiobotocore       | 8080 | Railway    |
+| Frontend Main  | `frontend/main/`   | Next.js 16, TypeScript, React 19, Redux Toolkit | 3000 | Netlify    |
+| Frontend Admin | `frontend/admin/`  | Next.js 16, JSX, Tailwind CSS 4                 | 3000 | Netlify    |
+| Telegram Bot   | `backend/src/bot/` | Aiogram 3, FSM states                           | —    | Railway    |
 
 Each component has its own `CLAUDE.md` with specific commands, architecture, and patterns. Read it when working in that directory.
 
@@ -18,13 +18,13 @@ Each component has its own `CLAUDE.md` with specific commands, architecture, and
 
 When running Claude Code from a subdirectory, identify which component you are in:
 
-| Working directory contains | Component ID | Vault tag |
-|---|---|---|
-| `backend/src/modules/` | `backend` | `[project/loyality, backend]` |
-| `image_backend/` | `image-backend` | `[project/loyality, image-backend]` |
-| `frontend/main/` | `frontend-main` | `[project/loyality, frontend-main]` |
-| `frontend/admin/` | `frontend-admin` | `[project/loyality, frontend-admin]` |
-| Root `loyality/` | `project` | `[project/loyality]` |
+| Working directory contains | Component ID     | Vault tag                            |
+| -------------------------- | ---------------- | ------------------------------------ |
+| `backend/src/modules/`     | `backend`        | `[project/loyality, backend]`        |
+| `image_backend/`           | `image-backend`  | `[project/loyality, image-backend]`  |
+| `frontend/main/`           | `frontend-main`  | `[project/loyality, frontend-main]`  |
+| `frontend/admin/`          | `frontend-admin` | `[project/loyality, frontend-admin]` |
+| Root `loyality/`           | `project`        | `[project/loyality]`                 |
 
 Use the **Vault tag** column when writing notes to the Knowledge vault — always include the component tag.
 
@@ -80,16 +80,16 @@ Projects/loyality/
 
 **Routing rules — where to save based on component:**
 
-| Type | Scope = project | Scope = component |
-|------|----------------|-------------------|
-| Research | `Projects/loyality/Research - {Topic}.md` | `Projects/loyality/{component}/Research - {Topic}.md` |
-| BRD, FRD, TRD | `Projects/loyality/Loyality {Type}.md` | (update project-level, add section) |
-| ADR (cross-cutting) | `Projects/loyality/ADR-{NNN} {Title}.md` | — |
-| ADR (component) | — | `Projects/loyality/{component}/ADR-{NNN} {Title}.md` |
-| SPEC | `Projects/loyality/SPEC - {Topic}.md` | `Projects/loyality/{component}/SPEC - {Topic}.md` |
-| Sprint | `Projects/loyality/Sprint {N}.md` | — |
-| Meeting | `Projects/loyality/Meeting {YYYY-MM-DD} {Topic}.md` | — |
-| Knowledge note | `Notes/{Concept}.md` | `Notes/{Concept}.md` (always project-independent) |
+| Type                | Scope = project                                     | Scope = component                                     |
+| ------------------- | --------------------------------------------------- | ----------------------------------------------------- |
+| Research            | `Projects/loyality/Research - {Topic}.md`           | `Projects/loyality/{component}/Research - {Topic}.md` |
+| BRD, FRD, TRD       | `Projects/loyality/Loyality {Type}.md`              | (update project-level, add section)                   |
+| ADR (cross-cutting) | `Projects/loyality/ADR-{NNN} {Title}.md`            | —                                                     |
+| ADR (component)     | —                                                   | `Projects/loyality/{component}/ADR-{NNN} {Title}.md`  |
+| SPEC                | `Projects/loyality/SPEC - {Topic}.md`               | `Projects/loyality/{component}/SPEC - {Topic}.md`     |
+| Sprint              | `Projects/loyality/Sprint {N}.md`                   | —                                                     |
+| Meeting             | `Projects/loyality/Meeting {YYYY-MM-DD} {Topic}.md` | —                                                     |
+| Knowledge note      | `Notes/{Concept}.md`                                | `Notes/{Concept}.md` (always project-independent)     |
 
 **How to decide scope:** If the document is about ONE component → component folder. If it spans multiple or is about the project architecture → project root.
 

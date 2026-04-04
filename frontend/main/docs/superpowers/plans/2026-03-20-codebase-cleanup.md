@@ -1246,7 +1246,7 @@ git add next.config.ts
 
 ```env
 # Backend API
-BACKEND_API_BASE_URL=http://localhost:8000
+BACKEND_API_BASE_URL=http://localhost:8080
 
 # Telegram Bot
 TG_BOT_TOKEN=your_bot_token_here

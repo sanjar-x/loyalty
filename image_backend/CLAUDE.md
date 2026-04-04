@@ -11,7 +11,7 @@ When saving research/documents to the vault, use `component: image-backend` in f
 ```bash
 docker compose up -d       # Postgres, Redis, RabbitMQ, MinIO (shared with backend)
 uv sync                    # Dependencies (uv, NOT pip)
-uv run uvicorn main:app --reload --port 8001
+uv run uvicorn main:app --reload --port 8080
 uv run alembic upgrade head
 ```
 

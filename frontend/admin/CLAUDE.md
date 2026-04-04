@@ -72,7 +72,7 @@ Configured in `next.config.js`: CSP, HSTS, X-Frame-Options DENY, nosniff, strict
 ## Environment Variables
 
 ```
-BACKEND_URL=http://127.0.0.1:8000          # Main API
+BACKEND_URL=http://127.0.0.1:8080          # Main API
 IMAGE_BACKEND_URL=http://127.0.0.1:8001    # Image service
 IMAGE_BACKEND_API_KEY=dev-api-key           # Image service auth
 ```

@@ -225,8 +225,8 @@ Router                     Handler                      Domain                  
 
 ```json
 {
-  "id": "019ce123-abcd-7000-8000-000000000001",
-  "defaultVariantId": "019ce123-abcd-7000-8000-000000000002",
+  "id": "019ce123-abcd-7000-8080-000000000001",
+  "defaultVariantId": "019ce123-abcd-7000-8080-000000000002",
   "message": "Product created"
 }
 ```
