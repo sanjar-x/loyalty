@@ -29,7 +29,9 @@
   },
   "permissions": {
     "defaultMode": "bypassPermissions",
-    "additionalDirectories": ["/home/sanjar/Desktop/Knowledge"]
+    "additionalDirectories": [
+      "/home/sanjar/Desktop/Knowledge"
+    ]
   },
   "model": "opus",
   "enableAllProjectMcpServers": true,
@@ -51,7 +53,7 @@
   },
   "enabledPlugins": {
     "github@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": false,
     "code-review@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": true,

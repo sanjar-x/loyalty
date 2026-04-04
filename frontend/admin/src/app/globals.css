@@ -2,6 +2,7 @@
 
 @config '../../tailwind.config.js';
 @import 'tailwindcss';
+@import 'react-image-crop/dist/ReactCrop.css';
 
 :root {
   color-scheme: light;

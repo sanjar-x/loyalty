@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ReactCrop from 'react-image-crop';
-import 'react-image-crop/dist/ReactCrop.css';
 import styles from './ImageViewer.module.css';
 
 export default function ImageViewer({ images, initialIndex = 0, onClose, onRemove, onReplace }) {

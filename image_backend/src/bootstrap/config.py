@@ -72,6 +72,7 @@ class Settings(BaseSettings):
 
     # -- RabbitMQ ------------------------------------------------------------
     RABBITMQ_PRIVATE_URL: str
+    RABBITMQ_URL: str
 
     # -- Service Auth --------------------------------------------------------
     INTERNAL_API_KEY: SecretStr = SecretStr("")

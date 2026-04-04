@@ -39,9 +39,7 @@ function CategoryColumn({ items, selectedId, onSelect }) {
                 href={`/admin/products/add/details/${slug}`}
                 className={styles.itemButton}
               >
-                <span className={styles.itemLabel}>
-                  {categoryLabel(item)}
-                </span>
+                <span className={styles.itemLabel}>{categoryLabel(item)}</span>
                 <ChevronIcon className={styles.itemIcon} />
               </a>
             );
@@ -54,9 +52,7 @@ function CategoryColumn({ items, selectedId, onSelect }) {
               onClick={() => onSelect(item.id)}
               className={`${styles.itemButton} ${isActive ? styles.itemButtonActive : ''}`.trim()}
             >
-              <span className={styles.itemLabel}>
-                {categoryLabel(item)}
-              </span>
+              <span className={styles.itemLabel}>{categoryLabel(item)}</span>
               <ChevronIcon className={styles.itemIcon} />
             </button>
           );
@@ -102,7 +98,10 @@ export default function AddProductPage() {
         currentItems[0] ??
         null;
 
-      result.push({ items: currentItems, selectedId: selectedItem?.id ?? null });
+      result.push({
+        items: currentItems,
+        selectedId: selectedItem?.id ?? null,
+      });
 
       // If items at this level are leaves, stop — no more columns needed
       if (isLeaf(currentItems[0])) break;
@@ -135,7 +134,7 @@ export default function AddProductPage() {
       </div>
 
       {error ? (
-        <p className="text-sm text-app-danger">{error}</p>
+        <p className="text-app-danger text-sm">{error}</p>
       ) : (
         <div className={styles.columns}>
           {loading

@@ -15,7 +15,7 @@ logger = structlog.get_logger(__name__)
 
 
 broker: AioPikaBroker = AioPikaBroker(
-    url=str(settings.RABBITMQ_PRIVATE_URL),
+    url=str(settings.RABBITMQ_URL),
     exchange_name="taskiq_rpc_exchange",
     queue_name="taskiq_background_jobs",
     qos=10,

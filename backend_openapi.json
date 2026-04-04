@@ -91,6 +91,45 @@
         }
       }
     },
+    "/api/v1/catalog/categories/bulk": {
+      "post": {
+        "tags": ["Categories"],
+        "summary": "Bulk-create categories (max 200)",
+        "description": "Create multiple categories in a single transaction. Use 'ref' / 'parentRef' to build a tree within one request.",
+        "operationId": "bulk_create_categories_api_v1_catalog_categories_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCreateCategoriesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkCreateCategoriesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
     "/api/v1/catalog/categories/tree": {
       "get": {
         "tags": ["Categories"],
@@ -341,6 +380,45 @@
         }
       }
     },
+    "/api/v1/catalog/brands/bulk": {
+      "post": {
+        "tags": ["Brands"],
+        "summary": "Bulk-create brands (max 100)",
+        "description": "Create multiple brands in a single transaction. Idempotent slugs are rejected.",
+        "operationId": "bulk_create_brands_api_v1_catalog_brands_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCreateBrandsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkCreateBrandsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
     "/api/v1/catalog/brands/{brand_id}": {
       "get": {
         "tags": ["Brands"],
@@ -382,7 +460,7 @@
       "patch": {
         "tags": ["Brands"],
         "summary": "Update a brand",
-        "description": "Partially update brand fields like name or slug.",
+        "description": "Partially update brand fields like name, slug, or logo.",
         "operationId": "update_brand_api_v1_catalog_brands__brand_id__patch",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
@@ -439,256 +517,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Brand Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": { "description": "Successful Response" },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/catalog/brands/{brand_id}/logo/confirm": {
-      "post": {
-        "tags": ["Brands"],
-        "summary": "Confirm logo upload",
-        "description": "Confirm that a logo was uploaded to S3 and start processing.",
-        "operationId": "confirm_logo_upload_api_v1_catalog_brands__brand_id__logo_confirm_post",
-        "security": [{ "HTTPBearer": [] }],
-        "parameters": [
-          {
-            "name": "brand_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Brand Id"
-            }
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/LogoConfirmResponse" }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/catalog/attribute-groups": {
-      "post": {
-        "tags": ["Attribute Groups"],
-        "summary": "Create a new attribute group",
-        "description": "Create a new attribute group with code, name, and sort order.",
-        "operationId": "create_attribute_group_api_v1_catalog_attribute_groups_post",
-        "security": [{ "HTTPBearer": [] }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AttributeGroupCreateRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AttributeGroupCreateResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": ["Attribute Groups"],
-        "summary": "List attribute groups (paginated)",
-        "description": "Retrieve a paginated list of all attribute groups.",
-        "operationId": "list_attribute_groups_api_v1_catalog_attribute_groups_get",
-        "security": [{ "HTTPBearer": [] }],
-        "parameters": [
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponse_AttributeGroupResponse_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/catalog/attribute-groups/{group_id}": {
-      "get": {
-        "tags": ["Attribute Groups"],
-        "summary": "Get attribute group by ID",
-        "description": "Retrieve a single attribute group by its unique identifier.",
-        "operationId": "get_attribute_group_api_v1_catalog_attribute_groups__group_id__get",
-        "security": [{ "HTTPBearer": [] }],
-        "parameters": [
-          {
-            "name": "group_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Group Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AttributeGroupResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "tags": ["Attribute Groups"],
-        "summary": "Update an attribute group",
-        "description": "Partially update attribute group fields like name or sort order.",
-        "operationId": "update_attribute_group_api_v1_catalog_attribute_groups__group_id__patch",
-        "security": [{ "HTTPBearer": [] }],
-        "parameters": [
-          {
-            "name": "group_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Group Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AttributeGroupUpdateRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AttributeGroupResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": ["Attribute Groups"],
-        "summary": "Delete an attribute group",
-        "description": "Deletes the group and moves its attributes to the 'general' group.",
-        "operationId": "delete_attribute_group_api_v1_catalog_attribute_groups__group_id__delete",
-        "security": [{ "HTTPBearer": [] }],
-        "parameters": [
-          {
-            "name": "group_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Group Id"
             }
           }
         ],
@@ -883,27 +711,30 @@
         }
       }
     },
-    "/api/v1/catalog/attributes/by-slug/{slug}": {
-      "get": {
+    "/api/v1/catalog/attributes/bulk": {
+      "post": {
         "tags": ["Attributes"],
-        "summary": "Get attribute by slug",
-        "description": "Retrieve a single attribute by its URL-friendly slug.",
-        "operationId": "get_attribute_by_slug_api_v1_catalog_attributes_by_slug__slug__get",
-        "security": [{ "HTTPBearer": [] }],
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "title": "Slug" }
-          }
-        ],
+        "summary": "Bulk-create attributes (max 100)",
+        "description": "Create multiple attributes in a single transaction.",
+        "operationId": "bulk_create_attributes_api_v1_catalog_attributes_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCreateAttributesRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AttributeResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/BulkCreateAttributesResponse"
+                }
               }
             }
           },
@@ -915,7 +746,8 @@
               }
             }
           }
-        }
+        },
+        "security": [{ "HTTPBearer": [] }]
       }
     },
     "/api/v1/catalog/attributes/{attribute_id}": {
@@ -1023,6 +855,47 @@
         ],
         "responses": {
           "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/attributes/{attribute_id}/usage": {
+      "get": {
+        "tags": ["Attributes"],
+        "summary": "Get attribute usage analytics",
+        "description": "Shows which templates, categories, and products use this attribute.",
+        "operationId": "get_attribute_usage_api_v1_catalog_attributes__attribute_id__usage_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "attribute_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Attribute Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttributeUsageResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1159,7 +1032,107 @@
         }
       }
     },
+    "/api/v1/catalog/attributes/{attribute_id}/values/bulk": {
+      "post": {
+        "tags": ["Attribute Values"],
+        "summary": "Bulk create attribute values",
+        "description": "Create up to 100 attribute values in a single request.",
+        "operationId": "bulk_add_attribute_values_api_v1_catalog_attributes__attribute_id__values_bulk_post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "attribute_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Attribute Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkAddAttributeValuesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkAddAttributeValuesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/catalog/attributes/{attribute_id}/values/{value_id}": {
+      "get": {
+        "tags": ["Attribute Values"],
+        "summary": "Get a single attribute value",
+        "description": "Retrieve a single attribute value by ID, scoped to the parent attribute.",
+        "operationId": "get_attribute_value_api_v1_catalog_attributes__attribute_id__values__value_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "attribute_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Attribute Id"
+            }
+          },
+          {
+            "name": "value_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Value Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttributeValueResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": ["Attribute Values"],
         "summary": "Update an attribute value",
@@ -1260,6 +1233,108 @@
         }
       }
     },
+    "/api/v1/catalog/attributes/{attribute_id}/values/{value_id}/deactivate": {
+      "patch": {
+        "tags": ["Attribute Values"],
+        "summary": "Deactivate an attribute value",
+        "description": "Hide value from storefront filters. Existing product assignments are preserved.",
+        "operationId": "deactivate_value_api_v1_catalog_attributes__attribute_id__values__value_id__deactivate_patch",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "attribute_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Attribute Id"
+            }
+          },
+          {
+            "name": "value_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Value Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttributeValueActiveResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/attributes/{attribute_id}/values/{value_id}/activate": {
+      "patch": {
+        "tags": ["Attribute Values"],
+        "summary": "Activate an attribute value",
+        "description": "Restore a previously deactivated value so it appears in storefront filters.",
+        "operationId": "activate_value_api_v1_catalog_attributes__attribute_id__values__value_id__activate_patch",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "attribute_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Attribute Id"
+            }
+          },
+          {
+            "name": "value_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Value Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttributeValueActiveResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/catalog/attributes/{attribute_id}/values/reorder": {
       "post": {
         "tags": ["Attribute Values"],
@@ -1302,19 +1377,19 @@
         }
       }
     },
-    "/api/v1/catalog/attribute-families": {
+    "/api/v1/catalog/attribute-templates": {
       "post": {
-        "tags": ["Attribute Families"],
-        "summary": "Create a new attribute family",
-        "description": "Creates a root or child attribute family.",
-        "operationId": "create_family_api_v1_catalog_attribute_families_post",
+        "tags": ["Attribute Templates"],
+        "summary": "Create a new attribute template",
+        "description": "Creates a new attribute template.",
+        "operationId": "create_template_api_v1_catalog_attribute_templates_post",
         "security": [{ "HTTPBearer": [] }],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AttributeFamilyCreateRequest"
+                "$ref": "#/components/schemas/AttributeTemplateCreateRequest"
               }
             }
           }
@@ -1325,7 +1400,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AttributeFamilyCreateResponse"
+                  "$ref": "#/components/schemas/AttributeTemplateCreateResponse"
                 }
               }
             }
@@ -1341,10 +1416,10 @@
         }
       },
       "get": {
-        "tags": ["Attribute Families"],
-        "summary": "List attribute families (paginated)",
-        "description": "Retrieve a paginated list of all attribute families.",
-        "operationId": "list_families_api_v1_catalog_attribute_families_get",
+        "tags": ["Attribute Templates"],
+        "summary": "List attribute templates (paginated)",
+        "description": "Retrieve a paginated list of all attribute templates.",
+        "operationId": "list_templates_api_v1_catalog_attribute_templates_get",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
           {
@@ -1377,7 +1452,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AttributeFamilyListResponse"
+                  "$ref": "#/components/schemas/PaginatedResponse_AttributeTemplateResponse_"
                 }
               }
             }
@@ -1393,24 +1468,38 @@
         }
       }
     },
-    "/api/v1/catalog/attribute-families/tree": {
-      "get": {
-        "tags": ["Attribute Families"],
-        "summary": "Get the attribute family tree",
-        "description": "Returns the full attribute family hierarchy as a nested tree.",
-        "operationId": "get_family_tree_api_v1_catalog_attribute_families_tree_get",
+    "/api/v1/catalog/attribute-templates/clone": {
+      "post": {
+        "tags": ["Attribute Templates"],
+        "summary": "Clone an attribute template",
+        "description": "Create a copy of an existing template with all its attribute bindings.",
+        "operationId": "clone_template_api_v1_catalog_attribute_templates_clone_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloneAttributeTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AttributeFamilyTreeResponse"
-                  },
-                  "type": "array",
-                  "title": "Response Get Family Tree Api V1 Catalog Attribute Families Tree Get"
+                  "$ref": "#/components/schemas/CloneAttributeTemplateResponse"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -1418,22 +1507,22 @@
         "security": [{ "HTTPBearer": [] }]
       }
     },
-    "/api/v1/catalog/attribute-families/{family_id}": {
+    "/api/v1/catalog/attribute-templates/{template_id}": {
       "get": {
-        "tags": ["Attribute Families"],
-        "summary": "Get attribute family by ID",
-        "description": "Retrieve a single attribute family by its unique identifier.",
-        "operationId": "get_family_api_v1_catalog_attribute_families__family_id__get",
+        "tags": ["Attribute Templates"],
+        "summary": "Get attribute template by ID",
+        "description": "Retrieve a single attribute template by its unique identifier.",
+        "operationId": "get_template_api_v1_catalog_attribute_templates__template_id__get",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
           {
-            "name": "family_id",
+            "name": "template_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Family Id"
+              "title": "Template Id"
             }
           }
         ],
@@ -1443,7 +1532,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AttributeFamilyResponse"
+                  "$ref": "#/components/schemas/AttributeTemplateResponse"
                 }
               }
             }
@@ -1459,20 +1548,20 @@
         }
       },
       "patch": {
-        "tags": ["Attribute Families"],
-        "summary": "Update an attribute family",
-        "description": "Partially update family fields. Only provided fields are modified.",
-        "operationId": "update_family_api_v1_catalog_attribute_families__family_id__patch",
+        "tags": ["Attribute Templates"],
+        "summary": "Update an attribute template",
+        "description": "Partially update template fields. Only provided fields are modified.",
+        "operationId": "update_template_api_v1_catalog_attribute_templates__template_id__patch",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
           {
-            "name": "family_id",
+            "name": "template_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Family Id"
+              "title": "Template Id"
             }
           }
         ],
@@ -1481,7 +1570,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AttributeFamilyUpdateRequest"
+                "$ref": "#/components/schemas/AttributeTemplateUpdateRequest"
               }
             }
           }
@@ -1492,7 +1581,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AttributeFamilyResponse"
+                  "$ref": "#/components/schemas/AttributeTemplateResponse"
                 }
               }
             }
@@ -1508,20 +1597,20 @@
         }
       },
       "delete": {
-        "tags": ["Attribute Families"],
-        "summary": "Delete an attribute family",
-        "description": "Permanently delete a leaf attribute family with no category references.",
-        "operationId": "delete_family_api_v1_catalog_attribute_families__family_id__delete",
+        "tags": ["Attribute Templates"],
+        "summary": "Delete an attribute template",
+        "description": "Permanently delete an attribute template with no category references.",
+        "operationId": "delete_template_api_v1_catalog_attribute_templates__template_id__delete",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
           {
-            "name": "family_id",
+            "name": "template_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Family Id"
+              "title": "Template Id"
             }
           }
         ],
@@ -1538,22 +1627,22 @@
         }
       }
     },
-    "/api/v1/catalog/attribute-families/{family_id}/attributes": {
+    "/api/v1/catalog/attribute-templates/{template_id}/attributes": {
       "post": {
-        "tags": ["Attribute Families"],
-        "summary": "Bind an attribute to a family",
-        "description": "Create a new binding between an attribute and a family.",
-        "operationId": "bind_attribute_api_v1_catalog_attribute_families__family_id__attributes_post",
+        "tags": ["Attribute Templates"],
+        "summary": "Bind an attribute to a template",
+        "description": "Create a new binding between an attribute and a template.",
+        "operationId": "bind_attribute_api_v1_catalog_attribute_templates__template_id__attributes_post",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
           {
-            "name": "family_id",
+            "name": "template_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Family Id"
+              "title": "Template Id"
             }
           }
         ],
@@ -1562,7 +1651,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/FamilyAttributeBindingRequest"
+                "$ref": "#/components/schemas/TemplateAttributeBindingRequest"
               }
             }
           }
@@ -1573,7 +1662,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FamilyAttributeBindingResponse"
+                  "$ref": "#/components/schemas/TemplateAttributeBindingEnrichedResponse"
                 }
               }
             }
@@ -1589,20 +1678,20 @@
         }
       },
       "get": {
-        "tags": ["Attribute Families"],
-        "summary": "List own bindings for a family",
-        "description": "Retrieve a paginated list of attribute bindings directly on this family.",
-        "operationId": "list_bindings_api_v1_catalog_attribute_families__family_id__attributes_get",
+        "tags": ["Attribute Templates"],
+        "summary": "List own bindings for a template",
+        "description": "Retrieve a paginated list of attribute bindings directly on this template.",
+        "operationId": "list_bindings_api_v1_catalog_attribute_templates__template_id__attributes_get",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
           {
-            "name": "family_id",
+            "name": "template_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Family Id"
+              "title": "Template Id"
             }
           },
           {
@@ -1635,7 +1724,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FamilyAttributeBindingListResponse"
+                  "$ref": "#/components/schemas/PaginatedResponse_TemplateAttributeBindingDetailResponse_"
                 }
               }
             }
@@ -1651,63 +1740,22 @@
         }
       }
     },
-    "/api/v1/catalog/attribute-families/{family_id}/attributes/effective": {
-      "get": {
-        "tags": ["Attribute Families"],
-        "summary": "Get effective attributes for a family",
-        "description": "Resolve the full effective attribute set with inheritance.",
-        "operationId": "get_effective_attributes_api_v1_catalog_attribute_families__family_id__attributes_effective_get",
-        "security": [{ "HTTPBearer": [] }],
-        "parameters": [
-          {
-            "name": "family_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Family Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EffectiveAttributeSetResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/catalog/attribute-families/{family_id}/attributes/{binding_id}": {
+    "/api/v1/catalog/attribute-templates/{template_id}/attributes/{binding_id}": {
       "patch": {
-        "tags": ["Attribute Families"],
+        "tags": ["Attribute Templates"],
         "summary": "Update a binding",
-        "description": "Partially update a family-attribute binding.",
-        "operationId": "update_binding_api_v1_catalog_attribute_families__family_id__attributes__binding_id__patch",
+        "description": "Partially update a template-attribute binding.",
+        "operationId": "update_binding_api_v1_catalog_attribute_templates__template_id__attributes__binding_id__patch",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
           {
-            "name": "family_id",
+            "name": "template_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Family Id"
+              "title": "Template Id"
             }
           },
           {
@@ -1726,7 +1774,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/FamilyAttributeBindingUpdateRequest"
+                "$ref": "#/components/schemas/TemplateAttributeBindingUpdateRequest"
               }
             }
           }
@@ -1737,9 +1785,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Update Binding Api V1 Catalog Attribute Families  Family Id  Attributes  Binding Id  Patch"
+                  "$ref": "#/components/schemas/TemplateAttributeBindingDetailResponse"
                 }
               }
             }
@@ -1755,20 +1801,20 @@
         }
       },
       "delete": {
-        "tags": ["Attribute Families"],
-        "summary": "Unbind an attribute from a family",
-        "description": "Remove a family-attribute binding.",
-        "operationId": "unbind_attribute_api_v1_catalog_attribute_families__family_id__attributes__binding_id__delete",
+        "tags": ["Attribute Templates"],
+        "summary": "Unbind an attribute from a template",
+        "description": "Remove a template-attribute binding.",
+        "operationId": "unbind_attribute_api_v1_catalog_attribute_templates__template_id__attributes__binding_id__delete",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
           {
-            "name": "family_id",
+            "name": "template_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Family Id"
+              "title": "Template Id"
             }
           },
           {
@@ -1795,22 +1841,22 @@
         }
       }
     },
-    "/api/v1/catalog/attribute-families/{family_id}/attributes/reorder": {
+    "/api/v1/catalog/attribute-templates/{template_id}/attributes/reorder": {
       "post": {
-        "tags": ["Attribute Families"],
+        "tags": ["Attribute Templates"],
         "summary": "Reorder bindings",
-        "description": "Bulk-reorder attribute bindings within a family.",
-        "operationId": "reorder_bindings_api_v1_catalog_attribute_families__family_id__attributes_reorder_post",
+        "description": "Bulk-reorder attribute bindings within a template.",
+        "operationId": "reorder_bindings_api_v1_catalog_attribute_templates__template_id__attributes_reorder_post",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
           {
-            "name": "family_id",
+            "name": "template_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Family Id"
+              "title": "Template Id"
             }
           }
         ],
@@ -1819,177 +1865,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/FamilyBindingReorderRequest"
+                "$ref": "#/components/schemas/TemplateBindingReorderRequest"
               }
             }
           }
         },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Reorder Bindings Api V1 Catalog Attribute Families  Family Id  Attributes Reorder Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/catalog/attribute-families/{family_id}/exclusions": {
-      "post": {
-        "tags": ["Attribute Families"],
-        "summary": "Add an attribute exclusion",
-        "description": "Exclude an inherited attribute from a family's effective set.",
-        "operationId": "add_exclusion_api_v1_catalog_attribute_families__family_id__exclusions_post",
-        "security": [{ "HTTPBearer": [] }],
-        "parameters": [
-          {
-            "name": "family_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Family Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FamilyAttributeExclusionRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyAttributeExclusionResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": ["Attribute Families"],
-        "summary": "List exclusions for a family",
-        "description": "Retrieve a paginated list of attribute exclusions for a family.",
-        "operationId": "list_exclusions_api_v1_catalog_attribute_families__family_id__exclusions_get",
-        "security": [{ "HTTPBearer": [] }],
-        "parameters": [
-          {
-            "name": "family_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Family Id"
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FamilyAttributeExclusionListResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/catalog/attribute-families/{family_id}/exclusions/{exclusion_id}": {
-      "delete": {
-        "tags": ["Attribute Families"],
-        "summary": "Remove an attribute exclusion",
-        "description": "Remove an attribute exclusion from a family.",
-        "operationId": "remove_exclusion_api_v1_catalog_attribute_families__family_id__exclusions__exclusion_id__delete",
-        "security": [{ "HTTPBearer": [] }],
-        "parameters": [
-          {
-            "name": "family_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Family Id"
-            }
-          },
-          {
-            "name": "exclusion_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Exclusion Id"
-            }
-          }
-        ],
         "responses": {
           "204": { "description": "Successful Response" },
           "422": {
@@ -2019,6 +1899,20 @@
               "format": "uuid",
               "title": "Category Id"
             }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "minLength": 2, "maxLength": 5 },
+                { "type": "null" }
+              ],
+              "description": "Locale code for i18n projection (e.g. 'ru', 'en')",
+              "title": "Lang"
+            },
+            "description": "Locale code for i18n projection (e.g. 'ru', 'en')"
           }
         ],
         "responses": {
@@ -2059,6 +1953,20 @@
               "format": "uuid",
               "title": "Category Id"
             }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "minLength": 2, "maxLength": 5 },
+                { "type": "null" }
+              ],
+              "description": "Locale code for i18n projection (e.g. 'ru', 'en')",
+              "title": "Lang"
+            },
+            "description": "Locale code for i18n projection (e.g. 'ru', 'en')"
           }
         ],
         "responses": {
@@ -2099,6 +2007,20 @@
               "format": "uuid",
               "title": "Category Id"
             }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "minLength": 2, "maxLength": 5 },
+                { "type": "null" }
+              ],
+              "description": "Locale code for i18n projection (e.g. 'ru', 'en')",
+              "title": "Lang"
+            },
+            "description": "Locale code for i18n projection (e.g. 'ru', 'en')"
           }
         ],
         "responses": {
@@ -2140,6 +2062,20 @@
               "format": "uuid",
               "title": "Category Id"
             }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "minLength": 2, "maxLength": 5 },
+                { "type": "null" }
+              ],
+              "description": "Locale code for i18n projection (e.g. 'ru', 'en')",
+              "title": "Lang"
+            },
+            "description": "Locale code for i18n projection (e.g. 'ru', 'en')"
           }
         ],
         "responses": {
@@ -2250,6 +2186,37 @@
               ],
               "title": "Brand Id"
             }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(newest|oldest|popularity|name_asc|name_desc)$"
+                },
+                { "type": "null" }
+              ],
+              "description": "Sort order: newest, oldest, popularity, name_asc, name_desc",
+              "title": "Sort By"
+            },
+            "description": "Sort order: newest, oldest, popularity, name_asc, name_desc"
+          },
+          {
+            "name": "published_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "format": "date-time" },
+                { "type": "null" }
+              ],
+              "description": "Only include products published on or after this timestamp",
+              "title": "Published After"
+            },
+            "description": "Only include products published on or after this timestamp"
           }
         ],
         "responses": {
@@ -2259,6 +2226,47 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PaginatedResponse_ProductListItemResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/products/{product_id}/completeness": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Check product attribute completeness",
+        "description": "Check product attribute completeness against template requirements.",
+        "operationId": "get_product_completeness_api_v1_catalog_products__product_id__completeness_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Product Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductCompletenessResponse"
                 }
               }
             }
@@ -3118,7 +3126,7 @@
       "delete": {
         "tags": ["Product Attributes"],
         "summary": "Delete an attribute assignment from a product",
-        "description": "Un-assign an attribute from the given product.",
+        "description": "Delete a product's attribute assignment. Uses attribute_id (not assignment ID) because each product has at most one value per attribute.",
         "operationId": "delete_product_attribute_api_v1_catalog_products__product_id__attributes__attribute_id__delete",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
@@ -3156,12 +3164,12 @@
         }
       }
     },
-    "/api/v1/catalog/products/{product_id}/media/upload": {
+    "/api/v1/catalog/products/{product_id}/media": {
       "post": {
         "tags": ["Product Media"],
-        "summary": "Reserve media upload slot",
-        "description": "Generate a presigned S3 PUT URL for uploading a media file.",
-        "operationId": "request_media_upload_api_v1_catalog_products__product_id__media_upload_post",
+        "summary": "Add a media asset to a product",
+        "description": "Create a new media asset record linking a storage object (from ImageBackend) or external URL to the product.",
+        "operationId": "add_product_media_api_v1_catalog_products__product_id__media_post",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
           {
@@ -3180,7 +3188,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProductMediaUploadRequest"
+                "$ref": "#/components/schemas/MediaAssetCreateRequest"
               }
             }
           }
@@ -3191,7 +3199,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProductMediaUploadResponse"
+                  "$ref": "#/components/schemas/MediaAssetCreateResponse"
                 }
               }
             }
@@ -3205,14 +3213,12 @@
             }
           }
         }
-      }
-    },
-    "/api/v1/catalog/products/{product_id}/media/external": {
-      "post": {
+      },
+      "get": {
         "tags": ["Product Media"],
-        "summary": "Add external media URL",
-        "description": "Add an externally hosted media asset to a product.",
-        "operationId": "add_external_media_api_v1_catalog_products__product_id__media_external_post",
+        "summary": "List media assets for a product",
+        "description": "Return paginated media assets ordered by variant and sort_order.",
+        "operationId": "list_product_media_api_v1_catalog_products__product_id__media_get",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
           {
@@ -3224,25 +3230,38 @@
               "format": "uuid",
               "title": "Product Id"
             }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProductMediaExternalRequest"
-              }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
             }
           }
-        },
+        ],
         "responses": {
-          "201": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProductMediaResponse"
+                  "$ref": "#/components/schemas/PaginatedResponse_MediaAssetResponse_"
                 }
               }
             }
@@ -3258,12 +3277,12 @@
         }
       }
     },
-    "/api/v1/catalog/products/{product_id}/media/{media_id}/confirm": {
-      "post": {
+    "/api/v1/catalog/products/{product_id}/media/{media_id}": {
+      "patch": {
         "tags": ["Product Media"],
-        "summary": "Confirm media upload",
-        "description": "Confirm that a media file was uploaded to S3 and trigger processing.",
-        "operationId": "confirm_media_upload_api_v1_catalog_products__product_id__media__media_id__confirm_post",
+        "summary": "Update a media asset",
+        "description": "Partially update a media asset's role, variant binding, or sort order.",
+        "operationId": "update_product_media_api_v1_catalog_products__product_id__media__media_id__patch",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
           {
@@ -3287,77 +3306,23 @@
             }
           }
         ],
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MediaConfirmResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaAssetUpdateRequest"
               }
             }
           }
-        }
-      }
-    },
-    "/api/v1/catalog/products/{product_id}/media": {
-      "get": {
-        "tags": ["Product Media"],
-        "summary": "List product media",
-        "description": "Return paginated media assets for the given product.",
-        "operationId": "list_product_media_api_v1_catalog_products__product_id__media_get",
-        "security": [{ "HTTPBearer": [] }],
-        "parameters": [
-          {
-            "name": "product_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Product Id"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
-          }
-        ],
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponse_ProductMediaResponse_"
+                  "$ref": "#/components/schemas/MediaAssetUpdateResponse"
                 }
               }
             }
@@ -3371,13 +3336,11 @@
             }
           }
         }
-      }
-    },
-    "/api/v1/catalog/products/{product_id}/media/{media_id}": {
+      },
       "delete": {
         "tags": ["Product Media"],
         "summary": "Delete a media asset",
-        "description": "Delete a media asset and its associated S3 files.",
+        "description": "Delete a media asset and trigger best-effort ImageBackend cleanup.",
         "operationId": "delete_product_media_api_v1_catalog_products__product_id__media__media_id__delete",
         "security": [{ "HTTPBearer": [] }],
         "parameters": [
@@ -3415,28 +3378,23 @@
         }
       }
     },
-    "/api/v1/internal/media/{media_id}/processed": {
+    "/api/v1/catalog/products/{product_id}/media/reorder": {
       "post": {
-        "tags": ["Internal — AI Service Webhooks"],
-        "summary": "AI processing completed",
-        "description": "Callback from AI-service after successful media processing.",
-        "operationId": "media_processed_webhook_api_v1_internal_media__media_id__processed_post",
+        "tags": ["Product Media"],
+        "summary": "Reorder media assets",
+        "description": "Bulk-update sort_order for media assets belonging to this product.",
+        "operationId": "reorder_product_media_api_v1_catalog_products__product_id__media_reorder_post",
+        "security": [{ "HTTPBearer": [] }],
         "parameters": [
           {
-            "name": "media_id",
+            "name": "product_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
-              "title": "Media Id"
+              "title": "Product Id"
             }
-          },
-          {
-            "name": "X-Internal-Token",
-            "in": "header",
-            "required": true,
-            "schema": { "type": "string", "title": "X-Internal-Token" }
           }
         ],
         "requestBody": {
@@ -3444,74 +3402,13 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MediaProcessingWebhookRequest"
+                "$ref": "#/components/schemas/MediaAssetReorderRequest"
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/WebhookAckResponse" }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/internal/media/{media_id}/failed": {
-      "post": {
-        "tags": ["Internal — AI Service Webhooks"],
-        "summary": "AI processing failed",
-        "description": "Callback from AI-service when media processing fails.",
-        "operationId": "media_failed_webhook_api_v1_internal_media__media_id__failed_post",
-        "parameters": [
-          {
-            "name": "media_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Media Id"
-            }
-          },
-          {
-            "name": "X-Internal-Token",
-            "in": "header",
-            "required": true,
-            "schema": { "type": "string", "title": "X-Internal-Token" }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MediaProcessingFailedRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/WebhookAckResponse" }
-              }
-            }
-          },
+          "204": { "description": "Successful Response" },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -5881,8 +5778,13 @@
             "examples": [{ "en": "Color", "ru": "Цвет" }]
           },
           "descriptionI18N": {
-            "additionalProperties": { "type": "string" },
-            "type": "object",
+            "anyOf": [
+              {
+                "additionalProperties": { "type": "string" },
+                "type": "object"
+              },
+              { "type": "null" }
+            ],
             "title": "Descriptioni18N"
           },
           "dataType": {
@@ -5908,7 +5810,13 @@
             "title": "Isdictionary",
             "default": true
           },
-          "groupId": { "type": "string", "format": "uuid", "title": "Groupid" },
+          "groupId": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Groupid"
+          },
           "level": {
             "type": "string",
             "enum": ["product", "variant"],
@@ -5943,11 +5851,6 @@
             "title": "Isvisibleoncard",
             "default": false
           },
-          "isVisibleInCatalog": {
-            "type": "boolean",
-            "title": "Isvisibleincatalog",
-            "default": false
-          },
           "validationRules": {
             "anyOf": [
               { "additionalProperties": true, "type": "object" },
@@ -5957,14 +5860,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "code",
-          "slug",
-          "nameI18N",
-          "dataType",
-          "uiType",
-          "groupId"
-        ],
+        "required": ["code", "slug", "nameI18N", "dataType", "uiType"],
         "title": "AttributeCreateRequest",
         "description": "Request body for creating a new attribute."
       },
@@ -5977,271 +5873,11 @@
         "title": "AttributeCreateResponse",
         "description": "Response after attribute creation."
       },
-      "AttributeFamilyCreateRequest": {
-        "properties": {
-          "code": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "pattern": "^[a-z0-9_]+$",
-            "title": "Code",
-            "description": "Unique machine-readable code."
-          },
-          "parentId": {
-            "anyOf": [
-              { "type": "string", "format": "uuid" },
-              { "type": "null" }
-            ],
-            "title": "Parentid",
-            "description": "Parent family ID for child families."
-          },
-          "nameI18N": {
-            "additionalProperties": { "type": "string" },
-            "type": "object",
-            "minProperties": 1,
-            "title": "Namei18N"
-          },
-          "descriptionI18N": {
-            "anyOf": [
-              {
-                "additionalProperties": { "type": "string" },
-                "type": "object"
-              },
-              { "type": "null" }
-            ],
-            "title": "Descriptioni18N"
-          },
-          "sortOrder": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Sortorder",
-            "default": 0
-          }
-        },
-        "type": "object",
-        "required": ["code", "nameI18N"],
-        "title": "AttributeFamilyCreateRequest",
-        "description": "Request body for creating a new attribute family."
-      },
-      "AttributeFamilyCreateResponse": {
-        "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "default": "Attribute family created"
-          }
-        },
-        "type": "object",
-        "required": ["id"],
-        "title": "AttributeFamilyCreateResponse",
-        "description": "Response for family creation."
-      },
-      "AttributeFamilyListResponse": {
-        "properties": {
-          "items": {
-            "items": { "$ref": "#/components/schemas/AttributeFamilyResponse" },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": { "type": "integer", "title": "Total" },
-          "offset": { "type": "integer", "title": "Offset" },
-          "limit": { "type": "integer", "title": "Limit" }
-        },
-        "type": "object",
-        "required": ["items", "total", "offset", "limit"],
-        "title": "AttributeFamilyListResponse",
-        "description": "Paginated list of attribute families."
-      },
-      "AttributeFamilyResponse": {
-        "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
-          "parentId": {
-            "anyOf": [
-              { "type": "string", "format": "uuid" },
-              { "type": "null" }
-            ],
-            "title": "Parentid"
-          },
-          "code": { "type": "string", "title": "Code" },
-          "nameI18N": {
-            "additionalProperties": { "type": "string" },
-            "type": "object",
-            "title": "Namei18N"
-          },
-          "descriptionI18N": {
-            "additionalProperties": { "type": "string" },
-            "type": "object",
-            "title": "Descriptioni18N"
-          },
-          "sortOrder": { "type": "integer", "title": "Sortorder" },
-          "level": { "type": "integer", "title": "Level" }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "parentId",
-          "code",
-          "nameI18N",
-          "descriptionI18N",
-          "sortOrder",
-          "level"
-        ],
-        "title": "AttributeFamilyResponse",
-        "description": "Full attribute family representation."
-      },
-      "AttributeFamilyTreeResponse": {
-        "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
-          "code": { "type": "string", "title": "Code" },
-          "nameI18N": {
-            "additionalProperties": { "type": "string" },
-            "type": "object",
-            "title": "Namei18N"
-          },
-          "level": { "type": "integer", "title": "Level" },
-          "sortOrder": { "type": "integer", "title": "Sortorder" },
-          "children": {
-            "items": {
-              "$ref": "#/components/schemas/AttributeFamilyTreeResponse"
-            },
-            "type": "array",
-            "title": "Children",
-            "default": []
-          }
-        },
-        "type": "object",
-        "required": ["id", "code", "nameI18N", "level", "sortOrder"],
-        "title": "AttributeFamilyTreeResponse",
-        "description": "Recursive tree node for the family hierarchy."
-      },
-      "AttributeFamilyUpdateRequest": {
-        "properties": {
-          "nameI18N": {
-            "anyOf": [
-              {
-                "additionalProperties": { "type": "string" },
-                "type": "object"
-              },
-              { "type": "null" }
-            ],
-            "title": "Namei18N"
-          },
-          "descriptionI18N": {
-            "anyOf": [
-              {
-                "additionalProperties": { "type": "string" },
-                "type": "object"
-              },
-              { "type": "null" }
-            ],
-            "title": "Descriptioni18N"
-          },
-          "sortOrder": {
-            "anyOf": [
-              { "type": "integer", "minimum": 0.0 },
-              { "type": "null" }
-            ],
-            "title": "Sortorder"
-          }
-        },
-        "type": "object",
-        "title": "AttributeFamilyUpdateRequest",
-        "description": "Request body for updating an attribute family (PATCH semantics)."
-      },
-      "AttributeGroupCreateRequest": {
-        "properties": {
-          "code": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "pattern": "^[a-z0-9_]+$",
-            "title": "Code",
-            "description": "Machine-readable unique code",
-            "examples": ["physical"]
-          },
-          "nameI18N": {
-            "additionalProperties": { "type": "string" },
-            "type": "object",
-            "minProperties": 1,
-            "title": "Namei18N",
-            "description": "Multilingual display name (at least one language required)",
-            "examples": [
-              {
-                "en": "Physical Characteristics",
-                "ru": "Физические характеристики"
-              }
-            ]
-          },
-          "sortOrder": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Sortorder",
-            "description": "Display ordering among groups",
-            "default": 0
-          }
-        },
-        "type": "object",
-        "required": ["code", "nameI18N"],
-        "title": "AttributeGroupCreateRequest",
-        "description": "Request body for creating a new attribute group."
-      },
-      "AttributeGroupCreateResponse": {
-        "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" }
-        },
-        "type": "object",
-        "required": ["id"],
-        "title": "AttributeGroupCreateResponse",
-        "description": "Response after attribute group creation."
-      },
-      "AttributeGroupResponse": {
-        "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
-          "code": { "type": "string", "title": "Code" },
-          "nameI18N": {
-            "additionalProperties": { "type": "string" },
-            "type": "object",
-            "title": "Namei18N"
-          },
-          "sortOrder": { "type": "integer", "title": "Sortorder" }
-        },
-        "type": "object",
-        "required": ["id", "code", "nameI18N", "sortOrder"],
-        "title": "AttributeGroupResponse",
-        "description": "Single attribute group detail response."
-      },
-      "AttributeGroupUpdateRequest": {
-        "properties": {
-          "nameI18N": {
-            "anyOf": [
-              {
-                "additionalProperties": { "type": "string" },
-                "type": "object",
-                "minLength": 1
-              },
-              { "type": "null" }
-            ],
-            "title": "Namei18N",
-            "description": "Multilingual display name (at least one language required)"
-          },
-          "sortOrder": {
-            "anyOf": [
-              { "type": "integer", "minimum": 0.0 },
-              { "type": "null" }
-            ],
-            "title": "Sortorder"
-          }
-        },
-        "type": "object",
-        "title": "AttributeGroupUpdateRequest",
-        "description": "Partial update request -- code is immutable and cannot be changed."
-      },
       "AttributeResponse": {
         "properties": {
           "id": { "type": "string", "format": "uuid", "title": "Id" },
-          "code": { "type": "string", "title": "Code" },
-          "slug": { "type": "string", "title": "Slug" },
+          "code": { "type": "string", "title": "Code", "readOnly": true },
+          "slug": { "type": "string", "title": "Slug", "readOnly": true },
           "nameI18N": {
             "additionalProperties": { "type": "string" },
             "type": "object",
@@ -6252,7 +5888,11 @@
             "type": "object",
             "title": "Descriptioni18N"
           },
-          "dataType": { "type": "string", "title": "Datatype" },
+          "dataType": {
+            "type": "string",
+            "title": "Datatype",
+            "readOnly": true
+          },
           "uiType": { "type": "string", "title": "Uitype" },
           "isDictionary": { "type": "boolean", "title": "Isdictionary" },
           "groupId": {
@@ -6268,10 +5908,6 @@
           "searchWeight": { "type": "integer", "title": "Searchweight" },
           "isComparable": { "type": "boolean", "title": "Iscomparable" },
           "isVisibleOnCard": { "type": "boolean", "title": "Isvisibleoncard" },
-          "isVisibleInCatalog": {
-            "type": "boolean",
-            "title": "Isvisibleincatalog"
-          },
           "validationRules": {
             "anyOf": [
               { "additionalProperties": true, "type": "object" },
@@ -6296,8 +5932,7 @@
           "isSearchable",
           "searchWeight",
           "isComparable",
-          "isVisibleOnCard",
-          "isVisibleInCatalog"
+          "isVisibleOnCard"
         ],
         "title": "AttributeResponse",
         "description": "Full attribute detail response."
@@ -6312,6 +5947,7 @@
           "valueIds": {
             "items": { "type": "string", "format": "uuid" },
             "type": "array",
+            "maxItems": 50,
             "minItems": 1,
             "title": "Valueids"
           }
@@ -6320,6 +5956,113 @@
         "required": ["attributeId", "valueIds"],
         "title": "AttributeSelectionSchema",
         "description": "One attribute with multiple selected values for SKU matrix generation."
+      },
+      "AttributeTemplateCreateRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z0-9_]+$",
+            "title": "Code",
+            "description": "Unique machine-readable code."
+          },
+          "nameI18N": {
+            "additionalProperties": { "type": "string" },
+            "type": "object",
+            "minProperties": 1,
+            "title": "Namei18N"
+          },
+          "descriptionI18N": {
+            "anyOf": [
+              {
+                "additionalProperties": { "type": "string" },
+                "type": "object"
+              },
+              { "type": "null" }
+            ],
+            "title": "Descriptioni18N"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sortorder",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": ["code", "nameI18N"],
+        "title": "AttributeTemplateCreateRequest",
+        "description": "Request body for creating a new attribute template."
+      },
+      "AttributeTemplateCreateResponse": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "Attribute template created"
+          }
+        },
+        "type": "object",
+        "required": ["id"],
+        "title": "AttributeTemplateCreateResponse",
+        "description": "Response for template creation."
+      },
+      "AttributeTemplateResponse": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "code": { "type": "string", "title": "Code", "readOnly": true },
+          "nameI18N": {
+            "additionalProperties": { "type": "string" },
+            "type": "object",
+            "title": "Namei18N"
+          },
+          "descriptionI18N": {
+            "additionalProperties": { "type": "string" },
+            "type": "object",
+            "title": "Descriptioni18N"
+          },
+          "sortOrder": { "type": "integer", "title": "Sortorder" }
+        },
+        "type": "object",
+        "required": ["id", "code", "nameI18N", "descriptionI18N", "sortOrder"],
+        "title": "AttributeTemplateResponse",
+        "description": "Full attribute template representation."
+      },
+      "AttributeTemplateUpdateRequest": {
+        "properties": {
+          "nameI18N": {
+            "anyOf": [
+              {
+                "additionalProperties": { "type": "string" },
+                "type": "object"
+              },
+              { "type": "null" }
+            ],
+            "title": "Namei18N"
+          },
+          "descriptionI18N": {
+            "anyOf": [
+              {
+                "additionalProperties": { "type": "string" },
+                "type": "object"
+              },
+              { "type": "null" }
+            ],
+            "title": "Descriptioni18N"
+          },
+          "sortOrder": {
+            "anyOf": [
+              { "type": "integer", "minimum": 0.0 },
+              { "type": "null" }
+            ],
+            "title": "Sortorder"
+          }
+        },
+        "type": "object",
+        "title": "AttributeTemplateUpdateRequest",
+        "description": "Request body for updating an attribute template (PATCH semantics)."
       },
       "AttributeUpdateRequest": {
         "properties": {
@@ -6397,10 +6140,6 @@
             "anyOf": [{ "type": "boolean" }, { "type": "null" }],
             "title": "Isvisibleoncard"
           },
-          "isVisibleInCatalog": {
-            "anyOf": [{ "type": "boolean" }, { "type": "null" }],
-            "title": "Isvisibleincatalog"
-          },
           "validationRules": {
             "anyOf": [
               { "additionalProperties": true, "type": "object" },
@@ -6412,6 +6151,77 @@
         "type": "object",
         "title": "AttributeUpdateRequest",
         "description": "Partial update request -- code, slug, data_type are immutable."
+      },
+      "AttributeUsageCategoryItem": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "fullSlug": { "type": "string", "title": "Fullslug" },
+          "nameI18N": {
+            "additionalProperties": { "type": "string" },
+            "type": "object",
+            "title": "Namei18N"
+          }
+        },
+        "type": "object",
+        "required": ["id", "fullSlug", "nameI18N"],
+        "title": "AttributeUsageCategoryItem",
+        "description": "A category that inherits a given attribute."
+      },
+      "AttributeUsageResponse": {
+        "properties": {
+          "templateCount": { "type": "integer", "title": "Templatecount" },
+          "templates": {
+            "items": {
+              "$ref": "#/components/schemas/AttributeUsageTemplateItem"
+            },
+            "type": "array",
+            "title": "Templates"
+          },
+          "categoryCount": { "type": "integer", "title": "Categorycount" },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/AttributeUsageCategoryItem"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "productCount": { "type": "integer", "title": "Productcount" }
+        },
+        "type": "object",
+        "required": [
+          "templateCount",
+          "templates",
+          "categoryCount",
+          "categories",
+          "productCount"
+        ],
+        "title": "AttributeUsageResponse",
+        "description": "Analytics response showing where an attribute is used."
+      },
+      "AttributeUsageTemplateItem": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "code": { "type": "string", "title": "Code" },
+          "nameI18N": {
+            "additionalProperties": { "type": "string" },
+            "type": "object",
+            "title": "Namei18N"
+          }
+        },
+        "type": "object",
+        "required": ["id", "code", "nameI18N"],
+        "title": "AttributeUsageTemplateItem",
+        "description": "A template that binds a given attribute."
+      },
+      "AttributeValueActiveResponse": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "isActive": { "type": "boolean", "title": "Isactive" }
+        },
+        "type": "object",
+        "required": ["id", "isActive"],
+        "title": "AttributeValueActiveResponse",
+        "description": "Response after activating or deactivating an attribute value."
       },
       "AttributeValueCreateRequest": {
         "properties": {
@@ -6490,8 +6300,8 @@
             "format": "uuid",
             "title": "Attributeid"
           },
-          "code": { "type": "string", "title": "Code" },
-          "slug": { "type": "string", "title": "Slug" },
+          "code": { "type": "string", "title": "Code", "readOnly": true },
+          "slug": { "type": "string", "title": "Slug", "readOnly": true },
           "valueI18N": {
             "additionalProperties": { "type": "string" },
             "type": "object",
@@ -6511,7 +6321,8 @@
             "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Valuegroup"
           },
-          "sortOrder": { "type": "integer", "title": "Sortorder" }
+          "sortOrder": { "type": "integer", "title": "Sortorder" },
+          "isActive": { "type": "boolean", "title": "Isactive" }
         },
         "type": "object",
         "required": [
@@ -6522,7 +6333,8 @@
           "valueI18N",
           "searchAliases",
           "metaData",
-          "sortOrder"
+          "sortOrder",
+          "isActive"
         ],
         "title": "AttributeValueResponse",
         "description": "Full attribute value detail response."
@@ -6559,7 +6371,10 @@
             "title": "Metadata"
           },
           "valueGroup": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "anyOf": [
+              { "type": "string", "maxLength": 100 },
+              { "type": "null" }
+            ],
             "title": "Valuegroup"
           },
           "sortOrder": {
@@ -6607,34 +6422,34 @@
             "pattern": "^[a-z0-9-]+$",
             "title": "Slug"
           },
-          "logo": {
+          "logoUrl": {
             "anyOf": [
-              { "$ref": "#/components/schemas/LogoMetadataRequest" },
+              { "type": "string", "maxLength": 2048, "pattern": "^https://" },
               { "type": "null" }
-            ]
+            ],
+            "title": "Logourl"
+          },
+          "logoStorageObjectId": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Logostorageobjectid"
           }
         },
         "type": "object",
         "required": ["name", "slug"],
         "title": "BrandCreateRequest",
-        "description": "Request body for creating a new brand, with optional logo metadata."
+        "description": "Request body for creating a new brand, with optional logo fields."
       },
       "BrandCreateResponse": {
         "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
-          "presignedUploadUrl": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }],
-            "title": "Presigneduploadurl"
-          },
-          "objectKey": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }],
-            "title": "Objectkey"
-          }
+          "id": { "type": "string", "format": "uuid", "title": "Id" }
         },
         "type": "object",
         "required": ["id"],
         "title": "BrandCreateResponse",
-        "description": "Response after brand creation, including an optional presigned upload URL."
+        "description": "Response after brand creation."
       },
       "BrandResponse": {
         "properties": {
@@ -6644,10 +6459,6 @@
           "logoUrl": {
             "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Logourl"
-          },
-          "logoStatus": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }],
-            "title": "Logostatus"
           }
         },
         "type": "object",
@@ -6675,11 +6486,54 @@
               { "type": "null" }
             ],
             "title": "Slug"
+          },
+          "logoUrl": {
+            "anyOf": [
+              { "type": "string", "maxLength": 2048, "pattern": "^https://" },
+              { "type": "null" }
+            ],
+            "title": "Logourl"
+          },
+          "logoStorageObjectId": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Logostorageobjectid"
           }
         },
         "type": "object",
         "title": "BrandUpdateRequest",
         "description": "Partial update request -- all fields optional (PATCH semantics)."
+      },
+      "BulkAddAttributeValuesRequest": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/BulkAttributeValueItem" },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": ["items"],
+        "title": "BulkAddAttributeValuesRequest",
+        "description": "Request body for bulk-adding values to an attribute."
+      },
+      "BulkAddAttributeValuesResponse": {
+        "properties": {
+          "createdCount": { "type": "integer", "title": "Createdcount" },
+          "ids": {
+            "items": { "type": "string", "format": "uuid" },
+            "type": "array",
+            "title": "Ids"
+          }
+        },
+        "type": "object",
+        "required": ["createdCount", "ids"],
+        "title": "BulkAddAttributeValuesResponse",
+        "description": "Response from bulk attribute value creation."
       },
       "BulkAssignProductAttributesRequest": {
         "properties": {
@@ -6713,6 +6567,296 @@
         "title": "BulkAssignProductAttributesResponse",
         "description": "Response from bulk attribute assignment."
       },
+      "BulkAttributeValueItem": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z0-9_-]+$",
+            "title": "Code",
+            "examples": ["red"]
+          },
+          "slug": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "pattern": "^[a-z0-9-]+$",
+            "title": "Slug",
+            "examples": ["red"]
+          },
+          "valueI18N": {
+            "additionalProperties": { "type": "string" },
+            "type": "object",
+            "minProperties": 1,
+            "title": "Valuei18N",
+            "examples": [{ "en": "Red", "ru": "Красный" }]
+          },
+          "searchAliases": {
+            "anyOf": [
+              {
+                "items": { "type": "string", "maxLength": 100 },
+                "type": "array",
+                "maxItems": 50
+              },
+              { "type": "null" }
+            ],
+            "title": "Searchaliases",
+            "description": "Search synonyms (max 50 entries, each max 100 chars)"
+          },
+          "metaData": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "type": "null" }
+            ],
+            "title": "Metadata"
+          },
+          "valueGroup": {
+            "anyOf": [
+              { "type": "string", "maxLength": 100 },
+              { "type": "null" }
+            ],
+            "title": "Valuegroup"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sortorder",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": ["code", "slug", "valueI18N"],
+        "title": "BulkAttributeValueItem",
+        "description": "A single value item within a bulk-add request."
+      },
+      "BulkBrandItem": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "slug": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "pattern": "^[a-z0-9-]+$",
+            "title": "Slug"
+          },
+          "logoUrl": {
+            "anyOf": [
+              { "type": "string", "maxLength": 2048, "pattern": "^https://" },
+              { "type": "null" }
+            ],
+            "title": "Logourl"
+          }
+        },
+        "type": "object",
+        "required": ["name", "slug"],
+        "title": "BulkBrandItem",
+        "description": "A single brand within a bulk-create request."
+      },
+      "BulkCategoryCreatedItemResponse": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "slug": { "type": "string", "title": "Slug" },
+          "fullSlug": { "type": "string", "title": "Fullslug" },
+          "level": { "type": "integer", "title": "Level" },
+          "ref": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Ref"
+          }
+        },
+        "type": "object",
+        "required": ["id", "slug", "fullSlug", "level"],
+        "title": "BulkCategoryCreatedItemResponse",
+        "description": "Info about a single created category in the bulk response."
+      },
+      "BulkCategoryItem": {
+        "properties": {
+          "nameI18N": {
+            "additionalProperties": { "type": "string" },
+            "type": "object",
+            "minProperties": 1,
+            "title": "Namei18N"
+          },
+          "slug": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 3,
+            "pattern": "^[a-z0-9-]+$",
+            "title": "Slug"
+          },
+          "parentId": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Parentid",
+            "description": "Existing parent category UUID"
+          },
+          "parentRef": {
+            "anyOf": [
+              { "type": "string", "maxLength": 100 },
+              { "type": "null" }
+            ],
+            "title": "Parentref",
+            "description": "Reference to another item's 'ref' in this batch (for nested trees)"
+          },
+          "ref": {
+            "anyOf": [
+              { "type": "string", "maxLength": 100 },
+              { "type": "null" }
+            ],
+            "title": "Ref",
+            "description": "Key so other items can reference this one as parent"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sortorder",
+            "default": 0
+          },
+          "templateId": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Templateid"
+          }
+        },
+        "type": "object",
+        "required": ["nameI18N", "slug"],
+        "title": "BulkCategoryItem",
+        "description": "A single category within a bulk-create request."
+      },
+      "BulkCreateAttributesRequest": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/AttributeCreateRequest" },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items"
+          },
+          "skipExisting": {
+            "type": "boolean",
+            "title": "Skipexisting",
+            "description": "If true, silently skip attributes with existing code/slug.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["items"],
+        "title": "BulkCreateAttributesRequest",
+        "description": "Request body for bulk-creating attributes (max 100)."
+      },
+      "BulkCreateAttributesResponse": {
+        "properties": {
+          "createdCount": { "type": "integer", "title": "Createdcount" },
+          "skippedCount": { "type": "integer", "title": "Skippedcount" },
+          "ids": {
+            "items": { "type": "string", "format": "uuid" },
+            "type": "array",
+            "title": "Ids"
+          },
+          "skippedCodes": {
+            "items": { "type": "string" },
+            "type": "array",
+            "title": "Skippedcodes"
+          }
+        },
+        "type": "object",
+        "required": ["createdCount", "skippedCount", "ids", "skippedCodes"],
+        "title": "BulkCreateAttributesResponse",
+        "description": "Response from bulk attribute creation."
+      },
+      "BulkCreateBrandsRequest": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/BulkBrandItem" },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items"
+          },
+          "skipExisting": {
+            "type": "boolean",
+            "title": "Skipexisting",
+            "description": "If true, silently skip brands with existing slug/name instead of failing.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["items"],
+        "title": "BulkCreateBrandsRequest",
+        "description": "Request body for bulk-creating brands (max 100)."
+      },
+      "BulkCreateBrandsResponse": {
+        "properties": {
+          "createdCount": { "type": "integer", "title": "Createdcount" },
+          "skippedCount": { "type": "integer", "title": "Skippedcount" },
+          "ids": {
+            "items": { "type": "string", "format": "uuid" },
+            "type": "array",
+            "title": "Ids"
+          },
+          "skippedSlugs": {
+            "items": { "type": "string" },
+            "type": "array",
+            "title": "Skippedslugs"
+          }
+        },
+        "type": "object",
+        "required": ["createdCount", "skippedCount", "ids", "skippedSlugs"],
+        "title": "BulkCreateBrandsResponse",
+        "description": "Response from bulk brand creation."
+      },
+      "BulkCreateCategoriesRequest": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/BulkCategoryItem" },
+            "type": "array",
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Items"
+          },
+          "skipExisting": {
+            "type": "boolean",
+            "title": "Skipexisting",
+            "description": "If true, silently skip categories with conflicting slug instead of failing.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["items"],
+        "title": "BulkCreateCategoriesRequest",
+        "description": "Request body for bulk-creating categories (max 200)."
+      },
+      "BulkCreateCategoriesResponse": {
+        "properties": {
+          "createdCount": { "type": "integer", "title": "Createdcount" },
+          "skippedCount": { "type": "integer", "title": "Skippedcount" },
+          "created": {
+            "items": {
+              "$ref": "#/components/schemas/BulkCategoryCreatedItemResponse"
+            },
+            "type": "array",
+            "title": "Created"
+          },
+          "skippedSlugs": {
+            "items": { "type": "string" },
+            "type": "array",
+            "title": "Skippedslugs"
+          }
+        },
+        "type": "object",
+        "required": ["createdCount", "skippedCount", "created", "skippedSlugs"],
+        "title": "BulkCreateCategoriesResponse",
+        "description": "Response from bulk category creation."
+      },
       "CategoryCreateRequest": {
         "properties": {
           "nameI18N": {
@@ -6745,13 +6889,13 @@
             "description": "Display ordering among siblings",
             "default": 0
           },
-          "familyId": {
+          "templateId": {
             "anyOf": [
               { "type": "string", "format": "uuid" },
               { "type": "null" }
             ],
-            "title": "Familyid",
-            "description": "Attribute family UUID."
+            "title": "Templateid",
+            "description": "Attribute template UUID."
           }
         },
         "type": "object",
@@ -6864,13 +7008,13 @@
             ],
             "title": "Sortorder"
           },
-          "familyId": {
+          "templateId": {
             "anyOf": [
               { "type": "string", "format": "uuid" },
               { "type": "null" }
             ],
-            "title": "Familyid",
-            "description": "Attribute family UUID."
+            "title": "Templateid",
+            "description": "Attribute template UUID."
           }
         },
         "type": "object",
@@ -6896,6 +7040,58 @@
         "required": ["currentPassword", "newPassword"],
         "title": "ChangePasswordRequest",
         "description": "Request payload for changing password.\n\nAttributes:\n    current_password: The current password for verification.\n    new_password: The new password (8-128 characters)."
+      },
+      "CloneAttributeTemplateRequest": {
+        "properties": {
+          "sourceTemplateId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sourcetemplateid"
+          },
+          "newCode": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z0-9_-]+$",
+            "title": "Newcode",
+            "description": "Unique machine-readable code for the clone."
+          },
+          "newNameI18N": {
+            "additionalProperties": { "type": "string" },
+            "type": "object",
+            "minProperties": 1,
+            "title": "Newnamei18N"
+          },
+          "newDescriptionI18N": {
+            "anyOf": [
+              {
+                "additionalProperties": { "type": "string" },
+                "type": "object"
+              },
+              { "type": "null" }
+            ],
+            "title": "Newdescriptioni18N"
+          }
+        },
+        "type": "object",
+        "required": ["sourceTemplateId", "newCode", "newNameI18N"],
+        "title": "CloneAttributeTemplateRequest",
+        "description": "Request body for cloning an existing attribute template."
+      },
+      "CloneAttributeTemplateResponse": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "bindingsCopied": { "type": "integer", "title": "Bindingscopied" },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "Template cloned successfully"
+          }
+        },
+        "type": "object",
+        "required": ["id", "bindingsCopied"],
+        "title": "CloneAttributeTemplateResponse",
+        "description": "Response after template cloning."
       },
       "CountryListReadModel": {
         "properties": {
@@ -7183,369 +7379,6 @@
         "title": "CustomerListResponse",
         "description": "Paginated customer list response."
       },
-      "EffectiveAttributeSchema": {
-        "properties": {
-          "attributeId": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Attributeid"
-          },
-          "code": { "type": "string", "title": "Code" },
-          "slug": { "type": "string", "title": "Slug" },
-          "nameI18N": {
-            "additionalProperties": { "type": "string" },
-            "type": "object",
-            "title": "Namei18N"
-          },
-          "descriptionI18N": {
-            "additionalProperties": { "type": "string" },
-            "type": "object",
-            "title": "Descriptioni18N"
-          },
-          "dataType": { "type": "string", "title": "Datatype" },
-          "uiType": { "type": "string", "title": "Uitype" },
-          "isDictionary": { "type": "boolean", "title": "Isdictionary" },
-          "level": { "type": "string", "title": "Level" },
-          "requirementLevel": { "type": "string", "title": "Requirementlevel" },
-          "validationRules": {
-            "anyOf": [
-              { "additionalProperties": true, "type": "object" },
-              { "type": "null" }
-            ],
-            "title": "Validationrules"
-          },
-          "flagOverrides": {
-            "anyOf": [
-              { "additionalProperties": true, "type": "object" },
-              { "type": "null" }
-            ],
-            "title": "Flagoverrides"
-          },
-          "filterSettings": {
-            "anyOf": [
-              { "additionalProperties": true, "type": "object" },
-              { "type": "null" }
-            ],
-            "title": "Filtersettings"
-          },
-          "sourceFamilyId": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Sourcefamilyid"
-          },
-          "isOverridden": { "type": "boolean", "title": "Isoverridden" },
-          "values": {
-            "items": {
-              "$ref": "#/components/schemas/EffectiveAttributeValueSchema"
-            },
-            "type": "array",
-            "title": "Values",
-            "default": []
-          },
-          "sortOrder": { "type": "integer", "title": "Sortorder" }
-        },
-        "type": "object",
-        "required": [
-          "attributeId",
-          "code",
-          "slug",
-          "nameI18N",
-          "descriptionI18N",
-          "dataType",
-          "uiType",
-          "isDictionary",
-          "level",
-          "requirementLevel",
-          "sourceFamilyId",
-          "isOverridden",
-          "sortOrder"
-        ],
-        "title": "EffectiveAttributeSchema",
-        "description": "Attribute in the effective set."
-      },
-      "EffectiveAttributeSetResponse": {
-        "properties": {
-          "familyId": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Familyid"
-          },
-          "attributes": {
-            "items": {
-              "$ref": "#/components/schemas/EffectiveAttributeSchema"
-            },
-            "type": "array",
-            "title": "Attributes"
-          }
-        },
-        "type": "object",
-        "required": ["familyId", "attributes"],
-        "title": "EffectiveAttributeSetResponse",
-        "description": "Complete effective attribute set."
-      },
-      "EffectiveAttributeValueSchema": {
-        "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
-          "code": { "type": "string", "title": "Code" },
-          "slug": { "type": "string", "title": "Slug" },
-          "valueI18N": {
-            "additionalProperties": { "type": "string" },
-            "type": "object",
-            "title": "Valuei18N"
-          },
-          "metaData": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Metadata"
-          },
-          "valueGroup": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }],
-            "title": "Valuegroup"
-          },
-          "sortOrder": { "type": "integer", "title": "Sortorder" }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "code",
-          "slug",
-          "valueI18N",
-          "metaData",
-          "sortOrder"
-        ],
-        "title": "EffectiveAttributeValueSchema",
-        "description": "Value in the effective attribute set."
-      },
-      "FamilyAttributeBindingDetailResponse": {
-        "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
-          "familyId": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Familyid"
-          },
-          "attributeId": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Attributeid"
-          },
-          "sortOrder": { "type": "integer", "title": "Sortorder" },
-          "requirementLevel": { "type": "string", "title": "Requirementlevel" },
-          "flagOverrides": {
-            "anyOf": [
-              { "additionalProperties": true, "type": "object" },
-              { "type": "null" }
-            ],
-            "title": "Flagoverrides"
-          },
-          "filterSettings": {
-            "anyOf": [
-              { "additionalProperties": true, "type": "object" },
-              { "type": "null" }
-            ],
-            "title": "Filtersettings"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "familyId",
-          "attributeId",
-          "sortOrder",
-          "requirementLevel"
-        ],
-        "title": "FamilyAttributeBindingDetailResponse",
-        "description": "Detailed binding info."
-      },
-      "FamilyAttributeBindingListResponse": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/FamilyAttributeBindingDetailResponse"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": { "type": "integer", "title": "Total" },
-          "offset": { "type": "integer", "title": "Offset" },
-          "limit": { "type": "integer", "title": "Limit" }
-        },
-        "type": "object",
-        "required": ["items", "total", "offset", "limit"],
-        "title": "FamilyAttributeBindingListResponse",
-        "description": "List of bindings for a family."
-      },
-      "FamilyAttributeBindingRequest": {
-        "properties": {
-          "attributeId": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Attributeid"
-          },
-          "sortOrder": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Sortorder",
-            "default": 0
-          },
-          "requirementLevel": {
-            "type": "string",
-            "pattern": "^(required|recommended|optional)$",
-            "title": "Requirementlevel",
-            "default": "optional"
-          },
-          "flagOverrides": {
-            "anyOf": [
-              { "additionalProperties": true, "type": "object" },
-              { "type": "null" }
-            ],
-            "title": "Flagoverrides"
-          },
-          "filterSettings": {
-            "anyOf": [
-              { "additionalProperties": true, "type": "object" },
-              { "type": "null" }
-            ],
-            "title": "Filtersettings"
-          }
-        },
-        "type": "object",
-        "required": ["attributeId"],
-        "title": "FamilyAttributeBindingRequest",
-        "description": "Request body for binding an attribute to a family."
-      },
-      "FamilyAttributeBindingResponse": {
-        "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "default": "Attribute bound to family"
-          }
-        },
-        "type": "object",
-        "required": ["id"],
-        "title": "FamilyAttributeBindingResponse",
-        "description": "Response for binding creation."
-      },
-      "FamilyAttributeBindingUpdateRequest": {
-        "properties": {
-          "sortOrder": {
-            "anyOf": [
-              { "type": "integer", "minimum": 0.0 },
-              { "type": "null" }
-            ],
-            "title": "Sortorder"
-          },
-          "requirementLevel": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^(required|recommended|optional)$"
-              },
-              { "type": "null" }
-            ],
-            "title": "Requirementlevel"
-          },
-          "flagOverrides": {
-            "anyOf": [
-              { "additionalProperties": true, "type": "object" },
-              { "type": "null" }
-            ],
-            "title": "Flagoverrides"
-          },
-          "filterSettings": {
-            "anyOf": [
-              { "additionalProperties": true, "type": "object" },
-              { "type": "null" }
-            ],
-            "title": "Filtersettings"
-          }
-        },
-        "type": "object",
-        "title": "FamilyAttributeBindingUpdateRequest",
-        "description": "PATCH request for updating a binding."
-      },
-      "FamilyAttributeExclusionDetailResponse": {
-        "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
-          "familyId": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Familyid"
-          },
-          "attributeId": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Attributeid"
-          }
-        },
-        "type": "object",
-        "required": ["id", "familyId", "attributeId"],
-        "title": "FamilyAttributeExclusionDetailResponse",
-        "description": "Detailed exclusion info."
-      },
-      "FamilyAttributeExclusionListResponse": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/FamilyAttributeExclusionDetailResponse"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": { "type": "integer", "title": "Total" },
-          "offset": { "type": "integer", "title": "Offset" },
-          "limit": { "type": "integer", "title": "Limit" }
-        },
-        "type": "object",
-        "required": ["items", "total", "offset", "limit"],
-        "title": "FamilyAttributeExclusionListResponse",
-        "description": "List of exclusions for a family."
-      },
-      "FamilyAttributeExclusionRequest": {
-        "properties": {
-          "attributeId": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Attributeid"
-          }
-        },
-        "type": "object",
-        "required": ["attributeId"],
-        "title": "FamilyAttributeExclusionRequest",
-        "description": "Request for excluding an inherited attribute."
-      },
-      "FamilyAttributeExclusionResponse": {
-        "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "default": "Attribute excluded from family"
-          }
-        },
-        "type": "object",
-        "required": ["id"],
-        "title": "FamilyAttributeExclusionResponse",
-        "description": "Response for exclusion creation."
-      },
-      "FamilyBindingReorderRequest": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/BindingReorderItemSchema"
-            },
-            "type": "array",
-            "minItems": 1,
-            "title": "Items"
-          }
-        },
-        "type": "object",
-        "required": ["items"],
-        "title": "FamilyBindingReorderRequest",
-        "description": "Request for reordering bindings."
-      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -7734,88 +7567,203 @@
         "title": "LoginRequest",
         "description": "Request payload for email-or-username/password login.\n\nAttributes:\n    login: The user's email address or username.\n    password: The user's plaintext password (max 128 characters)."
       },
-      "LogoConfirmResponse": {
+      "MediaAssetCreateRequest": {
         "properties": {
-          "message": {
+          "storageObjectId": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Storageobjectid"
+          },
+          "variantId": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Variantid"
+          },
+          "mediaType": {
             "type": "string",
-            "title": "Message",
-            "default": "Logo processing request accepted"
+            "enum": ["image", "video", "model_3d", "document"],
+            "title": "Mediatype",
+            "default": "image"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "main",
+              "hover",
+              "gallery",
+              "hero_video",
+              "size_guide",
+              "packaging"
+            ],
+            "title": "Role",
+            "default": "gallery"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sortorder",
+            "default": 0
+          },
+          "isExternal": {
+            "type": "boolean",
+            "title": "Isexternal",
+            "default": false
+          },
+          "url": {
+            "anyOf": [
+              { "type": "string", "maxLength": 1024, "pattern": "^https?://" },
+              { "type": "null" }
+            ],
+            "title": "Url"
           }
         },
         "type": "object",
-        "title": "LogoConfirmResponse",
-        "description": "Response after confirming logo upload."
+        "title": "MediaAssetCreateRequest",
+        "description": "Request body for adding a media asset to a product."
       },
-      "LogoMetadataRequest": {
+      "MediaAssetCreateResponse": {
         "properties": {
-          "filename": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "message": { "type": "string", "title": "Message" }
+        },
+        "type": "object",
+        "required": ["id", "message"],
+        "title": "MediaAssetCreateResponse",
+        "description": "Response returned after successful media asset creation."
+      },
+      "MediaAssetReorderRequest": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/ReorderMediaItemSchema" },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": ["items"],
+        "title": "MediaAssetReorderRequest",
+        "description": "Request body for bulk-reordering media assets."
+      },
+      "MediaAssetResponse": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "productId": {
             "type": "string",
-            "maxLength": 255,
-            "title": "Filename"
+            "format": "uuid",
+            "title": "Productid"
           },
-          "contentType": {
-            "type": "string",
-            "pattern": "^image/(jpeg|png|webp|gif|svg\\+xml)$",
-            "title": "Contenttype"
+          "variantId": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Variantid"
           },
-          "size": {
+          "mediaType": { "type": "string", "title": "Mediatype" },
+          "role": { "type": "string", "title": "Role" },
+          "sortOrder": { "type": "integer", "title": "Sortorder" },
+          "storageObjectId": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Storageobjectid"
+          },
+          "url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Url"
+          },
+          "isExternal": { "type": "boolean", "title": "Isexternal" },
+          "imageVariants": {
+            "anyOf": [
+              {
+                "items": { "additionalProperties": true, "type": "object" },
+                "type": "array"
+              },
+              { "type": "null" }
+            ],
+            "title": "Imagevariants"
+          },
+          "createdAt": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Updatedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "productId",
+          "mediaType",
+          "role",
+          "sortOrder",
+          "isExternal"
+        ],
+        "title": "MediaAssetResponse",
+        "description": "Full media asset detail response."
+      },
+      "MediaAssetUpdateRequest": {
+        "properties": {
+          "variantId": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Variantid"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "main",
+                  "hover",
+                  "gallery",
+                  "hero_video",
+                  "size_guide",
+                  "packaging"
+                ]
+              },
+              { "type": "null" }
+            ],
+            "title": "Role"
+          },
+          "sortOrder": {
             "anyOf": [
               { "type": "integer", "minimum": 0.0 },
               { "type": "null" }
             ],
-            "title": "Size"
+            "title": "Sortorder"
           }
         },
         "type": "object",
-        "required": ["filename", "contentType"],
-        "title": "LogoMetadataRequest",
-        "description": "Client-supplied metadata for a brand logo upload."
+        "title": "MediaAssetUpdateRequest",
+        "description": "Partial update request for a media asset (PATCH semantics)."
       },
-      "MediaConfirmResponse": {
+      "MediaAssetUpdateResponse": {
         "properties": {
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "default": "Upload confirmed, processing started"
-          }
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "message": { "type": "string", "title": "Message" }
         },
         "type": "object",
-        "title": "MediaConfirmResponse",
-        "description": "Response returned after confirming a media upload."
-      },
-      "MediaProcessingFailedRequest": {
-        "properties": {
-          "error": { "type": "string", "maxLength": 2000, "title": "Error" }
-        },
-        "type": "object",
-        "required": ["error"],
-        "title": "MediaProcessingFailedRequest",
-        "description": "Internal webhook body from AI-service on failure."
-      },
-      "MediaProcessingWebhookRequest": {
-        "properties": {
-          "objectKey": {
-            "type": "string",
-            "maxLength": 1024,
-            "pattern": "^[a-zA-Z0-9/_.-]+$",
-            "title": "Objectkey"
-          },
-          "contentType": {
-            "type": "string",
-            "maxLength": 255,
-            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9!#$&\\-^_.+]+/[a-zA-Z0-9][a-zA-Z0-9!#$&\\-^_.+]+$",
-            "title": "Contenttype"
-          },
-          "sizeBytes": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Sizebytes"
-          }
-        },
-        "type": "object",
-        "required": ["objectKey", "contentType", "sizeBytes"],
-        "title": "MediaProcessingWebhookRequest",
-        "description": "Internal webhook body from AI-service after processing."
+        "required": ["id", "message"],
+        "title": "MediaAssetUpdateResponse",
+        "description": "Response returned after successful media asset update."
       },
       "MessageResponse": {
         "properties": { "message": { "type": "string", "title": "Message" } },
@@ -7823,6 +7771,25 @@
         "required": ["message"],
         "title": "MessageResponse",
         "description": "Generic response payload with a human-readable message.\n\nAttributes:\n    message: The response message."
+      },
+      "MissingAttributeItem": {
+        "properties": {
+          "attributeId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attributeid"
+          },
+          "code": { "type": "string", "title": "Code" },
+          "nameI18N": {
+            "additionalProperties": { "type": "string" },
+            "type": "object",
+            "title": "Namei18N"
+          }
+        },
+        "type": "object",
+        "required": ["attributeId", "code", "nameI18N"],
+        "title": "MissingAttributeItem",
+        "description": "An attribute that is missing from a product."
       },
       "MoneySchema": {
         "properties": {
@@ -7840,21 +7807,6 @@
         "title": "MoneySchema",
         "description": "Monetary value with amount in smallest currency unit and ISO 4217 code."
       },
-      "PaginatedResponse_AttributeGroupResponse_": {
-        "properties": {
-          "items": {
-            "items": { "$ref": "#/components/schemas/AttributeGroupResponse" },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": { "type": "integer", "title": "Total" },
-          "offset": { "type": "integer", "title": "Offset" },
-          "limit": { "type": "integer", "title": "Limit" }
-        },
-        "type": "object",
-        "required": ["items", "total", "offset", "limit"],
-        "title": "PaginatedResponse[AttributeGroupResponse]"
-      },
       "PaginatedResponse_AttributeResponse_": {
         "properties": {
           "items": {
@@ -7864,11 +7816,40 @@
           },
           "total": { "type": "integer", "title": "Total" },
           "offset": { "type": "integer", "title": "Offset" },
-          "limit": { "type": "integer", "title": "Limit" }
+          "limit": { "type": "integer", "title": "Limit" },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "True when more items exist beyond the current page.",
+            "readOnly": true
+          }
         },
         "type": "object",
-        "required": ["items", "total", "offset", "limit"],
+        "required": ["items", "total", "offset", "limit", "hasNext"],
         "title": "PaginatedResponse[AttributeResponse]"
+      },
+      "PaginatedResponse_AttributeTemplateResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AttributeTemplateResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": { "type": "integer", "title": "Total" },
+          "offset": { "type": "integer", "title": "Offset" },
+          "limit": { "type": "integer", "title": "Limit" },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "True when more items exist beyond the current page.",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": ["items", "total", "offset", "limit", "hasNext"],
+        "title": "PaginatedResponse[AttributeTemplateResponse]"
       },
       "PaginatedResponse_AttributeValueResponse_": {
         "properties": {
@@ -7879,10 +7860,16 @@
           },
           "total": { "type": "integer", "title": "Total" },
           "offset": { "type": "integer", "title": "Offset" },
-          "limit": { "type": "integer", "title": "Limit" }
+          "limit": { "type": "integer", "title": "Limit" },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "True when more items exist beyond the current page.",
+            "readOnly": true
+          }
         },
         "type": "object",
-        "required": ["items", "total", "offset", "limit"],
+        "required": ["items", "total", "offset", "limit", "hasNext"],
         "title": "PaginatedResponse[AttributeValueResponse]"
       },
       "PaginatedResponse_BrandResponse_": {
@@ -7894,10 +7881,16 @@
           },
           "total": { "type": "integer", "title": "Total" },
           "offset": { "type": "integer", "title": "Offset" },
-          "limit": { "type": "integer", "title": "Limit" }
+          "limit": { "type": "integer", "title": "Limit" },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "True when more items exist beyond the current page.",
+            "readOnly": true
+          }
         },
         "type": "object",
-        "required": ["items", "total", "offset", "limit"],
+        "required": ["items", "total", "offset", "limit", "hasNext"],
         "title": "PaginatedResponse[BrandResponse]"
       },
       "PaginatedResponse_CategoryResponse_": {
@@ -7909,11 +7902,38 @@
           },
           "total": { "type": "integer", "title": "Total" },
           "offset": { "type": "integer", "title": "Offset" },
-          "limit": { "type": "integer", "title": "Limit" }
+          "limit": { "type": "integer", "title": "Limit" },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "True when more items exist beyond the current page.",
+            "readOnly": true
+          }
         },
         "type": "object",
-        "required": ["items", "total", "offset", "limit"],
+        "required": ["items", "total", "offset", "limit", "hasNext"],
         "title": "PaginatedResponse[CategoryResponse]"
+      },
+      "PaginatedResponse_MediaAssetResponse_": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/MediaAssetResponse" },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": { "type": "integer", "title": "Total" },
+          "offset": { "type": "integer", "title": "Offset" },
+          "limit": { "type": "integer", "title": "Limit" },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "True when more items exist beyond the current page.",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": ["items", "total", "offset", "limit", "hasNext"],
+        "title": "PaginatedResponse[MediaAssetResponse]"
       },
       "PaginatedResponse_ProductAttributeResponse_": {
         "properties": {
@@ -7926,10 +7946,16 @@
           },
           "total": { "type": "integer", "title": "Total" },
           "offset": { "type": "integer", "title": "Offset" },
-          "limit": { "type": "integer", "title": "Limit" }
+          "limit": { "type": "integer", "title": "Limit" },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "True when more items exist beyond the current page.",
+            "readOnly": true
+          }
         },
         "type": "object",
-        "required": ["items", "total", "offset", "limit"],
+        "required": ["items", "total", "offset", "limit", "hasNext"],
         "title": "PaginatedResponse[ProductAttributeResponse]"
       },
       "PaginatedResponse_ProductListItemResponse_": {
@@ -7941,26 +7967,17 @@
           },
           "total": { "type": "integer", "title": "Total" },
           "offset": { "type": "integer", "title": "Offset" },
-          "limit": { "type": "integer", "title": "Limit" }
+          "limit": { "type": "integer", "title": "Limit" },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "True when more items exist beyond the current page.",
+            "readOnly": true
+          }
         },
         "type": "object",
-        "required": ["items", "total", "offset", "limit"],
+        "required": ["items", "total", "offset", "limit", "hasNext"],
         "title": "PaginatedResponse[ProductListItemResponse]"
-      },
-      "PaginatedResponse_ProductMediaResponse_": {
-        "properties": {
-          "items": {
-            "items": { "$ref": "#/components/schemas/ProductMediaResponse" },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": { "type": "integer", "title": "Total" },
-          "offset": { "type": "integer", "title": "Offset" },
-          "limit": { "type": "integer", "title": "Limit" }
-        },
-        "type": "object",
-        "required": ["items", "total", "offset", "limit"],
-        "title": "PaginatedResponse[ProductMediaResponse]"
       },
       "PaginatedResponse_ProductVariantResponse_": {
         "properties": {
@@ -7971,10 +7988,16 @@
           },
           "total": { "type": "integer", "title": "Total" },
           "offset": { "type": "integer", "title": "Offset" },
-          "limit": { "type": "integer", "title": "Limit" }
+          "limit": { "type": "integer", "title": "Limit" },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "True when more items exist beyond the current page.",
+            "readOnly": true
+          }
         },
         "type": "object",
-        "required": ["items", "total", "offset", "limit"],
+        "required": ["items", "total", "offset", "limit", "hasNext"],
         "title": "PaginatedResponse[ProductVariantResponse]"
       },
       "PaginatedResponse_SKUResponse_": {
@@ -7986,11 +8009,40 @@
           },
           "total": { "type": "integer", "title": "Total" },
           "offset": { "type": "integer", "title": "Offset" },
-          "limit": { "type": "integer", "title": "Limit" }
+          "limit": { "type": "integer", "title": "Limit" },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "True when more items exist beyond the current page.",
+            "readOnly": true
+          }
         },
         "type": "object",
-        "required": ["items", "total", "offset", "limit"],
+        "required": ["items", "total", "offset", "limit", "hasNext"],
         "title": "PaginatedResponse[SKUResponse]"
+      },
+      "PaginatedResponse_TemplateAttributeBindingDetailResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateAttributeBindingDetailResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": { "type": "integer", "title": "Total" },
+          "offset": { "type": "integer", "title": "Offset" },
+          "limit": { "type": "integer", "title": "Limit" },
+          "hasNext": {
+            "type": "boolean",
+            "title": "Hasnext",
+            "description": "True when more items exist beyond the current page.",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": ["items", "total", "offset", "limit", "hasNext"],
+        "title": "PaginatedResponse[TemplateAttributeBindingDetailResponse]"
       },
       "PermissionDetailResponse": {
         "properties": {
@@ -8110,6 +8162,43 @@
         "title": "ProductAttributeResponse",
         "description": "Single product-attribute assignment detail response."
       },
+      "ProductCompletenessResponse": {
+        "properties": {
+          "isComplete": { "type": "boolean", "title": "Iscomplete" },
+          "totalRequired": { "type": "integer", "title": "Totalrequired" },
+          "filledRequired": { "type": "integer", "title": "Filledrequired" },
+          "totalRecommended": {
+            "type": "integer",
+            "title": "Totalrecommended"
+          },
+          "filledRecommended": {
+            "type": "integer",
+            "title": "Filledrecommended"
+          },
+          "missingRequired": {
+            "items": { "$ref": "#/components/schemas/MissingAttributeItem" },
+            "type": "array",
+            "title": "Missingrequired"
+          },
+          "missingRecommended": {
+            "items": { "$ref": "#/components/schemas/MissingAttributeItem" },
+            "type": "array",
+            "title": "Missingrecommended"
+          }
+        },
+        "type": "object",
+        "required": [
+          "isComplete",
+          "totalRequired",
+          "filledRequired",
+          "totalRecommended",
+          "filledRecommended",
+          "missingRequired",
+          "missingRecommended"
+        ],
+        "title": "ProductCompletenessResponse",
+        "description": "Response showing product attribute completeness against template."
+      },
       "ProductCreateRequest": {
         "properties": {
           "titleI18N": {
@@ -8132,8 +8221,13 @@
             "title": "Primarycategoryid"
           },
           "descriptionI18N": {
-            "additionalProperties": { "type": "string" },
-            "type": "object",
+            "anyOf": [
+              {
+                "additionalProperties": { "type": "string" },
+                "type": "object"
+              },
+              { "type": "null" }
+            ],
             "title": "Descriptioni18N"
           },
           "supplierId": {
@@ -8145,7 +8239,7 @@
           },
           "sourceUrl": {
             "anyOf": [
-              { "type": "string", "maxLength": 1024 },
+              { "type": "string", "maxLength": 1024, "pattern": "^https?://" },
               { "type": "null" }
             ],
             "title": "Sourceurl"
@@ -8163,8 +8257,9 @@
             "title": "Countryoforigin"
           },
           "tags": {
-            "items": { "type": "string" },
+            "items": { "type": "string", "maxLength": 200 },
             "type": "array",
+            "maxItems": 50,
             "title": "Tags"
           }
         },
@@ -8230,139 +8325,6 @@
         ],
         "title": "ProductListItemResponse",
         "description": "Lightweight product item for list views (omits nested collections)."
-      },
-      "ProductMediaExternalRequest": {
-        "properties": {
-          "variantId": {
-            "anyOf": [
-              { "type": "string", "format": "uuid" },
-              { "type": "null" }
-            ],
-            "title": "Variantid"
-          },
-          "mediaType": {
-            "type": "string",
-            "pattern": "^(image|video|model_3d|document)$",
-            "title": "Mediatype"
-          },
-          "role": {
-            "type": "string",
-            "pattern": "^(main|hover|gallery|hero_video|size_guide|packaging)$",
-            "title": "Role"
-          },
-          "externalUrl": {
-            "type": "string",
-            "maxLength": 2048,
-            "minLength": 1,
-            "pattern": "^https?://",
-            "title": "Externalurl"
-          },
-          "sortOrder": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Sortorder",
-            "default": 0
-          }
-        },
-        "type": "object",
-        "required": ["mediaType", "role", "externalUrl"],
-        "title": "ProductMediaExternalRequest",
-        "description": "Request body for adding an external media URL (e.g., YouTube)."
-      },
-      "ProductMediaResponse": {
-        "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
-          "productId": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Productid"
-          },
-          "variantId": {
-            "anyOf": [
-              { "type": "string", "format": "uuid" },
-              { "type": "null" }
-            ],
-            "title": "Variantid"
-          },
-          "mediaType": { "type": "string", "title": "Mediatype" },
-          "role": { "type": "string", "title": "Role" },
-          "sortOrder": { "type": "integer", "title": "Sortorder" },
-          "processingStatus": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }],
-            "title": "Processingstatus"
-          },
-          "publicUrl": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }],
-            "title": "Publicurl"
-          },
-          "isExternal": { "type": "boolean", "title": "Isexternal" },
-          "externalUrl": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }],
-            "title": "Externalurl"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "productId",
-          "mediaType",
-          "role",
-          "sortOrder",
-          "isExternal"
-        ],
-        "title": "ProductMediaResponse",
-        "description": "Media asset detail response."
-      },
-      "ProductMediaUploadRequest": {
-        "properties": {
-          "variantId": {
-            "anyOf": [
-              { "type": "string", "format": "uuid" },
-              { "type": "null" }
-            ],
-            "title": "Variantid"
-          },
-          "mediaType": {
-            "type": "string",
-            "pattern": "^(image|video|model_3d|document)$",
-            "title": "Mediatype"
-          },
-          "role": {
-            "type": "string",
-            "pattern": "^(main|hover|gallery|hero_video|size_guide|packaging)$",
-            "title": "Role"
-          },
-          "contentType": {
-            "type": "string",
-            "maxLength": 255,
-            "pattern": "^(image|video|application|model)/[a-zA-Z0-9][a-zA-Z0-9!#$&\\-^_.+]*$",
-            "title": "Contenttype"
-          },
-          "sortOrder": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Sortorder",
-            "default": 0
-          }
-        },
-        "type": "object",
-        "required": ["mediaType", "role", "contentType"],
-        "title": "ProductMediaUploadRequest",
-        "description": "Request body for reserving a media upload slot."
-      },
-      "ProductMediaUploadResponse": {
-        "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
-          "presignedUploadUrl": {
-            "type": "string",
-            "title": "Presigneduploadurl"
-          },
-          "objectKey": { "type": "string", "title": "Objectkey" }
-        },
-        "type": "object",
-        "required": ["id", "presignedUploadUrl", "objectKey"],
-        "title": "ProductMediaUploadResponse",
-        "description": "Response with presigned upload URL."
       },
       "ProductResponse": {
         "properties": {
@@ -8556,7 +8518,11 @@
           },
           "tags": {
             "anyOf": [
-              { "items": { "type": "string" }, "type": "array" },
+              {
+                "items": { "type": "string", "maxLength": 200 },
+                "type": "array",
+                "maxItems": 50
+              },
               { "type": "null" }
             ],
             "title": "Tags"
@@ -8810,6 +8776,7 @@
           "items": {
             "items": { "$ref": "#/components/schemas/ReorderItemRequest" },
             "type": "array",
+            "maxItems": 500,
             "minItems": 1,
             "title": "Items"
           }
@@ -8832,6 +8799,20 @@
         "required": ["valueId", "sortOrder"],
         "title": "ReorderItemRequest",
         "description": "A single reorder instruction."
+      },
+      "ReorderMediaItemSchema": {
+        "properties": {
+          "mediaId": { "type": "string", "format": "uuid", "title": "Mediaid" },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sortorder"
+          }
+        },
+        "type": "object",
+        "required": ["mediaId", "sortOrder"],
+        "title": "ReorderMediaItemSchema",
+        "description": "A single media asset reorder instruction."
       },
       "RoleDetailResponse": {
         "properties": {
@@ -8899,8 +8880,10 @@
             "title": "Skucode"
           },
           "priceAmount": {
-            "type": "integer",
-            "minimum": 0.0,
+            "anyOf": [
+              { "type": "integer", "minimum": 0.0 },
+              { "type": "null" }
+            ],
             "title": "Priceamount"
           },
           "priceCurrency": {
@@ -8908,7 +8891,8 @@
             "maxLength": 3,
             "minLength": 3,
             "pattern": "^[A-Z]{3}$",
-            "title": "Pricecurrency"
+            "title": "Pricecurrency",
+            "default": "RUB"
           },
           "compareAtPriceAmount": {
             "anyOf": [
@@ -8927,11 +8911,12 @@
               "$ref": "#/components/schemas/VariantAttributePairSchema"
             },
             "type": "array",
+            "maxItems": 50,
             "title": "Variantattributes"
           }
         },
         "type": "object",
-        "required": ["skuCode", "priceAmount", "priceCurrency"],
+        "required": ["skuCode"],
         "title": "SKUCreateRequest",
         "description": "Request body for adding a SKU (variant) to a product."
       },
@@ -8952,6 +8937,7 @@
               "$ref": "#/components/schemas/AttributeSelectionSchema"
             },
             "type": "array",
+            "maxItems": 10,
             "minItems": 1,
             "title": "Attributeselections"
           },
@@ -9113,7 +9099,8 @@
                 "items": {
                   "$ref": "#/components/schemas/VariantAttributePairSchema"
                 },
-                "type": "array"
+                "type": "array",
+                "maxItems": 50
               },
               { "type": "null" }
             ],
@@ -9329,8 +9316,14 @@
             "type": "object",
             "title": "Namei18N"
           },
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Name",
+            "description": "Projected name from nameI18n when ?lang is specified"
+          },
           "dataType": { "type": "string", "title": "Datatype" },
           "uiType": { "type": "string", "title": "Uitype" },
+          "level": { "type": "string", "title": "Level" },
           "requirementLevel": { "type": "string", "title": "Requirementlevel" },
           "sortOrder": { "type": "integer", "title": "Sortorder" }
         },
@@ -9342,6 +9335,7 @@
           "nameI18N",
           "dataType",
           "uiType",
+          "level",
           "requirementLevel",
           "sortOrder"
         ],
@@ -9420,6 +9414,11 @@
             "type": "object",
             "title": "Namei18N"
           },
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Name",
+            "description": "Projected name from nameI18n when ?lang is specified"
+          },
           "dataType": { "type": "string", "title": "Datatype" },
           "uiType": { "type": "string", "title": "Uitype" },
           "sortOrder": { "type": "integer", "title": "Sortorder" }
@@ -9471,9 +9470,15 @@
             "type": "object",
             "title": "Namei18N"
           },
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Name",
+            "description": "Projected name from nameI18n when ?lang is specified"
+          },
           "dataType": { "type": "string", "title": "Datatype" },
           "uiType": { "type": "string", "title": "Uitype" },
           "isDictionary": { "type": "boolean", "title": "Isdictionary" },
+          "selectionMode": { "type": "string", "title": "Selectionmode" },
           "values": {
             "items": { "$ref": "#/components/schemas/StorefrontValueResponse" },
             "type": "array",
@@ -9497,6 +9502,7 @@
           "dataType",
           "uiType",
           "isDictionary",
+          "selectionMode",
           "values",
           "sortOrder"
         ],
@@ -9537,6 +9543,11 @@
             "type": "object",
             "title": "Namei18N"
           },
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Name",
+            "description": "Projected name from nameI18n when ?lang is specified"
+          },
           "descriptionI18N": {
             "additionalProperties": { "type": "string" },
             "type": "object",
@@ -9547,6 +9558,9 @@
           "isDictionary": { "type": "boolean", "title": "Isdictionary" },
           "level": { "type": "string", "title": "Level" },
           "requirementLevel": { "type": "string", "title": "Requirementlevel" },
+          "isFilterable": { "type": "boolean", "title": "Isfilterable" },
+          "isVisibleOnCard": { "type": "boolean", "title": "Isvisibleoncard" },
+          "isComparable": { "type": "boolean", "title": "Iscomparable" },
           "validationRules": {
             "anyOf": [
               { "additionalProperties": true, "type": "object" },
@@ -9573,6 +9587,9 @@
           "isDictionary",
           "level",
           "requirementLevel",
+          "isFilterable",
+          "isVisibleOnCard",
+          "isComparable",
           "values",
           "sortOrder"
         ],
@@ -9845,6 +9862,171 @@
         "title": "TelegramTokenResponse",
         "description": "Response for Telegram Mini App authentication."
       },
+      "TemplateAttributeBindingDetailResponse": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "templateId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Templateid"
+          },
+          "attributeId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attributeid"
+          },
+          "sortOrder": { "type": "integer", "title": "Sortorder" },
+          "requirementLevel": { "type": "string", "title": "Requirementlevel" },
+          "filterSettings": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "type": "null" }
+            ],
+            "title": "Filtersettings"
+          },
+          "attributeCode": {
+            "type": "string",
+            "title": "Attributecode",
+            "default": ""
+          },
+          "attributeNameI18N": {
+            "additionalProperties": { "type": "string" },
+            "type": "object",
+            "title": "Attributenamei18N",
+            "default": {}
+          },
+          "attributeDataType": {
+            "type": "string",
+            "title": "Attributedatatype",
+            "default": ""
+          },
+          "attributeUiType": {
+            "type": "string",
+            "title": "Attributeuitype",
+            "default": ""
+          },
+          "attributeLevel": {
+            "type": "string",
+            "title": "Attributelevel",
+            "default": ""
+          },
+          "attributeIsFilterable": {
+            "type": "boolean",
+            "title": "Attributeisfilterable",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "templateId",
+          "attributeId",
+          "sortOrder",
+          "requirementLevel"
+        ],
+        "title": "TemplateAttributeBindingDetailResponse",
+        "description": "Detailed binding info with joined attribute metadata."
+      },
+      "TemplateAttributeBindingEnrichedResponse": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "affectedCategoriesCount": {
+            "type": "integer",
+            "title": "Affectedcategoriescount"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "Attribute bound to template"
+          }
+        },
+        "type": "object",
+        "required": ["id", "affectedCategoriesCount"],
+        "title": "TemplateAttributeBindingEnrichedResponse",
+        "description": "Response for binding creation, enriched with affected categories count."
+      },
+      "TemplateAttributeBindingRequest": {
+        "properties": {
+          "attributeId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attributeid"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sortorder",
+            "default": 0
+          },
+          "requirementLevel": {
+            "type": "string",
+            "pattern": "^(required|recommended|optional)$",
+            "title": "Requirementlevel",
+            "default": "optional"
+          },
+          "filterSettings": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "type": "null" }
+            ],
+            "title": "Filtersettings",
+            "description": "Opaque frontend config for filter UI (max 10 KB). Not interpreted by backend."
+          }
+        },
+        "type": "object",
+        "required": ["attributeId"],
+        "title": "TemplateAttributeBindingRequest",
+        "description": "Request body for binding an attribute to a template."
+      },
+      "TemplateAttributeBindingUpdateRequest": {
+        "properties": {
+          "sortOrder": {
+            "anyOf": [
+              { "type": "integer", "minimum": 0.0 },
+              { "type": "null" }
+            ],
+            "title": "Sortorder"
+          },
+          "requirementLevel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(required|recommended|optional)$"
+              },
+              { "type": "null" }
+            ],
+            "title": "Requirementlevel"
+          },
+          "filterSettings": {
+            "anyOf": [
+              { "additionalProperties": true, "type": "object" },
+              { "type": "null" }
+            ],
+            "title": "Filtersettings",
+            "description": "Opaque frontend config for filter UI (max 10 KB). Not interpreted by backend."
+          }
+        },
+        "type": "object",
+        "title": "TemplateAttributeBindingUpdateRequest",
+        "description": "PATCH request for updating a binding."
+      },
+      "TemplateBindingReorderRequest": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BindingReorderItemSchema"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": ["items"],
+        "title": "TemplateBindingReorderRequest",
+        "description": "Request for reordering bindings."
+      },
       "TokenResponse": {
         "properties": {
           "accessToken": { "type": "string", "title": "Accesstoken" },
@@ -9954,14 +10136,6 @@
         "required": ["attributeId", "attributeValueId"],
         "title": "VariantAttributePairSchema",
         "description": "A single variant attribute pair (attribute + value) identifying a SKU variant."
-      },
-      "WebhookAckResponse": {
-        "properties": {
-          "status": { "type": "string", "title": "Status", "default": "ok" }
-        },
-        "type": "object",
-        "title": "WebhookAckResponse",
-        "description": "Acknowledgement response for internal webhooks."
       }
     },
     "securitySchemes": { "HTTPBearer": { "type": "http", "scheme": "bearer" } }

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "predev": "lsof -ti :3000 | xargs -r kill -9 2>/dev/null || true",
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",

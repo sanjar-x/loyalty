@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useProductForm from '@/hooks/useProductForm';
+import useImageUpload from '@/hooks/useImageUpload';
 import useSubmitProduct from '@/hooks/useSubmitProduct';
 import { i18n } from '@/lib/utils';
 import { fetchFormAttributes } from '@/services/attributes';
@@ -18,14 +19,40 @@ import styles from './page.module.css';
 export default function ProductDetailsForm({ leafLabel, categoryId }) {
   const router = useRouter();
   const form = useProductForm({ categoryId, defaultTitle: leafLabel });
+  const imageUpload = useImageUpload();
   const submit = useSubmitProduct();
 
+  // Uploads in progress — block submit while images are being processed
+  const uploadsInProgress = form.state.images.some((img) => {
+    const s = imageUpload.uploads[img.localId]?.status;
+    return s === 'uploading' || s === 'processing';
+  });
+
   async function handleSubmit(mode) {
-    const result = await submit.execute(form, mode);
+    const result = await submit.execute(form, mode, imageUpload.uploads);
     if (result?.productId && !result.error) {
       router.push('/admin/products');
     }
   }
+
+  // Image handlers: add → start upload, remove → clean up, crop → re-upload
+  const handleImageAdd = useCallback((image) => {
+    form.addImage(image);
+    imageUpload.startUpload(image);
+  }, [form, imageUpload]);
+
+  const handleImageRemove = useCallback((localId) => {
+    form.removeImage(localId);
+    imageUpload.removeUpload(localId);
+  }, [form, imageUpload]);
+
+  const handleImageCropped = useCallback((newImage) => {
+    imageUpload.startUpload(newImage);
+  }, [imageUpload]);
+
+  const handleImageRetry = useCallback((image) => {
+    imageUpload.startUpload(image);
+  }, [imageUpload]);
 
   // Load form-attributes once, share between DynamicAttributes and VariantSelect
   const [formData, setFormData] = useState(null);
@@ -101,9 +128,12 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
 
       <ImagesSection
         images={form.state.images}
-        onAdd={form.addImage}
-        onRemove={form.removeImage}
+        onAdd={handleImageAdd}
+        onRemove={handleImageRemove}
         onSet={form.setImages}
+        uploads={imageUpload.uploads}
+        onRetry={handleImageRetry}
+        onImageCropped={handleImageCropped}
       />
 
       <SupplierSection
@@ -201,18 +231,18 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
         <button
           type="button"
           className={styles.secondaryButton}
-          disabled={!form.isValid || submit.submitting}
+          disabled={!form.isValid || submit.submitting || uploadsInProgress}
           onClick={() => handleSubmit('draft')}
         >
-          {submit.submitting ? submit.progress : 'Сохранить черновик'}
+          {submit.submitting ? submit.progress : uploadsInProgress ? 'Загрузка фото...' : 'Сохранить черновик'}
         </button>
         <button
           type="button"
           className={styles.primaryButton}
-          disabled={!form.isPublishable || submit.submitting}
+          disabled={!form.isPublishable || submit.submitting || uploadsInProgress}
           onClick={() => handleSubmit('publish')}
         >
-          {submit.submitting ? submit.progress : 'На модерацию'}
+          {submit.submitting ? submit.progress : uploadsInProgress ? 'Загрузка фото...' : 'На модерацию'}
         </button>
       </div>
     </>

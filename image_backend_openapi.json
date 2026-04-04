@@ -1,0 +1,510 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Image Backend", "version": "1.0.0" },
+  "paths": {
+    "/api/v1/media/upload": {
+      "post": {
+        "tags": ["Media"],
+        "summary": "Reserve an upload slot and get a presigned PUT URL",
+        "operationId": "request_upload_api_v1_media_upload_post",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "Api Key"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UploadRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UploadResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media/{storage_object_id}/confirm": {
+      "post": {
+        "tags": ["Media"],
+        "summary": "Confirm upload and start processing",
+        "operationId": "confirm_upload_api_v1_media__storage_object_id__confirm_post",
+        "parameters": [
+          {
+            "name": "storage_object_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Storage Object Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "Api Key"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ConfirmResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media/{storage_object_id}/status": {
+      "get": {
+        "tags": ["Media"],
+        "summary": "Stream processing status via SSE",
+        "operationId": "stream_status_api_v1_media__storage_object_id__status_get",
+        "parameters": [
+          {
+            "name": "storage_object_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Storage Object Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "Api Key"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media/{storage_object_id}": {
+      "get": {
+        "tags": ["Media"],
+        "summary": "Get media metadata and variants",
+        "operationId": "get_metadata_api_v1_media__storage_object_id__get",
+        "parameters": [
+          {
+            "name": "storage_object_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Storage Object Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "Api Key"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MetadataResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Media"],
+        "summary": "Delete media object and all variants",
+        "operationId": "delete_media_api_v1_media__storage_object_id__delete",
+        "parameters": [
+          {
+            "name": "storage_object_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Storage Object Id"
+            }
+          },
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "Api Key"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DeleteResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media/external": {
+      "post": {
+        "tags": ["Media"],
+        "summary": "Import media from an external URL",
+        "operationId": "import_external_api_v1_media_external_post",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "Api Key"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ExternalImportRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalImportResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Health Check",
+        "description": "Return a simple health-check response.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": { "type": "string" },
+                  "type": "object",
+                  "title": "Response Health Check Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ConfirmResponse": {
+        "properties": {
+          "storageObjectId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Storageobjectid"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "processing"
+          }
+        },
+        "type": "object",
+        "required": ["storageObjectId"],
+        "title": "ConfirmResponse"
+      },
+      "DeleteResponse": {
+        "properties": {
+          "deleted": { "type": "boolean", "title": "Deleted", "default": true }
+        },
+        "type": "object",
+        "title": "DeleteResponse"
+      },
+      "ExternalImportRequest": {
+        "properties": { "url": { "type": "string", "title": "Url" } },
+        "type": "object",
+        "required": ["url"],
+        "title": "ExternalImportRequest"
+      },
+      "ExternalImportResponse": {
+        "properties": {
+          "storageObjectId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Storageobjectid"
+          },
+          "url": { "type": "string", "title": "Url" },
+          "variants": {
+            "items": { "$ref": "#/components/schemas/MediaVariant" },
+            "type": "array",
+            "title": "Variants",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": ["storageObjectId", "url"],
+        "title": "ExternalImportResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": { "$ref": "#/components/schemas/ValidationError" },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MediaVariant": {
+        "properties": {
+          "size": { "type": "string", "title": "Size" },
+          "width": { "type": "integer", "title": "Width" },
+          "height": { "type": "integer", "title": "Height" },
+          "url": { "type": "string", "title": "Url" }
+        },
+        "type": "object",
+        "required": ["size", "width", "height", "url"],
+        "title": "MediaVariant"
+      },
+      "MetadataResponse": {
+        "properties": {
+          "storageObjectId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Storageobjectid"
+          },
+          "status": { "type": "string", "title": "Status" },
+          "url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Url"
+          },
+          "contentType": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Contenttype"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "title": "Sizebytes",
+            "default": 0
+          },
+          "variants": {
+            "items": { "$ref": "#/components/schemas/MediaVariant" },
+            "type": "array",
+            "title": "Variants",
+            "default": []
+          },
+          "createdAt": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "null" }
+            ],
+            "title": "Createdat"
+          }
+        },
+        "type": "object",
+        "required": ["storageObjectId", "status"],
+        "title": "MetadataResponse"
+      },
+      "UploadRequest": {
+        "properties": {
+          "contentType": { "type": "string", "title": "Contenttype" },
+          "filename": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Filename"
+          }
+        },
+        "type": "object",
+        "required": ["contentType"],
+        "title": "UploadRequest"
+      },
+      "UploadResponse": {
+        "properties": {
+          "storageObjectId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Storageobjectid"
+          },
+          "presignedUrl": { "type": "string", "title": "Presignedurl" },
+          "expiresIn": {
+            "type": "integer",
+            "title": "Expiresin",
+            "default": 300
+          }
+        },
+        "type": "object",
+        "required": ["storageObjectId", "presignedUrl"],
+        "title": "UploadResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": { "type": "string", "title": "Message" },
+          "type": { "type": "string", "title": "Error Type" },
+          "input": { "title": "Input" },
+          "ctx": { "type": "object", "title": "Context" }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
