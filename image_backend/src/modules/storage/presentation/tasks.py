@@ -8,6 +8,8 @@ from datetime import UTC, datetime, timedelta
 
 from dishka import FromDishka
 
+from dishka.integrations.taskiq import inject
+
 from src.bootstrap.broker import broker
 from src.modules.storage.application.commands.process_image import build_variants
 from src.modules.storage.domain.interfaces import IStorageRepository
@@ -27,6 +29,7 @@ from src.shared.streams import bytes_to_async_stream
     max_retries=2,
     timeout=300,
 )
+@inject
 async def process_image_task(
     storage_object_id: str,
     blob_storage: FromDishka[IBlobStorage],
@@ -117,6 +120,7 @@ async def process_image_task(
     timeout=600,
     schedule=[{"cron": "0 */6 * * *"}],
 )
+@inject
 async def cleanup_orphans_task(
     storage_repo: FromDishka[IStorageRepository],
     blob_storage: FromDishka[IBlobStorage],
