@@ -1,12 +1,47 @@
 """Dishka IoC providers for the Geo bounded context.
 
-Registers repository implementations and query handlers into the
-request-scoped DI container.
+Registers repository implementations, query handlers, and admin command
+handlers into the request-scoped DI container.
 """
 
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 
+from src.modules.geo.application.commands.manage_countries import (
+    CreateCountryHandler,
+    DeleteCountryHandler,
+    SetCountryCurrenciesHandler,
+    UpdateCountryHandler,
+    UpsertCountryTranslationsHandler,
+)
+from src.modules.geo.application.commands.manage_currencies import (
+    CreateCurrencyHandler,
+    DeleteCurrencyHandler,
+    UpdateCurrencyHandler,
+    UpsertCurrencyTranslationsHandler,
+)
+from src.modules.geo.application.commands.manage_languages import (
+    CreateLanguageHandler,
+    DeleteLanguageHandler,
+    UpdateLanguageHandler,
+)
+from src.modules.geo.application.commands.manage_subdivisions import (
+    CreateSubdivisionCategoryHandler,
+    CreateSubdivisionHandler,
+    DeleteSubdivisionCategoryHandler,
+    DeleteSubdivisionHandler,
+    ListSubdivisionCategoriesHandler,
+    UpdateSubdivisionCategoryHandler,
+    UpdateSubdivisionHandler,
+    UpsertSubdivisionCategoryTranslationsHandler,
+    UpsertSubdivisionTranslationsHandler,
+)
+from src.modules.geo.application.queries.get_country import GetCountryHandler
+from src.modules.geo.application.queries.get_currency import GetCurrencyHandler
+from src.modules.geo.application.queries.get_language import GetLanguageHandler
+from src.modules.geo.application.queries.get_subdivision import (
+    GetSubdivisionHandler,
+)
 from src.modules.geo.application.queries.list_countries import (
     ListCountriesHandler,
 )
@@ -42,6 +77,8 @@ from src.modules.geo.infrastructure.repositories.subdivision import (
 class GeoProvider(Provider):
     """DI provider for geo repositories and query handlers."""
 
+    # -- Repositories -------------------------------------------------- #
+
     country_repo: CompositeDependencySource = provide(
         CountryRepository,
         scope=Scope.REQUEST,
@@ -62,6 +99,25 @@ class GeoProvider(Provider):
         scope=Scope.REQUEST,
         provides=ISubdivisionRepository,
     )
+
+    # -- Query handlers ------------------------------------------------ #
+
+    get_country_handler: CompositeDependencySource = provide(
+        GetCountryHandler,
+        scope=Scope.REQUEST,
+    )
+    get_currency_handler: CompositeDependencySource = provide(
+        GetCurrencyHandler,
+        scope=Scope.REQUEST,
+    )
+    get_language_handler: CompositeDependencySource = provide(
+        GetLanguageHandler,
+        scope=Scope.REQUEST,
+    )
+    get_subdivision_handler: CompositeDependencySource = provide(
+        GetSubdivisionHandler,
+        scope=Scope.REQUEST,
+    )
     list_countries_handler: CompositeDependencySource = provide(
         ListCountriesHandler,
         scope=Scope.REQUEST,
@@ -77,4 +133,105 @@ class GeoProvider(Provider):
     list_subdivisions_handler: CompositeDependencySource = provide(
         ListSubdivisionsHandler,
         scope=Scope.REQUEST,
+    )
+
+    # -- Country command handlers -------------------------------------- #
+
+    create_country_handler: CompositeDependencySource = provide(
+        CreateCountryHandler,
+        scope=Scope.REQUEST,
+    )
+    update_country_handler: CompositeDependencySource = provide(
+        UpdateCountryHandler,
+        scope=Scope.REQUEST,
+    )
+    delete_country_handler: CompositeDependencySource = provide(
+        DeleteCountryHandler,
+        scope=Scope.REQUEST,
+    )
+    upsert_country_translations_handler: CompositeDependencySource = provide(
+        UpsertCountryTranslationsHandler,
+        scope=Scope.REQUEST,
+    )
+    set_country_currencies_handler: CompositeDependencySource = provide(
+        SetCountryCurrenciesHandler,
+        scope=Scope.REQUEST,
+    )
+
+    # -- Currency command handlers ------------------------------------- #
+
+    create_currency_handler: CompositeDependencySource = provide(
+        CreateCurrencyHandler,
+        scope=Scope.REQUEST,
+    )
+    update_currency_handler: CompositeDependencySource = provide(
+        UpdateCurrencyHandler,
+        scope=Scope.REQUEST,
+    )
+    delete_currency_handler: CompositeDependencySource = provide(
+        DeleteCurrencyHandler,
+        scope=Scope.REQUEST,
+    )
+    upsert_currency_translations_handler: CompositeDependencySource = provide(
+        UpsertCurrencyTranslationsHandler,
+        scope=Scope.REQUEST,
+    )
+
+    # -- Language command handlers ------------------------------------- #
+
+    create_language_handler: CompositeDependencySource = provide(
+        CreateLanguageHandler,
+        scope=Scope.REQUEST,
+    )
+    update_language_handler: CompositeDependencySource = provide(
+        UpdateLanguageHandler,
+        scope=Scope.REQUEST,
+    )
+    delete_language_handler: CompositeDependencySource = provide(
+        DeleteLanguageHandler,
+        scope=Scope.REQUEST,
+    )
+
+    # -- Subdivision command handlers ---------------------------------- #
+
+    create_subdivision_handler: CompositeDependencySource = provide(
+        CreateSubdivisionHandler,
+        scope=Scope.REQUEST,
+    )
+    update_subdivision_handler: CompositeDependencySource = provide(
+        UpdateSubdivisionHandler,
+        scope=Scope.REQUEST,
+    )
+    delete_subdivision_handler: CompositeDependencySource = provide(
+        DeleteSubdivisionHandler,
+        scope=Scope.REQUEST,
+    )
+    upsert_subdivision_translations_handler: CompositeDependencySource = provide(
+        UpsertSubdivisionTranslationsHandler,
+        scope=Scope.REQUEST,
+    )
+
+    # -- Subdivision category command handlers ------------------------- #
+
+    list_subdivision_categories_handler: CompositeDependencySource = provide(
+        ListSubdivisionCategoriesHandler,
+        scope=Scope.REQUEST,
+    )
+    create_subdivision_category_handler: CompositeDependencySource = provide(
+        CreateSubdivisionCategoryHandler,
+        scope=Scope.REQUEST,
+    )
+    update_subdivision_category_handler: CompositeDependencySource = provide(
+        UpdateSubdivisionCategoryHandler,
+        scope=Scope.REQUEST,
+    )
+    delete_subdivision_category_handler: CompositeDependencySource = provide(
+        DeleteSubdivisionCategoryHandler,
+        scope=Scope.REQUEST,
+    )
+    upsert_subdivision_category_translations_handler: CompositeDependencySource = (
+        provide(
+            UpsertSubdivisionCategoryTranslationsHandler,
+            scope=Scope.REQUEST,
+        )
     )

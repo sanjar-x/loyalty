@@ -120,6 +120,10 @@ PERMISSIONS: list[SeedPermission] = [
     SeedPermission(
         "customers:manage", "Управление клиентами (деактивация, реактивация)"
     ),
+    # ── Geo ──────────────────────────────────────────────────────────────
+    SeedPermission(
+        "geo:manage", "Управление гео-справочниками (страны, валюты, языки, регионы)"
+    ),
 ]
 
 PERMISSION_BY_CODENAME: dict[str, SeedPermission] = {p.codename: p for p in PERMISSIONS}

@@ -154,5 +154,7 @@ class ListCurrenciesHandler:
             numeric=orm.numeric,
             name=orm.name,
             minor_unit=orm.minor_unit,
+            is_active=orm.is_active,
+            sort_order=orm.sort_order,
             translations=translations,
         )

@@ -7,6 +7,12 @@ and subdivisions.  No authentication required — reference data is public.
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Query, Response
 
+from src.modules.geo.application.queries.get_country import GetCountryHandler
+from src.modules.geo.application.queries.get_currency import GetCurrencyHandler
+from src.modules.geo.application.queries.get_language import GetLanguageHandler
+from src.modules.geo.application.queries.get_subdivision import (
+    GetSubdivisionHandler,
+)
 from src.modules.geo.application.queries.list_countries import (
     ListCountriesHandler,
 )
@@ -21,9 +27,13 @@ from src.modules.geo.application.queries.list_subdivisions import (
 )
 from src.modules.geo.application.queries.read_models import (
     CountryListReadModel,
+    CountryReadModel,
     CurrencyListReadModel,
+    CurrencyReadModel,
     LanguageListReadModel,
+    LanguageReadModel,
     SubdivisionListReadModel,
+    SubdivisionReadModel,
 )
 
 _CACHE_CONTROL = "public, max-age=3600"
@@ -99,6 +109,79 @@ async def list_languages(
         offset=offset,
         limit=limit,
     )
+    response.headers["Cache-Control"] = _CACHE_CONTROL
+    return result
+
+
+@geo_router.get(
+    "/countries/{alpha2}",
+    response_model=CountryReadModel,
+    summary="Get a country by Alpha-2 code",
+)
+async def get_country(
+    alpha2: str,
+    response: Response,
+    handler: FromDishka[GetCountryHandler],
+    lang: str | None = Query(
+        None, description="Filter translations to this language code"
+    ),
+) -> CountryReadModel:
+    """Get a single country by its ISO 3166-1 Alpha-2 code (e.g. KZ, US)."""
+    result = await handler.handle(alpha2=alpha2, lang_code=lang)
+    response.headers["Cache-Control"] = _CACHE_CONTROL
+    return result
+
+
+@geo_router.get(
+    "/currencies/{code}",
+    response_model=CurrencyReadModel,
+    summary="Get a currency by code",
+)
+async def get_currency(
+    code: str,
+    response: Response,
+    handler: FromDishka[GetCurrencyHandler],
+    lang: str | None = Query(
+        None, description="Filter translations to this language code"
+    ),
+) -> CurrencyReadModel:
+    """Get a single currency by its ISO 4217 alpha-3 code (e.g. USD, UZS)."""
+    result = await handler.handle(code=code, lang_code=lang)
+    response.headers["Cache-Control"] = _CACHE_CONTROL
+    return result
+
+
+@geo_router.get(
+    "/languages/{code}",
+    response_model=LanguageReadModel,
+    summary="Get a language by code",
+)
+async def get_language(
+    code: str,
+    response: Response,
+    handler: FromDishka[GetLanguageHandler],
+) -> LanguageReadModel:
+    """Get a single language by its IETF BCP 47 code (e.g. uz-Latn, en, ru)."""
+    result = await handler.handle(code=code)
+    response.headers["Cache-Control"] = _CACHE_CONTROL
+    return result
+
+
+@geo_router.get(
+    "/subdivisions/{code}",
+    response_model=SubdivisionReadModel,
+    summary="Get a subdivision by code",
+)
+async def get_subdivision(
+    code: str,
+    response: Response,
+    handler: FromDishka[GetSubdivisionHandler],
+    lang: str | None = Query(
+        None, description="Filter translations to this language code"
+    ),
+) -> SubdivisionReadModel:
+    """Get a single subdivision by its ISO 3166-2 code (e.g. UZ-TO, RU-MOW)."""
+    result = await handler.handle(code=code, lang_code=lang)
     response.headers["Cache-Control"] = _CACHE_CONTROL
     return result
 
