@@ -109,5 +109,7 @@ class ListSubdivisionsHandler:
             parent_code=orm.parent_code,
             latitude=float(orm.latitude) if orm.latitude is not None else None,
             longitude=float(orm.longitude) if orm.longitude is not None else None,
+            is_active=orm.is_active,
+            sort_order=orm.sort_order,
             translations=translations,
         )

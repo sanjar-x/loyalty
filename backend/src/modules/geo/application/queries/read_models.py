@@ -54,6 +54,8 @@ class CurrencyReadModel(BaseModel):
     numeric: str
     name: str
     minor_unit: int | None = None
+    is_active: bool = True
+    sort_order: int = 0
     translations: list[CurrencyTranslationReadModel] = Field(default_factory=list)
 
 
@@ -115,6 +117,8 @@ class SubdivisionReadModel(BaseModel):
     parent_code: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+    is_active: bool = True
+    sort_order: int = 0
     translations: list[SubdivisionTranslationReadModel] = Field(default_factory=list)
 
 
@@ -123,3 +127,44 @@ class SubdivisionListReadModel(BaseModel):
 
     items: list[SubdivisionReadModel]
     total: int
+
+
+# ------------------------------------------------------------------ #
+#  Subdivision Category
+# ------------------------------------------------------------------ #
+
+
+class SubdivisionCategoryTranslationReadModel(BaseModel):
+    """Single translation row for a subdivision category."""
+
+    lang_code: str
+    name: str
+
+
+class SubdivisionCategoryReadModel(BaseModel):
+    """Subdivision category with inline translations."""
+
+    code: str
+    sort_order: int
+    translations: list[SubdivisionCategoryTranslationReadModel] = Field(
+        default_factory=list
+    )
+
+
+class SubdivisionCategoryListReadModel(BaseModel):
+    """Subdivision category list response."""
+
+    items: list[SubdivisionCategoryReadModel]
+    total: int
+
+
+# ------------------------------------------------------------------ #
+#  Country-Currency link
+# ------------------------------------------------------------------ #
+
+
+class CountryCurrencyLinkReadModel(BaseModel):
+    """A single country-currency association."""
+
+    currency_code: str
+    is_primary: bool

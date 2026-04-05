@@ -457,7 +457,7 @@ class SubdivisionCategoryModel(Base):
         lazy="raise",
     )
 
-    def __repr__(self) -> str:  # pragma: no cover
+    def __repr__(self) -> str:
         return f"<SubdivisionCategory {self.code}>"
 
 

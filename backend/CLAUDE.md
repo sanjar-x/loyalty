@@ -54,7 +54,7 @@ Note: some modules place Dishka providers in `infrastructure/provider.py` (ident
 ### Layer rules (enforced by `tests/architecture/test_boundaries.py`)
 
 - Domain MUST NOT import application/infrastructure/presentation or any framework (attrs + stdlib only)
-- Application commands MUST NOT import infrastructure (queries and consumers are exempt — CQRS read-side)
+- Application commands MUST NOT import infrastructure (queries and consumers are exempt — CQRS read-side). Exception: `geo` module commands use ORM directly — it is a reference-data module without domain entities/UoW/events
 - Modules MUST NOT import each other's domain/application/infrastructure (cross-module deps only at presentation level)
 - `src/shared/` is the shared kernel — MUST NOT import any module
 - Currently tested modules: `catalog`, `identity`, `user` — `geo` and `supplier` not yet in `MODULES` list
