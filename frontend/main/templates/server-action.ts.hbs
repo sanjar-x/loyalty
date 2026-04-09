@@ -1,0 +1,16 @@
+'use server';
+
+import { z } from 'zod';
+
+const {{camelCase name}}Schema = z.object({
+  // Define your schema here
+});
+
+type {{pascalCase name}}Input = z.infer<typeof {{camelCase name}}Schema>;
+
+export async function {{camelCase name}}(input: {{pascalCase name}}Input) {
+  const validated = {{camelCase name}}Schema.parse(input);
+
+  // TODO: implement server action
+  return { success: true, data: validated };
+}
