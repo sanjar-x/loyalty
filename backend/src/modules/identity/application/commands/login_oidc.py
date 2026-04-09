@@ -11,7 +11,7 @@ from src.modules.identity.domain.entities import Identity, Session
 from src.modules.identity.domain.events import IdentityRegisteredEvent
 from src.modules.identity.domain.exceptions import (
     InvalidCredentialsError,
-    MaxSessionsExceededError,
+    # MaxSessionsExceededError, @TODO: Re-enable this exception once we have a strategy for handling max sessions across different auth methods.
 )
 from src.modules.identity.domain.interfaces import (
     IIdentityRepository,
