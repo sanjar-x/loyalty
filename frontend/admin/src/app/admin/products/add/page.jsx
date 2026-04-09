@@ -10,11 +10,11 @@ function isLeaf(item) {
   return !item.children || item.children.length === 0;
 }
 
-function SkeletonColumn() {
+function SkeletonColumn({ count = 6 }) {
   return (
     <div className={styles.column}>
       <div className={styles.columnList}>
-        {Array.from({ length: 6 }).map((_, i) => (
+        {Array.from({ length: count }).map((_, i) => (
           <div key={i} className={styles.itemSkeleton} />
         ))}
       </div>
@@ -138,8 +138,8 @@ export default function AddProductPage() {
       ) : (
         <div className={styles.columns}>
           {loading
-            ? Array.from({ length: 3 }).map((_, i) => (
-                <SkeletonColumn key={i} />
+            ? [3, 10].map((count, i) => (
+                <SkeletonColumn key={i} count={count} />
               ))
             : columns.map((col, depth) => (
                 <CategoryColumn

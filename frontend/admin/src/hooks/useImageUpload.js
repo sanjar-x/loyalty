@@ -50,7 +50,26 @@ export default function useImageUpload() {
   const startUpload = useCallback(
     async (image) => {
       const { localId } = image;
-      if (inflightRef.current.has(localId)) return;
+
+      // Abort any existing upload for this image (e.g., after crop re-upload)
+      if (inflightRef.current.has(localId)) {
+        const controller = abortRefs.current.get(localId);
+        if (controller) {
+          controller.abort();
+          abortRefs.current.delete(localId);
+        }
+        inflightRef.current.delete(localId);
+      }
+
+      // Check network connectivity
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        update(localId, {
+          status: 'failed',
+          error: 'Нет подключения к интернету',
+        });
+        return;
+      }
+
       inflightRef.current.add(localId);
 
       // Track previous storageObjectId for cleanup after crop re-upload

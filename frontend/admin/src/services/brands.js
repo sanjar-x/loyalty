@@ -1,12 +1,16 @@
 /**
  * Fetch all brands from the API.
- * Returns { items: BrandResponse[], total } or empty on failure.
+ * Returns { items: BrandResponse[], total } or throws on failure.
  */
 export async function fetchBrands() {
   const res = await fetch('/api/catalog/brands', {
     credentials: 'include',
   });
-  if (!res.ok) return { items: [], total: 0 };
+  if (!res.ok) {
+    const error = new Error('Не удалось загрузить бренды');
+    error.status = res.status;
+    throw error;
+  }
   return res.json();
 }
 

@@ -59,6 +59,9 @@ function buildInitialState({ categoryId = null, defaultTitle = '' } = {}) {
     images: [], // [{ localId, file?, url?, source: "file"|"url", alt }]
     sizeGuide: null, // { file?, url, source: "file"|"url" } or null
 
+    // Original badge
+    isOriginal: false,
+
     // Tags
     tags: [],
     countryOfOrigin: '',
@@ -307,9 +310,13 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
     if (state.images.length === 0) return false;
     // Need price
     if (state.variablePricing) {
-      return Object.values(state.perSkuPrices).some(
-        (p) => p.price && parseInt(p.price, 10) > 0,
-      );
+      // All selected variant values must have a price > 0
+      const requiredValueIds = Object.values(state.variantAttrs).flat();
+      if (requiredValueIds.length === 0) return false;
+      return requiredValueIds.every((valueId) => {
+        const p = state.perSkuPrices[valueId];
+        return p?.price && parseInt(p.price, 10) > 0;
+      });
     }
     return state.priceAmount !== '' && parseInt(state.priceAmount, 10) > 0;
   }, [
@@ -331,7 +338,10 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
       primaryCategoryId: state.categoryId,
       ...(state.descriptionRu
         ? {
-            descriptionI18N: buildI18nPayload(state.descriptionRu, state.descriptionEn),
+            descriptionI18N: buildI18nPayload(
+              state.descriptionRu,
+              state.descriptionEn,
+            ),
           }
         : {}),
       ...(state.supplierId ? { supplierId: state.supplierId } : {}),
@@ -383,13 +393,15 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
 
     return {
       attributeSelections,
-      priceAmount: useFlat && state.priceAmount !== ''
-        ? parseInt(state.priceAmount, 10)
-        : null,
+      priceAmount:
+        useFlat && state.priceAmount !== ''
+          ? parseInt(state.priceAmount, 10)
+          : null,
       priceCurrency: state.priceCurrency,
-      compareAtPriceAmount: useFlat && state.compareAtPrice !== ''
-        ? parseInt(state.compareAtPrice, 10)
-        : null,
+      compareAtPriceAmount:
+        useFlat && state.compareAtPrice !== ''
+          ? parseInt(state.compareAtPrice, 10)
+          : null,
     };
   }, [
     state.variantAttrs,
@@ -408,9 +420,8 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
       .map(([valueId, p]) => ({
         valueId,
         priceAmount: parseInt(p.price, 10),
-        compareAtPriceAmount: p.compareAt && p.compareAt !== ''
-          ? parseInt(p.compareAt, 10)
-          : null,
+        compareAtPriceAmount:
+          p.compareAt && p.compareAt !== '' ? parseInt(p.compareAt, 10) : null,
       }));
   }, [state.variablePricing, state.perSkuPrices]);
 

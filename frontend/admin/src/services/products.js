@@ -8,18 +8,52 @@ export function getProducts() {
 // Product API
 // ---------------------------------------------------------------------------
 
+const API_TIMEOUT = 30_000;
+
 async function api(url, options = {}) {
-  const res = await fetch(url, { credentials: 'include', ...options });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    const err = data?.error ?? data?.detail ?? {};
-    const error = new Error(err.message ?? `API error ${res.status}`);
-    error.code = err.code ?? 'UNKNOWN';
-    error.status = res.status;
-    error.details = err.details ?? {};
-    throw error;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
+
+  try {
+    const res = await fetch(url, {
+      credentials: 'include',
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (res.status === 429) {
+      const retryAfter = parseInt(res.headers.get('Retry-After') || '5', 10);
+      const error = new Error(
+        `Слишком много запросов. Повторите через ${retryAfter} сек.`,
+      );
+      error.code = 'RATE_LIMITED';
+      error.status = 429;
+      error.retryAfter = retryAfter;
+      throw error;
+    }
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const err = data?.error ?? data?.detail ?? {};
+      const error = new Error(err.message ?? `API error ${res.status}`);
+      error.code = err.code ?? 'UNKNOWN';
+      error.status = res.status;
+      error.details = err.details ?? {};
+      throw error;
+    }
+    return data;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      const error = new Error(
+        'Запрос превысил время ожидания. Проверьте соединение и попробуйте снова.',
+      );
+      error.code = 'TIMEOUT';
+      throw error;
+    }
+    throw err;
   }
-  return data;
 }
 
 function jsonOpts(body) {

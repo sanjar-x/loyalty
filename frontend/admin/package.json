@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "predev": "lsof -ti :3000 | xargs -r kill -9 2>/dev/null || true",
+    "predev": "node -e \"const{execSync}=require('child_process');try{const p=process.platform==='win32'?execSync('netstat -ano | findstr :3000 | findstr LISTENING').toString().trim().split(/\\s+/).pop():execSync('lsof -ti :3000').toString().trim();if(p)process.kill(Number(p))}catch{}\"",
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",

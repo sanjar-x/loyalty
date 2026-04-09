@@ -5,7 +5,14 @@ import ReactCrop from 'react-image-crop';
 import { fetchImageAsFile } from '@/services/products';
 import styles from './ImageViewer.module.css';
 
-export default function ImageViewer({ images, uploads = {}, initialIndex = 0, onClose, onRemove, onReplace }) {
+export default function ImageViewer({
+  images,
+  uploads = {},
+  initialIndex = 0,
+  onClose,
+  onRemove,
+  onReplace,
+}) {
   const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [cropping, setCropping] = useState(false);
   const [crop, setCrop] = useState(undefined);
@@ -45,11 +52,12 @@ export default function ImageViewer({ images, uploads = {}, initialIndex = 0, on
       if (e.key === 'ArrowLeft') goPrev();
       if (e.key === 'ArrowRight') goNext();
     }
+    const prevOverflow = document.body.style.overflow;
     document.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
+      document.body.style.overflow = prevOverflow;
     };
   }, [onClose, goPrev, goNext, cropping]);
 
@@ -93,7 +101,9 @@ export default function ImageViewer({ images, uploads = {}, initialIndex = 0, on
       setFetching(false);
     }
     setAspect(undefined);
-    setCrop(current.lastCrop || { unit: '%', x: 0, y: 0, width: 100, height: 100 });
+    setCrop(
+      current.lastCrop || { unit: '%', x: 0, y: 0, width: 100, height: 100 },
+    );
     setCompletedCrop(null);
     setCropping(true);
   }
@@ -144,7 +154,8 @@ export default function ImageViewer({ images, uploads = {}, initialIndex = 0, on
 
   async function applyCrop(targetImage, cropData, completedCropData) {
     const image = imgRef.current;
-    if (!image || !completedCropData?.width || !completedCropData?.height) return;
+    if (!image || !completedCropData?.width || !completedCropData?.height)
+      return;
 
     const canvas = document.createElement('canvas');
     const scaleX = image.naturalWidth / image.width;
@@ -227,7 +238,15 @@ export default function ImageViewer({ images, uploads = {}, initialIndex = 0, on
       // Re-enter crop mode for the new image on next render
       const nextImage = images[idx];
       if (nextImage && (nextImage.source === 'file' || nextImage.file)) {
-        setCrop(nextImage.lastCrop || { unit: '%', x: 0, y: 0, width: 100, height: 100 });
+        setCrop(
+          nextImage.lastCrop || {
+            unit: '%',
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 100,
+          },
+        );
       } else {
         setCropping(false);
       }
@@ -241,7 +260,12 @@ export default function ImageViewer({ images, uploads = {}, initialIndex = 0, on
   const canCrop = current.source === 'file' || current.source === 'url';
 
   return (
-    <div className={styles.overlay} onClick={cropping ? undefined : onClose} role="dialog" aria-label="Просмотр изображения">
+    <div
+      className={styles.overlay}
+      onClick={cropping ? undefined : onClose}
+      role="dialog"
+      aria-label="Просмотр изображения"
+    >
       <div className={styles.container} onClick={(e) => e.stopPropagation()}>
         <div className={styles.sidebar}>
           {images.map((img, idx) => (
@@ -265,8 +289,20 @@ export default function ImageViewer({ images, uploads = {}, initialIndex = 0, on
             onClick={cropping ? handleCancelCrop : onClose}
             aria-label={cropping ? 'Отменить обрезку' : 'Закрыть'}
           >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M2 2L10 10M18 18L10 10M10 10L18 2M10 10L2 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 20 20"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path
+                d="M2 2L10 10M18 18L10 10M10 10L18 2M10 10L2 18"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
 
@@ -283,8 +319,14 @@ export default function ImageViewer({ images, uploads = {}, initialIndex = 0, on
                     }
                     const snap = 3;
                     const s = { ...percentCrop };
-                    if (s.x < snap) { s.width += s.x; s.x = 0; }
-                    if (s.y < snap) { s.height += s.y; s.y = 0; }
+                    if (s.x < snap) {
+                      s.width += s.x;
+                      s.x = 0;
+                    }
+                    if (s.y < snap) {
+                      s.height += s.y;
+                      s.y = 0;
+                    }
                     if (s.x + s.width > 100 - snap) s.width = 100 - s.x;
                     if (s.y + s.height > 100 - snap) s.height = 100 - s.y;
                     setCrop(s);
@@ -313,7 +355,11 @@ export default function ImageViewer({ images, uploads = {}, initialIndex = 0, on
                     <button
                       key={r.label}
                       type="button"
-                      className={aspect === r.value ? styles.cropRatioActive : styles.cropRatio}
+                      className={
+                        aspect === r.value
+                          ? styles.cropRatioActive
+                          : styles.cropRatio
+                      }
                       onClick={() => handleAspectChange(r.value)}
                     >
                       {r.label}
@@ -321,7 +367,11 @@ export default function ImageViewer({ images, uploads = {}, initialIndex = 0, on
                   ))}
                 </div>
                 <div className={styles.cropActions}>
-                  <button type="button" className={styles.cropCancelBtn} onClick={handleCancelCrop}>
+                  <button
+                    type="button"
+                    className={styles.cropCancelBtn}
+                    onClick={handleCancelCrop}
+                  >
                     Отмена
                   </button>
                   <button
@@ -339,36 +389,126 @@ export default function ImageViewer({ images, uploads = {}, initialIndex = 0, on
             <>
               {total > 1 && (
                 <>
-                  <button type="button" className={styles.arrowLeft} onClick={goPrev} aria-label="Предыдущее изображение">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                      <path d="M15 5L8 12L15 19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <button
+                    type="button"
+                    className={styles.arrowLeft}
+                    onClick={goPrev}
+                    aria-label="Предыдущее изображение"
+                  >
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M15 5L8 12L15 19"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   </button>
-                  <button type="button" className={styles.arrowRight} onClick={goNext} aria-label="Следующее изображение">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                      <path d="M9 5L16 12L9 19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <button
+                    type="button"
+                    className={styles.arrowRight}
+                    onClick={goNext}
+                    aria-label="Следующее изображение"
+                  >
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M9 5L16 12L9 19"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   </button>
                 </>
               )}
 
               <div className={styles.imageWrapper}>
-                <img src={uploads[current.localId]?.url || current.url} alt={current.alt} className={styles.image} draggable={false} />
+                <img
+                  src={uploads[current.localId]?.url || current.url}
+                  alt={current.alt}
+                  className={styles.image}
+                  draggable={false}
+                />
               </div>
 
               <div className={styles.toolbar}>
                 {canCrop && (
-                  <button type="button" className={styles.toolBtn} onClick={handleStartCrop} disabled={fetching} aria-label="Обрезать изображение">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                      <path d="M6 2V6M6 6V19C6 19.5523 6.44772 20 7 20H18V24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M18 22V18M18 18V5C18 4.44772 17.5523 4 17 4H6V0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <button
+                    type="button"
+                    className={styles.toolBtn}
+                    onClick={handleStartCrop}
+                    disabled={fetching}
+                    aria-label="Обрезать изображение"
+                  >
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M6 2V6M6 6V19C6 19.5523 6.44772 20 7 20H18V24"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M18 22V18M18 18V5C18 4.44772 17.5523 4 17 4H6V0"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   </button>
                 )}
-                <button type="button" className={styles.toolBtn} onClick={handleRemove} aria-label="Удалить изображение">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <button
+                  type="button"
+                  className={styles.toolBtn}
+                  onClick={handleRemove}
+                  aria-label="Удалить изображение"
+                >
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M3 6H5H21"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </button>
               </div>

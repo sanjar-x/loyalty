@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchBrands, groupBrandsByLetter } from '@/services/brands';
 import { ChevronIcon, UploadIcon } from './icons';
 import styles from './page.module.css';
@@ -69,36 +69,56 @@ export default function BrandSelect({ value, onChange }) {
   const [brandSections, setBrandSections] = useState([]);
   const [brandsLoading, setBrandsLoading] = useState(false);
   const [brandsLoaded, setBrandsLoaded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Derive selectedBrand from value prop + loaded brands list
   const selectedBrand = value
     ? (brands.find((b) => b.id === value) ?? null)
     : null;
+
+  // Filter brand sections by search query
+  const filteredSections = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return brandSections;
+    return brandSections
+      .map((section) => ({
+        ...section,
+        brands: section.brands.filter((b) =>
+          b.name?.toLowerCase().includes(q),
+        ),
+      }))
+      .filter((section) => section.brands.length > 0);
+  }, [brandSections, searchQuery]);
   const [brandImagePreviewUrl, setBrandImagePreviewUrl] = useState('');
   const [brandImageName, setBrandImageName] = useState('');
   const [newBrandName, setNewBrandName] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [brandsLoadError, setBrandsLoadError] = useState(false);
   const fileInputRef = useRef(null);
   const rootRef = useRef(null);
 
   const isBrandFormComplete = Boolean(newBrandName.trim());
 
-  const loadBrands = useCallback(async () => {
-    if (brandsLoaded || brandsLoading) return;
-    setBrandsLoading(true);
-    try {
-      const data = await fetchBrands();
-      const items = data.items ?? [];
-      setBrands(items);
-      setBrandSections(groupBrandsByLetter(items));
-      setBrandsLoaded(true);
-    } catch (err) {
-      console.error('[BrandSelect] Failed to load brands:', err);
-    } finally {
-      setBrandsLoading(false);
-    }
-  }, [brandsLoaded, brandsLoading]);
+  const loadBrands = useCallback(
+    async (force = false) => {
+      if (!force && (brandsLoaded || brandsLoading)) return;
+      setBrandsLoading(true);
+      setBrandsLoadError(false);
+      try {
+        const data = await fetchBrands();
+        const items = data.items ?? [];
+        setBrands(items);
+        setBrandSections(groupBrandsByLetter(items));
+        setBrandsLoaded(true);
+      } catch {
+        setBrandsLoadError(true);
+      } finally {
+        setBrandsLoading(false);
+      }
+    },
+    [brandsLoaded, brandsLoading],
+  );
 
   // Eagerly load brands on mount so selectedBrand can resolve from value prop
   useEffect(() => {
@@ -121,6 +141,7 @@ export default function BrandSelect({ value, onChange }) {
     function handlePointerDown(event) {
       if (!rootRef.current?.contains(event.target)) {
         setOpen(false);
+        setIsAddModalOpen(false);
       }
     }
 
@@ -146,6 +167,10 @@ export default function BrandSelect({ value, onChange }) {
 
   function openAddBrandModal() {
     setOpen(false);
+    setNewBrandName('');
+    setBrandImagePreviewUrl('');
+    setBrandImageName('');
+    setCreateError('');
     setIsAddModalOpen(true);
   }
 
@@ -186,11 +211,18 @@ export default function BrandSelect({ value, onChange }) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newBrandName.trim(), slug: slug || `brand-${Date.now()}` }),
+        body: JSON.stringify({
+          name: newBrandName.trim(),
+          slug: slug || `brand-${Date.now()}`,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.error?.message ?? data?.detail?.message ?? 'Ошибка создания бренда');
+        throw new Error(
+          data?.error?.message ??
+            data?.detail?.message ??
+            'Ошибка создания бренда',
+        );
       }
       const data = await res.json();
 
@@ -220,12 +252,16 @@ export default function BrandSelect({ value, onChange }) {
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => {
-          setOpen((current) => !current);
+          setOpen((current) => {
+            if (!current) setSearchQuery('');
+            return !current;
+          });
           loadBrands();
         }}
       >
         <span className={styles.brandSelectValue}>
-          {selectedBrand?.name ?? (value && !brandsLoaded ? 'Загрузка...' : 'Бренд')}
+          {selectedBrand?.name ??
+            (value && !brandsLoaded ? 'Загрузка...' : 'Бренд')}
         </span>
         <span className={styles.selectChevron}>
           <ChevronIcon />
@@ -238,13 +274,41 @@ export default function BrandSelect({ value, onChange }) {
           role="listbox"
           aria-label="Список брендов"
         >
+          <div className={styles.dropdownSearchWrap}>
+            <input
+              className={styles.dropdownSearchInput}
+              placeholder="Поиск бренда..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+              onMouseDown={(e) => e.stopPropagation()}
+            />
+          </div>
           <div className={styles.brandDropdownScrollArea}>
             {brandsLoading ? (
               <div className={styles.brandSectionHeader}>Загрузка…</div>
-            ) : brandSections.length === 0 ? (
-              <div className={styles.brandSectionHeader}>Нет брендов</div>
+            ) : brandsLoadError ? (
+              <div style={{ padding: '12px 16px', textAlign: 'center' }}>
+                <p
+                  style={{ margin: '0 0 8px', color: '#ef4444', fontSize: 13 }}
+                >
+                  Не удалось загрузить бренды
+                </p>
+                <button
+                  type="button"
+                  className={styles.brandAddButton}
+                  onClick={() => loadBrands(true)}
+                  style={{ width: '100%' }}
+                >
+                  Повторить
+                </button>
+              </div>
+            ) : filteredSections.length === 0 ? (
+              <div className={styles.brandSectionHeader}>
+                {searchQuery ? 'Ничего не найдено' : 'Нет брендов'}
+              </div>
             ) : (
-              brandSections.map((section) => (
+              filteredSections.map((section) => (
                 <section key={section.key} className={styles.brandSection}>
                   <div className={styles.brandSectionHeader}>{section.key}</div>
                   {section.brands.map((brand) => {
@@ -374,12 +438,21 @@ export default function BrandSelect({ value, onChange }) {
                   setCreateError('');
                 }}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter') { event.preventDefault(); handleCreateBrand(); }
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleCreateBrand();
+                  }
                 }}
               />
 
               {createError && (
-                <p style={{ color: '#e53e3e', fontSize: '13px', margin: '4px 0 0' }}>
+                <p
+                  style={{
+                    color: '#e53e3e',
+                    fontSize: '13px',
+                    margin: '4px 0 0',
+                  }}
+                >
                   {createError}
                 </p>
               )}

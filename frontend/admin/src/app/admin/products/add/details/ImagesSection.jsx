@@ -6,6 +6,8 @@ import { ArrowIcon, SmallCloseIcon, UploadIcon } from './icons';
 import styles from './page.module.css';
 
 const MAX_IMAGES = 10;
+const ALLOWED_IMAGE_EXTENSIONS = /\.(jpe?g|png|gif|webp|avif|svg|bmp|tiff?)$/i;
+const MIN_IMAGE_SIZE = 1024; // 1 KB minimum
 
 export default function ImagesSection({ images = [], onAdd, onRemove, onSet, uploads = {}, onRetry, onImageCropped }) {
   const [urlValue, setUrlValue] = useState('');
@@ -33,6 +35,13 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet, upl
     if (!files.length) return;
     const availableSlots = Math.max(MAX_IMAGES - images.length, 0);
     files.slice(0, availableSlots).forEach((file) => {
+      // Skip files that are too small (likely corrupt or empty)
+      if (file.size < MIN_IMAGE_SIZE) return;
+      // Skip duplicates (same name + size)
+      const isDuplicate = images.some(
+        (img) => img.file?.name === file.name && img.file?.size === file.size,
+      );
+      if (isDuplicate) return;
       const url = URL.createObjectURL(file);
       blobUrlsRef.current.add(url);
       onAdd?.({
@@ -51,6 +60,15 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet, upl
     const nextUrl = urlValue.trim();
     if (!nextUrl || images.length >= MAX_IMAGES) return;
     if (!nextUrl.startsWith('https://') && !nextUrl.startsWith('http://')) return;
+    // Validate URL has image extension
+    try {
+      const pathname = new URL(nextUrl).pathname;
+      if (!ALLOWED_IMAGE_EXTENSIONS.test(pathname)) return;
+    } catch {
+      return;
+    }
+    // Check for duplicate URL
+    if (images.some((img) => img.url === nextUrl)) return;
     onAdd?.({
       localId: `url-${Date.now()}`,
       url: nextUrl,
@@ -109,6 +127,11 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet, upl
   const hasImages = imageCount > 0;
   const canUploadMore = imageCount < MAX_IMAGES;
   const showUrlAction = Boolean(urlValue.trim());
+  // Disable drag-reorder while any image is uploading/processing
+  const anyUploading = images.some((img) => {
+    const s = uploads[img.localId]?.status;
+    return s === 'uploading' || s === 'processing';
+  });
 
   return (
     <section className={styles.card}>
@@ -146,7 +169,7 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet, upl
                   <div
                     key={image.localId}
                     className={styles.imagesGalleryItem}
-                    draggable={!isUploading}
+                    draggable={!anyUploading}
                     role="listitem"
                     aria-label={`Изображение ${idx + 1} из ${imageCount}. Перетащите для изменения порядка`}
                     onDragStart={(e) => handleDragStart(e, idx)}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   createProduct,
   bulkAssignAttrs,
@@ -48,9 +48,11 @@ export default function useSubmitProduct() {
   const [progress, setProgress] = useState('');   // human-readable progress
   const [error, setError] = useState(null);       // { step, message }
   const [createdProductId, setCreatedProductId] = useState(null);
+  const lockRef = useRef(false);
 
   const execute = useCallback(async (form, mode = 'draft', imageUploads = {}) => {
-    if (submitting) return;
+    if (lockRef.current) return;
+    lockRef.current = true;
     setSubmitting(true);
     setError(null);
     let currentStep = 'creating';
@@ -80,7 +82,15 @@ export default function useSubmitProduct() {
         currentStep = 'skus';
         setStep(currentStep);
         setProgress(STEPS.skus);
-        await generateSkus(productId, variantId, form.skuGeneratePayload);
+        const skuResult = await generateSkus(productId, variantId, form.skuGeneratePayload);
+
+        // Validate SKUs were actually generated
+        if ((skuResult?.createdCount ?? 0) === 0 && (skuResult?.skippedCount ?? 0) === 0) {
+          throw Object.assign(
+            new Error('SKU не были сгенерированы. Проверьте выбранные атрибуты.'),
+            { code: 'ZERO_SKUS' },
+          );
+        }
 
         // ── Step 4: Variable pricing ──
         if (form.perSkuPriceUpdates.length > 0) {
@@ -117,6 +127,7 @@ export default function useSubmitProduct() {
         currentStep = 'media';
         setStep(currentStep);
         let uploaded = 0;
+        let mediaFailures = 0;
         setProgress(`${STEPS.media} (${uploaded}/${images.length})...`);
 
         // Build upload tasks with pre-assigned roles by array index
@@ -170,9 +181,16 @@ export default function useSubmitProduct() {
           setProgress(`${STEPS.media} (${uploaded}/${images.length})...`);
 
           const failures = results.filter((r) => r.status === 'rejected');
-          if (failures.length > 0) {
-            console.warn('Media upload failures:', failures.map((f) => f.reason));
-          }
+          mediaFailures += failures.length;
+        }
+
+        if (mediaFailures > 0) {
+          throw Object.assign(
+            new Error(
+              `${mediaFailures} из ${images.length} изображений не загрузились. Продукт создан как черновик.`,
+            ),
+            { code: 'MEDIA_PARTIAL_FAILURE' },
+          );
         }
       }
 
@@ -204,7 +222,10 @@ export default function useSubmitProduct() {
             });
           }
         } catch (err) {
-          console.warn('Size guide upload failed:', err);
+          throw Object.assign(
+            new Error('Не удалось загрузить размерную сетку. Продукт создан как черновик.'),
+            { code: 'SIZE_GUIDE_FAILED' },
+          );
         }
       }
 
@@ -233,9 +254,10 @@ export default function useSubmitProduct() {
       if (productId) return { productId, variantId, error: true };
       return null;
     } finally {
+      lockRef.current = false;
       setSubmitting(false);
     }
-  }, [submitting]);
+  }, []);
 
   const clearError = useCallback(() => setError(null), []);
 

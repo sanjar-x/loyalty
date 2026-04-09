@@ -60,9 +60,9 @@
 }
 
 .card {
-  border-radius: 16px;
+  border-radius: 20px;
   background: #f4f3f1;
-  padding: 16px 20px;
+  padding: 25px 30px;
 }
 
 .cardLabel {
@@ -101,7 +101,7 @@
 
 .metricValue {
   margin: 0;
-  color: #3d3c3a;
+  color: #000000;
   font-size: 26px;
   font-weight: 700;
   line-height: 32px;
@@ -124,13 +124,13 @@
 }
 
 .metricChangeNegative {
-  color: #c94c4c;
+  color: #aa2d2d;
 }
 
 .metricTitle {
   margin: 2px 0 0;
   color: #7e7e7e;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 500;
   line-height: 20px;
 }
@@ -582,12 +582,12 @@
   top: 10px;
   left: 10px;
   margin-top: 0;
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
   z-index: 2;
-  border: 1px solid #bdbdbd;
-  background: rgba(255, 255, 255, 0.96);
+  border: 0;
+  background: #ffffff;
   color: transparent;
   font-size: 12px;
   line-height: 1;
@@ -684,12 +684,12 @@
 .pricePill {
   display: inline-flex;
   align-items: center;
-  height: clamp(34px, 3vw, 38px);
-  padding: 0 clamp(12px, 1.2vw, 16px);
-  border-radius: clamp(10px, 1vw, 12px);
+  height: 46px;
+  padding: 0 13px;
+  border-radius: 15px;
   background: #f4f3f1;
-  color: #111111;
-  font-size: clamp(14px, 0.35vw + 11px, 16px);
+  color: #000000;
+  font-size: 16px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -761,24 +761,24 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  height: clamp(22px, 2vw, 24px);
-  padding: 0 clamp(8px, 0.8vw, 10px);
+  height: 25px;
+  padding: 0 13px;
   border-radius: 999px;
   background: #f4f3f1;
   color: #111111;
-  font-size: clamp(11px, 0.25vw + 9px, 12px);
+  font-size: 16px;
   font-weight: 500;
   white-space: nowrap;
 }
 
 .badgeChina {
-  background: #f5e8b8;
-  color: #6b5020;
+  background: rgba(255, 184, 42, 0.25);
+  color: #000000;
 }
 
 .badgeStock {
-  background: #e7e7e7;
-  color: #111111;
+  background: rgba(126, 126, 126, 0.25);
+  color: #000000;
 }
 
 .badgeDark {
@@ -957,14 +957,14 @@
 }
 
 .pageButton {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
   border: 0;
   background: #f4f3f1;
   color: #2d2d2d;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   display: flex;
   align-items: center;

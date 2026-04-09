@@ -86,60 +86,18 @@ export default async function AddProductDetailsPage({ params }) {
         <h1 className={styles.title}>Добавление товара</h1>
       </div>
 
-      <div className={styles.layout}>
-        <div className={styles.mainColumn}>
-          {/* Breadcrumbs */}
+      <ProductDetailsForm
+        leafLabel={leafLabel}
+        categoryId={leafCategoryId}
+        breadcrumbs={
           <div className={styles.breadcrumbs}>
             {ancestors.map((node) => (
               <Crumb key={node.id} label={categoryLabel(node)} />
             ))}
             {ancestors.length === 0 && <Crumb label={leafLabel} />}
           </div>
-
-          <ProductDetailsForm
-            leafLabel={leafLabel}
-            categoryId={leafCategoryId}
-          />
-        </div>
-
-        {/* Sidebar */}
-        <aside className={styles.sidebar}>
-          <section className={styles.previewCard}>
-            <h2 className={styles.previewTitle}>Предпросмотр</h2>
-            <div className={styles.previewPhone}>
-              <div className={styles.previewScreen}>
-                <div className={styles.previewImage}>
-                  <span className={styles.previewHeart}>
-                    <svg
-                      width="30"
-                      height="27"
-                      viewBox="0 0 30 27"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M14.7174 6.0979C11.7802 -0.74505 1.5 -0.0162138 1.5 8.72986C1.5 17.4759 14.7174 24.7645 14.7174 24.7645C14.7174 24.7645 27.9348 17.4759 27.9348 8.72986C27.9348 -0.0162138 17.6546 -0.74505 14.7174 6.0979Z"
-                        fill="white"
-                        stroke="#B6B6B6"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </div>
-                <div className={styles.previewMeta}>
-                  <div className={styles.previewTextLine} />
-                  <div className={styles.previewTextShort} />
-                </div>
-                <p className={styles.previewName}>{leafLabel}</p>
-              </div>
-            </div>
-          </section>
-
-          {/* Submit buttons moved to ProductDetailsForm for form state access */}
-        </aside>
-      </div>
+        }
+      />
     </section>
   );
 }

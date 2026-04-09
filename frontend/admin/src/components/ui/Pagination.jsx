@@ -24,7 +24,7 @@ export function Pagination({ page, pages, onPage, className }) {
       <button
         type="button"
         onClick={() => onPage(Math.max(1, page - 1))}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border-0 bg-[#f4f3f1] text-sm font-medium text-[#2d2d2d] hover:bg-[#ededed] cursor-pointer"
+        className="flex h-[46px] w-[46px] items-center justify-center rounded-[13px] border-0 bg-[#f4f3f1] text-base font-medium text-[#2d2d2d] hover:bg-[#ededed] cursor-pointer"
         aria-label="Назад"
       >
         <svg
@@ -48,7 +48,7 @@ export function Pagination({ page, pages, onPage, className }) {
           type="button"
           onClick={() => onPage(p)}
           className={cn(
-            'flex h-9 w-9 items-center justify-center rounded-xl border-0 text-sm font-medium cursor-pointer',
+            'flex h-[46px] w-[46px] items-center justify-center rounded-[13px] border-0 text-base font-medium cursor-pointer',
             p === page
               ? 'bg-[#2d2d2d] text-white'
               : 'bg-[#f4f3f1] text-[#2d2d2d] hover:bg-[#ededed]',
@@ -60,7 +60,7 @@ export function Pagination({ page, pages, onPage, className }) {
       <button
         type="button"
         onClick={() => onPage(Math.min(pages, page + 1))}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border-0 bg-[#f4f3f1] text-sm font-medium text-[#2d2d2d] hover:bg-[#ededed] cursor-pointer"
+        className="flex h-[46px] w-[46px] items-center justify-center rounded-[13px] border-0 bg-[#f4f3f1] text-base font-medium text-[#2d2d2d] hover:bg-[#ededed] cursor-pointer"
         aria-label="Вперёд"
       >
         <svg

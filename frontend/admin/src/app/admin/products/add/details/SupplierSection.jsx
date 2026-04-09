@@ -41,6 +41,7 @@ export default function SupplierSection({
   const [suppliers, setSuppliers] = useState([]);
   const [suppliersLoading, setSuppliersLoading] = useState(false);
   const [suppliersLoaded, setSuppliersLoaded] = useState(false);
+  const [suppliersLoadError, setSuppliersLoadError] = useState(false);
   const supplierRef = useRef(null);
 
   // Source URL focus state
@@ -70,15 +71,16 @@ export default function SupplierSection({
     }
   }, [deliveryMode]); // eslint-disable-line react-hooks/exhaustive-deps — intentional: only react to deliveryMode changes, other deps are read from current closure
 
-  const loadSuppliers = useCallback(async () => {
-    if (suppliersLoaded || suppliersLoading) return;
+  const loadSuppliers = useCallback(async (force = false) => {
+    if (!force && (suppliersLoaded || suppliersLoading)) return;
     setSuppliersLoading(true);
+    setSuppliersLoadError(false);
     try {
       const data = await fetchSuppliers();
       setSuppliers(data.items ?? []);
       setSuppliersLoaded(true);
-    } catch (err) {
-      console.error('[SupplierSection] Failed to load suppliers:', err);
+    } catch {
+      setSuppliersLoadError(true);
     } finally {
       setSuppliersLoading(false);
     }
@@ -174,6 +176,26 @@ export default function SupplierSection({
               <div className={styles.brandDropdownScrollArea}>
                 {suppliersLoading ? (
                   <div className={styles.brandSectionHeader}>Загрузка…</div>
+                ) : suppliersLoadError ? (
+                  <div style={{ padding: '12px 16px', textAlign: 'center' }}>
+                    <p style={{ margin: '0 0 8px', color: '#ef4444', fontSize: 13 }}>
+                      Не удалось загрузить поставщиков
+                    </p>
+                    <button
+                      type="button"
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 6,
+                        border: '1px solid #d1d5db',
+                        background: '#fff',
+                        cursor: 'pointer',
+                        fontSize: 13,
+                      }}
+                      onClick={() => loadSuppliers(true)}
+                    >
+                      Повторить
+                    </button>
+                  </div>
                 ) : filteredSuppliers.length === 0 ? (
                   <div className={styles.brandSectionHeader}>
                     Нет поставщиков

@@ -18,11 +18,21 @@ import styles from './page.module.css';
 
 function VariantAttributeSelect({ attribute, selectedIds, onToggle }) {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const rootRef = useRef(null);
   const attrValues = attribute.values ?? [];
   const label = i18n(attribute.nameI18N, attribute.code);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  const filteredValues = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return attrValues;
+    return attrValues.filter((v) => {
+      const text = i18n(v.valueI18N, v.code);
+      return text?.toLowerCase().includes(q);
+    });
+  }, [attrValues, searchQuery]);
 
   // Selected values in their original sort order
   const selectedValues = useMemo(
@@ -63,7 +73,12 @@ function VariantAttributeSelect({ attribute, selectedIds, onToggle }) {
         tabIndex={0}
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((c) => !c)}
+        onClick={() => {
+          setOpen((c) => {
+            if (!c) setSearchQuery('');
+            return !c;
+          });
+        }}
         onKeyDown={handleFieldKeyDown}
       >
         <div className={styles.sizeSelectTriggerContent}>
@@ -75,6 +90,7 @@ function VariantAttributeSelect({ attribute, selectedIds, onToggle }) {
                   key={val.id}
                   type="button"
                   className={styles.sizeChip}
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
                     onToggle(val.id);
@@ -105,31 +121,47 @@ function VariantAttributeSelect({ attribute, selectedIds, onToggle }) {
 
       {open ? (
         <div className={styles.sizeDropdown} role="listbox" aria-label={label}>
+          <div className={styles.dropdownSearchWrap}>
+            <input
+              className={styles.dropdownSearchInput}
+              placeholder={`Поиск...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+              onMouseDown={(e) => e.stopPropagation()}
+            />
+          </div>
           <div className={styles.sizeOptionsList}>
-            {attrValues.map((val) => {
-              const checked = selectedSet.has(val.id);
-              return (
-                <button
-                  key={val.id}
-                  type="button"
-                  className={styles.sizeOption}
-                  role="option"
-                  aria-selected={checked}
-                  onClick={() => onToggle(val.id)}
-                >
-                  <span
-                    className={
-                      checked ? styles.sizeCheckboxChecked : styles.sizeCheckbox
-                    }
+            {filteredValues.length === 0 ? (
+              <div className={styles.sizeOption} style={{ cursor: 'default', opacity: 0.5 }}>
+                <span className={styles.sizeOptionLabel}>Ничего не найдено</span>
+              </div>
+            ) : (
+              filteredValues.map((val) => {
+                const checked = selectedSet.has(val.id);
+                return (
+                  <button
+                    key={val.id}
+                    type="button"
+                    className={styles.sizeOption}
+                    role="option"
+                    aria-selected={checked}
+                    onClick={() => onToggle(val.id)}
                   >
-                    {checked ? <CheckIcon /> : null}
-                  </span>
-                  <span className={styles.sizeOptionLabel}>
-                    {i18n(val.valueI18N, val.code)}
-                  </span>
-                </button>
-              );
-            })}
+                    <span
+                      className={
+                        checked ? styles.sizeCheckboxChecked : styles.sizeCheckbox
+                      }
+                    >
+                      {checked ? <CheckIcon /> : null}
+                    </span>
+                    <span className={styles.sizeOptionLabel}>
+                      {i18n(val.valueI18N, val.code)}
+                    </span>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
       ) : null}

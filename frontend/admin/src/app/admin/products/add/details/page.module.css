@@ -16,18 +16,18 @@
 .header::after {
   content: '';
   position: absolute;
-  right: -20px;
+  right: -36px;
   bottom: 0;
-  left: -20px;
-  border-bottom: 1px solid #ece8e3;
+  left: -36px;
+  border-bottom: 1px solid #f4f3f1;
 }
 
 .backButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 46px;
+  height: 46px;
   flex: 0 0 auto;
   border-radius: 50%;
   background: #f4f3f1;
@@ -38,8 +38,8 @@
 
 .backButton svg {
   display: block;
-  width: 22px;
-  height: 22px;
+  width: 30px;
+  height: 30px;
 }
 
 .backButton:hover {
@@ -49,10 +49,10 @@
 .title {
   margin: 0;
   color: #2d2d2d;
-  font-size: 24px;
+  font-size: 32px;
   font-weight: 700;
-  line-height: 30px;
-  letter-spacing: -0.5px;
+  line-height: 36px;
+  letter-spacing: -0.8px;
 }
 
 /* ── Layout ── */
@@ -79,11 +79,11 @@
 .breadcrumbs {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 6px;
   width: 100%;
-  padding: 12px;
-  border: 1px solid #ece8e3;
-  border-radius: 28px;
+  padding: 22px 27px;
+  border: 3px solid #f4f3f1;
+  border-radius: 30px;
   background: #ffffff;
   margin-bottom: 20px;
 }
@@ -120,10 +120,10 @@
 
 /* ── Cards ── */
 .card {
-  border-radius: 16px;
-  border: 1px solid #ece8e3;
+  border-radius: 30px;
+  border: 3px solid #f4f3f1;
   background: #ffffff;
-  padding: 20px;
+  padding: 22px 27px;
 }
 
 .card + .card {
@@ -132,10 +132,10 @@
 
 .cardTitle {
   margin: 0;
-  color: #111111;
-  font-size: 18px;
+  color: #000000;
+  font-size: 26px;
   font-weight: 700;
-  line-height: 22px;
+  line-height: 32px;
 }
 
 .cardTitleRow {
@@ -151,10 +151,10 @@
 
 .cardSubtitle {
   margin: 2px 0 0;
-  color: #8c8c8c;
-  font-size: 12px;
+  color: #7e7e7e;
+  font-size: 16px;
   font-weight: 500;
-  line-height: 16px;
+  line-height: 20px;
 }
 
 .collapseChevron {
@@ -189,10 +189,10 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  height: 46px;
-  padding: 0 16px;
+  height: 66px;
+  padding: 0 13px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 20px;
   background: #f4f3f1;
   color: #111111;
   text-align: left;
@@ -203,7 +203,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 500;
   line-height: 20px;
 }
@@ -219,6 +219,37 @@
   border-radius: 22px;
   background: #ffffff;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+}
+
+.dropdownSearchWrap {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e1dc;
+  background: #ffffff;
+}
+
+.dropdownSearchInput {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #e5e1dc;
+  border-radius: 12px;
+  background: #f4f3f1;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #111111;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.dropdownSearchInput::placeholder {
+  color: #8d8d8d;
+}
+
+.dropdownSearchInput:focus {
+  border-color: #111111;
+  background: #ffffff;
 }
 
 .brandDropdownScrollArea {
@@ -541,10 +572,10 @@
 }
 
 .sizeTableCard {
-  border-radius: 28px;
-  border: 1px solid #ece8e3;
+  border-radius: 30px;
+  border: 3px solid #f4f3f1;
   background: #ffffff;
-  padding: 20px 28px 28px;
+  padding: 22px 27px 28px;
   margin: 20px 0;
 }
 
@@ -562,10 +593,10 @@
 
 .sizeTableTitle {
   margin: 0;
-  color: #111111;
-  font-size: 22px;
+  color: #000000;
+  font-size: 26px;
   font-weight: 700;
-  line-height: 28px;
+  line-height: 32px;
 }
 
 .sizeTableChevron,
@@ -984,13 +1015,13 @@
 
 .select {
   width: 100%;
-  height: 46px;
-  padding: 0 40px 0 16px;
+  height: 66px;
+  padding: 0 40px 0 13px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 20px;
   background: #f4f3f1;
   color: #111111;
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 500;
   line-height: 20px;
   appearance: none;
@@ -1013,17 +1044,17 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 56px;
-  padding: 8px 16px;
-  border-radius: 12px;
+  min-height: 66px;
+  padding: 12px 13px;
+  border-radius: 20px;
   background: #f4f3f1;
 }
 
 .floatingLabel {
-  color: #8c8c8c;
-  font-size: 11px;
+  color: #7e7e7e;
+  font-size: 16px;
   font-weight: 500;
-  line-height: 14px;
+  line-height: 20px;
 }
 
 .floatingInput {
@@ -1031,8 +1062,8 @@
   background: transparent;
   padding: 0;
   margin: 0;
-  color: #111111;
-  font-size: 15px;
+  color: #000000;
+  font-size: 20px;
   font-weight: 500;
   line-height: 20px;
   outline: none;
@@ -1041,19 +1072,19 @@
 /* ── Plain input ── */
 .input {
   width: 100%;
-  height: 46px;
-  padding: 0 16px;
+  height: 66px;
+  padding: 0 13px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 20px;
   background: #f4f3f1;
-  color: #111111;
-  font-size: 14px;
+  color: #000000;
+  font-size: 20px;
   font-weight: 500;
   line-height: 20px;
 }
 
 .input::placeholder {
-  color: #8c8c8c;
+  color: #7e7e7e;
 }
 
 /* ── Upload ── */
@@ -1064,8 +1095,8 @@
   justify-content: center;
   min-height: 160px;
   border-radius: 20px;
-  border: 1px dashed #cfc8bf;
-  color: #8c8c8c;
+  border: 1px dashed #7e7e7e;
+  color: #7e7e7e;
   cursor: pointer;
   gap: 8px;
 }
@@ -1079,9 +1110,9 @@
 }
 
 .uploadText {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 500;
-  line-height: 18px;
+  line-height: 20px;
 }
 
 .imagesSectionBody {
@@ -1275,10 +1306,10 @@
 
 .switchLabel {
   margin: 0;
-  color: #111111;
-  font-size: 18px;
+  color: #000000;
+  font-size: 26px;
   font-weight: 700;
-  line-height: 22px;
+  line-height: 32px;
 }
 
 .toggle {
@@ -1287,8 +1318,8 @@
   align-items: center;
   padding: 0;
   border: 0;
-  width: 40px;
-  height: 22px;
+  width: 44px;
+  height: 26px;
   border-radius: 999px;
   background: #d7d2cb;
   cursor: pointer;
@@ -1311,8 +1342,8 @@
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: #ffffff;
   transition: transform 0.15s ease;
@@ -1329,20 +1360,21 @@
 }
 
 .toggleLabel {
-  color: #8c8c8c;
-  font-size: 13px;
+  color: #7e7e7e;
+  font-size: 16px;
   font-weight: 500;
-  line-height: 18px;
+  line-height: 20px;
 }
 
 /* ── Segmented control ── */
 .segmented {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  padding: 4px;
-  gap: 4px;
-  border-radius: 12px;
+  padding: 3px;
+  gap: 6px;
+  border-radius: 20px;
   background: #f4f3f1;
+  height: 66px;
 }
 
 .segmentActive,
@@ -1351,12 +1383,12 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 38px;
+  height: 60px;
   padding: 0 14px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 20px;
   appearance: none;
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 500;
   line-height: 20px;
   cursor: pointer;
@@ -1431,18 +1463,18 @@
 
 /* ── Preview card ── */
 .previewCard {
-  border-radius: 34px;
-  border: 1px solid #ece8e3;
+  border-radius: 30px;
+  border: 3px solid #f4f3f1;
   background: #ffffff;
-  padding: 28px 28px 34px;
+  padding: 22px 27px 34px;
 }
 
 .previewTitle {
   margin: 0 0 26px;
-  color: #111111;
-  font-size: 22px;
+  color: #000000;
+  font-size: 26px;
   font-weight: 700;
-  line-height: 28px;
+  line-height: 32px;
 }
 
 .previewPhone {
@@ -1451,18 +1483,16 @@
   margin: 0 auto;
   display: flex;
   justify-content: center;
-  padding: 28px;
-  border-radius: 34px;
+  padding: 25px 30px;
+  border-radius: 20px;
   background: #f4f3f1;
-  border: 1px solid #ece8e3;
   box-sizing: border-box;
 }
 
 .previewScreen {
   width: min(100%, 293px);
-  height: 518px;
   box-sizing: border-box;
-  border-radius: 26px;
+  border-radius: 20px;
   background: #ffffff;
   overflow: hidden;
   padding: 10px 10px 14px;
@@ -1471,9 +1501,58 @@
 .previewImage {
   position: relative;
   width: 100%;
-  height: 365px;
-  border-radius: 22px;
+  aspect-ratio: 3 / 4;
+  border-radius: 20px;
   background: #f4f3f1;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+}
+
+.previewImage:active {
+  cursor: grabbing;
+}
+
+.previewSlider {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  transition: transform 300ms ease;
+}
+
+.previewSlide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 20px;
+}
+
+.previewDots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 0 2px;
+}
+
+.previewDot,
+.previewDotActive {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 200ms ease;
+}
+
+.previewDot {
+  background: #d1d1d1;
+}
+
+.previewDotActive {
+  background: #444444;
 }
 
 .previewHeart {
@@ -1489,8 +1568,8 @@
 
 .previewMeta {
   display: grid;
-  gap: 12px;
-  padding: 20px 10px 0;
+  gap: 6px;
+  padding: 16px 10px 0;
 }
 
 .previewTextLine,
@@ -1510,11 +1589,47 @@
 
 .previewName {
   margin: 0;
-  padding: 14px 10px 12px;
+  padding: 6px 10px 14px;
   color: #111111;
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 26px;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 23px;
+}
+
+.previewBadge {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: #2d2d2d;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  line-height: 18px;
+}
+
+.previewPrice {
+  margin: 0;
+  color: #111111;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 30px;
+}
+
+.previewSplit {
+  margin: 0;
+  color: #111111;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.previewSplit strong {
+  font-weight: 700;
 }
 
 /* ── Action buttons ── */
@@ -1545,8 +1660,13 @@
   color: #111111;
 }
 
-.secondaryButton:hover {
+.secondaryButton:hover:not(:disabled) {
   background: #eceae7;
+}
+
+.secondaryButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .primaryButton {
@@ -1554,8 +1674,22 @@
   color: #ffffff;
 }
 
-.primaryButton:hover {
+.primaryButton:hover:not(:disabled) {
   background: #1a1a1a;
+}
+
+.primaryButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Error text ── */
+.errorText {
+  margin: 0;
+  color: #e53e3e;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
 }
 
 /* ── Responsive ── */
@@ -1570,8 +1704,9 @@
   }
 
   .title {
-    font-size: 28px;
-    line-height: 34px;
+    font-size: 40px;
+    line-height: 44px;
+    letter-spacing: -1px;
   }
 
   .fieldRow {
@@ -1625,22 +1760,21 @@
   }
 
   .previewCard {
-    padding: 36px 30px 38px;
+    padding: 22px 27px 34px;
   }
 
   .previewTitle {
-    margin-bottom: 30px;
-    font-size: 28px;
-    line-height: 34px;
+    margin-bottom: 26px;
+    font-size: 26px;
+    line-height: 32px;
   }
 
   .previewPhone {
-    padding: 36px;
+    padding: 25px 30px;
   }
 
   .previewScreen {
     width: 293px;
-    height: 518px;
     padding: 10px 10px 14px;
   }
 
@@ -1650,7 +1784,7 @@
   }
 
   .previewMeta {
-    padding: 20px 10px 0;
+    padding: 18px 10px 0;
   }
 
   .previewTextLine,
@@ -1659,9 +1793,19 @@
   }
 
   .previewName {
-    padding: 14px 10px 12px;
-    font-size: 22px;
-    line-height: 28px;
+    padding: 6px 10px 14px;
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  .previewPrice {
+    font-size: 26px;
+    line-height: 32px;
+  }
+
+  .previewSplit {
+    font-size: 16px;
+    line-height: 22px;
   }
 }
 

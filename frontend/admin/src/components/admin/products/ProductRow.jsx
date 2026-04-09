@@ -78,6 +78,16 @@ export function ProductRow({
               height={120}
               className={styles.thumbImg}
             />
+            {(p.imagesCount ?? 1) > 1 && (
+              <div className={styles.thumbDots}>
+                {Array.from({ length: Math.min(p.imagesCount ?? 1, 4) }, (_, i) => (
+                  <span
+                    key={i}
+                    className={cn(styles.thumbDot, i === 0 && styles.thumbDotActive)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           <button
