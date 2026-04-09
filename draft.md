@@ -36,3 +36,6 @@ presignedUrl: https://t3.storage.dev/loyality/raw_uploads/media/02acb8b1-34bc-45
 2) Пока изображение загружается в S3 у изображения должен стоять жёлты статус а не лоадер который ограничивает просмотр в ImageViewer
 3) После загрузки в S3 у нас вместо старого blob должен стоять url в S3 чтобы у нас было хотя бы необработанное изображения в случае если изображение не получится обработать в Image backend мы могли отправить в Backend необработанное оригинальное изображение. Public URL https://loyality.t3.tigrisfiles.io а и адресс изображения их пример будет вот таким https://loyality.t3.tigrisfiles.io/raw_uploads/media/02acb8b1-34bc-4503-81cc-e6896068dcb9/upload_raw.jpg
 4) При сообщении об успешной обработки заменить URL Raw изображения на URL обработанного изображения
+
+
+Почему Кнопка сохранить не работает изучи @backend_openapi.json API Документацию и страницу @frontend/admin/src/app/admin/products/add/ Нужно правильно реализовать весь функционал

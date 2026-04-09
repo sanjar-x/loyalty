@@ -6,6 +6,7 @@ Part of the domain layer -- zero infrastructure imports.
 """
 
 import uuid
+from types import EllipsisType
 
 from attr import dataclass
 
@@ -90,8 +91,8 @@ class Brand(AggregateRoot):
         self,
         name: str | None = None,
         slug: str | None = None,
-        logo_url: str | None = ...,  # type: ignore[assignment]
-        logo_storage_object_id: uuid.UUID | None = ...,  # type: ignore[assignment]
+        logo_url: str | None | EllipsisType = ...,
+        logo_storage_object_id: uuid.UUID | None | EllipsisType = ...,
     ) -> None:
         """Update brand details.
 

@@ -170,15 +170,16 @@ class LoginOIDCHandler:
                 identity.ensure_active()
                 is_new = True
 
-            # Check session limit (same enforcement as local login)
-            active_count = await self._session_repo.count_active(identity.id)
-            if active_count >= self._max_sessions:
-                self._logger.warning(
-                    "max_sessions.exceeded",
-                    identity_id=str(identity.id),
-                    ip=command.ip_address,
-                )
-                raise MaxSessionsExceededError(max_sessions=self._max_sessions)
+            "DEV NOTE: Session limit enforcement is currently disabled for OIDC logins to avoid blocking users due to external account issues. Re-enable this check once we have a better strategy for handling max sessions across different auth methods."
+            # # Check session limit (same enforcement as local login)
+            # active_count = await self._session_repo.count_active(identity.id)
+            # if active_count >= self._max_sessions:
+            #     self._logger.warning(
+            #         "max_sessions.exceeded",
+            #         identity_id=str(identity.id),
+            #         ip=command.ip_address,
+            #     )
+            #     raise MaxSessionsExceededError(max_sessions=self._max_sessions)
 
             # Create session
             role_ids = await self._role_repo.get_identity_role_ids(identity.id)

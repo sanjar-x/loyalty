@@ -17,7 +17,6 @@ from src.modules.catalog.domain.entities import (
 )
 from src.modules.catalog.domain.value_objects import (
     AttributeDataType,
-    AttributeLevel,
     AttributeUIType,
     BehaviorFlags,
 )

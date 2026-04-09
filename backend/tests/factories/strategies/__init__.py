@@ -6,16 +6,9 @@ Three-layer hierarchy:
   - aggregate_strategies: Full aggregate trees (Product -> Variant -> SKU)
 """
 
-from tests.factories.strategies.primitives import (
-    behavior_flags,
-    data_types,
-    i18n_names,
-    money,
-    tags,
-    ui_types,
-    uuids,
-    valid_codes,
-    valid_slugs,
+from tests.factories.strategies.aggregate_strategies import (
+    attribute_sets,
+    product_trees,
 )
 from tests.factories.strategies.entity_strategies import (
     attribute_groups,
@@ -28,9 +21,16 @@ from tests.factories.strategies.entity_strategies import (
     root_categories,
     template_bindings,
 )
-from tests.factories.strategies.aggregate_strategies import (
-    attribute_sets,
-    product_trees,
+from tests.factories.strategies.primitives import (
+    behavior_flags,
+    data_types,
+    i18n_names,
+    money,
+    tags,
+    ui_types,
+    uuids,
+    valid_codes,
+    valid_slugs,
 )
 
 __all__ = [

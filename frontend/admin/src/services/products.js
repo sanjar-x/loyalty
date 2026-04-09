@@ -106,6 +106,10 @@ export async function confirmMedia(storageObjectId) {
   return api(`/api/media/${storageObjectId}/confirm`, { method: 'POST' });
 }
 
+export async function deleteMedia(storageObjectId) {
+  return api(`/api/media/${storageObjectId}`, { method: 'DELETE' });
+}
+
 const S3_ORIGIN = 'https://t3.storage.dev/loyality';
 const PUBLIC_ORIGIN = 'https://loyality.t3.tigrisfiles.io';
 
@@ -131,6 +135,7 @@ export function subscribeMediaStatus(storageObjectId, { timeout = 120_000, signa
 
     function cleanup() {
       clearTimeout(timeoutId);
+      eventSource.onerror = null;
       eventSource.close();
     }
 
@@ -184,9 +189,18 @@ export function subscribeMediaStatus(storageObjectId, { timeout = 120_000, signa
   });
 }
 
-export async function addExternalMedia(payload) {
-  // payload = { url }
-  return api('/api/media/external', jsonOpts(payload));
+export async function fetchImageAsFile(imageUrl) {
+  const res = await fetch(`/api/media/proxy?url=${encodeURIComponent(imageUrl)}`, {
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const error = new Error('Failed to fetch image');
+    error.code = 'IMAGE_FETCH_FAILED';
+    throw error;
+  }
+  const blob = await res.blob();
+  const ext = blob.type.split('/')[1] || 'jpg';
+  return new File([blob], `image.${ext}`, { type: blob.type });
 }
 
 export async function associateMedia(productId, payload) {

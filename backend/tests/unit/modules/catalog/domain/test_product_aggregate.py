@@ -15,8 +15,6 @@ import pytest
 from src.modules.catalog.domain.entities import (
     Product,
     ProductAttributeValue,
-    ProductVariant,
-    SKU,
 )
 from src.modules.catalog.domain.events import (
     ProductCreatedEvent,
@@ -39,7 +37,6 @@ from src.modules.catalog.domain.exceptions import (
 )
 from src.modules.catalog.domain.value_objects import Money, ProductStatus
 from tests.factories.product_builder import ProductBuilder
-from tests.factories.sku_builder import SKUBuilder
 
 # ---------------------------------------------------------------------------
 # Module-level constants for parametrized invalid transition tests

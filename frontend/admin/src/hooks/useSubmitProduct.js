@@ -11,7 +11,7 @@ import {
   uploadToS3,
   confirmMedia,
   subscribeMediaStatus,
-  addExternalMedia,
+  fetchImageAsFile,
   associateMedia,
   changeProductStatus,
 } from '@/services/products';
@@ -138,18 +138,18 @@ export default function useSubmitProduct() {
               // Use pre-uploaded storageObjectId if available
               if (preUploaded?.status === 'completed' && preUploaded.storageObjectId) {
                 storageObjectId = preUploaded.storageObjectId;
-              } else if (image.source === 'url') {
-                const ext = await addExternalMedia({ url: image.url });
-                storageObjectId = ext.storageObjectId;
-              } else if (image.file) {
-                const slot = await reserveMediaUpload({
-                  contentType: image.file.type || 'image/jpeg',
-                  filename: image.file.name,
-                });
-                await uploadToS3(slot.presignedUrl, image.file);
-                await confirmMedia(slot.storageObjectId);
-                await subscribeMediaStatus(slot.storageObjectId);
-                storageObjectId = slot.storageObjectId;
+              } else {
+                const file = image.file || (image.source === 'url' ? await fetchImageAsFile(image.url) : null);
+                if (file) {
+                  const slot = await reserveMediaUpload({
+                    contentType: file.type || 'image/jpeg',
+                    filename: file.name,
+                  });
+                  await uploadToS3(slot.presignedUrl, file);
+                  await confirmMedia(slot.storageObjectId);
+                  await subscribeMediaStatus(slot.storageObjectId);
+                  storageObjectId = slot.storageObjectId;
+                }
               }
 
               if (storageObjectId) {
@@ -159,7 +159,6 @@ export default function useSubmitProduct() {
                   role,
                   sortOrder,
                   mediaType: 'image',
-                  ...(image.source === 'url' ? { isExternal: true, url: image.url } : {}),
                 });
               }
             }),
@@ -183,15 +182,13 @@ export default function useSubmitProduct() {
         try {
           let sgStorageObjectId = null;
 
-          if (sizeGuide.source === 'url') {
-            const ext = await addExternalMedia({ url: sizeGuide.url });
-            sgStorageObjectId = ext.storageObjectId;
-          } else if (sizeGuide.file) {
+          const sgFile = sizeGuide.file || (sizeGuide.source === 'url' ? await fetchImageAsFile(sizeGuide.url) : null);
+          if (sgFile) {
             const slot = await reserveMediaUpload({
-              contentType: sizeGuide.file.type || 'image/jpeg',
-              filename: sizeGuide.file.name,
+              contentType: sgFile.type || 'image/jpeg',
+              filename: sgFile.name,
             });
-            await uploadToS3(slot.presignedUrl, sizeGuide.file);
+            await uploadToS3(slot.presignedUrl, sgFile);
             await confirmMedia(slot.storageObjectId);
             await subscribeMediaStatus(slot.storageObjectId);
             sgStorageObjectId = slot.storageObjectId;

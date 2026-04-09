@@ -23,7 +23,7 @@ class SubdivisionRepository(ISubdivisionRepository):
         return Subdivision(
             code=orm.code,
             country_code=orm.country_code,
-            category_code=orm.category_code,
+            type_code=orm.type_code,
             parent_code=orm.parent_code,
             latitude=orm.latitude,
             longitude=orm.longitude,

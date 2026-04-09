@@ -15,7 +15,6 @@ wired by ``FakeUnitOfWork.__init__()`` after all repos are constructed.
 from __future__ import annotations
 
 import uuid
-from typing import Any
 
 from src.modules.catalog.domain.entities import (
     Attribute as DomainAttribute,
@@ -51,7 +50,6 @@ from src.modules.catalog.domain.interfaces import (
     IProductRepository,
     ITemplateAttributeBindingRepository,
 )
-
 
 # ============================================================================
 # 1. FakeBrandRepository

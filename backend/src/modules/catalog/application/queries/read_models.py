@@ -30,14 +30,12 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 from pydantic import BaseModel, Field
 
-T = TypeVar("T")
 
-
-class PaginatedReadModel(BaseModel, Generic[T]):
+class PaginatedReadModel[T](BaseModel):
     """Generic paginated list read model."""
 
     items: list[T]
@@ -407,7 +405,18 @@ ProductListReadModel = PaginatedReadModel[ProductListItemReadModel]
 # ---------------------------------------------------------------------------
 
 
-ProductAttributeListReadModel = PaginatedReadModel[ProductAttributeValueReadModel]
+class ProductAttributeReadModel(ProductAttributeValueReadModel):
+    """Read model for a product's attribute assignment with joined attribute data.
+
+    Inherits all fields from :class:`ProductAttributeValueReadModel` including
+    ``attribute_code`` and ``attribute_name_i18n``, which are always populated
+    via a join when this model is used.
+    """
+
+    pass
+
+
+ProductAttributeListReadModel = PaginatedReadModel[ProductAttributeReadModel]
 
 
 SKUListReadModel = PaginatedReadModel[SKUReadModel]
@@ -434,17 +443,6 @@ class MediaAssetReadModel(BaseModel):
 
 
 MediaAssetListReadModel = PaginatedReadModel[MediaAssetReadModel]
-
-
-class ProductAttributeReadModel(ProductAttributeValueReadModel):
-    """Read model for a product's attribute assignment with joined attribute data.
-
-    Inherits all fields from :class:`ProductAttributeValueReadModel` including
-    ``attribute_code`` and ``attribute_name_i18n``, which are always populated
-    via a join when this model is used.
-    """
-
-    pass
 
 
 # ---------------------------------------------------------------------------

@@ -1251,7 +1251,7 @@ class TemplateAttributeBindingDetailResponse(CamelModel):
     requirement_level: str
     filter_settings: dict[str, Any] | None = None
     attribute_code: str = ""
-    attribute_name_i18n: dict[str, str] = {}
+    attribute_name_i18n: dict[str, str] = Field(default_factory=dict)
     attribute_data_type: str = ""
     attribute_ui_type: str = ""
     attribute_level: str = ""

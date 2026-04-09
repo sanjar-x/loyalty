@@ -1,0 +1,830 @@
+{
+  "country": {
+    "alpha2": "RU",
+    "alpha3": "RUS",
+    "numeric": "643"
+  },
+  "country_translations": [
+    {
+      "lang_code": "en",
+      "name": "Russia",
+      "official_name": "Russian Federation"
+    },
+    {
+      "lang_code": "ru",
+      "name": "Россия",
+      "official_name": "Российская Федерация"
+    },
+    {
+      "lang_code": "uz-Latn",
+      "name": "Rossiya",
+      "official_name": "Rossiya Federatsiyasi"
+    }
+  ],
+  "country_currencies": [{ "currency_code": "RUB", "is_primary": true }],
+  "subdivision_types": [
+    {
+      "code": "ADMINISTRATIVE_REGION",
+      "sort_order": 1,
+      "translations": [
+        { "lang_code": "en", "name": "Administrative region" },
+        { "lang_code": "ru", "name": "Область" },
+        { "lang_code": "uz-Latn", "name": "Viloyat" }
+      ]
+    },
+    {
+      "code": "REPUBLIC",
+      "sort_order": 2,
+      "translations": [
+        { "lang_code": "en", "name": "Republic" },
+        { "lang_code": "ru", "name": "Республика" },
+        { "lang_code": "uz-Latn", "name": "Respublika" }
+      ]
+    },
+    {
+      "code": "ADMINISTRATIVE_TERRITORY",
+      "sort_order": 3,
+      "translations": [
+        { "lang_code": "en", "name": "Administrative territory" },
+        { "lang_code": "ru", "name": "Край" },
+        { "lang_code": "uz-Latn", "name": "Kray" }
+      ]
+    },
+    {
+      "code": "AUTONOMOUS_DISTRICT",
+      "sort_order": 4,
+      "translations": [
+        { "lang_code": "en", "name": "Autonomous district" },
+        { "lang_code": "ru", "name": "Автономный округ" },
+        { "lang_code": "uz-Latn", "name": "Avtonom okrug" }
+      ]
+    },
+    {
+      "code": "AUTONOMOUS_CITY",
+      "sort_order": 5,
+      "translations": [
+        { "lang_code": "en", "name": "Autonomous city" },
+        { "lang_code": "ru", "name": "Город федерального значения" },
+        { "lang_code": "uz-Latn", "name": "Federal shahar" }
+      ]
+    },
+    {
+      "code": "AUTONOMOUS_REGION",
+      "sort_order": 6,
+      "translations": [
+        { "lang_code": "en", "name": "Autonomous region" },
+        { "lang_code": "ru", "name": "Автономная область" },
+        { "lang_code": "uz-Latn", "name": "Avtonom viloyat" }
+      ]
+    }
+  ],
+  "subdivisions": [
+    {
+      "code": "RU-AD",
+      "type_code": "REPUBLIC",
+      "sort_order": 1,
+      "translations": [
+        { "lang_code": "en", "name": "Adygea" },
+        { "lang_code": "ru", "name": "Республика Адыгея" }
+      ]
+    },
+    {
+      "code": "RU-AL",
+      "type_code": "REPUBLIC",
+      "sort_order": 2,
+      "translations": [
+        { "lang_code": "en", "name": "Altai Republic" },
+        { "lang_code": "ru", "name": "Республика Алтай" }
+      ]
+    },
+    {
+      "code": "RU-ALT",
+      "type_code": "ADMINISTRATIVE_TERRITORY",
+      "sort_order": 3,
+      "translations": [
+        { "lang_code": "en", "name": "Altai Krai" },
+        { "lang_code": "ru", "name": "Алтайский край" }
+      ]
+    },
+    {
+      "code": "RU-AMU",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 4,
+      "translations": [
+        { "lang_code": "en", "name": "Amur Oblast" },
+        { "lang_code": "ru", "name": "Амурская область" }
+      ]
+    },
+    {
+      "code": "RU-ARK",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 5,
+      "translations": [
+        { "lang_code": "en", "name": "Arkhangelsk Oblast" },
+        { "lang_code": "ru", "name": "Архангельская область" }
+      ]
+    },
+    {
+      "code": "RU-AST",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 6,
+      "translations": [
+        { "lang_code": "en", "name": "Astrakhan Oblast" },
+        { "lang_code": "ru", "name": "Астраханская область" }
+      ]
+    },
+    {
+      "code": "RU-BA",
+      "type_code": "REPUBLIC",
+      "sort_order": 7,
+      "translations": [
+        { "lang_code": "en", "name": "Bashkortostan" },
+        { "lang_code": "ru", "name": "Республика Башкортостан" }
+      ]
+    },
+    {
+      "code": "RU-BEL",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 8,
+      "translations": [
+        { "lang_code": "en", "name": "Belgorod Oblast" },
+        { "lang_code": "ru", "name": "Белгородская область" }
+      ]
+    },
+    {
+      "code": "RU-BRY",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 9,
+      "translations": [
+        { "lang_code": "en", "name": "Bryansk Oblast" },
+        { "lang_code": "ru", "name": "Брянская область" }
+      ]
+    },
+    {
+      "code": "RU-BU",
+      "type_code": "REPUBLIC",
+      "sort_order": 10,
+      "translations": [
+        { "lang_code": "en", "name": "Buryatia" },
+        { "lang_code": "ru", "name": "Республика Бурятия" }
+      ]
+    },
+    {
+      "code": "RU-CE",
+      "type_code": "REPUBLIC",
+      "sort_order": 11,
+      "translations": [
+        { "lang_code": "en", "name": "Chechnya" },
+        { "lang_code": "ru", "name": "Чеченская Республика" }
+      ]
+    },
+    {
+      "code": "RU-CHE",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 12,
+      "translations": [
+        { "lang_code": "en", "name": "Chelyabinsk Oblast" },
+        { "lang_code": "ru", "name": "Челябинская область" }
+      ]
+    },
+    {
+      "code": "RU-CHU",
+      "type_code": "AUTONOMOUS_DISTRICT",
+      "sort_order": 13,
+      "translations": [
+        { "lang_code": "en", "name": "Chukotka" },
+        { "lang_code": "ru", "name": "Чукотский автономный округ" }
+      ]
+    },
+    {
+      "code": "RU-CU",
+      "type_code": "REPUBLIC",
+      "sort_order": 14,
+      "translations": [
+        { "lang_code": "en", "name": "Chuvashia" },
+        { "lang_code": "ru", "name": "Чувашская Республика" }
+      ]
+    },
+    {
+      "code": "RU-DA",
+      "type_code": "REPUBLIC",
+      "sort_order": 15,
+      "translations": [
+        { "lang_code": "en", "name": "Dagestan" },
+        { "lang_code": "ru", "name": "Республика Дагестан" }
+      ]
+    },
+    {
+      "code": "RU-IN",
+      "type_code": "REPUBLIC",
+      "sort_order": 16,
+      "translations": [
+        { "lang_code": "en", "name": "Ingushetia" },
+        { "lang_code": "ru", "name": "Республика Ингушетия" }
+      ]
+    },
+    {
+      "code": "RU-IRK",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 17,
+      "translations": [
+        { "lang_code": "en", "name": "Irkutsk Oblast" },
+        { "lang_code": "ru", "name": "Иркутская область" }
+      ]
+    },
+    {
+      "code": "RU-IVA",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 18,
+      "translations": [
+        { "lang_code": "en", "name": "Ivanovo Oblast" },
+        { "lang_code": "ru", "name": "Ивановская область" }
+      ]
+    },
+    {
+      "code": "RU-KAM",
+      "type_code": "ADMINISTRATIVE_TERRITORY",
+      "sort_order": 19,
+      "translations": [
+        { "lang_code": "en", "name": "Kamchatka Krai" },
+        { "lang_code": "ru", "name": "Камчатский край" }
+      ]
+    },
+    {
+      "code": "RU-KB",
+      "type_code": "REPUBLIC",
+      "sort_order": 20,
+      "translations": [
+        { "lang_code": "en", "name": "Kabardino-Balkaria" },
+        { "lang_code": "ru", "name": "Кабардино-Балкарская Республика" }
+      ]
+    },
+    {
+      "code": "RU-KC",
+      "type_code": "REPUBLIC",
+      "sort_order": 21,
+      "translations": [
+        { "lang_code": "en", "name": "Karachay-Cherkessia" },
+        { "lang_code": "ru", "name": "Карачаево-Черкесская Республика" }
+      ]
+    },
+    {
+      "code": "RU-KDA",
+      "type_code": "ADMINISTRATIVE_TERRITORY",
+      "sort_order": 22,
+      "translations": [
+        { "lang_code": "en", "name": "Krasnodar Krai" },
+        { "lang_code": "ru", "name": "Краснодарский край" }
+      ]
+    },
+    {
+      "code": "RU-KEM",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 23,
+      "translations": [
+        { "lang_code": "en", "name": "Kemerovo Oblast" },
+        { "lang_code": "ru", "name": "Кемеровская область" }
+      ]
+    },
+    {
+      "code": "RU-KGD",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 24,
+      "translations": [
+        { "lang_code": "en", "name": "Kaliningrad Oblast" },
+        { "lang_code": "ru", "name": "Калининградская область" }
+      ]
+    },
+    {
+      "code": "RU-KGN",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 25,
+      "translations": [
+        { "lang_code": "en", "name": "Kurgan Oblast" },
+        { "lang_code": "ru", "name": "Курганская область" }
+      ]
+    },
+    {
+      "code": "RU-KHA",
+      "type_code": "ADMINISTRATIVE_TERRITORY",
+      "sort_order": 26,
+      "translations": [
+        { "lang_code": "en", "name": "Khabarovsk Krai" },
+        { "lang_code": "ru", "name": "Хабаровский край" }
+      ]
+    },
+    {
+      "code": "RU-KHM",
+      "type_code": "AUTONOMOUS_DISTRICT",
+      "sort_order": 27,
+      "translations": [
+        { "lang_code": "en", "name": "Khanty-Mansi Autonomous Okrug" },
+        { "lang_code": "ru", "name": "Ханты-Мансийский автономный округ" }
+      ]
+    },
+    {
+      "code": "RU-KIR",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 28,
+      "translations": [
+        { "lang_code": "en", "name": "Kirov Oblast" },
+        { "lang_code": "ru", "name": "Кировская область" }
+      ]
+    },
+    {
+      "code": "RU-KK",
+      "type_code": "REPUBLIC",
+      "sort_order": 29,
+      "translations": [
+        { "lang_code": "en", "name": "Khakassia" },
+        { "lang_code": "ru", "name": "Республика Хакасия" }
+      ]
+    },
+    {
+      "code": "RU-KL",
+      "type_code": "REPUBLIC",
+      "sort_order": 30,
+      "translations": [
+        { "lang_code": "en", "name": "Kalmykia" },
+        { "lang_code": "ru", "name": "Республика Калмыкия" }
+      ]
+    },
+    {
+      "code": "RU-KLU",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 31,
+      "translations": [
+        { "lang_code": "en", "name": "Kaluga Oblast" },
+        { "lang_code": "ru", "name": "Калужская область" }
+      ]
+    },
+    {
+      "code": "RU-KO",
+      "type_code": "REPUBLIC",
+      "sort_order": 32,
+      "translations": [
+        { "lang_code": "en", "name": "Komi Republic" },
+        { "lang_code": "ru", "name": "Республика Коми" }
+      ]
+    },
+    {
+      "code": "RU-KOS",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 33,
+      "translations": [
+        { "lang_code": "en", "name": "Kostroma Oblast" },
+        { "lang_code": "ru", "name": "Костромская область" }
+      ]
+    },
+    {
+      "code": "RU-KR",
+      "type_code": "REPUBLIC",
+      "sort_order": 34,
+      "translations": [
+        { "lang_code": "en", "name": "Karelia" },
+        { "lang_code": "ru", "name": "Республика Карелия" }
+      ]
+    },
+    {
+      "code": "RU-KRS",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 35,
+      "translations": [
+        { "lang_code": "en", "name": "Kursk Oblast" },
+        { "lang_code": "ru", "name": "Курская область" }
+      ]
+    },
+    {
+      "code": "RU-KYA",
+      "type_code": "ADMINISTRATIVE_TERRITORY",
+      "sort_order": 36,
+      "translations": [
+        { "lang_code": "en", "name": "Krasnoyarsk Krai" },
+        { "lang_code": "ru", "name": "Красноярский край" }
+      ]
+    },
+    {
+      "code": "RU-LEN",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 37,
+      "translations": [
+        { "lang_code": "en", "name": "Leningrad Oblast" },
+        { "lang_code": "ru", "name": "Ленинградская область" }
+      ]
+    },
+    {
+      "code": "RU-LIP",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 38,
+      "translations": [
+        { "lang_code": "en", "name": "Lipetsk Oblast" },
+        { "lang_code": "ru", "name": "Липецкая область" }
+      ]
+    },
+    {
+      "code": "RU-MAG",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 39,
+      "translations": [
+        { "lang_code": "en", "name": "Magadan Oblast" },
+        { "lang_code": "ru", "name": "Магаданская область" }
+      ]
+    },
+    {
+      "code": "RU-ME",
+      "type_code": "REPUBLIC",
+      "sort_order": 40,
+      "translations": [
+        { "lang_code": "en", "name": "Mari El" },
+        { "lang_code": "ru", "name": "Республика Марий Эл" }
+      ]
+    },
+    {
+      "code": "RU-MO",
+      "type_code": "REPUBLIC",
+      "sort_order": 41,
+      "translations": [
+        { "lang_code": "en", "name": "Mordovia" },
+        { "lang_code": "ru", "name": "Республика Мордовия" }
+      ]
+    },
+    {
+      "code": "RU-MOS",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 42,
+      "translations": [
+        { "lang_code": "en", "name": "Moscow Oblast" },
+        { "lang_code": "ru", "name": "Московская область" }
+      ]
+    },
+    {
+      "code": "RU-MOW",
+      "type_code": "AUTONOMOUS_CITY",
+      "sort_order": 43,
+      "translations": [
+        { "lang_code": "en", "name": "Moscow" },
+        { "lang_code": "ru", "name": "Москва" }
+      ]
+    },
+    {
+      "code": "RU-MUR",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 44,
+      "translations": [
+        { "lang_code": "en", "name": "Murmansk Oblast" },
+        { "lang_code": "ru", "name": "Мурманская область" }
+      ]
+    },
+    {
+      "code": "RU-NEN",
+      "type_code": "AUTONOMOUS_DISTRICT",
+      "sort_order": 45,
+      "translations": [
+        { "lang_code": "en", "name": "Nenets Autonomous Okrug" },
+        { "lang_code": "ru", "name": "Ненецкий автономный округ" }
+      ]
+    },
+    {
+      "code": "RU-NGR",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 46,
+      "translations": [
+        { "lang_code": "en", "name": "Novgorod Oblast" },
+        { "lang_code": "ru", "name": "Новгородская область" }
+      ]
+    },
+    {
+      "code": "RU-NIZ",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 47,
+      "translations": [
+        { "lang_code": "en", "name": "Nizhny Novgorod Oblast" },
+        { "lang_code": "ru", "name": "Нижегородская область" }
+      ]
+    },
+    {
+      "code": "RU-NVS",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 48,
+      "translations": [
+        { "lang_code": "en", "name": "Novosibirsk Oblast" },
+        { "lang_code": "ru", "name": "Новосибирская область" }
+      ]
+    },
+    {
+      "code": "RU-OMS",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 49,
+      "translations": [
+        { "lang_code": "en", "name": "Omsk Oblast" },
+        { "lang_code": "ru", "name": "Омская область" }
+      ]
+    },
+    {
+      "code": "RU-ORE",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 50,
+      "translations": [
+        { "lang_code": "en", "name": "Orenburg Oblast" },
+        { "lang_code": "ru", "name": "Оренбургская область" }
+      ]
+    },
+    {
+      "code": "RU-ORL",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 51,
+      "translations": [
+        { "lang_code": "en", "name": "Oryol Oblast" },
+        { "lang_code": "ru", "name": "Орловская область" }
+      ]
+    },
+    {
+      "code": "RU-PER",
+      "type_code": "ADMINISTRATIVE_TERRITORY",
+      "sort_order": 52,
+      "translations": [
+        { "lang_code": "en", "name": "Perm Krai" },
+        { "lang_code": "ru", "name": "Пермский край" }
+      ]
+    },
+    {
+      "code": "RU-PNZ",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 53,
+      "translations": [
+        { "lang_code": "en", "name": "Penza Oblast" },
+        { "lang_code": "ru", "name": "Пензенская область" }
+      ]
+    },
+    {
+      "code": "RU-PRI",
+      "type_code": "ADMINISTRATIVE_TERRITORY",
+      "sort_order": 54,
+      "translations": [
+        { "lang_code": "en", "name": "Primorsky Krai" },
+        { "lang_code": "ru", "name": "Приморский край" }
+      ]
+    },
+    {
+      "code": "RU-PSK",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 55,
+      "translations": [
+        { "lang_code": "en", "name": "Pskov Oblast" },
+        { "lang_code": "ru", "name": "Псковская область" }
+      ]
+    },
+    {
+      "code": "RU-ROS",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 56,
+      "translations": [
+        { "lang_code": "en", "name": "Rostov Oblast" },
+        { "lang_code": "ru", "name": "Ростовская область" }
+      ]
+    },
+    {
+      "code": "RU-RYA",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 57,
+      "translations": [
+        { "lang_code": "en", "name": "Ryazan Oblast" },
+        { "lang_code": "ru", "name": "Рязанская область" }
+      ]
+    },
+    {
+      "code": "RU-SA",
+      "type_code": "REPUBLIC",
+      "sort_order": 58,
+      "translations": [
+        { "lang_code": "en", "name": "Sakha (Yakutia)" },
+        { "lang_code": "ru", "name": "Республика Саха (Якутия)" }
+      ]
+    },
+    {
+      "code": "RU-SAK",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 59,
+      "translations": [
+        { "lang_code": "en", "name": "Sakhalin Oblast" },
+        { "lang_code": "ru", "name": "Сахалинская область" }
+      ]
+    },
+    {
+      "code": "RU-SAM",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 60,
+      "translations": [
+        { "lang_code": "en", "name": "Samara Oblast" },
+        { "lang_code": "ru", "name": "Самарская область" }
+      ]
+    },
+    {
+      "code": "RU-SAR",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 61,
+      "translations": [
+        { "lang_code": "en", "name": "Saratov Oblast" },
+        { "lang_code": "ru", "name": "Саратовская область" }
+      ]
+    },
+    {
+      "code": "RU-SE",
+      "type_code": "REPUBLIC",
+      "sort_order": 62,
+      "translations": [
+        { "lang_code": "en", "name": "North Ossetia-Alania" },
+        { "lang_code": "ru", "name": "Республика Северная Осетия — Алания" }
+      ]
+    },
+    {
+      "code": "RU-SMO",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 63,
+      "translations": [
+        { "lang_code": "en", "name": "Smolensk Oblast" },
+        { "lang_code": "ru", "name": "Смоленская область" }
+      ]
+    },
+    {
+      "code": "RU-SPE",
+      "type_code": "AUTONOMOUS_CITY",
+      "sort_order": 64,
+      "translations": [
+        { "lang_code": "en", "name": "Saint Petersburg" },
+        { "lang_code": "ru", "name": "Санкт-Петербург" }
+      ]
+    },
+    {
+      "code": "RU-STA",
+      "type_code": "ADMINISTRATIVE_TERRITORY",
+      "sort_order": 65,
+      "translations": [
+        { "lang_code": "en", "name": "Stavropol Krai" },
+        { "lang_code": "ru", "name": "Ставропольский край" }
+      ]
+    },
+    {
+      "code": "RU-SVE",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 66,
+      "translations": [
+        { "lang_code": "en", "name": "Sverdlovsk Oblast" },
+        { "lang_code": "ru", "name": "Свердловская область" }
+      ]
+    },
+    {
+      "code": "RU-TA",
+      "type_code": "REPUBLIC",
+      "sort_order": 67,
+      "translations": [
+        { "lang_code": "en", "name": "Tatarstan" },
+        { "lang_code": "ru", "name": "Республика Татарстан" }
+      ]
+    },
+    {
+      "code": "RU-TAM",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 68,
+      "translations": [
+        { "lang_code": "en", "name": "Tambov Oblast" },
+        { "lang_code": "ru", "name": "Тамбовская область" }
+      ]
+    },
+    {
+      "code": "RU-TOM",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 69,
+      "translations": [
+        { "lang_code": "en", "name": "Tomsk Oblast" },
+        { "lang_code": "ru", "name": "Томская область" }
+      ]
+    },
+    {
+      "code": "RU-TUL",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 70,
+      "translations": [
+        { "lang_code": "en", "name": "Tula Oblast" },
+        { "lang_code": "ru", "name": "Тульская область" }
+      ]
+    },
+    {
+      "code": "RU-TVE",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 71,
+      "translations": [
+        { "lang_code": "en", "name": "Tver Oblast" },
+        { "lang_code": "ru", "name": "Тверская область" }
+      ]
+    },
+    {
+      "code": "RU-TY",
+      "type_code": "REPUBLIC",
+      "sort_order": 72,
+      "translations": [
+        { "lang_code": "en", "name": "Tuva" },
+        { "lang_code": "ru", "name": "Республика Тыва" }
+      ]
+    },
+    {
+      "code": "RU-TYU",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 73,
+      "translations": [
+        { "lang_code": "en", "name": "Tyumen Oblast" },
+        { "lang_code": "ru", "name": "Тюменская область" }
+      ]
+    },
+    {
+      "code": "RU-UD",
+      "type_code": "REPUBLIC",
+      "sort_order": 74,
+      "translations": [
+        { "lang_code": "en", "name": "Udmurtia" },
+        { "lang_code": "ru", "name": "Удмуртская Республика" }
+      ]
+    },
+    {
+      "code": "RU-ULY",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 75,
+      "translations": [
+        { "lang_code": "en", "name": "Ulyanovsk Oblast" },
+        { "lang_code": "ru", "name": "Ульяновская область" }
+      ]
+    },
+    {
+      "code": "RU-VGG",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 76,
+      "translations": [
+        { "lang_code": "en", "name": "Volgograd Oblast" },
+        { "lang_code": "ru", "name": "Волгоградская область" }
+      ]
+    },
+    {
+      "code": "RU-VLA",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 77,
+      "translations": [
+        { "lang_code": "en", "name": "Vladimir Oblast" },
+        { "lang_code": "ru", "name": "Владимирская область" }
+      ]
+    },
+    {
+      "code": "RU-VLG",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 78,
+      "translations": [
+        { "lang_code": "en", "name": "Vologda Oblast" },
+        { "lang_code": "ru", "name": "Вологодская область" }
+      ]
+    },
+    {
+      "code": "RU-VOR",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 79,
+      "translations": [
+        { "lang_code": "en", "name": "Voronezh Oblast" },
+        { "lang_code": "ru", "name": "Воронежская область" }
+      ]
+    },
+    {
+      "code": "RU-YAN",
+      "type_code": "AUTONOMOUS_DISTRICT",
+      "sort_order": 80,
+      "translations": [
+        { "lang_code": "en", "name": "Yamalo-Nenets Autonomous Okrug" },
+        { "lang_code": "ru", "name": "Ямало-Ненецкий автономный округ" }
+      ]
+    },
+    {
+      "code": "RU-YAR",
+      "type_code": "ADMINISTRATIVE_REGION",
+      "sort_order": 81,
+      "translations": [
+        { "lang_code": "en", "name": "Yaroslavl Oblast" },
+        { "lang_code": "ru", "name": "Ярославская область" }
+      ]
+    },
+    {
+      "code": "RU-YEV",
+      "type_code": "AUTONOMOUS_REGION",
+      "sort_order": 82,
+      "translations": [
+        { "lang_code": "en", "name": "Jewish Autonomous Oblast" },
+        { "lang_code": "ru", "name": "Еврейская автономная область" }
+      ]
+    },
+    {
+      "code": "RU-ZAB",
+      "type_code": "ADMINISTRATIVE_TERRITORY",
+      "sort_order": 83,
+      "translations": [
+        { "lang_code": "en", "name": "Zabaykalsky Krai" },
+        { "lang_code": "ru", "name": "Забайкальский край" }
+      ]
+    }
+  ]
+}

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import uuid
 
-from src.modules.catalog.domain.entities import Product, SKU
+from src.modules.catalog.domain.entities import SKU, Product
 from src.modules.catalog.domain.value_objects import Money
 
 

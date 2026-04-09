@@ -113,7 +113,7 @@ class SubdivisionReadModel(BaseModel):
 
     code: str
     country_code: str
-    category_code: str
+    type_code: str
     parent_code: str | None = None
     latitude: float | None = None
     longitude: float | None = None
@@ -130,31 +130,31 @@ class SubdivisionListReadModel(BaseModel):
 
 
 # ------------------------------------------------------------------ #
-#  Subdivision Category
+#  Subdivision Type
 # ------------------------------------------------------------------ #
 
 
-class SubdivisionCategoryTranslationReadModel(BaseModel):
-    """Single translation row for a subdivision category."""
+class SubdivisionTypeTranslationReadModel(BaseModel):
+    """Single translation row for a subdivision type."""
 
     lang_code: str
     name: str
 
 
-class SubdivisionCategoryReadModel(BaseModel):
-    """Subdivision category with inline translations."""
+class SubdivisionTypeReadModel(BaseModel):
+    """Subdivision type with inline translations."""
 
     code: str
     sort_order: int
-    translations: list[SubdivisionCategoryTranslationReadModel] = Field(
+    translations: list[SubdivisionTypeTranslationReadModel] = Field(
         default_factory=list
     )
 
 
-class SubdivisionCategoryListReadModel(BaseModel):
-    """Subdivision category list response."""
+class SubdivisionTypeListReadModel(BaseModel):
+    """Subdivision type list response."""
 
-    items: list[SubdivisionCategoryReadModel]
+    items: list[SubdivisionTypeReadModel]
     total: int
 
 

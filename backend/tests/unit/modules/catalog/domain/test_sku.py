@@ -12,7 +12,6 @@ from src.modules.catalog.domain.value_objects import Money
 from tests.factories.product_builder import ProductBuilder
 from tests.factories.sku_builder import SKUBuilder
 
-
 # ---------------------------------------------------------------------------
 # TestSKUConstruction
 # ---------------------------------------------------------------------------

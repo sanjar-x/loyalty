@@ -21,6 +21,8 @@ from src.modules.catalog.domain.value_objects import (
 )
 from src.modules.catalog.infrastructure.models import (
     Attribute as OrmAttribute,
+)
+from src.modules.catalog.infrastructure.models import (
     AttributeGroup as OrmAttributeGroup,
 )
 from src.modules.catalog.infrastructure.repositories.attribute_value import (

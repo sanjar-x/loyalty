@@ -78,19 +78,19 @@ class MediaAsset:
         if isinstance(media_type, str):
             try:
                 media_type = MediaType(media_type.lower())
-            except ValueError:
+            except ValueError as err:
                 raise ValueError(
                     f"Invalid media_type '{media_type}'. "
                     f"Must be one of: {', '.join(m.value for m in MediaType)}"
-                )
+                ) from err
         if isinstance(role, str):
             try:
                 role = MediaRole(role.lower())
-            except ValueError:
+            except ValueError as err:
                 raise ValueError(
                     f"Invalid role '{role}'. "
                     f"Must be one of: {', '.join(r.value for r in MediaRole)}"
-                )
+                ) from err
         if sort_order < 0:
             raise ValueError("MediaAsset sort_order must be non-negative")
         if is_external and not url:

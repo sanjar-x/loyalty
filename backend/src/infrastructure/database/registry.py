@@ -30,10 +30,10 @@ from src.modules.geo.infrastructure.models import (
     CurrencyModel,
     CurrencyTranslationModel,
     LanguageModel,
-    SubdivisionCategoryModel,
-    SubdivisionCategoryTranslationModel,
     SubdivisionModel,
     SubdivisionTranslationModel,
+    SubdivisionTypeModel,
+    SubdivisionTypeTranslationModel,
 )
 from src.modules.identity.infrastructure.models import (
     IdentityModel,
@@ -88,10 +88,10 @@ __all__ = [
     "StaffInvitationModel",
     "StaffInvitationRoleModel",
     "StaffMemberModel",
-    "SubdivisionCategoryModel",
-    "SubdivisionCategoryTranslationModel",
     "SubdivisionModel",
     "SubdivisionTranslationModel",
+    "SubdivisionTypeModel",
+    "SubdivisionTypeTranslationModel",
     "Supplier",
     "TemplateAttributeBinding",
 ]

@@ -18,9 +18,17 @@ from src.modules.catalog.domain.exceptions import ProductNotFoundError
 from src.modules.catalog.domain.value_objects import RequirementLevel
 from src.modules.catalog.infrastructure.models import (
     Attribute as OrmAttribute,
+)
+from src.modules.catalog.infrastructure.models import (
     Category as OrmCategory,
+)
+from src.modules.catalog.infrastructure.models import (
     Product as OrmProduct,
+)
+from src.modules.catalog.infrastructure.models import (
     ProductAttributeValue as OrmProductAttributeValue,
+)
+from src.modules.catalog.infrastructure.models import (
     TemplateAttributeBinding as OrmTemplateAttributeBinding,
 )
 from src.shared.interfaces.logger import ILogger

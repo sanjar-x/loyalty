@@ -14,13 +14,13 @@ from typing import Any, ClassVar
 from attr import dataclass, field
 
 from src.modules.catalog.domain.value_objects import (
+    DEFAULT_SEARCH_WEIGHT,
+    MAX_SEARCH_WEIGHT,
+    MIN_SEARCH_WEIGHT,
     AttributeDataType,
     AttributeLevel,
     AttributeUIType,
     BehaviorFlags,
-    DEFAULT_SEARCH_WEIGHT,
-    MAX_SEARCH_WEIGHT,
-    MIN_SEARCH_WEIGHT,
     validate_i18n_completeness,
     validate_validation_rules,
 )

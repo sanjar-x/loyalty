@@ -38,7 +38,7 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
   // Image handlers: add → start upload, remove → clean up, crop → re-upload
   const handleImageAdd = useCallback((image) => {
     form.addImage(image);
-    imageUpload.startUpload(image);
+    imageUpload.startUpload(image).catch(() => {});
   }, [form, imageUpload]);
 
   const handleImageRemove = useCallback((localId) => {
@@ -47,11 +47,11 @@ export default function ProductDetailsForm({ leafLabel, categoryId }) {
   }, [form, imageUpload]);
 
   const handleImageCropped = useCallback((newImage) => {
-    imageUpload.startUpload(newImage);
+    imageUpload.startUpload(newImage).catch(() => {});
   }, [imageUpload]);
 
   const handleImageRetry = useCallback((image) => {
-    imageUpload.startUpload(image);
+    imageUpload.startUpload(image).catch(() => {});
   }, [imageUpload]);
 
   // Load form-attributes once, share between DynamicAttributes and VariantSelect

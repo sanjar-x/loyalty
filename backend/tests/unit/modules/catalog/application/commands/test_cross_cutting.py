@@ -6,7 +6,7 @@ Uses FakeUnitOfWork for real in-memory repository behavior.
 """
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -52,7 +52,6 @@ from src.modules.catalog.domain.events import (
 )
 from src.modules.catalog.domain.exceptions import (
     AttributeNotFoundError,
-    AttributeValueNotFoundError,
     BrandSlugConflictError,
     DuplicateMainMediaError,
     DuplicateVariantCombinationError,
@@ -60,16 +59,13 @@ from src.modules.catalog.domain.exceptions import (
     SKUCodeConflictError,
     VariantNotFoundError,
 )
-from src.modules.catalog.domain.interfaces import IImageBackendClient
 from src.modules.catalog.domain.value_objects import (
     AttributeDataType,
     AttributeLevel,
     AttributeUIType,
-    Money,
 )
 from tests.factories.product_builder import ProductBuilder
 from tests.fakes.fake_uow import FakeUnitOfWork
-
 
 # ---------------------------------------------------------------------------
 # Helpers

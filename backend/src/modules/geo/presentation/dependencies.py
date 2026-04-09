@@ -26,15 +26,15 @@ from src.modules.geo.application.commands.manage_languages import (
     UpdateLanguageHandler,
 )
 from src.modules.geo.application.commands.manage_subdivisions import (
-    CreateSubdivisionCategoryHandler,
     CreateSubdivisionHandler,
-    DeleteSubdivisionCategoryHandler,
+    CreateSubdivisionTypeHandler,
     DeleteSubdivisionHandler,
-    ListSubdivisionCategoriesHandler,
-    UpdateSubdivisionCategoryHandler,
+    DeleteSubdivisionTypeHandler,
+    ListSubdivisionTypesHandler,
     UpdateSubdivisionHandler,
-    UpsertSubdivisionCategoryTranslationsHandler,
+    UpdateSubdivisionTypeHandler,
     UpsertSubdivisionTranslationsHandler,
+    UpsertSubdivisionTypeTranslationsHandler,
 )
 from src.modules.geo.application.queries.get_country import GetCountryHandler
 from src.modules.geo.application.queries.get_currency import GetCurrencyHandler
@@ -211,27 +211,25 @@ class GeoProvider(Provider):
         scope=Scope.REQUEST,
     )
 
-    # -- Subdivision category command handlers ------------------------- #
+    # -- Subdivision type command handlers ------------------------- #
 
-    list_subdivision_categories_handler: CompositeDependencySource = provide(
-        ListSubdivisionCategoriesHandler,
+    list_subdivision_types_handler: CompositeDependencySource = provide(
+        ListSubdivisionTypesHandler,
         scope=Scope.REQUEST,
     )
-    create_subdivision_category_handler: CompositeDependencySource = provide(
-        CreateSubdivisionCategoryHandler,
+    create_subdivision_type_handler: CompositeDependencySource = provide(
+        CreateSubdivisionTypeHandler,
         scope=Scope.REQUEST,
     )
-    update_subdivision_category_handler: CompositeDependencySource = provide(
-        UpdateSubdivisionCategoryHandler,
+    update_subdivision_type_handler: CompositeDependencySource = provide(
+        UpdateSubdivisionTypeHandler,
         scope=Scope.REQUEST,
     )
-    delete_subdivision_category_handler: CompositeDependencySource = provide(
-        DeleteSubdivisionCategoryHandler,
+    delete_subdivision_type_handler: CompositeDependencySource = provide(
+        DeleteSubdivisionTypeHandler,
         scope=Scope.REQUEST,
     )
-    upsert_subdivision_category_translations_handler: CompositeDependencySource = (
-        provide(
-            UpsertSubdivisionCategoryTranslationsHandler,
-            scope=Scope.REQUEST,
-        )
+    upsert_subdivision_type_translations_handler: CompositeDependencySource = provide(
+        UpsertSubdivisionTypeTranslationsHandler,
+        scope=Scope.REQUEST,
     )

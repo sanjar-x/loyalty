@@ -37,23 +37,23 @@ from src.modules.geo.application.commands.manage_languages import (
     UpdateLanguageHandler,
 )
 from src.modules.geo.application.commands.manage_subdivisions import (
-    CreateSubdivisionCategoryCommand,
-    CreateSubdivisionCategoryHandler,
     CreateSubdivisionCommand,
     CreateSubdivisionHandler,
-    DeleteSubdivisionCategoryHandler,
+    CreateSubdivisionTypeCommand,
+    CreateSubdivisionTypeHandler,
     DeleteSubdivisionHandler,
-    ListSubdivisionCategoriesHandler,
-    SubdivisionCategoryTranslationItem,
+    DeleteSubdivisionTypeHandler,
+    ListSubdivisionTypesHandler,
     SubdivisionTranslationItem,
-    UpdateSubdivisionCategoryCommand,
-    UpdateSubdivisionCategoryHandler,
+    SubdivisionTypeTranslationItem,
     UpdateSubdivisionCommand,
     UpdateSubdivisionHandler,
-    UpsertSubdivisionCategoryTranslationsCommand,
-    UpsertSubdivisionCategoryTranslationsHandler,
+    UpdateSubdivisionTypeCommand,
+    UpdateSubdivisionTypeHandler,
     UpsertSubdivisionTranslationsCommand,
     UpsertSubdivisionTranslationsHandler,
+    UpsertSubdivisionTypeTranslationsCommand,
+    UpsertSubdivisionTypeTranslationsHandler,
 )
 from src.modules.geo.application.queries.read_models import (
     CountryCurrencyLinkReadModel,
@@ -62,28 +62,28 @@ from src.modules.geo.application.queries.read_models import (
     CurrencyReadModel,
     CurrencyTranslationReadModel,
     LanguageReadModel,
-    SubdivisionCategoryListReadModel,
-    SubdivisionCategoryReadModel,
-    SubdivisionCategoryTranslationReadModel,
     SubdivisionReadModel,
     SubdivisionTranslationReadModel,
+    SubdivisionTypeListReadModel,
+    SubdivisionTypeReadModel,
+    SubdivisionTypeTranslationReadModel,
 )
 from src.modules.geo.presentation.schemas import (
     CreateCountryRequest,
     CreateCurrencyRequest,
     CreateLanguageRequest,
-    CreateSubdivisionCategoryRequest,
     CreateSubdivisionRequest,
+    CreateSubdivisionTypeRequest,
     SetCountryCurrenciesRequest,
     UpdateCountryRequest,
     UpdateCurrencyRequest,
     UpdateLanguageRequest,
-    UpdateSubdivisionCategoryRequest,
     UpdateSubdivisionRequest,
+    UpdateSubdivisionTypeRequest,
     UpsertCountryTranslationsRequest,
     UpsertCurrencyTranslationsRequest,
-    UpsertSubdivisionCategoryTranslationsRequest,
     UpsertSubdivisionTranslationsRequest,
+    UpsertSubdivisionTypeTranslationsRequest,
 )
 from src.modules.identity.presentation.dependencies import RequirePermission
 
@@ -366,7 +366,7 @@ async def create_subdivision(
     command = CreateSubdivisionCommand(
         code=request.code,
         country_code=request.country_code,
-        category_code=request.category_code,
+        type_code=request.type_code,
         parent_code=request.parent_code,
         latitude=request.latitude,
         longitude=request.longitude,
@@ -388,7 +388,7 @@ async def update_subdivision(
 ) -> SubdivisionReadModel:
     command = UpdateSubdivisionCommand(
         code=code.upper(),
-        category_code=request.category_code,
+        type_code=request.type_code,
         parent_code=request.parent_code,
         latitude=request.latitude,
         longitude=request.longitude,
@@ -442,29 +442,29 @@ async def upsert_subdivision_translations(
 
 
 @geo_admin_router.get(
-    "/subdivision-categories",
-    response_model=SubdivisionCategoryListReadModel,
-    summary="List subdivision categories",
+    "/subdivision-types",
+    response_model=SubdivisionTypeListReadModel,
+    summary="List subdivision types",
 )
-async def list_subdivision_categories(
-    handler: FromDishka[ListSubdivisionCategoriesHandler],
+async def list_subdivision_types(
+    handler: FromDishka[ListSubdivisionTypesHandler],
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-) -> SubdivisionCategoryListReadModel:
+) -> SubdivisionTypeListReadModel:
     return await handler.handle(offset=offset, limit=limit)
 
 
 @geo_admin_router.post(
-    "/subdivision-categories",
+    "/subdivision-types",
     status_code=status.HTTP_201_CREATED,
-    response_model=SubdivisionCategoryReadModel,
-    summary="Create a subdivision category",
+    response_model=SubdivisionTypeReadModel,
+    summary="Create a subdivision type",
 )
-async def create_subdivision_category(
-    request: CreateSubdivisionCategoryRequest,
-    handler: FromDishka[CreateSubdivisionCategoryHandler],
-) -> SubdivisionCategoryReadModel:
-    command = CreateSubdivisionCategoryCommand(
+async def create_subdivision_type(
+    request: CreateSubdivisionTypeRequest,
+    handler: FromDishka[CreateSubdivisionTypeHandler],
+) -> SubdivisionTypeReadModel:
+    command = CreateSubdivisionTypeCommand(
         code=request.code,
         sort_order=request.sort_order,
     )
@@ -472,16 +472,16 @@ async def create_subdivision_category(
 
 
 @geo_admin_router.patch(
-    "/subdivision-categories/{code}",
-    response_model=SubdivisionCategoryReadModel,
-    summary="Update a subdivision category",
+    "/subdivision-types/{code}",
+    response_model=SubdivisionTypeReadModel,
+    summary="Update a subdivision type",
 )
-async def update_subdivision_category(
+async def update_subdivision_type(
     code: str,
-    request: UpdateSubdivisionCategoryRequest,
-    handler: FromDishka[UpdateSubdivisionCategoryHandler],
-) -> SubdivisionCategoryReadModel:
-    command = UpdateSubdivisionCategoryCommand(
+    request: UpdateSubdivisionTypeRequest,
+    handler: FromDishka[UpdateSubdivisionTypeHandler],
+) -> SubdivisionTypeReadModel:
+    command = UpdateSubdivisionTypeCommand(
         code=code,
         sort_order=request.sort_order,
         _provided_fields=frozenset(request.model_fields_set),
@@ -490,31 +490,31 @@ async def update_subdivision_category(
 
 
 @geo_admin_router.delete(
-    "/subdivision-categories/{code}",
+    "/subdivision-types/{code}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete a subdivision category",
+    summary="Delete a subdivision type",
 )
-async def delete_subdivision_category(
+async def delete_subdivision_type(
     code: str,
-    handler: FromDishka[DeleteSubdivisionCategoryHandler],
+    handler: FromDishka[DeleteSubdivisionTypeHandler],
 ) -> None:
     await handler.handle(code)
 
 
 @geo_admin_router.put(
-    "/subdivision-categories/{code}/translations",
-    response_model=list[SubdivisionCategoryTranslationReadModel],
-    summary="Upsert subdivision category translations",
+    "/subdivision-types/{code}/translations",
+    response_model=list[SubdivisionTypeTranslationReadModel],
+    summary="Upsert subdivision type translations",
 )
-async def upsert_subdivision_category_translations(
+async def upsert_subdivision_type_translations(
     code: str,
-    request: UpsertSubdivisionCategoryTranslationsRequest,
-    handler: FromDishka[UpsertSubdivisionCategoryTranslationsHandler],
-) -> list[SubdivisionCategoryTranslationReadModel]:
-    command = UpsertSubdivisionCategoryTranslationsCommand(
+    request: UpsertSubdivisionTypeTranslationsRequest,
+    handler: FromDishka[UpsertSubdivisionTypeTranslationsHandler],
+) -> list[SubdivisionTypeTranslationReadModel]:
+    command = UpsertSubdivisionTypeTranslationsCommand(
         code=code,
         translations=[
-            SubdivisionCategoryTranslationItem(lang_code=t.lang_code, name=t.name)
+            SubdivisionTypeTranslationItem(lang_code=t.lang_code, name=t.name)
             for t in request.translations
         ],
     )

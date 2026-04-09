@@ -29,7 +29,6 @@ from src.modules.catalog.application.commands.generate_sku_matrix import (
 from src.modules.catalog.application.commands.update_sku import (
     UpdateSKUCommand,
     UpdateSKUHandler,
-    UpdateSKUResult,
 )
 from src.modules.catalog.domain.entities import (
     Attribute,
@@ -37,7 +36,6 @@ from src.modules.catalog.domain.entities import (
     AttributeValue,
     Brand,
     Category,
-    Product,
     TemplateAttributeBinding,
 )
 from src.modules.catalog.domain.events import SKUAddedEvent, SKUDeletedEvent
@@ -50,7 +48,6 @@ from src.modules.catalog.domain.exceptions import (
     ProductNotFoundError,
     SKUCodeConflictError,
     SKUNotFoundError,
-    VariantNotFoundError,
 )
 from src.modules.catalog.domain.value_objects import (
     AttributeDataType,
@@ -58,10 +55,8 @@ from src.modules.catalog.domain.value_objects import (
     AttributeUIType,
     Money,
 )
-from src.shared.exceptions import UnprocessableEntityError
 from tests.factories.product_builder import ProductBuilder
 from tests.fakes.fake_uow import FakeUnitOfWork
-
 
 # ---------------------------------------------------------------------------
 # Helpers

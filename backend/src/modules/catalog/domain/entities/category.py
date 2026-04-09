@@ -8,6 +8,7 @@ Part of the domain layer -- zero infrastructure imports.
 """
 
 import uuid
+from types import EllipsisType
 from typing import ClassVar
 
 from attr import dataclass
@@ -164,22 +165,20 @@ class Category(AggregateRoot):
             effective_template_id=template_id or parent.effective_template_id,
         )
 
-    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {
-            "name_i18n",
-            "slug",
-            "sort_order",
-            "template_id",
-        }
-    )
+    _UPDATABLE_FIELDS: ClassVar[frozenset[str]] = frozenset({
+        "name_i18n",
+        "slug",
+        "sort_order",
+        "template_id",
+    })
 
     def update(
         self,
         name_i18n: dict[str, str] | None = None,
         slug: str | None = None,
         sort_order: int | None = None,
-        template_id: uuid.UUID | None = ...,  # type: ignore[assignment]
-        parent_effective_template_id: uuid.UUID | None = ...,  # type: ignore[assignment]
+        template_id: uuid.UUID | None | EllipsisType = ...,
+        parent_effective_template_id: uuid.UUID | None | EllipsisType = ...,
     ) -> str | None:
         """Update category details and recompute full_slug if slug changed.
 

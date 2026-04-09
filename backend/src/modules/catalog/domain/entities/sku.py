@@ -112,12 +112,8 @@ class SKU:
             raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
 
         # Validate-then-mutate: compute new state before touching self
-        new_price = kwargs["price"] if "price" in kwargs else self.price
-        new_compare = (
-            kwargs["compare_at_price"]
-            if "compare_at_price" in kwargs
-            else self.compare_at_price
-        )
+        new_price = kwargs.get("price", self.price)
+        new_compare = kwargs.get("compare_at_price", self.compare_at_price)
 
         if new_price is None and new_compare is not None:
             raise ValueError("compare_at_price cannot be set when price is None")

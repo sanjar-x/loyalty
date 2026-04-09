@@ -38,7 +38,7 @@ profile_router = APIRouter(
 )
 async def get_my_profile(
     auth: Auth,
-    handler: FromDishka[GetMyProfileHandler] = ...,  # type: ignore[assignment]
+    handler: FromDishka[GetMyProfileHandler],
 ) -> ProfileResponse:
     """Retrieve the authenticated customer's profile."""
     profile = await handler.handle(GetMyProfileQuery(customer_id=auth.identity_id))
@@ -60,7 +60,7 @@ async def get_my_profile(
 async def update_profile(
     body: UpdateProfileRequest,
     auth: Auth,
-    handler: FromDishka[UpdateProfileHandler] = ...,  # type: ignore[assignment]
+    handler: FromDishka[UpdateProfileHandler],
 ) -> MessageResponse:
     """Update the authenticated customer's profile fields."""
     command = UpdateProfileCommand(

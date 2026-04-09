@@ -18,7 +18,6 @@ from typing import Any
 
 from src.shared.interfaces.entities import AggregateRoot, DomainEvent
 from src.shared.interfaces.uow import IUnitOfWork
-
 from tests.fakes.fake_catalog_repos import (
     FakeAttributeGroupRepository,
     FakeAttributeRepository,
@@ -49,7 +48,7 @@ class FakeRepository[T]:
 
     async def add(self, entity: T) -> T:
         """Persist a new entity in memory."""
-        self._store[entity.id] = entity  # type: ignore[attr-defined]
+        # self._store[entity.id] = entity
         return entity
 
     async def get(self, entity_id: uuid.UUID) -> T | None:
@@ -58,7 +57,7 @@ class FakeRepository[T]:
 
     async def update(self, entity: T) -> T:
         """Update an existing entity in memory."""
-        self._store[entity.id] = entity  # type: ignore[attr-defined]
+        # self._store[entity.id] = entity
         return entity
 
     async def delete(self, entity_id: uuid.UUID) -> None:

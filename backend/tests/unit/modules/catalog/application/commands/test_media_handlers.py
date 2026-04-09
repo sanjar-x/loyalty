@@ -28,7 +28,6 @@ from src.modules.catalog.application.commands.reorder_product_media import (
 from src.modules.catalog.application.commands.update_product_media import (
     UpdateProductMediaCommand,
     UpdateProductMediaHandler,
-    UpdateProductMediaResult,
 )
 from src.modules.catalog.domain.entities import MediaAsset
 from src.modules.catalog.domain.exceptions import (
@@ -41,7 +40,6 @@ from src.modules.catalog.domain.interfaces import IImageBackendClient
 from src.modules.catalog.domain.value_objects import MediaRole
 from tests.factories.product_builder import ProductBuilder
 from tests.fakes.fake_uow import FakeUnitOfWork
-
 
 # ---------------------------------------------------------------------------
 # Helpers

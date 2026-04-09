@@ -6,7 +6,7 @@ Maps geographic and locale reference data to PostgreSQL:
 * **Currency** (ISO 4217) + translations + country bridge
 * **Language** (IETF BCP 47 / ISO 639)
 * **Subdivision** (ISO 3166-2) + translations
-* **SubdivisionCategory** + translations
+* **SubdivisionType** + translations
 
 These models belong to the infrastructure layer and must never leak
 into the domain or application layers -- repositories translate between
@@ -428,46 +428,46 @@ class CountryCurrencyModel(Base):
 
 
 # ===================================================================
-#  Subdivision Category (ISO 3166-2 type labels)
+#  Subdivision Type (ISO 3166-2 type labels)
 # ===================================================================
 
 
-class SubdivisionCategoryModel(Base):
+class SubdivisionTypeModel(Base):
     """ISO 3166-2 subdivision type (e.g. PROVINCE, EMIRATE)."""
 
-    __tablename__ = "subdivision_categories"
+    __tablename__ = "subdivision_types"
 
     code: Mapped[str] = mapped_column(
         String(60),
         primary_key=True,
-        comment="ISO category token (e.g. PROVINCE, EMIRATE)",
+        comment="ISO type token (e.g. PROVINCE, EMIRATE)",
     )
     sort_order: Mapped[int] = mapped_column(
         SmallInteger,
         default=0,
         server_default="0",
-        comment="Display order in category filters",
+        comment="Display order in type filters",
     )
 
     # -- relationships ------------------------------------------------- #
 
-    translations: Mapped[list[SubdivisionCategoryTranslationModel]] = relationship(
-        back_populates="category",
+    translations: Mapped[list[SubdivisionTypeTranslationModel]] = relationship(
+        back_populates="subdivision_type",
         cascade="all, delete-orphan",
         lazy="raise",
     )
 
     def __repr__(self) -> str:
-        return f"<SubdivisionCategory {self.code}>"
+        return f"<SubdivisionType {self.code}>"
 
 
-class SubdivisionCategoryTranslationModel(Base):
-    """Category label in a specific language.
+class SubdivisionTypeTranslationModel(Base):
+    """Type label in a specific language.
 
-    Natural key: ``(category_code, lang_code)``.
+    Natural key: ``(type_code, lang_code)``.
     """
 
-    __tablename__ = "subdivision_category_translations"
+    __tablename__ = "subdivision_type_translations"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -475,11 +475,11 @@ class SubdivisionCategoryTranslationModel(Base):
         default=uuid.uuid4,
         comment="Surrogate primary key",
     )
-    category_code: Mapped[str] = mapped_column(
+    type_code: Mapped[str] = mapped_column(
         String(60),
-        ForeignKey("subdivision_categories.code", ondelete="CASCADE"),
+        ForeignKey("subdivision_types.code", ondelete="CASCADE"),
         nullable=False,
-        comment="FK -> subdivision_categories.code",
+        comment="FK -> subdivision_types.code",
     )
     lang_code: Mapped[str] = mapped_column(
         String(12),
@@ -495,19 +495,19 @@ class SubdivisionCategoryTranslationModel(Base):
 
     # -- relationships ------------------------------------------------- #
 
-    category: Mapped[SubdivisionCategoryModel] = relationship(
+    subdivision_type: Mapped[SubdivisionTypeModel] = relationship(
         back_populates="translations", lazy="joined"
     )
 
     # -- table-level constraints --------------------------------------- #
 
     __table_args__ = (
-        UniqueConstraint("category_code", "lang_code", name="uq_sub_category_lang"),
-        Index("ix_sub_cat_tr_lang", "lang_code"),
+        UniqueConstraint("type_code", "lang_code", name="uq_sub_type_lang"),
+        Index("ix_sub_type_tr_lang", "lang_code"),
     )
 
     def __repr__(self) -> str:  # pragma: no cover
-        return f"<SubdivisionCategoryTranslation {self.category_code}/{self.lang_code}>"
+        return f"<SubdivisionTypeTranslation {self.type_code}/{self.lang_code}>"
 
 
 # ===================================================================
@@ -535,11 +535,11 @@ class SubdivisionModel(Base):
         nullable=False,
         comment="FK -> countries.alpha2",
     )
-    category_code: Mapped[str] = mapped_column(
+    type_code: Mapped[str] = mapped_column(
         String(60),
-        ForeignKey("subdivision_categories.code", ondelete="RESTRICT"),
+        ForeignKey("subdivision_types.code", ondelete="RESTRICT"),
         nullable=False,
-        comment="FK -> subdivision_categories.code",
+        comment="FK -> subdivision_types.code",
     )
     parent_code: Mapped[str | None] = mapped_column(
         String(10),
@@ -574,7 +574,7 @@ class SubdivisionModel(Base):
     country: Mapped[CountryModel] = relationship(
         back_populates="subdivisions", lazy="joined"
     )
-    category: Mapped[SubdivisionCategoryModel] = relationship(lazy="joined")
+    subdivision_type: Mapped[SubdivisionTypeModel] = relationship(lazy="joined")
     parent: Mapped[SubdivisionModel | None] = relationship(
         remote_side=[code], lazy="select"
     )
@@ -588,7 +588,7 @@ class SubdivisionModel(Base):
 
     __table_args__ = (
         Index("ix_subdivisions_country", "country_code"),
-        Index("ix_subdivisions_category", "country_code", "category_code"),
+        Index("ix_subdivisions_type", "country_code", "type_code"),
         Index("ix_subdivisions_parent", "parent_code"),
     )
 

@@ -8,7 +8,6 @@ Validates response shapes and correct attribute projection for categories with
 and without attribute templates.
 """
 
-import uuid
 
 import pytest
 from httpx import AsyncClient

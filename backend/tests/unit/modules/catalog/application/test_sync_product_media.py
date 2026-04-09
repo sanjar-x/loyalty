@@ -1,5 +1,4 @@
 import uuid
-import pytest
 
 from src.modules.catalog.application.commands.sync_media import compute_media_diff
 

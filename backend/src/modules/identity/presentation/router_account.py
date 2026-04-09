@@ -41,7 +41,7 @@ identity_account_router = APIRouter(
 )
 async def delete_my_account(
     auth: Auth,
-    handler: FromDishka[DeactivateIdentityHandler] = ...,  # type: ignore[assignment]
+    handler: FromDishka[DeactivateIdentityHandler],
 ) -> MessageResponse:
     """Deactivate the authenticated user's account.
 
@@ -71,7 +71,7 @@ async def delete_my_account(
 async def change_password(
     body: ChangePasswordRequest,
     auth: Auth,
-    handler: FromDishka[ChangePasswordHandler] = ...,  # type: ignore[assignment]
+    handler: FromDishka[ChangePasswordHandler],  # type: ignore[assignment]
 ) -> MessageResponse:
     """Change the authenticated user's password.
 
@@ -105,7 +105,7 @@ async def change_password(
 )
 async def get_my_sessions(
     auth: Auth,
-    handler: FromDishka[GetMySessionsHandler] = ...,  # type: ignore[assignment]
+    handler: FromDishka[GetMySessionsHandler],  # type: ignore[assignment]
 ) -> list[SessionInfo]:
     """List the authenticated user's active sessions.
 

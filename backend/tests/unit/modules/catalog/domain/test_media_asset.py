@@ -13,7 +13,6 @@ from src.modules.catalog.domain.entities import MediaAsset
 from src.modules.catalog.domain.value_objects import MediaRole, MediaType
 from tests.factories.media_asset_builder import MediaAssetBuilder
 
-
 # ---------------------------------------------------------------------------
 # TestMediaAssetCreate
 # ---------------------------------------------------------------------------

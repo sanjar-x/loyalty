@@ -12,20 +12,20 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 
 from src.modules.catalog.domain.value_objects import (
+    MAX_SEARCH_WEIGHT,
+    MIN_SEARCH_WEIGHT,
     SLUG_RE,
     AttributeDataType,
-    MIN_SEARCH_WEIGHT,
-    MAX_SEARCH_WEIGHT,
 )
 from tests.factories.strategies import (
     attribute_groups,
     attributes,
+    behavior_flags,
     brands,
     i18n_names,
     money,
-    behavior_flags,
-    products,
     product_trees,
+    products,
     root_categories,
     valid_slugs,
 )

@@ -1,4 +1,3 @@
-import pytest
 
 from src.modules.identity.domain.value_objects import (
     AccountType,

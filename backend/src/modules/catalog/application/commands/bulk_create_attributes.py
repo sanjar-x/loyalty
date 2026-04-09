@@ -96,7 +96,7 @@ class BulkCreateAttributesHandler:
         self._uow = uow
         self._logger = logger.bind(handler="BulkCreateAttributesHandler")
 
-    async def handle(  # noqa: C901
+    async def handle(
         self, command: BulkCreateAttributesCommand
     ) -> BulkCreateAttributesResult:
         if len(command.items) > MAX_BULK_ATTRIBUTES:

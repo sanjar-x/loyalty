@@ -8,6 +8,7 @@ Part of the application layer (CQRS write side).
 
 import uuid
 from dataclasses import dataclass, field
+from types import EllipsisType
 from typing import Any
 
 from src.modules.catalog.application.constants import (
@@ -49,7 +50,7 @@ class UpdateCategoryCommand:
     name_i18n: dict[str, str] | None = None
     slug: str | None = None
     sort_order: int | None = None
-    template_id: uuid.UUID | None = ...  # type: ignore[assignment]
+    template_id: uuid.UUID | None | EllipsisType = ...
     _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 

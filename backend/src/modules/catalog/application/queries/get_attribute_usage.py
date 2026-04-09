@@ -16,9 +16,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.modules.catalog.domain.exceptions import AttributeNotFoundError
 from src.modules.catalog.infrastructure.models import (
     Attribute as OrmAttribute,
+)
+from src.modules.catalog.infrastructure.models import (
     AttributeTemplate as OrmAttributeTemplate,
+)
+from src.modules.catalog.infrastructure.models import (
     Category as OrmCategory,
+)
+from src.modules.catalog.infrastructure.models import (
     ProductAttributeValue as OrmProductAttributeValue,
+)
+from src.modules.catalog.infrastructure.models import (
     TemplateAttributeBinding as OrmTemplateAttributeBinding,
 )
 from src.shared.interfaces.logger import ILogger

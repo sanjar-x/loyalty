@@ -7,7 +7,8 @@ import {
   confirmMedia,
   subscribeMediaStatus,
   extractRawUrl,
-  addExternalMedia,
+  fetchImageAsFile,
+  deleteMedia,
 } from '@/services/products';
 
 /**
@@ -15,7 +16,7 @@ import {
  *
  * Flow per image:
  * - file:  reserveMediaUpload → uploadToS3 → confirmMedia → SSE (subscribeMediaStatus)
- * - url:   addExternalMedia (ImageBackend downloads and processes)
+ * - url:   fetchImageAsFile (via BFF proxy) → same as file flow
  *
  * Returns storageObjectId per image for later association with product.
  *
@@ -24,6 +25,8 @@ import {
 export default function useImageUpload() {
   // { [localId]: { status, storageObjectId, url, rawUrl, error } }
   const [uploads, setUploads] = useState({});
+  const uploadsRef = useRef(uploads);
+  uploadsRef.current = uploads;
   const inflightRef = useRef(new Set());
   const abortRefs = useRef(new Map());
 
@@ -49,28 +52,30 @@ export default function useImageUpload() {
       const { localId } = image;
       if (inflightRef.current.has(localId)) return;
       inflightRef.current.add(localId);
-      update(localId, { status: 'uploading', error: null, storageObjectId: null, rawUrl: null });
+
+      // Track previous storageObjectId for cleanup after crop re-upload
+      const prevStorageObjectId = uploadsRef.current[localId]?.storageObjectId || null;
+
+      update(localId, { status: 'uploading', error: null, storageObjectId: null, rawUrl: null, url: null });
 
       try {
         let storageObjectId = null;
         let mediaUrl = null;
 
-        if (image.source === 'url') {
-          const result = await addExternalMedia({ url: image.url });
-          storageObjectId = result.storageObjectId;
-          mediaUrl = result.url;
-        } else if (image.file) {
+        const file = image.file || (image.source === 'url' ? await fetchImageAsFile(image.url) : null);
+
+        if (file) {
           // Step 1: Reserve upload slot → presigned URL
           const slot = await reserveMediaUpload({
-            contentType: image.file.type || 'image/jpeg',
-            filename: image.file.name,
+            contentType: file.type || 'image/jpeg',
+            filename: file.name,
           });
 
           // Compute raw public URL from presigned URL
           const rawUrl = extractRawUrl(slot.presignedUrl);
 
           // Step 2: Upload file directly to S3/MinIO
-          await uploadToS3(slot.presignedUrl, image.file);
+          await uploadToS3(slot.presignedUrl, file);
 
           // After S3 upload: replace blob with raw S3 URL, switch to processing
           update(localId, {
@@ -98,6 +103,11 @@ export default function useImageUpload() {
         }
 
         update(localId, { status: 'completed', storageObjectId, url: mediaUrl });
+
+        // Clean up previous image from S3 after successful crop re-upload
+        if (prevStorageObjectId && prevStorageObjectId !== storageObjectId) {
+          deleteMedia(prevStorageObjectId).catch(() => {});
+        }
       } catch (err) {
         if (err.name === 'AbortError') return;
         // On failure, preserve rawUrl as fallback
@@ -127,6 +137,11 @@ export default function useImageUpload() {
     if (controller) {
       controller.abort();
       abortRefs.current.delete(localId);
+    }
+    // Clean up from S3
+    const sid = uploadsRef.current[localId]?.storageObjectId;
+    if (sid) {
+      deleteMedia(sid).catch(() => {});
     }
     setUploads((prev) => {
       const next = { ...prev };

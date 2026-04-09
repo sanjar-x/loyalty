@@ -4,6 +4,9 @@
 from polyfactory.factories.sqlalchemy_factory import SQLAlchemyFactory
 
 from src.modules.catalog.infrastructure.models import (
+    SKU as SKUModel,
+)
+from src.modules.catalog.infrastructure.models import (
     Attribute as AttributeModel,
 )
 from src.modules.catalog.infrastructure.models import (
@@ -34,9 +37,6 @@ from src.modules.catalog.infrastructure.models import (
     ProductVariant as ProductVariantModel,
 )
 from src.modules.catalog.infrastructure.models import (
-    SKU as SKUModel,
-)
-from src.modules.catalog.infrastructure.models import (
     SKUAttributeValueLink as SKUAttributeValueLinkModel,
 )
 from src.modules.catalog.infrastructure.models import (
@@ -48,7 +48,6 @@ from src.modules.identity.infrastructure.models import (
     RoleModel,
     SessionModel,
 )
-
 
 # ---------------------------------------------------------------------------
 # Identity module ORM factories

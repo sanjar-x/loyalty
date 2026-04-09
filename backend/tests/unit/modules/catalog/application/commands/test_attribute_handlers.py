@@ -115,7 +115,6 @@ from tests.factories.attribute_template_builder import (
 )
 from tests.fakes.fake_uow import FakeUnitOfWork
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------

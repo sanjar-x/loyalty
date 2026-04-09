@@ -112,7 +112,7 @@ class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType
 
     async def delete(self, entity_id: uuid.UUID) -> None:
         """Delete a row by primary key.  Transaction control is in the UoW."""
-        stmt = delete(self.model).where(self.model.id == entity_id)
+        stmt = delete(self.model).where(self.model.id == entity_id)  # ty:ignore[invalid-argument-type]
         await self._session.execute(stmt)
 
     async def _field_exists(
@@ -139,10 +139,10 @@ class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType
         column = getattr(self.model, field_name)
         filters: list[Any] = [column == value]
         if exclude_id is not None:
-            filters.append(self.model.id != exclude_id)
+            filters.append(self.model.id != exclude_id)  # type: ignore[arg-type]
         if extra_filters:
             filters.extend(extra_filters)
-        stmt = select(self.model.id).where(*filters).limit(1)
+        stmt = select(self.model.id).where(*filters).limit(1)  # ty: ignore[no-matching-overload]
         result = await self._session.execute(stmt)
         return result.first() is not None
 
@@ -152,7 +152,7 @@ class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType
         Used to prevent concurrent modifications on the same row.
         Subclasses may override to add extra filters (e.g. soft-delete).
         """
-        stmt = select(self.model).where(self.model.id == entity_id).with_for_update()
+        stmt = select(self.model).where(self.model.id == entity_id).with_for_update()  # type: ignore[arg-type]
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None

@@ -212,10 +212,39 @@
 .cropToolbar {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 20px;
   padding: 16px 24px 20px;
   width: 100%;
+}
+
+.cropRatios {
+  display: flex;
+  gap: 4px;
+}
+
+.cropRatio,
+.cropRatioActive {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: #555;
+  transition: all 0.15s;
+}
+
+.cropRatio:hover {
+  border-color: #999;
+  color: #111;
+}
+
+.cropRatioActive {
+  background: #111;
+  border-color: #111;
+  color: #fff;
 }
 
 .cropActions {

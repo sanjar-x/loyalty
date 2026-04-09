@@ -26,7 +26,7 @@ BearerCredentials = Annotated[
 
 async def get_current_identity_id(
     credentials: BearerCredentials,
-    token_provider: FromDishka[ITokenProvider] = ...,  # type: ignore[assignment]
+    token_provider: FromDishka[ITokenProvider],  # type: ignore[assignment]
 ) -> str:
     """Extract the identity ID from a JWT and bind it to the structlog context.
 

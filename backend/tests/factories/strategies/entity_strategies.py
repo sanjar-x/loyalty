@@ -22,7 +22,6 @@ from src.modules.catalog.domain.entities import (
     Product,
     TemplateAttributeBinding,
 )
-from src.modules.catalog.domain.value_objects import AttributeLevel
 from tests.factories.strategies.primitives import (
     attribute_levels,
     behavior_flags,

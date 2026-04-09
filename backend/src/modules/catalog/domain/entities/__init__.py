@@ -13,7 +13,7 @@ from .attribute_group import AttributeGroup
 from .attribute_template import AttributeTemplate
 from .attribute_value import AttributeValue
 from .brand import Brand
-from .category import Category, MAX_CATEGORY_DEPTH
+from .category import MAX_CATEGORY_DEPTH, Category
 from .media_asset import MediaAsset
 from .product import Product
 from .product_attribute_value import ProductAttributeValue
@@ -22,18 +22,18 @@ from .sku import SKU
 from .template_attribute_binding import TemplateAttributeBinding
 
 __all__ = [
+    "GENERAL_GROUP_CODE",
+    "MAX_CATEGORY_DEPTH",
+    "SKU",
     "Attribute",
     "AttributeGroup",
     "AttributeTemplate",
     "AttributeValue",
     "Brand",
     "Category",
-    "GENERAL_GROUP_CODE",
-    "MAX_CATEGORY_DEPTH",
     "MediaAsset",
     "Product",
     "ProductAttributeValue",
     "ProductVariant",
-    "SKU",
     "TemplateAttributeBinding",
 ]

@@ -136,7 +136,7 @@ class CreateSubdivisionRequest(CamelModel):
         ..., min_length=4, max_length=10, pattern=r"^[A-Z]{2}-[A-Z0-9]{1,8}$"
     )
     country_code: str = Field(..., min_length=2, max_length=2, pattern=r"^[A-Z]{2}$")
-    category_code: str = Field(..., min_length=1, max_length=60)
+    type_code: str = Field(..., min_length=1, max_length=60)
     parent_code: str | None = Field(None, max_length=10)
     latitude: Decimal | None = None
     longitude: Decimal | None = None
@@ -145,7 +145,7 @@ class CreateSubdivisionRequest(CamelModel):
 
 
 class UpdateSubdivisionRequest(CamelModel):
-    category_code: str | None = Field(None, min_length=1, max_length=60)
+    type_code: str | None = Field(None, min_length=1, max_length=60)
     parent_code: str | None = None
     latitude: Decimal | None = None
     longitude: Decimal | None = None
@@ -171,29 +171,29 @@ class UpsertSubdivisionTranslationsRequest(CamelModel):
 
 
 # ------------------------------------------------------------------ #
-#  Subdivision Category
+#  Subdivision Type
 # ------------------------------------------------------------------ #
 
 
-class CreateSubdivisionCategoryRequest(CamelModel):
+class CreateSubdivisionTypeRequest(CamelModel):
     code: str = Field(..., min_length=1, max_length=60)
     sort_order: int = Field(0, ge=0)
 
 
-class UpdateSubdivisionCategoryRequest(CamelModel):
+class UpdateSubdivisionTypeRequest(CamelModel):
     sort_order: int | None = Field(None, ge=0)
 
     @model_validator(mode="after")
-    def at_least_one_field(self) -> UpdateSubdivisionCategoryRequest:
+    def at_least_one_field(self) -> UpdateSubdivisionTypeRequest:
         if not self.model_fields_set:
             raise ValueError("At least one field must be provided")
         return self
 
 
-class SubdivisionCategoryTranslationInput(CamelModel):
+class SubdivisionTypeTranslationInput(CamelModel):
     lang_code: str = Field(..., min_length=2, max_length=12)
     name: str = Field(..., min_length=1, max_length=100)
 
 
-class UpsertSubdivisionCategoryTranslationsRequest(CamelModel):
-    translations: list[SubdivisionCategoryTranslationInput] = Field(..., min_length=1)
+class UpsertSubdivisionTypeTranslationsRequest(CamelModel):
+    translations: list[SubdivisionTypeTranslationInput] = Field(..., min_length=1)

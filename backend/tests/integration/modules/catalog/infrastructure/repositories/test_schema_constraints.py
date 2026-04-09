@@ -16,9 +16,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.entities import (
-    AttributeTemplate,
-    Brand,
-    Category,
     Product,
 )
 from src.modules.catalog.domain.value_objects import (
@@ -30,24 +27,39 @@ from src.modules.catalog.domain.value_objects import (
     RequirementLevel,
 )
 from src.modules.catalog.infrastructure.models import (
-    Attribute as OrmAttribute,
-    AttributeGroup as OrmAttributeGroup,
-    AttributeValue as OrmAttributeValue,
-    Brand as OrmBrand,
-    Category as OrmCategory,
-    MediaAsset as OrmMediaAsset,
-    Product as OrmProduct,
-    ProductVariant as OrmProductVariant,
     SKU as OrmSKU,
-    TemplateAttributeBinding as OrmBinding,
+)
+from src.modules.catalog.infrastructure.models import (
+    Attribute as OrmAttribute,
+)
+from src.modules.catalog.infrastructure.models import (
+    AttributeGroup as OrmAttributeGroup,
 )
 from src.modules.catalog.infrastructure.models import (
     AttributeTemplate as OrmAttributeTemplate,
 )
-from src.modules.catalog.infrastructure.repositories.brand import BrandRepository
-from src.modules.catalog.infrastructure.repositories.category import CategoryRepository
+from src.modules.catalog.infrastructure.models import (
+    AttributeValue as OrmAttributeValue,
+)
+from src.modules.catalog.infrastructure.models import (
+    Brand as OrmBrand,
+)
+from src.modules.catalog.infrastructure.models import (
+    Category as OrmCategory,
+)
+from src.modules.catalog.infrastructure.models import (
+    MediaAsset as OrmMediaAsset,
+)
+from src.modules.catalog.infrastructure.models import (
+    Product as OrmProduct,
+)
+from src.modules.catalog.infrastructure.models import (
+    ProductVariant as OrmProductVariant,
+)
+from src.modules.catalog.infrastructure.models import (
+    TemplateAttributeBinding as OrmBinding,
+)
 from src.modules.catalog.infrastructure.repositories.product import ProductRepository
-
 
 # =========================================================================
 # Task 07-03-01: FK constraint verification

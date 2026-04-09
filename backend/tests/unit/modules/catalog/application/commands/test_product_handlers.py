@@ -51,7 +51,6 @@ from src.modules.catalog.domain.entities import (
     Brand,
     Category,
     MediaAsset,
-    Product,
     ProductAttributeValue,
     TemplateAttributeBinding,
 )
@@ -85,10 +84,8 @@ from src.modules.supplier.domain.exceptions import (
 from src.modules.supplier.domain.interfaces import ISupplierQueryService, SupplierInfo
 from src.modules.supplier.domain.value_objects import SupplierType
 from src.shared.exceptions import UnprocessableEntityError
-from src.shared.interfaces.logger import ILogger
 from tests.factories.product_builder import ProductBuilder
 from tests.fakes.fake_uow import FakeUnitOfWork
-
 
 # ---------------------------------------------------------------------------
 # Helpers

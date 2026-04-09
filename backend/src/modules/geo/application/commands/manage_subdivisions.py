@@ -1,4 +1,4 @@
-"""Admin command handlers for subdivision & category CRUD and translations.
+"""Admin command handlers for subdivision & type CRUD and translations.
 
 Reference-data management — uses AsyncSession directly (no UoW/aggregates).
 """
@@ -13,11 +13,11 @@ from sqlalchemy.orm import selectinload
 
 from src.modules.geo.application.commands import safe_commit
 from src.modules.geo.application.queries.read_models import (
-    SubdivisionCategoryListReadModel,
-    SubdivisionCategoryReadModel,
-    SubdivisionCategoryTranslationReadModel,
     SubdivisionReadModel,
     SubdivisionTranslationReadModel,
+    SubdivisionTypeListReadModel,
+    SubdivisionTypeReadModel,
+    SubdivisionTypeTranslationReadModel,
 )
 from src.modules.geo.domain.exceptions import (
     CountryNotFoundError,
@@ -26,10 +26,10 @@ from src.modules.geo.domain.exceptions import (
 from src.modules.geo.infrastructure.models import (
     CountryModel,
     LanguageModel,
-    SubdivisionCategoryModel,
-    SubdivisionCategoryTranslationModel,
     SubdivisionModel,
     SubdivisionTranslationModel,
+    SubdivisionTypeModel,
+    SubdivisionTypeTranslationModel,
 )
 from src.shared.exceptions import ConflictError, NotFoundError, UnprocessableEntityError
 
@@ -50,7 +50,7 @@ logger = structlog.get_logger(__name__)
 class CreateSubdivisionCommand:
     code: str
     country_code: str
-    category_code: str
+    type_code: str
     parent_code: str | None = None
     latitude: Decimal | None = None
     longitude: Decimal | None = None
@@ -76,14 +76,12 @@ class CreateSubdivisionHandler:
         if country is None:
             raise CountryNotFoundError(command.country_code)
 
-        category = await self._session.get(
-            SubdivisionCategoryModel, command.category_code
-        )
-        if category is None:
+        sub_type = await self._session.get(SubdivisionTypeModel, command.type_code)
+        if sub_type is None:
             raise NotFoundError(
-                message=f"Subdivision category '{command.category_code}' not found.",
-                error_code="SUBDIVISION_CATEGORY_NOT_FOUND",
-                details={"category_code": command.category_code},
+                message=f"Subdivision type '{command.type_code}' not found.",
+                error_code="SUBDIVISION_TYPE_NOT_FOUND",
+                details={"type_code": command.type_code},
             )
 
         if command.parent_code is not None:
@@ -98,7 +96,7 @@ class CreateSubdivisionHandler:
         orm = SubdivisionModel(
             code=command.code,
             country_code=command.country_code,
-            category_code=command.category_code,
+            type_code=command.type_code,
             parent_code=command.parent_code,
             latitude=command.latitude,
             longitude=command.longitude,
@@ -112,7 +110,7 @@ class CreateSubdivisionHandler:
         return SubdivisionReadModel(
             code=orm.code,
             country_code=orm.country_code,
-            category_code=orm.category_code,
+            type_code=orm.type_code,
             parent_code=orm.parent_code,
             latitude=float(orm.latitude) if orm.latitude is not None else None,
             longitude=float(orm.longitude) if orm.longitude is not None else None,
@@ -129,7 +127,7 @@ class CreateSubdivisionHandler:
 @dataclass(frozen=True)
 class UpdateSubdivisionCommand:
     code: str
-    category_code: str | None = None
+    type_code: str | None = None
     parent_code: str | None = None
     latitude: Decimal | None = None
     longitude: Decimal | None = None
@@ -160,7 +158,7 @@ class UpdateSubdivisionHandler:
         return SubdivisionReadModel(
             code=orm.code,
             country_code=orm.country_code,
-            category_code=orm.category_code,
+            type_code=orm.type_code,
             parent_code=orm.parent_code,
             latitude=float(orm.latitude) if orm.latitude is not None else None,
             longitude=float(orm.longitude) if orm.longitude is not None else None,
@@ -270,7 +268,7 @@ class UpsertSubdivisionTranslationsHandler:
 
 
 # ===================================================================
-#  Subdivision Category CRUD
+#  Subdivision Type CRUD
 # ===================================================================
 
 
@@ -279,20 +277,20 @@ class UpsertSubdivisionTranslationsHandler:
 # ------------------------------------------------------------------ #
 
 
-class ListSubdivisionCategoriesHandler:
+class ListSubdivisionTypesHandler:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def handle(
         self, offset: int = 0, limit: int = 50
-    ) -> SubdivisionCategoryListReadModel:
-        count_stmt = select(func.count()).select_from(SubdivisionCategoryModel)
+    ) -> SubdivisionTypeListReadModel:
+        count_stmt = select(func.count()).select_from(SubdivisionTypeModel)
         total = (await self._session.execute(count_stmt)).scalar_one()
 
         stmt = (
-            select(SubdivisionCategoryModel)
-            .options(selectinload(SubdivisionCategoryModel.translations))
-            .order_by(SubdivisionCategoryModel.sort_order)
+            select(SubdivisionTypeModel)
+            .options(selectinload(SubdivisionTypeModel.translations))
+            .order_by(SubdivisionTypeModel.sort_order)
             .offset(offset)
             .limit(limit)
         )
@@ -300,11 +298,11 @@ class ListSubdivisionCategoriesHandler:
         categories = result.scalars().unique().all()
 
         items = [
-            SubdivisionCategoryReadModel(
+            SubdivisionTypeReadModel(
                 code=c.code,
                 sort_order=c.sort_order,
                 translations=[
-                    SubdivisionCategoryTranslationReadModel(
+                    SubdivisionTypeTranslationReadModel(
                         lang_code=tr.lang_code, name=tr.name
                     )
                     for tr in c.translations
@@ -313,7 +311,7 @@ class ListSubdivisionCategoriesHandler:
             for c in categories
         ]
 
-        return SubdivisionCategoryListReadModel(items=items, total=total)
+        return SubdivisionTypeListReadModel(items=items, total=total)
 
 
 # ------------------------------------------------------------------ #
@@ -322,35 +320,35 @@ class ListSubdivisionCategoriesHandler:
 
 
 @dataclass(frozen=True)
-class CreateSubdivisionCategoryCommand:
+class CreateSubdivisionTypeCommand:
     code: str
     sort_order: int = 0
 
 
-class CreateSubdivisionCategoryHandler:
+class CreateSubdivisionTypeHandler:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def handle(
-        self, command: CreateSubdivisionCategoryCommand
-    ) -> SubdivisionCategoryReadModel:
-        existing = await self._session.get(SubdivisionCategoryModel, command.code)
+        self, command: CreateSubdivisionTypeCommand
+    ) -> SubdivisionTypeReadModel:
+        existing = await self._session.get(SubdivisionTypeModel, command.code)
         if existing:
             raise ConflictError(
-                message=f"Subdivision category '{command.code}' already exists.",
-                error_code="SUBDIVISION_CATEGORY_ALREADY_EXISTS",
+                message=f"Subdivision type '{command.code}' already exists.",
+                error_code="SUBDIVISION_TYPE_ALREADY_EXISTS",
                 details={"code": command.code},
             )
 
-        orm = SubdivisionCategoryModel(
+        orm = SubdivisionTypeModel(
             code=command.code,
             sort_order=command.sort_order,
         )
         self._session.add(orm)
         await safe_commit(self._session)
 
-        logger.info("subdivision_category.created", code=command.code)
-        return SubdivisionCategoryReadModel(code=orm.code, sort_order=orm.sort_order)
+        logger.info("subdivision_type.created", code=command.code)
+        return SubdivisionTypeReadModel(code=orm.code, sort_order=orm.sort_order)
 
 
 # ------------------------------------------------------------------ #
@@ -359,24 +357,24 @@ class CreateSubdivisionCategoryHandler:
 
 
 @dataclass(frozen=True)
-class UpdateSubdivisionCategoryCommand:
+class UpdateSubdivisionTypeCommand:
     code: str
     sort_order: int | None = None
     _provided_fields: frozenset[str] = frozenset()
 
 
-class UpdateSubdivisionCategoryHandler:
+class UpdateSubdivisionTypeHandler:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def handle(
-        self, command: UpdateSubdivisionCategoryCommand
-    ) -> SubdivisionCategoryReadModel:
-        orm = await self._session.get(SubdivisionCategoryModel, command.code)
+        self, command: UpdateSubdivisionTypeCommand
+    ) -> SubdivisionTypeReadModel:
+        orm = await self._session.get(SubdivisionTypeModel, command.code)
         if orm is None:
             raise NotFoundError(
-                message=f"Subdivision category '{command.code}' not found.",
-                error_code="SUBDIVISION_CATEGORY_NOT_FOUND",
+                message=f"Subdivision type '{command.code}' not found.",
+                error_code="SUBDIVISION_TYPE_NOT_FOUND",
                 details={"code": command.code},
             )
 
@@ -389,8 +387,8 @@ class UpdateSubdivisionCategoryHandler:
         await safe_commit(self._session)
         await self._session.refresh(orm)
 
-        logger.info("subdivision_category.updated", code=command.code)
-        return SubdivisionCategoryReadModel(code=orm.code, sort_order=orm.sort_order)
+        logger.info("subdivision_type.updated", code=command.code)
+        return SubdivisionTypeReadModel(code=orm.code, sort_order=orm.sort_order)
 
 
 # ------------------------------------------------------------------ #
@@ -398,22 +396,22 @@ class UpdateSubdivisionCategoryHandler:
 # ------------------------------------------------------------------ #
 
 
-class DeleteSubdivisionCategoryHandler:
+class DeleteSubdivisionTypeHandler:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def handle(self, code: str) -> None:
-        orm = await self._session.get(SubdivisionCategoryModel, code)
+        orm = await self._session.get(SubdivisionTypeModel, code)
         if orm is None:
             raise NotFoundError(
-                message=f"Subdivision category '{code}' not found.",
-                error_code="SUBDIVISION_CATEGORY_NOT_FOUND",
+                message=f"Subdivision type '{code}' not found.",
+                error_code="SUBDIVISION_TYPE_NOT_FOUND",
                 details={"code": code},
             )
 
         await self._session.delete(orm)
         await safe_commit(self._session)
-        logger.info("subdivision_category.deleted", code=code)
+        logger.info("subdivision_type.deleted", code=code)
 
 
 # ------------------------------------------------------------------ #
@@ -422,35 +420,35 @@ class DeleteSubdivisionCategoryHandler:
 
 
 @dataclass(frozen=True)
-class SubdivisionCategoryTranslationItem:
+class SubdivisionTypeTranslationItem:
     lang_code: str
     name: str
 
 
 @dataclass(frozen=True)
-class UpsertSubdivisionCategoryTranslationsCommand:
+class UpsertSubdivisionTypeTranslationsCommand:
     code: str
-    translations: list[SubdivisionCategoryTranslationItem]
+    translations: list[SubdivisionTypeTranslationItem]
 
 
-class UpsertSubdivisionCategoryTranslationsHandler:
+class UpsertSubdivisionTypeTranslationsHandler:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def handle(
-        self, command: UpsertSubdivisionCategoryTranslationsCommand
-    ) -> list[SubdivisionCategoryTranslationReadModel]:
+        self, command: UpsertSubdivisionTypeTranslationsCommand
+    ) -> list[SubdivisionTypeTranslationReadModel]:
         stmt = (
-            select(SubdivisionCategoryModel)
-            .where(SubdivisionCategoryModel.code == command.code)
-            .options(selectinload(SubdivisionCategoryModel.translations))
+            select(SubdivisionTypeModel)
+            .where(SubdivisionTypeModel.code == command.code)
+            .options(selectinload(SubdivisionTypeModel.translations))
         )
         result = await self._session.execute(stmt)
-        category = result.scalar_one_or_none()
-        if category is None:
+        sub_type = result.scalar_one_or_none()
+        if sub_type is None:
             raise NotFoundError(
-                message=f"Subdivision category '{command.code}' not found.",
-                error_code="SUBDIVISION_CATEGORY_NOT_FOUND",
+                message=f"Subdivision type '{command.code}' not found.",
+                error_code="SUBDIVISION_TYPE_NOT_FOUND",
                 details={"code": command.code},
             )
 
@@ -463,15 +461,15 @@ class UpsertSubdivisionCategoryTranslationsHandler:
                     details={"lang_code": item.lang_code},
                 )
 
-        existing = {tr.lang_code: tr for tr in category.translations}
+        existing = {tr.lang_code: tr for tr in sub_type.translations}
 
         for item in command.translations:
             if item.lang_code in existing:
                 existing[item.lang_code].name = item.name
             else:
-                category.translations.append(
-                    SubdivisionCategoryTranslationModel(
-                        category_code=command.code,
+                sub_type.translations.append(
+                    SubdivisionTypeTranslationModel(
+                        type_code=command.code,
                         lang_code=item.lang_code,
                         name=item.name,
                     )
@@ -480,13 +478,11 @@ class UpsertSubdivisionCategoryTranslationsHandler:
         await safe_commit(self._session)
 
         logger.info(
-            "subdivision_category.translations_upserted",
+            "subdivision_type.translations_upserted",
             code=command.code,
             count=len(command.translations),
         )
         return [
-            SubdivisionCategoryTranslationReadModel(
-                lang_code=tr.lang_code, name=tr.name
-            )
-            for tr in category.translations
+            SubdivisionTypeTranslationReadModel(lang_code=tr.lang_code, name=tr.name)
+            for tr in sub_type.translations
         ]

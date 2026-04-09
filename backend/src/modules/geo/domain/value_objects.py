@@ -171,7 +171,7 @@ class Subdivision:
     Attributes:
         code: Full ISO 3166-2 code (e.g. ``"UZ-TO"``, ``"RU-MOW"``).
         country_code: Parent country Alpha-2 code.
-        category_code: Administrative category token (e.g. ``"PROVINCE"``).
+        type_code: Administrative type token (e.g. ``"PROVINCE"``).
         parent_code: Parent subdivision code for nested levels, or ``None``.
         latitude: Centroid latitude (WGS 84), or ``None``.
         longitude: Centroid longitude (WGS 84), or ``None``.
@@ -182,7 +182,7 @@ class Subdivision:
 
     code: str
     country_code: str
-    category_code: str
+    type_code: str
     parent_code: str | None
     latitude: Decimal | None
     longitude: Decimal | None
@@ -196,5 +196,5 @@ class Subdivision:
             raise ValueError(
                 f"country_code must be 2 uppercase letters, got {self.country_code!r}"
             )
-        if not self.category_code or not self.category_code.strip():
-            raise ValueError("category_code must be a non-empty string")
+        if not self.type_code or not self.type_code.strip():
+            raise ValueError("type_code must be a non-empty string")

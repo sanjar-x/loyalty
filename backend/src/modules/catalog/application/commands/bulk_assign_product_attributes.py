@@ -71,7 +71,7 @@ class BulkAssignProductAttributesHandler:
         self._uow = uow
         self._logger = logger.bind(handler="BulkAssignProductAttributesHandler")
 
-    async def handle(  # noqa: C901
+    async def handle(
         self, command: BulkAssignProductAttributesCommand
     ) -> BulkAssignProductAttributesResult:
         if len(command.items) > 100:

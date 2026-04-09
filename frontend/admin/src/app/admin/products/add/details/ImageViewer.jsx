@@ -2,14 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ReactCrop from 'react-image-crop';
+import { fetchImageAsFile } from '@/services/products';
 import styles from './ImageViewer.module.css';
 
-export default function ImageViewer({ images, initialIndex = 0, onClose, onRemove, onReplace }) {
+export default function ImageViewer({ images, uploads = {}, initialIndex = 0, onClose, onRemove, onReplace }) {
   const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [cropping, setCropping] = useState(false);
   const [crop, setCrop] = useState(undefined);
   const [completedCrop, setCompletedCrop] = useState(null);
   const [applying, setApplying] = useState(false);
+  const [aspect, setAspect] = useState(undefined);
+  const [fetching, setFetching] = useState(false);
   const imgRef = useRef(null);
 
   const current = images[activeIndex];
@@ -19,14 +22,14 @@ export default function ImageViewer({ images, initialIndex = 0, onClose, onRemov
   const cropSrc = current?.originalUrl || current?.url;
 
   const goPrev = useCallback(() => {
-    if (cropping) return;
-    setActiveIndex((i) => (i > 0 ? i - 1 : total - 1));
-  }, [total, cropping]);
+    const prev = activeIndex > 0 ? activeIndex - 1 : total - 1;
+    navigateTo(prev);
+  }, [total, activeIndex]);
 
   const goNext = useCallback(() => {
-    if (cropping) return;
-    setActiveIndex((i) => (i < total - 1 ? i + 1 : 0));
-  }, [total, cropping]);
+    const next = activeIndex < total - 1 ? activeIndex + 1 : 0;
+    navigateTo(next);
+  }, [total, activeIndex]);
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -39,10 +42,8 @@ export default function ImageViewer({ images, initialIndex = 0, onClose, onRemov
           onClose();
         }
       }
-      if (!cropping) {
-        if (e.key === 'ArrowLeft') goPrev();
-        if (e.key === 'ArrowRight') goNext();
-      }
+      if (e.key === 'ArrowLeft') goPrev();
+      if (e.key === 'ArrowRight') goNext();
     }
     document.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden';
@@ -62,9 +63,36 @@ export default function ImageViewer({ images, initialIndex = 0, onClose, onRemov
 
   if (!current || total === 0) return null;
 
-  function handleStartCrop() {
-    if (current.source === 'url' && !current.file) return;
-    // Restore last crop state, or start at 100%
+  const ASPECT_RATIOS = [
+    { label: 'Свободно', value: undefined },
+    { label: '1:1', value: 1 },
+    { label: '4:5', value: 4 / 5 },
+    { label: '3:4', value: 3 / 4 },
+    { label: '16:9', value: 16 / 9 },
+  ];
+
+  async function handleStartCrop() {
+    // For images without a local file — fetch via BFF proxy to avoid CORS
+    if (!current.file) {
+      const imageUrl = uploads[current.localId]?.url || current.url;
+      setFetching(true);
+      try {
+        const file = await fetchImageAsFile(imageUrl);
+        const blobUrl = URL.createObjectURL(file);
+        onReplace?.(current.localId, {
+          ...current,
+          file,
+          originalUrl: blobUrl,
+          originalFile: file,
+          url: blobUrl,
+        });
+      } catch {
+        setFetching(false);
+        return;
+      }
+      setFetching(false);
+    }
+    setAspect(undefined);
     setCrop(current.lastCrop || { unit: '%', x: 0, y: 0, width: 100, height: 100 });
     setCompletedCrop(null);
     setCropping(true);
@@ -74,62 +102,100 @@ export default function ImageViewer({ images, initialIndex = 0, onClose, onRemov
     setCropping(false);
     setCrop(undefined);
     setCompletedCrop(null);
+    setAspect(undefined);
+  }
+
+  function handleAspectChange(newAspect) {
+    setAspect(newAspect);
+    if (newAspect && imgRef.current) {
+      const { width, height } = imgRef.current;
+      const newCrop = centerCropForAspect(width, height, newAspect);
+      setCrop(newCrop);
+      // Compute pixel crop so "Применить" stays enabled
+      setCompletedCrop({
+        x: (newCrop.x / 100) * width,
+        y: (newCrop.y / 100) * height,
+        width: (newCrop.width / 100) * width,
+        height: (newCrop.height / 100) * height,
+        unit: 'px',
+      });
+    }
+  }
+
+  function centerCropForAspect(imgW, imgH, ratio) {
+    let cropW, cropH;
+    if (imgW / imgH > ratio) {
+      cropH = imgH;
+      cropW = cropH * ratio;
+    } else {
+      cropW = imgW;
+      cropH = cropW / ratio;
+    }
+    const pctW = (cropW / imgW) * 100;
+    const pctH = (cropH / imgH) * 100;
+    return {
+      unit: '%',
+      x: (100 - pctW) / 2,
+      y: (100 - pctH) / 2,
+      width: pctW,
+      height: pctH,
+    };
+  }
+
+  async function applyCrop(targetImage, cropData, completedCropData) {
+    const image = imgRef.current;
+    if (!image || !completedCropData?.width || !completedCropData?.height) return;
+
+    const canvas = document.createElement('canvas');
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+
+    canvas.width = completedCropData.width * scaleX;
+    canvas.height = completedCropData.height * scaleY;
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(
+      image,
+      completedCropData.x * scaleX,
+      completedCropData.y * scaleY,
+      completedCropData.width * scaleX,
+      completedCropData.height * scaleY,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error('toBlob failed'))),
+        'image/jpeg',
+        0.92,
+      );
+    });
+
+    const newUrl = URL.createObjectURL(blob);
+    const newFile = new File([blob], targetImage.file?.name || 'cropped.jpg', {
+      type: 'image/jpeg',
+    });
+
+    onReplace?.(targetImage.localId, {
+      ...targetImage,
+      file: newFile,
+      url: newUrl,
+      source: 'file',
+      originalUrl: targetImage.originalUrl || targetImage.url,
+      originalFile: targetImage.originalFile || targetImage.file,
+      lastCrop: cropData,
+    });
   }
 
   async function handleApplyCrop() {
-    const image = imgRef.current;
-    const c = completedCrop;
-    if (!image || !c?.width || !c?.height) return;
-
+    if (!completedCrop?.width) return;
     setApplying(true);
     try {
-      const canvas = document.createElement('canvas');
-      const scaleX = image.naturalWidth / image.width;
-      const scaleY = image.naturalHeight / image.height;
-
-      canvas.width = c.width * scaleX;
-      canvas.height = c.height * scaleY;
-
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(
-        image,
-        c.x * scaleX,
-        c.y * scaleY,
-        c.width * scaleX,
-        c.height * scaleY,
-        0,
-        0,
-        canvas.width,
-        canvas.height,
-      );
-
-      const blob = await new Promise((resolve, reject) => {
-        canvas.toBlob(
-          (b) => (b ? resolve(b) : reject(new Error('toBlob failed'))),
-          'image/jpeg',
-          0.92,
-        );
-      });
-
-      const newUrl = URL.createObjectURL(blob);
-      const newFile = new File([blob], current.file?.name || 'cropped.jpg', {
-        type: 'image/jpeg',
-      });
-
-      onReplace?.(current.localId, {
-        ...current,
-        file: newFile,
-        url: newUrl,
-        source: 'file',
-        // Preserve the original for future re-crops
-        originalUrl: current.originalUrl || current.url,
-        originalFile: current.originalFile || current.file,
-        lastCrop: crop,
-      });
-
-      setCropping(false);
-      setCrop(undefined);
-      setCompletedCrop(null);
+      await applyCrop(current, crop, completedCrop);
+      resetCropState();
     } catch (err) {
       console.warn('Crop failed:', err);
     } finally {
@@ -137,11 +203,42 @@ export default function ImageViewer({ images, initialIndex = 0, onClose, onRemov
     }
   }
 
+  function resetCropState() {
+    setCropping(false);
+    setCrop(undefined);
+    setCompletedCrop(null);
+    setAspect(undefined);
+  }
+
+  async function navigateTo(idx) {
+    if (idx === activeIndex) return;
+    const wasCropping = cropping;
+    if (cropping && completedCrop?.width) {
+      try {
+        await applyCrop(current, crop, completedCrop);
+      } catch {}
+    }
+    // Reset crop state but keep crop mode if we were cropping
+    setCrop(undefined);
+    setCompletedCrop(null);
+    setAspect(undefined);
+    setActiveIndex(idx);
+    if (wasCropping) {
+      // Re-enter crop mode for the new image on next render
+      const nextImage = images[idx];
+      if (nextImage && (nextImage.source === 'file' || nextImage.file)) {
+        setCrop(nextImage.lastCrop || { unit: '%', x: 0, y: 0, width: 100, height: 100 });
+      } else {
+        setCropping(false);
+      }
+    }
+  }
+
   function handleRemove() {
     onRemove?.(current.localId, current);
   }
 
-  const canCrop = current.source === 'file' || (current.source === 'url' && current.file);
+  const canCrop = current.source === 'file' || current.source === 'url';
 
   return (
     <div className={styles.overlay} onClick={cropping ? undefined : onClose} role="dialog" aria-label="Просмотр изображения">
@@ -152,10 +249,9 @@ export default function ImageViewer({ images, initialIndex = 0, onClose, onRemov
               key={img.localId}
               type="button"
               className={`${styles.thumb} ${idx === activeIndex ? styles.thumbActive : ''}`}
-              onClick={() => { if (!cropping) setActiveIndex(idx); }}
+              onClick={() => navigateTo(idx)}
               aria-label={`Изображение ${idx + 1}`}
               aria-current={idx === activeIndex ? 'true' : undefined}
-              disabled={cropping}
             >
               <img src={img.url} alt={img.alt} className={styles.thumbImg} />
             </button>
@@ -179,7 +275,12 @@ export default function ImageViewer({ images, initialIndex = 0, onClose, onRemov
               <div className={styles.cropArea}>
                 <ReactCrop
                   crop={crop}
+                  aspect={aspect}
                   onChange={(c, percentCrop) => {
+                    if (aspect) {
+                      setCrop(percentCrop);
+                      return;
+                    }
                     const snap = 3;
                     const s = { ...percentCrop };
                     if (s.x < snap) { s.width += s.x; s.x = 0; }
@@ -207,6 +308,18 @@ export default function ImageViewer({ images, initialIndex = 0, onClose, onRemov
               </div>
 
               <div className={styles.cropToolbar}>
+                <div className={styles.cropRatios}>
+                  {ASPECT_RATIOS.map((r) => (
+                    <button
+                      key={r.label}
+                      type="button"
+                      className={aspect === r.value ? styles.cropRatioActive : styles.cropRatio}
+                      onClick={() => handleAspectChange(r.value)}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
                 <div className={styles.cropActions}>
                   <button type="button" className={styles.cropCancelBtn} onClick={handleCancelCrop}>
                     Отмена
@@ -240,12 +353,12 @@ export default function ImageViewer({ images, initialIndex = 0, onClose, onRemov
               )}
 
               <div className={styles.imageWrapper}>
-                <img src={current.url} alt={current.alt} className={styles.image} draggable={false} />
+                <img src={uploads[current.localId]?.url || current.url} alt={current.alt} className={styles.image} draggable={false} />
               </div>
 
               <div className={styles.toolbar}>
                 {canCrop && (
-                  <button type="button" className={styles.toolBtn} onClick={handleStartCrop} aria-label="Обрезать изображение">
+                  <button type="button" className={styles.toolBtn} onClick={handleStartCrop} disabled={fetching} aria-label="Обрезать изображение">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                       <path d="M6 2V6M6 6V19C6 19.5523 6.44772 20 7 20H18V24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       <path d="M18 22V18M18 18V5C18 4.44772 17.5523 4 17 4H6V0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

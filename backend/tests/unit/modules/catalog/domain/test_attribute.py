@@ -14,7 +14,6 @@ import pytest
 from src.modules.catalog.domain.entities import (
     Attribute,
     AttributeValue,
-    ProductAttributeValue,
 )
 from src.modules.catalog.domain.exceptions import MissingRequiredLocalesError
 from src.modules.catalog.domain.value_objects import (

@@ -86,6 +86,8 @@ class TestProductAttributeValueRoundtrip:
         )
         from src.modules.catalog.infrastructure.models import (
             Attribute as OrmAttribute,
+        )
+        from src.modules.catalog.infrastructure.models import (
             AttributeValue as OrmAttributeValue,
         )
 

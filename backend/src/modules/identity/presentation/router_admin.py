@@ -72,6 +72,7 @@ from src.modules.identity.presentation.schemas import (
     CreateRoleRequest,
     CreateRoleResponse,
     MessageResponse,
+    PermissionDetailResponse,
     PermissionGroupResponse,
     RoleDetailResponse,
     RoleInfoResponse,
@@ -352,7 +353,9 @@ async def update_role(
         name=detail.name,
         description=detail.description,
         is_system=detail.is_system,
-        permissions=detail.permissions,  # type: ignore[arg-type]
+        permissions=[
+            PermissionDetailResponse(**p.model_dump()) for p in detail.permissions
+        ],
     )
 
 
@@ -416,7 +419,9 @@ async def set_role_permissions(
         name=detail.name,
         description=detail.description,
         is_system=detail.is_system,
-        permissions=detail.permissions,  # type: ignore[arg-type]
+        permissions=[
+            PermissionDetailResponse(**p.model_dump()) for p in detail.permissions
+        ],
     )
 
 

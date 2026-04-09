@@ -31,8 +31,8 @@ BearerCredentials = Annotated[
 @inject
 async def get_auth_context(
     credentials: BearerCredentials,
-    token_provider: FromDishka[ITokenProvider] = ...,  # type: ignore[assignment]
-    identity_repo: FromDishka[IIdentityRepository] = ...,  # type: ignore[assignment]
+    token_provider: FromDishka[ITokenProvider],
+    identity_repo: FromDishka[IIdentityRepository],
 ) -> AuthContext:
     """Extract AuthContext from a JWT Bearer token.
 
@@ -128,7 +128,7 @@ class RequirePermission:
     async def __call__(
         self,
         auth: Auth,
-        resolver: FromDishka[IPermissionResolver] = ...,  # type: ignore[assignment]
+        resolver: FromDishka[IPermissionResolver],
     ) -> AuthContext:
         """Check that the session has the required permission.
 

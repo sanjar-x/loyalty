@@ -247,6 +247,7 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet, upl
       {viewerIndex !== null && (
         <ImageViewer
           images={images}
+          uploads={uploads}
           initialIndex={viewerIndex}
           onClose={() => setViewerIndex(null)}
           onRemove={(localId, image) => {

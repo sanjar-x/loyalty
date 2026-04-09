@@ -19,10 +19,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.modules.catalog.application.commands.bulk_create_categories import (
+    MAX_BULK_CATEGORIES,
     BulkCategoryItem,
     BulkCreateCategoriesCommand,
     BulkCreateCategoriesHandler,
-    MAX_BULK_CATEGORIES,
 )
 from src.modules.catalog.application.commands.create_category import (
     CreateCategoryCommand,

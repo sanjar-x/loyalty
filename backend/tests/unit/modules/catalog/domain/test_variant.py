@@ -12,7 +12,6 @@ from src.modules.catalog.domain.entities import ProductVariant
 from src.modules.catalog.domain.exceptions import MissingRequiredLocalesError
 from src.modules.catalog.domain.value_objects import Money
 from tests.factories.product_builder import ProductBuilder
-from tests.factories.sku_builder import SKUBuilder
 from tests.factories.variant_builder import ProductVariantBuilder
 
 

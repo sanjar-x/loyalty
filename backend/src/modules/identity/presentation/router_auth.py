@@ -181,7 +181,7 @@ async def refresh_token(
 )
 async def logout(
     auth: Auth,
-    handler: FromDishka[LogoutHandler] = ...,  # type: ignore[assignment]
+    handler: FromDishka[LogoutHandler],
 ) -> MessageResponse:
     """Revoke the current session.
 
@@ -203,7 +203,7 @@ async def logout(
 )
 async def logout_all(
     auth: Auth,
-    handler: FromDishka[LogoutAllHandler] = ...,  # type: ignore[assignment]
+    handler: FromDishka[LogoutAllHandler],  # type: ignore[assignment]
 ) -> MessageResponse:
     """Revoke all sessions for the authenticated identity.
 
