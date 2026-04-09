@@ -1,68 +1,30 @@
 {
-  "name": "new",
+  "name": "loyaltymarket",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint --max-warnings=0",
-    "typecheck": "tsc --noEmit",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "prepare": "husky",
-    "plop": "plop"
+    "lint": "eslint"
   },
   "dependencies": {
-    "@t3-oss/env-nextjs": "^0.12",
-    "@tanstack/react-query": "^5",
-    "@tanstack/react-query-devtools": "^5",
-    "class-variance-authority": "^0.7",
-    "clsx": "^2",
-    "ky": "^1",
-    "lucide-react": "^0.511",
-    "next": "16.2.2",
-    "next-themes": "^0.4.6",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "sonner": "^2",
-    "tailwind-merge": "^3",
-    "zod": "^3",
-    "zustand": "^5"
+    "@reduxjs/toolkit": "^2.11.2",
+    "clsx": "^2.1.1",
+    "leaflet": "^1.9.4",
+    "leaflet.markercluster": "^1.5.3",
+    "lucide-react": "0.555.0",
+    "next": "^16.1.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-redux": "^9.2.0"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19",
-    "@commitlint/config-conventional": "^19",
-    "@playwright/test": "^1",
-    "@tailwindcss/postcss": "^4",
-    "@testing-library/react": "^16",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@vitejs/plugin-react": "^4",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.2",
-    "eslint-plugin-boundaries": "^5",
-    "husky": "^9",
-    "lint-staged": "^16",
-    "msw": "^2",
-    "plop": "^4",
-    "prettier": "^3",
-    "tailwindcss": "^4",
-    "typescript": "^5",
-    "vite-tsconfig-paths": "^5",
-    "vitest": "^3"
-  },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix --max-warnings=0",
-      "prettier --write"
-    ],
-    "*.{json,md,yml,yaml}": [
-      "prettier --write"
-    ],
-    "*.css": [
-      "prettier --write"
-    ]
+    "@types/node": "25.0.9",
+    "@types/react": "19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "baseline-browser-mapping": "^2.10.0",
+    "eslint": "9",
+    "eslint-config-next": "16.0.5"
   }
 }

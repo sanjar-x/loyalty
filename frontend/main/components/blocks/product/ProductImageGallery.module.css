@@ -1,0 +1,147 @@
+.c1 {
+  width: 100%;
+}
+.c2 {
+  position: relative;
+  width: 100%;
+  background: #ffffff;
+  overflow: hidden;
+  user-select: none;
+  height: clamp(320px, 55vh, 420px);
+}
+.c3 {
+  display: flex;
+  transition-duration: 300ms;
+  transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  height: 100%;
+}
+.c4 {
+  position: relative;
+  flex-shrink: 0;
+  height: 100%;
+}
+.c5 {
+  object-fit: contain;
+  background: #ffffff;
+}
+.c6 {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2;
+}
+.c7 {
+  display: flex;
+  align-items: center;
+  padding: 10px 19px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  box-shadow: 0px 0px 49.4px 0px rgba(0, 0, 0, 0.11);
+}
+.c8 {
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.c10 {
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.tw1 {
+  gap: 10px;
+}
+
+.tw2 {
+  width: 22px;
+  height: 20px;
+}
+
+.tw3 {
+  width: 22px;
+  height: 20px;
+}
+
+.tw4 {
+  width: 19px;
+  height: 20px;
+}
+
+.transitionTransform {
+  transition-property: transform;
+}
+
+.dotsWrap {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 0 2px;
+}
+
+.dot,
+.dotActive {
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+}
+
+.dot {
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.dotActive {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.stripRoot {
+  padding: 6px 0 2px;
+}
+
+.stripRow {
+  display: flex;
+  gap: 12px;
+  padding: 8px 16px;
+  overflow-x: auto;
+}
+
+.stripItem {
+  position: relative;
+  flex: 0 0 auto;
+  width: 82px;
+  height: 82px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    opacity 150ms ease;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.stripItemActive {
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.stripItemInactive {
+  opacity: 0.95;
+}
+
+.stripItemInactive:hover {
+  opacity: 1;
+}
+
+.stripImage {
+  object-fit: contain;
+}

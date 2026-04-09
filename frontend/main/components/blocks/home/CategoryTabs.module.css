@@ -1,0 +1,35 @@
+.outer {
+  padding: 3px 16px 15px 16px;
+  overflow-x: auto;
+}
+
+.inner {
+  display: flex;
+  gap: 3px;
+}
+
+.tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+
+  height: 29px;
+  padding: 0 12px;
+  border-radius: 47.49px;
+
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+
+  color: #111111;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.active {
+  background: #111111;
+  color: #ffffff;
+}

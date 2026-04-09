@@ -4,8 +4,7 @@
     "sort_order": 1,
     "translations": [
       { "lang_code": "en", "name": "Region" },
-      { "lang_code": "ru", "name": "Регион" },
-      { "lang_code": "uz-Latn", "name": "Viloyat" }
+      { "lang_code": "ru", "name": "Регион" }
     ]
   },
   {
@@ -13,8 +12,7 @@
     "sort_order": 2,
     "translations": [
       { "lang_code": "en", "name": "City" },
-      { "lang_code": "ru", "name": "Город" },
-      { "lang_code": "uz-Latn", "name": "Shahar" }
+      { "lang_code": "ru", "name": "Город" }
     ]
   },
   {
@@ -22,8 +20,7 @@
     "sort_order": 3,
     "translations": [
       { "lang_code": "en", "name": "Republic" },
-      { "lang_code": "ru", "name": "Республика" },
-      { "lang_code": "uz-Latn", "name": "Respublika" }
+      { "lang_code": "ru", "name": "Республика" }
     ]
   },
   {
@@ -31,8 +28,7 @@
     "sort_order": 4,
     "translations": [
       { "lang_code": "en", "name": "Administrative region" },
-      { "lang_code": "ru", "name": "Область" },
-      { "lang_code": "uz-Latn", "name": "Viloyat" }
+      { "lang_code": "ru", "name": "Область" }
     ]
   },
   {
@@ -40,8 +36,7 @@
     "sort_order": 5,
     "translations": [
       { "lang_code": "en", "name": "Administrative territory" },
-      { "lang_code": "ru", "name": "Край" },
-      { "lang_code": "uz-Latn", "name": "Kray" }
+      { "lang_code": "ru", "name": "Край" }
     ]
   },
   {
@@ -49,8 +44,7 @@
     "sort_order": 6,
     "translations": [
       { "lang_code": "en", "name": "Autonomous district" },
-      { "lang_code": "ru", "name": "Автономный округ" },
-      { "lang_code": "uz-Latn", "name": "Avtonom okrug" }
+      { "lang_code": "ru", "name": "Автономный округ" }
     ]
   },
   {
@@ -58,8 +52,7 @@
     "sort_order": 7,
     "translations": [
       { "lang_code": "en", "name": "Autonomous city" },
-      { "lang_code": "ru", "name": "Город федерального значения" },
-      { "lang_code": "uz-Latn", "name": "Federal shahar" }
+      { "lang_code": "ru", "name": "Город федерального значения" }
     ]
   },
   {
@@ -67,8 +60,7 @@
     "sort_order": 8,
     "translations": [
       { "lang_code": "en", "name": "Autonomous region" },
-      { "lang_code": "ru", "name": "Автономная область" },
-      { "lang_code": "uz-Latn", "name": "Avtonom viloyat" }
+      { "lang_code": "ru", "name": "Автономная область" }
     ]
   }
 ]

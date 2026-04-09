@@ -1,0 +1,27 @@
+.root {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0px 16px 0;
+  position: fixed;
+  text-align: center;
+  z-index: 19;
+  top: 0;
+  /* padding-top: 15px; */
+  padding-bottom: 14px;
+  margin: 0 auto;
+  width: 100vw;
+  left: 0;
+  right: 0;
+  max-width: 412px;
+  padding-top: calc(var(--tg-safe-area-top, 0px) + 15px);
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.06;
+  letter-spacing: -0.01em;
+  font-family: Inter, sans-serif;
+}

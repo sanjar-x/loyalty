@@ -16,6 +16,28 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## DaData setup (local + Vercel)
+
+This project calls DaData from server-side route handlers:
+
+- `POST /api/dadata/suggest/address` requires `DADATA_TOKEN`
+- `POST /api/dadata/clean/address` requires both `DADATA_TOKEN` and `DADATA_SECRET`
+
+### Local development
+
+1. Copy `.env.example` to `.env.local`
+2. Fill in `DADATA_TOKEN` (and `DADATA_SECRET` if you use the cleaner endpoint)
+3. Restart `npm run dev`
+
+### Vercel deployment
+
+Vercel does **not** read your local `.env.local`. You must add env vars in the Vercel project settings:
+
+1. Project → Settings → Environment Variables
+2. Add `DADATA_TOKEN` (and `DADATA_SECRET` if needed)
+3. Make sure you set them for **Production** (and **Preview** if you use preview deployments)
+4. Redeploy
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
@@ -34,3 +56,4 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# telegramsotre
