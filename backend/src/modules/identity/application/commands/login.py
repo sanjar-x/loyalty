@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from src.modules.identity.domain.entities import Session
 from src.modules.identity.domain.exceptions import (
     InvalidCredentialsError,
-    MaxSessionsExceededError,
 )
 from src.modules.identity.domain.interfaces import (
     IIdentityRepository,
@@ -129,15 +128,15 @@ class LoginHandler:
                     identity_id=str(identity.id),
                 )
 
-            # Check session limit
-            active_count = await self._session_repo.count_active(identity.id)
-            if active_count >= self._max_sessions:
-                self._logger.warning(
-                    "max_sessions.exceeded",
-                    identity_id=str(identity.id),
-                    ip=command.ip_address,
-                )
-                raise MaxSessionsExceededError(max_sessions=self._max_sessions)
+            # # Check session limit
+            # active_count = await self._session_repo.count_active(identity.id)
+            # if active_count >= self._max_sessions:
+            #     self._logger.warning(
+            #         "max_sessions.exceeded",
+            #         identity_id=str(identity.id),
+            #         ip=command.ip_address,
+            #     )
+            #     raise MaxSessionsExceededError(max_sessions=self._max_sessions)
 
             # Generate tokens
             raw_refresh, _ = self._token_provider.create_refresh_token()
