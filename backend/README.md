@@ -93,8 +93,9 @@ cp .env.example .env
 uv run alembic upgrade head
 ```
 
-python -m src.modules.identity.management.create_admin --email sanjar68x@gmail.com --password 'admin' --username admin
-python -m src.modules.catalog.management.sync_categories
+uv run python -m seed.main                         # all steps (server must be running)
+uv run python -m seed.main --step roles,admin,geo  # DB-only (no server needed)
+uv run python -m seed.main --step brands,products  # API-only
 
 **5. Start the API server:**
 
