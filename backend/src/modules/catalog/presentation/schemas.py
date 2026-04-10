@@ -288,6 +288,52 @@ class BrandUpdateRequest(CamelModel):
 BrandListResponse = PaginatedResponse[BrandResponse]
 
 
+# ---------------------------------------------------------------------------
+# AttributeGroup schemas
+# ---------------------------------------------------------------------------
+
+
+class AttributeGroupCreateRequest(CamelModel):
+    """Request body for creating a new attribute group."""
+
+    code: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-z0-9_-]+$")
+    name_i18n: dict[str, str] = Field(..., min_length=1)
+    sort_order: int = Field(default=0, ge=0)
+
+
+class AttributeGroupCreateResponse(CamelModel):
+    """Response after attribute group creation."""
+
+    id: uuid.UUID
+
+
+class AttributeGroupResponse(CamelModel):
+    """Attribute group detail response."""
+
+    id: uuid.UUID
+    code: str
+    name_i18n: dict[str, str]
+    sort_order: int
+
+
+class AttributeGroupUpdateRequest(CamelModel):
+    """Partial update request -- all fields optional (PATCH semantics)."""
+
+    name_i18n: dict[str, str] | None = Field(None, min_length=1)
+    sort_order: int | None = Field(None, ge=0)
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> AttributeGroupUpdateRequest:
+        if not self.model_fields_set:
+            raise ValueError(
+                "At least one field (nameI18n or sortOrder) must be provided"
+            )
+        return self
+
+
+AttributeGroupListResponse = PaginatedResponse[AttributeGroupResponse]
+
+
 class BulkBrandItem(CamelModel):
     """A single brand within a bulk-create request."""
 

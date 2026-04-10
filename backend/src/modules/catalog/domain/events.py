@@ -555,3 +555,48 @@ class SKUDeletedEvent(
     sku_id: uuid.UUID | None = None
     aggregate_type: str = "Product"
     event_type: str = "SKUDeletedEvent"
+
+
+# ---------------------------------------------------------------------------
+# AttributeGroup events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class AttributeGroupCreatedEvent(
+    CatalogEvent,
+    required_fields=("group_id",),
+    aggregate_id_field="group_id",
+):
+    """Emitted when a new attribute group is created."""
+
+    group_id: uuid.UUID | None = None
+    code: str = ""
+    aggregate_type: str = "AttributeGroup"
+    event_type: str = "AttributeGroupCreatedEvent"
+
+
+@dataclass
+class AttributeGroupUpdatedEvent(
+    CatalogEvent,
+    required_fields=("group_id",),
+    aggregate_id_field="group_id",
+):
+    """Emitted when an attribute group is updated."""
+
+    group_id: uuid.UUID | None = None
+    aggregate_type: str = "AttributeGroup"
+    event_type: str = "AttributeGroupUpdatedEvent"
+
+
+@dataclass
+class AttributeGroupDeletedEvent(
+    CatalogEvent,
+    required_fields=("group_id",),
+    aggregate_id_field="group_id",
+):
+    """Emitted when an attribute group is deleted."""
+
+    group_id: uuid.UUID | None = None
+    aggregate_type: str = "AttributeGroup"
+    event_type: str = "AttributeGroupDeletedEvent"

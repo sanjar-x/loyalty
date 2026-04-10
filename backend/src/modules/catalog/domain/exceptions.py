@@ -641,3 +641,42 @@ class AttributeNotInTemplateError(UnprocessableEntityError):
                 "attribute_id": str(attribute_id),
             },
         )
+
+
+# ---------------------------------------------------------------------------
+# AttributeGroup aggregate exceptions
+# ---------------------------------------------------------------------------
+
+
+class AttributeGroupCodeConflictError(ConflictError):
+    """Raised when an attribute group code collides with an existing group."""
+
+    def __init__(self, code: str):
+        super().__init__(
+            message=f"Attribute group with code '{code}' already exists.",
+            error_code="ATTRIBUTE_GROUP_CODE_CONFLICT",
+            details={"code": code},
+        )
+
+
+class AttributeGroupHasAttributesError(UnprocessableEntityError):
+    """Raised when trying to delete a group that still contains attributes."""
+
+    def __init__(self, group_id: uuid.UUID):
+        super().__init__(
+            message=f"Attribute group {group_id} still has attributes assigned. "
+            "Reassign or delete them first.",
+            error_code="ATTRIBUTE_GROUP_HAS_ATTRIBUTES",
+            details={"group_id": str(group_id)},
+        )
+
+
+class AttributeGroupProtectedError(UnprocessableEntityError):
+    """Raised when trying to delete the protected 'general' group."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="The 'general' attribute group is protected and cannot be deleted.",
+            error_code="ATTRIBUTE_GROUP_PROTECTED",
+            details={"code": "general"},
+        )

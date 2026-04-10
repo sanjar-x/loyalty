@@ -85,6 +85,23 @@ BrandListReadModel = PaginatedReadModel[BrandReadModel]
 
 
 # ---------------------------------------------------------------------------
+# AttributeGroup read models
+# ---------------------------------------------------------------------------
+
+
+class AttributeGroupReadModel(BaseModel):
+    """Read model for a single attribute group."""
+
+    id: uuid.UUID
+    code: str
+    name_i18n: dict[str, str]
+    sort_order: int
+
+
+AttributeGroupListReadModel = PaginatedReadModel[AttributeGroupReadModel]
+
+
+# ---------------------------------------------------------------------------
 # Attribute read models
 # ---------------------------------------------------------------------------
 

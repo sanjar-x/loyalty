@@ -48,6 +48,9 @@ from src.modules.catalog.application.commands.clone_attribute_template import (
 from src.modules.catalog.application.commands.create_attribute import (
     CreateAttributeHandler,
 )
+from src.modules.catalog.application.commands.create_attribute_group import (
+    CreateAttributeGroupHandler,
+)
 from src.modules.catalog.application.commands.create_attribute_template import (
     CreateAttributeTemplateHandler,
 )
@@ -58,6 +61,9 @@ from src.modules.catalog.application.commands.create_category import (
 from src.modules.catalog.application.commands.create_product import CreateProductHandler
 from src.modules.catalog.application.commands.delete_attribute import (
     DeleteAttributeHandler,
+)
+from src.modules.catalog.application.commands.delete_attribute_group import (
+    DeleteAttributeGroupHandler,
 )
 from src.modules.catalog.application.commands.delete_attribute_template import (
     DeleteAttributeTemplateHandler,
@@ -99,6 +105,9 @@ from src.modules.catalog.application.commands.unbind_attribute_from_template imp
 from src.modules.catalog.application.commands.update_attribute import (
     UpdateAttributeHandler,
 )
+from src.modules.catalog.application.commands.update_attribute_group import (
+    UpdateAttributeGroupHandler,
+)
 from src.modules.catalog.application.commands.update_attribute_template import (
     UpdateAttributeTemplateHandler,
 )
@@ -119,6 +128,9 @@ from src.modules.catalog.application.commands.update_template_attribute_binding 
 )
 from src.modules.catalog.application.commands.update_variant import UpdateVariantHandler
 from src.modules.catalog.application.queries.get_attribute import GetAttributeHandler
+from src.modules.catalog.application.queries.get_attribute_group import (
+    GetAttributeGroupHandler,
+)
 from src.modules.catalog.application.queries.get_attribute_usage import (
     GetAttributeUsageHandler,
 )
@@ -133,6 +145,9 @@ from src.modules.catalog.application.queries.get_category_tree import (
 from src.modules.catalog.application.queries.get_product import GetProductHandler
 from src.modules.catalog.application.queries.get_product_completeness import (
     GetProductCompletenessHandler,
+)
+from src.modules.catalog.application.queries.list_attribute_groups import (
+    ListAttributeGroupsHandler,
 )
 from src.modules.catalog.application.queries.list_attribute_templates import (
     GetAttributeTemplateHandler,
@@ -257,16 +272,27 @@ class BrandProvider(Provider):
 
 
 class AttributeGroupProvider(Provider):
-    """DI provider for attribute group repository.
-
-    Handlers were removed — groups are seed-only reference data.
-    The repository is still needed by delete_attribute (orphan→general).
-    """
+    """DI provider for attribute group repository and handlers."""
 
     attribute_group_repo: CompositeDependencySource = provide(
         AttributeGroupRepository,
         scope=Scope.REQUEST,
         provides=IAttributeGroupRepository,
+    )
+    create_attribute_group_handler: CompositeDependencySource = provide(
+        CreateAttributeGroupHandler, scope=Scope.REQUEST
+    )
+    update_attribute_group_handler: CompositeDependencySource = provide(
+        UpdateAttributeGroupHandler, scope=Scope.REQUEST
+    )
+    delete_attribute_group_handler: CompositeDependencySource = provide(
+        DeleteAttributeGroupHandler, scope=Scope.REQUEST
+    )
+    get_attribute_group_handler: CompositeDependencySource = provide(
+        GetAttributeGroupHandler, scope=Scope.REQUEST
+    )
+    list_attribute_groups_handler: CompositeDependencySource = provide(
+        ListAttributeGroupsHandler, scope=Scope.REQUEST
     )
 
 
