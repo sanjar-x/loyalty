@@ -34,7 +34,7 @@ from src.modules.catalog.domain.interfaces import (
     ITemplateAttributeBindingRepository,
 )
 from src.modules.catalog.domain.value_objects import AttributeLevel, Money
-from src.shared.exceptions import UnprocessableEntityError
+from src.shared.exceptions import UnprocessableEntityError, ValidationError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -135,11 +135,21 @@ class GenerateSKUMatrixHandler:
 
             # Build price/compare_at_price pair
             if command.price_amount is not None:
-                price, compare_at_price = Money.from_primitives(
-                    amount=command.price_amount,
-                    currency=command.price_currency,
-                    compare_at_amount=command.compare_at_price_amount,
-                )
+                try:
+                    price, compare_at_price = Money.from_primitives(
+                        amount=command.price_amount,
+                        currency=command.price_currency,
+                        compare_at_amount=command.compare_at_price_amount,
+                    )
+                except ValueError as exc:
+                    raise ValidationError(
+                        message=str(exc),
+                        error_code="INVALID_PRICE",
+                        details={
+                            "price_amount": command.price_amount,
+                            "compare_at_price_amount": command.compare_at_price_amount,
+                        },
+                    ) from exc
             else:
                 price, compare_at_price = None, None
 

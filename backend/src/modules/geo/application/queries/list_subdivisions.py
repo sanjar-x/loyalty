@@ -5,7 +5,7 @@ eager loading of translations.
 """
 
 import structlog
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -60,10 +60,11 @@ class ListSubdivisionsHandler:
         ]
 
         # When searching by translated name, JOIN on translations and ILIKE
-        search_join = search is not None and search.strip()
+        search_term = search.strip() if search is not None else ""
+        search_join = bool(search_term)
         if search_join:
-            pattern = f"%{search.strip()}%"
-            translation_filters = [
+            pattern = f"%{search_term}%"
+            translation_filters: list[ColumnElement[bool]] = [
                 SubdivisionTranslationModel.name.ilike(pattern),
             ]
             if lang_code is not None:
@@ -73,15 +74,12 @@ class ListSubdivisionsHandler:
 
         # Count total (database-side)
         count_stmt = (
-            select(func.count())
-            .select_from(SubdivisionModel)
-            .where(*base_filters)
+            select(func.count()).select_from(SubdivisionModel).where(*base_filters)
         )
         if search_join:
             count_stmt = count_stmt.join(
                 SubdivisionTranslationModel,
-                SubdivisionModel.code
-                == SubdivisionTranslationModel.subdivision_code,
+                SubdivisionModel.code == SubdivisionTranslationModel.subdivision_code,
             ).where(*translation_filters)
         total = (await self._session.execute(count_stmt)).scalar_one()
 
@@ -97,8 +95,7 @@ class ListSubdivisionsHandler:
         if search_join:
             stmt = stmt.join(
                 SubdivisionTranslationModel,
-                SubdivisionModel.code
-                == SubdivisionTranslationModel.subdivision_code,
+                SubdivisionModel.code == SubdivisionTranslationModel.subdivision_code,
             ).where(*translation_filters)
         result = await self._session.execute(stmt)
         subdivisions = result.scalars().unique().all()

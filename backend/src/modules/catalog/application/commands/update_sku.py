@@ -23,6 +23,7 @@ from src.modules.catalog.domain.exceptions import (
 )
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
+from src.shared.exceptions import ValidationError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -160,7 +161,13 @@ class UpdateSKUHandler:
                         else DEFAULT_CURRENCY
                     )
                 )
-                update_kwargs["price"] = Money(amount=new_amount, currency=new_currency)
+                try:
+                    update_kwargs["price"] = Money(amount=new_amount, currency=new_currency)
+                except ValueError as exc:
+                    raise ValidationError(
+                        message=str(exc),
+                        error_code="INVALID_PRICE",
+                    ) from exc
 
             # Handle compare_at_price via _provided_fields.
             if "compare_at_price_amount" in command._provided_fields:
@@ -179,10 +186,16 @@ class UpdateSKUHandler:
                             else DEFAULT_CURRENCY
                         )
                     )
-                    update_kwargs["compare_at_price"] = Money(
-                        amount=command.compare_at_price_amount,
-                        currency=effective_currency,
-                    )
+                    try:
+                        update_kwargs["compare_at_price"] = Money(
+                            amount=command.compare_at_price_amount,
+                            currency=effective_currency,
+                        )
+                    except ValueError as exc:
+                        raise ValidationError(
+                            message=str(exc),
+                            error_code="INVALID_PRICE",
+                        ) from exc
 
             if command.is_active is not None:
                 update_kwargs["is_active"] = command.is_active

@@ -17,6 +17,7 @@ from src.modules.catalog.domain.exceptions import (
 )
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
+from src.shared.exceptions import ValidationError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -106,11 +107,21 @@ class AddSKUHandler:
                 )
 
             if command.price_amount is not None:
-                price, compare_at_price = Money.from_primitives(
-                    amount=command.price_amount,
-                    currency=command.price_currency,
-                    compare_at_amount=command.compare_at_price_amount,
-                )
+                try:
+                    price, compare_at_price = Money.from_primitives(
+                        amount=command.price_amount,
+                        currency=command.price_currency,
+                        compare_at_amount=command.compare_at_price_amount,
+                    )
+                except ValueError as exc:
+                    raise ValidationError(
+                        message=str(exc),
+                        error_code="INVALID_PRICE",
+                        details={
+                            "price_amount": command.price_amount,
+                            "compare_at_price_amount": command.compare_at_price_amount,
+                        },
+                    ) from exc
             else:
                 price, compare_at_price = None, None
 
