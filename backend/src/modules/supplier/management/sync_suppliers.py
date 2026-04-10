@@ -20,11 +20,12 @@ from src.modules.supplier.domain.constants import SEED_SUPPLIERS
 logger = structlog.get_logger(__name__)
 
 _UPSERT_SUPPLIER = text("""
-    INSERT INTO suppliers (id, name, type, region, is_active, version)
-    VALUES (:id, :name, :type, :region, true, 1)
+    INSERT INTO suppliers (id, name, type, country_code, subdivision_code, is_active, version)
+    VALUES (:id, :name, :type, :country_code, :subdivision_code, true, 1)
     ON CONFLICT (id) DO UPDATE SET
-        name   = EXCLUDED.name,
-        region = EXCLUDED.region
+        name             = EXCLUDED.name,
+        country_code     = EXCLUDED.country_code,
+        subdivision_code = EXCLUDED.subdivision_code
 """)
 
 
@@ -40,7 +41,8 @@ async def sync_suppliers(
                     "id": str(supplier["id"]),
                     "name": supplier["name"],
                     "type": supplier["type"].name,
-                    "region": supplier["region"],
+                    "country_code": supplier["country_code"],
+                    "subdivision_code": supplier["subdivision_code"],
                 },
             )
 

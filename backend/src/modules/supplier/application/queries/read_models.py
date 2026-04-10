@@ -19,7 +19,8 @@ class SupplierReadModel(BaseModel):
     id: uuid.UUID
     name: str
     type: str
-    region: str
+    country_code: str
+    subdivision_code: str | None
     is_active: bool
     created_at: datetime
     updated_at: datetime

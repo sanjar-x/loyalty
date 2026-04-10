@@ -11,6 +11,7 @@ class SupplierCreatedEvent(DomainEvent):
     event_type: str = "supplier.created"
     supplier_name: str = ""
     supplier_type: str = ""
+    country_code: str = ""
 
 
 @dataclass

@@ -14,7 +14,8 @@ from src.shared.interfaces.uow import IUnitOfWork
 class CreateSupplierCommand:
     name: str
     type: SupplierType
-    region: str
+    country_code: str
+    subdivision_code: str | None = None
 
 
 @dataclass(frozen=True)
@@ -38,7 +39,8 @@ class CreateSupplierHandler:
             supplier = Supplier.create(
                 name=command.name,
                 supplier_type=command.type,
-                region=command.region,
+                country_code=command.country_code,
+                subdivision_code=command.subdivision_code,
             )
             await self._supplier_repo.add(supplier)
             self._uow.register_aggregate(supplier)

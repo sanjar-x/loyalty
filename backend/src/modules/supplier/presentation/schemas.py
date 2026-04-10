@@ -18,7 +18,21 @@ class PaginatedResponse[S](CamelModel):
 class SupplierCreateRequest(CamelModel):
     name: str = Field(..., min_length=1, max_length=255)
     type: str = Field(..., pattern=r"^(cross_border|local)$")
-    region: str = Field(..., min_length=1, max_length=100)
+    country_code: str = Field(
+        ...,
+        min_length=2,
+        max_length=2,
+        pattern=r"^[A-Z]{2}$",
+        description="ISO 3166-1 alpha-2 country code",
+        examples=["CN", "RU"],
+    )
+    subdivision_code: str | None = Field(
+        None,
+        max_length=10,
+        pattern=r"^[A-Z]{2}-[A-Z0-9]{1,6}$",
+        description="ISO 3166-2 subdivision code (optional)",
+        examples=["RU-MOW", "CN-BJ"],
+    )
 
 
 class SupplierCreateResponse(CamelModel):
@@ -27,14 +41,27 @@ class SupplierCreateResponse(CamelModel):
 
 class SupplierUpdateRequest(CamelModel):
     name: str | None = Field(None, min_length=1, max_length=255)
-    region: str | None = Field(None, min_length=1, max_length=100)
+    country_code: str | None = Field(
+        None,
+        min_length=2,
+        max_length=2,
+        pattern=r"^[A-Z]{2}$",
+        description="ISO 3166-1 alpha-2 country code",
+    )
+    subdivision_code: str | None = Field(
+        None,
+        max_length=10,
+        pattern=r"^[A-Z]{2}-[A-Z0-9]{1,6}$",
+        description="ISO 3166-2 subdivision code; send null to clear",
+    )
 
 
 class SupplierResponse(CamelModel):
     id: uuid.UUID
     name: str
     type: str
-    region: str
+    country_code: str
+    subdivision_code: str | None
     is_active: bool
     created_at: datetime
     updated_at: datetime

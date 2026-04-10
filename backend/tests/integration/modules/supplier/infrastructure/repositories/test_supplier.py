@@ -10,7 +10,8 @@ async def test_supplier_repository_add_and_get(db_session: AsyncSession):
     supplier = Supplier.create(
         name="Test Supplier",
         supplier_type=SupplierType.LOCAL,
-        region="Moscow",
+        country_code="RU",
+        subdivision_code="RU-MOW",
     )
     added = await repo.add(supplier)
     fetched = await repo.get(supplier.id)
@@ -18,7 +19,8 @@ async def test_supplier_repository_add_and_get(db_session: AsyncSession):
     assert fetched is not None
     assert fetched.name == "Test Supplier"
     assert fetched.type == SupplierType.LOCAL
-    assert fetched.region == "Moscow"
+    assert fetched.country_code == "RU"
+    assert fetched.subdivision_code == "RU-MOW"
     assert fetched.is_active is True
 
 
@@ -27,7 +29,7 @@ async def test_supplier_repository_update(db_session: AsyncSession):
     supplier = Supplier.create(
         name="Old Name",
         supplier_type=SupplierType.LOCAL,
-        region="Moscow",
+        country_code="RU",
     )
     await repo.add(supplier)
     supplier.update(name="New Name")
@@ -40,7 +42,7 @@ async def test_supplier_repository_deactivate(db_session: AsyncSession):
     supplier = Supplier.create(
         name="Active Supplier",
         supplier_type=SupplierType.CROSS_BORDER,
-        region="China",
+        country_code="CN",
     )
     await repo.add(supplier)
     supplier.deactivate()

@@ -19,6 +19,7 @@ from src.modules.supplier.application.commands.deactivate_supplier import (
     DeactivateSupplierHandler,
 )
 from src.modules.supplier.application.commands.update_supplier import (
+    _UNSET,
     UpdateSupplierCommand,
     UpdateSupplierHandler,
 )
@@ -57,7 +58,8 @@ async def create_supplier(
     command = CreateSupplierCommand(
         name=request.name,
         type=SupplierType(request.type),
-        region=request.region,
+        country_code=request.country_code,
+        subdivision_code=request.subdivision_code,
     )
     result = await handler.handle(command)
     return SupplierCreateResponse(id=result.supplier_id)
@@ -82,7 +84,8 @@ async def list_suppliers(
                 id=s.id,
                 name=s.name,
                 type=s.type,
-                region=s.region,
+                country_code=s.country_code,
+                subdivision_code=s.subdivision_code,
                 is_active=s.is_active,
                 created_at=s.created_at,
                 updated_at=s.updated_at,
@@ -110,7 +113,8 @@ async def get_supplier(
         id=result.id,
         name=result.name,
         type=result.type,
-        region=result.region,
+        country_code=result.country_code,
+        subdivision_code=result.subdivision_code,
         is_active=result.is_active,
         created_at=result.created_at,
         updated_at=result.updated_at,
@@ -120,7 +124,7 @@ async def get_supplier(
 @supplier_router.put(
     path="/{supplier_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Update supplier name/region",
+    summary="Update supplier",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_supplier(
@@ -128,10 +132,17 @@ async def update_supplier(
     request: SupplierUpdateRequest,
     handler: FromDishka[UpdateSupplierHandler],
 ) -> None:
+    # Use model_fields_set to distinguish "field absent" from "field = null".
+    subdivision_code = (
+        request.subdivision_code
+        if "subdivision_code" in request.model_fields_set
+        else _UNSET
+    )
     command = UpdateSupplierCommand(
         supplier_id=supplier_id,
         name=request.name,
-        region=request.region,
+        country_code=request.country_code,
+        subdivision_code=subdivision_code,
     )
     await handler.handle(command)
 

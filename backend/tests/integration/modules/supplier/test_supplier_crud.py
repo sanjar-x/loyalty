@@ -11,11 +11,14 @@ async def test_create_local_supplier(db_session: AsyncSession):
     supplier = Supplier.create(
         name="Moscow Store",
         supplier_type=SupplierType.LOCAL,
-        region="Moscow",
+        country_code="RU",
+        subdivision_code="RU-MOW",
     )
     result = await repo.add(supplier)
     assert result.id == supplier.id
     assert result.is_active is True
+    assert result.country_code == "RU"
+    assert result.subdivision_code == "RU-MOW"
 
 
 async def test_create_cross_border_supplier(db_session: AsyncSession):
@@ -23,10 +26,12 @@ async def test_create_cross_border_supplier(db_session: AsyncSession):
     supplier = Supplier.create(
         name="Poizon",
         supplier_type=SupplierType.CROSS_BORDER,
-        region="China",
+        country_code="CN",
     )
     result = await repo.add(supplier)
     assert result.type == SupplierType.CROSS_BORDER
+    assert result.country_code == "CN"
+    assert result.subdivision_code is None
 
 
 async def test_update_supplier_name(db_session: AsyncSession):
@@ -34,7 +39,7 @@ async def test_update_supplier_name(db_session: AsyncSession):
     supplier = Supplier.create(
         name="Old Name",
         supplier_type=SupplierType.LOCAL,
-        region="Moscow",
+        country_code="RU",
     )
     await repo.add(supplier)
     supplier.update(name="New Name")
@@ -48,7 +53,7 @@ async def test_query_service_get_info(db_session: AsyncSession):
     supplier = Supplier.create(
         name="Test",
         supplier_type=SupplierType.LOCAL,
-        region="Moscow",
+        country_code="RU",
     )
     await repo.add(supplier)
 

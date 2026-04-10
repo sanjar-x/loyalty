@@ -18,7 +18,8 @@ class SupplierRepository(ISupplierRepository):
             id=orm.id,
             name=orm.name,
             type=orm.type,
-            region=orm.region or "",
+            country_code=orm.country_code,
+            subdivision_code=orm.subdivision_code,
             is_active=orm.is_active,
             version=orm.version,
             created_at=orm.created_at,
@@ -33,7 +34,8 @@ class SupplierRepository(ISupplierRepository):
         orm.id = entity.id
         orm.name = entity.name
         orm.type = entity.type
-        orm.region = entity.region
+        orm.country_code = entity.country_code
+        orm.subdivision_code = entity.subdivision_code
         orm.is_active = entity.is_active
         return orm
 
