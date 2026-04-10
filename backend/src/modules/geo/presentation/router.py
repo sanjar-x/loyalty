@@ -224,6 +224,12 @@ async def list_subdivisions(
     lang: str | None = Query(
         None, description="Filter translations to this language code"
     ),
+    search: str | None = Query(
+        None,
+        min_length=1,
+        max_length=255,
+        description="Search subdivisions by translated name (requires lang)",
+    ),
     offset: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(50, ge=1, le=500, description="Pagination limit"),
 ) -> SubdivisionListReadModel:
@@ -231,6 +237,7 @@ async def list_subdivisions(
     result = await handler.handle(
         country_code=country_code,
         lang_code=lang,
+        search=search,
         offset=offset,
         limit=limit,
     )

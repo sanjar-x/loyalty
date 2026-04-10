@@ -18,6 +18,7 @@ from src.modules.geo.domain.exceptions import CountryNotFoundError
 from src.modules.geo.infrastructure.models import (
     CountryModel,
     SubdivisionModel,
+    SubdivisionTranslationModel,
 )
 
 logger = structlog.get_logger(__name__)
@@ -33,6 +34,7 @@ class ListSubdivisionsHandler:
         self,
         country_code: str,
         lang_code: str | None = None,
+        search: str | None = None,
         offset: int = 0,
         limit: int = 50,
     ) -> SubdivisionListReadModel:
@@ -41,6 +43,7 @@ class ListSubdivisionsHandler:
             "list_subdivisions.start",
             country_code=code,
             lang_code=lang_code,
+            search=search,
             offset=offset,
             limit=limit,
         )
@@ -50,29 +53,53 @@ class ListSubdivisionsHandler:
         if country is None:
             raise CountryNotFoundError(code)
 
+        # Base filters
+        base_filters = [
+            SubdivisionModel.country_code == code,
+            SubdivisionModel.is_active.is_(True),
+        ]
+
+        # When searching by translated name, JOIN on translations and ILIKE
+        search_join = search is not None and search.strip()
+        if search_join:
+            pattern = f"%{search.strip()}%"
+            translation_filters = [
+                SubdivisionTranslationModel.name.ilike(pattern),
+            ]
+            if lang_code is not None:
+                translation_filters.append(
+                    SubdivisionTranslationModel.lang_code == lang_code,
+                )
+
         # Count total (database-side)
         count_stmt = (
             select(func.count())
             .select_from(SubdivisionModel)
-            .where(
-                SubdivisionModel.country_code == code,
-                SubdivisionModel.is_active.is_(True),
-            )
+            .where(*base_filters)
         )
+        if search_join:
+            count_stmt = count_stmt.join(
+                SubdivisionTranslationModel,
+                SubdivisionModel.code
+                == SubdivisionTranslationModel.subdivision_code,
+            ).where(*translation_filters)
         total = (await self._session.execute(count_stmt)).scalar_one()
 
         # Fetch with translations
         stmt = (
             select(SubdivisionModel)
-            .where(
-                SubdivisionModel.country_code == code,
-                SubdivisionModel.is_active.is_(True),
-            )
+            .where(*base_filters)
             .options(selectinload(SubdivisionModel.translations))
             .order_by(SubdivisionModel.sort_order, SubdivisionModel.code)
             .offset(offset)
             .limit(limit)
         )
+        if search_join:
+            stmt = stmt.join(
+                SubdivisionTranslationModel,
+                SubdivisionModel.code
+                == SubdivisionTranslationModel.subdivision_code,
+            ).where(*translation_filters)
         result = await self._session.execute(stmt)
         subdivisions = result.scalars().unique().all()
 
