@@ -180,6 +180,7 @@ class StorefrontFilterAttributeReadModel(BaseModel):
     data_type: str
     ui_type: str
     is_dictionary: bool
+    level: str = "product"
     selection_mode: str = "multi"
     values: list[StorefrontValueReadModel]
     filter_settings: dict[str, Any] | None = None
@@ -478,3 +479,176 @@ class AttributeTemplateReadModel(BaseModel):
 
 
 AttributeTemplateListReadModel = PaginatedReadModel[AttributeTemplateReadModel]
+
+
+# ---------------------------------------------------------------------------
+# Storefront product read models (customer-facing)
+# ---------------------------------------------------------------------------
+
+
+class BreadcrumbItemReadModel(BaseModel):
+    """Single breadcrumb entry in a category path (root → leaf)."""
+
+    label_i18n: dict[str, str]
+    slug: str
+    full_slug: str
+
+
+class StorefrontImageReadModel(BaseModel):
+    """Image data for storefront product cards and detail pages."""
+
+    url: str
+    image_variants: list[dict] | None = None
+
+
+class StorefrontMoneyReadModel(BaseModel):
+    """Price info for storefront display, includes compare-at price."""
+
+    amount: int
+    currency: str
+    compare_at: int | None = None
+
+
+class StorefrontBrandReadModel(BaseModel):
+    """Minimal brand info embedded in product cards."""
+
+    id: uuid.UUID
+    name: str
+    slug: str
+    logo_url: str | None = None
+
+
+class StorefrontProductCardReadModel(BaseModel):
+    """Lightweight product card for PLP (Product Listing Page).
+
+    Contains only the fields needed to render a product card in the
+    storefront grid — optimised for minimal payload and fast rendering.
+    """
+
+    id: uuid.UUID
+    slug: str
+    title_i18n: dict[str, str]
+    image: StorefrontImageReadModel | None = None
+    price: StorefrontMoneyReadModel | None = None
+    brand: StorefrontBrandReadModel | None = None
+    popularity_score: int = 0
+    published_at: datetime | None = None
+    variant_count: int = 0
+    in_stock: bool = False
+
+
+class StorefrontVariantReadModel(BaseModel):
+    """Variant with nested SKUs for storefront PDP."""
+
+    id: uuid.UUID
+    name_i18n: dict[str, str]
+    sort_order: int
+    skus: list[SKUReadModel]
+
+
+class StorefrontAttributeValueReadModel(BaseModel):
+    """Product attribute value for storefront PDP display."""
+
+    attribute_code: str
+    attribute_name_i18n: dict[str, str]
+    value_code: str
+    value_i18n: dict[str, Any]
+    group_code: str | None = None
+    group_name_i18n: dict[str, str] | None = None
+    sort_order: int = 0
+
+
+class StorefrontProductDetailReadModel(BaseModel):
+    """Full product detail for PDP (Product Detail Page).
+
+    Carries everything needed to render a product page: hero images,
+    variants with SKUs, attribute table, breadcrumbs, and version for ETag.
+    """
+
+    id: uuid.UUID
+    slug: str
+    title_i18n: dict[str, str]
+    description_i18n: dict[str, str]
+    brand: StorefrontBrandReadModel | None = None
+    price: StorefrontMoneyReadModel | None = None
+    popularity_score: int = 0
+    published_at: datetime | None = None
+    variant_count: int = 0
+    in_stock: bool = False
+    media: list[StorefrontImageReadModel] = Field(default_factory=list)
+    variants: list[StorefrontVariantReadModel] = Field(default_factory=list)
+    attributes: list[StorefrontAttributeValueReadModel] = Field(default_factory=list)
+    breadcrumbs: list[BreadcrumbItemReadModel] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    version: int = 1
+
+
+# ---------------------------------------------------------------------------
+# Facet read models (Phase 2 — faceted filtering)
+# ---------------------------------------------------------------------------
+
+
+class FacetValueCountReadModel(BaseModel):
+    """A single attribute value with its facet count."""
+
+    value_id: uuid.UUID
+    code: str
+    slug: str
+    value_i18n: dict[str, Any]
+    meta_data: dict[str, Any] = Field(default_factory=dict)
+    value_group: str | None = None
+    sort_order: int = 0
+    count: int = 0
+
+
+class FacetGroupReadModel(BaseModel):
+    """A facet group (one filterable attribute) with counted values."""
+
+    attribute_id: uuid.UUID
+    code: str
+    slug: str
+    name_i18n: dict[str, Any]
+    ui_type: str
+    selection_mode: str = "multi"
+    values: list[FacetValueCountReadModel]
+
+
+class BrandFacetValueReadModel(BaseModel):
+    """A brand option with its facet count."""
+
+    brand_id: uuid.UUID
+    name: str
+    slug: str
+    logo_url: str | None = None
+    count: int = 0
+
+
+class PriceRangeReadModel(BaseModel):
+    """Min/max price range for the current filtered set."""
+
+    min_price: int
+    max_price: int
+    currency: str = "RUB"
+
+
+class FacetResultReadModel(BaseModel):
+    """Complete facet data for a PLP response."""
+
+    attribute_facets: list[FacetGroupReadModel] = Field(default_factory=list)
+    brand_facets: list[BrandFacetValueReadModel] = Field(default_factory=list)
+    price_range: PriceRangeReadModel | None = None
+    total_products: int = 0
+
+
+# ---------------------------------------------------------------------------
+# Search suggestion read models (Phase 3)
+# ---------------------------------------------------------------------------
+
+
+class SearchSuggestionReadModel(BaseModel):
+    """A single search autocomplete suggestion."""
+
+    type: str  # "product", "category", "brand"
+    text: str  # display text
+    slug: str  # URL slug
+    extra: dict[str, Any] | None = None  # image_url, full_slug, etc.

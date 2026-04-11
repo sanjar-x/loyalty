@@ -50,7 +50,7 @@ async def authenticated_client(
     # Login
     login_resp = await async_client.post(
         "/api/v1/auth/login",
-        json={"email": email, "password": password},
+        json={"login": email, "password": password},
     )
     tokens = login_resp.json()
     access_token = tokens["accessToken"]
@@ -79,7 +79,7 @@ async def admin_client(
     # 2. Login
     login_resp = await async_client.post(
         "/api/v1/auth/login",
-        json={"email": email, "password": password},
+        json={"login": email, "password": password},
     )
     tokens = login_resp.json()
     access_token = tokens["accessToken"]

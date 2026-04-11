@@ -46,7 +46,7 @@ async def create_category(
     """POST /api/v1/catalog/categories -- create a category and return response JSON."""
     slug = slug or f"cat-{uuid.uuid4().hex[:8]}"
     name_i18n = name_i18n or {"ru": "Тест", "en": "Test"}
-    payload: dict = {"nameI18n": name_i18n, "slug": slug, **kwargs}
+    payload: dict = {"nameI18N": name_i18n, "slug": slug, **kwargs}
     if parent_id is not None:
         payload["parentId"] = str(parent_id)
     if template_id is not None:
@@ -82,7 +82,7 @@ async def create_attribute(
     payload: dict = {
         "code": code,
         "slug": slug,
-        "nameI18n": name_i18n,
+        "nameI18N": name_i18n,
         "dataType": data_type,
         "uiType": ui_type,
         "isDictionary": is_dictionary,
@@ -117,7 +117,7 @@ async def create_attribute_value(
     payload: dict = {
         "code": code,
         "slug": slug,
-        "valueI18n": value_i18n,
+        "valueI18N": value_i18n,
         **kwargs,
     }
     resp = await client.post(
@@ -140,7 +140,7 @@ async def create_attribute_template(
     suffix = uuid.uuid4().hex[:8]
     code = code or f"tmpl_{suffix}"
     name_i18n = name_i18n or {"ru": "Шаблон", "en": "Template"}
-    payload: dict = {"code": code, "nameI18n": name_i18n, **kwargs}
+    payload: dict = {"code": code, "nameI18N": name_i18n, **kwargs}
     resp = await client.post("/api/v1/catalog/attribute-templates", json=payload)
     assert resp.status_code == 201, (
         f"create_attribute_template failed: {resp.status_code} {resp.text}"

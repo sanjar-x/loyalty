@@ -127,6 +127,10 @@ from src.modules.catalog.application.commands.update_template_attribute_binding 
     UpdateTemplateAttributeBindingHandler,
 )
 from src.modules.catalog.application.commands.update_variant import UpdateVariantHandler
+from src.modules.catalog.application.queries.breadcrumbs import BreadcrumbsBuilder
+from src.modules.catalog.application.queries.compute_facets import (
+    ComputeFacetsHandler,
+)
 from src.modules.catalog.application.queries.get_attribute import GetAttributeHandler
 from src.modules.catalog.application.queries.get_attribute_group import (
     GetAttributeGroupHandler,
@@ -145,6 +149,9 @@ from src.modules.catalog.application.queries.get_category_tree import (
 from src.modules.catalog.application.queries.get_product import GetProductHandler
 from src.modules.catalog.application.queries.get_product_completeness import (
     GetProductCompletenessHandler,
+)
+from src.modules.catalog.application.queries.get_storefront_product import (
+    GetStorefrontProductHandler,
 )
 from src.modules.catalog.application.queries.list_attribute_groups import (
     ListAttributeGroupsHandler,
@@ -171,12 +178,21 @@ from src.modules.catalog.application.queries.list_product_media import (
 )
 from src.modules.catalog.application.queries.list_products import ListProductsHandler
 from src.modules.catalog.application.queries.list_skus import ListSKUsHandler
+from src.modules.catalog.application.queries.list_storefront_products import (
+    ListStorefrontProductsHandler,
+)
 from src.modules.catalog.application.queries.list_template_bindings import (
     ListTemplateBindingsHandler,
 )
 from src.modules.catalog.application.queries.list_variants import ListVariantsHandler
 from src.modules.catalog.application.queries.resolve_template_attributes import (
     ResolveTemplateAttributesHandler,
+)
+from src.modules.catalog.application.queries.search_products import (
+    SearchProductsHandler,
+)
+from src.modules.catalog.application.queries.search_suggest import (
+    SearchSuggestHandler,
 )
 from src.modules.catalog.application.queries.storefront import (
     StorefrontCardAttributesHandler,
@@ -429,6 +445,24 @@ class StorefrontCatalogProvider(Provider):
     )
     form_handler: CompositeDependencySource = provide(
         StorefrontFormAttributesHandler, scope=Scope.REQUEST
+    )
+    list_products_handler: CompositeDependencySource = provide(
+        ListStorefrontProductsHandler, scope=Scope.REQUEST
+    )
+    get_product_handler: CompositeDependencySource = provide(
+        GetStorefrontProductHandler, scope=Scope.REQUEST
+    )
+    breadcrumbs_builder: CompositeDependencySource = provide(
+        BreadcrumbsBuilder, scope=Scope.REQUEST
+    )
+    compute_facets_handler: CompositeDependencySource = provide(
+        ComputeFacetsHandler, scope=Scope.REQUEST
+    )
+    search_products_handler: CompositeDependencySource = provide(
+        SearchProductsHandler, scope=Scope.REQUEST
+    )
+    search_suggest_handler: CompositeDependencySource = provide(
+        SearchSuggestHandler, scope=Scope.REQUEST
     )
 
 

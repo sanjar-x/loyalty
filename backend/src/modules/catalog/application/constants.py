@@ -51,3 +51,50 @@ def storefront_form_cache_key(category_id: uuid.UUID) -> str:
 def template_effective_attrs_cache_key(template_id: uuid.UUID) -> str:
     """Build the Redis cache key for a template's effective attribute set."""
     return f"catalog:template:{template_id}:effective_attrs"
+
+
+# ---------------------------------------------------------------------------
+# Storefront product cache keys & TTLs
+# ---------------------------------------------------------------------------
+
+STOREFRONT_PLP_CACHE_TTL = 60
+"""TTL for PLP (product listing) cache entries (seconds)."""
+
+STOREFRONT_PDP_CACHE_TTL = 300
+"""TTL for PDP (product detail) cache entries (seconds)."""
+
+
+def storefront_plp_cache_key(query_hash: str) -> str:
+    """Redis cache key for a storefront PLP query result."""
+    return f"catalog:storefront:plp:{query_hash}"
+
+
+def storefront_pdp_cache_key(slug: str) -> str:
+    """Redis cache key for a storefront PDP by product slug."""
+    return f"catalog:storefront:pdp:{slug}"
+
+
+STOREFRONT_FACET_CACHE_TTL = 300
+"""TTL for facet count cache entries (seconds)."""
+
+
+def storefront_facet_cache_key(query_hash: str) -> str:
+    """Redis cache key for facet computation results."""
+    return f"catalog:storefront:facets:{query_hash}"
+
+
+STOREFRONT_SEARCH_CACHE_TTL = 60
+"""TTL for search result cache entries (seconds)."""
+
+STOREFRONT_SUGGEST_CACHE_TTL = 120
+"""TTL for autocomplete suggestion cache entries (seconds)."""
+
+
+def storefront_search_cache_key(query_hash: str) -> str:
+    """Redis cache key for storefront search query results."""
+    return f"catalog:storefront:search:{query_hash}"
+
+
+def storefront_suggest_cache_key(prefix_hash: str) -> str:
+    """Redis cache key for autocomplete suggestions."""
+    return f"catalog:storefront:suggest:{prefix_hash}"

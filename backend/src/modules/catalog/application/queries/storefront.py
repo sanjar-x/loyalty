@@ -138,6 +138,7 @@ class StorefrontFilterableAttributesHandler:
                     data_type=attr.data_type,
                     ui_type=attr.ui_type,
                     is_dictionary=attr.is_dictionary,
+                    level=attr.level,
                     selection_mode=selection_mode,
                     values=_values_to_read_models(attr),
                     filter_settings=attr.filter_settings,
