@@ -8,6 +8,12 @@ module are registered with the shared ``Base.metadata``, so Alembic's
 from src.infrastructure.database.base import Base
 from src.infrastructure.database.models.failed_task import FailedTask
 from src.infrastructure.database.models.outbox import OutboxMessage
+from src.modules.cart.infrastructure.models import (
+    CartItemModel,
+    CartModel,
+    CheckoutAttemptModel,
+    CheckoutSnapshotModel,
+)
 from src.modules.catalog.infrastructure.models import (
     SKU,
     Attribute,
@@ -60,7 +66,11 @@ __all__ = [
     "AttributeValue",
     "Base",
     "Brand",
+    "CartItemModel",
+    "CartModel",
     "Category",
+    "CheckoutAttemptModel",
+    "CheckoutSnapshotModel",
     "CountryCurrencyModel",
     "CountryModel",
     "CountryTranslationModel",

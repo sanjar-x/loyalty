@@ -15,6 +15,7 @@ from src.infrastructure.cache.provider import CacheProvider
 from src.infrastructure.database.provider import DatabaseProvider
 from src.infrastructure.logging.provider import LoggingProvider
 from src.infrastructure.security.provider import SecurityProvider
+from src.modules.cart.infrastructure.provider import CartProvider
 from src.modules.catalog.presentation.dependencies import (
     AttributeGroupProvider,
     AttributeProvider,
@@ -65,4 +66,5 @@ def create_container() -> AsyncContainer:
         IdentityProvider(),
         ProfileProvider(),
         SupplierProvider(),
+        CartProvider(),
     )

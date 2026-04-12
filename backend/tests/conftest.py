@@ -190,6 +190,7 @@ async def app_container(
     from src.modules.geo.presentation.dependencies import GeoProvider
     from src.modules.identity.infrastructure.provider import IdentityProvider
     from src.modules.supplier.presentation.dependencies import SupplierProvider
+    from src.modules.cart.infrastructure.provider import CartProvider
     from src.modules.user.infrastructure.provider import ProfileProvider
 
     container = make_async_container(
@@ -210,6 +211,7 @@ async def app_container(
         IdentityProvider(),
         ProfileProvider(),
         SupplierProvider(),
+        CartProvider(),
         TestOverridesProvider(
             db_url=db_url, redis_url=redis_url, settings=test_settings
         ),

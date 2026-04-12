@@ -7,6 +7,7 @@ under an appropriate URL prefix.
 
 from fastapi import APIRouter
 
+from src.modules.cart.presentation.router_customer import cart_router
 from src.modules.catalog.presentation.router_attribute_groups import (
     attribute_group_router,
 )
@@ -69,3 +70,4 @@ router.include_router(identity_account_router)
 router.include_router(geo_router)
 router.include_router(geo_admin_router)
 router.include_router(supplier_router)
+router.include_router(cart_router)
