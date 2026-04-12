@@ -3,7 +3,6 @@ Unit tests for Cart command handlers — add_item, remove_item, update_quantity,
 """
 
 import uuid
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -28,49 +27,14 @@ from src.modules.cart.domain.exceptions import (
     CartNotFoundError,
     SkuNotAvailableError,
 )
-from src.shared.interfaces.entities import AggregateRoot, DomainEvent
-from src.shared.interfaces.uow import IUnitOfWork
 from tests.factories.cart_builder import CartBuilder, CartItemBuilder
 from tests.factories.sku_mothers import SkuSnapshotMother
-from tests.fakes.cart_fakes import FakeCartRepository, FakeSkuReadService
-
-
-class CartFakeUnitOfWork(IUnitOfWork):
-    """Minimal fake UoW for cart command handler tests."""
-
-    def __init__(self) -> None:
-        self._aggregates: list[AggregateRoot] = []
-        self.committed = False
-        self.collected_events: list[DomainEvent] = []
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is not None:
-            await self.rollback()
-
-    async def flush(self) -> None:
-        pass
-
-    async def commit(self) -> None:
-        for agg in self._aggregates:
-            self.collected_events.extend(agg.domain_events)
-            agg.clear_domain_events()
-        self.committed = True
-
-    async def rollback(self) -> None:
-        pass
-
-    def register_aggregate(self, aggregate: AggregateRoot) -> None:
-        self._aggregates.append(aggregate)
-
-
-def make_logger():
-    logger = MagicMock()
-    logger.bind = MagicMock(return_value=logger)
-    return logger
-
+from tests.fakes.cart_fakes import (
+    CartFakeUnitOfWork,
+    FakeCartRepository,
+    FakeSkuReadService,
+)
+from tests.unit.cart.helpers import make_cart_logger
 
 # ---------------------------------------------------------------------------
 # AddItemHandler
@@ -86,7 +50,7 @@ class TestAddItemHandler:
         sku_service.seed(snap)
         uow = CartFakeUnitOfWork()
 
-        handler = AddItemHandler(repo, sku_service, uow, make_logger())
+        handler = AddItemHandler(repo, sku_service, uow, make_cart_logger())
         result = await handler.handle(
             AddItemCommand(sku_id=snap.sku_id, quantity=2, identity_id=uuid.uuid4())
         )
@@ -108,7 +72,7 @@ class TestAddItemHandler:
         existing = CartBuilder().with_identity(identity_id).build()
         await repo.add(existing)
 
-        handler = AddItemHandler(repo, sku_service, uow, make_logger())
+        handler = AddItemHandler(repo, sku_service, uow, make_cart_logger())
         result = await handler.handle(
             AddItemCommand(sku_id=snap.sku_id, quantity=1, identity_id=identity_id)
         )
@@ -125,7 +89,9 @@ class TestAddItemHandler:
         existing = CartBuilder().with_identity(identity_id).with_items(item).build()
         await repo.add(existing)
 
-        handler = AddItemHandler(repo, sku_service, CartFakeUnitOfWork(), make_logger())
+        handler = AddItemHandler(
+            repo, sku_service, CartFakeUnitOfWork(), make_cart_logger()
+        )
         result = await handler.handle(
             AddItemCommand(sku_id=snap.sku_id, quantity=3, identity_id=identity_id)
         )
@@ -136,10 +102,12 @@ class TestAddItemHandler:
         sku_service = FakeSkuReadService()
         uow = CartFakeUnitOfWork()
 
-        handler = AddItemHandler(repo, sku_service, uow, make_logger())
+        handler = AddItemHandler(repo, sku_service, uow, make_cart_logger())
         with pytest.raises(SkuNotAvailableError):
             await handler.handle(
-                AddItemCommand(sku_id=uuid.uuid4(), quantity=1, identity_id=uuid.uuid4())
+                AddItemCommand(
+                    sku_id=uuid.uuid4(), quantity=1, identity_id=uuid.uuid4()
+                )
             )
 
     async def test_add_item_inactive_sku_raises(self) -> None:
@@ -148,7 +116,9 @@ class TestAddItemHandler:
         snap = SkuSnapshotMother.inactive()
         sku_service.seed(snap)
 
-        handler = AddItemHandler(repo, sku_service, CartFakeUnitOfWork(), make_logger())
+        handler = AddItemHandler(
+            repo, sku_service, CartFakeUnitOfWork(), make_cart_logger()
+        )
         with pytest.raises(SkuNotAvailableError):
             await handler.handle(
                 AddItemCommand(sku_id=snap.sku_id, quantity=1, identity_id=uuid.uuid4())
@@ -160,7 +130,9 @@ class TestAddItemHandler:
         snap = SkuSnapshotMother.active()
         sku_service.seed(snap)
 
-        handler = AddItemHandler(repo, sku_service, CartFakeUnitOfWork(), make_logger())
+        handler = AddItemHandler(
+            repo, sku_service, CartFakeUnitOfWork(), make_cart_logger()
+        )
         result = await handler.handle(
             AddItemCommand(sku_id=snap.sku_id, quantity=1, anonymous_token="guest-tok")
         )
@@ -184,25 +156,31 @@ class TestRemoveItemHandler:
         await repo.add(cart)
         uow = CartFakeUnitOfWork()
 
-        handler = RemoveItemHandler(repo, uow, make_logger())
-        await handler.handle(RemoveItemCommand(sku_id=item.sku_id, identity_id=identity_id))
+        handler = RemoveItemHandler(repo, uow, make_cart_logger())
+        await handler.handle(
+            RemoveItemCommand(sku_id=item.sku_id, identity_id=identity_id)
+        )
         assert uow.committed
         assert len(cart.items) == 0
 
     async def test_remove_from_missing_cart_raises(self) -> None:
         repo = FakeCartRepository()
-        handler = RemoveItemHandler(repo, CartFakeUnitOfWork(), make_logger())
+        handler = RemoveItemHandler(repo, CartFakeUnitOfWork(), make_cart_logger())
         with pytest.raises(CartNotFoundError):
-            await handler.handle(RemoveItemCommand(sku_id=uuid.uuid4(), identity_id=uuid.uuid4()))
+            await handler.handle(
+                RemoveItemCommand(sku_id=uuid.uuid4(), identity_id=uuid.uuid4())
+            )
 
     async def test_remove_nonexistent_item_raises(self) -> None:
         repo = FakeCartRepository()
         identity_id = uuid.uuid4()
         cart = CartBuilder().with_identity(identity_id).build()
         await repo.add(cart)
-        handler = RemoveItemHandler(repo, CartFakeUnitOfWork(), make_logger())
+        handler = RemoveItemHandler(repo, CartFakeUnitOfWork(), make_cart_logger())
         with pytest.raises(CartItemNotFoundError):
-            await handler.handle(RemoveItemCommand(sku_id=uuid.uuid4(), identity_id=identity_id))
+            await handler.handle(
+                RemoveItemCommand(sku_id=uuid.uuid4(), identity_id=identity_id)
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -219,8 +197,12 @@ class TestUpdateQuantityHandler:
         cart = CartBuilder().with_identity(identity_id).with_items(item).build()
         await repo.add(cart)
 
-        handler = UpdateQuantityHandler(repo, CartFakeUnitOfWork(), make_logger())
-        await handler.handle(UpdateQuantityCommand(sku_id=item.sku_id, quantity=5, identity_id=identity_id))
+        handler = UpdateQuantityHandler(repo, CartFakeUnitOfWork(), make_cart_logger())
+        await handler.handle(
+            UpdateQuantityCommand(
+                sku_id=item.sku_id, quantity=5, identity_id=identity_id
+            )
+        )
         assert item.quantity == 5
 
     async def test_update_to_zero_removes(self) -> None:
@@ -230,8 +212,12 @@ class TestUpdateQuantityHandler:
         cart = CartBuilder().with_identity(identity_id).with_items(item).build()
         await repo.add(cart)
 
-        handler = UpdateQuantityHandler(repo, CartFakeUnitOfWork(), make_logger())
-        await handler.handle(UpdateQuantityCommand(sku_id=item.sku_id, quantity=0, identity_id=identity_id))
+        handler = UpdateQuantityHandler(repo, CartFakeUnitOfWork(), make_cart_logger())
+        await handler.handle(
+            UpdateQuantityCommand(
+                sku_id=item.sku_id, quantity=0, identity_id=identity_id
+            )
+        )
         assert len(cart.items) == 0
 
 
@@ -249,12 +235,12 @@ class TestClearCartHandler:
         cart = CartBuilder().with_identity(identity_id).with_items(*items).build()
         await repo.add(cart)
 
-        handler = ClearCartHandler(repo, CartFakeUnitOfWork(), make_logger())
+        handler = ClearCartHandler(repo, CartFakeUnitOfWork(), make_cart_logger())
         await handler.handle(ClearCartCommand(identity_id=identity_id))
         assert len(cart.items) == 0
 
     async def test_clear_missing_cart_raises(self) -> None:
         repo = FakeCartRepository()
-        handler = ClearCartHandler(repo, CartFakeUnitOfWork(), make_logger())
+        handler = ClearCartHandler(repo, CartFakeUnitOfWork(), make_cart_logger())
         with pytest.raises(CartNotFoundError):
             await handler.handle(ClearCartCommand(identity_id=uuid.uuid4()))

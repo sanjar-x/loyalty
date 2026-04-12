@@ -200,8 +200,8 @@ async def test_checkout_attempt_lifecycle(db_session: AsyncSession) -> None:
 
     pending = await repo.get_pending_checkout_attempt(cart.id)
     assert pending is not None
-    assert pending["id"] == attempt_id
-    assert pending["status"] == "pending"
+    assert pending.id == attempt_id
+    assert pending.status == "pending"
 
     await repo.resolve_checkout_attempt(
         attempt_id, status="confirmed", resolved_at=datetime.now(tz=UTC)

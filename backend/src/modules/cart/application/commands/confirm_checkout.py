@@ -13,6 +13,7 @@ from src.modules.cart.domain.exceptions import (
     CartNotFoundError,
     CheckoutPriceChangedError,
     CheckoutSnapshotExpiredError,
+    SkuNotAvailableError,
 )
 from src.modules.cart.domain.interfaces import ICartRepository, ISkuReadService
 from src.modules.cart.domain.value_objects import (
@@ -25,12 +26,27 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 @dataclass(frozen=True)
 class ConfirmCheckoutCommand:
+    """Input for confirming a checkout.
+
+    Attributes:
+        identity_id: Authenticated user ID.
+        attempt_id: Checkout attempt to confirm.
+    """
+
     identity_id: uuid.UUID
     attempt_id: uuid.UUID
 
 
 @dataclass(frozen=True)
 class ConfirmCheckoutResult:
+    """Output of checkout confirmation.
+
+    Attributes:
+        order_id: Created order ID, or None if order module not implemented.
+        total_amount: Final total in kopecks (may differ from snapshot if price decreased).
+        currency: ISO 4217 currency code.
+    """
+
     order_id: uuid.UUID | None
     total_amount: int
     currency: str
@@ -53,17 +69,17 @@ class ConfirmCheckoutHandler:
 
     async def handle(self, command: ConfirmCheckoutCommand) -> ConfirmCheckoutResult:
         async with self._uow:
-            cart = await self._cart_repo.get_active_or_frozen_by_identity(command.identity_id)
+            cart = await self._cart_repo.get_active_or_frozen_by_identity(
+                command.identity_id
+            )
             if cart is None:
                 raise CartNotFoundError(cart_id="unknown")
 
             attempt = await self._cart_repo.get_pending_checkout_attempt(cart.id)
-            if attempt is None or attempt["id"] != command.attempt_id:
+            if attempt is None or attempt.id != command.attempt_id:
                 raise CartNotFoundError(cart_id=str(cart.id))
 
-            snapshot = await self._cart_repo.get_checkout_snapshot(
-                attempt["snapshot_id"]
-            )
+            snapshot = await self._cart_repo.get_checkout_snapshot(attempt.snapshot_id)
             if snapshot is None:
                 raise CartNotFoundError(cart_id=str(cart.id))
 
@@ -98,8 +114,6 @@ class ConfirmCheckoutHandler:
                     await self._cart_repo.update(cart)
                     self._uow.register_aggregate(cart)
                     await self._uow.commit()
-                    from src.modules.cart.domain.exceptions import SkuNotAvailableError
-
                     raise SkuNotAvailableError(sku_id=str(snap_item.sku_id))
 
                 new_line_total = current.price_amount * snap_item.quantity

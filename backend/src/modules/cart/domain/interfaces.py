@@ -11,7 +11,11 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 
 from src.modules.cart.domain.entities import Cart
-from src.modules.cart.domain.value_objects import CheckoutSnapshot, SkuSnapshot
+from src.modules.cart.domain.value_objects import (
+    CheckoutAttemptInfo,
+    CheckoutSnapshot,
+    SkuSnapshot,
+)
 
 
 class ICartRepository(ABC):
@@ -34,11 +38,15 @@ class ICartRepository(ABC):
         """Find the active cart for an authenticated user."""
 
     @abstractmethod
-    async def get_active_by_identity_for_update(self, identity_id: uuid.UUID) -> Cart | None:
+    async def get_active_by_identity_for_update(
+        self, identity_id: uuid.UUID
+    ) -> Cart | None:
         """Find the active cart for an authenticated user with pessimistic lock."""
 
     @abstractmethod
-    async def get_active_or_frozen_by_identity(self, identity_id: uuid.UUID) -> Cart | None:
+    async def get_active_or_frozen_by_identity(
+        self, identity_id: uuid.UUID
+    ) -> Cart | None:
         """Find the active or frozen cart for an authenticated user."""
 
     @abstractmethod
@@ -74,11 +82,10 @@ class ICartRepository(ABC):
         """Create a new pending checkout attempt."""
 
     @abstractmethod
-    async def get_pending_checkout_attempt(self, cart_id: uuid.UUID) -> dict | None:
-        """Get the pending checkout attempt for a cart, if any.
-
-        Returns dict with keys: id, cart_id, snapshot_id, status, created_at.
-        """
+    async def get_pending_checkout_attempt(
+        self, cart_id: uuid.UUID
+    ) -> CheckoutAttemptInfo | None:
+        """Get the pending checkout attempt for a cart, if any."""
 
     @abstractmethod
     async def resolve_checkout_attempt(

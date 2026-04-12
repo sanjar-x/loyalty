@@ -19,13 +19,10 @@ from src.modules.cart.domain.exceptions import (
     CartNotActiveError,
     SkuNotAvailableError,
 )
-from src.modules.cart.domain.value_objects import (
-    CartStatus,
-    CheckoutItemSnapshot,
-    CheckoutSnapshot,
-)
+from src.modules.cart.domain.value_objects import CartStatus
 from tests.factories.cart_builder import CartBuilder, CartItemBuilder
 from tests.factories.sku_mothers import SkuSnapshotMother
+from tests.unit.cart.helpers import make_checkout_snapshot
 
 # ---------------------------------------------------------------------------
 # Factory method Cart.create()
@@ -195,46 +192,26 @@ class TestClear:
 # ---------------------------------------------------------------------------
 
 
-def _make_snapshot(cart_id: uuid.UUID) -> CheckoutSnapshot:
-    return CheckoutSnapshot(
-        id=uuid.uuid4(),
-        cart_id=cart_id,
-        items=(
-            CheckoutItemSnapshot(
-                sku_id=uuid.uuid4(),
-                quantity=1,
-                unit_price_amount=10000,
-                currency="RUB",
-            ),
-        ),
-        pickup_point_id=uuid.uuid4(),
-        total_amount=10000,
-        currency="RUB",
-        created_at=datetime.now(UTC),
-        expires_at=datetime.now(UTC) + timedelta(minutes=15),
-    )
-
-
 @pytest.mark.unit
 class TestFreezeUnfreeze:
     def test_freeze_active_cart_with_items(self) -> None:
         item = CartItemBuilder().build()
         cart = CartBuilder().with_items(item).build()
-        snap = _make_snapshot(cart.id)
+        snap = make_checkout_snapshot(cart.id)
         cart.freeze_for_checkout(snap, snap.expires_at)
         assert cart.status == CartStatus.FROZEN
         assert cart.frozen_until == snap.expires_at
 
     def test_freeze_empty_cart_raises(self) -> None:
         cart = CartBuilder().build()
-        snap = _make_snapshot(cart.id)
+        snap = make_checkout_snapshot(cart.id)
         with pytest.raises(CartEmptyError):
             cart.freeze_for_checkout(snap, snap.expires_at)
 
     def test_freeze_non_active_cart_raises(self) -> None:
         item = CartItemBuilder().build()
         cart = CartBuilder().with_items(item).with_status(CartStatus.ORDERED).build()
-        snap = _make_snapshot(cart.id)
+        snap = make_checkout_snapshot(cart.id)
         with pytest.raises(CartNotActiveError):
             cart.freeze_for_checkout(snap, snap.expires_at)
 

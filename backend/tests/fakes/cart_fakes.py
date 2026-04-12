@@ -12,7 +12,44 @@ from src.modules.cart.domain.interfaces import (
     IPickupPointReadService,
     ISkuReadService,
 )
-from src.modules.cart.domain.value_objects import CheckoutSnapshot, SkuSnapshot
+from src.modules.cart.domain.value_objects import (
+    CheckoutAttemptInfo,
+    CheckoutSnapshot,
+    SkuSnapshot,
+)
+from src.shared.interfaces.entities import AggregateRoot, DomainEvent
+from src.shared.interfaces.uow import IUnitOfWork
+
+
+class CartFakeUnitOfWork(IUnitOfWork):
+    """Minimal fake UoW for cart command handler tests."""
+
+    def __init__(self) -> None:
+        self._aggregates: list[AggregateRoot] = []
+        self.committed = False
+        self.collected_events: list[DomainEvent] = []
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            await self.rollback()
+
+    async def flush(self) -> None:
+        pass
+
+    async def commit(self) -> None:
+        for agg in self._aggregates:
+            self.collected_events.extend(agg.domain_events)
+            agg.clear_domain_events()
+        self.committed = True
+
+    async def rollback(self) -> None:
+        pass
+
+    def register_aggregate(self, aggregate: AggregateRoot) -> None:
+        self._aggregates.append(aggregate)
 
 
 class FakeCartRepository(ICartRepository):
@@ -21,7 +58,7 @@ class FakeCartRepository(ICartRepository):
     def __init__(self) -> None:
         self._store: dict[uuid.UUID, Cart] = {}
         self._snapshots: dict[uuid.UUID, CheckoutSnapshot] = {}
-        self._attempts: dict[uuid.UUID, dict] = {}
+        self._attempts: dict[uuid.UUID, CheckoutAttemptInfo] = {}
 
     async def add(self, cart: Cart) -> Cart:
         self._store[cart.id] = cart
@@ -39,18 +76,28 @@ class FakeCartRepository(ICartRepository):
                 return cart
         return None
 
-    async def get_active_by_identity_for_update(self, identity_id: uuid.UUID) -> Cart | None:
+    async def get_active_by_identity_for_update(
+        self, identity_id: uuid.UUID
+    ) -> Cart | None:
         return await self.get_active_by_identity(identity_id)
 
-    async def get_active_or_frozen_by_identity(self, identity_id: uuid.UUID) -> Cart | None:
+    async def get_active_or_frozen_by_identity(
+        self, identity_id: uuid.UUID
+    ) -> Cart | None:
         for cart in self._store.values():
-            if cart.identity_id == identity_id and cart.status.value in ("active", "frozen"):
+            if cart.identity_id == identity_id and cart.status.value in (
+                "active",
+                "frozen",
+            ):
                 return cart
         return None
 
     async def get_active_by_anonymous(self, anonymous_token: str) -> Cart | None:
         for cart in self._store.values():
-            if cart.anonymous_token == anonymous_token and cart.status.value == "active":
+            if (
+                cart.anonymous_token == anonymous_token
+                and cart.status.value == "active"
+            ):
                 return cart
         return None
 
@@ -76,17 +123,19 @@ class FakeCartRepository(ICartRepository):
         cart_id: uuid.UUID,
         snapshot_id: uuid.UUID,
     ) -> None:
-        self._attempts[attempt_id] = {
-            "id": attempt_id,
-            "cart_id": cart_id,
-            "snapshot_id": snapshot_id,
-            "status": "pending",
-            "created_at": datetime.now(),
-        }
+        self._attempts[attempt_id] = CheckoutAttemptInfo(
+            id=attempt_id,
+            cart_id=cart_id,
+            snapshot_id=snapshot_id,
+            status="pending",
+            created_at=datetime.now(),
+        )
 
-    async def get_pending_checkout_attempt(self, cart_id: uuid.UUID) -> dict | None:
+    async def get_pending_checkout_attempt(
+        self, cart_id: uuid.UUID
+    ) -> CheckoutAttemptInfo | None:
         for attempt in self._attempts.values():
-            if attempt["cart_id"] == cart_id and attempt["status"] == "pending":
+            if attempt.cart_id == cart_id and attempt.status == "pending":
                 return attempt
         return None
 
@@ -98,8 +147,15 @@ class FakeCartRepository(ICartRepository):
         resolved_at: datetime,
     ) -> None:
         if attempt_id in self._attempts:
-            self._attempts[attempt_id]["status"] = status
-            self._attempts[attempt_id]["resolved_at"] = resolved_at
+            old = self._attempts[attempt_id]
+            self._attempts[attempt_id] = CheckoutAttemptInfo(
+                id=old.id,
+                cart_id=old.cart_id,
+                snapshot_id=old.snapshot_id,
+                status=status,
+                created_at=old.created_at,
+                resolved_at=resolved_at,
+            )
 
 
 class FakeSkuReadService(ISkuReadService):
@@ -124,9 +180,7 @@ class FakeSkuReadService(ISkuReadService):
         self, sku_ids: list[uuid.UUID]
     ) -> dict[uuid.UUID, bool]:
         return {
-            sid: self._store[sid].is_active
-            for sid in sku_ids
-            if sid in self._store
+            sid: self._store[sid].is_active for sid in sku_ids if sid in self._store
         }
 
 

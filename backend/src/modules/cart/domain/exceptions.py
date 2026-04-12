@@ -13,6 +13,10 @@ from src.shared.exceptions import (
     ValidationError,
 )
 
+# ---------------------------------------------------------------------------
+# Cart state errors
+# ---------------------------------------------------------------------------
+
 
 class CartNotFoundError(NotFoundError):
     def __init__(self, *, cart_id: str | None = None) -> None:
@@ -54,6 +58,11 @@ class CartFrozenForCheckoutError(ConflictError):
         )
 
 
+# ---------------------------------------------------------------------------
+# Checkout errors
+# ---------------------------------------------------------------------------
+
+
 class CheckoutSnapshotExpiredError(ConflictError):
     def __init__(self) -> None:
         super().__init__(
@@ -69,6 +78,19 @@ class CheckoutPriceChangedError(ConflictError):
             error_code="CHECKOUT_PRICE_CHANGED",
             details=price_diff,
         )
+
+
+class DuplicateCheckoutAttemptError(ConflictError):
+    def __init__(self) -> None:
+        super().__init__(
+            message="A pending checkout attempt already exists for this cart",
+            error_code="DUPLICATE_CHECKOUT_ATTEMPT",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Item errors
+# ---------------------------------------------------------------------------
 
 
 class CartEmptyError(UnprocessableEntityError):
@@ -101,12 +123,4 @@ class SkuNotAvailableError(UnprocessableEntityError):
         super().__init__(
             message=f"SKU not available: {sku_id}",
             error_code="SKU_NOT_AVAILABLE",
-        )
-
-
-class DuplicateCheckoutAttemptError(ConflictError):
-    def __init__(self) -> None:
-        super().__init__(
-            message="A pending checkout attempt already exists for this cart",
-            error_code="DUPLICATE_CHECKOUT_ATTEMPT",
         )

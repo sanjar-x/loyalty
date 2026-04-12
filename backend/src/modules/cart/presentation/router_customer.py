@@ -52,10 +52,13 @@ from src.modules.cart.application.queries.get_cart_summary import (
     GetCartSummaryHandler,
     GetCartSummaryQuery,
 )
+from src.modules.cart.application.queries.read_models import CartReadModel
 from src.modules.cart.presentation.schemas import (
     AddItemRequest,
     AddItemResponse,
     AnonymousTokenResponse,
+    CartGroupResponse,
+    CartItemResponse,
     CartResponse,
     CartSummaryResponse,
     CheckoutConfirmedResponse,
@@ -366,12 +369,7 @@ async def create_anonymous_token() -> AnonymousTokenResponse:
 # ---------------------------------------------------------------------------
 
 
-def _map_cart_response(read_model: Any) -> CartResponse:
-    from src.modules.cart.presentation.schemas import (
-        CartGroupResponse,
-        CartItemResponse,
-    )
-
+def _map_cart_response(read_model: CartReadModel) -> CartResponse:
     groups = []
     for g in read_model.groups:
         items = [

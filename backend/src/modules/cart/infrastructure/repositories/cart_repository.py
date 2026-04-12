@@ -14,6 +14,7 @@ from src.modules.cart.domain.entities import Cart, CartItem
 from src.modules.cart.domain.interfaces import ICartRepository
 from src.modules.cart.domain.value_objects import (
     CartStatus,
+    CheckoutAttemptInfo,
     CheckoutItemSnapshot,
     CheckoutSnapshot,
 )
@@ -31,9 +32,9 @@ class CartRepository(ICartRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
     # Domain ↔ ORM mapping
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
 
     @staticmethod
     def _to_domain(model: CartModel) -> Cart:
@@ -106,9 +107,9 @@ class CartRepository(ICartRepository):
 
         return model
 
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
     # Repository methods
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
 
     async def add(self, cart: Cart) -> Cart:
         model = self._to_orm(cart)
@@ -137,7 +138,9 @@ class CartRepository(ICartRepository):
         model = result.scalar_one_or_none()
         return self._to_domain(model) if model else None
 
-    async def get_active_by_identity_for_update(self, identity_id: uuid.UUID) -> Cart | None:
+    async def get_active_by_identity_for_update(
+        self, identity_id: uuid.UUID
+    ) -> Cart | None:
         stmt = (
             select(CartModel)
             .where(
@@ -150,7 +153,9 @@ class CartRepository(ICartRepository):
         model = result.scalar_one_or_none()
         return self._to_domain(model) if model else None
 
-    async def get_active_or_frozen_by_identity(self, identity_id: uuid.UUID) -> Cart | None:
+    async def get_active_or_frozen_by_identity(
+        self, identity_id: uuid.UUID
+    ) -> Cart | None:
         stmt = select(CartModel).where(
             CartModel.identity_id == identity_id,
             CartModel.status.in_(["active", "frozen"]),
@@ -188,9 +193,9 @@ class CartRepository(ICartRepository):
         await self._session.flush()
         return cart
 
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
     # Checkout snapshot & attempt methods
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
 
     async def save_checkout_snapshot(self, snapshot: CheckoutSnapshot) -> None:
         model = CheckoutSnapshotModel(
@@ -282,7 +287,9 @@ class CartRepository(ICartRepository):
         self._session.add(model)
         await self._session.flush()
 
-    async def get_pending_checkout_attempt(self, cart_id: uuid.UUID) -> dict | None:
+    async def get_pending_checkout_attempt(
+        self, cart_id: uuid.UUID
+    ) -> CheckoutAttemptInfo | None:
         stmt = select(CheckoutAttemptModel).where(
             CheckoutAttemptModel.cart_id == cart_id,
             CheckoutAttemptModel.status == "pending",
@@ -291,13 +298,13 @@ class CartRepository(ICartRepository):
         model = result.scalar_one_or_none()
         if model is None:
             return None
-        return {
-            "id": model.id,
-            "cart_id": model.cart_id,
-            "snapshot_id": model.snapshot_id,
-            "status": model.status,
-            "created_at": model.created_at,
-        }
+        return CheckoutAttemptInfo(
+            id=model.id,
+            cart_id=model.cart_id,
+            snapshot_id=model.snapshot_id,
+            status=model.status,
+            created_at=model.created_at,
+        )
 
     async def resolve_checkout_attempt(
         self,

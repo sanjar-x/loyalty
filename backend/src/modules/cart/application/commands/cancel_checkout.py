@@ -12,6 +12,12 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 @dataclass(frozen=True)
 class CancelCheckoutCommand:
+    """Input for cancelling a pending checkout.
+
+    Attributes:
+        identity_id: Authenticated user ID.
+    """
+
     identity_id: uuid.UUID
 
 
@@ -30,7 +36,9 @@ class CancelCheckoutHandler:
 
     async def handle(self, command: CancelCheckoutCommand) -> None:
         async with self._uow:
-            cart = await self._cart_repo.get_active_or_frozen_by_identity(command.identity_id)
+            cart = await self._cart_repo.get_active_or_frozen_by_identity(
+                command.identity_id
+            )
             if cart is None:
                 raise CartNotFoundError(cart_id="unknown")
 
@@ -41,7 +49,7 @@ class CancelCheckoutHandler:
             now = datetime.now(UTC)
             cart.unfreeze("cancelled")
             await self._cart_repo.resolve_checkout_attempt(
-                attempt["id"], status="cancelled", resolved_at=now
+                attempt.id, status="cancelled", resolved_at=now
             )
             await self._cart_repo.update(cart)
             self._uow.register_aggregate(cart)

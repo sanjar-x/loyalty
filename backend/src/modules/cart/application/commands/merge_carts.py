@@ -16,12 +16,27 @@ from src.shared.interfaces.uow import IUnitOfWork
 
 @dataclass(frozen=True)
 class MergeCartsCommand:
+    """Input for merging a guest cart into an authenticated cart.
+
+    Attributes:
+        identity_id: Authenticated user ID (merge target).
+        anonymous_token: Guest token (merge source).
+    """
+
     identity_id: uuid.UUID
     anonymous_token: str
 
 
 @dataclass(frozen=True)
 class MergeCartsResult:
+    """Output of cart merge.
+
+    Attributes:
+        target_cart_id: Cart that received the items.
+        items_transferred: Number of items moved.
+        skipped_sku_ids: SKUs skipped due to duplicates or limits.
+    """
+
     target_cart_id: uuid.UUID
     items_transferred: int
     skipped_sku_ids: list[uuid.UUID]

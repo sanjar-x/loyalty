@@ -1,7 +1,6 @@
 """Unit tests for Cart domain event emission."""
 
 import uuid
-from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -17,13 +16,10 @@ from src.modules.cart.domain.events import (
     CartOrderedEvent,
     CartUnfrozenEvent,
 )
-from src.modules.cart.domain.value_objects import (
-    CartStatus,
-    CheckoutItemSnapshot,
-    CheckoutSnapshot,
-)
+from src.modules.cart.domain.value_objects import CartStatus
 from tests.factories.cart_builder import CartBuilder, CartItemBuilder
 from tests.factories.sku_mothers import SkuSnapshotMother
+from tests.unit.cart.helpers import make_checkout_snapshot
 
 
 @pytest.mark.unit
@@ -108,32 +104,12 @@ class TestItemEvents:
         assert events[0].cart_id == cart.id
 
 
-def _make_snapshot(cart_id: uuid.UUID) -> CheckoutSnapshot:
-    return CheckoutSnapshot(
-        id=uuid.uuid4(),
-        cart_id=cart_id,
-        items=(
-            CheckoutItemSnapshot(
-                sku_id=uuid.uuid4(),
-                quantity=1,
-                unit_price_amount=10000,
-                currency="RUB",
-            ),
-        ),
-        pickup_point_id=uuid.uuid4(),
-        total_amount=10000,
-        currency="RUB",
-        created_at=datetime.now(UTC),
-        expires_at=datetime.now(UTC) + timedelta(minutes=15),
-    )
-
-
 @pytest.mark.unit
 class TestCheckoutEvents:
     def test_freeze_emits_frozen(self) -> None:
         item = CartItemBuilder().build()
         cart = CartBuilder().with_items(item).build()
-        snap = _make_snapshot(cart.id)
+        snap = make_checkout_snapshot(cart.id)
         cart.freeze_for_checkout(snap, snap.expires_at)
         events = cart.domain_events
         assert len(events) == 1

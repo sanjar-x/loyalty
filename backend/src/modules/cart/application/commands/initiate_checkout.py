@@ -22,18 +22,36 @@ from src.modules.cart.domain.interfaces import (
     ISkuReadService,
 )
 from src.modules.cart.domain.value_objects import CheckoutItemSnapshot, CheckoutSnapshot
+from src.shared.exceptions import ValidationError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)
 class InitiateCheckoutCommand:
+    """Input for initiating a checkout.
+
+    Attributes:
+        identity_id: Authenticated user ID.
+        pickup_point_id: Selected pickup point.
+    """
+
     identity_id: uuid.UUID
     pickup_point_id: uuid.UUID
 
 
 @dataclass(frozen=True)
 class InitiateCheckoutResult:
+    """Output of checkout initiation.
+
+    Attributes:
+        snapshot_id: Created price snapshot ID.
+        attempt_id: Created checkout attempt ID.
+        expires_at: When the snapshot expires.
+        total_amount: Grand total in kopecks.
+        currency: ISO 4217 currency code.
+    """
+
     snapshot_id: uuid.UUID
     attempt_id: uuid.UUID
     expires_at: datetime
@@ -76,8 +94,6 @@ class InitiateCheckoutHandler:
 
             # Validate pickup point
             if not await self._pickup_service.exists(command.pickup_point_id):
-                from src.shared.exceptions import ValidationError
-
                 raise ValidationError(
                     message=f"Pickup point not found: {command.pickup_point_id}",
                     error_code="PICKUP_POINT_NOT_FOUND",

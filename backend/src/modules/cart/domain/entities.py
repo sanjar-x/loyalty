@@ -5,7 +5,7 @@ Part of the domain layer -- zero infrastructure imports.
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import ClassVar
 
 from attr import dataclass, field
@@ -134,9 +134,9 @@ class Cart(AggregateRoot):
         )
         return cart
 
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
     # Guard helpers
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
 
     def _ensure_active(self) -> None:
         if self.status != CartStatus.ACTIVE:
@@ -157,9 +157,9 @@ class Cart(AggregateRoot):
                 return item
         return None
 
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
     # Domain methods
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
 
     def add_item(self, sku_snapshot: SkuSnapshot, quantity: int) -> CartItem:
         """Add an item or increment quantity if SKU already in cart."""
@@ -373,8 +373,6 @@ class Cart(AggregateRoot):
         """Check if prices should be revalidated."""
         if self.last_repriced_at is None:
             return True
-        from datetime import timedelta
-
         return datetime.now(UTC) > self.last_repriced_at + timedelta(
             minutes=ttl_minutes
         )

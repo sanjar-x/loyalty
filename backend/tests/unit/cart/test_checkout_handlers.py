@@ -4,7 +4,6 @@ Unit tests for checkout command handlers — initiate, confirm, cancel.
 
 import uuid
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -32,19 +31,12 @@ from src.modules.cart.domain.value_objects import CartStatus
 from tests.factories.cart_builder import CartBuilder, CartItemBuilder
 from tests.factories.sku_mothers import SkuSnapshotMother
 from tests.fakes.cart_fakes import (
+    CartFakeUnitOfWork,
     FakeCartRepository,
     FakePickupPointReadService,
     FakeSkuReadService,
 )
-from tests.unit.cart.test_crud_handlers import CartFakeUnitOfWork
-
-
-def make_logger():
-    logger = MagicMock()
-    logger.bind = MagicMock(return_value=logger)
-    logger.info = MagicMock()
-    return logger
-
+from tests.unit.cart.helpers import make_cart_logger
 
 # ---------------------------------------------------------------------------
 # InitiateCheckoutHandler
@@ -65,10 +57,16 @@ class TestInitiateCheckoutHandler:
         await repo.add(cart)
 
         handler = InitiateCheckoutHandler(
-            repo, sku_service, FakePickupPointReadService(), CartFakeUnitOfWork(), make_logger()
+            repo,
+            sku_service,
+            FakePickupPointReadService(),
+            CartFakeUnitOfWork(),
+            make_cart_logger(),
         )
         result = await handler.handle(
-            InitiateCheckoutCommand(identity_id=identity_id, pickup_point_id=uuid.uuid4())
+            InitiateCheckoutCommand(
+                identity_id=identity_id, pickup_point_id=uuid.uuid4()
+            )
         )
 
         assert result.total_amount == 10000
@@ -82,11 +80,17 @@ class TestInitiateCheckoutHandler:
         await repo.add(cart)
 
         handler = InitiateCheckoutHandler(
-            repo, FakeSkuReadService(), FakePickupPointReadService(), CartFakeUnitOfWork(), make_logger()
+            repo,
+            FakeSkuReadService(),
+            FakePickupPointReadService(),
+            CartFakeUnitOfWork(),
+            make_cart_logger(),
         )
         with pytest.raises(CartEmptyError):
             await handler.handle(
-                InitiateCheckoutCommand(identity_id=identity_id, pickup_point_id=uuid.uuid4())
+                InitiateCheckoutCommand(
+                    identity_id=identity_id, pickup_point_id=uuid.uuid4()
+                )
             )
 
     async def test_missing_cart_raises(self) -> None:
@@ -95,11 +99,13 @@ class TestInitiateCheckoutHandler:
             FakeSkuReadService(),
             FakePickupPointReadService(),
             CartFakeUnitOfWork(),
-            make_logger(),
+            make_cart_logger(),
         )
         with pytest.raises(CartNotFoundError):
             await handler.handle(
-                InitiateCheckoutCommand(identity_id=uuid.uuid4(), pickup_point_id=uuid.uuid4())
+                InitiateCheckoutCommand(
+                    identity_id=uuid.uuid4(), pickup_point_id=uuid.uuid4()
+                )
             )
 
     async def test_duplicate_attempt_raises(self) -> None:
@@ -119,11 +125,17 @@ class TestInitiateCheckoutHandler:
         )
 
         handler = InitiateCheckoutHandler(
-            repo, sku_service, FakePickupPointReadService(), CartFakeUnitOfWork(), make_logger()
+            repo,
+            sku_service,
+            FakePickupPointReadService(),
+            CartFakeUnitOfWork(),
+            make_cart_logger(),
         )
         with pytest.raises(DuplicateCheckoutAttemptError):
             await handler.handle(
-                InitiateCheckoutCommand(identity_id=identity_id, pickup_point_id=uuid.uuid4())
+                InitiateCheckoutCommand(
+                    identity_id=identity_id, pickup_point_id=uuid.uuid4()
+                )
             )
 
     async def test_inactive_sku_raises(self) -> None:
@@ -138,11 +150,17 @@ class TestInitiateCheckoutHandler:
         await repo.add(cart)
 
         handler = InitiateCheckoutHandler(
-            repo, sku_service, FakePickupPointReadService(), CartFakeUnitOfWork(), make_logger()
+            repo,
+            sku_service,
+            FakePickupPointReadService(),
+            CartFakeUnitOfWork(),
+            make_cart_logger(),
         )
         with pytest.raises(SkuNotAvailableError):
             await handler.handle(
-                InitiateCheckoutCommand(identity_id=identity_id, pickup_point_id=uuid.uuid4())
+                InitiateCheckoutCommand(
+                    identity_id=identity_id, pickup_point_id=uuid.uuid4()
+                )
             )
 
 
@@ -166,19 +184,29 @@ class TestConfirmCheckoutHandler:
         await repo.add(cart)
 
         initiate_handler = InitiateCheckoutHandler(
-            repo, sku_service, FakePickupPointReadService(), CartFakeUnitOfWork(), make_logger()
+            repo,
+            sku_service,
+            FakePickupPointReadService(),
+            CartFakeUnitOfWork(),
+            make_cart_logger(),
         )
         result = await initiate_handler.handle(
-            InitiateCheckoutCommand(identity_id=identity_id, pickup_point_id=uuid.uuid4())
+            InitiateCheckoutCommand(
+                identity_id=identity_id, pickup_point_id=uuid.uuid4()
+            )
         )
         return repo, sku_service, cart, result
 
     async def test_confirm_happy_path(self) -> None:
         repo, sku_service, cart, initiate_result = await self._setup_checkout()
 
-        handler = ConfirmCheckoutHandler(repo, sku_service, CartFakeUnitOfWork(), make_logger())
+        handler = ConfirmCheckoutHandler(
+            repo, sku_service, CartFakeUnitOfWork(), make_cart_logger()
+        )
         result = await handler.handle(
-            ConfirmCheckoutCommand(identity_id=cart.identity_id, attempt_id=initiate_result.attempt_id)
+            ConfirmCheckoutCommand(
+                identity_id=cart.identity_id, attempt_id=initiate_result.attempt_id
+            )
         )
         assert cart.status == CartStatus.ORDERED
         assert result.total_amount == 10000
@@ -202,10 +230,14 @@ class TestConfirmCheckoutHandler:
         )
         repo._snapshots[snapshot.id] = expired
 
-        handler = ConfirmCheckoutHandler(repo, sku_service, CartFakeUnitOfWork(), make_logger())
+        handler = ConfirmCheckoutHandler(
+            repo, sku_service, CartFakeUnitOfWork(), make_cart_logger()
+        )
         with pytest.raises(CheckoutSnapshotExpiredError):
             await handler.handle(
-                ConfirmCheckoutCommand(identity_id=cart.identity_id, attempt_id=initiate_result.attempt_id)
+                ConfirmCheckoutCommand(
+                    identity_id=cart.identity_id, attempt_id=initiate_result.attempt_id
+                )
             )
         assert cart.status == CartStatus.ACTIVE
 
@@ -230,10 +262,14 @@ class TestConfirmCheckoutHandler:
             is_active=True,
         )
 
-        handler = ConfirmCheckoutHandler(repo, sku_service, CartFakeUnitOfWork(), make_logger())
+        handler = ConfirmCheckoutHandler(
+            repo, sku_service, CartFakeUnitOfWork(), make_cart_logger()
+        )
         with pytest.raises(CheckoutPriceChangedError):
             await handler.handle(
-                ConfirmCheckoutCommand(identity_id=cart.identity_id, attempt_id=initiate_result.attempt_id)
+                ConfirmCheckoutCommand(
+                    identity_id=cart.identity_id, attempt_id=initiate_result.attempt_id
+                )
             )
         assert cart.status == CartStatus.ACTIVE
 
@@ -258,9 +294,13 @@ class TestConfirmCheckoutHandler:
             is_active=True,
         )
 
-        handler = ConfirmCheckoutHandler(repo, sku_service, CartFakeUnitOfWork(), make_logger())
+        handler = ConfirmCheckoutHandler(
+            repo, sku_service, CartFakeUnitOfWork(), make_cart_logger()
+        )
         result = await handler.handle(
-            ConfirmCheckoutCommand(identity_id=cart.identity_id, attempt_id=initiate_result.attempt_id)
+            ConfirmCheckoutCommand(
+                identity_id=cart.identity_id, attempt_id=initiate_result.attempt_id
+            )
         )
         assert cart.status == CartStatus.ORDERED
         assert result.total_amount == 8000  # (5000-1000) * 2
@@ -285,9 +325,13 @@ class TestConfirmCheckoutHandler:
             is_active=True,
         )
 
-        handler = ConfirmCheckoutHandler(repo, sku_service, CartFakeUnitOfWork(), make_logger())
+        handler = ConfirmCheckoutHandler(
+            repo, sku_service, CartFakeUnitOfWork(), make_cart_logger()
+        )
         await handler.handle(
-            ConfirmCheckoutCommand(identity_id=cart.identity_id, attempt_id=initiate_result.attempt_id)
+            ConfirmCheckoutCommand(
+                identity_id=cart.identity_id, attempt_id=initiate_result.attempt_id
+            )
         )
 
         # Verify snapshot was updated with new prices
@@ -316,12 +360,18 @@ class TestCancelCheckoutHandler:
         await repo.add(cart)
 
         initiate_handler = InitiateCheckoutHandler(
-            repo, sku_service, FakePickupPointReadService(), CartFakeUnitOfWork(), make_logger()
+            repo,
+            sku_service,
+            FakePickupPointReadService(),
+            CartFakeUnitOfWork(),
+            make_cart_logger(),
         )
         await initiate_handler.handle(
-            InitiateCheckoutCommand(identity_id=identity_id, pickup_point_id=uuid.uuid4())
+            InitiateCheckoutCommand(
+                identity_id=identity_id, pickup_point_id=uuid.uuid4()
+            )
         )
 
-        handler = CancelCheckoutHandler(repo, CartFakeUnitOfWork(), make_logger())
+        handler = CancelCheckoutHandler(repo, CartFakeUnitOfWork(), make_cart_logger())
         await handler.handle(CancelCheckoutCommand(identity_id=identity_id))
         assert cart.status == CartStatus.ACTIVE

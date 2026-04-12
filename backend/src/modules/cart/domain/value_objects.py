@@ -104,3 +104,24 @@ class CheckoutSnapshot:
     currency: str
     created_at: datetime
     expires_at: datetime
+
+
+@frozen
+class CheckoutAttemptInfo:
+    """Typed projection of a checkout attempt record.
+
+    Attributes:
+        id: Unique attempt identifier.
+        cart_id: The cart this attempt belongs to.
+        snapshot_id: Associated checkout snapshot.
+        status: Current status (pending, confirmed, cancelled, expired, failed).
+        created_at: When the attempt was created.
+        resolved_at: When the attempt was resolved, or None if still pending.
+    """
+
+    id: uuid.UUID
+    cart_id: uuid.UUID
+    snapshot_id: uuid.UUID
+    status: str
+    created_at: datetime
+    resolved_at: datetime | None = None

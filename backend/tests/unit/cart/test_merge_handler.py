@@ -1,7 +1,6 @@
 """Unit tests for MergeCartsHandler."""
 
 import uuid
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -12,14 +11,8 @@ from src.modules.cart.application.commands.merge_carts import (
 from src.modules.cart.domain.exceptions import CartNotFoundError
 from src.modules.cart.domain.value_objects import CartStatus
 from tests.factories.cart_builder import CartBuilder, CartItemBuilder
-from tests.fakes.cart_fakes import FakeCartRepository
-from tests.unit.cart.test_crud_handlers import CartFakeUnitOfWork
-
-
-def make_logger():
-    logger = MagicMock()
-    logger.bind = MagicMock(return_value=logger)
-    return logger
+from tests.fakes.cart_fakes import CartFakeUnitOfWork, FakeCartRepository
+from tests.unit.cart.helpers import make_cart_logger
 
 
 @pytest.mark.unit
@@ -34,7 +27,7 @@ class TestMergeCartsHandler:
         await repo.add(target)
         await repo.add(source)
 
-        handler = MergeCartsHandler(repo, CartFakeUnitOfWork(), make_logger())
+        handler = MergeCartsHandler(repo, CartFakeUnitOfWork(), make_cart_logger())
         result = await handler.handle(
             MergeCartsCommand(identity_id=identity_id, anonymous_token="guest-tok")
         )
@@ -50,7 +43,7 @@ class TestMergeCartsHandler:
         source = CartBuilder().as_guest("guest-tok").with_items(source_item).build()
         await repo.add(source)
 
-        handler = MergeCartsHandler(repo, CartFakeUnitOfWork(), make_logger())
+        handler = MergeCartsHandler(repo, CartFakeUnitOfWork(), make_cart_logger())
         result = await handler.handle(
             MergeCartsCommand(identity_id=identity_id, anonymous_token="guest-tok")
         )
@@ -60,10 +53,12 @@ class TestMergeCartsHandler:
 
     async def test_merge_no_guest_cart_raises(self) -> None:
         repo = FakeCartRepository()
-        handler = MergeCartsHandler(repo, CartFakeUnitOfWork(), make_logger())
+        handler = MergeCartsHandler(repo, CartFakeUnitOfWork(), make_cart_logger())
         with pytest.raises(CartNotFoundError):
             await handler.handle(
-                MergeCartsCommand(identity_id=uuid.uuid4(), anonymous_token="no-such-token")
+                MergeCartsCommand(
+                    identity_id=uuid.uuid4(), anonymous_token="no-such-token"
+                )
             )
 
     async def test_merge_sums_quantities_for_same_sku(self) -> None:
@@ -72,7 +67,9 @@ class TestMergeCartsHandler:
         sku_id = uuid.uuid4()
 
         target_item = CartItemBuilder().with_sku_id(sku_id).with_quantity(2).build()
-        target = CartBuilder().with_identity(identity_id).with_items(target_item).build()
+        target = (
+            CartBuilder().with_identity(identity_id).with_items(target_item).build()
+        )
 
         source_item = CartItemBuilder().with_sku_id(sku_id).with_quantity(3).build()
         source = CartBuilder().as_guest("g").with_items(source_item).build()
@@ -80,7 +77,7 @@ class TestMergeCartsHandler:
         await repo.add(target)
         await repo.add(source)
 
-        handler = MergeCartsHandler(repo, CartFakeUnitOfWork(), make_logger())
+        handler = MergeCartsHandler(repo, CartFakeUnitOfWork(), make_cart_logger())
         result = await handler.handle(
             MergeCartsCommand(identity_id=identity_id, anonymous_token="g")
         )
