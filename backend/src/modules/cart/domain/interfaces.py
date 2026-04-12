@@ -34,6 +34,10 @@ class ICartRepository(ABC):
         """Find the active cart for an authenticated user."""
 
     @abstractmethod
+    async def get_active_by_identity_for_update(self, identity_id: uuid.UUID) -> Cart | None:
+        """Find the active cart for an authenticated user with pessimistic lock."""
+
+    @abstractmethod
     async def get_active_or_frozen_by_identity(self, identity_id: uuid.UUID) -> Cart | None:
         """Find the active or frozen cart for an authenticated user."""
 
@@ -48,6 +52,10 @@ class ICartRepository(ABC):
     @abstractmethod
     async def save_checkout_snapshot(self, snapshot: CheckoutSnapshot) -> None:
         """Persist a checkout snapshot."""
+
+    @abstractmethod
+    async def update_checkout_snapshot(self, snapshot: CheckoutSnapshot) -> None:
+        """Update an existing checkout snapshot in place."""
 
     @abstractmethod
     async def get_checkout_snapshot(

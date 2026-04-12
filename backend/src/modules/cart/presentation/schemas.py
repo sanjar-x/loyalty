@@ -59,7 +59,7 @@ class CartItemResponse(CamelModel):
     unit_price: MoneyResponse | None = None
     line_total: MoneyResponse | None = None
     supplier_type: str
-    added_at: datetime
+    added_at: datetime | None = None
 
 
 class CartGroupResponse(CamelModel):
@@ -74,9 +74,8 @@ class CartResponse(CamelModel):
     item_count: int
     total: MoneyResponse
     groups: list[CartGroupResponse]
-    frozen_until: datetime | None = None
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class CartSummaryResponse(CamelModel):
@@ -91,7 +90,7 @@ class CheckoutInitiatedResponse(CamelModel):
 
 
 class CheckoutConfirmedResponse(CamelModel):
-    order_id: uuid.UUID
+    order_id: uuid.UUID | None = None
 
 
 class AnonymousTokenResponse(CamelModel):

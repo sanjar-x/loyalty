@@ -84,6 +84,7 @@ class GetCartHandler:
                     line_total_amount=line_total,
                     supplier_type=item.supplier_type,
                     is_available=sku_snapshot.is_active,
+                    added_at=item.added_at,
                 )
             else:
                 read_item = CartItemReadModel(
@@ -100,6 +101,7 @@ class GetCartHandler:
                     line_total_amount=0,
                     supplier_type=item.supplier_type,
                     is_available=False,
+                    added_at=item.added_at,
                 )
 
             groups_map.setdefault(item.supplier_type, []).append(read_item)
@@ -109,6 +111,7 @@ class GetCartHandler:
                 supplier_type=st,
                 items=items,
                 group_total_amount=sum(i.line_total_amount for i in items),
+                currency=currency,
             )
             for st, items in groups_map.items()
         ]
@@ -120,4 +123,6 @@ class GetCartHandler:
             total_amount=total_amount,
             currency=currency,
             item_count=len(cart.items),
+            created_at=cart.created_at,
+            updated_at=cart.updated_at,
         )

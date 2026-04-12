@@ -376,7 +376,7 @@ def _map_cart_response(read_model: Any) -> CartResponse:
     for g in read_model.groups:
         items = [
             CartItemResponse(
-                id=item.id,
+                id=item.item_id,
                 sku_id=item.sku_id,
                 product_id=item.product_id,
                 variant_id=item.variant_id,
@@ -403,19 +403,20 @@ def _map_cart_response(read_model: Any) -> CartResponse:
             CartGroupResponse(
                 supplier_type=g.supplier_type,
                 items=items,
-                subtotal=MoneyResponse(amount=g.subtotal_amount, currency=g.currency),
+                subtotal=MoneyResponse(
+                    amount=g.group_total_amount, currency=g.currency
+                ),
             )
         )
 
     return CartResponse(
-        id=read_model.id,
+        id=read_model.cart_id,
         status=read_model.status,
         item_count=read_model.item_count,
         total=MoneyResponse(
             amount=read_model.total_amount, currency=read_model.currency
         ),
         groups=groups,
-        frozen_until=read_model.frozen_until,
         created_at=read_model.created_at,
         updated_at=read_model.updated_at,
     )

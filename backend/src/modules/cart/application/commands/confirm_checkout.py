@@ -15,7 +15,10 @@ from src.modules.cart.domain.exceptions import (
     CheckoutSnapshotExpiredError,
 )
 from src.modules.cart.domain.interfaces import ICartRepository, ISkuReadService
-from src.modules.cart.domain.value_objects import CheckoutItemSnapshot
+from src.modules.cart.domain.value_objects import (
+    CheckoutItemSnapshot,
+    CheckoutSnapshot,
+)
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -141,6 +144,18 @@ class ConfirmCheckoutHandler:
                     cart_id=str(cart.id),
                     changes=price_changes,
                 )
+                # Persist updated snapshot with decreased prices
+                updated_snapshot = CheckoutSnapshot(
+                    id=snapshot.id,
+                    cart_id=snapshot.cart_id,
+                    items=tuple(updated_items),
+                    pickup_point_id=snapshot.pickup_point_id,
+                    total_amount=new_total,
+                    currency=snapshot.currency,
+                    created_at=snapshot.created_at,
+                    expires_at=snapshot.expires_at,
+                )
+                await self._cart_repo.update_checkout_snapshot(updated_snapshot)
 
             # Mark ordered
             cart.mark_ordered()

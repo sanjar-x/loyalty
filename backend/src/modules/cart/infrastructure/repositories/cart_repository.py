@@ -137,6 +137,19 @@ class CartRepository(ICartRepository):
         model = result.scalar_one_or_none()
         return self._to_domain(model) if model else None
 
+    async def get_active_by_identity_for_update(self, identity_id: uuid.UUID) -> Cart | None:
+        stmt = (
+            select(CartModel)
+            .where(
+                CartModel.identity_id == identity_id,
+                CartModel.status == "active",
+            )
+            .with_for_update()
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return self._to_domain(model) if model else None
+
     async def get_active_or_frozen_by_identity(self, identity_id: uuid.UUID) -> Cart | None:
         stmt = select(CartModel).where(
             CartModel.identity_id == identity_id,
@@ -156,12 +169,21 @@ class CartRepository(ICartRepository):
         return self._to_domain(model) if model else None
 
     async def update(self, cart: Cart) -> Cart:
-        stmt = select(CartModel).where(CartModel.id == cart.id)
+        expected_version = cart.version
+        cart.version += 1
+
+        stmt = (
+            select(CartModel)
+            .where(CartModel.id == cart.id, CartModel.version == expected_version)
+            .with_for_update()
+        )
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
         if model is None:
-            msg = f"Cart {cart.id} not found in DB"
-            raise ValueError(msg)
+            from src.modules.cart.domain.exceptions import CartVersionConflictError
+
+            cart.version = expected_version
+            raise CartVersionConflictError()
         self._to_orm(cart, model)
         await self._session.flush()
         return cart
@@ -190,6 +212,26 @@ class CartRepository(ICartRepository):
             expires_at=snapshot.expires_at,
         )
         self._session.add(model)
+        await self._session.flush()
+
+    async def update_checkout_snapshot(self, snapshot: CheckoutSnapshot) -> None:
+        stmt = (
+            update(CheckoutSnapshotModel)
+            .where(CheckoutSnapshotModel.id == snapshot.id)
+            .values(
+                items_json=[
+                    {
+                        "sku_id": str(item.sku_id),
+                        "quantity": item.quantity,
+                        "unit_price_amount": item.unit_price_amount,
+                        "currency": item.currency,
+                    }
+                    for item in snapshot.items
+                ],
+                total_amount=snapshot.total_amount,
+            )
+        )
+        await self._session.execute(stmt)
         await self._session.flush()
 
     async def get_checkout_snapshot(

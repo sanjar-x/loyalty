@@ -39,6 +39,9 @@ class FakeCartRepository(ICartRepository):
                 return cart
         return None
 
+    async def get_active_by_identity_for_update(self, identity_id: uuid.UUID) -> Cart | None:
+        return await self.get_active_by_identity(identity_id)
+
     async def get_active_or_frozen_by_identity(self, identity_id: uuid.UUID) -> Cart | None:
         for cart in self._store.values():
             if cart.identity_id == identity_id and cart.status.value in ("active", "frozen"):
@@ -56,6 +59,9 @@ class FakeCartRepository(ICartRepository):
         return cart
 
     async def save_checkout_snapshot(self, snapshot: CheckoutSnapshot) -> None:
+        self._snapshots[snapshot.id] = snapshot
+
+    async def update_checkout_snapshot(self, snapshot: CheckoutSnapshot) -> None:
         self._snapshots[snapshot.id] = snapshot
 
     async def get_checkout_snapshot(

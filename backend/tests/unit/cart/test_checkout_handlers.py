@@ -265,6 +265,37 @@ class TestConfirmCheckoutHandler:
         assert cart.status == CartStatus.ORDERED
         assert result.total_amount == 8000  # (5000-1000) * 2
 
+    async def test_confirm_price_down_persists_updated_snapshot(self) -> None:
+        repo, sku_service, cart, initiate_result = await self._setup_checkout()
+
+        sku_id = cart.items[0].sku_id
+        old_snap = sku_service._store[sku_id]
+        from src.modules.cart.domain.value_objects import SkuSnapshot
+
+        sku_service._store[sku_id] = SkuSnapshot(
+            sku_id=old_snap.sku_id,
+            product_id=old_snap.product_id,
+            variant_id=old_snap.variant_id,
+            product_name=old_snap.product_name,
+            variant_label=old_snap.variant_label,
+            image_url=old_snap.image_url,
+            price_amount=3000,
+            currency=old_snap.currency,
+            supplier_type=old_snap.supplier_type,
+            is_active=True,
+        )
+
+        handler = ConfirmCheckoutHandler(repo, sku_service, CartFakeUnitOfWork(), make_logger())
+        await handler.handle(
+            ConfirmCheckoutCommand(identity_id=cart.identity_id, attempt_id=initiate_result.attempt_id)
+        )
+
+        # Verify snapshot was updated with new prices
+        updated_snapshot = await repo.get_checkout_snapshot(initiate_result.snapshot_id)
+        assert updated_snapshot is not None
+        assert updated_snapshot.total_amount == 6000  # 3000 * 2
+        assert updated_snapshot.items[0].unit_price_amount == 3000
+
 
 # ---------------------------------------------------------------------------
 # CancelCheckoutHandler

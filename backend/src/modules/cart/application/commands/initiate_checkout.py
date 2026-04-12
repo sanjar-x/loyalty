@@ -60,7 +60,9 @@ class InitiateCheckoutHandler:
 
     async def handle(self, command: InitiateCheckoutCommand) -> InitiateCheckoutResult:
         async with self._uow:
-            cart = await self._cart_repo.get_active_by_identity(command.identity_id)
+            cart = await self._cart_repo.get_active_by_identity_for_update(
+                command.identity_id
+            )
             if cart is None:
                 raise CartNotFoundError(cart_id="unknown")
 
@@ -91,18 +93,18 @@ class InitiateCheckoutHandler:
             currency = "RUB"
 
             for item in cart.items:
-                sku_snap = snapshots.get(item.sku_id)
-                if sku_snap is None or not sku_snap.is_active:
+                sku_snapshot = snapshots.get(item.sku_id)
+                if sku_snapshot is None or not sku_snapshot.is_active:
                     raise SkuNotAvailableError(sku_id=str(item.sku_id))
-                line_total = sku_snap.price_amount * item.quantity
+                line_total = sku_snapshot.price_amount * item.quantity
                 total_amount += line_total
-                currency = sku_snap.currency
+                currency = sku_snapshot.currency
                 checkout_items.append(
                     CheckoutItemSnapshot(
                         sku_id=item.sku_id,
                         quantity=item.quantity,
-                        unit_price_amount=sku_snap.price_amount,
-                        currency=sku_snap.currency,
+                        unit_price_amount=sku_snapshot.price_amount,
+                        currency=sku_snapshot.currency,
                     )
                 )
 

@@ -2,6 +2,7 @@
 
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,7 @@ class CartItemReadModel:
     line_total_amount: int
     supplier_type: str
     is_available: bool
+    added_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -30,6 +32,7 @@ class CartGroupReadModel:
     supplier_type: str
     items: list[CartItemReadModel] = field(default_factory=list)
     group_total_amount: int = 0
+    currency: str = "RUB"
 
 
 @dataclass(frozen=True)
@@ -42,6 +45,8 @@ class CartReadModel:
     total_amount: int = 0
     currency: str = "RUB"
     item_count: int = 0
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 @dataclass(frozen=True)
