@@ -43,12 +43,12 @@ class CartModel(Base):
         ),
         CheckConstraint(
             "status IN ('active', 'frozen', 'merged', 'ordered')",
-            name="valid_status",
+            name="ck_carts_valid_status",
         ),
         CheckConstraint(
             "(identity_id IS NOT NULL AND anonymous_token IS NULL) OR "
             "(identity_id IS NULL AND anonymous_token IS NOT NULL)",
-            name="owner_xor",
+            name="ck_carts_owner_xor",
         ),
         {"comment": "Shopping carts with lifecycle FSM"},
     )
@@ -88,7 +88,9 @@ class CartItemModel(Base):
     __tablename__ = "cart_items"
     __table_args__ = (
         Index("uix_cart_items_cart_sku", "cart_id", "sku_id", unique=True),
-        CheckConstraint("quantity > 0 AND quantity <= 99", name="valid_quantity"),
+        CheckConstraint(
+            "quantity > 0 AND quantity <= 99", name="ck_cart_items_valid_quantity"
+        ),
         {"comment": "Cart line items (one per SKU per cart)"},
     )
 
@@ -158,7 +160,7 @@ class CheckoutAttemptModel(Base):
         ),
         CheckConstraint(
             "status IN ('pending', 'confirmed', 'cancelled', 'expired', 'failed')",
-            name="valid_attempt_status",
+            name="ck_checkout_attempts_valid_attempt_status",
         ),
         {"comment": "Checkout attempts with at-most-one pending per cart"},
     )

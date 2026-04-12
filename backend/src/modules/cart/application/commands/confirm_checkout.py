@@ -17,6 +17,7 @@ from src.modules.cart.domain.exceptions import (
 )
 from src.modules.cart.domain.interfaces import ICartRepository, ISkuReadService
 from src.modules.cart.domain.value_objects import (
+    CheckoutAttemptStatus,
     CheckoutItemSnapshot,
     CheckoutSnapshot,
 )
@@ -73,22 +74,24 @@ class ConfirmCheckoutHandler:
                 command.identity_id
             )
             if cart is None:
-                raise CartNotFoundError(cart_id="unknown")
+                raise CartNotFoundError()
 
             attempt = await self._cart_repo.get_pending_checkout_attempt(cart.id)
             if attempt is None or attempt.id != command.attempt_id:
-                raise CartNotFoundError(cart_id=str(cart.id))
+                raise CartNotFoundError()
 
             snapshot = await self._cart_repo.get_checkout_snapshot(attempt.snapshot_id)
             if snapshot is None:
-                raise CartNotFoundError(cart_id=str(cart.id))
+                raise CartNotFoundError()
 
             # Check TTL
             now = datetime.now(UTC)
             if now > snapshot.expires_at:
                 cart.unfreeze("expired")
                 await self._cart_repo.resolve_checkout_attempt(
-                    command.attempt_id, status="expired", resolved_at=now
+                    command.attempt_id,
+                    status=CheckoutAttemptStatus.EXPIRED.value,
+                    resolved_at=now,
                 )
                 await self._cart_repo.update(cart)
                 self._uow.register_aggregate(cart)
@@ -109,7 +112,9 @@ class ConfirmCheckoutHandler:
                     # SKU deactivated — unfreeze and error
                     cart.unfreeze("sku_unavailable")
                     await self._cart_repo.resolve_checkout_attempt(
-                        command.attempt_id, status="failed", resolved_at=now
+                        command.attempt_id,
+                        status=CheckoutAttemptStatus.FAILED.value,
+                        resolved_at=now,
                     )
                     await self._cart_repo.update(cart)
                     self._uow.register_aggregate(cart)
@@ -124,7 +129,9 @@ class ConfirmCheckoutHandler:
                         # Price UP → unfreeze + error
                         cart.unfreeze("price_increased")
                         await self._cart_repo.resolve_checkout_attempt(
-                            command.attempt_id, status="failed", resolved_at=now
+                            command.attempt_id,
+                            status=CheckoutAttemptStatus.FAILED.value,
+                            resolved_at=now,
                         )
                         await self._cart_repo.update(cart)
                         self._uow.register_aggregate(cart)
@@ -174,7 +181,9 @@ class ConfirmCheckoutHandler:
             # Mark ordered
             cart.mark_ordered()
             await self._cart_repo.resolve_checkout_attempt(
-                command.attempt_id, status="confirmed", resolved_at=now
+                command.attempt_id,
+                status=CheckoutAttemptStatus.CONFIRMED.value,
+                resolved_at=now,
             )
             await self._cart_repo.update(cart)
             self._uow.register_aggregate(cart)

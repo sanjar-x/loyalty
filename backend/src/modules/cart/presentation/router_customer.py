@@ -93,7 +93,7 @@ cart_router = APIRouter(
 async def _resolve_identity(
     credentials: BearerCredentials,
     token_provider: FromDishka[ITokenProvider],  # type: ignore[assignment]
-) -> str | None:
+) -> uuid.UUID | None:
     """Extract identity_id from JWT if present; return None for guests."""
     if not credentials:
         return None
@@ -101,19 +101,20 @@ async def _resolve_identity(
         payload: dict[str, Any] = token_provider.decode_access_token(
             credentials.credentials
         )
-        return payload.get("sub")
+        sub = payload.get("sub")
+        return uuid.UUID(sub) if sub else None
     except Exception:
         return None
 
 
-def _require_auth(identity_id: str | None) -> uuid.UUID:
+def _require_auth(identity_id: uuid.UUID | None) -> uuid.UUID:
     """Raise if not authenticated."""
-    if not identity_id:
+    if identity_id is None:
         raise UnauthorizedError(
             message="Authentication required.",
             error_code="AUTH_REQUIRED",
         )
-    return uuid.UUID(identity_id)
+    return identity_id
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +137,7 @@ async def add_item(
 ) -> AddItemResponse:
     identity_id = await _resolve_identity(credentials, token_provider)
     command = AddItemCommand(
-        identity_id=uuid.UUID(identity_id) if identity_id else None,
+        identity_id=identity_id,
         anonymous_token=x_anonymous_token,
         sku_id=body.sku_id,
         quantity=body.quantity,
@@ -159,7 +160,7 @@ async def remove_item(
 ) -> None:
     identity_id = await _resolve_identity(credentials, token_provider)
     command = RemoveItemCommand(
-        identity_id=uuid.UUID(identity_id) if identity_id else None,
+        identity_id=identity_id,
         anonymous_token=x_anonymous_token,
         sku_id=sku_id,
     )
@@ -181,7 +182,7 @@ async def update_quantity(
 ) -> None:
     identity_id = await _resolve_identity(credentials, token_provider)
     command = UpdateQuantityCommand(
-        identity_id=uuid.UUID(identity_id) if identity_id else None,
+        identity_id=identity_id,
         anonymous_token=x_anonymous_token,
         sku_id=sku_id,
         quantity=body.quantity,
@@ -202,7 +203,7 @@ async def clear_cart(
 ) -> None:
     identity_id = await _resolve_identity(credentials, token_provider)
     command = ClearCartCommand(
-        identity_id=uuid.UUID(identity_id) if identity_id else None,
+        identity_id=identity_id,
         anonymous_token=x_anonymous_token,
     )
     await handler.handle(command)
@@ -227,7 +228,7 @@ async def get_cart(
 ) -> CartResponse:
     identity_id = await _resolve_identity(credentials, token_provider)
     query = GetCartQuery(
-        identity_id=uuid.UUID(identity_id) if identity_id else None,
+        identity_id=identity_id,
         anonymous_token=x_anonymous_token,
     )
     result = await handler.handle(query)
@@ -248,7 +249,7 @@ async def get_cart_summary(
 ) -> CartSummaryResponse:
     identity_id = await _resolve_identity(credentials, token_provider)
     query = GetCartSummaryQuery(
-        identity_id=uuid.UUID(identity_id) if identity_id else None,
+        identity_id=identity_id,
         anonymous_token=x_anonymous_token,
     )
     result = await handler.handle(query)

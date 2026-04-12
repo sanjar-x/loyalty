@@ -82,6 +82,9 @@ class MergeCartsHandler:
             locked_first = await self._cart_repo.get_for_update(first_id)
             locked_second = await self._cart_repo.get_for_update(second_id)
 
+            if locked_first is None or locked_second is None:
+                raise CartNotFoundError()
+
             # Use locked versions to avoid stale state
             if target.id == first_id:
                 target, source = locked_first, locked_second

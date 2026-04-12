@@ -11,10 +11,12 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.cart.domain.entities import Cart, CartItem
+from src.modules.cart.domain.exceptions import CartVersionConflictError
 from src.modules.cart.domain.interfaces import ICartRepository
 from src.modules.cart.domain.value_objects import (
     CartStatus,
     CheckoutAttemptInfo,
+    CheckoutAttemptStatus,
     CheckoutItemSnapshot,
     CheckoutSnapshot,
 )
@@ -132,7 +134,7 @@ class CartRepository(ICartRepository):
     async def get_active_by_identity(self, identity_id: uuid.UUID) -> Cart | None:
         stmt = select(CartModel).where(
             CartModel.identity_id == identity_id,
-            CartModel.status == "active",
+            CartModel.status == CartStatus.ACTIVE.value,
         )
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
@@ -145,7 +147,7 @@ class CartRepository(ICartRepository):
             select(CartModel)
             .where(
                 CartModel.identity_id == identity_id,
-                CartModel.status == "active",
+                CartModel.status == CartStatus.ACTIVE.value,
             )
             .with_for_update()
         )
@@ -158,7 +160,7 @@ class CartRepository(ICartRepository):
     ) -> Cart | None:
         stmt = select(CartModel).where(
             CartModel.identity_id == identity_id,
-            CartModel.status.in_(["active", "frozen"]),
+            CartModel.status.in_([CartStatus.ACTIVE.value, CartStatus.FROZEN.value]),
         )
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
@@ -167,7 +169,7 @@ class CartRepository(ICartRepository):
     async def get_active_by_anonymous(self, anonymous_token: str) -> Cart | None:
         stmt = select(CartModel).where(
             CartModel.anonymous_token == anonymous_token,
-            CartModel.status == "active",
+            CartModel.status == CartStatus.ACTIVE.value,
         )
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
@@ -185,8 +187,6 @@ class CartRepository(ICartRepository):
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
         if model is None:
-            from src.modules.cart.domain.exceptions import CartVersionConflictError
-
             cart.version = expected_version
             raise CartVersionConflictError()
         self._to_orm(cart, model)
@@ -282,7 +282,7 @@ class CartRepository(ICartRepository):
             id=attempt_id,
             cart_id=cart_id,
             snapshot_id=snapshot_id,
-            status="pending",
+            status=CheckoutAttemptStatus.PENDING.value,
         )
         self._session.add(model)
         await self._session.flush()
@@ -292,7 +292,7 @@ class CartRepository(ICartRepository):
     ) -> CheckoutAttemptInfo | None:
         stmt = select(CheckoutAttemptModel).where(
             CheckoutAttemptModel.cart_id == cart_id,
-            CheckoutAttemptModel.status == "pending",
+            CheckoutAttemptModel.status == CheckoutAttemptStatus.PENDING.value,
         )
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()

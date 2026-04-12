@@ -516,7 +516,7 @@ def _build_metrics_history(
         name = info["name"]
 
         # Full window analysis
-        full_window[name] = _analyze_window(values, nums, d, info["unit"])
+        full_window[name] = _analyze_window(values, nums, d, info["unit"])  # ty:ignore[invalid-assignment, invalid-argument-type]
 
         # Short window (last 24h) analysis
         if produce_short_window:
@@ -526,8 +526,11 @@ def _build_metrics_history(
             ]
             if len(recent_nums) >= 2:
                 short_window[name] = _analyze_window(
-                    recent_values, recent_nums, d, info["unit"]
-                )
+                    recent_values,
+                    recent_nums,
+                    d,  # ty:ignore[invalid-argument-type]
+                    info["unit"],  # ty:ignore[invalid-argument-type]
+                )  # ty:ignore[invalid-assignment]
 
     # Build the result with named windows
     windows: dict[str, Any] = {}

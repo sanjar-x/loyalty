@@ -290,7 +290,7 @@ class ProductRepository(IProductRepository):
         orm.status = ProductStatus(entity.status.value)
         orm.title_i18n = entity.title_i18n
         orm.description_i18n = entity.description_i18n
-        orm.tags = entity.tags
+        orm.tags = list(entity.tags)
         orm.source_url = entity.source_url
 
         # ORM-only fields: set defaults on create, preserve on update

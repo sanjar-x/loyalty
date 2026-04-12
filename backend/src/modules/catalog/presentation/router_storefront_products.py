@@ -31,6 +31,7 @@ from src.modules.catalog.presentation.schemas_storefront import (
     StorefrontProductCardResponse,
     StorefrontProductDetailResponse,
 )
+from src.shared.exceptions import ValidationError
 
 storefront_products_router = APIRouter(
     prefix="/storefront/products",
@@ -151,7 +152,14 @@ async def list_storefront_products(
         cursor=cursor,
         include_total=include_total,
     )
-    result = await handler.handle(query)
+    try:
+        result = await handler.handle(query)
+    except ValueError as exc:
+        raise ValidationError(
+            message=str(exc),
+            error_code="INVALID_CURSOR",
+            details={"cursor": cursor},
+        ) from exc
 
     response.headers["Cache-Control"] = _plp_cache_control(lang)
 

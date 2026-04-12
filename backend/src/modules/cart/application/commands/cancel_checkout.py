@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 from src.modules.cart.domain.exceptions import CartNotFoundError
 from src.modules.cart.domain.interfaces import ICartRepository
+from src.modules.cart.domain.value_objects import CheckoutAttemptStatus
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -40,16 +41,18 @@ class CancelCheckoutHandler:
                 command.identity_id
             )
             if cart is None:
-                raise CartNotFoundError(cart_id="unknown")
+                raise CartNotFoundError()
 
             attempt = await self._cart_repo.get_pending_checkout_attempt(cart.id)
             if attempt is None:
-                raise CartNotFoundError(cart_id=str(cart.id))
+                raise CartNotFoundError()
 
             now = datetime.now(UTC)
             cart.unfreeze("cancelled")
             await self._cart_repo.resolve_checkout_attempt(
-                attempt.id, status="cancelled", resolved_at=now
+                attempt.id,
+                status=CheckoutAttemptStatus.CANCELLED.value,
+                resolved_at=now,
             )
             await self._cart_repo.update(cart)
             self._uow.register_aggregate(cart)

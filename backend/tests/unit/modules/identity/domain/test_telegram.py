@@ -70,7 +70,7 @@ class TestTelegramUserData:
 
     def test_immutable(self, sample_data: TelegramUserData):
         with pytest.raises(FrozenInstanceError):
-            sample_data.telegram_id = 999  # type: ignore[misc]
+            sample_data.telegram_id = 999  # ty:ignore[invalid-assignment]
 
     def test_all_fields_accessible(self, sample_data: TelegramUserData):
         assert sample_data.telegram_id == 123456789

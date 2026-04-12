@@ -31,6 +31,16 @@ class CartStatus(enum.StrEnum):
     ORDERED = "ordered"
 
 
+class CheckoutAttemptStatus(enum.StrEnum):
+    """Lifecycle states for a checkout attempt."""
+
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+    FAILED = "failed"
+
+
 @frozen
 class SkuSnapshot:
     """ACL: translated snapshot of SKU data from Catalog BC.

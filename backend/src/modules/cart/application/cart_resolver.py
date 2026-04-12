@@ -27,5 +27,5 @@ async def find_active_cart_by_owner(
         msg = "Either identity_id or anonymous_token is required"
         raise ValueError(msg)
     if cart is None:
-        raise CartNotFoundError(cart_id="unknown")
+        raise CartNotFoundError()
     return cart

@@ -315,7 +315,7 @@ def extension_info(service: str, extension: str, json_output: bool = False):
         print("-" * 40)
         print(f"  Default Version: {default_version}")
         print(
-            f"  Installed: {'Yes (v' + installed_version + ')' if installed else 'No'}"
+            f"  Installed: {'Yes (v' + installed_version + ')' if installed else 'No'}"  # ty:ignore[unsupported-operator]
         )
         if comment:
             print(f"  Description: {comment}")

@@ -598,7 +598,7 @@ class TestCreateAttribute:
         cmd = CreateAttributeCommand(
             code="weight",
             slug="weight",
-            name_i18n={"en": "Weight", "ru": "Вес"},
+            name_i18n={"en": "Weight", "ru": "Вес"},  # noqa: RUF001
             data_type=AttributeDataType.INTEGER,
             ui_type=AttributeUIType.DROPDOWN,
             is_dictionary=False,
@@ -824,7 +824,7 @@ class TestDeleteAttribute:
         await uow.attributes.add(attr)
 
         # Monkeypatch has_product_attribute_values to return True
-        uow.attributes.has_product_attribute_values = AsyncMock(return_value=True)
+        uow.attributes.has_product_attribute_values = AsyncMock(return_value=True)  # ty:ignore[invalid-assignment]
 
         handler = DeleteAttributeHandler(
             attribute_repo=uow.attributes,

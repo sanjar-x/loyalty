@@ -8,6 +8,10 @@ fetched from the SKU read service to ensure freshness.
 import uuid
 from dataclasses import dataclass
 
+from src.modules.cart.application.constants import (
+    DEFAULT_CURRENCY,
+    UNKNOWN_PRODUCT_NAME,
+)
 from src.modules.cart.application.queries.read_models import (
     CartGroupReadModel,
     CartItemReadModel,
@@ -62,7 +66,7 @@ class GetCartHandler:
         # Build grouped read model
         groups_map: dict[str, list[CartItemReadModel]] = {}
         total_amount = 0
-        currency = "RUB"
+        currency = DEFAULT_CURRENCY
 
         for item in cart.items:
             sku_snapshot = snapshots.get(item.sku_id)
@@ -92,11 +96,11 @@ class GetCartHandler:
                     sku_id=item.sku_id,
                     product_id=item.product_id,
                     variant_id=item.variant_id,
-                    product_name="Unknown",
+                    product_name=UNKNOWN_PRODUCT_NAME,
                     variant_label=None,
                     image_url=None,
                     unit_price_amount=0,
-                    currency="RUB",
+                    currency=DEFAULT_CURRENCY,
                     quantity=item.quantity,
                     line_total_amount=0,
                     supplier_type=item.supplier_type,

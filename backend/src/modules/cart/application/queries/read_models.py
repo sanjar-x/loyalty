@@ -4,6 +4,8 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from src.modules.cart.application.constants import DEFAULT_CURRENCY
+
 
 @dataclass(frozen=True)
 class CartItemReadModel:
@@ -32,7 +34,7 @@ class CartGroupReadModel:
     supplier_type: str
     items: list[CartItemReadModel] = field(default_factory=list)
     group_total_amount: int = 0
-    currency: str = "RUB"
+    currency: str = DEFAULT_CURRENCY
 
 
 @dataclass(frozen=True)
@@ -43,7 +45,7 @@ class CartReadModel:
     status: str
     groups: list[CartGroupReadModel] = field(default_factory=list)
     total_amount: int = 0
-    currency: str = "RUB"
+    currency: str = DEFAULT_CURRENCY
     item_count: int = 0
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -56,4 +58,4 @@ class CartSummaryReadModel:
     cart_id: uuid.UUID
     item_count: int
     total_amount: int
-    currency: str = "RUB"
+    currency: str = DEFAULT_CURRENCY

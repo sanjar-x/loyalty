@@ -532,7 +532,7 @@ def generate_recommendations(result: RedisAnalysisResult) -> list[dict[str, str]
             cmd = entry["command"].split()[0] if entry["command"] else "unknown"
             cmd_counts[cmd] = cmd_counts.get(cmd, 0) + 1
             total_duration += entry["duration_us"]
-        top_cmd = max(cmd_counts, key=cmd_counts.get) if cmd_counts else "unknown"
+        top_cmd = max(cmd_counts, key=cmd_counts.get) if cmd_counts else "unknown"  # ty:ignore[no-matching-overload]
         top_count = cmd_counts.get(top_cmd, 0)
         avg_duration = total_duration / total_entries if total_entries > 0 else 0
 

@@ -9,7 +9,10 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from src.modules.cart.application.constants import CHECKOUT_TTL_MINUTES
+from src.modules.cart.application.constants import (
+    CHECKOUT_TTL_MINUTES,
+    DEFAULT_CURRENCY,
+)
 from src.modules.cart.domain.exceptions import (
     CartEmptyError,
     CartNotFoundError,
@@ -82,7 +85,7 @@ class InitiateCheckoutHandler:
                 command.identity_id
             )
             if cart is None:
-                raise CartNotFoundError(cart_id="unknown")
+                raise CartNotFoundError()
 
             if not cart.items:
                 raise CartEmptyError()
@@ -106,7 +109,7 @@ class InitiateCheckoutHandler:
             # Validate all SKUs active
             checkout_items: list[CheckoutItemSnapshot] = []
             total_amount = 0
-            currency = "RUB"
+            currency = DEFAULT_CURRENCY
 
             for item in cart.items:
                 sku_snapshot = snapshots.get(item.sku_id)

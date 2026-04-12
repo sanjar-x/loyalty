@@ -56,7 +56,7 @@ class TestSkuSnapshot:
             is_active=True,
         )
         with pytest.raises(AttributeError):
-            snap.price_amount = 9999  # type: ignore[misc]
+            snap.price_amount = 9999  # ty:ignore[invalid-assignment]
 
 
 @pytest.mark.unit
@@ -83,8 +83,8 @@ class TestCheckoutSnapshot:
             pickup_point_id=uuid.uuid4(),
             total_amount=13000,
             currency="RUB",
-            created_at=None,  # type: ignore[arg-type]
-            expires_at=None,  # type: ignore[arg-type]
+            created_at=None,  # ty:ignore[invalid-argument-type]
+            expires_at=None,  # ty:ignore[invalid-argument-type]
         )
         assert len(snap.items) == 2
         assert snap.total_amount == 13000
@@ -97,8 +97,8 @@ class TestCheckoutSnapshot:
             pickup_point_id=uuid.uuid4(),
             total_amount=0,
             currency="RUB",
-            created_at=None,  # type: ignore[arg-type]
-            expires_at=None,  # type: ignore[arg-type]
+            created_at=None,  # ty:ignore[invalid-argument-type]
+            expires_at=None,  # ty:ignore[invalid-argument-type]
         )
         with pytest.raises(AttributeError):
-            snap.items = ()  # type: ignore[misc]
+            snap.items = ()  # ty:ignore[invalid-assignment]
