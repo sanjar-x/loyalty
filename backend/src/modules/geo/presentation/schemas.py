@@ -197,3 +197,77 @@ class SubdivisionTypeTranslationInput(CamelModel):
 
 class UpsertSubdivisionTypeTranslationsRequest(CamelModel):
     translations: list[SubdivisionTypeTranslationInput] = Field(..., min_length=1)
+
+
+# ------------------------------------------------------------------ #
+#  District
+# ------------------------------------------------------------------ #
+
+
+class CreateDistrictRequest(CamelModel):
+    subdivision_code: str = Field(
+        ..., min_length=4, max_length=10, pattern=r"^[A-Z]{2}-[A-Z0-9]{1,8}$"
+    )
+    type_code: str = Field(..., min_length=1, max_length=60)
+    oktmo_prefix: str | None = Field(None, min_length=5, max_length=5, pattern=r"^\d{5}$")
+    fias_guid: str | None = Field(None, min_length=36, max_length=36)
+    latitude: Decimal | None = None
+    longitude: Decimal | None = None
+    sort_order: int = Field(0, ge=0)
+    is_active: bool = True
+
+
+class UpdateDistrictRequest(CamelModel):
+    type_code: str | None = Field(None, min_length=1, max_length=60)
+    oktmo_prefix: str | None = Field(None, min_length=5, max_length=5, pattern=r"^\d{5}$")
+    fias_guid: str | None = None
+    latitude: Decimal | None = None
+    longitude: Decimal | None = None
+    sort_order: int | None = Field(None, ge=0)
+    is_active: bool | None = None
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> UpdateDistrictRequest:
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided")
+        return self
+
+
+class DistrictTranslationInput(CamelModel):
+    lang_code: str = Field(..., min_length=2, max_length=12)
+    name: str = Field(..., min_length=1, max_length=255)
+    official_name: str | None = Field(None, max_length=255)
+    local_variant: str | None = Field(None, max_length=255)
+
+
+class UpsertDistrictTranslationsRequest(CamelModel):
+    translations: list[DistrictTranslationInput] = Field(..., min_length=1)
+
+
+# ------------------------------------------------------------------ #
+#  District Type
+# ------------------------------------------------------------------ #
+
+
+class CreateDistrictTypeRequest(CamelModel):
+    code: str = Field(..., min_length=1, max_length=60)
+    sort_order: int = Field(0, ge=0)
+
+
+class UpdateDistrictTypeRequest(CamelModel):
+    sort_order: int | None = Field(None, ge=0)
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> UpdateDistrictTypeRequest:
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided")
+        return self
+
+
+class DistrictTypeTranslationInput(CamelModel):
+    lang_code: str = Field(..., min_length=2, max_length=12)
+    name: str = Field(..., min_length=1, max_length=100)
+
+
+class UpsertDistrictTypeTranslationsRequest(CamelModel):
+    translations: list[DistrictTypeTranslationInput] = Field(..., min_length=1)

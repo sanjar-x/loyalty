@@ -22,22 +22,27 @@ import argparse
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
-import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field, asdict
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
+from typing import Any
 
 import dal
 from dal import (
-    LOG_LINES_DEFAULT, ProgressTimer, RailwayContext,
-    _init_context, progress, run_railway_command, run_ssh_query, run_psql_query,
-    get_railway_status, get_deployment_status,
-    get_all_metrics_from_api, _analyze_window, _build_metrics_history,
-    get_recent_logs,
+    LOG_LINES_DEFAULT,
+    RailwayContext,
+    _init_context,
     _trend_indicator,
+    get_all_metrics_from_api,
+    get_deployment_status,
+    get_railway_status,
+    get_recent_logs,
+    progress,
+    run_railway_command,
+    run_ssh_query,
 )
 
 
@@ -48,48 +53,48 @@ class AnalysisResult:
     db_type: str
     timestamp: str
     deployment_status: str = "UNKNOWN"
-    disk_usage: Optional[Dict[str, Any]] = None
-    cpu_memory: Optional[Dict[str, Any]] = None
-    connections: Optional[Dict[str, Any]] = None
-    connection_states: List[Dict[str, Any]] = field(default_factory=list)
-    connections_by_app: List[Dict[str, Any]] = field(default_factory=list)
-    connections_by_age: List[Dict[str, Any]] = field(default_factory=list)
-    oldest_connection_sec: Optional[int] = None
-    oldest_connections: List[Dict[str, Any]] = field(default_factory=list)
-    memory_config: Optional[Dict[str, Any]] = None
-    cache_hit: Optional[Dict[str, Any]] = None
-    cache_per_table: List[Dict[str, Any]] = field(default_factory=list)
-    table_sizes: List[Dict[str, Any]] = field(default_factory=list)
-    database_stats: Optional[Dict[str, Any]] = None
-    size_breakdown: Optional[Dict[str, Any]] = None
-    vacuum_health: List[Dict[str, Any]] = field(default_factory=list)
-    xid_age: Optional[Dict[str, Any]] = None
+    disk_usage: dict[str, Any] | None = None
+    cpu_memory: dict[str, Any] | None = None
+    connections: dict[str, Any] | None = None
+    connection_states: list[dict[str, Any]] = field(default_factory=list)
+    connections_by_app: list[dict[str, Any]] = field(default_factory=list)
+    connections_by_age: list[dict[str, Any]] = field(default_factory=list)
+    oldest_connection_sec: int | None = None
+    oldest_connections: list[dict[str, Any]] = field(default_factory=list)
+    memory_config: dict[str, Any] | None = None
+    cache_hit: dict[str, Any] | None = None
+    cache_per_table: list[dict[str, Any]] = field(default_factory=list)
+    table_sizes: list[dict[str, Any]] = field(default_factory=list)
+    database_stats: dict[str, Any] | None = None
+    size_breakdown: dict[str, Any] | None = None
+    vacuum_health: list[dict[str, Any]] = field(default_factory=list)
+    xid_age: dict[str, Any] | None = None
     pg_stat_statements_installed: bool = False
-    top_queries: List[Dict[str, Any]] = field(default_factory=list)
-    long_running_queries: List[Dict[str, Any]] = field(default_factory=list)
-    idle_in_transaction: List[Dict[str, Any]] = field(default_factory=list)
-    blocked_queries: List[Dict[str, Any]] = field(default_factory=list)
-    locks: List[Dict[str, Any]] = field(default_factory=list)
-    unused_indexes: List[Dict[str, Any]] = field(default_factory=list)
-    invalid_indexes: List[Dict[str, Any]] = field(default_factory=list)
-    seq_scan_tables: List[Dict[str, Any]] = field(default_factory=list)
-    replication: List[Dict[str, Any]] = field(default_factory=list)
-    bgwriter: Optional[Dict[str, Any]] = None
-    archiver: Optional[Dict[str, Any]] = None
-    progress_vacuum: List[Dict[str, Any]] = field(default_factory=list)
-    ssl_stats: Optional[Dict[str, Any]] = None
-    ha_cluster: Optional[Dict[str, Any]] = None
-    cluster_logs: List[Dict[str, Any]] = field(default_factory=list)
-    recent_logs: List[str] = field(default_factory=list)  # Raw unfiltered logs for LLM analysis
-    recent_errors: List[str] = field(default_factory=list)  # Legacy: filtered error logs
-    metrics_history: Optional[Dict[str, Any]] = None  # Multi-window time series + trend analysis for CPU, memory, disk, network
-    collection_status: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # Status of each data source
-    errors: List[str] = field(default_factory=list)
-    recommendations: List[Dict[str, str]] = field(default_factory=list)
+    top_queries: list[dict[str, Any]] = field(default_factory=list)
+    long_running_queries: list[dict[str, Any]] = field(default_factory=list)
+    idle_in_transaction: list[dict[str, Any]] = field(default_factory=list)
+    blocked_queries: list[dict[str, Any]] = field(default_factory=list)
+    locks: list[dict[str, Any]] = field(default_factory=list)
+    unused_indexes: list[dict[str, Any]] = field(default_factory=list)
+    invalid_indexes: list[dict[str, Any]] = field(default_factory=list)
+    seq_scan_tables: list[dict[str, Any]] = field(default_factory=list)
+    replication: list[dict[str, Any]] = field(default_factory=list)
+    bgwriter: dict[str, Any] | None = None
+    archiver: dict[str, Any] | None = None
+    progress_vacuum: list[dict[str, Any]] = field(default_factory=list)
+    ssl_stats: dict[str, Any] | None = None
+    ha_cluster: dict[str, Any] | None = None
+    cluster_logs: list[dict[str, Any]] = field(default_factory=list)
+    recent_logs: list[str] = field(default_factory=list)  # Raw unfiltered logs for LLM analysis
+    recent_errors: list[str] = field(default_factory=list)  # Legacy: filtered error logs
+    metrics_history: dict[str, Any] | None = None  # Multi-window time series + trend analysis for CPU, memory, disk, network
+    collection_status: dict[str, dict[str, Any]] = field(default_factory=dict)  # Status of each data source
+    errors: list[str] = field(default_factory=list)
+    recommendations: list[dict[str, str]] = field(default_factory=list)
 
 
 
-def run_psql_query_safe(service: str, query: str, timeout: int = 60) -> Tuple[int, str, str]:
+def run_psql_query_safe(service: str, query: str, timeout: int = 60) -> tuple[int, str, str]:
     """Run a psql query using base64 encoding to avoid shell quoting issues."""
     encoded = base64.b64encode(query.encode()).decode()
     # 2>/dev/null suppresses psql warnings (e.g., collation version mismatch) that pollute stdout
@@ -514,7 +519,7 @@ SELECT json_build_object(
 """
 
 
-def parse_batched_analysis(data: Dict[str, Any], result: AnalysisResult) -> None:
+def parse_batched_analysis(data: dict[str, Any], result: AnalysisResult) -> None:
     """Parse the batched JSON analysis data into the result object."""
 
     # Connections
@@ -899,7 +904,7 @@ def parse_batched_analysis(data: Dict[str, Any], result: AnalysisResult) -> None
         }
 
 
-def parse_psql_output(output: str, columns: List[str]) -> List[Dict[str, str]]:
+def parse_psql_output(output: str, columns: list[str]) -> list[dict[str, str]]:
     """Parse psql -t -A output (pipe-separated) into list of dicts."""
     rows = []
     for line in output.strip().split("\n"):
@@ -911,12 +916,12 @@ def parse_psql_output(output: str, columns: List[str]) -> List[Dict[str, str]]:
     return rows
 
 
-def get_disk_usage_from_api(environment_id: str, service_id: str) -> Optional[Dict[str, Any]]:
+def get_disk_usage_from_api(environment_id: str, service_id: str) -> dict[str, Any] | None:
     """Get disk usage from Railway metrics API."""
     from datetime import timedelta
 
     # Build the API query
-    start_date = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    start_date = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
 
     # Use railway-api.sh script
     import os
@@ -968,7 +973,7 @@ def get_disk_usage_from_api(environment_id: str, service_id: str) -> Optional[Di
     return None
 
 
-def get_disk_usage(service: str, environment_id: Optional[str] = None, service_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def get_disk_usage(service: str, environment_id: str | None = None, service_id: str | None = None) -> dict[str, Any] | None:
     """Get disk usage - try API first, fall back to SSH."""
     # Try Railway API first
     if environment_id and service_id:
@@ -997,7 +1002,7 @@ def get_disk_usage(service: str, environment_id: Optional[str] = None, service_i
     return None
 
 
-def get_cpu_memory_from_api(environment_id: str, service_id: str) -> Optional[Dict[str, Any]]:
+def get_cpu_memory_from_api(environment_id: str, service_id: str) -> dict[str, Any] | None:
     """Get CPU and memory usage from Railway metrics API.
 
     DEPRECATED: Use get_all_metrics_from_api() instead for combined disk/cpu/memory.
@@ -1008,7 +1013,7 @@ def get_cpu_memory_from_api(environment_id: str, service_id: str) -> Optional[Di
     return None
 
 
-def get_recent_errors(service: str, limit: int = 10) -> List[str]:
+def get_recent_errors(service: str, limit: int = 10) -> list[str]:
     """Get recent error logs (legacy - kept for backwards compat)."""
     code, stdout, stderr = run_railway_command(
         ["logs", "--service", service, "--lines", "100", "--filter", "@level:error"],
@@ -1025,10 +1030,10 @@ def get_recent_errors(service: str, limit: int = 10) -> List[str]:
 
 
 def get_cluster_logs(
-    ha_cluster: Optional[Dict[str, Any]],
-    environment_id: Optional[str],
+    ha_cluster: dict[str, Any] | None,
+    environment_id: str | None,
     limit: int = 100
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Get logs from all HA cluster members via Railway API.
 
     For HA clusters, each member may be a separate deployment.
@@ -1125,7 +1130,7 @@ def get_cluster_logs(
     return cluster_logs
 
 
-def is_postgres_ha_service(service_id: Optional[str]) -> bool:
+def is_postgres_ha_service(service_id: str | None) -> bool:
     """Check if service is from postgres-ha template.
 
     Returns True if the service source repo contains 'postgres-ha',
@@ -1166,9 +1171,9 @@ def is_postgres_ha_service(service_id: Optional[str]) -> bool:
 def analyze_postgres(service: str, timeout: int = 300, quiet: bool = False,
                      skip_logs: bool = False,
                      metrics_hours: int = 168,
-                     project_id: Optional[str] = None,
-                     environment_id: Optional[str] = None,
-                     service_id: Optional[str] = None) -> AnalysisResult:
+                     project_id: str | None = None,
+                     environment_id: str | None = None,
+                     service_id: str | None = None) -> AnalysisResult:
     """Run complete Postgres analysis with maximum data collection.
 
     Uses a single batched SQL query to collect all database metrics,
@@ -1187,7 +1192,7 @@ def analyze_postgres(service: str, timeout: int = 300, quiet: bool = False,
     result = AnalysisResult(
         service=service,
         db_type="postgres",
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )
 
     # === FAST CONTEXT LOADING ===
@@ -1409,7 +1414,7 @@ def analyze_postgres(service: str, timeout: int = 300, quiet: bool = False,
     return result
 
 
-def generate_recommendations(result: AnalysisResult) -> List[Dict[str, str]]:
+def generate_recommendations(result: AnalysisResult) -> list[dict[str, str]]:
     """Generate recommendations based on analysis results."""
     recommendations = []
 
@@ -1878,7 +1883,7 @@ def generate_recommendations(result: AnalysisResult) -> List[Dict[str, str]]:
         if stats_reset and stats_reset not in ("unknown", "never"):
             try:
                 reset_date = datetime.fromisoformat(stats_reset.replace('Z', '+00:00'))
-                days_since_reset = (datetime.now(timezone.utc) - reset_date).days
+                days_since_reset = (datetime.now(UTC) - reset_date).days
                 days_since_reset = max(days_since_reset, 1)  # Avoid division by zero
             except (ValueError, TypeError):
                 pass
@@ -2194,14 +2199,14 @@ def generate_recommendations(result: AnalysisResult) -> List[Dict[str, str]]:
                 "priority": "immediate",
                 "issue": f"Invalid index '{idx.get('index')}' on {idx.get('schema')}.{idx.get('table')}",
                 "action": "Drop and recreate the index",
-                "explanation": f"This index is marked as invalid - PostgreSQL will NOT use it for queries. "
-                               f"CAUSE: Usually a CREATE INDEX CONCURRENTLY that failed partway through (e.g., due to constraint violation, "
-                               f"out of disk space, or duplicate key). "
-                               f"WHY THIS MATTERS: The index takes up disk space and slows writes, but provides zero query benefit. "
-                               f"FIX: Drop it and recreate. Use CONCURRENTLY to avoid locking the table.",
+                "explanation": "This index is marked as invalid - PostgreSQL will NOT use it for queries. "
+                               "CAUSE: Usually a CREATE INDEX CONCURRENTLY that failed partway through (e.g., due to constraint violation, "
+                               "out of disk space, or duplicate key). "
+                               "WHY THIS MATTERS: The index takes up disk space and slows writes, but provides zero query benefit. "
+                               "FIX: Drop it and recreate. Use CONCURRENTLY to avoid locking the table.",
                 "commands": [
                     f"DROP INDEX CONCURRENTLY IF EXISTS \"{idx.get('index')}\";",
-                    f"-- Then recreate with: CREATE INDEX CONCURRENTLY ...",
+                    "-- Then recreate with: CREATE INDEX CONCURRENTLY ...",
                 ],
             })
 
@@ -2228,8 +2233,8 @@ def generate_recommendations(result: AnalysisResult) -> List[Dict[str, str]]:
                 "issue": f"Backend processes forced {bg['buffers_backend_fsync']:,} fsync operations",
                 "action": "Increase shared_buffers to reduce dirty buffer pressure",
                 "explanation": "Normally, the background writer or checkpointer flushes dirty buffers to disk. "
-                               f"When shared_buffers is too small, backends must flush dirty buffers themselves "
-                               f"(buffers_backend_fsync > 0). This forces query processes to do I/O, causing latency spikes.",
+                               "When shared_buffers is too small, backends must flush dirty buffers themselves "
+                               "(buffers_backend_fsync > 0). This forces query processes to do I/O, causing latency spikes.",
             })
 
         # Check if most checkpoints are requested (not timed)
@@ -2267,7 +2272,7 @@ def generate_recommendations(result: AnalysisResult) -> List[Dict[str, str]]:
     return recommendations
 
 
-def sum_index_sizes(indexes: List[Dict[str, Any]]) -> str:
+def sum_index_sizes(indexes: list[dict[str, Any]]) -> str:
     """Sum up index sizes and return human-readable string."""
     total_bytes = 0
     for idx in indexes:
@@ -2432,7 +2437,7 @@ def format_report(result: AnalysisResult) -> str:
         if stats_reset and stats_reset not in ("unknown", "never"):
             try:
                 reset_date = datetime.fromisoformat(stats_reset.replace('Z', '+00:00'))
-                days_since_reset = (datetime.now(timezone.utc) - reset_date).days
+                days_since_reset = (datetime.now(UTC) - reset_date).days
                 days_since_reset = max(days_since_reset, 1)  # Avoid division by zero
             except (ValueError, TypeError):
                 pass
@@ -2925,9 +2930,9 @@ def format_report(result: AnalysisResult) -> str:
             if rec.get("commands"):
                 lines.append("   **Commands:**")
                 for cmd in rec["commands"]:
-                    lines.append(f"   ```sql")
+                    lines.append("   ```sql")
                     lines.append(f"   {cmd}")
-                    lines.append(f"   ```")
+                    lines.append("   ```")
 
             # Note if restart is required
             if rec.get("restart_required"):

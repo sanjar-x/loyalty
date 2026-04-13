@@ -168,3 +168,68 @@ class CountryCurrencyLinkReadModel(BaseModel):
 
     currency_code: str
     is_primary: bool
+
+
+# ------------------------------------------------------------------ #
+#  District
+# ------------------------------------------------------------------ #
+
+
+class DistrictTranslationReadModel(BaseModel):
+    """Single translation row for a district."""
+
+    lang_code: str
+    name: str
+    official_name: str | None = None
+    local_variant: str | None = None
+
+
+class DistrictReadModel(BaseModel):
+    """District with inline translations."""
+
+    id: str
+    subdivision_code: str
+    type_code: str
+    oktmo_prefix: str | None = None
+    fias_guid: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    is_active: bool = True
+    sort_order: int = 0
+    translations: list[DistrictTranslationReadModel] = Field(default_factory=list)
+
+
+class DistrictListReadModel(BaseModel):
+    """District list response."""
+
+    items: list[DistrictReadModel]
+    total: int
+
+
+# ------------------------------------------------------------------ #
+#  District Type
+# ------------------------------------------------------------------ #
+
+
+class DistrictTypeTranslationReadModel(BaseModel):
+    """Single translation row for a district type."""
+
+    lang_code: str
+    name: str
+
+
+class DistrictTypeReadModel(BaseModel):
+    """District type with inline translations."""
+
+    code: str
+    sort_order: int
+    translations: list[DistrictTypeTranslationReadModel] = Field(
+        default_factory=list
+    )
+
+
+class DistrictTypeListReadModel(BaseModel):
+    """District type list response."""
+
+    items: list[DistrictTypeReadModel]
+    total: int

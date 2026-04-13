@@ -7,6 +7,8 @@ Maps geographic and locale reference data to PostgreSQL:
 * **Language** (IETF BCP 47 / ISO 639)
 * **Subdivision** (ISO 3166-2) + translations
 * **SubdivisionType** + translations
+* **District** (sub-subdivision municipal formation) + translations
+* **DistrictType** + translations
 
 These models belong to the infrastructure layer and must never leak
 into the domain or application layers -- repositories translate between
@@ -583,6 +585,11 @@ class SubdivisionModel(Base):
         cascade="all, delete-orphan",
         lazy="raise",
     )
+    districts: Mapped[list[DistrictModel]] = relationship(
+        back_populates="subdivision",
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
 
     # -- table-level constraints --------------------------------------- #
 
@@ -654,3 +661,249 @@ class SubdivisionTranslationModel(Base):
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<SubdivisionTranslation {self.subdivision_code}/{self.lang_code}>"
+
+
+# ===================================================================
+#  District Type
+# ===================================================================
+
+
+class DistrictTypeModel(Base):
+    """Type of district-level municipal formation.
+
+    Uses a human-readable code as **natural primary key** (e.g.
+    ``"RU_MUNICIPAL_DISTRICT"``, ``"RU_URBAN_OKRUG"``).
+    Codes are namespaced by country convention.
+    """
+
+    __tablename__ = "district_types"
+
+    code: Mapped[str] = mapped_column(
+        String(60),
+        primary_key=True,
+        comment="Type token (e.g. RU_MUNICIPAL_DISTRICT, RU_URBAN_OKRUG)",
+    )
+    sort_order: Mapped[int] = mapped_column(
+        SmallInteger,
+        default=0,
+        server_default="0",
+        comment="Display order in type filters",
+    )
+
+    # -- relationships ------------------------------------------------- #
+
+    translations: Mapped[list[DistrictTypeTranslationModel]] = relationship(
+        back_populates="district_type",
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
+
+    def __repr__(self) -> str:
+        return f"<DistrictType {self.code}>"
+
+
+class DistrictTypeTranslationModel(Base):
+    """District type label in a specific language.
+
+    Natural key: ``(type_code, lang_code)``.
+    """
+
+    __tablename__ = "district_type_translations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="Surrogate primary key",
+    )
+    type_code: Mapped[str] = mapped_column(
+        String(60),
+        ForeignKey("district_types.code", ondelete="CASCADE"),
+        nullable=False,
+        comment="FK -> district_types.code",
+    )
+    lang_code: Mapped[str] = mapped_column(
+        String(12),
+        ForeignKey("languages.code", ondelete="CASCADE"),
+        nullable=False,
+        comment="FK -> languages.code (IETF BCP 47)",
+    )
+    name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        comment="Translated label (e.g. Муниципальный район, Municipal district)",
+    )
+
+    # -- relationships ------------------------------------------------- #
+
+    district_type: Mapped[DistrictTypeModel] = relationship(
+        back_populates="translations", lazy="joined"
+    )
+
+    # -- table-level constraints --------------------------------------- #
+
+    __table_args__ = (
+        UniqueConstraint("type_code", "lang_code", name="uq_district_type_lang"),
+        Index("ix_district_type_tr_lang", "lang_code"),
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<DistrictTypeTranslation {self.type_code}/{self.lang_code}>"
+
+
+# ===================================================================
+#  District (sub-subdivision municipal formation)
+# ===================================================================
+
+
+class DistrictModel(Base):
+    """District-level municipal formation below ISO 3166-2 subdivisions.
+
+    Uses a **UUID surrogate primary key** — no international standard code
+    exists for this level.  External identifiers (ОКТМО, ФИАС) are stored
+    as optional indexed columns.
+    """
+
+    __tablename__ = "districts"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="Surrogate primary key (UUID v4)",
+    )
+    subdivision_code: Mapped[str] = mapped_column(
+        String(10),
+        ForeignKey("subdivisions.code", ondelete="CASCADE"),
+        nullable=False,
+        comment="FK -> subdivisions.code (parent ISO 3166-2 subdivision)",
+    )
+    type_code: Mapped[str] = mapped_column(
+        String(60),
+        ForeignKey("district_types.code", ondelete="RESTRICT"),
+        nullable=False,
+        comment="FK -> district_types.code",
+    )
+    oktmo_prefix: Mapped[str | None] = mapped_column(
+        String(5),
+        nullable=True,
+        unique=True,
+        comment="ОКТМО level-2 prefix (5 digits: subject[2] + type[1] + ordinal[2])",
+    )
+    fias_guid: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        unique=True,
+        comment="ФИАС/ГАР OBJECTGUID for this municipal formation",
+    )
+    latitude: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 7),
+        nullable=True,
+        comment="Centroid latitude (WGS 84)",
+    )
+    longitude: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 7),
+        nullable=True,
+        comment="Centroid longitude (WGS 84)",
+    )
+    sort_order: Mapped[int] = mapped_column(
+        SmallInteger,
+        default=0,
+        server_default="0",
+        comment="Display order within parent subdivision",
+    )
+    is_active: Mapped[bool] = mapped_column(
+        default=True,
+        server_default="true",
+        comment="Soft-delete / visibility flag",
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="Last modification timestamp",
+    )
+
+    # -- relationships ------------------------------------------------- #
+
+    subdivision: Mapped[SubdivisionModel] = relationship(
+        back_populates="districts", lazy="joined"
+    )
+    district_type: Mapped[DistrictTypeModel] = relationship(lazy="joined")
+    translations: Mapped[list[DistrictTranslationModel]] = relationship(
+        back_populates="district",
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
+
+    # -- table-level constraints --------------------------------------- #
+
+    __table_args__ = (
+        Index("ix_districts_subdivision", "subdivision_code"),
+        Index("ix_districts_type", "subdivision_code", "type_code"),
+        Index("ix_districts_oktmo", "oktmo_prefix", postgresql_where="oktmo_prefix IS NOT NULL"),
+        Index("ix_districts_fias", "fias_guid", postgresql_where="fias_guid IS NOT NULL"),
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<District {self.id}>"
+
+
+class DistrictTranslationModel(Base):
+    """District name in a specific language.
+
+    Natural key: ``(district_id, lang_code)``.
+    """
+
+    __tablename__ = "district_translations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="Surrogate primary key",
+    )
+    district_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("districts.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="FK -> districts.id",
+    )
+    lang_code: Mapped[str] = mapped_column(
+        String(12),
+        ForeignKey("languages.code", ondelete="CASCADE"),
+        nullable=False,
+        comment="FK -> languages.code (IETF BCP 47)",
+    )
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        comment="Translated name (e.g. Екатеринбург, Yekaterinburg)",
+    )
+    official_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Full official name if different from short",
+    )
+    local_variant: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Alternative / local name",
+    )
+
+    # -- relationships ------------------------------------------------- #
+
+    district: Mapped[DistrictModel] = relationship(
+        back_populates="translations", lazy="joined"
+    )
+
+    # -- table-level constraints --------------------------------------- #
+
+    __table_args__ = (
+        UniqueConstraint("district_id", "lang_code", name="uq_district_lang"),
+        Index("ix_district_tr_lang", "lang_code"),
+        Index("ix_district_tr_name", "name"),
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<DistrictTranslation {self.district_id}/{self.lang_code}>"

@@ -598,7 +598,7 @@ class TestCreateAttribute:
         cmd = CreateAttributeCommand(
             code="weight",
             slug="weight",
-            name_i18n={"en": "Weight", "ru": "Вес"},  # noqa: RUF001
+            name_i18n={"en": "Weight", "ru": "Вес"},
             data_type=AttributeDataType.INTEGER,
             ui_type=AttributeUIType.DROPDOWN,
             is_dictionary=False,

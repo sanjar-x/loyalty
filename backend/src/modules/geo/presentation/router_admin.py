@@ -29,6 +29,25 @@ from src.modules.geo.application.commands.manage_currencies import (
     UpsertCurrencyTranslationsCommand,
     UpsertCurrencyTranslationsHandler,
 )
+from src.modules.geo.application.commands.manage_districts import (
+    CreateDistrictCommand,
+    CreateDistrictHandler,
+    CreateDistrictTypeCommand,
+    CreateDistrictTypeHandler,
+    DeleteDistrictHandler,
+    DeleteDistrictTypeHandler,
+    DistrictTranslationItem,
+    DistrictTypeTranslationItem,
+    ListDistrictTypesHandler,
+    UpdateDistrictCommand,
+    UpdateDistrictHandler,
+    UpdateDistrictTypeCommand,
+    UpdateDistrictTypeHandler,
+    UpsertDistrictTranslationsCommand,
+    UpsertDistrictTranslationsHandler,
+    UpsertDistrictTypeTranslationsCommand,
+    UpsertDistrictTypeTranslationsHandler,
+)
 from src.modules.geo.application.commands.manage_languages import (
     CreateLanguageCommand,
     CreateLanguageHandler,
@@ -61,6 +80,11 @@ from src.modules.geo.application.queries.read_models import (
     CountryTranslationReadModel,
     CurrencyReadModel,
     CurrencyTranslationReadModel,
+    DistrictReadModel,
+    DistrictTranslationReadModel,
+    DistrictTypeListReadModel,
+    DistrictTypeReadModel,
+    DistrictTypeTranslationReadModel,
     LanguageReadModel,
     SubdivisionReadModel,
     SubdivisionTranslationReadModel,
@@ -71,17 +95,23 @@ from src.modules.geo.application.queries.read_models import (
 from src.modules.geo.presentation.schemas import (
     CreateCountryRequest,
     CreateCurrencyRequest,
+    CreateDistrictRequest,
+    CreateDistrictTypeRequest,
     CreateLanguageRequest,
     CreateSubdivisionRequest,
     CreateSubdivisionTypeRequest,
     SetCountryCurrenciesRequest,
     UpdateCountryRequest,
     UpdateCurrencyRequest,
+    UpdateDistrictRequest,
+    UpdateDistrictTypeRequest,
     UpdateLanguageRequest,
     UpdateSubdivisionRequest,
     UpdateSubdivisionTypeRequest,
     UpsertCountryTranslationsRequest,
     UpsertCurrencyTranslationsRequest,
+    UpsertDistrictTranslationsRequest,
+    UpsertDistrictTypeTranslationsRequest,
     UpsertSubdivisionTranslationsRequest,
     UpsertSubdivisionTypeTranslationsRequest,
 )
@@ -515,6 +545,180 @@ async def upsert_subdivision_type_translations(
         code=code,
         translations=[
             SubdivisionTypeTranslationItem(lang_code=t.lang_code, name=t.name)
+            for t in request.translations
+        ],
+    )
+    return await handler.handle(command)
+
+
+# ===================================================================
+#  Districts
+# ===================================================================
+
+
+@geo_admin_router.post(
+    "/districts",
+    status_code=status.HTTP_201_CREATED,
+    response_model=DistrictReadModel,
+    summary="Create a district",
+)
+async def create_district(
+    request: CreateDistrictRequest,
+    handler: FromDishka[CreateDistrictHandler],
+) -> DistrictReadModel:
+    command = CreateDistrictCommand(
+        subdivision_code=request.subdivision_code,
+        type_code=request.type_code,
+        oktmo_prefix=request.oktmo_prefix,
+        fias_guid=request.fias_guid,
+        latitude=request.latitude,
+        longitude=request.longitude,
+        sort_order=request.sort_order,
+        is_active=request.is_active,
+    )
+    return await handler.handle(command)
+
+
+@geo_admin_router.patch(
+    "/districts/{district_id}",
+    response_model=DistrictReadModel,
+    summary="Update a district",
+)
+async def update_district(
+    district_id: str,
+    request: UpdateDistrictRequest,
+    handler: FromDishka[UpdateDistrictHandler],
+) -> DistrictReadModel:
+    command = UpdateDistrictCommand(
+        district_id=district_id,
+        type_code=request.type_code,
+        oktmo_prefix=request.oktmo_prefix,
+        fias_guid=request.fias_guid,
+        latitude=request.latitude,
+        longitude=request.longitude,
+        sort_order=request.sort_order,
+        is_active=request.is_active,
+        _provided_fields=frozenset(request.model_fields_set),
+    )
+    return await handler.handle(command)
+
+
+@geo_admin_router.delete(
+    "/districts/{district_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a district",
+)
+async def delete_district(
+    district_id: str,
+    handler: FromDishka[DeleteDistrictHandler],
+) -> None:
+    await handler.handle(district_id)
+
+
+@geo_admin_router.put(
+    "/districts/{district_id}/translations",
+    response_model=list[DistrictTranslationReadModel],
+    summary="Upsert district translations",
+)
+async def upsert_district_translations(
+    district_id: str,
+    request: UpsertDistrictTranslationsRequest,
+    handler: FromDishka[UpsertDistrictTranslationsHandler],
+) -> list[DistrictTranslationReadModel]:
+    command = UpsertDistrictTranslationsCommand(
+        district_id=district_id,
+        translations=[
+            DistrictTranslationItem(
+                lang_code=t.lang_code,
+                name=t.name,
+                official_name=t.official_name,
+                local_variant=t.local_variant,
+            )
+            for t in request.translations
+        ],
+    )
+    return await handler.handle(command)
+
+
+# ===================================================================
+#  District Types
+# ===================================================================
+
+
+@geo_admin_router.get(
+    "/district-types",
+    response_model=DistrictTypeListReadModel,
+    summary="List district types",
+)
+async def list_district_types(
+    handler: FromDishka[ListDistrictTypesHandler],
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+) -> DistrictTypeListReadModel:
+    return await handler.handle(offset=offset, limit=limit)
+
+
+@geo_admin_router.post(
+    "/district-types",
+    status_code=status.HTTP_201_CREATED,
+    response_model=DistrictTypeReadModel,
+    summary="Create a district type",
+)
+async def create_district_type(
+    request: CreateDistrictTypeRequest,
+    handler: FromDishka[CreateDistrictTypeHandler],
+) -> DistrictTypeReadModel:
+    command = CreateDistrictTypeCommand(
+        code=request.code,
+        sort_order=request.sort_order,
+    )
+    return await handler.handle(command)
+
+
+@geo_admin_router.patch(
+    "/district-types/{code}",
+    response_model=DistrictTypeReadModel,
+    summary="Update a district type",
+)
+async def update_district_type(
+    code: str,
+    request: UpdateDistrictTypeRequest,
+    handler: FromDishka[UpdateDistrictTypeHandler],
+) -> DistrictTypeReadModel:
+    command = UpdateDistrictTypeCommand(
+        code=code,
+        sort_order=request.sort_order,
+        _provided_fields=frozenset(request.model_fields_set),
+    )
+    return await handler.handle(command)
+
+
+@geo_admin_router.delete(
+    "/district-types/{code}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a district type",
+)
+async def delete_district_type(
+    code: str,
+    handler: FromDishka[DeleteDistrictTypeHandler],
+) -> None:
+    await handler.handle(code)
+
+
+@geo_admin_router.put(
+    "/district-types/{code}/translations",
+    response_model=list[DistrictTypeTranslationReadModel],
+    summary="Upsert district type translations",
+)
+async def upsert_district_type_translations(
+    code: str,
+    request: UpsertDistrictTypeTranslationsRequest,
+    handler: FromDishka[UpsertDistrictTypeTranslationsHandler],
+) -> list[DistrictTypeTranslationReadModel]:
+    command = UpsertDistrictTypeTranslationsCommand(
+        code=code,
+        translations=[
+            DistrictTypeTranslationItem(lang_code=t.lang_code, name=t.name)
             for t in request.translations
         ],
     )

@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 from src.modules.geo.domain.value_objects import (
     Country,
     Currency,
+    District,
     Language,
     Subdivision,
 )
@@ -81,3 +82,23 @@ class ISubdivisionRepository(ABC):
     @abstractmethod
     async def list_by_country(self, country_code: str) -> list[Subdivision]:
         """Retrieve all active subdivisions for a country, ordered by ``sort_order``."""
+
+
+class IDistrictRepository(ABC):
+    """Read-only repository contract for district reference data."""
+
+    @abstractmethod
+    async def get_by_id(self, district_id: str) -> District | None:
+        """Retrieve a district by UUID."""
+
+    @abstractmethod
+    async def list_by_subdivision(self, subdivision_code: str) -> list[District]:
+        """Retrieve all active districts for a subdivision, ordered by ``sort_order``."""
+
+    @abstractmethod
+    async def get_by_oktmo_prefix(self, oktmo_prefix: str) -> District | None:
+        """Retrieve a district by its ОКТМО level-2 prefix."""
+
+    @abstractmethod
+    async def get_by_fias_guid(self, fias_guid: str) -> District | None:
+        """Retrieve a district by its ФИАС/ГАР OBJECTGUID."""

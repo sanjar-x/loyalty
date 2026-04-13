@@ -137,6 +137,7 @@ class ListProductsHandler:
             status=orm.status.value,
             brand_id=orm.brand_id,
             primary_category_id=orm.primary_category_id,
+            supplier_id=orm.supplier_id,
             version=orm.version,
             created_at=orm.created_at,
             updated_at=orm.updated_at,

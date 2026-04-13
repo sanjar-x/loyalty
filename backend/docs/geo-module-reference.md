@@ -47,7 +47,7 @@
   │──────────────────────────│     │──────────────────────────│  │───────────────────────────────│
   │ alpha2   PK  VARCHAR(2)  │     │ code     PK  VARCHAR(3)  │  │ code          PK VARCHAR(10)  │
   │ alpha3   UQ  VARCHAR(3)  │     │ numeric  UQ  VARCHAR(3)  │  │ country_code  FK VARCHAR(2)   │
-  │ numeric  UQ  VARCHAR(3)  │     │ name         VARCHAR(100)│  │ category_code FK VARCHAR(60)  │
+  │ numeric  UQ  VARCHAR(3)  │     │ name         VARCHAR(100)│  │ type_code FK VARCHAR(60)  │
   │ updated_at   TIMESTAMPTZ │     │ minor_unit   SMALLINT    │  │ parent_code   FK VARCHAR(10)  │
   └──────────┬───────────────┘     │ is_active    BOOLEAN     │  │ latitude         NUMERIC(10,7)│
              │                     │ sort_order   SMALLINT    │  │ longitude        NUMERIC(10,7)│
@@ -281,41 +281,41 @@ M:N bridge linking countries to their currencies.
 
 ISO 3166-2 administrative divisions (regions, provinces, oblasts).
 
-| Column          | Type            | PK  | FK                                     | Null | Default         |
-| --------------- | --------------- | --- | -------------------------------------- | ---- | --------------- |
-| `code`          | `VARCHAR(10)`   | PK  |                                        |      | ISO 3166-2 code |
-| `country_code`  | `VARCHAR(2)`    |     | `countries.alpha2` CASCADE             |      |                 |
-| `category_code` | `VARCHAR(60)`   |     | `subdivision_categories.code` RESTRICT |      |                 |
-| `parent_code`   | `VARCHAR(10)`   |     | `subdivisions.code` SET NULL           | Yes  |                 |
-| `latitude`      | `NUMERIC(10,7)` |     |                                        | Yes  | WGS 84          |
-| `longitude`     | `NUMERIC(10,7)` |     |                                        | Yes  | WGS 84          |
-| `sort_order`    | `SMALLINT`      |     |                                        |      | `0`             |
-| `is_active`     | `BOOLEAN`       |     |                                        |      | `true`          |
+| Column         | Type            | PK  | FK                                | Null | Default         |
+| -------------- | --------------- | --- | --------------------------------- | ---- | --------------- |
+| `code`         | `VARCHAR(10)`   | PK  |                                   |      | ISO 3166-2 code |
+| `country_code` | `VARCHAR(2)`    |     | `countries.alpha2` CASCADE        |      |                 |
+| `type_code`    | `VARCHAR(60)`   |     | `subdivision_types.code` RESTRICT |      |                 |
+| `parent_code`  | `VARCHAR(10)`   |     | `subdivisions.code` SET NULL      | Yes  |                 |
+| `latitude`     | `NUMERIC(10,7)` |     |                                   | Yes  | WGS 84          |
+| `longitude`    | `NUMERIC(10,7)` |     |                                   | Yes  | WGS 84          |
+| `sort_order`   | `SMALLINT`      |     |                                   |      | `0`             |
+| `is_active`    | `BOOLEAN`       |     |                                   |      | `true`          |
 
-**Indexes:** `ix_subdivisions_country`, `ix_subdivisions_category(country_code, category_code)`, `ix_subdivisions_parent`
+**Indexes:** `ix_subdivisions_country`, `ix_subdivisions_type(country_code, type_code)`, `ix_subdivisions_parent`
 
 ### FK Cascade Behaviors
 
-| Relationship                             | ondelete | Reason                                     |
-| ---------------------------------------- | -------- | ------------------------------------------ |
-| `country_code → countries`               | CASCADE  | Country deleted = all subdivisions deleted |
-| `category_code → subdivision_categories` | RESTRICT | Cannot delete category while in use        |
-| `parent_code → subdivisions`             | SET NULL | Parent deleted = children become top-level |
+| Relationship                    | ondelete | Reason                                     |
+| ------------------------------- | -------- | ------------------------------------------ |
+| `country_code → countries`      | CASCADE  | Country deleted = all subdivisions deleted |
+| `type_code → subdivision_types` | RESTRICT | Cannot delete type while in use            |
+| `parent_code → subdivisions`    | SET NULL | Parent deleted = children become top-level |
 
 ---
 
-## Table: `subdivision_categories`
+## Table: `subdivision_types`
 
 Types of administrative divisions (PROVINCE, EMIRATE, OBLAST, etc.)
 
-| Column       | Type          | PK  | Null | Default            |
-| ------------ | ------------- | --- | ---- | ------------------ |
-| `code`       | `VARCHAR(60)` | PK  |      | ISO category token |
-| `sort_order` | `SMALLINT`    |     |      | `0`                |
+| Column       | Type          | PK  | Null | Default        |
+| ------------ | ------------- | --- | ---- | -------------- |
+| `code`       | `VARCHAR(60)` | PK  |      | ISO type token |
+| `sort_order` | `SMALLINT`    |     |      | `0`            |
 
 ---
 
-## Table: `subdivision_translations` / `subdivision_category_translations`
+## Table: `subdivision_translations` / `subdivision_type_translations`
 
 Same pattern as country/currency translations. See ER diagram above.
 
@@ -457,7 +457,7 @@ List administrative subdivisions for a country. Returns 404 if country not found
     {
       "code": "UZ-TO",
       "country_code": "UZ",
-      "category_code": "REGION",
+      "type_code": "REGION",
       "parent_code": null,
       "latitude": 41.3117,
       "longitude": 69.2797,

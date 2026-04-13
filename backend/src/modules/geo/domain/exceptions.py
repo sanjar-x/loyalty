@@ -50,3 +50,14 @@ class SubdivisionNotFoundError(NotFoundError):
             error_code="SUBDIVISION_NOT_FOUND",
             details={"subdivision_code": subdivision_code},
         )
+
+
+class DistrictNotFoundError(NotFoundError):
+    """Raised when a district lookup yields no result."""
+
+    def __init__(self, district_id: str):
+        super().__init__(
+            message=f"District with id '{district_id}' not found.",
+            error_code="DISTRICT_NOT_FOUND",
+            details={"district_id": district_id},
+        )

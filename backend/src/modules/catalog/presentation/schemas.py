@@ -982,6 +982,7 @@ class ProductListItemResponse(CamelModel):
     status: str
     brand_id: uuid.UUID
     primary_category_id: uuid.UUID
+    supplier_id: uuid.UUID | None = None
     version: int
     created_at: datetime
     updated_at: datetime

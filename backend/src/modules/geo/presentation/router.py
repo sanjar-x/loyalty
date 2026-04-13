@@ -9,6 +9,9 @@ from fastapi import APIRouter, Query, Response
 
 from src.modules.geo.application.queries.get_country import GetCountryHandler
 from src.modules.geo.application.queries.get_currency import GetCurrencyHandler
+from src.modules.geo.application.queries.get_district import (
+    GetDistrictHandler,
+)
 from src.modules.geo.application.queries.get_language import GetLanguageHandler
 from src.modules.geo.application.queries.get_subdivision import (
     GetSubdivisionHandler,
@@ -18,6 +21,9 @@ from src.modules.geo.application.queries.list_countries import (
 )
 from src.modules.geo.application.queries.list_currencies import (
     ListCurrenciesHandler,
+)
+from src.modules.geo.application.queries.list_districts import (
+    ListDistrictsHandler,
 )
 from src.modules.geo.application.queries.list_languages import (
     ListLanguagesHandler,
@@ -30,6 +36,8 @@ from src.modules.geo.application.queries.read_models import (
     CountryReadModel,
     CurrencyListReadModel,
     CurrencyReadModel,
+    DistrictListReadModel,
+    DistrictReadModel,
     LanguageListReadModel,
     LanguageReadModel,
     SubdivisionListReadModel,
@@ -236,6 +244,58 @@ async def list_subdivisions(
     """List subdivisions for a country (404 if country not found)."""
     result = await handler.handle(
         country_code=country_code,
+        lang_code=lang,
+        search=search,
+        offset=offset,
+        limit=limit,
+    )
+    response.headers["Cache-Control"] = _CACHE_CONTROL
+    return result
+
+
+@geo_router.get(
+    "/districts/{district_id}",
+    response_model=DistrictReadModel,
+    summary="Get a district by UUID",
+)
+async def get_district(
+    district_id: str,
+    response: Response,
+    handler: FromDishka[GetDistrictHandler],
+    lang: str | None = Query(
+        None, description="Filter translations to this language code"
+    ),
+) -> DistrictReadModel:
+    """Get a single district by its UUID identifier."""
+    result = await handler.handle(district_id=district_id, lang_code=lang)
+    response.headers["Cache-Control"] = _CACHE_CONTROL
+    return result
+
+
+@geo_router.get(
+    "/subdivisions/{subdivision_code}/districts",
+    response_model=DistrictListReadModel,
+    summary="List districts for a subdivision",
+)
+async def list_districts(
+    subdivision_code: str,
+    response: Response,
+    handler: FromDishka[ListDistrictsHandler],
+    lang: str | None = Query(
+        None, description="Filter translations to this language code"
+    ),
+    search: str | None = Query(
+        None,
+        min_length=1,
+        max_length=255,
+        description="Search districts by translated name",
+    ),
+    offset: int = Query(0, ge=0, description="Pagination offset"),
+    limit: int = Query(50, ge=1, le=500, description="Pagination limit"),
+) -> DistrictListReadModel:
+    """List districts for a subdivision (404 if subdivision not found)."""
+    result = await handler.handle(
+        subdivision_code=subdivision_code,
         lang_code=lang,
         search=search,
         offset=offset,

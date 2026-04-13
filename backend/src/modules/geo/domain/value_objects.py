@@ -198,3 +198,54 @@ class Subdivision:
             )
         if not self.type_code or not self.type_code.strip():
             raise ValueError("type_code must be a non-empty string")
+
+
+# ------------------------------------------------------------------ #
+#  District (sub-subdivision municipal formation)
+# ------------------------------------------------------------------ #
+
+_OKTMO_PREFIX_RE = re.compile(r"^\d{5}$")
+
+
+@frozen
+class District:
+    """Immutable value object representing a district-level municipal formation.
+
+    This is the geo level directly below ISO 3166-2 subdivisions.
+    Uses a UUID identifier — no international standard code exists.
+
+    Attributes:
+        id: Surrogate UUID identifier.
+        subdivision_code: Parent subdivision ISO 3166-2 code.
+        type_code: District type token (e.g. ``"RU_MUNICIPAL_DISTRICT"``).
+        oktmo_prefix: ОКТМО level-2 prefix (5 digits), or ``None``.
+        fias_guid: ФИАС/ГАР OBJECTGUID, or ``None``.
+        latitude: Centroid latitude (WGS 84), or ``None``.
+        longitude: Centroid longitude (WGS 84), or ``None``.
+
+    Raises:
+        ValueError: If ``subdivision_code`` or ``oktmo_prefix`` fails format
+            validation at construction time.
+    """
+
+    id: str
+    subdivision_code: str
+    type_code: str
+    oktmo_prefix: str | None
+    fias_guid: str | None
+    latitude: Decimal | None
+    longitude: Decimal | None
+
+    def __attrs_post_init__(self) -> None:
+        if not _SUBDIVISION_CODE_RE.match(self.subdivision_code):
+            raise ValueError(
+                f"subdivision_code must match ISO 3166-2 format, got {self.subdivision_code!r}"
+            )
+        if not self.type_code or not self.type_code.strip():
+            raise ValueError("type_code must be a non-empty string")
+        if self.oktmo_prefix is not None and not _OKTMO_PREFIX_RE.match(
+            self.oktmo_prefix
+        ):
+            raise ValueError(
+                f"oktmo_prefix must be exactly 5 digits, got {self.oktmo_prefix!r}"
+            )

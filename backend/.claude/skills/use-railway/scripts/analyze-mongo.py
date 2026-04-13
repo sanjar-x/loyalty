@@ -21,24 +21,25 @@ Usage:
 
 import argparse
 import json
-import os
-import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field, asdict
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
+from typing import Any
 
 import dal
 from dal import (
-    LOG_LINES_DEFAULT, ProgressTimer, RailwayContext,
-    _init_context, progress, run_railway_command, run_ssh_query,
-    get_railway_status, get_deployment_status,
-    get_all_metrics_from_api, _analyze_window, _build_metrics_history,
-    get_recent_logs,
+    LOG_LINES_DEFAULT,
+    RailwayContext,
+    _init_context,
     _trend_indicator,
+    get_all_metrics_from_api,
+    get_deployment_status,
+    get_railway_status,
+    get_recent_logs,
+    progress,
+    run_ssh_query,
 )
-
 
 # ---------------------------------------------------------------------------
 # Result container
@@ -53,95 +54,95 @@ class MongoAnalysisResult:
     deployment_status: str = "UNKNOWN"
 
     # Server overview
-    version: Optional[str] = None
-    storage_engine: Optional[str] = None
-    uptime_seconds: Optional[int] = None
+    version: str | None = None
+    storage_engine: str | None = None
+    uptime_seconds: int | None = None
 
     # Connections
-    connections: Optional[Dict[str, Any]] = None
+    connections: dict[str, Any] | None = None
 
     # Operations
-    opcounters: Optional[Dict[str, Any]] = None
-    opcounters_repl: Optional[Dict[str, Any]] = None
+    opcounters: dict[str, Any] | None = None
+    opcounters_repl: dict[str, Any] | None = None
 
     # Latency
-    op_latencies: Optional[Dict[str, Any]] = None
+    op_latencies: dict[str, Any] | None = None
 
     # Memory
-    memory: Optional[Dict[str, Any]] = None
-    page_faults: Optional[int] = None
+    memory: dict[str, Any] | None = None
+    page_faults: int | None = None
 
     # Network
-    network: Optional[Dict[str, Any]] = None
+    network: dict[str, Any] | None = None
 
     # WiredTiger
-    wiredtiger_cache: Optional[Dict[str, Any]] = None
-    wiredtiger_checkpoint: Optional[Dict[str, Any]] = None
-    wiredtiger_tickets: Optional[Dict[str, Any]] = None
+    wiredtiger_cache: dict[str, Any] | None = None
+    wiredtiger_checkpoint: dict[str, Any] | None = None
+    wiredtiger_tickets: dict[str, Any] | None = None
 
     # Global lock
-    global_lock: Optional[Dict[str, Any]] = None
+    global_lock: dict[str, Any] | None = None
 
     # Document metrics
-    document_metrics: Optional[Dict[str, Any]] = None
+    document_metrics: dict[str, Any] | None = None
 
     # Query efficiency
-    query_executor: Optional[Dict[str, Any]] = None
+    query_executor: dict[str, Any] | None = None
 
     # Plan cache (7.0+)
-    plan_cache: Optional[Dict[str, Any]] = None
+    plan_cache: dict[str, Any] | None = None
 
     # Sort (7.0+)
-    sort_metrics: Optional[Dict[str, Any]] = None
+    sort_metrics: dict[str, Any] | None = None
 
     # Cursors
-    cursors: Optional[Dict[str, Any]] = None
+    cursors: dict[str, Any] | None = None
 
     # TTL
-    ttl_metrics: Optional[Dict[str, Any]] = None
+    ttl_metrics: dict[str, Any] | None = None
 
     # Asserts
-    asserts: Optional[Dict[str, Any]] = None
+    asserts: dict[str, Any] | None = None
 
     # Replication
-    replication: Optional[Dict[str, Any]] = None
-    oplog: Optional[Dict[str, Any]] = None
+    replication: dict[str, Any] | None = None
+    oplog: dict[str, Any] | None = None
 
     # Storage (db.stats)
-    storage: Optional[Dict[str, Any]] = None
+    storage: dict[str, Any] | None = None
 
     # Collection stats
-    collection_stats: List[Dict[str, Any]] = field(default_factory=list)
+    collection_stats: list[dict[str, Any]] = field(default_factory=list)
 
     # Top collections
-    top_collections: Optional[List[Dict[str, Any]]] = None
+    top_collections: list[dict[str, Any]] | None = None
 
     # Slow queries
-    slow_queries: List[Dict[str, Any]] = field(default_factory=list)
+    slow_queries: list[dict[str, Any]] = field(default_factory=list)
 
     # Active operations
-    active_ops: List[Dict[str, Any]] = field(default_factory=list)
+    active_ops: list[dict[str, Any]] = field(default_factory=list)
 
     # Logs
-    recent_logs: List[str] = field(default_factory=list)
-    recent_errors: List[str] = field(default_factory=list)
+    recent_logs: list[str] = field(default_factory=list)
+    recent_errors: list[str] = field(default_factory=list)
 
     # Railway metrics (CPU, memory, disk, network trends)
-    cpu_memory: Optional[Dict[str, Any]] = None
-    disk_usage: Optional[Dict[str, Any]] = None
-    metrics_history: Optional[Dict[str, Any]] = None
+    cpu_memory: dict[str, Any] | None = None
+    disk_usage: dict[str, Any] | None = None
+    metrics_history: dict[str, Any] | None = None
 
     # Status tracking
-    collection_status: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-    errors: List[str] = field(default_factory=list)
-    recommendations: List[Dict[str, str]] = field(default_factory=list)
+    collection_status: dict[str, dict[str, Any]] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
+    recommendations: list[dict[str, str]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
 # MongoDB-specific helpers
 # ---------------------------------------------------------------------------
 
-def run_mongosh_query(service: str, js_expr: str, timeout: int = 30) -> Tuple[int, str, str]:
+def run_mongosh_query(service: str, js_expr: str, timeout: int = 30) -> tuple[int, str, str]:
     """Run a mongosh query via SSH and return (returncode, stdout, stderr).
 
     The query is wrapped in EJSON.stringify and executed through mongosh
@@ -196,7 +197,7 @@ def _safe_json(raw: str) -> Any:
         return None
 
 
-def _parse_server_status(data: Dict[str, Any], result: MongoAnalysisResult) -> None:
+def _parse_server_status(data: dict[str, Any], result: MongoAnalysisResult) -> None:
     """Extract metrics from serverStatus into result."""
     # Overview
     result.version = data.get("version")
@@ -358,7 +359,7 @@ def _parse_server_status(data: Dict[str, Any], result: MongoAnalysisResult) -> N
     result.asserts = data.get("asserts")
 
 
-def _parse_db_stats(data: Dict[str, Any], result: MongoAnalysisResult) -> None:
+def _parse_db_stats(data: dict[str, Any], result: MongoAnalysisResult) -> None:
     """Extract metrics from db.stats()."""
     result.storage = {
         "dataSize": data.get("dataSize", 0),
@@ -470,9 +471,9 @@ def _fmt_us(microseconds: float) -> str:
 
 def analyze_mongo(service: str, timeout: int = 300, quiet: bool = False,
                   skip_logs: bool = False, metrics_hours: int = 168,
-                  project_id: Optional[str] = None,
-                  environment_id: Optional[str] = None,
-                  service_id: Optional[str] = None) -> MongoAnalysisResult:
+                  project_id: str | None = None,
+                  environment_id: str | None = None,
+                  service_id: str | None = None) -> MongoAnalysisResult:
     """Run complete MongoDB analysis."""
     if not quiet:
         print(f"Analyzing MongoDB database: {service}", file=sys.stderr)
@@ -480,7 +481,7 @@ def analyze_mongo(service: str, timeout: int = 300, quiet: bool = False,
     result = MongoAnalysisResult(
         service=service,
         db_type="mongo",
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )
 
     # === CONTEXT ===
@@ -727,9 +728,9 @@ def analyze_mongo(service: str, timeout: int = 300, quiet: bool = False,
 # Recommendations engine
 # ---------------------------------------------------------------------------
 
-def generate_recommendations(result: MongoAnalysisResult) -> List[Dict[str, str]]:
+def generate_recommendations(result: MongoAnalysisResult) -> list[dict[str, str]]:
     """Generate recommendations based on analysis results."""
-    recs: List[Dict[str, str]] = []
+    recs: list[dict[str, str]] = []
 
     # Collection failures — surface critical issues when SSH/introspection failed
     if result.collection_status:
@@ -928,7 +929,7 @@ def generate_recommendations(result: MongoAnalysisResult) -> List[Dict[str, str]
 
 def format_report(result: MongoAnalysisResult) -> str:
     """Format analysis result as human-readable markdown report."""
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("=" * 60)
     lines.append(f"# MongoDB Analysis: {result.service}")
     lines.append("=" * 60)

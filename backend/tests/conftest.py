@@ -176,6 +176,7 @@ async def app_container(
     from src.infrastructure.database.provider import DatabaseProvider
     from src.infrastructure.logging.provider import LoggingProvider
     from src.infrastructure.security.provider import SecurityProvider
+    from src.modules.cart.infrastructure.provider import CartProvider
     from src.modules.catalog.presentation.dependencies import (
         AttributeGroupProvider,
         AttributeProvider,
@@ -190,7 +191,6 @@ async def app_container(
     from src.modules.geo.presentation.dependencies import GeoProvider
     from src.modules.identity.infrastructure.provider import IdentityProvider
     from src.modules.supplier.presentation.dependencies import SupplierProvider
-    from src.modules.cart.infrastructure.provider import CartProvider
     from src.modules.user.infrastructure.provider import ProfileProvider
 
     container = make_async_container(

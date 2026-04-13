@@ -20,6 +20,17 @@ from src.modules.geo.application.commands.manage_currencies import (
     UpdateCurrencyHandler,
     UpsertCurrencyTranslationsHandler,
 )
+from src.modules.geo.application.commands.manage_districts import (
+    CreateDistrictHandler,
+    CreateDistrictTypeHandler,
+    DeleteDistrictHandler,
+    DeleteDistrictTypeHandler,
+    ListDistrictTypesHandler,
+    UpdateDistrictHandler,
+    UpdateDistrictTypeHandler,
+    UpsertDistrictTranslationsHandler,
+    UpsertDistrictTypeTranslationsHandler,
+)
 from src.modules.geo.application.commands.manage_languages import (
     CreateLanguageHandler,
     DeleteLanguageHandler,
@@ -38,6 +49,9 @@ from src.modules.geo.application.commands.manage_subdivisions import (
 )
 from src.modules.geo.application.queries.get_country import GetCountryHandler
 from src.modules.geo.application.queries.get_currency import GetCurrencyHandler
+from src.modules.geo.application.queries.get_district import (
+    GetDistrictHandler,
+)
 from src.modules.geo.application.queries.get_language import GetLanguageHandler
 from src.modules.geo.application.queries.get_subdivision import (
     GetSubdivisionHandler,
@@ -48,6 +62,9 @@ from src.modules.geo.application.queries.list_countries import (
 from src.modules.geo.application.queries.list_currencies import (
     ListCurrenciesHandler,
 )
+from src.modules.geo.application.queries.list_districts import (
+    ListDistrictsHandler,
+)
 from src.modules.geo.application.queries.list_languages import (
     ListLanguagesHandler,
 )
@@ -57,6 +74,7 @@ from src.modules.geo.application.queries.list_subdivisions import (
 from src.modules.geo.domain.interfaces import (
     ICountryRepository,
     ICurrencyRepository,
+    IDistrictRepository,
     ILanguageRepository,
     ISubdivisionRepository,
 )
@@ -65,6 +83,9 @@ from src.modules.geo.infrastructure.repositories.country import (
 )
 from src.modules.geo.infrastructure.repositories.currency import (
     CurrencyRepository,
+)
+from src.modules.geo.infrastructure.repositories.district import (
+    DistrictRepository,
 )
 from src.modules.geo.infrastructure.repositories.language import (
     LanguageRepository,
@@ -99,6 +120,11 @@ class GeoProvider(Provider):
         scope=Scope.REQUEST,
         provides=ISubdivisionRepository,
     )
+    district_repo: CompositeDependencySource = provide(
+        DistrictRepository,
+        scope=Scope.REQUEST,
+        provides=IDistrictRepository,
+    )
 
     # -- Query handlers ------------------------------------------------ #
 
@@ -132,6 +158,14 @@ class GeoProvider(Provider):
     )
     list_subdivisions_handler: CompositeDependencySource = provide(
         ListSubdivisionsHandler,
+        scope=Scope.REQUEST,
+    )
+    get_district_handler: CompositeDependencySource = provide(
+        GetDistrictHandler,
+        scope=Scope.REQUEST,
+    )
+    list_districts_handler: CompositeDependencySource = provide(
+        ListDistrictsHandler,
         scope=Scope.REQUEST,
     )
 
@@ -231,5 +265,47 @@ class GeoProvider(Provider):
     )
     upsert_subdivision_type_translations_handler: CompositeDependencySource = provide(
         UpsertSubdivisionTypeTranslationsHandler,
+        scope=Scope.REQUEST,
+    )
+
+    # -- District command handlers ------------------------------------ #
+
+    create_district_handler: CompositeDependencySource = provide(
+        CreateDistrictHandler,
+        scope=Scope.REQUEST,
+    )
+    update_district_handler: CompositeDependencySource = provide(
+        UpdateDistrictHandler,
+        scope=Scope.REQUEST,
+    )
+    delete_district_handler: CompositeDependencySource = provide(
+        DeleteDistrictHandler,
+        scope=Scope.REQUEST,
+    )
+    upsert_district_translations_handler: CompositeDependencySource = provide(
+        UpsertDistrictTranslationsHandler,
+        scope=Scope.REQUEST,
+    )
+
+    # -- District type command handlers ------------------------------- #
+
+    list_district_types_handler: CompositeDependencySource = provide(
+        ListDistrictTypesHandler,
+        scope=Scope.REQUEST,
+    )
+    create_district_type_handler: CompositeDependencySource = provide(
+        CreateDistrictTypeHandler,
+        scope=Scope.REQUEST,
+    )
+    update_district_type_handler: CompositeDependencySource = provide(
+        UpdateDistrictTypeHandler,
+        scope=Scope.REQUEST,
+    )
+    delete_district_type_handler: CompositeDependencySource = provide(
+        DeleteDistrictTypeHandler,
+        scope=Scope.REQUEST,
+    )
+    upsert_district_type_translations_handler: CompositeDependencySource = provide(
+        UpsertDistrictTypeTranslationsHandler,
         scope=Scope.REQUEST,
     )
