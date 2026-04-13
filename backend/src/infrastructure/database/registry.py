@@ -55,6 +55,12 @@ from src.modules.identity.infrastructure.models import (
     StaffInvitationModel,
     StaffInvitationRoleModel,
 )
+from src.modules.logistics.infrastructure.models import (
+    DeliveryQuoteModel,
+    ProviderAccountModel,
+    ShipmentModel,
+    ShipmentTrackingEventModel,
+)
 from src.modules.supplier.infrastructure.models import Supplier
 from src.modules.user.infrastructure.models import CustomerModel, StaffMemberModel
 
@@ -77,6 +83,7 @@ __all__ = [
     "CurrencyModel",
     "CurrencyTranslationModel",
     "CustomerModel",
+    "DeliveryQuoteModel",
     "FailedTask",
     "IdentityModel",
     "IdentityRoleModel",
@@ -89,12 +96,15 @@ __all__ = [
     "Product",
     "ProductAttributeValue",
     "ProductVariant",
+    "ProviderAccountModel",
     "RoleHierarchyModel",
     "RoleModel",
     "RolePermissionModel",
     "SKUAttributeValueLink",
     "SessionModel",
     "SessionRoleModel",
+    "ShipmentModel",
+    "ShipmentTrackingEventModel",
     "StaffInvitationModel",
     "StaffInvitationRoleModel",
     "StaffMemberModel",

@@ -6,6 +6,7 @@ import uuid
 from datetime import UTC, datetime
 
 from src.modules.logistics.domain.value_objects import (
+    PROVIDER_CDEK,
     Address,
     BookingRequest,
     BookingResult,
@@ -28,7 +29,7 @@ class FakeRateProvider:
 
     def __init__(
         self,
-        code: ProviderCode = ProviderCode.CDEK,
+        code: ProviderCode = PROVIDER_CDEK,
         rates: list[ShippingRate] | None = None,
     ) -> None:
         self._code = code
@@ -57,7 +58,7 @@ class FakeBookingProvider:
 
     def __init__(
         self,
-        code: ProviderCode = ProviderCode.CDEK,
+        code: ProviderCode = PROVIDER_CDEK,
         should_fail: bool = False,
     ) -> None:
         self._code = code
@@ -89,7 +90,7 @@ class FakeTrackingProvider:
 
     def __init__(
         self,
-        code: ProviderCode = ProviderCode.CDEK,
+        code: ProviderCode = PROVIDER_CDEK,
         events: list[TrackingEvent] | None = None,
     ) -> None:
         self._code = code
@@ -111,12 +112,36 @@ class FakeTrackingProvider:
         return self._events
 
 
+class FakeTrackingPollProvider:
+    """Fake tracking poll provider for batch polling."""
+
+    def __init__(
+        self,
+        code: ProviderCode = PROVIDER_CDEK,
+        results: dict[str, list[TrackingEvent]] | None = None,
+    ) -> None:
+        self._code = code
+        self._results = results or {}
+        self.polled_ids: list[list[str]] = []
+
+    def provider_code(self) -> ProviderCode:
+        return self._code
+
+    async def poll_tracking_batch(
+        self, provider_shipment_ids: list[str]
+    ) -> dict[str, list[TrackingEvent]]:
+        self.polled_ids.append(provider_shipment_ids)
+        return {
+            sid: self._results.get(sid, []) for sid in provider_shipment_ids
+        }
+
+
 class FakePickupPointProvider:
     """Fake pickup point provider that returns pre-configured points."""
 
     def __init__(
         self,
-        code: ProviderCode = ProviderCode.CDEK,
+        code: ProviderCode = PROVIDER_CDEK,
         points: list[PickupPoint] | None = None,
     ) -> None:
         self._code = code
@@ -151,13 +176,13 @@ class FakePickupPointProvider:
 class FakeDocumentProvider:
     """Fake document provider."""
 
-    def __init__(self, code: ProviderCode = ProviderCode.CDEK) -> None:
+    def __init__(self, code: ProviderCode = PROVIDER_CDEK) -> None:
         self._code = code
 
     def provider_code(self) -> ProviderCode:
         return self._code
 
-    async def get_label_url(self, provider_shipment_id: str) -> DocumentResult:
+    async def get_label(self, provider_shipment_id: str) -> DocumentResult:
         return DocumentResult(
-            url=f"https://fake-labels.test/{provider_shipment_id}.pdf"
+            document_url=f"https://fake-labels.test/{provider_shipment_id}.pdf"
         )

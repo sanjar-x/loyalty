@@ -18,6 +18,7 @@ from src.modules.logistics.domain.events import (
 )
 from src.modules.logistics.domain.exceptions import InvalidShipmentTransitionError
 from src.modules.logistics.domain.value_objects import (
+    PROVIDER_CDEK,
     Address,
     CashOnDelivery,
     ContactInfo,
@@ -27,7 +28,6 @@ from src.modules.logistics.domain.value_objects import (
     EstimatedDelivery,
     Money,
     Parcel,
-    ProviderCode,
     ShipmentStatus,
     ShippingRate,
     TrackingEvent,
@@ -74,7 +74,7 @@ def _make_quote(**overrides) -> DeliveryQuote:
     defaults = {
         "id": uuid.uuid4(),
         "rate": ShippingRate(
-            provider_code=ProviderCode.CDEK,
+            provider_code=PROVIDER_CDEK,
             service_code="136",
             service_name="Посылка склад-склад",
             delivery_type=DeliveryType.PICKUP_POINT,
@@ -141,7 +141,7 @@ class TestShipmentCreate:
     def test_create_captures_quote_data(self):
         quote = _make_quote()
         shipment = _make_shipment(quote=quote)
-        assert shipment.provider_code == ProviderCode.CDEK
+        assert shipment.provider_code == PROVIDER_CDEK
         assert shipment.service_code == "136"
         assert shipment.delivery_type == DeliveryType.PICKUP_POINT
         assert shipment.quoted_cost == quote.rate.total_cost

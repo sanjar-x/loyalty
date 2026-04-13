@@ -17,6 +17,7 @@ class ProviderHTTPError(Exception):
         response_body: str | None = None,
     ):
         self.status_code: int = status_code
+        self.message: str = message
         self.response_body = response_body
         super().__init__(f"HTTP {status_code}: {message}")
 

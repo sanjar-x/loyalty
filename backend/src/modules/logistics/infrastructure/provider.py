@@ -7,6 +7,7 @@ and command/query handlers into the DI container.
 
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.modules.logistics.application.commands.book_shipment import (
     BookShipmentHandler,
@@ -38,9 +39,7 @@ from src.modules.logistics.domain.interfaces import (
     IShipmentRepository,
     IShippingProviderRegistry,
 )
-from src.modules.logistics.infrastructure.registry import (
-    ShippingProviderRegistry,
-)
+from src.modules.logistics.infrastructure.bootstrap import bootstrap_registry
 from src.modules.logistics.infrastructure.repositories.delivery_quote import (
     DeliveryQuoteRepository,
 )
@@ -63,16 +62,18 @@ class LogisticsInfraProvider(Provider):
         scope=Scope.REQUEST,
         provides=IDeliveryQuoteRepository,
     )
-    registry: CompositeDependencySource = provide(
-        ShippingProviderRegistry,
-        scope=Scope.APP,
-        provides=IShippingProviderRegistry,
-    )
     routing_policy: CompositeDependencySource = provide(
         DefaultProviderRoutingPolicy,
         scope=Scope.APP,
         provides=IProviderRoutingPolicy,
     )
+
+    @provide(scope=Scope.APP, provides=IShippingProviderRegistry)
+    async def registry(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> IShippingProviderRegistry:
+        return await bootstrap_registry(session_factory)
 
 
 class LogisticsCommandProvider(Provider):
