@@ -2,7 +2,10 @@
 
 import pytest
 
-from src.modules.logistics.domain.value_objects import PROVIDER_CDEK, PROVIDER_YANDEX_DELIVERY
+from src.modules.logistics.domain.value_objects import (
+    PROVIDER_CDEK,
+    PROVIDER_YANDEX_DELIVERY,
+)
 from src.modules.logistics.infrastructure.registry import ShippingProviderRegistry
 from tests.fakes.fake_logistics_providers import (
     FakeBookingProvider,
