@@ -127,9 +127,7 @@ class ShipmentRepository(IShipmentRepository):
         orm.version = entity.version
 
         # Sync tracking events (append-only, dedup by business key)
-        existing_keys = {
-            (e.timestamp, e.status) for e in orm.tracking_events
-        }
+        existing_keys = {(e.timestamp, e.status) for e in orm.tracking_events}
         for event in entity.tracking_events:
             event_key = (event.timestamp, event.status)
             if event_key not in existing_keys:

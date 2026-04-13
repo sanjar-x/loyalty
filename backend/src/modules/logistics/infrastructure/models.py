@@ -17,6 +17,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -178,6 +179,12 @@ class ShipmentTrackingEventModel(Base):
 
     __tablename__ = "shipment_tracking_events"
     __table_args__ = (
+        UniqueConstraint(
+            "shipment_id",
+            "timestamp",
+            "status",
+            name="uq_tracking_events_shipment_ts_status",
+        ),
         Index("ix_tracking_events_shipment_id", "shipment_id"),
         Index("ix_tracking_events_timestamp", "timestamp"),
         {
@@ -359,12 +366,8 @@ class DeliveryQuoteModel(Base):
     )
 
     # Route context (for audit / debugging)
-    origin_json: Mapped[dict] = mapped_column(
-        JSONB, comment="Origin address snapshot"
-    )
+    origin_json: Mapped[dict] = mapped_column(JSONB, comment="Origin address snapshot")
     destination_json: Mapped[dict] = mapped_column(
         JSONB, comment="Destination address snapshot"
     )
-    parcels_json: Mapped[list] = mapped_column(
-        JSONB, comment="Parcels snapshot"
-    )
+    parcels_json: Mapped[list] = mapped_column(JSONB, comment="Parcels snapshot")

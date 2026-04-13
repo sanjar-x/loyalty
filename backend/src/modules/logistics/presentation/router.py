@@ -37,6 +37,7 @@ from src.modules.logistics.application.queries.list_pickup_points import (
     ListPickupPointsHandler,
     ListPickupPointsQuery,
 )
+from src.modules.logistics.domain.entities import Shipment
 from src.modules.logistics.domain.value_objects import (
     Address,
     ContactInfo,
@@ -53,9 +54,11 @@ from src.modules.logistics.presentation.schemas import (
     CalculateRatesRequest,
     CalculateRatesResponse,
     CancelShipmentResponse,
+    ContactInfoSchema,
     CreateShipmentRequest,
     DeliveryQuoteSchema,
     MoneySchema,
+    ParcelSchema,
     PickupPointSchema,
     PickupPointsRequest,
     PickupPointsResponse,
@@ -77,7 +80,7 @@ logistics_router = APIRouter(
 # ---------------------------------------------------------------------------
 
 
-def _schema_to_address(s) -> Address:
+def _schema_to_address(s: AddressSchema) -> Address:
     return Address(
         country_code=s.country_code,
         city=s.city,
@@ -95,8 +98,6 @@ def _schema_to_address(s) -> Address:
 
 
 def _address_to_schema(a: Address) -> AddressSchema:
-    from src.modules.logistics.presentation.schemas import AddressSchema
-
     return AddressSchema(
         country_code=a.country_code,
         city=a.city,
@@ -113,7 +114,7 @@ def _address_to_schema(a: Address) -> AddressSchema:
     )
 
 
-def _schema_to_contact(s) -> ContactInfo:
+def _schema_to_contact(s: ContactInfoSchema) -> ContactInfo:
     return ContactInfo(
         first_name=s.first_name,
         last_name=s.last_name,
@@ -124,7 +125,7 @@ def _schema_to_contact(s) -> ContactInfo:
     )
 
 
-def _schema_to_parcel(s) -> Parcel:
+def _schema_to_parcel(s: ParcelSchema) -> Parcel:
     return Parcel(
         weight=Weight(grams=s.weight.grams),
         dimensions=(
@@ -360,7 +361,7 @@ async def list_pickup_points(
 # ---------------------------------------------------------------------------
 
 
-def _shipment_to_response(shipment) -> ShipmentResponse:
+def _shipment_to_response(shipment: Shipment) -> ShipmentResponse:
     return ShipmentResponse(
         id=shipment.id,
         order_id=shipment.order_id,

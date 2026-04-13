@@ -7,8 +7,9 @@ when creating a shipment.
 """
 
 import uuid
+from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.logistics.domain.interfaces import IDeliveryQuoteRepository
@@ -56,7 +57,8 @@ class DeliveryQuoteRepository(IDeliveryQuoteRepository):
             parcels_json=[],
         )
         self._session.add(model)
-        return quote
+        await self._session.flush()
+        return self._to_domain(model)
 
     async def get_by_id(self, quote_id: uuid.UUID) -> DeliveryQuote | None:
         stmt = select(DeliveryQuoteModel).where(DeliveryQuoteModel.id == quote_id)
@@ -66,13 +68,25 @@ class DeliveryQuoteRepository(IDeliveryQuoteRepository):
             return None
         return self._to_domain(model)
 
+    async def delete_expired(self) -> int:
+        stmt = delete(DeliveryQuoteModel).where(
+            DeliveryQuoteModel.expires_at.isnot(None),
+            DeliveryQuoteModel.expires_at < datetime.now(UTC),
+        )
+        result = await self._session.execute(stmt)
+        return int(result.rowcount or 0)
+
     @staticmethod
     def _to_domain(model: DeliveryQuoteModel) -> DeliveryQuote:
         insurance_cost = None
         if model.insurance_cost_amount is not None:
+            if not model.insurance_cost_currency:
+                raise ValueError(
+                    f"Quote {model.id}: insurance_cost_amount set but currency is missing"
+                )
             insurance_cost = Money(
                 amount=model.insurance_cost_amount,
-                currency_code=model.insurance_cost_currency or "RUB",
+                currency_code=model.insurance_cost_currency,
             )
 
         rate = ShippingRate(

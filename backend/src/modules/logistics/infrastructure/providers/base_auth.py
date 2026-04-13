@@ -6,6 +6,7 @@ abstract class defines the contract, and concrete implementations
 handle token acquisition, caching, and refresh.
 """
 
+import asyncio
 import base64
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime, timedelta
@@ -66,6 +67,7 @@ class OAuth2ClientCredentialsAuthManager(BaseAuthManager):
         self._buffer = timedelta(seconds=token_expiry_buffer_seconds)
         self._access_token: str | None = None
         self._expires_at: datetime | None = None
+        self._lock = asyncio.Lock()
 
     async def get_auth_headers(self) -> dict[str, str]:
         await self.refresh_if_needed()
@@ -82,23 +84,33 @@ class OAuth2ClientCredentialsAuthManager(BaseAuthManager):
         ):
             return  # token still valid
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(
-                self._token_url,
-                data={
-                    "grant_type": "client_credentials",
-                    "client_id": self._client_id,
-                    "client_secret": self._client_secret,
-                },
-            )
-            if response.status_code != 200:
-                raise ProviderAuthError(
-                    f"OAuth2 token request failed: HTTP {response.status_code}"
+        async with self._lock:
+            # Double-check after acquiring the lock
+            now = datetime.now(UTC)
+            if (
+                self._access_token
+                and self._expires_at
+                and now < (self._expires_at - self._buffer)
+            ):
+                return
+
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    self._token_url,
+                    data={
+                        "grant_type": "client_credentials",
+                        "client_id": self._client_id,
+                        "client_secret": self._client_secret,
+                    },
                 )
-            data = response.json()
-            self._access_token = data["access_token"]
-            expires_in = data.get("expires_in", 3600)
-            self._expires_at = now + timedelta(seconds=expires_in)
+                if response.status_code != 200:
+                    raise ProviderAuthError(
+                        f"OAuth2 token request failed: HTTP {response.status_code}"
+                    )
+                data = response.json()
+                self._access_token = data["access_token"]
+                expires_in = data.get("expires_in", 3600)
+                self._expires_at = now + timedelta(seconds=expires_in)
 
 
 class DualHeaderAuthManager(BaseAuthManager):

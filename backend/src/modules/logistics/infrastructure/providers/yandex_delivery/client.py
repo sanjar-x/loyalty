@@ -118,9 +118,7 @@ class YandexDeliveryClient:
         )
         return resp.json()
 
-    async def get_requests_info(
-        self, request_ids: list[str]
-    ) -> dict[str, Any]:
+    async def get_requests_info(self, request_ids: list[str]) -> dict[str, Any]:
         """POST /requests/info — batch get orders info."""
         resp = await self._provider_client.request(
             "POST",
@@ -158,9 +156,7 @@ class YandexDeliveryClient:
     # Pickup points                                                        #
     # ------------------------------------------------------------------ #
 
-    async def list_pickup_points(
-        self, body: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def list_pickup_points(self, body: dict[str, Any]) -> dict[str, Any]:
         """POST /pickup-points/list — list drop-off and pickup points."""
         resp = await self._provider_client.request(
             "POST", PATH_PICKUP_POINTS_LIST, json=body

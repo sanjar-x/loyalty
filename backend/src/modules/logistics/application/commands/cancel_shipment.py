@@ -73,45 +73,53 @@ class CancelShipmentHandler:
             self._uow.register_aggregate(shipment)
             await self._uow.commit()
 
-        # Phase 2: Call provider
-        booking_provider = self._registry.get_booking_provider(shipment.provider_code)
-
-        try:
-            result = await booking_provider.cancel_shipment(
-                shipment.provider_shipment_id or ""
-            )
-        except Exception as exc:
-            self._logger.error(
-                "Cancellation failed",
+        # Phase 2: Call provider (skip if never booked)
+        if not shipment.provider_shipment_id:
+            self._logger.warning(
+                "Shipment has no provider_shipment_id, skipping provider cancel",
                 shipment_id=str(shipment.id),
-                error=str(exc),
             )
-            async with self._uow:
-                shipment = await self._shipment_repo.get_by_id(command.shipment_id)
-                if shipment:
-                    shipment.mark_cancellation_failed(reason=str(exc))
-                    await self._shipment_repo.update(shipment)
-                    self._uow.register_aggregate(shipment)
-                    await self._uow.commit()
-            raise CancellationError(
-                message=f"Provider cancellation failed: {exc}",
-                details={"shipment_id": str(command.shipment_id)},
-            ) from exc
+        else:
+            booking_provider = self._registry.get_booking_provider(
+                shipment.provider_code
+            )
 
-        if not result.success:
-            async with self._uow:
-                shipment = await self._shipment_repo.get_by_id(command.shipment_id)
-                if shipment:
-                    shipment.mark_cancellation_failed(
-                        reason=result.reason or "Provider rejected cancellation"
-                    )
-                    await self._shipment_repo.update(shipment)
-                    self._uow.register_aggregate(shipment)
-                    await self._uow.commit()
-            raise CancellationError(
-                message=result.reason or "Provider rejected cancellation",
-                details={"shipment_id": str(command.shipment_id)},
-            )
+            try:
+                result = await booking_provider.cancel_shipment(
+                    shipment.provider_shipment_id
+                )
+            except Exception as exc:
+                self._logger.error(
+                    "Cancellation failed",
+                    shipment_id=str(shipment.id),
+                    error=str(exc),
+                )
+                async with self._uow:
+                    shipment = await self._shipment_repo.get_by_id(command.shipment_id)
+                    if shipment:
+                        shipment.mark_cancellation_failed(reason=str(exc))
+                        await self._shipment_repo.update(shipment)
+                        self._uow.register_aggregate(shipment)
+                        await self._uow.commit()
+                raise CancellationError(
+                    message=f"Provider cancellation failed: {exc}",
+                    details={"shipment_id": str(command.shipment_id)},
+                ) from exc
+
+            if not result.success:
+                async with self._uow:
+                    shipment = await self._shipment_repo.get_by_id(command.shipment_id)
+                    if shipment:
+                        shipment.mark_cancellation_failed(
+                            reason=result.reason or "Provider rejected cancellation"
+                        )
+                        await self._shipment_repo.update(shipment)
+                        self._uow.register_aggregate(shipment)
+                        await self._uow.commit()
+                raise CancellationError(
+                    message=result.reason or "Provider rejected cancellation",
+                    details={"shipment_id": str(command.shipment_id)},
+                )
 
         # Phase 3: Mark as CANCELLED
         async with self._uow:

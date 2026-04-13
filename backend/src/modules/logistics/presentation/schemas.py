@@ -16,8 +16,10 @@ from pydantic import BaseModel, Field
 
 
 class AddressSchema(BaseModel):
-    country_code: str = Field(..., description="ISO 3166-1 alpha-2 country code")
-    city: str
+    country_code: str = Field(
+        ..., min_length=1, description="ISO 3166-1 alpha-2 country code"
+    )
+    city: str = Field(..., min_length=1)
     region: str | None = None
     postal_code: str | None = None
     street: str | None = None
@@ -34,29 +36,29 @@ class AddressSchema(BaseModel):
 
 
 class ContactInfoSchema(BaseModel):
-    first_name: str
-    last_name: str
-    phone: str
+    first_name: str = Field(..., min_length=1)
+    last_name: str = Field(..., min_length=1)
+    phone: str = Field(..., min_length=1)
     middle_name: str | None = None
     email: str | None = None
     company_name: str | None = None
 
 
 class WeightSchema(BaseModel):
-    grams: int = Field(..., ge=0, description="Weight in grams")
+    grams: int = Field(..., gt=0, description="Weight in grams")
 
 
 class DimensionsSchema(BaseModel):
-    length_cm: int = Field(..., ge=0)
-    width_cm: int = Field(..., ge=0)
-    height_cm: int = Field(..., ge=0)
+    length_cm: int = Field(..., gt=0)
+    width_cm: int = Field(..., gt=0)
+    height_cm: int = Field(..., gt=0)
 
 
 class MoneySchema(BaseModel):
     amount: int = Field(
-        ..., description="Amount in smallest currency unit (e.g. kopecks)"
+        ..., ge=0, description="Amount in smallest currency unit (e.g. kopecks)"
     )
-    currency_code: str = Field(..., description="ISO 4217 currency code")
+    currency_code: str = Field(..., min_length=1, description="ISO 4217 currency code")
 
 
 class ParcelSchema(BaseModel):

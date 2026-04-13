@@ -470,34 +470,38 @@ def _build_items(
         if parcel.items:
             for item in parcel.items:
                 unit_price = item.unit_price.amount if item.unit_price else 0
-                items.append({
-                    "count": item.quantity,
-                    "name": item.name,
-                    "article": item.sku or f"SKU-{barcode_idx}",
-                    "billing_details": {
-                        "inn": default_inn,
-                        "nds": default_nds,
-                        "unit_price": unit_price,
-                        "assessed_unit_price": unit_price,
-                    },
-                    "place_barcode": place_barcode,
-                })
+                items.append(
+                    {
+                        "count": item.quantity,
+                        "name": item.name,
+                        "article": item.sku or f"SKU-{barcode_idx}",
+                        "billing_details": {
+                            "inn": default_inn,
+                            "nds": default_nds,
+                            "unit_price": unit_price,
+                            "assessed_unit_price": unit_price,
+                        },
+                        "place_barcode": place_barcode,
+                    }
+                )
                 barcode_idx += 1
         else:
             # No items — create a placeholder
             declared = parcel.declared_value.amount if parcel.declared_value else 0
-            items.append({
-                "count": 1,
-                "name": parcel.description or "Товар",
-                "article": f"PKG-{parcel_idx + 1:03d}",
-                "billing_details": {
-                    "inn": default_inn,
-                    "nds": default_nds,
-                    "unit_price": declared,
-                    "assessed_unit_price": declared,
-                },
-                "place_barcode": place_barcode,
-            })
+            items.append(
+                {
+                    "count": 1,
+                    "name": parcel.description or "Товар",
+                    "article": f"PKG-{parcel_idx + 1:03d}",
+                    "billing_details": {
+                        "inn": default_inn,
+                        "nds": default_nds,
+                        "unit_price": declared,
+                        "assessed_unit_price": declared,
+                    },
+                    "place_barcode": place_barcode,
+                }
+            )
 
     return items
 
@@ -507,10 +511,12 @@ def _build_places(parcels: list[Parcel]) -> list[dict[str, Any]]:
     places: list[dict[str, Any]] = []
     for idx, parcel in enumerate(parcels):
         barcode = f"PKG-{idx + 1:03d}"
-        places.append({
-            "physical_dims": _build_physical_dims(parcel),
-            "barcode": barcode,
-        })
+        places.append(
+            {
+                "physical_dims": _build_physical_dims(parcel),
+                "barcode": barcode,
+            }
+        )
     return places
 
 
@@ -538,14 +544,14 @@ def _parse_timestamp(entry: dict[str, Any]) -> datetime | None:
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=UTC)
             return dt
-        except (ValueError, AttributeError):
+        except ValueError, AttributeError:
             pass
 
     ts_unix = entry.get("timestamp")
     if ts_unix is not None:
         try:
             return datetime.fromtimestamp(int(ts_unix), tz=UTC)
-        except (ValueError, TypeError, OSError):
+        except ValueError, TypeError, OSError:
             pass
 
     return None

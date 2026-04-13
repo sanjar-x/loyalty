@@ -96,8 +96,8 @@ class Weight:
     grams: int
 
     def __attrs_post_init__(self) -> None:
-        if self.grams < 0:
-            raise ValueError("Weight cannot be negative")
+        if self.grams <= 0:
+            raise ValueError("Weight must be positive")
 
 
 @attrs.define(frozen=True)
@@ -109,8 +109,8 @@ class Dimensions:
     height_cm: int
 
     def __attrs_post_init__(self) -> None:
-        if self.length_cm < 0 or self.width_cm < 0 or self.height_cm < 0:
-            raise ValueError("Dimensions cannot be negative")
+        if self.length_cm <= 0 or self.width_cm <= 0 or self.height_cm <= 0:
+            raise ValueError("All dimensions must be positive")
 
     @property
     def volume_cm3(self) -> int:
@@ -125,6 +125,8 @@ class Money:
     currency_code: str  # ISO 4217
 
     def __attrs_post_init__(self) -> None:
+        if self.amount < 0:
+            raise ValueError("Money amount cannot be negative")
         if not self.currency_code:
             raise ValueError("Currency code is required")
 
@@ -157,7 +159,9 @@ class Address:
     latitude: float | None = None
     longitude: float | None = None
     raw_address: str | None = None  # provider-formatted full address
-    metadata: dict[str, str] = attrs.Factory(dict)  # e.g. {"fias_guid": "...", "cdek_city_code": "..."}
+    metadata: dict[str, str] = attrs.Factory(
+        dict
+    )  # e.g. {"fias_guid": "...", "cdek_city_code": "..."}
 
 
 @attrs.define(frozen=True)
@@ -200,6 +204,10 @@ class ParcelItem:
     weight: Weight | None = None
     country_of_origin: str | None = None  # ISO 3166-1 alpha-2
     hs_code: str | None = None  # Harmonized System code for customs
+
+    def __attrs_post_init__(self) -> None:
+        if self.quantity <= 0:
+            raise ValueError("ParcelItem quantity must be positive")
 
 
 @attrs.define(frozen=True)

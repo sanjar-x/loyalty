@@ -6,6 +6,8 @@ Calls twice (courier + pickup) to return both delivery options.
 """
 
 import logging
+import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from src.modules.logistics.domain.value_objects import (
@@ -71,9 +73,6 @@ class YandexDeliveryRateProvider:
             rate = parse_pricing_response(data, tariff)
             if rate is None:
                 continue
-
-            import uuid
-            from datetime import UTC, datetime
 
             quotes.append(
                 DeliveryQuote(

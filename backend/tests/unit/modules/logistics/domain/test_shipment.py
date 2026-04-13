@@ -263,7 +263,7 @@ class TestShipmentFSM:
     def test_draft_can_be_cancelled_directly(self):
         """DRAFT → CANCELLED is allowed (user cancels before booking)."""
         shipment = _make_shipment()
-        shipment.mark_cancelled()
+        shipment.cancel_draft()
         assert shipment.status == ShipmentStatus.CANCELLED
 
     def test_version_increments_on_transition(self):

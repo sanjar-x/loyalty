@@ -10,7 +10,6 @@ import uuid
 from datetime import UTC, datetime
 
 import attrs
-from attr import Factory, dataclass
 
 from src.modules.logistics.domain.events import (
     ShipmentBookedEvent,
@@ -44,25 +43,31 @@ from src.shared.interfaces.entities import AggregateRoot
 # ---------------------------------------------------------------------------
 
 _ALLOWED_TRANSITIONS: dict[ShipmentStatus, frozenset[ShipmentStatus]] = {
-    ShipmentStatus.DRAFT: frozenset({
-        ShipmentStatus.BOOKING_PENDING,
-        ShipmentStatus.CANCELLED,
-    }),
-    ShipmentStatus.BOOKING_PENDING: frozenset({
-        ShipmentStatus.BOOKED,
-        ShipmentStatus.FAILED,
-    }),
+    ShipmentStatus.DRAFT: frozenset(
+        {
+            ShipmentStatus.BOOKING_PENDING,
+            ShipmentStatus.CANCELLED,
+        }
+    ),
+    ShipmentStatus.BOOKING_PENDING: frozenset(
+        {
+            ShipmentStatus.BOOKED,
+            ShipmentStatus.FAILED,
+        }
+    ),
     ShipmentStatus.BOOKED: frozenset({ShipmentStatus.CANCEL_PENDING}),
-    ShipmentStatus.CANCEL_PENDING: frozenset({
-        ShipmentStatus.CANCELLED,
-        ShipmentStatus.BOOKED,  # revert when provider rejects cancellation
-    }),
+    ShipmentStatus.CANCEL_PENDING: frozenset(
+        {
+            ShipmentStatus.CANCELLED,
+            ShipmentStatus.BOOKED,  # revert when provider rejects cancellation
+        }
+    ),
     ShipmentStatus.CANCELLED: frozenset(),
     ShipmentStatus.FAILED: frozenset(),
 }
 
 
-@dataclass
+@attrs.define
 class Shipment(AggregateRoot):
     """Shipment aggregate root.
 
@@ -119,8 +124,8 @@ class Shipment(AggregateRoot):
     failure_reason: str | None = None
     estimated_delivery: EstimatedDelivery | None = None
 
-    created_at: datetime = Factory(lambda: datetime.now(UTC))
-    updated_at: datetime = Factory(lambda: datetime.now(UTC))
+    created_at: datetime = attrs.Factory(lambda: datetime.now(UTC))
+    updated_at: datetime = attrs.Factory(lambda: datetime.now(UTC))
     booked_at: datetime | None = None
     cancelled_at: datetime | None = None
 

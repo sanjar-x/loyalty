@@ -70,19 +70,19 @@ class FakeBookingProvider:
         return self._code
 
     async def book_shipment(self, request: BookingRequest) -> BookingResult:
-        self.booked_requests.append(request)
         if self._should_fail:
             raise RuntimeError("Fake booking failure")
+        self.booked_requests.append(request)
         return BookingResult(
             provider_shipment_id=f"FAKE-{uuid.uuid4().hex[:8]}",
             tracking_number=f"TN-{uuid.uuid4().hex[:6]}",
         )
 
     async def cancel_shipment(self, provider_shipment_id: str) -> CancelResult:
-        self.cancelled_ids.append(provider_shipment_id)
         if self._should_fail:
             raise RuntimeError("Fake cancel failure")
-        return CancelResult(cancelled=True)
+        self.cancelled_ids.append(provider_shipment_id)
+        return CancelResult(success=True)
 
 
 class FakeTrackingProvider:
@@ -131,9 +131,7 @@ class FakeTrackingPollProvider:
         self, provider_shipment_ids: list[str]
     ) -> dict[str, list[TrackingEvent]]:
         self.polled_ids.append(provider_shipment_ids)
-        return {
-            sid: self._results.get(sid, []) for sid in provider_shipment_ids
-        }
+        return {sid: self._results.get(sid, []) for sid in provider_shipment_ids}
 
 
 class FakePickupPointProvider:

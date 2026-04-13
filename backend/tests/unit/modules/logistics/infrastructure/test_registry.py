@@ -2,6 +2,7 @@
 
 import pytest
 
+from src.modules.logistics.domain.exceptions import ProviderUnavailableError
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_CDEK,
     PROVIDER_YANDEX_DELIVERY,
@@ -60,17 +61,17 @@ class TestRegistryRegistration:
 class TestRegistryLookupErrors:
     def test_get_missing_rate_provider_raises(self):
         registry = ShippingProviderRegistry()
-        with pytest.raises(KeyError, match="rate provider"):
+        with pytest.raises(ProviderUnavailableError):
             registry.get_rate_provider("nonexistent")
 
     def test_get_missing_booking_provider_raises(self):
         registry = ShippingProviderRegistry()
-        with pytest.raises(KeyError, match="booking provider"):
+        with pytest.raises(ProviderUnavailableError):
             registry.get_booking_provider("nonexistent")
 
     def test_get_missing_tracking_provider_raises(self):
         registry = ShippingProviderRegistry()
-        with pytest.raises(KeyError, match="tracking provider"):
+        with pytest.raises(ProviderUnavailableError):
             registry.get_tracking_provider("nonexistent")
 
 
@@ -94,7 +95,9 @@ class TestRegistryListing:
     def test_registered_provider_codes(self):
         registry = ShippingProviderRegistry()
         registry.register_rate_provider(FakeRateProvider(code=PROVIDER_CDEK))
-        registry.register_booking_provider(FakeBookingProvider(code=PROVIDER_YANDEX_DELIVERY))
+        registry.register_booking_provider(
+            FakeBookingProvider(code=PROVIDER_YANDEX_DELIVERY)
+        )
         codes = registry.registered_provider_codes
         assert codes == {PROVIDER_CDEK, PROVIDER_YANDEX_DELIVERY}
 
@@ -106,5 +109,5 @@ class TestWebhookAdapter:
 
     def test_get_missing_webhook_adapter_raises(self):
         registry = ShippingProviderRegistry()
-        with pytest.raises(KeyError, match="webhook adapter"):
+        with pytest.raises(ProviderUnavailableError):
             registry.get_webhook_adapter(PROVIDER_CDEK)

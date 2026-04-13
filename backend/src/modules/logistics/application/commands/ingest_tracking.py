@@ -86,8 +86,7 @@ class IngestTrackingHandler:
             if new_count > 0:
                 shipment = await self._shipment_repo.update(shipment)
                 self._uow.register_aggregate(shipment)
-
-            await self._uow.commit()
+                await self._uow.commit()
 
         if new_count > 0:
             self._logger.info(

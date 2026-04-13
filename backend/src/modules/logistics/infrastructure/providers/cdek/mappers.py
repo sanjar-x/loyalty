@@ -79,7 +79,7 @@ def _parse_cdek_date(value: str) -> datetime | None:
     """Parse a CDEK date string (``YYYY-MM-DD``) to a UTC datetime, or None."""
     try:
         return datetime.strptime(value.strip(), "%Y-%m-%d").replace(tzinfo=UTC)
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         return None
 
 
@@ -183,14 +183,16 @@ def parse_tariff_list_response(data: dict) -> list[DeliveryQuote]:
             delivery_days_max=tariff.get("period_max"),
         )
 
-        payload = json.dumps({
-            "tariff_code": tariff_code,
-            "delivery_mode": delivery_mode,
-            "tariff_name": tariff.get("tariff_name"),
-            "tariff_description": tariff.get("tariff_description"),
-            "calendar_min": tariff.get("calendar_min"),
-            "calendar_max": tariff.get("calendar_max"),
-        })
+        payload = json.dumps(
+            {
+                "tariff_code": tariff_code,
+                "delivery_mode": delivery_mode,
+                "tariff_name": tariff.get("tariff_name"),
+                "tariff_description": tariff.get("tariff_description"),
+                "calendar_min": tariff.get("calendar_min"),
+                "calendar_max": tariff.get("calendar_max"),
+            }
+        )
 
         quotes.append(
             DeliveryQuote(
@@ -251,17 +253,21 @@ def build_order_request(request: BookingRequest) -> dict:
         body["delivery_recipient_cost"] = {
             "value": _kopecks_to_rubles(request.cod.amount.amount),
         }
-        body.setdefault("services", []).append({
-            "code": CDEK_SERVICE_COD,
-            "parameter": str(_kopecks_to_rubles(request.cod.amount.amount)),
-        })
+        body.setdefault("services", []).append(
+            {
+                "code": CDEK_SERVICE_COD,
+                "parameter": str(_kopecks_to_rubles(request.cod.amount.amount)),
+            }
+        )
 
     # Declared value → insurance service
     if request.declared_value:
-        body.setdefault("services", []).append({
-            "code": CDEK_SERVICE_INSURANCE,
-            "parameter": str(_kopecks_to_rubles(request.declared_value.amount)),
-        })
+        body.setdefault("services", []).append(
+            {
+                "code": CDEK_SERVICE_INSURANCE,
+                "parameter": str(_kopecks_to_rubles(request.declared_value.amount)),
+            }
+        )
 
     return body
 
