@@ -94,10 +94,33 @@ async def _handle_role_assignment_changed(
     )
 
 
+async def _handle_linked_account_created(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    """Dispatches customer creation for social/Telegram logins."""
+    from src.modules.user.application.consumers.identity_events import (
+        on_linked_account_created,
+    )
+
+    await (
+        on_linked_account_created.kicker()
+        .with_labels(**_build_labels(correlation_id))
+        .kiq(
+            identity_id=payload["identity_id"],
+            provider=payload.get("provider", ""),
+            provider_metadata=payload.get("provider_metadata", {}),
+            start_param=payload.get("start_param"),
+            is_new_identity=payload.get("is_new_identity", False),
+            provider_sub_id=payload.get("provider_sub_id", ""),
+        )
+    )
+
+
 # Register IAM event mappings
 register_event_handler("identity_registered", _handle_identity_registered)
 register_event_handler("identity_deactivated", _handle_identity_deactivated)
 register_event_handler("role_assignment_changed", _handle_role_assignment_changed)
+register_event_handler("linked_account_created", _handle_linked_account_created)
 
 
 # ---------------------------------------------------------------------------
