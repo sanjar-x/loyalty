@@ -73,18 +73,18 @@ async def tracking_poll_task(
 
     for poll_provider in poll_providers:
         code = poll_provider.provider_code()
-        shipment_ids = await _get_provider_shipment_ids(session_factory, code)
+        provider_shipment_ids = await _get_provider_shipment_ids(session_factory, code)
 
-        if not shipment_ids:
+        if not provider_shipment_ids:
             continue
 
         try:
-            results = await poll_provider.poll_tracking_batch(shipment_ids)
+            results = await poll_provider.poll_tracking_batch(provider_shipment_ids)
         except Exception:
             logger.exception(
                 "Tracking poll failed",
                 provider=code,
-                shipment_count=len(shipment_ids),
+                shipment_count=len(provider_shipment_ids),
             )
             continue
 

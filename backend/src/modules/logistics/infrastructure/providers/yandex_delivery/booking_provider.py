@@ -104,7 +104,7 @@ def _extract_estimated_delivery(offer: dict[str, Any]) -> EstimatedDelivery | No
 
             dt = datetime.fromisoformat(max_dt_str.replace("Z", "+00:00"))
             return EstimatedDelivery(estimated_date=dt)
-        except ValueError, AttributeError:
+        except (ValueError, AttributeError):
             pass
 
     return None

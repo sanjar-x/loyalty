@@ -53,8 +53,9 @@ class ShipmentStatus(StrEnum):
     FSM::
 
         DRAFT → BOOKING_PENDING → BOOKED → CANCEL_PENDING → CANCELLED
-                       ↓                          ↓
-                     FAILED                      FAILED
+          ↓            ↓              ↑
+        CANCELLED    FAILED      (revert on
+                                  cancel fail)
     """
 
     DRAFT = "draft"

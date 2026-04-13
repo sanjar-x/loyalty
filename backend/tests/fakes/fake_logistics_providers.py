@@ -11,12 +11,14 @@ from src.modules.logistics.domain.value_objects import (
     BookingRequest,
     BookingResult,
     CancelResult,
+    DeliveryQuote,
     DeliveryType,
     DocumentResult,
     Money,
     Parcel,
     PickupPoint,
     PickupPointQuery,
+    PickupPointType,
     ProviderCode,
     ShippingRate,
     TrackingEvent,
@@ -25,7 +27,7 @@ from src.modules.logistics.domain.value_objects import (
 
 
 class FakeRateProvider:
-    """Fake rate provider that returns pre-configured rates."""
+    """Fake rate provider that returns pre-configured quotes."""
 
     def __init__(
         self,
@@ -49,8 +51,16 @@ class FakeRateProvider:
 
     async def calculate_rates(
         self, origin: Address, destination: Address, parcels: list[Parcel]
-    ) -> list[ShippingRate]:
-        return self._rates
+    ) -> list[DeliveryQuote]:
+        return [
+            DeliveryQuote(
+                id=uuid.uuid4(),
+                rate=rate,
+                provider_payload="{}",
+                quoted_at=datetime.now(UTC),
+            )
+            for rate in self._rates
+        ]
 
 
 class FakeBookingProvider:
@@ -148,7 +158,7 @@ class FakePickupPointProvider:
                 provider_code=code,
                 external_id="PVZ-001",
                 name="Test PVZ",
-                pickup_point_type="PVZ",
+                pickup_point_type=PickupPointType.PVZ,
                 address=Address(
                     country_code="RU",
                     city="Москва",

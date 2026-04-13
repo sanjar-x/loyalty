@@ -67,6 +67,7 @@ from src.modules.logistics.presentation.schemas import (
     TrackingEventSchema,
     TrackingResponse,
 )
+from src.shared.exceptions import ValidationError as AppValidationError
 
 logistics_router = APIRouter(
     prefix="/logistics",
@@ -93,7 +94,7 @@ def _schema_to_address(s: AddressSchema) -> Address:
         latitude=s.latitude,
         longitude=s.longitude,
         raw_address=s.raw_address,
-        metadata=s.metadata if hasattr(s, "metadata") else {},
+        metadata=s.metadata,
     )
 
 
@@ -320,6 +321,14 @@ async def list_pickup_points(
     body: PickupPointsRequest,
     handler: FromDishka[ListPickupPointsHandler],
 ) -> PickupPointsResponse:
+    try:
+        delivery_type = DeliveryType(body.delivery_type) if body.delivery_type else None
+    except ValueError:
+        valid = [e.value for e in DeliveryType]
+        raise AppValidationError(
+            message=f"Invalid delivery_type '{body.delivery_type}'. Must be one of: {valid}",
+        ) from None
+
     query = ListPickupPointsQuery(
         query=PickupPointQuery(
             country_code=body.country_code,
@@ -329,9 +338,7 @@ async def list_pickup_points(
             longitude=body.longitude,
             radius_km=body.radius_km,
             provider_code=body.provider_code,
-            delivery_type=(
-                DeliveryType(body.delivery_type) if body.delivery_type else None
-            ),
+            delivery_type=delivery_type,
         ),
         provider_code=body.provider_code,
     )
@@ -342,7 +349,7 @@ async def list_pickup_points(
                 provider_code=p.provider_code,
                 external_id=p.external_id,
                 name=p.name,
-                pickup_point_type=p.pickup_point_type,
+                pickup_point_type=p.pickup_point_type.value,
                 address=_address_to_schema(p.address),
                 work_schedule=p.work_schedule,
                 phone=p.phone,
