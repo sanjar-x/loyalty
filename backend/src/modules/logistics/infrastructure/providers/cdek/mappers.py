@@ -79,7 +79,7 @@ def _parse_cdek_date(value: str) -> datetime | None:
     """Parse a CDEK date string (``YYYY-MM-DD``) to a UTC datetime, or None."""
     try:
         return datetime.strptime(value.strip(), "%Y-%m-%d").replace(tzinfo=UTC)
-    except ValueError, AttributeError:
+    except (ValueError, AttributeError):
         return None
 
 

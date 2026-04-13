@@ -19,6 +19,7 @@ class ProfileResponse(CamelModel):
         profile_email: Optional display email address.
         first_name: Customer's first name.
         last_name: Customer's last name.
+        username: Optional username (e.g. Telegram handle).
         phone: Optional phone number.
     """
 
@@ -26,6 +27,7 @@ class ProfileResponse(CamelModel):
     profile_email: str | None
     first_name: str
     last_name: str
+    username: str | None
     phone: str | None
 
 

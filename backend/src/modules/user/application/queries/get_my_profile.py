@@ -23,6 +23,7 @@ class CustomerProfile(BaseModel):
         profile_email: Optional display email address.
         first_name: Customer's first name.
         last_name: Customer's last name.
+        username: Optional username (e.g. Telegram handle).
         phone: Optional phone number.
     """
 
@@ -30,6 +31,7 @@ class CustomerProfile(BaseModel):
     profile_email: str | None
     first_name: str
     last_name: str
+    username: str | None
     phone: str | None
 
 
@@ -45,7 +47,8 @@ class GetMyProfileQuery:
 
 
 _GET_PROFILE_SQL = text(
-    "SELECT id, profile_email, first_name, last_name, phone FROM customers WHERE id = :customer_id"
+    "SELECT id, profile_email, first_name, last_name, username, phone"
+    " FROM customers WHERE id = :customer_id"
 )
 
 
@@ -83,5 +86,6 @@ class GetMyProfileHandler:
             profile_email=row["profile_email"],
             first_name=row["first_name"],
             last_name=row["last_name"],
+            username=row["username"],
             phone=row["phone"],
         )

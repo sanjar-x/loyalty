@@ -538,14 +538,14 @@ def _parse_timestamp(entry: dict[str, Any]) -> datetime | None:
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=UTC)
             return dt
-        except ValueError, AttributeError:
+        except (ValueError, AttributeError):
             pass
 
     ts_unix = entry.get("timestamp")
     if ts_unix is not None:
         try:
             return datetime.fromtimestamp(int(ts_unix), tz=UTC)
-        except ValueError, TypeError, OSError:
+        except (ValueError, TypeError, OSError):
             pass
 
     return None

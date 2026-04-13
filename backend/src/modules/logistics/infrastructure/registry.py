@@ -5,6 +5,7 @@ Each adapter implements one or more capability protocols (IRateProvider,
 IBookingProvider, etc.). The registry indexes them by ProviderCode.
 """
 
+from src.modules.logistics.domain.exceptions import ProviderUnavailableError
 from src.modules.logistics.domain.interfaces import (
     IBookingProvider,
     IDocumentProvider,
@@ -62,52 +63,63 @@ class ShippingProviderRegistry:
         try:
             return self._rate_providers[code]
         except KeyError:
-            raise KeyError(f"No rate provider registered for '{code}'") from None
+            raise ProviderUnavailableError(
+                message=f"No rate provider registered for '{code}'",
+                details={"provider_code": code},
+            ) from None
 
     def get_booking_provider(self, code: ProviderCode) -> IBookingProvider:
         try:
             return self._booking_providers[code]
         except KeyError:
-            raise KeyError(f"No booking provider registered for '{code}'") from None
+            raise ProviderUnavailableError(
+                message=f"No booking provider registered for '{code}'",
+                details={"provider_code": code},
+            ) from None
 
     def get_tracking_provider(self, code: ProviderCode) -> ITrackingProvider:
         try:
             return self._tracking_providers[code]
         except KeyError:
-            raise KeyError(
-                f"No tracking provider registered for '{code}'"
+            raise ProviderUnavailableError(
+                message=f"No tracking provider registered for '{code}'",
+                details={"provider_code": code},
             ) from None
 
     def get_tracking_poll_provider(self, code: ProviderCode) -> ITrackingPollProvider:
         try:
             return self._tracking_poll_providers[code]
         except KeyError:
-            raise KeyError(
-                f"No tracking poll provider registered for '{code}'"
+            raise ProviderUnavailableError(
+                message=f"No tracking poll provider registered for '{code}'",
+                details={"provider_code": code},
             ) from None
 
     def get_pickup_point_provider(self, code: ProviderCode) -> IPickupPointProvider:
         try:
             return self._pickup_point_providers[code]
         except KeyError:
-            raise KeyError(
-                f"No pickup point provider registered for '{code}'"
+            raise ProviderUnavailableError(
+                message=f"No pickup point provider registered for '{code}'",
+                details={"provider_code": code},
             ) from None
 
     def get_document_provider(self, code: ProviderCode) -> IDocumentProvider:
         try:
             return self._document_providers[code]
         except KeyError:
-            raise KeyError(
-                f"No document provider registered for '{code}'"
+            raise ProviderUnavailableError(
+                message=f"No document provider registered for '{code}'",
+                details={"provider_code": code},
             ) from None
 
     def get_webhook_adapter(self, code: ProviderCode) -> IWebhookAdapter:
         try:
             return self._webhook_adapters[code]
         except KeyError:
-            raise KeyError(
-                f"No webhook adapter registered for '{code}'"
+            raise ProviderUnavailableError(
+                message=f"No webhook adapter registered for '{code}'",
+                details={"provider_code": code},
             ) from None
 
     # -- Listing ------------------------------------------------------------

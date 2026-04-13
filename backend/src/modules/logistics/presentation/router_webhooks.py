@@ -7,6 +7,7 @@ determines which provider adapter parses the payload.
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Request, status
+from fastapi.responses import JSONResponse
 
 from src.modules.logistics.application.commands.ingest_tracking import (
     IngestTrackingCommand,
@@ -52,6 +53,20 @@ async def receive_webhook(
     raw_body = await request.body()
 
     adapter = registry.get_webhook_adapter(provider_code)
+
+    # Validate signature BEFORE parsing to reject forged payloads
+    headers_dict = dict(request.headers)
+    is_valid = await adapter.validate_signature(headers=headers_dict, body=raw_body)
+    if not is_valid:
+        logger.warning(
+            "Invalid webhook signature",
+            provider=provider_code,
+        )
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"status": "rejected", "reason": "invalid signature"},
+        )
+
     parsed = await adapter.parse_events(body=raw_body)
 
     total_new = 0

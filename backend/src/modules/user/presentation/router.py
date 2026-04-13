@@ -98,6 +98,7 @@ async def get_my_profile(
         profile_email=profile.profile_email,
         first_name=profile.first_name,
         last_name=profile.last_name,
+        username=profile.username,
         phone=profile.phone,
     )
 

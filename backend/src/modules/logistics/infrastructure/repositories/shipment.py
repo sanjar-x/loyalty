@@ -126,12 +126,16 @@ class ShipmentRepository(IShipmentRepository):
         orm.cancelled_at = entity.cancelled_at
         orm.version = entity.version
 
-        # Sync tracking events (append-only)
-        existing_ids = {e.id for e in orm.tracking_events}
+        # Sync tracking events (append-only, dedup by business key)
+        existing_keys = {
+            (e.timestamp, e.status) for e in orm.tracking_events
+        }
         for event in entity.tracking_events:
-            event_orm = self._tracking_event_to_orm(event, entity.id)
-            if event_orm.id not in existing_ids:
-                orm.tracking_events.append(event_orm)
+            event_key = (event.timestamp, event.status)
+            if event_key not in existing_keys:
+                orm.tracking_events.append(
+                    self._tracking_event_to_orm(event, entity.id)
+                )
 
     # -- Mapping: ORM → Domain ----------------------------------------------
 
