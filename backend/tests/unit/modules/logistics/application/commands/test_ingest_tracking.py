@@ -138,8 +138,10 @@ class TestIngestTrackingHandler:
             events=[_make_event()],
         )
 
-        with pytest.raises(ShipmentNotFoundError):
+        with pytest.raises(ShipmentNotFoundError) as exc_info:
             await handler.handle(cmd)
+
+        assert exc_info.value.details["provider_shipment_id"] == "NONEXISTENT"
 
     @pytest.mark.asyncio
     async def test_deduplicates_existing_events(self):
@@ -161,4 +163,6 @@ class TestIngestTrackingHandler:
 
         result = await handler.handle(cmd)
         assert result.new_events_count == 0
+        assert len(shipment.tracking_events) == 1
         repo.update.assert_not_awaited()
+        _uow.commit.assert_not_awaited()

@@ -273,6 +273,14 @@ class EstimatedDelivery:
     max_days: int | None = None
     estimated_date: datetime | None = None
 
+    def __attrs_post_init__(self) -> None:
+        if (
+            self.min_days is not None
+            and self.max_days is not None
+            and self.min_days > self.max_days
+        ):
+            raise ValueError("min_days must not exceed max_days")
+
 
 # ---------------------------------------------------------------------------
 # Tracking value objects

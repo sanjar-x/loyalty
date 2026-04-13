@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 class AddressSchema(BaseModel):
     country_code: str = Field(
-        ..., min_length=1, description="ISO 3166-1 alpha-2 country code"
+        ..., min_length=2, max_length=2, description="ISO 3166-1 alpha-2 country code"
     )
     city: str = Field(..., min_length=1)
     region: str | None = None
@@ -58,7 +58,9 @@ class MoneySchema(BaseModel):
     amount: int = Field(
         ..., ge=0, description="Amount in smallest currency unit (e.g. kopecks)"
     )
-    currency_code: str = Field(..., min_length=1, description="ISO 4217 currency code")
+    currency_code: str = Field(
+        ..., min_length=3, max_length=3, description="ISO 4217 currency code"
+    )
 
 
 class ParcelSchema(BaseModel):
@@ -66,6 +68,13 @@ class ParcelSchema(BaseModel):
     dimensions: DimensionsSchema | None = None
     declared_value: MoneySchema | None = None
     description: str | None = None
+
+
+class CashOnDeliverySchema(BaseModel):
+    amount: MoneySchema
+    payment_method: str | None = Field(
+        None, description='e.g. "cash", "card", "postpay"'
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -126,6 +135,7 @@ class CreateShipmentRequest(BaseModel):
     recipient: ContactInfoSchema
     parcels: list[ParcelSchema] = Field(..., min_length=1)
     order_id: uuid.UUID | None = None
+    cod: CashOnDeliverySchema | None = None
 
 
 class ShipmentResponse(BaseModel):
@@ -182,7 +192,9 @@ class TrackingResponse(BaseModel):
 
 
 class PickupPointsRequest(BaseModel):
-    country_code: str | None = None
+    country_code: str | None = Field(
+        None, min_length=2, max_length=2, description="ISO 3166-1 alpha-2 country code"
+    )
     city: str | None = None
     postal_code: str | None = None
     latitude: float | None = None
@@ -208,14 +220,3 @@ class PickupPointSchema(BaseModel):
 class PickupPointsResponse(BaseModel):
     points: list[PickupPointSchema]
     errors: dict[str, str] = Field(default_factory=dict)
-
-
-# ---------------------------------------------------------------------------
-# Webhook
-# ---------------------------------------------------------------------------
-
-
-class WebhookPayload(BaseModel):
-    """Generic webhook payload — provider-specific parsing in the adapter."""
-
-    raw: dict = Field(default_factory=dict)

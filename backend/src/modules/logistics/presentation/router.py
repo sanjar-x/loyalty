@@ -40,6 +40,7 @@ from src.modules.logistics.application.queries.list_pickup_points import (
 from src.modules.logistics.domain.entities import Shipment
 from src.modules.logistics.domain.value_objects import (
     Address,
+    CashOnDelivery,
     ContactInfo,
     DeliveryType,
     Dimensions,
@@ -54,6 +55,7 @@ from src.modules.logistics.presentation.schemas import (
     CalculateRatesRequest,
     CalculateRatesResponse,
     CancelShipmentResponse,
+    CashOnDeliverySchema,
     ContactInfoSchema,
     CreateShipmentRequest,
     DeliveryQuoteSchema,
@@ -150,6 +152,15 @@ def _schema_to_parcel(s: ParcelSchema) -> Parcel:
     )
 
 
+def _schema_to_cod(s: CashOnDeliverySchema | None) -> CashOnDelivery | None:
+    if s is None:
+        return None
+    return CashOnDelivery(
+        amount=Money(amount=s.amount.amount, currency_code=s.amount.currency_code),
+        payment_method=s.payment_method,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -228,6 +239,7 @@ async def create_shipment(
         recipient=_schema_to_contact(body.recipient),
         parcels=[_schema_to_parcel(p) for p in body.parcels],
         order_id=body.order_id,
+        cod=_schema_to_cod(body.cod),
     )
     result = await create_handler.handle(command)
     shipment = await get_handler.handle(
