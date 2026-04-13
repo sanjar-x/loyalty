@@ -73,6 +73,8 @@ class TrackingStatus(StrEnum):
     RETURNED = "returned"
     LOST = "lost"
     EXCEPTION = "exception"
+    ATTEMPT_FAILED = "attempt_failed"  # delivery attempt failed, will retry
+    CUSTOMS = "customs"  # customs processing (international)
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +137,7 @@ class Address:
 
     country_code: str  # ISO 3166-1 alpha-2
     city: str
+    region: str | None = None  # human-readable region / oblast / krai
     postal_code: str | None = None
     street: str | None = None
     house: str | None = None
@@ -147,11 +150,44 @@ class Address:
 
 @attrs.define(frozen=True)
 class ContactInfo:
-    """Sender or recipient contact details."""
+    """Sender or recipient contact details with structured name fields.
 
-    full_name: str
+    Providers require structured names (first/last/patronymic) for booking.
+    Use ``full_name`` property when a single string is needed.
+    """
+
+    first_name: str
+    last_name: str
     phone: str
+    middle_name: str | None = None
     email: str | None = None
+    company_name: str | None = None
+
+    @property
+    def full_name(self) -> str:
+        """Return 'LastName FirstName MiddleName' formatted full name."""
+        parts = [self.last_name, self.first_name]
+        if self.middle_name:
+            parts.append(self.middle_name)
+        return " ".join(parts)
+
+
+@attrs.define(frozen=True)
+class ParcelItem:
+    """An individual item within a parcel.
+
+    Required for customs declarations, fiscal receipts, partial delivery,
+    and provider-specific item-level tracking (CDEK items, Yandex items,
+    Russian Post goods).
+    """
+
+    name: str
+    quantity: int = 1
+    sku: str | None = None
+    unit_price: Money | None = None
+    weight: Weight | None = None
+    country_of_origin: str | None = None  # ISO 3166-1 alpha-2
+    hs_code: str | None = None  # Harmonized System code for customs
 
 
 @attrs.define(frozen=True)
@@ -162,6 +198,7 @@ class Parcel:
     dimensions: Dimensions | None = None
     declared_value: Money | None = None
     description: str | None = None
+    items: list[ParcelItem] = attrs.Factory(list)
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +236,23 @@ class DeliveryQuote:
     expires_at: datetime | None = None
 
 
+@attrs.define(frozen=True)
+class CashOnDelivery:
+    """Cash on delivery (COD) / payment on delivery configuration."""
+
+    amount: Money
+    payment_method: str | None = None  # e.g. "cash", "card", "postpay"
+
+
+@attrs.define(frozen=True)
+class EstimatedDelivery:
+    """Estimated delivery window returned by provider after booking."""
+
+    min_days: int | None = None
+    max_days: int | None = None
+    estimated_date: datetime | None = None
+
+
 # ---------------------------------------------------------------------------
 # Tracking value objects
 # ---------------------------------------------------------------------------
@@ -221,6 +275,15 @@ class TrackingEvent:
 # ---------------------------------------------------------------------------
 
 
+class PickupPointType(StrEnum):
+    """Type of pickup / delivery point."""
+
+    PVZ = "pvz"
+    POSTAMAT = "postamat"
+    POST_OFFICE = "post_office"
+    TERMINAL = "terminal"
+
+
 @attrs.define(frozen=True)
 class PickupPoint:
     """A pickup / delivery point from a logistics provider."""
@@ -228,7 +291,7 @@ class PickupPoint:
     provider_code: ProviderCode
     external_id: str
     name: str
-    pickup_point_type: str  # PVZ, POSTAMAT, TERMINAL, POST_OFFICE
+    pickup_point_type: PickupPointType
     address: Address
     work_schedule: str | None = None
     phone: str | None = None
@@ -264,12 +327,14 @@ class BookingRequest:
     shipment_id: uuid.UUID
     origin: Address
     destination: Address
+    sender: ContactInfo
     recipient: ContactInfo
     parcels: list[Parcel]
     service_code: str
     delivery_type: DeliveryType
     provider_payload: str  # opaque data from DeliveryQuote
     declared_value: Money | None = None
+    cod: CashOnDelivery | None = None
 
 
 @attrs.define(frozen=True)
@@ -278,7 +343,7 @@ class BookingResult:
 
     provider_shipment_id: str
     tracking_number: str | None = None
-    estimated_delivery_date: datetime | None = None
+    estimated_delivery: EstimatedDelivery | None = None
     provider_response_payload: str | None = None  # raw JSON for audit
 
 

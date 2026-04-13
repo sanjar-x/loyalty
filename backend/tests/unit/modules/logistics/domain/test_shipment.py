@@ -10,6 +10,7 @@ from src.modules.logistics.domain.events import (
     ShipmentBookedEvent,
     ShipmentBookingFailedEvent,
     ShipmentBookingRequestedEvent,
+    ShipmentCancellationFailedEvent,
     ShipmentCancellationRequestedEvent,
     ShipmentCancelledEvent,
     ShipmentCreatedEvent,
@@ -18,10 +19,12 @@ from src.modules.logistics.domain.events import (
 from src.modules.logistics.domain.exceptions import InvalidShipmentTransitionError
 from src.modules.logistics.domain.value_objects import (
     Address,
+    CashOnDelivery,
     ContactInfo,
     DeliveryQuote,
     DeliveryType,
     Dimensions,
+    EstimatedDelivery,
     Money,
     Parcel,
     ProviderCode,
@@ -41,6 +44,7 @@ def _make_address(**overrides) -> Address:
     defaults = {
         "country_code": "RU",
         "city": "Москва",
+        "region": "Московская область",
         "postal_code": "101000",
         "street": "Тверская",
         "house": "1",
@@ -52,6 +56,18 @@ def _make_address(**overrides) -> Address:
     }
     defaults.update(overrides)
     return Address(**defaults)
+
+
+def _make_contact(**overrides) -> ContactInfo:
+    defaults = {
+        "first_name": "Иван",
+        "last_name": "Иванов",
+        "phone": "+79001234567",
+        "middle_name": "Петрович",
+        "email": None,
+    }
+    defaults.update(overrides)
+    return ContactInfo(**defaults)
 
 
 def _make_quote(**overrides) -> DeliveryQuote:
@@ -81,9 +97,10 @@ def _make_shipment(**overrides) -> Shipment:
     quote = overrides.pop("quote", _make_quote())
     origin = overrides.pop("origin", _make_address())
     destination = overrides.pop("destination", _make_address(city="Казань"))
+    sender = overrides.pop("sender", _make_contact())
     recipient = overrides.pop(
         "recipient",
-        ContactInfo(full_name="Иван Иванов", phone="+79001234567", email=None),
+        _make_contact(first_name="Пётр", last_name="Петров", middle_name=None),
     )
     parcels = overrides.pop(
         "parcels",
@@ -100,6 +117,7 @@ def _make_shipment(**overrides) -> Shipment:
         quote=quote,
         origin=origin,
         destination=destination,
+        sender=sender,
         recipient=recipient,
         parcels=parcels,
         **overrides,
@@ -145,6 +163,20 @@ class TestShipmentCreate:
         shipment = _make_shipment(shipment_id=sid)
         assert shipment.id == sid
 
+    def test_create_stores_sender(self):
+        sender = _make_contact(first_name="Олег", last_name="Олегов")
+        shipment = _make_shipment(sender=sender)
+        assert shipment.sender == sender
+        assert shipment.sender.full_name == "Олегов Олег Петрович"
+
+    def test_create_with_cod(self):
+        cod = CashOnDelivery(
+            amount=Money(amount=500000, currency_code="RUB"),
+            payment_method="cash",
+        )
+        shipment = _make_shipment(cod=cod)
+        assert shipment.cod == cod
+
 
 # ---------------------------------------------------------------------------
 # FSM transitions
@@ -172,12 +204,24 @@ class TestShipmentFSM:
         events = shipment.domain_events
         assert any(isinstance(e, ShipmentBookedEvent) for e in events)
 
+    def test_booking_pending_to_booked_with_estimated_delivery(self):
+        shipment = _make_shipment()
+        shipment.mark_booking_pending()
+        ed = EstimatedDelivery(min_days=3, max_days=5)
+        shipment.mark_booked(
+            provider_shipment_id="X",
+            tracking_number="Y",
+            estimated_delivery=ed,
+        )
+        assert shipment.estimated_delivery == ed
+
     def test_booking_pending_to_failed(self):
         shipment = _make_shipment()
         shipment.mark_booking_pending()
         shipment.clear_domain_events()
         shipment.mark_booking_failed(reason="provider rejected")
         assert shipment.status == ShipmentStatus.FAILED
+        assert shipment.failure_reason == "provider rejected"
         events = shipment.domain_events
         assert any(isinstance(e, ShipmentBookingFailedEvent) for e in events)
 
@@ -203,19 +247,33 @@ class TestShipmentFSM:
         events = shipment.domain_events
         assert any(isinstance(e, ShipmentCancelledEvent) for e in events)
 
-    def test_cancel_pending_to_failed(self):
+    def test_cancel_pending_reverts_to_booked_on_failure(self):
+        """When provider rejects cancellation the shipment is still with carrier."""
         shipment = _make_shipment()
         shipment.mark_booking_pending()
         shipment.mark_booked(provider_shipment_id="X", tracking_number="Y")
         shipment.mark_cancel_pending()
+        shipment.clear_domain_events()
         shipment.mark_cancellation_failed(reason="already shipped")
-        assert shipment.status == ShipmentStatus.FAILED
+        assert shipment.status == ShipmentStatus.BOOKED
+        assert shipment.failure_reason == "already shipped"
+        events = shipment.domain_events
+        assert any(isinstance(e, ShipmentCancellationFailedEvent) for e in events)
 
     def test_draft_can_be_cancelled_directly(self):
         """DRAFT → CANCELLED is allowed (user cancels before booking)."""
         shipment = _make_shipment()
         shipment.mark_cancelled()
         assert shipment.status == ShipmentStatus.CANCELLED
+
+    def test_version_increments_on_transition(self):
+        """Each FSM transition must bump the optimistic lock version."""
+        shipment = _make_shipment()
+        initial_version = shipment.version
+        shipment.mark_booking_pending()
+        assert shipment.version == initial_version + 1
+        shipment.mark_booked(provider_shipment_id="X", tracking_number="Y")
+        assert shipment.version == initial_version + 2
 
     # Invalid transitions
     def test_draft_to_booked_raises(self):
@@ -315,3 +373,67 @@ class TestShipmentTracking:
         shipment.append_tracking_event(e2)
         assert len(shipment.tracking_events) == 2
         assert shipment.latest_tracking_status == TrackingStatus.IN_TRANSIT
+
+    def test_out_of_order_events_do_not_regress_latest_status(self):
+        """When an older event arrives late, latest_tracking_status stays correct."""
+        shipment = self._booked_shipment()
+        now = datetime.now(UTC)
+        # First: a later event arrives
+        e_later = TrackingEvent(
+            status=TrackingStatus.IN_TRANSIT,
+            provider_status_code="T",
+            provider_status_name="Transit",
+            timestamp=now + timedelta(hours=2),
+            location=None,
+            description=None,
+        )
+        shipment.append_tracking_event(e_later)
+        assert shipment.latest_tracking_status == TrackingStatus.IN_TRANSIT
+
+        # Then: an earlier event arrives late
+        e_earlier = TrackingEvent(
+            status=TrackingStatus.ACCEPTED,
+            provider_status_code="A",
+            provider_status_name="Accepted",
+            timestamp=now,
+            location=None,
+            description=None,
+        )
+        shipment.append_tracking_event(e_earlier)
+        # Latest must NOT regress to ACCEPTED
+        assert shipment.latest_tracking_status == TrackingStatus.IN_TRANSIT
+        assert len(shipment.tracking_events) == 2
+
+    def test_tracking_event_increments_version(self):
+        shipment = self._booked_shipment()
+        v_before = shipment.version
+        event = TrackingEvent(
+            status=TrackingStatus.ACCEPTED,
+            provider_status_code="A",
+            provider_status_name="Accepted",
+            timestamp=datetime.now(UTC),
+            location=None,
+            description=None,
+        )
+        shipment.append_tracking_event(event)
+        assert shipment.version == v_before + 1
+
+
+# ---------------------------------------------------------------------------
+# ContactInfo value object
+# ---------------------------------------------------------------------------
+
+
+class TestContactInfo:
+    def test_full_name_with_middle_name(self):
+        c = ContactInfo(
+            first_name="Иван",
+            last_name="Иванов",
+            phone="+79001234567",
+            middle_name="Петрович",
+        )
+        assert c.full_name == "Иванов Иван Петрович"
+
+    def test_full_name_without_middle_name(self):
+        c = ContactInfo(first_name="Иван", last_name="Иванов", phone="+79001234567")
+        assert c.full_name == "Иванов Иван"

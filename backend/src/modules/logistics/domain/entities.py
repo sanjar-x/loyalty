@@ -16,6 +16,7 @@ from src.modules.logistics.domain.events import (
     ShipmentBookedEvent,
     ShipmentBookingFailedEvent,
     ShipmentBookingRequestedEvent,
+    ShipmentCancellationFailedEvent,
     ShipmentCancellationRequestedEvent,
     ShipmentCancelledEvent,
     ShipmentCreatedEvent,
@@ -24,9 +25,11 @@ from src.modules.logistics.domain.events import (
 from src.modules.logistics.domain.exceptions import InvalidShipmentTransitionError
 from src.modules.logistics.domain.value_objects import (
     Address,
+    CashOnDelivery,
     ContactInfo,
     DeliveryQuote,
     DeliveryType,
+    EstimatedDelivery,
     Money,
     Parcel,
     ProviderCode,
@@ -52,7 +55,7 @@ _ALLOWED_TRANSITIONS: dict[ShipmentStatus, frozenset[ShipmentStatus]] = {
     ShipmentStatus.BOOKED: frozenset({ShipmentStatus.CANCEL_PENDING}),
     ShipmentStatus.CANCEL_PENDING: frozenset({
         ShipmentStatus.CANCELLED,
-        ShipmentStatus.FAILED,
+        ShipmentStatus.BOOKED,  # revert when provider rejects cancellation
     }),
     ShipmentStatus.CANCELLED: frozenset(),
     ShipmentStatus.FAILED: frozenset(),
@@ -99,10 +102,12 @@ class Shipment(AggregateRoot):
 
     origin: Address
     destination: Address
+    sender: ContactInfo
     recipient: ContactInfo
     parcels: list[Parcel]
 
     quoted_cost: Money
+    cod: CashOnDelivery | None = None
 
     provider_shipment_id: str | None = None
     tracking_number: str | None = None
@@ -110,6 +115,9 @@ class Shipment(AggregateRoot):
 
     tracking_events: list[TrackingEvent] = attrs.Factory(list)
     latest_tracking_status: TrackingStatus | None = None
+
+    failure_reason: str | None = None
+    estimated_delivery: EstimatedDelivery | None = None
 
     created_at: datetime = datetime.now(UTC)
     updated_at: datetime = datetime.now(UTC)
@@ -127,10 +135,12 @@ class Shipment(AggregateRoot):
         quote: DeliveryQuote,
         origin: Address,
         destination: Address,
+        sender: ContactInfo,
         recipient: ContactInfo,
         parcels: list[Parcel],
         order_id: uuid.UUID | None = None,
         shipment_id: uuid.UUID | None = None,
+        cod: CashOnDelivery | None = None,
     ) -> Shipment:
         """Create a new shipment in DRAFT status from a selected DeliveryQuote."""
         now = datetime.now(UTC)
@@ -143,9 +153,11 @@ class Shipment(AggregateRoot):
             status=ShipmentStatus.DRAFT,
             origin=origin,
             destination=destination,
+            sender=sender,
             recipient=recipient,
             parcels=list(parcels),
             quoted_cost=quote.rate.total_cost,
+            cod=cod,
             provider_payload=quote.provider_payload,
             tracking_events=[],
             created_at=now,
@@ -171,6 +183,7 @@ class Shipment(AggregateRoot):
             )
         self.status = target
         self.updated_at = datetime.now(UTC)
+        self.version += 1
 
     def mark_booking_pending(self) -> None:
         """Transition DRAFT → BOOKING_PENDING."""
@@ -181,11 +194,13 @@ class Shipment(AggregateRoot):
         self,
         provider_shipment_id: str,
         tracking_number: str | None = None,
+        estimated_delivery: EstimatedDelivery | None = None,
     ) -> None:
         """Transition BOOKING_PENDING → BOOKED."""
         self._transition_to(ShipmentStatus.BOOKED)
         self.provider_shipment_id = provider_shipment_id
         self.tracking_number = tracking_number
+        self.estimated_delivery = estimated_delivery
         self.booked_at = datetime.now(UTC)
         self.add_domain_event(
             ShipmentBookedEvent(
@@ -198,6 +213,7 @@ class Shipment(AggregateRoot):
     def mark_booking_failed(self, reason: str) -> None:
         """Transition BOOKING_PENDING → FAILED."""
         self._transition_to(ShipmentStatus.FAILED)
+        self.failure_reason = reason
         self.add_domain_event(
             ShipmentBookingFailedEvent(
                 shipment_id=self.id,
@@ -217,10 +233,11 @@ class Shipment(AggregateRoot):
         self.add_domain_event(ShipmentCancelledEvent(shipment_id=self.id))
 
     def mark_cancellation_failed(self, reason: str) -> None:
-        """Transition CANCEL_PENDING → FAILED."""
-        self._transition_to(ShipmentStatus.FAILED)
+        """Transition CANCEL_PENDING → BOOKED (shipment still active with carrier)."""
+        self._transition_to(ShipmentStatus.BOOKED)
+        self.failure_reason = reason
         self.add_domain_event(
-            ShipmentBookingFailedEvent(
+            ShipmentCancellationFailedEvent(
                 shipment_id=self.id,
                 reason=reason,
             )
@@ -239,14 +256,23 @@ class Shipment(AggregateRoot):
 
         Deduplicates by (timestamp, status) to ensure idempotency
         when the same event arrives via webhook and polling.
+
+        ``latest_tracking_status`` is always recomputed from the most-recent
+        timestamp across *all* events to prevent regression when out-of-order
+        events arrive.
         """
         existing_keys = {(e.timestamp, e.status) for e in self.tracking_events}
         if (event.timestamp, event.status) in existing_keys:
             return  # idempotent — already recorded
 
         self.tracking_events.append(event)
-        self.latest_tracking_status = event.status
+
+        # Recompute latest from the event with the max timestamp
+        latest = max(self.tracking_events, key=lambda e: e.timestamp)
+        self.latest_tracking_status = latest.status
+
         self.updated_at = datetime.now(UTC)
+        self.version += 1
         self.add_domain_event(
             ShipmentTrackingUpdatedEvent(
                 shipment_id=self.id,

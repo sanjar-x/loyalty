@@ -90,6 +90,9 @@ class ShipmentModel(Base):
     recipient_json: Mapped[dict] = mapped_column(
         JSONB, comment="Recipient contact info as JSON"
     )
+    sender_json: Mapped[dict] = mapped_column(
+        JSONB, comment="Sender contact info as JSON"
+    )
     parcels_json: Mapped[list] = mapped_column(JSONB, comment="List of parcels as JSON")
 
     # Cost
@@ -98,6 +101,9 @@ class ShipmentModel(Base):
     )
     quoted_cost_currency: Mapped[str] = mapped_column(
         String(3), comment="ISO 4217 currency code"
+    )
+    cod_json: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True, comment="Cash-on-delivery config as JSON"
     )
 
     # Provider-assigned identifiers
@@ -116,6 +122,14 @@ class ShipmentModel(Base):
         Enum(TrackingStatus, name="tracking_status_enum", create_constraint=False),
         nullable=True,
         comment="Latest carrier tracking status",
+    )
+
+    # Failure / delivery metadata
+    failure_reason: Mapped[str | None] = mapped_column(
+        Text, nullable=True, comment="Reason for booking/cancellation failure"
+    )
+    estimated_delivery_json: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True, comment="Estimated delivery window as JSON"
     )
 
     # Timestamps

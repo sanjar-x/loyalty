@@ -12,6 +12,7 @@ from src.modules.logistics.domain.entities import Shipment
 from src.modules.logistics.domain.interfaces import IShipmentRepository
 from src.modules.logistics.domain.value_objects import (
     Address,
+    CashOnDelivery,
     ContactInfo,
     DeliveryQuote,
     Parcel,
@@ -28,17 +29,21 @@ class CreateShipmentCommand:
         quote: The selected DeliveryQuote (rate + provider payload).
         origin: Sender address.
         destination: Recipient address.
+        sender: Sender contact details.
         recipient: Recipient contact details.
         parcels: Packages to ship.
         order_id: Optional link to the order/checkout.
+        cod: Cash-on-delivery configuration, if applicable.
     """
 
     quote: DeliveryQuote
     origin: Address
     destination: Address
+    sender: ContactInfo
     recipient: ContactInfo
     parcels: list[Parcel]
     order_id: uuid.UUID | None = None
+    cod: CashOnDelivery | None = None
 
 
 @dataclass(frozen=True)
@@ -77,9 +82,11 @@ class CreateShipmentHandler:
                 quote=command.quote,
                 origin=command.origin,
                 destination=command.destination,
+                sender=command.sender,
                 recipient=command.recipient,
                 parcels=command.parcels,
                 order_id=command.order_id,
+                cod=command.cod,
             )
             shipment = await self._shipment_repo.add(shipment)
             self._uow.register_aggregate(shipment)

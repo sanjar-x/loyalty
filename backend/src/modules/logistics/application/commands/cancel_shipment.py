@@ -4,7 +4,7 @@ Command handler: cancel a booked shipment.
 Two-phase pattern analogous to BookShipmentHandler:
 1. Persist intent (BOOKED → CANCEL_PENDING)
 2. Call provider API
-3. Persist result (CANCEL_PENDING → CANCELLED or FAILED)
+3. Persist result (CANCEL_PENDING → CANCELLED or reverts to BOOKED)
 """
 
 import uuid

@@ -15,11 +15,14 @@ from src.modules.logistics.domain.entities import Shipment
 from src.modules.logistics.domain.interfaces import IShipmentRepository
 from src.modules.logistics.domain.value_objects import (
     Address,
+    CashOnDelivery,
     ContactInfo,
     DeliveryType,
     Dimensions,
+    EstimatedDelivery,
     Money,
     Parcel,
+    ParcelItem,
     ProviderCode,
     ShipmentStatus,
     TrackingEvent,
@@ -84,14 +87,20 @@ class ShipmentRepository(IShipmentRepository):
             status=entity.status,
             origin_json=self._address_to_dict(entity.origin),
             destination_json=self._address_to_dict(entity.destination),
+            sender_json=self._contact_to_dict(entity.sender),
             recipient_json=self._contact_to_dict(entity.recipient),
             parcels_json=[self._parcel_to_dict(p) for p in entity.parcels],
             quoted_cost_amount=entity.quoted_cost.amount,
             quoted_cost_currency=entity.quoted_cost.currency_code,
+            cod_json=self._cod_to_dict(entity.cod),
             provider_shipment_id=entity.provider_shipment_id,
             tracking_number=entity.tracking_number,
             provider_payload=entity.provider_payload,
             latest_tracking_status=entity.latest_tracking_status,
+            failure_reason=entity.failure_reason,
+            estimated_delivery_json=self._estimated_delivery_to_dict(
+                entity.estimated_delivery
+            ),
             created_at=entity.created_at,
             updated_at=entity.updated_at,
             booked_at=entity.booked_at,
@@ -108,6 +117,10 @@ class ShipmentRepository(IShipmentRepository):
         orm.tracking_number = entity.tracking_number
         orm.provider_payload = entity.provider_payload
         orm.latest_tracking_status = entity.latest_tracking_status
+        orm.failure_reason = entity.failure_reason
+        orm.estimated_delivery_json = self._estimated_delivery_to_dict(
+            entity.estimated_delivery
+        )
         orm.updated_at = entity.updated_at
         orm.booked_at = entity.booked_at
         orm.cancelled_at = entity.cancelled_at
@@ -132,12 +145,14 @@ class ShipmentRepository(IShipmentRepository):
             status=ShipmentStatus(orm.status),
             origin=self._dict_to_address(orm.origin_json),
             destination=self._dict_to_address(orm.destination_json),
+            sender=self._dict_to_contact(orm.sender_json),
             recipient=self._dict_to_contact(orm.recipient_json),
             parcels=[self._dict_to_parcel(p) for p in orm.parcels_json],
             quoted_cost=Money(
                 amount=orm.quoted_cost_amount,
                 currency_code=orm.quoted_cost_currency,
             ),
+            cod=self._dict_to_cod(orm.cod_json),
             provider_shipment_id=orm.provider_shipment_id,
             tracking_number=orm.tracking_number,
             provider_payload=orm.provider_payload,
@@ -148,6 +163,10 @@ class ShipmentRepository(IShipmentRepository):
                 TrackingStatus(orm.latest_tracking_status)
                 if orm.latest_tracking_status
                 else None
+            ),
+            failure_reason=orm.failure_reason,
+            estimated_delivery=self._dict_to_estimated_delivery(
+                orm.estimated_delivery_json
             ),
             created_at=orm.created_at,
             updated_at=orm.updated_at,
@@ -191,12 +210,60 @@ class ShipmentRepository(IShipmentRepository):
         if d.get("declared_value"):
             declared_value = Money(**d["declared_value"])
 
+        items = []
+        for item_data in d.get("items", []):
+            unit_price = None
+            if item_data.get("unit_price"):
+                unit_price = Money(**item_data["unit_price"])
+            item_weight = None
+            if item_data.get("weight"):
+                item_weight = Weight(grams=item_data["weight"]["grams"])
+            items.append(
+                ParcelItem(
+                    name=item_data["name"],
+                    quantity=item_data.get("quantity", 1),
+                    sku=item_data.get("sku"),
+                    unit_price=unit_price,
+                    weight=item_weight,
+                    country_of_origin=item_data.get("country_of_origin"),
+                    hs_code=item_data.get("hs_code"),
+                )
+            )
+
         return Parcel(
             weight=weight,
             dimensions=dims,
             declared_value=declared_value,
             description=d.get("description"),
+            items=items,
         )
+
+    @staticmethod
+    def _cod_to_dict(cod: CashOnDelivery | None) -> dict | None:
+        if cod is None:
+            return None
+        return attrs.asdict(cod)
+
+    @staticmethod
+    def _dict_to_cod(d: dict | None) -> CashOnDelivery | None:
+        if d is None:
+            return None
+        return CashOnDelivery(
+            amount=Money(**d["amount"]),
+            payment_method=d.get("payment_method"),
+        )
+
+    @staticmethod
+    def _estimated_delivery_to_dict(ed: EstimatedDelivery | None) -> dict | None:
+        if ed is None:
+            return None
+        return attrs.asdict(ed)
+
+    @staticmethod
+    def _dict_to_estimated_delivery(d: dict | None) -> EstimatedDelivery | None:
+        if d is None:
+            return None
+        return EstimatedDelivery(**d)
 
     @staticmethod
     def _tracking_event_to_orm(

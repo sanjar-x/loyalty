@@ -88,11 +88,13 @@ class BookShipmentHandler:
             shipment_id=shipment.id,
             origin=shipment.origin,
             destination=shipment.destination,
+            sender=shipment.sender,
             recipient=shipment.recipient,
             parcels=shipment.parcels,
             service_code=shipment.service_code,
             delivery_type=shipment.delivery_type,
             provider_payload=shipment.provider_payload or "",
+            cod=shipment.cod,
         )
 
         try:
@@ -127,6 +129,7 @@ class BookShipmentHandler:
             shipment.mark_booked(
                 provider_shipment_id=result.provider_shipment_id,
                 tracking_number=result.tracking_number,
+                estimated_delivery=result.estimated_delivery,
             )
             shipment = await self._shipment_repo.update(shipment)
             self._uow.register_aggregate(shipment)

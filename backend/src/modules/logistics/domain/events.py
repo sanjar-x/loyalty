@@ -155,6 +155,20 @@ class ShipmentCancelledEvent(
 
 
 @dataclass
+class ShipmentCancellationFailedEvent(
+    LogisticsEvent,
+    required_fields=("shipment_id",),
+    aggregate_id_field="shipment_id",
+):
+    """Emitted when provider rejects cancellation (CANCEL_PENDING → BOOKED)."""
+
+    shipment_id: uuid.UUID | None = None
+    reason: str = ""
+    aggregate_type: str = "Shipment"
+    event_type: str = "ShipmentCancellationFailedEvent"
+
+
+@dataclass
 class ShipmentTrackingUpdatedEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),

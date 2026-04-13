@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 class AddressSchema(BaseModel):
     country_code: str = Field(..., description="ISO 3166-1 alpha-2 country code")
     city: str
+    region: str | None = None
     postal_code: str | None = None
     street: str | None = None
     house: str | None = None
@@ -29,9 +30,12 @@ class AddressSchema(BaseModel):
 
 
 class ContactInfoSchema(BaseModel):
-    full_name: str
+    first_name: str
+    last_name: str
     phone: str
+    middle_name: str | None = None
     email: str | None = None
+    company_name: str | None = None
 
 
 class WeightSchema(BaseModel):
@@ -113,6 +117,7 @@ class CreateShipmentRequest(BaseModel):
     quote_provider_payload: str = ""
     origin: AddressSchema
     destination: AddressSchema
+    sender: ContactInfoSchema
     recipient: ContactInfoSchema
     parcels: list[ParcelSchema] = Field(..., min_length=1)
     order_id: uuid.UUID | None = None

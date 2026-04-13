@@ -50,8 +50,8 @@ class BaseProviderClient:
         auth_manager: BaseAuthManager,
         config: ProviderClientConfig,
     ) -> None:
-        self._auth = auth_manager
-        self._config = config
+        self._auth: BaseAuthManager = auth_manager
+        self._config: ProviderClientConfig = config
         self._client: httpx.AsyncClient | None = None
 
     async def __aenter__(self) -> BaseProviderClient:

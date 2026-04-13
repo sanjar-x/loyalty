@@ -84,6 +84,7 @@ def _schema_to_address(s) -> Address:
     return Address(
         country_code=s.country_code,
         city=s.city,
+        region=s.region,
         postal_code=s.postal_code,
         street=s.street,
         house=s.house,
@@ -92,6 +93,17 @@ def _schema_to_address(s) -> Address:
         latitude=s.latitude,
         longitude=s.longitude,
         raw_address=s.raw_address,
+    )
+
+
+def _schema_to_contact(s) -> ContactInfo:
+    return ContactInfo(
+        first_name=s.first_name,
+        last_name=s.last_name,
+        phone=s.phone,
+        middle_name=s.middle_name,
+        email=s.email,
+        company_name=s.company_name,
     )
 
 
@@ -213,11 +225,8 @@ async def create_shipment(
         quote=quote,
         origin=_schema_to_address(body.origin),
         destination=_schema_to_address(body.destination),
-        recipient=ContactInfo(
-            full_name=body.recipient.full_name,
-            phone=body.recipient.phone,
-            email=body.recipient.email,
-        ),
+        sender=_schema_to_contact(body.sender),
+        recipient=_schema_to_contact(body.recipient),
         parcels=[_schema_to_parcel(p) for p in body.parcels],
         order_id=body.order_id,
     )
@@ -340,7 +349,7 @@ async def list_pickup_points(
                 external_id=p.external_id,
                 name=p.name,
                 pickup_point_type=p.pickup_point_type,
-                address=p.address,  # type: ignore[arg-type]
+                address=p.address,  # ty:ignore[invalid-argument-type]
                 work_schedule=p.work_schedule,
                 phone=p.phone,
                 is_cash_allowed=p.is_cash_allowed,
