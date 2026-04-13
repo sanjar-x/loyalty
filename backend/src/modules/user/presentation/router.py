@@ -90,6 +90,7 @@ async def get_my_profile(
                 first_name=metadata.get("first_name", ""),
                 last_name=metadata.get("last_name", ""),
                 username=metadata.get("username"),
+                photo_url=metadata.get("photo_url"),
             )
         )
         profile = await handler.handle(GetMyProfileQuery(customer_id=auth.identity_id))
@@ -99,6 +100,7 @@ async def get_my_profile(
         first_name=profile.first_name,
         last_name=profile.last_name,
         username=profile.username,
+        photo_url=profile.photo_url,
         phone=profile.phone,
     )
 
@@ -138,6 +140,7 @@ async def update_profile(
                 first_name=metadata.get("first_name", ""),
                 last_name=metadata.get("last_name", ""),
                 username=metadata.get("username"),
+                photo_url=metadata.get("photo_url"),
             )
         )
         await handler.handle(command)

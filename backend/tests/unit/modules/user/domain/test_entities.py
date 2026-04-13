@@ -19,6 +19,7 @@ class TestCustomer:
             first_name=first_name,
             last_name=last_name,
             username=None,
+            photo_url=None,
             phone=phone,
             referral_code="ABCD1234",
             referred_by=None,

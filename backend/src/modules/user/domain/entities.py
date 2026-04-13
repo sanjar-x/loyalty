@@ -47,6 +47,7 @@ class Customer(AggregateRoot):
     first_name: str
     last_name: str
     username: str | None
+    photo_url: str | None
     phone: str | None
     referral_code: str
     referred_by: uuid.UUID | None
@@ -61,6 +62,7 @@ class Customer(AggregateRoot):
         first_name: str = "",
         last_name: str = "",
         username: str | None = None,
+        photo_url: str | None = None,
         referral_code: str | None = None,
         referred_by: uuid.UUID | None = None,
     ) -> Customer:
@@ -71,6 +73,7 @@ class Customer(AggregateRoot):
             profile_email: Optional display email.
             first_name: Customer's first name (from credentials provider).
             last_name: Customer's last name (from credentials provider).
+            photo_url: Profile photo URL (from Telegram/OIDC provider).
             referral_code: Unique referral code (generated in handler if not provided).
             referred_by: Customer ID of the referrer, if any.
 
@@ -84,6 +87,7 @@ class Customer(AggregateRoot):
             first_name=first_name,
             last_name=last_name,
             username=username,
+            photo_url=photo_url,
             phone=None,
             referral_code=referral_code or "",
             referred_by=referred_by,

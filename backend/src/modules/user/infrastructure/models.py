@@ -31,6 +31,7 @@ class CustomerModel(Base):
         String(100), server_default="", nullable=False
     )
     username: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     referral_code: Mapped[str | None] = mapped_column(
         String(12), unique=True, nullable=True

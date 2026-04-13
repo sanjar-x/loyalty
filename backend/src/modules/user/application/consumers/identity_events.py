@@ -218,6 +218,7 @@ async def on_linked_account_created(
             first_name=provider_metadata.get("first_name", ""),
             last_name=provider_metadata.get("last_name", ""),
             username=provider_metadata.get("username"),
+            photo_url=provider_metadata.get("photo_url"),
             referral_code=generate_referral_code(),
             referred_by=referred_by,
         )
@@ -238,6 +239,7 @@ async def on_linked_account_created(
                 first_name=provider_metadata.get("first_name", ""),
                 last_name=provider_metadata.get("last_name", ""),
                 username=None,
+                photo_url=provider_metadata.get("photo_url"),
                 referral_code=generate_referral_code(),
                 referred_by=referred_by,
             )

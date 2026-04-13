@@ -28,6 +28,7 @@ class CreateCustomerCommand:
         first_name: First name from provider metadata (e.g. Telegram).
         last_name: Last name from provider metadata.
         username: Username from provider metadata.
+        photo_url: Profile photo URL from provider metadata.
     """
 
     identity_id: uuid.UUID
@@ -36,6 +37,7 @@ class CreateCustomerCommand:
     first_name: str = ""
     last_name: str = ""
     username: str | None = None
+    photo_url: str | None = None
 
 
 class CreateCustomerHandler:
@@ -78,6 +80,7 @@ class CreateCustomerHandler:
                 first_name=command.first_name,
                 last_name=command.last_name,
                 username=command.username,
+                photo_url=command.photo_url,
                 referral_code=referral_code,
                 referred_by=command.referred_by,
             )
