@@ -73,7 +73,7 @@ class IngestTrackingHandler:
             if shipment is None:
                 raise ShipmentNotFoundError(
                     details={
-                        "provider_code": command.provider_code.value,
+                        "provider_code": command.provider_code,
                         "provider_shipment_id": command.provider_shipment_id,
                     }
                 )

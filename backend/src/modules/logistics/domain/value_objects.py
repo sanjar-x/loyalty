@@ -17,19 +17,26 @@ from enum import StrEnum
 import attrs
 
 # ---------------------------------------------------------------------------
-# Enumerations
+# Provider identity — open string, not a closed enum
 # ---------------------------------------------------------------------------
 
+ProviderCode = str
+"""Open provider identifier (e.g. ``"cdek"``, ``"yandex_delivery"``).
 
-class ProviderCode(StrEnum):
-    """Known logistics provider identifiers.
+Any string is valid — the registry validates supported providers at
+runtime.  This keeps the domain agnostic to the set of integrations.
+"""
 
-    Extensible: add new providers as they are integrated.
-    """
 
-    CDEK = "cdek"
-    YANDEX_DELIVERY = "yandex_delivery"
-    RUSSIAN_POST = "russian_post"
+# Well-known provider codes (constants, not an enum constraint)
+PROVIDER_CDEK: ProviderCode = "cdek"
+PROVIDER_YANDEX_DELIVERY: ProviderCode = "yandex_delivery"
+PROVIDER_RUSSIAN_POST: ProviderCode = "russian_post"
+
+
+# ---------------------------------------------------------------------------
+# Enumerations
+# ---------------------------------------------------------------------------
 
 
 class DeliveryType(StrEnum):
@@ -133,6 +140,10 @@ class Address:
 
     References geo module concepts (country_code, subdivision_code)
     but is self-contained within the logistics domain.
+
+    ``metadata`` carries provider- or country-specific address
+    references (FIAS GUID, KLADR code, CDEK city code, etc.)
+    without polluting the core VO with provider-specific fields.
     """
 
     country_code: str  # ISO 3166-1 alpha-2
@@ -146,6 +157,7 @@ class Address:
     latitude: float | None = None
     longitude: float | None = None
     raw_address: str | None = None  # provider-formatted full address
+    metadata: dict[str, str] = attrs.Factory(dict)  # e.g. {"fias_guid": "...", "cdek_city_code": "..."}
 
 
 @attrs.define(frozen=True)
@@ -362,13 +374,3 @@ class DocumentResult:
     document_url: str | None = None
     document_bytes: bytes | None = None
     content_type: str = "application/pdf"
-
-
-@attrs.define(frozen=True)
-class ProviderClientConfig:
-    """HTTP client configuration for a logistics provider."""
-
-    base_url: str
-    timeout_seconds: float = 30.0
-    max_retries: int = 3
-    retry_base_delay: float = 1.0

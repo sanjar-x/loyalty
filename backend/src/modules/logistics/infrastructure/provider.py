@@ -33,12 +33,16 @@ from src.modules.logistics.application.queries.list_pickup_points import (
     ListPickupPointsHandler,
 )
 from src.modules.logistics.domain.interfaces import (
+    IDeliveryQuoteRepository,
     IProviderRoutingPolicy,
     IShipmentRepository,
     IShippingProviderRegistry,
 )
 from src.modules.logistics.infrastructure.registry import (
     ShippingProviderRegistry,
+)
+from src.modules.logistics.infrastructure.repositories.delivery_quote import (
+    DeliveryQuoteRepository,
 )
 from src.modules.logistics.infrastructure.repositories.shipment import (
     ShipmentRepository,
@@ -53,6 +57,11 @@ class LogisticsInfraProvider(Provider):
 
     shipment_repo: CompositeDependencySource = provide(
         ShipmentRepository, scope=Scope.REQUEST, provides=IShipmentRepository
+    )
+    quote_repo: CompositeDependencySource = provide(
+        DeliveryQuoteRepository,
+        scope=Scope.REQUEST,
+        provides=IDeliveryQuoteRepository,
     )
     registry: CompositeDependencySource = provide(
         ShippingProviderRegistry,

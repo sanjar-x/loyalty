@@ -63,12 +63,12 @@ class ListPickupPointsHandler:
             except Exception as exc:
                 self._logger.warning(
                     "Pickup point listing failed",
-                    provider=query.provider_code.value,
+                    provider=query.provider_code,
                     error=str(exc),
                 )
                 return ListPickupPointsResult(
                     points=[],
-                    errors={query.provider_code.value: str(exc)},
+                    errors={query.provider_code: str(exc)},
                 )
             return ListPickupPointsResult(points=points, errors={})
 
@@ -91,10 +91,10 @@ class ListPickupPointsHandler:
             if isinstance(result, BaseException):
                 self._logger.warning(
                     "Pickup point listing failed",
-                    provider=code.value,
+                    provider=code,
                     error=str(result),
                 )
-                errors[code.value] = str(result)
+                errors[code] = str(result)
             else:
                 all_points.extend(result)
 

@@ -10,7 +10,7 @@ import uuid
 from datetime import UTC, datetime
 
 import attrs
-from attr import dataclass
+from attr import Factory, dataclass
 
 from src.modules.logistics.domain.events import (
     ShipmentBookedEvent,
@@ -119,8 +119,8 @@ class Shipment(AggregateRoot):
     failure_reason: str | None = None
     estimated_delivery: EstimatedDelivery | None = None
 
-    created_at: datetime = datetime.now(UTC)
-    updated_at: datetime = datetime.now(UTC)
+    created_at: datetime = Factory(lambda: datetime.now(UTC))
+    updated_at: datetime = Factory(lambda: datetime.now(UTC))
     booked_at: datetime | None = None
     cancelled_at: datetime | None = None
 
@@ -166,7 +166,7 @@ class Shipment(AggregateRoot):
         shipment.add_domain_event(
             ShipmentCreatedEvent(
                 shipment_id=shipment.id,
-                provider_code=quote.rate.provider_code.value,
+                provider_code=quote.rate.provider_code,
                 service_code=quote.rate.service_code,
             )
         )

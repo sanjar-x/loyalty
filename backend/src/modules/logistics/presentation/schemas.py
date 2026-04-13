@@ -27,6 +27,10 @@ class AddressSchema(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     raw_address: str | None = None
+    metadata: dict[str, str] = Field(
+        default_factory=dict,
+        description="Provider-specific address references (e.g. fias_guid, cdek_city_code)",
+    )
 
 
 class ContactInfoSchema(BaseModel):
@@ -107,14 +111,13 @@ class CalculateRatesResponse(BaseModel):
 
 
 class CreateShipmentRequest(BaseModel):
+    """Create shipment from a server-side quote.
+
+    Only quote_id is required — price, provider, service details are
+    looked up from the trusted server-side DeliveryQuote record.
+    """
+
     quote_id: uuid.UUID = Field(..., description="ID of the selected DeliveryQuote")
-    quote_provider_code: str
-    quote_service_code: str
-    quote_service_name: str
-    quote_delivery_type: str
-    quote_total_cost: MoneySchema
-    quote_base_cost: MoneySchema
-    quote_provider_payload: str = ""
     origin: AddressSchema
     destination: AddressSchema
     sender: ContactInfoSchema

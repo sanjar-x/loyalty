@@ -25,7 +25,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.infrastructure.database.base import Base
 from src.modules.logistics.domain.value_objects import (
     DeliveryType,
-    ProviderCode,
     ShipmentStatus,
     TrackingStatus,
 )
@@ -66,8 +65,8 @@ class ShipmentModel(Base):
     )
 
     provider_code: Mapped[str] = mapped_column(
-        Enum(ProviderCode, name="provider_code_enum", create_constraint=False),
-        comment="Logistics provider identifier",
+        String(50),
+        comment="Logistics provider identifier (open string, e.g. 'cdek')",
     )
     service_code: Mapped[str] = mapped_column(
         String(100), comment="Provider-specific tariff/service code"
@@ -251,8 +250,8 @@ class ProviderAccountModel(Base):
         comment="Primary key",
     )
     provider_code: Mapped[str] = mapped_column(
-        Enum(ProviderCode, name="provider_code_enum", create_constraint=False),
-        comment="Logistics provider identifier",
+        String(50),
+        comment="Logistics provider identifier (open string)",
     )
     name: Mapped[str] = mapped_column(
         String(255), comment="Human-readable account name"
@@ -274,4 +273,98 @@ class ProviderAccountModel(Base):
         TIMESTAMP(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Delivery Quotes (server-side storage for price integrity)
+# ---------------------------------------------------------------------------
+
+
+class DeliveryQuoteModel(Base):
+    """Server-side persisted delivery quote.
+
+    Quotes are created during rate calculation and looked up when
+    creating a shipment to prevent client-side price tampering.
+    """
+
+    __tablename__ = "delivery_quotes"
+    __table_args__ = (
+        Index("ix_delivery_quotes_expires_at", "expires_at"),
+        {"comment": "Server-side delivery quotes for price integrity"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="Quote identifier (returned to client)",
+    )
+
+    provider_code: Mapped[str] = mapped_column(
+        String(50), comment="Logistics provider identifier"
+    )
+    service_code: Mapped[str] = mapped_column(
+        String(100), comment="Provider-specific tariff/service code"
+    )
+    service_name: Mapped[str] = mapped_column(
+        String(500), comment="Human-readable tariff name"
+    )
+    delivery_type: Mapped[str] = mapped_column(
+        Enum(DeliveryType, name="delivery_type_enum", create_constraint=False),
+        comment="Courier, pickup point, or post office",
+    )
+
+    # Cost breakdown
+    total_cost_amount: Mapped[int] = mapped_column(
+        Integer, comment="Total cost in smallest currency unit"
+    )
+    total_cost_currency: Mapped[str] = mapped_column(
+        String(3), comment="ISO 4217 currency code"
+    )
+    base_cost_amount: Mapped[int] = mapped_column(
+        Integer, comment="Base cost in smallest currency unit"
+    )
+    base_cost_currency: Mapped[str] = mapped_column(
+        String(3), comment="ISO 4217 currency code"
+    )
+    insurance_cost_amount: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, comment="Insurance cost"
+    )
+    insurance_cost_currency: Mapped[str | None] = mapped_column(
+        String(3), nullable=True, comment="Insurance currency"
+    )
+
+    # Delivery estimate
+    delivery_days_min: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, comment="Minimum delivery days"
+    )
+    delivery_days_max: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, comment="Maximum delivery days"
+    )
+
+    # Opaque provider data
+    provider_payload: Mapped[str] = mapped_column(
+        Text, default="", comment="JSON-serialised opaque provider data"
+    )
+
+    # Lifecycle
+    quoted_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), comment="When quote was generated"
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+        comment="When quote expires (e.g. Yandex 10-min offer timeout)",
+    )
+
+    # Route context (for audit / debugging)
+    origin_json: Mapped[dict] = mapped_column(
+        JSONB, comment="Origin address snapshot"
+    )
+    destination_json: Mapped[dict] = mapped_column(
+        JSONB, comment="Destination address snapshot"
+    )
+    parcels_json: Mapped[list] = mapped_column(
+        JSONB, comment="Parcels snapshot"
     )

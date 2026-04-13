@@ -5,7 +5,6 @@ Provides rate calculation, shipment CRUD, tracking, and pickup point listing.
 """
 
 import uuid
-from datetime import UTC, datetime
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, status
@@ -41,17 +40,15 @@ from src.modules.logistics.application.queries.list_pickup_points import (
 from src.modules.logistics.domain.value_objects import (
     Address,
     ContactInfo,
-    DeliveryQuote,
     DeliveryType,
     Dimensions,
     Money,
     Parcel,
     PickupPointQuery,
-    ProviderCode,
-    ShippingRate,
     Weight,
 )
 from src.modules.logistics.presentation.schemas import (
+    AddressSchema,
     BookShipmentResponse,
     CalculateRatesRequest,
     CalculateRatesResponse,
@@ -93,6 +90,26 @@ def _schema_to_address(s) -> Address:
         latitude=s.latitude,
         longitude=s.longitude,
         raw_address=s.raw_address,
+        metadata=s.metadata if hasattr(s, "metadata") else {},
+    )
+
+
+def _address_to_schema(a: Address) -> AddressSchema:
+    from src.modules.logistics.presentation.schemas import AddressSchema
+
+    return AddressSchema(
+        country_code=a.country_code,
+        city=a.city,
+        region=a.region,
+        postal_code=a.postal_code,
+        street=a.street,
+        house=a.house,
+        apartment=a.apartment,
+        subdivision_code=a.subdivision_code,
+        latitude=a.latitude,
+        longitude=a.longitude,
+        raw_address=a.raw_address,
+        metadata=a.metadata,
     )
 
 
@@ -157,7 +174,7 @@ async def calculate_rates(
             DeliveryQuoteSchema(
                 id=q.id,
                 rate=ShippingRateSchema(
-                    provider_code=q.rate.provider_code.value,
+                    provider_code=q.rate.provider_code,
                     service_code=q.rate.service_code,
                     service_name=q.rate.service_name,
                     delivery_type=q.rate.delivery_type.value,
@@ -201,28 +218,8 @@ async def create_shipment(
     create_handler: FromDishka[CreateShipmentHandler],
     get_handler: FromDishka[GetShipmentHandler],
 ) -> ShipmentResponse:
-    now = datetime.now(UTC)
-    quote = DeliveryQuote(
-        id=body.quote_id,
-        rate=ShippingRate(
-            provider_code=ProviderCode(body.quote_provider_code),
-            service_code=body.quote_service_code,
-            service_name=body.quote_service_name,
-            delivery_type=DeliveryType(body.quote_delivery_type),
-            total_cost=Money(
-                amount=body.quote_total_cost.amount,
-                currency_code=body.quote_total_cost.currency_code,
-            ),
-            base_cost=Money(
-                amount=body.quote_base_cost.amount,
-                currency_code=body.quote_base_cost.currency_code,
-            ),
-        ),
-        provider_payload=body.quote_provider_payload,
-        quoted_at=now,
-    )
     command = CreateShipmentCommand(
-        quote=quote,
+        quote_id=body.quote_id,
         origin=_schema_to_address(body.origin),
         destination=_schema_to_address(body.destination),
         sender=_schema_to_contact(body.sender),
@@ -330,26 +327,22 @@ async def list_pickup_points(
             latitude=body.latitude,
             longitude=body.longitude,
             radius_km=body.radius_km,
-            provider_code=(
-                ProviderCode(body.provider_code) if body.provider_code else None
-            ),
+            provider_code=body.provider_code,
             delivery_type=(
                 DeliveryType(body.delivery_type) if body.delivery_type else None
             ),
         ),
-        provider_code=(
-            ProviderCode(body.provider_code) if body.provider_code else None
-        ),
+        provider_code=body.provider_code,
     )
     result = await handler.handle(query)
     return PickupPointsResponse(
         points=[
             PickupPointSchema(
-                provider_code=p.provider_code.value,
+                provider_code=p.provider_code,
                 external_id=p.external_id,
                 name=p.name,
                 pickup_point_type=p.pickup_point_type,
-                address=p.address,  # ty:ignore[invalid-argument-type]
+                address=_address_to_schema(p.address),
                 work_schedule=p.work_schedule,
                 phone=p.phone,
                 is_cash_allowed=p.is_cash_allowed,
@@ -371,7 +364,7 @@ def _shipment_to_response(shipment) -> ShipmentResponse:
     return ShipmentResponse(
         id=shipment.id,
         order_id=shipment.order_id,
-        provider_code=shipment.provider_code.value,
+        provider_code=shipment.provider_code,
         service_code=shipment.service_code,
         delivery_type=shipment.delivery_type.value,
         status=shipment.status.value,

@@ -10,7 +10,9 @@ from src.modules.logistics.domain.interfaces import (
     IDocumentProvider,
     IPickupPointProvider,
     IRateProvider,
+    ITrackingPollProvider,
     ITrackingProvider,
+    IWebhookAdapter,
 )
 from src.modules.logistics.domain.value_objects import ProviderCode
 
@@ -26,8 +28,10 @@ class ShippingProviderRegistry:
         self._rate_providers: dict[ProviderCode, IRateProvider] = {}
         self._booking_providers: dict[ProviderCode, IBookingProvider] = {}
         self._tracking_providers: dict[ProviderCode, ITrackingProvider] = {}
+        self._tracking_poll_providers: dict[ProviderCode, ITrackingPollProvider] = {}
         self._pickup_point_providers: dict[ProviderCode, IPickupPointProvider] = {}
         self._document_providers: dict[ProviderCode, IDocumentProvider] = {}
+        self._webhook_adapters: dict[ProviderCode, IWebhookAdapter] = {}
 
     # -- Registration -------------------------------------------------------
 
@@ -40,11 +44,17 @@ class ShippingProviderRegistry:
     def register_tracking_provider(self, provider: ITrackingProvider) -> None:
         self._tracking_providers[provider.provider_code()] = provider
 
+    def register_tracking_poll_provider(self, provider: ITrackingPollProvider) -> None:
+        self._tracking_poll_providers[provider.provider_code()] = provider
+
     def register_pickup_point_provider(self, provider: IPickupPointProvider) -> None:
         self._pickup_point_providers[provider.provider_code()] = provider
 
     def register_document_provider(self, provider: IDocumentProvider) -> None:
         self._document_providers[provider.provider_code()] = provider
+
+    def register_webhook_adapter(self, adapter: IWebhookAdapter) -> None:
+        self._webhook_adapters[adapter.provider_code()] = adapter
 
     # -- Retrieval ----------------------------------------------------------
 
@@ -52,20 +62,28 @@ class ShippingProviderRegistry:
         try:
             return self._rate_providers[code]
         except KeyError:
-            raise KeyError(f"No rate provider registered for {code.value}") from None
+            raise KeyError(f"No rate provider registered for '{code}'") from None
 
     def get_booking_provider(self, code: ProviderCode) -> IBookingProvider:
         try:
             return self._booking_providers[code]
         except KeyError:
-            raise KeyError(f"No booking provider registered for {code.value}") from None
+            raise KeyError(f"No booking provider registered for '{code}'") from None
 
     def get_tracking_provider(self, code: ProviderCode) -> ITrackingProvider:
         try:
             return self._tracking_providers[code]
         except KeyError:
             raise KeyError(
-                f"No tracking provider registered for {code.value}"
+                f"No tracking provider registered for '{code}'"
+            ) from None
+
+    def get_tracking_poll_provider(self, code: ProviderCode) -> ITrackingPollProvider:
+        try:
+            return self._tracking_poll_providers[code]
+        except KeyError:
+            raise KeyError(
+                f"No tracking poll provider registered for '{code}'"
             ) from None
 
     def get_pickup_point_provider(self, code: ProviderCode) -> IPickupPointProvider:
@@ -73,7 +91,7 @@ class ShippingProviderRegistry:
             return self._pickup_point_providers[code]
         except KeyError:
             raise KeyError(
-                f"No pickup point provider registered for {code.value}"
+                f"No pickup point provider registered for '{code}'"
             ) from None
 
     def get_document_provider(self, code: ProviderCode) -> IDocumentProvider:
@@ -81,7 +99,15 @@ class ShippingProviderRegistry:
             return self._document_providers[code]
         except KeyError:
             raise KeyError(
-                f"No document provider registered for {code.value}"
+                f"No document provider registered for '{code}'"
+            ) from None
+
+    def get_webhook_adapter(self, code: ProviderCode) -> IWebhookAdapter:
+        try:
+            return self._webhook_adapters[code]
+        except KeyError:
+            raise KeyError(
+                f"No webhook adapter registered for '{code}'"
             ) from None
 
     # -- Listing ------------------------------------------------------------
@@ -92,6 +118,9 @@ class ShippingProviderRegistry:
     def list_pickup_point_providers(self) -> list[IPickupPointProvider]:
         return list(self._pickup_point_providers.values())
 
+    def list_tracking_poll_providers(self) -> list[ITrackingPollProvider]:
+        return list(self._tracking_poll_providers.values())
+
     @property
     def registered_provider_codes(self) -> set[ProviderCode]:
         """All provider codes that have at least one capability registered."""
@@ -100,8 +129,14 @@ class ShippingProviderRegistry:
             self._rate_providers,
             self._booking_providers,
             self._tracking_providers,
+            self._tracking_poll_providers,
             self._pickup_point_providers,
             self._document_providers,
+            self._webhook_adapters,
         ):
             codes.update(registry.keys())
         return codes
+
+    def has_webhook_adapter(self, code: ProviderCode) -> bool:
+        """Check if a webhook adapter is registered for a provider."""
+        return code in self._webhook_adapters

@@ -12,9 +12,9 @@ import logging
 import random
 from typing import Any
 
+import attrs
 import httpx
 
-from src.modules.logistics.domain.value_objects import ProviderClientConfig
 from src.modules.logistics.infrastructure.providers.base_auth import BaseAuthManager
 from src.modules.logistics.infrastructure.providers.errors import (
     ProviderAuthError,
@@ -26,6 +26,19 @@ logger = logging.getLogger(__name__)
 
 # HTTP status codes that trigger automatic retry
 _RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+
+
+@attrs.define(frozen=True)
+class ProviderClientConfig:
+    """HTTP client configuration for a logistics provider.
+
+    Infrastructure concern — lives alongside the client that uses it.
+    """
+
+    base_url: str
+    timeout_seconds: float = 30.0
+    max_retries: int = 3
+    retry_base_delay: float = 1.0
 
 
 class BaseProviderClient:

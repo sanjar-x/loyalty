@@ -129,3 +129,43 @@ class NoEligibleProvidersError(ValidationError):
             error_code=error_code,
             details=details,
         )
+
+
+class QuoteNotFoundError(NotFoundError):
+    """Raised when a delivery quote ID is not found (HTTP 404)."""
+
+    def __init__(
+        self,
+        quote_id: Any | None = None,
+        message: str = "Delivery quote not found",
+        error_code: str = "QUOTE_NOT_FOUND",
+        details: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            error_code=error_code,
+            details=details or ({"quote_id": str(quote_id)} if quote_id else None),
+        )
+
+
+class QuoteExpiredError(ConflictError):
+    """Raised when a delivery quote has expired (HTTP 409)."""
+
+    def __init__(
+        self,
+        quote_id: Any | None = None,
+        expires_at: Any | None = None,
+        message: str = "Delivery quote has expired",
+        error_code: str = "QUOTE_EXPIRED",
+        details: dict[str, Any] | None = None,
+    ):
+        _details = details or {}
+        if quote_id:
+            _details.setdefault("quote_id", str(quote_id))
+        if expires_at:
+            _details.setdefault("expires_at", str(expires_at))
+        super().__init__(
+            message=message,
+            error_code=error_code,
+            details=_details or None,
+        )
