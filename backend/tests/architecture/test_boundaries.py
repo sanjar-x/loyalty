@@ -9,7 +9,7 @@ from pytest_archon import archrule
 
 pytestmark = pytest.mark.architecture
 
-MODULES = ["catalog", "identity", "user", "cart"]
+MODULES = ["catalog", "identity", "user", "cart", "logistics"]
 
 
 # Rule 1: Domain Layer Purity (Clean Architecture)

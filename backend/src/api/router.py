@@ -42,6 +42,8 @@ from src.modules.identity.presentation.router_auth import auth_router
 from src.modules.identity.presentation.router_customers import customer_admin_router
 from src.modules.identity.presentation.router_invitation import invitation_router
 from src.modules.identity.presentation.router_staff import staff_admin_router
+from src.modules.logistics.presentation.router import logistics_router
+from src.modules.logistics.presentation.router_webhooks import webhook_router
 from src.modules.supplier.presentation.router import supplier_router
 from src.modules.user.presentation.router import profile_router
 
@@ -71,3 +73,5 @@ router.include_router(geo_router)
 router.include_router(geo_admin_router)
 router.include_router(supplier_router)
 router.include_router(cart_router)
+router.include_router(logistics_router)
+router.include_router(webhook_router)

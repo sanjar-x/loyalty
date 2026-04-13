@@ -29,6 +29,11 @@ from src.modules.catalog.presentation.dependencies import (
 )
 from src.modules.geo.presentation.dependencies import GeoProvider
 from src.modules.identity.infrastructure.provider import IdentityProvider
+from src.modules.logistics.infrastructure.provider import (
+    LogisticsCommandProvider,
+    LogisticsInfraProvider,
+    LogisticsQueryProvider,
+)
 from src.modules.supplier.presentation.dependencies import SupplierProvider
 from src.modules.user.infrastructure.provider import ProfileProvider
 
@@ -67,4 +72,7 @@ def create_container() -> AsyncContainer:
         ProfileProvider(),
         SupplierProvider(),
         CartProvider(),
+        LogisticsInfraProvider(),
+        LogisticsCommandProvider(),
+        LogisticsQueryProvider(),
     )
