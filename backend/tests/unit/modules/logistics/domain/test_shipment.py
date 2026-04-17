@@ -55,7 +55,7 @@ def _make_address(**overrides) -> Address:
         "raw_address": None,
     }
     defaults.update(overrides)
-    return Address(**defaults)
+    return Address(**defaults)  # ty:ignore[invalid-argument-type]
 
 
 def _make_contact(**overrides) -> ContactInfo:
