@@ -201,6 +201,28 @@ class SearchProductsHandler:
             .lateral("cheapest_sku")
         )
 
+        # Best product-level image: MAIN first, then lowest sort_order so
+        # products with only GALLERY media still render a thumbnail.
+        primary_image = (
+            select(
+                OrmMediaAsset.url.label("image_url"),
+                OrmMediaAsset.image_variants.label("image_variants"),
+            )
+            .where(
+                OrmMediaAsset.product_id == OrmProduct.id,
+                OrmMediaAsset.variant_id.is_(None),
+                OrmMediaAsset.url.is_not(None),
+            )
+            .order_by(
+                (OrmMediaAsset.role != MediaRole.MAIN).asc(),
+                OrmMediaAsset.sort_order.asc(),
+                OrmMediaAsset.created_at.asc(),
+            )
+            .limit(1)
+            .correlate(OrmProduct)
+            .lateral("primary_image")
+        )
+
         variant_count_sub = (
             select(func.count(OrmVariant.id))
             .where(
@@ -240,18 +262,13 @@ class SearchProductsHandler:
                 OrmBrand.name.label("brand_name"),
                 OrmBrand.slug.label("brand_slug"),
                 OrmBrand.logo_url.label("brand_logo_url"),
-                OrmMediaAsset.url.label("image_url"),
-                OrmMediaAsset.image_variants.label("image_variants"),
+                primary_image.c.image_url,
+                primary_image.c.image_variants,
                 rank_expr,
             )
             .join(OrmBrand, OrmBrand.id == OrmProduct.brand_id)
             .outerjoin(cheapest_sku, literal(True))
-            .outerjoin(
-                OrmMediaAsset,
-                (OrmMediaAsset.product_id == OrmProduct.id)
-                & (OrmMediaAsset.role == MediaRole.MAIN)
-                & (OrmMediaAsset.variant_id.is_(None)),
-            )
+            .outerjoin(primary_image, literal(True))
             .where(
                 OrmProduct.status == ProductStatus.PUBLISHED,
                 OrmProduct.is_visible.is_(True),

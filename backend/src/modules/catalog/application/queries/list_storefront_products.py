@@ -161,6 +161,29 @@ class ListStorefrontProductsHandler:
         Uses a lateral join to find the cheapest active SKU per product,
         resolving effective price as COALESCE(sku.price, variant.default_price).
         """
+        # Lateral: best product-level image.
+        # Prefer role=MAIN; fall back to lowest sort_order (e.g. first gallery
+        # image) so products with only GALLERY media still render a thumbnail.
+        primary_image = (
+            select(
+                OrmMediaAsset.url.label("image_url"),
+                OrmMediaAsset.image_variants.label("image_variants"),
+            )
+            .where(
+                OrmMediaAsset.product_id == OrmProduct.id,
+                OrmMediaAsset.variant_id.is_(None),
+                OrmMediaAsset.url.is_not(None),
+            )
+            .order_by(
+                (OrmMediaAsset.role != MediaRole.MAIN).asc(),
+                OrmMediaAsset.sort_order.asc(),
+                OrmMediaAsset.created_at.asc(),
+            )
+            .limit(1)
+            .correlate(OrmProduct)
+            .lateral("primary_image")
+        )
+
         # Lateral: cheapest sellable SKU per product
         cheapest_sku = (
             select(
@@ -225,17 +248,12 @@ class ListStorefrontProductsHandler:
                 OrmBrand.name.label("brand_name"),
                 OrmBrand.slug.label("brand_slug"),
                 OrmBrand.logo_url.label("brand_logo_url"),
-                OrmMediaAsset.url.label("image_url"),
-                OrmMediaAsset.image_variants.label("image_variants"),
+                primary_image.c.image_url,
+                primary_image.c.image_variants,
             )
             .join(OrmBrand, OrmBrand.id == OrmProduct.brand_id)
             .outerjoin(cheapest_sku, literal(True))
-            .outerjoin(
-                OrmMediaAsset,
-                (OrmMediaAsset.product_id == OrmProduct.id)
-                & (OrmMediaAsset.role == MediaRole.MAIN)
-                & (OrmMediaAsset.variant_id.is_(None)),
-            )
+            .outerjoin(primary_image, literal(True))
             .where(
                 OrmProduct.status == ProductStatus.PUBLISHED,
                 OrmProduct.is_visible.is_(True),
