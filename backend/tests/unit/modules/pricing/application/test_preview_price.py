@@ -22,6 +22,10 @@ from src.modules.pricing.domain.exceptions import (
 )
 from src.modules.pricing.domain.formula import FormulaVersion
 from src.modules.pricing.domain.interfaces import VariableListFilter
+from src.modules.pricing.domain.pricing_context import PricingContext
+from src.modules.pricing.domain.supplier_pricing_settings import (
+    SupplierPricingSettings,
+)
 from src.modules.pricing.domain.value_objects import VariableDataType, VariableScope
 from src.modules.pricing.domain.variable import Variable
 
@@ -105,6 +109,33 @@ class _FakeSettingsRepo:
     async def delete(self, *a: Any, **k: Any) -> Any: ...
 
 
+class _FakeSupplierSettingsRepo:
+    def __init__(self, settings: SupplierPricingSettings | None) -> None:
+        self._settings = settings
+
+    async def get_by_supplier_id(
+        self, supplier_id: uuid.UUID
+    ) -> SupplierPricingSettings | None:
+        return self._settings
+
+    async def add(self, *a: Any, **k: Any) -> Any: ...
+    async def update(self, *a: Any, **k: Any) -> Any: ...
+    async def delete(self, *a: Any, **k: Any) -> Any: ...
+
+
+class _FakeContextRepo:
+    def __init__(self, context: PricingContext | None) -> None:
+        self._context = context
+
+    async def get_by_id(self, context_id: uuid.UUID) -> PricingContext | None:
+        return self._context
+
+    async def add(self, *a: Any, **k: Any) -> Any: ...
+    async def update(self, *a: Any, **k: Any) -> Any: ...
+    async def get_by_code(self, *a: Any, **k: Any) -> Any: ...
+    async def list(self, *a: Any, **k: Any) -> Any: ...
+
+
 # ---------------------------------------------------------------------------
 # Fixtures / builders
 # ---------------------------------------------------------------------------
@@ -166,18 +197,44 @@ def _settings(
     )
 
 
+def _supplier_settings(
+    supplier_id: uuid.UUID,
+    values: dict[str, Decimal],
+) -> SupplierPricingSettings:
+    return SupplierPricingSettings.create(
+        supplier_id=supplier_id,
+        values=values,
+        actor_id=uuid.uuid4(),
+    )
+
+
+def _context(global_values: dict[str, Decimal]) -> PricingContext:
+    ctx = PricingContext.create(
+        code=f"ctx_{uuid.uuid4().hex[:8]}",
+        name={"ru": "Test", "en": "Test"},
+        actor_id=uuid.uuid4(),
+    )
+    for code, value in global_values.items():
+        ctx.set_global_value(variable_code=code, value=value, actor_id=uuid.uuid4())
+    return ctx
+
+
 def _build_handler(
     *,
     formula: FormulaVersion | None,
     variables: list[Variable],
     profile: ProductPricingProfile | None = None,
     settings: CategoryPricingSettings | None = None,
+    supplier_settings: SupplierPricingSettings | None = None,
+    context: PricingContext | None = None,
 ) -> PreviewPriceHandler:
     return PreviewPriceHandler(
         formula_repo=_FakeFormulaRepo(formula),  # type: ignore[arg-type]
         variable_repo=_FakeVariableRepo(variables),  # type: ignore[arg-type]
         profile_repo=_FakeProfileRepo(profile),  # type: ignore[arg-type]
         settings_repo=_FakeSettingsRepo(settings),  # type: ignore[arg-type]
+        supplier_settings_repo=_FakeSupplierSettingsRepo(supplier_settings),  # type: ignore[arg-type]
+        context_repo=_FakeContextRepo(context),  # type: ignore[arg-type]
         logger=_FakeLogger(),  # type: ignore[arg-type]
     )
 
@@ -337,3 +394,125 @@ class TestPreviewPriceHandler:
             )
         )
         assert result.final_price == Decimal("925.0")
+
+    @pytest.mark.asyncio
+    async def test_supplier_scope_uses_settings_values(self) -> None:
+        """SUPPLIER-scope variable is resolved from SupplierPricingSettings."""
+        context_id = uuid.uuid4()
+        supplier_id = uuid.uuid4()
+        ast = {
+            "version": 1,
+            "bindings": [
+                {
+                    "name": "final_price",
+                    "component_tag": "final_price",
+                    "expr": {
+                        "op": "*",
+                        "args": [{"var": "cost"}, {"var": "supplier_markup"}],
+                    },
+                }
+            ],
+        }
+        variables = [
+            _variable("cost", VariableScope.PRODUCT_INPUT, is_required=True),
+            _variable(
+                "supplier_markup",
+                VariableScope.SUPPLIER,
+                default=Decimal("1.10"),
+            ),
+        ]
+        sup_settings = _supplier_settings(
+            supplier_id, {"supplier_markup": Decimal("1.30")}
+        )
+        product_id = uuid.uuid4()
+        handler = _build_handler(
+            formula=_formula(context_id, ast),
+            variables=variables,
+            profile=_profile(product_id, {"cost": Decimal("100")}),
+            supplier_settings=sup_settings,
+        )
+
+        result = await handler.handle(
+            PreviewPriceQuery(
+                product_id=product_id,
+                category_id=uuid.uuid4(),
+                context_id=context_id,
+                supplier_id=supplier_id,
+            )
+        )
+        # 100 * 1.30 = 130
+        assert result.final_price == Decimal("130.00")
+
+    @pytest.mark.asyncio
+    async def test_supplier_scope_falls_back_to_default_when_no_supplier_id(
+        self,
+    ) -> None:
+        """When no supplier_id in query, SUPPLIER vars use default_value."""
+        context_id = uuid.uuid4()
+        ast = {
+            "version": 1,
+            "bindings": [
+                {
+                    "name": "final_price",
+                    "component_tag": "final_price",
+                    "expr": {"var": "supplier_markup"},
+                }
+            ],
+        }
+        variables = [
+            _variable(
+                "supplier_markup",
+                VariableScope.SUPPLIER,
+                default=Decimal("1.10"),
+            )
+        ]
+        handler = _build_handler(
+            formula=_formula(context_id, ast),
+            variables=variables,
+        )
+
+        result = await handler.handle(
+            PreviewPriceQuery(
+                product_id=uuid.uuid4(),
+                category_id=uuid.uuid4(),
+                context_id=context_id,
+                # supplier_id omitted
+            )
+        )
+        assert result.final_price == Decimal("1.10")
+
+    @pytest.mark.asyncio
+    async def test_global_scope_uses_context_override(self) -> None:
+        """BR-8: context.global_values[code] overrides default in preview."""
+        context_id = uuid.uuid4()
+        ast = {
+            "version": 1,
+            "bindings": [
+                {
+                    "name": "final_price",
+                    "component_tag": "final_price",
+                    "expr": {
+                        "op": "*",
+                        "args": [{"var": "fx_usd"}, {"const": "10"}],
+                    },
+                }
+            ],
+        }
+        variables = [
+            _variable("fx_usd", VariableScope.GLOBAL, default=Decimal("92.5"))
+        ]
+        ctx = _context({"fx_usd": Decimal("100.0")})
+        handler = _build_handler(
+            formula=_formula(context_id, ast),
+            variables=variables,
+            context=ctx,
+        )
+        result = await handler.handle(
+            PreviewPriceQuery(
+                product_id=uuid.uuid4(),
+                category_id=uuid.uuid4(),
+                context_id=context_id,
+            )
+        )
+        # 100.0 * 10 = 1000.0 (not 925.0 from default)
+        assert result.final_price == Decimal("1000.0")

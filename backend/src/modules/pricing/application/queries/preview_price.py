@@ -20,6 +20,7 @@ from src.modules.pricing.domain.formula_evaluator import evaluate_formula
 from src.modules.pricing.domain.interfaces import (
     ICategoryPricingSettingsRepository,
     IFormulaVersionRepository,
+    IPricingContextRepository,
     IProductPricingProfileRepository,
     ISupplierPricingSettingsRepository,
     IVariableRepository,
@@ -59,6 +60,7 @@ class PreviewPriceHandler:
         profile_repo: IProductPricingProfileRepository,
         settings_repo: ICategoryPricingSettingsRepository,
         supplier_settings_repo: ISupplierPricingSettingsRepository,
+        context_repo: IPricingContextRepository,
         logger: ILogger,
     ) -> None:
         self._formulas = formula_repo
@@ -66,6 +68,7 @@ class PreviewPriceHandler:
         self._profiles = profile_repo
         self._settings = settings_repo
         self._supplier_settings = supplier_settings_repo
+        self._contexts = context_repo
         self._logger = logger.bind(handler="PreviewPriceHandler")
 
     async def handle(self, query: PreviewPriceQuery) -> PreviewPriceResult:
@@ -87,12 +90,14 @@ class PreviewPriceHandler:
             if query.supplier_id is not None
             else None
         )
+        context = await self._contexts.get_by_id(query.context_id)
 
         resolved = resolve_variables(
             variables,
             product_profile=profile,
             category_settings=settings,
             supplier_settings=supplier_settings,
+            context=context,
         )
 
         evaluation = evaluate_formula(formula.ast, resolved)

@@ -94,7 +94,7 @@ async def list_variables(
     response_model=CreateVariableResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new pricing variable",
-    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+    dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def create_variable(
     body: CreateVariableRequest,
@@ -143,7 +143,7 @@ async def get_variable(
     "/{variable_id}",
     response_model=VariableResponse,
     summary="Update the mutable fields of a pricing variable",
-    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+    dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def update_variable(
     variable_id: uuid.UUID,
@@ -187,7 +187,7 @@ async def update_variable(
     "/{variable_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a pricing variable (blocked while in use)",
-    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+    dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def delete_variable(
     variable_id: uuid.UUID,

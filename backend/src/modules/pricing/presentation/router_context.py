@@ -24,6 +24,10 @@ from src.modules.pricing.application.commands.freeze_context import (
     FreezeContextCommand,
     FreezeContextHandler,
 )
+from src.modules.pricing.application.commands.set_context_global_value import (
+    SetContextGlobalValueCommand,
+    SetContextGlobalValueHandler,
+)
 from src.modules.pricing.application.commands.unfreeze_context import (
     UnfreezeContextCommand,
     UnfreezeContextHandler,
@@ -31,6 +35,10 @@ from src.modules.pricing.application.commands.unfreeze_context import (
 from src.modules.pricing.application.commands.update_context import (
     UpdateContextCommand,
     UpdateContextHandler,
+)
+from src.modules.pricing.application.queries.context_global_values import (
+    GetContextGlobalValuesHandler,
+    GetContextGlobalValuesQuery,
 )
 from src.modules.pricing.application.queries.contexts import (
     GetContextHandler,
@@ -40,12 +48,16 @@ from src.modules.pricing.application.queries.contexts import (
     PricingContextReadModel,
 )
 from src.modules.pricing.presentation.schemas import (
+    ContextGlobalValueItemResponse,
+    ContextGlobalValuesResponse,
     ContextListResponse,
     CreateContextRequest,
     CreateContextResponse,
     FreezeContextRequest,
     MutateContextResponse,
     PricingContextResponse,
+    SetContextGlobalValueRequest,
+    SetContextGlobalValueResponse,
     UpdateContextRequest,
 )
 
@@ -103,7 +115,7 @@ async def list_contexts(
     response_model=CreateContextResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a pricing context",
-    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+    dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def create_context(
     body: CreateContextRequest,
@@ -150,7 +162,7 @@ async def get_context(
     "/{context_id}",
     response_model=PricingContextResponse,
     summary="Update mutable fields of a pricing context",
-    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+    dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def update_context(
     context_id: uuid.UUID,
@@ -188,7 +200,7 @@ async def update_context(
     "/{context_id}",
     response_model=MutateContextResponse,
     summary="Soft-deactivate a pricing context",
-    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+    dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def deactivate_context(
     context_id: uuid.UUID,
@@ -243,4 +255,60 @@ async def unfreeze_context(
     )
     return MutateContextResponse(
         context_id=result.context_id, version_lock=result.version_lock
+    )
+
+
+@pricing_context_router.get(
+    "/{context_id}/variables/values",
+    response_model=ContextGlobalValuesResponse,
+    summary="List global-scope variable values for a context",
+    dependencies=[Depends(RequirePermission(codename="pricing:read"))],
+)
+async def get_context_global_values(
+    context_id: uuid.UUID,
+    handler: FromDishka[GetContextGlobalValuesHandler],
+) -> ContextGlobalValuesResponse:
+    result = await handler.handle(GetContextGlobalValuesQuery(context_id=context_id))
+    return ContextGlobalValuesResponse(
+        context_id=result.context_id,
+        values=[
+            ContextGlobalValueItemResponse(
+                variable_code=v.variable_code,
+                value=v.value,
+                variable_name=v.variable_name,
+                is_required=v.is_required,
+            )
+            for v in result.values
+        ],
+        version_lock=result.version_lock,
+    )
+
+
+@pricing_context_router.put(
+    "/{context_id}/variables/values/{variable_code}",
+    response_model=SetContextGlobalValueResponse,
+    summary="Set a global-scope variable value on a context",
+    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+)
+async def set_context_global_value(
+    context_id: uuid.UUID,
+    variable_code: str,
+    body: SetContextGlobalValueRequest,
+    handler: FromDishka[SetContextGlobalValueHandler],
+    identity_id: uuid.UUID = Depends(get_current_identity_id),
+) -> SetContextGlobalValueResponse:
+    result = await handler.handle(
+        SetContextGlobalValueCommand(
+            context_id=context_id,
+            variable_code=variable_code,
+            value=body.value,
+            version_lock=body.version_lock,
+            actor_id=identity_id,
+        )
+    )
+    return SetContextGlobalValueResponse(
+        context_id=result.context_id,
+        variable_code=result.variable_code,
+        value=result.value,
+        version_lock=result.version_lock,
     )

@@ -327,6 +327,21 @@ class PricingContextDeactivatedEvent(
     event_type: str = "PricingContextDeactivatedEvent"
 
 
+@dataclass
+class PricingContextGlobalValueSetEvent(
+    PricingContextEvent,
+    required_fields=("context_id", "code", "variable_code"),
+    aggregate_id_field="context_id",
+):
+    """Emitted when a global-scope variable value is set/updated on a context."""
+
+    context_id: uuid.UUID | None = None
+    code: str | None = None
+    variable_code: str | None = None
+    updated_by: uuid.UUID | None = None
+    event_type: str = "PricingContextGlobalValueSetEvent"
+
+
 # ---------------------------------------------------------------------------
 # Formula version events
 # ---------------------------------------------------------------------------

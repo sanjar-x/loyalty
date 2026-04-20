@@ -131,7 +131,11 @@ PERMISSIONS: list[SeedPermission] = [
     ),
     SeedPermission(
         "pricing:manage",
-        "Управление pricing-профилями товаров (upsert/delete product pricing inputs)",
+        "Управление pricing-профилями товаров (upsert/delete product pricing inputs, category settings, freeze/unfreeze)",
+    ),
+    SeedPermission(
+        "pricing:admin",
+        "Администрирование pricing: CRUD контекстов/переменных, формулы, SupplierPricingSettings, SupplierTypeContextMapping (BR-17)",
     ),
 ]
 

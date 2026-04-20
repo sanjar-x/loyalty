@@ -1,20 +1,21 @@
 """Pure-domain variable resolution service.
 
 Given the ``Variable`` registry plus scope-specific sources (product pricing
-profile, category pricing settings), produces a flat
+profile, category pricing settings, supplier pricing settings, and the pricing
+context's global values), produces a flat
 ``dict[variable_code -> Decimal]`` suitable for feeding into
 :func:`~src.modules.pricing.domain.formula_evaluator.evaluate_formula`.
 
-Resolution rules (per ADR-004 + FRD §Variables):
+Resolution rules (per ADR-004 + FRD §Variables, BR-8):
 
 ======================  =========================================================
 ``Variable.scope``      Source order
 ======================  =========================================================
-``GLOBAL``              ``variable.default_value`` only.
+``GLOBAL``              ``context.global_values[code]`` → ``variable.default_value``.
 ``PRODUCT_INPUT``       ``product_profile.values[code]`` → ``default_value``.
 ``CATEGORY``            ``category_settings.values[code]`` → ``default_value``.
 ``SUPPLIER``            ``supplier_settings.values[code]`` → ``default_value``.
-``RANGE``               *Deferred (v1)* — skipped.
+``RANGE``               *Deferred (v1)* — falls back to ``default_value``.
 ======================  =========================================================
 
 If a variable is ``is_required=True`` and nothing resolves, raises
@@ -33,6 +34,7 @@ from src.modules.pricing.domain.category_pricing_settings import (
 )
 from src.modules.pricing.domain.entities import ProductPricingProfile
 from src.modules.pricing.domain.exceptions import FormulaEvaluationError
+from src.modules.pricing.domain.pricing_context import PricingContext
 from src.modules.pricing.domain.supplier_pricing_settings import (
     SupplierPricingSettings,
 )
@@ -46,6 +48,7 @@ def resolve_variables(
     product_profile: ProductPricingProfile | None = None,
     category_settings: CategoryPricingSettings | None = None,
     supplier_settings: SupplierPricingSettings | None = None,
+    context: PricingContext | None = None,
 ) -> dict[str, Decimal]:
     """Merge scope-specific sources into a single variable-values dict.
 
@@ -62,6 +65,10 @@ def resolve_variables(
         supplier_settings: Owner of ``scope=supplier`` values. Optional;
             when absent, supplier variables fall back to
             ``variable.default_value``.
+        context: The active ``PricingContext`` for the formula evaluation.
+            Its ``global_values`` dict is the primary source for
+            ``scope=global`` variables; ``variable.default_value`` is the
+            fallback.
 
     Returns:
         Mapping of variable code → resolved ``Decimal`` value. Variables
@@ -73,6 +80,7 @@ def resolve_variables(
     profile_values = product_profile.values if product_profile is not None else {}
     category_values = category_settings.values if category_settings is not None else {}
     supplier_values = supplier_settings.values if supplier_settings is not None else {}
+    global_values = context.global_values if context is not None else {}
 
     resolved: dict[str, Decimal] = {}
     for variable in variables:
@@ -81,6 +89,7 @@ def resolve_variables(
             profile_values=profile_values,
             category_values=category_values,
             supplier_values=supplier_values,
+            global_values=global_values,
         )
         if value is not None:
             resolved[variable.code] = value
@@ -105,10 +114,13 @@ def _resolve_single(
     profile_values: dict[str, Decimal],
     category_values: dict[str, Decimal],
     supplier_values: dict[str, Decimal],
+    global_values: dict[str, Decimal],
 ) -> Decimal | None:
     scope = variable.scope
 
     if scope is VariableScope.GLOBAL:
+        if variable.code in global_values:
+            return global_values[variable.code]
         return variable.default_value
 
     if scope is VariableScope.PRODUCT_INPUT:

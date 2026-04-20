@@ -27,6 +27,7 @@ from src.modules.pricing.domain.events import (
     PricingContextCreatedEvent,
     PricingContextDeactivatedEvent,
     PricingContextFrozenEvent,
+    PricingContextGlobalValueSetEvent,
     PricingContextUnfrozenEvent,
     PricingContextUpdatedEvent,
 )
@@ -196,6 +197,7 @@ class PricingContext(AggregateRoot):
     approval_required_on_publish: bool = False
     range_base_variable_code: str | None = None
     active_formula_version_id: uuid.UUID | None = None
+    global_values: dict[str, Decimal] = attrs.field(factory=dict)
     version_lock: int = 0
     created_at: datetime = attrs.field(factory=lambda: datetime.now(UTC))
     updated_at: datetime = attrs.field(factory=lambda: datetime.now(UTC))
@@ -244,6 +246,7 @@ class PricingContext(AggregateRoot):
             approval_required_on_publish=approval_required_on_publish,
             range_base_variable_code=range_base_variable_code,
             active_formula_version_id=None,
+            global_values={},
             version_lock=0,
             created_at=now,
             updated_at=now,
@@ -381,3 +384,37 @@ class PricingContext(AggregateRoot):
         """
         self.active_formula_version_id = version_id
         self._touch(actor_id)
+
+    def set_global_value(
+        self,
+        *,
+        variable_code: str,
+        value: Decimal,
+        actor_id: uuid.UUID,
+    ) -> None:
+        """Store or update a ``global``-scope variable value on this context.
+
+        The value is validated to be a finite Decimal. Variable existence and
+        scope checks are performed in the application layer (the domain stores
+        what it is told).
+        """
+        if not isinstance(value, Decimal) or not value.is_finite():
+            from src.modules.pricing.domain.exceptions import (
+                PricingContextValidationError,
+            )
+
+            raise PricingContextValidationError(
+                message="global variable value must be a finite Decimal.",
+                error_code="PRICING_CONTEXT_GLOBAL_VALUE_INVALID",
+                details={"variable_code": variable_code, "value": str(value)},
+            )
+        self.global_values = {**self.global_values, variable_code: value}
+        self._touch(actor_id)
+        self.add_domain_event(
+            PricingContextGlobalValueSetEvent(
+                context_id=self.id,
+                code=self.code,
+                variable_code=variable_code,
+                updated_by=actor_id,
+            )
+        )

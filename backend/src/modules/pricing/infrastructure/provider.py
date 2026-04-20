@@ -38,6 +38,9 @@ from src.modules.pricing.application.commands.publish_formula_draft import (
 from src.modules.pricing.application.commands.rollback_formula import (
     RollbackFormulaHandler,
 )
+from src.modules.pricing.application.commands.set_context_global_value import (
+    SetContextGlobalValueHandler,
+)
 from src.modules.pricing.application.commands.unfreeze_context import (
     UnfreezeContextHandler,
 )
@@ -65,6 +68,9 @@ from src.modules.pricing.application.commands.upsert_supplier_type_context_mappi
 from src.modules.pricing.application.queries.category_pricing_settings import (
     GetCategoryPricingSettingsHandler,
 )
+from src.modules.pricing.application.queries.context_global_values import (
+    GetContextGlobalValuesHandler,
+)
 from src.modules.pricing.application.queries.contexts import (
     GetContextHandler,
     ListContextsHandler,
@@ -79,6 +85,9 @@ from src.modules.pricing.application.queries.get_product_pricing_profile import 
 )
 from src.modules.pricing.application.queries.preview_price import (
     PreviewPriceHandler,
+)
+from src.modules.pricing.application.queries.required_variables import (
+    GetRequiredVariablesHandler,
 )
 from src.modules.pricing.application.queries.supplier_pricing_settings import (
     GetSupplierPricingSettingsHandler,
@@ -261,4 +270,13 @@ class PricingProvider(Provider):
     )
     list_supplier_type_mappings_handler: CompositeDependencySource = provide(
         ListSupplierTypeContextMappingsHandler, scope=Scope.REQUEST
+    )
+    set_context_global_value_handler: CompositeDependencySource = provide(
+        SetContextGlobalValueHandler, scope=Scope.REQUEST
+    )
+    get_context_global_values_handler: CompositeDependencySource = provide(
+        GetContextGlobalValuesHandler, scope=Scope.REQUEST
+    )
+    get_required_variables_handler: CompositeDependencySource = provide(
+        GetRequiredVariablesHandler, scope=Scope.REQUEST
     )

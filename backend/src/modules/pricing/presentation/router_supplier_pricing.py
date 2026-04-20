@@ -72,7 +72,7 @@ async def get_supplier_pricing_settings(
     "",
     response_model=UpsertSupplierPricingSettingsResponse,
     summary="Create or fully replace pricing settings for a supplier",
-    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+    dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def upsert_supplier_pricing_settings(
     supplier_id: uuid.UUID,

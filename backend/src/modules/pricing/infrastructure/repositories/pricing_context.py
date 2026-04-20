@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -19,6 +20,14 @@ from src.modules.pricing.domain.interfaces import (
 from src.modules.pricing.domain.pricing_context import PricingContext
 from src.modules.pricing.domain.value_objects import RoundingMode
 from src.modules.pricing.infrastructure.models import PricingContextModel
+
+
+def _global_values_to_json(values: dict[str, Decimal]) -> dict[str, str]:
+    return {k: str(v) for k, v in values.items()}
+
+
+def _global_values_from_json(raw: dict) -> dict[str, Decimal]:
+    return {k: Decimal(v) for k, v in (raw or {}).items()}
 
 
 class PricingContextRepository(IPricingContextRepository):
@@ -48,6 +57,7 @@ class PricingContextRepository(IPricingContextRepository):
             approval_required_on_publish=model.approval_required_on_publish,
             range_base_variable_code=model.range_base_variable_code,
             active_formula_version_id=model.active_formula_version_id,
+            global_values=_global_values_from_json(model.global_values),
             version_lock=model.version_lock,
             created_at=model.created_at,
             updated_at=model.updated_at,
@@ -71,6 +81,7 @@ class PricingContextRepository(IPricingContextRepository):
         model.approval_required_on_publish = ctx.approval_required_on_publish
         model.range_base_variable_code = ctx.range_base_variable_code
         model.active_formula_version_id = ctx.active_formula_version_id
+        model.global_values = _global_values_to_json(ctx.global_values)
         model.version_lock = ctx.version_lock
         model.updated_by = ctx.updated_by
 
@@ -94,6 +105,7 @@ class PricingContextRepository(IPricingContextRepository):
             approval_required_on_publish=context.approval_required_on_publish,
             range_base_variable_code=context.range_base_variable_code,
             active_formula_version_id=context.active_formula_version_id,
+            global_values=_global_values_to_json(context.global_values),
             version_lock=context.version_lock,
             updated_by=context.updated_by,
         )

@@ -23,8 +23,14 @@ from src.modules.pricing.application.queries.get_product_pricing_profile import 
     GetProductPricingProfileHandler,
     GetProductPricingProfileQuery,
 )
+from src.modules.pricing.application.queries.required_variables import (
+    GetRequiredVariablesHandler,
+    GetRequiredVariablesQuery,
+)
 from src.modules.pricing.presentation.schemas import (
     ProductPricingProfileResponse,
+    RequiredVariableItem,
+    RequiredVariablesResponse,
     UpsertProductPricingProfileRequest,
     UpsertProductPricingProfileResponse,
 )
@@ -98,7 +104,7 @@ async def upsert_profile(
     "/{product_id}/profile",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Soft-delete the pricing profile for a product",
-    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+    dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def delete_profile(
     product_id: uuid.UUID,
@@ -110,4 +116,34 @@ async def delete_profile(
             product_id=product_id,
             actor_id=identity_id,
         )
+    )
+
+
+@pricing_profile_router.get(
+    "/{product_id}/profile/required-variables",
+    response_model=RequiredVariablesResponse,
+    summary="List product_input variables required for this product's pricing profile",
+    dependencies=[Depends(RequirePermission(codename="pricing:read"))],
+)
+async def get_required_variables(
+    product_id: uuid.UUID,
+    handler: FromDishka[GetRequiredVariablesHandler],
+    _identity_id: uuid.UUID = Depends(get_current_identity_id),
+) -> RequiredVariablesResponse:
+    result = await handler.handle(GetRequiredVariablesQuery(product_id=product_id))
+    return RequiredVariablesResponse(
+        product_id=result.product_id,
+        variables=[
+            RequiredVariableItem(
+                variable_id=v.variable_id,
+                code=v.code,
+                name=v.name,
+                description=v.description,
+                data_type=v.data_type,
+                unit=v.unit,
+                default_value=v.default_value,
+                is_system=v.is_system,
+            )
+            for v in result.variables
+        ],
     )

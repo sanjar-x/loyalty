@@ -94,7 +94,7 @@ async def get_supplier_type_context_mapping(
     "/{supplier_type}",
     response_model=UpsertSupplierTypeContextMappingResponse,
     summary="Create or retarget a supplier-type → pricing-context mapping",
-    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+    dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def upsert_supplier_type_context_mapping(
     supplier_type: str,
@@ -122,7 +122,7 @@ async def upsert_supplier_type_context_mapping(
     "/{supplier_type}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a supplier-type → pricing-context mapping",
-    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+    dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def delete_supplier_type_context_mapping(
     supplier_type: str,

@@ -551,3 +551,83 @@ class UpsertSupplierPricingSettingsResponse(BaseModel):
     supplier_id: uuid.UUID
     version_lock: int
     created: bool
+
+
+# ---------------------------------------------------------------------------
+# Context global variable values
+# ---------------------------------------------------------------------------
+
+
+class ContextGlobalValueItemResponse(BaseModel):
+    """Single entry in the context global-values list."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    variable_code: str
+    value: Decimal
+    variable_name: dict[str, str] = Field(default_factory=dict)
+    is_required: bool = False
+
+
+class ContextGlobalValuesResponse(BaseModel):
+    """Response body for ``GET /pricing/contexts/{id}/variables/values``."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    context_id: uuid.UUID
+    values: list[ContextGlobalValueItemResponse]
+    version_lock: int
+
+
+class SetContextGlobalValueRequest(BaseModel):
+    """Body of ``PUT /pricing/contexts/{id}/variables/values/{code}``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    value: Decimal = Field(
+        description="New value for the global-scope variable on this context.",
+    )
+    version_lock: int = Field(
+        ge=0,
+        description="Current ``version_lock`` of the context (optimistic locking).",
+    )
+
+
+class SetContextGlobalValueResponse(BaseModel):
+    """Response body after setting a global variable value."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    context_id: uuid.UUID
+    variable_code: str
+    value: Decimal
+    version_lock: int
+
+
+# ---------------------------------------------------------------------------
+# Product profile required variables
+# ---------------------------------------------------------------------------
+
+
+class RequiredVariableItem(BaseModel):
+    """A single product_input variable that needs to be filled."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    variable_id: uuid.UUID
+    code: str
+    name: dict[str, str]
+    description: dict[str, str] = Field(default_factory=dict)
+    data_type: VariableDataType
+    unit: str | None = None
+    default_value: Decimal | None = None
+    is_system: bool = False
+
+
+class RequiredVariablesResponse(BaseModel):
+    """Response body for ``GET /pricing/products/{id}/profile/required-variables``."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    product_id: uuid.UUID
+    variables: list[RequiredVariableItem]

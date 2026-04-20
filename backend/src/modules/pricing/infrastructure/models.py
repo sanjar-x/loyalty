@@ -244,6 +244,9 @@ class PricingContextModel(Base):
     active_formula_version_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
+    global_values: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
     version_lock: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )

@@ -125,7 +125,7 @@ async def get_draft(
     "/draft",
     response_model=UpsertFormulaDraftResponse,
     summary="Create or overwrite the draft formula for a context",
-    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+    dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def upsert_draft(
     context_id: uuid.UUID,
@@ -153,7 +153,7 @@ async def upsert_draft(
     "/draft",
     response_model=DiscardFormulaDraftResponse,
     summary="Discard the current draft",
-    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+    dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def discard_draft(
     context_id: uuid.UUID,
@@ -171,7 +171,7 @@ async def discard_draft(
     response_model=PublishFormulaResponse,
     status_code=status.HTTP_200_OK,
     summary="Publish the current draft",
-    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+    dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def publish_draft(
     context_id: uuid.UUID,
@@ -193,7 +193,7 @@ async def publish_draft(
     response_model=RollbackFormulaResponse,
     status_code=status.HTTP_200_OK,
     summary="Rollback to a previously-archived version",
-    dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
+    dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def rollback_version(
     context_id: uuid.UUID,
