@@ -38,9 +38,23 @@ uv run alembic upgrade head
 
 ## Architecture — Clean Architecture + Modular Monolith
 
+### Modules (bounded contexts)
+
+| Module | Purpose | Files |
+|---|---|---|
+| `catalog` | Brands, categories, products, variants, SKUs, attributes (EAV), media | 138 |
+| `identity` | AuthN/AuthZ: JWT, sessions, RBAC, OIDC, Telegram Mini App, staff invitations | 69 |
+| `logistics` | Shipments, tracking events, carrier providers (CDEK, etc.) | 61 |
+| `geo` | Reference data: countries, subdivisions, districts, currencies, languages | 37 |
+| `cart` | Shopping cart and line items | 35 |
+| `supplier` | Supplier accounts and onboarding | 29 |
+| `user` | Customer and StaffMember profiles (PII storage) | 28 |
+
+Some modules have an extra `management/` layer (identity, supplier) for admin/back-office use cases.
+
 ### Module structure
 
-Each module in `src/modules/{catalog,identity,user,geo,supplier}/` follows 4 layers:
+Each module in `src/modules/<name>/` follows 4 layers:
 
 ```
 domain/          — attrs entities, value objects, domain events, interfaces (protocols). Zero framework imports.
@@ -49,7 +63,7 @@ infrastructure/  — SQLAlchemy models, repository implementations, Dishka provi
 presentation/    — FastAPI routers, Pydantic schemas, Dishka DI providers
 ```
 
-Note: some modules place Dishka providers in `infrastructure/provider.py` (identity, user), others in `presentation/dependencies.py` (catalog, geo, supplier). Both are valid — providers wire infrastructure implementations to domain interfaces.
+Note: some modules place Dishka providers in `infrastructure/provider.py` (identity, user, cart), others in `presentation/dependencies.py` (catalog, geo, supplier). Both are valid — providers wire infrastructure implementations to domain interfaces.
 
 ### Layer rules (enforced by `tests/architecture/test_boundaries.py`)
 
@@ -57,7 +71,7 @@ Note: some modules place Dishka providers in `infrastructure/provider.py` (ident
 - Application commands MUST NOT import infrastructure (queries and consumers are exempt — CQRS read-side). Exception: `geo` module commands use ORM directly — it is a reference-data module without domain entities/UoW/events
 - Modules MUST NOT import each other's domain/application/infrastructure (cross-module deps only at presentation level)
 - `src/shared/` is the shared kernel — MUST NOT import any module
-- Currently tested modules: `catalog`, `identity`, `user` — `geo` and `supplier` not yet in `MODULES` list
+- Architecture tests currently parametrize `MODULES = ["catalog", "identity", "user", "cart", "logistics"]` — `geo` and `supplier` are not yet enforced
 
 ### Command/Handler pattern
 

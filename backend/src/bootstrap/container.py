@@ -34,6 +34,7 @@ from src.modules.logistics.infrastructure.provider import (
     LogisticsInfraProvider,
     LogisticsQueryProvider,
 )
+from src.modules.pricing.infrastructure.provider import PricingProvider
 from src.modules.supplier.presentation.dependencies import SupplierProvider
 from src.modules.user.infrastructure.provider import ProfileProvider
 
@@ -75,4 +76,5 @@ def create_container() -> AsyncContainer:
         LogisticsInfraProvider(),
         LogisticsCommandProvider(),
         LogisticsQueryProvider(),
+        PricingProvider(),
     )

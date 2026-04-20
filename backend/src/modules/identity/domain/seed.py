@@ -124,6 +124,15 @@ PERMISSIONS: list[SeedPermission] = [
     SeedPermission(
         "geo:manage", "Управление гео-справочниками (страны, валюты, языки, регионы)"
     ),
+    # ── Pricing ──────────────────────────────────────────────────────────
+    SeedPermission(
+        "pricing:read",
+        "Просмотр pricing-профилей товаров и настроек ценообразования",
+    ),
+    SeedPermission(
+        "pricing:manage",
+        "Управление pricing-профилями товаров (upsert/delete product pricing inputs)",
+    ),
 ]
 
 PERMISSION_BY_CODENAME: dict[str, SeedPermission] = {p.codename: p for p in PERMISSIONS}
@@ -158,6 +167,8 @@ ROLES: list[SeedRole] = [
             "customers:manage",
             "staff:manage",
             "staff:invite",
+            "pricing:read",
+            "pricing:manage",
         ],
     ),
     SeedRole(

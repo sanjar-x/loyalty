@@ -9,7 +9,7 @@ from pytest_archon import archrule
 
 pytestmark = pytest.mark.architecture
 
-MODULES = ["catalog", "identity", "user", "cart", "logistics"]
+MODULES = ["catalog", "identity", "user", "cart", "logistics", "pricing"]
 
 
 # Rule 1: Domain Layer Purity (Clean Architecture)
@@ -87,6 +87,7 @@ def test_infrastructure_does_not_import_presentation():
 ALLOWED_CROSS_MODULE = {
     ("user", "identity"): {"src.modules.user.presentation.*"},
     ("catalog", "identity"): {"src.modules.catalog.presentation.*"},
+    ("pricing", "identity"): {"src.modules.pricing.presentation.*"},
 }
 
 

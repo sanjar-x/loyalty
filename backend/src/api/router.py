@@ -44,6 +44,20 @@ from src.modules.identity.presentation.router_invitation import invitation_route
 from src.modules.identity.presentation.router_staff import staff_admin_router
 from src.modules.logistics.presentation.router import logistics_router
 from src.modules.logistics.presentation.router_webhooks import webhook_router
+from src.modules.pricing.presentation.router import pricing_profile_router
+from src.modules.pricing.presentation.router_category_pricing import (
+    pricing_category_settings_router,
+)
+from src.modules.pricing.presentation.router_context import pricing_context_router
+from src.modules.pricing.presentation.router_formula import pricing_formula_router
+from src.modules.pricing.presentation.router_preview import pricing_preview_router
+from src.modules.pricing.presentation.router_supplier_pricing import (
+    pricing_supplier_settings_router,
+)
+from src.modules.pricing.presentation.router_supplier_type_mapping import (
+    pricing_supplier_type_mapping_router,
+)
+from src.modules.pricing.presentation.router_variable import pricing_variable_router
 from src.modules.supplier.presentation.router import supplier_router
 from src.modules.user.presentation.router import profile_router
 
@@ -75,3 +89,11 @@ router.include_router(supplier_router)
 router.include_router(cart_router)
 router.include_router(logistics_router)
 router.include_router(webhook_router)
+router.include_router(pricing_profile_router)
+router.include_router(pricing_variable_router)
+router.include_router(pricing_context_router)
+router.include_router(pricing_formula_router)
+router.include_router(pricing_category_settings_router)
+router.include_router(pricing_supplier_type_mapping_router)
+router.include_router(pricing_supplier_settings_router)
+router.include_router(pricing_preview_router)

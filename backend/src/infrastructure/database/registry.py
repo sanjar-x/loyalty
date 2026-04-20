@@ -61,6 +61,14 @@ from src.modules.logistics.infrastructure.models import (
     ShipmentModel,
     ShipmentTrackingEventModel,
 )
+from src.modules.pricing.infrastructure.models import (
+    CategoryPricingSettingsModel,
+    FormulaVersionModel,
+    PricingContextModel,
+    ProductPricingProfileModel,
+    SupplierTypeContextMappingModel,
+    VariableModel,
+)
 from src.modules.supplier.infrastructure.models import Supplier
 from src.modules.user.infrastructure.models import CustomerModel, StaffMemberModel
 
@@ -75,6 +83,7 @@ __all__ = [
     "CartItemModel",
     "CartModel",
     "Category",
+    "CategoryPricingSettingsModel",
     "CheckoutAttemptModel",
     "CheckoutSnapshotModel",
     "CountryCurrencyModel",
@@ -85,6 +94,7 @@ __all__ = [
     "CustomerModel",
     "DeliveryQuoteModel",
     "FailedTask",
+    "FormulaVersionModel",
     "IdentityModel",
     "IdentityRoleModel",
     "LanguageModel",
@@ -93,8 +103,10 @@ __all__ = [
     "MediaAsset",
     "OutboxMessage",
     "PermissionModel",
+    "PricingContextModel",
     "Product",
     "ProductAttributeValue",
+    "ProductPricingProfileModel",
     "ProductVariant",
     "ProviderAccountModel",
     "RoleHierarchyModel",
@@ -113,5 +125,7 @@ __all__ = [
     "SubdivisionTypeModel",
     "SubdivisionTypeTranslationModel",
     "Supplier",
+    "SupplierTypeContextMappingModel",
     "TemplateAttributeBinding",
+    "VariableModel",
 ]
