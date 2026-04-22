@@ -1,20 +1,21 @@
 """Seed the default admin identity.
 
-DB-only step — does not require the API server to be running. Wraps
-``src.modules.identity.management.create_admin.create_admin`` so the
-same bootstrap path used operationally is reused here.
+DB-only step. Wraps ``src.modules.identity.management.create_admin.create_admin``.
+Data source: ``seed/admin/admin.json`` (email, password, username).
 
-Credentials default to the values ``seed/main.py`` later uses to log in
-for the API-based steps (``DEFAULT_LOGIN`` / ``DEFAULT_PASSWORD``),
-so the end-to-end flow (``roles → admin → geo → brands → ...``) works
-without manual intervention.
+The JSON credentials MUST match ``seed/main.py`` ``SeedContext.login`` /
+``password`` so that subsequent API steps can log in with them. When the
+caller overrides ``--login`` / ``--password`` on the CLI, those values
+win — the JSON acts as a default only.
 
-Requires the ``admin`` role to exist, i.e. run ``roles`` first.
+Requires the ``admin`` role to exist — run ``roles`` first.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -23,6 +24,12 @@ from src.modules.identity.management.create_admin import create_admin
 
 if TYPE_CHECKING:
     from seed.main import SeedContext
+
+_DATA_FILE = Path(__file__).parent / "admin.json"
+
+
+def _load() -> dict:
+    return json.loads(_DATA_FILE.read_text(encoding="utf-8"))
 
 
 async def _run(
@@ -38,14 +45,23 @@ async def _run(
 
 
 def seed_admin(ctx: SeedContext) -> None:
-    """Create the default admin identity (idempotent — skips if email exists)."""
+    """Create the default admin identity (idempotent — skips if email exists).
+
+    Precedence: CLI overrides (``ctx.login``/``ctx.password``) take priority
+    over ``admin.json`` defaults, so operators can bootstrap a non-default
+    admin without editing the JSON.
+    """
+    from seed.main import DEFAULT_LOGIN, DEFAULT_PASSWORD
     from src.bootstrap.config import Settings
 
+    defaults = _load()
+    email = ctx.login if ctx.login != DEFAULT_LOGIN else defaults["email"]
+    password = ctx.password if ctx.password != DEFAULT_PASSWORD else defaults["password"]
+    username = defaults.get("username", "admin")
+
     settings = Settings()  # type: ignore[call-arg]
-    identity_id = asyncio.run(
-        _run(settings.database_url, ctx.login, ctx.password, "admin")
-    )
+    identity_id = asyncio.run(_run(settings.database_url, email, password, username))
     if identity_id:
-        print(f"  Admin created: {identity_id} ({ctx.login})")
+        print(f"  Admin created: {identity_id} ({email})")
     else:
-        print(f"  Admin already exists ({ctx.login}) — skipped.")
+        print(f"  Admin already exists ({email}) — skipped.")
