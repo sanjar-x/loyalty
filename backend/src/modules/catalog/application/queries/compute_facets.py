@@ -24,6 +24,7 @@ from sqlalchemy.orm import aliased
 
 from src.modules.catalog.application.constants import (
     STOREFRONT_FACET_CACHE_TTL,
+    STOREFRONT_FACET_GENERATION_KEY,
     storefront_facet_cache_key,
 )
 from src.modules.catalog.application.queries.read_models import (
@@ -81,7 +82,8 @@ class ComputeFacetsHandler:
         self._logger = logger.bind(handler="ComputeFacetsHandler")
 
     async def handle(self, query: ComputeFacetsQuery) -> FacetResultReadModel:
-        cache_key = storefront_facet_cache_key(self._query_hash(query))
+        generation = await self._read_generation()
+        cache_key = storefront_facet_cache_key(self._query_hash(query, generation))
         cached = await self._cache.get(cache_key)
         if cached:
             return FacetResultReadModel.model_validate(json.loads(cached))
@@ -443,11 +445,12 @@ class ComputeFacetsHandler:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _query_hash(query: ComputeFacetsQuery) -> str:
+    def _query_hash(query: ComputeFacetsQuery, generation: str = "0") -> str:
         af = None
         if query.attribute_filters:
             af = {k: sorted(v) for k, v in sorted(query.attribute_filters.items())}
         parts = {
+            "g": generation,
             "c": str(query.category_id),
             "b": sorted(str(b) for b in (query.brand_ids or [])),
             "pn": query.price_min,
@@ -458,6 +461,13 @@ class ComputeFacetsHandler:
         return hashlib.md5(
             json.dumps(parts, sort_keys=True, default=str).encode()
         ).hexdigest()[:16]
+
+    async def _read_generation(self) -> str:
+        try:
+            value = await self._cache.get(STOREFRONT_FACET_GENERATION_KEY)
+            return value or "0"
+        except Exception:
+            return "0"
 
     async def _cache_result(self, key: str, result: FacetResultReadModel) -> None:
         try:

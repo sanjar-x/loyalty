@@ -293,6 +293,7 @@ class GetStorefrontProductHandler:
             published_at=product.published_at,
             variant_count=total_variant_count,
             in_stock=has_stock,
+            primary_category_id=product.primary_category_id,
             media=media_models,
             variants=variant_models,
             attributes=attr_models,

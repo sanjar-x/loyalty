@@ -26,11 +26,17 @@ from src.modules.catalog.application.queries.search_suggest import (
     SearchSuggestHandler,
     SearchSuggestQuery,
 )
+from src.modules.catalog.presentation.router_storefront_products import (
+    _extract_identity_id,
+    _extract_session_id,
+)
 from src.modules.catalog.presentation.schemas_storefront import (
     SearchSuggestionResponse,
     StorefrontPLPResponse,
     StorefrontProductCardResponse,
 )
+from src.shared.interfaces.activity import IActivityTracker
+from src.shared.interfaces.security import ITokenProvider
 
 storefront_search_router = APIRouter(
     prefix="/storefront/search",
@@ -90,10 +96,10 @@ async def search_products(
     request: Request,
     handler: FromDishka[SearchProductsHandler],
     facets_handler: FromDishka[ComputeFacetsHandler],
+    tracker: FromDishka[IActivityTracker],
+    token_provider: FromDishka[ITokenProvider],
     response: Response,
-    q: str = Query(
-        ..., min_length=1, max_length=200, description="Search query text"
-    ),
+    q: str = Query(..., min_length=1, max_length=200, description="Search query text"),
     category_id: uuid.UUID | None = Query(
         None, description="Optional: scope search to a category"
     ),
@@ -171,12 +177,44 @@ async def search_products(
             facets_result, from_attributes=True
         )
 
+    await _track_search(
+        tracker,
+        query=q,
+        result_count=len(cards),
+        identity_id=_extract_identity_id(request, token_provider),
+        request=request,
+    )
+
     return StorefrontPLPResponse(
         items=cards,
         has_next=result.has_next,
         next_cursor=result.next_cursor,
         total=result.total,
         facets=facets_data,
+    )
+
+
+async def _track_search(
+    tracker: IActivityTracker,
+    *,
+    query: str,
+    result_count: int,
+    identity_id: str | None,
+    request: Request,
+) -> None:
+    """Best-effort search activity tracking."""
+    actor_uuid = None
+    if identity_id:
+        try:
+            actor_uuid = uuid.UUID(identity_id)
+        except ValueError:
+            actor_uuid = None
+    session_id = _extract_session_id(request)
+    await tracker.track_search(
+        query=query,
+        result_count=result_count,
+        actor_id=actor_uuid,
+        session_id=session_id,
     )
 
 

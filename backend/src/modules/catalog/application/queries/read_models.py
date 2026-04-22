@@ -576,6 +576,12 @@ class StorefrontProductDetailReadModel(BaseModel):
     published_at: datetime | None = None
     variant_count: int = 0
     in_stock: bool = False
+    # Primary category of the product — needed by the PDP endpoint to
+    # feed activity tracking (``category_id`` on the event powers the
+    # per-user "Для вас" category-affinity aggregation).  Must be
+    # populated from ``products.primary_category_id`` and included in
+    # the cached payload.
+    primary_category_id: uuid.UUID | None = None
     media: list[StorefrontImageReadModel] = Field(default_factory=list)
     variants: list[StorefrontVariantReadModel] = Field(default_factory=list)
     attributes: list[StorefrontAttributeValueReadModel] = Field(default_factory=list)

@@ -161,9 +161,15 @@ class ListStorefrontProductsHandler:
         Uses a lateral join to find the cheapest active SKU per product,
         resolving effective price as COALESCE(sku.price, variant.default_price).
         """
-        # Lateral: best product-level image.
-        # Prefer role=MAIN; fall back to lowest sort_order (e.g. first gallery
-        # image) so products with only GALLERY media still render a thumbnail.
+        # Lateral: best image to render as product card thumbnail.
+        # Priority:
+        #   1. product-level media (variant_id IS NULL) before variant-level
+        #   2. role=MAIN before other roles
+        #   3. lowest sort_order, then earliest created_at
+        # Variant-level fallback matters when products carry per-variant MAIN
+        # images (a valid pattern, enforced by uix_media_single_main_per_variant)
+        # and have no product-scoped media — otherwise the card would render
+        # without a thumbnail.
         primary_image = (
             select(
                 OrmMediaAsset.url.label("image_url"),
@@ -171,10 +177,10 @@ class ListStorefrontProductsHandler:
             )
             .where(
                 OrmMediaAsset.product_id == OrmProduct.id,
-                OrmMediaAsset.variant_id.is_(None),
                 OrmMediaAsset.url.is_not(None),
             )
             .order_by(
+                OrmMediaAsset.variant_id.is_not(None).asc(),
                 (OrmMediaAsset.role != MediaRole.MAIN).asc(),
                 OrmMediaAsset.sort_order.asc(),
                 OrmMediaAsset.created_at.asc(),

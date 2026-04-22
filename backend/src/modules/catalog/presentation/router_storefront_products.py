@@ -19,6 +19,14 @@ from src.modules.catalog.application.queries.compute_facets import (
     ComputeFacetsHandler,
     ComputeFacetsQuery,
 )
+from src.modules.catalog.application.queries.get_also_viewed import (
+    GetAlsoViewedProductCardsHandler,
+    GetAlsoViewedProductCardsQuery,
+)
+from src.modules.catalog.application.queries.get_similar_product_cards import (
+    GetSimilarProductCardsHandler,
+    GetSimilarProductCardsQuery,
+)
 from src.modules.catalog.application.queries.get_storefront_product import (
     GetStorefrontProductHandler,
 )
@@ -32,6 +40,8 @@ from src.modules.catalog.presentation.schemas_storefront import (
     StorefrontProductDetailResponse,
 )
 from src.shared.exceptions import ValidationError
+from src.shared.interfaces.activity import IActivityTracker
+from src.shared.interfaces.security import ITokenProvider
 
 storefront_products_router = APIRouter(
     prefix="/storefront/products",
@@ -108,6 +118,8 @@ async def list_storefront_products(
     request: Request,
     handler: FromDishka[ListStorefrontProductsHandler],
     facets_handler: FromDishka[ComputeFacetsHandler],
+    tracker: FromDishka[IActivityTracker],
+    token_provider: FromDishka[ITokenProvider],
     response: Response,
     category_id: uuid.UUID = Query(..., description="Category to browse"),
     brand_id: list[uuid.UUID] | None = Query(
@@ -189,6 +201,14 @@ async def list_storefront_products(
             facets_result, from_attributes=True
         )
 
+    await _track_plp_view(
+        tracker,
+        category_id=category_id,
+        result_count=len(cards),
+        identity_id=_extract_identity_id(request, token_provider),
+        request=request,
+    )
+
     return StorefrontPLPResponse(
         items=cards,
         has_next=result.has_next,
@@ -196,6 +216,63 @@ async def list_storefront_products(
         total=result.total,
         facets=facets_data,
     )
+
+
+async def _track_plp_view(
+    tracker: IActivityTracker,
+    *,
+    category_id: uuid.UUID,
+    result_count: int,
+    identity_id: str | None,
+    request: Request,
+) -> None:
+    """Best-effort PLP activity tracking (swallows all errors)."""
+    actor_uuid = None
+    if identity_id:
+        try:
+            actor_uuid = uuid.UUID(identity_id)
+        except ValueError:
+            actor_uuid = None
+    await tracker.track_product_list_view(
+        category_id=category_id,
+        result_count=result_count,
+        actor_id=actor_uuid,
+        session_id=_extract_session_id(request),
+    )
+
+
+def _extract_session_id(request: Request) -> str | None:
+    """Derive a session identifier for anonymous activity grouping."""
+    # Prefer explicit cookie; otherwise fall back to a client-provided header.
+    return (
+        request.cookies.get("session_id") or request.headers.get("x-session-id") or None
+    )
+
+
+def _extract_identity_id(
+    request: Request, token_provider: ITokenProvider
+) -> str | None:
+    """Best-effort identity extraction from the Authorization header.
+
+    Returns ``None`` for anonymous callers or malformed/expired tokens —
+    never raises.  Intended for public storefront endpoints that want to
+    correlate activity with a user when possible but must still work
+    without authentication.
+    """
+    auth_header = request.headers.get("authorization") or request.headers.get(
+        "Authorization"
+    )
+    if not auth_header or not auth_header.lower().startswith("bearer "):
+        return None
+    token = auth_header.split(" ", 1)[1].strip()
+    if not token:
+        return None
+    try:
+        payload = token_provider.decode_access_token(token)
+    except Exception:
+        return None
+    sub = payload.get("sub")
+    return str(sub) if sub else None
 
 
 # ---------------------------------------------------------------------------
@@ -216,7 +293,10 @@ async def list_storefront_products(
 )
 async def get_storefront_product(
     slug: str,
+    request: Request,
     handler: FromDishka[GetStorefrontProductHandler],
+    tracker: FromDishka[IActivityTracker],
+    token_provider: FromDishka[ITokenProvider],
     response: Response,
     lang: str | None = Query(
         None,
@@ -244,4 +324,115 @@ async def get_storefront_product(
             if a.group_name_i18n:
                 a.group_name = _project_i18n(a.group_name_i18n, lang)
 
+    actor_uuid = None
+    identity_id = _extract_identity_id(request, token_provider)
+    if identity_id:
+        try:
+            actor_uuid = uuid.UUID(identity_id)
+        except ValueError:
+            actor_uuid = None
+    await tracker.track_product_view(
+        product_id=detail.id,
+        category_id=detail.primary_category_id,
+        actor_id=actor_uuid,
+        session_id=_extract_session_id(request),
+    )
+
     return pdp
+
+
+# ---------------------------------------------------------------------------
+# Similar products (Phase B1) — content-based nearest neighbours
+# ---------------------------------------------------------------------------
+
+
+@storefront_products_router.get(
+    path="/{slug}/similar",
+    status_code=status.HTTP_200_OK,
+    response_model=list[StorefrontProductCardResponse],
+    summary="Similar products for PDP placement",
+    description=(
+        "Returns up to ``limit`` products similar to the PDP identified by "
+        "``slug``.  Phase B1 ranking uses same primary category + same-brand "
+        "bonus + ``popularity_score``; later phases layer co-view signals and "
+        "embeddings behind this same endpoint."
+    ),
+)
+async def get_similar_products(
+    slug: str,
+    handler: FromDishka[GetSimilarProductCardsHandler],
+    response: Response,
+    limit: int = Query(12, ge=1, le=24, description="Max number of cards"),
+    lang: str | None = Query(
+        None,
+        min_length=2,
+        max_length=5,
+        description="Locale code for i18n projection (e.g. 'ru', 'en')",
+    ),
+) -> list[StorefrontProductCardResponse]:
+    result = await handler.handle(
+        GetSimilarProductCardsQuery(slug=slug, limit=limit)
+    )
+    response.headers["Cache-Control"] = (
+        "public, max-age=600, s-maxage=600, stale-while-revalidate=1800"
+    )
+
+    items: list[StorefrontProductCardResponse] = []
+    for card in result.items:
+        item = StorefrontProductCardResponse.model_validate(
+            card, from_attributes=True
+        )
+        if lang:
+            item.title = _project_i18n(item.title_i18n, lang)
+        items.append(item)
+    return items
+
+
+# ---------------------------------------------------------------------------
+# Also-viewed (Phase B2) — co-view matrix, falls back to content similarity
+# ---------------------------------------------------------------------------
+
+
+@storefront_products_router.get(
+    path="/{slug}/also-viewed",
+    status_code=status.HTTP_200_OK,
+    response_model=list[StorefrontProductCardResponse],
+    summary="Also-viewed products for PDP placement",
+    description=(
+        "Returns up to ``limit`` products commonly viewed in the same "
+        "session as the PDP identified by ``slug``.  Ranking is read from "
+        "the ``product_co_view_scores`` matrix, refreshed hourly from "
+        "recent activity events.  If the matrix has no data for this "
+        "product yet (brand-new item), the endpoint transparently falls "
+        "back to content-based similarity — the response shape is the same."
+    ),
+)
+async def get_also_viewed_products(
+    slug: str,
+    handler: FromDishka[GetAlsoViewedProductCardsHandler],
+    response: Response,
+    limit: int = Query(12, ge=1, le=24, description="Max number of cards"),
+    lang: str | None = Query(
+        None,
+        min_length=2,
+        max_length=5,
+        description="Locale code for i18n projection (e.g. 'ru', 'en')",
+    ),
+) -> list[StorefrontProductCardResponse]:
+    result = await handler.handle(
+        GetAlsoViewedProductCardsQuery(slug=slug, limit=limit)
+    )
+    response.headers["Cache-Control"] = (
+        "public, max-age=300, s-maxage=300, stale-while-revalidate=900"
+    )
+    response.headers["X-Recs-Fallback"] = "1" if result.is_fallback else "0"
+
+    items: list[StorefrontProductCardResponse] = []
+    for card in result.items:
+        item = StorefrontProductCardResponse.model_validate(
+            card, from_attributes=True
+        )
+        if lang:
+            item.title = _project_i18n(item.title_i18n, lang)
+        items.append(item)
+    return items

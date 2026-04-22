@@ -131,6 +131,9 @@ from src.modules.catalog.application.queries.breadcrumbs import BreadcrumbsBuild
 from src.modules.catalog.application.queries.compute_facets import (
     ComputeFacetsHandler,
 )
+from src.modules.catalog.application.queries.get_also_viewed import (
+    GetAlsoViewedProductCardsHandler,
+)
 from src.modules.catalog.application.queries.get_attribute import GetAttributeHandler
 from src.modules.catalog.application.queries.get_attribute_group import (
     GetAttributeGroupHandler,
@@ -146,9 +149,21 @@ from src.modules.catalog.application.queries.get_category import GetCategoryHand
 from src.modules.catalog.application.queries.get_category_tree import (
     GetCategoryTreeHandler,
 )
+from src.modules.catalog.application.queries.get_for_you_feed import (
+    ForYouFeedHandler,
+)
 from src.modules.catalog.application.queries.get_product import GetProductHandler
 from src.modules.catalog.application.queries.get_product_completeness import (
     GetProductCompletenessHandler,
+)
+from src.modules.catalog.application.queries.get_similar_product_cards import (
+    GetSimilarProductCardsHandler,
+)
+from src.modules.catalog.application.queries.get_similar_products import (
+    GetSimilarProductsHandler,
+)
+from src.modules.catalog.application.queries.get_storefront_cards_by_ids import (
+    GetStorefrontProductCardsByIdsHandler,
 )
 from src.modules.catalog.application.queries.get_storefront_product import (
     GetStorefrontProductHandler,
@@ -448,6 +463,21 @@ class StorefrontCatalogProvider(Provider):
     )
     list_products_handler: CompositeDependencySource = provide(
         ListStorefrontProductsHandler, scope=Scope.REQUEST
+    )
+    cards_by_ids_handler: CompositeDependencySource = provide(
+        GetStorefrontProductCardsByIdsHandler, scope=Scope.REQUEST
+    )
+    similar_products_handler: CompositeDependencySource = provide(
+        GetSimilarProductsHandler, scope=Scope.REQUEST
+    )
+    similar_product_cards_handler: CompositeDependencySource = provide(
+        GetSimilarProductCardsHandler, scope=Scope.REQUEST
+    )
+    also_viewed_handler: CompositeDependencySource = provide(
+        GetAlsoViewedProductCardsHandler, scope=Scope.REQUEST
+    )
+    for_you_feed_handler: CompositeDependencySource = provide(
+        ForYouFeedHandler, scope=Scope.REQUEST
     )
     get_product_handler: CompositeDependencySource = provide(
         GetStorefrontProductHandler, scope=Scope.REQUEST

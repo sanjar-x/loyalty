@@ -201,8 +201,11 @@ class SearchProductsHandler:
             .lateral("cheapest_sku")
         )
 
-        # Best product-level image: MAIN first, then lowest sort_order so
-        # products with only GALLERY media still render a thumbnail.
+        # Best image to render as product card thumbnail.
+        # Priority: product-level (variant_id IS NULL) before variant-level,
+        # MAIN before other roles, lowest sort_order, earliest created_at.
+        # Variant-level fallback matters when products carry per-variant MAIN
+        # images and have no product-scoped media.
         primary_image = (
             select(
                 OrmMediaAsset.url.label("image_url"),
@@ -210,10 +213,10 @@ class SearchProductsHandler:
             )
             .where(
                 OrmMediaAsset.product_id == OrmProduct.id,
-                OrmMediaAsset.variant_id.is_(None),
                 OrmMediaAsset.url.is_not(None),
             )
             .order_by(
+                OrmMediaAsset.variant_id.is_not(None).asc(),
                 (OrmMediaAsset.role != MediaRole.MAIN).asc(),
                 OrmMediaAsset.sort_order.asc(),
                 OrmMediaAsset.created_at.asc(),
