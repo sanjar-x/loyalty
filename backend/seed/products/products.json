@@ -1,0 +1,340 @@
+[
+  {
+    "titleI18N": { "ru": "Nike Air Max 90", "en": "Nike Air Max 90" },
+    "slug": "nike-air-max-90",
+    "brandSlug": "nike",
+    "categorySlug": "sneakers",
+    "descriptionI18N": {
+      "ru": "Легендарные кроссовки с технологией Air",
+      "en": "Legendary sneakers with Air technology"
+    },
+    "tags": ["nike", "air-max", "sneakers", "classic"],
+    "attributes": {
+      "gender": "male",
+      "season": "all-season",
+      "material": "mesh"
+    },
+    "skus": [
+      {
+        "code": "NAM90-BLK-42",
+        "price": 12990,
+        "variantAttrs": { "color": "black", "shoe_size": "eu42" }
+      },
+      {
+        "code": "NAM90-BLK-43",
+        "price": 12990,
+        "variantAttrs": { "color": "black", "shoe_size": "eu43" }
+      },
+      {
+        "code": "NAM90-WHT-42",
+        "price": 12990,
+        "variantAttrs": { "color": "white", "shoe_size": "eu42" }
+      },
+      {
+        "code": "NAM90-WHT-43",
+        "price": 12990,
+        "variantAttrs": { "color": "white", "shoe_size": "eu43" }
+      }
+    ]
+  },
+  {
+    "titleI18N": { "ru": "Adidas Ultraboost 23", "en": "Adidas Ultraboost 23" },
+    "slug": "adidas-ultraboost-23",
+    "brandSlug": "adidas",
+    "categorySlug": "sneakers",
+    "descriptionI18N": {
+      "ru": "Беговые кроссовки с Boost-подошвой",
+      "en": "Running shoes with Boost sole"
+    },
+    "tags": ["adidas", "ultraboost", "running"],
+    "attributes": {
+      "gender": "unisex",
+      "season": "all-season",
+      "material": "mesh"
+    },
+    "skus": [
+      {
+        "code": "AUB23-BLK-41",
+        "price": 16990,
+        "variantAttrs": { "color": "black", "shoe_size": "eu41" }
+      },
+      {
+        "code": "AUB23-BLK-42",
+        "price": 16990,
+        "variantAttrs": { "color": "black", "shoe_size": "eu42" }
+      },
+      {
+        "code": "AUB23-WHT-41",
+        "price": 16990,
+        "variantAttrs": { "color": "white", "shoe_size": "eu41" }
+      }
+    ]
+  },
+  {
+    "titleI18N": {
+      "ru": "Nike Tech Fleece Hoodie",
+      "en": "Nike Tech Fleece Hoodie"
+    },
+    "slug": "nike-tech-fleece-hoodie",
+    "brandSlug": "nike",
+    "categorySlug": "hoodies",
+    "descriptionI18N": {
+      "ru": "Худи из технологичного флиса",
+      "en": "Hoodie made of tech fleece"
+    },
+    "tags": ["nike", "tech-fleece", "hoodie"],
+    "attributes": {},
+    "skus": [
+      {
+        "code": "NTF-HOD-BLK-M",
+        "price": 9990,
+        "variantAttrs": { "color": "black", "clothing_size": "m" }
+      },
+      {
+        "code": "NTF-HOD-BLK-L",
+        "price": 9990,
+        "variantAttrs": { "color": "black", "clothing_size": "l" }
+      },
+      {
+        "code": "NTF-HOD-GRY-M",
+        "price": 9990,
+        "variantAttrs": { "color": "gray", "clothing_size": "m" }
+      },
+      {
+        "code": "NTF-HOD-GRY-L",
+        "price": 9990,
+        "variantAttrs": { "color": "gray", "clothing_size": "l" }
+      }
+    ]
+  },
+  {
+    "titleI18N": { "ru": "Stüssy Basic Tee", "en": "Stüssy Basic Tee" },
+    "slug": "stussy-basic-tee",
+    "brandSlug": "stussy",
+    "categorySlug": "tees",
+    "descriptionI18N": {
+      "ru": "Базовая футболка с логотипом",
+      "en": "Basic tee with logo"
+    },
+    "tags": ["stussy", "streetwear", "tee"],
+    "attributes": {},
+    "skus": [
+      {
+        "code": "STB-TEE-BLK-S",
+        "price": 4990,
+        "variantAttrs": { "color": "black", "clothing_size": "s" }
+      },
+      {
+        "code": "STB-TEE-BLK-M",
+        "price": 4990,
+        "variantAttrs": { "color": "black", "clothing_size": "m" }
+      },
+      {
+        "code": "STB-TEE-WHT-S",
+        "price": 4990,
+        "variantAttrs": { "color": "white", "clothing_size": "s" }
+      },
+      {
+        "code": "STB-TEE-WHT-M",
+        "price": 4990,
+        "variantAttrs": { "color": "white", "clothing_size": "m" }
+      }
+    ]
+  },
+  {
+    "titleI18N": {
+      "ru": "Carhartt WIP Chase Sweatshirt",
+      "en": "Carhartt WIP Chase Sweatshirt"
+    },
+    "slug": "carhartt-chase-sweatshirt",
+    "brandSlug": "carhartt-wip",
+    "categorySlug": "sweatshirts",
+    "descriptionI18N": {
+      "ru": "Классический свитшот с вышивкой",
+      "en": "Classic sweatshirt with embroidery"
+    },
+    "tags": ["carhartt", "chase", "sweatshirt"],
+    "attributes": {},
+    "skus": [
+      {
+        "code": "CWC-SWT-NVY-L",
+        "price": 8490,
+        "variantAttrs": { "color": "navy", "clothing_size": "l" }
+      },
+      {
+        "code": "CWC-SWT-NVY-XL",
+        "price": 8490,
+        "variantAttrs": { "color": "navy", "clothing_size": "xl" }
+      },
+      {
+        "code": "CWC-SWT-GRY-L",
+        "price": 8490,
+        "variantAttrs": { "color": "gray", "clothing_size": "l" }
+      }
+    ]
+  },
+  {
+    "titleI18N": {
+      "ru": "The North Face Nuptse 700",
+      "en": "The North Face Nuptse 700"
+    },
+    "slug": "tnf-nuptse-700",
+    "brandSlug": "the-north-face",
+    "categorySlug": "puffers",
+    "descriptionI18N": {
+      "ru": "Культовый пуховик с наполнителем 700 cuin",
+      "en": "Iconic puffer jacket with 700 cuin fill"
+    },
+    "tags": ["tnf", "nuptse", "puffer", "winter"],
+    "attributes": {},
+    "skus": [
+      {
+        "code": "TNF-NUP-BLK-M",
+        "price": 29990,
+        "variantAttrs": { "color": "black", "clothing_size": "m" }
+      },
+      {
+        "code": "TNF-NUP-BLK-L",
+        "price": 29990,
+        "variantAttrs": { "color": "black", "clothing_size": "l" }
+      },
+      {
+        "code": "TNF-NUP-RED-M",
+        "price": 29990,
+        "variantAttrs": { "color": "red", "clothing_size": "m" }
+      }
+    ]
+  },
+  {
+    "titleI18N": { "ru": "Levi's 501 Original", "en": "Levi's 501 Original" },
+    "slug": "levis-501-original",
+    "brandSlug": "levis",
+    "categorySlug": "jeans",
+    "descriptionI18N": {
+      "ru": "Оригинальные прямые джинсы",
+      "en": "Original straight fit jeans"
+    },
+    "tags": ["levis", "501", "denim", "classic"],
+    "attributes": {},
+    "skus": [
+      {
+        "code": "LV501-BLU-32",
+        "price": 8990,
+        "variantAttrs": { "color": "blue", "clothing_size": "m" }
+      },
+      {
+        "code": "LV501-BLU-34",
+        "price": 8990,
+        "variantAttrs": { "color": "blue", "clothing_size": "l" }
+      },
+      {
+        "code": "LV501-BLK-32",
+        "price": 8990,
+        "variantAttrs": { "color": "black", "clothing_size": "m" }
+      }
+    ]
+  },
+  {
+    "titleI18N": {
+      "ru": "Converse Chuck Taylor All Star",
+      "en": "Converse Chuck Taylor All Star"
+    },
+    "slug": "converse-chuck-taylor",
+    "brandSlug": "converse",
+    "categorySlug": "canvas-shoes",
+    "descriptionI18N": {
+      "ru": "Классические кеды",
+      "en": "Classic canvas shoes"
+    },
+    "tags": ["converse", "chuck-taylor", "canvas"],
+    "attributes": {
+      "gender": "unisex",
+      "season": "spring-summer",
+      "material": "canvas"
+    },
+    "skus": [
+      {
+        "code": "CVS-CT-BLK-40",
+        "price": 6490,
+        "variantAttrs": { "color": "black", "shoe_size": "eu40" }
+      },
+      {
+        "code": "CVS-CT-BLK-42",
+        "price": 6490,
+        "variantAttrs": { "color": "black", "shoe_size": "eu42" }
+      },
+      {
+        "code": "CVS-CT-WHT-40",
+        "price": 6490,
+        "variantAttrs": { "color": "white", "shoe_size": "eu40" }
+      },
+      {
+        "code": "CVS-CT-RED-42",
+        "price": 6490,
+        "variantAttrs": { "color": "red", "shoe_size": "eu42" }
+      }
+    ]
+  },
+  {
+    "titleI18N": { "ru": "Dr. Martens 1460", "en": "Dr. Martens 1460" },
+    "slug": "dr-martens-1460",
+    "brandSlug": "dr-martens",
+    "categorySlug": "boots",
+    "descriptionI18N": {
+      "ru": "Культовые ботинки с 8 люверсами",
+      "en": "Iconic 8-eye boots"
+    },
+    "tags": ["dr-martens", "1460", "boots"],
+    "attributes": {
+      "gender": "unisex",
+      "season": "demi-season",
+      "material": "leather"
+    },
+    "skus": [
+      {
+        "code": "DM1460-BLK-41",
+        "price": 19990,
+        "variantAttrs": { "color": "black", "shoe_size": "eu41" }
+      },
+      {
+        "code": "DM1460-BLK-43",
+        "price": 19990,
+        "variantAttrs": { "color": "black", "shoe_size": "eu43" }
+      },
+      {
+        "code": "DM1460-BRN-42",
+        "price": 21990,
+        "variantAttrs": { "color": "brown", "shoe_size": "eu42" }
+      }
+    ]
+  },
+  {
+    "titleI18N": {
+      "ru": "Supreme Box Logo Hoodie",
+      "en": "Supreme Box Logo Hoodie"
+    },
+    "slug": "supreme-box-logo-hoodie",
+    "brandSlug": "supreme",
+    "categorySlug": "hoodies",
+    "descriptionI18N": { "ru": "Худи с бокс-лого", "en": "Box logo hoodie" },
+    "tags": ["supreme", "box-logo", "streetwear", "hype"],
+    "attributes": {},
+    "skus": [
+      {
+        "code": "SUP-BOGO-RED-M",
+        "price": 45990,
+        "variantAttrs": { "color": "red", "clothing_size": "m" }
+      },
+      {
+        "code": "SUP-BOGO-RED-L",
+        "price": 45990,
+        "variantAttrs": { "color": "red", "clothing_size": "l" }
+      },
+      {
+        "code": "SUP-BOGO-BLK-M",
+        "price": 45990,
+        "variantAttrs": { "color": "black", "clothing_size": "m" }
+      }
+    ]
+  }
+]
