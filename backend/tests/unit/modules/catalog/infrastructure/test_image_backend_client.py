@@ -27,7 +27,9 @@ async def test_delete_sends_correct_request():
     mock_delete.assert_called_once()
     call_args = mock_delete.call_args
     assert str(sid) in call_args[0][0]
-    assert call_args[1]["headers"]["X-API-Key"] == "test-key"
+    # X-API-Key lives on the shared httpx.AsyncClient (set in __init__),
+    # not on the per-call kwargs.
+    assert client._client.headers["X-API-Key"] == "test-key"
 
 
 async def test_delete_best_effort_on_network_error():

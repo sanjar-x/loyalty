@@ -11,7 +11,7 @@ from typing import Any
 
 from attrs import frozen
 
-from src.modules.catalog.application.constants import (
+from src.modules.catalog.domain.constants import (
     DEFAULT_CURRENCY,  # noqa: F401 – re-export for entities.py
     DEFAULT_SEARCH_WEIGHT,
     REQUIRED_LOCALES,

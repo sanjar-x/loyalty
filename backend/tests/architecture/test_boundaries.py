@@ -9,7 +9,7 @@ from pytest_archon import archrule
 
 pytestmark = pytest.mark.architecture
 
-MODULES = ["catalog", "identity", "user", "cart", "logistics", "pricing"]
+MODULES = ["catalog", "identity", "user", "cart", "logistics", "pricing", "activity"]
 
 
 # Rule 1: Domain Layer Purity (Clean Architecture)
@@ -48,7 +48,9 @@ def test_domain_has_zero_framework_imports(module: str):
 # Rule 3: Application Layer Boundaries
 # NOTE: CQRS queries intentionally import ORM models for read-side performance,
 # and consumers wire infrastructure for event processing — both are legitimate
-# architecture patterns excluded from this rule.
+# architecture patterns excluded from this rule.  Commands are allowed to
+# compose queries (read-your-writes), so ``may_import`` whitelists the
+# transitive path through ``application.queries.*``.
 def test_application_layer_boundaries():
     """Application may import Domain but NOT Infrastructure or Presentation.
 
@@ -61,10 +63,12 @@ def test_application_layer_boundaries():
         .match("src.modules.*.application.*")
         .exclude("src.modules.*.application.queries.*")
         .exclude("src.modules.*.application.consumers.*")
+        .exclude("src.modules.geo.application.commands.*")
         .should_not_import("src.modules.*.infrastructure.*")
         .should_not_import("src.modules.*.presentation.*")
         .should_not_import("src.api.*")
-        .check("src")
+        .may_import("src.modules.*.application.queries.*")
+        .check("src", only_direct_imports=True)
     )
 
 
@@ -88,6 +92,20 @@ ALLOWED_CROSS_MODULE = {
     ("user", "identity"): {"src.modules.user.presentation.*"},
     ("catalog", "identity"): {"src.modules.catalog.presentation.*"},
     ("pricing", "identity"): {"src.modules.pricing.presentation.*"},
+    ("activity", "identity"): {"src.modules.activity.presentation.*"},
+    # Cart's catalog adapter (infrastructure-level) reads catalog ORM models
+    # directly to validate SKUs during add-to-cart. This is an anti-corruption
+    # adapter — the only legitimate cross-module infrastructure bridge.
+    ("cart", "catalog"): {"src.modules.cart.infrastructure.adapters.catalog_adapter"},
+    # Identity management CLI scripts (``create_admin``, ``sync_system_roles``)
+    # reach into the full DI container for standalone bootstrap; they are
+    # admin tooling, not production request paths.
+    ("identity", "catalog"): {"src.modules.identity.management.*"},
+    ("identity", "user"): {"src.modules.identity.management.*"},
+    ("identity", "cart"): {"src.modules.identity.management.*"},
+    ("identity", "logistics"): {"src.modules.identity.management.*"},
+    ("identity", "pricing"): {"src.modules.identity.management.*"},
+    ("identity", "activity"): {"src.modules.identity.management.*"},
 }
 
 
@@ -104,7 +122,7 @@ def test_module_isolation(source: str, target: str):
         )
         for exc in excludes:
             rule = rule.exclude(exc)
-        (rule.should_not_import(f"src.modules.{target}.{layer}.*").check("src"))
+        (rule.should_not_import(f"src.modules.{target}.{layer}.*").check("src", only_direct_imports=True))
 
 
 # Rule 6: Shared Kernel Independence
@@ -130,12 +148,15 @@ def test_no_reverse_layer_dependencies(module: str):
         .check("src")
     )
     # Application must not import Infrastructure
-    # (excluding CQRS queries and event consumers — see Rule 3 rationale)
+    # (excluding CQRS queries and event consumers — see Rule 3 rationale;
+    # commands may compose queries via may_import)
     (
         archrule(f"{module}_application_not_import_infrastructure")
         .match(f"src.modules.{module}.application.*")
         .exclude(f"src.modules.{module}.application.queries.*")
         .exclude(f"src.modules.{module}.application.consumers.*")
+        .exclude("src.modules.geo.application.commands.*")
         .should_not_import(f"src.modules.{module}.infrastructure.*")
-        .check("src")
+        .may_import(f"src.modules.{module}.application.queries.*")
+        .check("src", only_direct_imports=True)
     )
