@@ -10,7 +10,7 @@ Dimensions: CDEK uses centimeters (int) = domain convention — no conversion ne
 import json
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_CDEK,
@@ -41,6 +41,11 @@ from src.modules.logistics.infrastructure.providers.cdek.constants import (
 from src.modules.logistics.infrastructure.providers.errors import (
     ProviderHTTPError,
 )
+
+# CDEK tarifflist quotes are price-estimates; we cap reuse at 1 hour to force
+# re-quoting before booking. Keeps the server-side expiry check in
+# CreateShipmentHandler meaningful.
+CDEK_QUOTE_TTL = timedelta(hours=1)
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +203,7 @@ def parse_tariff_list_response(data: dict) -> list[DeliveryQuote]:
                 rate=rate,
                 provider_payload=payload,
                 quoted_at=now,
-                expires_at=None,
+                expires_at=now + CDEK_QUOTE_TTL,
             )
         )
 

@@ -39,11 +39,3 @@ class SupplierAlreadyInactiveError(ConflictError):
             error_code="SUPPLIER_ALREADY_INACTIVE",
             details={"supplier_id": str(supplier_id)},
         )
-
-
-class SourceUrlRequiredError(UnprocessableEntityError):
-    def __init__(self):
-        super().__init__(
-            message="source_url is required for cross-border suppliers.",
-            error_code="SOURCE_URL_REQUIRED",
-        )

@@ -680,3 +680,24 @@ class AttributeGroupProtectedError(UnprocessableEntityError):
             error_code="ATTRIBUTE_GROUP_PROTECTED",
             details={"code": "general"},
         )
+
+
+# ---------------------------------------------------------------------------
+# Cross-context supplier validation
+# ---------------------------------------------------------------------------
+
+
+class SourceUrlRequiredError(UnprocessableEntityError):
+    """Raised when creating a product for a cross-border supplier without
+    providing a ``source_url``.
+
+    This is a catalog-side business rule: catalog consults the published
+    supplier directory to learn the supplier type and enforces the rule
+    here, so the error belongs to the catalog bounded context.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="source_url is required for cross-border suppliers.",
+            error_code="SOURCE_URL_REQUIRED",
+        )

@@ -15,6 +15,7 @@ from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
     CategoryNotFoundError,
     ProductSlugConflictError,
+    SourceUrlRequiredError,
 )
 from src.modules.catalog.domain.interfaces import (
     IBrandRepository,
@@ -22,11 +23,15 @@ from src.modules.catalog.domain.interfaces import (
     IMediaAssetRepository,
     IProductRepository,
 )
-from src.modules.supplier.domain.exceptions import SourceUrlRequiredError
-from src.modules.supplier.domain.interfaces import ISupplierQueryService
-from src.modules.supplier.domain.value_objects import SupplierType
 from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.supplier_directory import ISupplierDirectory
 from src.shared.interfaces.uow import IUnitOfWork
+
+# Supplier type code signalling a cross-border supplier. String literal
+# (rather than an imported enum) keeps catalog decoupled from the supplier
+# bounded context's internal type; the value is part of the published
+# ISupplierDirectory contract.
+_SUPPLIER_TYPE_CROSS_BORDER = "cross_border"
 
 
 @dataclass(frozen=True)
@@ -82,7 +87,7 @@ class CreateProductHandler:
         product_repo: IProductRepository,
         brand_repo: IBrandRepository,
         category_repo: ICategoryRepository,
-        supplier_query_service: ISupplierQueryService,
+        supplier_directory: ISupplierDirectory,
         media_repo: IMediaAssetRepository,
         uow: IUnitOfWork,
         logger: ILogger,
@@ -90,7 +95,7 @@ class CreateProductHandler:
         self._product_repo = product_repo
         self._brand_repo = brand_repo
         self._category_repo = category_repo
-        self._supplier_query_service = supplier_query_service
+        self._supplier_directory = supplier_directory
         self._media_repo = media_repo
         self._uow = uow
         self._logger = logger.bind(handler="CreateProductHandler")
@@ -121,15 +126,13 @@ class CreateProductHandler:
             if category is None:
                 raise CategoryNotFoundError(category_id=command.primary_category_id)
 
-            # Validate supplier exists and is active
+            # Validate supplier exists and is active (via published directory port)
             if command.supplier_id is not None:
-                supplier_info = (
-                    await self._supplier_query_service.assert_supplier_active(
-                        command.supplier_id
-                    )
+                supplier_snapshot = await self._supplier_directory.assert_active(
+                    command.supplier_id
                 )
                 if (
-                    supplier_info.type == SupplierType.CROSS_BORDER
+                    supplier_snapshot.type_code == _SUPPLIER_TYPE_CROSS_BORDER
                     and not command.source_url
                 ):
                     raise SourceUrlRequiredError()

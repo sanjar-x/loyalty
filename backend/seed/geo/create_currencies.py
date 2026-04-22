@@ -48,7 +48,7 @@ def seed_geo(ctx: SeedContext) -> None:
     from src.bootstrap.config import Settings
 
     rows = _load()
-    settings = Settings()  # type: ignore[call-arg]
+    settings = Settings()  # ty:ignore[missing-argument]
     created = asyncio.run(_run(settings.database_url, rows))
 
     for row in rows:

@@ -7,7 +7,7 @@ Calls twice (courier + pickup) to return both delivery options.
 
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from src.modules.logistics.domain.value_objects import (
@@ -29,6 +29,13 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.mappers impo
     build_pricing_request,
     parse_pricing_response,
 )
+
+# Yandex Delivery offers (created at booking time) carry a 10-minute TTL per
+# the provider docs. The rate-time quote is a pricing-calculator estimate and
+# does not reserve an offer, but we align the reuse window with that TTL so
+# that prices shown to the customer stay fresh and the server-side expiry
+# check in CreateShipmentHandler is meaningful.
+YANDEX_QUOTE_TTL = timedelta(minutes=10)
 
 logger = logging.getLogger(__name__)
 
@@ -74,12 +81,14 @@ class YandexDeliveryRateProvider:
             if rate is None:
                 continue
 
+            quoted_at = datetime.now(UTC)
             quotes.append(
                 DeliveryQuote(
                     id=uuid.uuid4(),
                     rate=rate,
                     provider_payload="{}",
-                    quoted_at=datetime.now(UTC),
+                    quoted_at=quoted_at,
+                    expires_at=quoted_at + YANDEX_QUOTE_TTL,
                 )
             )
 

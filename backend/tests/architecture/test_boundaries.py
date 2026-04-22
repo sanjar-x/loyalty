@@ -9,7 +9,17 @@ from pytest_archon import archrule
 
 pytestmark = pytest.mark.architecture
 
-MODULES = ["catalog", "identity", "user", "cart", "logistics", "pricing", "activity"]
+MODULES = [
+    "catalog",
+    "identity",
+    "user",
+    "cart",
+    "logistics",
+    "pricing",
+    "activity",
+    "geo",
+    "supplier",
+]
 
 
 # Rule 1: Domain Layer Purity (Clean Architecture)
@@ -97,6 +107,9 @@ ALLOWED_CROSS_MODULE = {
     # directly to validate SKUs during add-to-cart. This is an anti-corruption
     # adapter — the only legitimate cross-module infrastructure bridge.
     ("cart", "catalog"): {"src.modules.cart.infrastructure.adapters.catalog_adapter"},
+    # Same adapter JOINs supplier ORM to surface supplier_type on cart lines
+    # (cross-border / local policy). Same anti-corruption justification.
+    ("cart", "supplier"): {"src.modules.cart.infrastructure.adapters.catalog_adapter"},
     # Identity management CLI scripts (``create_admin``, ``sync_system_roles``)
     # reach into the full DI container for standalone bootstrap; they are
     # admin tooling, not production request paths.
@@ -106,6 +119,8 @@ ALLOWED_CROSS_MODULE = {
     ("identity", "logistics"): {"src.modules.identity.management.*"},
     ("identity", "pricing"): {"src.modules.identity.management.*"},
     ("identity", "activity"): {"src.modules.identity.management.*"},
+    ("identity", "geo"): {"src.modules.identity.management.*"},
+    ("identity", "supplier"): {"src.modules.identity.management.*"},
 }
 
 

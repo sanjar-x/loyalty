@@ -69,6 +69,7 @@ from src.modules.catalog.domain.exceptions import (
     ProductNotFoundError,
     ProductNotReadyError,
     ProductSlugConflictError,
+    SourceUrlRequiredError,
 )
 from src.modules.catalog.domain.interfaces import IImageBackendClient
 from src.modules.catalog.domain.value_objects import (
@@ -77,13 +78,12 @@ from src.modules.catalog.domain.value_objects import (
     AttributeUIType,  # TEXT_BUTTON, COLOR_SWATCH, DROPDOWN, CHECKBOX, RANGE_SLIDER
     ProductStatus,
 )
-from src.modules.supplier.domain.exceptions import (
-    SourceUrlRequiredError,
-    SupplierInactiveError,
-)
-from src.modules.supplier.domain.interfaces import ISupplierQueryService, SupplierInfo
-from src.modules.supplier.domain.value_objects import SupplierType
 from src.shared.exceptions import UnprocessableEntityError
+from src.shared.interfaces.supplier_directory import (
+    ISupplierDirectory,
+    SupplierDirectoryInactiveError,
+    SupplierSnapshot,
+)
 from tests.factories.product_builder import ProductBuilder
 from tests.fakes.fake_uow import FakeUnitOfWork
 
@@ -103,12 +103,12 @@ def _make_supplier_service(
     supplier_info=None,
     raises=None,
 ):
-    """Create an AsyncMock supplier query service."""
-    svc = AsyncMock(spec=ISupplierQueryService)
+    """Create an AsyncMock supplier directory port."""
+    svc = AsyncMock(spec=ISupplierDirectory)
     if raises:
-        svc.assert_supplier_active.side_effect = raises
+        svc.assert_active.side_effect = raises
     elif supplier_info:
-        svc.assert_supplier_active.return_value = supplier_info
+        svc.assert_active.return_value = supplier_info
     return svc
 
 
@@ -239,7 +239,7 @@ class TestCreateProduct:
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
-            supplier_query_service=svc,
+            supplier_directory=svc,
             media_repo=uow.media_assets,
             uow=uow,
             logger=_make_logger(),
@@ -258,17 +258,17 @@ class TestCreateProduct:
         assert result.product_id in uow.products._store
         assert result.default_variant_id is not None
         assert uow.committed is True
-        svc.assert_supplier_active.assert_not_awaited()
+        svc.assert_active.assert_not_awaited()
 
     async def test_happy_path_local_supplier(self):
         uow = FakeUnitOfWork()
         brand = _seed_brand(uow)
         cat = _seed_category(uow)
         supplier_id = uuid.uuid4()
-        info = SupplierInfo(
+        info = SupplierSnapshot(
             id=supplier_id,
             name="Local Store",
-            type=SupplierType.LOCAL,
+            type_code="local",
             is_active=True,
         )
         svc = _make_supplier_service(supplier_info=info)
@@ -277,7 +277,7 @@ class TestCreateProduct:
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
-            supplier_query_service=svc,
+            supplier_directory=svc,
             media_repo=uow.media_assets,
             uow=uow,
             logger=_make_logger(),
@@ -301,10 +301,10 @@ class TestCreateProduct:
         brand = _seed_brand(uow)
         cat = _seed_category(uow)
         supplier_id = uuid.uuid4()
-        info = SupplierInfo(
+        info = SupplierSnapshot(
             id=supplier_id,
             name="Poizon",
-            type=SupplierType.CROSS_BORDER,
+            type_code="cross_border",
             is_active=True,
         )
         svc = _make_supplier_service(supplier_info=info)
@@ -313,7 +313,7 @@ class TestCreateProduct:
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
-            supplier_query_service=svc,
+            supplier_directory=svc,
             media_repo=uow.media_assets,
             uow=uow,
             logger=_make_logger(),
@@ -342,7 +342,7 @@ class TestCreateProduct:
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
-            supplier_query_service=svc,
+            supplier_directory=svc,
             media_repo=uow.media_assets,
             uow=uow,
             logger=_make_logger(),
@@ -369,7 +369,7 @@ class TestCreateProduct:
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
-            supplier_query_service=svc,
+            supplier_directory=svc,
             media_repo=uow.media_assets,
             uow=uow,
             logger=_make_logger(),
@@ -398,7 +398,7 @@ class TestCreateProduct:
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
-            supplier_query_service=svc,
+            supplier_directory=svc,
             media_repo=uow.media_assets,
             uow=uow,
             logger=_make_logger(),
@@ -422,20 +422,20 @@ class TestCreateProduct:
         cat = _seed_category(uow)
         supplier_id = uuid.uuid4()
         svc = _make_supplier_service(
-            raises=SupplierInactiveError(supplier_id=supplier_id),
+            raises=SupplierDirectoryInactiveError(supplier_id=supplier_id),
         )
 
         handler = CreateProductHandler(
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
-            supplier_query_service=svc,
+            supplier_directory=svc,
             media_repo=uow.media_assets,
             uow=uow,
             logger=_make_logger(),
         )
 
-        with pytest.raises(SupplierInactiveError):
+        with pytest.raises(SupplierDirectoryInactiveError):
             await handler.handle(
                 CreateProductCommand(
                     title_i18n={"en": "Air Max", "ru": "Эйр Макс"},
@@ -453,10 +453,10 @@ class TestCreateProduct:
         brand = _seed_brand(uow)
         cat = _seed_category(uow)
         supplier_id = uuid.uuid4()
-        info = SupplierInfo(
+        info = SupplierSnapshot(
             id=supplier_id,
             name="Poizon",
-            type=SupplierType.CROSS_BORDER,
+            type_code="cross_border",
             is_active=True,
         )
         svc = _make_supplier_service(supplier_info=info)
@@ -465,7 +465,7 @@ class TestCreateProduct:
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
-            supplier_query_service=svc,
+            supplier_directory=svc,
             media_repo=uow.media_assets,
             uow=uow,
             logger=_make_logger(),

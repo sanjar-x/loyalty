@@ -23,6 +23,7 @@ from src.modules.supplier.domain.interfaces import (
 )
 from src.modules.supplier.infrastructure.query_service import SupplierQueryService
 from src.modules.supplier.infrastructure.repositories.supplier import SupplierRepository
+from src.shared.interfaces.supplier_directory import ISupplierDirectory
 
 
 class SupplierProvider(Provider):
@@ -31,6 +32,9 @@ class SupplierProvider(Provider):
     )
     supplier_query_service: CompositeDependencySource = provide(
         SupplierQueryService, scope=Scope.REQUEST, provides=ISupplierQueryService
+    )
+    supplier_directory: CompositeDependencySource = provide(
+        SupplierQueryService, scope=Scope.REQUEST, provides=ISupplierDirectory
     )
     create_supplier_handler: CompositeDependencySource = provide(
         CreateSupplierHandler, scope=Scope.REQUEST
