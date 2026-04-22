@@ -3,10 +3,11 @@
 DB-only step. Wraps ``src.modules.identity.management.create_admin.create_admin``.
 Data source: ``seed/admin/admin.json`` (email, password, username).
 
-The JSON credentials MUST match ``seed/main.py`` ``SeedContext.login`` /
-``password`` so that subsequent API steps can log in with them. When the
-caller overrides ``--login`` / ``--password`` on the CLI, those values
-win — the JSON acts as a default only.
+Precedence:
+  1. ``ctx.login`` / ``ctx.password`` — taken verbatim (they reflect either
+     the CLI flags or, by default, the values loaded from admin.json in
+     ``seed/main.py``).
+  2. ``username`` — always loaded from admin.json (not exposed via CLI).
 
 Requires the ``admin`` role to exist — run ``roles`` first.
 """
@@ -45,23 +46,17 @@ async def _run(
 
 
 def seed_admin(ctx: SeedContext) -> None:
-    """Create the default admin identity (idempotent — skips if email exists).
-
-    Precedence: CLI overrides (``ctx.login``/``ctx.password``) take priority
-    over ``admin.json`` defaults, so operators can bootstrap a non-default
-    admin without editing the JSON.
-    """
-    from seed.main import DEFAULT_LOGIN, DEFAULT_PASSWORD
+    """Create the default admin identity (idempotent — skips if email exists)."""
     from src.bootstrap.config import Settings
 
     defaults = _load()
-    email = ctx.login if ctx.login != DEFAULT_LOGIN else defaults["email"]
-    password = ctx.password if ctx.password != DEFAULT_PASSWORD else defaults["password"]
     username = defaults.get("username", "admin")
 
     settings = Settings()  # type: ignore[call-arg]
-    identity_id = asyncio.run(_run(settings.database_url, email, password, username))
+    identity_id = asyncio.run(
+        _run(settings.database_url, ctx.login, ctx.password, username)
+    )
     if identity_id:
-        print(f"  Admin created: {identity_id} ({email})")
+        print(f"  Admin created: {identity_id} ({ctx.login})")
     else:
-        print(f"  Admin already exists ({email}) — skipped.")
+        print(f"  Admin already exists ({ctx.login}) — skipped.")
