@@ -82,23 +82,49 @@ class SeedContext:
 
 @dataclass(frozen=True)
 class Step:
+    """Single unit of seed work.
+
+    ``deps`` lists step names that MUST have completed before this one
+    can safely run. When the user selects a subset via ``--step``, any
+    missing transitive deps are auto-prepended (apt-style) so that
+    referential integrity is preserved:
+
+    * ``admin`` depends on ``roles`` — FK to ``roles.id`` via
+      ``identity_roles``. Running ``--step admin`` alone would
+      otherwise fail with a foreign-key violation on first-time seeds.
+    * ``brands/categories/attributes/products`` depend on ``admin``
+      being present — the step ``_login`` call authenticates as that
+      admin and fails without it.
+    * ``products`` depends on ``brands``, ``categories``, ``attributes``
+      and ``geo`` (SKU ``priceCurrency`` FK).
+    * ``attributes`` depends on ``categories`` — phase 6 assigns
+      templates to root categories by slug.
+    """
+
     name: str
     run: Callable[[SeedContext], None]
     db_only: bool
+    deps: tuple[str, ...] = ()
 
 
 # Canonical execution order — respected regardless of --step ordering.
 STEPS: list[Step] = [
     Step("roles", seed_roles, db_only=True),
-    Step("admin", seed_admin, db_only=True),
+    Step("admin", seed_admin, db_only=True, deps=("roles",)),
     Step("geo", seed_geo, db_only=True),
-    Step("brands", seed_brands, db_only=False),
-    Step("categories", seed_categories, db_only=False),
-    Step("attributes", seed_attributes, db_only=False),
-    Step("products", seed_products, db_only=False),
+    Step("brands", seed_brands, db_only=False, deps=("admin",)),
+    Step("categories", seed_categories, db_only=False, deps=("admin",)),
+    Step("attributes", seed_attributes, db_only=False, deps=("admin", "categories")),
+    Step(
+        "products",
+        seed_products,
+        db_only=False,
+        deps=("admin", "geo", "brands", "categories", "attributes"),
+    ),
 ]
 
 STEP_NAMES = [s.name for s in STEPS]
+STEPS_BY_NAME = {s.name: s for s in STEPS}
 
 
 def _login(ctx: SeedContext) -> None:
@@ -131,7 +157,28 @@ def _parse_steps(raw: str | None) -> list[Step]:
             f"Unknown step(s): {', '.join(sorted(unknown))}. "
             f"Valid: {', '.join(STEP_NAMES)}"
         )
-    return [s for s in STEPS if s.name in requested]
+
+    # Transitive dep closure — apt-style implicit inclusion.
+    # Each step's dependencies are also guaranteed to re-run so that
+    # generated IDs (brands.id, categories.id, attribute_values.id, etc.)
+    # are resolvable by downstream steps on a fresh database.
+    closure: set[str] = set(requested)
+    to_visit = list(requested)
+    while to_visit:
+        name = to_visit.pop()
+        for dep in STEPS_BY_NAME[name].deps:
+            if dep not in closure:
+                closure.add(dep)
+                to_visit.append(dep)
+
+    added = sorted(closure - requested)
+    if added:
+        print(
+            f"ℹ Auto-including transitive deps: {', '.join(added)} "
+            f"(required by {', '.join(sorted(requested))})"
+        )
+
+    return [s for s in STEPS if s.name in closure]
 
 
 def main() -> None:
