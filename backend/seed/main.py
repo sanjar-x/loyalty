@@ -111,7 +111,7 @@ class Step:
 STEPS: list[Step] = [
     Step("roles", seed_roles, db_only=True),
     Step("admin", seed_admin, db_only=True, deps=("roles",)),
-    Step("geo", seed_geo, db_only=True),
+    Step("geo", seed_geo, db_only=False, deps=("admin",)),
     Step("brands", seed_brands, db_only=False, deps=("admin",)),
     Step("categories", seed_categories, db_only=False, deps=("admin",)),
     Step("attributes", seed_attributes, db_only=False, deps=("admin", "categories")),
@@ -152,7 +152,7 @@ def _login(ctx: SeedContext) -> None:
     ctx.client.headers["Authorization"] = f"Bearer {token}"
 
 
-def _parse_steps(raw: str | None) -> list[Step]:
+def _parse_steps(raw: str | None, *, no_deps: bool = False) -> list[Step]:
     if not raw:
         return list(STEPS)
     requested = {s.strip() for s in raw.split(",") if s.strip()}
@@ -162,6 +162,12 @@ def _parse_steps(raw: str | None) -> list[Step]:
             f"Unknown step(s): {', '.join(sorted(unknown))}. "
             f"Valid: {', '.join(STEP_NAMES)}"
         )
+
+    if no_deps:
+        # Explicit opt-out: run exactly what was requested. The caller
+        # is responsible for ensuring referential integrity (e.g. admin
+        # user already exists on the target server).
+        return [s for s in STEPS if s.name in requested]
 
     # Transitive dep closure — apt-style implicit inclusion.
     # Each step's dependencies are also guaranteed to re-run so that
@@ -180,7 +186,8 @@ def _parse_steps(raw: str | None) -> list[Step]:
     if added:
         print(
             f"ℹ Auto-including transitive deps: {', '.join(added)} "
-            f"(required by {', '.join(sorted(requested))})"
+            f"(required by {', '.join(sorted(requested))}). "
+            f"Use --no-deps to skip."
         )
 
     return [s for s in STEPS if s.name in closure]
@@ -194,12 +201,17 @@ def main() -> None:
         "--step",
         help=f"Comma-separated subset of steps to run. Default: all. Valid: {', '.join(STEP_NAMES)}",
     )
+    parser.add_argument(
+        "--no-deps",
+        action="store_true",
+        help="Skip auto-inclusion of transitive deps — run only the explicitly requested steps.",
+    )
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument("--login", default=defaults["email"])
     parser.add_argument("--password", default=defaults["password"])
     args = parser.parse_args()
 
-    steps = _parse_steps(args.step)
+    steps = _parse_steps(args.step, no_deps=args.no_deps)
     ctx = SeedContext(
         base_url=args.base_url, login=args.login, password=args.password
     )
