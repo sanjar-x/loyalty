@@ -140,7 +140,12 @@ def _login(ctx: SeedContext) -> None:
     )
     resp.raise_for_status()
     payload = resp.json()
-    token = payload.get("access_token") or payload.get("data", {}).get("access_token")
+    token = (
+        payload.get("accessToken")
+        or payload.get("access_token")
+        or payload.get("data", {}).get("accessToken")
+        or payload.get("data", {}).get("access_token")
+    )
     if not token:
         raise RuntimeError(f"No access_token in login response: {payload}")
     ctx.token = token
