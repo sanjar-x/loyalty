@@ -55,3 +55,66 @@ class ICacheService(Protocol):
             keys: Cache keys to delete. If empty, this is a no-op.
         """
         ...
+
+    async def get_many(self, keys: list[str]) -> dict[str, str | None]:
+        """Retrieve multiple values in a single round-trip.
+
+        Args:
+            keys: Cache keys to fetch. If empty, an empty mapping is returned.
+
+        Returns:
+            Mapping from key to stored string, or ``None`` for keys that
+            do not exist or expired. On cache backend failure every key
+            maps to ``None`` (graceful degradation).
+        """
+        ...
+
+    async def set_many(self, items: dict[str, str], ttl: int = 0) -> None:
+        """Store multiple values in a single pipelined round-trip.
+
+        Args:
+            items: Mapping of key → value. Empty mapping is a no-op.
+            ttl: Time-to-live in seconds applied to every entry.
+                ``0`` means no expiration.
+        """
+        ...
+
+    async def exists(self, key: str) -> bool:
+        """Return whether a key currently exists in the cache.
+
+        Returns ``False`` on backend failure (graceful degradation).
+        """
+        ...
+
+    async def expire(self, key: str, ttl: int) -> bool:
+        """Set a new TTL (seconds) on an existing key.
+
+        Args:
+            key: Cache key.
+            ttl: TTL in seconds. Must be > 0; use :meth:`delete` to remove.
+
+        Returns:
+            ``True`` if the key existed and the TTL was applied, ``False``
+            otherwise (including backend failure).
+        """
+        ...
+
+    async def increment(
+        self, key: str, amount: int = 1, ttl: int | None = None
+    ) -> int:
+        """Atomically increment an integer counter.
+
+        If the key does not exist it is initialised to zero before the
+        increment. When ``ttl`` is provided and the key has no TTL yet,
+        the TTL is applied after the increment (best-effort; not atomic
+        with the INCRBY).
+
+        Args:
+            key: Cache key.
+            amount: Increment delta (may be negative). Default ``1``.
+            ttl: Optional TTL in seconds to apply when the key is new.
+
+        Returns:
+            The new counter value, or ``0`` on backend failure.
+        """
+        ...

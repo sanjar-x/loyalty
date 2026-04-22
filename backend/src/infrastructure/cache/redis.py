@@ -84,3 +84,110 @@ class RedisService(ICacheService):
             logger.warning(
                 "Redis delete error (DELETE_MANY)", count=len(keys), error=str(e)
             )
+
+    async def get_many(self, keys: list[str]) -> dict[str, str | None]:
+        """Retrieve multiple values in one MGET round-trip.
+
+        Returns a mapping where missing keys map to ``None``. On Redis
+        failure every key maps to ``None`` (graceful degradation).
+        """
+        if not keys:
+            return {}
+        try:
+            logger.debug("Redis GET_MANY", count=len(keys))
+            raw = await self._client.mget(keys)
+        except RedisError as e:
+            logger.warning(
+                "Redis read error (GET_MANY)", count=len(keys), error=str(e)
+            )
+            return {key: None for key in keys}
+
+        result: dict[str, str | None] = {}
+        for key, value in zip(keys, raw, strict=True):
+            if value is None:
+                result[key] = None
+            elif isinstance(value, bytes):
+                result[key] = value.decode("utf-8")
+            else:
+                result[key] = str(value)
+        return result
+
+    async def set_many(self, items: dict[str, str], ttl: int = 0) -> None:
+        """Store multiple values in one pipelined round-trip.
+
+        When ``ttl > 0`` every key gets the same TTL; otherwise keys are
+        stored without expiration. MSET does not support TTL per-key, so
+        we use a pipeline of ``SET key value EX ttl`` commands.
+        """
+        if not items:
+            return
+        try:
+            logger.debug("Redis SET_MANY", count=len(items), ttl=ttl)
+            if ttl > 0:
+                pipe = self._client.pipeline(transaction=False)
+                for key, value in items.items():
+                    pipe.set(key, value, ex=ttl)
+                await pipe.execute()
+            else:
+                await self._client.mset(items)
+        except RedisError as e:
+            logger.warning(
+                "Redis write error (SET_MANY)", count=len(items), error=str(e)
+            )
+
+    async def exists(self, key: str) -> bool:
+        """Return whether ``key`` is present. ``False`` on backend error."""
+        try:
+            logger.debug("Redis EXISTS", key=key)
+            return bool(await self._client.exists(key))
+        except RedisError as e:
+            logger.warning("Redis read error (EXISTS)", key=key, error=str(e))
+            return False
+
+    async def expire(self, key: str, ttl: int) -> bool:
+        """Apply a new TTL (seconds) to an existing key."""
+        if ttl <= 0:
+            return False
+        try:
+            logger.debug("Redis EXPIRE", key=key, ttl=ttl)
+            return bool(await self._client.expire(key, ttl))
+        except RedisError as e:
+            logger.warning("Redis write error (EXPIRE)", key=key, error=str(e))
+            return False
+
+    async def increment(
+        self, key: str, amount: int = 1, ttl: int | None = None
+    ) -> int:
+        """Atomically INCRBY ``amount`` on ``key``.
+
+        If ``ttl`` is provided and the key had no prior TTL, the TTL is
+        applied afterwards using ``EXPIRE … NX``-like semantics (best
+        effort: we skip the EXPIRE call if the key already has a TTL).
+        Returns ``0`` on backend failure.
+        """
+        try:
+            logger.debug("Redis INCRBY", key=key, amount=amount)
+            new_value = int(await self._client.incrby(key, amount))
+        except RedisError as e:
+            logger.warning(
+                "Redis write error (INCRBY)", key=key, amount=amount, error=str(e)
+            )
+            return 0
+
+        if ttl is not None and ttl > 0:
+            try:
+                # -1 means "no expire" in Redis; -2 means "missing" (can't
+                # happen right after INCRBY).  Only set TTL when not already
+                # configured, so repeated increments don't refresh it.
+                current_ttl = await self._client.ttl(key)
+                if current_ttl == -1:
+                    await self._client.expire(key, ttl)
+            except RedisError as e:
+                logger.warning(
+                    "Redis write error (INCRBY EXPIRE)",
+                    key=key,
+                    ttl=ttl,
+                    error=str(e),
+                )
+
+        return new_value
