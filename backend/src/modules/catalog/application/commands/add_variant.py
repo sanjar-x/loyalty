@@ -3,10 +3,14 @@
 import uuid
 from dataclasses import dataclass
 
-from src.modules.catalog.application.constants import DEFAULT_CURRENCY
+from src.modules.catalog.application.constants import (
+    DEFAULT_CURRENCY,
+    storefront_pdp_cache_key,
+)
 from src.modules.catalog.domain.exceptions import ProductNotFoundError
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
+from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -55,10 +59,12 @@ class AddVariantHandler:
         self,
         product_repo: IProductRepository,
         uow: IUnitOfWork,
+        cache: ICacheService,
         logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._uow = uow
+        self._cache = cache
         self._logger = logger.bind(handler="AddVariantHandler")
 
     async def handle(self, command: AddVariantCommand) -> AddVariantResult:
@@ -99,5 +105,10 @@ class AddVariantHandler:
             await self._product_repo.update(product)
             self._uow.register_aggregate(product)
             await self._uow.commit()
+
+        try:
+            await self._cache.delete(storefront_pdp_cache_key(product.slug))
+        except Exception as exc:  # pragma: no cover
+            self._logger.warning("pdp_cache_invalidation_failed", error=str(exc))
 
         return AddVariantResult(variant_id=variant.id)

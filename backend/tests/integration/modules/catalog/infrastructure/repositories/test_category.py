@@ -12,13 +12,13 @@ async def test_category_repository_add_and_get_all_ordered(db_session: AsyncSess
 
     # Let's create two categories
     root_category = Category.create_root(
-        name_i18n={"en": "Electronics"},
+        name_i18n={"en": "Electronics", "ru": "Electronics"},
         slug="electronics",
         sort_order=10,
     )
 
     child_category = Category.create_child(
-        name_i18n={"en": "Laptops"},
+        name_i18n={"en": "Laptops", "ru": "Laptops"},
         slug="laptops",
         parent=root_category,
         sort_order=1,
@@ -43,7 +43,7 @@ async def test_category_repository_check_slug_exists(db_session: AsyncSession):
     # Arrange
     repository = CategoryRepository(session=db_session)
     category = Category.create_root(
-        name_i18n={"en": "Books"},
+        name_i18n={"en": "Books", "ru": "Books"},
         slug="books",
         sort_order=1,
     )

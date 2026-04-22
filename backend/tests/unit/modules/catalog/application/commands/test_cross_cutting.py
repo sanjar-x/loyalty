@@ -6,7 +6,7 @@ Uses FakeUnitOfWork for real in-memory repository behavior.
 """
 
 import uuid
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -192,6 +192,7 @@ class TestEventAuditGaps:
         variant_id = product.variants[0].id
 
         handler = AddSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         result = await handler.handle(
@@ -221,6 +222,7 @@ class TestEventAuditGaps:
         uow.products._store[product.id] = product
 
         handler = DeleteSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         await handler.handle(DeleteSKUCommand(product_id=product.id, sku_id=sku.id))
@@ -282,6 +284,7 @@ class TestEventAuditGaps:
         uow = FakeUnitOfWork()
 
         handler = AddSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         with pytest.raises(ProductNotFoundError):
@@ -399,6 +402,7 @@ class TestFKUniquenessErrors:
     async def test_add_sku_product_not_found(self):
         uow = FakeUnitOfWork()
         handler = AddSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         with pytest.raises(ProductNotFoundError):
@@ -416,6 +420,7 @@ class TestFKUniquenessErrors:
         product = _seed_product(uow)
 
         handler = AddSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         with pytest.raises(VariantNotFoundError):
@@ -434,6 +439,7 @@ class TestFKUniquenessErrors:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         with pytest.raises(ProductNotFoundError):
@@ -454,6 +460,7 @@ class TestFKUniquenessErrors:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         with pytest.raises(VariantNotFoundError):
@@ -501,6 +508,7 @@ class TestFKUniquenessErrors:
 
         p2 = _seed_product(uow, slug="uniq-p2")
         handler = AddSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         with pytest.raises(SKUCodeConflictError):
@@ -531,6 +539,7 @@ class TestFKUniquenessErrors:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         with pytest.raises(DuplicateMainMediaError):
@@ -566,6 +575,7 @@ class TestFKUniquenessErrors:
         uow.products._store[product.id] = product
 
         handler = UpdateSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         with pytest.raises(DuplicateVariantCombinationError):

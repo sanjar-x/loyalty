@@ -6,7 +6,7 @@ Uses FakeUnitOfWork for real in-memory repository behavior (D-08).
 """
 
 import uuid
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -71,6 +71,7 @@ class TestAddVariant:
         handler = AddVariantHandler(
             product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -97,6 +98,7 @@ class TestAddVariant:
         handler = AddVariantHandler(
             product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -120,6 +122,7 @@ class TestAddVariant:
         handler = AddVariantHandler(
             product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -141,6 +144,7 @@ class TestAddVariant:
         handler = AddVariantHandler(
             product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -175,6 +179,7 @@ class TestUpdateVariant:
         handler = UpdateVariantHandler(
             product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -202,6 +207,7 @@ class TestUpdateVariant:
         handler = UpdateVariantHandler(
             product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -228,6 +234,7 @@ class TestUpdateVariant:
         handler = UpdateVariantHandler(
             product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -250,6 +257,7 @@ class TestUpdateVariant:
         handler = UpdateVariantHandler(
             product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -273,6 +281,7 @@ class TestUpdateVariant:
         handler = UpdateVariantHandler(
             product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -311,6 +320,7 @@ class TestDeleteVariant:
         handler = DeleteVariantHandler(
             product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -332,6 +342,7 @@ class TestDeleteVariant:
         handler = DeleteVariantHandler(
             product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -352,6 +363,7 @@ class TestDeleteVariant:
         handler = DeleteVariantHandler(
             product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -375,6 +387,7 @@ class TestDeleteVariant:
         handler = DeleteVariantHandler(
             product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 

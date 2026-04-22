@@ -32,7 +32,7 @@ async def test_update_nonexistent_raises(db_session: AsyncSession):
 
     import pytest
 
-    with pytest.raises(ValueError, match="not found in DB"):
+    with pytest.raises(ValueError, match="not found in the database"):
         await repo.update(brand)
 
 

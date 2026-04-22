@@ -117,6 +117,7 @@ class MediaAssetRepository(IMediaAssetRepository):
             raise ValueError(f"MediaAsset with id {media.id} not found in DB")
         self._to_orm(media, orm)
         await self._session.flush()
+        await self._session.refresh(orm)
         return self._to_domain(orm)
 
     async def delete(self, media_id: uuid.UUID) -> None:

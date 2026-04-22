@@ -31,7 +31,7 @@ class TestAttributeTemplateEndpoints:
         suffix = uuid.uuid4().hex[:8]
         payload = {
             "code": f"tmpl_{suffix}",
-            "nameI18n": {"ru": "Обувь", "en": "Footwear"},
+            "nameI18N": {"ru": "Обувь", "en": "Footwear"},
         }
         resp = await admin_client.post(
             "/api/v1/catalog/attribute-templates", json=payload
@@ -52,7 +52,7 @@ class TestAttributeTemplateEndpoints:
             json={
                 "sourceTemplateId": source["id"],
                 "newCode": f"clone_{suffix}",
-                "newNameI18n": {"ru": "Клон", "en": "Clone"},
+                "newNameI18N": {"ru": "Клон", "en": "Clone"},
             },
         )
         assert resp.status_code == 201
@@ -87,7 +87,7 @@ class TestAttributeTemplateEndpoints:
         )
         assert resp.status_code == 200
         data = resp.json()
-        for field in ("id", "code", "nameI18n", "descriptionI18n", "sortOrder"):
+        for field in ("id", "code", "nameI18N", "descriptionI18N", "sortOrder"):
             assert field in data, f"Missing camelCase field: {field}"
 
     # ── PATCH /attribute-templates/{id} ──
@@ -208,11 +208,11 @@ class TestAttributeTemplateSchemaFixes:
     async def test_create_template_without_description(
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
-        """POST /attribute-templates with minimal fields, NO descriptionI18n -> 201."""
+        """POST /attribute-templates with minimal fields, NO descriptionI18N -> 201."""
         suffix = uuid.uuid4().hex[:8]
         payload = {
             "code": f"tmpl_{suffix}",
-            "nameI18n": {"ru": "Обувь", "en": "Footwear"},
+            "nameI18N": {"ru": "Обувь", "en": "Footwear"},
         }
         resp = await admin_client.post(
             "/api/v1/catalog/attribute-templates", json=payload

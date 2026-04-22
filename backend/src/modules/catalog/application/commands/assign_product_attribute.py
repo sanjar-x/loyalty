@@ -10,6 +10,10 @@ attribute assignments are deferred to a future phase.
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.application.constants import (
+    STOREFRONT_FACET_GENERATION_KEY,
+    storefront_pdp_cache_key,
+)
 from src.modules.catalog.application.queries.resolve_template_attributes import (
     resolve_effective_attribute_ids,
 )
@@ -33,6 +37,7 @@ from src.modules.catalog.domain.interfaces import (
     ITemplateAttributeBindingRepository,
 )
 from src.modules.catalog.domain.value_objects import AttributeLevel
+from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -81,6 +86,7 @@ class AssignProductAttributeHandler:
         template_repo: IAttributeTemplateRepository,
         template_binding_repo: ITemplateAttributeBindingRepository,
         uow: IUnitOfWork,
+        cache: ICacheService,
         logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
@@ -91,6 +97,7 @@ class AssignProductAttributeHandler:
         self._template_repo = template_repo
         self._template_binding_repo = template_binding_repo
         self._uow = uow
+        self._cache = cache
         self._logger = logger.bind(handler="AssignProductAttributeHandler")
 
     async def handle(
@@ -165,5 +172,11 @@ class AssignProductAttributeHandler:
 
             await self._pav_repo.add(pav)
             await self._uow.commit()
+
+        try:
+            await self._cache.delete(storefront_pdp_cache_key(product.slug))
+            await self._cache.increment(STOREFRONT_FACET_GENERATION_KEY)
+        except Exception as exc:  # pragma: no cover
+            self._logger.warning("pdp_cache_invalidation_failed", error=str(exc))
 
         return AssignProductAttributeResult(pav_id=pav.id)

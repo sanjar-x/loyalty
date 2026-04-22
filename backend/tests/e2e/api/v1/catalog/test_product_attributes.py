@@ -46,7 +46,7 @@ async def _setup_product_with_attribute(
     resp = await client.post(
         "/api/v1/catalog/products",
         json={
-            "titleI18n": {"ru": "Атрибут тест", "en": "Attr test"},
+            "titleI18N": {"ru": "Атрибут тест", "en": "Attr test"},
             "slug": f"attr-prod-{uuid.uuid4().hex[:8]}",
             "brandId": str(brand["id"]),
             "primaryCategoryId": str(cat["id"]),

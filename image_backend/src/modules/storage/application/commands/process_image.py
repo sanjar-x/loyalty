@@ -59,14 +59,12 @@ def build_variants(
         s3_key = f"public/{storage_object_id}_{suffix}.webp"
         url = f"{public_base_url.rstrip('/')}/{s3_key}"
 
-        variants_meta.append(
-            {
-                "size": size_name,
-                "width": img.width,
-                "height": img.height,
-                "url": url,
-            }
-        )
+        variants_meta.append({
+            "size": size_name,
+            "width": img.width,
+            "height": img.height,
+            "url": url,
+        })
         variants_data[s3_key] = variant_bytes
 
     return main_bytes, variants_meta, variants_data

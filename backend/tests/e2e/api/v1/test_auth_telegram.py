@@ -180,10 +180,10 @@ async def test_login_telegram_deactivated_identity_returns_403(
             deactivated_at = now()
             WHERE id = (
                 SELECT identity_id FROM linked_accounts
-                WHERE provider = 'telegram' AND provider_sub_id = :tid::text
+                WHERE provider = 'telegram' AND provider_sub_id = cast(:tid AS text)
             )
         """),
-        {"tid": user_id},
+        {"tid": str(user_id)},
     )
     await db_session.commit()
     init_data2 = _build_init_data(user_id=user_id)
@@ -218,12 +218,12 @@ async def test_login_telegram_session_eviction(
             SELECT count(*) FROM sessions
             WHERE identity_id = (
                 SELECT identity_id FROM linked_accounts
-                WHERE provider = 'telegram' AND provider_sub_id = :tid::text
+                WHERE provider = 'telegram' AND provider_sub_id = cast(:tid AS text)
             )
             AND is_revoked = false
             AND expires_at > now()
         """),
-        {"tid": user_id},
+        {"tid": str(user_id)},
     )
     active_count = result.scalar()
     assert active_count <= 5

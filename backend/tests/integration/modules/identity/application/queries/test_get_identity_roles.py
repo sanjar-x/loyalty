@@ -23,7 +23,7 @@ async def test_get_identity_roles_returns_assigned_roles(
     identity_id = uuid.uuid4()
     role_id = uuid.uuid4()
 
-    identity = IdentityModel(id=identity_id, type="LOCAL", is_active=True)
+    identity = IdentityModel(id=identity_id, account_type="CUSTOMER", primary_auth_method="password", is_active=True)
     role = RoleModel(id=role_id, name="test_admin", is_system=False)
     db_session.add_all([identity, role])
     await db_session.flush()
@@ -45,7 +45,7 @@ async def test_get_identity_roles_returns_empty_for_no_assignments(
     app_container: AsyncContainer, db_session: AsyncSession
 ):
     identity_id = uuid.uuid4()
-    identity = IdentityModel(id=identity_id, type="LOCAL", is_active=True)
+    identity = IdentityModel(id=identity_id, account_type="CUSTOMER", primary_auth_method="password", is_active=True)
     db_session.add(identity)
     await db_session.flush()
 
@@ -62,7 +62,7 @@ async def test_get_identity_roles_multiple_roles_ordered(
     role_a_id = uuid.uuid4()
     role_b_id = uuid.uuid4()
 
-    identity = IdentityModel(id=identity_id, type="LOCAL", is_active=True)
+    identity = IdentityModel(id=identity_id, account_type="CUSTOMER", primary_auth_method="password", is_active=True)
     role_a = RoleModel(id=role_a_id, name="aaa_role", is_system=False)
     role_b = RoleModel(id=role_b_id, name="zzz_role", is_system=True)
     db_session.add_all([identity, role_a, role_b])

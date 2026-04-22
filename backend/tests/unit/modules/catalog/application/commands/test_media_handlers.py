@@ -106,6 +106,7 @@ class TestAddProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         result = await handler.handle(
@@ -130,6 +131,7 @@ class TestAddProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         result = await handler.handle(
@@ -152,6 +154,7 @@ class TestAddProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         with pytest.raises(ProductNotFoundError):
@@ -172,6 +175,7 @@ class TestAddProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         with pytest.raises(VariantNotFoundError):
@@ -196,6 +200,7 @@ class TestAddProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         with pytest.raises(DuplicateMainMediaError):
@@ -220,6 +225,7 @@ class TestAddProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         # Adding MAIN for a specific variant should succeed (different scope)
@@ -253,6 +259,7 @@ class TestUpdateProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         result = await handler.handle(
@@ -277,6 +284,7 @@ class TestUpdateProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         await handler.handle(
@@ -298,6 +306,7 @@ class TestUpdateProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         with pytest.raises(MediaAssetNotFoundError):
@@ -320,6 +329,7 @@ class TestUpdateProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         # Use a different product_id for the command
@@ -347,6 +357,7 @@ class TestUpdateProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         with pytest.raises(DuplicateMainMediaError):
@@ -369,6 +380,7 @@ class TestUpdateProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         with pytest.raises(VariantNotFoundError):
@@ -534,7 +546,9 @@ class TestReorderProductMedia:
 
         handler = ReorderProductMediaHandler(
             media_repo=uow.media_assets,
+            product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         await handler.handle(
@@ -562,7 +576,9 @@ class TestReorderProductMedia:
 
         handler = ReorderProductMediaHandler(
             media_repo=uow.media_assets,
+            product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         # Third item has a non-existent media_id
@@ -585,7 +601,9 @@ class TestReorderProductMedia:
 
         handler = ReorderProductMediaHandler(
             media_repo=uow.media_assets,
+            product_repo=uow.products,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         # Empty items list -> should still commit (0 updated == 0 expected)

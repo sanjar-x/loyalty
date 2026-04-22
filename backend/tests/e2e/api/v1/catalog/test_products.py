@@ -31,7 +31,7 @@ async def create_product(
     slug = slug or f"prod-{uuid.uuid4().hex[:8]}"
     title_i18n = title_i18n or {"ru": "Товар", "en": "Product"}
     payload = {
-        "titleI18n": title_i18n,
+        "titleI18N": title_i18n,
         "slug": slug,
         "brandId": str(brand_id),
         "primaryCategoryId": str(category_id),
@@ -65,7 +65,7 @@ class TestProductEndpoints:
         resp = await admin_client.post(
             "/api/v1/catalog/products",
             json={
-                "titleI18n": {"ru": "Тест", "en": "Test"},
+                "titleI18N": {"ru": "Тест", "en": "Test"},
                 "slug": f"nob-{uuid.uuid4().hex[:8]}",
                 "brandId": str(uuid.uuid4()),
                 "primaryCategoryId": cat["id"],
@@ -83,7 +83,7 @@ class TestProductEndpoints:
         resp = await admin_client.post(
             "/api/v1/catalog/products",
             json={
-                "titleI18n": {"ru": "Дубль", "en": "Dup"},
+                "titleI18N": {"ru": "Дубль", "en": "Dup"},
                 "slug": slug,
                 "brandId": str(brand["id"]),
                 "primaryCategoryId": str(cat["id"]),
@@ -111,7 +111,7 @@ class TestProductEndpoints:
         for field in (
             "id",
             "slug",
-            "titleI18n",
+            "titleI18N",
             "status",
             "brandId",
             "primaryCategoryId",
@@ -135,8 +135,8 @@ class TestProductEndpoints:
         for field in (
             "id",
             "slug",
-            "titleI18n",
-            "descriptionI18n",
+            "titleI18N",
+            "descriptionI18N",
             "status",
             "brandId",
             "primaryCategoryId",
@@ -165,7 +165,7 @@ class TestProductEndpoints:
         created = await create_product(admin_client, brand["id"], cat["id"])
         resp = await admin_client.patch(
             f"/api/v1/catalog/products/{created['id']}",
-            json={"titleI18n": {"ru": "Обновленный", "en": "Updated"}},
+            json={"titleI18N": {"ru": "Обновленный", "en": "Updated"}},
         )
         assert resp.status_code == 200
 
@@ -234,18 +234,18 @@ class TestProductEndpoints:
 
 
 class TestProductSchemaFixes:
-    """Tests for BKND-01 (optional descriptionI18n) and BKND-02 (countryOfOrigin)."""
+    """Tests for BKND-01 (optional descriptionI18N) and BKND-02 (countryOfOrigin)."""
 
-    # ── BKND-01: descriptionI18n truly optional ──
+    # ── BKND-01: descriptionI18N truly optional ──
 
     async def test_create_product_without_description(
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
-        """POST /products without descriptionI18n key -> 201."""
+        """POST /products without descriptionI18N key -> 201."""
         brand = await create_brand(admin_client)
         cat = await create_category(admin_client)
         payload = {
-            "titleI18n": {"ru": "Товар", "en": "Product"},
+            "titleI18N": {"ru": "Товар", "en": "Product"},
             "slug": f"prod-{uuid.uuid4().hex[:8]}",
             "brandId": str(brand["id"]),
             "primaryCategoryId": str(cat["id"]),
@@ -257,15 +257,15 @@ class TestProductSchemaFixes:
     async def test_create_product_null_description(
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
-        """POST /products with descriptionI18n explicitly set to null -> 201."""
+        """POST /products with descriptionI18N explicitly set to null -> 201."""
         brand = await create_brand(admin_client)
         cat = await create_category(admin_client)
         payload = {
-            "titleI18n": {"ru": "Товар", "en": "Product"},
+            "titleI18N": {"ru": "Товар", "en": "Product"},
             "slug": f"prod-{uuid.uuid4().hex[:8]}",
             "brandId": str(brand["id"]),
             "primaryCategoryId": str(cat["id"]),
-            "descriptionI18n": None,
+            "descriptionI18N": None,
         }
         resp = await admin_client.post("/api/v1/catalog/products", json=payload)
         assert resp.status_code == 201
@@ -273,15 +273,15 @@ class TestProductSchemaFixes:
     async def test_create_product_with_description(
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
-        """POST /products with valid descriptionI18n -> 201 (backward compat)."""
+        """POST /products with valid descriptionI18N -> 201 (backward compat)."""
         brand = await create_brand(admin_client)
         cat = await create_category(admin_client)
         payload = {
-            "titleI18n": {"ru": "Товар", "en": "Product"},
+            "titleI18N": {"ru": "Товар", "en": "Product"},
             "slug": f"prod-{uuid.uuid4().hex[:8]}",
             "brandId": str(brand["id"]),
             "primaryCategoryId": str(cat["id"]),
-            "descriptionI18n": {"ru": "Описание", "en": "Description"},
+            "descriptionI18N": {"ru": "Описание", "en": "Description"},
         }
         resp = await admin_client.post("/api/v1/catalog/products", json=payload)
         assert resp.status_code == 201
@@ -289,14 +289,14 @@ class TestProductSchemaFixes:
     async def test_product_description_stored_as_empty_dict(
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
-        """Create without descriptionI18n, GET -> descriptionI18n == {} (not null).
+        """Create without descriptionI18N, GET -> descriptionI18N == {} (not null).
 
         Verifies domain None-to-{} conversion at Product.create() line 193.
         """
         brand = await create_brand(admin_client)
         cat = await create_category(admin_client)
         payload = {
-            "titleI18n": {"ru": "Товар", "en": "Product"},
+            "titleI18N": {"ru": "Товар", "en": "Product"},
             "slug": f"prod-{uuid.uuid4().hex[:8]}",
             "brandId": str(brand["id"]),
             "primaryCategoryId": str(cat["id"]),
@@ -307,7 +307,7 @@ class TestProductSchemaFixes:
 
         get_resp = await admin_client.get(f"/api/v1/catalog/products/{product_id}")
         assert get_resp.status_code == 200
-        assert get_resp.json()["descriptionI18n"] == {}
+        assert get_resp.json()["descriptionI18N"] == {}
 
     # ── BKND-02: countryOfOrigin in ProductCreateRequest ──
 
@@ -318,7 +318,7 @@ class TestProductSchemaFixes:
         brand = await create_brand(admin_client)
         cat = await create_category(admin_client)
         payload = {
-            "titleI18n": {"ru": "Товар", "en": "Product"},
+            "titleI18N": {"ru": "Товар", "en": "Product"},
             "slug": f"prod-{uuid.uuid4().hex[:8]}",
             "brandId": str(brand["id"]),
             "primaryCategoryId": str(cat["id"]),
@@ -339,7 +339,7 @@ class TestProductSchemaFixes:
         brand = await create_brand(admin_client)
         cat = await create_category(admin_client)
         payload = {
-            "titleI18n": {"ru": "Товар", "en": "Product"},
+            "titleI18N": {"ru": "Товар", "en": "Product"},
             "slug": f"prod-{uuid.uuid4().hex[:8]}",
             "brandId": str(brand["id"]),
             "primaryCategoryId": str(cat["id"]),
@@ -358,7 +358,7 @@ class TestProductSchemaFixes:
         brand = await create_brand(admin_client)
         cat = await create_category(admin_client)
         payload = {
-            "titleI18n": {"ru": "Товар", "en": "Product"},
+            "titleI18N": {"ru": "Товар", "en": "Product"},
             "slug": f"prod-{uuid.uuid4().hex[:8]}",
             "brandId": str(brand["id"]),
             "primaryCategoryId": str(cat["id"]),

@@ -77,7 +77,15 @@ class FormulaVersionRepository(IFormulaVersionRepository):
         return self._to_domain(model)
 
     async def update(self, version: FormulaVersion) -> FormulaVersion:
-        model = await self._session.get(FormulaVersionModel, version.id)
+        # Row-level lock: serializes concurrent updaters of this aggregate
+        # so the version_lock check below is safe against lost updates.
+        # The lock is released when the enclosing transaction commits.
+        stmt = (
+            select(FormulaVersionModel)
+            .where(FormulaVersionModel.id == version.id)
+            .with_for_update()
+        )
+        model = (await self._session.execute(stmt)).scalar_one_or_none()
         if model is None:
             msg = f"FormulaVersion {version.id} disappeared before update"
             raise RuntimeError(msg)

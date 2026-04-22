@@ -48,7 +48,7 @@ async def test_login_returns_200_with_tokens(
     )
     response = await async_client.post(
         "/api/v1/auth/login",
-        json={"email": email, "password": "S3cure!Pass"},
+        json={"login": email, "password": "S3cure!Pass"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -66,6 +66,6 @@ async def test_login_returns_401_for_wrong_password(
     )
     response = await async_client.post(
         "/api/v1/auth/login",
-        json={"email": email, "password": "WrongPassword!"},
+        json={"login": email, "password": "WrongPassword!"},
     )
     assert response.status_code == 401

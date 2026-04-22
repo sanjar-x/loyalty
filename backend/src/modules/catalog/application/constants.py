@@ -78,6 +78,12 @@ STOREFRONT_FACET_CACHE_TTL = 300
 """TTL for facet count cache entries (seconds)."""
 
 
+STOREFRONT_FACET_GENERATION_KEY = "catalog:storefront:facets:generation"
+"""Redis key holding the monotonically-increasing facet generation counter.
+Incrementing this key effectively invalidates all existing facet cache
+entries because the generation participates in the cache-key hash."""
+
+
 def storefront_facet_cache_key(query_hash: str) -> str:
     """Redis cache key for facet computation results."""
     return f"catalog:storefront:facets:{query_hash}"

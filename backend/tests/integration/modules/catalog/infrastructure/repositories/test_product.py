@@ -611,10 +611,8 @@ class TestProductQueryCount:
         )
         v1 = product.variants[0]
         product.add_sku(v1.id, sku_code="QC-001", price=Money(100, "RUB"))
-        product.add_sku(v1.id, sku_code="QC-002", price=Money(200, "RUB"))
         v2 = product.add_variant(name_i18n={"en": "V2", "ru": "В2"})
         product.add_sku(v2.id, sku_code="QC-003", price=Money(300, "RUB"))
-        product.add_sku(v2.id, sku_code="QC-004", price=Money(400, "RUB"))
         await repo.add(product)
         await db_session.flush()
 

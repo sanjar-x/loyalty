@@ -42,7 +42,7 @@ class TestUnauthenticatedAccess:
         resp = await async_client.post(
             "/api/v1/catalog/products",
             json={
-                "titleI18n": {"ru": "Тест", "en": "Test"},
+                "titleI18N": {"ru": "Тест", "en": "Test"},
                 "slug": "noauth-prod",
                 "brandId": str(uuid.uuid4()),
                 "primaryCategoryId": str(uuid.uuid4()),
@@ -78,7 +78,7 @@ class TestUnauthorizedAccess:
         resp = await authenticated_client.post(
             "/api/v1/catalog/products",
             json={
-                "titleI18n": {"ru": "Тест", "en": "Test"},
+                "titleI18N": {"ru": "Тест", "en": "Test"},
                 "slug": "noperms-prod",
                 "brandId": str(uuid.uuid4()),
                 "primaryCategoryId": str(uuid.uuid4()),
@@ -95,7 +95,7 @@ class TestUnauthorizedAccess:
             json={
                 "code": "noperms",
                 "slug": "noperms",
-                "nameI18n": {"ru": "Тест", "en": "Test"},
+                "nameI18N": {"ru": "Тест", "en": "Test"},
                 "dataType": "string",
                 "uiType": "dropdown",
             },

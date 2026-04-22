@@ -508,6 +508,7 @@ class TestUpdateProduct:
             media_repo=uow.media_assets,
             image_backend=image_backend,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -539,6 +540,7 @@ class TestUpdateProduct:
             media_repo=uow.media_assets,
             image_backend=image_backend,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -564,6 +566,7 @@ class TestUpdateProduct:
             media_repo=uow.media_assets,
             image_backend=image_backend,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -592,6 +595,7 @@ class TestUpdateProduct:
             media_repo=uow.media_assets,
             image_backend=image_backend,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -622,6 +626,7 @@ class TestUpdateProduct:
             media_repo=uow.media_assets,
             image_backend=image_backend,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -650,6 +655,7 @@ class TestUpdateProduct:
             media_repo=uow.media_assets,
             image_backend=image_backend,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -678,6 +684,7 @@ class TestUpdateProduct:
             media_repo=uow.media_assets,
             image_backend=image_backend,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -753,6 +760,7 @@ class TestChangeProductStatus:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -773,6 +781,7 @@ class TestChangeProductStatus:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -798,6 +807,7 @@ class TestChangeProductStatus:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -823,6 +833,7 @@ class TestChangeProductStatus:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -855,6 +866,7 @@ class TestAssignProductAttribute:
             template_repo=uow.attribute_templates,
             template_binding_repo=uow.template_bindings,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
@@ -1103,6 +1115,7 @@ class TestBulkAssignProductAttributes:
             template_repo=uow.attribute_templates,
             template_binding_repo=uow.template_bindings,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 

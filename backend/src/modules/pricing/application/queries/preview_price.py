@@ -11,11 +11,15 @@ No I/O-bearing persistence: the result is returned directly to the caller.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 
-from src.modules.pricing.domain.exceptions import FormulaVersionNotFoundError
+from src.modules.pricing.domain.exceptions import (
+    FormulaEvaluationError,
+    FormulaVersionNotFoundError,
+)
 from src.modules.pricing.domain.formula_evaluator import evaluate_formula
 from src.modules.pricing.domain.interfaces import (
     ICategoryPricingSettingsRepository,
@@ -100,7 +104,38 @@ class PreviewPriceHandler:
             context=context,
         )
 
-        evaluation = evaluate_formula(formula.ast, resolved)
+        # Enforce the context's CPU budget for formula evaluation.
+        # ``evaluate_formula`` is synchronous and pure (no I/O), so running it
+        # in the default thread-pool executor gives us ``asyncio.wait_for``
+        # cancellation semantics without starving the event loop for other
+        # requests. A pathological formula (deep AST, huge exponents, etc.)
+        # will raise a clean 422 instead of pinning the worker.
+        timeout_s = (
+            context.evaluation_timeout_ms / 1000.0
+            if context is not None
+            else 1.0
+        )
+        loop = asyncio.get_running_loop()
+        try:
+            evaluation = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None, evaluate_formula, formula.ast, resolved
+                ),
+                timeout=timeout_s,
+            )
+        except TimeoutError as exc:
+            raise FormulaEvaluationError(
+                message=(
+                    f"Formula evaluation exceeded the configured budget of "
+                    f"{int(timeout_s * 1000)}ms."
+                ),
+                error_code="PRICING_FORMULA_TIMEOUT",
+                details={
+                    "formula_version_id": str(formula.id),
+                    "context_id": str(query.context_id),
+                    "timeout_ms": int(timeout_s * 1000),
+                },
+            ) from exc
 
         self._logger.info(
             "price_previewed",

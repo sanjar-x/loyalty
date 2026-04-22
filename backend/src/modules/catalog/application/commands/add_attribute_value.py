@@ -11,6 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from src.modules.catalog.application.constants import STOREFRONT_FACET_GENERATION_KEY
 from src.modules.catalog.domain.entities import AttributeValue
 from src.modules.catalog.domain.events import AttributeValueAddedEvent
 from src.modules.catalog.domain.exceptions import (
@@ -168,6 +169,7 @@ class AddAttributeValueHandler:
         try:
             if cache_keys:
                 await self._cache.delete_many(cache_keys)
+            await self._cache.increment(STOREFRONT_FACET_GENERATION_KEY)
         except Exception as exc:
             self._logger.warning("cache_invalidation_failed", error=str(exc))
 

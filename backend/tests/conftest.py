@@ -176,6 +176,7 @@ async def app_container(
     from src.infrastructure.database.provider import DatabaseProvider
     from src.infrastructure.logging.provider import LoggingProvider
     from src.infrastructure.security.provider import SecurityProvider
+    from src.modules.activity.infrastructure.provider import ActivityProvider
     from src.modules.cart.infrastructure.provider import CartProvider
     from src.modules.catalog.presentation.dependencies import (
         AttributeGroupProvider,
@@ -212,6 +213,7 @@ async def app_container(
         ProfileProvider(),
         SupplierProvider(),
         CartProvider(),
+        ActivityProvider(),
         TestOverridesProvider(
             db_url=db_url, redis_url=redis_url, settings=test_settings
         ),

@@ -64,7 +64,7 @@ async def test_full_product_lifecycle(
     product_resp = await admin_client.post(
         "/api/v1/catalog/products",
         json={
-            "titleI18n": {"ru": "Тестовый товар", "en": "Test Product"},
+            "titleI18N": {"ru": "Тестовый товар", "en": "Test Product"},
             "slug": f"lifecycle-{uuid.uuid4().hex[:8]}",
             "brandId": str(brand["id"]),
             "primaryCategoryId": str(category["id"]),

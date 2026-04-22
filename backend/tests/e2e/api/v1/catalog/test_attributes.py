@@ -28,7 +28,7 @@ class TestAttributeEndpoints:
         payload = {
             "code": f"color_{suffix}",
             "slug": f"color-{suffix}",
-            "nameI18n": {"ru": "Цвет", "en": "Color"},
+            "nameI18N": {"ru": "Цвет", "en": "Color"},
             "dataType": "string",
             "uiType": "dropdown",
             "isDictionary": True,
@@ -46,7 +46,7 @@ class TestAttributeEndpoints:
         payload = {
             "code": f"bad_{suffix}",
             "slug": f"bad-{suffix}",
-            "nameI18n": {"ru": "Плохой", "en": "Bad"},
+            "nameI18N": {"ru": "Плохой", "en": "Bad"},
             "dataType": "invalid_type",
             "uiType": "dropdown",
         }
@@ -62,7 +62,7 @@ class TestAttributeEndpoints:
             {
                 "code": f"bulk_a{i}_{uuid.uuid4().hex[:6]}",
                 "slug": f"bulk-a{i}-{uuid.uuid4().hex[:6]}",
-                "nameI18n": {"ru": f"Атр{i}", "en": f"Attr{i}"},
+                "nameI18N": {"ru": f"Атр{i}", "en": f"Attr{i}"},
                 "dataType": "string",
                 "uiType": "dropdown",
             }
@@ -106,7 +106,7 @@ class TestAttributeEndpoints:
             "id",
             "code",
             "slug",
-            "nameI18n",
+            "nameI18N",
             "dataType",
             "uiType",
             "isDictionary",
@@ -168,12 +168,12 @@ class TestAttributeSchemaFixes:
     async def test_create_attribute_without_description(
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
-        """POST /attributes with minimal required fields, NO descriptionI18n -> 201."""
+        """POST /attributes with minimal required fields, NO descriptionI18N -> 201."""
         suffix = uuid.uuid4().hex[:8]
         payload = {
             "code": f"color_{suffix}",
             "slug": f"color-{suffix}",
-            "nameI18n": {"ru": "Цвет", "en": "Color"},
+            "nameI18N": {"ru": "Цвет", "en": "Color"},
             "dataType": "string",
             "uiType": "dropdown",
             "isDictionary": True,

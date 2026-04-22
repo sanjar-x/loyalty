@@ -406,7 +406,9 @@ class ProductRepository(IProductRepository):
 
         Soft-deleted products are excluded. SKUs are NOT loaded.
         """
-        orm = await self._session.get(OrmProduct, entity_id)
+        orm = await self._session.get(
+            OrmProduct, entity_id, populate_existing=True
+        )
         if orm is None or orm.deleted_at is not None:
             return None
         return self._to_domain_without_skus(orm)
@@ -523,6 +525,7 @@ class ProductRepository(IProductRepository):
                 .selectinload(OrmSKU.attribute_values)
             )
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
@@ -547,6 +550,7 @@ class ProductRepository(IProductRepository):
                 .selectinload(OrmProductVariant.skus.and_(OrmSKU.deleted_at.is_(None)))
                 .selectinload(OrmSKU.attribute_values)
             )
+            .execution_options(populate_existing=True)
         )
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()

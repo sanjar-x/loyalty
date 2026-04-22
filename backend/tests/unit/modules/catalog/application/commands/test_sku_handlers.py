@@ -7,7 +7,7 @@ Uses FakeUnitOfWork for real in-memory repository behavior.
 """
 
 import uuid
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -163,6 +163,7 @@ class TestAddSKU:
         variant_id = product.variants[0].id
 
         handler = AddSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         result = await handler.handle(
@@ -187,6 +188,7 @@ class TestAddSKU:
         variant_id = product.variants[0].id
 
         handler = AddSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         result = await handler.handle(
@@ -207,6 +209,7 @@ class TestAddSKU:
         uow = FakeUnitOfWork()
 
         handler = AddSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         with pytest.raises(ProductNotFoundError):
@@ -235,6 +238,7 @@ class TestAddSKU:
         p2 = _seed_product(uow, slug="product-2")
 
         handler = AddSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         with pytest.raises(SKUCodeConflictError):
@@ -264,6 +268,7 @@ class TestAddSKU:
         uow.products._store[product.id] = product
 
         handler = AddSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         with pytest.raises(DuplicateVariantCombinationError):
@@ -283,6 +288,7 @@ class TestAddSKU:
         variant_id = product.variants[0].id
 
         handler = AddSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         result = await handler.handle(
@@ -323,6 +329,7 @@ class TestUpdateSKU:
         uow.products._store[product.id] = product
 
         handler = UpdateSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         result = await handler.handle(
@@ -351,6 +358,7 @@ class TestUpdateSKU:
         uow.products._store[product.id] = product
 
         handler = UpdateSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         await handler.handle(
@@ -368,6 +376,7 @@ class TestUpdateSKU:
         uow = FakeUnitOfWork()
 
         handler = UpdateSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         with pytest.raises(ProductNotFoundError):
@@ -384,6 +393,7 @@ class TestUpdateSKU:
         product = _seed_product(uow)
 
         handler = UpdateSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         with pytest.raises(SKUNotFoundError):
@@ -408,6 +418,7 @@ class TestUpdateSKU:
         uow.products._store[product.id] = product
 
         handler = UpdateSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         with pytest.raises(ConcurrencyError):
@@ -442,6 +453,7 @@ class TestUpdateSKU:
         uow.products._store[p2.id] = p2
 
         handler = UpdateSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         with pytest.raises(SKUCodeConflictError):
@@ -476,6 +488,7 @@ class TestDeleteSKU:
         uow.products._store[product.id] = product
 
         handler = DeleteSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         await handler.handle(
@@ -492,6 +505,7 @@ class TestDeleteSKU:
         uow = FakeUnitOfWork()
 
         handler = DeleteSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         with pytest.raises(ProductNotFoundError):
@@ -508,6 +522,7 @@ class TestDeleteSKU:
         product = _seed_product(uow)
 
         handler = DeleteSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         with pytest.raises(SKUNotFoundError):
@@ -532,6 +547,7 @@ class TestDeleteSKU:
         uow.products._store[product.id] = product
 
         handler = DeleteSKUHandler(
+            cache=AsyncMock(),
             product_repo=uow.products, uow=uow, logger=_make_logger()
         )
         await handler.handle(

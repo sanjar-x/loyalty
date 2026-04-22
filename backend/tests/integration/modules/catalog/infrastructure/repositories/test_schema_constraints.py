@@ -990,8 +990,8 @@ class TestRestrictDeletes:
         await repo.add(product)
         await db_session.flush()
 
-        async with db_session.begin_nested():
-            with pytest.raises(IntegrityError):
+        with pytest.raises(IntegrityError):
+            async with db_session.begin_nested():
                 await db_session.execute(
                     text("DELETE FROM brands WHERE id = :id"),
                     {"id": str(seed_product_deps["brand_id"])},
@@ -1013,8 +1013,8 @@ class TestRestrictDeletes:
         await repo.add(product)
         await db_session.flush()
 
-        async with db_session.begin_nested():
-            with pytest.raises(IntegrityError):
+        with pytest.raises(IntegrityError):
+            async with db_session.begin_nested():
                 await db_session.execute(
                     text("DELETE FROM categories WHERE id = :id"),
                     {"id": str(seed_product_deps["category_id"])},
@@ -1049,8 +1049,8 @@ class TestRestrictDeletes:
         db_session.add(child)
         await db_session.flush()
 
-        async with db_session.begin_nested():
-            with pytest.raises(IntegrityError):
+        with pytest.raises(IntegrityError):
+            async with db_session.begin_nested():
                 await db_session.execute(
                     text("DELETE FROM categories WHERE id = :id"),
                     {"id": str(parent.id)},

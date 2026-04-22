@@ -17,13 +17,15 @@ pytestmark = pytest.mark.asyncio
 async def create_brand(
     client: AsyncClient,
     *,
-    name: str = "Test Brand",
+    name: str | None = None,
     slug: str | None = None,
     logo_url: str | None = None,
     **kwargs: object,
 ) -> dict:
     """POST /api/v1/catalog/brands -- create a brand and return response JSON."""
-    slug = slug or f"brand-{uuid.uuid4().hex[:8]}"
+    suffix = uuid.uuid4().hex[:8]
+    name = name or f"Test Brand {suffix}"
+    slug = slug or f"brand-{suffix}"
     payload: dict = {"name": name, "slug": slug, **kwargs}
     if logo_url is not None:
         payload["logoUrl"] = logo_url

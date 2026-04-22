@@ -9,7 +9,7 @@ async def test_create_category_e2e_success(
     admin_client: AsyncClient, db_session: AsyncSession
 ):
     payload = {
-        "nameI18n": {"en": "Computers", "ru": "Компьютеры"},
+        "nameI18N": {"en": "Computers", "ru": "Компьютеры"},
         "slug": "computers",
         "parentId": None,
     }
@@ -24,7 +24,7 @@ async def test_create_category_e2e_validation_error(
     admin_client: AsyncClient, db_session: AsyncSession
 ):
     payload = {
-        "nameI18n": {},  # invalid empty name_i18n
+        "nameI18N": {},  # invalid empty name_i18n
         "slug": "c",  # invalid too short slug
         "parentId": None,
     }

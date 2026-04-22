@@ -25,7 +25,7 @@ class TestCategoryEndpoints:
         self, admin_client: AsyncClient, db_session: AsyncSession
     ):
         payload = {
-            "nameI18n": {"ru": "Обувь", "en": "Shoes"},
+            "nameI18N": {"ru": "Обувь", "en": "Shoes"},
             "slug": f"shoes-{uuid.uuid4().hex[:8]}",
         }
         resp = await admin_client.post("/api/v1/catalog/categories", json=payload)
@@ -40,7 +40,7 @@ class TestCategoryEndpoints:
         resp = await admin_client.post(
             "/api/v1/catalog/categories",
             json={
-                "nameI18n": {"en": "Only English"},
+                "nameI18N": {"en": "Only English"},
                 "slug": f"bad-{uuid.uuid4().hex[:8]}",
             },
         )
@@ -53,7 +53,7 @@ class TestCategoryEndpoints:
         child_resp = await admin_client.post(
             "/api/v1/catalog/categories",
             json={
-                "nameI18n": {"ru": "Ребенок", "en": "Child"},
+                "nameI18N": {"ru": "Ребенок", "en": "Child"},
                 "slug": f"child-{uuid.uuid4().hex[:8]}",
                 "parentId": parent["id"],
             },
@@ -67,7 +67,7 @@ class TestCategoryEndpoints:
     ):
         items = [
             {
-                "nameI18n": {"ru": f"Кат{i}", "en": f"Cat{i}"},
+                "nameI18N": {"ru": f"Кат{i}", "en": f"Cat{i}"},
                 "slug": f"bulk-cat{i}-{uuid.uuid4().hex[:6]}",
             }
             for i in range(3)
@@ -113,7 +113,7 @@ class TestCategoryEndpoints:
         assert resp.status_code == 200
         data = resp.json()
         assert data["id"] == created["id"]
-        assert "nameI18n" in data
+        assert "nameI18N" in data
         assert "slug" in data
         assert "fullSlug" in data
         assert "level" in data

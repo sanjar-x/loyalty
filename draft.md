@@ -39,3 +39,4 @@ presignedUrl: https://t3.storage.dev/loyality/raw_uploads/media/02acb8b1-34bc-45
 
 
 Почему Кнопка сохранить не работает изучи @backend_openapi.json API Документацию и страницу @frontend/admin/src/app/admin/products/add/ Нужно правильно реализовать весь функционал
+copilot --resume=a96637dd-278a-49ac-b133-e2b04f62c23a

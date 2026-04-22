@@ -52,7 +52,11 @@ class RedisService(ICacheService):
         try:
             logger.debug("Redis GET", key=key)
             value = await self._client.get(key)
-            return value.decode("utf-8") if value else None
+            if value is None:
+                return None
+            if isinstance(value, bytes):
+                return value.decode("utf-8")
+            return str(value)
         except RedisError as e:
             logger.warning("Redis read error (GET)", key=key, error=str(e))
             return None
@@ -155,39 +159,77 @@ class RedisService(ICacheService):
             logger.warning("Redis write error (EXPIRE)", key=key, error=str(e))
             return False
 
-    async def increment(
-        self, key: str, amount: int = 1, ttl: int | None = None
-    ) -> int:
-        """Atomically INCRBY ``amount`` on ``key``.
+    # Lua: INCRBY, then EXPIRE only if the key was just created
+    # (INCRBY returns exactly the delta when creating from zero).  Atomic
+    # single round-trip, immune to process-death between INCR and EXPIRE.
+    _INCR_WITH_TTL_LUA = """
+    local v = redis.call('INCRBY', KEYS[1], ARGV[1])
+    if v == tonumber(ARGV[1]) and tonumber(ARGV[2]) > 0 then
+        redis.call('EXPIRE', KEYS[1], ARGV[2])
+    end
+    return v
+    """
 
-        If ``ttl`` is provided and the key had no prior TTL, the TTL is
-        applied afterwards using ``EXPIRE … NX``-like semantics (best
-        effort: we skip the EXPIRE call if the key already has a TTL).
-        Returns ``0`` on backend failure.
+    async def increment(
+        self, key: str, delta: int = 1, ttl: int = 0
+    ) -> int | None:
+        """Atomically INCRBY ``delta`` on ``key``.
+
+        When ``ttl > 0`` the EXPIRE is applied atomically via a Lua
+        script, only on the INCR that creates the key (prevents
+        immortal counters when a process dies between INCR and EXPIRE).
+
+        Returns ``None`` on backend failure (tri-state: callers must
+        distinguish 0 from "backend unavailable").
         """
         try:
-            logger.debug("Redis INCRBY", key=key, amount=amount)
-            new_value = int(await self._client.incrby(key, amount))
+            logger.debug("Redis INCRBY", key=key, delta=delta, ttl=ttl)
+            if ttl > 0:
+                raw = await self._client.eval(
+                    self._INCR_WITH_TTL_LUA, 1, key, delta, ttl
+                )
+            else:
+                raw = await self._client.incrby(key, delta)
+            return int(raw)
         except RedisError as e:
             logger.warning(
-                "Redis write error (INCRBY)", key=key, amount=amount, error=str(e)
+                "Redis write error (INCRBY)", key=key, delta=delta, error=str(e)
             )
-            return 0
+            return None
 
-        if ttl is not None and ttl > 0:
-            try:
-                # -1 means "no expire" in Redis; -2 means "missing" (can't
-                # happen right after INCRBY).  Only set TTL when not already
-                # configured, so repeated increments don't refresh it.
-                current_ttl = await self._client.ttl(key)
-                if current_ttl == -1:
-                    await self._client.expire(key, ttl)
-            except RedisError as e:
-                logger.warning(
-                    "Redis write error (INCRBY EXPIRE)",
-                    key=key,
-                    ttl=ttl,
-                    error=str(e),
-                )
+    async def decrement(self, key: str, delta: int = 1) -> int | None:
+        """Atomically DECRBY ``delta`` on ``key``.
 
-        return new_value
+        Symmetric to :meth:`increment`; returns ``None`` on backend
+        failure.
+        """
+        try:
+            logger.debug("Redis DECRBY", key=key, delta=delta)
+            return int(await self._client.decrby(key, delta))
+        except RedisError as e:
+            logger.warning(
+                "Redis write error (DECRBY)", key=key, delta=delta, error=str(e)
+            )
+            return None
+
+    async def set_if_not_exists(
+        self, key: str, value: str, ttl: int = 0
+    ) -> bool | None:
+        """Atomic SET NX [EX ttl].
+
+        Returns:
+            * ``True`` — value written (key was absent).
+            * ``False`` — key already existed.
+            * ``None`` — backend failure (ambiguous; caller MUST NOT
+              infer either branch).
+        """
+        try:
+            logger.debug("Redis SET NX", key=key, ttl=ttl)
+            result = await self._client.set(
+                key, value, nx=True, ex=ttl if ttl > 0 else None
+            )
+        except RedisError as e:
+            logger.warning("Redis write error (SET NX)", key=key, error=str(e))
+            return None
+        # redis-py returns True on success, None on "NX not satisfied".
+        return bool(result)

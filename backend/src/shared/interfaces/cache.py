@@ -100,21 +100,53 @@ class ICacheService(Protocol):
         ...
 
     async def increment(
-        self, key: str, amount: int = 1, ttl: int | None = None
-    ) -> int:
+        self, key: str, delta: int = 1, ttl: int = 0
+    ) -> int | None:
         """Atomically increment an integer counter.
 
         If the key does not exist it is initialised to zero before the
-        increment. When ``ttl`` is provided and the key has no TTL yet,
-        the TTL is applied after the increment (best-effort; not atomic
-        with the INCRBY).
+        increment. When ``ttl > 0`` is provided and the key is being
+        created for the first time, the TTL is applied atomically via a
+        Lua script. For existing keys the TTL is left untouched.
 
         Args:
             key: Cache key.
-            amount: Increment delta (may be negative). Default ``1``.
-            ttl: Optional TTL in seconds to apply when the key is new.
+            delta: Increment amount (may be negative). Default ``1``.
+            ttl: Optional TTL in seconds to apply on first creation.
+                ``0`` (default) leaves the key without an expiry.
 
         Returns:
-            The new counter value, or ``0`` on backend failure.
+            The new counter value, or ``None`` on backend failure
+            (tri-state: callers using the counter for coordination must
+            distinguish "0" from "backend unavailable").
+        """
+        ...
+
+    async def decrement(self, key: str, delta: int = 1) -> int | None:
+        """Atomically decrement an integer counter.
+
+        If the key does not exist it is initialised to zero before the
+        decrement. Symmetric to :meth:`increment`: ``None`` on backend
+        failure.
+
+        Redis: ``DECRBY key delta``.
+        """
+        ...
+
+    async def set_if_not_exists(
+        self, key: str, value: str, ttl: int = 0
+    ) -> bool | None:
+        """Atomically store the value only if the key does not exist.
+
+        Maps to Redis ``SET key value NX EX ttl``. Intended for
+        coordination primitives (idempotency markers, reuse detection,
+        best-effort distributed locks).
+
+        Returns:
+            * ``True`` — key was absent and the value was written.
+            * ``False`` — key already existed; no write performed.
+            * ``None`` — backend failure; caller MUST treat this as an
+              ambiguous outcome and not infer either branch (research
+              RF-1: graceful degradation breaks coordination semantics).
         """
         ...

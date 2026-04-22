@@ -8,6 +8,7 @@ MAIN role uniqueness before creating a new ``MediaAsset`` record.
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.application.constants import storefront_pdp_cache_key
 from src.modules.catalog.domain.entities import MediaAsset
 from src.modules.catalog.domain.exceptions import (
     DuplicateMainMediaError,
@@ -19,6 +20,7 @@ from src.modules.catalog.domain.interfaces import (
     IProductRepository,
 )
 from src.modules.catalog.domain.value_objects import MediaRole
+from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -63,11 +65,13 @@ class AddProductMediaHandler:
         product_repo: IProductRepository,
         media_repo: IMediaAssetRepository,
         uow: IUnitOfWork,
+        cache: ICacheService,
         logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._media_repo = media_repo
         self._uow = uow
+        self._cache = cache
         self._logger = logger.bind(handler="AddProductMediaHandler")
 
     async def handle(self, command: AddProductMediaCommand) -> AddProductMediaResult:
@@ -112,5 +116,10 @@ class AddProductMediaHandler:
 
             await self._media_repo.add(media)
             await self._uow.commit()
+
+        try:
+            await self._cache.delete(storefront_pdp_cache_key(product.slug))
+        except Exception as exc:  # pragma: no cover
+            self._logger.warning("pdp_cache_invalidation_failed", error=str(exc))
 
         return AddProductMediaResult(media_id=media.id)

@@ -13,9 +13,24 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import text
+
 from src.bootstrap.web import create_app
 
 pytestmark = pytest.mark.asyncio
+
+
+@pytest.fixture(autouse=True)
+async def _ensure_rub_currency(db_session: AsyncSession) -> None:
+    """Seed RUB currency row required by SKU / ProductVariant currency FK."""
+    await db_session.execute(
+        text(
+            "INSERT INTO currencies (code, numeric, name, minor_unit, is_active)"
+            " VALUES ('RUB', '643', 'Russian Ruble', 2, true)"
+            " ON CONFLICT (code) DO NOTHING"
+        )
+    )
+    await db_session.flush()
 
 
 @pytest.fixture(scope="session")
@@ -92,7 +107,7 @@ async def admin_client(
     cache_key = f"perms:{session_id}"
 
     redis_client: aioredis.Redis = await app_container.get(aioredis.Redis)
-    await redis_client.set(cache_key, json.dumps(["catalog:manage"]), ex=300)
+    await redis_client.set(cache_key, json.dumps(["catalog:manage", "catalog:read"]), ex=300)
 
     async_client.headers["Authorization"] = f"Bearer {access_token}"
     yield async_client

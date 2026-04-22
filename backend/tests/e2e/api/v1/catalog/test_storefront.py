@@ -76,7 +76,7 @@ class TestStorefrontEndpoints:
                 "attributeId",
                 "code",
                 "slug",
-                "nameI18n",
+                "nameI18N",
                 "dataType",
                 "uiType",
                 "isDictionary",
@@ -174,7 +174,12 @@ class TestStorefrontEndpoints:
     ):
         setup = await _setup_category_with_template(admin_client)
         # Anonymous request to form-attributes -> 401
-        resp = await async_client.get(
-            f"/api/v1/catalog/storefront/categories/{setup['category_id']}/form-attributes"
-        )
+        saved_auth = async_client.headers.pop("Authorization", None)
+        try:
+            resp = await async_client.get(
+                f"/api/v1/catalog/storefront/categories/{setup['category_id']}/form-attributes"
+            )
+        finally:
+            if saved_auth is not None:
+                async_client.headers["Authorization"] = saved_auth
         assert resp.status_code == 401

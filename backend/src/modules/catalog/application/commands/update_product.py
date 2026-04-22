@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from src.modules.catalog.application.commands.sync_media import compute_media_diff
+from src.modules.catalog.application.constants import storefront_pdp_cache_key
 from src.modules.catalog.domain.entities import MediaAsset, Product
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
@@ -28,6 +29,7 @@ from src.modules.catalog.domain.interfaces import (
     IProductRepository,
 )
 from src.shared.exceptions import UnprocessableEntityError
+from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -96,6 +98,7 @@ class UpdateProductHandler:
         media_repo: IMediaAssetRepository,
         image_backend: IImageBackendClient,
         uow: IUnitOfWork,
+        cache: ICacheService,
         logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
@@ -104,6 +107,7 @@ class UpdateProductHandler:
         self._media_repo = media_repo
         self._image_backend = image_backend
         self._uow = uow
+        self._cache = cache
         self._logger = logger.bind(handler="UpdateProductHandler")
 
     async def handle(self, command: UpdateProductCommand) -> UpdateProductResult:
@@ -142,6 +146,8 @@ class UpdateProductHandler:
                     expected_version=command.version,
                     actual_version=product.version,
                 )
+
+            old_slug = product.slug
 
             # --- FK validation (only when the field is being updated) ---
             if "brand_id" in command._provided_fields:
@@ -256,6 +262,13 @@ class UpdateProductHandler:
         # Best-effort ImageBackend cleanup AFTER successful commit
         for sid in storage_ids_to_delete:
             await self._image_backend.delete(sid)
+
+        try:
+            slugs_to_invalidate = {old_slug, product.slug}
+            for slug in slugs_to_invalidate:
+                await self._cache.delete(storefront_pdp_cache_key(slug))
+        except Exception as exc:  # pragma: no cover
+            self._logger.warning("pdp_cache_invalidation_failed", error=str(exc))
 
         self._logger.info(
             "Product updated",

@@ -106,7 +106,7 @@ class TestProductsPagination:
             await admin_client.post(
                 "/api/v1/catalog/products",
                 json={
-                    "titleI18n": {"ru": "Стр", "en": "Page"},
+                    "titleI18N": {"ru": "Стр", "en": "Page"},
                     "slug": f"pag-{uuid.uuid4().hex[:8]}",
                     "brandId": str(brand["id"]),
                     "primaryCategoryId": str(cat["id"]),

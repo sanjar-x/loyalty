@@ -27,7 +27,9 @@ def client() -> MagicMock:
     mock.exists = AsyncMock(return_value=0)
     mock.expire = AsyncMock(return_value=True)
     mock.incrby = AsyncMock(return_value=1)
+    mock.decrby = AsyncMock(return_value=-1)
     mock.ttl = AsyncMock(return_value=-1)
+    mock.eval = AsyncMock(return_value=1)
     return mock
 
 
@@ -167,41 +169,110 @@ class TestIncrement:
         assert await service.increment("counter", 5) == 42
         client.incrby.assert_awaited_once_with("counter", 5)
 
-    async def test_applies_ttl_only_when_key_has_none(
+    async def test_applies_ttl_via_lua_script(
         self, service: RedisService, client: MagicMock
     ) -> None:
-        client.incrby.return_value = 1
-        client.ttl.return_value = -1  # no TTL set
-        await service.increment("counter", 1, ttl=120)
-        client.expire.assert_awaited_once_with("counter", 120)
-
-    async def test_does_not_refresh_existing_ttl(
-        self, service: RedisService, client: MagicMock
-    ) -> None:
-        client.incrby.return_value = 2
-        client.ttl.return_value = 30  # already has TTL
-        await service.increment("counter", 1, ttl=120)
+        client.eval.return_value = 1
+        assert await service.increment("counter", 1, ttl=120) == 1
+        client.eval.assert_awaited_once()
+        args = client.eval.await_args.args
+        # eval(script, numkeys, *keys_and_args)
+        assert args[1] == 1
+        assert args[2] == "counter"
+        assert args[3] == 1
+        assert args[4] == 120
+        client.incrby.assert_not_called()
         client.expire.assert_not_called()
 
-    async def test_no_ttl_when_not_requested(
+    async def test_no_ttl_uses_plain_incrby(
         self, service: RedisService, client: MagicMock
     ) -> None:
         client.incrby.return_value = 3
-        await service.increment("counter", 1)
-        client.ttl.assert_not_called()
+        assert await service.increment("counter", 1) == 3
+        client.eval.assert_not_called()
         client.expire.assert_not_called()
 
-    async def test_incrby_error_returns_zero(
+    async def test_incrby_error_returns_none(
         self, service: RedisService, client: MagicMock
     ) -> None:
         client.incrby.side_effect = RedisError("boom")
-        assert await service.increment("counter") == 0
-        client.ttl.assert_not_called()
+        assert await service.increment("counter") is None
 
-    async def test_expire_error_does_not_hide_value(
+    async def test_lua_error_returns_none(
         self, service: RedisService, client: MagicMock
     ) -> None:
-        client.incrby.return_value = 7
-        client.ttl.return_value = -1
-        client.expire.side_effect = RedisError("boom")
-        assert await service.increment("counter", 1, ttl=60) == 7
+        client.eval.side_effect = RedisError("boom")
+        assert await service.increment("counter", 1, ttl=60) is None
+
+
+# ---------------------------------------------------------------------------
+# decrement
+# ---------------------------------------------------------------------------
+
+
+class TestDecrement:
+    async def test_decrements_via_decrby(
+        self, service: RedisService, client: MagicMock
+    ) -> None:
+        client.decrby.return_value = -1
+        assert await service.decrement("counter") == -1
+        client.decrby.assert_awaited_once_with("counter", 1)
+
+    async def test_custom_delta(
+        self, service: RedisService, client: MagicMock
+    ) -> None:
+        client.decrby.return_value = -5
+        assert await service.decrement("counter", 5) == -5
+        client.decrby.assert_awaited_once_with("counter", 5)
+
+    async def test_error_returns_none(
+        self, service: RedisService, client: MagicMock
+    ) -> None:
+        client.decrby.side_effect = RedisError("boom")
+        assert await service.decrement("counter") is None
+
+
+# ---------------------------------------------------------------------------
+# set_if_not_exists
+# ---------------------------------------------------------------------------
+
+
+class TestSetIfNotExists:
+    async def test_returns_true_when_written(
+        self, service: RedisService, client: MagicMock
+    ) -> None:
+        client.set.return_value = True
+        assert await service.set_if_not_exists("k", "v") is True
+        client.set.assert_awaited_once_with("k", "v", nx=True, ex=None)
+
+    async def test_returns_false_when_key_exists(
+        self, service: RedisService, client: MagicMock
+    ) -> None:
+        client.set.return_value = None
+        assert await service.set_if_not_exists("k", "v") is False
+
+    async def test_applies_ttl_when_positive(
+        self, service: RedisService, client: MagicMock
+    ) -> None:
+        client.set.return_value = True
+        await service.set_if_not_exists("k", "v", ttl=60)
+        client.set.assert_awaited_once_with("k", "v", nx=True, ex=60)
+
+    async def test_returns_none_on_backend_error(
+        self, service: RedisService, client: MagicMock
+    ) -> None:
+        client.set.side_effect = RedisError("boom")
+        assert await service.set_if_not_exists("k", "v") is None
+
+
+# ---------------------------------------------------------------------------
+# get() — RF-5 regression: empty string must NOT be treated as cache miss
+# ---------------------------------------------------------------------------
+
+
+class TestGetEmptyStringPreserved:
+    async def test_empty_bytes_not_treated_as_miss(
+        self, service: RedisService, client: MagicMock
+    ) -> None:
+        client.get.return_value = b""
+        assert await service.get("key") == ""

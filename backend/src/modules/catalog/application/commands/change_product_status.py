@@ -9,6 +9,7 @@ transition, persist, commit. Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.application.constants import storefront_pdp_cache_key
 from src.modules.catalog.domain.exceptions import (
     ProductNotFoundError,
     ProductNotReadyError,
@@ -18,6 +19,7 @@ from src.modules.catalog.domain.interfaces import (
     IProductRepository,
 )
 from src.modules.catalog.domain.value_objects import ProductStatus
+from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -49,11 +51,13 @@ class ChangeProductStatusHandler:
         product_repo: IProductRepository,
         media_repo: IMediaAssetRepository,
         uow: IUnitOfWork,
+        cache: ICacheService,
         logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._media_repo = media_repo
         self._uow = uow
+        self._cache = cache
         self._logger = logger.bind(handler="ChangeProductStatusHandler")
 
     async def handle(self, command: ChangeProductStatusCommand) -> None:
@@ -91,3 +95,11 @@ class ChangeProductStatusHandler:
             await self._product_repo.update(product)
             self._uow.register_aggregate(product)
             await self._uow.commit()
+
+        # After-commit: invalidate the PDP cache keyed by product slug so
+        # the storefront reflects the new lifecycle status immediately.
+        # PLP caches have a 60s TTL and self-heal.
+        try:
+            await self._cache.delete(storefront_pdp_cache_key(product.slug))
+        except Exception as exc:  # pragma: no cover — graceful cache-degrade
+            self._logger.warning("pdp_cache_invalidation_failed", error=str(exc))

@@ -24,7 +24,7 @@ async def _create_product(client: AsyncClient) -> str:
     resp = await client.post(
         "/api/v1/catalog/products",
         json={
-            "titleI18n": {"ru": "Медиа тест", "en": "Media test"},
+            "titleI18N": {"ru": "Медиа тест", "en": "Media test"},
             "slug": f"media-prod-{uuid.uuid4().hex[:8]}",
             "brandId": str(brand["id"]),
             "primaryCategoryId": str(cat["id"]),

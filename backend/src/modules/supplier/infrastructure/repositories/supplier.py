@@ -57,4 +57,5 @@ class SupplierRepository(ISupplierRepository):
             raise ValueError(f"Supplier with id {entity.id} not found in database")
         orm = self._to_orm(entity, orm)
         await self._session.flush()
+        await self._session.refresh(orm)
         return self._to_domain(orm)

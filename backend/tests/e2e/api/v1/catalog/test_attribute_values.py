@@ -32,7 +32,7 @@ class TestAttributeValueEndpoints:
         payload = {
             "code": f"red_{suffix}",
             "slug": f"red-{suffix}",
-            "valueI18n": {"ru": "Красный", "en": "Red"},
+            "valueI18N": {"ru": "Красный", "en": "Red"},
         }
         resp = await admin_client.post(
             f"/api/v1/catalog/attributes/{attr['id']}/values", json=payload
@@ -48,7 +48,7 @@ class TestAttributeValueEndpoints:
         payload = {
             "code": f"bad_{suffix}",
             "slug": f"bad-{suffix}",
-            "valueI18n": {"en": "Only English"},
+            "valueI18N": {"en": "Only English"},
         }
         resp = await admin_client.post(
             f"/api/v1/catalog/attributes/{attr['id']}/values", json=payload
@@ -65,7 +65,7 @@ class TestAttributeValueEndpoints:
             {
                 "code": f"bval{i}_{uuid.uuid4().hex[:6]}",
                 "slug": f"bval{i}-{uuid.uuid4().hex[:6]}",
-                "valueI18n": {"ru": f"Знач{i}", "en": f"Val{i}"},
+                "valueI18N": {"ru": f"Знач{i}", "en": f"Val{i}"},
             }
             for i in range(3)
         ]
@@ -110,7 +110,7 @@ class TestAttributeValueEndpoints:
             "attributeId",
             "code",
             "slug",
-            "valueI18n",
+            "valueI18N",
             "searchAliases",
             "metaData",
             "sortOrder",

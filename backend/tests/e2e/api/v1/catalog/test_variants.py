@@ -24,7 +24,7 @@ async def _create_product(client: AsyncClient) -> dict:
     resp = await client.post(
         "/api/v1/catalog/products",
         json={
-            "titleI18n": {"ru": "Вариант тест", "en": "Variant test"},
+            "titleI18N": {"ru": "Вариант тест", "en": "Variant test"},
             "slug": slug,
             "brandId": str(brand["id"]),
             "primaryCategoryId": str(cat["id"]),
@@ -46,7 +46,7 @@ class TestVariantEndpoints:
         resp = await admin_client.post(
             f"/api/v1/catalog/products/{product['id']}/variants",
             json={
-                "nameI18n": {"ru": "Красный", "en": "Red"},
+                "nameI18N": {"ru": "Красный", "en": "Red"},
                 "sortOrder": 1,
             },
         )
@@ -61,7 +61,7 @@ class TestVariantEndpoints:
         resp = await admin_client.post(
             f"/api/v1/catalog/products/{uuid.uuid4()}/variants",
             json={
-                "nameI18n": {"ru": "Тест", "en": "Test"},
+                "nameI18N": {"ru": "Тест", "en": "Test"},
                 "sortOrder": 0,
             },
         )
@@ -85,7 +85,7 @@ class TestVariantEndpoints:
         assert len(data["items"]) >= 1
         item = data["items"][0]
         assert "id" in item
-        assert "nameI18n" in item
+        assert "nameI18N" in item
         assert "sortOrder" in item
         assert "skus" in item
 
@@ -115,7 +115,7 @@ class TestVariantEndpoints:
         add_resp = await admin_client.post(
             f"/api/v1/catalog/products/{product['id']}/variants",
             json={
-                "nameI18n": {"ru": "Удалить", "en": "ToDelete"},
+                "nameI18N": {"ru": "Удалить", "en": "ToDelete"},
                 "sortOrder": 2,
             },
         )

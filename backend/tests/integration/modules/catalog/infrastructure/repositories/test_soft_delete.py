@@ -128,20 +128,38 @@ class TestProductSoftDeleteFiltering:
             sku_code="SD-SKU-ACTIVE",
             price=Money(100, "RUB"),
         )
-        sku2 = product.add_sku(
-            default_variant.id,
-            sku_code="SD-SKU-DELETED",
-            price=Money(200, "RUB"),
-        )
         await repo.add(product)
+        await db_session.flush()
+
+        # Insert a second SKU directly via ORM (bypassing domain uniqueness)
+        # so we can verify soft-delete filtering on SKU level.
+        sku2_id = uuid.uuid4()
+        await db_session.execute(
+            text(
+                "INSERT INTO skus (id, product_id, variant_id, sku_code, "
+                "variant_hash, price, currency, is_active, version) "
+                "VALUES (:id, :product_id, :variant_id, :sku_code, :hash, "
+                ":price, :cur, true, 1)"
+            ),
+            {
+                "id": str(sku2_id),
+                "product_id": str(product.id),
+                "variant_id": str(default_variant.id),
+                "sku_code": "SD-SKU-DELETED",
+                "hash": "sd-hash-alt",
+                "price": 200,
+                "cur": "RUB",
+            },
+        )
         await db_session.flush()
 
         # Soft-delete SKU 2
         await db_session.execute(
             text("UPDATE skus SET deleted_at = NOW() WHERE id = :id"),
-            {"id": str(sku2.id)},
+            {"id": str(sku2_id)},
         )
         await db_session.flush()
+        db_session.expire_all()
 
         fetched = await repo.get_with_variants(product.id)
         assert fetched is not None

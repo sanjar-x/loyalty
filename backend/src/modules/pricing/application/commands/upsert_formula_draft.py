@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.modules.pricing.domain.exceptions import (
+    FormulaVersionConflictError,
     PricingContextFrozenError,
     PricingContextNotFoundError,
 )
@@ -68,6 +69,15 @@ class UpsertFormulaDraftHandler:
                 command.context_id
             )
             if existing_draft is not None:
+                if (
+                    command.expected_version_lock is not None
+                    and existing_draft.version_lock != command.expected_version_lock
+                ):
+                    raise FormulaVersionConflictError(
+                        version_id=existing_draft.id,
+                        expected_version=command.expected_version_lock,
+                        actual_version=existing_draft.version_lock,
+                    )
                 existing_draft.update_ast(
                     new_ast=command.ast, actor_id=command.actor_id
                 )

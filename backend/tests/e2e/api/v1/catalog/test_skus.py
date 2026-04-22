@@ -28,7 +28,7 @@ async def _create_product_with_variant(client: AsyncClient) -> dict:
     resp = await client.post(
         "/api/v1/catalog/products",
         json={
-            "titleI18n": {"ru": "SKU тест", "en": "SKU test"},
+            "titleI18N": {"ru": "SKU тест", "en": "SKU test"},
             "slug": f"sku-prod-{uuid.uuid4().hex[:8]}",
             "brandId": str(brand["id"]),
             "primaryCategoryId": str(cat["id"]),

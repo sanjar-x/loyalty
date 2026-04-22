@@ -11,6 +11,7 @@ import uuid
 from dataclasses import dataclass
 
 from src.modules.catalog.application.constants import (
+    STOREFRONT_FACET_GENERATION_KEY,
     storefront_card_cache_key,
     storefront_comparison_cache_key,
     storefront_filters_cache_key,
@@ -131,6 +132,7 @@ class SetAttributeValueActiveHandler:
                 keys.append(storefront_form_cache_key(cat_id))
             if keys:
                 await self._cache.delete_many(keys)
+            await self._cache.increment(STOREFRONT_FACET_GENERATION_KEY)
         except Exception as exc:
             self._logger.warning("cache_invalidation_failed", error=str(exc))
 

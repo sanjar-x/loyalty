@@ -83,8 +83,22 @@ def evaluate_formula(
             error_code="PRICING_FORMULA_EVALUATION_FAILED",
         )
 
+    final_price = components["final_price"]
+    if not final_price.is_finite():
+        raise FormulaEvaluationError(
+            message="final_price evaluated to a non-finite Decimal (NaN/Infinity).",
+            error_code="PRICING_FINAL_PRICE_INVALID",
+            details={"final_price": str(final_price)},
+        )
+    if final_price < Decimal("0"):
+        raise FormulaEvaluationError(
+            message="final_price must be non-negative.",
+            error_code="PRICING_FINAL_PRICE_INVALID",
+            details={"final_price": str(final_price)},
+        )
+
     return EvaluationResult(
-        final_price=components["final_price"],
+        final_price=final_price,
         components=components,
     )
 

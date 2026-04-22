@@ -8,6 +8,7 @@ Emits ``AttributeValueDeletedEvent`` through the parent attribute.
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.application.constants import STOREFRONT_FACET_GENERATION_KEY
 from src.modules.catalog.application.queries.resolve_template_attributes import (
     collect_attribute_cache_keys,
 )
@@ -98,5 +99,6 @@ class DeleteAttributeValueHandler:
         try:
             if cache_keys:
                 await self._cache.delete_many(cache_keys)
+            await self._cache.increment(STOREFRONT_FACET_GENERATION_KEY)
         except Exception as exc:
             self._logger.warning("cache_invalidation_failed", error=str(exc))

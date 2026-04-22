@@ -8,8 +8,13 @@ assets' ``sort_order`` in a single statement via CASE/WHEN.
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.application.constants import storefront_pdp_cache_key
 from src.modules.catalog.domain.exceptions import MediaAssetNotFoundError
-from src.modules.catalog.domain.interfaces import IMediaAssetRepository
+from src.modules.catalog.domain.interfaces import (
+    IMediaAssetRepository,
+    IProductRepository,
+)
+from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -41,11 +46,15 @@ class ReorderProductMediaHandler:
     def __init__(
         self,
         media_repo: IMediaAssetRepository,
+        product_repo: IProductRepository,
         uow: IUnitOfWork,
+        cache: ICacheService,
         logger: ILogger,
     ) -> None:
         self._media_repo = media_repo
+        self._product_repo = product_repo
         self._uow = uow
+        self._cache = cache
         self._logger = logger.bind(handler="ReorderProductMediaHandler")
 
     async def handle(self, command: ReorderProductMediaCommand) -> None:
@@ -62,3 +71,10 @@ class ReorderProductMediaHandler:
                     product_id=command.product_id,
                 )
             await self._uow.commit()
+
+        try:
+            loaded = await self._product_repo.get(command.product_id)
+            if loaded is not None:
+                await self._cache.delete(storefront_pdp_cache_key(loaded.slug))
+        except Exception as exc:  # pragma: no cover
+            self._logger.warning("pdp_cache_invalidation_failed", error=str(exc))
