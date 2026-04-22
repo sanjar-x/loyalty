@@ -52,8 +52,12 @@ class StorefrontImageResponse(CamelModel):
     """Product image with optional responsive variants."""
 
     url: str
-    image_variants: dict | None = Field(
-        None, description="Responsive variants keyed by size label"
+    image_variants: list[dict] | None = Field(
+        None,
+        description=(
+            "Responsive variants for the image, e.g. "
+            "[{size, width, height, url}, ...]"
+        ),
     )
 
 
