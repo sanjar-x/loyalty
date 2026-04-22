@@ -64,6 +64,7 @@ broker.add_middlewares(DLQMiddleware(session_factory=_dlq_session_factory))
 
 # 2. Now import tasks so they register with the broker.
 import src.infrastructure.outbox.tasks  # noqa
+import src.modules.activity.infrastructure.tasks  # noqa
 import src.modules.identity.application.consumers.role_events  # noqa
 import src.modules.user.application.consumers.identity_events  # noqa
 

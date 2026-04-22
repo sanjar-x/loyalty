@@ -7,6 +7,7 @@ under an appropriate URL prefix.
 
 from fastapi import APIRouter
 
+from src.modules.activity.presentation.router_admin import activity_admin_router
 from src.modules.cart.presentation.router_customer import cart_router
 from src.modules.catalog.presentation.router_attribute_groups import (
     attribute_group_router,
@@ -27,11 +28,17 @@ from src.modules.catalog.presentation.router_product_attributes import (
 from src.modules.catalog.presentation.router_products import product_router
 from src.modules.catalog.presentation.router_skus import sku_router
 from src.modules.catalog.presentation.router_storefront import storefront_router
+from src.modules.catalog.presentation.router_storefront_for_you import (
+    storefront_for_you_router,
+)
 from src.modules.catalog.presentation.router_storefront_products import (
     storefront_products_router,
 )
 from src.modules.catalog.presentation.router_storefront_search import (
     storefront_search_router,
+)
+from src.modules.catalog.presentation.router_storefront_trending import (
+    storefront_trending_router,
 )
 from src.modules.catalog.presentation.router_variants import variant_router
 from src.modules.geo.presentation.router import geo_router
@@ -71,6 +78,9 @@ router.include_router(attribute_template_router, prefix="/catalog")
 router.include_router(storefront_router, prefix="/catalog")
 router.include_router(storefront_products_router, prefix="/catalog")
 router.include_router(storefront_search_router, prefix="/catalog")
+router.include_router(storefront_trending_router, prefix="/catalog")
+router.include_router(storefront_for_you_router, prefix="/catalog")
+router.include_router(activity_admin_router)
 router.include_router(product_router, prefix="/catalog")
 router.include_router(variant_router, prefix="/catalog")
 router.include_router(sku_router, prefix="/catalog")

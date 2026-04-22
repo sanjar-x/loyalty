@@ -8,6 +8,7 @@ module are registered with the shared ``Base.metadata``, so Alembic's
 from src.infrastructure.database.base import Base
 from src.infrastructure.database.models.failed_task import FailedTask
 from src.infrastructure.database.models.outbox import OutboxMessage
+from src.modules.activity.infrastructure.models import UserActivityEventModel
 from src.modules.cart.infrastructure.models import (
     CartItemModel,
     CartModel,
@@ -127,5 +128,6 @@ __all__ = [
     "Supplier",
     "SupplierTypeContextMappingModel",
     "TemplateAttributeBinding",
+    "UserActivityEventModel",
     "VariableModel",
 ]

@@ -15,6 +15,8 @@ from src.infrastructure.cache.provider import CacheProvider
 from src.infrastructure.database.provider import DatabaseProvider
 from src.infrastructure.logging.provider import LoggingProvider
 from src.infrastructure.security.provider import SecurityProvider
+from src.infrastructure.tracking.provider import TrackingProvider
+from src.modules.activity.infrastructure.provider import ActivityProvider
 from src.modules.cart.infrastructure.provider import CartProvider
 from src.modules.catalog.presentation.dependencies import (
     AttributeGroupProvider,
@@ -58,6 +60,7 @@ def create_container() -> AsyncContainer:
         LoggingProvider(),
         DatabaseProvider(),
         CacheProvider(),
+        TrackingProvider(),
         SecurityProvider(),
         GeoProvider(),
         CategoryProvider(),
@@ -77,4 +80,5 @@ def create_container() -> AsyncContainer:
         LogisticsCommandProvider(),
         LogisticsQueryProvider(),
         PricingProvider(),
+        ActivityProvider(),
     )
