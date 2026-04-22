@@ -530,6 +530,7 @@ class StorefrontProductCardReadModel(BaseModel):
     slug: str
     title_i18n: dict[str, str]
     image: StorefrontImageReadModel | None = None
+    images: list[StorefrontImageReadModel] = Field(default_factory=list)
     price: StorefrontMoneyReadModel | None = None
     brand: StorefrontBrandReadModel | None = None
     popularity_score: int = 0

@@ -19,6 +19,7 @@ from src.modules.catalog.application.queries.list_storefront_products import (
     ListStorefrontProductsHandler,
 )
 from src.modules.catalog.application.queries.read_models import (
+    StorefrontImageReadModel,
     StorefrontProductCardReadModel,
 )
 from src.modules.catalog.domain.value_objects import MediaRole, ProductStatus
@@ -163,12 +164,44 @@ class GetStorefrontProductCardsByIdsHandler:
         rows = result.all()
 
         by_id = {row.product_id: row for row in rows}
+
+        # Batch-load all media assets for the matched products in one query,
+        # preserving the same ordering rules used for the primary image.
+        images_by_product: dict[uuid.UUID, list[StorefrontImageReadModel]] = {}
+        matched_ids = list(by_id.keys())
+        if matched_ids:
+            media_stmt = (
+                select(
+                    OrmMediaAsset.product_id,
+                    OrmMediaAsset.url,
+                    OrmMediaAsset.image_variants,
+                )
+                .where(
+                    OrmMediaAsset.product_id.in_(matched_ids),
+                    OrmMediaAsset.url.is_not(None),
+                )
+                .order_by(
+                    OrmMediaAsset.product_id,
+                    OrmMediaAsset.variant_id.is_not(None).asc(),
+                    (OrmMediaAsset.role != MediaRole.MAIN).asc(),
+                    OrmMediaAsset.sort_order.asc(),
+                    OrmMediaAsset.created_at.asc(),
+                )
+            )
+            media_rows = await self._session.execute(media_stmt)
+            for product_id, url, image_variants in media_rows.all():
+                images_by_product.setdefault(product_id, []).append(
+                    StorefrontImageReadModel(url=url, image_variants=image_variants)
+                )
+
         cards: list[StorefrontProductCardReadModel] = []
         for pid in ordered:
             row = by_id.get(pid)
             if row is None:
                 continue
-            cards.append(_row_to_card(row))
+            card = _row_to_card(row)
+            card.images = images_by_product.get(pid, [])
+            cards.append(card)
         return cards
 
 

@@ -91,6 +91,7 @@ class StorefrontProductCardResponse(CamelModel):
     title_i18n: dict[str, str]
     title: str | None = None
     image: StorefrontImageResponse | None = None
+    images: list[StorefrontImageResponse] = Field(default_factory=list)
     price: StorefrontMoneyResponse | None = None
     brand: StorefrontBrandResponse | None = None
     popularity_score: int = 0
