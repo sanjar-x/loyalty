@@ -105,6 +105,13 @@ class StorefrontProductCardResponse(CamelModel):
 # ---------------------------------------------------------------------------
 
 
+class StorefrontVariantAttributePairResponse(CamelModel):
+    """Variant attribute pair (attribute + value) on a SKU."""
+
+    attribute_id: uuid.UUID
+    attribute_value_id: uuid.UUID
+
+
 class StorefrontSKUResponse(CamelModel):
     """Individual SKU within a variant."""
 
@@ -114,7 +121,9 @@ class StorefrontSKUResponse(CamelModel):
     resolved_price: StorefrontMoneyResponse | None = None
     compare_at_price: StorefrontMoneyResponse | None = None
     is_active: bool = True
-    variant_attributes: list[dict] = Field(default_factory=list)
+    variant_attributes: list[StorefrontVariantAttributePairResponse] = Field(
+        default_factory=list
+    )
 
 
 class StorefrontVariantResponse(CamelModel):
