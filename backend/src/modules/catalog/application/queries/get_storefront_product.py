@@ -34,6 +34,10 @@ from src.modules.catalog.application.queries.read_models import (
     resolve_sku_price,
 )
 from src.modules.catalog.domain.value_objects import MediaRole, ProductStatus
+from src.modules.catalog.infrastructure.models import SKU as OrmSKU
+from src.modules.catalog.infrastructure.models import (
+    Attribute as OrmAttribute,
+)
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 from src.modules.catalog.infrastructure.models import MediaAsset as OrmMediaAsset
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
@@ -105,7 +109,9 @@ class GetStorefrontProductHandler:
         stmt = (
             select(OrmProduct)
             .options(
-                selectinload(OrmProduct.variants).selectinload(OrmVariant.skus),
+                selectinload(OrmProduct.variants)
+                .selectinload(OrmVariant.skus)
+                .selectinload(OrmSKU.attribute_values),
             )
             .where(
                 OrmProduct.slug == slug,
@@ -141,8 +147,15 @@ class GetStorefrontProductHandler:
     async def _load_attributes(
         self, product_id: uuid.UUID
     ) -> list[OrmProductAttributeValue]:
-        stmt = select(OrmProductAttributeValue).where(
-            OrmProductAttributeValue.product_id == product_id
+        stmt = (
+            select(OrmProductAttributeValue)
+            .options(
+                selectinload(OrmProductAttributeValue.attribute).selectinload(
+                    OrmAttribute.group
+                ),
+                selectinload(OrmProductAttributeValue.attribute_value),
+            )
+            .where(OrmProductAttributeValue.product_id == product_id)
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
