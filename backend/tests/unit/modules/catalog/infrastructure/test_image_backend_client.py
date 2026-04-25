@@ -4,7 +4,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from src.modules.catalog.infrastructure.image_backend_client import ImageBackendClient
+from src.modules.catalog.infrastructure.adapters.image_backend_client import (
+    ImageBackendClient,
+)
 
 pytestmark = pytest.mark.asyncio
 
