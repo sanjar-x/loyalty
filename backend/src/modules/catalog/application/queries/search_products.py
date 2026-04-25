@@ -28,6 +28,7 @@ from src.modules.catalog.application.queries.read_models import (
     StorefrontImageReadModel,
     StorefrontMoneyReadModel,
     StorefrontProductCardReadModel,
+    StorefrontSupplierReadModel,
 )
 from src.modules.catalog.domain.value_objects import MediaRole, ProductStatus
 from src.modules.catalog.infrastructure.models import SKU as OrmSKU
@@ -42,6 +43,7 @@ from src.modules.catalog.infrastructure.models import (
     ProductAttributeValue as OrmProductAttributeValue,
 )
 from src.modules.catalog.infrastructure.models import ProductVariant as OrmVariant
+from src.modules.supplier.infrastructure.models import Supplier as OrmSupplier
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.pagination import CursorPage, decode_cursor, encode_cursor
@@ -265,11 +267,13 @@ class SearchProductsHandler:
                 OrmBrand.name.label("brand_name"),
                 OrmBrand.slug.label("brand_slug"),
                 OrmBrand.logo_url.label("brand_logo_url"),
+                OrmSupplier.type.label("supplier_type"),
                 primary_image.c.image_url,
                 primary_image.c.image_variants,
                 rank_expr,
             )
             .join(OrmBrand, OrmBrand.id == OrmProduct.brand_id)
+            .outerjoin(OrmSupplier, OrmSupplier.id == OrmProduct.supplier_id)
             .outerjoin(cheapest_sku, literal(True))
             .outerjoin(primary_image, literal(True))
             .where(
@@ -425,6 +429,13 @@ class SearchProductsHandler:
                 logo_url=row.brand_logo_url,
             )
 
+        supplier = None
+        supplier_type = getattr(row, "supplier_type", None)
+        if supplier_type is not None:
+            supplier = StorefrontSupplierReadModel(
+                type=getattr(supplier_type, "value", str(supplier_type)),
+            )
+
         return StorefrontProductCardReadModel(
             id=row.product_id,
             slug=row.slug,
@@ -432,6 +443,7 @@ class SearchProductsHandler:
             image=image,
             price=price,
             brand=brand,
+            supplier=supplier,
             popularity_score=row.popularity_score or 0,
             published_at=row.published_at,
             variant_count=row.variant_count or 0,

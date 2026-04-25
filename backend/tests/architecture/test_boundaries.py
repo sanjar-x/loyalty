@@ -110,6 +110,26 @@ ALLOWED_CROSS_MODULE = {
     # Same adapter JOINs supplier ORM to surface supplier_type on cart lines
     # (cross-border / local policy). Same anti-corruption justification.
     ("cart", "supplier"): {"src.modules.cart.infrastructure.adapters.catalog_adapter"},
+    # Storefront CQRS read-side projects ``supplier.type`` onto product cards
+    # and PDPs (cross-border vs local policy). Read-only ORM JOIN — same
+    # CQRS-read exemption that lets ``catalog.application.queries`` touch
+    # the catalog ORM directly.
+    ("catalog", "supplier"): {"src.modules.catalog.application.queries.*"},
+    # ADR-005 — pricing recompute service reads SKU purchase price from
+    # catalog and writes selling price back. The pricing domain stays
+    # ignorant of catalog ORM via ports (``ISkuPricingInputReader``,
+    # ``ISkuPricingResultWriter``); only these two infrastructure
+    # adapters touch catalog tables, and they translate ORM rows into
+    # pure pricing DTOs.
+    ("pricing", "catalog"): {
+        "src.modules.pricing.infrastructure.adapters.sku_pricing_input_reader",
+        "src.modules.pricing.infrastructure.adapters.sku_pricing_result_writer",
+    },
+    # Same adapters resolve ``supplier.type`` to look up the per‑type
+    # pricing context mapping during SKU recompute.
+    ("pricing", "supplier"): {
+        "src.modules.pricing.infrastructure.adapters.sku_pricing_input_reader",
+    },
     # Identity management CLI scripts (``create_admin``, ``sync_system_roles``)
     # reach into the full DI container for standalone bootstrap; they are
     # admin tooling, not production request paths.

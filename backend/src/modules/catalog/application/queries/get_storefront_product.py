@@ -29,6 +29,7 @@ from src.modules.catalog.application.queries.read_models import (
     StorefrontImageReadModel,
     StorefrontMoneyReadModel,
     StorefrontProductDetailReadModel,
+    StorefrontSupplierReadModel,
     StorefrontVariantReadModel,
     VariantAttributePairReadModel,
     resolve_sku_price,
@@ -45,6 +46,7 @@ from src.modules.catalog.infrastructure.models import (
     ProductAttributeValue as OrmProductAttributeValue,
 )
 from src.modules.catalog.infrastructure.models import ProductVariant as OrmVariant
+from src.modules.supplier.infrastructure.models import Supplier as OrmSupplier
 from src.shared.exceptions import NotFoundError
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
@@ -84,11 +86,14 @@ class GetStorefrontProductHandler:
             )
 
         brand = await self._load_brand(product.brand_id)
+        supplier = await self._load_supplier(product.supplier_id)
         media = await self._load_media(product.id)
         attributes = await self._load_attributes(product.id)
         breadcrumbs = await self._breadcrumbs.build(product.primary_category_id)
 
-        detail = self._build_detail(product, brand, media, attributes, breadcrumbs)
+        detail = self._build_detail(
+            product, brand, supplier, media, attributes, breadcrumbs
+        )
 
         try:
             await self._cache.set(
@@ -125,6 +130,15 @@ class GetStorefrontProductHandler:
 
     async def _load_brand(self, brand_id: uuid.UUID) -> OrmBrand | None:
         stmt = select(OrmBrand).where(OrmBrand.id == brand_id)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def _load_supplier(
+        self, supplier_id: uuid.UUID | None
+    ) -> OrmSupplier | None:
+        if supplier_id is None:
+            return None
+        stmt = select(OrmSupplier).where(OrmSupplier.id == supplier_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -168,6 +182,7 @@ class GetStorefrontProductHandler:
     def _build_detail(
         product: OrmProduct,
         brand: OrmBrand | None,
+        supplier: OrmSupplier | None,
         media: list[OrmMediaAsset],
         attributes: list[OrmProductAttributeValue],
         breadcrumbs,
@@ -286,6 +301,13 @@ class GetStorefrontProductHandler:
                 logo_url=brand.logo_url,
             )
 
+        # Supplier — only ``type`` is exposed to the storefront.
+        supplier_model = None
+        if supplier is not None:
+            supplier_model = StorefrontSupplierReadModel(
+                type=getattr(supplier.type, "value", str(supplier.type)),
+            )
+
         # Price
         price_model = None
         if min_price is not None:
@@ -301,6 +323,7 @@ class GetStorefrontProductHandler:
             title_i18n=product.title_i18n or {},
             description_i18n=product.description_i18n or {},
             brand=brand_model,
+            supplier=supplier_model,
             price=price_model,
             popularity_score=product.popularity_score or 0,
             published_at=product.published_at,

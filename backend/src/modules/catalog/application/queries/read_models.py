@@ -519,6 +519,18 @@ class StorefrontBrandReadModel(BaseModel):
     logo_url: str | None = None
 
 
+class StorefrontSupplierReadModel(BaseModel):
+    """Storefront-visible supplier projection — type only.
+
+    Carries the ``SupplierType`` enum value as a plain string so the
+    storefront can branch UI/logistics flows on cross-border vs local
+    suppliers without exposing the supplier's identity, name, or
+    geography.
+    """
+
+    type: str
+
+
 class StorefrontProductCardReadModel(BaseModel):
     """Lightweight product card for PLP (Product Listing Page).
 
@@ -533,6 +545,7 @@ class StorefrontProductCardReadModel(BaseModel):
     images: list[StorefrontImageReadModel] = Field(default_factory=list)
     price: StorefrontMoneyReadModel | None = None
     brand: StorefrontBrandReadModel | None = None
+    supplier: StorefrontSupplierReadModel | None = None
     popularity_score: int = 0
     published_at: datetime | None = None
     variant_count: int = 0
@@ -572,6 +585,7 @@ class StorefrontProductDetailReadModel(BaseModel):
     title_i18n: dict[str, str]
     description_i18n: dict[str, str]
     brand: StorefrontBrandReadModel | None = None
+    supplier: StorefrontSupplierReadModel | None = None
     price: StorefrontMoneyReadModel | None = None
     popularity_score: int = 0
     published_at: datetime | None = None

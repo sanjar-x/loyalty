@@ -69,6 +69,18 @@ class StorefrontBrandResponse(CamelModel):
     logo_url: str | None = None
 
 
+class StorefrontSupplierResponse(CamelModel):
+    """Storefront supplier projection — exposes ``type`` only.
+
+    Drives cross-border vs local UI/logistics branching without leaking
+    the supplier's identity to public catalog consumers.
+    """
+
+    type: str = Field(
+        description="SupplierType enum value: 'cross_border' or 'local'",
+    )
+
+
 class BreadcrumbResponse(CamelModel):
     """Single breadcrumb item (root → leaf)."""
 
@@ -93,6 +105,7 @@ class StorefrontProductCardResponse(CamelModel):
     images: list[StorefrontImageResponse] = Field(default_factory=list)
     price: StorefrontMoneyResponse | None = None
     brand: StorefrontBrandResponse | None = None
+    supplier: StorefrontSupplierResponse | None = None
     popularity_score: int = 0
     published_at: datetime | None = None
     variant_count: int = 0
@@ -160,6 +173,7 @@ class StorefrontProductDetailResponse(CamelModel):
     description_i18n: dict[str, str] = Field(default_factory=dict)
     description: str | None = None
     brand: StorefrontBrandResponse | None = None
+    supplier: StorefrontSupplierResponse | None = None
     price: StorefrontMoneyResponse | None = None
     popularity_score: int = 0
     published_at: datetime | None = None

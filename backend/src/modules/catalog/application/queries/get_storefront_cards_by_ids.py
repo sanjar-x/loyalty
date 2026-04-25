@@ -28,6 +28,7 @@ from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 from src.modules.catalog.infrastructure.models import MediaAsset as OrmMediaAsset
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
 from src.modules.catalog.infrastructure.models import ProductVariant as OrmVariant
+from src.modules.supplier.infrastructure.models import Supplier as OrmSupplier
 from src.shared.interfaces.logger import ILogger
 
 
@@ -146,10 +147,12 @@ class GetStorefrontProductCardsByIdsHandler:
                 OrmBrand.name.label("brand_name"),
                 OrmBrand.slug.label("brand_slug"),
                 OrmBrand.logo_url.label("brand_logo_url"),
+                OrmSupplier.type.label("supplier_type"),
                 primary_image.c.image_url,
                 primary_image.c.image_variants,
             )
             .join(OrmBrand, OrmBrand.id == OrmProduct.brand_id)
+            .outerjoin(OrmSupplier, OrmSupplier.id == OrmProduct.supplier_id)
             .outerjoin(cheapest_sku, literal(True))
             .outerjoin(primary_image, literal(True))
             .where(
