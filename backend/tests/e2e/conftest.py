@@ -11,9 +11,8 @@ import redis.asyncio as aioredis
 from dishka import AsyncContainer
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bootstrap.web import create_app
 
