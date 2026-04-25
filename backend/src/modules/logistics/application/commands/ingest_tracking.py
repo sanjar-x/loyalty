@@ -12,6 +12,7 @@ from src.modules.logistics.domain.exceptions import ShipmentNotFoundError
 from src.modules.logistics.domain.interfaces import IShipmentRepository
 from src.modules.logistics.domain.value_objects import (
     ProviderCode,
+    TrackingAppendOutcome,
     TrackingEvent,
 )
 from src.shared.interfaces.logger import ILogger
@@ -68,23 +69,32 @@ class IngestTrackingHandler:
                     }
                 )
 
-            events_before = len(shipment.tracking_events)
+            added = 0
+            replaced = 0
             for event in command.events:
-                shipment.append_tracking_event(event)
-            new_count = len(shipment.tracking_events) - events_before
+                outcome = shipment.append_tracking_event(event)
+                if outcome is TrackingAppendOutcome.ADDED:
+                    added += 1
+                elif outcome is TrackingAppendOutcome.REPLACED:
+                    replaced += 1
 
-            if new_count > 0:
+            # Commit on either ADDED or REPLACED so a richer-info
+            # upgrade for an existing duplicate (better location /
+            # description text from a webhook arriving after the
+            # poll already booked the bare event) is persisted.
+            if added or replaced:
                 shipment = await self._shipment_repo.update(shipment)
                 self._uow.register_aggregate(shipment)
                 await self._uow.commit()
 
-        if new_count > 0:
+        if added or replaced:
             self._logger.info(
                 "Tracking updated",
                 shipment_id=str(shipment.id),
-                new_events=new_count,
+                new_events=added,
+                replaced_events=replaced,
             )
         return IngestTrackingResult(
             shipment_id=shipment.id,
-            new_events_count=new_count,
+            new_events_count=added,
         )

@@ -50,6 +50,7 @@ from src.modules.logistics.domain.value_objects import (
     RegisteredReturn,
     ScheduledIntake,
     ShipmentStatus,
+    TrackingAppendOutcome,
     TrackingEvent,
     TrackingStatus,
 )
@@ -377,11 +378,17 @@ class Shipment(AggregateRoot):
         the package was lost / refused / damaged in transit. Subscribers
         that need to compensate the booking flow should listen for
         the booking-failed event only.
+
+        Auxiliary state — pending edit tasks and any active courier
+        intake — is dropped because the underlying order is no longer
+        actionable; the edit-task poller would otherwise keep
+        querying ``request/edit/status`` against a dead shipment.
         """
         if self.status == ShipmentStatus.FAILED:
             return
         self._transition_to(ShipmentStatus.FAILED)
         self.failure_reason = reason
+        self._discard_pending_carrier_state()
         self.add_domain_event(
             ShipmentDeliveryFailedEvent(shipment_id=self.id, reason=reason)
         )
@@ -392,6 +399,9 @@ class Shipment(AggregateRoot):
         No provider API call is required — the cancellation has already
         happened on the carrier side. Idempotent on already-CANCELLED
         shipments.
+
+        Drops auxiliary in-flight state (pending edit tasks and active
+        intake) for the same reason as :py:meth:`mark_failed_from_tracking`.
         """
         if self.status == ShipmentStatus.CANCELLED:
             return
@@ -399,34 +409,56 @@ class Shipment(AggregateRoot):
         self.cancelled_at = datetime.now(UTC)
         if reason is not None:
             self.failure_reason = reason
+        self._discard_pending_carrier_state()
         self.add_domain_event(ShipmentCancelledEvent(shipment_id=self.id))
+
+    def _discard_pending_carrier_state(self) -> None:
+        """Clear edit / intake state that becomes non-actionable on terminal status.
+
+        Called by the tracking-induced terminal transitions so that
+        operator dashboards don't keep showing "edit task in flight"
+        or "intake scheduled" on a shipment the carrier has already
+        closed. ``registered_returns`` is intentionally preserved —
+        it's an audit log, not active state.
+        """
+        self.pending_edit_tasks = []
+        self.scheduled_intake = None
 
     # -- Tracking -----------------------------------------------------------
 
-    def append_tracking_event(self, event: TrackingEvent) -> None:
+    def append_tracking_event(self, event: TrackingEvent) -> TrackingAppendOutcome:
         """Append a new tracking event from the carrier.
 
-        Deduplicates by (timestamp, status) to ensure idempotency when the
-        same event arrives via webhook and polling. If a duplicate carries
-        a more detailed ``location`` or ``description`` than the original,
-        the stored event is replaced in-place (without bumping the version
-        or emitting a new event).
+        Deduplicates by (timestamp, status) to ensure idempotency when
+        the same event arrives via webhook and polling. If a duplicate
+        carries a more detailed ``location`` or ``description`` than
+        the original, the stored event is replaced in-place — the
+        return value distinguishes the three cases so callers can
+        decide whether to persist the aggregate.
 
-        ``latest_tracking_status`` is always recomputed from the most-recent
-        timestamp across *all* events to prevent regression when out-of-order
-        events arrive.
+        ``latest_tracking_status`` is always recomputed from the
+        most-recent timestamp across *all* events to prevent
+        regression when out-of-order events arrive.
+
+        Returns:
+            :class:`TrackingAppendOutcome` —
+            ``ADDED`` when the event is genuinely new,
+            ``REPLACED`` when a stored duplicate was upgraded with
+            richer info, and ``NOOP`` when the event is an exact
+            duplicate. Repeated polling produces ``NOOP``.
         """
         for idx, existing in enumerate(self.tracking_events):
             if (
                 existing.timestamp == event.timestamp
                 and existing.status == event.status
             ):
-                # Upgrade with richer info if the new event has more data
-                # in any optional field; skip otherwise (idempotent).
+                # Upgrade with richer info if the new event has more
+                # data in any optional field; skip otherwise.
                 if _has_richer_info(existing, event):
                     self.tracking_events[idx] = event
                     self.updated_at = datetime.now(UTC)
-                return
+                    return TrackingAppendOutcome.REPLACED
+                return TrackingAppendOutcome.NOOP
 
         self.tracking_events.append(event)
 
@@ -471,6 +503,8 @@ class Shipment(AggregateRoot):
                     event.description or event.provider_status_name or None
                 )
                 self.mark_cancelled_from_tracking(reason=cancel_reason)
+
+        return TrackingAppendOutcome.ADDED
 
     # -- Edit / mutation operations ----------------------------------------
 

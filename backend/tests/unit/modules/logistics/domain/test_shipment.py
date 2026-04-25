@@ -32,10 +32,12 @@ from src.modules.logistics.domain.value_objects import (
     EditTaskKind,
     EditTaskStatus,
     EstimatedDelivery,
+    IntakeStatus,
     Money,
     Parcel,
     ShipmentStatus,
     ShippingRate,
+    TrackingAppendOutcome,
     TrackingEvent,
     TrackingStatus,
     Weight,
@@ -529,6 +531,92 @@ class TestTrackingInducedFsm:
         )
         shipment.append_tracking_event(lost)
         assert shipment.status == ShipmentStatus.FAILED
+
+    def test_terminal_failure_clears_pending_edit_tasks_and_intake(self):
+        """Auxiliary state must drop on terminal carrier outcomes (Round-2 I2)."""
+        shipment = self._booked_shipment()
+        shipment.record_edit_task("task-1", EditTaskKind.EDIT_ORDER)
+        shipment.record_intake("intake-1", status=IntakeStatus.ACCEPTED)
+        shipment.clear_domain_events()
+        assert shipment.pending_edit_tasks
+        assert shipment.scheduled_intake is not None
+
+        lost = TrackingEvent(
+            status=TrackingStatus.LOST,
+            provider_status_code="LOST",
+            provider_status_name="Утрачен",
+            timestamp=datetime.now(UTC),
+            location=None,
+            description=None,
+        )
+        shipment.append_tracking_event(lost)
+        assert shipment.status == ShipmentStatus.FAILED
+        assert shipment.pending_edit_tasks == []
+        assert shipment.scheduled_intake is None
+
+
+# ---------------------------------------------------------------------------
+# Tracking append outcome enum
+# ---------------------------------------------------------------------------
+
+
+class TestTrackingAppendOutcome:
+    def _booked_shipment(self) -> Shipment:
+        s = _make_shipment()
+        s.mark_booking_pending()
+        s.mark_booked(provider_shipment_id="X", tracking_number="Y")
+        s.clear_domain_events()
+        return s
+
+    def test_added_returns_added(self):
+        shipment = self._booked_shipment()
+        event = TrackingEvent(
+            status=TrackingStatus.ACCEPTED,
+            provider_status_code="A",
+            provider_status_name="Принят",
+            timestamp=datetime.now(UTC),
+            location=None,
+            description=None,
+        )
+        assert shipment.append_tracking_event(event) is TrackingAppendOutcome.ADDED
+
+    def test_exact_duplicate_returns_noop(self):
+        shipment = self._booked_shipment()
+        ts = datetime.now(UTC)
+        event = TrackingEvent(
+            status=TrackingStatus.IN_TRANSIT,
+            provider_status_code="IT",
+            provider_status_name="В пути",
+            timestamp=ts,
+            location="Москва",
+            description="On the way",
+        )
+        shipment.append_tracking_event(event)
+        # Same exact event again → noop, nothing to upgrade.
+        assert shipment.append_tracking_event(event) is TrackingAppendOutcome.NOOP
+
+    def test_duplicate_with_richer_info_returns_replaced(self):
+        shipment = self._booked_shipment()
+        ts = datetime.now(UTC)
+        bare = TrackingEvent(
+            status=TrackingStatus.IN_TRANSIT,
+            provider_status_code="IT",
+            provider_status_name="В пути",
+            timestamp=ts,
+            location=None,
+            description=None,
+        )
+        shipment.append_tracking_event(bare)
+
+        rich = TrackingEvent(
+            status=TrackingStatus.IN_TRANSIT,
+            provider_status_code="IT",
+            provider_status_name="В пути",
+            timestamp=ts,
+            location="Москва",
+            description="On the way",
+        )
+        assert shipment.append_tracking_event(rich) is TrackingAppendOutcome.REPLACED
 
 
 # ---------------------------------------------------------------------------

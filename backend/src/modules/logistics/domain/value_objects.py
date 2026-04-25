@@ -106,6 +106,21 @@ TERMINAL_CANCEL_TRACKING_STATUSES: frozenset[TrackingStatus] = frozenset(
 )
 
 
+class TrackingAppendOutcome(StrEnum):
+    """Result of :py:meth:`Shipment.append_tracking_event`.
+
+    Distinguishes the three meaningful cases so callers (e.g.
+    ``IngestTrackingHandler``) can decide whether to commit the
+    aggregate. Without this enum the handler had to gate on
+    ``len(events)`` change, which silently dropped richer-info
+    upgrades that replaced an existing event in-place.
+    """
+
+    ADDED = "added"  # genuinely new event, list grew
+    REPLACED = "replaced"  # existing duplicate replaced with richer payload
+    NOOP = "noop"  # exact duplicate, no change
+
+
 # ---------------------------------------------------------------------------
 # Scalar value objects
 # ---------------------------------------------------------------------------

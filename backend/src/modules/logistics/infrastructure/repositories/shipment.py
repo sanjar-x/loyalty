@@ -8,7 +8,7 @@ Translates between the ``Shipment`` domain aggregate and the
 import uuid
 
 import attrs
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -180,45 +180,59 @@ class ShipmentRepository(IShipmentRepository):
         orm.version = entity.version
 
     async def _sync_tracking_events(self, orm: ShipmentModel, entity: Shipment) -> None:
-        """Insert any new tracking events, racing safely with concurrent writers.
+        """Insert / upgrade tracking events, racing safely with concurrent writers.
 
         The unique constraint ``uq_tracking_events_shipment_ts_status``
         is the source of truth: a concurrent webhook + poll for the
         same ``(shipment_id, timestamp, status)`` would otherwise
         produce ``IntegrityError``. We use Postgres
-        ``INSERT ... ON CONFLICT DO NOTHING`` so the second writer
-        silently no-ops.
+        ``INSERT ... ON CONFLICT DO UPDATE`` so the second writer
+        upserts richer ``location`` / ``description`` text the
+        carrier may have included on a delayed webhook — the
+        in-memory ``Shipment.append_tracking_event`` already
+        normalises this in the aggregate, but without a real UPDATE
+        the DB would keep the original (less-rich) row.
 
-        The in-memory check still applies — it filters out events that
-        the current session already saw — so we only build INSERT rows
-        for genuinely new entries.
+        ``COALESCE`` preserves whichever side has non-null text so
+        a sparse late event does not overwrite a richer existing
+        one — only blanks get filled.
         """
-        existing_keys = {(e.timestamp, e.status) for e in orm.tracking_events}
-        new_rows: list[dict] = []
-        for event in entity.tracking_events:
-            if (event.timestamp, event.status) in existing_keys:
-                continue
-            new_rows.append(
-                {
-                    "shipment_id": entity.id,
-                    "status": event.status,
-                    "provider_status_code": event.provider_status_code,
-                    "provider_status_name": event.provider_status_name,
-                    "timestamp": event.timestamp,
-                    "location": event.location,
-                    "description": event.description,
-                }
-            )
+        new_rows: list[dict] = [
+            {
+                "shipment_id": entity.id,
+                "status": event.status,
+                "provider_status_code": event.provider_status_code,
+                "provider_status_name": event.provider_status_name,
+                "timestamp": event.timestamp,
+                "location": event.location,
+                "description": event.description,
+            }
+            for event in entity.tracking_events
+        ]
         if not new_rows:
             return
 
         stmt = pg_insert(ShipmentTrackingEventModel).values(new_rows)
-        stmt = stmt.on_conflict_do_nothing(
-            constraint="uq_tracking_events_shipment_ts_status"
+        excluded = stmt.excluded
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_tracking_events_shipment_ts_status",
+            set_={
+                "location": func.coalesce(
+                    excluded.location, ShipmentTrackingEventModel.location
+                ),
+                "description": func.coalesce(
+                    excluded.description,
+                    ShipmentTrackingEventModel.description,
+                ),
+                "provider_status_name": func.coalesce(
+                    excluded.provider_status_name,
+                    ShipmentTrackingEventModel.provider_status_name,
+                ),
+            },
         )
         await self._session.execute(stmt)
         # Refresh the relationship so subsequent reads in the same
-        # session see the freshly-inserted rows.
+        # session see the freshly-upserted rows.
         await self._session.refresh(orm, attribute_names=["tracking_events"])
 
     # -- Mapping: ORM → Domain ----------------------------------------------

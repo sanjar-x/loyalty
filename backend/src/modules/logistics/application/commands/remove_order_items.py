@@ -14,7 +14,7 @@ from src.modules.logistics.domain.interfaces import (
     IShippingProviderRegistry,
 )
 from src.modules.logistics.domain.value_objects import EditItemRemoval, EditTaskKind
-from src.shared.exceptions import ValidationError
+from src.shared.exceptions import ConflictError, ValidationError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -56,6 +56,24 @@ class RemoveOrderItemsHandler:
         if shipment is None:
             raise ShipmentNotFoundError(
                 details={"shipment_id": str(command.shipment_id)}
+            )
+        existing = next(
+            (
+                t
+                for t in shipment.pending_edit_tasks
+                if t.kind == EditTaskKind.REMOVE_ITEMS
+            ),
+            None,
+        )
+        if existing is not None:
+            raise ConflictError(
+                message=("A REMOVE_ITEMS task is already in flight for this shipment."),
+                error_code="EDIT_TASK_ALREADY_PENDING",
+                details={
+                    "shipment_id": str(command.shipment_id),
+                    "task_id": existing.task_id,
+                    "kind": existing.kind.value,
+                },
             )
 
         provider = self._registry.get_edit_provider(shipment.provider_code)

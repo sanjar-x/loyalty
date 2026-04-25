@@ -87,6 +87,7 @@ async def receive_webhook(
 
     total_new = 0
     skipped_unknown = 0
+    failed = 0
     for provider_shipment_id, events in parsed:
         if not events:
             continue
@@ -101,14 +102,28 @@ async def receive_webhook(
             )
             total_new += result.new_events_count
         except ShipmentNotFoundError:
-            # The webhook references a shipment we don't track —
-            # common when the carrier delivers events for a tenant /
-            # test environment we share. Returning 4xx here would
-            # invite a poison-pill retry loop from the carrier; we
-            # log + ack so the rest of the batch still applies.
+            # Webhook references a shipment we don't track — common
+            # when the carrier delivers events for another tenant or
+            # test environment sharing the same secret. Returning
+            # 4xx invites a poison-pill retry loop; ack and continue.
             skipped_unknown += 1
             logger.warning(
                 "Webhook references unknown shipment; acknowledging",
+                provider=provider_code,
+                provider_shipment_id=provider_shipment_id,
+            )
+        except Exception:
+            # Any other per-shipment failure (optimistic-lock
+            # ConflictError, validation, transient DB issue, parser
+            # bug) must not poison the rest of the batch. Carriers
+            # do not honour partial 4xx — they re-deliver the entire
+            # payload, re-applying events for shipments we already
+            # processed. The periodic ITrackingPollProvider task
+            # will backfill anything we drop here on the next run.
+            failed += 1
+            logger.exception(
+                "Webhook ingest failed for shipment; acknowledging "
+                "to avoid carrier retry storm",
                 provider=provider_code,
                 provider_shipment_id=provider_shipment_id,
             )
@@ -119,6 +134,7 @@ async def receive_webhook(
         shipment_count=len(parsed),
         new_events=total_new,
         skipped_unknown=skipped_unknown,
+        failed=failed,
     )
 
     return {

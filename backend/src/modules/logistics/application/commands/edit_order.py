@@ -24,7 +24,7 @@ from src.modules.logistics.domain.value_objects import (
     EditPlaceSwap,
     EditTaskKind,
 )
-from src.shared.exceptions import ValidationError
+from src.shared.exceptions import ConflictError, ValidationError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -78,6 +78,31 @@ class EditOrderHandler:
         if shipment is None:
             raise ShipmentNotFoundError(
                 details={"shipment_id": str(command.shipment_id)}
+            )
+        # Idempotency guard. ``record_edit_task`` "replaces any previous
+        # task of the same kind" — without the guard a double-click
+        # submits two tickets to Yandex; the first task_id is orphaned
+        # locally and the carrier silently last-write-wins.
+        existing = next(
+            (
+                t
+                for t in shipment.pending_edit_tasks
+                if t.kind == EditTaskKind.EDIT_ORDER
+            ),
+            None,
+        )
+        if existing is not None:
+            raise ConflictError(
+                message=(
+                    "An EDIT_ORDER task is already in flight for this shipment; "
+                    "wait for it to settle before submitting another."
+                ),
+                error_code="EDIT_TASK_ALREADY_PENDING",
+                details={
+                    "shipment_id": str(command.shipment_id),
+                    "task_id": existing.task_id,
+                    "kind": existing.kind.value,
+                },
             )
 
         # Phase 2: provider call.

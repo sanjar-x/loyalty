@@ -15,7 +15,7 @@ from src.modules.logistics.domain.interfaces import (
     IShippingProviderRegistry,
 )
 from src.modules.logistics.domain.value_objects import EditPackage, EditTaskKind
-from src.shared.exceptions import ValidationError
+from src.shared.exceptions import ConflictError, ValidationError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -57,6 +57,26 @@ class EditOrderPackagesHandler:
         if shipment is None:
             raise ShipmentNotFoundError(
                 details={"shipment_id": str(command.shipment_id)}
+            )
+        existing = next(
+            (
+                t
+                for t in shipment.pending_edit_tasks
+                if t.kind == EditTaskKind.EDIT_PACKAGES
+            ),
+            None,
+        )
+        if existing is not None:
+            raise ConflictError(
+                message=(
+                    "An EDIT_PACKAGES task is already in flight for this shipment."
+                ),
+                error_code="EDIT_TASK_ALREADY_PENDING",
+                details={
+                    "shipment_id": str(command.shipment_id),
+                    "task_id": existing.task_id,
+                    "kind": existing.kind.value,
+                },
             )
 
         # Phase 2: provider call (async — returns editing_task_id).

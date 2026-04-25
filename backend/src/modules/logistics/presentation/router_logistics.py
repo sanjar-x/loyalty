@@ -583,11 +583,18 @@ async def cancel_intake(
     provider_code: str,
     provider_intake_id: str,
     handler: FromDishka[CancelIntakeHandler],
+    shipment_id: uuid.UUID | None = None,
 ) -> CancelIntakeResponse:
+    # ``shipment_id`` is optional but strongly recommended: without
+    # it the handler cancels with the carrier but cannot clear
+    # ``Shipment.scheduled_intake`` locally, so the next
+    # ``CreateIntake`` call would be rejected by the idempotency
+    # guard until the operator reconciles by hand.
     result = await handler.handle(
         CancelIntakeCommand(
             provider_code=provider_code,
             provider_intake_id=provider_intake_id,
+            shipment_id=shipment_id,
         )
     )
     return CancelIntakeResponse(success=result.success)

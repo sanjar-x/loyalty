@@ -73,7 +73,11 @@ class RegisterRefusalHandler:
                     raise ShipmentNotFoundError(
                         details={"shipment_id": str(command.shipment_id)}
                     )
-                shipment.record_refusal(reason=command.reason)
+                # Persist the carrier-corrected reason where it differs
+                # from the operator's input — the provider may truncate
+                # / translate / canonicalize free-form text and the
+                # audit row should reflect what was actually accepted.
+                shipment.record_refusal(reason=result.reason or command.reason)
                 await self._shipment_repo.update(shipment)
                 self._uow.register_aggregate(shipment)
                 await self._uow.commit()
