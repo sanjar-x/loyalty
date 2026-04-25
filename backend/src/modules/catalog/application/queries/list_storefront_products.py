@@ -16,13 +16,14 @@ import json
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import Select, and_, exists, func, literal, or_, select
+from sqlalchemy import Select, and_, case, exists, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.constants import (
     STOREFRONT_PLP_CACHE_TTL,
     storefront_plp_cache_key,
 )
+from src.shared.cache_keys import read_storefront_product_generation
 from src.modules.catalog.application.queries.read_models import (
     StorefrontBrandReadModel,
     StorefrontImageReadModel,
@@ -95,7 +96,8 @@ class ListStorefrontProductsHandler:
     async def handle(
         self, query: StorefrontProductListQuery
     ) -> CursorPage[StorefrontProductCardReadModel]:
-        cache_key = storefront_plp_cache_key(self._query_hash(query))
+        generation = await read_storefront_product_generation(self._cache)
+        cache_key = storefront_plp_cache_key(self._query_hash(query, generation))
         cached = await self._cache.get(cache_key)
         if cached:
             return self._deserialize_cache(cached)
@@ -192,14 +194,33 @@ class ListStorefrontProductsHandler:
             .lateral("primary_image")
         )
 
-        # Lateral: cheapest sellable SKU per product
+        # Lateral: cheapest sellable SKU per product (ADR-005).
+        # Priority of price columns:
+        #   1. ``selling_price`` when ``pricing_status='priced'`` —
+        #      output of the autonomous pricing pipeline.
+        #   2. legacy ``sku.price`` (manual override).
+        #   3. ``variant.default_price`` (variant-level default).
+        # SKUs in non-priceable failure statuses
+        # (``stale_fx`` / ``missing_purchase_price`` / ``formula_error``)
+        # are dropped from the candidate set so the storefront never
+        # surfaces an incorrectly-priced item.
+        effective_price_expr = case(
+            (
+                OrmSKU.pricing_status == "priced",
+                OrmSKU.selling_price,
+            ),
+            else_=func.coalesce(OrmSKU.price, OrmVariant.default_price),
+        )
+        priceable_status_clause = OrmSKU.pricing_status.in_(
+            ("legacy", "priced", "pending")
+        )
         cheapest_sku = (
             select(
-                func.coalesce(OrmSKU.price, OrmVariant.default_price).label(
-                    "effective_price"
-                ),
+                effective_price_expr.label("effective_price"),
                 OrmSKU.compare_at_price.label("compare_at_price"),
-                OrmSKU.currency.label("sku_currency"),
+                func.coalesce(OrmSKU.selling_currency, OrmSKU.currency).label(
+                    "sku_currency"
+                ),
             )
             .join(OrmVariant, OrmVariant.id == OrmSKU.variant_id)
             .where(
@@ -207,9 +228,10 @@ class ListStorefrontProductsHandler:
                 OrmSKU.is_active.is_(True),
                 OrmSKU.deleted_at.is_(None),
                 OrmVariant.deleted_at.is_(None),
-                func.coalesce(OrmSKU.price, OrmVariant.default_price).is_not(None),
+                priceable_status_clause,
+                effective_price_expr.is_not(None),
             )
-            .order_by(func.coalesce(OrmSKU.price, OrmVariant.default_price).asc())
+            .order_by(effective_price_expr.asc())
             .limit(1)
             .correlate(OrmProduct)
             .lateral("cheapest_sku")
@@ -226,7 +248,9 @@ class ListStorefrontProductsHandler:
             .scalar_subquery()
         )
 
-        # Has-stock flag: exists at least one sellable SKU
+        # Has-stock flag: exists at least one sellable SKU. Mirrors
+        # the cheapest-SKU priceability rule above so the flag and
+        # the price always agree.
         has_stock_sub = exists(
             select(literal(1))
             .select_from(OrmSKU)
@@ -236,7 +260,8 @@ class ListStorefrontProductsHandler:
                 OrmSKU.is_active.is_(True),
                 OrmSKU.deleted_at.is_(None),
                 OrmVariant.deleted_at.is_(None),
-                func.coalesce(OrmSKU.price, OrmVariant.default_price).is_not(None),
+                priceable_status_clause,
+                effective_price_expr.is_not(None),
             )
         ).correlate(OrmProduct)
 
@@ -474,7 +499,7 @@ class ListStorefrontProductsHandler:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _query_hash(query: StorefrontProductListQuery) -> str:
+    def _query_hash(query: StorefrontProductListQuery, generation: int = 0) -> str:
         af = None
         if query.attribute_filters:
             af = {k: sorted(v) for k, v in sorted(query.attribute_filters.items())}
@@ -489,6 +514,7 @@ class ListStorefrontProductsHandler:
             "cu": query.cursor,
             "t": query.include_total,
             "af": af,
+            "g": generation,
         }
         return hashlib.md5(
             json.dumps(parts, sort_keys=True, default=str).encode()

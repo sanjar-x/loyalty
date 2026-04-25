@@ -20,6 +20,7 @@ from src.modules.catalog.application.constants import (
     STOREFRONT_PDP_CACHE_TTL,
     storefront_pdp_cache_key,
 )
+from src.shared.cache_keys import read_storefront_product_generation
 from src.modules.catalog.application.queries.breadcrumbs import BreadcrumbsBuilder
 from src.modules.catalog.application.queries.read_models import (
     MoneyReadModel,
@@ -78,7 +79,8 @@ class GetStorefrontProductHandler:
         Raises:
             NotFoundError: If no published, visible product with this slug exists.
         """
-        cache_key = storefront_pdp_cache_key(slug)
+        generation = await read_storefront_product_generation(self._cache)
+        cache_key = storefront_pdp_cache_key(slug, generation)
         cached = await self._cache.get(cache_key)
         if cached:
             return StorefrontProductDetailReadModel.model_validate_json(cached)
@@ -226,7 +228,25 @@ class GetStorefrontProductHandler:
                     if sku.price is not None
                     else None
                 )
-                resolved = resolve_sku_price(sku_price, variant_default_price)
+                selling_price = (
+                    MoneyReadModel(
+                        amount=sku.selling_price,
+                        currency=sku.selling_currency or "RUB",
+                    )
+                    if sku.selling_price is not None and sku.selling_currency
+                    else None
+                )
+                pricing_status = (
+                    sku.pricing_status.value
+                    if hasattr(sku.pricing_status, "value")
+                    else sku.pricing_status
+                )
+                resolved = resolve_sku_price(
+                    sku_price,
+                    variant_default_price,
+                    selling_price=selling_price,
+                    pricing_status=pricing_status,
+                )
 
                 if resolved is not None:
                     has_stock = True
@@ -238,6 +258,12 @@ class GetStorefrontProductHandler:
                 for link in sku.attribute_values:
                     attr = getattr(link, "attribute", None)
                     val = getattr(link, "attribute_value", None)
+                    # Skip values an admin retired — PLP filters already
+                    # exclude ``is_active=False`` via _resolve_attribute_filters,
+                    # so leaving them on the SKU pair would create dead-end
+                    # selectors the customer can pick but never filter back to.
+                    if val is not None and not getattr(val, "is_active", True):
+                        continue
                     pair_models.append(
                         VariantAttributePairReadModel(
                             attribute_id=link.attribute_id,
@@ -246,7 +272,6 @@ class GetStorefrontProductHandler:
                             attribute_name_i18n=(attr.name_i18n if attr else {}) or {},
                             value_code=val.code if val else None,
                             value_i18n=(val.value_i18n if val else {}) or {},
-                            value_meta_data=(val.meta_data if val else {}) or {},
                             sort_order=val.sort_order if val else 0,
                         )
                     )
@@ -329,6 +354,10 @@ class GetStorefrontProductHandler:
                     val = getattr(link, "attribute_value", None)
                     if attr is None or val is None:
                         continue
+                    # Same is_active filter as the SKU-pair projector —
+                    # keeps the picker consistent with PLP filter values.
+                    if not getattr(val, "is_active", True):
+                        continue
                     bucket = option_index.setdefault(
                         attr.id,
                         {
@@ -340,12 +369,14 @@ class GetStorefrontProductHandler:
                         },
                     )
                     if val.id not in bucket["values"]:
-                        bucket["values"][val.id] = StorefrontVariantOptionValueReadModel(
-                            value_id=val.id,
-                            value_code=val.code,
-                            value_i18n=val.value_i18n or {},
-                            meta_data=val.meta_data or {},
-                            sort_order=val.sort_order or 0,
+                        bucket["values"][val.id] = (
+                            StorefrontVariantOptionValueReadModel(
+                                value_id=val.id,
+                                value_code=val.code,
+                                value_i18n=val.value_i18n or {},
+                                meta_data=val.meta_data or {},
+                                sort_order=val.sort_order or 0,
+                            )
                         )
 
         variant_options = [

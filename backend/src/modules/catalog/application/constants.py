@@ -69,9 +69,9 @@ def storefront_plp_cache_key(query_hash: str) -> str:
     return f"catalog:storefront:plp:{query_hash}"
 
 
-def storefront_pdp_cache_key(slug: str) -> str:
-    """Redis cache key for a storefront PDP by product slug."""
-    return f"catalog:storefront:pdp:{slug}"
+def storefront_pdp_cache_key(slug: str, generation: int = 0) -> str:
+    """Redis cache key for a storefront PDP by product slug + generation."""
+    return f"catalog:storefront:pdp:{generation}:{slug}"
 
 
 STOREFRONT_FACET_CACHE_TTL = 300

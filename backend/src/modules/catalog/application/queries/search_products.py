@@ -23,6 +23,7 @@ from src.modules.catalog.application.constants import (
     STOREFRONT_SEARCH_CACHE_TTL,
     storefront_search_cache_key,
 )
+from src.shared.cache_keys import read_storefront_product_generation
 from src.modules.catalog.application.queries.read_models import (
     StorefrontBrandReadModel,
     StorefrontImageReadModel,
@@ -114,7 +115,8 @@ class SearchProductsHandler:
     async def handle(
         self, query: SearchProductsQuery
     ) -> CursorPage[StorefrontProductCardReadModel]:
-        cache_key = storefront_search_cache_key(self._query_hash(query))
+        generation = await read_storefront_product_generation(self._cache)
+        cache_key = storefront_search_cache_key(self._query_hash(query, generation))
         cached = await self._cache.get(cache_key)
         if cached:
             return self._deserialize_cache(cached)
@@ -491,7 +493,7 @@ class SearchProductsHandler:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _query_hash(query: SearchProductsQuery) -> str:
+    def _query_hash(query: SearchProductsQuery, generation: int = 0) -> str:
         af = None
         if query.attribute_filters:
             af = {k: sorted(v) for k, v in sorted(query.attribute_filters.items())}
@@ -507,6 +509,7 @@ class SearchProductsHandler:
             "cu": query.cursor,
             "t": query.include_total,
             "af": af,
+            "g": generation,
         }
         return hashlib.md5(
             json.dumps(parts, sort_keys=True, default=str).encode()

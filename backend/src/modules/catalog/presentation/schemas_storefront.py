@@ -133,7 +133,6 @@ class StorefrontVariantAttributePairResponse(CamelModel):
     value_code: str | None = None
     value_i18n: dict[str, str] = Field(default_factory=dict)
     value: str | None = None
-    value_meta_data: dict = Field(default_factory=dict)
     sort_order: int = 0
 
 

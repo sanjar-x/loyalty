@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from src.modules.catalog.application.commands.sync_media import compute_media_diff
-from src.modules.catalog.application.constants import storefront_pdp_cache_key
+from src.shared.cache_keys import bump_storefront_product_generation
 from src.modules.catalog.domain.entities import MediaAsset, Product
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
@@ -263,12 +263,17 @@ class UpdateProductHandler:
         for sid in storage_ids_to_delete:
             await self._image_backend.delete(sid)
 
+        # Bump the storefront product generation — invalidates PLP,
+        # search and PDP caches in one INCR (the counter participates
+        # in PLP/search query hashes and the PDP cache key).
         try:
-            slugs_to_invalidate = {old_slug, product.slug}
-            for slug in slugs_to_invalidate:
-                await self._cache.delete(storefront_pdp_cache_key(slug))
+            await bump_storefront_product_generation(self._cache)
         except Exception as exc:  # pragma: no cover
-            self._logger.warning("pdp_cache_invalidation_failed", error=str(exc))
+            self._logger.warning(
+                "storefront_cache_invalidation_failed",
+                error=str(exc),
+                slugs=sorted({old_slug, product.slug}),
+            )
 
         self._logger.info(
             "Product updated",

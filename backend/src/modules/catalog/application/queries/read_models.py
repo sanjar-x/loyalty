@@ -313,7 +313,6 @@ class VariantAttributePairReadModel(BaseModel):
     attribute_name_i18n: dict[str, str] = Field(default_factory=dict)
     value_code: str | None = None
     value_i18n: dict[str, Any] = Field(default_factory=dict)
-    value_meta_data: dict[str, Any] = Field(default_factory=dict)
     sort_order: int = 0
 
 
@@ -343,8 +342,30 @@ class SKUReadModel(BaseModel):
 def resolve_sku_price(
     sku_price: MoneyReadModel | None,
     variant_default: MoneyReadModel | None,
+    *,
+    selling_price: MoneyReadModel | None = None,
+    pricing_status: str | None = None,
 ) -> MoneyReadModel | None:
-    """Resolve effective SKU price: SKU override -> variant default -> None."""
+    """Resolve effective storefront price for a SKU (ADR-005).
+
+    Resolution order:
+
+    1. ``selling_price`` from the autonomous pricing pipeline when
+       ``pricing_status='priced'``.
+    2. Manual ``sku_price`` override (legacy path; used until the
+       SKU's ``purchase_price`` is set and a recompute lands).
+    3. ``variant_default`` inherited from the parent variant.
+    4. ``None`` — the SKU is not priceable and should not surface in
+       storefront listings.
+
+    Failure statuses (``stale_fx`` / ``missing_purchase_price`` /
+    ``formula_error``) deliberately fall through to the legacy fallback
+    so an SKU that *had* a manual price keeps working while admins
+    fix the pricing inputs. SKUs that never had a manual price simply
+    drop out of the catalog (correct behaviour).
+    """
+    if pricing_status == "priced" and selling_price is not None:
+        return selling_price
     if sku_price is not None:
         return sku_price
     if variant_default is not None:
