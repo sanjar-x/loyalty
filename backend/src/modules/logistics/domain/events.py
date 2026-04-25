@@ -134,6 +134,28 @@ class ShipmentBookingFailedEvent(
 
 
 @dataclass
+class ShipmentDeliveryFailedEvent(
+    LogisticsEvent,
+    required_fields=("shipment_id",),
+    aggregate_id_field="shipment_id",
+):
+    """Emitted when carrier-side tracking declares the package undeliverable.
+
+    Distinct from :class:`ShipmentBookingFailedEvent` — the booking
+    succeeded; the package was lost / refused / damaged in transit.
+    Subscribers compensating booking-time failures (release stock,
+    refund hold) listen to the booking-failed event only; subscribers
+    handling delivery-time failures (issue refund, notify customer)
+    listen here.
+    """
+
+    shipment_id: uuid.UUID | None = None
+    reason: str = ""
+    aggregate_type: str = "Shipment"
+    event_type: str = "ShipmentDeliveryFailedEvent"
+
+
+@dataclass
 class ShipmentCancellationRequestedEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),

@@ -12,6 +12,7 @@ from src.modules.logistics.application.commands.ingest_tracking import (
     IngestTrackingCommand,
     IngestTrackingHandler,
 )
+from src.modules.logistics.domain.exceptions import ShipmentNotFoundError
 from src.modules.logistics.domain.interfaces import (
     IShippingProviderRegistry,
 )
@@ -85,24 +86,39 @@ async def receive_webhook(
         }
 
     total_new = 0
+    skipped_unknown = 0
     for provider_shipment_id, events in parsed:
         if not events:
             continue
-        result = await ingest_handler.handle(
-            IngestTrackingCommand(
-                provider_code=provider_code,
-                provider_shipment_id=provider_shipment_id,
-                events=events,
-                raw_payload=raw_body.decode("utf-8", errors="replace"),
+        try:
+            result = await ingest_handler.handle(
+                IngestTrackingCommand(
+                    provider_code=provider_code,
+                    provider_shipment_id=provider_shipment_id,
+                    events=events,
+                    raw_payload=raw_body.decode("utf-8", errors="replace"),
+                )
             )
-        )
-        total_new += result.new_events_count
+            total_new += result.new_events_count
+        except ShipmentNotFoundError:
+            # The webhook references a shipment we don't track —
+            # common when the carrier delivers events for a tenant /
+            # test environment we share. Returning 4xx here would
+            # invite a poison-pill retry loop from the carrier; we
+            # log + ack so the rest of the batch still applies.
+            skipped_unknown += 1
+            logger.warning(
+                "Webhook references unknown shipment; acknowledging",
+                provider=provider_code,
+                provider_shipment_id=provider_shipment_id,
+            )
 
     logger.info(
         "Webhook processed",
         provider=provider_code,
         shipment_count=len(parsed),
         new_events=total_new,
+        skipped_unknown=skipped_unknown,
     )
 
     return {

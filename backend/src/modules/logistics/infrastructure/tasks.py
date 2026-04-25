@@ -242,12 +242,19 @@ async def edit_task_poll_task(
                 fresh = await shipment_repo.get_by_id(shipment.id)
                 if fresh is None:
                     continue
+                # Count actual settlements via the pending-task delta
+                # rather than ``len(terminals)`` — concurrent workers
+                # (or a previous run) may have already removed some
+                # of the tasks, in which case ``settle_edit_task`` is
+                # a no-op for that id and we must not double-count.
+                pending_before = len(fresh.pending_edit_tasks)
                 for task_id, terminal in terminals:
                     fresh.settle_edit_task(task_id, terminal)
+                shipment_settled = pending_before - len(fresh.pending_edit_tasks)
                 await shipment_repo.update(fresh)
                 uow.register_aggregate(fresh)
                 await uow.commit()
-            settled += len(terminals)
+            settled += shipment_settled
         except Exception:
             logger.exception(
                 "Failed to persist edit-task settlement",

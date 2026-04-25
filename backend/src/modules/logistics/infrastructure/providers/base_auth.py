@@ -29,6 +29,17 @@ class BaseAuthManager(ABC):
         """Refresh credentials if expired or about to expire."""
         ...
 
+    async def force_refresh(self) -> None:
+        """Force a fresh credential fetch even if local cache is "valid".
+
+        Called after a 401 response — the carrier may have rotated /
+        revoked the token earlier than its declared ``expires_in``,
+        and a clock-driven ``refresh_if_needed`` would no-op against
+        the stale cached value. Static-token managers override this
+        as a no-op (nothing to refresh).
+        """
+        await self.refresh_if_needed()
+
 
 class BearerTokenAuthManager(BaseAuthManager):
     """Static Bearer token authentication (e.g. Yandex Delivery).
@@ -44,6 +55,9 @@ class BearerTokenAuthManager(BaseAuthManager):
 
     async def refresh_if_needed(self) -> None:
         pass  # static token, no refresh
+
+    async def force_refresh(self) -> None:
+        pass  # static token, nothing to invalidate
 
 
 class OAuth2ClientCredentialsAuthManager(BaseAuthManager):
@@ -84,8 +98,25 @@ class OAuth2ClientCredentialsAuthManager(BaseAuthManager):
         ):
             return  # token still valid
 
+        await self._fetch_token_locked()
+
+    async def force_refresh(self) -> None:
+        """Discard the cached token and acquire a fresh one.
+
+        Used by ``BaseProviderClient`` after a 401 — the carrier may
+        have invalidated the token before its declared expiry, in
+        which case ``refresh_if_needed`` no-ops against the stale
+        cache.
+        """
         async with self._lock:
-            # Double-check after acquiring the lock
+            self._access_token = None
+            self._expires_at = None
+        await self._fetch_token_locked()
+
+    async def _fetch_token_locked(self) -> None:
+        async with self._lock:
+            # Double-check after acquiring the lock — another caller
+            # may have refreshed while we were waiting.
             now = datetime.now(UTC)
             if (
                 self._access_token
@@ -138,3 +169,6 @@ class DualHeaderAuthManager(BaseAuthManager):
 
     async def refresh_if_needed(self) -> None:
         pass  # static credentials
+
+    async def force_refresh(self) -> None:
+        pass  # static credentials, nothing to invalidate

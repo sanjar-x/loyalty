@@ -19,6 +19,7 @@ from src.modules.logistics.domain.events import (
     ShipmentCancellationRequestedEvent,
     ShipmentCancelledEvent,
     ShipmentCreatedEvent,
+    ShipmentDeliveryFailedEvent,
     ShipmentDestinationUpdatedEvent,
     ShipmentEditTaskCompletedEvent,
     ShipmentEditTaskFailedEvent,
@@ -63,6 +64,10 @@ _ALLOWED_TRANSITIONS: dict[ShipmentStatus, frozenset[ShipmentStatus]] = {
         {
             ShipmentStatus.BOOKING_PENDING,
             ShipmentStatus.CANCELLED,
+            # An out-of-band carrier event for a draft (rare — provider
+            # was never asked to book) still routes to FAILED so the
+            # FSM stays self-consistent.
+            ShipmentStatus.FAILED,
         }
     ),
     ShipmentStatus.BOOKING_PENDING: frozenset(
@@ -90,6 +95,12 @@ _ALLOWED_TRANSITIONS: dict[ShipmentStatus, frozenset[ShipmentStatus]] = {
         {
             ShipmentStatus.CANCELLED,
             ShipmentStatus.BOOKED,  # revert when provider rejects cancellation
+            # A carrier-side terminal failure landing during the
+            # cancel-in-flight window is realistic — the request to
+            # cancel raced with the carrier reporting the package as
+            # LOST/DAMAGED. We accept it as the final state instead
+            # of crashing the webhook ingestion path.
+            ShipmentStatus.FAILED,
         }
     ),
     ShipmentStatus.CANCELLED: frozenset(),
@@ -360,13 +371,19 @@ class Shipment(AggregateRoot):
         Used by ``append_tracking_event`` when the ingested status implies
         the shipment cannot be delivered. Idempotent — already-FAILED
         shipments are silently ignored.
+
+        Emits :class:`ShipmentDeliveryFailedEvent`, *not*
+        :class:`ShipmentBookingFailedEvent`: the booking succeeded;
+        the package was lost / refused / damaged in transit. Subscribers
+        that need to compensate the booking flow should listen for
+        the booking-failed event only.
         """
         if self.status == ShipmentStatus.FAILED:
             return
         self._transition_to(ShipmentStatus.FAILED)
         self.failure_reason = reason
         self.add_domain_event(
-            ShipmentBookingFailedEvent(shipment_id=self.id, reason=reason)
+            ShipmentDeliveryFailedEvent(shipment_id=self.id, reason=reason)
         )
 
     def mark_cancelled_from_tracking(self, reason: str | None = None) -> None:
@@ -432,7 +449,13 @@ class Shipment(AggregateRoot):
         # BOOKING_PENDING, where a webhook can race ahead of the
         # polling window and report ``NOT_DELIVERED`` / ``LOST``
         # before the booking adapter ever observes ``statuses``.
-        if self.status not in (
+        #
+        # Critically, only react when the *just-appended* event IS the
+        # latest — a stale older LOST event arriving after a newer
+        # DELIVERED must not drag the shipment to FAILED. ``latest``
+        # was just recomputed from the full event list above, so this
+        # comparison rejects out-of-order writes.
+        if event is latest and self.status not in (
             ShipmentStatus.CANCELLED,
             ShipmentStatus.FAILED,
         ):

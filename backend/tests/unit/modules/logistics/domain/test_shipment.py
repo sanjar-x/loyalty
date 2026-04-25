@@ -14,6 +14,7 @@ from src.modules.logistics.domain.events import (
     ShipmentCancellationRequestedEvent,
     ShipmentCancelledEvent,
     ShipmentCreatedEvent,
+    ShipmentDeliveryFailedEvent,
     ShipmentEditTaskCompletedEvent,
     ShipmentEditTaskFailedEvent,
     ShipmentEditTaskScheduledEvent,
@@ -422,6 +423,112 @@ class TestShipmentTracking:
         )
         shipment.append_tracking_event(event)
         assert shipment.version == v_before + 1
+
+
+# ---------------------------------------------------------------------------
+# Tracking-induced FSM transitions
+# ---------------------------------------------------------------------------
+
+
+class TestTrackingInducedFsm:
+    def _booked_shipment(self) -> Shipment:
+        s = _make_shipment()
+        s.mark_booking_pending()
+        s.mark_booked(provider_shipment_id="X", tracking_number="Y")
+        s.clear_domain_events()
+        return s
+
+    def _cancel_pending_shipment(self) -> Shipment:
+        s = self._booked_shipment()
+        s.mark_cancel_pending()
+        s.clear_domain_events()
+        return s
+
+    def test_terminal_failure_during_cancel_pending_does_not_crash(self):
+        """D1: webhook arrives mid-cancel — must not raise."""
+        shipment = self._cancel_pending_shipment()
+        event = TrackingEvent(
+            status=TrackingStatus.LOST,
+            provider_status_code="LOST",
+            provider_status_name="Утрачен",
+            timestamp=datetime.now(UTC),
+            location=None,
+            description="Carrier reported the parcel as lost",
+        )
+        # Used to crash with InvalidShipmentTransitionError; now allowed.
+        shipment.append_tracking_event(event)
+        assert shipment.status == ShipmentStatus.FAILED
+
+    def test_failure_emits_delivery_failed_event_not_booking_failed(self):
+        """D3: tracking-induced failure uses ShipmentDeliveryFailedEvent."""
+        shipment = self._booked_shipment()
+        event = TrackingEvent(
+            status=TrackingStatus.LOST,
+            provider_status_code="LOST",
+            provider_status_name="Утрачен",
+            timestamp=datetime.now(UTC),
+            location=None,
+            description="lost in transit",
+        )
+        shipment.append_tracking_event(event)
+
+        events = shipment.domain_events
+        assert any(isinstance(e, ShipmentDeliveryFailedEvent) for e in events)
+        assert not any(isinstance(e, ShipmentBookingFailedEvent) for e in events)
+
+    def test_out_of_order_lost_after_delivered_does_not_terminalize(self):
+        """D2: stale older LOST event must not drag DELIVERED shipment to FAILED."""
+        shipment = self._booked_shipment()
+        now = datetime.now(UTC)
+        delivered = TrackingEvent(
+            status=TrackingStatus.DELIVERED,
+            provider_status_code="DELIVERED",
+            provider_status_name="Доставлен",
+            timestamp=now,
+            location=None,
+            description=None,
+        )
+        shipment.append_tracking_event(delivered)
+        assert shipment.latest_tracking_status == TrackingStatus.DELIVERED
+        assert shipment.status == ShipmentStatus.BOOKED
+
+        stale_lost = TrackingEvent(
+            status=TrackingStatus.LOST,
+            provider_status_code="LOST",
+            provider_status_name="Утрачен",
+            timestamp=now - timedelta(hours=2),
+            location=None,
+            description="late delivery from queue",
+        )
+        shipment.append_tracking_event(stale_lost)
+        # latest stays DELIVERED, FSM stays BOOKED — auto-transition skipped.
+        assert shipment.latest_tracking_status == TrackingStatus.DELIVERED
+        assert shipment.status == ShipmentStatus.BOOKED
+
+    def test_in_order_lost_after_in_transit_terminalizes(self):
+        """Sanity: a newer LOST after older IN_TRANSIT still flips to FAILED."""
+        shipment = self._booked_shipment()
+        now = datetime.now(UTC)
+        in_transit = TrackingEvent(
+            status=TrackingStatus.IN_TRANSIT,
+            provider_status_code="IN_TRANSIT",
+            provider_status_name="В пути",
+            timestamp=now - timedelta(hours=1),
+            location=None,
+            description=None,
+        )
+        shipment.append_tracking_event(in_transit)
+
+        lost = TrackingEvent(
+            status=TrackingStatus.LOST,
+            provider_status_code="LOST",
+            provider_status_name="Утрачен",
+            timestamp=now,
+            location=None,
+            description="lost",
+        )
+        shipment.append_tracking_event(lost)
+        assert shipment.status == ShipmentStatus.FAILED
 
 
 # ---------------------------------------------------------------------------

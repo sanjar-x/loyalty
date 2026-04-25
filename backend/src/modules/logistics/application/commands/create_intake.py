@@ -16,7 +16,7 @@ from src.modules.logistics.domain.interfaces import (
     IShippingProviderRegistry,
 )
 from src.modules.logistics.domain.value_objects import IntakeRequest
-from src.shared.exceptions import ValidationError
+from src.shared.exceptions import ConflictError, ValidationError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -72,6 +72,22 @@ class CreateIntakeHandler:
             raise ValidationError(
                 message="Shipment has no parcels — cannot schedule intake.",
                 details={"shipment_id": str(command.shipment_id)},
+            )
+        # Idempotency guard. Shipment.record_intake "Overwrites any
+        # previous intake — only one is in flight at a time"; without
+        # the guard a double-click here books TWO physical pickups
+        # with the carrier and orphans the first locally.
+        if shipment.scheduled_intake is not None:
+            raise ConflictError(
+                message=(
+                    "Shipment already has an active intake; cancel it before "
+                    "scheduling a new one."
+                ),
+                error_code="INTAKE_ALREADY_SCHEDULED",
+                details={
+                    "shipment_id": str(command.shipment_id),
+                    "provider_intake_id": shipment.scheduled_intake.provider_intake_id,
+                },
             )
 
         # Phase 2: external provider call — runs outside any DB tx.

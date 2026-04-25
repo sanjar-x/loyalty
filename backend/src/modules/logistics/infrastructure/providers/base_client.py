@@ -223,15 +223,28 @@ class BaseProviderClient:
                     return response
 
                 if response.status_code == 401:
-                    # Force a token refresh once per request lifetime.
-                    # Tracked via a local flag rather than ``attempt == 1``
-                    # so a transient 5xx burning the first attempt does
-                    # not block a legitimate refresh on the next one.
+                    # Force a *real* token refresh once per request
+                    # lifetime — ``refresh_if_needed`` is clock-driven
+                    # and no-ops when our local cache thinks the
+                    # token is fresh, but the carrier may have
+                    # invalidated it server-side. ``force_refresh``
+                    # discards the cached token and re-fetches.
+                    # Tracked via a local flag rather than
+                    # ``attempt == 1`` so a transient 5xx burning the
+                    # first attempt does not block a legitimate
+                    # refresh on the next one.
                     if not auth_refreshed:
                         auth_refreshed = True
-                        await self._auth.refresh_if_needed()
+                        await self._auth.force_refresh()
                         auth_headers = await self._auth.get_auth_headers()
                         merged_headers.update(auth_headers)
+                        # 401 is auth, not a 5xx — don't burn a retry
+                        # slot before the refreshed token gets a turn.
+                        if attempt == self._config.max_retries:
+                            raise ProviderAuthError(
+                                "Authentication failed: token refreshed "
+                                "but no retry budget remains"
+                            )
                         continue
                     raise ProviderAuthError(
                         f"Authentication failed after refresh: HTTP {response.status_code}"

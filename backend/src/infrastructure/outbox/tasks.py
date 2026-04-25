@@ -175,6 +175,10 @@ register_event_handler(
     _logistics_event_logger("shipment.booking_failed", level="warning"),
 )
 register_event_handler(
+    "ShipmentDeliveryFailedEvent",
+    _logistics_event_logger("shipment.delivery_failed", level="warning"),
+)
+register_event_handler(
     "ShipmentCancellationRequestedEvent",
     _logistics_event_logger("shipment.cancellation_requested"),
 )
