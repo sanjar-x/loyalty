@@ -5,12 +5,19 @@ into cart-domain SkuSnapshot value objects.
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from src.modules.cart.domain.interfaces import ISkuReadService
 from src.modules.cart.domain.value_objects import SkuSnapshot
-from src.modules.catalog.infrastructure.models import SKU, Product, ProductVariant
+from src.modules.catalog.domain.value_objects import MediaRole
+from src.modules.catalog.infrastructure.models import (
+    SKU,
+    MediaAsset,
+    Product,
+    ProductVariant,
+)
 from src.modules.supplier.infrastructure.models import Supplier
 
 
@@ -35,6 +42,13 @@ class CatalogSkuAdapter(ISkuReadService):
         if not sku_ids:
             return {}
 
+        # MAIN-image lookup with fallback: variant-level → product-level.
+        # Uniqueness of (product_id, variant_id) for role=MAIN is guaranteed
+        # by ``uix_media_single_main_per_variant`` (postgresql_nulls_not_distinct),
+        # so each LEFT JOIN below contributes at most one row.
+        variant_main = aliased(MediaAsset)
+        product_main = aliased(MediaAsset)
+
         stmt = (
             select(
                 SKU.id,
@@ -43,7 +57,7 @@ class CatalogSkuAdapter(ISkuReadService):
                 SKU.price,
                 SKU.currency,
                 SKU.is_active,
-                SKU.main_image_url,
+                func.coalesce(variant_main.url, product_main.url).label("image_url"),
                 Product.title_i18n,
                 ProductVariant.name_i18n.label("variant_name_i18n"),
                 Supplier.type.label("supplier_type"),
@@ -51,6 +65,22 @@ class CatalogSkuAdapter(ISkuReadService):
             .join(Product, SKU.product_id == Product.id)
             .join(ProductVariant, SKU.variant_id == ProductVariant.id)
             .join(Supplier, Product.supplier_id == Supplier.id)
+            .outerjoin(
+                variant_main,
+                and_(
+                    variant_main.product_id == SKU.product_id,
+                    variant_main.variant_id == SKU.variant_id,
+                    variant_main.role == MediaRole.MAIN,
+                ),
+            )
+            .outerjoin(
+                product_main,
+                and_(
+                    product_main.product_id == SKU.product_id,
+                    product_main.variant_id.is_(None),
+                    product_main.role == MediaRole.MAIN,
+                ),
+            )
             .where(
                 SKU.id.in_(sku_ids),
                 SKU.deleted_at.is_(None),
@@ -73,7 +103,7 @@ class CatalogSkuAdapter(ISkuReadService):
                 variant_id=row.variant_id,
                 product_name=product_name,
                 variant_label=variant_label,
-                image_url=row.main_image_url,
+                image_url=row.image_url,
                 price_amount=row.price if row.price is not None else 0,
                 currency=row.currency or "RUB",
                 is_active=row.is_active and row.price is not None,

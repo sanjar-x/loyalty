@@ -92,7 +92,7 @@ class ProductRepository(IProductRepository):
         """Map a domain SKU entity to an ORM SKU row.
 
         When ``orm_sku`` is ``None`` a new row is created with safe defaults
-        for ORM-only fields (``main_image_url``, ``attributes_cache``).
+        for ORM-only fields (``attributes_cache``).
         When updating an existing row those fields are preserved.
         """
         is_create = orm_sku is None
@@ -128,7 +128,6 @@ class ProductRepository(IProductRepository):
 
         # ORM-only fields: set defaults on create, preserve on update
         if is_create:
-            orm_sku.main_image_url = None
             orm_sku.attributes_cache = {}
 
         # Sync variant_attributes -> SKUAttributeValueLink rows (diff-based)

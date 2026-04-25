@@ -774,7 +774,6 @@ class SKU(Base):
     )
     sku_code: Mapped[str] = mapped_column(String(100))
     variant_hash: Mapped[str] = mapped_column(String(64))
-    main_image_url: Mapped[str | None] = mapped_column(String(1024))
     attributes_cache: Mapped[dict[str, Any]] = mapped_column(
         MutableDict.as_mutable(JSONB), server_default=text("'{}'::jsonb")
     )
