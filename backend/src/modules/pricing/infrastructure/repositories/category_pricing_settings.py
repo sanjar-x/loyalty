@@ -9,7 +9,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.modules.pricing.domain.category_pricing_settings import (
+from src.modules.pricing.domain.entities.category_pricing_settings import (
     CategoryPricingSettings,
     RangeBucket,
 )

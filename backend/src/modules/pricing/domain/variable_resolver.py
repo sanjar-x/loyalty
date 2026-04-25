@@ -29,17 +29,17 @@ from __future__ import annotations
 from collections.abc import Iterable
 from decimal import Decimal
 
-from src.modules.pricing.domain.category_pricing_settings import (
+from src.modules.pricing.domain.entities import ProductPricingProfile
+from src.modules.pricing.domain.entities.category_pricing_settings import (
     CategoryPricingSettings,
 )
-from src.modules.pricing.domain.entities import ProductPricingProfile
-from src.modules.pricing.domain.exceptions import FormulaEvaluationError
-from src.modules.pricing.domain.pricing_context import PricingContext
-from src.modules.pricing.domain.supplier_pricing_settings import (
+from src.modules.pricing.domain.entities.pricing_context import PricingContext
+from src.modules.pricing.domain.entities.supplier_pricing_settings import (
     SupplierPricingSettings,
 )
+from src.modules.pricing.domain.entities.variable import Variable
+from src.modules.pricing.domain.exceptions import FormulaEvaluationError
 from src.modules.pricing.domain.value_objects import VariableScope
-from src.modules.pricing.domain.variable import Variable
 
 
 def resolve_variables(

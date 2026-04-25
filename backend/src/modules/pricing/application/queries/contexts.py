@@ -7,12 +7,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
+from src.modules.pricing.domain.entities.pricing_context import PricingContext
 from src.modules.pricing.domain.exceptions import PricingContextNotFoundError
 from src.modules.pricing.domain.interfaces import (
     IPricingContextRepository,
     PricingContextListFilter,
 )
-from src.modules.pricing.domain.pricing_context import PricingContext
 
 
 @dataclass(frozen=True)

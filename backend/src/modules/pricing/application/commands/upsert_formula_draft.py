@@ -6,12 +6,12 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+from src.modules.pricing.domain.entities.formula import FormulaVersion
 from src.modules.pricing.domain.exceptions import (
     FormulaVersionConflictError,
     PricingContextFrozenError,
     PricingContextNotFoundError,
 )
-from src.modules.pricing.domain.formula import FormulaVersion
 from src.modules.pricing.domain.interfaces import (
     IFormulaVersionRepository,
     IPricingContextRepository,

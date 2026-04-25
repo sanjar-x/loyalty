@@ -6,20 +6,20 @@ import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from src.modules.pricing.domain.category_pricing_settings import (
+from src.modules.pricing.domain.entities import ProductPricingProfile
+from src.modules.pricing.domain.entities.category_pricing_settings import (
     CategoryPricingSettings,
 )
-from src.modules.pricing.domain.entities import ProductPricingProfile
-from src.modules.pricing.domain.formula import FormulaVersion
-from src.modules.pricing.domain.pricing_context import PricingContext
-from src.modules.pricing.domain.supplier_pricing_settings import (
+from src.modules.pricing.domain.entities.formula import FormulaVersion
+from src.modules.pricing.domain.entities.pricing_context import PricingContext
+from src.modules.pricing.domain.entities.supplier_pricing_settings import (
     SupplierPricingSettings,
 )
-from src.modules.pricing.domain.supplier_type_context_mapping import (
+from src.modules.pricing.domain.entities.supplier_type_context_mapping import (
     SupplierTypeContextMapping,
 )
+from src.modules.pricing.domain.entities.variable import Variable
 from src.modules.pricing.domain.value_objects import FormulaStatus, VariableScope
-from src.modules.pricing.domain.variable import Variable
 
 
 class IProductPricingProfileRepository(ABC):

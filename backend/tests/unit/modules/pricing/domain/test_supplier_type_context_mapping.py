@@ -6,6 +6,9 @@ import uuid
 
 import pytest
 
+from src.modules.pricing.domain.entities.supplier_type_context_mapping import (
+    SupplierTypeContextMapping,
+)
 from src.modules.pricing.domain.events import (
     SupplierTypeContextMappingCreatedEvent,
     SupplierTypeContextMappingDeletedEvent,
@@ -13,9 +16,6 @@ from src.modules.pricing.domain.events import (
 )
 from src.modules.pricing.domain.exceptions import (
     SupplierTypeContextMappingValidationError,
-)
-from src.modules.pricing.domain.supplier_type_context_mapping import (
-    SupplierTypeContextMapping,
 )
 
 ACTOR = uuid.uuid4()

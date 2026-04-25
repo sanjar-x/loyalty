@@ -22,7 +22,7 @@ from src.modules.pricing.application.queries.supplier_pricing_settings import (
     GetSupplierPricingSettingsHandler,
     GetSupplierPricingSettingsQuery,
 )
-from src.modules.pricing.domain.supplier_pricing_settings import (
+from src.modules.pricing.domain.entities.supplier_pricing_settings import (
     SupplierPricingSettings,
 )
 from src.modules.pricing.presentation.schemas import (

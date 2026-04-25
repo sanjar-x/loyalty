@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from src.modules.pricing.domain.category_pricing_settings import (
+from src.modules.pricing.domain.entities.category_pricing_settings import (
     CategoryPricingSettings,
 )
 from src.modules.pricing.domain.exceptions import (

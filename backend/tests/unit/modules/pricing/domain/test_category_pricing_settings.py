@@ -7,7 +7,7 @@ from decimal import Decimal
 
 import pytest
 
-from src.modules.pricing.domain.category_pricing_settings import (
+from src.modules.pricing.domain.entities.category_pricing_settings import (
     CategoryPricingSettings,
     RangeBucket,
 )

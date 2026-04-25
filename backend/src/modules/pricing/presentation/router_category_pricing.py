@@ -26,7 +26,7 @@ from src.modules.pricing.application.queries.category_pricing_settings import (
     GetCategoryPricingSettingsHandler,
     GetCategoryPricingSettingsQuery,
 )
-from src.modules.pricing.domain.category_pricing_settings import (
+from src.modules.pricing.domain.entities.category_pricing_settings import (
     CategoryPricingSettings,
     RangeBucket,
 )

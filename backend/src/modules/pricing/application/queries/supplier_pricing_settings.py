@@ -5,14 +5,14 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
+from src.modules.pricing.domain.entities.supplier_pricing_settings import (
+    SupplierPricingSettings,
+)
 from src.modules.pricing.domain.exceptions import (
     SupplierPricingSettingsNotFoundError,
 )
 from src.modules.pricing.domain.interfaces import (
     ISupplierPricingSettingsRepository,
-)
-from src.modules.pricing.domain.supplier_pricing_settings import (
-    SupplierPricingSettings,
 )
 
 

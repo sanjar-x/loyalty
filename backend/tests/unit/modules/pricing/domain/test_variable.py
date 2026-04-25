@@ -7,6 +7,7 @@ from decimal import Decimal
 
 import pytest
 
+from src.modules.pricing.domain.entities.variable import Variable
 from src.modules.pricing.domain.events import (
     VariableCreatedEvent,
     VariableDeletedEvent,
@@ -14,7 +15,6 @@ from src.modules.pricing.domain.events import (
 )
 from src.modules.pricing.domain.exceptions import VariableValidationError
 from src.modules.pricing.domain.value_objects import VariableDataType, VariableScope
-from src.modules.pricing.domain.variable import Variable
 
 ACTOR = uuid.uuid4()
 

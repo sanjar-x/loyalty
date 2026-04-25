@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.modules.pricing.domain.entities.supplier_type_context_mapping import (
+    SupplierTypeContextMapping,
+)
 from src.modules.pricing.domain.exceptions import (
     SupplierTypeContextMappingNotFoundError,
 )
 from src.modules.pricing.domain.interfaces import (
     ISupplierTypeContextMappingRepository,
-)
-from src.modules.pricing.domain.supplier_type_context_mapping import (
-    SupplierTypeContextMapping,
 )
 
 

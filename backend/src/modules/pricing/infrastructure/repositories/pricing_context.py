@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.pricing.domain.entities.pricing_context import PricingContext
 from src.modules.pricing.domain.exceptions import (
     PricingContextCodeTakenError,
     PricingContextVersionConflictError,
@@ -17,7 +18,6 @@ from src.modules.pricing.domain.interfaces import (
     IPricingContextRepository,
     PricingContextListFilter,
 )
-from src.modules.pricing.domain.pricing_context import PricingContext
 from src.modules.pricing.domain.value_objects import RoundingMode
 from src.modules.pricing.infrastructure.models import PricingContextModel
 

@@ -9,14 +9,14 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.pricing.domain.entities.supplier_pricing_settings import (
+    SupplierPricingSettings,
+)
 from src.modules.pricing.domain.exceptions import (
     SupplierPricingSettingsConflictError,
 )
 from src.modules.pricing.domain.interfaces import (
     ISupplierPricingSettingsRepository,
-)
-from src.modules.pricing.domain.supplier_pricing_settings import (
-    SupplierPricingSettings,
 )
 from src.modules.pricing.infrastructure.models import SupplierPricingSettingsModel
 

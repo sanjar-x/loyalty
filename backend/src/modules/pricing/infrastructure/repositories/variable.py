@@ -8,6 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.pricing.domain.entities.variable import Variable
 from src.modules.pricing.domain.exceptions import (
     VariableCodeTakenError,
     VariableValidationError,
@@ -17,7 +18,6 @@ from src.modules.pricing.domain.interfaces import (
     VariableListFilter,
 )
 from src.modules.pricing.domain.value_objects import VariableDataType, VariableScope
-from src.modules.pricing.domain.variable import Variable
 from src.modules.pricing.infrastructure.models import VariableModel
 
 

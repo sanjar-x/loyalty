@@ -6,15 +6,15 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+from src.modules.pricing.domain.entities.supplier_type_context_mapping import (
+    SupplierTypeContextMapping,
+)
 from src.modules.pricing.domain.exceptions import (
     PricingContextNotFoundError,
 )
 from src.modules.pricing.domain.interfaces import (
     IPricingContextRepository,
     ISupplierTypeContextMappingRepository,
-)
-from src.modules.pricing.domain.supplier_type_context_mapping import (
-    SupplierTypeContextMapping,
 )
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork

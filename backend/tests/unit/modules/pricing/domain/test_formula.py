@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from src.modules.pricing.domain.entities.formula import FormulaVersion, _validate_ast
 from src.modules.pricing.domain.events import (
     FormulaDraftDiscardedEvent,
     FormulaDraftSavedEvent,
@@ -18,7 +19,6 @@ from src.modules.pricing.domain.exceptions import (
     FormulaVersionImmutableError,
     FormulaVersionInvalidStateError,
 )
-from src.modules.pricing.domain.formula import FormulaVersion, _validate_ast
 from src.modules.pricing.domain.value_objects import FormulaStatus
 
 ACTOR = uuid.uuid4()

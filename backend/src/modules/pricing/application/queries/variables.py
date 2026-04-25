@@ -7,13 +7,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
+from src.modules.pricing.domain.entities.variable import Variable
 from src.modules.pricing.domain.exceptions import VariableNotFoundError
 from src.modules.pricing.domain.interfaces import (
     IVariableRepository,
     VariableListFilter,
 )
 from src.modules.pricing.domain.value_objects import VariableDataType, VariableScope
-from src.modules.pricing.domain.variable import Variable
 
 
 @dataclass(frozen=True)

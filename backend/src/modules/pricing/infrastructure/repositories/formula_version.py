@@ -7,8 +7,8 @@ import uuid
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.pricing.domain.entities.formula import FormulaVersion
 from src.modules.pricing.domain.exceptions import FormulaVersionConflictError
-from src.modules.pricing.domain.formula import FormulaVersion
 from src.modules.pricing.domain.interfaces import (
     FormulaVersionListFilter,
     IFormulaVersionRepository,

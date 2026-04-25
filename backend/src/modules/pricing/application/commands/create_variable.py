@@ -6,10 +6,10 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 
+from src.modules.pricing.domain.entities.variable import Variable
 from src.modules.pricing.domain.exceptions import VariableCodeTakenError
 from src.modules.pricing.domain.interfaces import IVariableRepository
 from src.modules.pricing.domain.value_objects import VariableDataType, VariableScope
-from src.modules.pricing.domain.variable import Variable
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 

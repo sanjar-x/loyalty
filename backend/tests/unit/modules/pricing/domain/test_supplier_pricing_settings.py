@@ -7,6 +7,9 @@ from decimal import Decimal
 
 import pytest
 
+from src.modules.pricing.domain.entities.supplier_pricing_settings import (
+    SupplierPricingSettings,
+)
 from src.modules.pricing.domain.events import (
     SupplierPricingSettingsCreatedEvent,
     SupplierPricingSettingsDeletedEvent,
@@ -14,9 +17,6 @@ from src.modules.pricing.domain.events import (
 )
 from src.modules.pricing.domain.exceptions import (
     SupplierPricingSettingsValidationError,
-)
-from src.modules.pricing.domain.supplier_pricing_settings import (
-    SupplierPricingSettings,
 )
 
 

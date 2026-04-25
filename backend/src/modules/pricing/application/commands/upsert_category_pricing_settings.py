@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
-from src.modules.pricing.domain.category_pricing_settings import (
+from src.modules.pricing.domain.entities.category_pricing_settings import (
     CategoryPricingSettings,
     RangeBucket,
 )

@@ -28,7 +28,7 @@ from src.modules.pricing.application.queries.supplier_type_context_mappings impo
     ListSupplierTypeContextMappingsHandler,
     ListSupplierTypeContextMappingsQuery,
 )
-from src.modules.pricing.domain.supplier_type_context_mapping import (
+from src.modules.pricing.domain.entities.supplier_type_context_mapping import (
     SupplierTypeContextMapping,
 )
 from src.modules.pricing.presentation.schemas import (

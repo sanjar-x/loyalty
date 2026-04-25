@@ -7,6 +7,7 @@ from decimal import Decimal
 
 import pytest
 
+from src.modules.pricing.domain.entities.pricing_context import PricingContext
 from src.modules.pricing.domain.events import (
     PricingContextCreatedEvent,
     PricingContextDeactivatedEvent,
@@ -15,7 +16,6 @@ from src.modules.pricing.domain.events import (
     PricingContextUpdatedEvent,
 )
 from src.modules.pricing.domain.exceptions import PricingContextValidationError
-from src.modules.pricing.domain.pricing_context import PricingContext
 from src.modules.pricing.domain.value_objects import RoundingMode
 
 ACTOR = uuid.uuid4()

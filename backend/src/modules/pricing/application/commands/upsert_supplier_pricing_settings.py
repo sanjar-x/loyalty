@@ -7,11 +7,11 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
+from src.modules.pricing.domain.entities.supplier_pricing_settings import (
+    SupplierPricingSettings,
+)
 from src.modules.pricing.domain.interfaces import (
     ISupplierPricingSettingsRepository,
-)
-from src.modules.pricing.domain.supplier_pricing_settings import (
-    SupplierPricingSettings,
 )
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork

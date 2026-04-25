@@ -7,14 +7,14 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.pricing.domain.entities.supplier_type_context_mapping import (
+    SupplierTypeContextMapping,
+)
 from src.modules.pricing.domain.exceptions import (
     SupplierTypeContextMappingConflictError,
 )
 from src.modules.pricing.domain.interfaces import (
     ISupplierTypeContextMappingRepository,
-)
-from src.modules.pricing.domain.supplier_type_context_mapping import (
-    SupplierTypeContextMapping,
 )
 from src.modules.pricing.infrastructure.models import (
     SupplierTypeContextMappingModel,

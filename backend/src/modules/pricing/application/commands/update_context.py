@@ -6,6 +6,7 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 
+from src.modules.pricing.domain.entities.pricing_context import PricingContext
 from src.modules.pricing.domain.exceptions import (
     PricingContextImmutableFieldError,
     PricingContextNotFoundError,
@@ -16,7 +17,6 @@ from src.modules.pricing.domain.interfaces import (
     IPricingContextRepository,
     IVariableRepository,
 )
-from src.modules.pricing.domain.pricing_context import PricingContext
 from src.modules.pricing.domain.value_objects import RoundingMode
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork

@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from src.modules.pricing.domain.entities.formula import FormulaVersion
 from src.modules.pricing.domain.exceptions import FormulaVersionNotFoundError
-from src.modules.pricing.domain.formula import FormulaVersion
 from src.modules.pricing.domain.interfaces import (
     FormulaVersionListFilter,
     IFormulaVersionRepository,
