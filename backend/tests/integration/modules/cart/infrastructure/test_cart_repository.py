@@ -35,6 +35,7 @@ def _make_sku_snapshot(
         is_active=True,
     )
 
+
 pytestmark = pytest.mark.integration
 
 

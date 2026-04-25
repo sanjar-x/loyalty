@@ -48,7 +48,9 @@ class SkuSnapshotMother:
         )
 
     @staticmethod
-    def cross_border(*, sku_id: uuid.UUID | None = None, price_amount: int = 20000) -> SkuSnapshot:
+    def cross_border(
+        *, sku_id: uuid.UUID | None = None, price_amount: int = 20000
+    ) -> SkuSnapshot:
         return SkuSnapshot(
             sku_id=sku_id or uuid.uuid4(),
             product_id=uuid.uuid4(),

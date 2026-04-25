@@ -381,9 +381,7 @@ class TestPreviewPriceHandler:
         handler = _build_handler(
             formula=_formula(context_id, ast),
             variables=[
-                _variable(
-                    "fx_usd", VariableScope.GLOBAL, default=Decimal("92.5")
-                )
+                _variable("fx_usd", VariableScope.GLOBAL, default=Decimal("92.5"))
             ],
         )
         result = await handler.handle(
@@ -498,9 +496,7 @@ class TestPreviewPriceHandler:
                 }
             ],
         }
-        variables = [
-            _variable("fx_usd", VariableScope.GLOBAL, default=Decimal("92.5"))
-        ]
+        variables = [_variable("fx_usd", VariableScope.GLOBAL, default=Decimal("92.5"))]
         ctx = _context({"fx_usd": Decimal("100.0")})
         handler = _build_handler(
             formula=_formula(context_id, ast),

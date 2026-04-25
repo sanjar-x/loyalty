@@ -308,7 +308,9 @@ class TestSearchProducts:
         assert "krossovki-nike-air-max" in slugs
         assert "krossovki-adidas-ultraboost" not in slugs
 
-    async def test_search_no_results(self, async_client: AsyncClient, search_seed: dict):
+    async def test_search_no_results(
+        self, async_client: AsyncClient, search_seed: dict
+    ):
         """Search for a nonsense string should return empty results."""
         resp = await async_client.get(SEARCH, params={"q": "xyznonexistent12345"})
         assert resp.status_code == 200
@@ -336,9 +338,7 @@ class TestSearchProducts:
         self, async_client: AsyncClient, search_seed: dict
     ):
         """Search with limit=1 should paginate correctly."""
-        resp = await async_client.get(
-            SEARCH, params={"q": "Кроссовки", "limit": 1}
-        )
+        resp = await async_client.get(SEARCH, params={"q": "Кроссовки", "limit": 1})
         assert resp.status_code == 200
 
         data = resp.json()
@@ -565,9 +565,7 @@ class TestSearchSuggest:
         self, async_client: AsyncClient, search_seed: dict
     ):
         """Suggest with lang=en should still work."""
-        resp = await async_client.get(
-            SUGGEST, params={"q": "nike", "lang": "en"}
-        )
+        resp = await async_client.get(SUGGEST, params={"q": "nike", "lang": "en"})
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 

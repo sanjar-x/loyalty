@@ -106,7 +106,9 @@ async def admin_client(
     cache_key = f"perms:{session_id}"
 
     redis_client: aioredis.Redis = await app_container.get(aioredis.Redis)
-    await redis_client.set(cache_key, json.dumps(["catalog:manage", "catalog:read"]), ex=300)
+    await redis_client.set(
+        cache_key, json.dumps(["catalog:manage", "catalog:read"]), ex=300
+    )
 
     async_client.headers["Authorization"] = f"Bearer {access_token}"
     yield async_client

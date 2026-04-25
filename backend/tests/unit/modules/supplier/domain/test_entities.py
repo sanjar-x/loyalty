@@ -51,11 +51,15 @@ class TestSupplierCreate:
 
     def test_create_empty_name_raises(self):
         with pytest.raises(ValueError, match="name is required"):
-            Supplier.create(name="", supplier_type=SupplierType.LOCAL, country_code="RU")
+            Supplier.create(
+                name="", supplier_type=SupplierType.LOCAL, country_code="RU"
+            )
 
     def test_create_invalid_country_code_raises(self):
         with pytest.raises(ValueError, match="Invalid country_code"):
-            Supplier.create(name="Test", supplier_type=SupplierType.LOCAL, country_code="X")
+            Supplier.create(
+                name="Test", supplier_type=SupplierType.LOCAL, country_code="X"
+            )
 
     def test_create_invalid_subdivision_code_raises(self):
         with pytest.raises(ValueError, match="Invalid subdivision_code"):

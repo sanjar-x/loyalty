@@ -180,11 +180,7 @@ class TestCreate:
         cursor = Decimal("0")
         for _ in range(65):
             nxt = cursor + Decimal("10")
-            ranges.append(
-                RangeBucket(
-                    id=uuid.uuid4(), min=cursor, max=nxt, values={}
-                )
-            )
+            ranges.append(RangeBucket(id=uuid.uuid4(), min=cursor, max=nxt, values={}))
             cursor = nxt
         with pytest.raises(CategoryPricingSettingsValidationError):
             _create(ranges=ranges)

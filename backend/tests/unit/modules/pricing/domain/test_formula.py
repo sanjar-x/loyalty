@@ -243,9 +243,7 @@ class TestUpdateAst:
     def test_validates_new_ast(self) -> None:
         draft = _fresh_draft()
         with pytest.raises(FormulaValidationError):
-            draft.update_ast(
-                new_ast={"version": 1, "bindings": []}, actor_id=ACTOR
-            )
+            draft.update_ast(new_ast={"version": 1, "bindings": []}, actor_id=ACTOR)
 
 
 @pytest.mark.unit
@@ -297,9 +295,7 @@ class TestRestoreAsPublished:
         list(draft.domain_events)
         draft.clear_domain_events()
         other = uuid.uuid4()
-        draft.restore_as_published(
-            actor_id=ACTOR, rolled_back_from_version_id=other
-        )
+        draft.restore_as_published(actor_id=ACTOR, rolled_back_from_version_id=other)
         assert draft.status is FormulaStatus.PUBLISHED
         events = list(draft.domain_events)
         draft.clear_domain_events()
@@ -311,9 +307,7 @@ class TestRestoreAsPublished:
         draft = _fresh_draft()
         draft.publish(actor_id=ACTOR)
         with pytest.raises(FormulaVersionInvalidStateError):
-            draft.restore_as_published(
-                actor_id=ACTOR, rolled_back_from_version_id=None
-            )
+            draft.restore_as_published(actor_id=ACTOR, rolled_back_from_version_id=None)
 
 
 @pytest.mark.unit

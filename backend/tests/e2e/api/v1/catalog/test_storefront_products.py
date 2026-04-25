@@ -142,9 +142,7 @@ class TestStorefrontPLP:
             brand_id=brand["id"],
         )
 
-        resp = await async_client.get(
-            PLP, params={"category_id": category["id"]}
-        )
+        resp = await async_client.get(PLP, params={"category_id": category["id"]})
         assert resp.status_code == 200
         data = resp.json()
         assert "items" in data
@@ -160,9 +158,7 @@ class TestStorefrontPLP:
     ):
         """An empty category returns an empty items list."""
         category = await create_category(admin_client)
-        resp = await async_client.get(
-            PLP, params={"category_id": category["id"]}
-        )
+        resp = await async_client.get(PLP, params={"category_id": category["id"]})
         assert resp.status_code == 200
         data = resp.json()
         assert data["items"] == []
@@ -184,9 +180,7 @@ class TestStorefrontPLP:
     ):
         """PLP response includes Cache-Control header."""
         category = await create_category(admin_client)
-        resp = await async_client.get(
-            PLP, params={"category_id": category["id"]}
-        )
+        resp = await async_client.get(PLP, params={"category_id": category["id"]})
         assert resp.status_code == 200
         assert "cache-control" in resp.headers
 
@@ -205,9 +199,7 @@ class TestStorefrontPLP:
             brand_id=brand["id"],
         )
 
-        resp = await async_client.get(
-            PLP, params={"category_id": category["id"]}
-        )
+        resp = await async_client.get(PLP, params={"category_id": category["id"]})
         assert resp.status_code == 200
         items = resp.json()["items"]
         assert len(items) >= 1
@@ -433,9 +425,7 @@ class TestStorefrontPDP:
             title_i18n={"ru": "Ботинки", "en": "Boots"},
         )
 
-        resp = await async_client.get(
-            f"{PDP}/{product['slug']}", params={"lang": "en"}
-        )
+        resp = await async_client.get(f"{PDP}/{product['slug']}", params={"lang": "en"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["title"] == "Boots"

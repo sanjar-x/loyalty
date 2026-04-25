@@ -527,8 +527,7 @@ class TestEdgeCases:
 
         # offset is not coercible to int.
         bad2 = (
-            _b64
-            .urlsafe_b64encode(b'{"v":"v1","s":"x","o":"abc"}')
+            _b64.urlsafe_b64encode(b'{"v":"v1","s":"x","o":"abc"}')
             .rstrip(b"=")
             .decode()
         )

@@ -115,9 +115,7 @@ class TestSupplierPricingSettingsReplace:
     def test_replace_validates_input(self) -> None:
         settings, actor_id = self._build()
         with pytest.raises(SupplierPricingSettingsValidationError):
-            settings.replace(
-                values={"BAD": Decimal("1")}, actor_id=actor_id
-            )
+            settings.replace(values={"BAD": Decimal("1")}, actor_id=actor_id)
         # unchanged
         assert settings.values == {"aa": Decimal("1")}
         assert settings.version_lock == 0

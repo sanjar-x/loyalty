@@ -81,11 +81,15 @@ async def test_propagate_effective_template_id_to_descendants(db_session: AsyncS
     root = Category.create_root(name_i18n={"en": "Root", "ru": "Root"}, slug="root")
     await repo.add(root)
 
-    child = Category.create_child(name_i18n={"en": "Child", "ru": "Child"}, slug="child", parent=root)
+    child = Category.create_child(
+        name_i18n={"en": "Child", "ru": "Child"}, slug="child", parent=root
+    )
     await repo.add(child)
 
     grandchild = Category.create_child(
-        name_i18n={"en": "Grandchild", "ru": "Grandchild"}, slug="grandchild", parent=child
+        name_i18n={"en": "Grandchild", "ru": "Grandchild"},
+        slug="grandchild",
+        parent=child,
     )
     await repo.add(grandchild)
 
@@ -109,11 +113,16 @@ async def test_propagation_stops_at_own_template(db_session: AsyncSession):
     await repo.add(root)
 
     child = Category.create_child(
-        name_i18n={"en": "Child", "ru": "Child"}, slug="child", parent=root, template_id=child_template
+        name_i18n={"en": "Child", "ru": "Child"},
+        slug="child",
+        parent=root,
+        template_id=child_template,
     )
     await repo.add(child)
 
-    grandchild = Category.create_child(name_i18n={"en": "GC", "ru": "GC"}, slug="gc", parent=child)
+    grandchild = Category.create_child(
+        name_i18n={"en": "GC", "ru": "GC"}, slug="gc", parent=child
+    )
     await repo.add(grandchild)
 
     affected = await repo.propagate_effective_template_id(root.id, root_template)
@@ -129,7 +138,9 @@ async def test_scenario_a_set_template_propagates(db_session: AsyncSession):
 
     root = Category.create_root(name_i18n={"en": "Root", "ru": "Root"}, slug="root")
     await repo.add(root)
-    child = Category.create_child(name_i18n={"en": "Child", "ru": "Child"}, slug="child", parent=root)
+    child = Category.create_child(
+        name_i18n={"en": "Child", "ru": "Child"}, slug="child", parent=root
+    )
     await repo.add(child)
 
     root.update(template_id=template_id)
@@ -150,7 +161,9 @@ async def test_scenario_b_change_template_propagates(db_session: AsyncSession):
         name_i18n={"en": "Root", "ru": "Root"}, slug="root", template_id=old_fid
     )
     await repo.add(root)
-    child = Category.create_child(name_i18n={"en": "Child", "ru": "Child"}, slug="child", parent=root)
+    child = Category.create_child(
+        name_i18n={"en": "Child", "ru": "Child"}, slug="child", parent=root
+    )
     await repo.add(child)
 
     root.update(template_id=new_fid)
@@ -163,9 +176,13 @@ async def test_scenario_c_clear_template_resets_children(db_session: AsyncSessio
     repo = CategoryRepository(session=db_session)
     fid = await _create_template(db_session, "sc")
 
-    root = Category.create_root(name_i18n={"en": "Root", "ru": "Root"}, slug="root", template_id=fid)
+    root = Category.create_root(
+        name_i18n={"en": "Root", "ru": "Root"}, slug="root", template_id=fid
+    )
     await repo.add(root)
-    child = Category.create_child(name_i18n={"en": "Child", "ru": "Child"}, slug="child", parent=root)
+    child = Category.create_child(
+        name_i18n={"en": "Child", "ru": "Child"}, slug="child", parent=root
+    )
     await repo.add(child)
 
     # Clear template on root -> effective becomes None

@@ -142,9 +142,7 @@ class TestExpire:
         assert await service.expire("k", -5) is False
         client.expire.assert_not_called()
 
-    async def test_applies_ttl(
-        self, service: RedisService, client: MagicMock
-    ) -> None:
+    async def test_applies_ttl(self, service: RedisService, client: MagicMock) -> None:
         client.expire.return_value = 1
         assert await service.expire("k", 30) is True
         client.expire.assert_awaited_once_with("k", 30)
@@ -218,9 +216,7 @@ class TestDecrement:
         assert await service.decrement("counter") == -1
         client.decrby.assert_awaited_once_with("counter", 1)
 
-    async def test_custom_delta(
-        self, service: RedisService, client: MagicMock
-    ) -> None:
+    async def test_custom_delta(self, service: RedisService, client: MagicMock) -> None:
         client.decrby.return_value = -5
         assert await service.decrement("counter", 5) == -5
         client.decrby.assert_awaited_once_with("counter", 5)

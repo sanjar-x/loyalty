@@ -223,27 +223,21 @@ class TestCategoryScope:
 
 class TestSupplierScope:
     def test_supplier_value_wins_over_default(self) -> None:
-        v = _var(
-            "supplier_markup", VariableScope.SUPPLIER, default=Decimal("0.10")
-        )
+        v = _var("supplier_markup", VariableScope.SUPPLIER, default=Decimal("0.10"))
         settings = _supplier_settings({"supplier_markup": Decimal("0.25")})
         assert resolve_variables([v], supplier_settings=settings) == {
             "supplier_markup": Decimal("0.25")
         }
 
     def test_supplier_falls_back_to_default_when_missing(self) -> None:
-        v = _var(
-            "supplier_markup", VariableScope.SUPPLIER, default=Decimal("0.10")
-        )
+        v = _var("supplier_markup", VariableScope.SUPPLIER, default=Decimal("0.10"))
         settings = _supplier_settings({"other": Decimal("1")})
         assert resolve_variables([v], supplier_settings=settings) == {
             "supplier_markup": Decimal("0.10")
         }
 
     def test_supplier_no_settings_uses_default(self) -> None:
-        v = _var(
-            "supplier_markup", VariableScope.SUPPLIER, default=Decimal("0.10")
-        )
+        v = _var("supplier_markup", VariableScope.SUPPLIER, default=Decimal("0.10"))
         assert resolve_variables([v]) == {"supplier_markup": Decimal("0.10")}
 
     def test_supplier_required_no_value_no_default_raises(self) -> None:
@@ -327,6 +321,7 @@ class TestIntegration:
         profile = _profile({"cost": Decimal("10"), "ghost": Decimal("999")})
         resolved = resolve_variables([v], product_profile=profile)
         assert resolved == {"cost": Decimal("10")}
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -494,27 +489,21 @@ class TestCategoryScope:
 
 class TestSupplierScope:
     def test_supplier_value_wins_over_default(self) -> None:
-        v = _var(
-            "supplier_markup", VariableScope.SUPPLIER, default=Decimal("0.10")
-        )
+        v = _var("supplier_markup", VariableScope.SUPPLIER, default=Decimal("0.10"))
         settings = _supplier_settings({"supplier_markup": Decimal("0.25")})
         assert resolve_variables([v], supplier_settings=settings) == {
             "supplier_markup": Decimal("0.25")
         }
 
     def test_supplier_falls_back_to_default_when_missing(self) -> None:
-        v = _var(
-            "supplier_markup", VariableScope.SUPPLIER, default=Decimal("0.10")
-        )
+        v = _var("supplier_markup", VariableScope.SUPPLIER, default=Decimal("0.10"))
         settings = _supplier_settings({"other": Decimal("1")})
         assert resolve_variables([v], supplier_settings=settings) == {
             "supplier_markup": Decimal("0.10")
         }
 
     def test_supplier_no_settings_uses_default(self) -> None:
-        v = _var(
-            "supplier_markup", VariableScope.SUPPLIER, default=Decimal("0.10")
-        )
+        v = _var("supplier_markup", VariableScope.SUPPLIER, default=Decimal("0.10"))
         assert resolve_variables([v]) == {"supplier_markup": Decimal("0.10")}
 
     def test_supplier_required_no_value_no_default_raises(self) -> None:

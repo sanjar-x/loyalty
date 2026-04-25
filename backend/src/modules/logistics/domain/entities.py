@@ -157,8 +157,24 @@ class Shipment(AggregateRoot):
         shipment_id: uuid.UUID | None = None,
         cod: CashOnDelivery | None = None,
     ) -> Shipment:
-        """Create a new shipment in DRAFT status from a selected DeliveryQuote."""
+        """Create a new shipment in DRAFT status from a selected DeliveryQuote.
+
+        The quote's ``delivery_days_min`` / ``delivery_days_max`` are
+        seeded into ``estimated_delivery`` immediately so they survive
+        even when the booking response (e.g. CDEK's ``GET /v2/orders``)
+        omits them — the booking phase only enriches the estimate with
+        an exact ``estimated_date`` when the carrier provides one.
+        """
         now = datetime.now(UTC)
+        initial_estimate: EstimatedDelivery | None = None
+        if (
+            quote.rate.delivery_days_min is not None
+            or quote.rate.delivery_days_max is not None
+        ):
+            initial_estimate = EstimatedDelivery(
+                min_days=quote.rate.delivery_days_min,
+                max_days=quote.rate.delivery_days_max,
+            )
         shipment = cls(
             id=shipment_id or uuid.uuid4(),
             order_id=order_id,
@@ -175,6 +191,7 @@ class Shipment(AggregateRoot):
             cod=cod,
             provider_payload=quote.provider_payload,
             tracking_events=[],
+            estimated_delivery=initial_estimate,
             created_at=now,
             updated_at=now,
         )
@@ -220,11 +237,20 @@ class Shipment(AggregateRoot):
         tracking_number: str | None = None,
         estimated_delivery: EstimatedDelivery | None = None,
     ) -> None:
-        """Transition BOOKING_PENDING → BOOKED."""
+        """Transition BOOKING_PENDING → BOOKED.
+
+        ``estimated_delivery`` from the booking response is *merged* with
+        the quote-time estimate seeded in ``Shipment.create()``: each
+        non-None field from the new estimate overrides the previous one.
+        This keeps ``min_days`` / ``max_days`` from the quote when the
+        carrier (e.g. CDEK) only echoes ``estimated_date`` post-booking.
+        """
         self._transition_to(ShipmentStatus.BOOKED)
         self.provider_shipment_id = provider_shipment_id
         self.tracking_number = tracking_number
-        self.estimated_delivery = estimated_delivery
+        self.estimated_delivery = _merge_estimates(
+            self.estimated_delivery, estimated_delivery
+        )
         self.booked_at = datetime.now(UTC)
         # Clear any failure_reason left over from a previous failed cancel
         # attempt — the shipment is now successfully (re)booked.
@@ -365,6 +391,35 @@ class Shipment(AggregateRoot):
                     event.description or event.provider_status_name or None
                 )
                 self.mark_cancelled_from_tracking(reason=cancel_reason)
+
+
+def _merge_estimates(
+    base: EstimatedDelivery | None, override: EstimatedDelivery | None
+) -> EstimatedDelivery | None:
+    """Combine quote-time and booking-time estimates field-by-field.
+
+    Each non-None field on ``override`` wins; otherwise the value from
+    ``base`` is kept. Returns ``None`` when both inputs are ``None`` or
+    when the resulting estimate carries no information.
+    """
+    if base is None and override is None:
+        return None
+    if base is None:
+        return override
+    if override is None:
+        return base
+    merged = EstimatedDelivery(
+        min_days=override.min_days if override.min_days is not None else base.min_days,
+        max_days=override.max_days if override.max_days is not None else base.max_days,
+        estimated_date=override.estimated_date or base.estimated_date,
+    )
+    if (
+        merged.min_days is None
+        and merged.max_days is None
+        and merged.estimated_date is None
+    ):
+        return None
+    return merged
 
 
 def _has_richer_info(existing: TrackingEvent, candidate: TrackingEvent) -> bool:

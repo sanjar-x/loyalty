@@ -75,9 +75,7 @@ class TestGetSimilarProductsHandler:
         session = AsyncMock()
         session.execute = AsyncMock(return_value=_ResultFirst(None))
         handler = GetSimilarProductsHandler(session, _FakeLogger())
-        result = await handler.handle(
-            GetSimilarProductsQuery(product_id=uuid.uuid4())
-        )
+        result = await handler.handle(GetSimilarProductsQuery(product_id=uuid.uuid4()))
         assert result.product_ids == []
 
     async def test_returns_ids_from_query(self) -> None:
@@ -96,16 +94,12 @@ class TestGetSimilarProductsHandler:
         seed = _Row(primary_category_id=None, brand_id=uuid.uuid4())
         session = _FakeSession(results=[_ResultFirst(seed)])
         handler = GetSimilarProductsHandler(session, _FakeLogger())
-        result = await handler.handle(
-            GetSimilarProductsQuery(product_id=uuid.uuid4())
-        )
+        result = await handler.handle(GetSimilarProductsQuery(product_id=uuid.uuid4()))
         assert result.product_ids == []
 
     async def test_limit_clamped_to_50(self) -> None:
         seed = _Row(primary_category_id=uuid.uuid4(), brand_id=uuid.uuid4())
-        session = _FakeSession(
-            results=[_ResultFirst(seed), _ResultAll([])]
-        )
+        session = _FakeSession(results=[_ResultFirst(seed), _ResultAll([])])
         handler = GetSimilarProductsHandler(session, _FakeLogger())
         # limit=999 should not raise; just return empty from our fake.
         result = await handler.handle(

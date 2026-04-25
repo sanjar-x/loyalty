@@ -204,17 +204,11 @@ async def _setup_filterable_category(admin_client: AsyncClient):
     )
 
     # Bind attributes to template
-    await bind_attribute_to_template(
-        admin_client, template["id"], color_attr["id"]
-    )
-    await bind_attribute_to_template(
-        admin_client, template["id"], material_attr["id"]
-    )
+    await bind_attribute_to_template(admin_client, template["id"], color_attr["id"])
+    await bind_attribute_to_template(admin_client, template["id"], material_attr["id"])
 
     # Category with template
-    category = await create_category(
-        admin_client, template_id=template["id"]
-    )
+    category = await create_category(admin_client, template_id=template["id"])
 
     # Brands
     brand_a = await create_brand(admin_client, name="Brand A", slug="brand-a")
@@ -465,9 +459,7 @@ class TestStorefrontFacets:
             brand_id=setup["brand_a"]["id"],
         )
 
-        resp = await async_client.get(
-            PLP, params={"category_id": cat_id}
-        )
+        resp = await async_client.get(PLP, params={"category_id": cat_id})
         assert resp.status_code == 200
         data = resp.json()
         assert data.get("facets") is None

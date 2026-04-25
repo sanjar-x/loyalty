@@ -84,9 +84,7 @@ class TestPricingContextCreate:
         with pytest.raises(PricingContextValidationError):
             _make(rounding_step=step)
 
-    @pytest.mark.parametrize(
-        "pct", [Decimal("-0.01"), Decimal("1.01"), Decimal("2")]
-    )
+    @pytest.mark.parametrize("pct", [Decimal("-0.01"), Decimal("1.01"), Decimal("2")])
     def test_rejects_margin_floor_out_of_range(self, pct: Decimal) -> None:
         with pytest.raises(PricingContextValidationError):
             _make(margin_floor_pct=pct)

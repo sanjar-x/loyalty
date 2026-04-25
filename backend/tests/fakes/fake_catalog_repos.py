@@ -218,9 +218,7 @@ class FakeAttributeGroupRepository(IAttributeGroupRepository):
     async def get(self, entity_id: uuid.UUID) -> DomainAttributeGroup | None:
         return self._store.get(entity_id)
 
-    async def get_for_update(
-        self, group_id: uuid.UUID
-    ) -> DomainAttributeGroup | None:
+    async def get_for_update(self, group_id: uuid.UUID) -> DomainAttributeGroup | None:
         return self._store.get(group_id)
 
     async def update(self, entity: DomainAttributeGroup) -> DomainAttributeGroup:

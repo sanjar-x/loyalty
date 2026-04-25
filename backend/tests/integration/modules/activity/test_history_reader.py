@@ -79,17 +79,19 @@ class TestSqlAlchemyUserActivityReader:
         cat_a, cat_b = uuid.uuid4(), uuid.uuid4()
         repo = SqlAlchemyActivityEventRepository(db_session)
 
-        await repo.bulk_add([
-            _event(actor_id=user_id, category_id=cat_a),
-            _event(actor_id=user_id, category_id=cat_a),
-            _event(actor_id=user_id, category_id=cat_b),
-            # Different event_type must be excluded from affinity aggregation.
-            _event(
-                actor_id=user_id,
-                category_id=cat_a,
-                event_type=ActivityEventType.SEARCH_PERFORMED.value,
-            ),
-        ])
+        await repo.bulk_add(
+            [
+                _event(actor_id=user_id, category_id=cat_a),
+                _event(actor_id=user_id, category_id=cat_a),
+                _event(actor_id=user_id, category_id=cat_b),
+                # Different event_type must be excluded from affinity aggregation.
+                _event(
+                    actor_id=user_id,
+                    category_id=cat_a,
+                    event_type=ActivityEventType.SEARCH_PERFORMED.value,
+                ),
+            ]
+        )
         await db_session.flush()
 
         reader = SqlAlchemyUserActivityReader(db_session, _NullLogger())
@@ -112,19 +114,21 @@ class TestSqlAlchemyUserActivityReader:
         now = datetime.now(UTC)
         repo = SqlAlchemyActivityEventRepository(db_session)
 
-        await repo.bulk_add([
-            _event(actor_id=user_id, product_id=product_a, created_at=now),
-            _event(
-                actor_id=user_id,
-                product_id=product_a,
-                created_at=now - timedelta(hours=1),
-            ),
-            _event(
-                actor_id=user_id,
-                product_id=product_b,
-                created_at=now - timedelta(hours=2),
-            ),
-        ])
+        await repo.bulk_add(
+            [
+                _event(actor_id=user_id, product_id=product_a, created_at=now),
+                _event(
+                    actor_id=user_id,
+                    product_id=product_a,
+                    created_at=now - timedelta(hours=1),
+                ),
+                _event(
+                    actor_id=user_id,
+                    product_id=product_b,
+                    created_at=now - timedelta(hours=2),
+                ),
+            ]
+        )
         await db_session.flush()
 
         reader = SqlAlchemyUserActivityReader(db_session, _NullLogger())
@@ -142,14 +146,16 @@ class TestSqlAlchemyUserActivityReader:
         now = datetime.now(UTC)
         repo = SqlAlchemyActivityEventRepository(db_session)
 
-        await repo.bulk_add([
-            _event(actor_id=me, created_at=now),
-            _event(actor_id=me, created_at=now - timedelta(days=1)),
-            # Outside the 5-day lookback we pass below:
-            _event(actor_id=me, created_at=now - timedelta(days=10)),
-            # Different actor must not leak into the count:
-            _event(actor_id=other, created_at=now),
-        ])
+        await repo.bulk_add(
+            [
+                _event(actor_id=me, created_at=now),
+                _event(actor_id=me, created_at=now - timedelta(days=1)),
+                # Outside the 5-day lookback we pass below:
+                _event(actor_id=me, created_at=now - timedelta(days=10)),
+                # Different actor must not leak into the count:
+                _event(actor_id=other, created_at=now),
+            ]
+        )
         await db_session.flush()
 
         reader = SqlAlchemyUserActivityReader(db_session, _NullLogger())

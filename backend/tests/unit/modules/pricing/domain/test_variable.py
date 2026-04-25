@@ -39,9 +39,7 @@ class TestVariableCreate:
         assert var.code == "cost_price"
         assert var.version_lock == 0
         assert var.is_user_editable_at_runtime is False
-        events = [
-            e for e in var.domain_events if isinstance(e, VariableCreatedEvent)
-        ]
+        events = [e for e in var.domain_events if isinstance(e, VariableCreatedEvent)]
         assert len(events) == 1
         assert events[0].code == "cost_price"
 
@@ -109,9 +107,7 @@ class TestVariableUpdate:
         )
         assert var.version_lock == 1
         assert var.is_required is True
-        events = [
-            e for e in var.domain_events if isinstance(e, VariableUpdatedEvent)
-        ]
+        events = [e for e in var.domain_events if isinstance(e, VariableUpdatedEvent)]
         assert len(events) == 1
 
     def test_default_value_provided_true_with_none_clears_value(self) -> None:
@@ -139,7 +135,5 @@ class TestVariableDelete:
         var = _make()
         var.clear_domain_events()
         var.mark_deleted(actor_id=ACTOR)
-        events = [
-            e for e in var.domain_events if isinstance(e, VariableDeletedEvent)
-        ]
+        events = [e for e in var.domain_events if isinstance(e, VariableDeletedEvent)]
         assert len(events) == 1

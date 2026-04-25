@@ -17,33 +17,60 @@ from src.modules.logistics.domain.value_objects import (
 # CDEK status codes (from "Приложение 15. Статусы заказов"):
 
 CDEK_STATUS_MAP: dict[str, TrackingStatus] = {
+    # ----- Inbound at sender side ----------------------------------------
     "CREATED": TrackingStatus.CREATED,
+    "REGISTERED": TrackingStatus.CREATED,
+    "ACCEPTED": TrackingStatus.ACCEPTED,
     "RECEIVED_AT_SHIPMENT_WAREHOUSE": TrackingStatus.ACCEPTED,
+    "READY_TO_SHIP_AT_SENDING_OFFICE": TrackingStatus.ACCEPTED,
     "READY_FOR_SHIPMENT_IN_SENDER_CITY": TrackingStatus.ACCEPTED,
-    "RETURNED_TO_SENDER_CITY_WAREHOUSE": TrackingStatus.EXCEPTION,
+    # ----- In transit ----------------------------------------------------
     "TAKEN_BY_TRANSPORTER": TrackingStatus.IN_TRANSIT,
+    "TAKEN_BY_TRANSPORTER_FROM_SENDER_CITY": TrackingStatus.IN_TRANSIT,
+    "TAKEN_BY_TRANSPORTER_FROM_TRANSIT_CITY": TrackingStatus.IN_TRANSIT,
     "SENT_TO_TRANSIT_CITY": TrackingStatus.IN_TRANSIT,
     "ACCEPTED_IN_TRANSIT_CITY": TrackingStatus.IN_TRANSIT,
     "ACCEPTED_AT_TRANSIT_WAREHOUSE": TrackingStatus.IN_TRANSIT,
-    "RETURNED_TO_TRANSIT_WAREHOUSE": TrackingStatus.EXCEPTION,
     "READY_FOR_SHIPMENT_IN_TRANSIT_CITY": TrackingStatus.IN_TRANSIT,
     "SENT_TO_RECIPIENT_CITY": TrackingStatus.IN_TRANSIT,
     "ACCEPTED_IN_RECIPIENT_CITY": TrackingStatus.IN_TRANSIT,
     "ACCEPTED_AT_RECIPIENT_CITY_WAREHOUSE": TrackingStatus.IN_TRANSIT,
+    "PASSED_TO_TRANSIT_CARRIER": TrackingStatus.IN_TRANSIT,
+    "SHIPPED_TO_DESTINATION": TrackingStatus.IN_TRANSIT,
+    # ----- Customs -------------------------------------------------------
+    "IN_CUSTOMS_INTERNATIONAL": TrackingStatus.CUSTOMS,
+    "IN_CUSTOMS_LOCAL": TrackingStatus.CUSTOMS,
+    "IN_CUSTOMS_NEW": TrackingStatus.CUSTOMS,
+    "SUBMITTED_TO_CUSTOMS": TrackingStatus.CUSTOMS,
+    # ``RELEASED_BY_CUSTOMS*`` and ``CUSTOMS_COMPLETE`` mean clearance is
+    # finished and the parcel is moving on, not "currently at customs".
+    "RELEASED_BY_CUSTOMS": TrackingStatus.IN_TRANSIT,
+    "RELEASED_BY_CUSTOMS_LOCAL": TrackingStatus.IN_TRANSIT,
+    "CUSTOMS_COMPLETE": TrackingStatus.IN_TRANSIT,
+    # ----- At pickup-point / postamat ------------------------------------
     "ACCEPTED_AT_PICK_UP_POINT": TrackingStatus.READY_FOR_PICKUP,
+    "POSTOMAT_POSTED": TrackingStatus.READY_FOR_PICKUP,
+    "POSTOMAT_SEIZED": TrackingStatus.IN_TRANSIT,
+    "POSTOMAT_RECEIVED": TrackingStatus.DELIVERED,
+    # ----- On the way to the recipient -----------------------------------
     "TAKEN_BY_COURIER": TrackingStatus.OUT_FOR_DELIVERY,
-    "RETURNED_TO_RECIPIENT_CITY_WAREHOUSE": TrackingStatus.ATTEMPT_FAILED,
+    "TAKEN_BY_COURIER_FROM_WAREHOUSE": TrackingStatus.OUT_FOR_DELIVERY,
+    # ----- Final / terminal ---------------------------------------------
     "DELIVERED": TrackingStatus.DELIVERED,
-    # Terminal — courier could not deliver (rejected, undeliverable address).
-    # Maps to EXCEPTION so the FSM can transition the shipment to FAILED;
-    # ATTEMPT_FAILED would imply a retry, which CDEK does not perform here.
+    # ATTEMPT_FAILED — the courier tried, did not hand the parcel over,
+    # and the order will be retried automatically. RETURNED_TO_RECIPIENT
+    # is the warehouse round-trip that follows a failed attempt.
+    "RETURNED_TO_RECIPIENT_CITY_WAREHOUSE": TrackingStatus.ATTEMPT_FAILED,
+    # Carrier-side terminal failures (cannot deliver, address invalid, etc.)
+    # — FSM transitions the shipment to FAILED.
     "NOT_DELIVERED": TrackingStatus.EXCEPTION,
     "INVALID": TrackingStatus.EXCEPTION,
-    "READY_TO_SHIP_AT_SENDING_OFFICE": TrackingStatus.ACCEPTED,
+    "DELETED": TrackingStatus.CANCELLED,
+    # Reverse / return flow
     "RETURNED_TO_SENDER": TrackingStatus.RETURNED,
-    # "CUSTOMS_COMPLETE" means clearance is finished and the parcel is
-    # moving on, not "currently at customs". Map to IN_TRANSIT.
-    "CUSTOMS_COMPLETE": TrackingStatus.IN_TRANSIT,
+    "RETURNED_TO_SENDER_CITY_WAREHOUSE": TrackingStatus.EXCEPTION,
+    "RETURNED_TO_TRANSIT_WAREHOUSE": TrackingStatus.EXCEPTION,
+    "SENT_TO_SENDER_CITY": TrackingStatus.IN_TRANSIT,
 }
 
 # ---------------------------------------------------------------------------
