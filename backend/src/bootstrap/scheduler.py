@@ -31,7 +31,8 @@ setup_dishka(container=container, broker=broker)
 
 # Import tasks so that their schedule labels are registered with the broker.
 import src.infrastructure.outbox.tasks  # noqa: E402
-import src.modules.activity.infrastructure.tasks  # noqa: E402, F401
+import src.modules.activity.infrastructure.tasks  # noqa: E402
+import src.modules.logistics.infrastructure.tasks  # noqa: E402, F401
 
 scheduler = TaskiqScheduler(
     broker=broker,

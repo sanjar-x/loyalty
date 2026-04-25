@@ -75,18 +75,17 @@ class YandexDeliveryDeliveryScheduleProvider:
         return PROVIDER_YANDEX_DELIVERY
 
     async def get_intervals(self, provider_shipment_id: str) -> list[DeliveryInterval]:
-        async with self._client:
-            try:
-                data = await self._client.request_datetime_options(provider_shipment_id)
-            except ProviderHTTPError as exc:
-                if exc.status_code == 400:
-                    logger.debug(
-                        "Yandex datetime_options: no slots for %s (%s)",
-                        provider_shipment_id,
-                        exc.message,
-                    )
-                    return []
-                raise
+        try:
+            data = await self._client.request_datetime_options(provider_shipment_id)
+        except ProviderHTTPError as exc:
+            if exc.status_code == 400:
+                logger.debug(
+                    "Yandex datetime_options: no slots for %s (%s)",
+                    provider_shipment_id,
+                    exc.message,
+                )
+                return []
+            raise
         return parse_datetime_options(data)
 
     async def get_actual_delivery_info(
@@ -98,13 +97,12 @@ class YandexDeliveryDeliveryScheduleProvider:
         info yet (e.g. status is ``DELIVERY_DELIVERED`` or pre-pickup
         states for which the endpoint returns 404 / 400).
         """
-        async with self._client:
-            try:
-                data = await self._client.get_actual_info(provider_shipment_id)
-            except ProviderHTTPError as exc:
-                if exc.status_code in (400, 404):
-                    return None
-                raise
+        try:
+            data = await self._client.get_actual_info(provider_shipment_id)
+        except ProviderHTTPError as exc:
+            if exc.status_code in (400, 404):
+                return None
+            raise
         return _parse_actual_info(data)
 
     async def get_estimated_intervals(
@@ -124,14 +122,13 @@ class YandexDeliveryDeliveryScheduleProvider:
             parcels=_PLACEHOLDER_PARCELS,
             config=self._config,
         )
-        async with self._client:
-            try:
-                data = await self._client.offers_info(body, last_mile_policy=last_mile)
-            except ProviderHTTPError as exc:
-                if exc.status_code == 400:
-                    logger.debug("Yandex offers/info: no slots (%s)", exc.message)
-                    return []
-                raise
+        try:
+            data = await self._client.offers_info(body, last_mile_policy=last_mile)
+        except ProviderHTTPError as exc:
+            if exc.status_code == 400:
+                logger.debug("Yandex offers/info: no slots (%s)", exc.message)
+                return []
+            raise
         return parse_offer_info_intervals(data)
 
 

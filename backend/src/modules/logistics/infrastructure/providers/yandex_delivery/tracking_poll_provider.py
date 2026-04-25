@@ -45,21 +45,20 @@ class YandexDeliveryTrackingPollProvider:
     ) -> dict[str, list[TrackingEvent]]:
         result: dict[str, list[TrackingEvent]] = {}
 
-        async with self._client:
-            for i in range(0, len(provider_shipment_ids), _MAX_BATCH_SIZE):
-                chunk = provider_shipment_ids[i : i + _MAX_BATCH_SIZE]
-                try:
-                    data = await self._client.get_requests_info(chunk)
-                    parsed = parse_batch_requests_info(data)
-                    result.update(parsed)
-                except ProviderHTTPError:
-                    logger.exception(
-                        "Failed to poll Yandex tracking batch (chunk %d–%d)",
-                        i,
-                        i + len(chunk),
-                    )
-                    for sid in chunk:
-                        result.setdefault(sid, [])
+        for i in range(0, len(provider_shipment_ids), _MAX_BATCH_SIZE):
+            chunk = provider_shipment_ids[i : i + _MAX_BATCH_SIZE]
+            try:
+                data = await self._client.get_requests_info(chunk)
+                parsed = parse_batch_requests_info(data)
+                result.update(parsed)
+            except ProviderHTTPError:
+                logger.exception(
+                    "Failed to poll Yandex tracking batch (chunk %d–%d)",
+                    i,
+                    i + len(chunk),
+                )
+                for sid in chunk:
+                    result.setdefault(sid, [])
 
         # Ensure all requested IDs are in the result
         for sid in provider_shipment_ids:

@@ -86,6 +86,24 @@ class ShipmentRepository(IShipmentRepository):
         await self._session.flush()
         return self._to_domain(orm)
 
+    async def list_with_pending_edit_tasks(self, *, limit: int = 100) -> list[Shipment]:
+        # ``pending_edit_tasks_json`` is JSONB; an empty array literal
+        # is the persisted ``[]``. ``jsonb_array_length`` is the
+        # cheapest way to filter at the index-friendly column level
+        # — a partial index on this expression can be added later if
+        # the table grows large.
+        stmt = (
+            select(ShipmentModel)
+            .where(
+                ShipmentModel.pending_edit_tasks_json.isnot(None),
+                ShipmentModel.pending_edit_tasks_json != [],
+            )
+            .order_by(ShipmentModel.updated_at.asc())
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return [self._to_domain(orm) for orm in result.scalars().all()]
+
     # -- Mapping: Domain → ORM ----------------------------------------------
 
     def _to_orm(self, entity: Shipment) -> ShipmentModel:

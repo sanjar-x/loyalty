@@ -24,8 +24,7 @@ class YandexDeliveryDocumentProvider:
         return PROVIDER_YANDEX_DELIVERY
 
     async def get_label(self, provider_shipment_id: str) -> DocumentResult:
-        async with self._client:
-            pdf_bytes = await self._client.generate_labels([provider_shipment_id])
+        pdf_bytes = await self._client.generate_labels([provider_shipment_id])
         return DocumentResult(
             document_bytes=pdf_bytes,
             content_type="application/pdf",

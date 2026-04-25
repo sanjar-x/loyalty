@@ -66,6 +66,8 @@ broker.add_middlewares(DLQMiddleware(session_factory=_dlq_session_factory))
 import src.infrastructure.outbox.tasks  # noqa
 import src.modules.activity.infrastructure.tasks  # noqa
 import src.modules.identity.application.consumers.role_events  # noqa
+import src.modules.logistics.infrastructure.tasks  # noqa
+import src.modules.pricing.infrastructure.tasks  # noqa
 import src.modules.user.application.consumers.identity_events  # noqa
 
 

@@ -173,3 +173,12 @@ class CdekProviderFactory:
         # differ markedly from Yandex's async edit-task pipeline; we keep
         # the capability Yandex-only for now.
         return None
+
+    async def close(self) -> None:
+        """Close all cached HTTP clients.
+
+        Called once at app shutdown via the registry's lifecycle hook.
+        """
+        for client in self._clients.values():
+            await client.close()
+        self._clients.clear()

@@ -4,6 +4,9 @@
   shipments and ingests tracking via ``IngestTrackingHandler``.
 * ``cleanup_expired_quotes_task`` — hourly; deletes expired
   ``DeliveryQuote`` rows so the table doesn't grow unbounded.
+* ``edit_task_poll_task`` — every minute; polls async edit tickets
+  for shipments with outstanding ``pending_edit_tasks`` and settles
+  the ones that reached a terminal state.
 """
 
 import structlog
@@ -18,10 +21,15 @@ from src.modules.logistics.application.commands.ingest_tracking import (
 )
 from src.modules.logistics.domain.interfaces import (
     IDeliveryQuoteRepository,
+    IShipmentRepository,
     IShippingProviderRegistry,
 )
-from src.modules.logistics.domain.value_objects import ShipmentStatus
+from src.modules.logistics.domain.value_objects import (
+    EditTaskStatus,
+    ShipmentStatus,
+)
 from src.modules.logistics.infrastructure.models import ShipmentModel
+from src.modules.logistics.infrastructure.providers.errors import ProviderHTTPError
 from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
@@ -159,3 +167,103 @@ async def cleanup_expired_quotes_task(
     if deleted:
         logger.info("Expired delivery quotes purged", deleted=deleted)
     return {"status": "success", "deleted": deleted}
+
+
+_TERMINAL_EDIT_STATUSES = (EditTaskStatus.SUCCESS, EditTaskStatus.FAILURE)
+
+
+@broker.task(
+    queue="logistics_edit_task_poll",
+    exchange="taskiq_rpc_exchange",
+    routing_key="logistics.edit_task.poll",
+    max_retries=0,
+    retry_on_error=False,
+    timeout=120,
+    schedule=[
+        {"cron": "* * * * *", "schedule_id": "edit_task_poll_every_min"},
+    ],
+)
+@inject
+async def edit_task_poll_task(
+    shipment_repo: FromDishka[IShipmentRepository],
+    registry: FromDishka[IShippingProviderRegistry],
+    uow: FromDishka[IUnitOfWork],
+) -> dict:
+    """Poll outstanding async edit tickets and settle terminal ones.
+
+    Yandex's ``request/edit/status`` endpoint returns one of
+    ``pending`` / ``execution`` / ``success`` / ``failure``. Only the
+    last two are terminal; we drop the corresponding
+    :class:`PendingEditTask` from the shipment and emit
+    :class:`ShipmentEditTaskCompletedEvent` /
+    :class:`ShipmentEditTaskFailedEvent` accordingly.
+
+    Each shipment is settled in its own UoW commit so a transient
+    provider failure on one shipment does not block siblings.
+    """
+    shipments = await shipment_repo.list_with_pending_edit_tasks(limit=100)
+    if not shipments:
+        return {"status": "skipped", "reason": "no_pending_edit_tasks"}
+
+    settled = 0
+    polled = 0
+
+    for shipment in shipments:
+        try:
+            edit_provider = registry.get_edit_provider(shipment.provider_code)
+        except Exception:
+            logger.exception(
+                "No edit provider registered for shipment",
+                shipment_id=str(shipment.id),
+                provider_code=shipment.provider_code,
+            )
+            continue
+
+        terminals: list[tuple[str, EditTaskStatus]] = []
+        for pending in shipment.pending_edit_tasks:
+            polled += 1
+            try:
+                status = await edit_provider.get_edit_status(pending.task_id)
+            except ProviderHTTPError:
+                logger.exception(
+                    "edit/status poll failed",
+                    shipment_id=str(shipment.id),
+                    task_id=pending.task_id,
+                )
+                continue
+            if status in _TERMINAL_EDIT_STATUSES:
+                terminals.append((pending.task_id, status))
+
+        if not terminals:
+            continue
+
+        try:
+            async with uow:
+                fresh = await shipment_repo.get_by_id(shipment.id)
+                if fresh is None:
+                    continue
+                for task_id, terminal in terminals:
+                    fresh.settle_edit_task(task_id, terminal)
+                await shipment_repo.update(fresh)
+                uow.register_aggregate(fresh)
+                await uow.commit()
+            settled += len(terminals)
+        except Exception:
+            logger.exception(
+                "Failed to persist edit-task settlement",
+                shipment_id=str(shipment.id),
+                terminal_count=len(terminals),
+            )
+
+    logger.info(
+        "Edit task poll completed",
+        shipments_with_pending=len(shipments),
+        tasks_polled=polled,
+        tasks_settled=settled,
+    )
+    return {
+        "status": "success",
+        "shipments_with_pending": len(shipments),
+        "tasks_polled": polled,
+        "tasks_settled": settled,
+    }

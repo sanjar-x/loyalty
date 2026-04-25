@@ -20,6 +20,8 @@ from src.modules.logistics.domain.events import (
     ShipmentCancelledEvent,
     ShipmentCreatedEvent,
     ShipmentDestinationUpdatedEvent,
+    ShipmentEditTaskCompletedEvent,
+    ShipmentEditTaskFailedEvent,
     ShipmentEditTaskScheduledEvent,
     ShipmentIntakeScheduledEvent,
     ShipmentRecipientUpdatedEvent,
@@ -518,20 +520,57 @@ class Shipment(AggregateRoot):
             )
         )
 
-    def settle_edit_task(self, task_id: str) -> None:
+    def settle_edit_task(
+        self,
+        task_id: str,
+        status: EditTaskStatus,
+        *,
+        reason: str | None = None,
+    ) -> None:
         """Drop a previously-recorded edit task once it reaches a terminal state.
 
-        Called by the status-poller; idempotent on unknown ``task_id``.
-        Does not emit an event (terminal status is observed by the
-        poller directly).
+        Called by the status-poller. ``status`` must be a terminal
+        :class:`EditTaskStatus` (``SUCCESS`` or ``FAILURE``); other values
+        are rejected so non-terminal polls do not strip the task.
+
+        Idempotent on unknown ``task_id`` — no state change, no event.
+        Emits :class:`ShipmentEditTaskCompletedEvent` on ``SUCCESS`` or
+        :class:`ShipmentEditTaskFailedEvent` on ``FAILURE`` so consumers
+        can react to terminal outcomes without polling the poller.
         """
-        before = len(self.pending_edit_tasks)
+        if status not in (EditTaskStatus.SUCCESS, EditTaskStatus.FAILURE):
+            raise ValueError(
+                "settle_edit_task requires a terminal status "
+                "(SUCCESS or FAILURE), got " + status.value
+            )
+        settled = next(
+            (t for t in self.pending_edit_tasks if t.task_id == task_id),
+            None,
+        )
+        if settled is None:
+            return
         self.pending_edit_tasks = [
             t for t in self.pending_edit_tasks if t.task_id != task_id
         ]
-        if len(self.pending_edit_tasks) != before:
-            self.updated_at = datetime.now(UTC)
-            self.version += 1
+        self.updated_at = datetime.now(UTC)
+        self.version += 1
+        if status == EditTaskStatus.SUCCESS:
+            self.add_domain_event(
+                ShipmentEditTaskCompletedEvent(
+                    shipment_id=self.id,
+                    task_id=task_id,
+                    kind=settled.kind.value,
+                )
+            )
+        else:
+            self.add_domain_event(
+                ShipmentEditTaskFailedEvent(
+                    shipment_id=self.id,
+                    task_id=task_id,
+                    kind=settled.kind.value,
+                    reason=reason,
+                )
+            )
 
     # -- Intake (CDEK courier pickup) --------------------------------------
 

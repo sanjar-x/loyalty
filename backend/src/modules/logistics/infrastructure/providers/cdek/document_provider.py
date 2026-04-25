@@ -23,10 +23,9 @@ class CdekDocumentProvider:
         return PROVIDER_CDEK
 
     async def get_label(self, provider_shipment_id: str) -> DocumentResult:
-        async with self._client:
-            pdf_bytes = await self._client.get_waybill_pdf_with_polling(
-                provider_shipment_id,
-            )
+        pdf_bytes = await self._client.get_waybill_pdf_with_polling(
+            provider_shipment_id,
+        )
         return DocumentResult(
             document_bytes=pdf_bytes,
             content_type="application/pdf",

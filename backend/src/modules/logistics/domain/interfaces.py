@@ -341,6 +341,14 @@ class IProviderFactory(Protocol):
         self, credentials: dict[str, Any], config: dict[str, Any] | None = None
     ) -> IEditProvider | None: ...
 
+    async def close(self) -> None:
+        """Close all cached HTTP clients held by this factory.
+
+        Called at app shutdown so ``httpx.AsyncClient`` connection pools
+        are released cleanly. Idempotent — subsequent calls are no-ops.
+        """
+        ...
+
 
 # ---------------------------------------------------------------------------
 # Registry — stores and retrieves provider adapters by ProviderCode
@@ -420,6 +428,16 @@ class IShipmentRepository(Protocol):
     ) -> Shipment | None: ...
 
     async def update(self, shipment: Shipment) -> Shipment: ...
+
+    async def list_with_pending_edit_tasks(
+        self, *, limit: int = 100
+    ) -> list[Shipment]: ...
+
+    """Return shipments that have at least one outstanding edit task.
+
+    Used by the edit-task poller to discover work — much cheaper than
+    scanning every shipment when only a handful are mid-mutation.
+    """
 
 
 class IDeliveryQuoteRepository(Protocol):

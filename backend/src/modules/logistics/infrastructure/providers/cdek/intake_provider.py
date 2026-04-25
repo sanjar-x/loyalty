@@ -62,14 +62,12 @@ class CdekIntakeProvider:
         body: dict = {"from_location": _build_intake_location(from_address)}
         if until:
             body["date"] = until
-        async with self._client:
-            data = await self._client.get_intake_available_days(body)
+        data = await self._client.get_intake_available_days(body)
         return _parse_available_days(data)
 
     async def create_intake(self, request: IntakeRequest) -> IntakeResult:
         body = _build_intake_request(request)
-        async with self._client:
-            data = await self._client.create_intake(body)
+        data = await self._client.create_intake(body)
 
         entity = data.get("entity", {}) if isinstance(data, dict) else {}
         provider_intake_id = entity.get("uuid") or ""
@@ -86,8 +84,7 @@ class CdekIntakeProvider:
         )
 
     async def get_intake(self, provider_intake_id: str) -> IntakeStatus:
-        async with self._client:
-            data = await self._client.get_intake(provider_intake_id)
+        data = await self._client.get_intake(provider_intake_id)
         entity = data.get("entity", data) if isinstance(data, dict) else {}
         raw_statuses = entity.get("statuses", []) if isinstance(entity, dict) else []
         if not isinstance(raw_statuses, list) or not raw_statuses:
@@ -106,12 +103,11 @@ class CdekIntakeProvider:
         return _CDEK_INTAKE_STATUS_MAP.get(code, IntakeStatus.UNKNOWN)
 
     async def cancel_intake(self, provider_intake_id: str) -> bool:
-        async with self._client:
-            try:
-                await self._client.delete_intake(provider_intake_id)
-            except ProviderHTTPError:
-                logger.exception("CDEK intake cancel failed", exc_info=True)
-                return False
+        try:
+            await self._client.delete_intake(provider_intake_id)
+        except ProviderHTTPError:
+            logger.exception("CDEK intake cancel failed", exc_info=True)
+            return False
         return True
 
 

@@ -30,6 +30,5 @@ class YandexDeliveryPickupPointProvider:
 
     async def list_pickup_points(self, query: PickupPointQuery) -> list[PickupPoint]:
         body = build_pickup_points_request(query)
-        async with self._client:
-            data = await self._client.list_pickup_points(body)
+        data = await self._client.list_pickup_points(body)
         return parse_pickup_points(data)

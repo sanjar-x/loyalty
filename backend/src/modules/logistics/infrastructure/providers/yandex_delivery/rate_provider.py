@@ -67,8 +67,7 @@ class YandexDeliveryRateProvider:
                 origin, destination, parcels, tariff, self._config
             )
             try:
-                async with self._client:
-                    data = await self._client.pricing_calculator(body)
+                data = await self._client.pricing_calculator(body)
             except ProviderHTTPError as exc:
                 if exc.status_code == 400:
                     logger.debug(

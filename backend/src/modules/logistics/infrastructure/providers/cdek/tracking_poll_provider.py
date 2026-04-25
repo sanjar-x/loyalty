@@ -39,9 +39,8 @@ class CdekTrackingPollProvider:
         self, provider_shipment_ids: list[str]
     ) -> dict[str, list[TrackingEvent]]:
         result: dict[str, list[TrackingEvent]] = {}
-        async with self._client:
-            tasks = [self._poll_single(sid) for sid in provider_shipment_ids]
-            responses = await asyncio.gather(*tasks, return_exceptions=True)
+        tasks = [self._poll_single(sid) for sid in provider_shipment_ids]
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
 
         for sid, resp in zip(provider_shipment_ids, responses, strict=False):
             if isinstance(resp, BaseException):

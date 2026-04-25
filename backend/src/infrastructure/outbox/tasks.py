@@ -203,6 +203,14 @@ register_event_handler(
     _logistics_event_logger("shipment.edit_task_scheduled"),
 )
 register_event_handler(
+    "ShipmentEditTaskCompletedEvent",
+    _logistics_event_logger("shipment.edit_task_completed"),
+)
+register_event_handler(
+    "ShipmentEditTaskFailedEvent",
+    _logistics_event_logger("shipment.edit_task_failed", level="warning"),
+)
+register_event_handler(
     "ShipmentIntakeScheduledEvent",
     _logistics_event_logger("shipment.intake_scheduled"),
 )

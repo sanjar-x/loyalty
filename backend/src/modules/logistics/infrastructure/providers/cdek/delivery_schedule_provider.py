@@ -34,10 +34,9 @@ class CdekDeliveryScheduleProvider:
         return PROVIDER_CDEK
 
     async def get_intervals(self, provider_shipment_id: str) -> list[DeliveryInterval]:
-        async with self._client:
-            data = await self._client.get_delivery_intervals(
-                {"order_uuid": provider_shipment_id}
-            )
+        data = await self._client.get_delivery_intervals(
+            {"order_uuid": provider_shipment_id}
+        )
         return _parse_intervals(data)
 
     async def get_actual_delivery_info(
@@ -61,8 +60,7 @@ class CdekDeliveryScheduleProvider:
             "from_location": _build_estimate_location(origin),
             "to_location": _build_estimate_location(destination),
         }
-        async with self._client:
-            data = await self._client.get_estimated_delivery_intervals(body)
+        data = await self._client.get_estimated_delivery_intervals(body)
         return _parse_intervals(data)
 
 

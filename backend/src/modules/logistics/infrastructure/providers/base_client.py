@@ -85,24 +85,53 @@ class BaseProviderClient:
         self._auth: BaseAuthManager = auth_manager
         self._config: ProviderClientConfig = config
         self._client: httpx.AsyncClient | None = None
+        self._client_lock: asyncio.Lock = asyncio.Lock()
 
     async def __aenter__(self) -> BaseProviderClient:
-        self._client = httpx.AsyncClient(
-            base_url=self._config.base_url,
-            timeout=httpx.Timeout(self._config.timeout_seconds),
-        )
+        # Kept for backwards-compatible test fixtures. Production code
+        # opens the client lazily on the first request and closes it
+        # via ``close()`` at app shutdown.
+        await self._ensure_client()
         return self
 
     async def __aexit__(self, *exc: object) -> None:
-        if self._client:
-            await self._client.aclose()
-            self._client = None
+        await self.close()
+
+    async def close(self) -> None:
+        """Close the underlying httpx client.
+
+        Called at app shutdown via the bootstrap lifespan hook. Safe to
+        call multiple times — subsequent invocations no-op.
+        """
+        async with self._client_lock:
+            if self._client is not None:
+                await self._client.aclose()
+                self._client = None
+
+    async def _ensure_client(self) -> httpx.AsyncClient:
+        """Open the underlying httpx client on first use.
+
+        Subsequent calls reuse the same instance. Concurrent first
+        requests race through ``_client_lock`` so only one client is
+        ever created — the previous design opened-then-closed a fresh
+        client per request, which under load closed in-flight requests
+        from sibling coroutines (review item C1).
+        """
+        if self._client is None:
+            async with self._client_lock:
+                if self._client is None:
+                    self._client = httpx.AsyncClient(
+                        base_url=self._config.base_url,
+                        timeout=httpx.Timeout(self._config.timeout_seconds),
+                    )
+        return self._client
 
     @property
     def client(self) -> httpx.AsyncClient:
         if self._client is None:
             raise RuntimeError(
-                "BaseProviderClient must be used as an async context manager"
+                "BaseProviderClient.client accessed before _ensure_client(); "
+                "call request() instead of touching .client directly."
             )
         return self._client
 
@@ -158,6 +187,8 @@ class BaseProviderClient:
             else method.upper() in _IDEMPOTENT_METHODS
         )
 
+        client = await self._ensure_client()
+
         await self._auth.refresh_if_needed()
         auth_headers = await self._auth.get_auth_headers()
 
@@ -178,7 +209,7 @@ class BaseProviderClient:
                     path,
                 )
 
-                response = await self.client.request(
+                response = await client.request(
                     method=method,
                     url=path,
                     json=json,

@@ -239,6 +239,50 @@ class ShipmentEditTaskScheduledEvent(
     event_type: str = "ShipmentEditTaskScheduledEvent"
 
 
+@dataclass
+class ShipmentEditTaskCompletedEvent(
+    LogisticsEvent,
+    required_fields=("shipment_id", "task_id"),
+    aggregate_id_field="shipment_id",
+):
+    """Emitted when an async edit task reaches the ``SUCCESS`` terminal state.
+
+    Confirms the carrier-side mutation has been applied — pricing /
+    timeline / notification consumers can react to the resulting
+    state change. ``kind`` carries the originating
+    :class:`EditTaskKind` value so subscribers can route without
+    re-reading the shipment.
+    """
+
+    shipment_id: uuid.UUID | None = None
+    task_id: str | None = None
+    kind: str | None = None
+    aggregate_type: str = "Shipment"
+    event_type: str = "ShipmentEditTaskCompletedEvent"
+
+
+@dataclass
+class ShipmentEditTaskFailedEvent(
+    LogisticsEvent,
+    required_fields=("shipment_id", "task_id"),
+    aggregate_id_field="shipment_id",
+):
+    """Emitted when an async edit task reaches the ``FAILURE`` terminal state.
+
+    The provider rejected the mutation — operators must reconcile
+    manually (and any optimistic UI update on the storefront must
+    be rolled back). ``reason`` captures whatever diagnostic text
+    the provider returned, when available.
+    """
+
+    shipment_id: uuid.UUID | None = None
+    task_id: str | None = None
+    kind: str | None = None
+    reason: str | None = None
+    aggregate_type: str = "Shipment"
+    event_type: str = "ShipmentEditTaskFailedEvent"
+
+
 # ---------------------------------------------------------------------------
 # Intake events (CDEK courier pickup)
 # ---------------------------------------------------------------------------

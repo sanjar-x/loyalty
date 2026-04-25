@@ -56,13 +56,12 @@ class CdekReturnProvider:
         # contacts and parcels are inherited from the original order
         # referenced by ``order_provider_id``.
         body: dict[str, Any] = {"tariff_code": request.tariff_code}
-        async with self._client:
-            try:
-                data = await self._client.register_client_return(
-                    request.order_provider_id, body
-                )
-            except ProviderHTTPError as exc:
-                return ReturnResult(success=False, reason=str(exc))
+        try:
+            data = await self._client.register_client_return(
+                request.order_provider_id, body
+            )
+        except ProviderHTTPError as exc:
+            return ReturnResult(success=False, reason=str(exc))
 
         provider_return_id = _extract_root_uuid(data)
         return ReturnResult(
@@ -82,13 +81,10 @@ class CdekReturnProvider:
                     "reason": request.reason,
                 },
             )
-        async with self._client:
-            try:
-                data = await self._client.register_refusal(
-                    request.order_provider_id, None
-                )
-            except ProviderHTTPError as exc:
-                return ReturnResult(success=False, reason=str(exc))
+        try:
+            data = await self._client.register_refusal(request.order_provider_id, None)
+        except ProviderHTTPError as exc:
+            return ReturnResult(success=False, reason=str(exc))
 
         provider_return_id = _extract_root_uuid(data)
         return ReturnResult(
@@ -101,20 +97,19 @@ class CdekReturnProvider:
         self, request: ReverseAvailabilityRequest
     ) -> ReverseAvailabilityResult:
         body = _build_reverse_request(request)
-        async with self._client:
-            try:
-                data = await self._client.check_reverse_availability(body)
-            except ProviderHTTPError as exc:
-                # CDEK signals "reverse not available" with HTTP 400 +
-                # an ``errors`` list. Anything else (5xx, network) is
-                # also propagated as "not available" with the raw
-                # diagnostic preserved for the operator.
-                reason = _format_errors(exc.response_body) or str(exc)
-                return ReverseAvailabilityResult(
-                    is_available=False,
-                    reason=reason,
-                    raw_response=exc.response_body,
-                )
+        try:
+            data = await self._client.check_reverse_availability(body)
+        except ProviderHTTPError as exc:
+            # CDEK signals "reverse not available" with HTTP 400 +
+            # an ``errors`` list. Anything else (5xx, network) is
+            # also propagated as "not available" with the raw
+            # diagnostic preserved for the operator.
+            reason = _format_errors(exc.response_body) or str(exc)
+            return ReverseAvailabilityResult(
+                is_available=False,
+                reason=reason,
+                raw_response=exc.response_body,
+            )
 
         # 200 with an empty body == "available". CDEK never echoes
         # ``available: true`` — the absence of an error envelope is

@@ -187,3 +187,12 @@ class YandexDeliveryProviderFactory:
         return YandexDeliveryEditProvider(
             self._get_or_create_client(credentials, config)
         )
+
+    async def close(self) -> None:
+        """Close all cached HTTP clients.
+
+        Called once at app shutdown via the registry's lifecycle hook.
+        """
+        for client in self._clients.values():
+            await client.close()
+        self._clients.clear()

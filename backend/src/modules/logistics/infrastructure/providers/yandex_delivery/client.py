@@ -81,6 +81,14 @@ class YandexDeliveryClient:
     async def __aexit__(self, *exc: object) -> None:
         await self._provider_client.__aexit__(*exc)
 
+    async def close(self) -> None:
+        """Release the underlying httpx connection pool.
+
+        Called by ``YandexDeliveryProviderFactory.close`` at app
+        shutdown. Idempotent — repeat calls no-op.
+        """
+        await self._provider_client.close()
+
     # ------------------------------------------------------------------ #
     # Pricing                                                              #
     # ------------------------------------------------------------------ #

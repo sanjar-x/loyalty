@@ -43,8 +43,7 @@ class CdekPickupPointProvider:
 
     async def list_pickup_points(self, query: PickupPointQuery) -> list[PickupPoint]:
         params = build_delivery_points_params(query)
-        async with self._client:
-            raw = await self._client.list_all_delivery_points(params)
+        raw = await self._client.list_all_delivery_points(params)
         points = parse_delivery_points(raw)
         return _filter_by_radius(
             points,

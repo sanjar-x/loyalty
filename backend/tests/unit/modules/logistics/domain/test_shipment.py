@@ -14,6 +14,9 @@ from src.modules.logistics.domain.events import (
     ShipmentCancellationRequestedEvent,
     ShipmentCancelledEvent,
     ShipmentCreatedEvent,
+    ShipmentEditTaskCompletedEvent,
+    ShipmentEditTaskFailedEvent,
+    ShipmentEditTaskScheduledEvent,
     ShipmentTrackingUpdatedEvent,
 )
 from src.modules.logistics.domain.exceptions import InvalidShipmentTransitionError
@@ -25,6 +28,8 @@ from src.modules.logistics.domain.value_objects import (
     DeliveryQuote,
     DeliveryType,
     Dimensions,
+    EditTaskKind,
+    EditTaskStatus,
     EstimatedDelivery,
     Money,
     Parcel,
@@ -417,6 +422,87 @@ class TestShipmentTracking:
         )
         shipment.append_tracking_event(event)
         assert shipment.version == v_before + 1
+
+
+# ---------------------------------------------------------------------------
+# Edit-task lifecycle
+# ---------------------------------------------------------------------------
+
+
+class TestEditTaskLifecycle:
+    def _booked_shipment(self) -> Shipment:
+        s = _make_shipment()
+        s.mark_booking_pending()
+        s.mark_booked(provider_shipment_id="X", tracking_number="Y")
+        s.clear_domain_events()
+        return s
+
+    def test_record_edit_task_emits_scheduled_event(self):
+        shipment = self._booked_shipment()
+        shipment.record_edit_task("task-1", EditTaskKind.EDIT_ORDER)
+
+        assert len(shipment.pending_edit_tasks) == 1
+        assert shipment.pending_edit_tasks[0].task_id == "task-1"
+        assert any(
+            isinstance(e, ShipmentEditTaskScheduledEvent)
+            for e in shipment.domain_events
+        )
+
+    def test_record_replaces_same_kind(self):
+        shipment = self._booked_shipment()
+        shipment.record_edit_task("task-1", EditTaskKind.EDIT_PACKAGES)
+        shipment.record_edit_task("task-2", EditTaskKind.EDIT_PACKAGES)
+
+        assert len(shipment.pending_edit_tasks) == 1
+        assert shipment.pending_edit_tasks[0].task_id == "task-2"
+
+    def test_settle_success_emits_completed_event(self):
+        shipment = self._booked_shipment()
+        shipment.record_edit_task("task-1", EditTaskKind.EDIT_ORDER)
+        shipment.clear_domain_events()
+
+        shipment.settle_edit_task("task-1", EditTaskStatus.SUCCESS)
+
+        assert shipment.pending_edit_tasks == []
+        events = shipment.domain_events
+        assert any(isinstance(e, ShipmentEditTaskCompletedEvent) for e in events)
+        assert not any(isinstance(e, ShipmentEditTaskFailedEvent) for e in events)
+
+    def test_settle_failure_emits_failed_event_with_reason(self):
+        shipment = self._booked_shipment()
+        shipment.record_edit_task("task-1", EditTaskKind.REMOVE_ITEMS)
+        shipment.clear_domain_events()
+
+        shipment.settle_edit_task(
+            "task-1", EditTaskStatus.FAILURE, reason="provider rejected"
+        )
+
+        failed = next(
+            e
+            for e in shipment.domain_events
+            if isinstance(e, ShipmentEditTaskFailedEvent)
+        )
+        assert failed.reason == "provider rejected"
+        assert failed.kind == EditTaskKind.REMOVE_ITEMS.value
+
+    def test_settle_unknown_task_id_is_noop(self):
+        shipment = self._booked_shipment()
+        shipment.record_edit_task("task-1", EditTaskKind.EDIT_ORDER)
+        v_before = shipment.version
+        shipment.clear_domain_events()
+
+        shipment.settle_edit_task("does-not-exist", EditTaskStatus.SUCCESS)
+
+        assert len(shipment.pending_edit_tasks) == 1
+        assert shipment.version == v_before
+        assert shipment.domain_events == []
+
+    def test_settle_rejects_non_terminal_status(self):
+        shipment = self._booked_shipment()
+        shipment.record_edit_task("task-1", EditTaskKind.EDIT_ORDER)
+
+        with pytest.raises(ValueError):
+            shipment.settle_edit_task("task-1", EditTaskStatus.PENDING)
 
 
 # ---------------------------------------------------------------------------

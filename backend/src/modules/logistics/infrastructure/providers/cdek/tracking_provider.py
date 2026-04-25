@@ -29,8 +29,7 @@ class CdekTrackingProvider:
         return PROVIDER_CDEK
 
     async def get_tracking(self, provider_shipment_id: str) -> list[TrackingEvent]:
-        async with self._client:
-            data = await self._client.get_order(provider_shipment_id)
+        data = await self._client.get_order(provider_shipment_id)
         entity = data.get("entity", data)
         statuses = entity.get("statuses", [])
         return parse_tracking_events(statuses)

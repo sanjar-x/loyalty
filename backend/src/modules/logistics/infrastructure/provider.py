@@ -5,6 +5,8 @@ Registers repository implementations, registry, routing policy,
 and command/query handlers into the DI container.
 """
 
+from collections.abc import AsyncIterator
+
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -117,8 +119,15 @@ class LogisticsInfraProvider(Provider):
     async def registry(
         self,
         session_factory: async_sessionmaker[AsyncSession],
-    ) -> IShippingProviderRegistry:
-        return await bootstrap_registry(session_factory)
+    ) -> AsyncIterator[IShippingProviderRegistry]:
+        # Generator scope so Dishka calls registry.close() at app
+        # shutdown — this releases the cached httpx.AsyncClient pools
+        # in CDEK / Yandex factories instead of leaking sockets.
+        registry = await bootstrap_registry(session_factory)
+        try:
+            yield registry
+        finally:
+            await registry.close()
 
 
 class LogisticsCommandProvider(Provider):

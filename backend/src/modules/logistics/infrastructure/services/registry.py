@@ -5,6 +5,9 @@ Each adapter implements one or more capability protocols (IRateProvider,
 IBookingProvider, etc.). The registry indexes them by ProviderCode.
 """
 
+import logging
+from collections.abc import Awaitable, Callable
+
 from src.modules.logistics.domain.exceptions import ProviderUnavailableError
 from src.modules.logistics.domain.interfaces import (
     IBookingProvider,
@@ -21,12 +24,18 @@ from src.modules.logistics.domain.interfaces import (
 )
 from src.modules.logistics.domain.value_objects import ProviderCode
 
+logger = logging.getLogger(__name__)
+
 
 class ShippingProviderRegistry:
     """In-memory registry of logistics provider adapters.
 
     Adapters are registered at application startup (APP scope via Dishka)
     and retrieved at request time by ProviderCode.
+
+    The registry also tracks close callbacks for the underlying HTTP
+    clients held by adapter factories — call :meth:`close` at app
+    shutdown to release ``httpx`` connection pools cleanly.
     """
 
     def __init__(self) -> None:
@@ -43,6 +52,7 @@ class ShippingProviderRegistry:
         ] = {}
         self._return_providers: dict[ProviderCode, IReturnProvider] = {}
         self._edit_providers: dict[ProviderCode, IEditProvider] = {}
+        self._close_callbacks: list[Callable[[], Awaitable[None]]] = []
 
     # -- Registration -------------------------------------------------------
 
@@ -218,3 +228,29 @@ class ShippingProviderRegistry:
     def has_webhook_adapter(self, code: ProviderCode) -> bool:
         """Check if a webhook adapter is registered for a provider."""
         return code in self._webhook_adapters
+
+    # -- Lifecycle ----------------------------------------------------------
+
+    def register_close_callback(self, callback: Callable[[], Awaitable[None]]) -> None:
+        """Register an async close callback to invoke at registry shutdown.
+
+        Used by ``bootstrap_registry`` to wire each provider factory's
+        ``close()`` method into the registry's lifecycle so the Dishka
+        APP-scope shutdown hook can release ``httpx`` connection pools.
+        """
+        self._close_callbacks.append(callback)
+
+    async def close(self) -> None:
+        """Invoke all registered close callbacks.
+
+        Runs them sequentially — order does not matter since each
+        factory owns disjoint clients. Exceptions are logged but do
+        not abort sibling shutdowns: an interrupted shutdown could
+        leave other clients leaked.
+        """
+        for callback in self._close_callbacks:
+            try:
+                await callback()
+            except Exception:
+                logger.exception("Provider close callback failed")
+        self._close_callbacks.clear()

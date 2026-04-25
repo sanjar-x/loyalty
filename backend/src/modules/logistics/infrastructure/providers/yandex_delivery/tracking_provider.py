@@ -31,6 +31,5 @@ class YandexDeliveryTrackingProvider:
         return PROVIDER_YANDEX_DELIVERY
 
     async def get_tracking(self, provider_shipment_id: str) -> list[TrackingEvent]:
-        async with self._client:
-            data = await self._client.get_request_history(provider_shipment_id)
+        data = await self._client.get_request_history(provider_shipment_id)
         return parse_tracking_history(data)

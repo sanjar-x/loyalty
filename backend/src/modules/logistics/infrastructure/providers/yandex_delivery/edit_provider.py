@@ -79,8 +79,7 @@ class YandexDeliveryEditProvider:
 
     async def edit_order(self, request: EditOrderRequest) -> EditTaskResult:
         body = _build_edit_order_body(request)
-        async with self._client:
-            data = await self._client.request_edit(body)
+        data = await self._client.request_edit(body)
 
         edit_id = (data.get("edit_id") or "") if isinstance(data, dict) else ""
         if not edit_id:
@@ -110,8 +109,7 @@ class YandexDeliveryEditProvider:
             "request_id": order_provider_id,
             "places": [_build_edit_package(p) for p in packages],
         }
-        async with self._client:
-            data = await self._client.request_places_edit(body)
+        data = await self._client.request_places_edit(body)
         return _async_edit_result(data)
 
     # ------------------------------------------------------------------ #
@@ -127,8 +125,7 @@ class YandexDeliveryEditProvider:
             "request_id": order_provider_id,
             "items_instances": [_build_item_instance(i) for i in items],
         }
-        async with self._client:
-            data = await self._client.request_items_instances_edit(body)
+        data = await self._client.request_items_instances_edit(body)
         return _async_edit_result(data)
 
     # ------------------------------------------------------------------ #
@@ -147,8 +144,7 @@ class YandexDeliveryEditProvider:
                 for i in items
             ],
         }
-        async with self._client:
-            data = await self._client.request_items_remove(body)
+        data = await self._client.request_items_remove(body)
         return _async_edit_result(data)
 
     # ------------------------------------------------------------------ #
@@ -156,16 +152,15 @@ class YandexDeliveryEditProvider:
     # ------------------------------------------------------------------ #
 
     async def get_edit_status(self, task_id: str) -> EditTaskStatus:
-        async with self._client:
-            try:
-                data = await self._client.request_edit_status(task_id)
-            except ProviderHTTPError as exc:
-                # 404 is the documented signal that the ticket completed
-                # and has been swept — treat as SUCCESS rather than a
-                # hard failure to keep the polling loop simple.
-                if exc.status_code == 404:
-                    return EditTaskStatus.SUCCESS
-                raise
+        try:
+            data = await self._client.request_edit_status(task_id)
+        except ProviderHTTPError as exc:
+            # 404 is the documented signal that the ticket completed
+            # and has been swept — treat as SUCCESS rather than a
+            # hard failure to keep the polling loop simple.
+            if exc.status_code == 404:
+                return EditTaskStatus.SUCCESS
+            raise
         raw_status = (data.get("status") or "") if isinstance(data, dict) else ""
         return _YANDEX_EDIT_STATUS_MAP.get(raw_status, EditTaskStatus.UNKNOWN)
 

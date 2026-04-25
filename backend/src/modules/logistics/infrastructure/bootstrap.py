@@ -107,6 +107,12 @@ async def bootstrap_registry(
             account.id,
         )
 
+    # Hold factory references on the registry's lifecycle so cached
+    # ``httpx.AsyncClient`` instances are closed at app shutdown rather
+    # than leaking until process exit.
+    for factory in factories.values():
+        registry.register_close_callback(factory.close)
+
     return registry
 
 

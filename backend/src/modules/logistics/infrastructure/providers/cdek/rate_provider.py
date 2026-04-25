@@ -35,6 +35,5 @@ class CdekRateProvider:
         parcels: list[Parcel],
     ) -> list[DeliveryQuote]:
         body = build_calculator_request(origin, destination, parcels)
-        async with self._client:
-            data = await self._client.calculate_tariff_list(body)
+        data = await self._client.calculate_tariff_list(body)
         return parse_tariff_list_response(data)

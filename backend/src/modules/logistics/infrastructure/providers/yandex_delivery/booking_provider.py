@@ -49,24 +49,23 @@ class YandexDeliveryBookingProvider:
     async def book_shipment(self, request: BookingRequest) -> BookingResult:
         body = build_offers_create_request(request, self._config)
 
-        async with self._client:
-            # Step 1: Create offers
-            offers_data = await self._client.offers_create(body)
-            offers = parse_offers_response(offers_data)
+        # Step 1: Create offers
+        offers_data = await self._client.offers_create(body)
+        offers = parse_offers_response(offers_data)
 
-            if not offers:
-                raise ProviderHTTPError(
-                    status_code=400,
-                    message="No delivery offers returned by Yandex",
-                    response_body=json.dumps(offers_data, ensure_ascii=False),
-                )
+        if not offers:
+            raise ProviderHTTPError(
+                status_code=400,
+                message="No delivery offers returned by Yandex",
+                response_body=json.dumps(offers_data, ensure_ascii=False),
+            )
 
-            offer = offers[0]
-            offer_id = offer["offer_id"]
+        offer = offers[0]
+        offer_id = offer["offer_id"]
 
-            # Step 2: Confirm the offer
-            confirm_data = await self._client.offers_confirm(offer_id)
-            request_id = parse_confirm_response(confirm_data)
+        # Step 2: Confirm the offer
+        confirm_data = await self._client.offers_confirm(offer_id)
+        request_id = parse_confirm_response(confirm_data)
 
         estimated = _extract_estimated_delivery(offer)
 
@@ -82,11 +81,10 @@ class YandexDeliveryBookingProvider:
         )
 
     async def cancel_shipment(self, provider_shipment_id: str) -> CancelResult:
-        async with self._client:
-            try:
-                data = await self._client.cancel_request(provider_shipment_id)
-            except ProviderHTTPError as exc:
-                return CancelResult(success=False, reason=str(exc))
+        try:
+            data = await self._client.cancel_request(provider_shipment_id)
+        except ProviderHTTPError as exc:
+            return CancelResult(success=False, reason=str(exc))
 
         success, reason = parse_cancel_response(data)
         return CancelResult(success=success, reason=reason)

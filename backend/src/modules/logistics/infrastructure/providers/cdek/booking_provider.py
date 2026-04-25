@@ -60,32 +60,31 @@ class CdekBookingProvider:
     async def book_shipment(self, request: BookingRequest) -> BookingResult:
         body = build_order_request(request)
 
-        async with self._client:
-            create_data = await self._client.create_order(body)
-            entity_uuid, requests = parse_order_create_response(create_data)
+        create_data = await self._client.create_order(body)
+        entity_uuid, requests = parse_order_create_response(create_data)
 
-            if not entity_uuid:
+        if not entity_uuid:
+            raise ProviderHTTPError(
+                status_code=0,
+                message="No entity UUID in CDEK order creation response",
+                response_body=json.dumps(create_data, ensure_ascii=False),
+            )
+
+        # Check for immediate errors in the requests array
+        for req in requests:
+            if req.get("state") == "INVALID":
+                errors = req.get("errors", [])
+                error_msgs = "; ".join(
+                    f"{e.get('code', '')}: {e.get('message', '')}" for e in errors
+                )
                 raise ProviderHTTPError(
-                    status_code=0,
-                    message="No entity UUID in CDEK order creation response",
+                    status_code=400,
+                    message=f"CDEK order validation failed: {error_msgs}",
                     response_body=json.dumps(create_data, ensure_ascii=False),
                 )
 
-            # Check for immediate errors in the requests array
-            for req in requests:
-                if req.get("state") == "INVALID":
-                    errors = req.get("errors", [])
-                    error_msgs = "; ".join(
-                        f"{e.get('code', '')}: {e.get('message', '')}" for e in errors
-                    )
-                    raise ProviderHTTPError(
-                        status_code=400,
-                        message=f"CDEK order validation failed: {error_msgs}",
-                        response_body=json.dumps(create_data, ensure_ascii=False),
-                    )
-
-            # Poll for order confirmation
-            order_data = await self._poll_order_ready(entity_uuid)
+        # Poll for order confirmation
+        order_data = await self._poll_order_ready(entity_uuid)
 
         return parse_order_info_response(order_data)
 
@@ -138,11 +137,10 @@ class CdekBookingProvider:
         )
 
     async def cancel_shipment(self, provider_shipment_id: str) -> CancelResult:
-        async with self._client:
-            try:
-                data = await self._client.delete_order(provider_shipment_id)
-            except ProviderHTTPError as exc:
-                return CancelResult(success=False, reason=str(exc))
+        try:
+            data = await self._client.delete_order(provider_shipment_id)
+        except ProviderHTTPError as exc:
+            return CancelResult(success=False, reason=str(exc))
 
         requests = data.get("requests", [])
         for req in requests:
