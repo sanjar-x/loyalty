@@ -2,7 +2,7 @@
 
 import uuid
 
-from src.modules.identity.domain.seed import (
+from src.modules.identity.management.seed_data import (
     _NS_PERMISSION,
     _NS_ROLE,
     ALL_PERMISSION_CODENAMES,

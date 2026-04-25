@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.modules.identity.domain.seed import PERMISSIONS, ROLES
+from src.modules.identity.management.seed_data import PERMISSIONS, ROLES
 from src.modules.identity.management.sync_system_roles import sync_system_roles
 
 if TYPE_CHECKING:

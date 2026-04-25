@@ -1,6 +1,6 @@
 """Idempotent sync of system roles, permissions, and hierarchy.
 
-Reads the single source of truth from ``identity.domain.seed`` and
+Reads the single source of truth from ``identity.management.seed_data`` and
 upserts into the database using ``INSERT ... ON CONFLICT DO UPDATE``.
 
 Safe to run on every deploy — if nothing changed, nothing is written.
@@ -17,7 +17,7 @@ import structlog
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.modules.identity.domain.seed import (
+from src.modules.identity.management.seed_data import (
     PERMISSIONS,
     ROLE_HIERARCHY,
     ROLES,

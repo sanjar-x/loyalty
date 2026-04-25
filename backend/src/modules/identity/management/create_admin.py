@@ -18,7 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.infrastructure.security.password import Argon2PasswordHasher
-from src.modules.identity.domain.seed import ROLE_BY_NAME
+from src.modules.identity.management.seed_data import ROLE_BY_NAME
 
 logger = structlog.get_logger(__name__)
 
