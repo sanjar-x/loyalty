@@ -20,11 +20,17 @@ from src.modules.logistics.domain.value_objects import (
     ContactInfo,
     DeliveryType,
     Dimensions,
+    EditTaskKind,
+    EditTaskStatus,
     EstimatedDelivery,
+    IntakeStatus,
     Money,
     Parcel,
     ParcelItem,
+    PendingEditTask,
     ProviderCode,
+    RegisteredReturn,
+    ScheduledIntake,
     ShipmentStatus,
     TrackingEvent,
     TrackingStatus,
@@ -106,6 +112,15 @@ class ShipmentRepository(IShipmentRepository):
             estimated_delivery_json=self._estimated_delivery_to_dict(
                 entity.estimated_delivery
             ),
+            pending_edit_tasks_json=[
+                self._pending_edit_task_to_dict(t) for t in entity.pending_edit_tasks
+            ],
+            scheduled_intake_json=self._scheduled_intake_to_dict(
+                entity.scheduled_intake
+            ),
+            registered_returns_json=[
+                self._registered_return_to_dict(r) for r in entity.registered_returns
+            ],
             created_at=entity.created_at,
             updated_at=entity.updated_at,
             booked_at=entity.booked_at,
@@ -126,6 +141,21 @@ class ShipmentRepository(IShipmentRepository):
         orm.estimated_delivery_json = self._estimated_delivery_to_dict(
             entity.estimated_delivery
         )
+        # Edit / intake / return state — also a column-level update so
+        # the same optimistic lock guards mutations from the new
+        # handlers.
+        orm.recipient_json = self._contact_to_dict(entity.recipient)
+        orm.destination_json = self._address_to_dict(entity.destination)
+        orm.delivery_type = entity.delivery_type
+        orm.pending_edit_tasks_json = [
+            self._pending_edit_task_to_dict(t) for t in entity.pending_edit_tasks
+        ]
+        orm.scheduled_intake_json = self._scheduled_intake_to_dict(
+            entity.scheduled_intake
+        )
+        orm.registered_returns_json = [
+            self._registered_return_to_dict(r) for r in entity.registered_returns
+        ]
         orm.updated_at = entity.updated_at
         orm.booked_at = entity.booked_at
         orm.cancelled_at = entity.cancelled_at
@@ -208,6 +238,15 @@ class ShipmentRepository(IShipmentRepository):
             estimated_delivery=self._dict_to_estimated_delivery(
                 orm.estimated_delivery_json
             ),
+            pending_edit_tasks=[
+                self._dict_to_pending_edit_task(t)
+                for t in (orm.pending_edit_tasks_json or [])
+            ],
+            scheduled_intake=self._dict_to_scheduled_intake(orm.scheduled_intake_json),
+            registered_returns=[
+                self._dict_to_registered_return(r)
+                for r in (orm.registered_returns_json or [])
+            ],
             created_at=orm.created_at,
             updated_at=orm.updated_at,
             booked_at=orm.booked_at,
@@ -331,4 +370,77 @@ class ShipmentRepository(IShipmentRepository):
             timestamp=orm.timestamp,
             location=orm.location,
             description=orm.description,
+        )
+
+    # -- Edit / intake / return state ---------------------------------------
+
+    @staticmethod
+    def _pending_edit_task_to_dict(task: PendingEditTask) -> dict:
+        return {
+            "task_id": task.task_id,
+            "kind": task.kind.value,
+            "submitted_at": task.submitted_at.isoformat(),
+            "initial_status": task.initial_status.value,
+        }
+
+    @staticmethod
+    def _dict_to_pending_edit_task(d: dict) -> PendingEditTask:
+        from datetime import datetime as _datetime
+
+        return PendingEditTask(
+            task_id=d["task_id"],
+            kind=EditTaskKind(d["kind"]),
+            submitted_at=_datetime.fromisoformat(d["submitted_at"]),
+            initial_status=EditTaskStatus(
+                d.get("initial_status", EditTaskStatus.PENDING.value)
+            ),
+        )
+
+    @staticmethod
+    def _scheduled_intake_to_dict(intake: ScheduledIntake | None) -> dict | None:
+        if intake is None:
+            return None
+        return {
+            "provider_intake_id": intake.provider_intake_id,
+            "status": intake.status.value,
+            "scheduled_at": intake.scheduled_at.isoformat(),
+        }
+
+    @staticmethod
+    def _dict_to_scheduled_intake(d: dict | None) -> ScheduledIntake | None:
+        if d is None:
+            return None
+        from datetime import datetime as _datetime
+
+        return ScheduledIntake(
+            provider_intake_id=d["provider_intake_id"],
+            status=IntakeStatus(d["status"]),
+            scheduled_at=_datetime.fromisoformat(d["scheduled_at"]),
+        )
+
+    @staticmethod
+    def _registered_return_to_dict(r: RegisteredReturn) -> dict:
+        return {
+            "kind": r.kind,
+            "provider_return_id": r.provider_return_id,
+            "reason": r.reason,
+            "registered_at": (
+                r.registered_at.isoformat() if r.registered_at is not None else None
+            ),
+        }
+
+    @staticmethod
+    def _dict_to_registered_return(d: dict) -> RegisteredReturn:
+        from datetime import datetime as _datetime
+
+        registered_at_raw = d.get("registered_at")
+        return RegisteredReturn(
+            kind=d["kind"],
+            provider_return_id=d.get("provider_return_id"),
+            reason=d.get("reason"),
+            registered_at=(
+                _datetime.fromisoformat(registered_at_raw)
+                if registered_at_raw
+                else None
+            ),
         )

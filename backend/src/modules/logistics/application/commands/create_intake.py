@@ -18,6 +18,7 @@ from src.modules.logistics.domain.interfaces import (
 from src.modules.logistics.domain.value_objects import IntakeRequest
 from src.shared.exceptions import ValidationError
 from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)
@@ -52,25 +53,28 @@ class CreateIntakeHandler:
         self,
         shipment_repo: IShipmentRepository,
         registry: IShippingProviderRegistry,
+        uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
         self._shipment_repo = shipment_repo
         self._registry = registry
+        self._uow = uow
         self._logger = logger.bind(handler="CreateIntakeHandler")
 
     async def handle(self, command: CreateIntakeCommand) -> CreateIntakeResult:
+        # Phase 1: validate inputs against the persisted shipment.
         shipment = await self._shipment_repo.get_by_id(command.shipment_id)
         if shipment is None:
             raise ShipmentNotFoundError(
                 details={"shipment_id": str(command.shipment_id)}
             )
-
         if not shipment.parcels:
             raise ValidationError(
                 message="Shipment has no parcels — cannot schedule intake.",
                 details={"shipment_id": str(command.shipment_id)},
             )
 
+        # Phase 2: external provider call — runs outside any DB tx.
         provider = self._registry.get_intake_provider(shipment.provider_code)
         request = IntakeRequest(
             order_provider_id=shipment.provider_shipment_id or "",
@@ -85,8 +89,33 @@ class CreateIntakeHandler:
             lunch_time_to=command.lunch_time_to,
             need_call=command.need_call,
         )
-
         result = await provider.create_intake(request)
+
+        # Phase 3: persist the scheduled intake on the aggregate so the
+        # audit trail and outbox event-stream stay consistent with what
+        # the carrier acknowledged.
+        async with self._uow:
+            shipment = await self._shipment_repo.get_by_id(command.shipment_id)
+            if shipment is None:
+                # Window between Phase 1 and Phase 3 — unlikely but the
+                # carrier already accepted the intake. Log loud so an
+                # operator can reconcile manually.
+                self._logger.error(
+                    "Shipment vanished between intake creation and persist",
+                    shipment_id=str(command.shipment_id),
+                    provider_intake_id=result.provider_intake_id,
+                )
+                raise ShipmentNotFoundError(
+                    details={"shipment_id": str(command.shipment_id)}
+                )
+            shipment.record_intake(
+                provider_intake_id=result.provider_intake_id,
+                status=result.status,
+            )
+            await self._shipment_repo.update(shipment)
+            self._uow.register_aggregate(shipment)
+            await self._uow.commit()
+
         self._logger.info(
             "Intake scheduled",
             shipment_id=str(shipment.id),

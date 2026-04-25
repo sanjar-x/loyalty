@@ -132,6 +132,27 @@ class ShipmentModel(Base):
         JSONB, nullable=True, comment="Estimated delivery window as JSON"
     )
 
+    # Outstanding async edit tasks (Yandex 3.06 / 3.12 / 3.14 / 3.15).
+    pending_edit_tasks_json: Mapped[list] = mapped_column(
+        JSONB,
+        default=list,
+        server_default="[]",
+        comment="In-flight edit tasks: [{task_id, kind, submitted_at, initial_status}]",
+    )
+    # Currently active courier intake (CDEK).
+    scheduled_intake_json: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Active intake: {provider_intake_id, status, scheduled_at}",
+    )
+    # Append-only audit of returns / refusals registered with the carrier.
+    registered_returns_json: Mapped[list] = mapped_column(
+        JSONB,
+        default=list,
+        server_default="[]",
+        comment="Returns: [{kind, provider_return_id, reason, registered_at}]",
+    )
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),

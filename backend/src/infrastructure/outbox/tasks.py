@@ -190,6 +190,34 @@ register_event_handler(
     "ShipmentTrackingUpdatedEvent",
     _logistics_event_logger("shipment.tracking_updated"),
 )
+register_event_handler(
+    "ShipmentRecipientUpdatedEvent",
+    _logistics_event_logger("shipment.recipient_updated"),
+)
+register_event_handler(
+    "ShipmentDestinationUpdatedEvent",
+    _logistics_event_logger("shipment.destination_updated"),
+)
+register_event_handler(
+    "ShipmentEditTaskScheduledEvent",
+    _logistics_event_logger("shipment.edit_task_scheduled"),
+)
+register_event_handler(
+    "ShipmentIntakeScheduledEvent",
+    _logistics_event_logger("shipment.intake_scheduled"),
+)
+register_event_handler(
+    "ShipmentIntakeCancelledEvent",
+    _logistics_event_logger("shipment.intake_cancelled"),
+)
+register_event_handler(
+    "ShipmentReturnRegisteredEvent",
+    _logistics_event_logger("shipment.return_registered"),
+)
+register_event_handler(
+    "ShipmentRefusalRegisteredEvent",
+    _logistics_event_logger("shipment.refusal_registered"),
+)
 
 
 # ---------------------------------------------------------------------------

@@ -17,6 +17,7 @@ from src.modules.logistics.domain.interfaces import (
 )
 from src.modules.logistics.domain.value_objects import RefusalRequest
 from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)
@@ -39,10 +40,12 @@ class RegisterRefusalHandler:
         self,
         shipment_repo: IShipmentRepository,
         registry: IShippingProviderRegistry,
+        uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
         self._shipment_repo = shipment_repo
         self._registry = registry
+        self._uow = uow
         self._logger = logger.bind(handler="RegisterRefusalHandler")
 
     async def handle(self, command: RegisterRefusalCommand) -> RegisterReturnResult:
@@ -57,18 +60,34 @@ class RegisterRefusalHandler:
             order_provider_id=shipment.provider_shipment_id or "",
             reason=command.reason,
         )
-
         result = await provider.register_refusal(request)
+
         if result.success:
-            self._logger.info("Refusal registered", shipment_id=str(shipment.id))
+            async with self._uow:
+                shipment = await self._shipment_repo.get_by_id(command.shipment_id)
+                if shipment is None:
+                    self._logger.error(
+                        "Shipment vanished between refusal submit and persist",
+                        shipment_id=str(command.shipment_id),
+                    )
+                    raise ShipmentNotFoundError(
+                        details={"shipment_id": str(command.shipment_id)}
+                    )
+                shipment.record_refusal(reason=command.reason)
+                await self._shipment_repo.update(shipment)
+                self._uow.register_aggregate(shipment)
+                await self._uow.commit()
+            self._logger.info(
+                "Refusal registered", shipment_id=str(command.shipment_id)
+            )
         else:
             self._logger.warning(
                 "Refusal rejected by provider",
-                shipment_id=str(shipment.id),
+                shipment_id=str(command.shipment_id),
                 reason=result.reason,
             )
         return RegisterReturnResult(
-            shipment_id=shipment.id,
+            shipment_id=command.shipment_id,
             success=result.success,
             provider_return_id=result.provider_return_id,
             reason=result.reason,

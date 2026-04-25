@@ -21,6 +21,7 @@ from src.modules.logistics.domain.value_objects import (
     ContactInfo,
 )
 from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)
@@ -49,21 +50,25 @@ class RegisterClientReturnHandler:
         self,
         shipment_repo: IShipmentRepository,
         registry: IShippingProviderRegistry,
+        uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
         self._shipment_repo = shipment_repo
         self._registry = registry
+        self._uow = uow
         self._logger = logger.bind(handler="RegisterClientReturnHandler")
 
     async def handle(
         self, command: RegisterClientReturnCommand
     ) -> RegisterReturnResult:
+        # Phase 1: validate.
         shipment = await self._shipment_repo.get_by_id(command.shipment_id)
         if shipment is None:
             raise ShipmentNotFoundError(
                 details={"shipment_id": str(command.shipment_id)}
             )
 
+        # Phase 2: provider call.
         provider = self._registry.get_return_provider(shipment.provider_code)
         request = ClientReturnRequest(
             order_provider_id=shipment.provider_shipment_id or "",
@@ -73,22 +78,44 @@ class RegisterClientReturnHandler:
             recipient=command.recipient,
             parcels=list(shipment.parcels),
         )
-
         result = await provider.register_client_return(request)
+
+        # Phase 3: persist + emit event only on success. A rejected
+        # return does not mutate state — caller sees ``success=False``
+        # plus the reason, no audit row added.
         if result.success:
+            async with self._uow:
+                shipment = await self._shipment_repo.get_by_id(command.shipment_id)
+                if shipment is None:
+                    self._logger.error(
+                        "Shipment vanished between client_return submit and persist",
+                        shipment_id=str(command.shipment_id),
+                        provider_return_id=result.provider_return_id,
+                    )
+                    raise ShipmentNotFoundError(
+                        details={"shipment_id": str(command.shipment_id)}
+                    )
+                shipment.record_return(
+                    provider_return_id=result.provider_return_id,
+                    reason=result.reason,
+                )
+                await self._shipment_repo.update(shipment)
+                self._uow.register_aggregate(shipment)
+                await self._uow.commit()
+
             self._logger.info(
                 "Client return registered",
-                shipment_id=str(shipment.id),
+                shipment_id=str(command.shipment_id),
                 provider_return_id=result.provider_return_id,
             )
         else:
             self._logger.warning(
                 "Client return rejected by provider",
-                shipment_id=str(shipment.id),
+                shipment_id=str(command.shipment_id),
                 reason=result.reason,
             )
         return RegisterReturnResult(
-            shipment_id=shipment.id,
+            shipment_id=command.shipment_id,
             success=result.success,
             provider_return_id=result.provider_return_id,
             reason=result.reason,

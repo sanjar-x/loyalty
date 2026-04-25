@@ -22,9 +22,11 @@ from src.modules.logistics.domain.value_objects import (
     DeliveryType,
     EditOrderRequest,
     EditPlaceSwap,
+    EditTaskKind,
 )
 from src.shared.exceptions import ValidationError
 from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)
@@ -49,10 +51,12 @@ class EditOrderHandler:
         self,
         shipment_repo: IShipmentRepository,
         registry: IShippingProviderRegistry,
+        uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
         self._shipment_repo = shipment_repo
         self._registry = registry
+        self._uow = uow
         self._logger = logger.bind(handler="EditOrderHandler")
 
     async def handle(self, command: EditOrderCommand) -> EditTaskSubmittedResult:
@@ -69,12 +73,14 @@ class EditOrderHandler:
                 details={"shipment_id": str(command.shipment_id)},
             )
 
+        # Phase 1: read-only validation against the persisted shipment.
         shipment = await self._shipment_repo.get_by_id(command.shipment_id)
         if shipment is None:
             raise ShipmentNotFoundError(
                 details={"shipment_id": str(command.shipment_id)}
             )
 
+        # Phase 2: provider call.
         provider = self._registry.get_edit_provider(shipment.provider_code)
         request = EditOrderRequest(
             order_provider_id=shipment.provider_shipment_id or "",
@@ -84,6 +90,41 @@ class EditOrderHandler:
             places=command.places,
         )
         result = await provider.edit_order(request)
+
+        # Phase 3: persist mutations + record edit task. Yandex /request/edit
+        # is synchronous (initial_status=SUCCESS); apply the recipient /
+        # destination patches locally so the next read does not drift
+        # from the carrier-side state. Package swaps remain attached to
+        # the task ticket — the local Shipment.parcels list does not track
+        # individual barcodes, so the canonical state stays on the
+        # provider until a future sync.
+        async with self._uow:
+            shipment = await self._shipment_repo.get_by_id(command.shipment_id)
+            if shipment is None:
+                self._logger.error(
+                    "Shipment vanished between edit submission and persist",
+                    shipment_id=str(command.shipment_id),
+                    task_id=result.task_id,
+                )
+                raise ShipmentNotFoundError(
+                    details={"shipment_id": str(command.shipment_id)}
+                )
+            if command.recipient is not None:
+                shipment.apply_recipient_change(command.recipient)
+            if command.destination is not None:
+                shipment.apply_destination_change(
+                    command.destination,
+                    delivery_type=command.delivery_type,
+                )
+            shipment.record_edit_task(
+                task_id=result.task_id,
+                kind=EditTaskKind.EDIT_ORDER,
+                initial_status=result.initial_status,
+            )
+            await self._shipment_repo.update(shipment)
+            self._uow.register_aggregate(shipment)
+            await self._uow.commit()
+
         self._logger.info(
             "Edit order ticket submitted",
             shipment_id=str(shipment.id),

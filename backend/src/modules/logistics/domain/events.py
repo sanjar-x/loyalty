@@ -186,3 +186,125 @@ class ShipmentTrackingUpdatedEvent(
     provider_status_code: str = ""
     aggregate_type: str = "Shipment"
     event_type: str = "ShipmentTrackingUpdatedEvent"
+
+
+# ---------------------------------------------------------------------------
+# Edit / mutation events (Yandex 3.06 / 3.12 / 3.14 / 3.15)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ShipmentRecipientUpdatedEvent(
+    LogisticsEvent,
+    required_fields=("shipment_id",),
+    aggregate_id_field="shipment_id",
+):
+    """Emitted after a successful recipient mutation via /request/edit."""
+
+    shipment_id: uuid.UUID | None = None
+    aggregate_type: str = "Shipment"
+    event_type: str = "ShipmentRecipientUpdatedEvent"
+
+
+@dataclass
+class ShipmentDestinationUpdatedEvent(
+    LogisticsEvent,
+    required_fields=("shipment_id",),
+    aggregate_id_field="shipment_id",
+):
+    """Emitted after a successful destination mutation via /request/edit."""
+
+    shipment_id: uuid.UUID | None = None
+    aggregate_type: str = "Shipment"
+    event_type: str = "ShipmentDestinationUpdatedEvent"
+
+
+@dataclass
+class ShipmentEditTaskScheduledEvent(
+    LogisticsEvent,
+    required_fields=("shipment_id", "task_id", "kind"),
+    aggregate_id_field="shipment_id",
+):
+    """Emitted when an asynchronous edit task is submitted to the provider.
+
+    ``kind`` mirrors :class:`EditTaskKind` so consumers can route by
+    operation (places / items / removal / recipient / destination)
+    without coupling to the original command class.
+    """
+
+    shipment_id: uuid.UUID | None = None
+    task_id: str | None = None
+    kind: str | None = None  # value of EditTaskKind
+    aggregate_type: str = "Shipment"
+    event_type: str = "ShipmentEditTaskScheduledEvent"
+
+
+# ---------------------------------------------------------------------------
+# Intake events (CDEK courier pickup)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ShipmentIntakeScheduledEvent(
+    LogisticsEvent,
+    required_fields=("shipment_id", "provider_intake_id"),
+    aggregate_id_field="shipment_id",
+):
+    """Emitted when a courier intake is registered with the provider."""
+
+    shipment_id: uuid.UUID | None = None
+    provider_intake_id: str | None = None
+    intake_status: str = ""  # IntakeStatus value
+    aggregate_type: str = "Shipment"
+    event_type: str = "ShipmentIntakeScheduledEvent"
+
+
+@dataclass
+class ShipmentIntakeCancelledEvent(
+    LogisticsEvent,
+    required_fields=("provider_intake_id",),
+    aggregate_id_field="provider_intake_id",
+):
+    """Emitted when a courier intake is cancelled.
+
+    Aggregate id is the provider intake id rather than shipment id —
+    intake-cancel commands operate without a Shipment aggregate
+    (CancelIntakeCommand only carries provider_code + provider_intake_id).
+    """
+
+    provider_intake_id: str | None = None
+    aggregate_type: str = "Intake"
+    event_type: str = "ShipmentIntakeCancelledEvent"
+
+
+# ---------------------------------------------------------------------------
+# Return / refusal events (CDEK reverse flow)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ShipmentReturnRegisteredEvent(
+    LogisticsEvent,
+    required_fields=("shipment_id",),
+    aggregate_id_field="shipment_id",
+):
+    """Emitted when a client return is registered with the provider."""
+
+    shipment_id: uuid.UUID | None = None
+    provider_return_id: str | None = None
+    aggregate_type: str = "Shipment"
+    event_type: str = "ShipmentReturnRegisteredEvent"
+
+
+@dataclass
+class ShipmentRefusalRegisteredEvent(
+    LogisticsEvent,
+    required_fields=("shipment_id",),
+    aggregate_id_field="shipment_id",
+):
+    """Emitted when a doorstep refusal is registered with the provider."""
+
+    shipment_id: uuid.UUID | None = None
+    reason: str | None = None
+    aggregate_type: str = "Shipment"
+    event_type: str = "ShipmentRefusalRegisteredEvent"

@@ -755,3 +755,70 @@ class EditItemRemoval:
 
     item_barcode: str
     remaining_count: int  # 0 = full removal
+
+
+# ---------------------------------------------------------------------------
+# Persisted edit / intake / return state (Shipment aggregate)
+# ---------------------------------------------------------------------------
+
+
+class EditTaskKind(StrEnum):
+    """Kind of asynchronous edit operation submitted to the provider.
+
+    Mirrors the five Yandex edit endpoints so consumers can route by
+    operation without inspecting payload shape:
+
+    - ``EDIT_ORDER`` — POST /request/edit (3.06): recipient / dest / packages
+    - ``EDIT_PACKAGES`` — POST /request/places/edit (3.12): full layout
+    - ``EDIT_ITEMS`` — POST /request/items-instances/edit (3.14): markings
+    - ``REMOVE_ITEMS`` — POST /request/items/remove (3.15): item counts
+    """
+
+    EDIT_ORDER = "edit_order"
+    EDIT_PACKAGES = "edit_packages"
+    EDIT_ITEMS = "edit_items"
+    REMOVE_ITEMS = "remove_items"
+
+
+@attrs.define(frozen=True)
+class PendingEditTask:
+    """Outstanding async edit task awaiting provider confirmation.
+
+    Stored on the Shipment aggregate so that:
+
+    1. The status-poller can match incoming ``edit/status`` results
+       back to the originating shipment without scanning the outbox.
+    2. Operators see at a glance which mutations are in flight
+       (``GetShipmentQuery`` returns this list).
+    3. A successful task can be replaced with the corresponding
+       confirmation event without losing the audit trail.
+    """
+
+    task_id: str
+    kind: EditTaskKind
+    submitted_at: datetime
+    initial_status: EditTaskStatus = EditTaskStatus.PENDING
+
+
+@attrs.define(frozen=True)
+class ScheduledIntake:
+    """Currently-active courier intake associated with a shipment.
+
+    A Shipment carries at most one active intake at a time — repeated
+    ``record_intake`` calls overwrite the previous entry; cancelling
+    the intake clears it.
+    """
+
+    provider_intake_id: str
+    status: IntakeStatus
+    scheduled_at: datetime
+
+
+@attrs.define(frozen=True)
+class RegisteredReturn:
+    """Provider-side return / refusal registered against a shipment."""
+
+    kind: str  # "client_return" | "refusal"
+    provider_return_id: str | None = None
+    reason: str | None = None
+    registered_at: datetime | None = None

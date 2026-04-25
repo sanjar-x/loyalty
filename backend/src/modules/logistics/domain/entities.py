@@ -19,6 +19,12 @@ from src.modules.logistics.domain.events import (
     ShipmentCancellationRequestedEvent,
     ShipmentCancelledEvent,
     ShipmentCreatedEvent,
+    ShipmentDestinationUpdatedEvent,
+    ShipmentEditTaskScheduledEvent,
+    ShipmentIntakeScheduledEvent,
+    ShipmentRecipientUpdatedEvent,
+    ShipmentRefusalRegisteredEvent,
+    ShipmentReturnRegisteredEvent,
     ShipmentTrackingUpdatedEvent,
 )
 from src.modules.logistics.domain.exceptions import InvalidShipmentTransitionError
@@ -30,10 +36,16 @@ from src.modules.logistics.domain.value_objects import (
     ContactInfo,
     DeliveryQuote,
     DeliveryType,
+    EditTaskKind,
+    EditTaskStatus,
     EstimatedDelivery,
+    IntakeStatus,
     Money,
     Parcel,
+    PendingEditTask,
     ProviderCode,
+    RegisteredReturn,
+    ScheduledIntake,
     ShipmentStatus,
     TrackingEvent,
     TrackingStatus,
@@ -139,6 +151,20 @@ class Shipment(AggregateRoot):
 
     failure_reason: str | None = None
     estimated_delivery: EstimatedDelivery | None = None
+
+    # Outstanding async edit tasks (Yandex 3.06 / 3.12 / 3.14 / 3.15).
+    # The list is short — at most one entry per kind in flight — and is
+    # cleared as the status-poller observes terminal states.
+    pending_edit_tasks: list[PendingEditTask] = attrs.Factory(list)
+
+    # Currently-active courier intake (CDEK). At most one at a time:
+    # cancelling clears, scheduling overwrites.
+    scheduled_intake: ScheduledIntake | None = None
+
+    # Provider-side returns / refusals registered against this shipment.
+    # Append-only audit list — multiple refusals are technically possible
+    # if the courier retries with a new recipient.
+    registered_returns: list[RegisteredReturn] = attrs.Factory(list)
 
     created_at: datetime = attrs.Factory(lambda: datetime.now(UTC))
     updated_at: datetime = attrs.Factory(lambda: datetime.now(UTC))
@@ -420,6 +446,180 @@ class Shipment(AggregateRoot):
                     event.description or event.provider_status_name or None
                 )
                 self.mark_cancelled_from_tracking(reason=cancel_reason)
+
+    # -- Edit / mutation operations ----------------------------------------
+
+    def apply_recipient_change(self, recipient: ContactInfo) -> None:
+        """Replace the recipient locally after a successful provider edit.
+
+        Emits :class:`ShipmentRecipientUpdatedEvent` so downstream
+        consumers (notifications, cart re-sync) react to the change.
+        """
+        if self.recipient == recipient:
+            return
+        self.recipient = recipient
+        self.updated_at = datetime.now(UTC)
+        self.version += 1
+        self.add_domain_event(ShipmentRecipientUpdatedEvent(shipment_id=self.id))
+
+    def apply_destination_change(
+        self,
+        destination: Address,
+        *,
+        delivery_type: DeliveryType | None = None,
+    ) -> None:
+        """Replace the destination locally after a successful provider edit.
+
+        ``delivery_type`` may also have changed (e.g. courier → pickup
+        point swap on Yandex 3.06); when supplied it overrides the
+        previous value.
+        """
+        if self.destination == destination and (
+            delivery_type is None or self.delivery_type == delivery_type
+        ):
+            return
+        self.destination = destination
+        if delivery_type is not None:
+            self.delivery_type = delivery_type
+        self.updated_at = datetime.now(UTC)
+        self.version += 1
+        self.add_domain_event(ShipmentDestinationUpdatedEvent(shipment_id=self.id))
+
+    def record_edit_task(
+        self,
+        task_id: str,
+        kind: EditTaskKind,
+        *,
+        initial_status: EditTaskStatus = EditTaskStatus.PENDING,
+    ) -> None:
+        """Record an outstanding async edit task.
+
+        Replaces any previous task of the same kind — at most one of
+        each kind is in flight at a time. Emits
+        :class:`ShipmentEditTaskScheduledEvent` so the status-poller
+        / consumers know to start watching ``task_id``.
+        """
+        self.pending_edit_tasks = [t for t in self.pending_edit_tasks if t.kind != kind]
+        self.pending_edit_tasks.append(
+            PendingEditTask(
+                task_id=task_id,
+                kind=kind,
+                submitted_at=datetime.now(UTC),
+                initial_status=initial_status,
+            )
+        )
+        self.updated_at = datetime.now(UTC)
+        self.version += 1
+        self.add_domain_event(
+            ShipmentEditTaskScheduledEvent(
+                shipment_id=self.id,
+                task_id=task_id,
+                kind=kind.value,
+            )
+        )
+
+    def settle_edit_task(self, task_id: str) -> None:
+        """Drop a previously-recorded edit task once it reaches a terminal state.
+
+        Called by the status-poller; idempotent on unknown ``task_id``.
+        Does not emit an event (terminal status is observed by the
+        poller directly).
+        """
+        before = len(self.pending_edit_tasks)
+        self.pending_edit_tasks = [
+            t for t in self.pending_edit_tasks if t.task_id != task_id
+        ]
+        if len(self.pending_edit_tasks) != before:
+            self.updated_at = datetime.now(UTC)
+            self.version += 1
+
+    # -- Intake (CDEK courier pickup) --------------------------------------
+
+    def record_intake(
+        self,
+        provider_intake_id: str,
+        *,
+        status: IntakeStatus = IntakeStatus.ACCEPTED,
+    ) -> None:
+        """Attach an active courier intake to the shipment.
+
+        Overwrites any previous intake — only one is in flight at a
+        time. Emits :class:`ShipmentIntakeScheduledEvent`.
+        """
+        self.scheduled_intake = ScheduledIntake(
+            provider_intake_id=provider_intake_id,
+            status=status,
+            scheduled_at=datetime.now(UTC),
+        )
+        self.updated_at = datetime.now(UTC)
+        self.version += 1
+        self.add_domain_event(
+            ShipmentIntakeScheduledEvent(
+                shipment_id=self.id,
+                provider_intake_id=provider_intake_id,
+                intake_status=status.value,
+            )
+        )
+
+    def clear_intake(self) -> None:
+        """Drop the recorded intake without emitting an event.
+
+        The intake-cancel flow does not have a Shipment context (the
+        command takes only ``provider_code`` + ``provider_intake_id``)
+        so the event is emitted by the handler against an
+        ``Intake`` aggregate via :class:`ShipmentIntakeCancelledEvent`.
+        Use this method when the cancel handler *did* manage to
+        correlate the intake back to a Shipment (rare path).
+        """
+        if self.scheduled_intake is None:
+            return
+        self.scheduled_intake = None
+        self.updated_at = datetime.now(UTC)
+        self.version += 1
+
+    # -- Returns / refusals -------------------------------------------------
+
+    def record_return(
+        self,
+        provider_return_id: str | None,
+        *,
+        reason: str | None = None,
+    ) -> None:
+        """Append a successful client-return registration."""
+        self.registered_returns.append(
+            RegisteredReturn(
+                kind="client_return",
+                provider_return_id=provider_return_id,
+                reason=reason,
+                registered_at=datetime.now(UTC),
+            )
+        )
+        self.updated_at = datetime.now(UTC)
+        self.version += 1
+        self.add_domain_event(
+            ShipmentReturnRegisteredEvent(
+                shipment_id=self.id,
+                provider_return_id=provider_return_id,
+            )
+        )
+
+    def record_refusal(self, reason: str | None = None) -> None:
+        """Append a successful doorstep-refusal registration."""
+        self.registered_returns.append(
+            RegisteredReturn(
+                kind="refusal",
+                reason=reason,
+                registered_at=datetime.now(UTC),
+            )
+        )
+        self.updated_at = datetime.now(UTC)
+        self.version += 1
+        self.add_domain_event(
+            ShipmentRefusalRegisteredEvent(
+                shipment_id=self.id,
+                reason=reason,
+            )
+        )
 
 
 def _merge_estimates(
