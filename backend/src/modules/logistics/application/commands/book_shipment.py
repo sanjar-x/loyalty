@@ -11,6 +11,7 @@ import uuid
 from dataclasses import dataclass
 
 from src.modules.logistics.application.dto import BookShipmentResult
+from src.modules.logistics.domain.entities import Shipment
 from src.modules.logistics.domain.exceptions import (
     BookingError,
     BookingPendingError,
@@ -20,7 +21,7 @@ from src.modules.logistics.domain.interfaces import (
     IShipmentRepository,
     IShippingProviderRegistry,
 )
-from src.modules.logistics.domain.value_objects import BookingRequest
+from src.modules.logistics.domain.value_objects import BookingRequest, BookingResult
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -155,7 +156,9 @@ class BookShipmentHandler:
     # that operators can investigate without rejecting valid bookings.
     _PRICE_DRIFT_TOLERANCE = 0.01
 
-    def _verify_actual_cost(self, shipment, result) -> None:
+    def _verify_actual_cost(
+        self, shipment: Shipment, result: BookingResult
+    ) -> None:
         """Log a warning when the provider-confirmed cost diverges from the quote."""
         actual = result.actual_cost
         if actual is None:

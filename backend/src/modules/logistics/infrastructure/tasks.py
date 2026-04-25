@@ -48,7 +48,10 @@ async def _get_provider_shipment_ids(
             .limit(200)
         )
         result = await session.execute(stmt)
-        return list(result.scalars().all())
+        # The query already filters out NULL provider_shipment_id rows, but
+        # the column is typed as ``str | None`` in the ORM model — narrow
+        # to ``str`` here to satisfy the annotated return type.
+        return [pid for pid in result.scalars().all() if pid is not None]
 
 
 @broker.task(

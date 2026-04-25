@@ -349,11 +349,17 @@ class Shipment(AggregateRoot):
         # never override an explicit local cancellation/failure.
         if self.status in (ShipmentStatus.BOOKED, ShipmentStatus.CANCEL_PENDING):
             if event.status in TERMINAL_FAILURE_TRACKING_STATUSES:
-                reason = event.description or event.provider_status_name or event.status.value
-                self.mark_failed_from_tracking(reason=reason)
+                fail_reason = (
+                    event.description
+                    or event.provider_status_name
+                    or event.status.value
+                )
+                self.mark_failed_from_tracking(reason=fail_reason)
             elif event.status in TERMINAL_CANCEL_TRACKING_STATUSES:
-                reason = event.description or event.provider_status_name or None
-                self.mark_cancelled_from_tracking(reason=reason)
+                cancel_reason: str | None = (
+                    event.description or event.provider_status_name or None
+                )
+                self.mark_cancelled_from_tracking(reason=cancel_reason)
 
 
 def _has_richer_info(existing: TrackingEvent, candidate: TrackingEvent) -> bool:

@@ -320,7 +320,9 @@ def build_pickup_points_request(
     OOM on the client side. We require at least one geographic filter
     (lat/lng pair OR ``city``) so the response stays bounded.
     """
-    has_geo_box = query.latitude is not None and query.longitude is not None
+    lat = query.latitude
+    lng = query.longitude
+    has_geo_box = lat is not None and lng is not None
     if not has_geo_box and not query.city:
         raise ValueError(
             "Yandex pickup_points query requires at least latitude+longitude "
@@ -329,16 +331,10 @@ def build_pickup_points_request(
 
     body: dict[str, Any] = {}
 
-    if has_geo_box:
+    if lat is not None and lng is not None:
         radius_deg = (query.radius_km or 10) / 111.0
-        body["latitude"] = {
-            "from": query.latitude - radius_deg,
-            "to": query.latitude + radius_deg,
-        }
-        body["longitude"] = {
-            "from": query.longitude - radius_deg,
-            "to": query.longitude + radius_deg,
-        }
+        body["latitude"] = {"from": lat - radius_deg, "to": lat + radius_deg}
+        body["longitude"] = {"from": lng - radius_deg, "to": lng + radius_deg}
 
     if query.delivery_type == DeliveryType.PICKUP_POINT:
         body["type"] = "pickup_point"
@@ -434,17 +430,17 @@ def _build_destination(
             "platform_station": {"platform_id": dest_station},
         }
 
-    dest: dict[str, Any] = {
-        "type": "custom_location",
-        "custom_location": {
-            "details": _build_location_details(destination),
-        },
+    custom_location: dict[str, Any] = {
+        "details": _build_location_details(destination),
     }
     if destination.latitude is not None and destination.longitude is not None:
-        dest["custom_location"]["latitude"] = destination.latitude
-        dest["custom_location"]["longitude"] = destination.longitude
+        custom_location["latitude"] = destination.latitude
+        custom_location["longitude"] = destination.longitude
 
-    return dest
+    return {
+        "type": "custom_location",
+        "custom_location": custom_location,
+    }
 
 
 def _build_location_details(addr: Address) -> dict[str, Any]:
