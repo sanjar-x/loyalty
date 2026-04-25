@@ -14,6 +14,7 @@ from typing import Any
 
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_CDEK,
+    ActualDeliveryInfo,
     Address,
     DeliveryInterval,
     ProviderCode,
@@ -38,6 +39,16 @@ class CdekDeliveryScheduleProvider:
                 {"order_uuid": provider_shipment_id}
             )
         return _parse_intervals(data)
+
+    async def get_actual_delivery_info(
+        self, provider_shipment_id: str
+    ) -> ActualDeliveryInfo | None:
+        # CDEK has no equivalent of Yandex's /request/actual_info — the
+        # planned delivery date arrives via GET /v2/orders inside
+        # ``delivery_detail``, which the booking pipeline already lifts
+        # onto ``Shipment.estimated_delivery``. Returning ``None``
+        # signals "use the persisted estimate".
+        return None
 
     async def get_estimated_intervals(
         self,

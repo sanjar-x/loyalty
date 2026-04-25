@@ -11,6 +11,7 @@ from typing import Any, Protocol
 
 from src.modules.logistics.domain.entities import Shipment
 from src.modules.logistics.domain.value_objects import (
+    ActualDeliveryInfo,
     Address,
     BookingRequest,
     BookingResult,
@@ -19,6 +20,12 @@ from src.modules.logistics.domain.value_objects import (
     DeliveryInterval,
     DeliveryQuote,
     DocumentResult,
+    EditItemMarking,
+    EditItemRemoval,
+    EditOrderRequest,
+    EditPackage,
+    EditTaskResult,
+    EditTaskStatus,
     IntakeRequest,
     IntakeResult,
     IntakeStatus,
@@ -140,6 +147,11 @@ class IDeliveryScheduleProvider(Protocol):
     - ``/v2/delivery/intervals`` — slots for an *existing* booked order.
     - ``/v2/delivery/estimatedIntervals`` — pre-booking estimate (used
       by the storefront before the user confirms the cart).
+
+    Yandex additionally surfaces ``/request/actual_info`` which returns
+    the carrier-confirmed window (date + interval) for an in-flight
+    shipment — exposed via :py:meth:`get_actual_delivery_info`. CDEK
+    has no equivalent and the adapter returns ``None``.
     """
 
     def provider_code(self) -> ProviderCode: ...
@@ -155,6 +167,11 @@ class IDeliveryScheduleProvider(Protocol):
         destination: Address,
         tariff_code: int,
     ) -> list[DeliveryInterval]: ...
+
+    async def get_actual_delivery_info(
+        self,
+        provider_shipment_id: str,
+    ) -> ActualDeliveryInfo | None: ...
 
 
 class IReturnProvider(Protocol):
@@ -181,6 +198,49 @@ class IReturnProvider(Protocol):
         self,
         request: ReverseAvailabilityRequest,
     ) -> ReverseAvailabilityResult: ...
+
+
+class IEditProvider(Protocol):
+    """Edits an existing provider order via async edit-task workflow.
+
+    Yandex Delivery exposes four mutation endpoints + one status
+    endpoint:
+
+    - ``POST /request/edit`` — recipient / destination / package swap.
+    - ``POST /request/places/edit`` — full replacement of package layout.
+    - ``POST /request/items-instances/edit`` — per-item article + marking.
+    - ``POST /request/items/remove`` — reduce / remove items.
+    - ``POST /request/edit/status`` — poll an editing task by id.
+
+    All mutation endpoints return an ``EditTaskResult`` (a ticket); the
+    caller polls :py:meth:`get_edit_status` until the task reaches a
+    terminal status (``SUCCESS`` / ``FAILURE``). CDEK has no equivalent
+    workflow and its factory returns ``None``.
+    """
+
+    def provider_code(self) -> ProviderCode: ...
+
+    async def edit_order(self, request: EditOrderRequest) -> EditTaskResult: ...
+
+    async def edit_packages(
+        self,
+        order_provider_id: str,
+        packages: list[EditPackage],
+    ) -> EditTaskResult: ...
+
+    async def edit_items_instances(
+        self,
+        order_provider_id: str,
+        items: list[EditItemMarking],
+    ) -> EditTaskResult: ...
+
+    async def remove_items(
+        self,
+        order_provider_id: str,
+        items: list[EditItemRemoval],
+    ) -> EditTaskResult: ...
+
+    async def get_edit_status(self, task_id: str) -> EditTaskStatus: ...
 
 
 # ---------------------------------------------------------------------------
@@ -277,6 +337,10 @@ class IProviderFactory(Protocol):
         self, credentials: dict[str, Any], config: dict[str, Any] | None = None
     ) -> IReturnProvider | None: ...
 
+    def create_edit_provider(
+        self, credentials: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> IEditProvider | None: ...
+
 
 # ---------------------------------------------------------------------------
 # Registry — stores and retrieves provider adapters by ProviderCode
@@ -317,6 +381,8 @@ class IShippingProviderRegistry(Protocol):
     ) -> IDeliveryScheduleProvider: ...
 
     def get_return_provider(self, code: ProviderCode) -> IReturnProvider: ...
+
+    def get_edit_provider(self, code: ProviderCode) -> IEditProvider: ...
 
 
 # ---------------------------------------------------------------------------

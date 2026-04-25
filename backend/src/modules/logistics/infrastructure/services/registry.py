@@ -10,6 +10,7 @@ from src.modules.logistics.domain.interfaces import (
     IBookingProvider,
     IDeliveryScheduleProvider,
     IDocumentProvider,
+    IEditProvider,
     IIntakeProvider,
     IPickupPointProvider,
     IRateProvider,
@@ -41,6 +42,7 @@ class ShippingProviderRegistry:
             ProviderCode, IDeliveryScheduleProvider
         ] = {}
         self._return_providers: dict[ProviderCode, IReturnProvider] = {}
+        self._edit_providers: dict[ProviderCode, IEditProvider] = {}
 
     # -- Registration -------------------------------------------------------
 
@@ -75,6 +77,9 @@ class ShippingProviderRegistry:
 
     def register_return_provider(self, provider: IReturnProvider) -> None:
         self._return_providers[provider.provider_code()] = provider
+
+    def register_edit_provider(self, provider: IEditProvider) -> None:
+        self._edit_providers[provider.provider_code()] = provider
 
     # -- Retrieval ----------------------------------------------------------
 
@@ -170,6 +175,15 @@ class ShippingProviderRegistry:
                 details={"provider_code": code},
             ) from None
 
+    def get_edit_provider(self, code: ProviderCode) -> IEditProvider:
+        try:
+            return self._edit_providers[code]
+        except KeyError:
+            raise ProviderUnavailableError(
+                message=f"No edit provider registered for '{code}'",
+                details={"provider_code": code},
+            ) from None
+
     # -- Listing ------------------------------------------------------------
 
     def list_rate_providers(self) -> list[IRateProvider]:
@@ -196,6 +210,7 @@ class ShippingProviderRegistry:
             self._intake_providers,
             self._delivery_schedule_providers,
             self._return_providers,
+            self._edit_providers,
         ):
             codes.update(registry.keys())
         return codes

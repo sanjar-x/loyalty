@@ -12,6 +12,7 @@ from src.modules.logistics.domain.interfaces import (
     IBookingProvider,
     IDeliveryScheduleProvider,
     IDocumentProvider,
+    IEditProvider,
     IIntakeProvider,
     IPickupPointProvider,
     IRateProvider,
@@ -39,6 +40,9 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.delivery_sch
 )
 from src.modules.logistics.infrastructure.providers.yandex_delivery.document_provider import (
     YandexDeliveryDocumentProvider,
+)
+from src.modules.logistics.infrastructure.providers.yandex_delivery.edit_provider import (
+    YandexDeliveryEditProvider,
 )
 from src.modules.logistics.infrastructure.providers.yandex_delivery.pickup_point_provider import (
     YandexDeliveryPickupPointProvider,
@@ -176,3 +180,10 @@ class YandexDeliveryProviderFactory:
     ) -> IReturnProvider | None:
         # Yandex Delivery handles returns via standard order cancellation.
         return None
+
+    def create_edit_provider(
+        self, credentials: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> IEditProvider | None:
+        return YandexDeliveryEditProvider(
+            self._get_or_create_client(credentials, config)
+        )

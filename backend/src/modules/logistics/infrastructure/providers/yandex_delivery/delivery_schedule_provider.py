@@ -27,6 +27,7 @@ from typing import Any
 
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_YANDEX_DELIVERY,
+    ActualDeliveryInfo,
     Address,
     DeliveryInterval,
     ProviderCode,
@@ -88,6 +89,24 @@ class YandexDeliveryDeliveryScheduleProvider:
                 raise
         return parse_datetime_options(data)
 
+    async def get_actual_delivery_info(
+        self, provider_shipment_id: str
+    ) -> ActualDeliveryInfo | None:
+        """Fetch the carrier-confirmed delivery window (3.05).
+
+        Returns ``None`` if Yandex reports the order has no actual
+        info yet (e.g. status is ``DELIVERY_DELIVERED`` or pre-pickup
+        states for which the endpoint returns 404 / 400).
+        """
+        async with self._client:
+            try:
+                data = await self._client.get_actual_info(provider_shipment_id)
+            except ProviderHTTPError as exc:
+                if exc.status_code in (400, 404):
+                    return None
+                raise
+        return _parse_actual_info(data)
+
     async def get_estimated_intervals(
         self,
         origin: Address,
@@ -125,3 +144,43 @@ def _placeholder_parcels() -> list:
 
 
 _PLACEHOLDER_PARCELS = _placeholder_parcels()
+
+
+def _parse_actual_info(data: Any) -> ActualDeliveryInfo | None:
+    """Translate ``GET /request/actual_info`` (3.05) into ActualDeliveryInfo.
+
+    Yandex emits ``{"delivery_date": "YYYY-MM-DD",
+    "delivery_interval": {"from": "10:00+03:00", "to": "23:00+03:00"}}``.
+
+    The interval bounds are local times with a tz suffix; we strip the
+    suffix to keep the shared shape as ``HH:MM`` plus a separate
+    ``timezone_offset`` field. Returns ``None`` for unparseable
+    responses so callers don't need to guard against partial payloads.
+    """
+    if not isinstance(data, dict):
+        return None
+    delivery_date = data.get("delivery_date")
+    interval = data.get("delivery_interval")
+    if not isinstance(delivery_date, str) or not isinstance(interval, dict):
+        return None
+    raw_from = interval.get("from")
+    raw_to = interval.get("to")
+    if not isinstance(raw_from, str) or not isinstance(raw_to, str):
+        return None
+    start_time, tz_from = _split_local_with_tz(raw_from)
+    end_time, _tz_to = _split_local_with_tz(raw_to)
+    return ActualDeliveryInfo(
+        delivery_date=delivery_date,
+        interval_start=start_time,
+        interval_end=end_time,
+        timezone_offset=tz_from,
+    )
+
+
+def _split_local_with_tz(value: str) -> tuple[str, str | None]:
+    """Split ``"10:00+03:00"`` into (``"10:00"``, ``"+03:00"``)."""
+    for sep in ("+", "-"):
+        idx = value.find(sep, 1)
+        if idx > 0:
+            return value[:idx], value[idx:]
+    return value, None

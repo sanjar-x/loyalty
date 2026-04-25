@@ -15,8 +15,10 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from src.modules.logistics.domain.value_objects import (
+    ActualDeliveryInfo,
     DeliveryInterval,
     DeliveryQuote,
+    EditTaskStatus,
     IntakeStatus,
     IntakeWindow,
 )
@@ -175,3 +177,32 @@ class CheckReverseAvailabilityResult:
     provider_code: str
     is_available: bool
     reason: str | None
+
+
+@dataclass(frozen=True)
+class EditTaskSubmittedResult:
+    """Output of any edit-style handler.
+
+    Carries the async ticket the caller can poll to observe progress.
+    """
+
+    shipment_id: uuid.UUID
+    task_id: str
+    initial_status: EditTaskStatus
+
+
+@dataclass(frozen=True)
+class GetEditTaskStatusResult:
+    """Output of ``GetEditTaskStatusHandler``."""
+
+    provider_code: str
+    task_id: str
+    status: EditTaskStatus
+
+
+@dataclass(frozen=True)
+class GetActualDeliveryInfoResult:
+    """Output of ``GetActualDeliveryInfoHandler``."""
+
+    shipment_id: uuid.UUID
+    info: ActualDeliveryInfo | None

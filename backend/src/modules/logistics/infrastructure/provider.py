@@ -24,6 +24,15 @@ from src.modules.logistics.application.commands.create_intake import (
 from src.modules.logistics.application.commands.create_shipment import (
     CreateShipmentHandler,
 )
+from src.modules.logistics.application.commands.edit_order import (
+    EditOrderHandler,
+)
+from src.modules.logistics.application.commands.edit_order_items import (
+    EditOrderItemsHandler,
+)
+from src.modules.logistics.application.commands.edit_order_packages import (
+    EditOrderPackagesHandler,
+)
 from src.modules.logistics.application.commands.ingest_tracking import (
     IngestTrackingHandler,
 )
@@ -33,17 +42,26 @@ from src.modules.logistics.application.commands.register_client_return import (
 from src.modules.logistics.application.commands.register_refusal import (
     RegisterRefusalHandler,
 )
+from src.modules.logistics.application.commands.remove_order_items import (
+    RemoveOrderItemsHandler,
+)
 from src.modules.logistics.application.queries.calculate_rates import (
     CalculateRatesHandler,
 )
 from src.modules.logistics.application.queries.check_reverse_availability import (
     CheckReverseAvailabilityHandler,
 )
+from src.modules.logistics.application.queries.get_actual_delivery_info import (
+    GetActualDeliveryInfoHandler,
+)
 from src.modules.logistics.application.queries.get_available_intake_days import (
     GetAvailableIntakeDaysHandler,
 )
 from src.modules.logistics.application.queries.get_delivery_intervals import (
     GetDeliveryIntervalsHandler,
+)
+from src.modules.logistics.application.queries.get_edit_task_status import (
+    GetEditTaskStatusHandler,
 )
 from src.modules.logistics.application.queries.get_estimated_delivery_intervals import (
     GetEstimatedDeliveryIntervalsHandler,
@@ -130,6 +148,18 @@ class LogisticsCommandProvider(Provider):
     register_refusal: CompositeDependencySource = provide(
         RegisterRefusalHandler, scope=Scope.REQUEST
     )
+    edit_order: CompositeDependencySource = provide(
+        EditOrderHandler, scope=Scope.REQUEST
+    )
+    edit_order_packages: CompositeDependencySource = provide(
+        EditOrderPackagesHandler, scope=Scope.REQUEST
+    )
+    edit_order_items: CompositeDependencySource = provide(
+        EditOrderItemsHandler, scope=Scope.REQUEST
+    )
+    remove_order_items: CompositeDependencySource = provide(
+        RemoveOrderItemsHandler, scope=Scope.REQUEST
+    )
 
 
 class LogisticsQueryProvider(Provider):
@@ -161,4 +191,10 @@ class LogisticsQueryProvider(Provider):
     )
     check_reverse_availability: CompositeDependencySource = provide(
         CheckReverseAvailabilityHandler, scope=Scope.REQUEST
+    )
+    get_edit_task_status: CompositeDependencySource = provide(
+        GetEditTaskStatusHandler, scope=Scope.REQUEST
+    )
+    get_actual_delivery_info: CompositeDependencySource = provide(
+        GetActualDeliveryInfoHandler, scope=Scope.REQUEST
     )

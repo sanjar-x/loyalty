@@ -628,3 +628,130 @@ class ReverseAvailabilityResult:
     is_available: bool
     reason: str | None = None
     raw_response: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Actual delivery info (post-booking)
+# ---------------------------------------------------------------------------
+
+
+@attrs.define(frozen=True)
+class ActualDeliveryInfo:
+    """Confirmed delivery date + interval for an in-flight shipment.
+
+    Returned by ``IDeliveryScheduleProvider.get_actual_delivery_info``.
+
+    Differs from ``EstimatedDelivery`` in being post-booking and tied
+    to a *single* concrete window the carrier has committed to:
+
+    - ``delivery_date`` — ``YYYY-MM-DD``.
+    - ``interval_start`` / ``interval_end`` — ``HH:MM`` (local time, no
+      tz suffix). The provider returns these with a tz offset; we strip
+      it to keep the unified shape narrow. Use ``timezone_offset`` if
+      the offset matters.
+    - ``timezone_offset`` — original tz offset string (``+03:00``).
+    """
+
+    delivery_date: str
+    interval_start: str
+    interval_end: str
+    timezone_offset: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Edit operations (Yandex Delivery)
+# ---------------------------------------------------------------------------
+
+
+class EditTaskStatus(StrEnum):
+    """Lifecycle of an asynchronous edit operation.
+
+    Mirrors ``EditingRequestStatus`` from the Yandex API.
+    """
+
+    PENDING = "pending"
+    EXECUTION = "execution"
+    SUCCESS = "success"
+    FAILURE = "failure"
+    UNKNOWN = "unknown"
+
+
+@attrs.define(frozen=True)
+class EditTaskResult:
+    """Async ticket returned by every edit-style operation.
+
+    The provider may immediately accept the change (``initial_status``
+    arrives as ``EXECUTION`` / ``SUCCESS``) or queue it (``PENDING``).
+    Callers poll ``get_edit_status(task_id)`` until terminal state.
+    """
+
+    task_id: str
+    initial_status: EditTaskStatus = EditTaskStatus.PENDING
+    raw_response: str | None = None
+
+
+@attrs.define(frozen=True)
+class EditPlaceSwap:
+    """Replace one of the existing packages with a new one (3.06).
+
+    The package to replace is identified by ``old_barcode``; the new
+    package carries its own dimensions and barcode.
+    """
+
+    old_barcode: str
+    new_barcode: str
+    new_parcel: Parcel
+
+
+@attrs.define(frozen=True)
+class EditOrderRequest:
+    """Caller input for ``IEditProvider.edit_order`` (3.06).
+
+    At least one of ``recipient`` / ``destination`` / ``places`` must
+    be supplied; otherwise the provider rejects the request.
+    """
+
+    order_provider_id: str
+    recipient: ContactInfo | None = None
+    destination: Address | None = None
+    delivery_type: DeliveryType | None = None
+    places: tuple[EditPlaceSwap, ...] = ()
+
+
+@attrs.define(frozen=True)
+class EditPackageItem:
+    """Item-to-package binding for ``edit_packages`` (3.12)."""
+
+    item_barcode: str
+    count: int
+
+
+@attrs.define(frozen=True)
+class EditPackage:
+    """Full package payload for ``edit_packages`` (3.12).
+
+    Carries new dimensions, the package barcode, and the list of items
+    contained in the box (with per-item counts).
+    """
+
+    barcode: str
+    dimensions: Dimensions
+    weight: Weight
+    items: tuple[EditPackageItem, ...]
+
+
+@attrs.define(frozen=True)
+class EditItemMarking:
+    """Item-level marking patch for ``edit_items_instances`` (3.14)."""
+
+    item_barcode: str
+    article: str
+    marking_code: str | None = None
+
+
+@attrs.define(frozen=True)
+class EditItemRemoval:
+    """Item count reduction for ``remove_items`` (3.15)."""
+
+    item_barcode: str
+    remaining_count: int  # 0 = full removal

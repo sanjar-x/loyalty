@@ -29,6 +29,18 @@ from src.modules.logistics.application.commands.create_shipment import (
     CreateShipmentCommand,
     CreateShipmentHandler,
 )
+from src.modules.logistics.application.commands.edit_order import (
+    EditOrderCommand,
+    EditOrderHandler,
+)
+from src.modules.logistics.application.commands.edit_order_items import (
+    EditOrderItemsCommand,
+    EditOrderItemsHandler,
+)
+from src.modules.logistics.application.commands.edit_order_packages import (
+    EditOrderPackagesCommand,
+    EditOrderPackagesHandler,
+)
 from src.modules.logistics.application.commands.register_client_return import (
     RegisterClientReturnCommand,
     RegisterClientReturnHandler,
@@ -36,6 +48,10 @@ from src.modules.logistics.application.commands.register_client_return import (
 from src.modules.logistics.application.commands.register_refusal import (
     RegisterRefusalCommand,
     RegisterRefusalHandler,
+)
+from src.modules.logistics.application.commands.remove_order_items import (
+    RemoveOrderItemsCommand,
+    RemoveOrderItemsHandler,
 )
 from src.modules.logistics.application.queries.calculate_rates import (
     CalculateRatesHandler,
@@ -45,6 +61,10 @@ from src.modules.logistics.application.queries.check_reverse_availability import
     CheckReverseAvailabilityHandler,
     CheckReverseAvailabilityQuery,
 )
+from src.modules.logistics.application.queries.get_actual_delivery_info import (
+    GetActualDeliveryInfoHandler,
+    GetActualDeliveryInfoQuery,
+)
 from src.modules.logistics.application.queries.get_available_intake_days import (
     GetAvailableIntakeDaysHandler,
     GetAvailableIntakeDaysQuery,
@@ -52,6 +72,10 @@ from src.modules.logistics.application.queries.get_available_intake_days import 
 from src.modules.logistics.application.queries.get_delivery_intervals import (
     GetDeliveryIntervalsHandler,
     GetDeliveryIntervalsQuery,
+)
+from src.modules.logistics.application.queries.get_edit_task_status import (
+    GetEditTaskStatusHandler,
+    GetEditTaskStatusQuery,
 )
 from src.modules.logistics.application.queries.get_estimated_delivery_intervals import (
     GetEstimatedDeliveryIntervalsHandler,
@@ -80,12 +104,19 @@ from src.modules.logistics.domain.value_objects import (
     ContactInfo,
     DeliveryType,
     Dimensions,
+    EditItemMarking,
+    EditItemRemoval,
+    EditPackage,
+    EditPackageItem,
+    EditPlaceSwap,
     Money,
     Parcel,
     PickupPointQuery,
     Weight,
 )
 from src.modules.logistics.presentation.schemas import (
+    ActualDeliveryInfoResponse,
+    ActualDeliveryInfoSchema,
     AddressSchema,
     AvailableIntakeDaysRequest,
     AvailableIntakeDaysResponse,
@@ -103,6 +134,13 @@ from src.modules.logistics.presentation.schemas import (
     DeliveryIntervalSchema,
     DeliveryIntervalsResponse,
     DeliveryQuoteSchema,
+    EditOrderItemsRequest,
+    EditOrderRequest,
+    EditPackageSchema,
+    EditPackagesRequest,
+    EditPlaceSwapSchema,
+    EditTaskResponse,
+    EditTaskStatusResponse,
     EstimatedDeliveryIntervalsRequest,
     IntakeStatusResponse,
     IntakeWindowSchema,
@@ -112,6 +150,7 @@ from src.modules.logistics.presentation.schemas import (
     PickupPointsRequest,
     PickupPointsResponse,
     RefusalRequestSchema,
+    RemoveOrderItemsRequest,
     ReturnResponse,
     ReverseAvailabilityRequestSchema,
     ReverseAvailabilityResponse,
@@ -677,6 +716,205 @@ async def check_reverse_availability(
         provider_code=result.provider_code,
         is_available=result.is_available,
         reason=result.reason,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Actual delivery info (Yandex 3.05)
+# ---------------------------------------------------------------------------
+
+
+@logistics_router.get(
+    path="/shipments/{shipment_id}/actual-delivery-info",
+    status_code=status.HTTP_200_OK,
+    response_model=ActualDeliveryInfoResponse,
+    summary="Get carrier-confirmed delivery date and interval",
+)
+async def get_actual_delivery_info(
+    shipment_id: uuid.UUID,
+    handler: FromDishka[GetActualDeliveryInfoHandler],
+) -> ActualDeliveryInfoResponse:
+    result = await handler.handle(GetActualDeliveryInfoQuery(shipment_id=shipment_id))
+    info_schema = (
+        ActualDeliveryInfoSchema(
+            delivery_date=result.info.delivery_date,
+            interval_start=result.info.interval_start,
+            interval_end=result.info.interval_end,
+            timezone_offset=result.info.timezone_offset,
+        )
+        if result.info is not None
+        else None
+    )
+    return ActualDeliveryInfoResponse(shipment_id=result.shipment_id, info=info_schema)
+
+
+# ---------------------------------------------------------------------------
+# Edit operations (Yandex 3.06 / 3.12 / 3.13 / 3.14 / 3.15)
+# ---------------------------------------------------------------------------
+
+
+@logistics_router.post(
+    path="/shipments/{shipment_id}/edit",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=EditTaskResponse,
+    summary="Edit recipient / destination / packages on a booked shipment",
+)
+async def edit_order(
+    shipment_id: uuid.UUID,
+    body: EditOrderRequest,
+    handler: FromDishka[EditOrderHandler],
+) -> EditTaskResponse:
+    delivery_type: DeliveryType | None = None
+    if body.delivery_type:
+        try:
+            delivery_type = DeliveryType(body.delivery_type)
+        except ValueError:
+            valid = [e.value for e in DeliveryType]
+            raise AppValidationError(
+                message=f"Invalid delivery_type '{body.delivery_type}'. Must be one of: {valid}",
+            ) from None
+
+    command = EditOrderCommand(
+        shipment_id=shipment_id,
+        recipient=_schema_to_contact(body.recipient) if body.recipient else None,
+        destination=(
+            _schema_to_address(body.destination) if body.destination else None
+        ),
+        delivery_type=delivery_type,
+        places=tuple(_schema_to_place_swap(s) for s in body.places),
+    )
+    result = await handler.handle(command)
+    return EditTaskResponse(
+        shipment_id=result.shipment_id,
+        task_id=result.task_id,
+        initial_status=result.initial_status.value,
+    )
+
+
+@logistics_router.post(
+    path="/shipments/{shipment_id}/edit-packages",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=EditTaskResponse,
+    summary="Replace package layout (async edit task)",
+)
+async def edit_order_packages(
+    shipment_id: uuid.UUID,
+    body: EditPackagesRequest,
+    handler: FromDishka[EditOrderPackagesHandler],
+) -> EditTaskResponse:
+    command = EditOrderPackagesCommand(
+        shipment_id=shipment_id,
+        packages=tuple(_schema_to_edit_package(p) for p in body.packages),
+    )
+    result = await handler.handle(command)
+    return EditTaskResponse(
+        shipment_id=result.shipment_id,
+        task_id=result.task_id,
+        initial_status=result.initial_status.value,
+    )
+
+
+@logistics_router.post(
+    path="/shipments/{shipment_id}/edit-items",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=EditTaskResponse,
+    summary="Patch item articles / marking codes (async edit task)",
+)
+async def edit_order_items(
+    shipment_id: uuid.UUID,
+    body: EditOrderItemsRequest,
+    handler: FromDishka[EditOrderItemsHandler],
+) -> EditTaskResponse:
+    command = EditOrderItemsCommand(
+        shipment_id=shipment_id,
+        items=tuple(
+            EditItemMarking(
+                item_barcode=i.item_barcode,
+                article=i.article,
+                marking_code=i.marking_code,
+            )
+            for i in body.items
+        ),
+    )
+    result = await handler.handle(command)
+    return EditTaskResponse(
+        shipment_id=result.shipment_id,
+        task_id=result.task_id,
+        initial_status=result.initial_status.value,
+    )
+
+
+@logistics_router.post(
+    path="/shipments/{shipment_id}/remove-items",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=EditTaskResponse,
+    summary="Reduce or remove items from a booked shipment (async edit task)",
+)
+async def remove_order_items(
+    shipment_id: uuid.UUID,
+    body: RemoveOrderItemsRequest,
+    handler: FromDishka[RemoveOrderItemsHandler],
+) -> EditTaskResponse:
+    command = RemoveOrderItemsCommand(
+        shipment_id=shipment_id,
+        removals=tuple(
+            EditItemRemoval(
+                item_barcode=r.item_barcode,
+                remaining_count=r.remaining_count,
+            )
+            for r in body.removals
+        ),
+    )
+    result = await handler.handle(command)
+    return EditTaskResponse(
+        shipment_id=result.shipment_id,
+        task_id=result.task_id,
+        initial_status=result.initial_status.value,
+    )
+
+
+@logistics_router.get(
+    path="/edit-tasks/{provider_code}/{task_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=EditTaskStatusResponse,
+    summary="Poll an asynchronous edit task",
+)
+async def get_edit_task_status(
+    provider_code: str,
+    task_id: str,
+    handler: FromDishka[GetEditTaskStatusHandler],
+) -> EditTaskStatusResponse:
+    result = await handler.handle(
+        GetEditTaskStatusQuery(provider_code=provider_code, task_id=task_id)
+    )
+    return EditTaskStatusResponse(
+        provider_code=result.provider_code,
+        task_id=result.task_id,
+        status=result.status.value,
+    )
+
+
+def _schema_to_place_swap(s: EditPlaceSwapSchema) -> EditPlaceSwap:
+    return EditPlaceSwap(
+        old_barcode=s.old_barcode,
+        new_barcode=s.new_barcode,
+        new_parcel=_schema_to_parcel(s.new_parcel),
+    )
+
+
+def _schema_to_edit_package(p: EditPackageSchema) -> EditPackage:
+    return EditPackage(
+        barcode=p.barcode,
+        weight=Weight(grams=p.weight.grams),
+        dimensions=Dimensions(
+            length_cm=p.dimensions.length_cm,
+            width_cm=p.dimensions.width_cm,
+            height_cm=p.dimensions.height_cm,
+        ),
+        items=tuple(
+            EditPackageItem(item_barcode=item.item_barcode, count=item.count)
+            for item in p.items
+        ),
     )
 
 

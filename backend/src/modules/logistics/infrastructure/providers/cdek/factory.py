@@ -12,6 +12,7 @@ from src.modules.logistics.domain.interfaces import (
     IBookingProvider,
     IDeliveryScheduleProvider,
     IDocumentProvider,
+    IEditProvider,
     IIntakeProvider,
     IPickupPointProvider,
     IRateProvider,
@@ -164,3 +165,11 @@ class CdekProviderFactory:
         self, credentials: dict[str, Any], config: dict[str, Any] | None = None
     ) -> IReturnProvider | None:
         return CdekReturnProvider(self._get_or_create_client(credentials, config))
+
+    def create_edit_provider(
+        self, credentials: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> IEditProvider | None:
+        # CDEK has POST /v2/orders/{uuid} (update_order) but its semantics
+        # differ markedly from Yandex's async edit-task pipeline; we keep
+        # the capability Yandex-only for now.
+        return None

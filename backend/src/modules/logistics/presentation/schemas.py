@@ -338,3 +338,91 @@ class ReverseAvailabilityResponse(BaseModel):
     provider_code: str
     is_available: bool
     reason: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Actual delivery info (Yandex 3.05)
+# ---------------------------------------------------------------------------
+
+
+class ActualDeliveryInfoSchema(BaseModel):
+    delivery_date: str = Field(..., description="ISO date YYYY-MM-DD")
+    interval_start: str = Field(..., description="Local time HH:MM")
+    interval_end: str = Field(..., description="Local time HH:MM")
+    timezone_offset: str | None = Field(
+        None, description='Original tz suffix (e.g. "+03:00")'
+    )
+
+
+class ActualDeliveryInfoResponse(BaseModel):
+    shipment_id: uuid.UUID
+    info: ActualDeliveryInfoSchema | None = None
+
+
+# ---------------------------------------------------------------------------
+# Edit operations (Yandex 3.06 / 3.12 / 3.13 / 3.14 / 3.15)
+# ---------------------------------------------------------------------------
+
+
+class EditTaskResponse(BaseModel):
+    shipment_id: uuid.UUID
+    task_id: str
+    initial_status: str
+
+
+class EditTaskStatusResponse(BaseModel):
+    provider_code: str
+    task_id: str
+    status: str
+
+
+class EditPlaceSwapSchema(BaseModel):
+    old_barcode: str = Field(..., min_length=1)
+    new_barcode: str = Field(..., min_length=1)
+    new_parcel: ParcelSchema
+
+
+class EditOrderRequest(BaseModel):
+    """At least one of recipient / destination / places must be supplied."""
+
+    recipient: ContactInfoSchema | None = None
+    destination: AddressSchema | None = None
+    delivery_type: str | None = Field(
+        None, description="courier | pickup_point | post_office"
+    )
+    places: list[EditPlaceSwapSchema] = Field(default_factory=list)
+
+
+class EditPackageItemSchema(BaseModel):
+    item_barcode: str = Field(..., min_length=1)
+    count: int = Field(..., ge=0)
+
+
+class EditPackageSchema(BaseModel):
+    barcode: str = Field(..., min_length=1)
+    weight: WeightSchema
+    dimensions: DimensionsSchema
+    items: list[EditPackageItemSchema] = Field(..., min_length=1)
+
+
+class EditPackagesRequest(BaseModel):
+    packages: list[EditPackageSchema] = Field(..., min_length=1)
+
+
+class EditItemMarkingSchema(BaseModel):
+    item_barcode: str = Field(..., min_length=1)
+    article: str = Field(..., min_length=1)
+    marking_code: str | None = None
+
+
+class EditOrderItemsRequest(BaseModel):
+    items: list[EditItemMarkingSchema] = Field(..., min_length=1)
+
+
+class EditItemRemovalSchema(BaseModel):
+    item_barcode: str = Field(..., min_length=1)
+    remaining_count: int = Field(..., ge=0, description="0 removes the item entirely")
+
+
+class RemoveOrderItemsRequest(BaseModel):
+    removals: list[EditItemRemovalSchema] = Field(..., min_length=1)

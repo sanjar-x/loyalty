@@ -142,3 +142,7 @@ def _register_capabilities(
     returns = factory.create_return_provider(credentials, config)
     if returns is not None:
         registry.register_return_provider(returns)
+
+    edit = factory.create_edit_provider(credentials, config)
+    if edit is not None:
+        registry.register_edit_provider(edit)
