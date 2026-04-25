@@ -13,6 +13,7 @@ import pytest
 
 from src.modules.logistics.domain.entities import Shipment
 from src.modules.logistics.domain.value_objects import (
+    PROVIDER_CDEK,
     Address,
     ContactInfo,
     DeliveryQuote,
@@ -20,7 +21,6 @@ from src.modules.logistics.domain.value_objects import (
     EstimatedDelivery,
     Money,
     Parcel,
-    PROVIDER_CDEK,
     ShippingRate,
     Weight,
 )

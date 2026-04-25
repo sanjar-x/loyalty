@@ -34,6 +34,9 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.constants im
     YANDEX_PRODUCTION_URL,
     YANDEX_TEST_URL,
 )
+from src.modules.logistics.infrastructure.providers.yandex_delivery.delivery_schedule_provider import (
+    YandexDeliveryDeliveryScheduleProvider,
+)
 from src.modules.logistics.infrastructure.providers.yandex_delivery.document_provider import (
     YandexDeliveryDocumentProvider,
 )
@@ -163,8 +166,10 @@ class YandexDeliveryProviderFactory:
     def create_delivery_schedule_provider(
         self, credentials: dict[str, Any], config: dict[str, Any] | None = None
     ) -> IDeliveryScheduleProvider | None:
-        # Yandex Delivery does not expose pre-booked delivery interval slots.
-        return None
+        return YandexDeliveryDeliveryScheduleProvider(
+            self._get_or_create_client(credentials, config),
+            self._get_config(config),
+        )
 
     def create_return_provider(
         self, credentials: dict[str, Any], config: dict[str, Any] | None = None

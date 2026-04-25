@@ -14,6 +14,7 @@ from src.modules.logistics.domain.value_objects import (
     PROVIDER_YANDEX_DELIVERY,
     Address,
     BookingRequest,
+    DeliveryInterval,
     DeliveryType,
     Money,
     Parcel,
@@ -303,6 +304,129 @@ def parse_cancel_response(data: dict[str, Any]) -> tuple[bool, str | None]:
         # Cancellation request created, treated as success
         return True, description
     return False, reason or description or f"Cancel status: {status}"
+
+
+# ---------------------------------------------------------------------------
+# Delivery schedule (1.03 offers/info, 3.07 datetime_options, 3.08 redelivery)
+# ---------------------------------------------------------------------------
+
+
+def build_offers_info_request(
+    origin: Address,
+    destination: Address,
+    parcels: list[Parcel],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    """Build request body for POST /offers/info (1.03).
+
+    Mirrors ``build_pricing_request`` but without tariff / payment fields —
+    the endpoint only needs source, destination and physical dimensions to
+    enumerate UTC delivery windows.
+    """
+    platform_station_id = origin.metadata.get("platform_station_id") or config.get(
+        "platform_station_id", ""
+    )
+
+    dest: dict[str, Any] = {}
+    dest_station = destination.metadata.get("platform_station_id")
+    if dest_station:
+        dest["platform_station_id"] = dest_station
+    if destination.raw_address:
+        dest["address"] = destination.raw_address
+    elif destination.street and destination.city:
+        dest["address"] = f"{destination.city}, {destination.street}"
+        if destination.house:
+            dest["address"] += f", {destination.house}"
+
+    return {
+        "source": {"platform_station_id": platform_station_id},
+        "destination": dest,
+        "places": [{"physical_dims": _build_physical_dims(p)} for p in parcels],
+    }
+
+
+def parse_offer_info_intervals(data: dict[str, Any]) -> list[DeliveryInterval]:
+    """Parse POST /offers/info (1.03) response into DeliveryInterval list.
+
+    Each element is shaped as ``{"from": ISO_UTC, "to": ISO_UTC}``. We
+    split the UTC timestamps into a ``YYYY-MM-DD`` date and ``HH:MM``
+    bounds so that the unified ``DeliveryInterval`` representation
+    matches the CDEK payloads — caller code remains provider-agnostic.
+    """
+    offers = data.get("offers", []) if isinstance(data, dict) else []
+    return [
+        interval
+        for interval in (
+            _utc_window_to_interval(o.get("from"), o.get("to"))
+            for o in offers
+            if isinstance(o, dict)
+        )
+        if interval is not None
+    ]
+
+
+def parse_datetime_options(data: dict[str, Any]) -> list[DeliveryInterval]:
+    """Parse POST /request/datetime_options (3.07) and /redelivery_options (3.08).
+
+    Both endpoints share the response shape ``{"options": [TimeIntervalUTC]}``.
+    """
+    options = data.get("options", []) if isinstance(data, dict) else []
+    return [
+        interval
+        for interval in (
+            _utc_window_to_interval(o.get("from"), o.get("to"))
+            for o in options
+            if isinstance(o, dict)
+        )
+        if interval is not None
+    ]
+
+
+def _utc_window_to_interval(
+    raw_from: object, raw_to: object
+) -> DeliveryInterval | None:
+    """Convert a Yandex UTC window into a domain ``DeliveryInterval``.
+
+    Yandex emits both bounds as ISO-8601 UTC strings (e.g.
+    ``2026-01-18T07:00:00.000000Z``). We collapse them into a
+    ``YYYY-MM-DD`` date plus ``HH:MM`` start/end. UNIX integers (when
+    ``send_unix=true``) are also tolerated.
+    """
+    start = _coerce_utc_datetime(raw_from)
+    end = _coerce_utc_datetime(raw_to)
+    if start is None or end is None:
+        return None
+    return DeliveryInterval(
+        start_time=start.strftime("%H:%M"),
+        end_time=end.strftime("%H:%M"),
+        date=start.strftime("%Y-%m-%d"),
+    )
+
+
+def _coerce_utc_datetime(raw: object) -> datetime | None:
+    if isinstance(raw, str) and raw:
+        try:
+            return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    if isinstance(raw, (int, float)):
+        try:
+            return datetime.fromtimestamp(int(raw), tz=UTC)
+        except OSError, OverflowError, ValueError:
+            return None
+    return None
+
+
+def build_redelivery_destination(
+    destination: Address,
+    last_mile: str,
+) -> dict[str, Any]:
+    """Build the ``destination`` block for /request/redelivery_options.
+
+    Wraps ``_build_destination`` so external callers can produce the
+    full request body without importing the private helper.
+    """
+    return _build_destination(destination, last_mile)
 
 
 # ---------------------------------------------------------------------------

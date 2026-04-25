@@ -18,15 +18,25 @@ from src.modules.logistics.infrastructure.providers.base_client import (
 )
 from src.modules.logistics.infrastructure.providers.yandex_delivery.constants import (
     PATH_GENERATE_LABELS,
+    PATH_HANDOVER_ACT,
     PATH_LOCATION_DETECT,
     PATH_OFFERS_CONFIRM,
     PATH_OFFERS_CREATE,
+    PATH_OFFERS_INFO_POST,
     PATH_PICKUP_POINTS_LIST,
     PATH_PRICING_CALCULATOR,
+    PATH_REQUEST_ACTUAL_INFO,
     PATH_REQUEST_CANCEL,
     PATH_REQUEST_CREATE,
+    PATH_REQUEST_DATETIME_OPTIONS,
+    PATH_REQUEST_EDIT,
+    PATH_REQUEST_EDIT_STATUS,
     PATH_REQUEST_HISTORY,
     PATH_REQUEST_INFO,
+    PATH_REQUEST_ITEMS_INSTANCES_EDIT,
+    PATH_REQUEST_ITEMS_REMOVE,
+    PATH_REQUEST_PLACES_EDIT,
+    PATH_REQUEST_REDELIVERY_OPTIONS,
     PATH_REQUESTS_INFO,
 )
 
@@ -100,6 +110,31 @@ class YandexDeliveryClient:
         )
         return resp.json()
 
+    async def offers_info(
+        self,
+        body: dict[str, Any],
+        *,
+        last_mile_policy: str | None = None,
+        is_oversized: bool | None = None,
+        send_unix: bool | None = None,
+    ) -> dict[str, Any]:
+        """POST /offers/info — pre-booking delivery intervals.
+
+        Returns ``{"offers": [{"from": ..., "to": ...}, ...]}`` where each
+        offer is a UTC time window the courier can deliver in.
+        """
+        params: dict[str, Any] = {}
+        if last_mile_policy is not None:
+            params["last_mile_policy"] = last_mile_policy
+        if is_oversized is not None:
+            params["is_oversized"] = "true" if is_oversized else "false"
+        if send_unix is not None:
+            params["send_unix"] = "true" if send_unix else "false"
+        resp = await self._provider_client.request(
+            "POST", PATH_OFFERS_INFO_POST, json=body, params=params or None
+        )
+        return resp.json()
+
     # ------------------------------------------------------------------ #
     # Order management                                                     #
     # ------------------------------------------------------------------ #
@@ -140,6 +175,114 @@ class YandexDeliveryClient:
             "POST", PATH_REQUEST_CANCEL, json={"request_id": request_id}
         )
         return resp.json()
+
+    async def get_actual_info(self, request_id: str) -> dict[str, Any]:
+        """GET /request/actual_info — actual delivery date + interval.
+
+        Only valid for orders that have not yet reached
+        ``DELIVERY_DELIVERED`` / ``ERROR`` / ``CANCELLED`` statuses.
+        """
+        resp = await self._provider_client.request(
+            "GET", PATH_REQUEST_ACTUAL_INFO, params={"request_id": request_id}
+        )
+        return resp.json()
+
+    async def request_datetime_options(self, request_id: str) -> dict[str, Any]:
+        """POST /request/datetime_options — intervals for the order's current address."""
+        resp = await self._provider_client.request(
+            "POST", PATH_REQUEST_DATETIME_OPTIONS, json={"request_id": request_id}
+        )
+        return resp.json()
+
+    async def request_redelivery_options(
+        self, request_id: str, destination: dict[str, Any]
+    ) -> dict[str, Any]:
+        """POST /request/redelivery_options — intervals for a new destination."""
+        body: dict[str, Any] = {
+            "request_id": request_id,
+            "destination": destination,
+        }
+        resp = await self._provider_client.request(
+            "POST", PATH_REQUEST_REDELIVERY_OPTIONS, json=body
+        )
+        return resp.json()
+
+    async def request_edit(self, body: dict[str, Any]) -> dict[str, Any]:
+        """POST /request/edit — edit recipient / destination / packages."""
+        resp = await self._provider_client.request("POST", PATH_REQUEST_EDIT, json=body)
+        return resp.json()
+
+    async def request_places_edit(self, body: dict[str, Any]) -> dict[str, Any]:
+        """POST /request/places/edit — async edit of the box / item layout."""
+        resp = await self._provider_client.request(
+            "POST", PATH_REQUEST_PLACES_EDIT, json=body
+        )
+        return resp.json()
+
+    async def request_items_instances_edit(
+        self, body: dict[str, Any]
+    ) -> dict[str, Any]:
+        """POST /request/items-instances/edit — async edit of item markings / SKUs."""
+        resp = await self._provider_client.request(
+            "POST", PATH_REQUEST_ITEMS_INSTANCES_EDIT, json=body
+        )
+        return resp.json()
+
+    async def request_items_remove(self, body: dict[str, Any]) -> dict[str, Any]:
+        """POST /request/items/remove — async reduce / remove items."""
+        resp = await self._provider_client.request(
+            "POST", PATH_REQUEST_ITEMS_REMOVE, json=body
+        )
+        return resp.json()
+
+    async def request_edit_status(self, editing_task_id: str) -> dict[str, Any]:
+        """POST /request/edit/status — poll an async editing task."""
+        resp = await self._provider_client.request(
+            "POST",
+            PATH_REQUEST_EDIT_STATUS,
+            params={"editing_task_id": editing_task_id},
+        )
+        return resp.json()
+
+    async def get_handover_act(
+        self,
+        *,
+        request_ids: list[str] | None = None,
+        request_codes: list[str] | None = None,
+        new_requests: bool | None = None,
+        created_since: int | None = None,
+        created_until: int | None = None,
+        editable_format: bool = False,
+    ) -> bytes:
+        """POST /request/get-handover-act — bulk handover act PDF / Word.
+
+        At least one filter must be supplied: ``new_requests``,
+        ``created_since`` / ``created_until``, ``request_ids`` or
+        ``request_codes``. Returns the document body as raw bytes.
+        """
+        params: dict[str, Any] = {}
+        if new_requests is not None:
+            params["new_requests"] = "true" if new_requests else "false"
+        if created_since is not None:
+            params["created_since"] = created_since
+        if created_until is not None:
+            params["created_until"] = created_until
+        if editable_format:
+            params["editable_format"] = "true"
+
+        body: dict[str, Any] = {}
+        if request_ids:
+            body["request_ids"] = request_ids
+        if request_codes:
+            body["request_codes"] = request_codes
+
+        resp = await self._provider_client.request(
+            "POST",
+            PATH_HANDOVER_ACT,
+            json=body or None,
+            params=params or None,
+        )
+        return resp.content
 
     # ------------------------------------------------------------------ #
     # Location                                                             #
