@@ -299,10 +299,22 @@ class MoneyReadModel(BaseModel):
 
 
 class VariantAttributePairReadModel(BaseModel):
-    """A single variant attribute pair (attribute + value) on a SKU."""
+    """A single variant attribute pair (attribute + value) on a SKU.
+
+    The denormalised ``attribute_*`` / ``value_*`` fields are populated
+    by storefront read handlers so the customer apps can render variant
+    selectors without a second resolve round-trip.  Admin handlers leave
+    them ``None`` / empty and rely on the IDs alone.
+    """
 
     attribute_id: uuid.UUID
     attribute_value_id: uuid.UUID
+    attribute_code: str | None = None
+    attribute_name_i18n: dict[str, str] = Field(default_factory=dict)
+    value_code: str | None = None
+    value_i18n: dict[str, Any] = Field(default_factory=dict)
+    value_meta_data: dict[str, Any] = Field(default_factory=dict)
+    sort_order: int = 0
 
 
 class SKUReadModel(BaseModel):
@@ -573,6 +585,36 @@ class StorefrontAttributeValueReadModel(BaseModel):
     sort_order: int = 0
 
 
+class StorefrontVariantOptionValueReadModel(BaseModel):
+    """A single value option for a variant attribute (e.g. one size).
+
+    Carries presentation metadata (``meta_data`` — swatch colour, icon)
+    so the storefront can render rich pickers without joining attribute
+    tables on the client.
+    """
+
+    value_id: uuid.UUID
+    value_code: str
+    value_i18n: dict[str, Any]
+    meta_data: dict[str, Any] = Field(default_factory=dict)
+    sort_order: int = 0
+
+
+class StorefrontVariantOptionReadModel(BaseModel):
+    """A variant attribute (e.g. "size") with all available values.
+
+    Aggregated across the product's active SKUs — each unique pairing
+    of ``(attribute_id, attribute_value_id)`` becomes one entry, sorted
+    by ``sort_order`` then ``value_code``.
+    """
+
+    attribute_id: uuid.UUID
+    attribute_code: str
+    attribute_name_i18n: dict[str, str]
+    sort_order: int = 0
+    values: list[StorefrontVariantOptionValueReadModel] = Field(default_factory=list)
+
+
 class StorefrontProductDetailReadModel(BaseModel):
     """Full product detail for PDP (Product Detail Page).
 
@@ -600,6 +642,9 @@ class StorefrontProductDetailReadModel(BaseModel):
     media: list[StorefrontImageReadModel] = Field(default_factory=list)
     variants: list[StorefrontVariantReadModel] = Field(default_factory=list)
     attributes: list[StorefrontAttributeValueReadModel] = Field(default_factory=list)
+    variant_options: list[StorefrontVariantOptionReadModel] = Field(
+        default_factory=list
+    )
     breadcrumbs: list[BreadcrumbItemReadModel] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
     version: int = 1

@@ -118,10 +118,45 @@ class StorefrontProductCardResponse(CamelModel):
 
 
 class StorefrontVariantAttributePairResponse(CamelModel):
-    """Variant attribute pair (attribute + value) on a SKU."""
+    """Variant attribute pair (attribute + value) on a SKU.
+
+    Denormalised ``attribute_*`` / ``value_*`` fields are populated on
+    storefront PDP responses so the client can render selectors without
+    a second roundtrip.
+    """
 
     attribute_id: uuid.UUID
     attribute_value_id: uuid.UUID
+    attribute_code: str | None = None
+    attribute_name_i18n: dict[str, str] = Field(default_factory=dict)
+    attribute_name: str | None = None
+    value_code: str | None = None
+    value_i18n: dict[str, str] = Field(default_factory=dict)
+    value: str | None = None
+    value_meta_data: dict = Field(default_factory=dict)
+    sort_order: int = 0
+
+
+class StorefrontVariantOptionValueResponse(CamelModel):
+    """Single value option for a variant attribute (e.g. one size)."""
+
+    value_id: uuid.UUID
+    value_code: str
+    value_i18n: dict[str, str] = Field(default_factory=dict)
+    value: str | None = None
+    meta_data: dict = Field(default_factory=dict)
+    sort_order: int = 0
+
+
+class StorefrontVariantOptionResponse(CamelModel):
+    """Variant attribute with all available values on this product."""
+
+    attribute_id: uuid.UUID
+    attribute_code: str
+    attribute_name_i18n: dict[str, str] = Field(default_factory=dict)
+    attribute_name: str | None = None
+    sort_order: int = 0
+    values: list[StorefrontVariantOptionValueResponse] = Field(default_factory=list)
 
 
 class StorefrontSKUResponse(CamelModel):
@@ -182,6 +217,7 @@ class StorefrontProductDetailResponse(CamelModel):
     media: list[StorefrontImageResponse] = Field(default_factory=list)
     variants: list[StorefrontVariantResponse] = Field(default_factory=list)
     attributes: list[StorefrontAttributeValueResponse] = Field(default_factory=list)
+    variant_options: list[StorefrontVariantOptionResponse] = Field(default_factory=list)
     breadcrumbs: list[BreadcrumbResponse] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
     version: int = 1

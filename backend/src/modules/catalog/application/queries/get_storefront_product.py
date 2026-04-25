@@ -30,6 +30,8 @@ from src.modules.catalog.application.queries.read_models import (
     StorefrontMoneyReadModel,
     StorefrontProductDetailReadModel,
     StorefrontSupplierReadModel,
+    StorefrontVariantOptionReadModel,
+    StorefrontVariantOptionValueReadModel,
     StorefrontVariantReadModel,
     VariantAttributePairReadModel,
     resolve_sku_price,
@@ -46,6 +48,9 @@ from src.modules.catalog.infrastructure.models import (
     ProductAttributeValue as OrmProductAttributeValue,
 )
 from src.modules.catalog.infrastructure.models import ProductVariant as OrmVariant
+from src.modules.catalog.infrastructure.models import (
+    SKUAttributeValueLink as OrmSKUAttributeValueLink,
+)
 from src.modules.supplier.infrastructure.models import Supplier as OrmSupplier
 from src.shared.exceptions import NotFoundError
 from src.shared.interfaces.cache import ICacheService
@@ -111,12 +116,20 @@ class GetStorefrontProductHandler:
     # ------------------------------------------------------------------
 
     async def _load_product(self, slug: str) -> OrmProduct | None:
+        sku_attr_link = (
+            selectinload(OrmProduct.variants)
+            .selectinload(OrmVariant.skus)
+            .selectinload(OrmSKU.attribute_values)
+        )
         stmt = (
             select(OrmProduct)
             .options(
-                selectinload(OrmProduct.variants)
-                .selectinload(OrmVariant.skus)
-                .selectinload(OrmSKU.attribute_values),
+                sku_attr_link.selectinload(
+                    OrmSKUAttributeValueLink.attribute  # type: ignore[attr-defined]
+                ),
+                sku_attr_link.selectinload(
+                    OrmSKUAttributeValueLink.attribute_value  # type: ignore[attr-defined]
+                ),
             )
             .where(
                 OrmProduct.slug == slug,
@@ -133,9 +146,7 @@ class GetStorefrontProductHandler:
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def _load_supplier(
-        self, supplier_id: uuid.UUID | None
-    ) -> OrmSupplier | None:
+    async def _load_supplier(self, supplier_id: uuid.UUID | None) -> OrmSupplier | None:
         if supplier_id is None:
             return None
         stmt = select(OrmSupplier).where(OrmSupplier.id == supplier_id)
@@ -223,6 +234,23 @@ class GetStorefrontProductHandler:
                         min_price = resolved.amount
                         compare_at = sku.compare_at_price
 
+                pair_models = []
+                for link in sku.attribute_values:
+                    attr = getattr(link, "attribute", None)
+                    val = getattr(link, "attribute_value", None)
+                    pair_models.append(
+                        VariantAttributePairReadModel(
+                            attribute_id=link.attribute_id,
+                            attribute_value_id=link.attribute_value_id,
+                            attribute_code=attr.code if attr else None,
+                            attribute_name_i18n=(attr.name_i18n if attr else {}) or {},
+                            value_code=val.code if val else None,
+                            value_i18n=(val.value_i18n if val else {}) or {},
+                            value_meta_data=(val.meta_data if val else {}) or {},
+                            sort_order=val.sort_order if val else 0,
+                        )
+                    )
+
                 sku_models.append(
                     SKUReadModel(
                         id=sku.id,
@@ -244,13 +272,7 @@ class GetStorefrontProductHandler:
                         deleted_at=sku.deleted_at,
                         created_at=sku.created_at,
                         updated_at=sku.updated_at,
-                        variant_attributes=[
-                            VariantAttributePairReadModel(
-                                attribute_id=link.attribute_id,
-                                attribute_value_id=link.attribute_value_id,
-                            )
-                            for link in sku.attribute_values
-                        ],
+                        variant_attributes=pair_models,
                     )
                 )
 
@@ -290,6 +312,58 @@ class GetStorefrontProductHandler:
                     sort_order=val.sort_order,
                 )
             )
+
+        # Variant options — aggregate distinct (attribute, value) pairs
+        # across the product's active SKUs. Drives the variant selector
+        # on PDP (size, colour, …) without requiring the client to
+        # crawl every SKU.
+        option_index: dict[uuid.UUID, dict] = {}
+        for variant in product.variants:
+            if variant.deleted_at is not None:
+                continue
+            for sku in variant.skus:
+                if sku.deleted_at is not None or not sku.is_active:
+                    continue
+                for link in sku.attribute_values:
+                    attr = getattr(link, "attribute", None)
+                    val = getattr(link, "attribute_value", None)
+                    if attr is None or val is None:
+                        continue
+                    bucket = option_index.setdefault(
+                        attr.id,
+                        {
+                            "attribute_id": attr.id,
+                            "attribute_code": attr.code,
+                            "attribute_name_i18n": attr.name_i18n or {},
+                            "sort_order": getattr(attr, "sort_order", 0) or 0,
+                            "values": {},
+                        },
+                    )
+                    if val.id not in bucket["values"]:
+                        bucket["values"][val.id] = StorefrontVariantOptionValueReadModel(
+                            value_id=val.id,
+                            value_code=val.code,
+                            value_i18n=val.value_i18n or {},
+                            meta_data=val.meta_data or {},
+                            sort_order=val.sort_order or 0,
+                        )
+
+        variant_options = [
+            StorefrontVariantOptionReadModel(
+                attribute_id=bucket["attribute_id"],
+                attribute_code=bucket["attribute_code"],
+                attribute_name_i18n=bucket["attribute_name_i18n"],
+                sort_order=bucket["sort_order"],
+                values=sorted(
+                    bucket["values"].values(),
+                    key=lambda v: (v.sort_order, v.value_code),
+                ),
+            )
+            for bucket in sorted(
+                option_index.values(),
+                key=lambda b: (b["sort_order"], b["attribute_code"]),
+            )
+        ]
 
         # Brand
         brand_model = None
@@ -333,6 +407,7 @@ class GetStorefrontProductHandler:
             media=media_models,
             variants=variant_models,
             attributes=attr_models,
+            variant_options=variant_options,
             breadcrumbs=breadcrumbs,
             tags=product.tags or [],
             version=product.version,

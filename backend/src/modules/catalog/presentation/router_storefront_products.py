@@ -318,11 +318,23 @@ async def get_storefront_product(
             bc.label = _project_i18n(bc.label_i18n, lang)
         for v in pdp.variants:
             v.name = _project_i18n(v.name_i18n, lang)
+            for sku in v.skus:
+                for pair in sku.variant_attributes:
+                    if pair.attribute_name_i18n:
+                        pair.attribute_name = _project_i18n(
+                            pair.attribute_name_i18n, lang
+                        )
+                    if pair.value_i18n:
+                        pair.value = _project_i18n(pair.value_i18n, lang)
         for a in pdp.attributes:
             a.attribute_name = _project_i18n(a.attribute_name_i18n, lang)
             a.value = _project_i18n(a.value_i18n, lang)
             if a.group_name_i18n:
                 a.group_name = _project_i18n(a.group_name_i18n, lang)
+        for opt in pdp.variant_options:
+            opt.attribute_name = _project_i18n(opt.attribute_name_i18n, lang)
+            for ov in opt.values:
+                ov.value = _project_i18n(ov.value_i18n, lang)
 
     actor_uuid = None
     identity_id = _extract_identity_id(request, token_provider)
