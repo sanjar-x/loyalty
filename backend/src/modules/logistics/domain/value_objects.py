@@ -13,6 +13,7 @@ Units convention (aligned across all logistics providers):
 import uuid
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 
 import attrs
 
@@ -83,6 +84,22 @@ class TrackingStatus(StrEnum):
     EXCEPTION = "exception"
     ATTEMPT_FAILED = "attempt_failed"  # delivery attempt failed, will retry
     CUSTOMS = "customs"  # customs processing (international)
+    CANCELLED = "cancelled"  # carrier-side cancellation (e.g. Yandex CANCELLED)
+
+
+# Tracking statuses that imply a terminal failure of the shipment from
+# the carrier's side. When ingested via webhook/polling, the Shipment
+# aggregate transitions to ``ShipmentStatus.FAILED`` automatically.
+TERMINAL_FAILURE_TRACKING_STATUSES: frozenset[TrackingStatus] = frozenset({
+    TrackingStatus.LOST,
+    TrackingStatus.EXCEPTION,
+})
+
+# Tracking statuses that imply a terminal cancellation of the shipment
+# from the carrier's side (the carrier itself cancelled the order).
+TERMINAL_CANCEL_TRACKING_STATUSES: frozenset[TrackingStatus] = frozenset({
+    TrackingStatus.CANCELLED,
+})
 
 
 # ---------------------------------------------------------------------------
@@ -160,9 +177,9 @@ class Address:
     latitude: float | None = None
     longitude: float | None = None
     raw_address: str | None = None  # provider-formatted full address
-    metadata: dict[str, str] = attrs.Factory(
+    metadata: dict[str, Any] = attrs.Factory(
         dict
-    )  # e.g. {"fias_guid": "...", "cdek_city_code": "..."}
+    )  # e.g. {"fias_guid": "...", "cdek_city_code": 270, "cdek_order_type": "1"}
 
 
 @attrs.define(frozen=True)
@@ -171,6 +188,14 @@ class ContactInfo:
 
     Providers require structured names (first/last/patronymic) for booking.
     Use ``full_name`` property when a single string is needed.
+
+    ``phone`` is normalised on construction to E.164 with a leading ``+``
+    and only digits afterwards (``+79529999999``). Provider adapters that
+    require a different format (e.g. Yandex Delivery wants the number
+    *without* the leading ``+``) strip the prefix at the mapping layer
+    via the ``phone_e164_digits`` helper. This guarantees a canonical
+    representation in the domain regardless of how the caller formatted
+    the input (``"+7 (999) 123-45-67"``, ``"79529999999"``, etc.).
     """
 
     first_name: str
@@ -180,6 +205,11 @@ class ContactInfo:
     email: str | None = None
     company_name: str | None = None
 
+    def __attrs_post_init__(self) -> None:
+        normalised = _normalize_phone(self.phone)
+        if normalised != self.phone:
+            object.__setattr__(self, "phone", normalised)
+
     @property
     def full_name(self) -> str:
         """Return 'LastName FirstName MiddleName' formatted full name."""
@@ -187,6 +217,33 @@ class ContactInfo:
         if self.middle_name:
             parts.append(self.middle_name)
         return " ".join(parts)
+
+    @property
+    def phone_e164_digits(self) -> str:
+        """Return ``phone`` without the leading ``+`` (digits only).
+
+        Use for providers that reject the ``+`` prefix (e.g. Yandex
+        Delivery requires ``79529999999`` style).
+        """
+        return self.phone.lstrip("+")
+
+
+def _normalize_phone(raw: str) -> str:
+    """Normalise a phone string to E.164 (``+`` followed by digits).
+
+    Strips spaces, hyphens, parentheses, dots and any other formatting
+    characters. If the input has no leading ``+``, one is added so
+    every contact in the domain shares the same canonical form.
+
+    Empty input is preserved (returned as ``""``) — callers decide
+    whether to require a non-empty phone via Pydantic validation.
+    """
+    if not raw:
+        return ""
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    if not digits:
+        return raw  # leave odd inputs alone for the caller to debug
+    return f"+{digits}"
 
 
 @attrs.define(frozen=True)
@@ -368,11 +425,18 @@ class BookingRequest:
 
 @attrs.define(frozen=True)
 class BookingResult:
-    """Result of a successful provider booking."""
+    """Result of a successful provider booking.
+
+    ``actual_cost`` is the price the provider committed to **after** the
+    order was accepted (e.g. CDEK ``delivery_detail.total_sum``). It may
+    differ from the quoted price; ``BookShipmentHandler`` compares it
+    against ``shipment.quoted_cost`` to detect drift.
+    """
 
     provider_shipment_id: str
     tracking_number: str | None = None
     estimated_delivery: EstimatedDelivery | None = None
+    actual_cost: Money | None = None
     provider_response_payload: str | None = None  # raw JSON for audit
 
 

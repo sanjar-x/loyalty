@@ -6,7 +6,6 @@ domain value objects and the JSON structures expected/returned by the
 Yandex Delivery "Other Day" API.
 """
 
-import json
 import logging
 from datetime import UTC, datetime
 from typing import Any
@@ -15,7 +14,6 @@ from src.modules.logistics.domain.value_objects import (
     PROVIDER_YANDEX_DELIVERY,
     Address,
     BookingRequest,
-    BookingResult,
     DeliveryType,
     Money,
     Parcel,
@@ -151,6 +149,22 @@ def build_offers_create_request(
     items = _build_items(request, config)
     places = _build_places(request.parcels)
 
+    # Resolve payment_method:
+    #   - With COD: force ``card_on_receipt`` (or honour ``"postpay"`` when
+    #     the caller explicitly opted into Yandex Postpay flow).
+    #   - Without COD: fall back to the per-account default
+    #     (typically ``already_paid`` for marketplace flows).
+    if request.cod and request.cod.amount.amount > 0:
+        cod_method = (request.cod.payment_method or "").lower()
+        payment_method = "postpay" if cod_method == "postpay" else "card_on_receipt"
+    else:
+        payment_method = config.get("payment_method", "already_paid")
+
+    billing_info: dict[str, Any] = {"payment_method": payment_method}
+    if request.cod and request.cod.amount.amount > 0:
+        # ``delivery_cost`` is the amount the courier collects on receipt.
+        billing_info["delivery_cost"] = request.cod.amount.amount
+
     body: dict[str, Any] = {
         "info": {
             "operator_request_id": str(request.shipment_id),
@@ -161,13 +175,12 @@ def build_offers_create_request(
         "destination": destination,
         "items": items,
         "places": places,
-        "billing_info": {
-            "payment_method": config.get("payment_method", "already_paid"),
-        },
+        "billing_info": billing_info,
         "recipient_info": {
             "first_name": request.recipient.first_name,
             "last_name": request.recipient.last_name,
-            "phone": request.recipient.phone,
+            # Yandex requires the phone number without a leading "+"
+            "phone": request.recipient.phone_e164_digits,
         },
         "last_mile_policy": last_mile,
     }
@@ -176,9 +189,6 @@ def build_offers_create_request(
         body["recipient_info"]["patronymic"] = request.recipient.middle_name
     if request.recipient.email:
         body["recipient_info"]["email"] = request.recipient.email
-
-    if request.cod and request.cod.amount.amount > 0:
-        body["billing_info"]["delivery_cost"] = request.cod.amount.amount
 
     return body
 
@@ -199,23 +209,6 @@ def parse_offers_response(data: dict[str, Any]) -> list[dict[str, Any]]:
 def parse_confirm_response(data: dict[str, Any]) -> str:
     """Extract request_id from offers/confirm response."""
     return data["request_id"]
-
-
-# ---------------------------------------------------------------------------
-# Request info (3.03) → BookingResult
-# ---------------------------------------------------------------------------
-
-
-def parse_request_info_to_booking_result(data: dict[str, Any]) -> BookingResult:
-    """Parse request/info response into BookingResult."""
-    request_id = data.get("request_id", "")
-
-    return BookingResult(
-        provider_shipment_id=request_id,
-        tracking_number=data.get("courier_order_id"),
-        estimated_delivery=None,
-        provider_response_payload=json.dumps(data, ensure_ascii=False, default=str),
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -320,10 +313,23 @@ def parse_cancel_response(data: dict[str, Any]) -> tuple[bool, str | None]:
 def build_pickup_points_request(
     query: PickupPointQuery,
 ) -> dict[str, Any]:
-    """Build request body for POST /pickup-points/list."""
+    """Build request body for POST /pickup-points/list.
+
+    Yandex returns the entire pickup-point catalogue when the request body
+    is empty — tens of thousands of points, which causes API timeouts and
+    OOM on the client side. We require at least one geographic filter
+    (lat/lng pair OR ``city``) so the response stays bounded.
+    """
+    has_geo_box = query.latitude is not None and query.longitude is not None
+    if not has_geo_box and not query.city:
+        raise ValueError(
+            "Yandex pickup_points query requires at least latitude+longitude "
+            "or city to bound the response"
+        )
+
     body: dict[str, Any] = {}
 
-    if query.latitude is not None and query.longitude is not None:
+    if has_geo_box:
         radius_deg = (query.radius_km or 10) / 111.0
         body["latitude"] = {
             "from": query.latitude - radius_deg,
@@ -373,7 +379,8 @@ def parse_pickup_points(data: dict[str, Any]) -> list[PickupPoint]:
 
         payment_methods = pt.get("payment_methods", [])
         schedule = pt.get("schedule", {})
-        schedule_str = _format_schedule(schedule) if schedule else None
+        dayoffs = pt.get("dayoffs", [])
+        schedule_str = _format_schedule(schedule, dayoffs) if schedule else None
 
         contact = pt.get("contact", {})
         phone = contact.get("phone") if contact else None
@@ -407,10 +414,21 @@ def _build_destination(
     destination: Address,
     last_mile: str,
 ) -> dict[str, Any]:
-    """Build the ``destination`` block for offers/create or request/create."""
+    """Build the ``destination`` block for offers/create or request/create.
+
+    Yandex requires a ``platform_station`` for ``self_pickup`` deliveries —
+    a ``custom_location`` fallback would be silently rejected by the API
+    (`No delivery options`). Reject such payloads upfront with a clear
+    error message instead.
+    """
     dest_station = destination.metadata.get("platform_station_id")
 
-    if dest_station and last_mile == LAST_MILE_PICKUP:
+    if last_mile == LAST_MILE_PICKUP:
+        if not dest_station:
+            raise ValueError(
+                "Yandex Delivery self_pickup requires "
+                "destination.metadata['platform_station_id']"
+            )
         return {
             "type": "platform_station",
             "platform_station": {"platform_id": dest_station},
@@ -548,8 +566,15 @@ def _parse_timestamp(entry: dict[str, Any]) -> datetime | None:
     return None
 
 
-def _format_schedule(schedule: dict[str, Any]) -> str | None:
-    """Format a Yandex schedule object to a human-readable string."""
+def _format_schedule(
+    schedule: dict[str, Any],
+    dayoffs: list[dict[str, Any]] | None = None,
+) -> str | None:
+    """Format a Yandex schedule object to a human-readable string.
+
+    Includes a comma-separated list of upcoming dayoffs (closures) when
+    provided so users see when the pickup point is unavailable.
+    """
     restrictions = schedule.get("restrictions", [])
     if not restrictions:
         return None
@@ -571,4 +596,16 @@ def _format_schedule(schedule: dict[str, Any]) -> str | None:
         else:
             parts.append(f"{day_str}: {from_str}–")
 
-    return "; ".join(parts)
+    schedule_str = "; ".join(parts)
+
+    if dayoffs:
+        formatted_offs: list[str] = []
+        for entry in dayoffs:
+            iso_date = entry.get("date_utc", "")
+            if isinstance(iso_date, str) and iso_date:
+                # Trim to the YYYY-MM-DD prefix.
+                formatted_offs.append(iso_date.split("T", 1)[0])
+        if formatted_offs:
+            schedule_str = f"{schedule_str} | выходные: {', '.join(formatted_offs)}"
+
+    return schedule_str

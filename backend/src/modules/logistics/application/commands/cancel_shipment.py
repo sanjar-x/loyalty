@@ -10,6 +10,7 @@ Two-phase pattern analogous to BookShipmentHandler:
 import uuid
 from dataclasses import dataclass
 
+from src.modules.logistics.application.dto import CancelShipmentResult
 from src.modules.logistics.domain.exceptions import (
     CancellationError,
     ShipmentNotFoundError,
@@ -33,15 +34,7 @@ class CancelShipmentCommand:
     shipment_id: uuid.UUID
 
 
-@dataclass(frozen=True)
-class CancelShipmentResult:
-    """Output of a successful cancellation.
-
-    Attributes:
-        shipment_id: UUID of the cancelled shipment.
-    """
-
-    shipment_id: uuid.UUID
+__all__ = ["CancelShipmentCommand", "CancelShipmentHandler", "CancelShipmentResult"]
 
 
 class CancelShipmentHandler:

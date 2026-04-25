@@ -5,9 +5,9 @@ Unified ingestion path — both webhook adapters and polling tasks
 call this handler. Deduplication is handled by the Shipment aggregate.
 """
 
-import uuid
 from dataclasses import dataclass
 
+from src.modules.logistics.application.dto import IngestTrackingResult
 from src.modules.logistics.domain.exceptions import ShipmentNotFoundError
 from src.modules.logistics.domain.interfaces import IShipmentRepository
 from src.modules.logistics.domain.value_objects import (
@@ -35,17 +35,7 @@ class IngestTrackingCommand:
     raw_payload: str | None = None
 
 
-@dataclass(frozen=True)
-class IngestTrackingResult:
-    """Output of tracking ingestion.
-
-    Attributes:
-        shipment_id: UUID of the updated shipment.
-        new_events_count: Number of genuinely new events (after dedup).
-    """
-
-    shipment_id: uuid.UUID
-    new_events_count: int
+__all__ = ["IngestTrackingCommand", "IngestTrackingHandler", "IngestTrackingResult"]
 
 
 class IngestTrackingHandler:

@@ -68,6 +68,22 @@ async def receive_webhook(
 
     parsed = await adapter.parse_events(body=raw_body)
 
+    if not parsed:
+        # Adapter recognised the payload but yielded no tracking events
+        # (e.g. CDEK PRINT_FORM, DOWNLOAD_PHOTO, PREALERT_CLOSED). Log
+        # for audit so non-tracking events aren't silently dropped —
+        # a future consumer can persist them to a dedicated
+        # ``provider_webhook_log`` table without touching this router.
+        logger.info(
+            "Webhook accepted but produced no tracking events",
+            provider=provider_code,
+            raw_body_size=len(raw_body),
+        )
+        return {
+            "status": "accepted_no_tracking",
+            "provider": provider_code,
+        }
+
     total_new = 0
     for provider_shipment_id, events in parsed:
         if not events:

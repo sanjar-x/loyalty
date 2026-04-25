@@ -173,9 +173,15 @@ class CdekClient:
 
         CDEK uses ``page`` + ``size`` query params for pagination.
         Returns a flat list of all offices across pages.
+
+        Logs a warning when the ``max_pages`` ceiling is reached and the
+        last page was full — the list may have been silently truncated.
+        Operators should either narrow the query (``country_code``,
+        ``city``) or raise ``max_pages``.
         """
         all_points: list[dict] = []
         page_params = {**params, "size": page_size}
+        last_batch_full = False
 
         for page in range(max_pages):
             page_params["page"] = page
@@ -184,7 +190,20 @@ class CdekClient:
                 break
             all_points.extend(batch)
             if len(batch) < page_size:
+                last_batch_full = False
                 break
+            last_batch_full = True
+        else:
+            # for-else: max_pages exhausted without an early break.
+            if last_batch_full:
+                logger.warning(
+                    "CDEK delivery_points pagination ceiling reached "
+                    "(page_size=%d × max_pages=%d = %d points); response may "
+                    "be truncated. Narrow the query or raise max_pages.",
+                    page_size,
+                    max_pages,
+                    page_size * max_pages,
+                )
 
         return all_points
 

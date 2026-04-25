@@ -10,8 +10,10 @@ Two-phase pattern:
 import uuid
 from dataclasses import dataclass
 
+from src.modules.logistics.application.dto import BookShipmentResult
 from src.modules.logistics.domain.exceptions import (
     BookingError,
+    BookingPendingError,
     ShipmentNotFoundError,
 )
 from src.modules.logistics.domain.interfaces import (
@@ -34,19 +36,7 @@ class BookShipmentCommand:
     shipment_id: uuid.UUID
 
 
-@dataclass(frozen=True)
-class BookShipmentResult:
-    """Output of a successful booking.
-
-    Attributes:
-        shipment_id: UUID of the booked shipment.
-        provider_shipment_id: Provider's shipment identifier.
-        tracking_number: Provider's tracking number (may be None).
-    """
-
-    shipment_id: uuid.UUID
-    provider_shipment_id: str
-    tracking_number: str | None
+__all__ = ["BookShipmentCommand", "BookShipmentHandler", "BookShipmentResult"]
 
 
 class BookShipmentHandler:
@@ -99,6 +89,15 @@ class BookShipmentHandler:
 
         try:
             result = await booking_provider.book_shipment(booking_request)
+        except BookingPendingError:
+            # Transient: leave shipment in BOOKING_PENDING for the next retry.
+            # The provider has accepted the request but hasn't yet produced
+            # a final state (e.g. CDEK polling window expired).
+            self._logger.warning(
+                "Booking still pending — shipment kept in BOOKING_PENDING",
+                shipment_id=str(shipment.id),
+            )
+            raise
         except Exception as exc:
             # Phase 3a: Mark as FAILED
             self._logger.error(
@@ -126,6 +125,10 @@ class BookShipmentHandler:
                     details={"shipment_id": str(command.shipment_id)}
                 )
 
+            # Detect price drift between the quote shown to the customer
+            # and the cost the provider actually committed to.
+            self._verify_actual_cost(shipment, result)
+
             shipment.mark_booked(
                 provider_shipment_id=result.provider_shipment_id,
                 tracking_number=result.tracking_number,
@@ -145,3 +148,35 @@ class BookShipmentHandler:
             provider_shipment_id=result.provider_shipment_id,
             tracking_number=result.tracking_number,
         )
+
+    # Tolerance for cost drift between the quoted price (shown to the
+    # customer) and the price the provider committed to during booking.
+    # Anything larger than 1 % is logged as a price-mismatch warning so
+    # that operators can investigate without rejecting valid bookings.
+    _PRICE_DRIFT_TOLERANCE = 0.01
+
+    def _verify_actual_cost(self, shipment, result) -> None:
+        """Log a warning when the provider-confirmed cost diverges from the quote."""
+        actual = result.actual_cost
+        if actual is None:
+            return
+        quoted = shipment.quoted_cost
+        if actual.currency_code != quoted.currency_code:
+            self._logger.warning(
+                "Booking currency mismatch",
+                shipment_id=str(shipment.id),
+                quoted_currency=quoted.currency_code,
+                actual_currency=actual.currency_code,
+            )
+            return
+        if quoted.amount == 0:
+            return
+        drift = abs(actual.amount - quoted.amount) / quoted.amount
+        if drift > self._PRICE_DRIFT_TOLERANCE:
+            self._logger.warning(
+                "Booking price drift detected",
+                shipment_id=str(shipment.id),
+                quoted_amount=quoted.amount,
+                actual_amount=actual.amount,
+                drift_pct=round(drift * 100, 2),
+            )

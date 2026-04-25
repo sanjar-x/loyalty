@@ -1,8 +1,9 @@
-"""TaskIQ scheduled task: poll tracking updates for active shipments.
+"""TaskIQ scheduled tasks for the logistics module.
 
-Runs every 5 minutes via TaskIQ Beat. For each registered poll provider,
-queries BOOKED/CANCEL_PENDING shipments from the DB, calls
-``poll_tracking_batch``, and ingests results via ``IngestTrackingHandler``.
+* ``tracking_poll_task`` — every 5 minutes; polls BOOKED/CANCEL_PENDING
+  shipments and ingests tracking via ``IngestTrackingHandler``.
+* ``cleanup_expired_quotes_task`` — hourly; deletes expired
+  ``DeliveryQuote`` rows so the table doesn't grow unbounded.
 """
 
 import structlog
@@ -15,9 +16,13 @@ from src.modules.logistics.application.commands.ingest_tracking import (
     IngestTrackingCommand,
     IngestTrackingHandler,
 )
-from src.modules.logistics.domain.interfaces import IShippingProviderRegistry
+from src.modules.logistics.domain.interfaces import (
+    IDeliveryQuoteRepository,
+    IShippingProviderRegistry,
+)
 from src.modules.logistics.domain.value_objects import ShipmentStatus
 from src.modules.logistics.infrastructure.models import ShipmentModel
+from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
 
@@ -119,3 +124,35 @@ async def tracking_poll_task(
         "providers_polled": providers_polled,
         "new_events": total_updated,
     }
+
+
+@broker.task(
+    queue="logistics_quotes_cleanup",
+    exchange="taskiq_rpc_exchange",
+    routing_key="logistics.quotes.cleanup",
+    max_retries=0,
+    retry_on_error=False,
+    timeout=120,
+    schedule=[
+        {"cron": "0 * * * *", "schedule_id": "cleanup_expired_quotes_hourly"},
+    ],
+)
+@inject
+async def cleanup_expired_quotes_task(
+    quote_repo: FromDishka[IDeliveryQuoteRepository],
+    uow: FromDishka[IUnitOfWork],
+) -> dict:
+    """Delete delivery quotes whose ``expires_at`` is in the past.
+
+    Quotes are persisted server-side for price-integrity verification,
+    but they accumulate quickly because every rate calculation produces
+    several. This task runs hourly to keep the ``delivery_quotes`` table
+    bounded.
+    """
+    async with uow:
+        deleted = await quote_repo.delete_expired()
+        await uow.commit()
+
+    if deleted:
+        logger.info("Expired delivery quotes purged", deleted=deleted)
+    return {"status": "success", "deleted": deleted}

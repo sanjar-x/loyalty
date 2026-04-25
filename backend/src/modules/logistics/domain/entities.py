@@ -23,6 +23,8 @@ from src.modules.logistics.domain.events import (
 )
 from src.modules.logistics.domain.exceptions import InvalidShipmentTransitionError
 from src.modules.logistics.domain.value_objects import (
+    TERMINAL_CANCEL_TRACKING_STATUSES,
+    TERMINAL_FAILURE_TRACKING_STATUSES,
     Address,
     CashOnDelivery,
     ContactInfo,
@@ -51,11 +53,17 @@ _ALLOWED_TRANSITIONS: dict[ShipmentStatus, frozenset[ShipmentStatus]] = {
     ),
     ShipmentStatus.BOOKING_PENDING: frozenset(
         {
+            ShipmentStatus.BOOKING_PENDING,  # idempotent retry
             ShipmentStatus.BOOKED,
             ShipmentStatus.FAILED,
         }
     ),
-    ShipmentStatus.BOOKED: frozenset({ShipmentStatus.CANCEL_PENDING}),
+    ShipmentStatus.BOOKED: frozenset({
+        ShipmentStatus.CANCEL_PENDING,
+        # Carrier-initiated terminal outcomes ingested via tracking events.
+        ShipmentStatus.FAILED,
+        ShipmentStatus.CANCELLED,
+    }),
     ShipmentStatus.CANCEL_PENDING: frozenset(
         {
             ShipmentStatus.CANCELLED,
@@ -191,7 +199,16 @@ class Shipment(AggregateRoot):
         self.version += 1
 
     def mark_booking_pending(self) -> None:
-        """Transition DRAFT → BOOKING_PENDING."""
+        """Transition DRAFT → BOOKING_PENDING (idempotent on retry).
+
+        A retry from an already-pending shipment is treated as a no-op:
+        no FSM state change, no domain event emitted, no version bump —
+        the original BOOKING_PENDING event still applies. This lets the
+        ``BookShipmentHandler`` be safely re-invoked after a provider
+        polling timeout left the shipment in BOOKING_PENDING.
+        """
+        if self.status == ShipmentStatus.BOOKING_PENDING:
+            return
         self._transition_to(ShipmentStatus.BOOKING_PENDING)
         self.add_domain_event(ShipmentBookingRequestedEvent(shipment_id=self.id))
 
@@ -207,11 +224,14 @@ class Shipment(AggregateRoot):
         self.tracking_number = tracking_number
         self.estimated_delivery = estimated_delivery
         self.booked_at = datetime.now(UTC)
+        # Clear any failure_reason left over from a previous failed cancel
+        # attempt — the shipment is now successfully (re)booked.
+        self.failure_reason = None
         self.add_domain_event(
             ShipmentBookedEvent(
                 shipment_id=self.id,
                 provider_shipment_id=provider_shipment_id,
-                tracking_number=tracking_number or "",
+                tracking_number=tracking_number,
             )
         )
 
@@ -254,21 +274,59 @@ class Shipment(AggregateRoot):
         self.cancelled_at = datetime.now(UTC)
         self.add_domain_event(ShipmentCancelledEvent(shipment_id=self.id))
 
+    def mark_failed_from_tracking(self, reason: str) -> None:
+        """Transition to FAILED on a terminal carrier failure (LOST / EXCEPTION).
+
+        Used by ``append_tracking_event`` when the ingested status implies
+        the shipment cannot be delivered. Idempotent — already-FAILED
+        shipments are silently ignored.
+        """
+        if self.status == ShipmentStatus.FAILED:
+            return
+        self._transition_to(ShipmentStatus.FAILED)
+        self.failure_reason = reason
+        self.add_domain_event(
+            ShipmentBookingFailedEvent(shipment_id=self.id, reason=reason)
+        )
+
+    def mark_cancelled_from_tracking(self, reason: str | None = None) -> None:
+        """Transition to CANCELLED when the carrier itself cancelled the order.
+
+        No provider API call is required — the cancellation has already
+        happened on the carrier side. Idempotent on already-CANCELLED
+        shipments.
+        """
+        if self.status == ShipmentStatus.CANCELLED:
+            return
+        self._transition_to(ShipmentStatus.CANCELLED)
+        self.cancelled_at = datetime.now(UTC)
+        if reason is not None:
+            self.failure_reason = reason
+        self.add_domain_event(ShipmentCancelledEvent(shipment_id=self.id))
+
     # -- Tracking -----------------------------------------------------------
 
     def append_tracking_event(self, event: TrackingEvent) -> None:
         """Append a new tracking event from the carrier.
 
-        Deduplicates by (timestamp, status) to ensure idempotency
-        when the same event arrives via webhook and polling.
+        Deduplicates by (timestamp, status) to ensure idempotency when the
+        same event arrives via webhook and polling. If a duplicate carries
+        a more detailed ``location`` or ``description`` than the original,
+        the stored event is replaced in-place (without bumping the version
+        or emitting a new event).
 
         ``latest_tracking_status`` is always recomputed from the most-recent
         timestamp across *all* events to prevent regression when out-of-order
         events arrive.
         """
-        existing_keys = {(e.timestamp, e.status) for e in self.tracking_events}
-        if (event.timestamp, event.status) in existing_keys:
-            return  # idempotent — already recorded
+        for idx, existing in enumerate(self.tracking_events):
+            if existing.timestamp == event.timestamp and existing.status == event.status:
+                # Upgrade with richer info if the new event has more data
+                # in any optional field; skip otherwise (idempotent).
+                if _has_richer_info(existing, event):
+                    self.tracking_events[idx] = event
+                    self.updated_at = datetime.now(UTC)
+                return
 
         self.tracking_events.append(event)
 
@@ -285,3 +343,31 @@ class Shipment(AggregateRoot):
                 provider_status_code=event.provider_status_code,
             )
         )
+
+        # Auto-transition the local FSM on terminal carrier outcomes.
+        # Only applies when the shipment is in a non-terminal state — we
+        # never override an explicit local cancellation/failure.
+        if self.status in (ShipmentStatus.BOOKED, ShipmentStatus.CANCEL_PENDING):
+            if event.status in TERMINAL_FAILURE_TRACKING_STATUSES:
+                reason = event.description or event.provider_status_name or event.status.value
+                self.mark_failed_from_tracking(reason=reason)
+            elif event.status in TERMINAL_CANCEL_TRACKING_STATUSES:
+                reason = event.description or event.provider_status_name or None
+                self.mark_cancelled_from_tracking(reason=reason)
+
+
+def _has_richer_info(existing: TrackingEvent, candidate: TrackingEvent) -> bool:
+    """Return True if *candidate* has more populated optional fields than *existing*.
+
+    Used by ``Shipment.append_tracking_event`` to decide whether to replace
+    a previously-recorded event with a duplicate that carries extra context.
+    """
+    for field in ("location", "description"):
+        old_val = getattr(existing, field)
+        new_val = getattr(candidate, field)
+        if not old_val and new_val:
+            return True
+        # Prefer the longer description (more verbose carrier text)
+        if old_val and new_val and len(new_val) > len(old_val):
+            return True
+    return False

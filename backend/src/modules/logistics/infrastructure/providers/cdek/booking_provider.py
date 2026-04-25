@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 
+from src.modules.logistics.domain.exceptions import BookingPendingError
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_CDEK,
     BookingRequest,
@@ -33,13 +34,20 @@ class CdekBookingProvider:
     CDEK order creation is asynchronous: POST returns 202 with a UUID,
     and actual processing happens in the background.  After creation,
     we poll GET /v2/orders/{uuid} to confirm the order was accepted.
+
+    The default polling window of 30 attempts × 2 s = 60 s reflects
+    CDEK's documented "до нескольких минут" SLA for order acceptance.
+    If the response carries no ``statuses`` after the window expires,
+    we raise ``ProviderHTTPError`` instead of returning a phantom
+    ``BookingResult`` — the caller (BookShipmentHandler) is then free
+    to retry while the shipment stays in BOOKING_PENDING.
     """
 
     def __init__(
         self,
         client: CdekClient,
         *,
-        max_poll_attempts: int = 5,
+        max_poll_attempts: int = 30,
         poll_interval: float = 2.0,
     ) -> None:
         self._client = client
@@ -82,16 +90,22 @@ class CdekBookingProvider:
         return parse_order_info_response(order_data)
 
     async def _poll_order_ready(self, uuid: str) -> dict:
-        """Poll GET /v2/orders/{uuid} until order is processed."""
+        """Poll GET /v2/orders/{uuid} until order is processed.
+
+        Raises ``ProviderHTTPError`` when the polling window expires
+        without any tracking statuses appearing — keeps the caller from
+        booking a shipment with no provider state.
+        """
+        last_data: dict = {}
         for attempt in range(1, self._max_poll_attempts + 1):
             await asyncio.sleep(self._poll_interval)
-            data = await self._client.get_order(uuid)
+            last_data = await self._client.get_order(uuid)
 
-            entity = data.get("entity", data)
+            entity = last_data.get("entity", last_data)
             statuses = entity.get("statuses", [])
 
             # Check for error statuses
-            requests = data.get("requests", [])
+            requests = last_data.get("requests", [])
             for req in requests:
                 if req.get("state") == "INVALID":
                     errors = req.get("errors", [])
@@ -101,11 +115,11 @@ class CdekBookingProvider:
                     raise ProviderHTTPError(
                         status_code=400,
                         message=f"CDEK order processing failed: {error_msgs}",
-                        response_body=json.dumps(data, ensure_ascii=False),
+                        response_body=json.dumps(last_data, ensure_ascii=False),
                     )
 
             if statuses:
-                return data
+                return last_data
 
             logger.debug(
                 "CDEK order %s not ready yet (attempt %d/%d)",
@@ -114,8 +128,14 @@ class CdekBookingProvider:
                 self._max_poll_attempts,
             )
 
-        # Return last response even without statuses
-        return data
+        elapsed = self._max_poll_attempts * self._poll_interval
+        raise BookingPendingError(
+            message=(
+                f"CDEK order {uuid} did not produce statuses within {elapsed:.0f}s; "
+                "shipment remains in BOOKING_PENDING for retry"
+            ),
+            details={"provider": PROVIDER_CDEK, "provider_shipment_id": uuid},
+        )
 
     async def cancel_shipment(self, provider_shipment_id: str) -> CancelResult:
         async with self._client:

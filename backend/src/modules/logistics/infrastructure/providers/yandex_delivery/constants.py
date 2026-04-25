@@ -88,8 +88,8 @@ YANDEX_STATUS_MAP: dict[str, TrackingStatus] = {
     "RETURN_READY_FOR_PICKUP": TrackingStatus.RETURNED,
     "RETURN_RETURNED": TrackingStatus.RETURNED,
     # --- Cancellation / exceptions ---
-    "CANCELLED": TrackingStatus.EXCEPTION,
-    "CANCELED_IN_PLATFORM": TrackingStatus.EXCEPTION,
+    "CANCELLED": TrackingStatus.CANCELLED,
+    "CANCELED_IN_PLATFORM": TrackingStatus.CANCELLED,
     # --- Order modifications (treat as in-transit) ---
     "DELIVERY_UPDATED_BY_SHOP": TrackingStatus.IN_TRANSIT,
     "DELIVERY_UPDATED_BY_RECIPIENT": TrackingStatus.IN_TRANSIT,
@@ -121,17 +121,35 @@ YANDEX_PICKUP_TYPE_MAP: dict[str, str] = {
 def parse_pricing_string(pricing: str) -> tuple[int, str]:
     """Parse Yandex pricing string like ``"225.7 RUB"`` to (kopecks, currency).
 
+    Tolerates locale variations Yandex may emit:
+    - ``"1 234.56 RUB"`` — thousands separator (NBSP / regular space)
+    - ``"225,70 RUB"`` — comma as decimal separator
+    - ``"225 RUB"`` — integer without decimals
+
     Returns:
         Tuple of (amount_in_smallest_unit, currency_code).
-        E.g. ``"225.7 RUB"`` → ``(22570, "RUB")``.
+        E.g. ``"1 400.96 RUB"`` → ``(140096, "RUB")``.
 
     Raises:
-        ValueError: If the pricing string format is invalid.
+        ValueError: If the pricing string contains no recognisable number
+            or no 3-letter currency suffix.
     """
-    parts = pricing.strip().split()
-    if len(parts) != 2:
-        raise ValueError(f"Invalid pricing format: {pricing!r}")
-    amount_str, currency = parts
-    amount_float = float(amount_str)
+    # The currency suffix is always 3 ASCII letters; everything before it
+    # is the (possibly thousands-separated) amount.
+    cleaned = pricing.strip().replace(" ", " ")
+    if len(cleaned) < 4 or not cleaned[-3:].isalpha():
+        raise ValueError(f"Invalid pricing format (no currency): {pricing!r}")
+    currency = cleaned[-3:].upper()
+    amount_str = cleaned[:-3].strip()
+    if not amount_str:
+        raise ValueError(f"Invalid pricing format (no amount): {pricing!r}")
+
+    # Strip thousands separators and normalise decimal separator.
+    normalised = amount_str.replace(" ", "").replace(",", ".")
+    try:
+        amount_float = float(normalised)
+    except ValueError as exc:
+        raise ValueError(f"Invalid pricing format (bad amount): {pricing!r}") from exc
+
     amount_kopecks = round(amount_float * 100)
     return amount_kopecks, currency

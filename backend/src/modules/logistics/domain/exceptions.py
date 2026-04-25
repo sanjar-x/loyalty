@@ -99,6 +99,29 @@ class BookingError(AppException):
         )
 
 
+class BookingPendingError(AppException):
+    """Raised when the provider's booking is still in flight (HTTP 503).
+
+    Distinguishes a *transient* outcome (provider has not yet returned a
+    final state) from a hard rejection (``BookingError``). Callers MUST
+    leave the shipment in ``BOOKING_PENDING`` so the next retry can pick
+    up where polling left off, instead of marking it ``FAILED``.
+    """
+
+    def __init__(
+        self,
+        message: str = "Provider booking is still pending",
+        error_code: str = "BOOKING_PENDING",
+        details: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            message=message,
+            status_code=503,
+            error_code=error_code,
+            details=details,
+        )
+
+
 class CancellationError(ConflictError):
     """Raised when a shipment cannot be cancelled (HTTP 409)."""
 

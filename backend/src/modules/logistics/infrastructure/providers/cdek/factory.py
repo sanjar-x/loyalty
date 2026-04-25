@@ -130,4 +130,8 @@ class CdekProviderFactory:
     def create_webhook_adapter(
         self, credentials: dict[str, Any], config: dict[str, Any] | None = None
     ) -> IWebhookAdapter:
-        return CdekWebhookAdapter()
+        cfg = config or {}
+        return CdekWebhookAdapter(
+            webhook_secret=cfg.get("webhook_secret"),
+            allowed_ips=cfg.get("webhook_allowed_ips"),
+        )

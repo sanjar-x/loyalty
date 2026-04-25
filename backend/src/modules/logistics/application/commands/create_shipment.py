@@ -10,6 +10,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from src.modules.logistics.application.dto import CreateShipmentResult
 from src.modules.logistics.domain.entities import Shipment
 from src.modules.logistics.domain.exceptions import (
     QuoteExpiredError,
@@ -54,15 +55,7 @@ class CreateShipmentCommand:
     cod: CashOnDelivery | None = None
 
 
-@dataclass(frozen=True)
-class CreateShipmentResult:
-    """Output of shipment creation.
-
-    Attributes:
-        shipment_id: UUID of the newly created shipment.
-    """
-
-    shipment_id: uuid.UUID
+__all__ = ["CreateShipmentCommand", "CreateShipmentHandler", "CreateShipmentResult"]
 
 
 class CreateShipmentHandler:

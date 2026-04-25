@@ -24,7 +24,9 @@ from src.modules.logistics.infrastructure.providers.cdek.factory import (
 from src.modules.logistics.infrastructure.providers.yandex_delivery.factory import (
     YandexDeliveryProviderFactory,
 )
-from src.modules.logistics.infrastructure.registry import ShippingProviderRegistry
+from src.modules.logistics.infrastructure.services.registry import (
+    ShippingProviderRegistry,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -27,6 +27,12 @@ logger = logging.getLogger(__name__)
 # HTTP status codes that trigger automatic retry
 _RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
 
+# Maximum number of characters of an error response body kept in
+# ``ProviderHTTPError.response_body``. CDEK validation errors can carry
+# 50+ entries — 8 KiB is enough to retain full debugging context without
+# blowing up logs.
+_RESPONSE_BODY_LOG_LIMIT = 8000
+
 
 @attrs.define(frozen=True)
 class ProviderClientConfig:
@@ -164,7 +170,7 @@ class BaseProviderClient:
                     last_exception = ProviderHTTPError(
                         status_code=response.status_code,
                         message=f"Retryable error on attempt {attempt}",
-                        response_body=response.text[:2000],
+                        response_body=response.text[:_RESPONSE_BODY_LOG_LIMIT],
                     )
                     if attempt < self._config.max_retries:
                         await self._backoff(attempt)
@@ -175,7 +181,7 @@ class BaseProviderClient:
                 raise ProviderHTTPError(
                     status_code=response.status_code,
                     message=response.reason_phrase or "",
-                    response_body=response.text[:2000],
+                    response_body=response.text[:_RESPONSE_BODY_LOG_LIMIT],
                 )
 
             except httpx.TimeoutException:

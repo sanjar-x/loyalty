@@ -105,11 +105,16 @@ class ShipmentBookedEvent(
     required_fields=("shipment_id",),
     aggregate_id_field="shipment_id",
 ):
-    """Emitted when provider confirms the booking (BOOKING_PENDING → BOOKED)."""
+    """Emitted when provider confirms the booking (BOOKING_PENDING → BOOKED).
+
+    ``tracking_number`` is ``None`` when the provider has not yet assigned one
+    (e.g. CDEK ИМ-orders before parcel handover). Downstream consumers must
+    distinguish absence from an empty string.
+    """
 
     shipment_id: uuid.UUID | None = None
     provider_shipment_id: str = ""
-    tracking_number: str = ""
+    tracking_number: str | None = None
     aggregate_type: str = "Shipment"
     event_type: str = "ShipmentBookedEvent"
 

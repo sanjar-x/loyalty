@@ -32,9 +32,11 @@ from src.modules.logistics.domain.value_objects import (
     TrackingEvent,
 )
 from src.modules.logistics.infrastructure.providers.cdek.constants import (
+    CDEK_ORDER_TYPE_DELIVERY,
     CDEK_ORDER_TYPE_ONLINE_STORE,
     CDEK_SERVICE_COD,
     CDEK_SERVICE_INSURANCE,
+    cdek_currency_for,
     cdek_delivery_mode_to_type,
     cdek_status_to_tracking,
 )
@@ -54,7 +56,10 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _RUB = "RUB"
-_CDEK_CURRENCY_RUB = 1  # CDEK numeric currency code for RUB
+
+# Address.metadata key used to override the order type (1 = online store,
+# 2 = delivery / B2B). Defaults to online_store when missing.
+_METADATA_ORDER_TYPE_KEY = "cdek_order_type"
 
 
 def _kopecks_to_rubles(kopecks: int) -> float:
@@ -80,11 +85,18 @@ def _parse_cdek_datetime(value: str) -> datetime:
         return datetime.fromisoformat(cleaned)
 
 
-def _parse_cdek_date(value: str) -> datetime | None:
-    """Parse a CDEK date string (``YYYY-MM-DD``) to a UTC datetime, or None."""
+def _parse_cdek_date(value: str | None) -> datetime | None:
+    """Parse a CDEK date string (``YYYY-MM-DD``) to a UTC datetime, or None.
+
+    Returns ``None`` when the value is missing, not a string, or not a
+    valid ISO date — so callers don't need to special-case ``None`` /
+    malformed payloads from CDEK responses.
+    """
+    if not isinstance(value, str):
+        return None
     try:
         return datetime.strptime(value.strip(), "%Y-%m-%d").replace(tzinfo=UTC)
-    except ValueError, AttributeError:
+    except (ValueError, AttributeError):
         return None
 
 
@@ -125,8 +137,17 @@ def build_calculator_request(
     destination: Address,
     parcels: list[Parcel],
 ) -> dict:
-    """Build CDEK ``/v2/calculator/tarifflist`` request body."""
+    """Build CDEK ``/v2/calculator/tarifflist`` request body.
+
+    Currency is resolved from the parcel's ``declared_value.currency_code``
+    (preferred, since it's the customer-facing currency) and falls back
+    to ``destination.country_code`` (e.g. KZ → KZT) and finally RUB.
+
+    Order type follows ``origin.metadata['cdek_order_type']`` (``"1"`` or
+    ``"2"``) — defaults to online_store (1) for marketplace flows.
+    """
     packages = []
+    declared_currency: str | None = None
     for parcel in parcels:
         pkg: dict = {"weight": parcel.weight.grams}
         if parcel.dimensions:
@@ -134,14 +155,24 @@ def build_calculator_request(
             pkg["width"] = parcel.dimensions.width_cm
             pkg["height"] = parcel.dimensions.height_cm
         packages.append(pkg)
+        if declared_currency is None and parcel.declared_value is not None:
+            declared_currency = parcel.declared_value.currency_code
 
     return {
-        "type": CDEK_ORDER_TYPE_ONLINE_STORE,
-        "currency": _CDEK_CURRENCY_RUB,
+        "type": _resolve_order_type(origin),
+        "currency": cdek_currency_for(declared_currency, destination.country_code),
         "from_location": _build_calc_location(origin),
         "to_location": _build_calc_location(destination),
         "packages": packages,
     }
+
+
+def _resolve_order_type(origin: Address) -> int:
+    """Resolve CDEK order type from address metadata (1 = ИМ, 2 = delivery)."""
+    raw = origin.metadata.get(_METADATA_ORDER_TYPE_KEY)
+    if raw == "2" or raw == str(CDEK_ORDER_TYPE_DELIVERY):
+        return CDEK_ORDER_TYPE_DELIVERY
+    return CDEK_ORDER_TYPE_ONLINE_STORE
 
 
 def parse_tariff_list_response(data: dict) -> list[DeliveryQuote]:
@@ -225,7 +256,7 @@ def build_order_request(request: BookingRequest) -> dict:
         tariff_code = int(request.service_code)
 
     body: dict = {
-        "type": CDEK_ORDER_TYPE_ONLINE_STORE,
+        "type": _resolve_order_type(request.origin),
         "number": str(request.shipment_id),
         "tariff_code": tariff_code,
         "recipient": _build_contact(request.recipient),
@@ -251,17 +282,25 @@ def build_order_request(request: BookingRequest) -> dict:
     else:
         body["from_location"] = _build_location(request.origin)
 
-    # COD (cash on delivery)
+    # COD (cash on delivery) — naloženyj platëž for the *goods*.
+    # ``services[COD].parameter`` is the cash amount the courier collects
+    # from the recipient (i.e. price of the items). It must NOT be conflated
+    # with ``delivery_recipient_cost`` (which is the delivery fee). Setting
+    # both to the same value used to cause double-charging — they are now
+    # populated independently:
+    #   - ``services[COD].parameter`` ← request.cod.amount (goods cash)
+    #   - ``delivery_recipient_cost``  ← shipping fee, only when explicitly
+    #     attached to the parcel via Money in declared_value.metadata
+    #     (CDEK uses it when the merchant collects the delivery fee from
+    #     the recipient on top of the goods).
     if request.cod:
-        body["delivery_recipient_cost"] = {
-            "value": _kopecks_to_rubles(request.cod.amount.amount),
-        }
         body.setdefault("services", []).append({
             "code": CDEK_SERVICE_COD,
             "parameter": str(_kopecks_to_rubles(request.cod.amount.amount)),
         })
 
-    # Declared value → insurance service
+    # Declared value → insurance service (premium is calculated by CDEK
+    # based on this value).
     if request.declared_value:
         body.setdefault("services", []).append({
             "code": CDEK_SERVICE_INSURANCE,
@@ -385,6 +424,10 @@ def parse_order_info_response(data: dict) -> BookingResult:
     - ``delivery_detail.date`` — actual delivery date
     - ``planned_delivery_date`` — estimated delivery date
     - ``delivery_detail.period_min/period_max`` — delivery period in days
+
+    Also extracts the post-booking actual cost from
+    ``delivery_detail.total_sum`` (rubles → kopecks) so the caller can
+    compare it against the originally quoted price and detect drift.
     """
     entity = data.get("entity", data)
     provider_shipment_id = entity.get("uuid", "")
@@ -413,10 +456,20 @@ def parse_order_info_response(data: dict) -> BookingResult:
             estimated_date=estimated_date,
         )
 
+    # Provider-confirmed delivery cost (rubles in CDEK → kopecks here).
+    actual_cost: Money | None = None
+    total_sum = delivery_detail.get("total_sum")
+    if isinstance(total_sum, (int, float)):
+        actual_cost = Money(
+            amount=_rubles_to_kopecks(total_sum),
+            currency_code=_RUB,
+        )
+
     return BookingResult(
         provider_shipment_id=provider_shipment_id,
         tracking_number=tracking_number,
         estimated_delivery=estimated_delivery,
+        actual_cost=actual_cost,
         provider_response_payload=json.dumps(data, ensure_ascii=False, default=str),
     )
 
@@ -535,9 +588,6 @@ def parse_delivery_points(data: list[dict]) -> list[PickupPoint]:
         # weight_max is in kg (float), domain uses grams
         weight_max = office.get("weight_max")
         weight_limit = round(weight_max * 1000) if weight_max is not None else None
-        weight_min = office.get("weight_min")
-        if weight_min is not None and weight_limit is not None and weight_min > 0:
-            metadata["weight_min_grams"] = str(int(weight_min * 1000))
 
         points.append(
             PickupPoint(
@@ -629,10 +679,21 @@ def parse_webhook_body(body: bytes) -> list[tuple[str, list[TrackingEvent]]]:
             }
         }
 
-    Returns list of (provider_shipment_id, [TrackingEvent]).
+    Returns list of (provider_shipment_id, [TrackingEvent]). When
+    ``attributes.is_return`` is ``true``, the event belongs to the
+    *return* shipment, not the original order — we currently skip such
+    events to avoid overwriting the forward shipment's tracking. Wiring
+    them into a separate ``return_shipments`` aggregate is left to a
+    dedicated returns flow.
     """
     data = json.loads(body)
     webhook_attrs = data.get("attributes", {})
+
+    # Skip return-flow events — they belong to a separate (return) order
+    # and would otherwise corrupt the forward shipment's tracking history.
+    if webhook_attrs.get("is_return") is True:
+        return []
+
     cdek_uuid = data.get("uuid", "")
     status_code = webhook_attrs.get("status_code", webhook_attrs.get("code", ""))
     status_datetime = webhook_attrs.get("status_date_time") or data.get("date_time", "")

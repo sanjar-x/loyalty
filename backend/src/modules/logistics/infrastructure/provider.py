@@ -46,7 +46,7 @@ from src.modules.logistics.infrastructure.repositories.delivery_quote import (
 from src.modules.logistics.infrastructure.repositories.shipment import (
     ShipmentRepository,
 )
-from src.modules.logistics.infrastructure.routing import (
+from src.modules.logistics.infrastructure.services.routing import (
     DefaultProviderRoutingPolicy,
 )
 

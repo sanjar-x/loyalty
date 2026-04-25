@@ -34,11 +34,16 @@ CDEK_STATUS_MAP: dict[str, TrackingStatus] = {
     "TAKEN_BY_COURIER": TrackingStatus.OUT_FOR_DELIVERY,
     "RETURNED_TO_RECIPIENT_CITY_WAREHOUSE": TrackingStatus.ATTEMPT_FAILED,
     "DELIVERED": TrackingStatus.DELIVERED,
-    "NOT_DELIVERED": TrackingStatus.ATTEMPT_FAILED,
+    # Terminal — courier could not deliver (rejected, undeliverable address).
+    # Maps to EXCEPTION so the FSM can transition the shipment to FAILED;
+    # ATTEMPT_FAILED would imply a retry, which CDEK does not perform here.
+    "NOT_DELIVERED": TrackingStatus.EXCEPTION,
     "INVALID": TrackingStatus.EXCEPTION,
     "READY_TO_SHIP_AT_SENDING_OFFICE": TrackingStatus.ACCEPTED,
     "RETURNED_TO_SENDER": TrackingStatus.RETURNED,
-    "CUSTOMS_COMPLETE": TrackingStatus.CUSTOMS,
+    # "CUSTOMS_COMPLETE" means clearance is finished and the parcel is
+    # moving on, not "currently at customs". Map to IN_TRANSIT.
+    "CUSTOMS_COMPLETE": TrackingStatus.IN_TRANSIT,
 }
 
 # ---------------------------------------------------------------------------
@@ -168,6 +173,66 @@ CDEK_CURRENCY_PLN = 17
 CDEK_CURRENCY_AZN = 18
 CDEK_CURRENCY_GEL = 19
 CDEK_CURRENCY_JPY = 50
+
+# ISO 4217 alpha-3 → CDEK numeric currency code
+CDEK_CURRENCY_CODE_MAP: dict[str, int] = {
+    "RUB": CDEK_CURRENCY_RUB,
+    "KZT": CDEK_CURRENCY_KZT,
+    "USD": CDEK_CURRENCY_USD,
+    "EUR": CDEK_CURRENCY_EUR,
+    "GBP": CDEK_CURRENCY_GBP,
+    "CNY": CDEK_CURRENCY_CNY,
+    "BYN": CDEK_CURRENCY_BYN,
+    "UAH": CDEK_CURRENCY_UAH,
+    "KGS": CDEK_CURRENCY_KGS,
+    "AMD": CDEK_CURRENCY_AMD,
+    "TRY": CDEK_CURRENCY_TRY,
+    "THB": CDEK_CURRENCY_THB,
+    "KRW": CDEK_CURRENCY_KRW,
+    "AED": CDEK_CURRENCY_AED,
+    "UZS": CDEK_CURRENCY_UZS,
+    "MNT": CDEK_CURRENCY_MNT,
+    "PLN": CDEK_CURRENCY_PLN,
+    "AZN": CDEK_CURRENCY_AZN,
+    "GEL": CDEK_CURRENCY_GEL,
+    "JPY": CDEK_CURRENCY_JPY,
+}
+
+# Default destination-country → CDEK currency mapping for rate calculation
+# (used when the caller doesn't supply an explicit currency).
+CDEK_DEFAULT_CURRENCY_BY_COUNTRY: dict[str, int] = {
+    "RU": CDEK_CURRENCY_RUB,
+    "KZ": CDEK_CURRENCY_KZT,
+    "BY": CDEK_CURRENCY_BYN,
+    "UA": CDEK_CURRENCY_UAH,
+    "KG": CDEK_CURRENCY_KGS,
+    "AM": CDEK_CURRENCY_AMD,
+    "UZ": CDEK_CURRENCY_UZS,
+    "AZ": CDEK_CURRENCY_AZN,
+    "GE": CDEK_CURRENCY_GEL,
+    "TR": CDEK_CURRENCY_TRY,
+    "CN": CDEK_CURRENCY_CNY,
+    "MN": CDEK_CURRENCY_MNT,
+}
+
+
+def cdek_currency_for(currency_code: str | None, destination_country: str | None) -> int:
+    """Resolve CDEK numeric currency code from ISO 4217 or destination country.
+
+    Resolution order:
+    1. Explicit ``currency_code`` (e.g. ``"KZT"``) if it maps to a known CDEK code.
+    2. Default for ``destination_country`` (e.g. ``"KZ"`` → KZT).
+    3. ``CDEK_CURRENCY_RUB`` as a safe fallback.
+    """
+    if currency_code:
+        code = CDEK_CURRENCY_CODE_MAP.get(currency_code.upper())
+        if code is not None:
+            return code
+    if destination_country:
+        code = CDEK_DEFAULT_CURRENCY_BY_COUNTRY.get(destination_country.upper())
+        if code is not None:
+            return code
+    return CDEK_CURRENCY_RUB
 
 # ---------------------------------------------------------------------------
 # CDEK print form types
