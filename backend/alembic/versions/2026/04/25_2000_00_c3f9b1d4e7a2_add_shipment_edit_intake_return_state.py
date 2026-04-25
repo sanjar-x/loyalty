@@ -42,8 +42,7 @@ def upgrade() -> None:
             server_default=sa.text("'[]'::jsonb"),
             nullable=False,
             comment=(
-                "In-flight edit tasks: "
-                "[{task_id, kind, submitted_at, initial_status}]"
+                "In-flight edit tasks: [{task_id, kind, submitted_at, initial_status}]"
             ),
         ),
     )
@@ -63,9 +62,7 @@ def upgrade() -> None:
             postgresql.JSONB(astext_type=sa.Text()),
             server_default=sa.text("'[]'::jsonb"),
             nullable=False,
-            comment=(
-                "Returns: [{kind, provider_return_id, reason, registered_at}]"
-            ),
+            comment=("Returns: [{kind, provider_return_id, reason, registered_at}]"),
         ),
     )
 

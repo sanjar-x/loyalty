@@ -20,7 +20,6 @@ from src.modules.catalog.application.constants import (
     STOREFRONT_PDP_CACHE_TTL,
     storefront_pdp_cache_key,
 )
-from src.shared.cache_keys import read_storefront_product_generation
 from src.modules.catalog.application.queries.breadcrumbs import BreadcrumbsBuilder
 from src.modules.catalog.application.queries.read_models import (
     MoneyReadModel,
@@ -53,6 +52,7 @@ from src.modules.catalog.infrastructure.models import (
     SKUAttributeValueLink as OrmSKUAttributeValueLink,
 )
 from src.modules.supplier.infrastructure.models import Supplier as OrmSupplier
+from src.shared.cache_keys import read_storefront_product_generation
 from src.shared.exceptions import NotFoundError
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger

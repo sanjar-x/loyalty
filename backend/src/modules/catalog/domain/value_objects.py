@@ -433,3 +433,67 @@ class Money:
             return NotImplemented
         self._check_currency(other)
         return self.amount >= other.amount
+
+
+# ---------------------------------------------------------------------------
+# SKU pricing — purchase currency + autonomous-pricing FSM (ADR-005)
+# ---------------------------------------------------------------------------
+
+
+class PurchaseCurrency(enum.StrEnum):
+    """Currency in which a SKU's purchase price is denominated.
+
+    Closed enum on purpose: pricing formulas must reference an FX-rate
+    variable per non-target currency, and adding a new member is a
+    cross-module change (formula audit + FX-rate variable seeding).
+    Extending this set is an ADR-level decision.
+    """
+
+    RUB = "RUB"
+    CNY = "CNY"
+
+
+class SkuPricingStatus(enum.StrEnum):
+    """Lifecycle of a SKU's autonomously computed selling price (ADR-005).
+
+    The FSM is owned by the pricing recompute service via the SKU's
+    ``apply_pricing_result`` / ``mark_pricing_*`` mutators. Storefront
+    queries treat any non-PRICED status as "hidden from public listings".
+
+    Members:
+        LEGACY: SKU predates ADR-005; manual ``price`` is the source of
+            truth until backfill assigns a ``purchase_price`` and a
+            recompute runs. Legacy SKUs remain visible on the storefront
+            via the ``price`` fallback.
+        PENDING: Purchase price set or inputs changed; recompute job is
+            scheduled or running. Hidden from storefront until PRICED.
+        PRICED: Selling price is current and consistent with the inputs
+            captured in ``priced_inputs_hash``.
+        STALE_FX: Computation skipped because the FX rate is older than
+            its variable's ``max_age_days``. Admin must refresh the rate.
+        MISSING_PURCHASE_PRICE: SKU has no purchase price recorded.
+        FORMULA_ERROR: Formula evaluation raised (e.g. division by zero,
+            timeout, missing required variable). ``priced_failure_reason``
+            carries a short admin-readable message.
+    """
+
+    LEGACY = "legacy"
+    PENDING = "pending"
+    PRICED = "priced"
+    STALE_FX = "stale_fx"
+    MISSING_PURCHASE_PRICE = "missing_purchase_price"
+    FORMULA_ERROR = "formula_error"
+
+
+_PRICING_STATUS_VISIBLE_ON_STOREFRONT: frozenset[SkuPricingStatus] = frozenset(
+    {SkuPricingStatus.LEGACY, SkuPricingStatus.PRICED}
+)
+
+
+def is_priced_for_storefront(status: SkuPricingStatus) -> bool:
+    """Return True iff a SKU in this status may surface on the storefront.
+
+    Single source of truth for storefront filtering; both query handlers
+    and the SKU repository read this predicate so the rule cannot drift.
+    """
+    return status in _PRICING_STATUS_VISIBLE_ON_STOREFRONT

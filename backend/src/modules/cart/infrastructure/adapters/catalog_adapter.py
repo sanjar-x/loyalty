@@ -49,6 +49,16 @@ class CatalogSkuAdapter(ISkuReadService):
         variant_main = aliased(MediaAsset)
         product_main = aliased(MediaAsset)
 
+        # ADR-005 — cart prices must agree with the storefront. Priority:
+        # 1. ``selling_price`` when ``pricing_status='priced'`` (autonomous
+        #    output of the pricing engine, also what the customer saw on
+        #    the PLP/PDP that brought them here).
+        # 2. ``sku.price`` for ``legacy`` SKUs that haven't been
+        #    backfilled yet.
+        # SKUs in non-priceable failure statuses (``stale_fx`` /
+        # ``missing_purchase_price`` / ``formula_error``) and in
+        # ``pending`` (recompute in flight) are surfaced as inactive so
+        # add-to-cart fails closed rather than charging a stale price.
         stmt = (
             select(
                 SKU.id,
@@ -56,6 +66,9 @@ class CatalogSkuAdapter(ISkuReadService):
                 SKU.variant_id,
                 SKU.price,
                 SKU.currency,
+                SKU.selling_price,
+                SKU.selling_currency,
+                SKU.pricing_status,
                 SKU.is_active,
                 func.coalesce(variant_main.url, product_main.url).label("image_url"),
                 Product.title_i18n,
@@ -97,6 +110,27 @@ class CatalogSkuAdapter(ISkuReadService):
             variant_i18n = row.variant_name_i18n or {}
             variant_label = variant_i18n.get("ru") or variant_i18n.get("en")
 
+            pricing_status = (
+                row.pricing_status.value
+                if hasattr(row.pricing_status, "value")
+                else (row.pricing_status or "legacy")
+            )
+
+            effective_amount: int | None
+            effective_currency: str | None
+            if pricing_status == "priced" and row.selling_price is not None:
+                effective_amount = row.selling_price
+                effective_currency = row.selling_currency or row.currency or "RUB"
+            elif pricing_status == "legacy" and row.price is not None:
+                effective_amount = row.price
+                effective_currency = row.currency or "RUB"
+            else:
+                # ``pending`` / ``stale_fx`` / ``missing_purchase_price`` /
+                # ``formula_error`` — surface as inactive so add-to-cart
+                # rejects with the standard "SKU not available" path.
+                effective_amount = None
+                effective_currency = row.currency or "RUB"
+
             snapshots[row.id] = SkuSnapshot(
                 sku_id=row.id,
                 product_id=row.product_id,
@@ -104,9 +138,9 @@ class CatalogSkuAdapter(ISkuReadService):
                 product_name=product_name,
                 variant_label=variant_label,
                 image_url=row.image_url,
-                price_amount=row.price if row.price is not None else 0,
-                currency=row.currency or "RUB",
-                is_active=row.is_active and row.price is not None,
+                price_amount=effective_amount if effective_amount is not None else 0,
+                currency=effective_currency or "RUB",
+                is_active=row.is_active and effective_amount is not None,
                 supplier_type=row.supplier_type.value if row.supplier_type else "local",
             )
 

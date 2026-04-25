@@ -44,6 +44,7 @@ from seed.attributes.create_attributes import seed_attributes
 from seed.brands.create_brands import seed_brands
 from seed.categories.create_categories import seed_categories
 from seed.geo.create_currencies import seed_geo
+from seed.pricing.seed_pricing import seed_pricing
 from seed.products.create_products import seed_products
 from seed.roles.create_roles import seed_roles
 
@@ -111,6 +112,11 @@ class Step:
 STEPS: list[Step] = [
     Step("roles", seed_roles, db_only=True),
     Step("admin", seed_admin, db_only=True, deps=("roles",)),
+    # ADR-005 — pricing system variables (purchase_price_rub /
+    # purchase_price_cny / fx_cny_rub). DB-only and idempotent on the
+    # unique ``code`` index, so re-running is safe. No deps: the
+    # variable registry is self-contained.
+    Step("pricing", seed_pricing, db_only=True),
     Step("geo", seed_geo, db_only=False, deps=("admin",)),
     Step("brands", seed_brands, db_only=False, deps=("admin",)),
     Step("categories", seed_categories, db_only=False, deps=("admin",)),

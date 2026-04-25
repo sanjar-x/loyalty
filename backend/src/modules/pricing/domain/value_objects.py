@@ -26,6 +26,10 @@ class VariableScope(str, Enum):
     - ``category``: value per category node (inherited up-tree).
     - ``range``: value per category range bucket (e.g. logistics cost bracket).
     - ``product_input``: value per product (owned by ``ProductPricingProfile``; ADR-004).
+    - ``sku_input``: value per SKU (owned by ``catalog.SKU.purchase_price``;
+      ADR-005). Resolved at recompute time via the
+      ``ISkuPricingInputReader`` anti-corruption port — pricing never
+      touches catalog ORM directly.
     """
 
     GLOBAL = "global"
@@ -33,6 +37,7 @@ class VariableScope(str, Enum):
     CATEGORY = "category"
     RANGE = "range"
     PRODUCT_INPUT = "product_input"
+    SKU_INPUT = "sku_input"
 
 
 class VariableDataType(str, Enum):

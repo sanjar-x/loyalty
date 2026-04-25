@@ -1,0 +1,56 @@
+{
+  "variables": [
+    {
+      "code": "purchase_price_rub",
+      "scope": "sku_input",
+      "data_type": "decimal",
+      "unit": "RUB",
+      "name": {
+        "ru": "Закупочная цена (RUB)",
+        "en": "Purchase price (RUB)"
+      },
+      "description": {
+        "ru": "Закупочная цена SKU в рублях. Хранится на самом SKU; pricing-движок резолвит её через адаптер catalog.",
+        "en": "SKU wholesale cost in RUB. Stored on the SKU itself; the pricing engine resolves it via the catalog adapter."
+      },
+      "is_required": false,
+      "is_system": true,
+      "is_fx_rate": false
+    },
+    {
+      "code": "purchase_price_cny",
+      "scope": "sku_input",
+      "data_type": "decimal",
+      "unit": "CNY",
+      "name": {
+        "ru": "Закупочная цена (CNY)",
+        "en": "Purchase price (CNY)"
+      },
+      "description": {
+        "ru": "Закупочная цена SKU в юанях. Применяется для cross-border поставщиков; формула обязана умножать на fx_cny_rub.",
+        "en": "SKU wholesale cost in CNY. Used for cross-border suppliers; the formula must multiply it by fx_cny_rub."
+      },
+      "is_required": false,
+      "is_system": true,
+      "is_fx_rate": false
+    },
+    {
+      "code": "fx_cny_rub",
+      "scope": "global",
+      "data_type": "decimal",
+      "unit": "RUB",
+      "name": {
+        "ru": "Курс CNY → RUB",
+        "en": "FX rate CNY → RUB"
+      },
+      "description": {
+        "ru": "Курс юань-рубль для пересчёта закупочной цены в CNY. Вводится админом вручную через /pricing/contexts/{id}/global-values. Старше max_age_days — SKU переходят в STALE_FX и скрываются с витрины.",
+        "en": "CNY-to-RUB FX rate used to convert CNY purchase prices. Admin-entered via /pricing/contexts/{id}/global-values. When older than max_age_days, SKUs flip to STALE_FX and drop off the storefront."
+      },
+      "is_required": false,
+      "is_system": true,
+      "is_fx_rate": true,
+      "max_age_days": 14
+    }
+  ]
+}

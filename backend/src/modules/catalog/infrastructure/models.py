@@ -44,7 +44,9 @@ from src.modules.catalog.domain.value_objects import (
     MediaRole,
     MediaType,
     ProductStatus,
+    PurchaseCurrency,
     RequirementLevel,
+    SkuPricingStatus,
 )
 
 # ---------------------------------------------------------------------------
@@ -799,6 +801,65 @@ class SKU(Base):
         comment="ISO 4217 currency code (FK → geo.currencies)",
     )
 
+    # ------------------------------------------------------------------
+    # ADR-005 — autonomous pricing recompute fields
+    # ------------------------------------------------------------------
+
+    purchase_price: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Wholesale cost in smallest units of purchase_currency",
+    )
+    purchase_currency: Mapped[PurchaseCurrency | None] = mapped_column(
+        String(3),
+        ForeignKey("currencies.code", ondelete="RESTRICT"),
+        nullable=True,
+        comment="ISO 4217 code of the purchase price currency (RUB or CNY)",
+    )
+    selling_price: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Computed selling price in smallest units of selling_currency",
+    )
+    selling_currency: Mapped[str | None] = mapped_column(
+        String(3),
+        ForeignKey("currencies.code", ondelete="RESTRICT"),
+        nullable=True,
+        comment="ISO 4217 code of the selling price (typically RUB)",
+    )
+    pricing_status: Mapped[SkuPricingStatus] = mapped_column(
+        Enum(
+            SkuPricingStatus,
+            name="sku_pricing_status",
+            values_callable=lambda enum: [m.value for m in enum],
+            native_enum=True,
+        ),
+        server_default=text("'legacy'"),
+        nullable=False,
+        comment="ADR-005 pricing FSM",
+    )
+    priced_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+        comment="UTC timestamp of the last successful selling-price recompute",
+    )
+    priced_with_formula_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("pricing_formula_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="FormulaVersion that produced the current selling_price",
+    )
+    priced_inputs_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="SHA-256 of canonical recompute inputs (idempotency key)",
+    )
+    priced_failure_reason: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="Admin-readable error from the last recompute attempt",
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
     )
@@ -833,6 +894,48 @@ class SKU(Base):
             "variant_hash",
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "ix_skus_pricing_status_active",
+            "pricing_status",
+            "deleted_at",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "ix_skus_priced_inputs_hash",
+            "priced_inputs_hash",
+            postgresql_where=text("priced_inputs_hash IS NOT NULL"),
+        ),
+        Index(
+            "ix_skus_priced_with_formula_version",
+            "priced_with_formula_version_id",
+            postgresql_where=text("priced_with_formula_version_id IS NOT NULL"),
+        ),
+        CheckConstraint(
+            "purchase_currency IS NULL OR purchase_currency IN ('RUB', 'CNY')",
+            name="ck_skus_purchase_currency_enum",
+        ),
+        CheckConstraint(
+            "(purchase_price IS NULL AND purchase_currency IS NULL) OR "
+            "(purchase_price IS NOT NULL AND purchase_currency IS NOT NULL "
+            "AND purchase_price > 0)",
+            name="ck_skus_purchase_price_currency_pair",
+        ),
+        CheckConstraint(
+            "(selling_price IS NULL AND selling_currency IS NULL) OR "
+            "(selling_price IS NOT NULL AND selling_currency IS NOT NULL "
+            "AND selling_price > 0)",
+            name="ck_skus_selling_price_currency_pair",
+        ),
+        CheckConstraint(
+            "(pricing_status <> 'priced') OR "
+            "(selling_price IS NOT NULL AND priced_inputs_hash IS NOT NULL)",
+            name="ck_skus_priced_status_consistency",
+        ),
+        CheckConstraint(
+            "(pricing_status NOT IN ('stale_fx', 'missing_purchase_price', "
+            "'formula_error')) OR (priced_failure_reason IS NOT NULL)",
+            name="ck_skus_failure_status_consistency",
         ),
     )
 

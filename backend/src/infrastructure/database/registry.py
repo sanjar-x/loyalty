@@ -67,6 +67,7 @@ from src.modules.pricing.infrastructure.models import (
     FormulaVersionModel,
     PricingContextModel,
     ProductPricingProfileModel,
+    SkuPricingHistoryModel,
     SupplierTypeContextMappingModel,
     VariableModel,
 )
@@ -118,6 +119,7 @@ __all__ = [
     "SessionRoleModel",
     "ShipmentModel",
     "ShipmentTrackingEventModel",
+    "SkuPricingHistoryModel",
     "StaffInvitationModel",
     "StaffInvitationRoleModel",
     "StaffMemberModel",

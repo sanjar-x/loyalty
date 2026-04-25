@@ -50,6 +50,29 @@ def upgrade() -> None:
         ),
     )
 
+    # Backfill: any context that already carries global_values from the
+    # pre-ADR-005 era has no per-key timestamps. Without this, the
+    # recompute service immediately flips every SKU using an FX rate
+    # to ``stale_fx`` after deploy — entire categories drop off the
+    # storefront for *correctly* configured contexts.
+    #
+    # We anchor missing timestamps to the row's ``updated_at`` (closest
+    # signal we have to "when the global_values were last touched").
+    # ``updated_at`` itself was set by ``onupdate=func.now()`` whenever
+    # the context row changed, so it's a conservative upper bound on
+    # the freshness of any key inside ``global_values``.
+    op.execute(
+        """
+        UPDATE pricing_contexts
+        SET global_values_set_at = (
+            SELECT jsonb_object_agg(k, to_jsonb(updated_at::text))
+            FROM jsonb_object_keys(global_values) AS k
+        )
+        WHERE global_values <> '{}'::jsonb
+          AND global_values_set_at = '{}'::jsonb
+        """
+    )
+
 
 def downgrade() -> None:
     op.drop_column("pricing_contexts", "global_values_set_at")

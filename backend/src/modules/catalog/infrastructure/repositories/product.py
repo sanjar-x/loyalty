@@ -24,7 +24,12 @@ from src.modules.catalog.domain.exceptions import (
     ProductSlugConflictError,
 )
 from src.modules.catalog.domain.interfaces import IProductRepository
-from src.modules.catalog.domain.value_objects import Money, ProductStatus
+from src.modules.catalog.domain.value_objects import (
+    Money,
+    ProductStatus,
+    PurchaseCurrency,
+    SkuPricingStatus,
+)
 from src.modules.catalog.infrastructure.models import SKU as OrmSKU
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
 from src.modules.catalog.infrastructure.models import (
@@ -67,6 +72,22 @@ class ProductRepository(IProductRepository):
                 currency=orm_sku.currency,
             )
 
+        purchase_price: Money | None = None
+        purchase_currency_vo: PurchaseCurrency | None = None
+        if orm_sku.purchase_price is not None and orm_sku.purchase_currency:
+            purchase_currency_vo = PurchaseCurrency(orm_sku.purchase_currency)
+            purchase_price = Money(
+                amount=orm_sku.purchase_price,
+                currency=purchase_currency_vo.value,
+            )
+
+        selling_price: Money | None = None
+        if orm_sku.selling_price is not None and orm_sku.selling_currency:
+            selling_price = Money(
+                amount=orm_sku.selling_price,
+                currency=orm_sku.selling_currency,
+            )
+
         return DomainSKU(
             id=orm_sku.id,
             product_id=orm_sku.product_id,
@@ -75,6 +96,16 @@ class ProductRepository(IProductRepository):
             variant_hash=orm_sku.variant_hash,
             price=price,
             compare_at_price=compare_at_price,
+            purchase_price=purchase_price,
+            purchase_currency=purchase_currency_vo,
+            selling_price=selling_price,
+            pricing_status=SkuPricingStatus(orm_sku.pricing_status)
+            if isinstance(orm_sku.pricing_status, str)
+            else orm_sku.pricing_status,
+            priced_at=orm_sku.priced_at,
+            priced_with_formula_version_id=orm_sku.priced_with_formula_version_id,
+            priced_inputs_hash=orm_sku.priced_inputs_hash,
+            priced_failure_reason=orm_sku.priced_failure_reason,
             is_active=orm_sku.is_active,
             version=orm_sku.version,
             deleted_at=orm_sku.deleted_at,
@@ -125,6 +156,30 @@ class ProductRepository(IProductRepository):
             if domain_sku.compare_at_price is not None
             else None
         )
+
+        # ADR-005 — purchase price + autonomous pricing FSM provenance
+        if domain_sku.purchase_price is not None:
+            orm_sku.purchase_price = domain_sku.purchase_price.amount
+        else:
+            orm_sku.purchase_price = None
+        orm_sku.purchase_currency = (
+            domain_sku.purchase_currency.value
+            if domain_sku.purchase_currency is not None
+            else None
+        )
+        if domain_sku.selling_price is not None:
+            orm_sku.selling_price = domain_sku.selling_price.amount
+            orm_sku.selling_currency = domain_sku.selling_price.currency
+        else:
+            orm_sku.selling_price = None
+            orm_sku.selling_currency = None
+        orm_sku.pricing_status = domain_sku.pricing_status
+        orm_sku.priced_at = domain_sku.priced_at
+        orm_sku.priced_with_formula_version_id = (
+            domain_sku.priced_with_formula_version_id
+        )
+        orm_sku.priced_inputs_hash = domain_sku.priced_inputs_hash
+        orm_sku.priced_failure_reason = domain_sku.priced_failure_reason
 
         # ORM-only fields: set defaults on create, preserve on update
         if is_create:

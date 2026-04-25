@@ -16,12 +16,14 @@ from sqlalchemy import (
     TIMESTAMP,
     Boolean,
     CheckConstraint,
+    ForeignKey,
     Index,
     Integer,
     Numeric,
     String,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -101,7 +103,8 @@ class VariableModel(Base):
     __table_args__ = (
         UniqueConstraint("code", name="uq_pricing_variables_code"),
         CheckConstraint(
-            "scope IN ('global', 'supplier', 'category', 'range', 'product_input')",
+            "scope IN ('global', 'supplier', 'category', 'range', "
+            "'product_input', 'sku_input')",
             name="ck_pricing_variables_valid_scope",
         ),
         CheckConstraint(
@@ -246,6 +249,16 @@ class PricingContextModel(Base):
     )
     global_values: Mapped[dict] = mapped_column(
         JSONB, nullable=False, default=dict, server_default="{}"
+    )
+    global_values_set_at: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default="{}",
+        comment=(
+            "Per-key UTC ISO timestamps marking when each global_values "
+            "entry was last set (ADR-005 FX-staleness gate)"
+        ),
     )
     version_lock: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
@@ -498,3 +511,64 @@ class SupplierPricingSettingsModel(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class SkuPricingHistoryModel(Base):
+    """Append-only audit trail of SKU pricing recompute outcomes (ADR-005).
+
+    One row per state change (no rows for hash-match no-ops). Combined
+    with the SKU row's current state this lets admins reconstruct
+    exactly when, why, and from which inputs each price came to be.
+    Inserts run inside the same UoW transaction as the corresponding
+    SKU UPDATE so the history can never get out of sync with the
+    state it describes.
+    """
+
+    __tablename__ = "sku_pricing_history"
+    __table_args__ = (
+        CheckConstraint(
+            "new_status IN ('legacy', 'pending', 'priced', 'stale_fx', "
+            "'missing_purchase_price', 'formula_error')",
+            name="ck_sku_pricing_history_status_enum",
+        ),
+        Index(
+            "ix_sku_pricing_history_sku_recorded",
+            "sku_id",
+            text("recorded_at DESC"),
+        ),
+        Index(
+            "ix_sku_pricing_history_recorded_at",
+            "recorded_at",
+        ),
+        {
+            "comment": (
+                "Append-only audit trail of SKU pricing recompute outcomes (ADR-005)"
+            )
+        },
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    sku_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("skus.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    recorded_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    previous_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    new_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    selling_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    selling_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    formula_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    inputs_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    correlation_id: Mapped[str | None] = mapped_column(String(64), nullable=True)

@@ -60,6 +60,9 @@ from src.modules.pricing.presentation.router_preview import pricing_preview_rout
 from src.modules.pricing.presentation.router_product_pricing import (
     pricing_profile_router,
 )
+from src.modules.pricing.presentation.router_recompute import (
+    pricing_recompute_router,
+)
 from src.modules.pricing.presentation.router_supplier_pricing import (
     pricing_supplier_settings_router,
 )
@@ -109,3 +112,4 @@ router.include_router(pricing_category_settings_router)
 router.include_router(pricing_supplier_type_mapping_router)
 router.include_router(pricing_supplier_settings_router)
 router.include_router(pricing_preview_router)
+router.include_router(pricing_recompute_router)

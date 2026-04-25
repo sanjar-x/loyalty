@@ -105,9 +105,21 @@ from src.modules.pricing.domain.interfaces import (
     IFormulaVersionRepository,
     IPricingContextRepository,
     IProductPricingProfileRepository,
+    ISkuPricingInputReader,
+    ISkuPricingResultWriter,
+    ISkuPricingScopeReader,
     ISupplierPricingSettingsRepository,
     ISupplierTypeContextMappingRepository,
     IVariableRepository,
+)
+from src.modules.pricing.infrastructure.adapters.sku_pricing_input_reader import (
+    SkuPricingInputReader,
+)
+from src.modules.pricing.infrastructure.adapters.sku_pricing_result_writer import (
+    SkuPricingResultWriter,
+)
+from src.modules.pricing.infrastructure.adapters.sku_pricing_scope_reader import (
+    SkuPricingScopeReader,
 )
 from src.modules.pricing.infrastructure.repositories.category_pricing_settings import (
     CategoryPricingSettingsRepository,
@@ -129,6 +141,9 @@ from src.modules.pricing.infrastructure.repositories.supplier_type_context_mappi
 )
 from src.modules.pricing.infrastructure.repositories.variable import (
     VariableRepository,
+)
+from src.modules.pricing.infrastructure.services.recompute_service import (
+    RecomputeSkuPricingService,
 )
 
 
@@ -170,6 +185,34 @@ class PricingProvider(Provider):
         SupplierPricingSettingsRepository,
         scope=Scope.REQUEST,
         provides=ISupplierPricingSettingsRepository,
+    )
+
+    # --- ADR-005 — SKU pricing recompute pipeline ---
+    sku_pricing_input_reader: CompositeDependencySource = provide(
+        SkuPricingInputReader,
+        scope=Scope.REQUEST,
+        provides=ISkuPricingInputReader,
+    )
+    sku_pricing_scope_reader: CompositeDependencySource = provide(
+        SkuPricingScopeReader,
+        scope=Scope.REQUEST,
+        provides=ISkuPricingScopeReader,
+    )
+    sku_pricing_result_writer: CompositeDependencySource = provide(
+        SkuPricingResultWriter,
+        scope=Scope.REQUEST,
+        provides=ISkuPricingResultWriter,
+    )
+    recompute_sku_pricing_service: CompositeDependencySource = provide(
+        RecomputeSkuPricingService,
+        scope=Scope.REQUEST,
+    )
+    # Concrete adapter type provided directly so TaskIQ tasks can ask
+    # for ``SkuPricingInputReader`` to drive the iter_by_* fan-outs that
+    # are not on the port surface.
+    sku_pricing_input_reader_concrete: CompositeDependencySource = provide(
+        SkuPricingInputReader,
+        scope=Scope.REQUEST,
     )
 
     # --- Command handlers ---

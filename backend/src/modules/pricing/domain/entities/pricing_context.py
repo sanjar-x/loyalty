@@ -198,6 +198,10 @@ class PricingContext(AggregateRoot):
     range_base_variable_code: str | None = None
     active_formula_version_id: uuid.UUID | None = None
     global_values: dict[str, Decimal] = attrs.field(factory=dict)
+    # ADR-005 — per-key set-at timestamps used by the FX-staleness gate.
+    # Mirrors ``global_values`` keys; missing entries are treated as
+    # "never set" by recompute consumers.
+    global_values_set_at: dict[str, datetime] = attrs.field(factory=dict)
     version_lock: int = 0
     created_at: datetime = attrs.field(factory=lambda: datetime.now(UTC))
     updated_at: datetime = attrs.field(factory=lambda: datetime.now(UTC))
@@ -247,6 +251,7 @@ class PricingContext(AggregateRoot):
             range_base_variable_code=range_base_variable_code,
             active_formula_version_id=None,
             global_values={},
+            global_values_set_at={},
             version_lock=0,
             created_at=now,
             updated_at=now,
@@ -408,7 +413,12 @@ class PricingContext(AggregateRoot):
                 error_code="PRICING_CONTEXT_GLOBAL_VALUE_INVALID",
                 details={"variable_code": variable_code, "value": str(value)},
             )
+        now = datetime.now(UTC)
         self.global_values = {**self.global_values, variable_code: value}
+        self.global_values_set_at = {
+            **self.global_values_set_at,
+            variable_code: now,
+        }
         self._touch(actor_id)
         self.add_domain_event(
             PricingContextGlobalValueSetEvent(

@@ -13,6 +13,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from structlog.stdlib import BoundLogger
 
+# Outbox event handlers register at import time via ``register_event_handler``.
+# Importing the task modules here makes the registry identical across web /
+# worker / scheduler processes; without this the relay's "unknown event_type"
+# branch silently drops pricing events whenever the relay runs in any
+# process other than the worker.
+import src.infrastructure.outbox.tasks
+import src.modules.pricing.infrastructure.tasks  # noqa: F401
 from src.api.exceptions.handlers import setup_exception_handlers
 from src.api.middlewares.logger import AccessLoggerMiddleware
 from src.api.router import router

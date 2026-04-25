@@ -18,7 +18,7 @@ import json
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import exists, func, literal, select
+from sqlalchemy import case, exists, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -200,25 +200,37 @@ class ComputeFacetsHandler:
             OrmProduct.deleted_at.is_(None),
         ]
 
-    @staticmethod
-    def _min_price_subquery():
+    # ADR-005 — facet ranges and stock flags must mirror the storefront
+    # PLP/search rule: priced SKUs use ``selling_price``, legacy SKUs
+    # fall back to manual ``price``/``default_price``, failure-status
+    # SKUs are excluded so the facet's [min, max] never disagrees with
+    # the actual prices the listing displays.
+    _EFFECTIVE_PRICE = case(
+        (OrmSKU.pricing_status == "priced", OrmSKU.selling_price),
+        else_=func.coalesce(OrmSKU.price, OrmVariant.default_price),
+    )
+    _PRICEABLE_STATUS = OrmSKU.pricing_status.in_(("legacy", "priced", "pending"))
+
+    @classmethod
+    def _min_price_subquery(cls):
         """Scalar subquery: cheapest active SKU price for a product."""
         return (
-            select(func.min(func.coalesce(OrmSKU.price, OrmVariant.default_price)))
+            select(func.min(cls._EFFECTIVE_PRICE))
             .join(OrmVariant, OrmVariant.id == OrmSKU.variant_id)
             .where(
                 OrmSKU.product_id == OrmProduct.id,
                 OrmSKU.is_active.is_(True),
                 OrmSKU.deleted_at.is_(None),
                 OrmVariant.deleted_at.is_(None),
-                func.coalesce(OrmSKU.price, OrmVariant.default_price).is_not(None),
+                cls._PRICEABLE_STATUS,
+                cls._EFFECTIVE_PRICE.is_not(None),
             )
             .correlate(OrmProduct)
             .scalar_subquery()
         )
 
-    @staticmethod
-    def _has_stock_exists():
+    @classmethod
+    def _has_stock_exists(cls):
         """EXISTS: product has at least one active priced SKU."""
         return exists(
             select(literal(1))
@@ -229,7 +241,8 @@ class ComputeFacetsHandler:
                 OrmSKU.is_active.is_(True),
                 OrmSKU.deleted_at.is_(None),
                 OrmVariant.deleted_at.is_(None),
-                func.coalesce(OrmSKU.price, OrmVariant.default_price).is_not(None),
+                cls._PRICEABLE_STATUS,
+                cls._EFFECTIVE_PRICE.is_not(None),
             )
         ).correlate(OrmProduct)
 

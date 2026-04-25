@@ -49,7 +49,23 @@ def sku_orm_to_read_model(
     if orm.price is not None:
         sku_price = MoneyReadModel(amount=orm.price, currency=orm.currency)
 
-    resolved = resolve_sku_price(sku_price, variant_default_price)
+    selling_price: MoneyReadModel | None = None
+    if orm.selling_price is not None and orm.selling_currency:
+        selling_price = MoneyReadModel(
+            amount=orm.selling_price,
+            currency=orm.selling_currency,
+        )
+    pricing_status = (
+        orm.pricing_status.value
+        if hasattr(orm.pricing_status, "value")
+        else orm.pricing_status
+    )
+    resolved = resolve_sku_price(
+        sku_price,
+        variant_default_price,
+        selling_price=selling_price,
+        pricing_status=pricing_status,
+    )
 
     return SKUReadModel(
         id=orm.id,

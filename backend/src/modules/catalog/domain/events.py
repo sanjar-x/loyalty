@@ -558,6 +558,79 @@ class SKUDeletedEvent(
 
 
 # ---------------------------------------------------------------------------
+# SKU pricing events (ADR-005)
+# ---------------------------------------------------------------------------
+# These events drive the autonomous recompute pipeline. They carry
+# ``sku_id`` as a top-level payload field so the outbox handler can
+# enqueue a per-SKU TaskIQ job without re-reading the SKU row.
+
+
+@dataclass
+class SKUPurchasePriceUpdatedEvent(
+    CatalogEvent,
+    required_fields=("product_id", "sku_id", "purchase_currency"),
+    aggregate_id_field="product_id",
+):
+    """Emitted when a SKU's purchase price or purchase currency changes.
+
+    Triggers an asynchronous recompute of the SKU's selling price via
+    the pricing recompute pipeline (see ADR-005). The payload carries
+    the *new* values formatted as strings to keep the JSON envelope
+    schema-stable; consumers re-read the SKU row inside their own
+    transaction before computing.
+    """
+
+    product_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
+    sku_id: uuid.UUID | None = None
+    purchase_price_amount: int | None = None
+    purchase_currency: str | None = None
+    aggregate_type: str = "Product"
+    event_type: str = "SKUPurchasePriceUpdatedEvent"
+
+
+@dataclass
+class SKUPricedEvent(
+    CatalogEvent,
+    required_fields=("product_id", "sku_id", "selling_price_amount"),
+    aggregate_id_field="product_id",
+):
+    """Emitted when a SKU transitions to a fresh PRICED state."""
+
+    product_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
+    sku_id: uuid.UUID | None = None
+    selling_price_amount: int | None = None
+    selling_currency: str | None = None
+    formula_version_id: uuid.UUID | None = None
+    inputs_hash: str | None = None
+    aggregate_type: str = "Product"
+    event_type: str = "SKUPricedEvent"
+
+
+@dataclass
+class SKUPricingFailedEvent(
+    CatalogEvent,
+    required_fields=("product_id", "sku_id", "pricing_status", "failure_reason"),
+    aggregate_id_field="product_id",
+):
+    """Emitted when a recompute attempt cannot produce a valid selling price.
+
+    ``pricing_status`` is one of ``stale_fx`` / ``missing_purchase_price``
+    / ``formula_error``; ``failure_reason`` carries a short admin-
+    readable message for surfacing in the back office.
+    """
+
+    product_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
+    sku_id: uuid.UUID | None = None
+    pricing_status: str | None = None
+    failure_reason: str | None = None
+    aggregate_type: str = "Product"
+    event_type: str = "SKUPricingFailedEvent"
+
+
+# ---------------------------------------------------------------------------
 # AttributeGroup events
 # ---------------------------------------------------------------------------
 
