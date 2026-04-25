@@ -39,7 +39,7 @@
 
 ## Elevator Pitch
 
-Enterprise API is an async REST backend for e-commerce loyalty platforms. It implements a **modular monolith** with strict bounded contexts — each business domain (catalog, identity, users, geo, storage) lives in its own module with independent layers, communicating only through domain events.
+Enterprise API is an async REST backend for e-commerce loyalty platforms. It implements a **modular monolith** with strict bounded contexts — nine business domains (catalog, identity, user, geo, cart, logistics, supplier, pricing, activity) live in their own modules with independent layers, communicating only through domain events.
 
 Unlike typical FastAPI CRUD apps, this project enforces **real DDD**: domain entities have zero framework imports, repositories use the Data Mapper pattern (not Active Record), and writes flow through CQRS command handlers with a transactional outbox for reliable event publishing.
 
@@ -49,19 +49,24 @@ Built for teams that want production architecture from day one — not a rewrite
 
 ## ✨ Features
 
-- **Modular Monolith** — five isolated bounded contexts (Catalog, Identity, User, Geo, Storage) with enforced architectural boundaries
+- **Modular Monolith** — nine isolated bounded contexts (Catalog, Identity, User, Geo, Cart, Logistics, Supplier, Pricing, Activity) with enforced architectural boundaries
 - **Full CQRS** — dedicated command and query handlers; writes never mix with reads
-- **Multi-Provider Authentication** — email/password (Argon2id) and Telegram Mini App with access/refresh token rotation (max 5 sessions per identity)
+- **Multi-Provider Authentication** — email/password (Argon2id), OIDC, and Telegram Mini App with access/refresh token rotation (max 5 sessions per identity)
 - **RBAC Authorization** — hierarchical roles and permissions with Redis-cached session lookups (300s TTL), resolved via recursive CTE
-- **Transactional Outbox** — domain events persist atomically with aggregates, then relay asynchronously via [TaskIQ](https://taskiq-python.github.io/) + RabbitMQ
-- **Presigned Uploads** — S3-compatible (MinIO) presigned URLs for brand logos with async image processing pipeline
-- **Category Trees** — hierarchical categories with `full_slug` propagation, sibling ordering, and bulk subtree renames
-- **Geo Reference Data** — ISO 3166-1/2 countries and subdivisions, ISO 4217 currencies, IETF BCP 47 languages with multi-language translations (JSONB)
+- **Transactional Outbox** — domain events persist atomically with aggregates; the relay processes them in per-event transactions with `FOR UPDATE SKIP LOCKED` for concurrent workers, dispatched via TaskIQ + RabbitMQ. IAM events (identity registered/deactivated, role changes, linked account) have wired consumers; catalog/cart/pricing/logistics/supplier events are persisted for audit/future subscription
+- **Presigned Uploads & Media Pipeline** — image processing extracted into a dedicated `image_backend/` microservice (server-to-server X-API-Key)
+- **Catalog with Variants & Templates** — products → variants → SKUs, attribute templates with per-category bindings, EAV product attribute values, full-text search vector
+- **Storefront APIs** — separate routers for product detail, listings, search + suggest, trending, and personalized "for you" feed (co-view recommendations)
+- **Pricing Engine** — versioned formula AST (draft → published → archived) with pure-domain Decimal evaluator, scoped variables (global / supplier / category / range / product_input), pricing contexts with rounding modes, and preview endpoint
+- **Cart with Guest Support** — cart aggregate with FSM (ACTIVE / FROZEN / MERGED / ORDERED), anonymous-token sessions for guests, and cart merge on login
+- **Logistics** — Shipment aggregate with local FSM and append-only carrier tracking events, multi-provider abstraction (CDEK, Russian Post, Yandex Delivery)
+- **Activity Tracking & Recommendations** — fire-and-forget Redis hot path (LPUSH + ZINCRBY pipeline) flushed to a partitioned PostgreSQL table; product co-view scores power "similar products" and "for you" feed
+- **Geo Reference Data** — ISO 3166-1/2 countries and subdivisions, districts (OKTMO/FIAS for RU), ISO 4217 currencies, IETF BCP 47 languages with multi-language translations
 - **Telegram Bot** — [Aiogram 3](https://docs.aiogram.dev/) bot with inline keyboards, FSM states, throttling, and user identification middleware
 - **GDPR Account Deletion** — one-click account deactivation with cascading PII anonymization through domain events
-- **Staff Management** — invitation workflow with email verification, role assignment, and separate PII storage
-- **88% Test Coverage** — unit, integration, e2e, and architecture fitness tests powered by [testcontainers](https://testcontainers-python.readthedocs.io/)
-- **Structured Logging** — JSON-formatted logs via [structlog](https://www.structlog.org/) with request correlation IDs
+- **Staff Management** — invitation workflow with token-based acceptance, role assignment, and separate PII storage
+- **High Test Coverage** — unit, integration, e2e, and architecture fitness tests powered by [testcontainers](https://testcontainers-python.readthedocs.io/)
+- **Structured Logging** — JSON-formatted logs via [structlog](https://www.structlog.org/) with request correlation IDs propagated through the outbox
 
 ---
 
@@ -195,6 +200,8 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 
 ### Create a Brand (Protected Endpoint)
 
+The logo is uploaded via `image_backend/` first; backend only stores the resolved URL and storage object id.
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/catalog/brands \
   -H "Authorization: Bearer <access_token>" \
@@ -202,19 +209,14 @@ curl -X POST http://localhost:8080/api/v1/catalog/brands \
   -d '{
     "name": "Nike",
     "slug": "nike",
-    "logo": {
-      "filename": "nike-logo.png",
-      "contentType": "image/png",
-      "size": 24576
-    }
+    "logoUrl": "https://cdn.example.com/brands/nike.webp",
+    "logoStorageObjectId": "7c9e6679-7425-40de-944b-e07fc1f90ae7"
   }'
 ```
 
 ```json
 {
-  "brandId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-  "presignedUploadUrl": "http://localhost:9000/enterprise-bucket/...",
-  "objectKey": "brands/7c9e6679.../logo.png"
+  "brandId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -288,14 +290,14 @@ All endpoints are served under `/api/v1`. Interactive docs available at `/docs` 
 
 ### Catalog — Brands
 
-| Method   | Endpoint                            | Auth             | Description                              |
-| -------- | ----------------------------------- | ---------------- | ---------------------------------------- |
-| `POST`   | `/catalog/brands`                   | `catalog:manage` | Create brand (with optional logo upload) |
-| `GET`    | `/catalog/brands`                   | Public           | List brands (paginated)                  |
-| `GET`    | `/catalog/brands/{id}`              | Public           | Get brand by ID                          |
-| `PATCH`  | `/catalog/brands/{id}`              | `catalog:manage` | Update brand name/slug                   |
-| `DELETE` | `/catalog/brands/{id}`              | `catalog:manage` | Delete brand                             |
-| `POST`   | `/catalog/brands/{id}/logo/confirm` | `catalog:manage` | Confirm logo upload for processing       |
+| Method   | Endpoint                  | Auth             | Description                                   |
+| -------- | ------------------------- | ---------------- | --------------------------------------------- |
+| `POST`   | `/catalog/brands`         | `catalog:manage` | Create brand (logo URL + storageObjectId opt) |
+| `POST`   | `/catalog/brands/bulk`    | `catalog:manage` | Bulk-create brands                            |
+| `GET`    | `/catalog/brands`         | Public           | List brands (paginated)                       |
+| `GET`    | `/catalog/brands/{id}`    | Public           | Get brand by ID                               |
+| `PATCH`  | `/catalog/brands/{id}`    | `catalog:manage` | Update brand name/slug/logo                   |
+| `DELETE` | `/catalog/brands/{id}`    | `catalog:manage` | Delete brand                                  |
 
 ### Catalog — Categories
 
@@ -378,6 +380,69 @@ All endpoints are served under `/api/v1`. Interactive docs available at `/docs` 
 | `GET`  | `/geo/countries/{code}/currencies`   | Public | List currencies of a country     |
 | `GET`  | `/geo/currencies`                    | Public | List all currencies              |
 | `GET`  | `/geo/languages`                     | Public | List supported languages         |
+
+### Catalog — Storefront (Public)
+
+| Method | Endpoint                                    | Auth   | Description                                |
+| ------ | ------------------------------------------- | ------ | ------------------------------------------ |
+| `GET`  | `/catalog/storefront/products`              | Public | List products (filters, paginated)         |
+| `GET`  | `/catalog/storefront/products/{slug}`       | Public | Product detail page (PDP) by slug          |
+| `GET`  | `/catalog/storefront/search`                | Public | Full-text product search                   |
+| `GET`  | `/catalog/storefront/search/suggest`        | Public | Search autocomplete                        |
+| `GET`  | `/catalog/storefront/trending`              | Public | Trending products (Redis sorted sets)      |
+| `GET`  | `/catalog/storefront/for-you`               | Public | Personalized feed (co-view recommendations)|
+
+### Cart
+
+| Method   | Endpoint                  | Auth          | Description                              |
+| -------- | ------------------------- | ------------- | ---------------------------------------- |
+| `GET`    | `/cart`                   | Bearer/Guest  | Get current cart (resolves by token)     |
+| `POST`   | `/cart/items`             | Bearer/Guest  | Add SKU to cart                          |
+| `PATCH`  | `/cart/items/{itemId}`    | Bearer/Guest  | Update quantity                          |
+| `DELETE` | `/cart/items/{itemId}`    | Bearer/Guest  | Remove item                              |
+| `POST`   | `/cart/clear`             | Bearer/Guest  | Clear all items                          |
+| `POST`   | `/cart/freeze`            | Bearer        | Freeze cart for checkout                 |
+
+### Pricing (Admin)
+
+| Method  | Endpoint                                 | Auth             | Description                                    |
+| ------- | ---------------------------------------- | ---------------- | ---------------------------------------------- |
+| `*`     | `/pricing/variables`                     | `pricing:manage` | CRUD pricing variables                         |
+| `*`     | `/pricing/contexts`                      | `pricing:manage` | Manage pricing contexts (currency, rounding)   |
+| `*`     | `/pricing/contexts/{id}/values`          | `pricing:manage` | Set global variable values per context         |
+| `*`     | `/pricing/contexts/{id}/formula`         | `pricing:manage` | Draft/publish/rollback formula versions        |
+| `POST`  | `/pricing/preview`                       | `pricing:manage` | Preview computed price for a product           |
+| `*`     | `/pricing/profiles`                      | `pricing:manage` | Per-product input variable values              |
+| `*`     | `/pricing/category-settings`             | `pricing:manage` | Category-scoped variable values                |
+| `*`     | `/pricing/supplier-settings`             | `pricing:manage` | Supplier-scoped variable values                |
+| `*`     | `/pricing/supplier-type-mappings`        | `pricing:manage` | Supplier-type → context mappings               |
+
+### Logistics
+
+| Method | Endpoint                              | Auth                | Description                            |
+| ------ | ------------------------------------- | ------------------- | -------------------------------------- |
+| `POST` | `/logistics/quotes`                   | Bearer              | Get delivery quotes from carriers      |
+| `POST` | `/logistics/shipments`                | `logistics:manage`  | Create shipment from selected quote    |
+| `GET`  | `/logistics/shipments/{id}`           | `logistics:manage`  | Get shipment with tracking events      |
+| `POST` | `/logistics/shipments/{id}/book`      | `logistics:manage`  | Book shipment with carrier             |
+| `POST` | `/logistics/shipments/{id}/cancel`    | `logistics:manage`  | Cancel shipment                        |
+| `POST` | `/logistics/webhooks/{provider}`      | Webhook secret      | Carrier tracking webhook               |
+
+### Suppliers (Admin)
+
+| Method | Endpoint                            | Auth               | Description           |
+| ------ | ----------------------------------- | ------------------ | --------------------- |
+| `*`    | `/suppliers`                        | `suppliers:manage` | CRUD suppliers        |
+| `POST` | `/suppliers/{id}/activate`          | `suppliers:manage` | Activate supplier     |
+| `POST` | `/suppliers/{id}/deactivate`        | `suppliers:manage` | Deactivate supplier   |
+
+### Activity (Admin)
+
+| Method | Endpoint                          | Auth              | Description                         |
+| ------ | --------------------------------- | ----------------- | ----------------------------------- |
+| `GET`  | `/admin/activity/trending`        | `analytics:read`  | Trending products (daily/weekly)    |
+| `GET`  | `/admin/activity/search/popular`  | `analytics:read`  | Popular search queries              |
+| `GET`  | `/admin/activity/history`         | `analytics:read`  | Activity history (partitioned PG)   |
 
 ### System
 
@@ -480,20 +545,30 @@ cp .env.example .env
 ### High-Level Overview
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                           FastAPI (ASGI Server)                              │
-│       ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
-│       │ Catalog  │ │ Identity │ │   User   │ │   Geo    │ │ Storage  │       │
-│       │ Module   │ │  Module  │ │  Module  │ │  Module  │ │  Module  │       │
-│       └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘       │
-│   ┌────────┴────────────┴────────────┴────────────┴────────────┴────────┐    │
-│   │                     Shared Infrastructure Layer                     │    │
-│   │         PostgreSQL   ·   Redis   ·   RabbitMQ   ·   S3/MinIO        │    │
-│   └─────────────────────────────────────────────────────────────────────┘    │
-│   ┌─────────────────────────────────────────────────────────────────────┐    │
-│   │                       Telegram Bot (Aiogram 3)                      │    │
-│   └─────────────────────────────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                                FastAPI (ASGI Server)                                 │
+│ ┌─────────┐ ┌─────────┐ ┌──────┐ ┌─────┐ ┌──────┐ ┌───────────┐ ┌────────┐ ┌───────┐ │
+│ │ Catalog │ │ Identity│ │ User │ │ Geo │ │ Cart │ │ Logistics │ │Supplier│ │Pricing│ │
+│ └────┬────┘ └────┬────┘ └──┬───┘ └──┬──┘ └──┬───┘ └─────┬─────┘ └───┬────┘ └───┬───┘ │
+│      │           │         │        │       │           │           │          │     │
+│      └───────────┴────┬────┴────────┴───────┴───────────┴───────────┴────────┬─┘     │
+│                       │                              ┌────────────┐         │        │
+│                       │                              │  Activity  │─────────┘        │
+│                       │                              └─────┬──────┘                  │
+│   ┌───────────────────┴────────────────────────────────────┴─────────────────────┐   │
+│   │                       Shared Infrastructure Layer                            │   │
+│   │           PostgreSQL  ·  Redis  ·  RabbitMQ  ·  S3/MinIO                     │   │
+│   └──────────────────────────────────────────────────────────────────────────────┘   │
+│   ┌──────────────────────────────────────────────────────────────────────────────┐   │
+│   │                          Telegram Bot (Aiogram 3)                            │   │
+│   └──────────────────────────────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+                                            ▲
+                                            │ X-API-Key (delete only)
+                                            ▼
+                        ┌───────────────────────────────────────────┐
+                        │  image_backend/  (FastAPI + Pillow + S3)  │
+                        └───────────────────────────────────────────┘
 ```
 
 ### Module Internal Structure (Clean Architecture)
@@ -527,27 +602,33 @@ Each bounded context follows this layering:
 | **NIST RBAC**            | Hierarchical roles → permissions, cached in Redis with CTE fallback        | Fine-grained access control              |
 | **Dead Letter Queue**    | Failed tasks persisted in `failed_tasks` table via DLQ middleware          | No silent task failures                  |
 
-### Data Flow: Brand Logo Upload
+### Data Flow: Media Upload (3-step)
+
+Image processing lives in the separate `image_backend/` microservice. The main backend only references media through `storage_object_id`.
 
 ```
-Client                API                  Worker              S3
-  │                    │                    │                   │
-  ├─ POST /brands ────►│                    │                   │
-  │                    ├─ Create brand ─────┤                   │
-  │                    ├─ Generate presigned URL ──────────────►│
-  │◄── presignedUrl ───┤                    │                   │
-  │                    │                    │                   │
-  ├─ PUT presignedUrl ─────────────────────────────────────────►│
-  │                    │                    │                   │
-  ├─ POST /confirm ───►│                    │                   │
-  │                    ├─ Outbox: BrandLogoConfirmedEvent       │
-  │◄── 202 Accepted ───┤                    │                   │
-  │                    │                    │                   │
-  │                    │  ┌── Relay ───────►│                   │
-  │                    │  │                 ├─ Verify object ──►│
-  │                    │  │                 ├─ Process image    │
-  │                    │  │                 ├─ Update brand     │
-  │                    │  │                 │  status=COMPLETED │
+Client                BFF Proxy             image_backend          S3
+  │                    │                        │                   │
+  ├─ POST /media/upload ───────────────────────►│                   │
+  │                    │  X-API-Key             ├── reserve slot ──►│
+  │◄────── presignedUrl + storageObjectId ──────┤                   │
+  │                                                                 │
+  ├─ PUT presignedUrl ─────────────────────────────────────────────►│
+  │                                                                 │
+  ├─ POST /media/{id}/confirm ─────────────────►│                   │
+  │                                             ├─ enqueue task     │
+  │◄─────── 202 Accepted ───────────────────────┤                   │
+  │                                             │                   │
+  │                                  ┌─ Worker ─┤                   │
+  │                                  │          ├─ verify object ─► │
+  │                                  │          ├─ Pillow resize    │
+  │                                  │          ├─ upload variants ►│
+  │                                  │          │  (thumb/med/large)│
+  │                                  │          │                   │
+  ├─ GET /media/{id}/status (SSE) ──►│          │                   │
+  │◄────── COMPLETED ────────────────┘          │                   │
+  │                                                                 │
+  ├─ Backend stores storage_object_id with the entity (brand, product media)
 ```
 
 ### Project Structure
@@ -586,15 +667,20 @@ src/
 │   └── storage/                  # S3/MinIO client factory
 │
 ├── modules/
-│   ├── catalog/                  # Brands, categories, products, attributes, SKUs
-│   ├── identity/                 # Auth (multi-provider), sessions, roles, permissions
+│   ├── catalog/                  # Brands, categories, products, variants, SKUs, attributes, templates, media
+│   ├── identity/                 # Auth (LOCAL/OIDC/Telegram), sessions, roles, permissions, invitations
 │   ├── user/                     # Customer + StaffMember profiles (PII storage)
-│   ├── geo/                      # Countries, currencies, languages, subdivisions
-│   └── storage/                  # File management, media processing
+│   ├── geo/                      # Countries, subdivisions, districts, currencies, languages
+│   ├── cart/                     # Cart aggregate, items, checkout snapshots (FSM)
+│   ├── logistics/                # Shipments, tracking events, carrier providers
+│   ├── supplier/                 # Suppliers (cross-border / local)
+│   ├── pricing/                  # Variables, formula AST, contexts, profiles, settings
+│   └── activity/                 # User activity tracking, trending, co-view recommendations
 │
 └── shared/                       # Cross-module interfaces + base classes
     ├── exceptions.py             # Base AppException hierarchy
     ├── schemas.py                # CamelModel (auto camelCase aliases)
+    ├── pagination.py             # Pagination primitives
     └── interfaces/               # IUnitOfWork, IBlobStorage, ITokenProvider, ILogger, ...
 ```
 
@@ -630,12 +716,13 @@ uv run pytest tests/ --cov=src --cov-report=html
 
 ### Architecture Fitness Tests
 
-These tests **enforce Clean Architecture boundaries** at CI time:
+These tests **enforce Clean Architecture boundaries** at CI time across all nine modules:
 
-- Domain layer has zero infrastructure imports
-- Application layer imports only from domain
-- No direct cross-module imports (modules communicate via events)
-- ORM models never appear in domain or application layers
+- Domain layer has zero infrastructure or framework imports (attrs + stdlib only)
+- Application commands MUST NOT import infrastructure (queries and consumers exempt — CQRS read-side; `geo.commands` exempt — reference-data)
+- No direct cross-module imports — modules communicate via domain events through the outbox
+- Whitelisted exceptions: presentation→identity for auth/permission deps; `cart.infrastructure.adapters.catalog_adapter` (anti-corruption); `identity.management.*` (admin CLI)
+- Shared kernel (`src/shared/`) MUST NOT import any business module
 
 ```bash
 uv run pytest tests/architecture/ -v

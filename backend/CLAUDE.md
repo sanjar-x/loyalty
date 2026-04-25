@@ -42,15 +42,19 @@ uv run alembic upgrade head
 
 | Module | Purpose | Files |
 |---|---|---|
-| `catalog` | Brands, categories, products, variants, SKUs, attributes (EAV), media | 138 |
+| `catalog` | Brands, categories, products, variants, SKUs, attributes (EAV), attribute templates, media | 145 |
 | `identity` | AuthN/AuthZ: JWT, sessions, RBAC, OIDC, Telegram Mini App, staff invitations | 69 |
+| `pricing` | Variables, formula AST + evaluator, pricing contexts, product pricing profiles, supplier/category settings | 69 |
 | `logistics` | Shipments, tracking events, carrier providers (CDEK, etc.) | 61 |
 | `geo` | Reference data: countries, subdivisions, districts, currencies, languages | 37 |
-| `cart` | Shopping cart and line items | 35 |
-| `supplier` | Supplier accounts and onboarding | 29 |
+| `cart` | Shopping cart and line items, checkout snapshots | 35 |
+| `supplier` | Supplier accounts (cross-border / local) and onboarding | 29 |
 | `user` | Customer and StaffMember profiles (PII storage) | 28 |
+| `activity` | User activity tracking (Redis hot path → partitioned PG), trending, co-view recommendations | 19 |
 
 Some modules have an extra `management/` layer (identity, supplier) for admin/back-office use cases.
+
+There is no separate `storage` module — file/media handling is split between `infrastructure/storage/factory.py` (S3 client) and `image_backend/` microservice.
 
 ### Module structure
 
@@ -58,20 +62,29 @@ Each module in `src/modules/<name>/` follows 4 layers:
 
 ```
 domain/          — attrs entities, value objects, domain events, interfaces (protocols). Zero framework imports.
-application/     — commands/ (CQRS write), queries/ (CQRS read, may use ORM directly), consumers/ (event handlers)
-infrastructure/  — SQLAlchemy models, repository implementations, Dishka providers, external service clients
-presentation/    — FastAPI routers, Pydantic schemas, Dishka DI providers
+                   Use entities.py for ≤2 aggregates; entities/ package (one file per aggregate) when more.
+application/     — commands/ (CQRS write), queries/ (CQRS read, may use ORM directly), consumers/ (event handlers; only when subscribers exist)
+infrastructure/  — SQLAlchemy models, repository implementations, Dishka provider, external clients in adapters/, services in services/
+presentation/    — FastAPI routers (`router_<scope>.py`), Pydantic schemas, FastAPI deps in dependencies.py (NOT Dishka)
 ```
 
-Note: some modules place Dishka providers in `infrastructure/provider.py` (identity, user, cart), others in `presentation/dependencies.py` (catalog, geo, supplier). Both are valid — providers wire infrastructure implementations to domain interfaces.
+**Naming conventions:**
+- Routers: `router_<resource_or_scope>.py` (e.g. `router_brands.py`, `router_admin.py`, `router_webhooks.py`). When the module has a single router, name it after the resource (e.g. `router_suppliers.py`, `router_profile.py`).
+- Dishka providers: ALWAYS in `infrastructure/provider.py` — wiring infrastructure implementations to domain interfaces is an infrastructure concern.
+- FastAPI dependencies (`Depends`-callables, security): in `presentation/dependencies.py` — only the identity module currently uses this for `Auth` / `RequirePermission` / `BearerCredentials`.
+- External HTTP/RPC clients: `infrastructure/adapters/<service>_client.py` (e.g. catalog's `image_backend_client`, cart's `catalog_adapter`).
+- Stateless domain helpers: `domain/services.py` (e.g. user's `generate_referral_code`).
+- Bootstrap/CLI tooling: `<module>/management/<task>.py` — admin scripts that reach into the full DI container; not production request paths.
+
+Dishka providers always live in `infrastructure/provider.py` — providers wire infrastructure implementations to domain interfaces, which is an infrastructure-layer concern. `presentation/dependencies.py`, when present, is reserved for FastAPI dependencies (e.g. `Auth`, `RequirePermission` in `identity/presentation/dependencies.py`).
 
 ### Layer rules (enforced by `tests/architecture/test_boundaries.py`)
 
 - Domain MUST NOT import application/infrastructure/presentation or any framework (attrs + stdlib only)
-- Application commands MUST NOT import infrastructure (queries and consumers are exempt — CQRS read-side). Exception: `geo` module commands use ORM directly — it is a reference-data module without domain entities/UoW/events
-- Modules MUST NOT import each other's domain/application/infrastructure (cross-module deps only at presentation level)
+- Application commands MUST NOT import infrastructure. Exempt by rule: `*.application.queries.*` (CQRS read-side reads ORM directly), `*.application.consumers.*` (event consumers wire infrastructure), `geo.application.commands.*` (reference-data module without domain entities/UoW/events). Commands may compose queries (read-your-writes)
+- Modules MUST NOT import each other's domain/application/infrastructure. Whitelisted exceptions in `ALLOWED_CROSS_MODULE`: presentation→identity for auth/permission deps (user, catalog, pricing, activity); `cart.infrastructure.adapters.catalog_adapter` (anti-corruption adapter reading catalog/supplier ORM to validate SKUs); `identity.management.*` (admin CLI bootstrap reaching into the full DI container)
 - `src/shared/` is the shared kernel — MUST NOT import any module
-- Architecture tests currently parametrize `MODULES = ["catalog", "identity", "user", "cart", "logistics"]` — `geo` and `supplier` are not yet enforced
+- Architecture tests parametrize `MODULES = ["catalog", "identity", "user", "cart", "logistics", "pricing", "activity", "geo", "supplier"]` — all nine modules are enforced
 
 ### Command/Handler pattern
 
@@ -142,9 +155,9 @@ Exception hierarchy in `src/shared/exceptions.py`:
 ### Transactional Outbox
 
 - Domain events collected in-memory on `AggregateRoot`
-- `UnitOfWork.commit()` serializes events to `outbox_messages` table atomically
-- Outbox relay publishes to RabbitMQ via TaskIQ scheduler (every minute)
-- Events use `dataclasses.asdict()` for serialization — UUID/datetime handled recursively
+- `UnitOfWork.commit()` serializes events to `outbox_messages` table atomically (via `dataclasses.asdict()` with recursive UUID/datetime serialization, also persists `correlation_id` from request context)
+- Outbox Relay (`src/infrastructure/outbox/relay.py`) polls `outbox_messages` with `FOR UPDATE SKIP LOCKED`, processes each event in its own transaction, dispatches via `_EVENT_HANDLERS` registry, and prunes processed records older than 7 days. Multiple workers can run in parallel without blocking each other
+- **Current handlers (in `src/infrastructure/outbox/tasks.py`):** `identity_registered`, `identity_deactivated`, `role_assignment_changed`, `linked_account_created`. Events from catalog, cart, pricing, logistics, supplier are persisted but have no subscribers yet — they are marked processed by the relay's "unknown event_type, skipping" branch. Add a handler via `register_event_handler(event_type, handler)` when wiring a new consumer
 
 ### Background tasks
 
@@ -170,7 +183,7 @@ TaskIQ with RabbitMQ (aio-pika):
 - PostgreSQL 18, asyncpg driver, SQLAlchemy 2.1+ async
 - Naming conventions in `src/infrastructure/database/base.py`: `ix_`, `uq_`, `ck_`, `fk_`, `pk_` prefixes
 - Alembic migrations: date-based subdirs (`alembic/versions/YYYY/MM/DD_HHMM_SS_*.py`), auto-formatted by ruff
-- Seed data: `scripts/seed_dev.sql` (dev), `src/modules/identity/domain/seed.py` (RBAC, deterministic uuid5)
+- Seed data: `seed/` package with step-based runner (`uv run python -m seed.main`); steps: `roles`/`admin` (DB-only), `geo`/`brands`/`categories`/`attributes`/`products` (require running API). RBAC roles defined in `src/modules/identity/management/seed_data.py` (deterministic uuid5)
 
 ## Config
 

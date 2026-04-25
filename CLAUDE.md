@@ -125,4 +125,3 @@ For Notes/ (reusable, project-independent): omit `project` and `component`, use 
 - `/document {type} {topic}` — create/update BRD, FRD, TRD, ADR, SPEC
 - `/note {concept}` — save reusable knowledge note
 - `/sync-vault` — sync current work state to all vault docs
-claude --resume c88fffe2-bdeb-4060-a52e-7cb6bbc3a9de

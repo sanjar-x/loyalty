@@ -49,14 +49,20 @@ src/
 ├── api/                    # API-слой (роутер, мидлвари, обработчики ошибок)
 ├── bot/                    # Telegram-бот (Aiogram 3)
 ├── modules/                # Функциональные модули (DDD bounded contexts)
-│   ├── catalog/            # Каталог: бренды, категории, товары, атрибуты
-│   ├── identity/           # IAM: аутентификация, роли, права, сессии
+│   ├── catalog/            # Каталог: бренды, категории, товары, варианты, SKU, атрибуты, шаблоны, медиа
+│   ├── identity/           # IAM: аутентификация (LOCAL/OIDC/Telegram), роли, права, сессии, приглашения
 │   ├── user/               # Профили пользователей (Customer, StaffMember)
-│   ├── geo/                # Географические справочники (страны, валюты, языки)
-│   └── storage/            # Управление файлами (S3)
+│   ├── geo/                # Географические справочники (страны, регионы, районы, валюты, языки)
+│   ├── cart/               # Корзина и позиции, чек-аут снапшоты
+│   ├── logistics/          # Отправления, события трекинга, провайдеры доставки
+│   ├── supplier/           # Поставщики (cross-border / local), онбординг
+│   ├── pricing/            # Переменные, формулы (AST + evaluator), контексты ценообразования, профили товаров
+│   └── activity/           # Аналитика: трекинг событий (Redis), trending, co-view рекомендации
 ├── infrastructure/         # Кросс-модульная инфраструктура
 └── shared/                 # Общий код и интерфейсы
 ```
+
+> Ранее существовавший модуль `storage` был расформирован: S3-клиент переехал в `src/infrastructure/storage/factory.py`, а обработка изображений вынесена в отдельный сервис `image_backend/`.
 
 ---
 
@@ -123,13 +129,19 @@ bot/
 
 ```
 domain/
-├── entities.py             # Brand, Category, Product, SKU, Attribute, AttributeGroup,
-│                           # AttributeValue, CategoryAttributeBinding (агрегаты)
-├── value_objects.py        # MediaProcessingStatus (FSM), ProductStatus, AttributeDataType,
-│                           # Money, RequirementLevel
-├── exceptions.py           # BrandSlugConflictError, InvalidLogoStateException, ...
-├── events.py               # Доменные события (logo processing, product lifecycle)
-└── interfaces.py           # IBrandRepository, ICategoryRepository, IProductRepository, ...
+├── entities/               # Пакет с одним файлом на агрегат (используется когда
+│   ├── __init__.py         # сущностей > 2): brand, category, product,
+│   ├── _common.py          # product_variant, sku, attribute, attribute_group,
+│   ├── attribute.py        # attribute_value, attribute_template,
+│   ├── ...                 # template_attribute_binding, product_attribute_value, media_asset
+│   └── product.py
+├── value_objects.py        # MediaType, MediaRole, BehaviorFlags, AttributeDataType,
+│                           # AttributeUIType, AttributeLevel, RequirementLevel,
+│                           # ProductStatus, Money
+├── exceptions.py           # BrandSlugConflictError, MissingRequiredLocalesError, ...
+├── events.py               # Доменные события (brand/category/product lifecycle, FSM)
+├── interfaces.py           # IBrandRepository, ICategoryRepository, IProductRepository, ...
+└── constants.py            # DEFAULT_CURRENCY, DEFAULT_SEARCH_WEIGHT, REQUIRED_LOCALES
 ```
 
 **Brand FSM** (`MediaProcessingStatus`):
@@ -150,61 +162,28 @@ DRAFT → ENRICHING → READY_FOR_REVIEW → PUBLISHED → ARCHIVED
 
 ```
 application/
-├── commands/                          # 31 команда
-│   ├── create_brand.py                # Создание бренда + резервация слота загрузки
-│   ├── update_brand.py                # Обновление бренда
-│   ├── delete_brand.py                # Удаление бренда
-│   ├── confirm_brand_logo.py          # Подтверждение загрузки → постановка задачи
-│   ├── create_category.py             # Создание категории + инвалидация кэша дерева
-│   ├── update_category.py             # Обновление категории
-│   ├── delete_category.py             # Удаление категории
-│   ├── create_product.py              # Создание товара
-│   ├── update_product.py              # Обновление товара
-│   ├── delete_product.py              # Удаление товара
-│   ├── change_product_status.py       # Смена статуса товара (FSM)
-│   ├── add_sku.py                     # Добавление варианта SKU
-│   ├── update_sku.py                  # Обновление SKU
-│   ├── delete_sku.py                  # Удаление SKU
-│   ├── create_attribute.py            # Создание атрибута
-│   ├── update_attribute.py            # Обновление атрибута
-│   ├── delete_attribute.py            # Удаление атрибута
-│   ├── create_attribute_group.py      # Создание группы атрибутов
-│   ├── update_attribute_group.py      # Обновление группы
-│   ├── delete_attribute_group.py      # Удаление группы
-│   ├── add_attribute_value.py         # Добавление значения атрибута
-│   ├── update_attribute_value.py      # Обновление значения
-│   ├── delete_attribute_value.py      # Удаление значения
-│   ├── reorder_attribute_values.py    # Сортировка значений
-│   ├── bind_attribute_to_category.py  # Привязка атрибута к категории
-│   ├── unbind_attribute_from_category.py
-│   ├── update_category_attribute_binding.py
-│   ├── reorder_category_bindings.py   # Сортировка привязок
-│   ├── bulk_update_requirement_levels.py
-│   ├── assign_product_attribute.py    # Назначение атрибута товару
-│   └── remove_product_attribute.py    # Удаление атрибута у товара
-├── queries/                           # 17 запросов
-│   ├── get_product.py                 # Получение товара
-│   ├── list_products.py               # Список товаров
-│   ├── list_product_attributes.py     # Атрибуты товара
-│   ├── list_skus.py                   # SKU-варианты товара
-│   ├── get_brand.py                   # Получение бренда
-│   ├── list_brands.py                 # Список брендов
-│   ├── get_category.py                # Получение категории
-│   ├── list_categories.py             # Список категорий
-│   ├── get_category_tree.py           # Дерево категорий (Redis-кэш, TTL 5 мин)
-│   ├── list_category_bindings.py      # Привязки атрибутов к категории
-│   ├── get_attribute.py               # Получение атрибута
-│   ├── list_attributes.py             # Список атрибутов
-│   ├── get_attribute_group.py         # Получение группы
-│   ├── list_attribute_groups.py       # Список групп
-│   ├── list_attribute_values.py       # Значения атрибута
-│   ├── storefront.py                  # Витрина (публичный каталог/поиск)
-│   └── read_models.py                 # DTO/read-модели
-├── services/
-│   └── media_processor.py            # BrandLogoProcessor: скачать → Pillow → WebP → S3
-├── tasks.py                           # process_brand_logo_task (max_retries=3)
+├── commands/                              # ~50 команд: brand/category/product/variant/SKU/
+│                                          # attribute/attribute_group/attribute_value/
+│                                          # attribute_template (CRUD + clone) /
+│                                          # template_attribute_binding (bind/update/reorder/unbind) /
+│                                          # product_attribute (assign/delete/bulk) / product_media
+│                                          # (add/update/delete/reorder/sync) / SKU matrix generation /
+│                                          # bulk operations (attributes, brands, categories) /
+│                                          # change_product_status (FSM)
+├── queries/                               # ~35 запросов: get_product, list_products, search_products,
+│                                          # search_suggest, breadcrumbs, get_product_completeness,
+│                                          # get_storefront_product, list_storefront_products,
+│                                          # get_storefront_cards_by_ids, get_similar_products,
+│                                          # get_similar_product_cards, get_also_viewed,
+│                                          # get_for_you_feed, compute_facets, brand/category CRUD,
+│                                          # get_category_tree (Redis-кэш, TTL 5 мин),
+│                                          # attribute/template/value listings,
+│                                          # resolve_template_attributes, list_attribute_templates,
+│                                          # list_template_bindings
 └── constants.py
 ```
+
+> Сервисы media-обработки и фоновые задачи (`tasks.py`) перенесены в отдельный сервис `image_backend/`. Из основного backend остался только `infrastructure/image_backend_client.py` для server-to-server вызовов на удаление.
 
 **Поток обработки логотипа:**
 
@@ -222,20 +201,22 @@ application/
 
 ```
 infrastructure/
-├── models.py               # SQLAlchemy ORM: Brand, Category, Product, SKU,
-│                           # Attribute, AttributeGroup, AttributeValue,
-│                           # CategoryAttributeBinding, MediaAsset
-├── queries.py              # SQL query-строители
+├── models.py                  # SQLAlchemy ORM: Brand, Category, Product, ProductVariant, SKU,
+│                              # Attribute, AttributeGroup, AttributeValue, AttributeTemplate,
+│                              # TemplateAttributeBinding, ProductAttributeValue, MediaAsset
+├── image_backend_client.py    # HTTP-клиент к image_backend (server-to-server delete)
 └── repositories/
-    ├── base.py             # Базовый репозиторий (shared CRUD)
-    ├── brand.py            # BrandRepository (Data Mapper: ORM ↔ Domain)
-    ├── category.py         # CategoryRepository
-    ├── product.py          # ProductRepository
-    ├── attribute.py        # AttributeRepository
-    ├── attribute_group.py  # AttributeGroupRepository
-    ├── attribute_value.py  # AttributeValueRepository
-    ├── category_attribute_binding.py  # CategoryAttributeBindingRepository
-    └── product_attribute_value.py     # ProductAttributeValueRepository
+    ├── base.py                # Базовый репозиторий (shared CRUD)
+    ├── brand.py               # BrandRepository (Data Mapper: ORM ↔ Domain)
+    ├── category.py            # CategoryRepository
+    ├── product.py             # ProductRepository (включая variants/SKUs)
+    ├── attribute.py           # AttributeRepository
+    ├── attribute_group.py     # AttributeGroupRepository
+    ├── attribute_value.py     # AttributeValueRepository
+    ├── attribute_template.py  # AttributeTemplateRepository
+    ├── template_attribute_binding.py  # TemplateAttributeBindingRepository
+    ├── product_attribute_value.py     # ProductAttributeValueRepository
+    └── media_asset.py         # MediaAssetRepository
 ```
 
 **ORM-модели:**
@@ -256,19 +237,30 @@ infrastructure/
 
 ```
 presentation/
-├── router_brands.py              # CRUD брендов
-├── router_categories.py          # CRUD категорий + иерархия
-├── router_products.py            # CRUD товаров + смена статуса
-├── router_skus.py                # Управление SKU-вариантами
-├── router_attributes.py          # CRUD атрибутов
-├── router_attribute_groups.py    # CRUD групп атрибутов
-├── router_attribute_values.py    # CRUD значений атрибутов
-├── router_category_bindings.py   # Привязка атрибутов к категориям
-├── router_product_attributes.py  # Назначение атрибутов товарам
-├── router_storefront.py          # Публичная витрина (поиск, фильтрация)
-├── schemas.py                    # Pydantic-схемы запросов/ответов
-└── dependencies.py               # DI-провайдеры: BrandProvider, CategoryProvider,
-                                  # AttributeProvider, ProductProvider, ...
+├── router_brands.py                    # CRUD брендов
+├── router_categories.py                # CRUD категорий + иерархия
+├── router_products.py                  # CRUD товаров + смена статуса
+├── router_variants.py                  # CRUD вариантов товара
+├── router_skus.py                      # Управление SKU
+├── router_attributes.py                # CRUD атрибутов
+├── router_attribute_groups.py          # CRUD групп атрибутов
+├── router_attribute_values.py          # CRUD значений атрибутов
+├── router_attribute_templates.py       # CRUD шаблонов атрибутов + привязки
+├── router_product_attributes.py        # Назначение атрибутов товарам
+├── router_media.py                     # Медиа-роутер (upload/confirm/sync)
+├── router_storefront.py                # Публичная витрина (категории, бренды, фасеты)
+├── router_storefront_products.py       # PDP / список товаров storefront
+├── router_storefront_search.py         # Поиск + suggest
+├── router_storefront_trending.py       # Тренды (Redis sorted sets)
+├── router_storefront_for_you.py        # Персональная лента / co-view рекомендации
+├── schemas.py                          # Pydantic-схемы запросов/ответов админки
+├── schemas_storefront.py               # Pydantic-схемы публичной витрины
+├── mappers.py                          # ORM → DTO мапперы
+├── update_helpers.py                   # Хелперы для PATCH-запросов
+└── dependencies.py                     # DI-провайдеры: BrandProvider, CategoryProvider,
+                                        # AttributeProvider, AttributeTemplateProvider,
+                                        # ProductProvider, MediaAssetProvider,
+                                        # StorefrontCatalogProvider, ...
 ```
 
 ---
@@ -493,40 +485,176 @@ presentation/
 
 ---
 
-## `src/modules/storage/` — Хранилище файлов
+## `src/modules/cart/` — Корзина
+
+Агрегат `Cart` с FSM `ACTIVE → FROZEN → ORDERED | MERGED` и дочерней сущностью `CartItem`. Поддерживает гостевые корзины через `anonymous_token` и слияние при логине.
 
 ```
-storage/
+cart/
 ├── domain/
-│   ├── entities.py             # StorageFile (S3 object metadata)
-│   ├── interfaces.py           # IStorageRepository (Protocol)
-│   └── exceptions.py           # Доменные исключения
+│   ├── entities.py             # Cart (AggregateRoot), CartItem
+│   ├── value_objects.py        # CartStatus, SkuSnapshot, CheckoutSnapshot
+│   ├── events.py               # CartCreated/ItemAdded/Removed/Updated/Frozen/Merged/Ordered
+│   ├── interfaces.py           # ICartRepository, ICartResolver
+│   └── exceptions.py
 ├── application/
-│   ├── consumers/
-│   │   └── brand_events.py     # Обработчик событий бренда (logo upload)
-│   ├── commands/               # (зарезервировано)
-│   └── queries/                # (зарезервировано)
+│   ├── commands/               # add_item, remove_item, update_quantity, clear,
+│   │                           # freeze_for_checkout, unfreeze, merge_carts
+│   ├── queries/                # get_cart, get_cart_summary
+│   ├── cart_resolver.py        # CartResolver: identity_id или anonymous_token → Cart
+│   └── constants.py            # MAX_CART_ITEMS=50, MAX_QTY_PER_ITEM=99, CHECKOUT_TTL=15min
 ├── infrastructure/
-│   ├── models.py               # StorageFile (UUID7, bucket, object_key, versioning)
-│   ├── repository.py           # StorageRepository
-│   └── service.py              # S3-сервис
+│   ├── models.py               # Cart, CartItem ORM
+│   ├── provider.py             # CartProvider (Dishka)
+│   ├── repository.py
+│   └── adapters/
+│       └── catalog_adapter.py  # Anti-corruption: SKU валидация через прямой JOIN на catalog/supplier
 └── presentation/
-    ├── facade.py               # StorageFacade — публичный API для других модулей
-    ├── router.py               # HTTP-эндпоинты (заглушка)
-    ├── schemas.py              # Pydantic-модели
-    ├── dependencies.py         # StorageProvider (Dishka)
-    └── tasks.py                # Фоновые задачи
+    ├── router_customer.py      # /cart endpoints
+    └── schemas.py
 ```
 
-**StorageFacade** (интерфейс для других модулей):
+---
 
-| Метод                        | Назначение                                            |
-| ---------------------------- | ----------------------------------------------------- |
-| `reserve_upload_slot()`      | Создать StorageFile в БД + вернуть presigned PUT URL  |
-| `verify_upload(file_id)`     | Проверить наличие файла в S3 по внутреннему ID        |
-| `update_object_metadata()`   | Обновить object_key/size/content_type после обработки |
-| `register_processed_media()` | Зарегистрировать новый обработанный файл              |
-| `verify_module_upload()`     | Проверить файл по S3-ключу напрямую                   |
+## `src/modules/logistics/` — Логистика
+
+Агрегат `Shipment` с локальным FSM (DRAFT → BOOKING_PENDING → BOOKED → CANCEL_PENDING → CANCELLED/FAILED) и append-only `TrackingEvent`. Carrier lifecycle отслеживается отдельно от локального.
+
+```
+logistics/
+├── domain/
+│   ├── entities.py             # Shipment (AggregateRoot)
+│   ├── value_objects.py        # ShipmentStatus, TrackingStatus, TrackingEvent,
+│   │                           # Address, Parcel, ContactInfo, DeliveryQuote, Money,
+│   │                           # ProviderCode, DeliveryType, EstimatedDelivery, CashOnDelivery
+│   ├── events.py               # ShipmentCreated/BookingRequested/Booked/BookingFailed/
+│   │                           # CancellationRequested/Cancelled/CancellationFailed/TrackingUpdated
+│   ├── interfaces.py           # IShipmentRepository, ICarrierProvider, IQuoteService
+│   └── exceptions.py
+├── application/
+│   ├── commands/               # create_shipment_from_quote, book_shipment, cancel_shipment,
+│   │                           # append_tracking_event
+│   ├── queries/                # get_shipment, list_shipments, get_quotes
+│   ├── consumers/              # Обработчики событий заказа
+│   └── dto.py                  # DeliveryQuoteRequest/Response, TrackingResponse
+├── infrastructure/
+│   ├── models.py               # Shipment, TrackingEvent ORM
+│   ├── provider.py             # LogisticsInfraProvider, CommandProvider, QueryProvider
+│   ├── repository.py
+│   └── carriers/               # Конкретные провайдеры (CDEK, Russian Post, Yandex Delivery)
+└── presentation/
+    ├── router.py               # Внутренние API
+    ├── router_webhooks.py      # Carrier webhooks
+    └── schemas.py
+```
+
+---
+
+## `src/modules/supplier/` — Поставщики
+
+```
+supplier/
+├── domain/
+│   ├── entities.py             # Supplier (тип CROSS_BORDER/LOCAL — immutable после create)
+│   ├── value_objects.py        # SupplierType
+│   ├── events.py               # SupplierCreated/Updated/Activated/Deactivated
+│   ├── interfaces.py           # ISupplierRepository
+│   ├── exceptions.py
+│   └── constants.py
+├── application/
+│   ├── commands/               # create_supplier, update_supplier, activate, deactivate
+│   └── queries/                # get_supplier, list_suppliers
+├── infrastructure/
+│   ├── models.py               # Supplier ORM (с ISO 3166-1/2 кодами)
+│   └── repositories/
+├── management/                 # Admin CLI bootstrap
+└── presentation/
+    ├── router.py
+    ├── dependencies.py         # SupplierProvider (Dishka)
+    └── schemas.py
+```
+
+---
+
+## `src/modules/pricing/` — Ценообразование
+
+Формульный движок ценообразования с AST, версионируемыми формулами и контекстами. См. ADR-004.
+
+```
+pricing/
+├── domain/
+│   ├── entities.py             # ProductPricingProfile (AggregateRoot)
+│   ├── formula.py              # FormulaVersion (FSM: draft → published → archived)
+│   │                           # с AST-валидацией (depth ≤ 64, JSON ≤ 4096 chars)
+│   ├── formula_evaluator.py    # Pure-domain Decimal evaluator (op: +/-/*//,
+│   │                           # fn: min/max/round/ceil/floor/abs/if)
+│   ├── pricing_context.py      # PricingContext (с currency, rounding mode, active formula)
+│   ├── variable.py             # Variable (scope: global/supplier/category/range/product_input,
+│   │                           # data_type: decimal/integer/percent — immutable)
+│   ├── variable_resolver.py    # Резолвинг переменных по scope-цепочке
+│   ├── category_pricing_settings.py
+│   ├── supplier_pricing_settings.py
+│   ├── supplier_type_context_mapping.py
+│   ├── value_objects.py        # ProfileStatus, FormulaStatus, VariableScope, RoundingMode
+│   ├── events.py
+│   ├── interfaces.py
+│   └── exceptions.py
+├── application/
+│   ├── commands/               # create_variable, create_context, freeze/unfreeze_context,
+│   │                           # set_context_global_value, upsert_formula_draft,
+│   │                           # publish_formula_draft, discard_formula_draft, rollback_formula,
+│   │                           # upsert_product_pricing_profile, upsert_supplier_pricing_settings,
+│   │                           # upsert_category_pricing_settings,
+│   │                           # upsert_supplier_type_context_mapping
+│   └── queries/                # variables, contexts, formulas, preview_price,
+│                               # get_product_pricing_profile, required_variables
+├── infrastructure/
+│   ├── models.py               # PricingContext, Variable, FormulaVersion,
+│   │                           # ProductPricingProfile, SupplierPricingSettings,
+│   │                           # CategoryPricingSettings, SupplierTypeContextMapping ORM
+│   ├── provider.py
+│   └── repositories/
+└── presentation/
+    ├── router.py                          # Profiles
+    ├── router_variable.py
+    ├── router_context.py
+    ├── router_formula.py
+    ├── router_preview.py                  # Превью расчёта цены
+    ├── router_category_pricing.py
+    ├── router_supplier_pricing.py
+    ├── router_supplier_type_mapping.py
+    └── schemas.py
+```
+
+---
+
+## `src/modules/activity/` — Аналитика и трекинг
+
+Lightweight трекер активности (не агрегат): Redis hot path → flush в partitioned PG таблицу. Считает trending, popular search, co-view scores для рекомендаций.
+
+```
+activity/
+├── domain/
+│   ├── entities.py             # UserActivityEvent (frozen attrs, не AggregateRoot)
+│   ├── value_objects.py        # ActivityEventType (PRODUCT_VIEWED, PRODUCT_LIST_VIEWED,
+│   │                           # SEARCH_PERFORMED)
+│   └── interfaces.py           # IActivityTracker, IActivityFlusher, ICoViewReader
+├── application/
+│   └── queries/                # Чтение Redis sorted sets и co_view_scores
+├── infrastructure/
+│   ├── models.py               # UserActivityEvent (partitioned), ProductCoViewScore ORM
+│   ├── redis_tracker.py        # Pipeline: lpush + zincrby (trending daily/weekly/category,
+│   │                           # popular_queries, zero_results) с soft-cap LTRIM
+│   ├── redis_query_service.py  # Чтение Redis-агрегатов
+│   ├── history_reader.py       # Чтение истории из PG
+│   ├── co_view_reader.py       # product_co_view_scores (FK CASCADE на products)
+│   ├── repository.py
+│   ├── tasks.py                # flush_activity_events (Redis → PG batch insert)
+│   └── provider.py
+└── presentation/
+    ├── router_admin.py         # Admin-эндпоинты для аналитики
+    └── schemas.py
+```
 
 ---
 
@@ -608,55 +736,68 @@ tests/
 ├── conftest.py             # Общие фикстуры (testcontainers: PG, Redis, MinIO, RabbitMQ)
 ├── unit/                   # Юнит-тесты (domain entities, FSM, pure logic)
 │   ├── conftest.py
-│   ├── modules/catalog/
-│   │   ├── domain/         # test_entities, test_attribute, test_category_attribute_binding, ...
-│   │   └── application/
-│   │       ├── commands/   # test_create_product, test_add_sku, test_change_product_status, ...
-│   │       └── queries/    # test_get_product, test_list_products, test_storefront_helpers, ...
-│   └── infrastructure/
-│       ├── logging/
-│       ├── outbox/         # test_relay, test_tasks
-│       └── security/       # test_telegram_validator
+│   ├── activity/           # Тесты Redis-трекера и read-моделей
+│   ├── cart/               # Cart aggregate + CartItem FSM
+│   ├── modules/
+│   │   ├── catalog/        # domain entities, FSM, AST для атрибутов, slug, i18n
+│   │   ├── identity/       # Identity, Session, Role, Invitation
+│   │   ├── logistics/      # Shipment FSM, TrackingEvent дедуп
+│   │   ├── pricing/        # Variable, FormulaVersion, AST validator + evaluator
+│   │   ├── supplier/       # Supplier (immutable type guard)
+│   │   └── user/           # Customer/StaffMember анонимизация
+│   ├── infrastructure/
+│   │   ├── logging/
+│   │   ├── outbox/         # test_relay, test_tasks
+│   │   └── security/       # test_telegram_validator, JWT, Argon2
+│   └── shared/             # IUnitOfWork, exception envelope
 ├── integration/            # Интеграционные тесты (реальные контейнеры)
 │   ├── conftest.py
 │   ├── bootstrap/          # test_broker, test_worker_init
 │   └── modules/
-│       ├── catalog/
-│       │   ├── application/commands/  # test_create_brand, test_confirm_brand_logo
-│       │   ├── application/           # test_workers (TaskIQ end-to-end)
-│       │   └── infrastructure/repositories/  # test_brand, test_category, ...
-│       ├── identity/
-│       │   ├── application/commands/  # test_login, test_register
-│       │   ├── application/queries/   # test_get_identity_roles, test_list_roles, ...
-│       │   └── infrastructure/repositories/  # test_identity_repo, test_session_repo, ...
-│       └── user/
-│           ├── application/commands/  # test_create_user
-│           ├── application/queries/   # test_get_my_profile, test_get_user_by_identity
-│           └── infrastructure/repositories/  # test_user_repo
+│       ├── activity/       # Redis trackers + flush в PG
+│       ├── cart/           # cart endpoints + catalog adapter
+│       ├── catalog/        # commands, repositories, storefront queries, search
+│       ├── identity/       # login/register/refresh, RBAC
+│       ├── pricing/        # формула publish/rollback, preview-расчёт
+│       └── supplier/
 ├── e2e/                    # HTTP E2E тесты через AsyncClient
 │   ├── conftest.py         # FastAPI + DI override
 │   └── api/v1/
-│       ├── test_auth.py          # Регистрация/логин
-│       ├── test_brands.py        # CRUD брендов
-│       ├── test_categories.py    # CRUD категорий
-│       └── test_users.py         # Профиль пользователя
+│       ├── test_auth.py            # Регистрация/логин
+│       ├── test_auth_telegram.py   # Telegram Mini App
+│       ├── test_brands.py          # CRUD брендов
+│       ├── test_categories.py      # CRUD категорий
+│       ├── test_users.py           # Профиль пользователя
+│       ├── catalog/                # Products, variants, SKUs, attributes, storefront
+│       ├── cart/                   # Cart endpoints
+│       └── pricing/                # Variables, contexts, formulas, preview
 ├── architecture/           # Тесты архитектурных границ (pytest-archon)
-│   └── test_boundaries.py  # Import-linting для bounded contexts
+│   └── test_boundaries.py  # Import-linting для всех 9 модулей
 ├── load/                   # Нагрузочные тесты (Locust)
 │   ├── locustfile.py
-│   └── scenarios/
-│       ├── auth_flow.py
-│       ├── browse_catalog.py
-│       └── mixed_workload.py
+│   └── scenarios/          # auth_flow, browse_catalog, mixed_workload
 ├── factories/              # Factory-методы для тестовых данных
-│   ├── builders.py         # Fluent-билдеры
-│   ├── catalog_mothers.py  # Brand, Category, Product, SKU, Attribute
-│   ├── identity_mothers.py # Identity, Role, Permission, Session
-│   ├── storage_mothers.py  # StorageFile
-│   └── user_mothers.py     # Customer
+│   ├── builders.py                 # Fluent-билдеры (общие)
+│   ├── attribute_builder.py
+│   ├── attribute_group_builder.py
+│   ├── attribute_template_builder.py
+│   ├── brand_builder.py
+│   ├── cart_builder.py
+│   ├── media_asset_builder.py
+│   ├── product_builder.py
+│   ├── sku_builder.py
+│   ├── variant_builder.py
+│   ├── catalog_factories.py        # ORM factory functions
+│   ├── catalog_mothers.py          # Object Mother паттерн
+│   ├── identity_mothers.py
+│   ├── orm_factories.py
+│   ├── schema_factories.py
+│   ├── sku_mothers.py
+│   ├── storage_factories.py
+│   └── strategies/                 # Hypothesis-стратегии
 └── fakes/                  # Mock-реализации
-    ├── blob_storage.py     # InMemoryBlobStorage
-    └── oidc_provider.py    # StubOIDCProvider
+    ├── blob_storage.py             # InMemoryBlobStorage
+    └── oidc_provider.py            # StubOIDCProvider
 ```
 
 ---
