@@ -18,7 +18,7 @@ from src.infrastructure.security.provider import SecurityProvider
 from src.infrastructure.tracking.provider import TrackingProvider
 from src.modules.activity.infrastructure.provider import ActivityProvider
 from src.modules.cart.infrastructure.provider import CartProvider
-from src.modules.catalog.presentation.dependencies import (
+from src.modules.catalog.infrastructure.provider import (
     AttributeGroupProvider,
     AttributeProvider,
     AttributeTemplateProvider,
@@ -29,7 +29,7 @@ from src.modules.catalog.presentation.dependencies import (
     ProductProvider,
     StorefrontCatalogProvider,
 )
-from src.modules.geo.presentation.dependencies import GeoProvider
+from src.modules.geo.infrastructure.provider import GeoProvider
 from src.modules.identity.infrastructure.provider import IdentityProvider
 from src.modules.logistics.infrastructure.provider import (
     LogisticsCommandProvider,
@@ -37,7 +37,7 @@ from src.modules.logistics.infrastructure.provider import (
     LogisticsQueryProvider,
 )
 from src.modules.pricing.infrastructure.provider import PricingProvider
-from src.modules.supplier.presentation.dependencies import SupplierProvider
+from src.modules.supplier.infrastructure.provider import SupplierProvider
 from src.modules.user.infrastructure.provider import ProfileProvider
 
 logger: BoundLogger = structlog.get_logger(__name__)

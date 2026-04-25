@@ -228,7 +228,9 @@ from src.modules.catalog.domain.interfaces import (
     IProductRepository,
     ITemplateAttributeBindingRepository,
 )
-from src.modules.catalog.infrastructure.image_backend_client import ImageBackendClient
+from src.modules.catalog.infrastructure.adapters.image_backend_client import (
+    ImageBackendClient,
+)
 from src.modules.catalog.infrastructure.repositories import (
     AttributeGroupRepository,
     AttributeRepository,
