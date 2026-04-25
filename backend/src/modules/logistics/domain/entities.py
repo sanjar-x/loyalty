@@ -58,12 +58,14 @@ _ALLOWED_TRANSITIONS: dict[ShipmentStatus, frozenset[ShipmentStatus]] = {
             ShipmentStatus.FAILED,
         }
     ),
-    ShipmentStatus.BOOKED: frozenset({
-        ShipmentStatus.CANCEL_PENDING,
-        # Carrier-initiated terminal outcomes ingested via tracking events.
-        ShipmentStatus.FAILED,
-        ShipmentStatus.CANCELLED,
-    }),
+    ShipmentStatus.BOOKED: frozenset(
+        {
+            ShipmentStatus.CANCEL_PENDING,
+            # Carrier-initiated terminal outcomes ingested via tracking events.
+            ShipmentStatus.FAILED,
+            ShipmentStatus.CANCELLED,
+        }
+    ),
     ShipmentStatus.CANCEL_PENDING: frozenset(
         {
             ShipmentStatus.CANCELLED,
@@ -320,7 +322,10 @@ class Shipment(AggregateRoot):
         events arrive.
         """
         for idx, existing in enumerate(self.tracking_events):
-            if existing.timestamp == event.timestamp and existing.status == event.status:
+            if (
+                existing.timestamp == event.timestamp
+                and existing.status == event.status
+            ):
                 # Upgrade with richer info if the new event has more data
                 # in any optional field; skip otherwise (idempotent).
                 if _has_richer_info(existing, event):

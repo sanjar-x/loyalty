@@ -220,3 +220,102 @@ class PickupPointSchema(BaseModel):
 class PickupPointsResponse(BaseModel):
     points: list[PickupPointSchema]
     errors: dict[str, str] = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# Intake (courier pickup) schemas
+# ---------------------------------------------------------------------------
+
+
+class IntakeWindowSchema(BaseModel):
+    date: str = Field(..., description="ISO date (YYYY-MM-DD)")
+    is_workday: bool = True
+
+
+class AvailableIntakeDaysRequest(BaseModel):
+    provider_code: str
+    address: AddressSchema
+    until: str | None = Field(None, description="Optional upper bound (YYYY-MM-DD)")
+
+
+class AvailableIntakeDaysResponse(BaseModel):
+    provider_code: str
+    windows: list[IntakeWindowSchema]
+
+
+class CreateIntakeRequest(BaseModel):
+    intake_date: str = Field(..., description="Pickup date (YYYY-MM-DD)")
+    intake_time_from: str = Field(..., description="Earliest pickup time (HH:MM)")
+    intake_time_to: str = Field(..., description="Latest pickup time (HH:MM)")
+    comment: str | None = None
+    lunch_time_from: str | None = None
+    lunch_time_to: str | None = None
+    need_call: bool = False
+
+
+class CreateIntakeResponse(BaseModel):
+    shipment_id: uuid.UUID
+    provider_intake_id: str
+    status: str
+
+
+class IntakeStatusResponse(BaseModel):
+    provider_intake_id: str
+    status: str
+
+
+class CancelIntakeResponse(BaseModel):
+    success: bool
+
+
+# ---------------------------------------------------------------------------
+# Delivery schedule schemas
+# ---------------------------------------------------------------------------
+
+
+class DeliveryIntervalSchema(BaseModel):
+    start_time: str
+    end_time: str
+    date: str | None = None
+
+
+class DeliveryIntervalsResponse(BaseModel):
+    provider_code: str
+    intervals: list[DeliveryIntervalSchema]
+
+
+class EstimatedDeliveryIntervalsRequest(BaseModel):
+    provider_code: str
+    origin: AddressSchema
+    destination: AddressSchema
+    tariff_code: int = Field(..., ge=1)
+
+
+# ---------------------------------------------------------------------------
+# Returns / refusals schemas
+# ---------------------------------------------------------------------------
+
+
+class ClientReturnRequest(BaseModel):
+    tariff_code: int = Field(..., ge=1)
+    return_address: AddressSchema
+    sender: ContactInfoSchema
+    recipient: ContactInfoSchema
+    comment: str | None = None
+
+
+class RefusalRequestSchema(BaseModel):
+    reason: str | None = None
+
+
+class ReturnResponse(BaseModel):
+    shipment_id: uuid.UUID
+    success: bool
+    provider_return_id: str | None = None
+    reason: str | None = None
+
+
+class ReverseAvailabilityResponse(BaseModel):
+    shipment_id: uuid.UUID
+    is_available: bool
+    reason: str | None = None

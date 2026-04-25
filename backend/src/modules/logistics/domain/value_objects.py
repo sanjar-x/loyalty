@@ -90,16 +90,20 @@ class TrackingStatus(StrEnum):
 # Tracking statuses that imply a terminal failure of the shipment from
 # the carrier's side. When ingested via webhook/polling, the Shipment
 # aggregate transitions to ``ShipmentStatus.FAILED`` automatically.
-TERMINAL_FAILURE_TRACKING_STATUSES: frozenset[TrackingStatus] = frozenset({
-    TrackingStatus.LOST,
-    TrackingStatus.EXCEPTION,
-})
+TERMINAL_FAILURE_TRACKING_STATUSES: frozenset[TrackingStatus] = frozenset(
+    {
+        TrackingStatus.LOST,
+        TrackingStatus.EXCEPTION,
+    }
+)
 
 # Tracking statuses that imply a terminal cancellation of the shipment
 # from the carrier's side (the carrier itself cancelled the order).
-TERMINAL_CANCEL_TRACKING_STATUSES: frozenset[TrackingStatus] = frozenset({
-    TrackingStatus.CANCELLED,
-})
+TERMINAL_CANCEL_TRACKING_STATUSES: frozenset[TrackingStatus] = frozenset(
+    {
+        TrackingStatus.CANCELLED,
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -253,6 +257,12 @@ class ParcelItem:
     Required for customs declarations, fiscal receipts, partial delivery,
     and provider-specific item-level tracking (CDEK items, Yandex items,
     Russian Post goods).
+
+    Extended fields (``marking_code``, ``brand``, ``material``,
+    ``name_i18n``, ``product_url``, ``cargo_types``) are mandatory in
+    CDEK for **marked** product categories (jewelry → ``cargo_type=80``,
+    tobacco, footwear) and for international / cross-border orders. They
+    are optional for purely domestic, non-marked goods.
     """
 
     name: str
@@ -261,7 +271,14 @@ class ParcelItem:
     unit_price: Money | None = None
     weight: Weight | None = None
     country_of_origin: str | None = None  # ISO 3166-1 alpha-2
-    hs_code: str | None = None  # Harmonized System code for customs
+    hs_code: str | None = None  # Harmonized System / FEACN code for customs
+    # Extended (marked goods / international)
+    marking_code: str | None = None  # "Честный знак" marking code
+    brand: str | None = None  # required for international + marked
+    material: str | None = None  # CDEK material code (Приложение 7)
+    name_i18n: str | None = None  # foreign-language name (international)
+    product_url: str | None = None  # link to product page
+    cargo_types: tuple[str, ...] = ()  # e.g. ("80",) for jewelry
 
     def __attrs_post_init__(self) -> None:
         if self.quantity <= 0:
@@ -455,3 +472,128 @@ class DocumentResult:
     document_url: str | None = None
     document_bytes: bytes | None = None
     content_type: str = "application/pdf"
+
+
+# ---------------------------------------------------------------------------
+# Intake (courier pickup) value objects
+# ---------------------------------------------------------------------------
+
+
+class IntakeStatus(StrEnum):
+    """Lifecycle status of an intake (courier pickup request)."""
+
+    ACCEPTED = "accepted"
+    WAITING = "waiting"
+    DELAYED = "delayed"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    UNKNOWN = "unknown"
+
+
+@attrs.define(frozen=True)
+class IntakeWindow:
+    """A single available date for courier intake (CDEK availableDays)."""
+
+    date: str  # YYYY-MM-DD
+    is_workday: bool = True
+
+
+@attrs.define(frozen=True)
+class IntakeRequest:
+    """Caller input for ``IIntakeProvider.create_intake``.
+
+    Attributes:
+        order_provider_id: Provider's UUID of the linked shipment/order.
+        intake_date: Target date for pickup (YYYY-MM-DD).
+        intake_time_from: Earliest pickup time (HH:MM).
+        intake_time_to: Latest pickup time (HH:MM).
+        from_address: Pickup address.
+        sender: Contact at the pickup address.
+        package: Aggregated package dimensions / weight.
+        comment: Free-form note for the courier.
+    """
+
+    order_provider_id: str
+    intake_date: str
+    intake_time_from: str
+    intake_time_to: str
+    from_address: Address
+    sender: ContactInfo
+    package: Parcel
+    comment: str | None = None
+    lunch_time_from: str | None = None
+    lunch_time_to: str | None = None
+    need_call: bool = False
+
+
+@attrs.define(frozen=True)
+class IntakeResult:
+    """Result of a successful intake creation."""
+
+    provider_intake_id: str
+    status: IntakeStatus = IntakeStatus.UNKNOWN
+    raw_response: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Delivery schedule value objects
+# ---------------------------------------------------------------------------
+
+
+@attrs.define(frozen=True)
+class DeliveryInterval:
+    """A single available delivery time slot."""
+
+    start_time: str  # HH:MM
+    end_time: str  # HH:MM
+    date: str | None = None  # YYYY-MM-DD if known
+
+
+# ---------------------------------------------------------------------------
+# Returns / refusals value objects
+# ---------------------------------------------------------------------------
+
+
+@attrs.define(frozen=True)
+class ClientReturnRequest:
+    """Caller input for ``IReturnProvider.register_client_return``.
+
+    Forms a *return* shipment from the recipient back to the sender for
+    a previously delivered order. ``tariff_code`` selects the return
+    tariff (CDEK Приложение 14).
+    """
+
+    order_provider_id: str
+    tariff_code: int
+    return_address: Address
+    sender: ContactInfo
+    recipient: ContactInfo
+    parcels: list[Parcel]
+    comment: str | None = None
+
+
+@attrs.define(frozen=True)
+class RefusalRequest:
+    """Caller input for ``IReturnProvider.register_refusal``."""
+
+    order_provider_id: str
+    reason: str | None = None
+
+
+@attrs.define(frozen=True)
+class ReturnResult:
+    """Outcome of a client-return / refusal registration."""
+
+    success: bool
+    provider_return_id: str | None = None
+    reason: str | None = None
+    raw_response: str | None = None
+
+
+@attrs.define(frozen=True)
+class ReverseAvailabilityResult:
+    """Outcome of a reverse-shipment availability check."""
+
+    is_available: bool
+    reason: str | None = None
+    raw_response: str | None = None

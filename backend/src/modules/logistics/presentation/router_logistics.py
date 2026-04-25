@@ -13,17 +13,53 @@ from src.modules.logistics.application.commands.book_shipment import (
     BookShipmentCommand,
     BookShipmentHandler,
 )
+from src.modules.logistics.application.commands.cancel_intake import (
+    CancelIntakeCommand,
+    CancelIntakeHandler,
+)
 from src.modules.logistics.application.commands.cancel_shipment import (
     CancelShipmentCommand,
     CancelShipmentHandler,
+)
+from src.modules.logistics.application.commands.create_intake import (
+    CreateIntakeCommand,
+    CreateIntakeHandler,
 )
 from src.modules.logistics.application.commands.create_shipment import (
     CreateShipmentCommand,
     CreateShipmentHandler,
 )
+from src.modules.logistics.application.commands.register_client_return import (
+    RegisterClientReturnCommand,
+    RegisterClientReturnHandler,
+)
+from src.modules.logistics.application.commands.register_refusal import (
+    RegisterRefusalCommand,
+    RegisterRefusalHandler,
+)
 from src.modules.logistics.application.queries.calculate_rates import (
     CalculateRatesHandler,
     CalculateRatesQuery,
+)
+from src.modules.logistics.application.queries.check_reverse_availability import (
+    CheckReverseAvailabilityHandler,
+    CheckReverseAvailabilityQuery,
+)
+from src.modules.logistics.application.queries.get_available_intake_days import (
+    GetAvailableIntakeDaysHandler,
+    GetAvailableIntakeDaysQuery,
+)
+from src.modules.logistics.application.queries.get_delivery_intervals import (
+    GetDeliveryIntervalsHandler,
+    GetDeliveryIntervalsQuery,
+)
+from src.modules.logistics.application.queries.get_estimated_delivery_intervals import (
+    GetEstimatedDeliveryIntervalsHandler,
+    GetEstimatedDeliveryIntervalsQuery,
+)
+from src.modules.logistics.application.queries.get_intake import (
+    GetIntakeHandler,
+    GetIntakeQuery,
 )
 from src.modules.logistics.application.queries.get_shipment import (
     GetShipmentHandler,
@@ -51,19 +87,33 @@ from src.modules.logistics.domain.value_objects import (
 )
 from src.modules.logistics.presentation.schemas import (
     AddressSchema,
+    AvailableIntakeDaysRequest,
+    AvailableIntakeDaysResponse,
     BookShipmentResponse,
     CalculateRatesRequest,
     CalculateRatesResponse,
+    CancelIntakeResponse,
     CancelShipmentResponse,
     CashOnDeliverySchema,
+    ClientReturnRequest,
     ContactInfoSchema,
+    CreateIntakeRequest,
+    CreateIntakeResponse,
     CreateShipmentRequest,
+    DeliveryIntervalSchema,
+    DeliveryIntervalsResponse,
     DeliveryQuoteSchema,
+    EstimatedDeliveryIntervalsRequest,
+    IntakeStatusResponse,
+    IntakeWindowSchema,
     MoneySchema,
     ParcelSchema,
     PickupPointSchema,
     PickupPointsRequest,
     PickupPointsResponse,
+    RefusalRequestSchema,
+    ReturnResponse,
+    ReverseAvailabilityResponse,
     ShipmentResponse,
     ShippingRateSchema,
     TrackingEventSchema,
@@ -378,6 +428,242 @@ async def list_pickup_points(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Intake (courier pickup) endpoints
+# ---------------------------------------------------------------------------
+
+
+@logistics_router.post(
+    path="/intakes/available-days",
+    status_code=status.HTTP_200_OK,
+    response_model=AvailableIntakeDaysResponse,
+    summary="List days when the courier can pick up parcels",
+)
+async def list_available_intake_days(
+    body: AvailableIntakeDaysRequest,
+    handler: FromDishka[GetAvailableIntakeDaysHandler],
+) -> AvailableIntakeDaysResponse:
+    query = GetAvailableIntakeDaysQuery(
+        provider_code=body.provider_code,
+        from_address=_schema_to_address(body.address),
+        until=body.until,
+    )
+    result = await handler.handle(query)
+    return AvailableIntakeDaysResponse(
+        provider_code=result.provider_code,
+        windows=[
+            IntakeWindowSchema(date=w.date, is_workday=w.is_workday)
+            for w in result.windows
+        ],
+    )
+
+
+@logistics_router.post(
+    path="/shipments/{shipment_id}/intake",
+    status_code=status.HTTP_201_CREATED,
+    response_model=CreateIntakeResponse,
+    summary="Schedule a courier intake for a booked shipment",
+)
+async def create_intake(
+    shipment_id: uuid.UUID,
+    body: CreateIntakeRequest,
+    handler: FromDishka[CreateIntakeHandler],
+) -> CreateIntakeResponse:
+    command = CreateIntakeCommand(
+        shipment_id=shipment_id,
+        intake_date=body.intake_date,
+        intake_time_from=body.intake_time_from,
+        intake_time_to=body.intake_time_to,
+        comment=body.comment,
+        lunch_time_from=body.lunch_time_from,
+        lunch_time_to=body.lunch_time_to,
+        need_call=body.need_call,
+    )
+    result = await handler.handle(command)
+    return CreateIntakeResponse(
+        shipment_id=result.shipment_id,
+        provider_intake_id=result.provider_intake_id,
+        status=result.status.value,
+    )
+
+
+@logistics_router.get(
+    path="/intakes/{provider_code}/{provider_intake_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=IntakeStatusResponse,
+    summary="Get intake status from the provider",
+)
+async def get_intake_status(
+    provider_code: str,
+    provider_intake_id: str,
+    handler: FromDishka[GetIntakeHandler],
+) -> IntakeStatusResponse:
+    result = await handler.handle(
+        GetIntakeQuery(
+            provider_code=provider_code,
+            provider_intake_id=provider_intake_id,
+        )
+    )
+    return IntakeStatusResponse(
+        provider_intake_id=result.provider_intake_id,
+        status=result.status.value,
+    )
+
+
+@logistics_router.delete(
+    path="/intakes/{provider_code}/{provider_intake_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=CancelIntakeResponse,
+    summary="Cancel a scheduled intake",
+)
+async def cancel_intake(
+    provider_code: str,
+    provider_intake_id: str,
+    handler: FromDishka[CancelIntakeHandler],
+) -> CancelIntakeResponse:
+    result = await handler.handle(
+        CancelIntakeCommand(
+            provider_code=provider_code,
+            provider_intake_id=provider_intake_id,
+        )
+    )
+    return CancelIntakeResponse(success=result.success)
+
+
+# ---------------------------------------------------------------------------
+# Delivery schedule endpoints
+# ---------------------------------------------------------------------------
+
+
+@logistics_router.get(
+    path="/shipments/{shipment_id}/delivery-intervals",
+    status_code=status.HTTP_200_OK,
+    response_model=DeliveryIntervalsResponse,
+    summary="List available delivery intervals for a booked shipment",
+)
+async def get_delivery_intervals(
+    shipment_id: uuid.UUID,
+    handler: FromDishka[GetDeliveryIntervalsHandler],
+) -> DeliveryIntervalsResponse:
+    result = await handler.handle(GetDeliveryIntervalsQuery(shipment_id=shipment_id))
+    return DeliveryIntervalsResponse(
+        provider_code=result.provider_code,
+        intervals=[
+            DeliveryIntervalSchema(
+                start_time=i.start_time,
+                end_time=i.end_time,
+                date=i.date,
+            )
+            for i in result.intervals
+        ],
+    )
+
+
+@logistics_router.post(
+    path="/delivery-intervals/estimate",
+    status_code=status.HTTP_200_OK,
+    response_model=DeliveryIntervalsResponse,
+    summary="Estimate delivery intervals before booking",
+)
+async def estimate_delivery_intervals(
+    body: EstimatedDeliveryIntervalsRequest,
+    handler: FromDishka[GetEstimatedDeliveryIntervalsHandler],
+) -> DeliveryIntervalsResponse:
+    query = GetEstimatedDeliveryIntervalsQuery(
+        provider_code=body.provider_code,
+        origin=_schema_to_address(body.origin),
+        destination=_schema_to_address(body.destination),
+        tariff_code=body.tariff_code,
+    )
+    result = await handler.handle(query)
+    return DeliveryIntervalsResponse(
+        provider_code=result.provider_code,
+        intervals=[
+            DeliveryIntervalSchema(
+                start_time=i.start_time,
+                end_time=i.end_time,
+                date=i.date,
+            )
+            for i in result.intervals
+        ],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Returns / refusals / reverse availability
+# ---------------------------------------------------------------------------
+
+
+@logistics_router.post(
+    path="/shipments/{shipment_id}/return",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ReturnResponse,
+    summary="Register a client return shipment",
+)
+async def register_client_return(
+    shipment_id: uuid.UUID,
+    body: ClientReturnRequest,
+    handler: FromDishka[RegisterClientReturnHandler],
+) -> ReturnResponse:
+    command = RegisterClientReturnCommand(
+        shipment_id=shipment_id,
+        tariff_code=body.tariff_code,
+        return_address=_schema_to_address(body.return_address),
+        sender=_schema_to_contact(body.sender),
+        recipient=_schema_to_contact(body.recipient),
+        comment=body.comment,
+    )
+    result = await handler.handle(command)
+    return ReturnResponse(
+        shipment_id=result.shipment_id,
+        success=result.success,
+        provider_return_id=result.provider_return_id,
+        reason=result.reason,
+    )
+
+
+@logistics_router.post(
+    path="/shipments/{shipment_id}/refusal",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ReturnResponse,
+    summary="Register a doorstep refusal",
+)
+async def register_refusal(
+    shipment_id: uuid.UUID,
+    body: RefusalRequestSchema,
+    handler: FromDishka[RegisterRefusalHandler],
+) -> ReturnResponse:
+    result = await handler.handle(
+        RegisterRefusalCommand(shipment_id=shipment_id, reason=body.reason)
+    )
+    return ReturnResponse(
+        shipment_id=result.shipment_id,
+        success=result.success,
+        provider_return_id=result.provider_return_id,
+        reason=result.reason,
+    )
+
+
+@logistics_router.get(
+    path="/shipments/{shipment_id}/reverse-availability",
+    status_code=status.HTTP_200_OK,
+    response_model=ReverseAvailabilityResponse,
+    summary="Check whether a return is available for the shipment",
+)
+async def check_reverse_availability(
+    shipment_id: uuid.UUID,
+    handler: FromDishka[CheckReverseAvailabilityHandler],
+) -> ReverseAvailabilityResponse:
+    result = await handler.handle(
+        CheckReverseAvailabilityQuery(shipment_id=shipment_id)
+    )
+    return ReverseAvailabilityResponse(
+        shipment_id=result.shipment_id,
+        is_available=result.is_available,
+        reason=result.reason,
+    )
 
 
 def _shipment_to_response(shipment: Shipment) -> ShipmentResponse:

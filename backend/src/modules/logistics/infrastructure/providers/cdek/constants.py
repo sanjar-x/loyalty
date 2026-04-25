@@ -216,7 +216,9 @@ CDEK_DEFAULT_CURRENCY_BY_COUNTRY: dict[str, int] = {
 }
 
 
-def cdek_currency_for(currency_code: str | None, destination_country: str | None) -> int:
+def cdek_currency_for(
+    currency_code: str | None, destination_country: str | None
+) -> int:
     """Resolve CDEK numeric currency code from ISO 4217 or destination country.
 
     Resolution order:
@@ -233,6 +235,7 @@ def cdek_currency_for(currency_code: str | None, destination_country: str | None
         if code is not None:
             return code
     return CDEK_CURRENCY_RUB
+
 
 # ---------------------------------------------------------------------------
 # CDEK print form types

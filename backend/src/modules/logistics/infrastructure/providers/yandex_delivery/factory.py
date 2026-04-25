@@ -10,9 +10,12 @@ from typing import Any
 
 from src.modules.logistics.domain.interfaces import (
     IBookingProvider,
+    IDeliveryScheduleProvider,
     IDocumentProvider,
+    IIntakeProvider,
     IPickupPointProvider,
     IRateProvider,
+    IReturnProvider,
     ITrackingPollProvider,
     ITrackingProvider,
     IWebhookAdapter,
@@ -149,4 +152,22 @@ class YandexDeliveryProviderFactory:
         self, credentials: dict[str, Any], config: dict[str, Any] | None = None
     ) -> IWebhookAdapter | None:
         # Yandex Delivery API does not support webhook registration
+        return None
+
+    def create_intake_provider(
+        self, credentials: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> IIntakeProvider | None:
+        # Yandex Delivery does not expose courier-intake scheduling.
+        return None
+
+    def create_delivery_schedule_provider(
+        self, credentials: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> IDeliveryScheduleProvider | None:
+        # Yandex Delivery does not expose pre-booked delivery interval slots.
+        return None
+
+    def create_return_provider(
+        self, credentials: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> IReturnProvider | None:
+        # Yandex Delivery handles returns via standard order cancellation.
         return None

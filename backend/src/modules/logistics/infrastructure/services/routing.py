@@ -20,10 +20,26 @@ from src.modules.logistics.domain.value_objects import (
 # country here is cheaper than handling a "No delivery options" error
 # for every quote in production.
 _PROVIDER_COVERAGE: dict[ProviderCode, frozenset[str]] = {
-    PROVIDER_CDEK: frozenset({
-        "RU", "KZ", "BY", "AM", "KG", "UZ", "AZ", "GE",
-        "TR", "CN", "MN", "TH", "AE", "KR", "PL", "JP",
-    }),
+    PROVIDER_CDEK: frozenset(
+        {
+            "RU",
+            "KZ",
+            "BY",
+            "AM",
+            "KG",
+            "UZ",
+            "AZ",
+            "GE",
+            "TR",
+            "CN",
+            "MN",
+            "TH",
+            "AE",
+            "KR",
+            "PL",
+            "JP",
+        }
+    ),
     # Yandex Delivery "Other Day" is currently RU-only.
     PROVIDER_YANDEX_DELIVERY: frozenset({"RU"}),
     # Russian Post — domestic + international from RU.

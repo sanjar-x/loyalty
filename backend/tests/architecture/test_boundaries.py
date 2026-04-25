@@ -137,7 +137,11 @@ def test_module_isolation(source: str, target: str):
         )
         for exc in excludes:
             rule = rule.exclude(exc)
-        (rule.should_not_import(f"src.modules.{target}.{layer}.*").check("src", only_direct_imports=True))
+        (
+            rule.should_not_import(f"src.modules.{target}.{layer}.*").check(
+                "src", only_direct_imports=True
+            )
+        )
 
 
 # Rule 6: Shared Kernel Independence

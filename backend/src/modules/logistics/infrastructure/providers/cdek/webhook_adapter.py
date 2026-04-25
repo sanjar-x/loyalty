@@ -100,9 +100,7 @@ class CdekWebhookAdapter:
             return True  # not configured → caller decides via _allowed_ips
         normalized = {k.lower(): v for k, v in headers.items()}
         candidate = (
-            normalized.get("x-webhook-secret")
-            or normalized.get("x-cdek-secret")
-            or ""
+            normalized.get("x-webhook-secret") or normalized.get("x-cdek-secret") or ""
         )
         if not isinstance(candidate, str):
             return False

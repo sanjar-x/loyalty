@@ -96,7 +96,7 @@ def _parse_cdek_date(value: str | None) -> datetime | None:
         return None
     try:
         return datetime.strptime(value.strip(), "%Y-%m-%d").replace(tzinfo=UTC)
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         return None
 
 
@@ -219,14 +219,16 @@ def parse_tariff_list_response(data: dict) -> list[DeliveryQuote]:
             delivery_days_max=tariff.get("period_max"),
         )
 
-        payload = json.dumps({
-            "tariff_code": tariff_code,
-            "delivery_mode": delivery_mode,
-            "tariff_name": tariff.get("tariff_name"),
-            "tariff_description": tariff.get("tariff_description"),
-            "calendar_min": tariff.get("calendar_min"),
-            "calendar_max": tariff.get("calendar_max"),
-        })
+        payload = json.dumps(
+            {
+                "tariff_code": tariff_code,
+                "delivery_mode": delivery_mode,
+                "tariff_name": tariff.get("tariff_name"),
+                "tariff_description": tariff.get("tariff_description"),
+                "calendar_min": tariff.get("calendar_min"),
+                "calendar_max": tariff.get("calendar_max"),
+            }
+        )
 
         quotes.append(
             DeliveryQuote(
@@ -294,18 +296,22 @@ def build_order_request(request: BookingRequest) -> dict:
     #     (CDEK uses it when the merchant collects the delivery fee from
     #     the recipient on top of the goods).
     if request.cod:
-        body.setdefault("services", []).append({
-            "code": CDEK_SERVICE_COD,
-            "parameter": str(_kopecks_to_rubles(request.cod.amount.amount)),
-        })
+        body.setdefault("services", []).append(
+            {
+                "code": CDEK_SERVICE_COD,
+                "parameter": str(_kopecks_to_rubles(request.cod.amount.amount)),
+            }
+        )
 
     # Declared value → insurance service (premium is calculated by CDEK
     # based on this value).
     if request.declared_value:
-        body.setdefault("services", []).append({
-            "code": CDEK_SERVICE_INSURANCE,
-            "parameter": str(_kopecks_to_rubles(request.declared_value.amount)),
-        })
+        body.setdefault("services", []).append(
+            {
+                "code": CDEK_SERVICE_INSURANCE,
+                "parameter": str(_kopecks_to_rubles(request.declared_value.amount)),
+            }
+        )
 
     return body
 
@@ -380,6 +386,10 @@ def _build_item(item: ParcelItem, parcel: Parcel, item_count: int) -> dict:
 
     ``cost`` is REQUIRED by CDEK — defaults to 0 if ``unit_price`` is absent.
     ``weight`` falls back to parcel weight divided by item count (not full parcel).
+
+    Marking/brand/material/name_i18n/product_url are forwarded only when
+    populated — CDEK requires them for marked-goods categories (jewelry,
+    tobacco, footwear) and for cross-border orders.
     """
     if item.weight:
         item_weight = item.weight.grams
@@ -401,6 +411,18 @@ def _build_item(item: ParcelItem, parcel: Parcel, item_count: int) -> dict:
         result["country_code"] = item.country_of_origin
     if item.hs_code:
         result["feacn_code"] = item.hs_code
+    if item.marking_code:
+        # CDEK accepts a list of markings (one per item unit). When the
+        # caller stores them as a single concatenated value, pass it as-is.
+        result["marking"] = [item.marking_code]
+    if item.brand:
+        result["brand"] = item.brand
+    if item.material:
+        result["material"] = item.material
+    if item.name_i18n:
+        result["name_i18n"] = item.name_i18n
+    if item.product_url:
+        result["url"] = item.product_url
     return result
 
 

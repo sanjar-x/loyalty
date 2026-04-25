@@ -8,9 +8,12 @@ IBookingProvider, etc.). The registry indexes them by ProviderCode.
 from src.modules.logistics.domain.exceptions import ProviderUnavailableError
 from src.modules.logistics.domain.interfaces import (
     IBookingProvider,
+    IDeliveryScheduleProvider,
     IDocumentProvider,
+    IIntakeProvider,
     IPickupPointProvider,
     IRateProvider,
+    IReturnProvider,
     ITrackingPollProvider,
     ITrackingProvider,
     IWebhookAdapter,
@@ -33,6 +36,11 @@ class ShippingProviderRegistry:
         self._pickup_point_providers: dict[ProviderCode, IPickupPointProvider] = {}
         self._document_providers: dict[ProviderCode, IDocumentProvider] = {}
         self._webhook_adapters: dict[ProviderCode, IWebhookAdapter] = {}
+        self._intake_providers: dict[ProviderCode, IIntakeProvider] = {}
+        self._delivery_schedule_providers: dict[
+            ProviderCode, IDeliveryScheduleProvider
+        ] = {}
+        self._return_providers: dict[ProviderCode, IReturnProvider] = {}
 
     # -- Registration -------------------------------------------------------
 
@@ -56,6 +64,17 @@ class ShippingProviderRegistry:
 
     def register_webhook_adapter(self, adapter: IWebhookAdapter) -> None:
         self._webhook_adapters[adapter.provider_code()] = adapter
+
+    def register_intake_provider(self, provider: IIntakeProvider) -> None:
+        self._intake_providers[provider.provider_code()] = provider
+
+    def register_delivery_schedule_provider(
+        self, provider: IDeliveryScheduleProvider
+    ) -> None:
+        self._delivery_schedule_providers[provider.provider_code()] = provider
+
+    def register_return_provider(self, provider: IReturnProvider) -> None:
+        self._return_providers[provider.provider_code()] = provider
 
     # -- Retrieval ----------------------------------------------------------
 
@@ -122,6 +141,35 @@ class ShippingProviderRegistry:
                 details={"provider_code": code},
             ) from None
 
+    def get_intake_provider(self, code: ProviderCode) -> IIntakeProvider:
+        try:
+            return self._intake_providers[code]
+        except KeyError:
+            raise ProviderUnavailableError(
+                message=f"No intake provider registered for '{code}'",
+                details={"provider_code": code},
+            ) from None
+
+    def get_delivery_schedule_provider(
+        self, code: ProviderCode
+    ) -> IDeliveryScheduleProvider:
+        try:
+            return self._delivery_schedule_providers[code]
+        except KeyError:
+            raise ProviderUnavailableError(
+                message=f"No delivery schedule provider registered for '{code}'",
+                details={"provider_code": code},
+            ) from None
+
+    def get_return_provider(self, code: ProviderCode) -> IReturnProvider:
+        try:
+            return self._return_providers[code]
+        except KeyError:
+            raise ProviderUnavailableError(
+                message=f"No return provider registered for '{code}'",
+                details={"provider_code": code},
+            ) from None
+
     # -- Listing ------------------------------------------------------------
 
     def list_rate_providers(self) -> list[IRateProvider]:
@@ -145,6 +193,9 @@ class ShippingProviderRegistry:
             self._pickup_point_providers,
             self._document_providers,
             self._webhook_adapters,
+            self._intake_providers,
+            self._delivery_schedule_providers,
+            self._return_providers,
         ):
             codes.update(registry.keys())
         return codes

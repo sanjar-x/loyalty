@@ -10,9 +10,12 @@ from typing import Any
 
 from src.modules.logistics.domain.interfaces import (
     IBookingProvider,
+    IDeliveryScheduleProvider,
     IDocumentProvider,
+    IIntakeProvider,
     IPickupPointProvider,
     IRateProvider,
+    IReturnProvider,
     ITrackingPollProvider,
     ITrackingProvider,
     IWebhookAdapter,
@@ -29,14 +32,23 @@ from src.modules.logistics.infrastructure.providers.cdek.constants import (
     CDEK_PRODUCTION_URL,
     CDEK_TEST_URL,
 )
+from src.modules.logistics.infrastructure.providers.cdek.delivery_schedule_provider import (
+    CdekDeliveryScheduleProvider,
+)
 from src.modules.logistics.infrastructure.providers.cdek.document_provider import (
     CdekDocumentProvider,
+)
+from src.modules.logistics.infrastructure.providers.cdek.intake_provider import (
+    CdekIntakeProvider,
 )
 from src.modules.logistics.infrastructure.providers.cdek.pickup_point_provider import (
     CdekPickupPointProvider,
 )
 from src.modules.logistics.infrastructure.providers.cdek.rate_provider import (
     CdekRateProvider,
+)
+from src.modules.logistics.infrastructure.providers.cdek.return_provider import (
+    CdekReturnProvider,
 )
 from src.modules.logistics.infrastructure.providers.cdek.tracking_poll_provider import (
     CdekTrackingPollProvider,
@@ -135,3 +147,20 @@ class CdekProviderFactory:
             webhook_secret=cfg.get("webhook_secret"),
             allowed_ips=cfg.get("webhook_allowed_ips"),
         )
+
+    def create_intake_provider(
+        self, credentials: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> IIntakeProvider | None:
+        return CdekIntakeProvider(self._get_or_create_client(credentials, config))
+
+    def create_delivery_schedule_provider(
+        self, credentials: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> IDeliveryScheduleProvider | None:
+        return CdekDeliveryScheduleProvider(
+            self._get_or_create_client(credentials, config)
+        )
+
+    def create_return_provider(
+        self, credentials: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> IReturnProvider | None:
+        return CdekReturnProvider(self._get_or_create_client(credentials, config))

@@ -15,12 +15,21 @@ from src.modules.logistics.domain.value_objects import (
     BookingRequest,
     BookingResult,
     CancelResult,
+    ClientReturnRequest,
+    DeliveryInterval,
     DeliveryQuote,
     DocumentResult,
+    IntakeRequest,
+    IntakeResult,
+    IntakeStatus,
+    IntakeWindow,
     Parcel,
     PickupPoint,
     PickupPointQuery,
     ProviderCode,
+    RefusalRequest,
+    ReturnResult,
+    ReverseAvailabilityResult,
     TrackingEvent,
 )
 
@@ -95,6 +104,80 @@ class IDocumentProvider(Protocol):
     def provider_code(self) -> ProviderCode: ...
 
     async def get_label(self, provider_shipment_id: str) -> DocumentResult: ...
+
+
+class IIntakeProvider(Protocol):
+    """Manages courier-pickup intakes (CDEK ``/v2/intakes``).
+
+    Workflow:
+    1. ``get_available_days`` — list dates the courier can collect from
+       the sender's address.
+    2. ``create_intake`` — register a pickup request for one of those dates.
+    3. ``get_intake`` — poll status (ACCEPTED → WAITING → COMPLETED).
+    4. ``cancel_intake`` — cancel before the courier arrives.
+    """
+
+    def provider_code(self) -> ProviderCode: ...
+
+    async def get_available_days(
+        self,
+        from_address: Address,
+        until: str | None = None,
+    ) -> list[IntakeWindow]: ...
+
+    async def create_intake(self, request: IntakeRequest) -> IntakeResult: ...
+
+    async def get_intake(self, provider_intake_id: str) -> IntakeStatus: ...
+
+    async def cancel_intake(self, provider_intake_id: str) -> bool: ...
+
+
+class IDeliveryScheduleProvider(Protocol):
+    """Returns available delivery time-slots for a shipment.
+
+    CDEK exposes two endpoints:
+    - ``/v2/delivery/intervals`` — slots for an *existing* booked order.
+    - ``/v2/delivery/estimatedIntervals`` — pre-booking estimate (used
+      by the storefront before the user confirms the cart).
+    """
+
+    def provider_code(self) -> ProviderCode: ...
+
+    async def get_intervals(
+        self,
+        provider_shipment_id: str,
+    ) -> list[DeliveryInterval]: ...
+
+    async def get_estimated_intervals(
+        self,
+        origin: Address,
+        destination: Address,
+        tariff_code: int,
+    ) -> list[DeliveryInterval]: ...
+
+
+class IReturnProvider(Protocol):
+    """Handles client returns, refusals, and reverse-shipment validation.
+
+    - ``register_client_return`` — recipient sends the order back.
+    - ``register_refusal`` — recipient refuses delivery on the doorstep.
+    - ``check_reverse_availability`` — pre-flight check whether a reverse
+      shipment is allowed for the given order.
+    """
+
+    def provider_code(self) -> ProviderCode: ...
+
+    async def register_client_return(
+        self,
+        request: ClientReturnRequest,
+    ) -> ReturnResult: ...
+
+    async def register_refusal(self, request: RefusalRequest) -> ReturnResult: ...
+
+    async def check_reverse_availability(
+        self,
+        provider_shipment_id: str,
+    ) -> ReverseAvailabilityResult: ...
 
 
 # ---------------------------------------------------------------------------
@@ -179,6 +262,18 @@ class IProviderFactory(Protocol):
         self, credentials: dict[str, Any], config: dict[str, Any] | None = None
     ) -> IWebhookAdapter | None: ...
 
+    def create_intake_provider(
+        self, credentials: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> IIntakeProvider | None: ...
+
+    def create_delivery_schedule_provider(
+        self, credentials: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> IDeliveryScheduleProvider | None: ...
+
+    def create_return_provider(
+        self, credentials: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> IReturnProvider | None: ...
+
 
 # ---------------------------------------------------------------------------
 # Registry — stores and retrieves provider adapters by ProviderCode
@@ -211,6 +306,14 @@ class IShippingProviderRegistry(Protocol):
     def list_pickup_point_providers(self) -> list[IPickupPointProvider]: ...
 
     def list_tracking_poll_providers(self) -> list[ITrackingPollProvider]: ...
+
+    def get_intake_provider(self, code: ProviderCode) -> IIntakeProvider: ...
+
+    def get_delivery_schedule_provider(
+        self, code: ProviderCode
+    ) -> IDeliveryScheduleProvider: ...
+
+    def get_return_provider(self, code: ProviderCode) -> IReturnProvider: ...
 
 
 # ---------------------------------------------------------------------------

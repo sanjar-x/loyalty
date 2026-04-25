@@ -12,8 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.modules.logistics.application.commands.book_shipment import (
     BookShipmentHandler,
 )
+from src.modules.logistics.application.commands.cancel_intake import (
+    CancelIntakeHandler,
+)
 from src.modules.logistics.application.commands.cancel_shipment import (
     CancelShipmentHandler,
+)
+from src.modules.logistics.application.commands.create_intake import (
+    CreateIntakeHandler,
 )
 from src.modules.logistics.application.commands.create_shipment import (
     CreateShipmentHandler,
@@ -21,8 +27,29 @@ from src.modules.logistics.application.commands.create_shipment import (
 from src.modules.logistics.application.commands.ingest_tracking import (
     IngestTrackingHandler,
 )
+from src.modules.logistics.application.commands.register_client_return import (
+    RegisterClientReturnHandler,
+)
+from src.modules.logistics.application.commands.register_refusal import (
+    RegisterRefusalHandler,
+)
 from src.modules.logistics.application.queries.calculate_rates import (
     CalculateRatesHandler,
+)
+from src.modules.logistics.application.queries.check_reverse_availability import (
+    CheckReverseAvailabilityHandler,
+)
+from src.modules.logistics.application.queries.get_available_intake_days import (
+    GetAvailableIntakeDaysHandler,
+)
+from src.modules.logistics.application.queries.get_delivery_intervals import (
+    GetDeliveryIntervalsHandler,
+)
+from src.modules.logistics.application.queries.get_estimated_delivery_intervals import (
+    GetEstimatedDeliveryIntervalsHandler,
+)
+from src.modules.logistics.application.queries.get_intake import (
+    GetIntakeHandler,
 )
 from src.modules.logistics.application.queries.get_shipment import (
     GetShipmentHandler,
@@ -91,6 +118,18 @@ class LogisticsCommandProvider(Provider):
     ingest_tracking: CompositeDependencySource = provide(
         IngestTrackingHandler, scope=Scope.REQUEST
     )
+    create_intake: CompositeDependencySource = provide(
+        CreateIntakeHandler, scope=Scope.REQUEST
+    )
+    cancel_intake: CompositeDependencySource = provide(
+        CancelIntakeHandler, scope=Scope.REQUEST
+    )
+    register_client_return: CompositeDependencySource = provide(
+        RegisterClientReturnHandler, scope=Scope.REQUEST
+    )
+    register_refusal: CompositeDependencySource = provide(
+        RegisterRefusalHandler, scope=Scope.REQUEST
+    )
 
 
 class LogisticsQueryProvider(Provider):
@@ -107,4 +146,19 @@ class LogisticsQueryProvider(Provider):
     )
     get_shipment: CompositeDependencySource = provide(
         GetShipmentHandler, scope=Scope.REQUEST
+    )
+    get_available_intake_days: CompositeDependencySource = provide(
+        GetAvailableIntakeDaysHandler, scope=Scope.REQUEST
+    )
+    get_intake: CompositeDependencySource = provide(
+        GetIntakeHandler, scope=Scope.REQUEST
+    )
+    get_delivery_intervals: CompositeDependencySource = provide(
+        GetDeliveryIntervalsHandler, scope=Scope.REQUEST
+    )
+    get_estimated_delivery_intervals: CompositeDependencySource = provide(
+        GetEstimatedDeliveryIntervalsHandler, scope=Scope.REQUEST
+    )
+    check_reverse_availability: CompositeDependencySource = provide(
+        CheckReverseAvailabilityHandler, scope=Scope.REQUEST
     )

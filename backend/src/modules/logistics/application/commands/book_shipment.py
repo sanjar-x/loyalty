@@ -156,9 +156,7 @@ class BookShipmentHandler:
     # that operators can investigate without rejecting valid bookings.
     _PRICE_DRIFT_TOLERANCE = 0.01
 
-    def _verify_actual_cost(
-        self, shipment: Shipment, result: BookingResult
-    ) -> None:
+    def _verify_actual_cost(self, shipment: Shipment, result: BookingResult) -> None:
         """Log a warning when the provider-confirmed cost diverges from the quote."""
         actual = result.actual_cost
         if actual is None:

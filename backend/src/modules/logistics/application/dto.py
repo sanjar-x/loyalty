@@ -15,7 +15,10 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from src.modules.logistics.domain.value_objects import (
+    DeliveryInterval,
     DeliveryQuote,
+    IntakeStatus,
+    IntakeWindow,
 )
 
 # ---------------------------------------------------------------------------
@@ -107,3 +110,62 @@ class IngestTrackingResult:
 
     shipment_id: uuid.UUID
     new_events_count: int
+
+
+@dataclass(frozen=True)
+class CreateIntakeResult:
+    """Output of ``CreateIntakeHandler``."""
+
+    shipment_id: uuid.UUID
+    provider_intake_id: str
+    status: IntakeStatus
+
+
+@dataclass(frozen=True)
+class CancelIntakeResult:
+    """Output of ``CancelIntakeHandler``."""
+
+    success: bool
+
+
+@dataclass(frozen=True)
+class GetIntakeResult:
+    """Output of ``GetIntakeHandler``."""
+
+    provider_intake_id: str
+    status: IntakeStatus
+
+
+@dataclass(frozen=True)
+class GetAvailableIntakeDaysResult:
+    """Output of ``GetAvailableIntakeDaysHandler``."""
+
+    provider_code: str
+    windows: list[IntakeWindow]
+
+
+@dataclass(frozen=True)
+class GetDeliveryIntervalsResult:
+    """Output of ``GetDeliveryIntervalsHandler`` / ``GetEstimatedDeliveryIntervalsHandler``."""
+
+    provider_code: str
+    intervals: list[DeliveryInterval]
+
+
+@dataclass(frozen=True)
+class RegisterReturnResult:
+    """Output of ``RegisterClientReturnHandler`` / ``RegisterRefusalHandler``."""
+
+    shipment_id: uuid.UUID
+    success: bool
+    provider_return_id: str | None
+    reason: str | None
+
+
+@dataclass(frozen=True)
+class CheckReverseAvailabilityResult:
+    """Output of ``CheckReverseAvailabilityHandler``."""
+
+    shipment_id: uuid.UUID
+    is_available: bool
+    reason: str | None

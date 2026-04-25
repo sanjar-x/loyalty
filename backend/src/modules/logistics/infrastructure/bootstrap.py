@@ -130,3 +130,15 @@ def _register_capabilities(
     webhook = factory.create_webhook_adapter(credentials, config)
     if webhook is not None:
         registry.register_webhook_adapter(webhook)
+
+    intake = factory.create_intake_provider(credentials, config)
+    if intake is not None:
+        registry.register_intake_provider(intake)
+
+    schedule = factory.create_delivery_schedule_provider(credentials, config)
+    if schedule is not None:
+        registry.register_delivery_schedule_provider(schedule)
+
+    returns = factory.create_return_provider(credentials, config)
+    if returns is not None:
+        registry.register_return_provider(returns)
