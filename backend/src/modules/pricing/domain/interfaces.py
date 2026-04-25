@@ -245,9 +245,7 @@ class ISupplierPricingSettingsRepository(ABC):
     """Repository contract for the ``SupplierPricingSettings`` aggregate."""
 
     @abstractmethod
-    async def add(
-        self, settings: SupplierPricingSettings
-    ) -> SupplierPricingSettings:
+    async def add(self, settings: SupplierPricingSettings) -> SupplierPricingSettings:
         """Persist a new settings row."""
 
     @abstractmethod

@@ -32,7 +32,5 @@ class GetSupplierPricingSettingsHandler:
     ) -> SupplierPricingSettings:
         settings = await self._settings_repo.get_by_supplier_id(query.supplier_id)
         if settings is None:
-            raise SupplierPricingSettingsNotFoundError(
-                supplier_id=query.supplier_id
-            )
+            raise SupplierPricingSettingsNotFoundError(supplier_id=query.supplier_id)
         return settings

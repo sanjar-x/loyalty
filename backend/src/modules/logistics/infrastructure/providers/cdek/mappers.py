@@ -96,7 +96,7 @@ def _parse_cdek_date(value: str | None) -> datetime | None:
         return None
     try:
         return datetime.strptime(value.strip(), "%Y-%m-%d").replace(tzinfo=UTC)
-    except ValueError, AttributeError:
+    except (ValueError, AttributeError) as _exc:
         return None
 
 
@@ -442,10 +442,15 @@ def parse_order_create_response(data: dict) -> tuple[str, list[dict]]:
 def parse_order_info_response(data: dict) -> BookingResult:
     """Parse CDEK ``GET /v2/orders/{uuid}`` into a BookingResult.
 
-    Extracts delivery estimates from multiple CDEK fields:
-    - ``delivery_detail.date`` — actual delivery date
-    - ``planned_delivery_date`` — estimated delivery date
-    - ``delivery_detail.period_min/period_max`` — delivery period in days
+    Extracts the delivery date from:
+    - ``delivery_detail.date`` — actual delivery date.
+    - ``planned_delivery_date`` — estimated delivery date.
+
+    ``EstimatedDelivery.min_days`` / ``max_days`` cannot be recovered
+    from order info — ``ResponseDeliveryDetailDto`` has no
+    ``period_min`` / ``period_max`` fields. Those are calculator-only;
+    if the caller needs them post-booking they must persist them on
+    the shipment from the original quote.
 
     Also extracts the post-booking actual cost from
     ``delivery_detail.total_sum`` (rubles → kopecks) so the caller can
@@ -457,8 +462,6 @@ def parse_order_info_response(data: dict) -> BookingResult:
     tracking_number = str(cdek_number) if cdek_number else None
 
     delivery_detail = entity.get("delivery_detail") or {}
-    period_min = delivery_detail.get("period_min")
-    period_max = delivery_detail.get("period_max")
 
     # Try exact delivery date from delivery_detail or planned_delivery_date
     estimated_date: datetime | None = None
@@ -470,13 +473,11 @@ def parse_order_info_response(data: dict) -> BookingResult:
         if planned_str:
             estimated_date = _parse_cdek_date(planned_str)
 
-    estimated_delivery = None
-    if period_min is not None or period_max is not None or estimated_date is not None:
-        estimated_delivery = EstimatedDelivery(
-            min_days=period_min,
-            max_days=period_max,
-            estimated_date=estimated_date,
-        )
+    estimated_delivery = (
+        EstimatedDelivery(estimated_date=estimated_date)
+        if estimated_date is not None
+        else None
+    )
 
     # Provider-confirmed delivery cost (rubles in CDEK → kopecks here).
     actual_cost: Money | None = None
@@ -644,9 +645,15 @@ def build_delivery_points_params(
 ) -> dict:
     """Build CDEK ``GET /v2/deliverypoints`` query params.
 
-    Maps domain PickupPointQuery fields to all supported CDEK params:
-    postal_code, city, country_code, type, latitude/longitude, etc.
-    Supports pagination via ``page``/``size`` params.
+    Maps domain PickupPointQuery fields onto the parameters CDEK
+    actually supports: ``postal_code``, ``city``, ``country_code``,
+    ``city_code`` (numeric, when provided via ``query.city_code``-like
+    extension), ``type`` and the ``is_handout`` / ``is_reception``
+    booleans. Supports pagination via ``page`` / ``size``.
+
+    CDEK's ``/v2/deliverypoints`` does NOT accept latitude/longitude/
+    radius — radius search is delegated to a downstream filter on the
+    application side.
     """
     params: dict = {}
     if query.postal_code:
@@ -661,12 +668,6 @@ def build_delivery_points_params(
         params["is_handout"] = "true"
     elif query.delivery_type == DeliveryType.COURIER:
         params["is_reception"] = "true"
-
-    if query.latitude is not None and query.longitude is not None:
-        params["latitude"] = query.latitude
-        params["longitude"] = query.longitude
-        if query.radius_km is not None:
-            params["radius"] = query.radius_km
 
     if page is not None:
         params["page"] = page

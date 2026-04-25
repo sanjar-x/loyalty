@@ -171,9 +171,7 @@ class IAttributeGroupRepository(ICatalogRepository[DomainAttributeGroup]):
     """Repository contract for the AttributeGroup aggregate."""
 
     @abstractmethod
-    async def get_for_update(
-        self, group_id: uuid.UUID
-    ) -> DomainAttributeGroup | None:
+    async def get_for_update(self, group_id: uuid.UUID) -> DomainAttributeGroup | None:
         """Retrieve an attribute group with a pessimistic lock (SELECT FOR UPDATE)."""
         pass
 

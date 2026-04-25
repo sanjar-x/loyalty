@@ -192,7 +192,11 @@ class BaseProviderClient:
                     await self._backoff(attempt)
                     continue
 
-            except ProviderHTTPError, ProviderAuthError, ProviderTimeoutError:
+            except (
+                ProviderHTTPError,
+                ProviderAuthError,
+                ProviderTimeoutError,
+            ) as _exc:
                 raise
 
             except httpx.HTTPError as exc:

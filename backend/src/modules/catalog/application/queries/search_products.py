@@ -482,10 +482,7 @@ class SearchProductsHandler:
     def _query_hash(query: SearchProductsQuery) -> str:
         af = None
         if query.attribute_filters:
-            af = {
-                k: sorted(v)
-                for k, v in sorted(query.attribute_filters.items())
-            }
+            af = {k: sorted(v) for k, v in sorted(query.attribute_filters.items())}
         parts = {
             "q": query.q.lower().strip(),
             "c": str(query.category_id) if query.category_id else None,

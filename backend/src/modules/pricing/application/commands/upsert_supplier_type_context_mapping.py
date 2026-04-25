@@ -54,9 +54,7 @@ class UpsertSupplierTypeContextMappingHandler:
         self._mapping_repo = mapping_repo
         self._context_repo = context_repo
         self._uow = uow
-        self._logger = logger.bind(
-            handler="UpsertSupplierTypeContextMappingHandler"
-        )
+        self._logger = logger.bind(handler="UpsertSupplierTypeContextMappingHandler")
 
     async def handle(
         self, command: UpsertSupplierTypeContextMappingCommand

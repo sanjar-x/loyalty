@@ -370,18 +370,14 @@ async def get_similar_products(
         description="Locale code for i18n projection (e.g. 'ru', 'en')",
     ),
 ) -> list[StorefrontProductCardResponse]:
-    result = await handler.handle(
-        GetSimilarProductCardsQuery(slug=slug, limit=limit)
-    )
+    result = await handler.handle(GetSimilarProductCardsQuery(slug=slug, limit=limit))
     response.headers["Cache-Control"] = (
         "public, max-age=600, s-maxage=600, stale-while-revalidate=1800"
     )
 
     items: list[StorefrontProductCardResponse] = []
     for card in result.items:
-        item = StorefrontProductCardResponse.model_validate(
-            card, from_attributes=True
-        )
+        item = StorefrontProductCardResponse.model_validate(card, from_attributes=True)
         if lang:
             item.title = _project_i18n(item.title_i18n, lang)
         items.append(item)
@@ -429,9 +425,7 @@ async def get_also_viewed_products(
 
     items: list[StorefrontProductCardResponse] = []
     for card in result.items:
-        item = StorefrontProductCardResponse.model_validate(
-            card, from_attributes=True
-        )
+        item = StorefrontProductCardResponse.model_validate(card, from_attributes=True)
         if lang:
             item.title = _project_i18n(item.title_i18n, lang)
         items.append(item)

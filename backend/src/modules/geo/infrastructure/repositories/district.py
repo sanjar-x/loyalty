@@ -47,17 +47,13 @@ class DistrictRepository(IDistrictRepository):
         return [self._to_domain(orm) for orm in result.scalars().all()]
 
     async def get_by_oktmo_prefix(self, oktmo_prefix: str) -> District | None:
-        stmt = select(DistrictModel).where(
-            DistrictModel.oktmo_prefix == oktmo_prefix
-        )
+        stmt = select(DistrictModel).where(DistrictModel.oktmo_prefix == oktmo_prefix)
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
     async def get_by_fias_guid(self, fias_guid: str) -> District | None:
-        stmt = select(DistrictModel).where(
-            DistrictModel.fias_guid == fias_guid
-        )
+        stmt = select(DistrictModel).where(DistrictModel.fias_guid == fias_guid)
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None

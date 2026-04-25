@@ -19,9 +19,7 @@ class RedisSortedSetService(ISortedSetService):
     def _decode(value: bytes | str) -> str:
         return value.decode("utf-8") if isinstance(value, bytes) else value
 
-    async def zincrby(
-        self, key: str, increment: float, member: str
-    ) -> float | None:
+    async def zincrby(self, key: str, increment: float, member: str) -> float | None:
         try:
             return float(await self._client.zincrby(key, increment, member))
         except RedisError as e:
@@ -43,9 +41,7 @@ class RedisSortedSetService(ISortedSetService):
         self, key: str, start: int, stop: int, *, withscores: bool = False
     ) -> list[tuple[str, float]] | list[str] | None:
         try:
-            raw = await self._client.zrevrange(
-                key, start, stop, withscores=withscores
-            )
+            raw = await self._client.zrevrange(key, start, stop, withscores=withscores)
         except RedisError as e:
             logger.warning("ZREVRANGE failed", key=key, error=str(e))
             return None
@@ -80,9 +76,7 @@ class RedisSortedSetService(ISortedSetService):
         self, key: str, min_score: float, max_score: float
     ) -> int:
         try:
-            return int(
-                await self._client.zremrangebyscore(key, min_score, max_score)
-            )
+            return int(await self._client.zremrangebyscore(key, min_score, max_score))
         except RedisError as e:
             logger.warning("ZREMRANGEBYSCORE failed", key=key, error=str(e))
             return 0
@@ -104,9 +98,7 @@ class RedisSortedSetService(ISortedSetService):
     ) -> int:
         try:
             if weights is not None:
-                return int(
-                    await self._client.zunionstore(dest, keys, weights=weights)
-                )
+                return int(await self._client.zunionstore(dest, keys, weights=weights))
             return int(await self._client.zunionstore(dest, keys))
         except RedisError as e:
             logger.warning("ZUNIONSTORE failed", dest=dest, error=str(e))

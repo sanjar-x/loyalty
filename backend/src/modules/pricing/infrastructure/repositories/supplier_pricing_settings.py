@@ -60,9 +60,7 @@ class SupplierPricingSettingsRepository(ISupplierPricingSettingsRepository):
         model.version_lock = settings.version_lock
         model.updated_by = settings.updated_by
 
-    async def add(
-        self, settings: SupplierPricingSettings
-    ) -> SupplierPricingSettings:
+    async def add(self, settings: SupplierPricingSettings) -> SupplierPricingSettings:
         model = SupplierPricingSettingsModel(
             id=settings.id,
             supplier_id=settings.supplier_id,

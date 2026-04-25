@@ -51,8 +51,7 @@ async def _handle_identity_registered(
     )
 
     await (
-        create_profile_on_identity_registered
-        .kicker()
+        create_profile_on_identity_registered.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
             identity_id=payload["identity_id"],
@@ -70,8 +69,7 @@ async def _handle_identity_deactivated(
     )
 
     await (
-        anonymize_customer_on_identity_deactivated
-        .kicker()
+        anonymize_customer_on_identity_deactivated.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
             identity_id=payload["identity_id"],
@@ -88,8 +86,7 @@ async def _handle_role_assignment_changed(
     )
 
     await (
-        invalidate_permissions_cache_on_role_change
-        .kicker()
+        invalidate_permissions_cache_on_role_change.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
             identity_id=payload["identity_id"],
@@ -106,8 +103,7 @@ async def _handle_linked_account_created(
     )
 
     await (
-        on_linked_account_created
-        .kicker()
+        on_linked_account_created.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
             identity_id=payload["identity_id"],

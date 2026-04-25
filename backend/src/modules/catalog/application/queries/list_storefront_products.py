@@ -462,10 +462,7 @@ class ListStorefrontProductsHandler:
     def _query_hash(query: StorefrontProductListQuery) -> str:
         af = None
         if query.attribute_filters:
-            af = {
-                k: sorted(v)
-                for k, v in sorted(query.attribute_filters.items())
-            }
+            af = {k: sorted(v) for k, v in sorted(query.attribute_filters.items())}
         parts = {
             "c": str(query.category_id),
             "b": sorted(str(b) for b in (query.brand_ids or [])),

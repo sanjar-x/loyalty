@@ -405,9 +405,7 @@ class ProductRepository(IProductRepository):
 
         Soft-deleted products are excluded. SKUs are NOT loaded.
         """
-        orm = await self._session.get(
-            OrmProduct, entity_id, populate_existing=True
-        )
+        orm = await self._session.get(OrmProduct, entity_id, populate_existing=True)
         if orm is None or orm.deleted_at is not None:
             return None
         return self._to_domain_without_skus(orm)

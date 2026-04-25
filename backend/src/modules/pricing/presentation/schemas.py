@@ -434,9 +434,7 @@ class UpsertCategoryPricingSettingsResponse(BaseModel):
 class UpsertSupplierTypeContextMappingRequest(BaseModel):
     """PUT body for ``/pricing/supplier-type-mapping/{supplier_type}``."""
 
-    context_id: uuid.UUID = Field(
-        ..., description="Target pricing context id."
-    )
+    context_id: uuid.UUID = Field(..., description="Target pricing context id.")
 
 
 class SupplierTypeContextMappingResponse(BaseModel):
@@ -474,7 +472,8 @@ class PreviewPriceRequest(BaseModel):
     """Request body for ``POST /pricing/preview``."""
 
     product_id: uuid.UUID = Field(
-        ..., description="Product whose pricing profile supplies scope=product_input values."
+        ...,
+        description="Product whose pricing profile supplies scope=product_input values.",
     )
     category_id: uuid.UUID = Field(
         ...,

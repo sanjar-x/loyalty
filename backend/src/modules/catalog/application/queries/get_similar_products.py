@@ -52,9 +52,7 @@ class GetSimilarProductsHandler:
         self._session = session
         self._logger = logger.bind(handler="GetSimilarProductsHandler")
 
-    async def handle(
-        self, query: GetSimilarProductsQuery
-    ) -> SimilarProductsResult:
+    async def handle(self, query: GetSimilarProductsQuery) -> SimilarProductsResult:
         limit = max(1, min(query.limit, 50))
 
         # Single round-trip: fetch the source product's category + brand.

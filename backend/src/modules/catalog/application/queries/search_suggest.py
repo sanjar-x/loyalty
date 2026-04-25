@@ -236,9 +236,7 @@ class SearchSuggestHandler:
             "l": query.limit,
             "lang": query.lang,
         }
-        return hashlib.md5(
-            json.dumps(parts, sort_keys=True).encode()
-        ).hexdigest()[:12]
+        return hashlib.md5(json.dumps(parts, sort_keys=True).encode()).hexdigest()[:12]
 
     async def _cache_result(
         self, key: str, results: list[SearchSuggestionReadModel]

@@ -292,19 +292,37 @@ class CdekClient:
         max_attempts: int = 10,
         poll_interval: float = 2.0,
     ) -> bytes:
-        """Generic async document polling: check status → download when READY."""
+        """Generic async document polling: check status → download when READY.
+
+        CDEK terminal codes for print forms are ``READY`` (success),
+        ``INVALID`` (rejected — e.g. malformed order_uuid) and
+        ``REMOVED`` (operator deleted the print job). All non-READY
+        terminal codes raise a ``ProviderHTTPError``.
+
+        Sorts ``statuses`` by ``date_time`` before picking the latest;
+        the API doesn't guarantee chronological ordering.
+        """
+        terminal_failures = {"INVALID", "REMOVED"}
         for attempt in range(1, max_attempts + 1):
             await asyncio.sleep(poll_interval)
             status_resp = await status_fn()
-            statuses = status_resp.get("entity", {}).get("statuses", [])
-            if statuses:
-                latest = statuses[-1]
-                if latest.get("code") == "READY":
+            raw_statuses = status_resp.get("entity", {}).get("statuses", [])
+            sorted_statuses = sorted(
+                (s for s in raw_statuses if isinstance(s, dict)),
+                key=lambda s: s.get("date_time", ""),
+            )
+            if sorted_statuses:
+                latest = sorted_statuses[-1]
+                code = latest.get("code")
+                if code == "READY":
                     return await download_fn()
-                if latest.get("code") == "FAILED":
+                if code in terminal_failures:
                     raise ProviderHTTPError(
                         status_code=0,
-                        message=f"Document generation failed: {latest.get('name', '')}",
+                        message=(
+                            f"Document generation {code.lower()}: "
+                            f"{latest.get('name', '')}"
+                        ),
                         response_body=str(status_resp),
                     )
             logger.debug(

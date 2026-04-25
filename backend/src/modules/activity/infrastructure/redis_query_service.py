@@ -86,7 +86,7 @@ class RedisActivityQueryService:
             )
             try:
                 score_f = float(score)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 continue
             result.append(RankedEntity(entity_id=member_str, score=score_f))
         return result

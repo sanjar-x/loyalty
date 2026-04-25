@@ -32,13 +32,9 @@ class DeleteSupplierTypeContextMappingHandler:
     ) -> None:
         self._mapping_repo = mapping_repo
         self._uow = uow
-        self._logger = logger.bind(
-            handler="DeleteSupplierTypeContextMappingHandler"
-        )
+        self._logger = logger.bind(handler="DeleteSupplierTypeContextMappingHandler")
 
-    async def handle(
-        self, command: DeleteSupplierTypeContextMappingCommand
-    ) -> None:
+    async def handle(self, command: DeleteSupplierTypeContextMappingCommand) -> None:
         async with self._uow:
             existing = await self._mapping_repo.get_by_supplier_type(
                 command.supplier_type

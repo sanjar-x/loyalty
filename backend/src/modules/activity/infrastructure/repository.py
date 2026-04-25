@@ -59,8 +59,6 @@ class SqlAlchemyActivityEventRepository:
         # ``(id, created_at)`` preserves the intended retry-safety
         # semantics — a duplicate of the exact same logical event (same
         # id, same timestamp) becomes a no-op.
-        stmt = stmt.on_conflict_do_nothing(
-            index_elements=["id", "created_at"]
-        )
+        stmt = stmt.on_conflict_do_nothing(index_elements=["id", "created_at"])
         await self._session.execute(stmt)
         return len(rows)

@@ -23,17 +23,13 @@ class GetSupplierTypeContextMappingQuery:
 class GetSupplierTypeContextMappingHandler:
     """Fetch a single mapping by ``supplier_type``; 404 if absent."""
 
-    def __init__(
-        self, mapping_repo: ISupplierTypeContextMappingRepository
-    ) -> None:
+    def __init__(self, mapping_repo: ISupplierTypeContextMappingRepository) -> None:
         self._mapping_repo = mapping_repo
 
     async def handle(
         self, query: GetSupplierTypeContextMappingQuery
     ) -> SupplierTypeContextMapping:
-        mapping = await self._mapping_repo.get_by_supplier_type(
-            query.supplier_type
-        )
+        mapping = await self._mapping_repo.get_by_supplier_type(query.supplier_type)
         if mapping is None:
             raise SupplierTypeContextMappingNotFoundError(
                 supplier_type=query.supplier_type
@@ -47,9 +43,7 @@ class ListSupplierTypeContextMappingsQuery:
 
 
 class ListSupplierTypeContextMappingsHandler:
-    def __init__(
-        self, mapping_repo: ISupplierTypeContextMappingRepository
-    ) -> None:
+    def __init__(self, mapping_repo: ISupplierTypeContextMappingRepository) -> None:
         self._mapping_repo = mapping_repo
 
     async def handle(

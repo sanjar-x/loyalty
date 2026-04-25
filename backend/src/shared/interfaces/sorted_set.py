@@ -13,9 +13,7 @@ from typing import Protocol
 class ISortedSetService(Protocol):
     """Sorted-set backend port."""
 
-    async def zincrby(
-        self, key: str, increment: float, member: str
-    ) -> float | None:
+    async def zincrby(self, key: str, increment: float, member: str) -> float | None:
         """Atomically increment member's score; create if absent.
 
         Returns the new score, or ``None`` on backend failure.

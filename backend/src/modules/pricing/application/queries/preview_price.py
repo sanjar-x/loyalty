@@ -111,16 +111,12 @@ class PreviewPriceHandler:
         # requests. A pathological formula (deep AST, huge exponents, etc.)
         # will raise a clean 422 instead of pinning the worker.
         timeout_s = (
-            context.evaluation_timeout_ms / 1000.0
-            if context is not None
-            else 1.0
+            context.evaluation_timeout_ms / 1000.0 if context is not None else 1.0
         )
         loop = asyncio.get_running_loop()
         try:
             evaluation = await asyncio.wait_for(
-                loop.run_in_executor(
-                    None, evaluate_formula, formula.ast, resolved
-                ),
+                loop.run_in_executor(None, evaluate_formula, formula.ast, resolved),
                 timeout=timeout_s,
             )
         except TimeoutError as exc:

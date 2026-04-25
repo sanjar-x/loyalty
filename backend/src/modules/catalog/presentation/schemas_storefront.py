@@ -55,8 +55,7 @@ class StorefrontImageResponse(CamelModel):
     image_variants: list[dict] | None = Field(
         None,
         description=(
-            "Responsive variants for the image, e.g. "
-            "[{size, width, height, url}, ...]"
+            "Responsive variants for the image, e.g. [{size, width, height, url}, ...]"
         ),
     )
 

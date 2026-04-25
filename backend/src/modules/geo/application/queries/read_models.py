@@ -223,9 +223,7 @@ class DistrictTypeReadModel(BaseModel):
 
     code: str
     sort_order: int
-    translations: list[DistrictTypeTranslationReadModel] = Field(
-        default_factory=list
-    )
+    translations: list[DistrictTypeTranslationReadModel] = Field(default_factory=list)
 
 
 class DistrictTypeListReadModel(BaseModel):

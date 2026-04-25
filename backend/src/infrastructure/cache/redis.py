@@ -101,9 +101,7 @@ class RedisService(ICacheService):
             logger.debug("Redis GET_MANY", count=len(keys))
             raw = await self._client.mget(keys)
         except RedisError as e:
-            logger.warning(
-                "Redis read error (GET_MANY)", count=len(keys), error=str(e)
-            )
+            logger.warning("Redis read error (GET_MANY)", count=len(keys), error=str(e))
             return {key: None for key in keys}
 
         result: dict[str, str | None] = {}
@@ -170,9 +168,7 @@ class RedisService(ICacheService):
     return v
     """
 
-    async def increment(
-        self, key: str, delta: int = 1, ttl: int = 0
-    ) -> int | None:
+    async def increment(self, key: str, delta: int = 1, ttl: int = 0) -> int | None:
         """Atomically INCRBY ``delta`` on ``key``.
 
         When ``ttl > 0`` the EXPIRE is applied atomically via a Lua

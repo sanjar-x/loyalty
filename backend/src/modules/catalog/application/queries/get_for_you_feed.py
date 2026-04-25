@@ -116,7 +116,7 @@ class ForYouCursor:
                 seed_id=str(data["s"]),
                 offset=int(data["o"]),
             )
-        except ValueError, KeyError, TypeError, json.JSONDecodeError:
+        except (ValueError, KeyError, TypeError, json.JSONDecodeError) as _exc:
             return None
 
 
@@ -204,7 +204,9 @@ class ForYouFeedHandler:
         # slicing with a negative start wraps around the list, which would
         # expose stale tail items and can produce an infinite next_cursor
         # loop (``new_offset < len(candidate_ids)`` stays true forever).
-        raw_offset = cursor.offset if cursor is not None and not cursor_invalidated else 0
+        raw_offset = (
+            cursor.offset if cursor is not None and not cursor_invalidated else 0
+        )
         offset = max(0, raw_offset)
         window_ids = candidate_ids[offset : offset + limit]
 
@@ -520,7 +522,7 @@ class ForYouFeedHandler:
         try:
             items = json.loads(raw)
             return [uuid.UUID(s) for s in items]
-        except ValueError, TypeError, json.JSONDecodeError:
+        except (ValueError, TypeError, json.JSONDecodeError) as _exc:
             self._logger.warning("for_you.cache.parse_failed", seed_id=seed_id)
             return []
 

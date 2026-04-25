@@ -53,9 +53,7 @@ class SupplierQueryService(ISupplierQueryService, ISupplierDirectory):
     # ISupplierDirectory (published, cross-module port)
     # ------------------------------------------------------------------ #
 
-    async def get_snapshot(
-        self, supplier_id: uuid.UUID
-    ) -> SupplierSnapshot | None:
+    async def get_snapshot(self, supplier_id: uuid.UUID) -> SupplierSnapshot | None:
         stmt = select(OrmSupplier).where(OrmSupplier.id == supplier_id)
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()

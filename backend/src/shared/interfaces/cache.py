@@ -99,9 +99,7 @@ class ICacheService(Protocol):
         """
         ...
 
-    async def increment(
-        self, key: str, delta: int = 1, ttl: int = 0
-    ) -> int | None:
+    async def increment(self, key: str, delta: int = 1, ttl: int = 0) -> int | None:
         """Atomically increment an integer counter.
 
         If the key does not exist it is initialised to zero before the

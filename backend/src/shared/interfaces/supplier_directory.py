@@ -63,9 +63,7 @@ class SupplierDirectoryInactiveError(UnprocessableEntityError):
 class ISupplierDirectory(Protocol):
     """Port for resolving supplier references across module boundaries."""
 
-    async def get_snapshot(
-        self, supplier_id: uuid.UUID
-    ) -> SupplierSnapshot | None: ...
+    async def get_snapshot(self, supplier_id: uuid.UUID) -> SupplierSnapshot | None: ...
 
     async def assert_active(self, supplier_id: uuid.UUID) -> SupplierSnapshot:
         """Return the snapshot or raise if missing / inactive.

@@ -80,9 +80,7 @@ class SupplierTypeContextMappingRepository(ISupplierTypeContextMappingRepository
     ) -> SupplierTypeContextMapping:
         model = await self._session.get(SupplierTypeContextMappingModel, mapping.id)
         if model is None:
-            msg = (
-                f"SupplierTypeContextMapping {mapping.id} disappeared before update"
-            )
+            msg = f"SupplierTypeContextMapping {mapping.id} disappeared before update"
             raise RuntimeError(msg)
 
         if model.version_lock != mapping.version_lock - 1:
@@ -98,9 +96,7 @@ class SupplierTypeContextMappingRepository(ISupplierTypeContextMappingRepository
         return self._to_domain(model)
 
     async def delete(self, mapping_id: uuid.UUID) -> None:
-        model = await self._session.get(
-            SupplierTypeContextMappingModel, mapping_id
-        )
+        model = await self._session.get(SupplierTypeContextMappingModel, mapping_id)
         if model is None:
             return
         await self._session.delete(model)

@@ -62,9 +62,7 @@ class GetContextGlobalValuesHandler:
         # Build a lookup of all GLOBAL-scope variables for metadata enrichment.
         all_variables = await self._variables.list()
         variable_meta = {
-            v.code: v
-            for v in all_variables
-            if v.scope is VariableScope.GLOBAL
+            v.code: v for v in all_variables if v.scope is VariableScope.GLOBAL
         }
 
         values = [

@@ -209,7 +209,9 @@ class CreateDistrictRequest(CamelModel):
         ..., min_length=4, max_length=10, pattern=r"^[A-Z]{2}-[A-Z0-9]{1,8}$"
     )
     type_code: str = Field(..., min_length=1, max_length=60)
-    oktmo_prefix: str | None = Field(None, min_length=5, max_length=5, pattern=r"^\d{5}$")
+    oktmo_prefix: str | None = Field(
+        None, min_length=5, max_length=5, pattern=r"^\d{5}$"
+    )
     fias_guid: str | None = Field(None, min_length=36, max_length=36)
     latitude: Decimal | None = None
     longitude: Decimal | None = None
@@ -219,7 +221,9 @@ class CreateDistrictRequest(CamelModel):
 
 class UpdateDistrictRequest(CamelModel):
     type_code: str | None = Field(None, min_length=1, max_length=60)
-    oktmo_prefix: str | None = Field(None, min_length=5, max_length=5, pattern=r"^\d{5}$")
+    oktmo_prefix: str | None = Field(
+        None, min_length=5, max_length=5, pattern=r"^\d{5}$"
+    )
     fias_guid: str | None = None
     latitude: Decimal | None = None
     longitude: Decimal | None = None

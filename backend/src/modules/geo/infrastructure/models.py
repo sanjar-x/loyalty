@@ -841,8 +841,14 @@ class DistrictModel(Base):
     __table_args__ = (
         Index("ix_districts_subdivision", "subdivision_code"),
         Index("ix_districts_type", "subdivision_code", "type_code"),
-        Index("ix_districts_oktmo", "oktmo_prefix", postgresql_where="oktmo_prefix IS NOT NULL"),
-        Index("ix_districts_fias", "fias_guid", postgresql_where="fias_guid IS NOT NULL"),
+        Index(
+            "ix_districts_oktmo",
+            "oktmo_prefix",
+            postgresql_where="oktmo_prefix IS NOT NULL",
+        ),
+        Index(
+            "ix_districts_fias", "fias_guid", postgresql_where="fias_guid IS NOT NULL"
+        ),
     )
 
     def __repr__(self) -> str:  # pragma: no cover

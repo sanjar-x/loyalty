@@ -125,6 +125,4 @@ class GetAlsoViewedProductCardsHandler:
         cards = await self._cards.handle(
             GetStorefrontProductCardsByIdsQuery(product_ids=ranked_ids)
         )
-        return AlsoViewedProductCardsResult(
-            items=cards, is_fallback=is_fallback
-        )
+        return AlsoViewedProductCardsResult(items=cards, is_fallback=is_fallback)

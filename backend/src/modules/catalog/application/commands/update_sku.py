@@ -168,7 +168,9 @@ class UpdateSKUHandler:
                     )
                 )
                 try:
-                    update_kwargs["price"] = Money(amount=new_amount, currency=new_currency)
+                    update_kwargs["price"] = Money(
+                        amount=new_amount, currency=new_currency
+                    )
                 except ValueError as exc:
                     raise ValidationError(
                         message=str(exc),

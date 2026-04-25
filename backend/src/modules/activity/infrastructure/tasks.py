@@ -222,9 +222,7 @@ async def update_product_popularity_task(
             await session.commit()
         decayed = decay_result.rowcount
         refreshed = refresh_result.rowcount
-        logger.info(
-            "activity.popularity.success", decayed=decayed, refreshed=refreshed
-        )
+        logger.info("activity.popularity.success", decayed=decayed, refreshed=refreshed)
         return {
             "status": "success",
             "rows": decayed + refreshed,
@@ -503,10 +501,7 @@ async def refresh_co_view_scores_task(
     except Exception as exc:
         # Missing table is benign — e.g. migration not yet applied.
         message = str(exc)
-        if (
-            "product_co_view_scores" in message
-            and "does not exist" in message.lower()
-        ):
+        if "product_co_view_scores" in message and "does not exist" in message.lower():
             logger.warning("activity.co_view.table_missing")
             return {"status": "skipped", "rows": 0}
         logger.exception("activity.co_view.failed")

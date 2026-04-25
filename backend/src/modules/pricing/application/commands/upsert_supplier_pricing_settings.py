@@ -50,9 +50,7 @@ class UpsertSupplierPricingSettingsHandler:
         self, command: UpsertSupplierPricingSettingsCommand
     ) -> UpsertSupplierPricingSettingsResult:
         async with self._uow:
-            existing = await self._settings_repo.get_by_supplier_id(
-                command.supplier_id
-            )
+            existing = await self._settings_repo.get_by_supplier_id(command.supplier_id)
 
             if existing is not None:
                 existing.replace(

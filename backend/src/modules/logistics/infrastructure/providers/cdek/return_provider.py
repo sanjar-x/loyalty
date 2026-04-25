@@ -150,7 +150,7 @@ def _format_errors(response_body: str | None) -> str | None:
         return None
     try:
         parsed = json.loads(response_body)
-    except TypeError, ValueError:
+    except (TypeError, ValueError) as _exc:
         return None
     if not isinstance(parsed, dict):
         return None

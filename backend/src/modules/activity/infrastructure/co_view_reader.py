@@ -50,9 +50,7 @@ class SqlAlchemyCoViewReader:
         )
         try:
             rows = (
-                await self._session.execute(
-                    stmt, {"pid": product_id, "lim": limit}
-                )
+                await self._session.execute(stmt, {"pid": product_id, "lim": limit})
             ).all()
         except SQLAlchemyError:
             self._logger.exception("co_view.query_failed", product_id=product_id)
