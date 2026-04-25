@@ -33,7 +33,6 @@ class RegisterClientReturnCommand:
         return_address: Where the courier should pick up the goods.
         sender: Contact at the pickup (= original recipient).
         recipient: Contact at the destination (= original sender).
-        comment: Optional free-form reason / note.
     """
 
     shipment_id: uuid.UUID
@@ -41,7 +40,6 @@ class RegisterClientReturnCommand:
     return_address: Address
     sender: ContactInfo
     recipient: ContactInfo
-    comment: str | None = None
 
 
 class RegisterClientReturnHandler:
@@ -74,7 +72,6 @@ class RegisterClientReturnHandler:
             sender=command.sender,
             recipient=command.recipient,
             parcels=list(shipment.parcels),
-            comment=command.comment,
         )
 
         result = await provider.register_client_return(request)

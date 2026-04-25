@@ -71,10 +71,12 @@ def _build_estimate_location(address: Address) -> dict[str, Any]:
 def _parse_intervals(data: dict) -> list[DeliveryInterval]:
     """Parse CDEK delivery-intervals response.
 
-    Both endpoints return a ``date_intervals`` array shaped as::
+    Both ``/v2/delivery/intervals`` (post-booking) and
+    ``/v2/delivery/estimatedIntervals`` (pre-booking) return a
+    ``date_intervals`` array shaped as::
 
         [{"date": "2025-04-26",
-          "intervals": [{"start_time": "09:00", "end_time": "12:00"}]}]
+          "time_intervals": [{"start_time": "09:00", "end_time": "12:00"}]}]
     """
     if not isinstance(data, dict):
         return []
@@ -86,10 +88,10 @@ def _parse_intervals(data: dict) -> list[DeliveryInterval]:
         if not isinstance(entry, dict):
             continue
         date_str = entry.get("date")
-        intervals = entry.get("intervals") or []
-        if not isinstance(intervals, list):
+        time_intervals = entry.get("time_intervals") or []
+        if not isinstance(time_intervals, list):
             continue
-        for slot in intervals:
+        for slot in time_intervals:
             if not isinstance(slot, dict):
                 continue
             start = slot.get("start_time")

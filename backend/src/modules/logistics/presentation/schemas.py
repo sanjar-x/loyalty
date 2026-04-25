@@ -301,11 +301,13 @@ class ClientReturnRequest(BaseModel):
     return_address: AddressSchema
     sender: ContactInfoSchema
     recipient: ContactInfoSchema
-    comment: str | None = None
 
 
 class RefusalRequestSchema(BaseModel):
-    reason: str | None = None
+    reason: str | None = Field(
+        None,
+        description="Free-form audit note. Not forwarded to the provider.",
+    )
 
 
 class ReturnResponse(BaseModel):
@@ -315,7 +317,24 @@ class ReturnResponse(BaseModel):
     reason: str | None = None
 
 
+class ReverseAvailabilityRequestSchema(BaseModel):
+    provider_code: str
+    tariff_code: int = Field(..., ge=1)
+    sender_phones: list[str] = Field(..., min_length=1, max_length=10)
+    recipient_phones: list[str] = Field(..., min_length=1, max_length=10)
+    from_location: AddressSchema | None = None
+    to_location: AddressSchema | None = None
+    shipment_point: str | None = None
+    delivery_point: str | None = None
+    sender_contragent_type: str | None = Field(
+        None, description="LEGAL_ENTITY or INDIVIDUAL"
+    )
+    recipient_contragent_type: str | None = Field(
+        None, description="LEGAL_ENTITY or INDIVIDUAL"
+    )
+
+
 class ReverseAvailabilityResponse(BaseModel):
-    shipment_id: uuid.UUID
+    provider_code: str
     is_available: bool
     reason: str | None = None

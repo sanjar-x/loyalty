@@ -561,6 +561,12 @@ class ClientReturnRequest:
     Forms a *return* shipment from the recipient back to the sender for
     a previously delivered order. ``tariff_code`` selects the return
     tariff (CDEK Приложение 14).
+
+    The CDEK ``POST /v2/orders/{uuid}/clientReturn`` endpoint accepts
+    only ``tariff_code`` in the body — address / contact data is
+    inherited from the original delivery. The remaining fields are
+    kept on the VO for application-side validation and for providers
+    that require richer payloads in the future.
     """
 
     order_provider_id: str
@@ -569,12 +575,15 @@ class ClientReturnRequest:
     sender: ContactInfo
     recipient: ContactInfo
     parcels: list[Parcel]
-    comment: str | None = None
 
 
 @attrs.define(frozen=True)
 class RefusalRequest:
-    """Caller input for ``IReturnProvider.register_refusal``."""
+    """Caller input for ``IReturnProvider.register_refusal``.
+
+    The CDEK refusal endpoint takes no body — ``reason`` is captured
+    here purely for application-side logging / audit, never sent.
+    """
 
     order_provider_id: str
     reason: str | None = None
@@ -588,6 +597,28 @@ class ReturnResult:
     provider_return_id: str | None = None
     reason: str | None = None
     raw_response: str | None = None
+
+
+@attrs.define(frozen=True)
+class ReverseAvailabilityRequest:
+    """Caller input for ``IReturnProvider.check_reverse_availability``.
+
+    CDEK validates reverse availability *before* the original order is
+    placed: it inspects direction (origin → destination), tariff and
+    contact phones to determine whether a return path exists. Either
+    ``from_location`` or ``shipment_point`` must be supplied; same for
+    ``to_location`` / ``delivery_point``.
+    """
+
+    tariff_code: int
+    sender_phones: tuple[str, ...]
+    recipient_phones: tuple[str, ...]
+    from_location: Address | None = None
+    to_location: Address | None = None
+    shipment_point: str | None = None
+    delivery_point: str | None = None
+    sender_contragent_type: str | None = None  # LEGAL_ENTITY | INDIVIDUAL
+    recipient_contragent_type: str | None = None
 
 
 @attrs.define(frozen=True)

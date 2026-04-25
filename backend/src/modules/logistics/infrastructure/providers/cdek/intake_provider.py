@@ -89,11 +89,20 @@ class CdekIntakeProvider:
         async with self._client:
             data = await self._client.get_intake(provider_intake_id)
         entity = data.get("entity", data) if isinstance(data, dict) else {}
-        statuses = entity.get("statuses", []) if isinstance(entity, dict) else []
-        if not statuses:
+        raw_statuses = entity.get("statuses", []) if isinstance(entity, dict) else []
+        if not isinstance(raw_statuses, list) or not raw_statuses:
             return IntakeStatus.UNKNOWN
-        latest = statuses[-1]
-        code = latest.get("code", "") if isinstance(latest, dict) else ""
+        # CDEK does not document the ordering of ``statuses`` — sort by
+        # ``date_time`` (ISO 8601) to deterministically pick the latest
+        # one. Entries without ``date_time`` sink to the start.
+        sorted_statuses = sorted(
+            (s for s in raw_statuses if isinstance(s, dict)),
+            key=lambda s: s.get("date_time", ""),
+        )
+        if not sorted_statuses:
+            return IntakeStatus.UNKNOWN
+        latest = sorted_statuses[-1]
+        code = latest.get("code", "")
         return _CDEK_INTAKE_STATUS_MAP.get(code, IntakeStatus.UNKNOWN)
 
     async def cancel_intake(self, provider_intake_id: str) -> bool:

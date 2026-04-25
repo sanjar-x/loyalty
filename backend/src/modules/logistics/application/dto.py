@@ -164,8 +164,14 @@ class RegisterReturnResult:
 
 @dataclass(frozen=True)
 class CheckReverseAvailabilityResult:
-    """Output of ``CheckReverseAvailabilityHandler``."""
+    """Output of ``CheckReverseAvailabilityHandler``.
 
-    shipment_id: uuid.UUID
+    Attributes:
+        provider_code: Provider that performed the validation.
+        is_available: True if the reverse route is feasible.
+        reason: Provider-supplied error description when unavailable.
+    """
+
+    provider_code: str
     is_available: bool
     reason: str | None

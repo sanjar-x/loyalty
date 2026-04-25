@@ -113,6 +113,7 @@ from src.modules.logistics.presentation.schemas import (
     PickupPointsResponse,
     RefusalRequestSchema,
     ReturnResponse,
+    ReverseAvailabilityRequestSchema,
     ReverseAvailabilityResponse,
     ShipmentResponse,
     ShippingRateSchema,
@@ -613,7 +614,6 @@ async def register_client_return(
         return_address=_schema_to_address(body.return_address),
         sender=_schema_to_contact(body.sender),
         recipient=_schema_to_contact(body.recipient),
-        comment=body.comment,
     )
     result = await handler.handle(command)
     return ReturnResponse(
@@ -646,21 +646,35 @@ async def register_refusal(
     )
 
 
-@logistics_router.get(
-    path="/shipments/{shipment_id}/reverse-availability",
+@logistics_router.post(
+    path="/reverse-availability",
     status_code=status.HTTP_200_OK,
     response_model=ReverseAvailabilityResponse,
-    summary="Check whether a return is available for the shipment",
+    summary="Validate that a reverse-shipment route is feasible",
 )
 async def check_reverse_availability(
-    shipment_id: uuid.UUID,
+    body: ReverseAvailabilityRequestSchema,
     handler: FromDishka[CheckReverseAvailabilityHandler],
 ) -> ReverseAvailabilityResponse:
-    result = await handler.handle(
-        CheckReverseAvailabilityQuery(shipment_id=shipment_id)
+    query = CheckReverseAvailabilityQuery(
+        provider_code=body.provider_code,
+        tariff_code=body.tariff_code,
+        sender_phones=tuple(body.sender_phones),
+        recipient_phones=tuple(body.recipient_phones),
+        from_location=(
+            _schema_to_address(body.from_location) if body.from_location else None
+        ),
+        to_location=(
+            _schema_to_address(body.to_location) if body.to_location else None
+        ),
+        shipment_point=body.shipment_point,
+        delivery_point=body.delivery_point,
+        sender_contragent_type=body.sender_contragent_type,
+        recipient_contragent_type=body.recipient_contragent_type,
     )
+    result = await handler.handle(query)
     return ReverseAvailabilityResponse(
-        shipment_id=result.shipment_id,
+        provider_code=result.provider_code,
         is_available=result.is_available,
         reason=result.reason,
     )

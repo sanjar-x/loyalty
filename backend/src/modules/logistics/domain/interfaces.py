@@ -29,6 +29,7 @@ from src.modules.logistics.domain.value_objects import (
     ProviderCode,
     RefusalRequest,
     ReturnResult,
+    ReverseAvailabilityRequest,
     ReverseAvailabilityResult,
     TrackingEvent,
 )
@@ -162,7 +163,9 @@ class IReturnProvider(Protocol):
     - ``register_client_return`` — recipient sends the order back.
     - ``register_refusal`` — recipient refuses delivery on the doorstep.
     - ``check_reverse_availability`` — pre-flight check whether a reverse
-      shipment is allowed for the given order.
+      shipment route is feasible for the given direction / tariff /
+      contacts. Run *before* the original order is created to surface
+      "no reverse path" early in the checkout flow.
     """
 
     def provider_code(self) -> ProviderCode: ...
@@ -176,7 +179,7 @@ class IReturnProvider(Protocol):
 
     async def check_reverse_availability(
         self,
-        provider_shipment_id: str,
+        request: ReverseAvailabilityRequest,
     ) -> ReverseAvailabilityResult: ...
 
 
