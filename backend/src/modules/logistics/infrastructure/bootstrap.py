@@ -83,9 +83,23 @@ async def bootstrap_registry(
             continue
 
         factory = factory_cls()
-        factories[code] = factory
 
-        _register_capabilities(registry, factory, credentials, config)
+        try:
+            _register_capabilities(registry, factory, credentials, config)
+        except Exception:
+            # One bad ProviderAccount must not take down the whole App.
+            # ``credentials_json`` may be malformed (missing client_id /
+            # oauth_token), or the factory may raise on construction —
+            # either way, log and skip so the other providers come up.
+            logger.exception(
+                "Failed to register provider '%s' (account '%s', id=%s) — skipping",
+                code,
+                account.name,
+                account.id,
+            )
+            continue
+
+        factories[code] = factory
         logger.info(
             "Registered provider '%s' (account '%s', id=%s)",
             code,

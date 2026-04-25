@@ -14,6 +14,7 @@ from src.modules.logistics.domain.interfaces import (
     IShippingProviderRegistry,
 )
 from src.modules.logistics.domain.value_objects import EditItemRemoval
+from src.shared.exceptions import ValidationError
 from src.shared.interfaces.logger import ILogger
 
 
@@ -43,8 +44,9 @@ class RemoveOrderItemsHandler:
 
     async def handle(self, command: RemoveOrderItemsCommand) -> EditTaskSubmittedResult:
         if not command.removals:
-            raise ValueError(
-                "RemoveOrderItemsCommand requires at least one removal entry."
+            raise ValidationError(
+                message="RemoveOrderItemsCommand requires at least one removal entry.",
+                details={"shipment_id": str(command.shipment_id)},
             )
 
         shipment = await self._shipment_repo.get_by_id(command.shipment_id)

@@ -9,6 +9,7 @@ import uuid
 
 import attrs
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.logistics.domain.entities import Shipment
@@ -72,6 +73,10 @@ class ShipmentRepository(IShipmentRepository):
             raise ValueError(f"Shipment {shipment.id} not found")
 
         self._update_orm(orm, shipment)
+        # Tracking events are synced via INSERT ... ON CONFLICT before
+        # the column flush so the version-locked UPDATE below sees the
+        # latest event count and can race safely with webhook ingest.
+        await self._sync_tracking_events(orm, shipment)
         await self._session.flush()
         return self._to_domain(orm)
 
@@ -126,14 +131,47 @@ class ShipmentRepository(IShipmentRepository):
         orm.cancelled_at = entity.cancelled_at
         orm.version = entity.version
 
-        # Sync tracking events (append-only, dedup by business key)
+    async def _sync_tracking_events(self, orm: ShipmentModel, entity: Shipment) -> None:
+        """Insert any new tracking events, racing safely with concurrent writers.
+
+        The unique constraint ``uq_tracking_events_shipment_ts_status``
+        is the source of truth: a concurrent webhook + poll for the
+        same ``(shipment_id, timestamp, status)`` would otherwise
+        produce ``IntegrityError``. We use Postgres
+        ``INSERT ... ON CONFLICT DO NOTHING`` so the second writer
+        silently no-ops.
+
+        The in-memory check still applies — it filters out events that
+        the current session already saw — so we only build INSERT rows
+        for genuinely new entries.
+        """
         existing_keys = {(e.timestamp, e.status) for e in orm.tracking_events}
+        new_rows: list[dict] = []
         for event in entity.tracking_events:
-            event_key = (event.timestamp, event.status)
-            if event_key not in existing_keys:
-                orm.tracking_events.append(
-                    self._tracking_event_to_orm(event, entity.id)
-                )
+            if (event.timestamp, event.status) in existing_keys:
+                continue
+            new_rows.append(
+                {
+                    "shipment_id": entity.id,
+                    "status": event.status,
+                    "provider_status_code": event.provider_status_code,
+                    "provider_status_name": event.provider_status_name,
+                    "timestamp": event.timestamp,
+                    "location": event.location,
+                    "description": event.description,
+                }
+            )
+        if not new_rows:
+            return
+
+        stmt = pg_insert(ShipmentTrackingEventModel).values(new_rows)
+        stmt = stmt.on_conflict_do_nothing(
+            constraint="uq_tracking_events_shipment_ts_status"
+        )
+        await self._session.execute(stmt)
+        # Refresh the relationship so subsequent reads in the same
+        # session see the freshly-inserted rows.
+        await self._session.refresh(orm, attribute_names=["tracking_events"])
 
     # -- Mapping: ORM → Domain ----------------------------------------------
 

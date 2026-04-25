@@ -15,6 +15,7 @@ from src.modules.logistics.domain.interfaces import (
     IShippingProviderRegistry,
 )
 from src.modules.logistics.domain.value_objects import EditPackage
+from src.shared.exceptions import ValidationError
 from src.shared.interfaces.logger import ILogger
 
 
@@ -43,7 +44,10 @@ class EditOrderPackagesHandler:
         self, command: EditOrderPackagesCommand
     ) -> EditTaskSubmittedResult:
         if not command.packages:
-            raise ValueError("EditOrderPackagesCommand requires at least one package.")
+            raise ValidationError(
+                message="EditOrderPackagesCommand requires at least one package.",
+                details={"shipment_id": str(command.shipment_id)},
+            )
 
         shipment = await self._shipment_repo.get_by_id(command.shipment_id)
         if shipment is None:

@@ -160,6 +160,18 @@ class ShipmentModel(Base):
         Integer, default=1, comment="Optimistic locking counter"
     )
 
+    # SQLAlchemy uses ``version`` as the optimistic-lock token: every
+    # UPDATE adds ``WHERE version = :prev_version`` and bumps the column
+    # itself. Concurrent writers see ``StaleDataError`` instead of
+    # last-write-wins. The repository constructs domain entities with
+    # the version it just observed and feeds it back here unchanged —
+    # SQLAlchemy increments by 1 server-side, which the repo reads back
+    # via ``RETURNING`` (autoflush).
+    __mapper_args__ = {  # noqa: RUF012  (SQLAlchemy expects a plain dict)
+        "version_id_col": version,
+        "version_id_generator": False,
+    }
+
     # Relationships
     tracking_events: Mapped[list[ShipmentTrackingEventModel]] = relationship(
         back_populates="shipment",

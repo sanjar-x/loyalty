@@ -7,8 +7,9 @@ Provides rate calculation, shipment CRUD, tracking, and pickup point listing.
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 
+from src.modules.identity.presentation.dependencies import RequirePermission
 from src.modules.logistics.application.commands.book_shipment import (
     BookShipmentCommand,
     BookShipmentHandler,
@@ -161,6 +162,15 @@ from src.modules.logistics.presentation.schemas import (
 )
 from src.shared.exceptions import ValidationError as AppValidationError
 
+# Permission codenames for logistics resources. ``logistics:read`` covers
+# all GET endpoints (rates, shipment / tracking lookup, pickup points,
+# delivery intervals, edit-task status, actual delivery info).
+# ``logistics:write`` covers every mutating endpoint — booking,
+# cancellation, intake scheduling, returns, edit-task submission.
+_LOGISTICS_READ = Depends(RequirePermission(codename="logistics:read"))
+_LOGISTICS_WRITE = Depends(RequirePermission(codename="logistics:write"))
+
+
 logistics_router = APIRouter(
     prefix="/logistics",
     tags=["Logistics"],
@@ -261,6 +271,7 @@ def _schema_to_cod(s: CashOnDeliverySchema | None) -> CashOnDelivery | None:
     status_code=status.HTTP_200_OK,
     response_model=CalculateRatesResponse,
     summary="Calculate shipping rates",
+    dependencies=[_LOGISTICS_READ],
 )
 async def calculate_rates(
     body: CalculateRatesRequest,
@@ -315,6 +326,7 @@ async def calculate_rates(
     status_code=status.HTTP_201_CREATED,
     response_model=ShipmentResponse,
     summary="Create a shipment (DRAFT)",
+    dependencies=[_LOGISTICS_WRITE],
 )
 async def create_shipment(
     body: CreateShipmentRequest,
@@ -343,6 +355,7 @@ async def create_shipment(
     status_code=status.HTTP_200_OK,
     response_model=BookShipmentResponse,
     summary="Book a DRAFT shipment with the provider",
+    dependencies=[_LOGISTICS_WRITE],
 )
 async def book_shipment(
     shipment_id: uuid.UUID,
@@ -361,6 +374,7 @@ async def book_shipment(
     status_code=status.HTTP_200_OK,
     response_model=CancelShipmentResponse,
     summary="Cancel a booked shipment",
+    dependencies=[_LOGISTICS_WRITE],
 )
 async def cancel_shipment(
     shipment_id: uuid.UUID,
@@ -375,6 +389,7 @@ async def cancel_shipment(
     status_code=status.HTTP_200_OK,
     response_model=ShipmentResponse,
     summary="Get shipment details",
+    dependencies=[_LOGISTICS_READ],
 )
 async def get_shipment(
     shipment_id: uuid.UUID,
@@ -389,6 +404,7 @@ async def get_shipment(
     status_code=status.HTTP_200_OK,
     response_model=TrackingResponse,
     summary="Get shipment tracking history",
+    dependencies=[_LOGISTICS_READ],
 )
 async def get_tracking(
     shipment_id: uuid.UUID,
@@ -418,6 +434,7 @@ async def get_tracking(
     status_code=status.HTTP_200_OK,
     response_model=PickupPointsResponse,
     summary="List pickup/delivery points",
+    dependencies=[_LOGISTICS_READ],
 )
 async def list_pickup_points(
     body: PickupPointsRequest,
@@ -480,6 +497,7 @@ async def list_pickup_points(
     status_code=status.HTTP_200_OK,
     response_model=AvailableIntakeDaysResponse,
     summary="List days when the courier can pick up parcels",
+    dependencies=[_LOGISTICS_READ],
 )
 async def list_available_intake_days(
     body: AvailableIntakeDaysRequest,
@@ -505,6 +523,7 @@ async def list_available_intake_days(
     status_code=status.HTTP_201_CREATED,
     response_model=CreateIntakeResponse,
     summary="Schedule a courier intake for a booked shipment",
+    dependencies=[_LOGISTICS_WRITE],
 )
 async def create_intake(
     shipment_id: uuid.UUID,
@@ -534,6 +553,7 @@ async def create_intake(
     status_code=status.HTTP_200_OK,
     response_model=IntakeStatusResponse,
     summary="Get intake status from the provider",
+    dependencies=[_LOGISTICS_READ],
 )
 async def get_intake_status(
     provider_code: str,
@@ -557,6 +577,7 @@ async def get_intake_status(
     status_code=status.HTTP_200_OK,
     response_model=CancelIntakeResponse,
     summary="Cancel a scheduled intake",
+    dependencies=[_LOGISTICS_WRITE],
 )
 async def cancel_intake(
     provider_code: str,
@@ -582,6 +603,7 @@ async def cancel_intake(
     status_code=status.HTTP_200_OK,
     response_model=DeliveryIntervalsResponse,
     summary="List available delivery intervals for a booked shipment",
+    dependencies=[_LOGISTICS_READ],
 )
 async def get_delivery_intervals(
     shipment_id: uuid.UUID,
@@ -606,6 +628,7 @@ async def get_delivery_intervals(
     status_code=status.HTTP_200_OK,
     response_model=DeliveryIntervalsResponse,
     summary="Estimate delivery intervals before booking",
+    dependencies=[_LOGISTICS_READ],
 )
 async def estimate_delivery_intervals(
     body: EstimatedDeliveryIntervalsRequest,
@@ -641,6 +664,7 @@ async def estimate_delivery_intervals(
     status_code=status.HTTP_201_CREATED,
     response_model=ReturnResponse,
     summary="Register a client return shipment",
+    dependencies=[_LOGISTICS_WRITE],
 )
 async def register_client_return(
     shipment_id: uuid.UUID,
@@ -668,6 +692,7 @@ async def register_client_return(
     status_code=status.HTTP_201_CREATED,
     response_model=ReturnResponse,
     summary="Register a doorstep refusal",
+    dependencies=[_LOGISTICS_WRITE],
 )
 async def register_refusal(
     shipment_id: uuid.UUID,
@@ -690,6 +715,7 @@ async def register_refusal(
     status_code=status.HTTP_200_OK,
     response_model=ReverseAvailabilityResponse,
     summary="Validate that a reverse-shipment route is feasible",
+    dependencies=[_LOGISTICS_READ],
 )
 async def check_reverse_availability(
     body: ReverseAvailabilityRequestSchema,
@@ -729,6 +755,7 @@ async def check_reverse_availability(
     status_code=status.HTTP_200_OK,
     response_model=ActualDeliveryInfoResponse,
     summary="Get carrier-confirmed delivery date and interval",
+    dependencies=[_LOGISTICS_READ],
 )
 async def get_actual_delivery_info(
     shipment_id: uuid.UUID,
@@ -758,6 +785,7 @@ async def get_actual_delivery_info(
     status_code=status.HTTP_202_ACCEPTED,
     response_model=EditTaskResponse,
     summary="Edit recipient / destination / packages on a booked shipment",
+    dependencies=[_LOGISTICS_WRITE],
 )
 async def edit_order(
     shipment_id: uuid.UUID,
@@ -796,6 +824,7 @@ async def edit_order(
     status_code=status.HTTP_202_ACCEPTED,
     response_model=EditTaskResponse,
     summary="Replace package layout (async edit task)",
+    dependencies=[_LOGISTICS_WRITE],
 )
 async def edit_order_packages(
     shipment_id: uuid.UUID,
@@ -819,6 +848,7 @@ async def edit_order_packages(
     status_code=status.HTTP_202_ACCEPTED,
     response_model=EditTaskResponse,
     summary="Patch item articles / marking codes (async edit task)",
+    dependencies=[_LOGISTICS_WRITE],
 )
 async def edit_order_items(
     shipment_id: uuid.UUID,
@@ -849,6 +879,7 @@ async def edit_order_items(
     status_code=status.HTTP_202_ACCEPTED,
     response_model=EditTaskResponse,
     summary="Reduce or remove items from a booked shipment (async edit task)",
+    dependencies=[_LOGISTICS_WRITE],
 )
 async def remove_order_items(
     shipment_id: uuid.UUID,
@@ -878,6 +909,7 @@ async def remove_order_items(
     status_code=status.HTTP_200_OK,
     response_model=EditTaskStatusResponse,
     summary="Poll an asynchronous edit task",
+    dependencies=[_LOGISTICS_READ],
 )
 async def get_edit_task_status(
     provider_code: str,

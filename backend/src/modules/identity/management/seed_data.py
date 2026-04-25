@@ -137,6 +137,15 @@ PERMISSIONS: list[SeedPermission] = [
         "pricing:admin",
         "Администрирование pricing: CRUD контекстов/переменных, формулы, SupplierPricingSettings, SupplierTypeContextMapping (BR-17)",
     ),
+    # ── Logistics ────────────────────────────────────────────────────────
+    SeedPermission(
+        "logistics:read",
+        "Просмотр доставки: тарифы, отправления, трекинг, ПВЗ, расписание, статусы edit-задач",
+    ),
+    SeedPermission(
+        "logistics:write",
+        "Управление доставкой: создание / бронирование / отмена отправлений, intake, возвраты, редактирование заказов",
+    ),
 ]
 
 PERMISSION_BY_CODENAME: dict[str, SeedPermission] = {p.codename: p for p in PERMISSIONS}
@@ -173,6 +182,8 @@ ROLES: list[SeedRole] = [
             "staff:invite",
             "pricing:read",
             "pricing:manage",
+            "logistics:read",
+            "logistics:write",
         ],
     ),
     SeedRole(
@@ -186,6 +197,12 @@ ROLES: list[SeedRole] = [
             "profile:read",
             "profile:update",
             "profile:delete",
+            # Customers can read their own shipment / tracking state and
+            # initiate self-service edits (return, refusal, intake) on
+            # the shipments they own. Ownership is enforced inside the
+            # handlers — the codename only opens the gate.
+            "logistics:read",
+            "logistics:write",
         ],
     ),
 ]

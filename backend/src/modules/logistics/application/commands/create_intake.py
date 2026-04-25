@@ -16,6 +16,7 @@ from src.modules.logistics.domain.interfaces import (
     IShippingProviderRegistry,
 )
 from src.modules.logistics.domain.value_objects import IntakeRequest
+from src.shared.exceptions import ValidationError
 from src.shared.interfaces.logger import ILogger
 
 
@@ -65,7 +66,10 @@ class CreateIntakeHandler:
             )
 
         if not shipment.parcels:
-            raise ValueError("Shipment has no parcels")
+            raise ValidationError(
+                message="Shipment has no parcels — cannot schedule intake.",
+                details={"shipment_id": str(command.shipment_id)},
+            )
 
         provider = self._registry.get_intake_provider(shipment.provider_code)
         request = IntakeRequest(

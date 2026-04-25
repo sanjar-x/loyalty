@@ -53,9 +53,15 @@ _ALLOWED_TRANSITIONS: dict[ShipmentStatus, frozenset[ShipmentStatus]] = {
     ),
     ShipmentStatus.BOOKING_PENDING: frozenset(
         {
-            ShipmentStatus.BOOKING_PENDING,  # idempotent retry
+            # Idempotent retry of BOOKING_PENDING is handled by
+            # ``mark_booking_pending`` short-circuiting *before*
+            # ``_transition_to`` — it never reaches the table.
             ShipmentStatus.BOOKED,
             ShipmentStatus.FAILED,
+            # Auto-transition from terminal carrier statuses ingested
+            # while booking is still pending (e.g. webhook reports
+            # NOT_DELIVERED before the polling window resolves).
+            ShipmentStatus.CANCELLED,
         }
     ),
     ShipmentStatus.BOOKED: frozenset(
@@ -239,15 +245,23 @@ class Shipment(AggregateRoot):
     ) -> None:
         """Transition BOOKING_PENDING → BOOKED.
 
-        ``estimated_delivery`` from the booking response is *merged* with
-        the quote-time estimate seeded in ``Shipment.create()``: each
-        non-None field from the new estimate overrides the previous one.
-        This keeps ``min_days`` / ``max_days`` from the quote when the
-        carrier (e.g. CDEK) only echoes ``estimated_date`` post-booking.
+        ``provider_shipment_id`` and ``tracking_number`` use *merge*
+        semantics — a non-empty new value overrides, but an empty /
+        ``None`` argument keeps whatever was previously set. This
+        prevents idempotent retries (e.g. CDEK polls where the second
+        response omits ``cdek_number``) from clobbering data the first
+        booking response captured.
+
+        ``estimated_delivery`` is merged field-by-field via
+        :func:`_merge_estimates` so ``min_days`` / ``max_days`` from
+        the quote survive a booking response that only echoes
+        ``estimated_date``.
         """
         self._transition_to(ShipmentStatus.BOOKED)
-        self.provider_shipment_id = provider_shipment_id
-        self.tracking_number = tracking_number
+        if provider_shipment_id:
+            self.provider_shipment_id = provider_shipment_id
+        if tracking_number:
+            self.tracking_number = tracking_number
         self.estimated_delivery = _merge_estimates(
             self.estimated_delivery, estimated_delivery
         )
@@ -275,14 +289,24 @@ class Shipment(AggregateRoot):
         )
 
     def mark_cancel_pending(self) -> None:
-        """Transition BOOKED → CANCEL_PENDING."""
+        """Transition BOOKED → CANCEL_PENDING.
+
+        Clears any ``failure_reason`` left over from a previous failed
+        cancel attempt — a successful (re)cancellation must not
+        surface stale error text downstream.
+        """
         self._transition_to(ShipmentStatus.CANCEL_PENDING)
+        self.failure_reason = None
         self.add_domain_event(ShipmentCancellationRequestedEvent(shipment_id=self.id))
 
     def mark_cancelled(self) -> None:
         """Transition CANCEL_PENDING → CANCELLED."""
         self._transition_to(ShipmentStatus.CANCELLED)
         self.cancelled_at = datetime.now(UTC)
+        # Cancellation succeeded — drop any failure note from a prior
+        # rejected cancel attempt so consumers don't read it as the
+        # cancellation reason.
+        self.failure_reason = None
         self.add_domain_event(ShipmentCancelledEvent(shipment_id=self.id))
 
     def mark_cancellation_failed(self, reason: str) -> None:
@@ -376,9 +400,14 @@ class Shipment(AggregateRoot):
         )
 
         # Auto-transition the local FSM on terminal carrier outcomes.
-        # Only applies when the shipment is in a non-terminal state — we
-        # never override an explicit local cancellation/failure.
-        if self.status in (ShipmentStatus.BOOKED, ShipmentStatus.CANCEL_PENDING):
+        # Applies to *every* non-terminal state — including
+        # BOOKING_PENDING, where a webhook can race ahead of the
+        # polling window and report ``NOT_DELIVERED`` / ``LOST``
+        # before the booking adapter ever observes ``statuses``.
+        if self.status not in (
+            ShipmentStatus.CANCELLED,
+            ShipmentStatus.FAILED,
+        ):
             if event.status in TERMINAL_FAILURE_TRACKING_STATUSES:
                 fail_reason = (
                     event.description

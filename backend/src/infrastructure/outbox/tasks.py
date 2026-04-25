@@ -124,6 +124,75 @@ register_event_handler("linked_account_created", _handle_linked_account_created)
 
 
 # ---------------------------------------------------------------------------
+# Logistics event handlers
+# ---------------------------------------------------------------------------
+# These currently only structured-log the event so that bookings,
+# cancellations, failures and tracking updates appear in the relay's
+# audit trail instead of being silently dropped under the
+# "unknown event_type" branch. Wire concrete TaskIQ consumers
+# (notifications, cart sync, accounting) by replacing the body with a
+# `.kicker().kiq(...)` call — same pattern as the IAM handlers above.
+
+
+def _logistics_event_logger(
+    event_label: str,
+    *,
+    level: str = "info",
+):
+    """Build a structured-log-only handler for a logistics event_type.
+
+    ``event_label`` is the human-readable verb (``"shipment.booked"``,
+    ``"shipment.cancelled"``, …) emitted on the structured logger so
+    that downstream observability tools can filter without scraping
+    the Pythonic class name.
+    """
+
+    async def _handler(payload: dict, correlation_id: str | None = None) -> None:
+        log = logger.bind(
+            event=event_label,
+            correlation_id=correlation_id,
+            shipment_id=payload.get("shipment_id"),
+        )
+        getattr(log, level)("Outbox: logistics event observed", payload=payload)
+
+    return _handler
+
+
+register_event_handler(
+    "ShipmentCreatedEvent",
+    _logistics_event_logger("shipment.created"),
+)
+register_event_handler(
+    "ShipmentBookingRequestedEvent",
+    _logistics_event_logger("shipment.booking_requested"),
+)
+register_event_handler(
+    "ShipmentBookedEvent",
+    _logistics_event_logger("shipment.booked"),
+)
+register_event_handler(
+    "ShipmentBookingFailedEvent",
+    _logistics_event_logger("shipment.booking_failed", level="warning"),
+)
+register_event_handler(
+    "ShipmentCancellationRequestedEvent",
+    _logistics_event_logger("shipment.cancellation_requested"),
+)
+register_event_handler(
+    "ShipmentCancelledEvent",
+    _logistics_event_logger("shipment.cancelled"),
+)
+register_event_handler(
+    "ShipmentCancellationFailedEvent",
+    _logistics_event_logger("shipment.cancellation_failed", level="warning"),
+)
+register_event_handler(
+    "ShipmentTrackingUpdatedEvent",
+    _logistics_event_logger("shipment.tracking_updated"),
+)
+
+
+# ---------------------------------------------------------------------------
 # TaskIQ: Outbox Relay (periodic polling)
 # ---------------------------------------------------------------------------
 

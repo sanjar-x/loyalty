@@ -14,6 +14,7 @@ from src.modules.logistics.domain.interfaces import (
     IShippingProviderRegistry,
 )
 from src.modules.logistics.domain.value_objects import EditItemMarking
+from src.shared.exceptions import ValidationError
 from src.shared.interfaces.logger import ILogger
 
 
@@ -40,7 +41,10 @@ class EditOrderItemsHandler:
 
     async def handle(self, command: EditOrderItemsCommand) -> EditTaskSubmittedResult:
         if not command.items:
-            raise ValueError("EditOrderItemsCommand requires at least one item.")
+            raise ValidationError(
+                message="EditOrderItemsCommand requires at least one item.",
+                details={"shipment_id": str(command.shipment_id)},
+            )
 
         shipment = await self._shipment_repo.get_by_id(command.shipment_id)
         if shipment is None:

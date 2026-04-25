@@ -24,8 +24,21 @@ from src.modules.logistics.infrastructure.providers.errors import (
 
 logger = logging.getLogger(__name__)
 
-# HTTP status codes that trigger automatic retry
-_RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+# HTTP status codes safe to retry for *any* method (idempotent or not):
+# 429 is rate-limit back-off — replaying does not produce a duplicate
+# resource.
+_ALWAYS_RETRYABLE_STATUS_CODES = frozenset({429})
+
+# Status codes safe to retry only when the HTTP method is itself
+# idempotent (RFC 7231 §4.2.2). For non-idempotent calls — POST without
+# an Idempotency-Key — replaying a 5xx / timeout risks duplicate orders /
+# bookings on the carrier side. CDEK dedupes online-store orders by
+# ``number`` server-side, but Yandex ``offers/create``,
+# ``offers/confirm``, ``request/create`` carry no client key.
+_IDEMPOTENT_RETRY_STATUS_CODES = frozenset({500, 502, 503, 504})
+
+# Methods whose semantics are idempotent per RFC 7231 / RFC 5789.
+_IDEMPOTENT_METHODS = frozenset({"GET", "HEAD", "PUT", "DELETE", "OPTIONS"})
 
 # Maximum number of characters of an error response body kept in
 # ``ProviderHTTPError.response_body``. CDEK validation errors can carry
@@ -103,8 +116,18 @@ class BaseProviderClient:
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | None = None,
         content: bytes | None = None,
+        retry_idempotent: bool | None = None,
     ) -> httpx.Response:
         """Execute an HTTP request with auth, retry, and logging.
+
+        Retry policy is *method-aware*:
+
+        - Every method retries on HTTP 429 (rate-limit) — safe to replay.
+        - Only idempotent methods (GET / HEAD / PUT / DELETE / OPTIONS)
+          retry on 5xx and on transport errors (timeouts, connection
+          drops). Non-idempotent POST / PATCH must opt in via
+          ``retry_idempotent=True`` after the caller has guaranteed
+          server-side deduplication (e.g. an Idempotency-Key header).
 
         Args:
             method: HTTP method (GET, POST, PUT, PATCH, DELETE).
@@ -114,6 +137,12 @@ class BaseProviderClient:
             headers: Additional headers (merged with auth headers).
             data: Form-encoded request body.
             content: Raw bytes request body.
+            retry_idempotent: Override the auto-detected idempotency
+                hint. ``True`` forces 5xx / timeout retries on
+                non-idempotent methods (caller must supply an
+                idempotency key); ``False`` disables 5xx retries even
+                for naturally idempotent methods. Defaults to
+                ``method.upper() in _IDEMPOTENT_METHODS``.
 
         Returns:
             The ``httpx.Response`` from the provider.
@@ -123,6 +152,12 @@ class BaseProviderClient:
             ProviderTimeoutError: All retries exhausted due to timeouts.
             ProviderAuthError: Authentication failure.
         """
+        retry_5xx = (
+            retry_idempotent
+            if retry_idempotent is not None
+            else method.upper() in _IDEMPOTENT_METHODS
+        )
+
         await self._auth.refresh_if_needed()
         auth_headers = await self._auth.get_auth_headers()
 
@@ -131,6 +166,7 @@ class BaseProviderClient:
             merged_headers.update(headers)
 
         last_exception: Exception | None = None
+        auth_refreshed = False
 
         for attempt in range(1, self._config.max_retries + 1):
             try:
@@ -156,8 +192,12 @@ class BaseProviderClient:
                     return response
 
                 if response.status_code == 401:
-                    # Force token refresh and retry once
-                    if attempt == 1:
+                    # Force a token refresh once per request lifetime.
+                    # Tracked via a local flag rather than ``attempt == 1``
+                    # so a transient 5xx burning the first attempt does
+                    # not block a legitimate refresh on the next one.
+                    if not auth_refreshed:
+                        auth_refreshed = True
                         await self._auth.refresh_if_needed()
                         auth_headers = await self._auth.get_auth_headers()
                         merged_headers.update(auth_headers)
@@ -166,7 +206,11 @@ class BaseProviderClient:
                         f"Authentication failed after refresh: HTTP {response.status_code}"
                     )
 
-                if response.status_code in _RETRYABLE_STATUS_CODES:
+                is_rate_limited = response.status_code in _ALWAYS_RETRYABLE_STATUS_CODES
+                is_5xx_retryable = (
+                    retry_5xx and response.status_code in _IDEMPOTENT_RETRY_STATUS_CODES
+                )
+                if is_rate_limited or is_5xx_retryable:
                     last_exception = ProviderHTTPError(
                         status_code=response.status_code,
                         message=f"Retryable error on attempt {attempt}",
@@ -177,6 +221,20 @@ class BaseProviderClient:
                         continue
                     raise last_exception
 
+                # 5xx on a non-idempotent call — surface immediately so
+                # the caller can decide whether to retry with a new
+                # idempotency key.
+                if response.status_code in _IDEMPOTENT_RETRY_STATUS_CODES:
+                    raise ProviderHTTPError(
+                        status_code=response.status_code,
+                        message=(
+                            f"{method} returned {response.status_code}; "
+                            "not retrying — caller must supply an "
+                            "idempotency key to enable retries."
+                        ),
+                        response_body=response.text[:_RESPONSE_BODY_LOG_LIMIT],
+                    )
+
                 # Non-retryable client error (400, 403, 404, 409, 422, etc.)
                 raise ProviderHTTPError(
                     status_code=response.status_code,
@@ -184,13 +242,17 @@ class BaseProviderClient:
                     response_body=response.text[:_RESPONSE_BODY_LOG_LIMIT],
                 )
 
-            except httpx.TimeoutException:
+            except httpx.TimeoutException as timeout_exc:
+                # Transport-level failure: we cannot tell whether the
+                # server processed the request, so retrying is only
+                # safe for idempotent methods.
                 last_exception = ProviderTimeoutError(
                     f"Timeout on attempt {attempt}/{self._config.max_retries}"
                 )
-                if attempt < self._config.max_retries:
+                if retry_5xx and attempt < self._config.max_retries:
                     await self._backoff(attempt)
                     continue
+                raise last_exception from timeout_exc
 
             except (
                 ProviderHTTPError,
@@ -204,9 +266,10 @@ class BaseProviderClient:
                     status_code=0,
                     message=f"Connection error: {exc}",
                 )
-                if attempt < self._config.max_retries:
+                if retry_5xx and attempt < self._config.max_retries:
                     await self._backoff(attempt)
                     continue
+                raise last_exception from exc
 
         raise last_exception or ProviderTimeoutError("All retries exhausted")
 

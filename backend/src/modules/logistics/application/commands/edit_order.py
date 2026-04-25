@@ -23,6 +23,7 @@ from src.modules.logistics.domain.value_objects import (
     EditOrderRequest,
     EditPlaceSwap,
 )
+from src.shared.exceptions import ValidationError
 from src.shared.interfaces.logger import ILogger
 
 
@@ -60,9 +61,12 @@ class EditOrderHandler:
             and command.destination is None
             and not command.places
         ):
-            raise ValueError(
-                "EditOrderCommand requires at least one of recipient, "
-                "destination or places."
+            raise ValidationError(
+                message=(
+                    "EditOrderCommand requires at least one of recipient, "
+                    "destination or places."
+                ),
+                details={"shipment_id": str(command.shipment_id)},
             )
 
         shipment = await self._shipment_repo.get_by_id(command.shipment_id)
