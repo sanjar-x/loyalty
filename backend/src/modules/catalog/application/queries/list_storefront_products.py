@@ -23,7 +23,6 @@ from src.modules.catalog.application.constants import (
     STOREFRONT_PLP_CACHE_TTL,
     storefront_plp_cache_key,
 )
-from src.shared.cache_keys import read_storefront_product_generation
 from src.modules.catalog.application.queries.read_models import (
     StorefrontBrandReadModel,
     StorefrontImageReadModel,
@@ -45,6 +44,7 @@ from src.modules.catalog.infrastructure.models import (
 )
 from src.modules.catalog.infrastructure.models import ProductVariant as OrmVariant
 from src.modules.supplier.infrastructure.models import Supplier as OrmSupplier
+from src.shared.cache_keys import read_storefront_product_generation
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.pagination import CursorPage, decode_cursor, encode_cursor
@@ -80,8 +80,6 @@ class StorefrontProductListQuery:
 
 class ListStorefrontProductsHandler:
     """Fetch a cursor-paginated product card list for the storefront."""
-
-    _EFFECTIVE_PRICE = func.coalesce(OrmSKU.price, OrmVariant.default_price)
 
     def __init__(
         self,
@@ -368,26 +366,29 @@ class ListStorefrontProductsHandler:
         pk = enriched.c.product_id
         sort = query.sort
 
+        # NULL-safe keyset for ``nullslast()`` orders: rows with NULL
+        # in the sort column come last in the result set, so once the
+        # cursor crosses into them we must drop the comparison
+        # ``NULL <op> v`` (which is itself NULL → falsy in WHERE) and
+        # only paginate by ``product_id``.
+        def _nullslast_keyset(col, op_strict: str):
+            strict = (
+                (col > cursor_sort_val) if op_strict == ">" else (col < cursor_sort_val)
+            )
+            return (
+                (col.is_not(None) & strict)
+                | (col.is_not(None) & (col == cursor_sort_val) & (pk < cursor_id))
+                | (col.is_(None) & (pk < cursor_id))
+            )
+
         if sort == "newest":
-            col = enriched.c.published_at
-            stmt = stmt.where(
-                (col < cursor_sort_val) | ((col == cursor_sort_val) & (pk < cursor_id))
-            )
+            stmt = stmt.where(_nullslast_keyset(enriched.c.published_at, "<"))
         elif sort == "price_asc":
-            col = enriched.c.effective_price
-            stmt = stmt.where(
-                (col > cursor_sort_val) | ((col == cursor_sort_val) & (pk < cursor_id))
-            )
+            stmt = stmt.where(_nullslast_keyset(enriched.c.effective_price, ">"))
         elif sort == "price_desc":
-            col = enriched.c.effective_price
-            stmt = stmt.where(
-                (col < cursor_sort_val) | ((col == cursor_sort_val) & (pk < cursor_id))
-            )
+            stmt = stmt.where(_nullslast_keyset(enriched.c.effective_price, "<"))
         else:
-            col = enriched.c.popularity_score
-            stmt = stmt.where(
-                (col < cursor_sort_val) | ((col == cursor_sort_val) & (pk < cursor_id))
-            )
+            stmt = stmt.where(_nullslast_keyset(enriched.c.popularity_score, "<"))
 
         return stmt
 

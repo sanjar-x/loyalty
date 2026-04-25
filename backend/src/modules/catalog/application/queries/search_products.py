@@ -16,14 +16,13 @@ import re
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import Float, and_, exists, func, literal, or_, select, text
+from sqlalchemy import Float, and_, case, exists, func, literal, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.constants import (
     STOREFRONT_SEARCH_CACHE_TTL,
     storefront_search_cache_key,
 )
-from src.shared.cache_keys import read_storefront_product_generation
 from src.modules.catalog.application.queries.read_models import (
     StorefrontBrandReadModel,
     StorefrontImageReadModel,
@@ -45,6 +44,7 @@ from src.modules.catalog.infrastructure.models import (
 )
 from src.modules.catalog.infrastructure.models import ProductVariant as OrmVariant
 from src.modules.supplier.infrastructure.models import Supplier as OrmSupplier
+from src.shared.cache_keys import read_storefront_product_generation
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.pagination import CursorPage, decode_cursor, encode_cursor
@@ -92,8 +92,6 @@ class SearchProductsQuery:
 
 class SearchProductsHandler:
     """Full-text product search for the storefront."""
-
-    _EFFECTIVE_PRICE = func.coalesce(OrmSKU.price, OrmVariant.default_price)
 
     # The SQL function from the migration.
     _SEARCH_VECTOR = func.catalog_product_search_vector(
@@ -147,8 +145,15 @@ class SearchProductsHandler:
         stmt = self._apply_cursor(stmt, enriched, query)
         stmt = stmt.limit(query.limit + 1)
 
-        result = await self._session.execute(stmt)
-        rows = result.all()
+        # ``to_tsquery`` raises ProgrammingError on malformed input
+        # (lone operators, empty quoted tokens). Return empty results
+        # rather than 500-ing the public search endpoint.
+        try:
+            result = await self._session.execute(stmt)
+            rows = result.all()
+        except Exception as exc:
+            self._logger.warning("search_tsquery_failed", error=str(exc), q=query.q)
+            return CursorPage(items=[], has_next=False, next_cursor=None, total=0)
 
         has_next = len(rows) > query.limit
         rows = rows[: query.limit]
@@ -164,7 +169,13 @@ class SearchProductsHandler:
         if query.include_total:
             count_sub = self._build_enriched_subquery(query, tsquery, resolved_attr)
             count_stmt = select(func.count()).select_from(count_sub)
-            total = (await self._session.execute(count_stmt)).scalar_one()
+            try:
+                total = (await self._session.execute(count_stmt)).scalar_one()
+            except Exception as exc:
+                self._logger.warning(
+                    "search_count_failed", error=str(exc), q=query.q
+                )
+                total = 0
 
         page = CursorPage(
             items=items,
@@ -183,13 +194,24 @@ class SearchProductsHandler:
         search_vector = self._SEARCH_VECTOR
         rank_expr = func.ts_rank_cd(search_vector, tsquery).cast(Float).label("rank")
 
+        # ADR-005 — same priceability shape as ``list_storefront_products``:
+        # autonomously priced SKUs win over the legacy manual price; SKUs
+        # in non-priceable failure statuses are excluded so search hits
+        # always carry the same price the customer sees on the PLP/PDP.
+        effective_price_expr = case(
+            (OrmSKU.pricing_status == "priced", OrmSKU.selling_price),
+            else_=func.coalesce(OrmSKU.price, OrmVariant.default_price),
+        )
+        priceable_status_clause = OrmSKU.pricing_status.in_(
+            ("legacy", "priced", "pending")
+        )
         cheapest_sku = (
             select(
-                func.coalesce(OrmSKU.price, OrmVariant.default_price).label(
-                    "effective_price"
-                ),
+                effective_price_expr.label("effective_price"),
                 OrmSKU.compare_at_price.label("compare_at_price"),
-                OrmSKU.currency.label("sku_currency"),
+                func.coalesce(OrmSKU.selling_currency, OrmSKU.currency).label(
+                    "sku_currency"
+                ),
             )
             .join(OrmVariant, OrmVariant.id == OrmSKU.variant_id)
             .where(
@@ -197,9 +219,10 @@ class SearchProductsHandler:
                 OrmSKU.is_active.is_(True),
                 OrmSKU.deleted_at.is_(None),
                 OrmVariant.deleted_at.is_(None),
-                func.coalesce(OrmSKU.price, OrmVariant.default_price).is_not(None),
+                priceable_status_clause,
+                effective_price_expr.is_not(None),
             )
-            .order_by(func.coalesce(OrmSKU.price, OrmVariant.default_price).asc())
+            .order_by(effective_price_expr.asc())
             .limit(1)
             .correlate(OrmProduct)
             .lateral("cheapest_sku")
@@ -249,7 +272,8 @@ class SearchProductsHandler:
                 OrmSKU.is_active.is_(True),
                 OrmSKU.deleted_at.is_(None),
                 OrmVariant.deleted_at.is_(None),
-                func.coalesce(OrmSKU.price, OrmVariant.default_price).is_not(None),
+                priceable_status_clause,
+                effective_price_expr.is_not(None),
             )
         ).correlate(OrmProduct)
 
@@ -361,28 +385,27 @@ class SearchProductsHandler:
         pk = enriched.c.product_id
         sort = query.sort
 
+        # NULL-safe keyset for ``nullslast()`` orders — see PLP handler.
+        def _nullslast_keyset(col, op_strict: str):
+            strict = (
+                (col > cursor_sort_val) if op_strict == ">" else (col < cursor_sort_val)
+            )
+            return (
+                (col.is_not(None) & strict)
+                | (col.is_not(None) & (col == cursor_sort_val) & (pk < cursor_id))
+                | (col.is_(None) & (pk < cursor_id))
+            )
+
         if sort == "newest":
-            col = enriched.c.published_at
-            stmt = stmt.where(
-                (col < cursor_sort_val) | ((col == cursor_sort_val) & (pk < cursor_id))
-            )
+            stmt = stmt.where(_nullslast_keyset(enriched.c.published_at, "<"))
         elif sort == "price_asc":
-            col = enriched.c.effective_price
-            stmt = stmt.where(
-                (col > cursor_sort_val) | ((col == cursor_sort_val) & (pk < cursor_id))
-            )
+            stmt = stmt.where(_nullslast_keyset(enriched.c.effective_price, ">"))
         elif sort == "price_desc":
-            col = enriched.c.effective_price
-            stmt = stmt.where(
-                (col < cursor_sort_val) | ((col == cursor_sort_val) & (pk < cursor_id))
-            )
+            stmt = stmt.where(_nullslast_keyset(enriched.c.effective_price, "<"))
         elif sort == "popular":
-            col = enriched.c.popularity_score
-            stmt = stmt.where(
-                (col < cursor_sort_val) | ((col == cursor_sort_val) & (pk < cursor_id))
-            )
+            stmt = stmt.where(_nullslast_keyset(enriched.c.popularity_score, "<"))
         else:
-            # Relevance rank (float). Round to 6 decimal places for stable comparison.
+            # Relevance rank — float, no NULLs (ts_rank_cd never returns NULL).
             col = enriched.c.rank
             stmt = stmt.where(
                 (col < cursor_sort_val) | ((col == cursor_sort_val) & (pk < cursor_id))

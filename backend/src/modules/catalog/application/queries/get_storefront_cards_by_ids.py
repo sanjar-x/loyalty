@@ -12,7 +12,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import exists, func, literal, select
+from sqlalchemy import case, exists, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.queries.list_storefront_products import (
@@ -86,13 +86,23 @@ class GetStorefrontProductCardsByIdsHandler:
             .lateral("primary_image")
         )
 
+        # ADR-005 — same priceability shape as PLP/search: ``selling_price``
+        # wins for ``priced`` SKUs; failure-status SKUs are excluded so
+        # the related-products carousel never disagrees with the PDP.
+        effective_price_expr = case(
+            (OrmSKU.pricing_status == "priced", OrmSKU.selling_price),
+            else_=func.coalesce(OrmSKU.price, OrmVariant.default_price),
+        )
+        priceable_status_clause = OrmSKU.pricing_status.in_(
+            ("legacy", "priced", "pending")
+        )
         cheapest_sku = (
             select(
-                func.coalesce(OrmSKU.price, OrmVariant.default_price).label(
-                    "effective_price"
-                ),
+                effective_price_expr.label("effective_price"),
                 OrmSKU.compare_at_price.label("compare_at_price"),
-                OrmSKU.currency.label("sku_currency"),
+                func.coalesce(OrmSKU.selling_currency, OrmSKU.currency).label(
+                    "sku_currency"
+                ),
             )
             .join(OrmVariant, OrmVariant.id == OrmSKU.variant_id)
             .where(
@@ -100,9 +110,10 @@ class GetStorefrontProductCardsByIdsHandler:
                 OrmSKU.is_active.is_(True),
                 OrmSKU.deleted_at.is_(None),
                 OrmVariant.deleted_at.is_(None),
-                func.coalesce(OrmSKU.price, OrmVariant.default_price).is_not(None),
+                priceable_status_clause,
+                effective_price_expr.is_not(None),
             )
-            .order_by(func.coalesce(OrmSKU.price, OrmVariant.default_price).asc())
+            .order_by(effective_price_expr.asc())
             .limit(1)
             .correlate(OrmProduct)
             .lateral("cheapest_sku")
@@ -127,7 +138,8 @@ class GetStorefrontProductCardsByIdsHandler:
                 OrmSKU.is_active.is_(True),
                 OrmSKU.deleted_at.is_(None),
                 OrmVariant.deleted_at.is_(None),
-                func.coalesce(OrmSKU.price, OrmVariant.default_price).is_not(None),
+                priceable_status_clause,
+                effective_price_expr.is_not(None),
             )
         ).correlate(OrmProduct)
 
@@ -168,28 +180,48 @@ class GetStorefrontProductCardsByIdsHandler:
 
         by_id = {row.product_id: row for row in rows}
 
-        # Batch-load all media assets for the matched products in one query,
-        # preserving the same ordering rules used for the primary image.
+        # Batch-load top-N media assets per product via window function.
+        # Without ``ROW_NUMBER`` cap the carousel could return 30+ images
+        # × N cards (rich product galleries). 4 covers thumbnail + a few
+        # hover-state shots; client-side carousel hits PDP for the rest.
+        _MEDIA_PER_CARD = 4
         images_by_product: dict[uuid.UUID, list[StorefrontImageReadModel]] = {}
         matched_ids = list(by_id.keys())
         if matched_ids:
-            media_stmt = (
+            row_number = (
+                func.row_number()
+                .over(
+                    partition_by=OrmMediaAsset.product_id,
+                    order_by=(
+                        OrmMediaAsset.variant_id.is_not(None).asc(),
+                        (OrmMediaAsset.role != MediaRole.MAIN).asc(),
+                        OrmMediaAsset.sort_order.asc(),
+                        OrmMediaAsset.created_at.asc(),
+                    ),
+                )
+                .label("rn")
+            )
+            ranked_sub = (
                 select(
                     OrmMediaAsset.product_id,
                     OrmMediaAsset.url,
                     OrmMediaAsset.image_variants,
+                    row_number,
                 )
                 .where(
                     OrmMediaAsset.product_id.in_(matched_ids),
                     OrmMediaAsset.url.is_not(None),
                 )
-                .order_by(
-                    OrmMediaAsset.product_id,
-                    OrmMediaAsset.variant_id.is_not(None).asc(),
-                    (OrmMediaAsset.role != MediaRole.MAIN).asc(),
-                    OrmMediaAsset.sort_order.asc(),
-                    OrmMediaAsset.created_at.asc(),
+                .subquery()
+            )
+            media_stmt = (
+                select(
+                    ranked_sub.c.product_id,
+                    ranked_sub.c.url,
+                    ranked_sub.c.image_variants,
                 )
+                .where(ranked_sub.c.rn <= _MEDIA_PER_CARD)
+                .order_by(ranked_sub.c.product_id, ranked_sub.c.rn)
             )
             media_rows = await self._session.execute(media_stmt)
             for product_id, url, image_variants in media_rows.all():

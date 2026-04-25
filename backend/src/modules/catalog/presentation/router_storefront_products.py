@@ -10,10 +10,37 @@ URL paths (under /api/v1/catalog):
     GET /storefront/products/{slug}   — Product detail  (PDP)
 """
 
+import asyncio
+import logging
 import uuid
+from collections.abc import Coroutine
+from typing import Any
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Query, Request, Response, status
+
+_logger = logging.getLogger(__name__)
+
+
+def _fire_and_forget(coro: Coroutine[Any, Any, Any]) -> None:
+    """Schedule a tracker coroutine without blocking the request path.
+
+    The activity tracker contract is best-effort and swallows its own
+    errors, but ``await`` still pays the Redis/Postgres round-trip on
+    the response timeline. Detach via ``create_task`` and log any
+    leaking exception (also swallowed) so latency stays bounded.
+    """
+
+    task = asyncio.create_task(coro)
+
+    def _log_exc(t: asyncio.Task[Any]) -> None:
+        if t.cancelled():
+            return
+        exc = t.exception()
+        if exc is not None:
+            _logger.warning("activity_tracking_failed", exc_info=exc)
+
+    task.add_done_callback(_log_exc)
 
 from src.modules.catalog.application.queries.compute_facets import (
     ComputeFacetsHandler,
@@ -56,9 +83,16 @@ storefront_products_router = APIRouter(
 
 
 def _project_i18n(i18n_dict: dict[str, str], lang: str) -> str:
-    """Project a single locale from an i18n dict with fallback chain."""
-    if lang in i18n_dict:
-        return i18n_dict[lang]
+    """Project a single locale from an i18n dict with deterministic fallback.
+
+    Order: requested ``lang`` → ``ru`` → ``en`` → first available → "".
+    The explicit chain avoids relying on dict-iteration order, which is
+    insertion-ordered per row but not guaranteed across JSONB rows.
+    """
+    for candidate in (lang, "ru", "en"):
+        value = i18n_dict.get(candidate)
+        if value:
+            return value
     if i18n_dict:
         return next(iter(i18n_dict.values()))
     return ""
@@ -201,12 +235,14 @@ async def list_storefront_products(
             facets_result, from_attributes=True
         )
 
-    await _track_plp_view(
-        tracker,
-        category_id=category_id,
-        result_count=len(cards),
-        identity_id=_extract_identity_id(request, token_provider),
-        request=request,
+    _fire_and_forget(
+        _track_plp_view(
+            tracker,
+            category_id=category_id,
+            result_count=len(cards),
+            identity_id=_extract_identity_id(request, token_provider),
+            request=request,
+        )
     )
 
     return StorefrontPLPResponse(
@@ -226,7 +262,11 @@ async def _track_plp_view(
     identity_id: str | None,
     request: Request,
 ) -> None:
-    """Best-effort PLP activity tracking (swallows all errors)."""
+    """Best-effort PLP activity tracking (errors swallowed by caller).
+
+    Detached from the request path via ``_fire_and_forget``; ``await``
+    here only affects the background task, not the response timeline.
+    """
     actor_uuid = None
     if identity_id:
         try:
@@ -343,11 +383,13 @@ async def get_storefront_product(
             actor_uuid = uuid.UUID(identity_id)
         except ValueError:
             actor_uuid = None
-    await tracker.track_product_view(
-        product_id=detail.id,
-        category_id=detail.primary_category_id,
-        actor_id=actor_uuid,
-        session_id=_extract_session_id(request),
+    _fire_and_forget(
+        tracker.track_product_view(
+            product_id=detail.id,
+            category_id=detail.primary_category_id,
+            actor_id=actor_uuid,
+            session_id=_extract_session_id(request),
+        )
     )
 
     return pdp

@@ -113,8 +113,14 @@ ALLOWED_CROSS_MODULE = {
     # Storefront CQRS read-side projects ``supplier.type`` onto product cards
     # and PDPs (cross-border vs local policy). Read-only ORM JOIN — same
     # CQRS-read exemption that lets ``catalog.application.queries`` touch
-    # the catalog ORM directly.
-    ("catalog", "supplier"): {"src.modules.catalog.application.queries.*"},
+    # the catalog ORM directly. Tightly enumerated (not ``queries.*``) so
+    # a future query can't quietly pull in more of the supplier module.
+    ("catalog", "supplier"): {
+        "src.modules.catalog.application.queries.list_storefront_products",
+        "src.modules.catalog.application.queries.get_storefront_product",
+        "src.modules.catalog.application.queries.search_products",
+        "src.modules.catalog.application.queries.get_storefront_cards_by_ids",
+    },
     # ADR-005 — pricing recompute service reads SKU purchase price from
     # catalog and writes selling price back. The pricing domain stays
     # ignorant of catalog ORM via ports (``ISkuPricingInputReader``,
@@ -129,6 +135,13 @@ ALLOWED_CROSS_MODULE = {
     # pricing context mapping during SKU recompute.
     ("pricing", "supplier"): {
         "src.modules.pricing.infrastructure.adapters.sku_pricing_input_reader",
+    },
+    # Both pricing adapters look up ``CurrencyModel.minor_unit`` to
+    # convert between integer-kopecks (catalog storage) and
+    # Decimal-major-units (formula evaluator). Read-only ORM lookup.
+    ("pricing", "geo"): {
+        "src.modules.pricing.infrastructure.adapters.sku_pricing_input_reader",
+        "src.modules.pricing.infrastructure.adapters.sku_pricing_result_writer",
     },
     # Identity management CLI scripts (``create_admin``, ``sync_system_roles``)
     # reach into the full DI container for standalone bootstrap; they are

@@ -14,6 +14,9 @@ import uuid
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Query, Request, Response, status
 
+from src.modules.catalog.presentation.router_storefront_products import (
+    _fire_and_forget,
+)
 from src.modules.catalog.application.queries.compute_facets import (
     ComputeFacetsHandler,
     ComputeFacetsQuery,
@@ -51,8 +54,15 @@ storefront_search_router = APIRouter(
 
 
 def _project_i18n(i18n_dict: dict[str, str], lang: str) -> str:
-    if lang in i18n_dict:
-        return i18n_dict[lang]
+    """Project a single locale with deterministic fallback chain.
+
+    Order: requested ``lang`` → ``ru`` → ``en`` → first available → "".
+    Mirrors ``router_storefront_products._project_i18n``.
+    """
+    for candidate in (lang, "ru", "en"):
+        value = i18n_dict.get(candidate)
+        if value:
+            return value
     if i18n_dict:
         return next(iter(i18n_dict.values()))
     return ""
@@ -177,12 +187,14 @@ async def search_products(
             facets_result, from_attributes=True
         )
 
-    await _track_search(
-        tracker,
-        query=q,
-        result_count=len(cards),
-        identity_id=_extract_identity_id(request, token_provider),
-        request=request,
+    _fire_and_forget(
+        _track_search(
+            tracker,
+            query=q,
+            result_count=len(cards),
+            identity_id=_extract_identity_id(request, token_provider),
+            request=request,
+        )
     )
 
     return StorefrontPLPResponse(
