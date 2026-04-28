@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { expressionToText } from './astUtils';
 
-export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
-  const [text, setText] = useState(() => expressionToText(expr));
+export function ExpressionBuilder({ expr, onChange, variables, bindings, currentIndex, readOnly }) {
+  const lookups = useMemo(() => buildLookups(variables, bindings, currentIndex), [variables, bindings, currentIndex]);
+
+  const [text, setText] = useState(() => exprToDisplay(expr, lookups));
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestionFilter, setSuggestionFilter] = useState('');
   const [caretPos, setCaretPos] = useState(0);
@@ -16,14 +17,26 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
     const incoming = JSON.stringify(expr);
     const last = JSON.stringify(lastParsedRef.current);
     if (incoming !== last) {
-      setText(expressionToText(expr));
+      setText(exprToDisplay(expr, lookups));
       lastParsedRef.current = expr;
     }
-  }, [expr]);
+  }, [expr, lookups]);
 
-  const filteredVars = (variables || []).filter(
-    (v) => !suggestionFilter || v.code.toLowerCase().includes(suggestionFilter.toLowerCase()),
-  );
+  const suggestions = useMemo(() => {
+    const items = [];
+    for (const v of (variables || [])) {
+      const display = v.name?.ru || v.code;
+      items.push({ type: 'var', code: v.code, display, unit: v.unit, scope: v.scope });
+    }
+    for (const b of lookups.refBindings) {
+      items.push({ type: 'ref', code: b.name, display: b.label || b.name, unit: null, scope: 'binding' });
+    }
+    if (!suggestionFilter) return items;
+    const q = suggestionFilter.toLowerCase();
+    return items.filter((it) =>
+      it.display.toLowerCase().includes(q) || it.code.toLowerCase().includes(q),
+    );
+  }, [variables, lookups.refBindings, suggestionFilter]);
 
   function autoResize(el) {
     if (!el) return;
@@ -40,7 +53,7 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
     setCaretPos(pos);
 
     const before = val.slice(0, pos);
-    const atMatch = before.match(/@([a-z_][a-z0-9_]*)?$/);
+    const atMatch = before.match(/@(.*)$/);
     if (atMatch) {
       setSuggestionFilter(atMatch[1] || '');
       setShowSuggestions(true);
@@ -48,35 +61,34 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
       setShowSuggestions(false);
     }
 
-    const parsed = parseText(val);
+    const parsed = displayToExpr(val, lookups);
     lastParsedRef.current = parsed;
     onChange(parsed);
-  }, [onChange]);
+  }, [onChange, lookups]);
 
   function handleKeyDown(e) {
-    if (e.key === 'Escape') {
-      setShowSuggestions(false);
-    }
-    if (e.key === 'Tab' && showSuggestions && filteredVars.length > 0) {
+    if (e.key === 'Escape') setShowSuggestions(false);
+    if (e.key === 'Tab' && showSuggestions && suggestions.length > 0) {
       e.preventDefault();
-      insertVariable(filteredVars[0].code);
+      insertSuggestion(suggestions[0]);
     }
   }
 
-  function insertVariable(code) {
+  function insertSuggestion(item) {
     const el = textareaRef.current;
     if (!el) return;
 
     const before = text.slice(0, caretPos);
     const after = text.slice(caretPos);
     const atIdx = before.lastIndexOf('@');
-    const newBefore = before.slice(0, atIdx) + code;
+    const insertText = item.display;
+    const newBefore = before.slice(0, atIdx) + insertText;
     const newText = newBefore + (after.startsWith(' ') ? after : ' ' + after);
 
     setText(newText);
     setShowSuggestions(false);
 
-    const parsed = parseText(newText);
+    const parsed = displayToExpr(newText, lookups);
     lastParsedRef.current = parsed;
     onChange(parsed);
 
@@ -88,9 +100,10 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
   }
 
   const varCodes = new Set((variables || []).map((v) => v.code));
-  const varMap = Object.fromEntries((variables || []).map((v) => [v.code, v]));
   const tokens = text ? tokenize(text) : [];
-  const usedVars = tokens.filter((t) => t.type === 'variable' && varCodes.has(t.value));
+  const recognizedTokens = tokens.filter((t) =>
+    t.type === 'word' && (lookups.displayToCode.has(t.value) || varCodes.has(t.value)),
+  );
 
   return (
     <div className="relative">
@@ -107,26 +120,31 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
         }}
         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
         disabled={readOnly}
-        placeholder="purchase_price_cny * exchange_rate"
+        placeholder="Закупочная цена * Курс CNY/RUB"
         rows={1}
         spellCheck={false}
         className={cn(
-          'w-full resize-none overflow-hidden rounded-lg border border-app-border bg-white px-3 py-2 font-mono text-sm leading-6 text-app-text outline-none transition-colors',
+          'w-full resize-none overflow-hidden rounded-lg border border-app-border bg-white px-3 py-2 text-sm leading-6 text-app-text outline-none transition-colors',
           'focus:border-app-text focus:ring-1 focus:ring-app-text',
           'placeholder:text-app-muted',
           'disabled:cursor-default disabled:bg-transparent disabled:opacity-60',
         )}
       />
 
-      {usedVars.length > 0 && (
+      {recognizedTokens.length > 0 && (
         <div className="mt-1.5 flex flex-wrap items-center gap-1">
-          {usedVars.map((tok, i) => {
-            const v = varMap[tok.value];
-            const color = SCOPE_COLORS[v?.scope] || 'bg-gray-100 text-gray-600';
+          {recognizedTokens.map((tok, i) => {
+            const code = lookups.displayToCode.get(tok.value) || tok.value;
+            const v = (variables || []).find((x) => x.code === code);
+            const isRef = lookups.refNames.has(code);
+            const color = isRef
+              ? 'bg-violet-100 text-violet-700'
+              : SCOPE_COLORS[v?.scope] || 'bg-gray-100 text-gray-600';
             return (
               <span key={`${tok.value}-${i}`} className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium', color)}>
                 {tok.value}
                 {v?.unit && <span className="opacity-50">{v.unit}</span>}
+                {isRef && <span className="opacity-50">↑ref</span>}
               </span>
             );
           })}
@@ -136,27 +154,30 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
       <div className="mt-1 flex items-center gap-2">
         {!readOnly && (
           <span className="text-[10px] text-app-muted">
-            <kbd className="rounded border border-gray-300 bg-gray-100 px-1 py-0.5 font-mono text-[9px]">@</kbd> вставить переменную · операторы: + - * / · функции: min() max() round() if()
+            <kbd className="rounded border border-gray-300 bg-gray-100 px-1 py-0.5 font-mono text-[9px]">@</kbd> вставить переменную или ссылку на строку
           </span>
         )}
       </div>
 
-      {showSuggestions && filteredVars.length > 0 && (
+      {showSuggestions && suggestions.length > 0 && (
         <div className="absolute left-0 z-30 mt-1 max-h-56 w-80 overflow-y-auto rounded-xl border border-app-border bg-white p-1 shadow-xl">
-          {filteredVars.slice(0, 20).map((v) => (
+          {suggestions.slice(0, 20).map((item, i) => (
             <button
-              key={v.code}
+              key={`${item.code}-${i}`}
               onMouseDown={(e) => {
                 e.preventDefault();
-                insertVariable(v.code);
+                insertSuggestion(item);
               }}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#f4f3f1]"
             >
-              <code className={cn('shrink-0 rounded px-1.5 py-0.5 text-xs font-medium', SCOPE_COLORS[v.scope] || 'bg-gray-100 text-gray-600')}>
-                {v.code}
-              </code>
-              <span className="truncate text-xs text-app-muted">
-                {v.unit} · {SCOPE_LABELS[v.scope] || v.scope}
+              <span className={cn(
+                'shrink-0 rounded px-1.5 py-0.5 text-xs font-medium',
+                item.type === 'ref' ? 'bg-violet-100 text-violet-700' : SCOPE_COLORS[item.scope] || 'bg-gray-100 text-gray-600',
+              )}>
+                {item.display}
+              </span>
+              <span className="truncate text-[11px] text-app-muted">
+                {item.type === 'ref' ? '↑ строка формулы' : `${item.unit || ''} · ${SCOPE_LABELS[item.scope] || item.scope}`}
               </span>
             </button>
           ))}
@@ -187,6 +208,66 @@ const SCOPE_COLORS = {
   sku_input: 'bg-cyan-100 text-cyan-700',
 };
 
+function buildLookups(variables, bindings, currentIndex) {
+  const displayToCode = new Map();
+  const codeToDisplay = new Map();
+  const refNames = new Set();
+  const refBindings = [];
+
+  for (const v of (variables || [])) {
+    const display = v.name?.ru || v.code;
+    displayToCode.set(display, v.code);
+    codeToDisplay.set(v.code, display);
+  }
+
+  for (let i = 0; i < (bindings || []).length; i++) {
+    if (i >= currentIndex) break;
+    const b = bindings[i];
+    if (!b.name) continue;
+    const display = b.label || b.name;
+    displayToCode.set(display, b.name);
+    codeToDisplay.set(b.name, display);
+    refNames.add(b.name);
+    refBindings.push(b);
+  }
+
+  return { displayToCode, codeToDisplay, refNames, refBindings };
+}
+
+function exprToDisplay(expr, lookups) {
+  if (!expr || typeof expr !== 'object') return '';
+  if ('const' in expr) return String(expr.const);
+  if ('var' in expr) return lookups.codeToDisplay.get(expr.var) || expr.var;
+  if ('ref' in expr) return lookups.codeToDisplay.get(expr.ref) || expr.ref;
+  if ('op' in expr && Array.isArray(expr.args)) {
+    return expr.args.map((a) => exprToDisplay(a, lookups)).join(` ${expr.op} `);
+  }
+  if ('fn' in expr && Array.isArray(expr.args)) {
+    return `${expr.fn}(${expr.args.map((a) => exprToDisplay(a, lookups)).join(', ')})`;
+  }
+  return JSON.stringify(expr);
+}
+
+function displayToExpr(text, lookups) {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return { const: '0' };
+
+  try {
+    const tokens = tokenize(trimmed).filter((t) => t.type !== 'space');
+    const resolved = tokens.map((t) => {
+      if (t.type === 'word') {
+        const code = lookups.displayToCode.get(t.value);
+        if (code && lookups.refNames.has(code)) return { ...t, type: 'ref_resolved', code };
+        if (code) return { ...t, type: 'var_resolved', code };
+      }
+      return t;
+    });
+    return parseExpr(resolved, 0).node;
+  } catch {
+    return { var: trimmed };
+  }
+}
+
 const KNOWN_FNS = new Set(['min', 'max', 'round', 'ceil', 'floor', 'abs', 'if']);
 const OPS = new Set(['+', '-', '*', '/']);
 
@@ -216,13 +297,13 @@ function tokenize(text) {
       tokens.push({ type: 'number', value: num });
       continue;
     }
-    if (/[a-zA-Z_]/.test(text[i])) {
+    if (/[^\s+\-*/(),]/.test(text[i])) {
       let word = '';
-      while (i < text.length && /[a-zA-Z0-9_]/.test(text[i])) { word += text[i]; i++; }
+      while (i < text.length && /[^\s+\-*/(),]/.test(text[i])) { word += text[i]; i++; }
       if (KNOWN_FNS.has(word)) {
         tokens.push({ type: 'function', value: word });
       } else {
-        tokens.push({ type: 'variable', value: word });
+        tokens.push({ type: 'word', value: word });
       }
       continue;
     }
@@ -232,24 +313,8 @@ function tokenize(text) {
   return tokens;
 }
 
-function parseText(text) {
-  const trimmed = (text || '').trim();
-  if (!trimmed) return { const: '0' };
-
-  try {
-    const tokens = tokenize(trimmed).filter((t) => t.type !== 'space');
-    const result = parseExpr(tokens, 0);
-    return result.node;
-  } catch {
-    if (/^[a-z_][a-z0-9_]*$/.test(trimmed)) return { var: trimmed };
-    if (/^-?\d+(\.\d+)?$/.test(trimmed)) return { const: trimmed };
-    return { var: trimmed };
-  }
-}
-
 function parseExpr(tokens, pos) {
   let { node, pos: p } = parseTerm(tokens, pos);
-
   while (p < tokens.length && (tokens[p].value === '+' || tokens[p].value === '-')) {
     const op = tokens[p].value;
     p++;
@@ -257,13 +322,11 @@ function parseExpr(tokens, pos) {
     node = { op, args: [node, right.node] };
     p = right.pos;
   }
-
   return { node, pos: p };
 }
 
 function parseTerm(tokens, pos) {
   let { node, pos: p } = parseFactor(tokens, pos);
-
   while (p < tokens.length && (tokens[p].value === '*' || tokens[p].value === '/')) {
     const op = tokens[p].value;
     p++;
@@ -271,13 +334,11 @@ function parseTerm(tokens, pos) {
     node = { op, args: [node, right.node] };
     p = right.pos;
   }
-
   return { node, pos: p };
 }
 
 function parseFactor(tokens, pos) {
   if (pos >= tokens.length) return { node: { const: '0' }, pos };
-
   const tok = tokens[pos];
 
   if (tok.type === 'paren' && tok.value === '(') {
@@ -286,11 +347,9 @@ function parseFactor(tokens, pos) {
     if (p < tokens.length && tokens[p].value === ')') p++;
     return { node: inner.node, pos: p };
   }
-
-  if (tok.type === 'number') {
-    return { node: { const: tok.value }, pos: pos + 1 };
-  }
-
+  if (tok.type === 'number') return { node: { const: tok.value }, pos: pos + 1 };
+  if (tok.type === 'ref_resolved') return { node: { ref: tok.code }, pos: pos + 1 };
+  if (tok.type === 'var_resolved') return { node: { var: tok.code }, pos: pos + 1 };
   if (tok.type === 'function') {
     let p = pos + 1;
     if (p < tokens.length && tokens[p].value === '(') {
@@ -302,15 +361,11 @@ function parseFactor(tokens, pos) {
         args.push(arg.node);
         p = arg.pos;
       }
-      if (p < tokens.length && tokens[p].value === ')') p++;
+      if (p < tokens.length) p++;
       return { node: { fn: tok.value, args }, pos: p };
     }
     return { node: { fn: tok.value, args: [{ const: '0' }] }, pos: p };
   }
-
-  if (tok.type === 'variable') {
-    return { node: { var: tok.value }, pos: pos + 1 };
-  }
-
+  if (tok.type === 'word') return { node: { var: tok.value }, pos: pos + 1 };
   return { node: { const: '0' }, pos: pos + 1 };
 }

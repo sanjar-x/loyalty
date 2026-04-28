@@ -6,6 +6,7 @@ import { ExpressionBuilder } from './ExpressionBuilder';
 export function BindingRow({
   index,
   binding,
+  bindings,
   variables,
   componentTags,
   isLast,
@@ -71,6 +72,8 @@ export function BindingRow({
           expr={binding.expr}
           onChange={handleExprChange}
           variables={variables}
+          bindings={bindings}
+          currentIndex={index}
           readOnly={readOnly}
         />
       </div>

@@ -66,6 +66,7 @@ export function FormulaEditor({ bindings, onChange, variables, readOnly }) {
           key={index}
           index={index}
           binding={binding}
+          bindings={bindings}
           variables={variables}
           componentTags={COMPONENT_TAGS}
           isLast={index === bindings.length - 1}
