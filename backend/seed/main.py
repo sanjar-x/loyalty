@@ -2,7 +2,8 @@
 
 Steps fall into two groups:
 
-* **DB-only** (no HTTP server required): ``roles``, ``admin``, ``pricing``
+* **DB-only** (no HTTP server required): ``roles``, ``admin``, ``pricing``,
+  ``logistics``
 * **API-only** (HTTP server must be running): ``geo``, ``brands``,
   ``categories``, ``attributes``
 
@@ -44,6 +45,8 @@ from seed.attributes.create_attributes import seed_attributes
 from seed.brands.create_brands import seed_brands
 from seed.categories.create_categories import seed_categories
 from seed.geo.create_currencies import seed_geo
+from seed.logistics.seed_cdek import seed_cdek
+from seed.logistics.seed_yandex_delivery import seed_yandex_delivery
 from seed.pricing.seed_pricing import seed_pricing
 from seed.roles.create_roles import seed_roles
 
@@ -105,6 +108,18 @@ class Step:
     deps: tuple[str, ...] = ()
 
 
+def _seed_logistics(ctx: SeedContext) -> None:
+    """Run all logistics provider seeders sequentially.
+
+    Each individual seeder is idempotent and self-skipping when its
+    credentials are not configured, so it is safe to call them all in a
+    single ``logistics`` step regardless of which providers are active
+    on the current environment.
+    """
+    seed_cdek(ctx)
+    seed_yandex_delivery(ctx)
+
+
 # Canonical execution order — respected regardless of --step ordering.
 STEPS: list[Step] = [
     Step("roles", seed_roles, db_only=True),
@@ -114,6 +129,14 @@ STEPS: list[Step] = [
     # unique ``code`` index, so re-running is safe. No deps: the
     # variable registry is self-contained.
     Step("pricing", seed_pricing, db_only=True),
+    # Logistics provider accounts (CDEK + Yandex Delivery). DB-only and
+    # idempotent on ``provider_code`` — re-running updates each row's
+    # credentials/config in place. Each provider is skipped gracefully
+    # when its env credentials for the active ENVIRONMENT are unset
+    # (CDEK_*_ACCOUNT / CDEK_*_SECURE_PASSWORD,
+    # YANDEX_DELIVERY_*_OAUTH_TOKEN), so a partially-configured
+    # environment seeds only what it has keys for.
+    Step("logistics", _seed_logistics, db_only=True),
     Step("geo", seed_geo, db_only=False, deps=("admin",)),
     Step("brands", seed_brands, db_only=False, deps=("admin",)),
     Step("categories", seed_categories, db_only=False, deps=("admin",)),

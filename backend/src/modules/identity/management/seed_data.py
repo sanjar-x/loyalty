@@ -146,6 +146,10 @@ PERMISSIONS: list[SeedPermission] = [
         "logistics:write",
         "Управление доставкой: создание / бронирование / отмена отправлений, intake, возвраты, редактирование заказов",
     ),
+    SeedPermission(
+        "logistics:admin",
+        "Администрирование provider-аккаунтов CDEK/Yandex (CRUD credentials/config, refresh in-memory registry)",
+    ),
 ]
 
 PERMISSION_BY_CODENAME: dict[str, SeedPermission] = {p.codename: p for p in PERMISSIONS}

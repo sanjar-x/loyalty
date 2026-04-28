@@ -38,6 +38,12 @@ from src.modules.logistics.application.commands.edit_order_packages import (
 from src.modules.logistics.application.commands.ingest_tracking import (
     IngestTrackingHandler,
 )
+from src.modules.logistics.application.commands.manage_provider_accounts import (
+    CreateProviderAccountHandler,
+    DeleteProviderAccountHandler,
+    SetProviderAccountActiveHandler,
+    UpdateProviderAccountHandler,
+)
 from src.modules.logistics.application.commands.register_client_return import (
     RegisterClientReturnHandler,
 )
@@ -80,6 +86,10 @@ from src.modules.logistics.application.queries.get_tracking import (
 from src.modules.logistics.application.queries.list_pickup_points import (
     ListPickupPointsHandler,
 )
+from src.modules.logistics.application.queries.list_provider_accounts import (
+    GetProviderAccountHandler,
+    ListProviderAccountsHandler,
+)
 from src.modules.logistics.application.queries.quote_for_pickup_point import (
     QuoteForPickupPointHandler,
 )
@@ -87,6 +97,7 @@ from src.modules.logistics.domain.interfaces import (
     IDeliveryQuoteRepository,
     IOriginAddressResolver,
     IPickupPointResolver,
+    IProviderAccountRepository,
     IProviderRoutingPolicy,
     IShipmentRepository,
     IShippingProviderRegistry,
@@ -105,8 +116,14 @@ from src.modules.logistics.infrastructure.bootstrap import bootstrap_registry
 from src.modules.logistics.infrastructure.repositories.delivery_quote import (
     DeliveryQuoteRepository,
 )
+from src.modules.logistics.infrastructure.repositories.provider_account import (
+    ProviderAccountRepository,
+)
 from src.modules.logistics.infrastructure.repositories.shipment import (
     ShipmentRepository,
+)
+from src.modules.logistics.infrastructure.services.registry_refresh import (
+    ProviderRegistryRefresher,
 )
 from src.modules.logistics.infrastructure.services.routing import (
     DefaultProviderRoutingPolicy,
@@ -123,6 +140,11 @@ class LogisticsInfraProvider(Provider):
         DeliveryQuoteRepository,
         scope=Scope.REQUEST,
         provides=IDeliveryQuoteRepository,
+    )
+    provider_account_repo: CompositeDependencySource = provide(
+        ProviderAccountRepository,
+        scope=Scope.REQUEST,
+        provides=IProviderAccountRepository,
     )
     routing_policy: CompositeDependencySource = provide(
         DefaultProviderRoutingPolicy,
@@ -158,6 +180,10 @@ class LogisticsInfraProvider(Provider):
             yield registry
         finally:
             await registry.close()
+
+    registry_refresher: CompositeDependencySource = provide(
+        ProviderRegistryRefresher, scope=Scope.REQUEST
+    )
 
 
 class LogisticsCommandProvider(Provider):
@@ -199,6 +225,18 @@ class LogisticsCommandProvider(Provider):
     remove_order_items: CompositeDependencySource = provide(
         RemoveOrderItemsHandler, scope=Scope.REQUEST
     )
+    create_provider_account: CompositeDependencySource = provide(
+        CreateProviderAccountHandler, scope=Scope.REQUEST
+    )
+    update_provider_account: CompositeDependencySource = provide(
+        UpdateProviderAccountHandler, scope=Scope.REQUEST
+    )
+    set_provider_account_active: CompositeDependencySource = provide(
+        SetProviderAccountActiveHandler, scope=Scope.REQUEST
+    )
+    delete_provider_account: CompositeDependencySource = provide(
+        DeleteProviderAccountHandler, scope=Scope.REQUEST
+    )
 
 
 class LogisticsQueryProvider(Provider):
@@ -239,4 +277,10 @@ class LogisticsQueryProvider(Provider):
     )
     get_actual_delivery_info: CompositeDependencySource = provide(
         GetActualDeliveryInfoHandler, scope=Scope.REQUEST
+    )
+    list_provider_accounts: CompositeDependencySource = provide(
+        ListProviderAccountsHandler, scope=Scope.REQUEST
+    )
+    get_provider_account: CompositeDependencySource = provide(
+        GetProviderAccountHandler, scope=Scope.REQUEST
     )

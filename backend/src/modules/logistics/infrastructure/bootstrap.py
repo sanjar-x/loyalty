@@ -38,18 +38,33 @@ _FACTORY_MAP: dict[str, type[IProviderFactory]] = {
 
 async def bootstrap_registry(
     session_factory: async_sessionmaker[AsyncSession],
+    *,
+    registry: ShippingProviderRegistry | None = None,
 ) -> ShippingProviderRegistry:
     """Create and populate a ShippingProviderRegistry from DB records.
 
     Opens a short-lived session, loads all active ProviderAccountModel rows,
     and for each one creates and registers all capability providers via
     the matching factory.
+
+    Pass ``registry=`` to repopulate an existing instance — used by the
+    admin refresh endpoint after CRUD edits so the same APP-scoped
+    registry serves the updated provider set without an app restart.
+    The caller is responsible for ``registry.reset()`` first.
     """
-    registry = ShippingProviderRegistry()
+    if registry is None:
+        registry = ShippingProviderRegistry()
 
     async with session_factory() as session:
-        stmt = select(ProviderAccountModel).where(
-            ProviderAccountModel.is_active.is_(True)
+        # ORDER BY for deterministic precedence on the off chance the
+        # ``uq_provider_accounts_active_code`` partial unique index is
+        # missing (legacy DB) and two active rows somehow exist.
+        stmt = (
+            select(ProviderAccountModel)
+            .where(ProviderAccountModel.is_active.is_(True))
+            .order_by(
+                ProviderAccountModel.provider_code, ProviderAccountModel.created_at
+            )
         )
         result = await session.execute(stmt)
         accounts = result.scalars().all()

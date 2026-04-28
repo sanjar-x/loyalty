@@ -280,6 +280,16 @@ class ProviderAccountModel(Base):
     __tablename__ = "provider_accounts"
     __table_args__ = (
         Index("ix_provider_accounts_code", "provider_code"),
+        # Partial unique index: only one ACTIVE row per provider_code.
+        # ``bootstrap_registry`` takes the first active row and warns-and-skips
+        # the rest; the constraint makes the application-layer guard in
+        # ``manage_provider_accounts`` a true invariant rather than a TOCTOU race.
+        Index(
+            "uq_provider_accounts_active_code",
+            "provider_code",
+            unique=True,
+            postgresql_where="is_active = true",
+        ),
         {"comment": "Provider account credentials and configuration"},
     )
 

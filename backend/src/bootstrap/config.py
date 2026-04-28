@@ -115,6 +115,26 @@ class Settings(BaseSettings):
     TELEGRAM_INIT_DATA_MAX_AGE: int = 300
     TELEGRAM_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # -- CDEK (logistics provider) -------------------------------------------
+    # Credentials are seeded into ``provider_accounts`` by ``seed/logistics``;
+    # at runtime the factory reads them from the DB row, not from env.
+    # Empty defaults let the seed step skip CDEK on environments where
+    # the keys aren't configured yet.
+    CDEK_ACCOUNT: SecretStr = SecretStr("")
+    CDEK_SECURE_PASSWORD: SecretStr = SecretStr("")
+    CDEK_TEST_ACCOUNT: SecretStr = SecretStr("")
+    CDEK_TEST_SECURE_PASSWORD: SecretStr = SecretStr("")
+
+    # -- Yandex Delivery (logistics provider) --------------------------------
+    # Same pattern as CDEK: seeded into ``provider_accounts`` by
+    # ``seed/logistics``; at runtime the factory reads them from the DB.
+    # ``PLATFORM_STATION_ID`` is the default source warehouse — used as a
+    # fallback when the request's ``origin.metadata`` does not carry one.
+    YANDEX_DELIVERY_OAUTH_TOKEN: SecretStr = SecretStr("")
+    YANDEX_DELIVERY_PLATFORM_STATION_ID: str = ""
+    YANDEX_DELIVERY_TEST_OAUTH_TOKEN: SecretStr = SecretStr("")
+    YANDEX_DELIVERY_TEST_PLATFORM_STATION_ID: str = ""
+
     @computed_field
     @property
     def redis_url(self) -> str:

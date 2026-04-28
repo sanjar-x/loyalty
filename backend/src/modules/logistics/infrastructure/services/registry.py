@@ -5,6 +5,7 @@ Each adapter implements one or more capability protocols (IRateProvider,
 IBookingProvider, etc.). The registry indexes them by ProviderCode.
 """
 
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
@@ -53,6 +54,10 @@ class ShippingProviderRegistry:
         self._return_providers: dict[ProviderCode, IReturnProvider] = {}
         self._edit_providers: dict[ProviderCode, IEditProvider] = {}
         self._close_callbacks: list[Callable[[], Awaitable[None]]] = []
+        # Serialises ``swap_from`` / ``reset`` so two concurrent admin
+        # ``POST /refresh`` calls cannot interleave their teardowns and
+        # leave dangling ``httpx.AsyncClient`` references mid-swap.
+        self._swap_lock = asyncio.Lock()
 
     # -- Registration -------------------------------------------------------
 
@@ -254,3 +259,76 @@ class ShippingProviderRegistry:
             except Exception:
                 logger.exception("Provider close callback failed")
         self._close_callbacks.clear()
+
+    async def reset(self) -> None:
+        """Tear down every registered provider and clear all dicts.
+
+        Equivalent to ``close()`` + clearing every capability map.
+        Holds ``_swap_lock`` so a concurrent ``swap_from`` cannot race
+        the close callbacks. **Avoid calling this from the admin refresh
+        path** — prefer ``swap_from`` so requests in flight never see
+        an empty registry. Reset is reserved for app shutdown / tests.
+        """
+        async with self._swap_lock:
+            await self.close()
+            self._clear_provider_maps()
+
+    async def swap_from(self, other: ShippingProviderRegistry) -> None:
+        """Atomically replace this registry's state with another's.
+
+        The admin refresh path builds a fully-populated ``other`` via
+        ``bootstrap_registry`` first (so any failure leaves the live
+        registry untouched), then calls ``swap_from`` to install the
+        new generation. Old close callbacks fire **after** the swap so
+        in-flight requests that captured a provider reference can still
+        complete their HTTP call before the underlying ``httpx`` pool
+        is torn down.
+
+        Note: requests that fetch a provider *after* the swap and
+        *before* the old close callbacks finish will get the new
+        provider — that's the intended behaviour. The narrow window
+        where an in-flight request holds a now-closed client is a
+        finite, recoverable error (one failed retry on the customer
+        side), and is the price of in-place hot-reload without a new
+        registry instance.
+        """
+        async with self._swap_lock:
+            old_close_callbacks = self._close_callbacks
+            self._rate_providers = dict(other._rate_providers)
+            self._booking_providers = dict(other._booking_providers)
+            self._tracking_providers = dict(other._tracking_providers)
+            self._tracking_poll_providers = dict(other._tracking_poll_providers)
+            self._pickup_point_providers = dict(other._pickup_point_providers)
+            self._document_providers = dict(other._document_providers)
+            self._webhook_adapters = dict(other._webhook_adapters)
+            self._intake_providers = dict(other._intake_providers)
+            self._delivery_schedule_providers = dict(other._delivery_schedule_providers)
+            self._return_providers = dict(other._return_providers)
+            self._edit_providers = dict(other._edit_providers)
+            self._close_callbacks = list(other._close_callbacks)
+            # ``other`` is consumed — its callbacks now belong to this
+            # registry; clear them so the temporary instance can be
+            # garbage-collected without double-closing on its __del__.
+            other._close_callbacks = []
+            other._clear_provider_maps()
+            # Drain old generation's clients last so anything that
+            # already pulled a reference can finish its in-flight call.
+            for callback in old_close_callbacks:
+                try:
+                    await callback()
+                except Exception:
+                    logger.exception("Provider close callback failed during swap")
+
+    def _clear_provider_maps(self) -> None:
+        """Empty every capability map without touching close callbacks."""
+        self._rate_providers.clear()
+        self._booking_providers.clear()
+        self._tracking_providers.clear()
+        self._tracking_poll_providers.clear()
+        self._pickup_point_providers.clear()
+        self._document_providers.clear()
+        self._webhook_adapters.clear()
+        self._intake_providers.clear()
+        self._delivery_schedule_providers.clear()
+        self._return_providers.clear()
+        self._edit_providers.clear()

@@ -10,6 +10,7 @@ import uuid
 from typing import Any, Protocol
 
 from src.modules.logistics.domain.entities import Shipment
+from src.modules.logistics.domain.provider_account import ProviderAccount
 from src.modules.logistics.domain.value_objects import (
     ActualDeliveryInfo,
     Address,
@@ -392,6 +393,17 @@ class IShippingProviderRegistry(Protocol):
 
     def get_edit_provider(self, code: ProviderCode) -> IEditProvider: ...
 
+    @property
+    def registered_provider_codes(self) -> set[ProviderCode]: ...
+
+    async def reset(self) -> None:
+        """Tear down every registered provider and clear all dicts.
+
+        Used by the admin refresh path so the same APP-scoped registry
+        instance can be repopulated against the current DB state.
+        """
+        ...
+
 
 # ---------------------------------------------------------------------------
 # Routing policy — determines eligible providers for a given route
@@ -452,6 +464,37 @@ class IDeliveryQuoteRepository(Protocol):
     async def get_by_id(self, quote_id: uuid.UUID) -> DeliveryQuote | None: ...
 
     async def delete_expired(self) -> int: ...
+
+
+class IProviderAccountRepository(Protocol):
+    """Persistence port for ``ProviderAccount`` aggregates.
+
+    Backs the admin CRUD endpoints under ``/admin/logistics/provider-accounts``.
+    Bootstrap-time loads (``bootstrap_registry``) read the ORM directly
+    for performance — this port is only used by write paths and read
+    queries that need domain-level invariants.
+    """
+
+    async def add(self, account: ProviderAccount) -> ProviderAccount: ...
+
+    async def get_by_id(self, account_id: uuid.UUID) -> ProviderAccount | None: ...
+
+    async def get_active_by_provider_code(
+        self, provider_code: ProviderCode
+    ) -> ProviderAccount | None:
+        """Return the single active row for ``provider_code``, if any.
+
+        Multiple inactive rows are allowed (for staging credential
+        rotations), so callers must distinguish "no active row" from
+        "no rows at all".
+        """
+        ...
+
+    async def list_all(self) -> list[ProviderAccount]: ...
+
+    async def update(self, account: ProviderAccount) -> ProviderAccount: ...
+
+    async def delete(self, account_id: uuid.UUID) -> bool: ...
 
 
 # ---------------------------------------------------------------------------
