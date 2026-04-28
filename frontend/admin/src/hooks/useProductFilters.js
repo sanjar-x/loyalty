@@ -1,185 +1,260 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import dayjs from '@/lib/dayjs';
-import { buildFacetOptions } from '@/lib/utils';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { i18n } from '@/lib/utils';
+import { PRODUCT_STATUS_LABELS } from '@/lib/constants';
+import { fetchProducts, fetchProductCounts, changeProductStatus, deleteProduct as apiDeleteProduct } from '@/services/products';
 
+// ---------------------------------------------------------------------------
+// Tabs — status-based (matches backend filter + FSM)
+// ---------------------------------------------------------------------------
 const tabs = [
   { key: 'all', label: 'Все' },
-  { key: 'china', label: 'Из Китая' },
-  { key: 'stock', label: 'Из наличия' },
   { key: 'draft', label: 'Черновики' },
+  { key: 'enriching', label: 'Обогащение' },
+  { key: 'ready_for_review', label: 'На модерации' },
+  { key: 'published', label: 'Опубликованные' },
   { key: 'archived', label: 'Архив' },
 ];
 
 export { tabs };
 
-export function useProductFilters(initialProducts) {
-  const [products, setProducts] = useState(initialProducts);
-  const [loading, setLoading] = useState(false);
+// ---------------------------------------------------------------------------
+// Map enriched backend item → UI shape
+// ---------------------------------------------------------------------------
+function mapProduct(item) {
+  const priceRub = item.minPrice != null ? item.minPrice / 100 : null;
+
+  return {
+    id: item.id,
+    title: i18n(item.titleI18N, item.slug || 'Без названия'),
+    slug: item.slug,
+    status: item.status,
+    statusLabel: PRODUCT_STATUS_LABELS[item.status] ?? item.status,
+    brandId: item.brandId,
+    brandName: item.brandName ?? null,
+    primaryCategoryId: item.primaryCategoryId,
+    categoryName: item.categoryI18N ? i18n(item.categoryI18N) : null,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    addedAt: item.createdAt,
+    image: item.image ?? null,
+    price: priceRub,
+    variantsCount: item.variantsCount ?? 1,
+    variantAttrs: item.variantAttrs ?? [],
+    sourceUrl: item.sourceUrl ?? null,
+    supplierType: item.supplierType ?? null,
+    supplierCountry: item.supplierCountry ?? null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
+export function useProductFilters() {
+  const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [tabCounts, setTabCounts] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [statusError, setStatusError] = useState(null);
+
+  // Lookup data from BFF (brands for filter dropdown)
+  const [brands, setBrands] = useState([]);
+
+  // Server-side filter state
   const [activeTab, setActiveTab] = useState('all');
-  const [query, setQuery] = useState('');
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState(() => new Set());
-  const [openMenuId, setOpenMenuId] = useState(null);
-  const [category, setCategory] = useState('all');
-  const [kind, setKind] = useState('all');
-  const [brand, setBrand] = useState('all');
-  const [onlyOriginal, setOnlyOriginal] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [brandFilter, setBrandFilter] = useState('all');
+
+  // Client-side search (debounced)
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const debounceRef = useRef(null);
+
+  // Debounce search input (300ms)
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query]);
+
+  // Selection
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [openMenuId, setOpenMenuId] = useState(null);
   const [archiveTarget, setArchiveTarget] = useState(null);
-  const [dateRange, setDateRange] = useState({
-    from: null,
-    to: null,
-  });
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const hasRange = Boolean(dateRange.from && dateRange.to);
+  // Stale request guard
+  const fetchIdRef = useRef(0);
 
-  const baseForFacets = useMemo(
-    () => products.filter((p) => p.status !== 'archived'),
-    [products],
-  );
+  // Derived server params
+  const statusParam = activeTab === 'all' ? undefined : activeTab;
+  const brandParam = brandFilter === 'all' ? undefined : brandFilter;
+  const offset = (page - 1) * perPage;
 
-  const categoryFacet = useMemo(
-    () => buildFacetOptions(baseForFacets, (p) => p.category),
-    [baseForFacets],
-  );
-  const kindFacet = useMemo(
-    () => buildFacetOptions(baseForFacets, (p) => p.kind),
-    [baseForFacets],
-  );
-  const brandFacet = useMemo(
-    () => buildFacetOptions(baseForFacets, (p) => p.brand),
-    [baseForFacets],
-  );
+  // -----------------------------------------------------------------------
+  // Data loading — brand_id is now server-side
+  // -----------------------------------------------------------------------
 
-  const tabCounts = useMemo(() => {
-    const base = { all: 0, china: 0, stock: 0, draft: 0, archived: 0 };
-    products.forEach((p) => {
-      if (p.status !== 'archived') base.all += 1;
-      if (p.source === 'china' && p.status !== 'archived') base.china += 1;
-      if (p.source === 'stock' && p.status !== 'archived') base.stock += 1;
-      if (p.status === 'draft') base.draft += 1;
-      if (p.status === 'archived') base.archived += 1;
-    });
-    return base;
-  }, [products]);
-
-  const metrics = useMemo(() => {
-    const nonArchived = products.filter((p) => p.status !== 'archived');
-    const today = nonArchived.reduce(
-      (acc, p) => acc + Math.max(0, Math.round(p.views * 0.03)),
-      0,
-    );
-    const week = nonArchived.reduce(
-      (acc, p) => acc + Math.max(0, Math.round(p.views * 0.18)),
-      0,
-    );
-    const month = nonArchived.reduce(
-      (acc, p) => acc + Math.max(0, Math.round(p.views * 0.62)),
-      0,
-    );
-    return { today, week, month };
-  }, [products]);
-
-  const originalCount = useMemo(
-    () => baseForFacets.filter((p) => p.isOriginal).length,
-    [baseForFacets],
-  );
-  const nonOriginalCount = useMemo(
-    () => baseForFacets.filter((p) => !p.isOriginal).length,
-    [baseForFacets],
-  );
-
-  const filtered = useMemo(() => {
-    let next = products.slice();
-
-    if (activeTab === 'china')
-      next = next.filter(
-        (p) => p.source === 'china' && p.status !== 'archived',
-      );
-    if (activeTab === 'stock')
-      next = next.filter(
-        (p) => p.source === 'stock' && p.status !== 'archived',
-      );
-    if (activeTab === 'draft') next = next.filter((p) => p.status === 'draft');
-    if (activeTab === 'archived')
-      next = next.filter((p) => p.status === 'archived');
-    if (activeTab === 'all') next = next.filter((p) => p.status !== 'archived');
-
-    const q = query.trim().toLowerCase();
-    if (q) {
-      next = next.filter(
-        (p) =>
-          p.title.toLowerCase().includes(q) ||
-          String(p.sku).toLowerCase().includes(q),
-      );
+  const loadTabCounts = useCallback(async () => {
+    try {
+      const counts = await fetchProductCounts();
+      setTabCounts(counts);
+    } catch {
+      // non-critical — don't block UI
     }
+  }, []);
 
-    if (category !== 'all') next = next.filter((p) => p.category === category);
-    if (kind !== 'all') next = next.filter((p) => p.kind === kind);
-    if (brand !== 'all') next = next.filter((p) => p.brand === brand);
-    if (onlyOriginal !== 'all')
-      next = next.filter((p) =>
-        onlyOriginal === 'yes' ? p.isOriginal : !p.isOriginal,
-      );
+  const loadProducts = useCallback(async () => {
+    const id = ++fetchIdRef.current;
+    setLoading(true);
+    setError(null);
 
-    next.sort((a, b) => {
-      if (sortBy === 'most_views' || sortBy === 'least_views') {
-        const diff = (b.views ?? 0) - (a.views ?? 0);
-        if (diff !== 0) return sortBy === 'most_views' ? diff : -diff;
+    try {
+      const data = await fetchProducts({
+        offset,
+        limit: perPage,
+        status: statusParam,
+        brandId: brandParam,
+        sortBy,
+      });
+
+      if (id !== fetchIdRef.current) return; // stale
+
+      setItems(data.items.map(mapProduct));
+      setTotal(data.total);
+
+      if (data._lookup?.brands?.length) {
+        setBrands(data._lookup.brands);
       }
-
-      const left = dayjs(a.addedAt).valueOf();
-      const right = dayjs(b.addedAt).valueOf();
-      return sortBy === 'oldest' ? left - right : right - left;
-    });
-
-    return next;
-  }, [activeTab, brand, category, kind, onlyOriginal, products, query, sortBy]);
-
-  const perPage = 5;
-  const pages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageSafe = Math.min(page, pages);
-  const visible = filtered.slice((pageSafe - 1) * perPage, pageSafe * perPage);
+    } catch (err) {
+      if (id !== fetchIdRef.current) return;
+      setError(err.message || 'Не удалось загрузить товары');
+      setItems([]);
+      setTotal(0);
+    } finally {
+      if (id === fetchIdRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [offset, perPage, statusParam, brandParam, sortBy]);
 
   useEffect(() => {
-    setPage(1);
-  }, [activeTab, query, category, kind, brand, onlyOriginal, sortBy]);
+    loadProducts();
+    loadTabCounts();
+  }, [loadProducts, loadTabCounts]);
 
+  const reloadAll = useCallback(() => {
+    loadProducts();
+    loadTabCounts();
+  }, [loadProducts, loadTabCounts]);
+
+  // Reset page when filter params change
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, sortBy, perPage, brandFilter]);
+
+  // Reset client-side filters on tab change
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab(tab);
+    setQuery('');
+    setDebouncedQuery('');
+    setOpenMenuId(null);
+  }, []);
+
+  // Close menu on page change
   useEffect(() => {
     setOpenMenuId(null);
-  }, [activeTab, page]);
+  }, [page]);
 
+  // Auto-clear status error after 4s
   useEffect(() => {
-    setArchiveTarget(null);
-  }, [activeTab, page, query, category, kind, brand, onlyOriginal, sortBy]);
+    if (!statusError) return;
+    const t = setTimeout(() => setStatusError(null), 4000);
+    return () => clearTimeout(t);
+  }, [statusError]);
 
-  const resetAll = () => {
+  // -----------------------------------------------------------------------
+  // Client-side search (only filters current page — backend has no search)
+  // -----------------------------------------------------------------------
+  const searchActive = debouncedQuery.trim() !== '';
+
+  const visible = useMemo(() => {
+    if (!searchActive) return items;
+
+    const q = debouncedQuery.trim().toLowerCase();
+    return items.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        (p.brandName && p.brandName.toLowerCase().includes(q)) ||
+        (p.categoryName && p.categoryName.toLowerCase().includes(q)),
+    );
+  }, [items, debouncedQuery, searchActive]);
+
+  // When search is active, totalFiltered is just visible.length (current page only)
+  const totalFiltered = searchActive ? visible.length : total;
+  const pages = searchActive
+    ? 1 // search filters only current page — pagination not meaningful
+    : Math.max(1, Math.ceil(total / perPage));
+
+  // -----------------------------------------------------------------------
+  // Brand options for filter dropdown
+  // -----------------------------------------------------------------------
+  const brandOptions = useMemo(() => {
+    const opts = [{ value: 'all', label: 'Все бренды' }];
+    for (const b of brands) {
+      opts.push({
+        value: b.id,
+        label: b.name,
+        searchable: true,
+        groupByInitial: true,
+      });
+    }
+    return opts;
+  }, [brands]);
+
+  // -----------------------------------------------------------------------
+  // Filters meta
+  // -----------------------------------------------------------------------
+  const hasActiveFilters =
+    query.trim() !== '' || sortBy !== 'newest' || brandFilter !== 'all';
+
+  const resetAll = useCallback(() => {
     setQuery('');
-    setCategory('all');
-    setKind('all');
-    setBrand('all');
-    setOnlyOriginal('all');
+    setDebouncedQuery('');
     setSortBy('newest');
+    setBrandFilter('all');
     setPage(1);
-    setSelectMode(false);
     setSelectedIds(new Set());
     setOpenMenuId(null);
-  };
+  }, []);
 
-  const toggleSelection = (id) => {
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  // -----------------------------------------------------------------------
+  // Selection
+  // -----------------------------------------------------------------------
+  const toggleSelection = useCallback((id) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
+  }, []);
 
   const allVisibleSelected =
     visible.length > 0 && visible.every((p) => selectedIds.has(p.id));
+
   const toggleVisibleAll = () => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -189,84 +264,152 @@ export function useProductFilters(initialProducts) {
     });
   };
 
-  const archiveProduct = (id) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status: 'archived' } : p)),
-    );
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-    setArchiveTarget(null);
-  };
+  // -----------------------------------------------------------------------
+  // Status change (generic FSM transition) — with error feedback
+  // -----------------------------------------------------------------------
+  const updateProductStatus = useCallback(
+    async (id, targetStatus) => {
+      setStatusError(null);
+      try {
+        await changeProductStatus(id, targetStatus);
+      } catch (err) {
+        const label =
+          PRODUCT_STATUS_LABELS[targetStatus] ?? targetStatus;
+        setStatusError(
+          err.message || `Не удалось сменить статус на «${label}»`,
+        );
+      }
+      setOpenMenuId(null);
+      reloadAll();
+    },
+    [reloadAll],
+  );
 
-  const requestArchiveProduct = (product) => {
+  const archiveProduct = useCallback(
+    async (id) => {
+      setStatusError(null);
+      try {
+        await changeProductStatus(id, 'archived');
+      } catch (err) {
+        setStatusError(err.message || 'Не удалось архивировать товар');
+      }
+      setArchiveTarget(null);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      reloadAll();
+    },
+    [reloadAll],
+  );
+
+  const requestArchiveProduct = useCallback((product) => {
     setArchiveTarget(product);
     setOpenMenuId(null);
-  };
+  }, []);
+
+  const requestDeleteProduct = useCallback((product) => {
+    setDeleteTarget(product);
+    setOpenMenuId(null);
+  }, []);
+
+  const confirmDeleteProduct = useCallback(
+    async (id) => {
+      setStatusError(null);
+      try {
+        await apiDeleteProduct(id);
+      } catch (err) {
+        setStatusError(err.message || 'Не удалось удалить товар');
+      }
+      setDeleteTarget(null);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      reloadAll();
+    },
+    [reloadAll],
+  );
 
   const selectedCount = selectedIds.size;
-  const archiveSelected = () => {
+
+  const deleteSelected = useCallback(async () => {
     if (!selectedCount) return;
-    setProducts((prev) =>
-      prev.map((p) =>
-        selectedIds.has(p.id) ? { ...p, status: 'archived' } : p,
-      ),
+    setStatusError(null);
+    const ids = [...selectedIds];
+    const results = await Promise.allSettled(
+      ids.map((id) => apiDeleteProduct(id)),
     );
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed > 0) {
+      setStatusError(
+        `Не удалось удалить ${failed} из ${ids.length} товаров`,
+      );
+    }
     setSelectedIds(new Set());
-    setSelectMode(false);
     setOpenMenuId(null);
-  };
+    reloadAll();
+  }, [selectedCount, selectedIds, reloadAll]);
+
+  const archiveSelected = useCallback(async () => {
+    if (!selectedCount) return;
+    setStatusError(null);
+    const ids = [...selectedIds];
+    const results = await Promise.allSettled(
+      ids.map((id) => changeProductStatus(id, 'archived')),
+    );
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed > 0) {
+      setStatusError(
+        `Не удалось архивировать ${failed} из ${ids.length} товаров`,
+      );
+    }
+    setSelectedIds(new Set());
+    setOpenMenuId(null);
+    reloadAll();
+  }, [selectedCount, selectedIds, reloadAll]);
 
   return {
     // Data
-    products,
-    loading,
-    filtered,
+    items,
     visible,
-    metrics,
+    loading,
+    error,
+    statusError,
+    total,
     tabCounts,
-    tabs,
 
-    // Facets
-    categoryFacet,
-    kindFacet,
-    brandFacet,
-    baseForFacets,
-    originalCount,
-    nonOriginalCount,
+    // Tabs
+    activeTab,
+    setActiveTab: handleTabChange,
 
     // Filter state
-    activeTab,
-    setActiveTab,
     query,
     setQuery,
-    category,
-    setCategory,
-    kind,
-    setKind,
-    brand,
-    setBrand,
-    onlyOriginal,
-    setOnlyOriginal,
+    searchActive,
     sortBy,
     setSortBy,
+    brandFilter,
+    setBrandFilter,
+    brandOptions,
 
     // Pagination
-    page: pageSafe,
+    page,
     pages,
     setPage,
     perPage,
+    setPerPage,
+    totalFiltered,
 
     // Selection
-    selectMode,
-    setSelectMode,
     selectedIds,
     selectedCount,
     allVisibleSelected,
     toggleSelection,
     toggleVisibleAll,
+    clearSelection,
 
     // Archive
     archiveTarget,
@@ -275,16 +418,23 @@ export function useProductFilters(initialProducts) {
     requestArchiveProduct,
     archiveSelected,
 
+    // Delete
+    deleteTarget,
+    setDeleteTarget,
+    confirmDeleteProduct,
+    requestDeleteProduct,
+    deleteSelected,
+
+    // Status
+    updateProductStatus,
+
     // Menu
     openMenuId,
     setOpenMenuId,
 
-    // Date range
-    dateRange,
-    setDateRange,
-    hasRange,
-
     // Actions
     resetAll,
+    hasActiveFilters,
+    retry: reloadAll,
   };
 }

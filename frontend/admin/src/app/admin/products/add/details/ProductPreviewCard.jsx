@@ -85,7 +85,7 @@ export default function ProductPreviewCard({
                 images.map((img) => (
                   <img
                     key={img.localId}
-                    src={img.url}
+                    src={uploads?.[img.localId]?.url || img.url}
                     alt=""
                     className={styles.previewSlide}
                     draggable={false}

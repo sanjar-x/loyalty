@@ -78,6 +78,35 @@ export function CheckIcon() {
   );
 }
 
+export function LockIcon() {
+  return (
+    <svg
+      width="14"
+      height="16"
+      viewBox="0 0 14 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <rect
+        x="1"
+        y="7"
+        width="12"
+        height="8"
+        rx="2"
+        stroke="#B0B0B0"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M4 7V4.5C4 2.84315 5.34315 1.5 7 1.5C8.65685 1.5 10 2.84315 10 4.5V7"
+        stroke="#B0B0B0"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function SmallCloseIcon() {
   return (
     <svg

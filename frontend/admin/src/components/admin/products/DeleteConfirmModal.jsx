@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import styles from './products.module.css';
 
-export function ArchiveConfirmModal({ product, onClose, onConfirm }) {
+export function DeleteConfirmModal({ product, onClose, onConfirm }) {
   useEffect(() => {
     if (!product) {
       return undefined;
@@ -42,15 +42,14 @@ export function ArchiveConfirmModal({ product, onClose, onConfirm }) {
         className={styles.modalCard}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="archive-modal-title"
+        aria-labelledby="delete-modal-title"
         onClick={(event) => event.stopPropagation()}
       >
-        <p id="archive-modal-title" className={styles.modalTitle}>
-          Переместить товар в архив?
+        <p id="delete-modal-title" className={styles.modalTitle}>
+          Удалить товар?
         </p>
         <p className={styles.modalText}>
-          Товар исчезнет из активного списка и будет доступен во вкладке{' '}
-          «Архив».
+          Товар будет удалён. Это действие нельзя отменить.
         </p>
         <div className={styles.modalProductBox}>
           <p className={styles.modalProductLabel}>Товар</p>
@@ -67,9 +66,9 @@ export function ArchiveConfirmModal({ product, onClose, onConfirm }) {
           <button
             type="button"
             onClick={() => onConfirm(product.id)}
-            className={styles.modalPrimaryButton}
+            className={styles.modalDangerButton}
           >
-            В архив
+            Удалить
           </button>
         </div>
       </div>

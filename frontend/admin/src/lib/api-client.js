@@ -22,7 +22,7 @@ export async function backendFetch(path, options = {}) {
       data: {
         error: {
           code: 'BACKEND_UNAVAILABLE',
-          message: 'Backend service unreachable',
+          message: 'Сервер недоступен',
           details: {},
         },
       },

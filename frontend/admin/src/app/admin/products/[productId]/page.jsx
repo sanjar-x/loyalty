@@ -92,6 +92,12 @@ export default function ProductDetailPage() {
             {PRODUCT_STATUS_LABELS[product.status] ?? product.status}
           </span>
           <span className={styles.versionTag}>v{product.version}</span>
+          <Link
+            href={`/admin/products/${productId}/edit`}
+            className={styles.editButton}
+          >
+            Редактировать
+          </Link>
         </div>
         <p className="text-sm text-[#878b93]">{product.slug}</p>
       </div>

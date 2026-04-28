@@ -1,69 +1,199 @@
 'use client';
 
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import { cn, pluralizeRu } from '@/lib/utils';
 import SearchIcon from '@/assets/icons/search.svg';
-import { getProducts } from '@/services/products';
+import CloseIcon from '@/assets/icons/close.svg';
 import { useProductFilters, tabs } from '@/hooks/useProductFilters';
 import { Pagination } from '@/components/ui/Pagination';
-import { DropdownPill } from '@/components/admin/products/DropdownPill';
 import { SortControl } from '@/components/admin/products/SortControl';
 import { ProductRow } from '@/components/admin/products/ProductRow';
 import { ArchiveConfirmModal } from '@/components/admin/products/ArchiveConfirmModal';
+import { DeleteConfirmModal } from '@/components/admin/products/DeleteConfirmModal';
 import { BulkBar } from '@/components/admin/products/BulkBar';
-import { ProductMetrics } from '@/components/admin/products/ProductMetrics';
 import { ProductTabs } from '@/components/admin/products/ProductTabs';
 import { ProductRowSkeleton } from '@/components/admin/products/ProductRowSkeleton';
+import { DropdownPill } from '@/components/admin/products/DropdownPill';
 import styles from './page.module.css';
+
+const PER_PAGE_OPTIONS = [10, 25, 50];
+
+function ActiveFilters({ query, setQuery, brandFilter, setBrandFilter, brandOptions }) {
+  const chips = [];
+
+  if (query.trim())
+    chips.push({ label: `«${query.trim()}»`, onRemove: () => setQuery('') });
+
+  if (brandFilter !== 'all') {
+    const brand = brandOptions.find((o) => o.value === brandFilter);
+    chips.push({
+      label: `Бренд: ${brand?.label ?? brandFilter}`,
+      onRemove: () => setBrandFilter('all'),
+    });
+  }
+
+  if (!chips.length) return null;
+
+  return (
+    <div className={styles.activeFilters}>
+      {chips.map((chip) => (
+        <span key={chip.label} className={styles.filterChip}>
+          {chip.label}
+          <button
+            type="button"
+            className={styles.filterChipRemove}
+            onClick={chip.onRemove}
+            aria-label={`Убрать фильтр ${chip.label}`}
+          >
+            <CloseIcon className={styles.filterChipIcon} />
+          </button>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ResultsInfo({ page, perPage, total, searchActive, searchCount }) {
+  if (total === 0 && !searchActive) return null;
+
+  if (searchActive) {
+    const label = pluralizeRu(searchCount, 'совпадение', 'совпадения', 'совпадений');
+    return (
+      <p className={styles.resultsInfo}>
+        {searchCount} {label} на странице
+      </p>
+    );
+  }
+
+  const from = (page - 1) * perPage + 1;
+  const to = Math.min(page * perPage, total);
+  const label = pluralizeRu(total, 'товар', 'товара', 'товаров');
+
+  return (
+    <p className={styles.resultsInfo}>
+      {from}–{to} из {total.toLocaleString('ru-RU')} {label}
+    </p>
+  );
+}
+
+function StatusError({ message }) {
+  if (!message) return null;
+  return (
+    <div className={styles.statusError} role="alert">
+      <span className={styles.statusErrorIcon}>⚠</span>
+      {message}
+    </div>
+  );
+}
+
+function EmptyResults({ hasFilters, onReset }) {
+  return (
+    <div className={styles.emptyState}>
+      <p className={styles.emptyTitle}>Ничего не найдено</p>
+      <p className={styles.emptyText}>
+        {hasFilters
+          ? 'Попробуйте изменить фильтры или сбросить их.'
+          : 'Товары пока не добавлены.'}
+      </p>
+      {hasFilters && (
+        <button
+          type="button"
+          className={styles.emptyResetButton}
+          onClick={onReset}
+        >
+          Сбросить фильтры
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ErrorState({ message, onRetry }) {
+  return (
+    <div className={styles.emptyState}>
+      <p className={styles.emptyTitle}>Ошибка загрузки</p>
+      <p className={styles.emptyText}>{message}</p>
+      <button
+        type="button"
+        className={styles.emptyResetButton}
+        onClick={onRetry}
+      >
+        Повторить
+      </button>
+    </div>
+  );
+}
+
+function PerPageSelector({ value, onChange }) {
+  return (
+    <div className={styles.perPageWrap}>
+      <span className={styles.perPageLabel}>Показывать по</span>
+      <div className={styles.perPageButtons}>
+        {PER_PAGE_OPTIONS.map((n) => (
+          <button
+            key={n}
+            type="button"
+            className={cn(
+              styles.perPageButton,
+              n === value && styles.perPageButtonActive,
+            )}
+            onClick={() => onChange(n)}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function ProductsPage() {
   const {
     visible,
     loading,
-    metrics,
+    error,
+    statusError,
+    total,
     tabCounts,
-    categoryFacet,
-    kindFacet,
-    brandFacet,
-    baseForFacets,
-    originalCount,
-    nonOriginalCount,
     activeTab,
     setActiveTab,
     query,
     setQuery,
-    category,
-    setCategory,
-    kind,
-    setKind,
-    brand,
-    setBrand,
-    onlyOriginal,
-    setOnlyOriginal,
+    searchActive,
     sortBy,
     setSortBy,
+    brandFilter,
+    setBrandFilter,
+    brandOptions,
     page,
     pages,
     setPage,
-    selectMode,
-    setSelectMode,
+    perPage,
+    setPerPage,
+    totalFiltered,
     selectedIds,
     selectedCount,
     allVisibleSelected,
     toggleSelection,
     toggleVisibleAll,
+    clearSelection,
     archiveTarget,
     setArchiveTarget,
     archiveProduct,
     requestArchiveProduct,
     archiveSelected,
+    deleteTarget,
+    setDeleteTarget,
+    confirmDeleteProduct,
+    requestDeleteProduct,
+    deleteSelected,
+    updateProductStatus,
+    hasActiveFilters,
     openMenuId,
     setOpenMenuId,
-    dateRange,
-    setDateRange,
-    hasRange,
     resetAll,
-  } = useProductFilters(() => getProducts());
+    retry,
+  } = useProductFilters();
 
   return (
     <section className={styles.page}>
@@ -74,15 +204,7 @@ export default function ProductsPage() {
         </Link>
       </div>
 
-      <div className={styles.card} style={{ marginTop: 16 }}>
-        <p className={styles.cardLabel}>Просмотры</p>
-        <ProductMetrics
-          metrics={metrics}
-          dateRange={dateRange}
-          hasRange={hasRange}
-          onDateRangeChange={setDateRange}
-        />
-      </div>
+      <StatusError message={statusError} />
 
       <ProductTabs
         tabs={tabs}
@@ -94,19 +216,13 @@ export default function ProductsPage() {
       <div className={styles.filters}>
         <button
           type="button"
-          onClick={() => {
-            if (!selectMode) {
-              setSelectMode(true);
-              return;
-            }
-            toggleVisibleAll();
-          }}
+          onClick={toggleVisibleAll}
           className={styles.pillButton}
         >
           <span
             className={cn(
               styles.check,
-              selectMode && allVisibleSelected && styles.checkChecked,
+              allVisibleSelected && selectedCount > 0 && styles.checkChecked,
             )}
           >
             <svg
@@ -125,7 +241,7 @@ export default function ProductsPage() {
               />
             </svg>
           </span>
-          Выбрать товары
+          Выбрать все
         </button>
 
         <div className={styles.search}>
@@ -133,133 +249,85 @@ export default function ProductsPage() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Поиск по товарам"
+            placeholder="Найти на странице"
             className={styles.searchInput}
           />
+          {query && (
+            <button
+              type="button"
+              className={styles.searchClear}
+              onClick={() => setQuery('')}
+              aria-label="Очистить поиск"
+            >
+              <CloseIcon className={styles.searchClearIcon} />
+            </button>
+          )}
         </div>
 
-        <div className={styles.selectWrap}>
-          <DropdownPill
-            label="Категория"
-            value={category}
-            displayValue={
-              category === 'all'
-                ? ''
-                : `${category} ${(categoryFacet.counts.get(category) ?? 0).toLocaleString('ru-RU')}`
-            }
-            active={category !== 'all'}
-            options={categoryFacet.options.map((opt) => ({
-              ...opt,
-              label: opt.value === 'all' ? 'Все категории' : opt.label,
-            }))}
-            onChange={setCategory}
-          />
-        </div>
-        <div className={styles.selectWrap}>
-          <DropdownPill
-            label="Тип"
-            value={kind}
-            displayValue={
-              kind === 'all'
-                ? ''
-                : `${kind} ${(kindFacet.counts.get(kind) ?? 0).toLocaleString('ru-RU')}`
-            }
-            active={kind !== 'all'}
-            options={kindFacet.options.map((opt) => ({
-              ...opt,
-              label: opt.value === 'all' ? 'Все типы' : opt.label,
-            }))}
-            onChange={setKind}
-          />
-        </div>
-        <div className={styles.selectWrap}>
-          <DropdownPill
-            label="Бренд"
-            value={brand}
-            displayValue={
-              brand === 'all'
-                ? ''
-                : `${brand} ${(brandFacet.counts.get(brand) ?? 0).toLocaleString('ru-RU')}`
-            }
-            active={brand !== 'all'}
-            options={brandFacet.options.map((opt) => ({
-              ...opt,
-              label: opt.value === 'all' ? 'Все бренды' : opt.label,
-              searchable: true,
-              groupByInitial: true,
-            }))}
-            onChange={setBrand}
-          />
-        </div>
-
-        <div className={styles.selectWrap}>
-          <DropdownPill
-            label="Оригинал"
-            value={onlyOriginal}
-            displayValue={
-              onlyOriginal === 'all'
-                ? originalCount.toLocaleString('ru-RU')
-                : onlyOriginal === 'yes'
-                  ? `Да · ${originalCount.toLocaleString('ru-RU')}`
-                  : `Нет · ${nonOriginalCount.toLocaleString('ru-RU')}`
-            }
-            active={onlyOriginal !== 'all'}
-            options={[
-              {
-                value: 'all',
-                label: 'Все',
-                count: baseForFacets.length,
-              },
-              {
-                value: 'yes',
-                label: 'Оригинал',
-                count: originalCount,
-              },
-              {
-                value: 'no',
-                label: 'Не оригинал',
-                count: nonOriginalCount,
-              },
-            ]}
-            onChange={setOnlyOriginal}
-          />
-        </div>
+        {brandOptions.length > 1 && (
+          <div className={styles.filterItem}>
+            <DropdownPill
+              label="Бренд"
+              value={brandFilter}
+              options={brandOptions}
+              onChange={setBrandFilter}
+            />
+          </div>
+        )}
 
         <div className={styles.selectWrap}>
           <SortControl value={sortBy} onChange={setSortBy} />
         </div>
 
-        <button
-          type="button"
-          onClick={resetAll}
-          className={styles.filtersReset}
-          aria-label="Сбросить фильтры"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 15 15"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={resetAll}
+            className={styles.filtersReset}
+            aria-label="Сбросить фильтры"
           >
-            <path
-              d="M1 1L7.5 7.5M14 14L7.5 7.5M7.5 7.5L13.5357 1M7.5 7.5L1 14"
-              stroke="#2D2D2D"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 15 15"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M1 1L7.5 7.5M14 14L7.5 7.5M7.5 7.5L13.5357 1M7.5 7.5L1 14"
+                stroke="#2D2D2D"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        )}
       </div>
 
+      <ActiveFilters
+        query={query}
+        setQuery={setQuery}
+        brandFilter={brandFilter}
+        setBrandFilter={setBrandFilter}
+        brandOptions={brandOptions}
+      />
+
+      {/* Product list */}
       <div className={styles.table}>
-        {loading ? (
+        {error ? (
+          <ErrorState message={error} onRetry={retry} />
+        ) : loading ? (
           <div className={styles.loadingList}>
             <ProductRowSkeleton />
             <ProductRowSkeleton />
             <ProductRowSkeleton />
           </div>
+        ) : visible.length === 0 ? (
+          <EmptyResults
+            hasFilters={hasActiveFilters || query.trim() !== ''}
+            onReset={resetAll}
+          />
         ) : (
           <div className={styles.rows}>
             {visible.map((p) => (
@@ -267,26 +335,39 @@ export default function ProductsPage() {
                 key={p.id}
                 product={p}
                 checked={selectedIds.has(p.id)}
-                selectMode={selectMode}
                 openMenuId={openMenuId}
-                onToggleSelection={(id) => {
-                  if (!selectMode) setSelectMode(true);
-                  toggleSelection(id);
-                }}
+                onToggleSelection={toggleSelection}
                 onSetOpenMenuId={setOpenMenuId}
+                onStatusChange={updateProductStatus}
                 onRequestArchive={requestArchiveProduct}
+                onRequestDelete={requestDeleteProduct}
               />
             ))}
           </div>
         )}
       </div>
 
-      <Pagination page={page} pages={pages} onPage={setPage} />
+      {/* Pagination footer */}
+      {!loading && !error && totalFiltered > 0 && (
+        <div className={styles.paginationFooter}>
+          <ResultsInfo
+            page={page}
+            perPage={perPage}
+            total={totalFiltered}
+            searchActive={searchActive}
+            searchCount={visible.length}
+          />
+          <Pagination page={page} pages={pages} onPage={setPage} />
+          <PerPageSelector value={perPage} onChange={setPerPage} />
+        </div>
+      )}
 
-      {selectMode && selectedCount > 0 && (
+      {selectedCount > 0 && (
         <BulkBar
           selectedCount={selectedCount}
           onArchive={archiveSelected}
+          onDelete={deleteSelected}
+          onClear={clearSelection}
         />
       )}
 
@@ -294,6 +375,12 @@ export default function ProductsPage() {
         product={archiveTarget}
         onClose={() => setArchiveTarget(null)}
         onConfirm={archiveProduct}
+      />
+
+      <DeleteConfirmModal
+        product={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDeleteProduct}
       />
     </section>
   );

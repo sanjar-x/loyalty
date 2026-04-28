@@ -31,7 +31,7 @@ export async function imageBackendFetch(path, options = {}) {
       data: {
         error: {
           code: 'IMAGE_BACKEND_UNAVAILABLE',
-          message: 'Image service unreachable',
+          message: 'Сервис изображений недоступен',
           details: {},
         },
       },

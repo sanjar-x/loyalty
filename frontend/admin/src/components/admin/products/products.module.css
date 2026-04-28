@@ -43,7 +43,7 @@
 .dropdownLabel {
   min-width: 0;
   flex: 1 1 auto;
-  max-width: 160px;
+  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -232,23 +232,18 @@
   border-top: 1px solid #f0f0f0;
 }
 
+.row:hover {
+  background: #fafaf9;
+}
+
 @media (min-width: 900px) {
   .row {
     display: grid;
-    grid-template-columns:
-      minmax(clamp(320px, 28vw, 460px), 1fr)
-      clamp(108px, 9vw, 140px)
-      clamp(140px, 12vw, 200px)
-      clamp(132px, 10vw, 160px)
-      clamp(170px, 18vw, 300px)
-      clamp(96px, 8vw, 120px);
-    column-gap: clamp(14px, 1.6vw, 24px);
+    grid-template-columns: minmax(250px, 1fr) 300px 300px auto;
+    column-gap: 16px;
     align-items: center;
     gap: 0;
-    min-height: clamp(132px, 12vw, 156px);
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: thin;
+    min-height: 120px;
   }
 }
 
@@ -273,6 +268,15 @@
 }
 
 .rowCheckBtnIdle {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.row:hover .rowCheckBtnIdle {
+  opacity: 0.7;
+}
+
+.row:hover .rowCheckBtnIdle:hover {
   opacity: 1;
 }
 
@@ -285,7 +289,7 @@
 .productCell {
   display: flex;
   min-width: 0;
-  align-items: flex-start;
+  align-items: center;
   gap: clamp(12px, 1vw, 18px);
 }
 
@@ -309,6 +313,13 @@
   width: clamp(88px, 8vw, 120px);
   height: clamp(88px, 8vw, 120px);
   object-fit: cover;
+}
+
+.thumbPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ccc;
 }
 
 .thumbDots {
@@ -367,6 +378,52 @@
   overflow-wrap: anywhere;
 }
 
+.productBrand {
+  margin: 2px 0 0;
+  color: #999;
+  font-size: clamp(12px, 0.25vw + 10px, 14px);
+  font-weight: 500;
+  line-height: clamp(16px, 0.4vw + 12px, 18px);
+}
+
+.variantAttrsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.variantAttrGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.variantAttrLabel {
+  color: #999;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.sizeBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: #f4f3f1;
+  color: #2d2d2d;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .priceCell {
   margin-top: 0;
   display: flex;
@@ -377,21 +434,26 @@
 @media (min-width: 900px) {
   .priceCell {
     margin-top: 0;
-    justify-content: center;
   }
 }
 
 .pricePill {
   display: inline-flex;
   align-items: center;
-  height: 46px;
-  padding: 0 13px;
-  border-radius: 15px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 13px;
   background: #f4f3f1;
   color: #000000;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 500;
   white-space: nowrap;
+}
+
+.priceMuted {
+  color: #bbb;
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .skuCell {
@@ -421,6 +483,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   gap: 3px;
+}
+
+.skuMuted {
+  margin: 0;
+  color: #bbb;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .tagsCell {
@@ -467,6 +536,22 @@
 .badgeMuted {
   background: #e7e7e7;
   color: #111111;
+}
+
+.badgeSuccess {
+  background: rgba(34, 160, 70, 0.15);
+  color: #1a7a1a;
+}
+
+.badgeCategory {
+  background: rgba(100, 149, 237, 0.15);
+  color: #2d5aa0;
+}
+
+.statsMuted {
+  color: #bbb;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .variantsLink {
@@ -603,7 +688,7 @@
   right: 0;
   top: calc(100% + 10px);
   z-index: 50;
-  width: 134px;
+  min-width: 180px;
   overflow: hidden;
   border-radius: 20px;
   background: #ffffff;
@@ -611,6 +696,7 @@
 }
 
 .rowMenuItem {
+  display: block;
   width: 100%;
   padding: 12px 20px;
   border: 0;
@@ -621,10 +707,19 @@
   font-weight: 500;
   line-height: 20px;
   text-align: left;
+  text-decoration: none;
 }
 
 .rowMenuItem:hover {
   background: #f3f3f3;
+}
+
+.rowMenuItemDanger {
+  color: #dc2626;
+}
+
+.rowMenuItemDanger:hover {
+  background: #fef2f2;
 }
 
 /* ArchiveConfirmModal */
@@ -694,7 +789,8 @@
 }
 
 .modalSecondaryButton,
-.modalPrimaryButton {
+.modalPrimaryButton,
+.modalDangerButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -728,6 +824,16 @@
   background: #1f1f1f;
 }
 
+.modalDangerButton {
+  border: 0;
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.modalDangerButton:hover {
+  background: #b91c1c;
+}
+
 @media (max-width: 639px) {
   .modalCard {
     padding: 20px;
@@ -743,7 +849,8 @@
   }
 
   .modalSecondaryButton,
-  .modalPrimaryButton {
+  .modalPrimaryButton,
+  .modalDangerButton {
     width: 100%;
   }
 }
@@ -827,6 +934,22 @@
 
 .bulkBarPrimary:hover {
   background: #f2f2f2;
+}
+
+.bulkBarDanger {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 0;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bulkBarDanger:hover {
+  background: #b91c1c;
 }
 
 .bulkBarSpacer {

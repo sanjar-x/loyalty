@@ -9,7 +9,7 @@ export function ProductTabs({ tabs, activeTab, tabCounts, onTabChange }) {
       <div className={styles.tabsInner}>
         {tabs.map((t) => {
           const active = t.key === activeTab;
-          const count = tabCounts[t.key] ?? 0;
+          const count = tabCounts?.[t.key];
           return (
             <button
               key={t.key}
@@ -20,10 +20,15 @@ export function ProductTabs({ tabs, activeTab, tabCounts, onTabChange }) {
                 active && styles.tabButtonActive,
               )}
             >
-              {t.label}{' '}
-              <span className={styles.tabCount}>
-                {count.toLocaleString('ru-RU')}
-              </span>
+              {t.label}
+              {count != null && (
+                <>
+                  {' '}
+                  <span className={styles.tabCount}>
+                    {count.toLocaleString('ru-RU')}
+                  </span>
+                </>
+              )}
             </button>
           );
         })}

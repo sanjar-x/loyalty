@@ -10,6 +10,26 @@ export function getProducts() {
 
 const API_TIMEOUT = 30_000;
 
+const API_ERROR_RU = {
+  'Cannot delete a published product. Archive it first.':
+    'Нельзя удалить опубликованный товар. Сначала переместите в архив.',
+  'Product not found': 'Товар не найден',
+  'Product is already in the requested status':
+    'Товар уже находится в запрашиваемом статусе',
+  'Invalid status transition': 'Недопустимый переход статуса',
+  'Not authenticated': 'Сессия истекла. Войдите заново.',
+  'Backend service unreachable': 'Сервер недоступен. Попробуйте позже.',
+  'Backend unavailable': 'Сервер недоступен. Попробуйте позже.',
+  'Invalid product ID': 'Некорректный ID товара',
+  'Service unavailable': 'Сервис временно недоступен',
+  'Image service unreachable': 'Сервис изображений недоступен',
+};
+
+function translateApiMessage(msg) {
+  if (!msg) return null;
+  return API_ERROR_RU[msg] ?? null;
+}
+
 async function api(url, options = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
@@ -36,7 +56,8 @@ async function api(url, options = {}) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const err = data?.error ?? data?.detail ?? {};
-      const error = new Error(err.message ?? `API error ${res.status}`);
+      const raw = err.message ?? `Ошибка сервера (${res.status})`;
+      const error = new Error(translateApiMessage(raw) ?? raw);
       error.code = err.code ?? 'UNKNOWN';
       error.status = res.status;
       error.details = err.details ?? {};
@@ -64,8 +85,37 @@ function jsonOpts(body) {
   };
 }
 
+/**
+ * Fetch paginated product list from the backend via BFF.
+ * @param {Object} params
+ * @param {number} [params.offset=0]
+ * @param {number} [params.limit=50]
+ * @param {string} [params.status] - draft | enriching | ready_for_review | published | archived
+ * @param {string} [params.brandId] - UUID
+ * @param {string} [params.sortBy] - newest | oldest | popularity | name_asc | name_desc
+ * @returns {Promise<{items: Object[], total: number, offset: number, limit: number, hasNext: boolean}>}
+ */
+export async function fetchProducts({ offset = 0, limit = 50, status, brandId, sortBy } = {}) {
+  const params = new URLSearchParams();
+  params.set('offset', String(offset));
+  params.set('limit', String(limit));
+  if (status) params.set('status', status);
+  if (brandId) params.set('brand_id', brandId);
+  if (sortBy) params.set('sort_by', sortBy);
+
+  return api(`/api/catalog/products?${params.toString()}`);
+}
+
+export async function fetchProductCounts() {
+  return api('/api/catalog/products/counts');
+}
+
 export async function createProduct(payload) {
   return api('/api/catalog/products', jsonOpts(payload));
+}
+
+export async function createVariant(productId, payload) {
+  return api(`/api/catalog/products/${productId}/variants`, jsonOpts(payload));
 }
 
 export async function getProduct(productId) {
@@ -228,7 +278,7 @@ export async function fetchImageAsFile(imageUrl) {
     credentials: 'include',
   });
   if (!res.ok) {
-    const error = new Error('Failed to fetch image');
+    const error = new Error('Не удалось загрузить изображение');
     error.code = 'IMAGE_FETCH_FAILED';
     throw error;
   }
@@ -238,7 +288,9 @@ export async function fetchImageAsFile(imageUrl) {
 }
 
 export async function associateMedia(productId, payload) {
-  // payload = { storageObjectId, variantId, role, sortOrder, mediaType, isExternal }
+  // payload = { storageObjectId, url, variantId, role, sortOrder, mediaType, isExternal }
+  // `url` is the public URL from ImageBackend (SSE metadata.url) or S3 raw URL fallback.
+  // Passing it explicitly ensures GET /media returns a populated url field instead of null.
   return api(`/api/catalog/products/${productId}/media`, jsonOpts(payload));
 }
 
@@ -247,5 +299,55 @@ export async function changeProductStatus(productId, status) {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
+  });
+}
+
+export async function deleteProduct(productId) {
+  return api(`/api/catalog/products/${productId}`, { method: 'DELETE' });
+}
+
+// ---------------------------------------------------------------------------
+// Edit-mode API functions
+// ---------------------------------------------------------------------------
+
+export async function listProductMedia(productId) {
+  return api(`/api/catalog/products/${productId}/media`);
+}
+
+export async function updateVariant(productId, variantId, payload) {
+  return api(`/api/catalog/products/${productId}/variants/${variantId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteVariant(productId, variantId) {
+  return api(`/api/catalog/products/${productId}/variants/${variantId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function updateMediaAsset(productId, mediaId, payload) {
+  return api(`/api/catalog/products/${productId}/media/${mediaId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteMediaAsset(productId, mediaId) {
+  return api(`/api/catalog/products/${productId}/media/${mediaId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function reorderMedia(productId, payload) {
+  return api(`/api/catalog/products/${productId}/media/reorder`, jsonOpts(payload));
+}
+
+export async function deleteProductAttribute(productId, attributeId) {
+  return api(`/api/catalog/products/${productId}/attributes/${attributeId}`, {
+    method: 'DELETE',
   });
 }

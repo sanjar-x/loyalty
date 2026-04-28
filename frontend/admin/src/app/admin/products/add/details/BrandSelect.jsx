@@ -62,7 +62,7 @@ function BrandMark({ brand }) {
   );
 }
 
-export default function BrandSelect({ value, onChange }) {
+export default function BrandSelect({ value, onChange, hasError = false }) {
   const [open, setOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [brands, setBrands] = useState([]);
@@ -89,14 +89,43 @@ export default function BrandSelect({ value, onChange }) {
       }))
       .filter((section) => section.brands.length > 0);
   }, [brandSections, searchQuery]);
+  // #13 — Active index for keyboard navigation
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const flatFilteredBrands = useMemo(
+    () => filteredSections.flatMap((s) => s.brands),
+    [filteredSections],
+  );
+
+  function handleDropdownKeyDown(event) {
+    if (!open) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, flatFilteredBrands.length - 1));
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (event.key === 'Enter' && activeIndex >= 0) {
+      event.preventDefault();
+      const brand = flatFilteredBrands[activeIndex];
+      if (brand) {
+        onChange?.(brand);
+        setOpen(false);
+      }
+    }
+  }
+
   const [brandImagePreviewUrl, setBrandImagePreviewUrl] = useState('');
   const [brandImageName, setBrandImageName] = useState('');
+  const [brandImageFile, setBrandImageFile] = useState(null); // #3 — keep actual File for upload
   const [newBrandName, setNewBrandName] = useState('');
+  const [newBrandDescription, setNewBrandDescription] = useState(''); // #20
+  const [newBrandWebsite, setNewBrandWebsite] = useState(''); // #20
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [brandsLoadError, setBrandsLoadError] = useState(false);
   const fileInputRef = useRef(null);
   const rootRef = useRef(null);
+  const modalRef = useRef(null); // #14 — for focus trap
 
   const isBrandFormComplete = Boolean(newBrandName.trim());
 
@@ -161,6 +190,37 @@ export default function BrandSelect({ value, onChange }) {
     };
   }, [open, isAddModalOpen]);
 
+  // #14 — Focus trap for brand creation modal
+  useEffect(() => {
+    if (!isAddModalOpen) return;
+    const modal = modalRef.current;
+    if (!modal) return;
+
+    function handleTabTrap(e) {
+      if (e.key !== 'Tab') return;
+      const focusable = modal.querySelectorAll(
+        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
+    modal.addEventListener('keydown', handleTabTrap);
+    // Auto-focus first focusable element
+    const firstFocusable = modal.querySelector('input:not([type="file"]), button');
+    firstFocusable?.focus();
+
+    return () => modal.removeEventListener('keydown', handleTabTrap);
+  }, [isAddModalOpen]);
+
   function openFilePicker() {
     fileInputRef.current?.click();
   }
@@ -192,6 +252,7 @@ export default function BrandSelect({ value, onChange }) {
     const previewUrl = URL.createObjectURL(file);
     setBrandImagePreviewUrl(previewUrl);
     setBrandImageName(file.name);
+    setBrandImageFile(file); // #3 — keep File reference
     event.target.value = '';
   }
 
@@ -207,14 +268,39 @@ export default function BrandSelect({ value, onChange }) {
       .replace(/^-+|-+$/g, '');
 
     try {
+      // #3 — Upload logo to server if a file was selected
+      let logoUrl = null;
+      if (brandImageFile) {
+        const { reserveMediaUpload, uploadToS3, confirmMedia, extractRawUrl, subscribeMediaStatus } = await import('@/services/products');
+        const reserve = await reserveMediaUpload({
+          contentType: brandImageFile.type,
+          filename: brandImageFile.name,
+        });
+        const presignedUrl = reserve.presignedUrl;
+        const storageObjectId = reserve.storageObjectId;
+        await uploadToS3(presignedUrl, brandImageFile);
+        await confirmMedia(storageObjectId);
+        // Wait for processing
+        try {
+          await subscribeMediaStatus(storageObjectId, { timeout: 30000 });
+        } catch { /* proceed even if SSE times out */ }
+        logoUrl = extractRawUrl(presignedUrl);
+      }
+
+      const body = {
+        name: newBrandName.trim(),
+        slug: slug || `brand-${Date.now()}`,
+      };
+      // #20 — Send optional extra fields
+      if (newBrandDescription.trim()) body.description = newBrandDescription.trim();
+      if (newBrandWebsite.trim()) body.websiteUrl = newBrandWebsite.trim();
+      if (logoUrl) body.logoUrl = logoUrl;
+
       const res = await fetch('/api/catalog/brands', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newBrandName.trim(),
-          slug: slug || `brand-${Date.now()}`,
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -226,16 +312,18 @@ export default function BrandSelect({ value, onChange }) {
       }
       const data = await res.json();
 
-      // Add new brand to local list and select it
-      const newBrand = { id: data.id, name: newBrandName.trim(), slug };
+      const newBrand = { id: data.id, name: newBrandName.trim(), slug, logoUrl };
       setBrands((prev) => [...prev, newBrand]);
       setBrandSections(groupBrandsByLetter([...brands, newBrand]));
       onChange?.(newBrand);
 
       // Reset modal
       setNewBrandName('');
+      setNewBrandDescription('');
+      setNewBrandWebsite('');
       setBrandImagePreviewUrl('');
       setBrandImageName('');
+      setBrandImageFile(null);
       setIsAddModalOpen(false);
     } catch (err) {
       setCreateError(err.message);
@@ -248,7 +336,7 @@ export default function BrandSelect({ value, onChange }) {
     <div className={styles.brandSelect} ref={rootRef}>
       <button
         type="button"
-        className={styles.brandSelectTrigger}
+        className={`${styles.brandSelectTrigger} ${hasError ? styles.fieldError : ''}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => {
@@ -279,7 +367,11 @@ export default function BrandSelect({ value, onChange }) {
               className={styles.dropdownSearchInput}
               placeholder="Поиск бренда..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setActiveIndex(-1);
+              }}
+              onKeyDown={handleDropdownKeyDown}
               autoFocus
               onMouseDown={(e) => e.stopPropagation()}
             />
@@ -308,11 +400,20 @@ export default function BrandSelect({ value, onChange }) {
                 {searchQuery ? 'Ничего не найдено' : 'Нет брендов'}
               </div>
             ) : (
-              filteredSections.map((section) => (
+              filteredSections.map((section) => {
+                // Track flat index for keyboard navigation
+                let sectionStartIndex = 0;
+                for (const s of filteredSections) {
+                  if (s.key === section.key) break;
+                  sectionStartIndex += s.brands.length;
+                }
+                return (
                 <section key={section.key} className={styles.brandSection}>
                   <div className={styles.brandSectionHeader}>{section.key}</div>
-                  {section.brands.map((brand) => {
+                  {section.brands.map((brand, brandIdx) => {
                     const isSelected = selectedBrand?.id === brand.id;
+                    const flatIdx = sectionStartIndex + brandIdx;
+                    const isActive = flatIdx === activeIndex;
 
                     return (
                       <button
@@ -321,6 +422,7 @@ export default function BrandSelect({ value, onChange }) {
                         className={styles.brandOption}
                         role="option"
                         aria-selected={isSelected}
+                        style={isActive ? { background: '#f4f3f1' } : undefined}
                         onClick={() => {
                           onChange?.(brand);
                           setOpen(false);
@@ -344,7 +446,8 @@ export default function BrandSelect({ value, onChange }) {
                     );
                   })}
                 </section>
-              ))
+                );
+              })
             )}
           </div>
 
@@ -368,6 +471,7 @@ export default function BrandSelect({ value, onChange }) {
           onClick={closeAddBrandModal}
         >
           <div
+            ref={modalRef}
             className={styles.brandModal}
             role="dialog"
             aria-modal="true"
@@ -431,7 +535,7 @@ export default function BrandSelect({ value, onChange }) {
 
               <input
                 className={styles.brandModalInput}
-                placeholder="Название бренда"
+                placeholder="Название бренда *"
                 value={newBrandName}
                 onChange={(event) => {
                   setNewBrandName(event.target.value);
@@ -443,6 +547,21 @@ export default function BrandSelect({ value, onChange }) {
                     handleCreateBrand();
                   }
                 }}
+              />
+
+              {/* #20 — Extra optional fields */}
+              <input
+                className={styles.brandModalInput}
+                placeholder="Описание бренда (необязательно)"
+                value={newBrandDescription}
+                onChange={(e) => setNewBrandDescription(e.target.value)}
+              />
+              <input
+                className={styles.brandModalInput}
+                placeholder="Сайт бренда (необязательно)"
+                type="url"
+                value={newBrandWebsite}
+                onChange={(e) => setNewBrandWebsite(e.target.value)}
               />
 
               {createError && (

@@ -3,7 +3,7 @@
 import { pluralizeRu } from '@/lib/utils';
 import styles from './products.module.css';
 
-export function BulkBar({ selectedCount, onArchive }) {
+export function BulkBar({ selectedCount, onArchive, onDelete, onClear }) {
   const selectedLabel = `${selectedCount.toLocaleString('ru-RU')} ${pluralizeRu(selectedCount, 'товар', 'товара', 'товаров')}`;
 
   return (
@@ -24,6 +24,21 @@ export function BulkBar({ selectedCount, onArchive }) {
               className={styles.bulkBarPrimary}
             >
               В архив
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              className={styles.bulkBarDanger}
+            >
+              Удалить
+            </button>
+            <button
+              type="button"
+              onClick={onClear}
+              className={styles.bulkBarClose}
+              aria-label="Снять выделение"
+            >
+              ×
             </button>
           </div>
         </div>

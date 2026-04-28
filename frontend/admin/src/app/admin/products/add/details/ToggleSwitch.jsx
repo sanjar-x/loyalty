@@ -9,12 +9,14 @@ export default function ToggleSwitch({
   initialChecked = false,
   checked,
   onChange,
+  disabled = false,
 }) {
   const [internalChecked, setInternalChecked] = useState(initialChecked);
   const isControlled = checked !== undefined;
   const resolvedChecked = isControlled ? checked : internalChecked;
 
   function handleClick() {
+    if (disabled) return;
     const nextChecked = !resolvedChecked;
 
     if (!isControlled) {
@@ -30,7 +32,9 @@ export default function ToggleSwitch({
       className={cn(styles.toggle, resolvedChecked && styles.toggleActive)}
       aria-label={ariaLabel}
       aria-pressed={resolvedChecked}
+      aria-disabled={disabled}
       onClick={handleClick}
+      style={disabled ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
     >
       <span className={styles.toggleThumb} />
     </button>

@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { i18n } from '@/lib/utils';
+import { ChevronIcon } from './icons';
 import styles from './page.module.css';
 
 function TextButtonField({ attribute, selected, onToggle }) {
@@ -46,20 +48,23 @@ function ColorSwatchField({ attribute, selected, onToggle }) {
         {values.map((val) => {
           const isActive = selected.includes(val.id);
           const color = val.metaData?.hex ?? val.metaData?.color ?? '#ccc';
+          const name = i18n(val.valueI18N, val.code);
           return (
-            <button
-              key={val.id}
-              type="button"
-              className={isActive ? styles.attrSwatchActive : styles.attrSwatch}
-              onClick={() => onToggle(val.id)}
-              aria-label={i18n(val.valueI18N, val.code)}
-              title={i18n(val.valueI18N, val.code)}
-            >
-              <span
-                className={styles.attrSwatchColor}
-                style={{ backgroundColor: color }}
-              />
-            </button>
+            <div key={val.id} className={styles.attrSwatchItem}>
+              <button
+                type="button"
+                className={isActive ? styles.attrSwatchActive : styles.attrSwatch}
+                onClick={() => onToggle(val.id)}
+                aria-label={name}
+                title={name}
+              >
+                <span
+                  className={styles.attrSwatchColor}
+                  style={{ backgroundColor: color }}
+                />
+              </button>
+              <span className={styles.attrSwatchName}>{name}</span>
+            </div>
           );
         })}
       </div>
@@ -70,26 +75,138 @@ function ColorSwatchField({ attribute, selected, onToggle }) {
 function DropdownField({ attribute, selected, onChange }) {
   const values = attribute.values ?? [];
   const value = selected[0] ?? '';
+  const selectedVal = values.find((v) => v.id === value);
+  const selectedLabel = selectedVal ? i18n(selectedVal.valueI18N, selectedVal.code) : '';
+
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [search, setSearch] = useState('');
+  const rootRef = useRef(null);
+  const searchRef = useRef(null);
+
+  const filtered = search.trim()
+    ? values.filter((v) =>
+        i18n(v.valueI18N, v.code).toLowerCase().includes(search.trim().toLowerCase()),
+      )
+    : values;
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e) {
+      if (!rootRef.current?.contains(e.target)) setOpen(false);
+    }
+    function onEscape(e) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onEscape);
+    };
+  }, [open]);
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (open) {
+      setSearch('');
+      setActiveIndex(-1);
+      // small delay so the DOM paints first
+      requestAnimationFrame(() => searchRef.current?.focus());
+    }
+  }, [open]);
+
+  function handleKeyDown(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, filtered.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault();
+      const item = filtered[activeIndex];
+      if (item) {
+        onChange(item.id === value ? [] : [item.id]);
+        setOpen(false);
+      }
+    }
+  }
+
   return (
-    <div className={styles.attrField}>
+    <div className={styles.attrField} ref={rootRef} style={{ position: 'relative' }}>
       <label className={styles.attrLabel}>
         {i18n(attribute.nameI18N)}
         {attribute.requirementLevel === 'required' && (
           <span className={styles.attrRequired}>*</span>
         )}
       </label>
-      <select
-        className={styles.attrSelect}
-        value={value}
-        onChange={(e) => onChange(e.target.value ? [e.target.value] : [])}
+      <button
+        type="button"
+        className={styles.attrDropdownTrigger}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
       >
-        <option value="">Выберите</option>
-        {values.map((val) => (
-          <option key={val.id} value={val.id}>
-            {i18n(val.valueI18N, val.code)}
-          </option>
-        ))}
-      </select>
+        <span className={selectedLabel ? styles.attrDropdownValue : styles.attrDropdownPlaceholder}>
+          {selectedLabel || 'Выберите'}
+        </span>
+        <span className={styles.attrDropdownChevron} style={open ? { transform: 'rotate(180deg)' } : undefined}>
+          <ChevronIcon />
+        </span>
+      </button>
+
+      {open && (
+        <div className={styles.attrDropdownPanel}>
+          {values.length > 6 && (
+            <div className={styles.attrDropdownSearchWrap}>
+              <input
+                ref={searchRef}
+                className={styles.attrDropdownSearchInput}
+                placeholder="Поиск..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setActiveIndex(-1);
+                }}
+                onKeyDown={handleKeyDown}
+              />
+            </div>
+          )}
+          <div className={styles.attrDropdownList} role="listbox">
+            {filtered.length === 0 ? (
+              <div className={styles.attrDropdownEmpty}>Ничего не найдено</div>
+            ) : (
+              filtered.map((val, idx) => {
+                const isSelected = val.id === value;
+                const isActive = idx === activeIndex;
+                return (
+                  <button
+                    key={val.id}
+                    type="button"
+                    className={styles.attrDropdownOption}
+                    role="option"
+                    aria-selected={isSelected}
+                    style={isActive ? { background: '#f4f3f1' } : undefined}
+                    onClick={() => {
+                      onChange(isSelected ? [] : [val.id]);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className={styles.attrDropdownOptionText}>
+                      {i18n(val.valueI18N, val.code)}
+                    </span>
+                    <span className={styles.attrDropdownCheck}>
+                      {isSelected && <span className={styles.attrDropdownCheckInner} />}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -251,9 +368,27 @@ export default function DynamicAttributes({
     return (
       <section className={styles.card}>
         <div className={styles.skeletonGroup}>
-          <div className={styles.skeletonLabel} />
-          <div className={styles.skeletonField} />
-          <div className={styles.skeletonField} />
+          <div className={styles.skeletonRow}>
+            <div className={styles.skeletonLabel} />
+            <div className={styles.skeletonChips}>
+              <div className={styles.skeletonChip} />
+              <div className={styles.skeletonChip} />
+              <div className={styles.skeletonChip} />
+              <div className={styles.skeletonChip} />
+            </div>
+          </div>
+          <div className={styles.skeletonRow}>
+            <div className={styles.skeletonLabelShort} />
+            <div className={styles.skeletonSelect} />
+          </div>
+          <div className={styles.skeletonRow}>
+            <div className={styles.skeletonLabel} />
+            <div className={styles.skeletonChips}>
+              <div className={styles.skeletonChip} />
+              <div className={styles.skeletonChip} />
+              <div className={styles.skeletonChip} />
+            </div>
+          </div>
         </div>
       </section>
     );

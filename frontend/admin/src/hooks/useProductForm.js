@@ -4,68 +4,251 @@ import { useCallback, useMemo, useReducer } from 'react';
 import { buildI18nPayload } from '@/lib/utils';
 
 /**
- * Unified state hook for the product creation form.
+ * Unified state hook for the product creation and editing form.
+ *
+ * Supports multiple variants (tabs). Product-level fields are shared,
+ * variant-level fields (images, sizes, prices, delivery) are per-variant.
  *
  * Field naming follows openapi.json contracts (camelCase).
  * This hook manages form state only — no API calls.
  *
- * Usage:
- *   const form = useProductForm({ categoryId, defaultTitle });
- *   <BrandSelect value={form.state.brandId} onChange={form.setBrandId} />
+ * Edit mode: call hydrateFromProduct(product, mediaAssets) to populate
+ * form state from a backend ProductResponse + media list.
  */
 
 // ---------------------------------------------------------------------------
-// Initial state
+// Initial state helpers
 // ---------------------------------------------------------------------------
+
+let _nextLocalId = 0;
+function genLocalId() {
+  return `v-${++_nextLocalId}-${Date.now().toString(36)}`;
+}
+
+function buildVariantState() {
+  return {
+    localId: genLocalId(),
+    variantAttrs: {},
+    images: [],
+    sizeGuide: null,
+    deliveryMode: 'china',
+    supplierId: null,
+    sourceUrl: '',
+    priceAmount: '',
+    compareAtPrice: '',
+    priceCurrency: 'RUB',
+    variablePricing: false,
+    perSkuPrices: {},
+  };
+}
 
 function buildInitialState({ categoryId = null, defaultTitle = '' } = {}) {
   return {
-    // Step 1: Category (set from route, immutable within form)
+    // Product-level (shared across variants)
     categoryId,
-
-    // Step 3: Brand
     brandId: null,
-    brandName: '', // display-only, not sent to API
-
-    // Step 4: Core fields
+    brandName: '',
     titleRu: defaultTitle,
     titleEn: '',
-    slug: '',
+    slug: defaultTitle ? transliterate(defaultTitle) : '',
     descriptionRu: '',
     descriptionEn: '',
-
-    // Step 4: Product-level attributes (level: "product")
-    // { [attributeId]: attributeValueId }
     productAttrs: {},
-
-    // Step 4: Variant-level attributes (level: "variant")
-    // { [attributeId]: [valueId, valueId, ...] }  — multi-select
-    variantAttrs: {},
-
-    // Delivery
-    deliveryMode: 'china', // "china" | "stock"
-    supplierId: null,
-    sourceUrl: '',
-
-    // Price
-    priceAmount: '', // string for input, convert to int on submit
-    compareAtPrice: '', // string for input
-    priceCurrency: 'RUB',
-    variablePricing: false,
-    // { [sizeValueId]: { price: string, compareAt: string } }
-    perSkuPrices: {},
-
-    // Media (local state, uploaded after product create)
-    images: [], // [{ localId, file?, url?, source: "file"|"url", alt }]
-    sizeGuide: null, // { file?, url, source: "file"|"url" } or null
-
-    // Original badge
     isOriginal: false,
-
-    // Tags
     tags: [],
     countryOfOrigin: '',
+
+    // Variant management
+    activeVariantIndex: 0,
+    variants: [buildVariantState()],
+
+    // Edit mode metadata (null in create mode)
+    _serverSnapshot: null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Backend → Form state mapping (edit mode hydration)
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert kopecks (integer) to rubles (string) for form display.
+ * Backend stores amounts in smallest currency unit (kopecks for RUB).
+ */
+function kopecksToRubles(amount) {
+  if (amount == null || amount === 0) return '';
+  return String(Math.round(amount / 100));
+}
+
+/**
+ * Map a backend ProductResponse + media assets to form state.
+ *
+ * @param {Object} product - Backend ProductResponse
+ * @param {Object[]} mediaAssets - Array of MediaAssetResponse with resolved URLs
+ * @returns {Object} Form state compatible with useProductForm reducer
+ */
+function mapProductToFormState(product, mediaAssets = []) {
+  // Group media by variantId
+  const mediaByVariant = {};
+  for (const asset of mediaAssets) {
+    const vid = asset.variantId ?? '_product';
+    if (!mediaByVariant[vid]) mediaByVariant[vid] = [];
+    mediaByVariant[vid].push(asset);
+  }
+  // Sort each group by sortOrder
+  for (const vid of Object.keys(mediaByVariant)) {
+    mediaByVariant[vid].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  // Collect ALL product-level attribute assignments (multi-value map)
+  // During creation, variant attr values are also bulk-assigned at product level.
+  // If some SKUs weren't generated, this map serves as the authoritative source.
+  const productAttrMulti = {};
+  const productAttrs = {};
+  for (const attr of product.attributes ?? []) {
+    // Single-value map for product-level attrs (brand, etc.)
+    productAttrs[attr.attributeId] = attr.attributeValueId;
+    // Multi-value map for supplementing variant attrs
+    if (!productAttrMulti[attr.attributeId])
+      productAttrMulti[attr.attributeId] = [];
+    if (!productAttrMulti[attr.attributeId].includes(attr.attributeValueId)) {
+      productAttrMulti[attr.attributeId].push(attr.attributeValueId);
+    }
+  }
+
+  // Map variants
+  const variants = (product.variants ?? []).map((variant) => {
+    const skus = variant.skus ?? [];
+
+    // Build variantAttrs: {[attributeId]: [valueId1, valueId2, ...]}
+    // Primary source: SKU variantAttributes
+    const variantAttrs = {};
+    for (const sku of skus) {
+      for (const va of sku.variantAttributes ?? []) {
+        if (!variantAttrs[va.attributeId]) variantAttrs[va.attributeId] = [];
+        if (!variantAttrs[va.attributeId].includes(va.attributeValueId)) {
+          variantAttrs[va.attributeId].push(va.attributeValueId);
+        }
+      }
+    }
+
+    // Supplement: merge product-level attribute values that SKUs may be missing
+    // (e.g. color assigned at product level but SKU generation was partial)
+    // Heuristic: if product-level has multiple values for one attribute, it's
+    // variant-level (product-level attrs are single-select)
+    for (const [attrId, valueIds] of Object.entries(productAttrMulti)) {
+      if (!variantAttrs[attrId] && valueIds.length <= 1) continue;
+      if (!variantAttrs[attrId]) variantAttrs[attrId] = [];
+      for (const vid of valueIds) {
+        if (!variantAttrs[attrId].includes(vid)) {
+          variantAttrs[attrId].push(vid);
+        }
+      }
+    }
+
+    // Determine pricing mode — use resolvedPrice (cascade SKU→Variant→Product)
+    // with fallback to direct price, matching the BFF enrichment logic
+    const activePrices = skus
+      .filter(
+        (s) => s.isActive && (s.resolvedPrice ?? s.price)?.amount != null,
+      )
+      .map((s) => (s.resolvedPrice ?? s.price).amount);
+    const allSamePrice =
+      activePrices.length > 0 &&
+      activePrices.every((p) => p === activePrices[0]);
+    const variablePricing = activePrices.length > 1 && !allSamePrice;
+
+    // Uniform price (from variant defaultPrice or first SKU's resolved price)
+    const firstSkuPrice =
+      (skus[0]?.resolvedPrice ?? skus[0]?.price)?.amount ?? null;
+    const uniformPrice =
+      variant.defaultPrice?.amount ??
+      (allSamePrice ? activePrices[0] : null) ??
+      firstSkuPrice;
+    const uniformCompare =
+      skus[0]?.compareAtPrice?.amount ?? null;
+
+    // Per-SKU prices for variable pricing (use resolvedPrice for display)
+    const perSkuPrices = {};
+    if (variablePricing) {
+      for (const sku of skus) {
+        // Use first variantAttribute valueId as key (matches creation form convention)
+        const valueId = sku.variantAttributes?.[0]?.attributeValueId;
+        if (valueId) {
+          const effectivePrice = (sku.resolvedPrice ?? sku.price)?.amount;
+          perSkuPrices[valueId] = {
+            price: kopecksToRubles(effectivePrice),
+            compareAt: kopecksToRubles(sku.compareAtPrice?.amount),
+            skuId: sku.id,
+          };
+        }
+      }
+    }
+
+    // Map media assets for this variant
+    const variantMedia = mediaByVariant[variant.id] ?? [];
+    const images = variantMedia
+      .filter((m) => m.mediaType === 'image')
+      .map((m) => ({
+        localId: `server-${m.id}`,
+        url: m._resolvedUrl ?? m.url ?? null,
+        alt: 'Изображение товара',
+        mediaId: m.id,
+        storageObjectId: m.storageObjectId,
+        role: m.role,
+        sortOrder: m.sortOrder,
+        fromServer: true,
+      }));
+
+    return {
+      localId: genLocalId(),
+      serverId: variant.id,
+      variantAttrs,
+      images,
+      sizeGuide: null,
+      deliveryMode: product.supplierId ? 'china' : 'china',
+      supplierId: product.supplierId ?? null,
+      sourceUrl: product.sourceUrl ?? '',
+      priceAmount: kopecksToRubles(uniformPrice),
+      compareAtPrice: kopecksToRubles(uniformCompare),
+      priceCurrency: variant.defaultPrice?.currency ?? product.priceCurrency ?? 'RUB',
+      variablePricing,
+      perSkuPrices,
+      skus: skus.map((s) => ({ id: s.id, skuCode: s.skuCode, version: s.version })),
+    };
+  });
+
+  // Fallback: if no variants, create an empty one
+  if (variants.length === 0) {
+    variants.push(buildVariantState());
+  }
+
+  const state = {
+    categoryId: product.primaryCategoryId,
+    brandId: product.brandId,
+    brandName: '',
+    titleRu: product.titleI18N?.ru ?? '',
+    titleEn: product.titleI18N?.en ?? '',
+    slug: product.slug ?? '',
+    descriptionRu: product.descriptionI18N?.ru ?? '',
+    descriptionEn: product.descriptionI18N?.en ?? '',
+    productAttrs,
+    isOriginal: false,
+    tags: product.tags ?? [],
+    countryOfOrigin: product.countryOfOrigin ?? '',
+    activeVariantIndex: 0,
+    variants,
+    // Snapshot of server state for diffing on submit
+    _serverSnapshot: {
+      productId: product.id,
+      version: product.version,
+      status: product.status,
+      product,
+      mediaAssets,
+    },
+  };
+
+  return state;
 }
 
 // ---------------------------------------------------------------------------
@@ -74,6 +257,7 @@ function buildInitialState({ categoryId = null, defaultTitle = '' } = {}) {
 
 function formReducer(state, action) {
   switch (action.type) {
+    // ── Product-level fields ──
     case 'SET_FIELD':
       return { ...state, [action.field]: action.value };
 
@@ -99,58 +283,6 @@ function formReducer(state, action) {
       return { ...state, productAttrs: next };
     }
 
-    case 'SET_VARIANT_ATTR':
-      return {
-        ...state,
-        variantAttrs: {
-          ...state.variantAttrs,
-          [action.attributeId]: action.valueIds,
-        },
-      };
-
-    case 'TOGGLE_VARIANT_VALUE': {
-      const current = state.variantAttrs[action.attributeId] ?? [];
-      const has = current.includes(action.valueId);
-      const next = has
-        ? current.filter((id) => id !== action.valueId)
-        : [...current, action.valueId];
-      // Clean orphan price when removing a variant value
-      let nextPrices = state.perSkuPrices;
-      if (has && state.perSkuPrices[action.valueId]) {
-        nextPrices = { ...state.perSkuPrices };
-        delete nextPrices[action.valueId];
-      }
-      return {
-        ...state,
-        variantAttrs: { ...state.variantAttrs, [action.attributeId]: next },
-        perSkuPrices: nextPrices,
-      };
-    }
-
-    case 'SET_SKU_PRICE':
-      return {
-        ...state,
-        perSkuPrices: {
-          ...state.perSkuPrices,
-          [action.valueId]: {
-            ...(state.perSkuPrices[action.valueId] ?? {}),
-            ...action.prices,
-          },
-        },
-      };
-
-    case 'ADD_IMAGE':
-      return { ...state, images: [...state.images, action.image] };
-
-    case 'REMOVE_IMAGE':
-      return {
-        ...state,
-        images: state.images.filter((img) => img.localId !== action.localId),
-      };
-
-    case 'SET_IMAGES':
-      return { ...state, images: action.images };
-
     case 'ADD_TAG':
       if (state.tags.includes(action.tag)) return state;
       return { ...state, tags: [...state.tags, action.tag] };
@@ -158,8 +290,167 @@ function formReducer(state, action) {
     case 'REMOVE_TAG':
       return { ...state, tags: state.tags.filter((t) => t !== action.tag) };
 
+    // ── Variant management ──
+    case 'SWITCH_VARIANT':
+      if (action.index < 0 || action.index >= state.variants.length)
+        return state;
+      return { ...state, activeVariantIndex: action.index };
+
+    case 'ADD_VARIANT': {
+      const first = state.variants[0];
+      const newVariant = {
+        ...buildVariantState(),
+        // Inherit sizes from first variant
+        variantAttrs: { ...first.variantAttrs },
+      };
+      return {
+        ...state,
+        variants: [...state.variants, newVariant],
+        activeVariantIndex: state.variants.length,
+      };
+    }
+
+    case 'REMOVE_VARIANT': {
+      if (state.variants.length <= 1) return state;
+      const idx = action.index;
+      const next = state.variants.filter((_, i) => i !== idx);
+      let nextActive = state.activeVariantIndex;
+      if (nextActive >= next.length) nextActive = next.length - 1;
+      else if (nextActive > idx) nextActive--;
+      return {
+        ...state,
+        variants: next,
+        activeVariantIndex: nextActive,
+      };
+    }
+
+    // ── Per-variant fields (operate on active variant) ──
+    case 'SET_VARIANT_FIELD': {
+      const vi = state.activeVariantIndex;
+      const v = state.variants[vi];
+      if (!v) return state;
+      return {
+        ...state,
+        variants: state.variants.map((item, i) =>
+          i === vi ? { ...item, [action.field]: action.value } : item,
+        ),
+      };
+    }
+
+    case 'SET_VARIANT_ATTR': {
+      const vi = state.activeVariantIndex;
+      return {
+        ...state,
+        variants: state.variants.map((item, i) =>
+          i === vi
+            ? {
+                ...item,
+                variantAttrs: {
+                  ...item.variantAttrs,
+                  [action.attributeId]: action.valueIds,
+                },
+              }
+            : item,
+        ),
+      };
+    }
+
+    case 'TOGGLE_VARIANT_VALUE': {
+      const vi = state.activeVariantIndex;
+      const v = state.variants[vi];
+      if (!v) return state;
+      const current = v.variantAttrs[action.attributeId] ?? [];
+      const has = current.includes(action.valueId);
+      const nextValues = has
+        ? current.filter((id) => id !== action.valueId)
+        : [...current, action.valueId];
+      let nextPrices = v.perSkuPrices;
+      if (has && v.perSkuPrices[action.valueId]) {
+        nextPrices = { ...v.perSkuPrices };
+        delete nextPrices[action.valueId];
+      }
+      return {
+        ...state,
+        variants: state.variants.map((item, i) =>
+          i === vi
+            ? {
+                ...item,
+                variantAttrs: {
+                  ...item.variantAttrs,
+                  [action.attributeId]: nextValues,
+                },
+                perSkuPrices: nextPrices,
+              }
+            : item,
+        ),
+      };
+    }
+
+    case 'SET_SKU_PRICE': {
+      const vi = state.activeVariantIndex;
+      const v = state.variants[vi];
+      if (!v) return state;
+      return {
+        ...state,
+        variants: state.variants.map((item, i) =>
+          i === vi
+            ? {
+                ...item,
+                perSkuPrices: {
+                  ...item.perSkuPrices,
+                  [action.valueId]: {
+                    ...(item.perSkuPrices[action.valueId] ?? {}),
+                    ...action.prices,
+                  },
+                },
+              }
+            : item,
+        ),
+      };
+    }
+
+    case 'ADD_IMAGE': {
+      const vi = state.activeVariantIndex;
+      return {
+        ...state,
+        variants: state.variants.map((item, i) =>
+          i === vi ? { ...item, images: [...item.images, action.image] } : item,
+        ),
+      };
+    }
+
+    case 'REMOVE_IMAGE': {
+      const vi = state.activeVariantIndex;
+      return {
+        ...state,
+        variants: state.variants.map((item, i) =>
+          i === vi
+            ? {
+                ...item,
+                images: item.images.filter(
+                  (img) => img.localId !== action.localId,
+                ),
+              }
+            : item,
+        ),
+      };
+    }
+
+    case 'SET_IMAGES': {
+      const vi = state.activeVariantIndex;
+      return {
+        ...state,
+        variants: state.variants.map((item, i) =>
+          i === vi ? { ...item, images: action.images } : item,
+        ),
+      };
+    }
+
     case 'RESET':
       return buildInitialState(action.options);
+
+    case 'HYDRATE':
+      return mapProductToFormState(action.product, action.mediaAssets);
 
     default:
       return state;
@@ -227,7 +518,10 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
     buildInitialState,
   );
 
-  // --- Field setters ---
+  // --- Active variant shortcut ---
+  const activeVariant = state.variants[state.activeVariantIndex] ?? state.variants[0];
+
+  // --- Product-level setters ---
 
   const setField = useCallback((field, value) => {
     dispatch({ type: 'SET_FIELD', field, value });
@@ -239,7 +533,6 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
 
   const setTitleRu = useCallback((value) => {
     dispatch({ type: 'SET_FIELD', field: 'titleRu', value });
-    // Auto-generate slug from title
     dispatch({ type: 'SET_FIELD', field: 'slug', value: transliterate(value) });
   }, []);
 
@@ -249,6 +542,38 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
 
   const clearProductAttr = useCallback((attributeId) => {
     dispatch({ type: 'CLEAR_PRODUCT_ATTR', attributeId });
+  }, []);
+
+  const addTag = useCallback((tag) => {
+    dispatch({ type: 'ADD_TAG', tag });
+  }, []);
+
+  const removeTag = useCallback((tag) => {
+    dispatch({ type: 'REMOVE_TAG', tag });
+  }, []);
+
+  const resetForm = useCallback((options) => {
+    dispatch({ type: 'RESET', options });
+  }, []);
+
+  // --- Variant management ---
+
+  const switchVariant = useCallback((index) => {
+    dispatch({ type: 'SWITCH_VARIANT', index });
+  }, []);
+
+  const addVariant = useCallback(() => {
+    dispatch({ type: 'ADD_VARIANT' });
+  }, []);
+
+  const removeVariant = useCallback((index) => {
+    dispatch({ type: 'REMOVE_VARIANT', index });
+  }, []);
+
+  // --- Per-variant field setters ---
+
+  const setVariantField = useCallback((field, value) => {
+    dispatch({ type: 'SET_VARIANT_FIELD', field, value });
   }, []);
 
   const setVariantAttr = useCallback((attributeId, valueIds) => {
@@ -275,21 +600,8 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
     dispatch({ type: 'SET_IMAGES', images });
   }, []);
 
-  const addTag = useCallback((tag) => {
-    dispatch({ type: 'ADD_TAG', tag });
-  }, []);
-
-  const removeTag = useCallback((tag) => {
-    dispatch({ type: 'REMOVE_TAG', tag });
-  }, []);
-
-  const resetForm = useCallback((options) => {
-    dispatch({ type: 'RESET', options });
-  }, []);
-
   // --- Derived / validation ---
 
-  // Minimum required fields for product creation (draft save)
   const isValid = useMemo(() => {
     if (!state.categoryId) return false;
     if (!state.brandId) return false;
@@ -298,37 +610,28 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
     return true;
   }, [state.categoryId, state.brandId, state.titleRu, state.slug]);
 
-  // Stricter check: product can be published (has price + SKU attrs + media)
+  // Check that every variant has the minimum requirements for publishing
   const isPublishable = useMemo(() => {
     if (!isValid) return false;
-    // Need at least one variant attr with values for SKU generation
-    const hasVariantAttrs = Object.values(state.variantAttrs).some(
-      (ids) => ids.length > 0,
-    );
-    if (!hasVariantAttrs) return false;
-    // Need at least one image (PUBLISHED guard requires >= 1 media asset)
-    if (state.images.length === 0) return false;
-    // Need price
-    if (state.variablePricing) {
-      // All selected variant values must have a price > 0
-      const requiredValueIds = Object.values(state.variantAttrs).flat();
-      if (requiredValueIds.length === 0) return false;
-      return requiredValueIds.every((valueId) => {
-        const p = state.perSkuPrices[valueId];
-        return p?.price && parseInt(p.price, 10) > 0;
-      });
-    }
-    return state.priceAmount !== '' && parseInt(state.priceAmount, 10) > 0;
-  }, [
-    isValid,
-    state.variantAttrs,
-    state.images,
-    state.variablePricing,
-    state.priceAmount,
-    state.perSkuPrices,
-  ]);
+    return state.variants.every((v) => {
+      const hasVariantAttrs = Object.values(v.variantAttrs).some(
+        (ids) => ids.length > 0,
+      );
+      if (!hasVariantAttrs) return false;
+      if (v.images.length === 0) return false;
+      if (v.variablePricing) {
+        const requiredValueIds = Object.values(v.variantAttrs).flat();
+        if (requiredValueIds.length === 0) return false;
+        return requiredValueIds.every((valueId) => {
+          const p = v.perSkuPrices[valueId];
+          return p?.price && parseInt(p.price, 10) > 0;
+        });
+      }
+      return v.priceAmount !== '' && parseInt(v.priceAmount, 10) > 0;
+    });
+  }, [isValid, state.variants]);
 
-  // Build API-ready payloads (no API calls — just data shaping)
+  // Build API-ready payloads
 
   const productPayload = useMemo(
     () => ({
@@ -344,12 +647,17 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
             ),
           }
         : {}),
-      ...(state.supplierId ? { supplierId: state.supplierId } : {}),
-      ...(state.sourceUrl ? { sourceUrl: state.sourceUrl } : {}),
       ...(state.countryOfOrigin
         ? { countryOfOrigin: state.countryOfOrigin }
         : {}),
       ...(state.tags.length ? { tags: state.tags } : {}),
+      // Use first variant's supplier for the product-level supplierId
+      ...(state.variants[0]?.supplierId
+        ? { supplierId: state.variants[0].supplierId }
+        : {}),
+      ...(state.variants[0]?.sourceUrl
+        ? { sourceUrl: state.variants[0].sourceUrl }
+        : {}),
     }),
     [
       state.titleRu,
@@ -359,14 +667,12 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
       state.categoryId,
       state.descriptionRu,
       state.descriptionEn,
-      state.supplierId,
-      state.sourceUrl,
       state.countryOfOrigin,
       state.tags,
+      state.variants,
     ],
   );
 
-  // null when empty — submit flow should skip the API call
   const bulkAttrsPayload = useMemo(() => {
     const items = Object.entries(state.productAttrs)
       .filter(([, valueId]) => valueId)
@@ -377,62 +683,62 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
     return items.length > 0 ? { items } : null;
   }, [state.productAttrs]);
 
-  // null when no variant attrs selected — submit flow should skip SKU generation
-  const skuGeneratePayload = useMemo(() => {
-    const attributeSelections = Object.entries(state.variantAttrs)
-      .filter(([, valueIds]) => valueIds.length > 0)
-      .map(([attributeId, valueIds]) => ({
-        attributeId,
-        valueIds,
-      }));
-    if (attributeSelections.length === 0) return null;
+  // Per-variant SKU payloads — array indexed by variant index
+  const variantPayloads = useMemo(
+    () =>
+      state.variants.map((v) => {
+        const attributeSelections = Object.entries(v.variantAttrs)
+          .filter(([, valueIds]) => valueIds.length > 0)
+          .map(([attributeId, valueIds]) => ({
+            attributeId,
+            valueIds,
+          }));
+        if (attributeSelections.length === 0)
+          return { skuGeneratePayload: null, perSkuPriceUpdates: [] };
 
-    // Variable pricing: generate SKUs with null price, then PATCH each individually
-    // Flat pricing: generate all SKUs with the same price
-    const useFlat = !state.variablePricing;
+        // Form stores prices in rubles; backend expects kopecks (×100)
+        const toKopecks = (rub) => {
+          const n = parseInt(rub, 10);
+          return isNaN(n) ? null : n * 100;
+        };
 
-    return {
-      attributeSelections,
-      priceAmount:
-        useFlat && state.priceAmount !== ''
-          ? parseInt(state.priceAmount, 10)
-          : null,
-      priceCurrency: state.priceCurrency,
-      compareAtPriceAmount:
-        useFlat && state.compareAtPrice !== ''
-          ? parseInt(state.compareAtPrice, 10)
-          : null,
-    };
-  }, [
-    state.variantAttrs,
-    state.variablePricing,
-    state.priceAmount,
-    state.priceCurrency,
-    state.compareAtPrice,
-  ]);
+        const useFlat = !v.variablePricing;
+        const skuGeneratePayload = {
+          attributeSelections,
+          priceAmount:
+            useFlat && v.priceAmount !== ''
+              ? toKopecks(v.priceAmount)
+              : null,
+          priceCurrency: v.priceCurrency,
+          compareAtPriceAmount:
+            useFlat && v.compareAtPrice !== ''
+              ? toKopecks(v.compareAtPrice)
+              : null,
+        };
 
-  // Per-SKU price updates for variable pricing (used in submit flow Step 8)
-  // Returns array of { valueId, priceAmount, compareAtPriceAmount } for PATCH calls
-  const perSkuPriceUpdates = useMemo(() => {
-    if (!state.variablePricing) return [];
-    return Object.entries(state.perSkuPrices)
-      .filter(([, p]) => p.price && p.price !== '')
-      .map(([valueId, p]) => ({
-        valueId,
-        priceAmount: parseInt(p.price, 10),
-        compareAtPriceAmount:
-          p.compareAt && p.compareAt !== '' ? parseInt(p.compareAt, 10) : null,
-      }));
-  }, [state.variablePricing, state.perSkuPrices]);
+        const perSkuPriceUpdates = v.variablePricing
+          ? Object.entries(v.perSkuPrices)
+              .filter(([, p]) => p.price && p.price !== '')
+              .map(([valueId, p]) => ({
+                valueId,
+                priceAmount: toKopecks(p.price),
+                compareAtPriceAmount:
+                  p.compareAt && p.compareAt !== ''
+                    ? toKopecks(p.compareAt)
+                    : null,
+              }))
+          : [];
 
-  // --- Convenience: attribute handler for DynamicAttributes compatibility ---
-  // DynamicAttributes passes values as arrays: { [attributeId]: [valueId, ...] }
-  // This adapter maps between the two formats based on attribute level.
-  //
-  // Product-level: API contract (POST /products/{id}/attributes/bulk) accepts
-  // exactly ONE attributeValueId per attributeId — so we take selectedValues[0].
-  // DynamicAttributes enforces single-select UI for product-level attrs.
+        return { skuGeneratePayload, perSkuPriceUpdates };
+      }),
+    [state.variants],
+  );
 
+  // Backward-compat: first variant's payloads as top-level
+  const skuGeneratePayload = variantPayloads[0]?.skuGeneratePayload ?? null;
+  const perSkuPriceUpdates = variantPayloads[0]?.perSkuPriceUpdates ?? [];
+
+  // --- DynamicAttributes compatibility ---
   const handleAttributeUpdate = useCallback(
     (attributeId, selectedValues, level) => {
       if (level === 'variant') {
@@ -442,7 +748,6 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
           valueIds: selectedValues,
         });
       } else {
-        // Product-level: strictly single value per attribute (API constraint)
         const valueId = selectedValues[0] ?? null;
         if (valueId) {
           dispatch({ type: 'SET_PRODUCT_ATTR', attributeId, valueId });
@@ -454,47 +759,72 @@ export default function useProductForm({ categoryId, defaultTitle = '' } = {}) {
     [],
   );
 
-  // Merge productAttrs + variantAttrs into one object for DynamicAttributes
   const allAttrValues = useMemo(() => {
     const merged = {};
     for (const [attrId, valueId] of Object.entries(state.productAttrs)) {
       merged[attrId] = valueId ? [valueId] : [];
     }
-    for (const [attrId, valueIds] of Object.entries(state.variantAttrs)) {
+    const v = activeVariant;
+    for (const [attrId, valueIds] of Object.entries(v.variantAttrs)) {
       merged[attrId] = valueIds;
     }
     return merged;
-  }, [state.productAttrs, state.variantAttrs]);
+  }, [state.productAttrs, activeVariant]);
+
+  // --- Edit mode: hydrate from server data ---
+
+  const hydrateFromProduct = useCallback((product, mediaAssets = []) => {
+    dispatch({ type: 'HYDRATE', product, mediaAssets });
+  }, []);
+
+  // Edit mode helpers
+  const isEditMode = state._serverSnapshot != null;
+  const serverSnapshot = state._serverSnapshot;
 
   return {
     state,
+    activeVariant,
     isValid,
     isPublishable,
 
-    // Field setters
+    // Product-level setters
     setField,
     setBrandId,
     setTitleRu,
     setProductAttr,
     clearProductAttr,
+    addTag,
+    removeTag,
+    resetForm,
+
+    // Variant management
+    switchVariant,
+    addVariant,
+    removeVariant,
+
+    // Per-variant setters
+    setVariantField,
     setVariantAttr,
     toggleVariantValue,
     setSkuPrice,
     addImage,
     removeImage,
     setImages,
-    addTag,
-    removeTag,
-    resetForm,
 
     // DynamicAttributes compatibility
     allAttrValues,
     handleAttributeUpdate,
 
-    // API-ready payloads (read-only, for submit step)
+    // API-ready payloads
     productPayload,
     bulkAttrsPayload,
     skuGeneratePayload,
     perSkuPriceUpdates,
+    variantPayloads,
+
+    // Edit mode
+    hydrateFromProduct,
+    isEditMode,
+    serverSnapshot,
   };
 }

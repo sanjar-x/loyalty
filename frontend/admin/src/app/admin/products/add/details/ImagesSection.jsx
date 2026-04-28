@@ -12,6 +12,7 @@ const MIN_IMAGE_SIZE = 1024; // 1 KB minimum
 export default function ImagesSection({ images = [], onAdd, onRemove, onSet, uploads = {}, onRetry, onImageCropped }) {
   const [urlValue, setUrlValue] = useState('');
   const [urlFocused, setUrlFocused] = useState(false);
+  const [urlError, setUrlError] = useState(''); // #7 — URL error message
   const [dragIndex, setDragIndex] = useState(null);
   const [dropIndex, setDropIndex] = useState(null);
   const [viewerIndex, setViewerIndex] = useState(null);
@@ -58,17 +59,26 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet, upl
 
   function applyUrlImage() {
     const nextUrl = urlValue.trim();
+    setUrlError('');
     if (!nextUrl || images.length >= MAX_IMAGES) return;
-    if (!nextUrl.startsWith('https://') && !nextUrl.startsWith('http://')) return;
-    // Validate URL has image extension
-    try {
-      const pathname = new URL(nextUrl).pathname;
-      if (!ALLOWED_IMAGE_EXTENSIONS.test(pathname)) return;
-    } catch {
+    if (!nextUrl.startsWith('https://') && !nextUrl.startsWith('http://')) {
+      setUrlError('URL должен начинаться с http:// или https://');
       return;
     }
-    // Check for duplicate URL
-    if (images.some((img) => img.url === nextUrl)) return;
+    try {
+      const pathname = new URL(nextUrl).pathname;
+      if (!ALLOWED_IMAGE_EXTENSIONS.test(pathname)) {
+        setUrlError('URL должен вести на изображение (.jpg, .png, .webp и т.д.)');
+        return;
+      }
+    } catch {
+      setUrlError('Некорректный URL');
+      return;
+    }
+    if (images.some((img) => img.url === nextUrl)) {
+      setUrlError('Это изображение уже добавлено');
+      return;
+    }
     onAdd?.({
       localId: `url-${Date.now()}`,
       url: nextUrl,
@@ -121,6 +131,15 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet, upl
   function handleDragEnd() {
     setDragIndex(null);
     setDropIndex(null);
+  }
+
+  // #8 — Mobile reorder (move image up/down in list)
+  function moveImage(fromIdx, toIdx) {
+    if (toIdx < 0 || toIdx >= images.length) return;
+    const reordered = [...images];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    onSet?.(reordered);
   }
 
   const imageCount = images.length;
@@ -197,7 +216,20 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet, upl
                     {isUploading && (
                       <div className={styles.imagesUploadOverlay}>
                         <div className={styles.imagesUploadSpinner} />
-                        <span className={styles.imagesUploadLabel}>Загрузка...</span>
+                        {/* #15 — Show upload progress percentage */}
+                        <span className={styles.imagesUploadLabel}>
+                          {uploadState?.progress != null
+                            ? `${Math.round(uploadState.progress)}%`
+                            : 'Загрузка...'}
+                        </span>
+                        {uploadState?.progress != null && (
+                          <div className={styles.uploadProgressBar}>
+                            <div
+                              className={styles.uploadProgressFill}
+                              style={{ width: `${Math.round(uploadState.progress)}%` }}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                     {isProcessing && (
@@ -223,6 +255,29 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet, upl
                     >
                       <SmallCloseIcon />
                     </button>
+                    {/* #8 — Mobile reorder buttons */}
+                    {images.length > 1 && !anyUploading && (
+                      <div className={styles.reorderButtons}>
+                        <button
+                          type="button"
+                          className={styles.reorderButton}
+                          disabled={idx === 0}
+                          onClick={() => moveImage(idx, idx - 1)}
+                          aria-label="Переместить вверх"
+                        >
+                          ◀
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.reorderButton}
+                          disabled={idx === images.length - 1}
+                          onClick={() => moveImage(idx, idx + 1)}
+                          aria-label="Переместить вниз"
+                        >
+                          ▶
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -243,27 +298,33 @@ export default function ImagesSection({ images = [], onAdd, onRemove, onSet, upl
         )}
 
         {canUploadMore ? (
-          <div className={styles.sizeTableUrlRow}>
-            <div className={urlFocused ? styles.sizeTableUrlFieldFocused : styles.sizeTableUrlField}>
-              <span className={styles.sizeTableUrlLabel}>URL картинки</span>
-              <input
-                value={urlValue}
-                onChange={(event) => setUrlValue(event.target.value)}
-                onFocus={() => setUrlFocused(true)}
-                onBlur={() => setUrlFocused(false)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') { event.preventDefault(); applyUrlImage(); }
-                }}
-                className={styles.sizeTableUrlInput}
-                aria-label="URL изображения"
-              />
+          <>
+            <div className={styles.sizeTableUrlRow}>
+              <div className={urlFocused ? styles.sizeTableUrlFieldFocused : styles.sizeTableUrlField}>
+                <span className={styles.sizeTableUrlLabel}>URL картинки</span>
+                <input
+                  value={urlValue}
+                  onChange={(event) => {
+                    setUrlValue(event.target.value);
+                    if (urlError) setUrlError('');
+                  }}
+                  onFocus={() => setUrlFocused(true)}
+                  onBlur={() => setUrlFocused(false)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') { event.preventDefault(); applyUrlImage(); }
+                  }}
+                  className={styles.sizeTableUrlInput}
+                  aria-label="URL изображения"
+                />
+              </div>
+              {showUrlAction ? (
+                <button type="button" className={styles.sizeTableUrlAction} onClick={applyUrlImage} aria-label="Загрузить изображение по URL">
+                  <ArrowIcon />
+                </button>
+              ) : null}
             </div>
-            {showUrlAction ? (
-              <button type="button" className={styles.sizeTableUrlAction} onClick={applyUrlImage} aria-label="Загрузить изображение по URL">
-                <ArrowIcon />
-              </button>
-            ) : null}
-          </div>
+            {urlError && <p className={styles.urlError}>{urlError}</p>}
+          </>
         ) : null}
       </div>
 

@@ -40,8 +40,9 @@ export function SortControl({ value, onChange }) {
   const options = [
     { value: 'newest', label: 'Сначала новые' },
     { value: 'oldest', label: 'Сначала старые' },
-    { value: 'most_views', label: 'Сначала больше просмотров' },
-    { value: 'least_views', label: 'Сначала меньше просмотров' },
+    { value: 'popularity', label: 'По популярности' },
+    { value: 'name_asc', label: 'По названию А → Я' },
+    { value: 'name_desc', label: 'По названию Я → А' },
   ];
 
   const [open, setOpen] = useState(false);

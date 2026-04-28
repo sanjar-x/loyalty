@@ -75,7 +75,7 @@ export default function useImageUpload() {
       // Track previous storageObjectId for cleanup after crop re-upload
       const prevStorageObjectId = uploadsRef.current[localId]?.storageObjectId || null;
 
-      update(localId, { status: 'uploading', error: null, storageObjectId: null, rawUrl: null, url: null });
+      update(localId, { status: 'uploading', error: null, storageObjectId: null, rawUrl: null, url: null, progress: 0 });
 
       try {
         let storageObjectId = null;
@@ -84,17 +84,19 @@ export default function useImageUpload() {
         const file = image.file || (image.source === 'url' ? await fetchImageAsFile(image.url) : null);
 
         if (file) {
-          // Step 1: Reserve upload slot → presigned URL
+          // Step 1: Reserve upload slot → presigned URL (~10% of progress)
+          update(localId, { progress: 10 });
           const slot = await reserveMediaUpload({
             contentType: file.type || 'image/jpeg',
             filename: file.name,
           });
 
-          // Compute raw public URL from presigned URL
           const rawUrl = extractRawUrl(slot.presignedUrl);
 
-          // Step 2: Upload file directly to S3/MinIO
+          // Step 2: Upload file directly to S3/MinIO (~10-80% of progress)
+          update(localId, { progress: 20 });
           await uploadToS3(slot.presignedUrl, file);
+          update(localId, { progress: 80 });
 
           // After S3 upload: replace blob with raw S3 URL, switch to processing
           update(localId, {
@@ -102,10 +104,12 @@ export default function useImageUpload() {
             storageObjectId: slot.storageObjectId,
             rawUrl,
             url: rawUrl,
+            progress: 85,
           });
 
           // Step 3: Confirm upload → triggers worker
           await confirmMedia(slot.storageObjectId);
+          update(localId, { progress: 90 });
 
           // Step 4: SSE — wait for processing to complete
           const controller = new AbortController();
@@ -121,7 +125,7 @@ export default function useImageUpload() {
           mediaUrl = metadata.url;
         }
 
-        update(localId, { status: 'completed', storageObjectId, url: mediaUrl });
+        update(localId, { status: 'completed', storageObjectId, url: mediaUrl, progress: 100 });
 
         // Clean up previous image from S3 after successful crop re-upload
         if (prevStorageObjectId && prevStorageObjectId !== storageObjectId) {
@@ -137,7 +141,7 @@ export default function useImageUpload() {
             [localId]: {
               ...current,
               status: 'failed',
-              error: err.message || 'Upload failed',
+              error: err.message || 'Ошибка загрузки',
               url: current.rawUrl || current.url,
             },
           };

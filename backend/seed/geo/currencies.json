@@ -2,5 +2,6 @@
   { "code": "RUB", "numeric": "643", "name": "Russian Ruble", "minor_unit": 2 },
   { "code": "USD", "numeric": "840", "name": "US Dollar", "minor_unit": 2 },
   { "code": "EUR", "numeric": "978", "name": "Euro", "minor_unit": 2 },
-  { "code": "UZS", "numeric": "860", "name": "Uzbekistani Som", "minor_unit": 2 }
+  { "code": "UZS", "numeric": "860", "name": "Uzbekistani Som", "minor_unit": 2 },
+  { "code": "CNY", "numeric": "156", "name": "Chinese Yuan", "minor_unit": 2 }
 ]

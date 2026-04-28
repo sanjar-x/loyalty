@@ -48,7 +48,9 @@ from seed.geo.create_currencies import seed_geo
 from seed.logistics.seed_cdek import seed_cdek
 from seed.logistics.seed_yandex_delivery import seed_yandex_delivery
 from seed.pricing.seed_pricing import seed_pricing
+from seed.pricing.seed_pricing_config import seed_pricing_config
 from seed.roles.create_roles import seed_roles
+from seed.suppliers.seed_suppliers import seed_suppliers
 
 DEFAULT_BASE_URL = "https://loyalty-backend.up.railway.app"
 API_PREFIX = "/api/v1"
@@ -138,6 +140,22 @@ STEPS: list[Step] = [
     # environment seeds only what it has keys for.
     Step("logistics", _seed_logistics, db_only=True),
     Step("geo", seed_geo, db_only=False, deps=("admin",)),
+    # Marketplace + local suppliers (Poizon, Taobao, Pinduoduo, 1688 +
+    # local Алексей/Дмитрий/Руслан). DB-only and idempotent on
+    # ``suppliers.id``. Cross-border rows reference ``country_code='CN'``,
+    # so the ``geo`` step must seed China first — hence ``deps=("geo",)``.
+    Step("suppliers", seed_suppliers, db_only=True, deps=("geo",)),
+    # Pricing pipeline configuration: contexts (cross_border_cn / local_ru),
+    # published FormulaVersion per context, ``supplier_type → context``
+    # mappings, and the seeded FX rate (``fx_cny_rub``). DB-only,
+    # idempotent via deterministic ``uuid5`` keys. Depends on ``pricing``
+    # (system variables ``purchase_price_*`` / ``fx_cny_rub`` must exist).
+    Step(
+        "pricing_config",
+        seed_pricing_config,
+        db_only=True,
+        deps=("pricing",),
+    ),
     Step("brands", seed_brands, db_only=False, deps=("admin",)),
     Step("categories", seed_categories, db_only=False, deps=("admin",)),
     Step("attributes", seed_attributes, db_only=False, deps=("admin", "categories")),
