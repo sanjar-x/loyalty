@@ -1,390 +1,319 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-
-const OPERATORS = ['+', '-', '*', '/'];
-const FUNCTIONS = ['min', 'max', 'round', 'ceil', 'floor', 'abs', 'if'];
+import { expressionToText } from './astUtils';
 
 export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
-  return (
-    <div className="flex min-h-[36px] flex-wrap items-center gap-1 rounded-lg border border-app-border bg-white px-2 py-1.5">
-      <ExprNode expr={expr} onChange={onChange} variables={variables} readOnly={readOnly} path={[]} />
-      {!readOnly && isEmptyExpr(expr) && (
-        <AddNodeMenu
-          variables={variables}
-          onSelect={(node) => onChange(node)}
-          label="+ Выражение"
-        />
-      )}
-    </div>
+  const [text, setText] = useState(() => expressionToText(expr));
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionFilter, setSuggestionFilter] = useState('');
+  const [caretPos, setCaretPos] = useState(0);
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    setText(expressionToText(expr));
+  }, [expr]);
+
+  const filteredVars = (variables || []).filter(
+    (v) => !suggestionFilter || v.code.toLowerCase().includes(suggestionFilter.toLowerCase()),
   );
-}
 
-function ExprNode({ expr, onChange, variables, readOnly, path }) {
-  if (!expr || typeof expr !== 'object') {
-    return <ConstChip value="" onChange={(v) => onChange({ const: v })} readOnly={readOnly} />;
+  const handleChange = useCallback((e) => {
+    const val = e.target.value;
+    setText(val);
+
+    const pos = e.target.selectionStart;
+    setCaretPos(pos);
+
+    const before = val.slice(0, pos);
+    const atMatch = before.match(/@([a-z_][a-z0-9_]*)?$/);
+    if (atMatch) {
+      setSuggestionFilter(atMatch[1] || '');
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+
+    const parsed = parseText(val);
+    onChange(parsed);
+  }, [onChange]);
+
+  function handleKeyDown(e) {
+    if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
+    if (e.key === 'Tab' && showSuggestions && filteredVars.length > 0) {
+      e.preventDefault();
+      insertVariable(filteredVars[0].code);
+    }
   }
 
-  if ('const' in expr) {
-    return (
-      <ConstChip
-        value={expr.const}
-        onChange={(v) => onChange({ const: v })}
-        readOnly={readOnly}
-        onDelete={() => onChange({ const: '0' })}
-      />
-    );
+  function insertVariable(code) {
+    const el = textareaRef.current;
+    if (!el) return;
+
+    const before = text.slice(0, caretPos);
+    const after = text.slice(caretPos);
+    const atIdx = before.lastIndexOf('@');
+    const newBefore = before.slice(0, atIdx) + code;
+    const newText = newBefore + (after.startsWith(' ') ? after : ' ' + after);
+
+    setText(newText);
+    setShowSuggestions(false);
+
+    const parsed = parseText(newText);
+    onChange(parsed);
+
+    requestAnimationFrame(() => {
+      const newPos = newBefore.length + 1;
+      el.focus();
+      el.setSelectionRange(newPos, newPos);
+    });
   }
 
-  if ('var' in expr) {
-    const v = variables?.find((x) => x.code === expr.var);
-    return (
-      <VarChip
-        code={expr.var}
-        unit={v?.unit}
-        scope={v?.scope}
-        readOnly={readOnly}
-        onReplace={readOnly ? undefined : (node) => onChange(node)}
-        variables={variables}
-      />
-    );
-  }
-
-  if ('ref' in expr) {
-    return (
-      <span className="inline-flex items-center rounded-md bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">
-        {expr.ref}
-      </span>
-    );
-  }
-
-  if ('op' in expr && Array.isArray(expr.args)) {
-    return (
-      <OpNode
-        op={expr.op}
-        args={expr.args}
-        onChange={onChange}
-        variables={variables}
-        readOnly={readOnly}
-        path={path}
-      />
-    );
-  }
-
-  if ('fn' in expr && Array.isArray(expr.args)) {
-    return (
-      <FnNode
-        fn={expr.fn}
-        args={expr.args}
-        onChange={onChange}
-        variables={variables}
-        readOnly={readOnly}
-        path={path}
-      />
-    );
-  }
-
-  return <span className="text-xs text-red-400">???</span>;
-}
-
-function OpNode({ op, args, onChange, variables, readOnly, path }) {
-  function updateArg(index, newArg) {
-    const newArgs = [...args];
-    newArgs[index] = newArg;
-    onChange({ op, args: newArgs });
-  }
-
-  function changeOp(newOp) {
-    onChange({ op: newOp, args });
-  }
-
-  function addArg() {
-    onChange({ op, args: [...args, { const: '0' }] });
-  }
-
-  function removeArg(index) {
-    if (args.length <= 2) return;
-    onChange({ op, args: args.filter((_, i) => i !== index) });
-  }
+  const highlighted = highlightText(text, variables);
 
   return (
-    <div className="inline-flex flex-wrap items-center gap-0.5 rounded-lg bg-gray-50 px-1 py-0.5">
-      <span className="text-[10px] text-gray-400">(</span>
-      {args.map((arg, i) => (
-        <div key={i} className="flex items-center gap-0.5">
-          {i > 0 && (
-            readOnly ? (
-              <span className="mx-0.5 text-sm font-bold text-blue-600">{op}</span>
-            ) : (
-              <select
-                value={op}
-                onChange={(e) => changeOp(e.target.value)}
-                className="mx-0.5 h-6 rounded border-none bg-blue-100 px-1 text-xs font-bold text-blue-700 outline-none"
-              >
-                {OPERATORS.map((o) => (
-                  <option key={o} value={o}>{o}</option>
-                ))}
-              </select>
-            )
-          )}
-          <div className="flex items-center gap-0.5">
-            <ExprNode
-              expr={arg}
-              onChange={(newArg) => updateArg(i, newArg)}
-              variables={variables}
-              readOnly={readOnly}
-              path={[...path, i]}
-            />
-            {!readOnly && args.length > 2 && (
-              <button
-                onClick={() => removeArg(i)}
-                className="ml-0.5 rounded p-0.5 text-gray-300 hover:text-red-400"
-                title="Удалить операнд"
-              >
-                <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M2 2l6 6M8 2l-6 6" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
-      <span className="text-[10px] text-gray-400">)</span>
-      {!readOnly && (op === '+' || op === '*') && (
-        <button
-          onClick={addArg}
-          className="ml-0.5 rounded bg-gray-200 px-1 py-0.5 text-[10px] text-gray-500 hover:bg-gray-300"
-          title="Добавить операнд"
+    <div className="relative">
+      <div className="relative">
+        <div
+          className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-3 py-2 font-mono text-sm leading-6 text-transparent"
+          aria-hidden
         >
-          +
-        </button>
-      )}
-    </div>
-  );
-}
-
-function FnNode({ fn, args, onChange, variables, readOnly, path }) {
-  function updateArg(index, newArg) {
-    const newArgs = [...args];
-    newArgs[index] = newArg;
-    onChange({ fn, args: newArgs });
-  }
-
-  function changeFn(newFn) {
-    onChange({ fn: newFn, args });
-  }
-
-  return (
-    <div className="inline-flex flex-wrap items-center gap-0.5 rounded-lg bg-amber-50 px-1 py-0.5 ring-1 ring-amber-200">
-      {readOnly ? (
-        <span className="text-xs font-semibold text-amber-700">{fn}(</span>
-      ) : (
-        <>
-          <select
-            value={fn}
-            onChange={(e) => changeFn(e.target.value)}
-            className="h-5 rounded border-none bg-amber-100 px-1 text-xs font-semibold text-amber-700 outline-none"
-          >
-            {FUNCTIONS.map((f) => (
-              <option key={f} value={f}>{f}</option>
-            ))}
-          </select>
-          <span className="text-xs text-amber-600">(</span>
-        </>
-      )}
-      {args.map((arg, i) => (
-        <div key={i} className="flex items-center gap-0.5">
-          {i > 0 && <span className="text-xs text-amber-400">,</span>}
-          <ExprNode
-            expr={arg}
-            onChange={(newArg) => updateArg(i, newArg)}
-            variables={variables}
-            readOnly={readOnly}
-            path={[...path, i]}
-          />
+          {highlighted}
         </div>
-      ))}
-      <span className="text-xs text-amber-600">)</span>
-    </div>
-  );
-}
 
-function ConstChip({ value, onChange, readOnly, onDelete }) {
-  const [editing, setEditing] = useState(false);
-  const inputRef = useRef(null);
+        <textarea
+          ref={textareaRef}
+          value={text}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+          disabled={readOnly}
+          placeholder="purchase_price_cny * exchange_rate + shipping_cn_per_kg * weight"
+          rows={Math.max(1, text.split('\n').length)}
+          spellCheck={false}
+          className={cn(
+            'w-full resize-none rounded-lg border border-app-border bg-transparent px-3 py-2 font-mono text-sm leading-6 text-transparent caret-app-text outline-none transition-colors',
+            'focus:border-app-text focus:ring-1 focus:ring-app-text',
+            'placeholder:text-app-muted',
+            'disabled:cursor-default disabled:opacity-60',
+          )}
+          style={{ color: 'transparent', WebkitTextFillColor: 'transparent' }}
+        />
+      </div>
 
-  if (readOnly) {
-    return (
-      <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-700">
-        {value || '0'}
-      </span>
-    );
-  }
-
-  if (editing) {
-    return (
-      <input
-        ref={inputRef}
-        autoFocus
-        type="text"
-        inputMode="decimal"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={() => setEditing(false)}
-        onKeyDown={(e) => { if (e.key === 'Enter') setEditing(false); }}
-        className="h-6 w-16 rounded-md border border-gray-300 bg-white px-1.5 font-mono text-xs text-gray-700 outline-none focus:border-blue-400"
-      />
-    );
-  }
-
-  return (
-    <span
-      onClick={() => setEditing(true)}
-      className="inline-flex cursor-pointer items-center rounded-md bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-700 transition-colors hover:bg-gray-200"
-      title="Нажмите чтобы изменить"
-    >
-      {value || '0'}
-    </span>
-  );
-}
-
-function VarChip({ code, unit, scope, readOnly, onReplace, variables }) {
-  const [showMenu, setShowMenu] = useState(false);
-
-  const SCOPE_COLORS = {
-    global: 'bg-emerald-100 text-emerald-700 ring-emerald-200',
-    supplier: 'bg-blue-100 text-blue-700 ring-blue-200',
-    category: 'bg-purple-100 text-purple-700 ring-purple-200',
-    range: 'bg-orange-100 text-orange-700 ring-orange-200',
-    product_input: 'bg-pink-100 text-pink-700 ring-pink-200',
-    sku_input: 'bg-cyan-100 text-cyan-700 ring-cyan-200',
-  };
-
-  const colorClass = SCOPE_COLORS[scope] || 'bg-gray-100 text-gray-700 ring-gray-200';
-
-  return (
-    <span className="relative inline-flex items-center">
-      <span
-        onClick={!readOnly ? () => setShowMenu(!showMenu) : undefined}
-        className={cn(
-          'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ring-1',
-          colorClass,
-          !readOnly && 'cursor-pointer hover:brightness-95',
+      <div className="mt-1 flex items-center gap-2">
+        {!readOnly && (
+          <span className="text-[10px] text-app-muted">
+            Нажмите <kbd className="rounded border border-gray-300 bg-gray-100 px-1 py-0.5 font-mono text-[9px]">@</kbd> для вставки переменной
+          </span>
         )}
-      >
-        <span className="font-mono">{code}</span>
-        {unit && <span className="text-[10px] opacity-60">{unit}</span>}
-      </span>
+      </div>
 
-      {showMenu && (
-        <div className="absolute top-full left-0 z-30 mt-1 max-h-48 w-64 overflow-y-auto rounded-xl border border-app-border bg-white p-1 shadow-lg">
-          {variables?.map((v) => (
+      {showSuggestions && filteredVars.length > 0 && (
+        <div className="absolute left-0 z-30 mt-1 max-h-56 w-80 overflow-y-auto rounded-xl border border-app-border bg-white p-1 shadow-xl">
+          {filteredVars.slice(0, 20).map((v) => (
             <button
               key={v.code}
               onMouseDown={(e) => {
                 e.preventDefault();
-                onReplace({ var: v.code });
-                setShowMenu(false);
+                insertVariable(v.code);
               }}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors hover:bg-[#f4f3f1]"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#f4f3f1]"
             >
-              <code className="text-xs font-medium">{v.code}</code>
-              <span className="text-[10px] text-app-muted">{v.unit} · {v.scope}</span>
+              <code className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+                {v.code}
+              </code>
+              <span className="truncate text-xs text-app-muted">
+                {v.unit} · {SCOPE_LABELS[v.scope] || v.scope}
+              </span>
             </button>
           ))}
-        </div>
-      )}
-    </span>
-  );
-}
-
-function AddNodeMenu({ variables, onSelect, label }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <span className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="rounded-md bg-[#f4f3f1] px-2 py-1 text-[11px] font-medium text-app-muted transition-colors hover:bg-[#eae9e6] hover:text-app-text"
-      >
-        {label}
-      </button>
-
-      {open && (
-        <div className="absolute top-full left-0 z-30 mt-1 w-56 rounded-xl border border-app-border bg-white p-1.5 shadow-lg">
-          <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Переменная</div>
-          <div className="max-h-32 overflow-y-auto">
-            {variables?.map((v) => (
-              <button
-                key={v.code}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  onSelect({ var: v.code });
-                  setOpen(false);
-                }}
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1 text-left transition-colors hover:bg-[#f4f3f1]"
-              >
-                <code className="text-xs">{v.code}</code>
-                <span className="text-[10px] text-app-muted">{v.unit}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="my-1 border-t border-gray-100" />
-          <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Константа</div>
-          <button
-            onMouseDown={(e) => { e.preventDefault(); onSelect({ const: '0' }); setOpen(false); }}
-            className="flex w-full items-center rounded-lg px-2.5 py-1 text-left text-xs transition-colors hover:bg-[#f4f3f1]"
-          >
-            Число (0)
-          </button>
-
-          <div className="my-1 border-t border-gray-100" />
-          <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Оператор</div>
-          <div className="flex gap-1 px-2">
-            {OPERATORS.map((op) => (
-              <button
-                key={op}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  onSelect({ op, args: [{ const: '0' }, { const: '0' }] });
-                  setOpen(false);
-                }}
-                className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 text-xs font-bold text-blue-600 hover:bg-blue-100"
-              >
-                {op}
-              </button>
-            ))}
-          </div>
-
-          <div className="my-1 border-t border-gray-100" />
-          <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Функция</div>
-          <div className="flex flex-wrap gap-1 px-2 pb-1">
-            {FUNCTIONS.map((fn) => (
-              <button
-                key={fn}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  const argCount = fn === 'if' ? 3 : fn === 'round' ? 2 : 1;
-                  onSelect({ fn, args: Array.from({ length: argCount }, () => ({ const: '0' })) });
-                  setOpen(false);
-                }}
-                className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100"
-              >
-                {fn}()
-              </button>
-            ))}
+          <div className="border-t border-gray-100 px-3 py-1.5 text-[10px] text-gray-400">
+            <kbd className="rounded border border-gray-200 px-1 font-mono">Tab</kbd> вставить первый
           </div>
         </div>
       )}
-    </span>
+    </div>
   );
 }
 
-function isEmptyExpr(expr) {
-  if (!expr) return true;
-  if (typeof expr !== 'object') return true;
-  if ('const' in expr && (expr.const === '0' || expr.const === '')) return true;
-  return false;
+const SCOPE_LABELS = {
+  global: 'глобальная',
+  supplier: 'поставщик',
+  category: 'категория',
+  range: 'диапазон',
+  product_input: 'ввод товара',
+  sku_input: 'SKU',
+};
+
+function highlightText(text, variables) {
+  if (!text) return null;
+  const varCodes = new Set((variables || []).map((v) => v.code));
+  const varMap = Object.fromEntries((variables || []).map((v) => [v.code, v]));
+
+  const tokens = tokenize(text);
+  return tokens.map((tok, i) => {
+    if (tok.type === 'variable' && varCodes.has(tok.value)) {
+      const v = varMap[tok.value];
+      const color = SCOPE_COLORS[v?.scope] || 'text-emerald-700 bg-emerald-50';
+      return (
+        <span key={i} className={cn('rounded px-0.5 font-medium', color)}>
+          {tok.value}
+        </span>
+      );
+    }
+    if (tok.type === 'number') {
+      return <span key={i} className="text-blue-600">{tok.value}</span>;
+    }
+    if (tok.type === 'operator') {
+      return <span key={i} className="font-bold text-gray-500">{tok.value}</span>;
+    }
+    if (tok.type === 'function') {
+      return <span key={i} className="font-semibold text-amber-600">{tok.value}</span>;
+    }
+    if (tok.type === 'paren') {
+      return <span key={i} className="text-gray-400">{tok.value}</span>;
+    }
+    return <span key={i} className="text-app-text">{tok.value}</span>;
+  });
+}
+
+const SCOPE_COLORS = {
+  global: 'text-emerald-700 bg-emerald-50',
+  supplier: 'text-blue-700 bg-blue-50',
+  category: 'text-purple-700 bg-purple-50',
+  range: 'text-orange-700 bg-orange-50',
+  product_input: 'text-pink-700 bg-pink-50',
+  sku_input: 'text-cyan-700 bg-cyan-50',
+};
+
+const KNOWN_FNS = new Set(['min', 'max', 'round', 'ceil', 'floor', 'abs', 'if']);
+const OPS = new Set(['+', '-', '*', '/']);
+
+function tokenize(text) {
+  const tokens = [];
+  let i = 0;
+  while (i < text.length) {
+    if (/\s/.test(text[i])) {
+      let ws = '';
+      while (i < text.length && /\s/.test(text[i])) { ws += text[i]; i++; }
+      tokens.push({ type: 'space', value: ws });
+      continue;
+    }
+    if (OPS.has(text[i])) {
+      tokens.push({ type: 'operator', value: text[i] });
+      i++;
+      continue;
+    }
+    if (text[i] === '(' || text[i] === ')' || text[i] === ',') {
+      tokens.push({ type: 'paren', value: text[i] });
+      i++;
+      continue;
+    }
+    if (/\d/.test(text[i]) || (text[i] === '.' && i + 1 < text.length && /\d/.test(text[i + 1]))) {
+      let num = '';
+      while (i < text.length && /[\d.]/.test(text[i])) { num += text[i]; i++; }
+      tokens.push({ type: 'number', value: num });
+      continue;
+    }
+    if (/[a-zA-Z_]/.test(text[i])) {
+      let word = '';
+      while (i < text.length && /[a-zA-Z0-9_]/.test(text[i])) { word += text[i]; i++; }
+      if (KNOWN_FNS.has(word)) {
+        tokens.push({ type: 'function', value: word });
+      } else {
+        tokens.push({ type: 'variable', value: word });
+      }
+      continue;
+    }
+    tokens.push({ type: 'other', value: text[i] });
+    i++;
+  }
+  return tokens;
+}
+
+function parseText(text) {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return { const: '0' };
+
+  try {
+    const tokens = tokenize(trimmed).filter((t) => t.type !== 'space');
+    const result = parseExpr(tokens, 0);
+    return result.node;
+  } catch {
+    if (/^[a-z_][a-z0-9_]*$/.test(trimmed)) return { var: trimmed };
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) return { const: trimmed };
+    return { var: trimmed };
+  }
+}
+
+function parseExpr(tokens, pos) {
+  let { node, pos: p } = parseTerm(tokens, pos);
+
+  while (p < tokens.length && (tokens[p].value === '+' || tokens[p].value === '-')) {
+    const op = tokens[p].value;
+    p++;
+    const right = parseTerm(tokens, p);
+    node = { op, args: [node, right.node] };
+    p = right.pos;
+  }
+
+  return { node, pos: p };
+}
+
+function parseTerm(tokens, pos) {
+  let { node, pos: p } = parseFactor(tokens, pos);
+
+  while (p < tokens.length && (tokens[p].value === '*' || tokens[p].value === '/')) {
+    const op = tokens[p].value;
+    p++;
+    const right = parseFactor(tokens, p);
+    node = { op, args: [node, right.node] };
+    p = right.pos;
+  }
+
+  return { node, pos: p };
+}
+
+function parseFactor(tokens, pos) {
+  if (pos >= tokens.length) return { node: { const: '0' }, pos };
+
+  const tok = tokens[pos];
+
+  if (tok.type === 'paren' && tok.value === '(') {
+    const inner = parseExpr(tokens, pos + 1);
+    let p = inner.pos;
+    if (p < tokens.length && tokens[p].value === ')') p++;
+    return { node: inner.node, pos: p };
+  }
+
+  if (tok.type === 'number') {
+    return { node: { const: tok.value }, pos: pos + 1 };
+  }
+
+  if (tok.type === 'function') {
+    let p = pos + 1;
+    if (p < tokens.length && tokens[p].value === '(') {
+      p++;
+      const args = [];
+      while (p < tokens.length && tokens[p].value !== ')') {
+        if (tokens[p].value === ',') { p++; continue; }
+        const arg = parseExpr(tokens, p);
+        args.push(arg.node);
+        p = arg.pos;
+      }
+      if (p < tokens.length && tokens[p].value === ')') p++;
+      return { node: { fn: tok.value, args }, pos: p };
+    }
+    return { node: { fn: tok.value, args: [{ const: '0' }] }, pos: p };
+  }
+
+  if (tok.type === 'variable') {
+    return { node: { var: tok.value }, pos: pos + 1 };
+  }
+
+  return { node: { const: '0' }, pos: pos + 1 };
 }
