@@ -140,6 +140,12 @@
           "requirementLevel": "required"
         }
       ]
+    },
+    {
+      "code": "accessories",
+      "nameI18N": { "ru": "Аксессуары", "en": "Accessories" },
+      "assignToCategorySlug": "accessories",
+      "bindings": []
     }
   ]
 }
