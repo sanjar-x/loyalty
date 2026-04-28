@@ -14,9 +14,6 @@ import uuid
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Query, Request, Response, status
 
-from src.modules.catalog.presentation.router_storefront_products import (
-    _fire_and_forget,
-)
 from src.modules.catalog.application.queries.compute_facets import (
     ComputeFacetsHandler,
     ComputeFacetsQuery,
@@ -32,6 +29,7 @@ from src.modules.catalog.application.queries.search_suggest import (
 from src.modules.catalog.presentation.router_storefront_products import (
     _extract_identity_id,
     _extract_session_id,
+    _fire_and_forget,
 )
 from src.modules.catalog.presentation.schemas_storefront import (
     SearchSuggestionResponse,

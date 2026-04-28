@@ -191,7 +191,7 @@ def _decode_provider_payload(raw: str | None) -> dict:
         return {}
     try:
         decoded = json.loads(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return {}
     return decoded if isinstance(decoded, dict) else {}
 

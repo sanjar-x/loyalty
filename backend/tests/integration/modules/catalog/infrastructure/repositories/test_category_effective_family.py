@@ -148,7 +148,7 @@ async def test_scenario_a_set_template_propagates(db_session: AsyncSession):
     affected = await repo.propagate_effective_template_id(root.id, template_id)
 
     assert len(affected) == 1
-    reloaded = await repo.get(child.id)
+    await repo.get(child.id)
 
 
 async def test_scenario_b_change_template_propagates(db_session: AsyncSession):

@@ -358,9 +358,7 @@ They cannot be automated or run with piped input.
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # list command (safe - no confirmation)
-    list_parser = subparsers.add_parser(
-        "list", help="List available and installed extensions"
-    )
+    subparsers.add_parser("list", help="List available and installed extensions")
 
     # install command (requires interactive confirmation)
     install_parser = subparsers.add_parser(

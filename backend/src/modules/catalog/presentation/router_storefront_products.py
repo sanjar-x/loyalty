@@ -42,6 +42,7 @@ def _fire_and_forget(coro: Coroutine[Any, Any, Any]) -> None:
 
     task.add_done_callback(_log_exc)
 
+
 from src.modules.catalog.application.queries.compute_facets import (
     ComputeFacetsHandler,
     ComputeFacetsQuery,

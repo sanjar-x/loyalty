@@ -50,7 +50,7 @@ async def test_full_product_lifecycle(
         slug=f"red-{uuid.uuid4().hex[:6]}",
         value_i18n={"ru": "Красный", "en": "Red"},
     )
-    val2 = await create_attribute_value(
+    await create_attribute_value(
         admin_client,
         attr["id"],
         code=f"blue_{uuid.uuid4().hex[:6]}",

@@ -1,4 +1,4 @@
-.PHONY: test coverage lint format typecheck
+.PHONY: test coverage lint format typecheck precommit-install precommit
 
 test:
 	uv run pytest tests/ -v
@@ -26,4 +26,10 @@ format:
 	uv run ruff format .
 
 typecheck:
-	uv run mypy .
+	uv run ty check
+
+precommit-install:
+	cd .. && uv run --project backend pre-commit install
+
+precommit:
+	cd .. && uv run --project backend pre-commit run --all-files

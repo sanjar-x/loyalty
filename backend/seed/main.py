@@ -209,9 +209,7 @@ def main() -> None:
     args = parser.parse_args()
 
     steps = _parse_steps(args.step, no_deps=args.no_deps)
-    ctx = SeedContext(
-        base_url=args.base_url, login=args.login, password=args.password
-    )
+    ctx = SeedContext(base_url=args.base_url, login=args.login, password=args.password)
     needs_api = any(not s.db_only for s in steps)
 
     if needs_api:

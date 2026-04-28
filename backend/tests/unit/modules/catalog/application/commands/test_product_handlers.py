@@ -544,7 +544,7 @@ class TestUpdateProduct:
             logger=_make_logger(),
         )
 
-        result = await handler.handle(
+        await handler.handle(
             UpdateProductCommand(
                 product_id=product.id,
                 slug="new-slug",

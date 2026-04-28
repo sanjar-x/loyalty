@@ -233,7 +233,7 @@ class TestEventAuditGaps:
 
     async def test_generate_sku_matrix_emits_n_sku_added_events(self):
         uow = FakeUnitOfWork()
-        product, template, attr, values = _seed_product_with_template(uow)
+        product, _template, attr, values = _seed_product_with_template(uow)
         variant_id = product.variants[0].id
 
         handler = _make_matrix_handler(uow)
@@ -309,7 +309,7 @@ class TestBulkAtomicity:
         # Pre-seed a brand with slug "conflict"
         existing = Brand.create(name="Conflict", slug="conflict")
         uow.brands._store[existing.id] = existing
-        initial_count = len(uow.brands._store)
+        len(uow.brands._store)
 
         handler = BulkCreateBrandsHandler(
             brand_repo=uow.brands, uow=uow, logger=_make_logger()
@@ -333,7 +333,7 @@ class TestBulkAtomicity:
 
     async def test_generate_sku_matrix_rollback_on_validation_failure(self):
         uow = FakeUnitOfWork()
-        product, template, attr, values = _seed_product_with_template(uow)
+        product, _template, _attr, _values = _seed_product_with_template(uow)
 
         handler = _make_matrix_handler(uow)
 
@@ -471,7 +471,7 @@ class TestFKUniquenessErrors:
 
     async def test_generate_matrix_attribute_not_found(self):
         uow = FakeUnitOfWork()
-        product, template, attr, values = _seed_product_with_template(uow)
+        product, _template, _attr, _values = _seed_product_with_template(uow)
 
         handler = _make_matrix_handler(uow)
         with pytest.raises(AttributeNotFoundError):
@@ -555,7 +555,7 @@ class TestFKUniquenessErrors:
         val_a = uuid.uuid4()
         val_b = uuid.uuid4()
 
-        sku1 = product.add_sku(
+        product.add_sku(
             variant_id=variant_id,
             sku_code="HASH-SKU-1",
             variant_attributes=[(attr_id, val_a)],

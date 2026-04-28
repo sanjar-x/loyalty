@@ -12,3 +12,25 @@ copilot --resume=4af4c178-1132-453a-aab7-e2096fca675d
 copilot --resume=19283663-2d22-4018-bae6-c7014780fddd
 copilot --resume=3e9a6835-abfe-4f83-b2d7-91ba17643c8b
 __NV_PRIME_RENDER_OFFLOAD=1 __VK_LAYER_NV_optimus=NVIDIA_only __GLX_VENDOR_LIBRARY_NAME=nvidia __GL_SHADER_DISK_CACHE_SKIP_CLEANUP=1 game-performance gamemoderun %command% -nojoy -fullscreen -console -softparticlesdefaultoff -forcenovsync -refresh 165 +fps_max 300 +exec autoexec
+
+# Только DB-шаги — сервер не нужен
+uv run python -m seed.main --step roles,admin,pricing
+
+# Только API-шаги (admin уже создан)
+uv run python -m seed.main --step geo,brands,categories,attributes
+
+# С автоподтягиванием зависимостей (apt-style)
+uv run python -m seed.main --step attributes
+# → автоматически добавит admin + categories
+
+# Без автодеп (--no-deps)
+uv run python -m seed.main --no-deps --step brands
+
+# Кастомный admin
+uv run python -m seed.main --login me@example.com --password secret
+
+# Прод-окружение (по умолчанию)
+uv run python -m seed.main  # base-url=https://loyalty-backend.up.railway.app
+
+# Pre-flight проверка JSON-фикстур (без БД)
+uv run python seed/validate.py

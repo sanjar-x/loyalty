@@ -1,0 +1,34 @@
+# Run with: uv run pre-commit install (one-time, then auto on `git commit`)
+# Manual full sweep:  uv run pre-commit run --all-files
+fail_fast: false
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check (backend)
+        entry: uv run --project backend ruff check --fix
+        language: system
+        types_or: [python, pyi]
+        files: ^backend/
+        exclude: ^backend/\.claude/
+        pass_filenames: true
+
+      - id: ruff-format
+        name: ruff format (backend)
+        entry: uv run --project backend ruff format
+        language: system
+        types_or: [python, pyi]
+        files: ^backend/
+        exclude: ^backend/\.claude/
+        pass_filenames: true
+
+      - id: ty-check
+        name: ty check (backend)
+        # ty operates project-wide via its own config; ignore filenames
+        # so a single invocation per commit covers the whole tree.
+        entry: bash -c 'cd backend && uv run ty check'
+        language: system
+        types_or: [python, pyi]
+        files: ^backend/
+        pass_filenames: false

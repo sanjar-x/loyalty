@@ -81,7 +81,7 @@ class TestProductCreateReadRoundtrip:
         )
         # Use the default variant (auto-created)
         default_variant = product.variants[0]
-        sku = product.add_sku(
+        product.add_sku(
             default_variant.id,
             sku_code="TEST-001",
             price=Money(10000, "RUB"),

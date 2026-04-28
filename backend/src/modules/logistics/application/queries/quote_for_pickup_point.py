@@ -278,7 +278,7 @@ def _annotate_payload(
     """
     try:
         existing = json.loads(quote.provider_payload) if quote.provider_payload else {}
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         existing = {}
     if not isinstance(existing, dict):
         existing = {"_provider_raw": existing}

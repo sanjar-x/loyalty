@@ -172,9 +172,7 @@ class SearchProductsHandler:
             try:
                 total = (await self._session.execute(count_stmt)).scalar_one()
             except Exception as exc:
-                self._logger.warning(
-                    "search_count_failed", error=str(exc), q=query.q
-                )
+                self._logger.warning("search_count_failed", error=str(exc), q=query.q)
                 total = 0
 
         page = CursorPage(

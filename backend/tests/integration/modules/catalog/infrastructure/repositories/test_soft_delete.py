@@ -123,7 +123,7 @@ class TestProductSoftDeleteFiltering:
             primary_category_id=seed_product_deps["category_id"],
         )
         default_variant = product.variants[0]
-        sku1 = product.add_sku(
+        product.add_sku(
             default_variant.id,
             sku_code="SD-SKU-ACTIVE",
             price=Money(100, "RUB"),

@@ -67,7 +67,7 @@ class RedisPickupPointResolver(IPickupPointResolver):
             return None
         try:
             payload = json.loads(raw)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             logger.warning(
                 "Cached pickup-point JSON is malformed; treating as miss",
                 extra={"provider_code": provider_code, "external_id": external_id},

@@ -153,12 +153,14 @@ be automated. The user must confirm the action directly.
 
         # Step 5: Restart the service
         info("Restarting database service...")
-        code, stdout, stderr = run_railway_command([  # noqa: F821  # ty:ignore[unresolved-reference]
-            "restart",
-            "--service",
-            service,
-            "--yes",
-        ])
+        code, stdout, stderr = run_railway_command(  # ty: ignore[unresolved-reference]  # noqa: F821
+            [
+                "restart",
+                "--service",
+                service,
+                "--yes",
+            ]
+        )
         if code != 0:
             error(f"Failed to restart service: {stderr or stdout}")
 

@@ -55,7 +55,7 @@ for c in categories:
     if c.get("parentRef") and c["parentRef"] not in cat_refs:
         errors.append(f"categories: '{c['slug']}' parentRef '{c['parentRef']}' invalid")
 
-for pr in list(cat_refs) + [None]:
+for pr in [*cat_refs, None]:
     children = [
         c["slug"]
         for c in categories
@@ -110,15 +110,12 @@ for t in attrs_data.get("templates", []):
 
 # Report
 print(
-    "Brands:%d  Categories:%d  Attrs:%d  Values:%d  Templates:%d  Bindings:%d"
-    % (
-        len(brands),
-        len(categories),
-        len(attr_codes),
-        sum(len(v) for v in value_codes.values()),
-        len(attrs_data.get("templates", [])),
-        sum(len(t.get("bindings", [])) for t in attrs_data.get("templates", [])),
-    )
+    f"Brands:{len(brands)}  "
+    f"Categories:{len(categories)}  "
+    f"Attrs:{len(attr_codes)}  "
+    f"Values:{sum(len(v) for v in value_codes.values())}  "
+    f"Templates:{len(attrs_data.get('templates', []))}  "
+    f"Bindings:{sum(len(t.get('bindings', [])) for t in attrs_data.get('templates', []))}"
 )
 
 if errors:

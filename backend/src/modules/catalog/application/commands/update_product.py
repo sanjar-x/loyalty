@@ -12,7 +12,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from src.modules.catalog.application.commands.sync_media import compute_media_diff
-from src.shared.cache_keys import bump_storefront_product_generation
 from src.modules.catalog.domain.entities import MediaAsset, Product
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
@@ -28,6 +27,7 @@ from src.modules.catalog.domain.interfaces import (
     IMediaAssetRepository,
     IProductRepository,
 )
+from src.shared.cache_keys import bump_storefront_product_generation
 from src.shared.exceptions import UnprocessableEntityError
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger

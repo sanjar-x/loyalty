@@ -79,7 +79,7 @@ class TestMoney:
 
     def test_comparison_different_currency_raises(self):
         with pytest.raises(ValueError, match="different currencies"):
-            Money(amount=100, currency="RUB") < Money(amount=200, currency="USD")
+            _ = Money(amount=100, currency="RUB") < Money(amount=200, currency="USD")
 
     def test_from_primitives_with_compare_at(self):
         price, compare = Money.from_primitives(1000, "RUB", compare_at_amount=2000)

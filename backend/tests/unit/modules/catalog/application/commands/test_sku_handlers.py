@@ -572,7 +572,7 @@ class TestGenerateSKUMatrix:
 
     async def test_happy_path_single_attribute_two_values(self):
         uow = FakeUnitOfWork()
-        product, template, attr, values = _seed_product_with_template(uow)
+        product, _template, attr, values = _seed_product_with_template(uow)
         variant_id = product.variants[0].id
 
         handler = self._make_handler(uow)
@@ -659,7 +659,7 @@ class TestGenerateSKUMatrix:
 
     async def test_skips_duplicate_combinations(self):
         uow = FakeUnitOfWork()
-        product, template, attr, values = _seed_product_with_template(uow)
+        product, _template, attr, values = _seed_product_with_template(uow)
         variant_id = product.variants[0].id
 
         # Pre-add a SKU with the variant attributes of value[0]
@@ -706,7 +706,7 @@ class TestGenerateSKUMatrix:
 
     async def test_attribute_not_found(self):
         uow = FakeUnitOfWork()
-        product, template, attr, values = _seed_product_with_template(uow)
+        product, _template, _attr, _values = _seed_product_with_template(uow)
 
         handler = self._make_handler(uow)
         fake_attr_id = uuid.uuid4()
@@ -727,7 +727,7 @@ class TestGenerateSKUMatrix:
 
     async def test_attribute_wrong_level_not_variant(self):
         uow = FakeUnitOfWork()
-        product, template, attr, values = _seed_product_with_template(uow)
+        product, template, _attr, _values = _seed_product_with_template(uow)
 
         # Create a PRODUCT-level attribute
         product_attr = Attribute.create(
@@ -767,7 +767,7 @@ class TestGenerateSKUMatrix:
 
     async def test_attribute_value_not_found(self):
         uow = FakeUnitOfWork()
-        product, template, attr, values = _seed_product_with_template(uow)
+        product, _template, attr, _values = _seed_product_with_template(uow)
 
         handler = self._make_handler(uow)
         fake_value_id = uuid.uuid4()

@@ -77,7 +77,7 @@ def test_cdek_tarifflist_sets_expires_at(
 
 def test_cdek_quote_ttl_matches_brd_default() -> None:
     """BRD §Constraints fixes the customer-visible quote TTL at 30 minutes."""
-    assert CDEK_QUOTE_TTL == timedelta(minutes=30)
+    assert timedelta(minutes=30) == CDEK_QUOTE_TTL
 
 
 @pytest.mark.asyncio
@@ -123,4 +123,4 @@ def test_yandex_quote_ttl_matches_brd_default() -> None:
     time inside ``offers/create``; the visible quote shares the unified
     TTL with CDEK so checkout UX does not depend on the provider.
     """
-    assert YANDEX_QUOTE_TTL == timedelta(minutes=30)
+    assert timedelta(minutes=30) == YANDEX_QUOTE_TTL

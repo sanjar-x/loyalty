@@ -144,7 +144,7 @@ def _optional_float(value: object) -> float | None:
     if isinstance(value, (int, float, str)):
         try:
             return float(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
     return None
 

@@ -181,12 +181,14 @@ def extract_keyspace(info: dict[str, str]) -> tuple[list[dict[str, Any]], int]:
             parts[k] = v
         keys = _safe_int(parts.get("keys"))
         total_keys += keys
-        databases.append({
-            "db": key,
-            "keys": keys,
-            "expires": _safe_int(parts.get("expires")),
-            "avg_ttl": _safe_int(parts.get("avg_ttl")),
-        })
+        databases.append(
+            {
+                "db": key,
+                "keys": keys,
+                "expires": _safe_int(parts.get("expires")),
+                "avg_ttl": _safe_int(parts.get("avg_ttl")),
+            }
+        )
     return databases, total_keys
 
 
@@ -205,12 +207,14 @@ def extract_command_stats(info: dict[str, str]) -> list[dict[str, Any]]:
         for item in value.split(","):
             k, _, v = item.partition("=")
             parts[k] = v
-        stats.append({
-            "command": cmd_name,
-            "calls": _safe_int(parts.get("calls")),
-            "usec": _safe_int(parts.get("usec")),
-            "usec_per_call": _safe_float(parts.get("usec_per_call")),
-        })
+        stats.append(
+            {
+                "command": cmd_name,
+                "calls": _safe_int(parts.get("calls")),
+                "usec": _safe_int(parts.get("usec")),
+                "usec_per_call": _safe_float(parts.get("usec_per_call")),
+            }
+        )
     stats.sort(key=lambda x: x["calls"], reverse=True)
     return stats
 
@@ -284,12 +288,14 @@ def parse_slowlog_get(raw: str) -> list[dict[str, Any]]:
         if len(command) > 120:
             command = command[:117] + "..."
 
-        entries.append({
-            "id": entry_id,
-            "timestamp_unix": timestamp,
-            "duration_us": duration_us,
-            "command": command,
-        })
+        entries.append(
+            {
+                "id": entry_id,
+                "timestamp_unix": timestamp,
+                "duration_us": duration_us,
+                "command": command,
+            }
+        )
 
         i = next_i
 
@@ -329,12 +335,14 @@ def parse_bigkeys(raw: str) -> list[dict[str, Any]]:
             else:
                 detail = f"{size:,} {unit}"
 
-            entries.append({
-                "type": key_type,
-                "key": key_name,
-                "size_or_count": size,
-                "detail": detail,
-            })
+            entries.append(
+                {
+                    "type": key_type,
+                    "key": key_name,
+                    "size_or_count": size,
+                    "detail": detail,
+                }
+            )
     return entries
 
 
@@ -409,11 +417,7 @@ def _format_bytes_human(nbytes: int) -> str:
     size: float = float(nbytes)
     for unit in ["B", "K", "M", "G", "T"]:
         if size < 1024:
-            return (
-                f"{size:.1f}{unit}"
-                if size != int(size)
-                else f"{int(size)}{unit}"
-            )
+            return f"{size:.1f}{unit}" if size != int(size) else f"{int(size)}{unit}"
         size /= 1024
     return f"{size:.1f}P"
 
@@ -439,24 +443,28 @@ def generate_recommendations(result: RedisAnalysisResult) -> list[dict[str, str]
         if ssh_failed:
             sources = ", ".join(ssh_failed.keys())
             errors = "; ".join(v.get("error", "unknown") for v in ssh_failed.values())
-            recs.append({
-                "severity": "critical",
-                "category": "collection",
-                "message": f"SSH introspection failed — unable to collect {sources}. "
-                f"Error: {errors}. "
-                f"Analysis is incomplete: memory fragmentation, cache hit rate, "
-                f"keyspace stats, and persistence health could not be evaluated.",
-            })
+            recs.append(
+                {
+                    "severity": "critical",
+                    "category": "collection",
+                    "message": f"SSH introspection failed — unable to collect {sources}. "
+                    f"Error: {errors}. "
+                    f"Analysis is incomplete: memory fragmentation, cache hit rate, "
+                    f"keyspace stats, and persistence health could not be evaluated.",
+                }
+            )
 
     # Memory fragmentation
     if result.memory:
         frag = result.memory.get("mem_fragmentation_ratio", 0)
         if frag > 1.5:
-            recs.append({
-                "severity": "warning",
-                "category": "memory",
-                "message": f"High memory fragmentation ({frag:.2f}). Consider restarting Redis to defragment, or enable activedefrag.",
-            })
+            recs.append(
+                {
+                    "severity": "warning",
+                    "category": "memory",
+                    "message": f"High memory fragmentation ({frag:.2f}). Consider restarting Redis to defragment, or enable activedefrag.",
+                }
+            )
 
     # Cache hit rate
     if result.cache:
@@ -469,47 +477,57 @@ def generate_recommendations(result: RedisAnalysisResult) -> list[dict[str, str]
             )
             > 0
         ):
-            recs.append({
-                "severity": "warning",
-                "category": "cache",
-                "message": f"Low cache hit rate ({hit_rate:.1f}%). Review key access patterns - many keys may be expired or evicted before use.",
-            })
+            recs.append(
+                {
+                    "severity": "warning",
+                    "category": "cache",
+                    "message": f"Low cache hit rate ({hit_rate:.1f}%). Review key access patterns - many keys may be expired or evicted before use.",
+                }
+            )
         elif hit_rate < 95 and hit_rate >= 80:
-            recs.append({
-                "severity": "info",
-                "category": "cache",
-                "message": f"Cache hit rate at {hit_rate:.1f}% — could be improved. Check if working set fits in memory.",
-            })
+            recs.append(
+                {
+                    "severity": "info",
+                    "category": "cache",
+                    "message": f"Cache hit rate at {hit_rate:.1f}% — could be improved. Check if working set fits in memory.",
+                }
+            )
 
     # Evicted keys
     if result.cache:
         evicted = result.cache.get("evicted_keys", 0)
         if evicted > 0:
-            recs.append({
-                "severity": "warning",
-                "category": "memory",
-                "message": f"Redis is evicting keys ({_format_number(evicted)} evicted). Increase maxmemory or reduce dataset size.",
-            })
+            recs.append(
+                {
+                    "severity": "warning",
+                    "category": "memory",
+                    "message": f"Redis is evicting keys ({_format_number(evicted)} evicted). Increase maxmemory or reduce dataset size.",
+                }
+            )
 
     # Rejected connections
     if result.overview:
         rejected = result.overview.get("rejected_connections", 0)
         if rejected > 0:
-            recs.append({
-                "severity": "warning",
-                "category": "connections",
-                "message": f"Connections being rejected ({_format_number(rejected)}). Check maxclients setting.",
-            })
+            recs.append(
+                {
+                    "severity": "warning",
+                    "category": "connections",
+                    "message": f"Connections being rejected ({_format_number(rejected)}). Check maxclients setting.",
+                }
+            )
 
     # Blocked clients
     if result.overview:
         blocked = result.overview.get("blocked_clients", 0)
         if blocked > 0:
-            recs.append({
-                "severity": "info",
-                "category": "connections",
-                "message": f"Blocked clients detected ({blocked}). Check for blocking operations (BLPOP, BRPOP, etc.).",
-            })
+            recs.append(
+                {
+                    "severity": "info",
+                    "category": "connections",
+                    "message": f"Blocked clients detected ({blocked}). Check for blocking operations (BLPOP, BRPOP, etc.).",
+                }
+            )
 
     # maxmemory not set — on Railway this is expected; autoscaling handles growth
 
@@ -517,11 +535,13 @@ def generate_recommendations(result: RedisAnalysisResult) -> list[dict[str, str]
     if result.persistence:
         rdb_status = result.persistence.get("rdb_last_bgsave_status", "")
         if rdb_status and rdb_status != "ok":
-            recs.append({
-                "severity": "critical",
-                "category": "persistence",
-                "message": "Last RDB save failed. Check disk space and permissions.",
-            })
+            recs.append(
+                {
+                    "severity": "critical",
+                    "category": "persistence",
+                    "message": "Last RDB save failed. Check disk space and permissions.",
+                }
+            )
 
     # Slow log — data-driven when entries are available
     if result.slowlog_entries:
@@ -533,7 +553,9 @@ def generate_recommendations(result: RedisAnalysisResult) -> list[dict[str, str]
             cmd = entry["command"].split()[0] if entry["command"] else "unknown"
             cmd_counts[cmd] = cmd_counts.get(cmd, 0) + 1
             total_duration += entry["duration_us"]
-        top_cmd = max(cmd_counts, key=cmd_counts.get) if cmd_counts else "unknown"  # ty:ignore[no-matching-overload]
+        top_cmd = (
+            max(cmd_counts, key=lambda k: cmd_counts[k]) if cmd_counts else "unknown"
+        )
         top_count = cmd_counts.get(top_cmd, 0)
         avg_duration = total_duration / total_entries if total_entries > 0 else 0
 
@@ -550,22 +572,26 @@ def generate_recommendations(result: RedisAnalysisResult) -> list[dict[str, str]
         severity = "warning" if (result.slowlog_len or 0) > 100 else "info"
         recs.append({"severity": severity, "category": "performance", "message": msg})
     elif result.slowlog_len is not None and result.slowlog_len > 100:
-        recs.append({
-            "severity": "warning",
-            "category": "performance",
-            "message": f"High number of slow log entries ({result.slowlog_len}). Slow log details could not be collected.",
-        })
+        recs.append(
+            {
+                "severity": "warning",
+                "category": "performance",
+                "message": f"High number of slow log entries ({result.slowlog_len}). Slow log details could not be collected.",
+            }
+        )
 
     # Big keys — standalone recommendation when no slowlog correlation
     if result.big_keys and not result.slowlog_entries:
         big_key_summary = "; ".join(
             f"{bk['key']} ({bk['type']}: {bk['detail']})" for bk in result.big_keys[:5]
         )
-        recs.append({
-            "severity": "info",
-            "category": "performance",
-            "message": f"Largest keys by type: {big_key_summary}. Large keys can cause latency spikes on read/delete operations.",
-        })
+        recs.append(
+            {
+                "severity": "info",
+                "category": "performance",
+                "message": f"Largest keys by type: {big_key_summary}. Large keys can cause latency spikes on read/delete operations.",
+            }
+        )
 
     return recs
 

@@ -211,7 +211,7 @@ class TestUpdateVariant:
             logger=_make_logger(),
         )
 
-        result = await handler.handle(
+        await handler.handle(
             UpdateVariantCommand(
                 product_id=product.id,
                 variant_id=variant_id,

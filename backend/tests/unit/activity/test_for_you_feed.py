@@ -360,9 +360,7 @@ class TestPagination:
             ForYouFeedQuery(user_id=None, limit=3, cursor=first.next_cursor)
         )
 
-        all_ids = [c.id for c in first.items] + [
-            c.id for c in second.items
-        ]
+        all_ids = [c.id for c in first.items] + [c.id for c in second.items]
         assert all_ids == trending_ids[:6]
 
         third = await handler.handle(
@@ -435,7 +433,7 @@ class TestEdgeCases:
         ``new_offset < len(candidate_ids)`` would stay true forever.
         """
         trending_ids = [uuid.uuid4() for _ in range(5)]
-        handler, redis_fake = _make_handler(trending_ids=trending_ids)
+        handler, _redis_fake = _make_handler(trending_ids=trending_ids)
 
         async def _exec(_stmt: Any) -> Any:
             class _R:

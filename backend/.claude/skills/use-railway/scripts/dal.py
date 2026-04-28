@@ -260,8 +260,7 @@ def get_deployment_status(service: str, service_id: str | None = None) -> str:
                 if result.returncode == 0:
                     data = json.loads(result.stdout)
                     edges = (
-                        data
-                        .get("data", {})
+                        data.get("data", {})
                         .get("service", {})
                         .get("deployments", {})
                         .get("edges", [])
@@ -272,13 +271,15 @@ def get_deployment_status(service: str, service_id: str | None = None) -> str:
                 pass
 
     # Fallback: use CLI (slow, ~15s)
-    code, stdout, stderr = run_railway_command([
-        "service",
-        "status",
-        "--service",
-        service,
-        "--json",
-    ])
+    code, stdout, stderr = run_railway_command(
+        [
+            "service",
+            "status",
+            "--service",
+            service,
+            "--json",
+        ]
+    )
     if code != 0:
         return "UNKNOWN"
     try:
@@ -317,20 +318,22 @@ def get_all_metrics_from_api(
         }
     }"""
 
-    variables = json.dumps({
-        "environmentId": environment_id,
-        "serviceId": service_id,
-        "startDate": start_date,
-        "measurements": [
-            "DISK_USAGE_GB",
-            "CPU_USAGE",
-            "MEMORY_USAGE_GB",
-            "MEMORY_LIMIT_GB",
-            "CPU_LIMIT",
-            "NETWORK_RX_GB",
-            "NETWORK_TX_GB",
-        ],
-    })
+    variables = json.dumps(
+        {
+            "environmentId": environment_id,
+            "serviceId": service_id,
+            "startDate": start_date,
+            "measurements": [
+                "DISK_USAGE_GB",
+                "CPU_USAGE",
+                "MEMORY_USAGE_GB",
+                "MEMORY_LIMIT_GB",
+                "CPU_LIMIT",
+                "NETWORK_RX_GB",
+                "NETWORK_TX_GB",
+            ],
+        }
+    )
 
     try:
         result = subprocess.run(

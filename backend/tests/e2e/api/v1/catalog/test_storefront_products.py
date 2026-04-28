@@ -241,7 +241,7 @@ class TestStorefrontPLP:
         brand = await create_brand(admin_client)
         category = await create_category(admin_client)
         # Create 3 products
-        for i in range(3):
+        for _i in range(3):
             await _create_published_product(
                 admin_client,
                 category_id=category["id"],

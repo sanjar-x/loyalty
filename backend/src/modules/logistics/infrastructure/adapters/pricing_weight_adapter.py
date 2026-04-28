@@ -262,7 +262,7 @@ def _coerce_grams(raw: object) -> int | None:
             grams = int(Decimal(raw))
         else:
             return None
-    except (InvalidOperation, ValueError, TypeError):
+    except InvalidOperation, ValueError, TypeError:
         return None
     if grams <= 0:
         return None

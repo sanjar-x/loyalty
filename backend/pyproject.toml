@@ -43,6 +43,7 @@ dev = [
     "locust>=2.43.3",
     "mypy>=1.19.1",
     "polyfactory>=3.3.0",
+    "pre-commit>=4.0",
     "pyclean>=3.5.0",
     "pytest>=9.0.2",
     "pytest-archon>=0.0.7",
@@ -54,6 +55,7 @@ dev = [
     "ruff>=0.15.9",
     "schemathesis>=4.14.1",
     "testcontainers[minio,postgres,rabbitmq,redis]>=4.14.1",
+    "ty>=0.0.32",
 ]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -70,10 +72,22 @@ testpaths = ["tests"]
 [tool.ruff]
 target-version = "py314"
 line-length = 88
+extend-exclude = [".claude/skills"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 ignore = ["E501", "RUF001", "RUF002", "RUF003", "B008", "UP042", "UP046"]
+
+[tool.ruff.lint.per-file-ignores]
+# load_dotenv() must run before the rest of the imports — they read env vars
+# at import time. Allow E402 in conftest only.
+"tests/conftest.py" = ["E402"]
+# Top-level FastAPI route registration runs imports lazily by design.
+"src/modules/catalog/presentation/router_storefront_products.py" = ["E402"]
+# Test file intentionally redefines parametrized class hierarchies for
+# the two evaluation modes (eager vs deferred). Renaming would break
+# pytest collection IDs that downstream dashboards key off of.
+"tests/unit/modules/pricing/domain/test_variable_resolver.py" = ["F811"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
