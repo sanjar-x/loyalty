@@ -80,45 +80,53 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
     });
   }
 
-  const highlighted = highlightText(text, variables);
+  const varCodes = new Set((variables || []).map((v) => v.code));
+  const varMap = Object.fromEntries((variables || []).map((v) => [v.code, v]));
+  const tokens = text ? tokenize(text) : [];
+  const usedVars = tokens.filter((t) => t.type === 'variable' && varCodes.has(t.value));
 
   return (
     <div className="relative">
-      <div className="relative">
-        <div
-          className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-3 py-2 font-mono text-sm leading-6 text-transparent"
-          aria-hidden
-        >
-          {highlighted}
-        </div>
+      <textarea
+        ref={textareaRef}
+        value={text}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        onFocus={(e) => {
+          if (e.target.value === '0') e.target.select();
+        }}
+        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+        disabled={readOnly}
+        placeholder="purchase_price_cny * exchange_rate + shipping_cn_per_kg * weight"
+        rows={Math.max(1, text.split('\n').length)}
+        spellCheck={false}
+        className={cn(
+          'w-full resize-none rounded-lg border border-app-border bg-white px-3 py-2 font-mono text-sm leading-6 text-app-text outline-none transition-colors',
+          'focus:border-app-text focus:ring-1 focus:ring-app-text',
+          'placeholder:text-app-muted',
+          'disabled:cursor-default disabled:bg-transparent disabled:opacity-60',
+        )}
+      />
 
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          onFocus={(e) => {
-            if (e.target.value === '0') e.target.select();
-          }}
-          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-          disabled={readOnly}
-          placeholder="purchase_price_cny * exchange_rate + shipping_cn_per_kg * weight"
-          rows={Math.max(1, text.split('\n').length)}
-          spellCheck={false}
-          className={cn(
-            'w-full resize-none rounded-lg border border-app-border bg-transparent px-3 py-2 font-mono text-sm leading-6 text-transparent caret-app-text outline-none transition-colors',
-            'focus:border-app-text focus:ring-1 focus:ring-app-text',
-            'placeholder:text-app-muted',
-            'disabled:cursor-default disabled:opacity-60',
-          )}
-          style={{ color: 'transparent', WebkitTextFillColor: 'transparent' }}
-        />
-      </div>
+      {usedVars.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          {usedVars.map((tok, i) => {
+            const v = varMap[tok.value];
+            const color = SCOPE_COLORS[v?.scope] || 'bg-gray-100 text-gray-600';
+            return (
+              <span key={`${tok.value}-${i}`} className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium', color)}>
+                {tok.value}
+                {v?.unit && <span className="opacity-50">{v.unit}</span>}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       <div className="mt-1 flex items-center gap-2">
         {!readOnly && (
           <span className="text-[10px] text-app-muted">
-            Нажмите <kbd className="rounded border border-gray-300 bg-gray-100 px-1 py-0.5 font-mono text-[9px]">@</kbd> для вставки переменной
+            <kbd className="rounded border border-gray-300 bg-gray-100 px-1 py-0.5 font-mono text-[9px]">@</kbd> вставить переменную · операторы: + - * / · функции: min() max() round() if()
           </span>
         )}
       </div>
@@ -134,7 +142,7 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
               }}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#f4f3f1]"
             >
-              <code className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+              <code className={cn('shrink-0 rounded px-1.5 py-0.5 text-xs font-medium', SCOPE_COLORS[v.scope] || 'bg-gray-100 text-gray-600')}>
                 {v.code}
               </code>
               <span className="truncate text-xs text-app-muted">
@@ -160,45 +168,13 @@ const SCOPE_LABELS = {
   sku_input: 'SKU',
 };
 
-function highlightText(text, variables) {
-  if (!text) return null;
-  const varCodes = new Set((variables || []).map((v) => v.code));
-  const varMap = Object.fromEntries((variables || []).map((v) => [v.code, v]));
-
-  const tokens = tokenize(text);
-  return tokens.map((tok, i) => {
-    if (tok.type === 'variable' && varCodes.has(tok.value)) {
-      const v = varMap[tok.value];
-      const color = SCOPE_COLORS[v?.scope] || 'text-emerald-700 bg-emerald-50';
-      return (
-        <span key={i} className={cn('rounded px-0.5 font-medium', color)}>
-          {tok.value}
-        </span>
-      );
-    }
-    if (tok.type === 'number') {
-      return <span key={i} className="text-blue-600">{tok.value}</span>;
-    }
-    if (tok.type === 'operator') {
-      return <span key={i} className="font-bold text-gray-500">{tok.value}</span>;
-    }
-    if (tok.type === 'function') {
-      return <span key={i} className="font-semibold text-amber-600">{tok.value}</span>;
-    }
-    if (tok.type === 'paren') {
-      return <span key={i} className="text-gray-400">{tok.value}</span>;
-    }
-    return <span key={i} className="text-app-text">{tok.value}</span>;
-  });
-}
-
 const SCOPE_COLORS = {
-  global: 'text-emerald-700 bg-emerald-50',
-  supplier: 'text-blue-700 bg-blue-50',
-  category: 'text-purple-700 bg-purple-50',
-  range: 'text-orange-700 bg-orange-50',
-  product_input: 'text-pink-700 bg-pink-50',
-  sku_input: 'text-cyan-700 bg-cyan-50',
+  global: 'bg-emerald-100 text-emerald-700',
+  supplier: 'bg-blue-100 text-blue-700',
+  category: 'bg-purple-100 text-purple-700',
+  range: 'bg-orange-100 text-orange-700',
+  product_input: 'bg-pink-100 text-pink-700',
+  sku_input: 'bg-cyan-100 text-cyan-700',
 };
 
 const KNOWN_FNS = new Set(['min', 'max', 'round', 'ceil', 'floor', 'abs', 'if']);
