@@ -10,9 +10,15 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
   const [suggestionFilter, setSuggestionFilter] = useState('');
   const [caretPos, setCaretPos] = useState(0);
   const textareaRef = useRef(null);
+  const lastParsedRef = useRef(expr);
 
   useEffect(() => {
-    setText(expressionToText(expr));
+    const incoming = JSON.stringify(expr);
+    const last = JSON.stringify(lastParsedRef.current);
+    if (incoming !== last) {
+      setText(expressionToText(expr));
+      lastParsedRef.current = expr;
+    }
   }, [expr]);
 
   const filteredVars = (variables || []).filter(
@@ -36,6 +42,7 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
     }
 
     const parsed = parseText(val);
+    lastParsedRef.current = parsed;
     onChange(parsed);
   }, [onChange]);
 
@@ -63,6 +70,7 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
     setShowSuggestions(false);
 
     const parsed = parseText(newText);
+    lastParsedRef.current = parsed;
     onChange(parsed);
 
     requestAnimationFrame(() => {
@@ -89,6 +97,9 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
           value={text}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
+          onFocus={(e) => {
+            if (e.target.value === '0') e.target.select();
+          }}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
           disabled={readOnly}
           placeholder="purchase_price_cny * exchange_rate + shipping_cn_per_kg * weight"
