@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -96,7 +97,7 @@ class IVariableRepository(ABC):
     async def list(
         self,
         filters: VariableListFilter | None = None,
-    ) -> list[Variable]:
+    ) -> Sequence[Variable]:
         """Return all variables matching the filter, ordered by ``code``."""
 
 
@@ -131,7 +132,7 @@ class IPricingContextRepository(ABC):
     async def list(
         self,
         filters: PricingContextListFilter | None = None,
-    ) -> list[PricingContext]:
+    ) -> Sequence[PricingContext]:
         """Return all contexts matching the filter, ordered by ``code``."""
 
 
@@ -378,12 +379,12 @@ class ISkuPricingInputReader(ABC):
         """
 
     @abstractmethod
-    async def iter_by_context(
+    def iter_by_context(
         self,
         context_id: uuid.UUID,
         *,
         batch_size: int = 100,
-    ) -> object:
+    ) -> AsyncIterator[list[SkuPricingInputs]]:
         """Async-iterate SKUs whose resolved context matches ``context_id``.
 
         Implementations should yield ``list[SkuPricingInputs]`` chunks
@@ -392,21 +393,21 @@ class ISkuPricingInputReader(ABC):
         """
 
     @abstractmethod
-    async def iter_by_category(
+    def iter_by_category(
         self,
         category_id: uuid.UUID,
         *,
         batch_size: int = 100,
-    ) -> object:
+    ) -> AsyncIterator[list[SkuPricingInputs]]:
         """Async-iterate SKUs whose primary_category_id matches."""
 
     @abstractmethod
-    async def iter_by_supplier(
+    def iter_by_supplier(
         self,
         supplier_id: uuid.UUID,
         *,
         batch_size: int = 100,
-    ) -> object:
+    ) -> AsyncIterator[list[SkuPricingInputs]]:
         """Async-iterate SKUs owned by ``supplier_id``."""
 
 

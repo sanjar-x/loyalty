@@ -503,7 +503,7 @@ class TestDeleteProductMedia:
             await original_commit()
             call_order.append("commit")
 
-        uow.commit = tracking_commit
+        uow.commit = tracking_commit  # ty: ignore[invalid-assignment]
 
         image_backend = _make_image_backend()
 

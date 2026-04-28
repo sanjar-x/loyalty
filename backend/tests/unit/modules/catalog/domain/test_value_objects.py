@@ -57,7 +57,7 @@ class TestMoney:
     def test_frozen_rejects_mutation(self):
         m = Money(amount=1000, currency="RUB")
         with pytest.raises(FrozenInstanceError):
-            m.amount = 2000
+            m.amount = 2000  # ty: ignore[invalid-assignment]
 
     def test_equality(self):
         assert Money(amount=100, currency="RUB") == Money(amount=100, currency="RUB")
@@ -120,7 +120,7 @@ class TestBehaviorFlags:
     def test_frozen_rejects_mutation(self):
         bf = BehaviorFlags()
         with pytest.raises(FrozenInstanceError):
-            bf.is_filterable = True
+            bf.is_filterable = True  # ty: ignore[invalid-assignment]
 
     def test_search_weight_below_min_raises(self):
         with pytest.raises(ValueError, match="search_weight must be between"):

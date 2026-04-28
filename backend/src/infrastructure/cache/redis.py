@@ -181,7 +181,7 @@ class RedisService(ICacheService):
         try:
             logger.debug("Redis INCRBY", key=key, delta=delta, ttl=ttl)
             if ttl > 0:
-                raw = await self._client.eval(
+                raw = await self._client.eval(  # ty: ignore[invalid-await]
                     self._INCR_WITH_TTL_LUA, 1, key, delta, ttl
                 )
             else:

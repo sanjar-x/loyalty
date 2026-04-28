@@ -27,6 +27,7 @@ from src.modules.pricing.application.queries.required_variables import (
     GetRequiredVariablesHandler,
     GetRequiredVariablesQuery,
 )
+from src.modules.pricing.domain.value_objects import VariableDataType
 from src.modules.pricing.presentation.schemas import (
     ProductPricingProfileResponse,
     RequiredVariableItem,
@@ -139,7 +140,7 @@ async def get_required_variables(
                 code=v.code,
                 name=v.name,
                 description=v.description,
-                data_type=v.data_type,
+                data_type=VariableDataType(v.data_type),
                 unit=v.unit,
                 default_value=v.default_value,
                 is_system=v.is_system,

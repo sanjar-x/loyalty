@@ -5,6 +5,7 @@ Provides rate calculation, shipment CRUD, tracking, and pickup point listing.
 """
 
 import uuid
+from typing import cast
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, status
@@ -98,6 +99,11 @@ from src.modules.logistics.application.queries.list_pickup_points import (
     ListPickupPointsHandler,
     ListPickupPointsQuery,
 )
+from src.modules.logistics.application.queries.quote_for_pickup_point import (
+    CartItemRef,
+    QuoteForPickupPointHandler,
+    QuoteForPickupPointQuery,
+)
 from src.modules.logistics.domain.entities import Shipment
 from src.modules.logistics.domain.value_objects import (
     Address,
@@ -135,6 +141,7 @@ from src.modules.logistics.presentation.schemas import (
     DeliveryIntervalSchema,
     DeliveryIntervalsResponse,
     DeliveryQuoteSchema,
+    DimensionsSchema,
     EditOrderItemsRequest,
     EditOrderRequest,
     EditPackageSchema,
@@ -143,6 +150,7 @@ from src.modules.logistics.presentation.schemas import (
     EditTaskResponse,
     EditTaskStatusResponse,
     EstimatedDeliveryIntervalsRequest,
+    GeoPositionSchema,
     IntakeStatusResponse,
     IntakeWindowSchema,
     MoneySchema,
@@ -150,6 +158,8 @@ from src.modules.logistics.presentation.schemas import (
     PickupPointSchema,
     PickupPointsRequest,
     PickupPointsResponse,
+    RateQuoteRequest,
+    RateQuoteResponse,
     RefusalRequestSchema,
     RemoveOrderItemsRequest,
     ReturnResponse,
@@ -157,8 +167,11 @@ from src.modules.logistics.presentation.schemas import (
     ReverseAvailabilityResponse,
     ShipmentResponse,
     ShippingRateSchema,
+    DeliveryTypeLiteral,
+    ProviderCodeLiteral,
     TrackingEventSchema,
     TrackingResponse,
+    TrackingStatusLiteral,
 )
 from src.shared.exceptions import ValidationError as AppValidationError
 
@@ -184,6 +197,7 @@ logistics_router = APIRouter(
 
 
 def _schema_to_address(s: AddressSchema) -> Address:
+    """Schema → domain. ``metadata`` and coordinates stay server-side."""
     return Address(
         country_code=s.country_code,
         city=s.city,
@@ -193,14 +207,14 @@ def _schema_to_address(s: AddressSchema) -> Address:
         house=s.house,
         apartment=s.apartment,
         subdivision_code=s.subdivision_code,
-        latitude=s.latitude,
-        longitude=s.longitude,
         raw_address=s.raw_address,
-        metadata=s.metadata,
     )
 
 
 def _address_to_schema(a: Address) -> AddressSchema:
+    """Domain → schema. Drops ``metadata`` (provider internals) and the
+    ``latitude/longitude`` pair — coordinates are surfaced separately on
+    pickup-point responses via :class:`GeoPositionSchema`."""
     return AddressSchema(
         country_code=a.country_code,
         city=a.city,
@@ -210,10 +224,7 @@ def _address_to_schema(a: Address) -> AddressSchema:
         house=a.house,
         apartment=a.apartment,
         subdivision_code=a.subdivision_code,
-        latitude=a.latitude,
-        longitude=a.longitude,
         raw_address=a.raw_address,
-        metadata=a.metadata,
     )
 
 
@@ -288,7 +299,7 @@ async def calculate_rates(
             DeliveryQuoteSchema(
                 id=q.id,
                 rate=ShippingRateSchema(
-                    provider_code=q.rate.provider_code,
+                    provider_code=cast(ProviderCodeLiteral, q.rate.provider_code),
                     service_code=q.rate.service_code,
                     service_name=q.rate.service_name,
                     delivery_type=q.rate.delivery_type.value,
@@ -317,7 +328,53 @@ async def calculate_rates(
             )
             for q in result.quotes
         ],
-        errors=result.errors,
+        errors=cast("dict[ProviderCodeLiteral, str]", result.errors),
+    )
+
+
+@logistics_router.post(
+    path="/rates/quote",
+    status_code=status.HTTP_200_OK,
+    response_model=RateQuoteResponse,
+    summary="Quote delivery for a chosen pickup point (Checkout flow)",
+    dependencies=[_LOGISTICS_READ],
+)
+async def quote_for_pickup_point(
+    body: RateQuoteRequest,
+    handler: FromDishka[QuoteForPickupPointHandler],
+) -> RateQuoteResponse:
+    """Single-quote endpoint matching the BRD checkout sequence.
+
+    The frontend supplies SKU ids and the marker the user clicked
+    (``provider_code`` + ``pickup_point_external_id``). The backend
+    resolves weight / origin / destination server-side and returns a
+    single price-and-eta line plus a ``quote_id`` to use at order time.
+    """
+    query = QuoteForPickupPointQuery(
+        items=[
+            CartItemRef(sku_id=item.sku_id, quantity=item.quantity)
+            for item in body.items
+        ],
+        provider_code=body.provider_code,
+        pickup_point_external_id=body.pickup_point_external_id,
+        service_code=body.service_code,
+    )
+    result = await handler.handle(query)
+    return RateQuoteResponse(
+        quote_id=result.quote_id,
+        provider_code=cast(ProviderCodeLiteral, result.provider_code),
+        service_code=result.service_code,
+        service_name=result.service_name,
+        delivery_type=cast(DeliveryTypeLiteral, result.delivery_type),
+        delivery_amount=MoneySchema(
+            amount=result.delivery_amount,
+            currency_code=result.currency,
+        ),
+        delivery_days_min=result.delivery_days_min,
+        delivery_days_max=result.delivery_days_max,
+        quoted_at=result.quoted_at,
+        expires_at=result.expires_at,
+        fallback_alternatives=list(result.fallback_alternatives),
     )
 
 
@@ -333,13 +390,16 @@ async def create_shipment(
     create_handler: FromDishka[CreateShipmentHandler],
     get_handler: FromDishka[GetShipmentHandler],
 ) -> ShipmentResponse:
+    """Create a DRAFT shipment from a server-side quote.
+
+    The frontend supplies only the trusted ``quote_id`` plus the
+    recipient contact — origin, destination, weight and provider all
+    come from the persisted ``DeliveryQuote`` so the booking call can't
+    be tampered with.
+    """
     command = CreateShipmentCommand(
         quote_id=body.quote_id,
-        origin=_schema_to_address(body.origin),
-        destination=_schema_to_address(body.destination),
-        sender=_schema_to_contact(body.sender),
         recipient=_schema_to_contact(body.recipient),
-        parcels=[_schema_to_parcel(p) for p in body.parcels],
         order_id=body.order_id,
         cod=_schema_to_cod(body.cod),
     )
@@ -414,7 +474,7 @@ async def get_tracking(
     return TrackingResponse(
         shipment_id=result.shipment_id,
         tracking_number=result.tracking_number,
-        latest_status=result.latest_status,
+        latest_status=cast("TrackingStatusLiteral | None", result.latest_status),
         events=[
             TrackingEventSchema(
                 status=e.status.value,
@@ -440,13 +500,25 @@ async def list_pickup_points(
     body: PickupPointsRequest,
     handler: FromDishka[ListPickupPointsHandler],
 ) -> PickupPointsResponse:
-    try:
-        delivery_type = DeliveryType(body.delivery_type) if body.delivery_type else None
-    except ValueError:
-        valid = [e.value for e in DeliveryType]
+    """Return pickup-point markers for the storefront map.
+
+    Either ``(latitude AND longitude)`` or ``city`` is required; the
+    handler returns 400 if neither is supplied. ``provider_code`` is
+    optional — when omitted the response merges all registered providers.
+    Pickup points without coordinates are silently dropped (cannot be
+    plotted on a map and would crash a frontend that strict-decodes
+    ``GeoPositionSchema``).
+    """
+    has_geo = body.latitude is not None and body.longitude is not None
+    if not has_geo and not body.city:
         raise AppValidationError(
-            message=f"Invalid delivery_type '{body.delivery_type}'. Must be one of: {valid}",
-        ) from None
+            message=(
+                "Either (latitude AND longitude) or city is required to "
+                "bound the pickup-point search."
+            ),
+        )
+
+    delivery_type = DeliveryType(body.delivery_type) if body.delivery_type else None
 
     query = ListPickupPointsQuery(
         query=PickupPointQuery(
@@ -462,23 +534,43 @@ async def list_pickup_points(
         provider_code=body.provider_code,
     )
     result = await handler.handle(query)
-    return PickupPointsResponse(
-        points=[
+    points: list[PickupPointSchema] = []
+    for p in result.points:
+        if p.address.latitude is None or p.address.longitude is None:
+            # No coordinates → cannot render on the map. Skip rather
+            # than fail the whole response — providers occasionally
+            # ship test rows with empty geocodes.
+            continue
+        points.append(
             PickupPointSchema(
-                provider_code=p.provider_code,
+                provider_code=cast(ProviderCodeLiteral, p.provider_code),
                 external_id=p.external_id,
                 name=p.name,
                 pickup_point_type=p.pickup_point_type.value,
+                position=GeoPositionSchema(
+                    latitude=p.address.latitude,
+                    longitude=p.address.longitude,
+                ),
                 address=_address_to_schema(p.address),
                 work_schedule=p.work_schedule,
                 phone=p.phone,
                 is_cash_allowed=p.is_cash_allowed,
                 is_card_allowed=p.is_card_allowed,
                 weight_limit_grams=p.weight_limit_grams,
+                dimensions_limit=(
+                    DimensionsSchema(
+                        length_cm=p.dimensions_limit.length_cm,
+                        width_cm=p.dimensions_limit.width_cm,
+                        height_cm=p.dimensions_limit.height_cm,
+                    )
+                    if p.dimensions_limit
+                    else None
+                ),
             )
-            for p in result.points
-        ],
-        errors=result.errors,
+        )
+    return PickupPointsResponse(
+        points=points,
+        errors=cast("dict[ProviderCodeLiteral, str]", result.errors),
     )
 
 
@@ -510,7 +602,7 @@ async def list_available_intake_days(
     )
     result = await handler.handle(query)
     return AvailableIntakeDaysResponse(
-        provider_code=result.provider_code,
+        provider_code=cast(ProviderCodeLiteral, result.provider_code),
         windows=[
             IntakeWindowSchema(date=w.date, is_workday=w.is_workday)
             for w in result.windows
@@ -618,7 +710,7 @@ async def get_delivery_intervals(
 ) -> DeliveryIntervalsResponse:
     result = await handler.handle(GetDeliveryIntervalsQuery(shipment_id=shipment_id))
     return DeliveryIntervalsResponse(
-        provider_code=result.provider_code,
+        provider_code=cast(ProviderCodeLiteral, result.provider_code),
         intervals=[
             DeliveryIntervalSchema(
                 start_time=i.start_time,
@@ -649,7 +741,7 @@ async def estimate_delivery_intervals(
     )
     result = await handler.handle(query)
     return DeliveryIntervalsResponse(
-        provider_code=result.provider_code,
+        provider_code=cast(ProviderCodeLiteral, result.provider_code),
         intervals=[
             DeliveryIntervalSchema(
                 start_time=i.start_time,
@@ -746,7 +838,7 @@ async def check_reverse_availability(
     )
     result = await handler.handle(query)
     return ReverseAvailabilityResponse(
-        provider_code=result.provider_code,
+        provider_code=cast(ProviderCodeLiteral, result.provider_code),
         is_available=result.is_available,
         reason=result.reason,
     )
@@ -927,7 +1019,7 @@ async def get_edit_task_status(
         GetEditTaskStatusQuery(provider_code=provider_code, task_id=task_id)
     )
     return EditTaskStatusResponse(
-        provider_code=result.provider_code,
+        provider_code=cast(ProviderCodeLiteral, result.provider_code),
         task_id=result.task_id,
         status=result.status.value,
     )
@@ -961,7 +1053,7 @@ def _shipment_to_response(shipment: Shipment) -> ShipmentResponse:
     return ShipmentResponse(
         id=shipment.id,
         order_id=shipment.order_id,
-        provider_code=shipment.provider_code,
+        provider_code=cast(ProviderCodeLiteral, shipment.provider_code),
         service_code=shipment.service_code,
         delivery_type=shipment.delivery_type.value,
         status=shipment.status.value,

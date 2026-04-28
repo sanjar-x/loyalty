@@ -135,8 +135,8 @@ curl http://localhost:8080/health
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/enterprise-api.git
-cd enterprise-api
+git clone https://github.com/sanjar-x/loyality.git
+cd loyality/backend
 
 # Install all dependencies (including dev tools)
 uv sync
@@ -154,8 +154,8 @@ uv run alembic upgrade head
 ### Docker (Production)
 
 ```bash
-docker build -f deploy/docker/Dockerfile -t enterprise-api .
-docker run --env-file .env -p 8080:8080 enterprise-api
+docker build -f deploy/docker/Dockerfile -t loyality-api .
+docker run --env-file .env -p 8080:8080 loyality-api
 ```
 
 ### Common Issues
@@ -736,8 +736,8 @@ uv run pytest tests/architecture/ -v
 
 ```bash
 # Clone and install
-git clone https://github.com/your-org/enterprise-api.git
-cd enterprise-api
+git clone https://github.com/sanjar-x/loyality.git
+cd loyality/backend
 uv sync
 
 # Start infrastructure

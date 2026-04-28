@@ -16,13 +16,15 @@ DATA_FILE = Path(__file__).parent / "brands.json"
 
 
 def seed_brands(ctx: SeedContext) -> None:
+    assert ctx.client is not None, "seed_brands requires an authenticated HTTP client"
+    client = ctx.client
     brands = json.loads(DATA_FILE.read_text(encoding="utf-8"))
     headers = {"Authorization": f"Bearer {ctx.token}"}
     url = f"{ctx.api_prefix}/catalog/brands"
     created = skipped = failed = 0
 
     for brand in brands:
-        r = ctx.client.post(url, json=brand, headers=headers)
+        r = client.post(url, json=brand, headers=headers)
 
         if r.status_code == 201:
             print(f"    + {brand['name']:<20} {r.json()['id']}")

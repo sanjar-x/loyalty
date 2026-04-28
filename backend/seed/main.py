@@ -2,9 +2,9 @@
 
 Steps fall into two groups:
 
-* **DB-only** (no HTTP server required): ``roles``, ``admin``, ``geo``
-* **API-only** (HTTP server must be running): ``brands``, ``categories``,
-  ``attributes``, ``products``
+* **DB-only** (no HTTP server required): ``roles``, ``admin``, ``pricing``
+* **API-only** (HTTP server must be running): ``geo``, ``brands``,
+  ``categories``, ``attributes``
 
 Usage
 -----
@@ -14,10 +14,10 @@ Usage
     uv run python -m seed.main
 
     # DB-only steps — no server needed.
-    uv run python -m seed.main --step roles,admin,geo
+    uv run python -m seed.main --step roles,admin,pricing
 
     # API-only steps — server must be running, admin must already exist.
-    uv run python -m seed.main --step brands,products
+    uv run python -m seed.main --step brands,categories,attributes
 
 ``--step`` accepts a comma-separated subset of step names. Order of
 execution is always the canonical order defined in ``STEPS``, regardless
@@ -45,7 +45,6 @@ from seed.brands.create_brands import seed_brands
 from seed.categories.create_categories import seed_categories
 from seed.geo.create_currencies import seed_geo
 from seed.pricing.seed_pricing import seed_pricing
-from seed.products.create_products import seed_products
 from seed.roles.create_roles import seed_roles
 
 DEFAULT_BASE_URL = "https://loyalty-backend.up.railway.app"
@@ -93,11 +92,9 @@ class Step:
     * ``admin`` depends on ``roles`` — FK to ``roles.id`` via
       ``identity_roles``. Running ``--step admin`` alone would
       otherwise fail with a foreign-key violation on first-time seeds.
-    * ``brands/categories/attributes/products`` depend on ``admin``
+    * ``brands/categories/attributes`` depend on ``admin``
       being present — the step ``_login`` call authenticates as that
       admin and fails without it.
-    * ``products`` depends on ``brands``, ``categories``, ``attributes``
-      and ``geo`` (SKU ``priceCurrency`` FK).
     * ``attributes`` depends on ``categories`` — phase 6 assigns
       templates to root categories by slug.
     """
@@ -121,12 +118,6 @@ STEPS: list[Step] = [
     Step("brands", seed_brands, db_only=False, deps=("admin",)),
     Step("categories", seed_categories, db_only=False, deps=("admin",)),
     Step("attributes", seed_attributes, db_only=False, deps=("admin", "categories")),
-    Step(
-        "products",
-        seed_products,
-        db_only=False,
-        deps=("admin", "geo", "brands", "categories", "attributes"),
-    ),
 ]
 
 STEP_NAMES = [s.name for s in STEPS]

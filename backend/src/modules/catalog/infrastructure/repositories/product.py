@@ -162,11 +162,7 @@ class ProductRepository(IProductRepository):
             orm_sku.purchase_price = domain_sku.purchase_price.amount
         else:
             orm_sku.purchase_price = None
-        orm_sku.purchase_currency = (
-            domain_sku.purchase_currency.value
-            if domain_sku.purchase_currency is not None
-            else None
-        )
+        orm_sku.purchase_currency = domain_sku.purchase_currency
         if domain_sku.selling_price is not None:
             orm_sku.selling_price = domain_sku.selling_price.amount
             orm_sku.selling_currency = domain_sku.selling_price.currency

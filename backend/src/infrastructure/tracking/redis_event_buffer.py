@@ -19,7 +19,7 @@ class RedisEventBufferService(IEventBufferService):
         if not values:
             return 0
         try:
-            return int(await self._client.rpush(key, *values))
+            return int(await self._client.rpush(key, *values))  # ty: ignore[invalid-await]
         except RedisError as e:
             logger.warning("RPUSH failed", key=key, error=str(e))
             return None
@@ -28,7 +28,7 @@ class RedisEventBufferService(IEventBufferService):
         if count <= 0:
             return []
         try:
-            raw = await self._client.lpop(key, count)
+            raw = await self._client.lpop(key, count)  # ty: ignore[invalid-await]
         except RedisError as e:
             logger.warning("LPOP failed", key=key, error=str(e))
             return []
@@ -40,7 +40,7 @@ class RedisEventBufferService(IEventBufferService):
 
     async def length(self, key: str) -> int:
         try:
-            return int(await self._client.llen(key))
+            return int(await self._client.llen(key))  # ty: ignore[invalid-await]
         except RedisError as e:
             logger.warning("LLEN failed", key=key, error=str(e))
             return 0

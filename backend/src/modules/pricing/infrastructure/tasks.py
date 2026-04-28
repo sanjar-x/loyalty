@@ -200,9 +200,9 @@ async def _handle_sku_purchase_price_updated(
         logger.warning("sku_purchase_price_updated_missing_sku_id", payload=payload)
         return
     await (
-        recompute_sku_pricing_task.kicker()
+        recompute_sku_pricing_task.kicker()  # ty: ignore[no-matching-overload]
         .with_labels(**_build_labels(correlation_id))
-        .kiq(  # ty:ignore[no-matching-overload]
+        .kiq(
             sku_id=str(sku_id),
             correlation_id=correlation_id,
         )

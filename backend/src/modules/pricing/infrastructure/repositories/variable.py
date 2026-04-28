@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
@@ -139,7 +140,9 @@ class VariableRepository(IVariableRepository):
         model = result.scalar_one_or_none()
         return self._to_domain(model) if model else None
 
-    async def list(self, filters: VariableListFilter | None = None) -> list[Variable]:
+    async def list(
+        self, filters: VariableListFilter | None = None
+    ) -> Sequence[Variable]:
         stmt = select(VariableModel).order_by(VariableModel.code.asc())
         if filters is not None:
             if filters.scope is not None:

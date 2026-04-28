@@ -62,7 +62,7 @@ class TestSupplierPricingSettingsCreate:
         with pytest.raises(SupplierPricingSettingsValidationError) as exc:
             SupplierPricingSettings.create(
                 supplier_id=uuid.uuid4(),
-                values={"ok": 1.5},  # type: ignore[dict-item]
+                values={"ok": 1.5},  # ty: ignore[invalid-argument-type]
                 actor_id=uuid.uuid4(),
             )
         assert exc.value.error_code == "PRICING_SUPPLIER_SETTINGS_DECIMAL_TYPE"

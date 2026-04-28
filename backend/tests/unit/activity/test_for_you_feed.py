@@ -134,7 +134,7 @@ def _make_handler(
         redis_client=redis_fake,  # ty:ignore[invalid-argument-type]
         history_reader=history or _FakeHistoryReader(),
         trending_service=_FakeTrending(_mk_ranked(trending_ids)),
-        co_view_reader=co_view or _FakeCoViewReader(),  # type: ignore[arg-type]
+        co_view_reader=co_view or _FakeCoViewReader(),
         cards_handler=_FakeCardsHandler(),  # ty:ignore[invalid-argument-type]
         logger=_FakeLogger(),  # ty:ignore[invalid-argument-type]
     )
@@ -181,13 +181,13 @@ class TestColdPath:
 
             return _R()
 
-        handler._session.execute = _exec  # type: ignore[method-assign]
+        handler._session.execute = _exec  # ty: ignore[invalid-assignment]
 
         result = await handler.handle(ForYouFeedQuery(user_id=None, limit=3))
 
         assert result.strategy_version == STRATEGY_VERSION
         assert result.is_personalized is False
-        assert [c.product_id for c in result.items] == trending_ids[:3]
+        assert [c.id for c in result.items] == trending_ids[:3]
         assert result.next_cursor is not None
 
         # Candidate list cached for pagination.
@@ -210,11 +210,11 @@ class TestColdPath:
 
             return _R()
 
-        handler._session.execute = _exec  # type: ignore[method-assign]
+        handler._session.execute = _exec  # ty: ignore[invalid-assignment]
 
         result = await handler.handle(ForYouFeedQuery(user_id=uuid.uuid4(), limit=10))
         assert result.is_personalized is False
-        assert [c.product_id for c in result.items] == trending_ids
+        assert [c.id for c in result.items] == trending_ids
 
 
 # ---------------------------------------------------------------------------
@@ -250,10 +250,10 @@ class TestWarmPath:
             trending_ids=[],  # no trending tail for this test
             history=history,
         )
-        handler._fetch_products_by_category = _fetch.__get__(handler, ForYouFeedHandler)  # type: ignore[assignment]
+        handler._fetch_products_by_category = _fetch.__get__(handler, ForYouFeedHandler)  # ty: ignore[invalid-assignment]
 
         result = await handler.handle(ForYouFeedQuery(user_id=uuid.uuid4(), limit=5))
-        ids_out = [c.product_id for c in result.items]
+        ids_out = [c.id for c in result.items]
 
         assert result.is_personalized is True
         assert viewed_already not in ids_out
@@ -292,10 +292,10 @@ class TestWarmPath:
             return {cid: pools[cid] for cid in category_ids}
 
         handler, _ = _make_handler(trending_ids=[], history=history, co_view=co_view)
-        handler._fetch_products_by_category = _fetch.__get__(handler, ForYouFeedHandler)  # type: ignore[assignment]
+        handler._fetch_products_by_category = _fetch.__get__(handler, ForYouFeedHandler)  # ty: ignore[invalid-assignment]
 
         result = await handler.handle(ForYouFeedQuery(user_id=uuid.uuid4(), limit=5))
-        ids_out = [c.product_id for c in result.items]
+        ids_out = [c.id for c in result.items]
 
         assert result.strategy_version == "v2"
         assert result.is_personalized is True
@@ -325,10 +325,10 @@ class TestWarmPath:
             return {cid: pools[cid] for cid in category_ids}
 
         handler, _ = _make_handler(trending_ids=[], history=history)
-        handler._fetch_products_by_category = _fetch.__get__(handler, ForYouFeedHandler)  # type: ignore[assignment]
+        handler._fetch_products_by_category = _fetch.__get__(handler, ForYouFeedHandler)  # ty: ignore[invalid-assignment]
 
         result = await handler.handle(ForYouFeedQuery(user_id=uuid.uuid4(), limit=5))
-        ids_out = [c.product_id for c in result.items]
+        ids_out = [c.id for c in result.items]
         assert ids_out == [a1, a2]
 
 
@@ -350,7 +350,7 @@ class TestPagination:
 
             return _R()
 
-        handler._session.execute = _exec  # type: ignore[method-assign]
+        handler._session.execute = _exec  # ty: ignore[invalid-assignment]
 
         first = await handler.handle(ForYouFeedQuery(user_id=None, limit=3))
         assert first.next_cursor is not None
@@ -360,8 +360,8 @@ class TestPagination:
             ForYouFeedQuery(user_id=None, limit=3, cursor=first.next_cursor)
         )
 
-        all_ids = [c.product_id for c in first.items] + [
-            c.product_id for c in second.items
+        all_ids = [c.id for c in first.items] + [
+            c.id for c in second.items
         ]
         assert all_ids == trending_ids[:6]
 
@@ -369,7 +369,7 @@ class TestPagination:
             ForYouFeedQuery(user_id=None, limit=3, cursor=second.next_cursor)
         )
         # 8 total, windows 3+3+2 → third cursor is final.
-        assert [c.product_id for c in third.items] == trending_ids[6:]
+        assert [c.id for c in third.items] == trending_ids[6:]
         assert third.next_cursor is None
         # Redis should still hold the seed list.
         assert len(redis_fake.store) == 1
@@ -386,7 +386,7 @@ class TestPagination:
 
             return _R()
 
-        handler._session.execute = _exec  # type: ignore[method-assign]
+        handler._session.execute = _exec  # ty: ignore[invalid-assignment]
 
         stale_cursor = ForYouCursor(
             strategy_version="v999", seed_id="c:old", offset=2
@@ -395,7 +395,7 @@ class TestPagination:
             ForYouFeedQuery(user_id=None, limit=2, cursor=stale_cursor)
         )
         # Should rebuild from scratch, returning the first 2 trending items.
-        assert [c.product_id for c in result.items] == trending_ids[:2]
+        assert [c.id for c in result.items] == trending_ids[:2]
 
 
 # ---------------------------------------------------------------------------
@@ -416,7 +416,7 @@ class TestEdgeCases:
 
             return _R()
 
-        handler._session.execute = _exec  # type: ignore[method-assign]
+        handler._session.execute = _exec  # ty: ignore[invalid-assignment]
 
         # limit=0 → clamped to 1
         r_zero = await handler.handle(ForYouFeedQuery(user_id=None, limit=0))
@@ -444,11 +444,11 @@ class TestEdgeCases:
 
             return _R()
 
-        handler._session.execute = _exec  # type: ignore[method-assign]
+        handler._session.execute = _exec  # ty: ignore[invalid-assignment]
 
         # Seed the cache and grab a legitimate seed_id.
         first = await handler.handle(ForYouFeedQuery(user_id=None, limit=2))
-        seed_id = ForYouCursor.decode(first.next_cursor or "").seed_id  # type: ignore[union-attr]
+        seed_id = ForYouCursor.decode(first.next_cursor or "").seed_id  # ty: ignore[unresolved-attribute]
 
         malicious_cursor = ForYouCursor(
             strategy_version=STRATEGY_VERSION,
@@ -459,7 +459,7 @@ class TestEdgeCases:
             ForYouFeedQuery(user_id=None, limit=2, cursor=malicious_cursor)
         )
         # Starts from the head, not the tail.
-        assert [c.product_id for c in result.items] == trending_ids[:2]
+        assert [c.id for c in result.items] == trending_ids[:2]
 
     @pytest.mark.asyncio
     async def test_cursor_with_evicted_cache_restarts_from_zero(self) -> None:
@@ -476,7 +476,7 @@ class TestEdgeCases:
 
             return _R()
 
-        handler._session.execute = _exec  # type: ignore[method-assign]
+        handler._session.execute = _exec  # ty: ignore[invalid-assignment]
 
         first = await handler.handle(ForYouFeedQuery(user_id=None, limit=2))
         assert first.next_cursor is not None
@@ -488,7 +488,7 @@ class TestEdgeCases:
             ForYouFeedQuery(user_id=None, limit=2, cursor=first.next_cursor)
         )
         # Rebuilt from fresh trending, returns head — not a 2-offset window.
-        assert [c.product_id for c in second.items] == trending_ids[:2]
+        assert [c.id for c in second.items] == trending_ids[:2]
 
     @pytest.mark.asyncio
     async def test_huge_cursor_offset_returns_empty_without_next(self) -> None:
@@ -502,10 +502,10 @@ class TestEdgeCases:
 
             return _R()
 
-        handler._session.execute = _exec  # type: ignore[method-assign]
+        handler._session.execute = _exec  # ty: ignore[invalid-assignment]
 
         first = await handler.handle(ForYouFeedQuery(user_id=None, limit=2))
-        seed_id = ForYouCursor.decode(first.next_cursor or "").seed_id  # type: ignore[union-attr]
+        seed_id = ForYouCursor.decode(first.next_cursor or "").seed_id  # ty: ignore[unresolved-attribute]
 
         cursor = ForYouCursor(
             strategy_version=STRATEGY_VERSION,

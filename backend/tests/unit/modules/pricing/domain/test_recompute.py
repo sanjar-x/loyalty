@@ -252,7 +252,7 @@ class TestInputsHashDeterminism:
             **{
                 **scope_v3.__dict__,
                 "settings_versions": (("supplier", 4),),
-            }
+            }  # ty: ignore[invalid-argument-type]
         )
         a = recompute_sku_pricing(_basic_inputs(), scope_v3)
         b = recompute_sku_pricing(_basic_inputs(), scope_v4)

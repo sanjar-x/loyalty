@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from decimal import Decimal
 from typing import Any
 
@@ -65,10 +66,12 @@ class _FakeFormulaRepo:
 
 
 class _FakeVariableRepo:
-    def __init__(self, variables: list[Variable]) -> None:
+    def __init__(self, variables: Sequence[Variable]) -> None:
         self._variables = variables
 
-    async def list(self, filters: VariableListFilter | None = None) -> list[Variable]:
+    async def list(
+        self, filters: VariableListFilter | None = None
+    ) -> Sequence[Variable]:
         return list(self._variables)
 
     async def add(self, *a: Any, **k: Any) -> Any: ...
@@ -229,13 +232,13 @@ def _build_handler(
     context: PricingContext | None = None,
 ) -> PreviewPriceHandler:
     return PreviewPriceHandler(
-        formula_repo=_FakeFormulaRepo(formula),  # type: ignore[arg-type]
-        variable_repo=_FakeVariableRepo(variables),  # type: ignore[arg-type]
-        profile_repo=_FakeProfileRepo(profile),  # type: ignore[arg-type]
-        settings_repo=_FakeSettingsRepo(settings),  # type: ignore[arg-type]
-        supplier_settings_repo=_FakeSupplierSettingsRepo(supplier_settings),  # type: ignore[arg-type]
-        context_repo=_FakeContextRepo(context),  # type: ignore[arg-type]
-        logger=_FakeLogger(),  # type: ignore[arg-type]
+        formula_repo=_FakeFormulaRepo(formula),  # ty: ignore[invalid-argument-type]
+        variable_repo=_FakeVariableRepo(variables),  # ty: ignore[invalid-argument-type]
+        profile_repo=_FakeProfileRepo(profile),  # ty: ignore[invalid-argument-type]
+        settings_repo=_FakeSettingsRepo(settings),  # ty: ignore[invalid-argument-type]
+        supplier_settings_repo=_FakeSupplierSettingsRepo(supplier_settings),  # ty: ignore[invalid-argument-type]
+        context_repo=_FakeContextRepo(context),  # ty: ignore[invalid-argument-type]
+        logger=_FakeLogger(),
     )
 
 

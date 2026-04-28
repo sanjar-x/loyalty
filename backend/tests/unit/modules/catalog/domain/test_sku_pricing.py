@@ -32,7 +32,7 @@ def _make_sku(**overrides) -> SKU:
         "variant_hash": "a" * 64,
     }
     defaults.update(overrides)
-    return SKU(**defaults)  # type: ignore[arg-type]
+    return SKU(**defaults)  # ty: ignore[invalid-argument-type]
 
 
 # ---------------------------------------------------------------------------

@@ -28,7 +28,7 @@ def _make(**overrides: object) -> PricingContext:
         actor_id=ACTOR,
     )
     base.update(overrides)
-    return PricingContext.create(**base)  # type: ignore[arg-type]
+    return PricingContext.create(**base)  # ty: ignore[invalid-argument-type]
 
 
 @pytest.mark.unit

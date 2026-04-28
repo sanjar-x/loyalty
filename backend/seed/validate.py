@@ -14,7 +14,6 @@ categories = json.loads(
 attrs_data = json.loads(
     (root / "attributes/attributes.json").read_text(encoding="utf-8")
 )
-products = json.loads((root / "products/products.json").read_text(encoding="utf-8"))
 
 errors: list[str] = []
 slug_re = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -109,78 +108,9 @@ for t in attrs_data.get("templates", []):
             )
         seen_bindings.add(b["attributeCode"])
 
-# 5. Products + SKUs + attrs
-cat_parent = {c["slug"]: c["parentRef"] for c in categories if c.get("parentRef")}
-tmpl_attrs: dict[str, set[str]] = {}
-for t in attrs_data.get("templates", []):
-    tmpl_attrs[t.get("assignToCategorySlug", "")] = {
-        b["attributeCode"] for b in t.get("bindings", [])
-    }
-
-
-def resolve_template(slug: str) -> set[str]:
-    if slug in tmpl_attrs:
-        return tmpl_attrs[slug]
-    p = cat_parent.get(slug)
-    return resolve_template(p) if p else set()
-
-
-all_sku_codes: list[str] = []
-for p in products:
-    s = p["slug"]
-    if not slug_re.match(s):
-        errors.append(f"products: invalid slug '{s}'")
-    ti = p.get("titleI18N", {})
-    if "ru" not in ti or "en" not in ti:
-        errors.append(f"products: '{s}' missing ru/en titleI18N")
-    di = p.get("descriptionI18N")
-    if di and ("ru" not in di or "en" not in di):
-        errors.append(f"products: '{s}' missing ru/en descriptionI18N")
-    if p["brandSlug"] not in brand_slugs:
-        errors.append(f"products: '{s}' brand '{p['brandSlug']}' missing")
-    if p["categorySlug"] not in cat_slugs:
-        errors.append(f"products: '{s}' category '{p['categorySlug']}' missing")
-
-    allowed = resolve_template(p["categorySlug"])
-    for ac, vc in p.get("attributes", {}).items():
-        if ac not in attr_codes:
-            errors.append(f"products: '{s}' attr '{ac}' missing")
-        elif attr_levels.get(ac) != "product":
-            errors.append(
-                f"products: '{s}' attr '{ac}' level={attr_levels[ac]} need product"
-            )
-        elif vc not in value_codes.get(ac, set()):
-            errors.append(f"products: '{s}' value '{ac}={vc}' missing")
-        if allowed and ac not in allowed:
-            errors.append(f"products: '{s}' attr '{ac}' not in template")
-
-    for sku in p.get("skus", []):
-        all_sku_codes.append(sku["code"])
-        for ac, vc in sku.get("variantAttrs", {}).items():
-            if ac not in attr_codes:
-                errors.append(f"products: '{s}/{sku['code']}' attr '{ac}' missing")
-            elif attr_levels.get(ac) != "variant":
-                errors.append(
-                    f"products: '{s}/{sku['code']}' attr '{ac}' level={attr_levels[ac]} need variant"
-                )
-            elif vc not in value_codes.get(ac, set()):
-                errors.append(
-                    f"products: '{s}/{sku['code']}' value '{ac}={vc}' missing"
-                )
-            if allowed and ac not in allowed:
-                errors.append(
-                    f"products: '{s}/{sku['code']}' attr '{ac}' not in template"
-                )
-
-sku_dupes = [c for c, n in Counter(all_sku_codes).items() if n > 1]
-if sku_dupes:
-    errors.append(f"products: duplicate SKU codes: {sku_dupes}")
-if len(set(p["slug"] for p in products)) != len(products):
-    errors.append("products: duplicate slugs")
-
 # Report
 print(
-    "Brands:%d  Categories:%d  Attrs:%d  Values:%d  Templates:%d  Bindings:%d  Products:%d  SKUs:%d"
+    "Brands:%d  Categories:%d  Attrs:%d  Values:%d  Templates:%d  Bindings:%d"
     % (
         len(brands),
         len(categories),
@@ -188,8 +118,6 @@ print(
         sum(len(v) for v in value_codes.values()),
         len(attrs_data.get("templates", [])),
         sum(len(t.get("bindings", [])) for t in attrs_data.get("templates", [])),
-        len(products),
-        len(all_sku_codes),
     )
 )
 

@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import attrs
 
@@ -102,12 +102,13 @@ def _validate_ast(ast: dict[str, Any]) -> None:
         )
 
     seen_names: set[str] = set()
-    for idx, binding in enumerate(bindings):
-        if not isinstance(binding, dict):
+    for idx, raw_binding in enumerate(bindings):
+        if not isinstance(raw_binding, dict):
             raise FormulaValidationError(
                 message=f"Binding at index {idx} must be an object.",
                 error_code="PRICING_FORMULA_AST_INVALID",
             )
+        binding = cast("dict[str, Any]", raw_binding)
         name = binding.get("name")
         tag = binding.get("component_tag")
         expr = binding.get("expr")

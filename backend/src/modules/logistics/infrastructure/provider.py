@@ -80,11 +80,26 @@ from src.modules.logistics.application.queries.get_tracking import (
 from src.modules.logistics.application.queries.list_pickup_points import (
     ListPickupPointsHandler,
 )
+from src.modules.logistics.application.queries.quote_for_pickup_point import (
+    QuoteForPickupPointHandler,
+)
 from src.modules.logistics.domain.interfaces import (
     IDeliveryQuoteRepository,
+    IOriginAddressResolver,
+    IPickupPointResolver,
     IProviderRoutingPolicy,
     IShipmentRepository,
     IShippingProviderRegistry,
+    ISkuWeightResolver,
+)
+from src.modules.logistics.infrastructure.adapters.origin_address_resolver import (
+    ProviderAccountOriginResolver,
+)
+from src.modules.logistics.infrastructure.adapters.pickup_point_cache import (
+    RedisPickupPointResolver,
+)
+from src.modules.logistics.infrastructure.adapters.pricing_weight_adapter import (
+    PricingWeightAdapter,
 )
 from src.modules.logistics.infrastructure.bootstrap import bootstrap_registry
 from src.modules.logistics.infrastructure.repositories.delivery_quote import (
@@ -113,6 +128,21 @@ class LogisticsInfraProvider(Provider):
         DefaultProviderRoutingPolicy,
         scope=Scope.APP,
         provides=IProviderRoutingPolicy,
+    )
+    sku_weight_resolver: CompositeDependencySource = provide(
+        PricingWeightAdapter,
+        scope=Scope.REQUEST,
+        provides=ISkuWeightResolver,
+    )
+    pickup_point_resolver: CompositeDependencySource = provide(
+        RedisPickupPointResolver,
+        scope=Scope.REQUEST,
+        provides=IPickupPointResolver,
+    )
+    origin_address_resolver: CompositeDependencySource = provide(
+        ProviderAccountOriginResolver,
+        scope=Scope.REQUEST,
+        provides=IOriginAddressResolver,
     )
 
     @provide(scope=Scope.APP, provides=IShippingProviderRegistry)
@@ -182,6 +212,9 @@ class LogisticsQueryProvider(Provider):
     )
     list_pickup_points: CompositeDependencySource = provide(
         ListPickupPointsHandler, scope=Scope.REQUEST
+    )
+    quote_for_pickup_point: CompositeDependencySource = provide(
+        QuoteForPickupPointHandler, scope=Scope.REQUEST
     )
     get_shipment: CompositeDependencySource = provide(
         GetShipmentHandler, scope=Scope.REQUEST

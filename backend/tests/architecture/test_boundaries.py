@@ -143,6 +143,21 @@ ALLOWED_CROSS_MODULE = {
         "src.modules.pricing.infrastructure.adapters.sku_pricing_input_reader",
         "src.modules.pricing.infrastructure.adapters.sku_pricing_result_writer",
     },
+    # Logistics builds Parcel weights from a category-level estimate
+    # maintained in pricing (Product → Category → CategoryPricingSettings).
+    # The marketplace dropships from China, so the actual SKU weight is
+    # unknown until parcels reach the RF warehouse — see
+    # logistics/infrastructure/adapters/pricing_weight_adapter.py.
+    # Read-only ORM JOIN, narrowly scoped to that one adapter.
+    ("logistics", "catalog"): {
+        "src.modules.logistics.infrastructure.adapters.pricing_weight_adapter",
+    },
+    ("logistics", "pricing"): {
+        "src.modules.logistics.infrastructure.adapters.pricing_weight_adapter",
+    },
+    ("logistics", "supplier"): {
+        "src.modules.logistics.infrastructure.adapters.pricing_weight_adapter",
+    },
     # Identity management CLI scripts (``create_admin``, ``sync_system_roles``)
     # reach into the full DI container for standalone bootstrap; they are
     # admin tooling, not production request paths.

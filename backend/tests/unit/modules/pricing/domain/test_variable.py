@@ -29,7 +29,7 @@ def _make(**overrides: object) -> Variable:
         actor_id=ACTOR,
     )
     base.update(overrides)
-    return Variable.create(**base)  # type: ignore[arg-type]
+    return Variable.create(**base)  # ty: ignore[invalid-argument-type]
 
 
 @pytest.mark.unit

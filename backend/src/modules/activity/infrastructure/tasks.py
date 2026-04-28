@@ -112,7 +112,7 @@ async def flush_activity_events_task(
     # RPOP with count would be more efficient but is only available on
     # Redis 6.2+; the simple loop is fine at our current scale.
     for _ in range(FLUSH_BATCH_SIZE):
-        item = await redis_client.rpop(ACTIVITY_QUEUE_KEY)
+        item = await redis_client.rpop(ACTIVITY_QUEUE_KEY)  # ty: ignore[invalid-await]
         if item is None:
             break
         raw_events.append(item)
@@ -144,7 +144,9 @@ async def flush_activity_events_task(
                 # the requeued batch under buffer pressure.  Reverse the
                 # batch so original ordering is preserved once popped via
                 # RPOP by the next flush.
-                await redis_client.lpush(ACTIVITY_QUEUE_KEY, *reversed(raw_events))
+                await redis_client.lpush(  # ty: ignore[invalid-await]
+                    ACTIVITY_QUEUE_KEY, *reversed(raw_events)
+                )
         except Exception:  # pragma: no cover
             logger.exception("activity.flush.requeue_failed")
         return {"status": "error", "processed": 0}

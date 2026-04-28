@@ -112,7 +112,7 @@ async def _backfill(
 async def _run(*, apply: bool, batch_size: int) -> dict[str, int]:
     from src.bootstrap.config import Settings
 
-    settings = Settings()  # type: ignore[call-arg]
+    settings = Settings()  # ty:ignore[missing-argument]
     engine = create_async_engine(settings.database_url, echo=False)
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     try:
@@ -136,9 +136,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    counters = asyncio.run(
-        _run(apply=args.apply, batch_size=args.batch_size)
-    )
+    counters = asyncio.run(_run(apply=args.apply, batch_size=args.batch_size))
     mode = "APPLY" if args.apply else "DRY-RUN"
     print(f"[{mode}] {counters}")
     if not args.apply and counters["candidates"] > 0:

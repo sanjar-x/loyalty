@@ -1,7 +1,8 @@
 backend/.hypothesis/
 
-# ── Claude Code local settings (personal paths, tokens, permissions) ──
+# ── Claude Code (local-only files) ──
 **/.claude/settings.local.json
+**/.claude/scheduled_tasks.lock
 
 # ── GSD baseline (auto-generated) ──
 .gsd

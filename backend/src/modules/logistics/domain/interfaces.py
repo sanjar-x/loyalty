@@ -452,3 +452,89 @@ class IDeliveryQuoteRepository(Protocol):
     async def get_by_id(self, quote_id: uuid.UUID) -> DeliveryQuote | None: ...
 
     async def delete_expired(self) -> int: ...
+
+
+# ---------------------------------------------------------------------------
+# SKU weight resolver (anti-corruption port → catalog + pricing)
+# ---------------------------------------------------------------------------
+
+
+class IPickupPointResolver(Protocol):
+    """Resolve a previously-listed pickup point back to its full ``PickupPoint``.
+
+    Checkout flow needs this when the user clicks a marker on the map:
+    the frontend only knows ``(provider_code, external_id)`` and asks the
+    backend to compute a delivery quote against that point. Re-fetching
+    the entire province-wide pickup list per click would melt the
+    provider's API, so the implementation caches a recent ``/pickup-points``
+    response (typically Redis with a 24 h TTL) and reads from it.
+
+    Returns ``None`` when the cache holds no record for the
+    ``(provider_code, external_id)`` pair — callers should respond with a
+    400/404 explaining that the point must be listed via ``/pickup-points``
+    first (the frontend always does this before letting the user click).
+    """
+
+    async def resolve(
+        self,
+        provider_code: ProviderCode,
+        external_id: str,
+    ) -> PickupPoint | None: ...
+
+    async def remember_many(self, points: list[PickupPoint]) -> None:
+        """Persist a list of points so subsequent ``resolve`` lookups hit.
+
+        Called from ``ListPickupPointsHandler`` after a successful provider
+        fan-out. Implementations swallow backend failures so a Redis
+        outage does not break pickup-point listing — quotes against any
+        cached-but-now-expired point will fall back to a re-fetch path.
+        """
+        ...
+
+
+class IOriginAddressResolver(Protocol):
+    """Resolve the sender warehouse address for a given provider.
+
+    The marketplace ships from a fixed RF warehouse, so per-provider
+    origin parameters (CDEK ``cdek_pvz_code`` / ``cdek_city_code`` /
+    ``fias_guid``, Yandex ``platform_station_id``) are configured once
+    on ``ProviderAccountModel.config_json`` and reused for every quote.
+
+    Raises ``ProviderUnavailableError`` (or returns ``None``) when the
+    provider has no configured origin — the operator forgot to fill it
+    in admin and the entire provider is unusable for outbound shipments.
+    """
+
+    async def resolve(self, provider_code: ProviderCode) -> Address: ...
+
+
+class ISkuWeightResolver(Protocol):
+    """Resolve estimated per-unit weight (in grams) for a list of SKUs.
+
+    The marketplace dropships from China — actual physical weight is
+    unknown until parcels arrive at the RF warehouse. To still let the
+    customer see a delivery price during checkout, we fall back to a
+    *category-level* average weight, configured in the pricing module
+    (``CategoryPricingSettings.values["weight_g"]``).
+
+    Implementations are infrastructure-only (read-side adapter), allowed
+    by the boundary-test whitelist to JOIN catalog + pricing ORM. The
+    domain depends on this protocol so ``CalculateRatesHandler`` can
+    build ``Parcel`` objects without leaking module internals.
+    """
+
+    async def resolve_weight_grams(
+        self, sku_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, int]:
+        """Return per-SKU weight in grams.
+
+        Resolution order, per SKU:
+        1. ``CategoryPricingSettings.values["weight_g"]`` for the SKU's
+           ``Product.primary_category_id`` and the active pricing context.
+        2. ``Variable[code="weight_g"].default_value`` (system fallback,
+           ``500`` g per the seed).
+
+        Missing SKUs (deleted / never existed) are simply omitted from
+        the result map — callers decide whether to error or skip.
+        """
+        ...

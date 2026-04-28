@@ -8,7 +8,10 @@ or fan-out across all eligible providers.
 import asyncio
 from dataclasses import dataclass
 
-from src.modules.logistics.domain.interfaces import IShippingProviderRegistry
+from src.modules.logistics.domain.interfaces import (
+    IPickupPointResolver,
+    IShippingProviderRegistry,
+)
 from src.modules.logistics.domain.value_objects import (
     PickupPoint,
     PickupPointQuery,
@@ -44,14 +47,24 @@ class ListPickupPointsResult:
 
 
 class ListPickupPointsHandler:
-    """List pickup/delivery points from one or all providers."""
+    """List pickup/delivery points from one or all providers.
+
+    Warm-side-effect: every successful provider call is immediately
+    written into ``IPickupPointResolver`` so a follow-up
+    ``/rates/quote`` request can recover the full ``PickupPoint`` from
+    just ``(provider_code, external_id)`` without re-hitting the
+    provider's rate-limited API. Cache failures are best-effort —
+    they never break the listing response.
+    """
 
     def __init__(
         self,
         registry: IShippingProviderRegistry,
+        pickup_point_resolver: IPickupPointResolver,
         logger: ILogger,
     ) -> None:
         self._registry = registry
+        self._pickup_point_resolver = pickup_point_resolver
         self._logger = logger.bind(handler="ListPickupPointsHandler")
 
     async def handle(self, query: ListPickupPointsQuery) -> ListPickupPointsResult:
@@ -70,6 +83,7 @@ class ListPickupPointsHandler:
                     points=[],
                     errors={query.provider_code: str(exc)},
                 )
+            await self._warm_cache(points)
             return ListPickupPointsResult(points=points, errors={})
 
         # Fan-out across all registered providers
@@ -98,4 +112,20 @@ class ListPickupPointsHandler:
             else:
                 all_points.extend(result)
 
+        await self._warm_cache(all_points)
         return ListPickupPointsResult(points=all_points, errors=errors)
+
+    async def _warm_cache(self, points: list[PickupPoint]) -> None:
+        if not points:
+            return
+        try:
+            await self._pickup_point_resolver.remember_many(points)
+        except Exception as exc:
+            # Cache warming is fire-and-forget — Redis being down must
+            # not break the listing endpoint. The resolver itself logs
+            # the underlying error; we just note that we tried.
+            self._logger.warning(
+                "Pickup-point cache warming failed",
+                error=str(exc),
+                point_count=len(points),
+            )

@@ -10,9 +10,10 @@ Dimensions: CDEK uses centimeters (int) = domain convention — no conversion ne
 import json
 import logging
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from src.modules.logistics.domain.value_objects import (
+    DEFAULT_QUOTE_TTL,
     PROVIDER_CDEK,
     Address,
     BookingRequest,
@@ -44,10 +45,9 @@ from src.modules.logistics.infrastructure.providers.errors import (
     ProviderHTTPError,
 )
 
-# CDEK tarifflist quotes are price-estimates; we cap reuse at 1 hour to force
-# re-quoting before booking. Keeps the server-side expiry check in
-# CreateShipmentHandler meaningful.
-CDEK_QUOTE_TTL = timedelta(hours=1)
+# Use the unified BRD-mandated TTL so the customer-visible quote, the DB
+# cleanup job, and ``CreateShipmentHandler`` all share one expiry window.
+CDEK_QUOTE_TTL = DEFAULT_QUOTE_TTL
 
 logger = logging.getLogger(__name__)
 

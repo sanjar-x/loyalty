@@ -179,7 +179,7 @@ class TestTemplateAttributeBindingCreate:
             TemplateAttributeBinding.create(
                 template_id=uuid.uuid4(),
                 attribute_id=uuid.uuid4(),
-                filter_settings="not a dict",  # type: ignore[arg-type]
+                filter_settings="not a dict",  # ty: ignore[invalid-argument-type]
             )
 
     def test_create_rejects_too_many_filter_keys(self):

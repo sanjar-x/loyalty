@@ -72,7 +72,7 @@ class TestValidateAst:
 
     def test_rejects_non_dict(self) -> None:
         with pytest.raises(FormulaValidationError):
-            _validate_ast("not a dict")  # type: ignore[arg-type]
+            _validate_ast("not a dict")  # ty: ignore[invalid-argument-type]
 
     def test_rejects_missing_version(self) -> None:
         ast = _minimal_ast()

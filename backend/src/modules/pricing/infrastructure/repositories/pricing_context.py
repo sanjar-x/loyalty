@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
 from decimal import Decimal
 
@@ -160,7 +161,7 @@ class PricingContextRepository(IPricingContextRepository):
     async def list(
         self,
         filters: PricingContextListFilter | None = None,
-    ) -> list[PricingContext]:
+    ) -> Sequence[PricingContext]:
         stmt = select(PricingContextModel).order_by(PricingContextModel.code.asc())
         if filters is not None:
             if filters.is_active is not None:

@@ -32,6 +32,18 @@ class _FakeLogger:
     def warning(self, *_: Any, **__: Any) -> None:  # pragma: no cover
         pass
 
+    def info(self, *_: Any, **__: Any) -> None:  # pragma: no cover
+        pass
+
+    def error(self, *_: Any, **__: Any) -> None:  # pragma: no cover
+        pass
+
+    def critical(self, *_: Any, **__: Any) -> None:  # pragma: no cover
+        pass
+
+    def debug(self, *_: Any, **__: Any) -> None:  # pragma: no cover
+        pass
+
 
 class _Row:
     def __init__(self, **kwargs: Any) -> None:
@@ -84,7 +96,7 @@ class TestGetSimilarProductsHandler:
         session = _FakeSession(
             results=[_ResultFirst(seed), _ResultAll([_Row(id=i) for i in ids])]
         )
-        handler = GetSimilarProductsHandler(session, _FakeLogger())
+        handler = GetSimilarProductsHandler(session, _FakeLogger())  # ty: ignore[invalid-argument-type]
         result = await handler.handle(
             GetSimilarProductsQuery(product_id=uuid.uuid4(), limit=10)
         )
@@ -93,14 +105,14 @@ class TestGetSimilarProductsHandler:
     async def test_empty_when_seed_has_no_category(self) -> None:
         seed = _Row(primary_category_id=None, brand_id=uuid.uuid4())
         session = _FakeSession(results=[_ResultFirst(seed)])
-        handler = GetSimilarProductsHandler(session, _FakeLogger())
+        handler = GetSimilarProductsHandler(session, _FakeLogger())  # ty: ignore[invalid-argument-type]
         result = await handler.handle(GetSimilarProductsQuery(product_id=uuid.uuid4()))
         assert result.product_ids == []
 
     async def test_limit_clamped_to_50(self) -> None:
         seed = _Row(primary_category_id=uuid.uuid4(), brand_id=uuid.uuid4())
         session = _FakeSession(results=[_ResultFirst(seed), _ResultAll([])])
-        handler = GetSimilarProductsHandler(session, _FakeLogger())
+        handler = GetSimilarProductsHandler(session, _FakeLogger())  # ty: ignore[invalid-argument-type]
         # limit=999 should not raise; just return empty from our fake.
         result = await handler.handle(
             GetSimilarProductsQuery(product_id=uuid.uuid4(), limit=999)
@@ -136,7 +148,9 @@ class TestSimilarProductCardsHandler:
     async def test_404_when_slug_missing(self) -> None:
         session = _FakeSession(results=[_ResultFirst(None)])
         h = GetSimilarProductCardsHandler(
-            session, _FakeSimilarHandler([]), _FakeCardsHandler()
+            session,  # ty: ignore[invalid-argument-type]
+            _FakeSimilarHandler([]),  # ty: ignore[invalid-argument-type]
+            _FakeCardsHandler(),  # ty: ignore[invalid-argument-type]
         )
         with pytest.raises(NotFoundError):
             await h.handle(GetSimilarProductCardsQuery(slug="nope"))
@@ -146,7 +160,7 @@ class TestSimilarProductCardsHandler:
         session = _FakeSession(results=[_ResultFirst(_Row(id=product_id))])
         similar = _FakeSimilarHandler([])
         cards = _FakeCardsHandler()
-        h = GetSimilarProductCardsHandler(session, similar, cards)
+        h = GetSimilarProductCardsHandler(session, similar, cards)  # ty: ignore[invalid-argument-type]
         result = await h.handle(GetSimilarProductCardsQuery(slug="s"))
         assert result.items == []
         assert cards.received_ids is None
@@ -157,7 +171,7 @@ class TestSimilarProductCardsHandler:
         session = _FakeSession(results=[_ResultFirst(_Row(id=product_id))])
         similar = _FakeSimilarHandler(ranked)
         cards = _FakeCardsHandler()
-        h = GetSimilarProductCardsHandler(session, similar, cards)
+        h = GetSimilarProductCardsHandler(session, similar, cards)  # ty: ignore[invalid-argument-type]
         result = await h.handle(GetSimilarProductCardsQuery(slug="s", limit=5))
         assert similar.called_with == product_id
         assert cards.received_ids == ranked

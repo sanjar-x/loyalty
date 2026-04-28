@@ -7,10 +7,11 @@ Calls twice (courier + pickup) to return both delivery options.
 
 import logging
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from src.modules.logistics.domain.value_objects import (
+    DEFAULT_QUOTE_TTL,
     PROVIDER_YANDEX_DELIVERY,
     Address,
     DeliveryQuote,
@@ -30,12 +31,11 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.mappers impo
     parse_pricing_response,
 )
 
-# Yandex Delivery offers (created at booking time) carry a 10-minute TTL per
-# the provider docs. The rate-time quote is a pricing-calculator estimate and
-# does not reserve an offer, but we align the reuse window with that TTL so
-# that prices shown to the customer stay fresh and the server-side expiry
-# check in CreateShipmentHandler is meaningful.
-YANDEX_QUOTE_TTL = timedelta(minutes=10)
+# Use the unified BRD-mandated TTL. Yandex offer windows (10 min, refreshed at
+# booking time inside ``offers/create → offers/confirm``) are tighter, but the
+# customer-visible quote stays at the same 30 min as CDEK so the checkout UX
+# does not depend on which provider served the quote.
+YANDEX_QUOTE_TTL = DEFAULT_QUOTE_TTL
 
 logger = logging.getLogger(__name__)
 

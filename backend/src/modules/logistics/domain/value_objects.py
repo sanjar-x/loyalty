@@ -11,11 +11,20 @@ Units convention (aligned across all logistics providers):
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Any
 
 import attrs
+
+# ---------------------------------------------------------------------------
+# Quote TTL — 30 minutes per BRD §Constraints ("Цена доставки фиксируется в
+# DeliveryQuote на 30 минут — после истечения требуется пересчёт"). Carrier
+# offer windows are tighter (Yandex offer = 10 min, CDEK calculator = 1 h),
+# but the *visible-to-customer* quote is normalised to a single value so the
+# checkout UX, server-side expiry checks and DB cleanup all share one number.
+# ---------------------------------------------------------------------------
+DEFAULT_QUOTE_TTL: timedelta = timedelta(minutes=30)
 
 # ---------------------------------------------------------------------------
 # Provider identity — open string, not a closed enum

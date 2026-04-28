@@ -69,7 +69,7 @@ class TestCreate:
         with pytest.raises(PricingProfileValidationError):
             ProductPricingProfile.create(
                 product_id=_product(),
-                values={"price": 1.23},  # type: ignore[dict-item]
+                values={"price": 1.23},  # ty: ignore[invalid-argument-type]
                 actor_id=_actor(),
             )
 

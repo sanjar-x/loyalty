@@ -78,7 +78,10 @@ class TestAlsoViewedHandler:
     async def test_404_when_slug_missing(self) -> None:
         session = _FakeSession([_ResultFirst(None)])
         h = GetAlsoViewedProductCardsHandler(
-            session, _FakeCoView([]), _FakeSimilar([]), _FakeCards()
+            session,  # ty: ignore[invalid-argument-type]
+            _FakeCoView([]),
+            _FakeSimilar([]),  # ty: ignore[invalid-argument-type]
+            _FakeCards(),  # ty: ignore[invalid-argument-type]
         )
         with pytest.raises(NotFoundError):
             await h.handle(GetAlsoViewedProductCardsQuery(slug="nope"))
@@ -91,7 +94,7 @@ class TestAlsoViewedHandler:
         similar = _FakeSimilar([uuid.uuid4()])
         cards = _FakeCards()
 
-        h = GetAlsoViewedProductCardsHandler(session, co_view, similar, cards)
+        h = GetAlsoViewedProductCardsHandler(session, co_view, similar, cards)  # ty: ignore[invalid-argument-type]
         result = await h.handle(GetAlsoViewedProductCardsQuery(slug="s", limit=3))
 
         assert result.is_fallback is False
@@ -108,7 +111,7 @@ class TestAlsoViewedHandler:
         similar = _FakeSimilar(fallback_ids)
         cards = _FakeCards()
 
-        h = GetAlsoViewedProductCardsHandler(session, co_view, similar, cards)
+        h = GetAlsoViewedProductCardsHandler(session, co_view, similar, cards)  # ty: ignore[invalid-argument-type]
         result = await h.handle(GetAlsoViewedProductCardsQuery(slug="s"))
 
         assert result.is_fallback is True
@@ -122,7 +125,7 @@ class TestAlsoViewedHandler:
         similar = _FakeSimilar([])
         cards = _FakeCards()
 
-        h = GetAlsoViewedProductCardsHandler(session, co_view, similar, cards)
+        h = GetAlsoViewedProductCardsHandler(session, co_view, similar, cards)  # ty: ignore[invalid-argument-type]
         result = await h.handle(GetAlsoViewedProductCardsQuery(slug="s"))
 
         assert result.items == []
@@ -143,7 +146,7 @@ class TestAlsoViewedHandler:
         similar = _FakeSimilar([])
         cards = _FakeCards()
 
-        h = GetAlsoViewedProductCardsHandler(session, co_view, similar, cards)
+        h = GetAlsoViewedProductCardsHandler(session, co_view, similar, cards)  # ty: ignore[invalid-argument-type]
         await h.handle(GetAlsoViewedProductCardsQuery(slug="s", limit=2))
 
         assert cards.received_ids is not None

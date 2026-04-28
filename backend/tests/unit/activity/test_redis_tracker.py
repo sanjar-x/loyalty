@@ -68,7 +68,13 @@ class _NoopLogger:
     def error(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
         pass
 
+    def critical(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
+        pass
+
     def debug(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
+        pass
+
+    def exception(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
         pass
 
 
@@ -83,7 +89,7 @@ def _lpush_payload(pipe: _FakePipeline) -> dict[str, Any]:
 
 async def test_track_product_view_enqueues_event_and_bumps_trending() -> None:
     redis = _FakeRedis()
-    tracker = RedisActivityTracker(redis, _NoopLogger())  # type: ignore[arg-type]
+    tracker = RedisActivityTracker(redis, _NoopLogger())  # ty: ignore[invalid-argument-type]
 
     product_id = uuid.uuid4()
     category_id = uuid.uuid4()
@@ -119,7 +125,7 @@ async def test_track_product_view_enqueues_event_and_bumps_trending() -> None:
 
 async def test_track_search_ignores_empty_query() -> None:
     redis = _FakeRedis()
-    tracker = RedisActivityTracker(redis, _NoopLogger())  # type: ignore[arg-type]
+    tracker = RedisActivityTracker(redis, _NoopLogger())  # ty: ignore[invalid-argument-type]
 
     await tracker.track_search(
         query="   ",
@@ -133,7 +139,7 @@ async def test_track_search_ignores_empty_query() -> None:
 
 async def test_track_search_zero_results_increments_zero_bucket() -> None:
     redis = _FakeRedis()
-    tracker = RedisActivityTracker(redis, _NoopLogger())  # type: ignore[arg-type]
+    tracker = RedisActivityTracker(redis, _NoopLogger())  # ty: ignore[invalid-argument-type]
 
     await tracker.track_search(
         query="  iPhone 99  ",
@@ -159,7 +165,7 @@ async def test_track_product_list_view_does_not_raise_on_redis_error() -> None:
         def pipeline(self, transaction: bool = False) -> Any:
             raise RuntimeError("boom")
 
-    tracker = RedisActivityTracker(BrokenRedis(), _NoopLogger())  # type: ignore[arg-type]
+    tracker = RedisActivityTracker(BrokenRedis(), _NoopLogger())  # ty: ignore[invalid-argument-type]
 
     # Must NOT raise — analytics is best-effort.
     await tracker.track_product_list_view(

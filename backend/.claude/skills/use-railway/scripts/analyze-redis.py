@@ -406,15 +406,16 @@ def _format_bytes_human(nbytes: int) -> str:
     """Format bytes into human-readable string."""
     if nbytes <= 0:
         return "0"
+    size: float = float(nbytes)
     for unit in ["B", "K", "M", "G", "T"]:
-        if nbytes < 1024:
+        if size < 1024:
             return (
-                f"{nbytes:.1f}{unit}"
-                if nbytes != int(nbytes)
-                else f"{int(nbytes)}{unit}"
+                f"{size:.1f}{unit}"
+                if size != int(size)
+                else f"{int(size)}{unit}"
             )
-        nbytes /= 1024
-    return f"{nbytes:.1f}P"
+        size /= 1024
+    return f"{size:.1f}P"
 
 
 # ---------------------------------------------------------------------------

@@ -98,7 +98,10 @@ class RedisSortedSetService(ISortedSetService):
     ) -> int:
         try:
             if weights is not None:
-                return int(await self._client.zunionstore(dest, keys, weights=weights))
+                if len(weights) != len(keys):
+                    raise ValueError("weights length must match keys length")
+                weighted: dict[str, float] = dict(zip(keys, weights, strict=True))
+                return int(await self._client.zunionstore(dest, weighted))
             return int(await self._client.zunionstore(dest, keys))
         except RedisError as e:
             logger.warning("ZUNIONSTORE failed", dest=dest, error=str(e))

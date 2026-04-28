@@ -51,6 +51,24 @@
       "is_system": true,
       "is_fx_rate": true,
       "max_age_days": 14
+    },
+    {
+      "code": "weight_g",
+      "scope": "category",
+      "data_type": "integer",
+      "unit": "G",
+      "name": {
+        "ru": "Средний вес товара (граммы)",
+        "en": "Average item weight (grams)"
+      },
+      "description": {
+        "ru": "Категорийная оценка веса единицы товара. Используется одновременно (1) формулой ценообразования для расчёта закупочных логистических издержек по весу и (2) модулем logistics при построении Parcel для запросов в CDEK / Yandex Delivery до того, как товар физически принят на склад в РФ. Меняется через /admin/pricing/categories/{id}/settings; при правке RecomputeJob пересчитывает цены всех SKU категории.",
+        "en": "Category-level weight estimate per item. Consumed by (1) the pricing formula for weight-based logistics cost and (2) the logistics module when building Parcel requests for CDEK / Yandex Delivery before the item physically arrives at the RF warehouse. Edited via /admin/pricing/categories/{id}/settings; updates trigger SKU recompute for the whole category."
+      },
+      "is_required": true,
+      "default_value": "500",
+      "is_system": true,
+      "is_fx_rate": false
     }
   ]
 }
