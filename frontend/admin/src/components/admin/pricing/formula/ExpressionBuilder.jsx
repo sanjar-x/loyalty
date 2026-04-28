@@ -25,9 +25,16 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
     (v) => !suggestionFilter || v.code.toLowerCase().includes(suggestionFilter.toLowerCase()),
   );
 
+  function autoResize(el) {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
+
   const handleChange = useCallback((e) => {
     const val = e.target.value;
     setText(val);
+    autoResize(e.target);
 
     const pos = e.target.selectionStart;
     setCaretPos(pos);
@@ -88,7 +95,10 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
   return (
     <div className="relative">
       <textarea
-        ref={textareaRef}
+        ref={(el) => {
+          textareaRef.current = el;
+          autoResize(el);
+        }}
         value={text}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
@@ -97,11 +107,11 @@ export function ExpressionBuilder({ expr, onChange, variables, readOnly }) {
         }}
         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
         disabled={readOnly}
-        placeholder="purchase_price_cny * exchange_rate + shipping_cn_per_kg * weight"
-        rows={Math.max(1, text.split('\n').length)}
+        placeholder="purchase_price_cny * exchange_rate"
+        rows={1}
         spellCheck={false}
         className={cn(
-          'w-full resize-none rounded-lg border border-app-border bg-white px-3 py-2 font-mono text-sm leading-6 text-app-text outline-none transition-colors',
+          'w-full resize-none overflow-hidden rounded-lg border border-app-border bg-white px-3 py-2 font-mono text-sm leading-6 text-app-text outline-none transition-colors',
           'focus:border-app-text focus:ring-1 focus:ring-app-text',
           'placeholder:text-app-muted',
           'disabled:cursor-default disabled:bg-transparent disabled:opacity-60',
