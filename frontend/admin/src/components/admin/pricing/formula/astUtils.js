@@ -14,15 +14,16 @@ export function expressionToText(expr) {
 
 export function astToBindings(ast) {
   if (!ast?.bindings) return [];
-  return ast.bindings.map((b) => ({
-    ...b,
-    _exprText: expressionToText(b.expr),
-  }));
+  return ast.bindings.map((b) => ({ ...b }));
 }
 
 export function bindingsToAst(bindings) {
   return {
     version: 1,
-    bindings: bindings.map(({ _exprText, ...rest }) => rest),
+    bindings: bindings.map((b) => ({
+      name: b.name,
+      component_tag: b.component_tag,
+      expr: b.expr,
+    })),
   };
 }

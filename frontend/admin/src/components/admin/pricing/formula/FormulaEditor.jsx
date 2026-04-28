@@ -18,7 +18,6 @@ function createEmptyBinding() {
     name: '',
     component_tag: 'intermediate',
     expr: { const: '0' },
-    _exprText: '0',
   };
 }
 
@@ -57,11 +56,8 @@ export function FormulaEditor({ bindings, onChange, variables, readOnly }) {
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="mb-1 grid grid-cols-[180px_1fr_140px_36px] gap-2 px-2 text-[11px] font-medium text-app-muted">
-        <span>Имя биндинга</span>
-        <span>Выражение</span>
-        <span>Component tag</span>
-        <span />
+      <div className="mb-1 px-3 text-[11px] font-medium text-app-muted">
+        Каждая строка: <code>имя</code> = <code>выражение</code> · <code>tag</code>
       </div>
 
       {bindings.map((binding, index) => (
