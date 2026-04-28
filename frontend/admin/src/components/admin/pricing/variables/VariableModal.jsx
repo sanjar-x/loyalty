@@ -7,18 +7,18 @@ import { createVariable, updateVariable } from '@/services/pricing/variables';
 import { buildI18nPayload } from '@/lib/utils';
 
 const SCOPES = [
-  { value: 'global', label: 'Global' },
-  { value: 'supplier', label: 'Supplier' },
-  { value: 'category', label: 'Category' },
-  { value: 'range', label: 'Range' },
-  { value: 'product_input', label: 'Product input' },
-  { value: 'sku_input', label: 'SKU input' },
+  { value: 'global', label: 'Глобальная' },
+  { value: 'supplier', label: 'Поставщик' },
+  { value: 'category', label: 'Категория' },
+  { value: 'range', label: 'Диапазон' },
+  { value: 'product_input', label: 'Ввод товара' },
+  { value: 'sku_input', label: 'SKU' },
 ];
 
 const DATA_TYPES = [
-  { value: 'decimal', label: 'Decimal' },
-  { value: 'integer', label: 'Integer' },
-  { value: 'percent', label: 'Percent' },
+  { value: 'decimal', label: 'Число' },
+  { value: 'integer', label: 'Целое число' },
+  { value: 'percent', label: 'Процент' },
 ];
 
 export function VariableModal({ mode, variable, onClose, onSuccess }) {

@@ -4,12 +4,12 @@ import { i18n } from '@/lib/utils';
 import { StatusBadge } from '../shared/StatusBadge';
 
 const SCOPE_LABELS = {
-  global: 'Global',
-  supplier: 'Supplier',
-  category: 'Category',
-  range: 'Range',
-  product_input: 'Product input',
-  sku_input: 'SKU input',
+  global: 'Глобальная',
+  supplier: 'Поставщик',
+  category: 'Категория',
+  range: 'Диапазон',
+  product_input: 'Ввод товара',
+  sku_input: 'SKU',
 };
 
 const TYPE_LABELS = {

@@ -11,12 +11,12 @@ import { cn } from '@/lib/utils';
 
 const SCOPE_FILTERS = [
   { value: null, label: 'Все' },
-  { value: 'global', label: 'Global' },
-  { value: 'supplier', label: 'Supplier' },
-  { value: 'category', label: 'Category' },
-  { value: 'range', label: 'Range' },
-  { value: 'product_input', label: 'Product input' },
-  { value: 'sku_input', label: 'SKU input' },
+  { value: 'global', label: 'Глобальные' },
+  { value: 'supplier', label: 'Поставщик' },
+  { value: 'category', label: 'Категория' },
+  { value: 'range', label: 'Диапазон' },
+  { value: 'product_input', label: 'Ввод товара' },
+  { value: 'sku_input', label: 'SKU' },
 ];
 
 export function VariablesTab() {
