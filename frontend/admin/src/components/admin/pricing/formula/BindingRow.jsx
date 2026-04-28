@@ -18,8 +18,10 @@ export function BindingRow({
 }) {
   const isFinalPrice = isLast && binding.name === 'final_price';
 
-  function handleNameChange(e) {
-    onChange({ ...binding, name: e.target.value.replace(/[^a-z0-9_]/g, '') });
+  function handleLabelChange(e) {
+    const label = e.target.value;
+    const name = isFinalPrice ? 'final_price' : labelToName(label);
+    onChange({ ...binding, label, name });
   }
 
   function handleTagChange(e) {
@@ -30,6 +32,8 @@ export function BindingRow({
     onChange({ ...binding, expr: newExpr });
   }
 
+  const displayLabel = binding.label ?? binding.name ?? '';
+
   return (
     <div
       className={cn(
@@ -38,21 +42,28 @@ export function BindingRow({
         isFinalPrice && 'border-emerald-200 bg-emerald-50/30',
       )}
     >
-      <div className="flex shrink-0 items-center gap-1.5 pt-2">
-        <input
-          type="text"
-          value={binding.name}
-          onChange={handleNameChange}
-          disabled={readOnly}
-          placeholder="имя"
-          className={cn(
-            'h-8 w-36 rounded-lg border border-app-border bg-white px-2 font-mono text-sm outline-none transition-colors',
-            'focus:border-app-text focus:ring-1 focus:ring-app-text',
-            'disabled:border-transparent disabled:bg-transparent',
-            isFinalPrice && 'font-semibold text-emerald-700',
-          )}
-        />
-        <span className="text-sm text-gray-400">=</span>
+      <div className="flex shrink-0 flex-col gap-0.5 pt-2">
+        <div className="flex items-center gap-1.5">
+          <input
+            type="text"
+            value={displayLabel}
+            onChange={handleLabelChange}
+            disabled={readOnly || isFinalPrice}
+            placeholder="Название строки"
+            className={cn(
+              'h-8 w-44 rounded-lg border border-app-border bg-white px-2.5 text-sm outline-none transition-colors',
+              'focus:border-app-text focus:ring-1 focus:ring-app-text',
+              'disabled:border-transparent disabled:bg-transparent',
+              isFinalPrice && 'font-semibold text-emerald-700',
+            )}
+          />
+          <span className="text-sm text-gray-400">=</span>
+        </div>
+        {!isFinalPrice && binding.name && (
+          <span className="pl-1 font-mono text-[10px] text-gray-400" title="Техническое имя в формуле">
+            {binding.name}
+          </span>
+        )}
       </div>
 
       <div className="min-w-0 flex-1">
@@ -123,3 +134,29 @@ const TAG_LABELS = {
   final_price: 'Итого',
   intermediate: 'Промежуточное',
 };
+
+const TRANSLIT = {
+  'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh',
+  'з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o',
+  'п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts',
+  'ч':'ch','ш':'sh','щ':'shch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',
+};
+
+function labelToName(label) {
+  if (!label) return '';
+  const lower = label.toLowerCase();
+  let result = '';
+  for (const ch of lower) {
+    if (TRANSLIT[ch] !== undefined) {
+      result += TRANSLIT[ch];
+    } else if (/[a-z0-9]/.test(ch)) {
+      result += ch;
+    } else {
+      result += '_';
+    }
+  }
+  return result
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 64) || 'binding';
+}

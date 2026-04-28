@@ -4,12 +4,13 @@ import { StatusBadge } from '../shared/StatusBadge';
 import { formatDateTime } from '@/lib/utils';
 
 function formatBinding(binding) {
+  const label = binding.label || binding.name || '?';
   const name = binding.name || '?';
   const tag = binding.component_tag || binding.componentTag || 'intermediate';
   const expr = binding.expr
     ? JSON.stringify(binding.expr, null, 2)
     : '…';
-  return { name, tag, expr };
+  return { label, name, tag, expr };
 }
 
 export function VersionViewer({ version }) {
@@ -50,10 +51,11 @@ export function VersionViewer({ version }) {
         <div className="overflow-x-auto rounded-lg bg-[#1e1e2e] p-4">
           <pre className="text-sm leading-6">
             {bindings.map((b, i) => {
-              const { name, tag, expr } = formatBinding(b);
+              const { label, name, tag, expr } = formatBinding(b);
               return (
                 <div key={i}>
-                  <span className="text-emerald-400">{name}</span>
+                  <span className="text-emerald-400">{label}</span>
+                  {label !== name && <span className="text-gray-600"> ({name})</span>}
                   <span className="text-gray-500"> = </span>
                   <span className="text-gray-300">{expr}</span>
                   <span className="ml-4 text-gray-600">

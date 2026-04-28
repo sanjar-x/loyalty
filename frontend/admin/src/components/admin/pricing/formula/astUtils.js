@@ -20,10 +20,14 @@ export function astToBindings(ast) {
 export function bindingsToAst(bindings) {
   return {
     version: 1,
-    bindings: bindings.map((b) => ({
-      name: b.name,
-      component_tag: b.component_tag,
-      expr: b.expr,
-    })),
+    bindings: bindings.map((b) => {
+      const entry = {
+        name: b.name,
+        component_tag: b.component_tag,
+        expr: b.expr,
+      };
+      if (b.label) entry.label = b.label;
+      return entry;
+    }),
   };
 }

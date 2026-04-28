@@ -22,7 +22,7 @@ import { LoadingSkeleton } from '../shared/LoadingSkeleton';
 import { astToBindings, bindingsToAst } from './astUtils';
 
 const DEFAULT_BINDINGS = [
-  { name: 'final_price', component_tag: 'final_price', expr: { const: '0' } },
+  { name: 'final_price', label: 'Итоговая цена', component_tag: 'final_price', expr: { const: '0' } },
 ];
 
 export function FormulaTab() {

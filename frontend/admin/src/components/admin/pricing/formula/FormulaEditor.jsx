@@ -16,6 +16,7 @@ const COMPONENT_TAGS = [
 function createEmptyBinding() {
   return {
     name: '',
+    label: '',
     component_tag: 'intermediate',
     expr: { const: '0' },
   };
