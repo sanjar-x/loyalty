@@ -8,29 +8,29 @@ Production-grade e-commerce marketplace built as a **modular monolith** with Cle
 
 ## Codebase at a Glance
 
-| Metric | Value |
-|--------|-------|
-| Commits | 750+ |
-| Backend source files | 442 |
-| Lines of code (backend modules) | 82,600+ |
-| Bounded contexts | 9 |
-| Domain entities (`attrs.define`) | 49 |
-| Value objects | 84 |
-| Domain events | 111 |
-| CQRS command handlers | 121 |
-| CQRS query handlers | 90 |
-| Protocol interfaces (domain + shared) | 35 |
-| ORM models (Data Mapper) | 64 |
-| Repository implementations | 84 |
-| Pydantic schemas | 264 |
-| API endpoints | 74 |
-| Alembic migrations | 25 |
-| Test files | 151 |
-| Test functions | 1,731 |
-| Enum types | 25 |
-| DI provider classes (Dishka) | 19 |
-| Deployable services | 3 |
-| Frontend apps | 2 |
+| Metric                                | Value   |
+| ------------------------------------- | ------- |
+| Commits                               | 750+    |
+| Backend source files                  | 442     |
+| Lines of code (backend modules)       | 82,600+ |
+| Bounded contexts                      | 9       |
+| Domain entities (`attrs.define`)      | 49      |
+| Value objects                         | 84      |
+| Domain events                         | 111     |
+| CQRS command handlers                 | 121     |
+| CQRS query handlers                   | 90      |
+| Protocol interfaces (domain + shared) | 35      |
+| ORM models (Data Mapper)              | 64      |
+| Repository implementations            | 84      |
+| Pydantic schemas                      | 264     |
+| API endpoints                         | 74      |
+| Alembic migrations                    | 25      |
+| Test files                            | 151     |
+| Test functions                        | 1,731   |
+| Enum types                            | 25      |
+| DI provider classes (Dishka)          | 19      |
+| Deployable services                   | 3       |
+| Frontend apps                         | 2       |
 
 ---
 
@@ -39,24 +39,24 @@ Production-grade e-commerce marketplace built as a **modular monolith** with Cle
 ```
                           ┌────────────────────────────────────────────────────────────────────────────┐
                           │                                                                            │
-    ┌──────────────┐      │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────┐ ┌─────┐ ┌─────────┐        │
-    │  Frontend    │──────│─▶│ Catalog │ │Identity │ │Pricing  │ │ Cart │ │ Geo │ │Supplier │        │
-    │  Next.js 16  │      │  └─────────┘ └─────────┘ └─────────┘ └──────┘ └─────┘ └─────────┘        │
-    │  (Main)      │      │  ┌──────────┐ ┌─────────┐ ┌──────────┐                                    │
+    ┌──────────────┐      │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────┐ ┌─────┐ ┌─────────┐          │
+    │  Frontend    │──────│─▶│ Catalog │ │Identity │ │Pricing  │ │ Cart │ │ Geo │ │Supplier │          │
+    │  Next.js 16  │      │  └─────────┘ └─────────┘ └─────────┘ └──────┘ └─────┘ └─────────┘          │
+    │  (Main)      │      │  ┌──────────┐ ┌─────────┐ ┌──────────┐                                     │
     └──────────────┘      │  │Logistics │ │  User   │ │ Activity │    Backend (FastAPI, Python 3.14)   │
-                          │  └──────────┘ └─────────┘ └──────────┘                                    │
+                          │  └──────────┘ └─────────┘ └──────────┘                                     │
     ┌──────────────┐      │       │              │            │                                        │
     │  Frontend    │──────│─▶     └──────────────┴────────────┘                                        │
     │  Next.js 16  │      │       │                                                                    │
-    │  (Admin)     │      │  ┌────┴──────────────────────────────────────────────────────────────────┐  │
-    └──────────────┘      │  │  Shared: PostgreSQL 18 · Redis 8 · RabbitMQ 4 · S3/MinIO            │  │
-                          │  └──────────────────────────────────────────────────────────────────────┘  │
+    │  (Admin)     │      │  ┌────┴──────────────────────────────────────────────────────────────────┐ │
+    └──────────────┘      │  │  Shared: PostgreSQL 18 · Redis 8 · RabbitMQ 4 · S3/MinIO              │ │
+                          │  └───────────────────────────────────────────────────────────────────────┘ │
     ┌──────────────┐      │       │                                                                    │
-    │ Telegram Bot │──────│─▶     │  X-API-Key                                                        │
+    │ Telegram Bot │──────│─▶     │  X-API-Key                                                         │
     │  Aiogram 3   │      │       ▼                                                                    │
-    └──────────────┘      │  ┌───────────────────────────────────┐                                    │
-                          │  │  Image Backend (FastAPI + Pillow)  │                                    │
-                          │  └───────────────────────────────────┘                                    │
+    └──────────────┘      │  ┌───────────────────────────────────┐                                     │
+                          │  │  Image Backend (FastAPI + Pillow) │                                     │
+                          │  └───────────────────────────────────┘                                     │
                           └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -66,16 +66,16 @@ Three deployable services, two frontends, one Telegram bot — deployed on Railw
 
 ## Tech Stack
 
-| Layer | Technologies |
-|-------|-------------|
-| **Backend** | Python 3.14, FastAPI, async SQLAlchemy 2.1, Alembic, Dishka DI, TaskIQ + RabbitMQ |
-| **Image Service** | FastAPI, Pillow, aiobotocore, presigned upload pipeline |
-| **Frontend (Customer)** | Next.js 16, TypeScript, React 19, Redux Toolkit, RTK Query |
-| **Frontend (Admin)** | Next.js 16, JSX, Tailwind CSS 4 |
-| **Telegram Bot** | Aiogram 3, FSM states, inline keyboards |
-| **Infrastructure** | PostgreSQL 18, Redis 8.4, RabbitMQ 4.2, MinIO (S3), Docker Compose |
-| **Quality** | Ruff, mypy, pytest (unit / integration / e2e / architecture fitness tests) |
-| **Deploy** | Railway (backends), Netlify (frontends) |
+| Layer                   | Technologies                                                                      |
+| ----------------------- | --------------------------------------------------------------------------------- |
+| **Backend**             | Python 3.14, FastAPI, async SQLAlchemy 2.1, Alembic, Dishka DI, TaskIQ + RabbitMQ |
+| **Image Service**       | FastAPI, Pillow, aiobotocore, presigned upload pipeline                           |
+| **Frontend (Customer)** | Next.js 16, TypeScript, React 19, Redux Toolkit, RTK Query                        |
+| **Frontend (Admin)**    | Next.js 16, JSX, Tailwind CSS 4                                                   |
+| **Telegram Bot**        | Aiogram 3, FSM states, inline keyboards                                           |
+| **Infrastructure**      | PostgreSQL 18, Redis 8.4, RabbitMQ 4.2, MinIO (S3), Docker Compose                |
+| **Quality**             | Ruff, mypy, pytest (unit / integration / e2e / architecture fitness tests)        |
+| **Deploy**              | Railway (backends), Netlify (frontends)                                           |
 
 ---
 
@@ -126,17 +126,17 @@ Parametrized across all 9 modules, these tests enforce:
 
 Each module is a self-contained vertical slice with 4 layers (`domain → application → infrastructure → presentation`), its own DI provider, its own ORM models, its own router files.
 
-| Module | What makes it non-trivial |
-|--------|--------------------------|
-| **catalog** | Multi-variant products with EAV attributes, attribute templates with per-category bindings, full-text search vector (tsvector), storefront with keyset pagination, trending/for-you feed |
-| **identity** | 3 auth providers (email/Argon2id, OIDC, Telegram HMAC-SHA256), JWT access+refresh with rotation, max 5 concurrent sessions, hierarchical RBAC resolved via recursive CTE, Redis-cached permissions (300s TTL) |
-| **pricing** | Versioned formula AST (draft → published → archived), pure-domain Decimal evaluator (no floating-point), 5-level variable scoping (global → supplier-type → category → range → product), pricing contexts with rounding modes |
-| **logistics** | Shipment aggregate with FSM (6 states, cancel/return branches), append-only tracking events, multi-carrier abstraction (CDEK + Yandex Delivery), OAuth2 token management with force-refresh, webhook ingestion |
-| **cart** | Cart aggregate with FSM (ACTIVE → FROZEN → MERGED → ORDERED), anonymous guest tokens, cart merge on login, checkout snapshots |
-| **supplier** | Supplier types (local/cross-border), onboarding workflow, type-based pricing context mapping |
-| **user** | PII-isolated storage, GDPR account deletion cascading via domain events |
-| **geo** | ISO 3166-1/2, OKTMO/FIAS districts, ISO 4217 currencies, BCP 47 languages with multi-language translations |
-| **activity** | Fire-and-forget Redis hot path (LPUSH + ZINCRBY pipeline), flush to partitioned PostgreSQL, co-view matrix for recommendations |
+| Module        | What makes it non-trivial                                                                                                                                                                                                     |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **catalog**   | Multi-variant products with EAV attributes, attribute templates with per-category bindings, full-text search vector (tsvector), storefront with keyset pagination, trending/for-you feed                                      |
+| **identity**  | 3 auth providers (email/Argon2id, OIDC, Telegram HMAC-SHA256), JWT access+refresh with rotation, max 5 concurrent sessions, hierarchical RBAC resolved via recursive CTE, Redis-cached permissions (300s TTL)                 |
+| **pricing**   | Versioned formula AST (draft → published → archived), pure-domain Decimal evaluator (no floating-point), 5-level variable scoping (global → supplier-type → category → range → product), pricing contexts with rounding modes |
+| **logistics** | Shipment aggregate with FSM (6 states, cancel/return branches), append-only tracking events, multi-carrier abstraction (CDEK + Yandex Delivery), OAuth2 token management with force-refresh, webhook ingestion                |
+| **cart**      | Cart aggregate with FSM (ACTIVE → FROZEN → MERGED → ORDERED), anonymous guest tokens, cart merge on login, checkout snapshots                                                                                                 |
+| **supplier**  | Supplier types (local/cross-border), onboarding workflow, type-based pricing context mapping                                                                                                                                  |
+| **user**      | PII-isolated storage, GDPR account deletion cascading via domain events                                                                                                                                                       |
+| **geo**       | ISO 3166-1/2, OKTMO/FIAS districts, ISO 4217 currencies, BCP 47 languages with multi-language translations                                                                                                                    |
+| **activity**  | Fire-and-forget Redis hot path (LPUSH + ZINCRBY pipeline), flush to partitioned PostgreSQL, co-view matrix for recommendations                                                                                                |
 
 ### 6. Real Third-Party Integrations — Not Mocked APIs
 
@@ -159,12 +159,12 @@ The pricing module is a domain-level formula evaluation engine:
 
 ### 8. Testing Maturity — 1,731 Tests Across 4 Levels
 
-| Level | Files | Tests | What it proves |
-|-------|-------|-------|---------------|
-| **Unit** | 92 | ~1,400 | Domain entities, value objects, command/query handlers, mappers, validators |
-| **Integration** | 35 | ~200 | Repositories against real PostgreSQL, Redis operations, outbox relay |
-| **E2E** | 23 | ~100 | Full HTTP request → response cycles through FastAPI |
-| **Architecture** | 1 | 30+ | Parametrized boundary checks across all 9 modules |
+| Level            | Files | Tests  | What it proves                                                              |
+| ---------------- | ----- | ------ | --------------------------------------------------------------------------- |
+| **Unit**         | 92    | ~1,400 | Domain entities, value objects, command/query handlers, mappers, validators |
+| **Integration**  | 35    | ~200   | Repositories against real PostgreSQL, Redis operations, outbox relay        |
+| **E2E**          | 23    | ~100   | Full HTTP request → response cycles through FastAPI                         |
+| **Architecture** | 1     | 30+    | Parametrized boundary checks across all 9 modules                           |
 
 Test infrastructure:
 - **Builder pattern factories** in `tests/factories/` — 11 factory/builder files for domain entities and ORM models
