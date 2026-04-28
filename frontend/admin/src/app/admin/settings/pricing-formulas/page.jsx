@@ -1,5 +1,5 @@
-import { PageStub } from '@/components/admin/PageStub';
+import { redirect } from 'next/navigation';
 
 export default function PricingFormulasPage() {
-  return <PageStub title="Формулы цен" />;
+  redirect('/admin/pricing');
 }

@@ -13,12 +13,21 @@ import UsersIcon from '@/assets/icons/users.svg';
 import SettingsIcon from '@/assets/icons/settings.svg';
 import LogoutIcon from '@/assets/icons/logout.svg';
 
+function PricingIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+    </svg>
+  );
+}
+
 const navItems = [
   { href: '/admin/orders', label: 'Заказы', Icon: OrdersIcon },
   { href: '/admin/products', label: 'Товары', Icon: ProductsIcon },
   { href: '/admin/returns', label: 'Возвраты', Icon: ReturnsIcon },
   { href: '/admin/reviews', label: 'Отзывы', Icon: ReviewsIcon },
   { href: '/admin/users', label: 'Пользователи', Icon: UsersIcon },
+  { href: '/admin/pricing', label: 'Цены', Icon: PricingIcon },
   { href: '/admin/settings', label: 'Настройки', Icon: SettingsIcon },
 ];
 

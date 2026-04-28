@@ -14,9 +14,10 @@ from src.modules.pricing.domain.value_objects import (
     VariableDataType,
     VariableScope,
 )
+from src.shared.schemas import CamelModel
 
 
-class UpsertProductPricingProfileRequest(BaseModel):
+class UpsertProductPricingProfileRequest(CamelModel):
     """Body of ``PUT /pricing/products/{product_id}/profile``."""
 
     model_config = ConfigDict(extra="forbid")
@@ -50,7 +51,7 @@ class UpsertProductPricingProfileRequest(BaseModel):
     )
 
 
-class UpsertProductPricingProfileResponse(BaseModel):
+class UpsertProductPricingProfileResponse(CamelModel):
     """Response body for upsert."""
 
     model_config = ConfigDict(extra="forbid")
@@ -62,7 +63,7 @@ class UpsertProductPricingProfileResponse(BaseModel):
     created: bool
 
 
-class ProductPricingProfileResponse(BaseModel):
+class ProductPricingProfileResponse(CamelModel):
     """Response body for GET."""
 
     model_config = ConfigDict(extra="forbid")
@@ -96,7 +97,7 @@ class I18nText(BaseModel):
     en: str
 
 
-class CreateVariableRequest(BaseModel):
+class CreateVariableRequest(CamelModel):
     """Body of ``POST /pricing/variables``."""
 
     model_config = ConfigDict(extra="forbid")
@@ -125,7 +126,7 @@ class CreateVariableRequest(BaseModel):
     max_age_days: int | None = Field(default=None, ge=1, le=365)
 
 
-class UpdateVariableRequest(BaseModel):
+class UpdateVariableRequest(CamelModel):
     """Body of ``PATCH /pricing/variables/{id}``.
 
     Only ``name``, ``description``, ``is_required``, ``default_value``, and
@@ -152,7 +153,7 @@ class UpdateVariableRequest(BaseModel):
     is_fx_rate: bool | None = None
 
 
-class VariableResponse(BaseModel):
+class VariableResponse(CamelModel):
     """Response body for variable reads and writes."""
 
     model_config = ConfigDict(extra="forbid")
@@ -176,14 +177,14 @@ class VariableResponse(BaseModel):
     updated_by: uuid.UUID | None
 
 
-class VariableListResponse(BaseModel):
+class VariableListResponse(CamelModel):
     model_config = ConfigDict(extra="forbid")
 
     items: list[VariableResponse]
     total: int
 
 
-class CreateVariableResponse(BaseModel):
+class CreateVariableResponse(CamelModel):
     model_config = ConfigDict(extra="forbid")
 
     variable_id: uuid.UUID
@@ -196,7 +197,7 @@ class CreateVariableResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class CreateContextRequest(BaseModel):
+class CreateContextRequest(CamelModel):
     model_config = ConfigDict(extra="forbid")
 
     code: str = Field(..., min_length=2, max_length=64)
@@ -214,7 +215,7 @@ class CreateContextRequest(BaseModel):
     )
 
 
-class UpdateContextRequest(BaseModel):
+class UpdateContextRequest(CamelModel):
     """PATCH body for a pricing context. All fields optional.
 
     ``code`` is rejected at the handler level (immutable); the schema still
@@ -240,13 +241,13 @@ class UpdateContextRequest(BaseModel):
     range_base_variable_code_provided: bool = False
 
 
-class FreezeContextRequest(BaseModel):
+class FreezeContextRequest(CamelModel):
     model_config = ConfigDict(extra="forbid")
 
     reason: str = Field(..., min_length=1, max_length=1024)
 
 
-class PricingContextResponse(BaseModel):
+class PricingContextResponse(CamelModel):
     context_id: uuid.UUID
     code: str
     name: dict[str, str]
@@ -267,18 +268,18 @@ class PricingContextResponse(BaseModel):
     updated_by: uuid.UUID | None
 
 
-class ContextListResponse(BaseModel):
+class ContextListResponse(CamelModel):
     items: list[PricingContextResponse]
     total: int
 
 
-class CreateContextResponse(BaseModel):
+class CreateContextResponse(CamelModel):
     context_id: uuid.UUID
     code: str
     version_lock: int
 
 
-class MutateContextResponse(BaseModel):
+class MutateContextResponse(CamelModel):
     context_id: uuid.UUID
     version_lock: int
 
@@ -288,7 +289,7 @@ class MutateContextResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class UpsertFormulaDraftRequest(BaseModel):
+class UpsertFormulaDraftRequest(CamelModel):
     """Body of ``PUT /pricing/contexts/{context_id}/formula/draft``."""
 
     model_config = ConfigDict(extra="forbid")
@@ -305,14 +306,14 @@ class UpsertFormulaDraftRequest(BaseModel):
     )
 
 
-class UpsertFormulaDraftResponse(BaseModel):
+class UpsertFormulaDraftResponse(CamelModel):
     version_id: uuid.UUID
     version_number: int
     version_lock: int
     created: bool
 
 
-class FormulaVersionResponse(BaseModel):
+class FormulaVersionResponse(CamelModel):
     version_id: uuid.UUID
     context_id: uuid.UUID
     version_number: int
@@ -326,23 +327,23 @@ class FormulaVersionResponse(BaseModel):
     updated_by: uuid.UUID | None
 
 
-class FormulaVersionListResponse(BaseModel):
+class FormulaVersionListResponse(CamelModel):
     items: list[FormulaVersionResponse]
     total: int
 
 
-class PublishFormulaResponse(BaseModel):
+class PublishFormulaResponse(CamelModel):
     version_id: uuid.UUID
     version_number: int
     previous_version_id: uuid.UUID | None
 
 
-class RollbackFormulaResponse(BaseModel):
+class RollbackFormulaResponse(CamelModel):
     version_id: uuid.UUID
     rolled_back_from_version_id: uuid.UUID | None
 
 
-class DiscardFormulaDraftResponse(BaseModel):
+class DiscardFormulaDraftResponse(CamelModel):
     version_id: uuid.UUID
 
 
@@ -351,7 +352,7 @@ class DiscardFormulaDraftResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class RangeBucketSchema(BaseModel):
+class RangeBucketSchema(CamelModel):
     """Single range bucket ``[min, max)`` with per-range variable overrides."""
 
     model_config = ConfigDict(extra="forbid")
@@ -371,7 +372,7 @@ class RangeBucketSchema(BaseModel):
     )
 
 
-class UpsertCategoryPricingSettingsRequest(BaseModel):
+class UpsertCategoryPricingSettingsRequest(CamelModel):
     """Body of ``PUT /pricing/categories/{category_id}/pricing/{context_id}``."""
 
     model_config = ConfigDict(extra="forbid")
@@ -401,7 +402,7 @@ class UpsertCategoryPricingSettingsRequest(BaseModel):
     )
 
 
-class CategoryPricingSettingsResponse(BaseModel):
+class CategoryPricingSettingsResponse(CamelModel):
     """Response body for category pricing settings."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -418,7 +419,7 @@ class CategoryPricingSettingsResponse(BaseModel):
     updated_by: uuid.UUID | None
 
 
-class UpsertCategoryPricingSettingsResponse(BaseModel):
+class UpsertCategoryPricingSettingsResponse(CamelModel):
     settings_id: uuid.UUID
     category_id: uuid.UUID
     context_id: uuid.UUID
@@ -431,13 +432,13 @@ class UpsertCategoryPricingSettingsResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class UpsertSupplierTypeContextMappingRequest(BaseModel):
+class UpsertSupplierTypeContextMappingRequest(CamelModel):
     """PUT body for ``/pricing/supplier-type-mapping/{supplier_type}``."""
 
     context_id: uuid.UUID = Field(..., description="Target pricing context id.")
 
 
-class SupplierTypeContextMappingResponse(BaseModel):
+class SupplierTypeContextMappingResponse(CamelModel):
     """Response body for a single supplier-type → context mapping."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -451,11 +452,11 @@ class SupplierTypeContextMappingResponse(BaseModel):
     updated_by: uuid.UUID | None
 
 
-class SupplierTypeContextMappingListResponse(BaseModel):
+class SupplierTypeContextMappingListResponse(CamelModel):
     items: list[SupplierTypeContextMappingResponse]
 
 
-class UpsertSupplierTypeContextMappingResponse(BaseModel):
+class UpsertSupplierTypeContextMappingResponse(CamelModel):
     mapping_id: uuid.UUID
     supplier_type: str
     context_id: uuid.UUID
@@ -468,7 +469,7 @@ class UpsertSupplierTypeContextMappingResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class PreviewPriceRequest(BaseModel):
+class PreviewPriceRequest(CamelModel):
     """Request body for ``POST /pricing/preview``."""
 
     product_id: uuid.UUID = Field(
@@ -495,7 +496,7 @@ class PreviewPriceRequest(BaseModel):
     )
 
 
-class PreviewPriceResponse(BaseModel):
+class PreviewPriceResponse(CamelModel):
     """Response body for ``POST /pricing/preview``."""
 
     final_price: Decimal = Field(..., description="Computed final price (Decimal).")
@@ -516,7 +517,7 @@ class PreviewPriceResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class UpsertSupplierPricingSettingsRequest(BaseModel):
+class UpsertSupplierPricingSettingsRequest(CamelModel):
     """Body of ``PUT /pricing/suppliers/{supplier_id}/pricing``."""
 
     model_config = ConfigDict(extra="forbid")
@@ -531,7 +532,7 @@ class UpsertSupplierPricingSettingsRequest(BaseModel):
     )
 
 
-class SupplierPricingSettingsResponse(BaseModel):
+class SupplierPricingSettingsResponse(CamelModel):
     """Response body for supplier pricing settings."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -545,7 +546,7 @@ class SupplierPricingSettingsResponse(BaseModel):
     updated_by: uuid.UUID | None
 
 
-class UpsertSupplierPricingSettingsResponse(BaseModel):
+class UpsertSupplierPricingSettingsResponse(CamelModel):
     settings_id: uuid.UUID
     supplier_id: uuid.UUID
     version_lock: int
@@ -557,7 +558,7 @@ class UpsertSupplierPricingSettingsResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class ContextGlobalValueItemResponse(BaseModel):
+class ContextGlobalValueItemResponse(CamelModel):
     """Single entry in the context global-values list."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -568,7 +569,7 @@ class ContextGlobalValueItemResponse(BaseModel):
     is_required: bool = False
 
 
-class ContextGlobalValuesResponse(BaseModel):
+class ContextGlobalValuesResponse(CamelModel):
     """Response body for ``GET /pricing/contexts/{id}/variables/values``."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -578,7 +579,7 @@ class ContextGlobalValuesResponse(BaseModel):
     version_lock: int
 
 
-class SetContextGlobalValueRequest(BaseModel):
+class SetContextGlobalValueRequest(CamelModel):
     """Body of ``PUT /pricing/contexts/{id}/variables/values/{code}``."""
 
     model_config = ConfigDict(extra="forbid")
@@ -592,7 +593,7 @@ class SetContextGlobalValueRequest(BaseModel):
     )
 
 
-class SetContextGlobalValueResponse(BaseModel):
+class SetContextGlobalValueResponse(CamelModel):
     """Response body after setting a global variable value."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -608,7 +609,7 @@ class SetContextGlobalValueResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class RequiredVariableItem(BaseModel):
+class RequiredVariableItem(CamelModel):
     """A single product_input variable that needs to be filled."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -623,7 +624,7 @@ class RequiredVariableItem(BaseModel):
     is_system: bool = False
 
 
-class RequiredVariablesResponse(BaseModel):
+class RequiredVariablesResponse(CamelModel):
     """Response body for ``GET /pricing/products/{id}/profile/required-variables``."""
 
     model_config = ConfigDict(from_attributes=True)
