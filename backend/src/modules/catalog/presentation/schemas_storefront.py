@@ -95,7 +95,12 @@ class BreadcrumbResponse(CamelModel):
 
 
 class StorefrontProductCardResponse(CamelModel):
-    """Lightweight product card for PLP grids."""
+    """Lightweight product card for PLP grids.
+
+    ``variant_options`` mirrors the PDP shape — distinct dimensional
+    attributes (size, colour, …) aggregated across active priceable
+    SKUs. Empty when the issuing handler does not populate it.
+    """
 
     id: uuid.UUID
     slug: str
@@ -110,6 +115,7 @@ class StorefrontProductCardResponse(CamelModel):
     published_at: datetime | None = None
     variant_count: int = 0
     in_stock: bool = False
+    variant_options: list[StorefrontVariantOptionResponse] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------

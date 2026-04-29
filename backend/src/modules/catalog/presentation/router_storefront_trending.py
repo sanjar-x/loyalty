@@ -101,6 +101,10 @@ async def list_trending_products(
         item = StorefrontProductCardResponse.model_validate(card, from_attributes=True)
         if lang:
             item.title = _project_i18n(item.title_i18n, lang)
+            for opt in item.variant_options:
+                opt.attribute_name = _project_i18n(opt.attribute_name_i18n, lang)
+                for ov in opt.values:
+                    ov.value = _project_i18n(ov.value_i18n, lang)
         items.append(item)
 
     return StorefrontPLPResponse(

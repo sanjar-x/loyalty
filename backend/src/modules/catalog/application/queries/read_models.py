@@ -569,6 +569,11 @@ class StorefrontProductCardReadModel(BaseModel):
 
     Contains only the fields needed to render a product card in the
     storefront grid — optimised for minimal payload and fast rendering.
+
+    ``variant_options`` carries dimensional/size attributes (size, colour,
+    etc.) aggregated across the product's active priceable SKUs so the
+    grid can render size pickers/swatches inline. Empty list when the
+    handler does not populate them (default for backward compatibility).
     """
 
     id: uuid.UUID
@@ -583,6 +588,9 @@ class StorefrontProductCardReadModel(BaseModel):
     published_at: datetime | None = None
     variant_count: int = 0
     in_stock: bool = False
+    variant_options: list[StorefrontVariantOptionReadModel] = Field(
+        default_factory=list
+    )
 
 
 class StorefrontVariantReadModel(BaseModel):

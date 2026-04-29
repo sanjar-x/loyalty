@@ -21,13 +21,22 @@ from src.modules.catalog.application.queries.list_storefront_products import (
 from src.modules.catalog.application.queries.read_models import (
     StorefrontImageReadModel,
     StorefrontProductCardReadModel,
+    StorefrontVariantOptionReadModel,
+    StorefrontVariantOptionValueReadModel,
 )
 from src.modules.catalog.domain.value_objects import MediaRole, ProductStatus
 from src.modules.catalog.infrastructure.models import SKU as OrmSKU
+from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute
+from src.modules.catalog.infrastructure.models import (
+    AttributeValue as OrmAttributeValue,
+)
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 from src.modules.catalog.infrastructure.models import MediaAsset as OrmMediaAsset
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
 from src.modules.catalog.infrastructure.models import ProductVariant as OrmVariant
+from src.modules.catalog.infrastructure.models import (
+    SKUAttributeValueLink as OrmSKUAttrLink,
+)
 from src.modules.supplier.infrastructure.models import Supplier as OrmSupplier
 from src.shared.interfaces.logger import ILogger
 
@@ -229,6 +238,8 @@ class GetStorefrontProductCardsByIdsHandler:
                     StorefrontImageReadModel(url=url, image_variants=image_variants)
                 )
 
+        variant_options_by_product = await self._load_variant_options(matched_ids)
+
         cards: list[StorefrontProductCardReadModel] = []
         for pid in ordered:
             row = by_id.get(pid)
@@ -236,8 +247,101 @@ class GetStorefrontProductCardsByIdsHandler:
                 continue
             card = _row_to_card(row)
             card.images = images_by_product.get(pid, [])
+            card.variant_options = variant_options_by_product.get(pid, [])
             cards.append(card)
         return cards
+
+    async def _load_variant_options(
+        self, product_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, list[StorefrontVariantOptionReadModel]]:
+        """Aggregate distinct variant attribute options across active priceable SKUs.
+
+        Mirrors the PDP ``variant_options`` aggregation but in a single
+        batched SQL pass for many products at once. Drives the size /
+        colour pickers on storefront listing cards (trending, for-you,
+        similar, also-viewed).
+        """
+        if not product_ids:
+            return {}
+
+        priceable_status_clause = OrmSKU.pricing_status.in_(
+            ("legacy", "priced", "pending")
+        )
+        stmt = (
+            select(
+                OrmSKU.product_id.label("product_id"),
+                OrmAttribute.id.label("attribute_id"),
+                OrmAttribute.code.label("attribute_code"),
+                OrmAttribute.name_i18n.label("attribute_name_i18n"),
+                OrmAttributeValue.id.label("value_id"),
+                OrmAttributeValue.code.label("value_code"),
+                OrmAttributeValue.value_i18n.label("value_i18n"),
+                OrmAttributeValue.meta_data.label("meta_data"),
+                OrmAttributeValue.sort_order.label("value_sort_order"),
+            )
+            .select_from(OrmSKUAttrLink)
+            .join(OrmSKU, OrmSKU.id == OrmSKUAttrLink.sku_id)
+            .join(OrmVariant, OrmVariant.id == OrmSKU.variant_id)
+            .join(OrmAttribute, OrmAttribute.id == OrmSKUAttrLink.attribute_id)
+            .join(
+                OrmAttributeValue,
+                OrmAttributeValue.id == OrmSKUAttrLink.attribute_value_id,
+            )
+            .where(
+                OrmSKU.product_id.in_(product_ids),
+                OrmSKU.is_active.is_(True),
+                OrmSKU.deleted_at.is_(None),
+                OrmVariant.deleted_at.is_(None),
+                priceable_status_clause,
+                OrmAttributeValue.is_active.is_(True),
+            )
+            .distinct()
+        )
+
+        result = await self._session.execute(stmt)
+
+        # product_id -> attribute_id -> bucket
+        index: dict[uuid.UUID, dict[uuid.UUID, dict]] = {}
+        for row in result.all():
+            per_product = index.setdefault(row.product_id, {})
+            bucket = per_product.setdefault(
+                row.attribute_id,
+                {
+                    "attribute_id": row.attribute_id,
+                    "attribute_code": row.attribute_code,
+                    "attribute_name_i18n": row.attribute_name_i18n or {},
+                    "values": {},
+                },
+            )
+            if row.value_id not in bucket["values"]:
+                bucket["values"][row.value_id] = StorefrontVariantOptionValueReadModel(
+                    value_id=row.value_id,
+                    value_code=row.value_code,
+                    value_i18n=row.value_i18n or {},
+                    meta_data=row.meta_data or {},
+                    sort_order=row.value_sort_order or 0,
+                )
+
+        out: dict[uuid.UUID, list[StorefrontVariantOptionReadModel]] = {}
+        for pid, attr_buckets in index.items():
+            options = [
+                StorefrontVariantOptionReadModel(
+                    attribute_id=bucket["attribute_id"],
+                    attribute_code=bucket["attribute_code"],
+                    attribute_name_i18n=bucket["attribute_name_i18n"],
+                    sort_order=0,
+                    values=sorted(
+                        bucket["values"].values(),
+                        key=lambda v: (v.sort_order, v.value_code),
+                    ),
+                )
+                for bucket in sorted(
+                    attr_buckets.values(),
+                    key=lambda b: b["attribute_code"],
+                )
+            ]
+            out[pid] = options
+        return out
 
 
 def _row_to_card(row) -> StorefrontProductCardReadModel:

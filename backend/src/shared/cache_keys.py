@@ -35,7 +35,7 @@ async def read_storefront_product_generation(cache: ICacheService) -> int:
         return 0
     try:
         return int(raw)
-    except TypeError, ValueError:
+    except ValueError:
         return 0
 
 
