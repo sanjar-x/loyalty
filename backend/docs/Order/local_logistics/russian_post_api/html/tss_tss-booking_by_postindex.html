@@ -1,0 +1,414 @@
+<article class="article">
+  <h3>Оформление бронирования</h3>
+  Бронирует отправление на таймслот по id. В качестве ШПИ может использоваться
+  как ШПИ так и UUID.
+  <br />
+  Выполняется проверка наличия указанного в запросе таймслота путем вызова
+  метода: timeslotsByAddress/external-timeslots-by-postindex. В случае
+  несовпадения id таймслота в запросе id таймслота из ответа то метод
+  timeslotsByAddress/external-timeslots-by-postindex возвращается ошибка
+  "TIMESLOT_NOT_FOUND".
+  <br />
+  <br />
+  Введите
+  <a href="#/authorization-token" target="_blank"
+    >токен авторизации приложения</a
+  >
+  и
+  <a href="#/authorization-key" target="_blank">ключ авторизации пользователя</a
+  >, тогда значения заголовков будут сгенерированы автоматически.<br />
+  <br />
+  <table>
+    <tbody>
+      <tr>
+        <td width="25%">Токен авторизации</td>
+        <td>
+          <div class="input input__field-wrap">
+            <input
+              id="token"
+              type="text"
+              name="token"
+              ng-model="token"
+              value=""
+              class="input__field"
+              size="51"
+            />
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td width="25%">Ключ авторизации</td>
+        <td>
+          <div class="input input__field-wrap">
+            <input
+              id="key"
+              type="text"
+              name="key"
+              ng-model="key"
+              value=""
+              class="input__field"
+              size="51"
+            />
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <b>Параметры запроса</b><br />
+  <table>
+    <tbody>
+      <tr>
+        <td width="25%">Локальный URL</td>
+        <td><b>/external/v1/booking-by-postindex</b></td>
+      </tr>
+      <tr>
+        <td width="25%">Тип</td>
+        <td><b>POST</b></td>
+      </tr>
+    </tbody>
+  </table>
+  <b>Заголовки запроса</b><br />
+  <table>
+    <tbody>
+      <tr>
+        <td width="30%"><b>Authorization</b></td>
+        <td>
+          <span ng-show="token"><b>AccessToken {{ token }}</b></span>
+        </td>
+      </tr>
+      <tr>
+        <td width="30%"><b>X-User-Authorization</b></td>
+        <td>
+          <span ng-show="key"><b>Basic {{ key }}</b></span>
+        </td>
+      </tr>
+      <tr>
+        <td><b>Content-Type</b></td>
+        <td><b>application/json;charset=UTF-8</b></td>
+      </tr>
+    </tbody>
+  </table>
+  <b class="code-header">Тело запроса</b>
+  <span class="code-desc"
+    >Нажмите на элемент структуры, чтобы увидеть описание<a
+      href=""
+      class="code-desc__copy"
+      ng-click="copySchema('body')"
+      >скопировать схему</a
+    ></span
+  ><br />
+  <table>
+    <tbody>
+      <tr>
+        <td width="15%">Структура</td>
+        <td>
+          <div class="code">
+            <div class="code-body">
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description">{</span>
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>{</b> - Символ</span
+                  ><span class="api-struct__tooltip-body"
+                    >Начало структуры</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>uuid</b> - Строка</span
+                  ><span class="api-struct__tooltip-body">UUID</span>
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"timeslotId": 0</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>timeslotId</b> - Целое число</span
+                  ><span class="api-struct__tooltip-body"
+                    >Идентификатор временного интервала</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"contactName": "string"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>contactName</b> - Строка (Опционально)</span
+                  ><span class="api-struct__tooltip-body"
+                    >Имя получателя (максимальная длина 200 символов)</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"phone": "string"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>phone</b> - Строка</span
+                  ><span class="api-struct__tooltip-body"
+                    >Телефон получателя (максимальная длина 50 символов)</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"postIndexFrom": "string"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>postIndexFrom</b> - Строка</span
+                  ><span class="api-struct__tooltip-body"
+                    >Почтовый индекс отправителя (6 цифр)</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"postIndexTo": "string"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>postIndexTo</b> - Строка</span
+                  ><span class="api-struct__tooltip-body"
+                    >Почтовый индекс получателя (6 цифр)</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"contractNumber": "string"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>contractNumber</b> - Строка</span
+                  ><span class="api-struct__tooltip-body"
+                    >Номер договора (максимальная длина 50 символов)</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"plannedShippingDate": "2023-02-03"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>plannedShippingDate</b> - Строка</span
+                  ><span class="api-struct__tooltip-body"
+                    >Плановая дата в формате: yyyy-MM-dd</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"address": "string"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>address</b> - Строка</span
+                  ><span class="api-struct__tooltip-body"
+                    >Адрес получателя (максимальная длина 255 символов)</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"workTypeCode": "string"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>workTypeCode</b> - Строка</span
+                  ><span class="api-struct__tooltip-body"
+                    >Код типа работ. В текущей реализации может принимать только
+                    значение "delivery" (Доставка)</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"mailTypeCode": 0</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>mailTypeCode</b> - Целое число</span
+                  ><span class="api-struct__tooltip-body"
+                    ><a href="#/enums-mail-type-code" target="_blank"
+                      >Код типа отправления</a
+                    ></span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"mailCtgCode": 0</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>mailCtgCode</b> - Целое число</span
+                  ><span class="api-struct__tooltip-body"
+                    ><a href="#/enums-mail-category-code" target="_blank"
+                      >Код категории почтового отправления</a
+                    ></span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description">}</span>
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>}</b> - Символ</span
+                  ><span class="api-struct__tooltip-body"
+                    >Окончание структуры</span
+                  >
+                </p>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <b class="code-header">Ответ на запрос</b>
+  <span class="code-desc"
+    >Нажмите на элемент структуры, чтобы увидеть описание<a
+      href=""
+      class="code-desc__copy"
+      ng-click="copySchema('response')"
+      >скопировать схему</a
+    ></span
+  ><br />
+  <table>
+    <tbody>
+      <tr>
+        <td width="15%">Структура</td>
+        <td>
+          <div class="code">
+            <div class="code-body">
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description">{</span>
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>{</b> - Символ</span
+                  ><span class="api-struct__tooltip-body"
+                    >Начало структуры</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"code": "string"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>code</b> - Строка</span
+                  ><span class="api-struct__tooltip-body"
+                    >Текстовый идентификатор ошибки</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"message": "string"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>message</b> - Строка</span
+                  ><span class="api-struct__tooltip-body"
+                    >Подробное описание ошибки поля входных данных</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"errors": [</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>errors</b> - Массив</span
+                  ><span class="api-struct__tooltip-body"
+                    >Возвращается при наличии ошибок в полях входных
+                    данных</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-2">{</span>
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>{</b> - Символ</span
+                  ><span class="api-struct__tooltip-body"
+                    >Начало структуры</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-3"
+                  >"field": "string"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>field</b> - Строка</span
+                  ><span class="api-struct__tooltip-body"
+                    >Текстовый идентификатор поля входных данных</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-3"
+                  >"message": "string"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>message</b> - Строка</span
+                  ><span class="api-struct__tooltip-body"
+                    >Подробное описание ошибки поля входных данных</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-2">}</span>
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>}</b> - Символ</span
+                  ><span class="api-struct__tooltip-body"
+                    >Окончание структуры</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1">]</span>
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>]</b> - Символ</span
+                  ><span class="api-struct__tooltip-body"
+                    >Окончание группы</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description">}</span>
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>}</b> - Символ</span
+                  ><span class="api-struct__tooltip-body"
+                    >Окончание структуры</span
+                  >
+                </p>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</article>

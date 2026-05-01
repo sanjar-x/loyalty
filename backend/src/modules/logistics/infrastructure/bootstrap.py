@@ -15,11 +15,15 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.modules.logistics.domain.interfaces import IProviderFactory
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_CDEK,
+    PROVIDER_DOBROPOST,
     PROVIDER_YANDEX_DELIVERY,
 )
 from src.modules.logistics.infrastructure.models import ProviderAccountModel
 from src.modules.logistics.infrastructure.providers.cdek.factory import (
     CdekProviderFactory,
+)
+from src.modules.logistics.infrastructure.providers.dobropost.factory import (
+    DobroPostProviderFactory,
 )
 from src.modules.logistics.infrastructure.providers.yandex_delivery.factory import (
     YandexDeliveryProviderFactory,
@@ -33,6 +37,7 @@ logger = logging.getLogger(__name__)
 _FACTORY_MAP: dict[str, type[IProviderFactory]] = {
     PROVIDER_CDEK: CdekProviderFactory,
     PROVIDER_YANDEX_DELIVERY: YandexDeliveryProviderFactory,
+    PROVIDER_DOBROPOST: DobroPostProviderFactory,
 }
 
 

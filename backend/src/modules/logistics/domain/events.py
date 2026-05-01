@@ -374,3 +374,59 @@ class ShipmentRefusalRegisteredEvent(
     reason: str | None = None
     aggregate_type: str = "Shipment"
     event_type: str = "ShipmentRefusalRegisteredEvent"
+
+
+# ---------------------------------------------------------------------------
+# Cross-border (DobroPost) arrival — triggers last-mile shipment creation
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class CrossBorderArrivedEvent(
+    LogisticsEvent,
+    required_fields=("shipment_id",),
+    aggregate_id_field="shipment_id",
+):
+    """Emitted when a cross-border shipment lands at the RF customs / warehouse.
+
+    Triggered by DobroPost ``status_id ∈ {648, 649}`` (see
+    ``docs/dobropost_shipment_api/integration.md``). The natural
+    subscriber is the order module's last-mile creator: it reads
+    ``order_id`` from the event, looks up the customer's chosen pickup
+    point and books a Shipment #2 with CDEK / Yandex Delivery.
+
+    Idempotency lives at the consumer (UNIQUE on
+    ``order_id × kind="last_mile"``) — the Shipment aggregate also
+    guards re-emission via ``cross_border_arrived_at`` so a duplicate
+    648/649 webhook does not produce a second event.
+    """
+
+    shipment_id: uuid.UUID | None = None
+    order_id: uuid.UUID | None = None
+    provider_code: str = ""
+    provider_status_code: str = ""
+    aggregate_type: str = "Shipment"
+    event_type: str = "CrossBorderArrivedEvent"
+
+
+@dataclass
+class ShipmentPassportValidationFailedEvent(
+    LogisticsEvent,
+    required_fields=("shipment_id",),
+    aggregate_id_field="shipment_id",
+):
+    """Emitted when DobroPost reports ``passportValidationStatus=false``.
+
+    The shipment is **NOT** transitioned to FAILED — it stays BOOKED
+    in our local FSM and "hangs" before customs on DobroPost's side
+    until the customer supplies corrected passport data. CS uses this
+    event to escalate the order; if the data is corrected in time, a
+    ``PUT /api/shipment`` resolves the hold. If not, DobroPost
+    eventually reports a 544/545 (passport rejected at customs),
+    which routes through the regular terminal-failure path.
+    """
+
+    shipment_id: uuid.UUID | None = None
+    order_id: uuid.UUID | None = None
+    aggregate_type: str = "Shipment"
+    event_type: str = "ShipmentPassportValidationFailedEvent"

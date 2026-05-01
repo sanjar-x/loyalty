@@ -42,6 +42,12 @@ runtime.  This keeps the domain agnostic to the set of integrations.
 PROVIDER_CDEK: ProviderCode = "cdek"
 PROVIDER_YANDEX_DELIVERY: ProviderCode = "yandex_delivery"
 PROVIDER_RUSSIAN_POST: ProviderCode = "russian_post"
+PROVIDER_DOBROPOST: ProviderCode = "dobropost"
+
+# Provider-specific tracking-status codes that signal "cross-border segment
+# completed → trigger last-mile shipment creation". Currently DobroPost only
+# (status_id 648 / 649). See ``docs/dobropost_shipment_api/integration.md``.
+DOBROPOST_CROSS_BORDER_ARRIVED_CODES: frozenset[str] = frozenset({"648", "649"})
 
 
 # ---------------------------------------------------------------------------

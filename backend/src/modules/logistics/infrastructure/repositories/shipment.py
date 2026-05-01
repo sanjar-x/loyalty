@@ -143,6 +143,7 @@ class ShipmentRepository(IShipmentRepository):
             updated_at=entity.updated_at,
             booked_at=entity.booked_at,
             cancelled_at=entity.cancelled_at,
+            cross_border_arrived_at=entity.cross_border_arrived_at,
             version=entity.version,
         )
         for event in entity.tracking_events:
@@ -177,6 +178,7 @@ class ShipmentRepository(IShipmentRepository):
         orm.updated_at = entity.updated_at
         orm.booked_at = entity.booked_at
         orm.cancelled_at = entity.cancelled_at
+        orm.cross_border_arrived_at = entity.cross_border_arrived_at
         orm.version = entity.version
 
     async def _sync_tracking_events(self, orm: ShipmentModel, entity: Shipment) -> None:
@@ -283,6 +285,7 @@ class ShipmentRepository(IShipmentRepository):
             updated_at=orm.updated_at,
             booked_at=orm.booked_at,
             cancelled_at=orm.cancelled_at,
+            cross_border_arrived_at=orm.cross_border_arrived_at,
             version=orm.version,
         )
 

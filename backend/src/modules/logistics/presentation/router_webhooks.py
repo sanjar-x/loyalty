@@ -8,6 +8,11 @@ determines which provider adapter parses the payload.
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Request, status
 
+from src.modules.logistics.application.commands.handle_dobropost_passport_validation import (
+    HandleDobroPostPassportValidationCommand,
+    HandleDobroPostPassportValidationHandler,
+    extract_passport_failure_id,
+)
 from src.modules.logistics.application.commands.ingest_tracking import (
     IngestTrackingCommand,
     IngestTrackingHandler,
@@ -16,6 +21,7 @@ from src.modules.logistics.domain.exceptions import ShipmentNotFoundError
 from src.modules.logistics.domain.interfaces import (
     IShippingProviderRegistry,
 )
+from src.modules.logistics.domain.value_objects import PROVIDER_DOBROPOST
 from src.shared.exceptions import UnauthorizedError
 from src.shared.interfaces.logger import ILogger
 
@@ -36,6 +42,7 @@ async def receive_webhook(
     request: Request,
     registry: FromDishka[IShippingProviderRegistry],
     ingest_handler: FromDishka[IngestTrackingHandler],
+    dobropost_passport_handler: FromDishka[HandleDobroPostPassportValidationHandler],
     logger: FromDishka[ILogger],
 ) -> dict:
     """Unified webhook receiver.
@@ -43,6 +50,12 @@ async def receive_webhook(
     Dispatches to the registered IWebhookAdapter for the provider.
     The adapter validates signature, parses payload, and returns
     normalized tracking events for ingestion.
+
+    Special branch: DobroPost passport-validation **failure** payloads
+    bypass ``parse_events`` (which returns ``[]`` for them) and route
+    through ``HandleDobroPostPassportValidationHandler`` so the
+    ``Shipment`` is mutated and ``ShipmentPassportValidationFailedEvent``
+    reaches the outbox.
     """
     if not registry.has_webhook_adapter(provider_code):
         logger.warning(
@@ -66,6 +79,37 @@ async def receive_webhook(
         raise UnauthorizedError(
             message=f"Invalid webhook signature for provider '{provider_code}'",
         )
+
+    # DobroPost-only side-channel: passport validation failure → bespoke
+    # command. Detected via classifier (no infrastructure import); other
+    # provider payloads or DobroPost status updates fall through.
+    if provider_code == PROVIDER_DOBROPOST:
+        passport_failure_id = extract_passport_failure_id(raw_body)
+        if passport_failure_id is not None:
+            try:
+                await dobropost_passport_handler.handle(
+                    HandleDobroPostPassportValidationCommand(
+                        dp_shipment_id=passport_failure_id,
+                    )
+                )
+            except ShipmentNotFoundError:
+                # Same swallow rationale as the generic ingest path
+                # below — DobroPost retries on any non-2xx, so we ACK
+                # and rely on the warning log to surface mismatches.
+                logger.warning(
+                    "DobroPost passport-validation for unknown shipment; acknowledging",
+                    dp_shipment_id=passport_failure_id,
+                )
+            except Exception:
+                logger.exception(
+                    "DobroPost passport-validation handler crashed; acknowledging "
+                    "to avoid carrier retry storm",
+                    dp_shipment_id=passport_failure_id,
+                )
+            return {
+                "status": "passport_validation_failure_processed",
+                "provider": provider_code,
+            }
 
     parsed = await adapter.parse_events(body=raw_body)
 

@@ -24,6 +24,9 @@ from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 
+from src.modules.logistics.application.commands.provider_validators import (
+    validate_provider_account_input,
+)
 from src.modules.logistics.domain.interfaces import IProviderAccountRepository
 from src.modules.logistics.domain.provider_account import ProviderAccount
 from src.shared.exceptions import ConflictError, NotFoundError
@@ -95,6 +98,12 @@ class CreateProviderAccountHandler:
     async def handle(
         self, command: CreateProviderAccountCommand
     ) -> ProviderAccountResult:
+        # Provider-specific input validation (e.g. DobroPost requires
+        # webhook auth source). Raises ``ValidationError`` (HTTP 400)
+        # before we open a DB transaction.
+        validate_provider_account_input(
+            command.provider_code, command.credentials, command.config
+        )
         try:
             async with self._uow:
                 existing = await self._repo.get_active_by_provider_code(
@@ -207,6 +216,14 @@ class UpdateProviderAccountHandler:
                     account.replace_config(command.config)
                 else:
                     account.merge_config(command.config)
+
+            # Re-validate the *resulting* credentials + config against
+            # the provider-specific rules. Catches updates that wipe a
+            # required field (e.g. dropping ``webhook_secret`` without
+            # configuring ``webhook_allowed_ips``).
+            validate_provider_account_input(
+                account.provider_code, account.credentials, account.config
+            )
 
             account = await self._repo.update(account)
             self._uow.register_aggregate(account)

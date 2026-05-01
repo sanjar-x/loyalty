@@ -20,6 +20,9 @@ from src.modules.logistics.application.commands.cancel_intake import (
 from src.modules.logistics.application.commands.cancel_shipment import (
     CancelShipmentHandler,
 )
+from src.modules.logistics.application.commands.create_cross_border_shipment import (
+    CreateCrossBorderShipmentHandler,
+)
 from src.modules.logistics.application.commands.create_intake import (
     CreateIntakeHandler,
 )
@@ -34,6 +37,9 @@ from src.modules.logistics.application.commands.edit_order_items import (
 )
 from src.modules.logistics.application.commands.edit_order_packages import (
     EditOrderPackagesHandler,
+)
+from src.modules.logistics.application.commands.handle_dobropost_passport_validation import (
+    HandleDobroPostPassportValidationHandler,
 )
 from src.modules.logistics.application.commands.ingest_tracking import (
     IngestTrackingHandler,
@@ -191,6 +197,12 @@ class LogisticsCommandProvider(Provider):
 
     create_shipment: CompositeDependencySource = provide(
         CreateShipmentHandler, scope=Scope.REQUEST
+    )
+    create_cross_border_shipment: CompositeDependencySource = provide(
+        CreateCrossBorderShipmentHandler, scope=Scope.REQUEST
+    )
+    handle_dobropost_passport_validation: CompositeDependencySource = provide(
+        HandleDobroPostPassportValidationHandler, scope=Scope.REQUEST
     )
     book_shipment: CompositeDependencySource = provide(
         BookShipmentHandler, scope=Scope.REQUEST

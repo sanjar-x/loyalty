@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 import attrs
 
 from src.modules.logistics.domain.events import (
+    CrossBorderArrivedEvent,
     ShipmentBookedEvent,
     ShipmentBookingFailedEvent,
     ShipmentBookingRequestedEvent,
@@ -25,6 +26,7 @@ from src.modules.logistics.domain.events import (
     ShipmentEditTaskFailedEvent,
     ShipmentEditTaskScheduledEvent,
     ShipmentIntakeScheduledEvent,
+    ShipmentPassportValidationFailedEvent,
     ShipmentRecipientUpdatedEvent,
     ShipmentRefusalRegisteredEvent,
     ShipmentReturnRegisteredEvent,
@@ -32,6 +34,8 @@ from src.modules.logistics.domain.events import (
 )
 from src.modules.logistics.domain.exceptions import InvalidShipmentTransitionError
 from src.modules.logistics.domain.value_objects import (
+    DOBROPOST_CROSS_BORDER_ARRIVED_CODES,
+    PROVIDER_DOBROPOST,
     TERMINAL_CANCEL_TRACKING_STATUSES,
     TERMINAL_FAILURE_TRACKING_STATUSES,
     Address,
@@ -185,6 +189,13 @@ class Shipment(AggregateRoot):
     booked_at: datetime | None = None
     cancelled_at: datetime | None = None
 
+    # First time the carrier reported "arrived in destination country"
+    # (DobroPost status_id ∈ {648, 649}). Set once via
+    # ``append_tracking_event`` to make ``CrossBorderArrivedEvent``
+    # emission idempotent against repeated webhooks. ``None`` for any
+    # shipment that has not (yet) reached this milestone.
+    cross_border_arrived_at: datetime | None = None
+
     version: int = 1
 
     # -- Factory method -----------------------------------------------------
@@ -246,6 +257,79 @@ class Shipment(AggregateRoot):
                 shipment_id=shipment.id,
                 provider_code=quote.rate.provider_code,
                 service_code=quote.rate.service_code,
+            )
+        )
+        return shipment
+
+    @classmethod
+    def create_admin_managed(
+        cls,
+        *,
+        provider_code: ProviderCode,
+        service_code: str,
+        delivery_type: DeliveryType,
+        origin: Address,
+        destination: Address,
+        sender: ContactInfo,
+        recipient: ContactInfo,
+        parcels: list[Parcel],
+        quoted_cost: Money,
+        provider_payload: str,
+        order_id: uuid.UUID | None = None,
+        cod: CashOnDelivery | None = None,
+        shipment_id: uuid.UUID | None = None,
+    ) -> Shipment:
+        """Create a shipment without a ``DeliveryQuote`` (admin-managed flow).
+
+        Used when the carrier charges a fixed tariff that the operator
+        picks by id (e.g. DobroPost ``dpTariffId``) and there is no
+        customer-facing rate calculation. ``quoted_cost`` is supplied
+        by the caller — typically the order's pre-computed
+        margin-aware shipping price from the pricing module.
+
+        ``provider_payload`` carries provider-specific opaque data the
+        booking adapter needs (for DobroPost — passport / ИНН /
+        ``incomingDeclaration`` / ``dpTariffId`` / item description,
+        serialised as JSON). The shape is owned entirely by the
+        provider adapter; the domain treats it as an opaque blob, but
+        requires it to be non-empty: an admin-managed shipment without
+        carrier-specific input cannot be booked, and we want the failure
+        at construction time rather than after a phantom DRAFT row +
+        outbox ``ShipmentCreatedEvent`` reach disk.
+        """
+        if not provider_payload:
+            raise ValueError(
+                "create_admin_managed requires non-empty provider_payload "
+                "(carrier-specific booking data). For quote-based shipments "
+                "use Shipment.create instead."
+            )
+        if not parcels:
+            raise ValueError("create_admin_managed requires at least one parcel")
+        now = datetime.now(UTC)
+        shipment = cls(
+            id=shipment_id or uuid.uuid4(),
+            order_id=order_id,
+            provider_code=provider_code,
+            service_code=service_code,
+            delivery_type=delivery_type,
+            status=ShipmentStatus.DRAFT,
+            origin=origin,
+            destination=destination,
+            sender=sender,
+            recipient=recipient,
+            parcels=list(parcels),
+            quoted_cost=quoted_cost,
+            cod=cod,
+            provider_payload=provider_payload,
+            tracking_events=[],
+            created_at=now,
+            updated_at=now,
+        )
+        shipment.add_domain_event(
+            ShipmentCreatedEvent(
+                shipment_id=shipment.id,
+                provider_code=provider_code,
+                service_code=service_code,
             )
         )
         return shipment
@@ -504,6 +588,26 @@ class Shipment(AggregateRoot):
                 )
                 self.mark_cancelled_from_tracking(reason=cancel_reason)
 
+        # Cross-border (DobroPost) arrival hook — fires once per shipment
+        # on the first 648/649 status. Idempotency via
+        # ``cross_border_arrived_at`` so a duplicate webhook (or 648
+        # followed by 649 in quick succession) does not produce two
+        # last-mile shipments.
+        if (
+            self.cross_border_arrived_at is None
+            and self.provider_code == PROVIDER_DOBROPOST
+            and event.provider_status_code in DOBROPOST_CROSS_BORDER_ARRIVED_CODES
+        ):
+            self.cross_border_arrived_at = event.timestamp
+            self.add_domain_event(
+                CrossBorderArrivedEvent(
+                    shipment_id=self.id,
+                    order_id=self.order_id,
+                    provider_code=self.provider_code,
+                    provider_status_code=event.provider_status_code,
+                )
+            )
+
         return TrackingAppendOutcome.ADDED
 
     # -- Edit / mutation operations ----------------------------------------
@@ -714,6 +818,34 @@ class Shipment(AggregateRoot):
             ShipmentRefusalRegisteredEvent(
                 shipment_id=self.id,
                 reason=reason,
+            )
+        )
+
+    # -- Passport validation (DobroPost cross-border) ----------------------
+
+    def flag_passport_validation_failed(self) -> None:
+        """Mark recipient passport as rejected by DobroPost / DaData.
+
+        The shipment is **NOT** transitioned to FAILED — it stays in
+        BOOKED locally and "hangs" before customs on DobroPost's side
+        until corrected. CS receives :class:`ShipmentPassportValidationFailedEvent`
+        and reaches out to the customer; if a corrected passport is
+        accepted via ``PUT /api/shipment``, normal status updates
+        resume. If not, DobroPost reports a 544/545 (passport rejected
+        at customs), routing through the regular terminal-failure path.
+
+        ``failure_reason`` is overloaded to surface the cause without
+        adding another column. The event is emitted regardless so a
+        repeated webhook still triggers fresh CS notification (the
+        operator may have moved to a new customer ticket).
+        """
+        self.failure_reason = "passport_validation_failed"
+        self.updated_at = datetime.now(UTC)
+        self.version += 1
+        self.add_domain_event(
+            ShipmentPassportValidationFailedEvent(
+                shipment_id=self.id,
+                order_id=self.order_id,
             )
         )
 

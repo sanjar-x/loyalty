@@ -50,6 +50,18 @@ class ShipmentModel(Base):
         ),
         Index("ix_shipments_tracking_number", "tracking_number"),
         Index("ix_shipments_status", "status"),
+        # "Stuck cross-border" detection — nightly job finds DobroPost
+        # shipments booked > 14 days ago that never reported 648/649.
+        # See docs/dobropost_shipment_api/integration.md edge-case 2.
+        Index(
+            "ix_shipments_stuck_cross_border",
+            "booked_at",
+            postgresql_where=(
+                "cross_border_arrived_at IS NULL "
+                "AND provider_code = 'dobropost' "
+                "AND status = 'booked'"
+            ),
+        ),
         {"comment": "Shipment lifecycle tracking for logistics integrations"},
     )
 
@@ -174,6 +186,15 @@ class ShipmentModel(Base):
         TIMESTAMP(timezone=True),
         nullable=True,
         comment="When cancellation was confirmed",
+    )
+    cross_border_arrived_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+        comment=(
+            "First moment a cross-border shipment reported 'arrived in destination "
+            "country' (DobroPost status_id ∈ {648, 649}). Idempotency anchor for "
+            "CrossBorderArrivedEvent emission."
+        ),
     )
 
     # Optimistic locking
