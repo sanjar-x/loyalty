@@ -1,0 +1,25 @@
+# Все изменения требуют ревью от тех-лида (default).
+
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+- @sanjar-x
+
+# Архитектура и ключевые слои — обязательное ревью лида.
+
+/src/app/ @sanjar-x
+/src/middleware.js @sanjar-x
+/eslint.config.mjs @sanjar-x
+/tsconfig.json @sanjar-x
+/next.config.js @sanjar-x
+/.github/ @sanjar-x
+/docs/ @sanjar-x
+
+# Фичи — назначь Senior'a за конкретную доменную область
+
+# (примеры; раскомментировать когда логины Senior'ов появятся в репо).
+
+# /src/features/product-form/ @senior-frontend-1
+
+# /src/features/pricing/ @senior-frontend-2
+
+# /src/features/order-filter/ @senior-frontend-3

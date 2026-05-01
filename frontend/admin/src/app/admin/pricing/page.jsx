@@ -1,18 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { ContextSwitcher } from '@/components/admin/pricing/ContextSwitcher';
-import { ContextHeader } from '@/components/admin/pricing/ContextHeader';
-import { PricingTabs } from '@/components/admin/pricing/PricingTabs';
-import { usePricingPage } from '@/components/admin/pricing/PricingPageProvider';
-import { EmptyState } from '@/components/admin/pricing/shared/EmptyState';
-import { ErrorBanner } from '@/components/admin/pricing/shared/ErrorBanner';
-import { LoadingSkeleton } from '@/components/admin/pricing/shared/LoadingSkeleton';
-import { FormulaTab } from '@/components/admin/pricing/formula/FormulaTab';
-import { VariablesTab } from '@/components/admin/pricing/variables/VariablesTab';
-import { CategoriesTab } from '@/components/admin/pricing/categories/CategoriesTab';
-import { ContextSettingsTab } from '@/components/admin/pricing/context/ContextSettingsTab';
-import { CreateContextModal } from '@/components/admin/pricing/context/CreateContextModal';
+import {
+  ContextSwitcher,
+  ContextHeader,
+  PricingTabs,
+  usePricingPage,
+  EmptyState,
+  ErrorBanner,
+  LoadingSkeleton,
+  FormulaTab,
+  VariablesTab,
+  CategoriesTab,
+  ContextSettingsTab,
+  CreateContextModal,
+} from '@/features/pricing';
 
 function TabContent() {
   const { activeTab, contextId } = usePricingPage();
@@ -34,16 +36,17 @@ function TabContent() {
 }
 
 export default function PricingPage() {
-  const { contexts, loading, error, contextId, refetchContexts } = usePricingPage();
+  const { contexts, loading, error, contextId, refetchContexts } =
+    usePricingPage();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   if (loading) {
     return (
       <section className="animate-fadeIn">
-        <h1 className="mb-5 text-[40px] font-bold leading-[44px] tracking-tight text-app-text-dark">
+        <h1 className="text-app-text-dark mb-5 text-[40px] leading-[44px] font-bold tracking-tight">
           Формулы цен
         </h1>
-        <div className="rounded-2xl border border-[#f0f0f0] bg-white p-5">
+        <div className="border-app-border-soft rounded-2xl border bg-white p-5">
           <LoadingSkeleton rows={6} columns={4} />
         </div>
       </section>
@@ -53,7 +56,7 @@ export default function PricingPage() {
   if (error) {
     return (
       <section className="animate-fadeIn">
-        <h1 className="mb-5 text-[40px] font-bold leading-[44px] tracking-tight text-app-text-dark">
+        <h1 className="text-app-text-dark mb-5 text-[40px] leading-[44px] font-bold tracking-tight">
           Формулы цен
         </h1>
         <ErrorBanner error={error} />
@@ -64,14 +67,17 @@ export default function PricingPage() {
   if (contexts.length === 0) {
     return (
       <section className="animate-fadeIn">
-        <h1 className="mb-5 text-[40px] font-bold leading-[44px] tracking-tight text-app-text-dark">
+        <h1 className="text-app-text-dark mb-5 text-[40px] leading-[44px] font-bold tracking-tight">
           Формулы цен
         </h1>
-        <div className="rounded-2xl border border-[#f0f0f0] bg-white p-5">
+        <div className="border-app-border-soft rounded-2xl border bg-white p-5">
           <EmptyState
             title="Нет контекстов ценообразования"
             description="Создайте первый ценовой контекст, чтобы начать настройку формул."
-            action={{ label: '+ Создать контекст', onClick: () => setShowCreateModal(true) }}
+            action={{
+              label: '+ Создать контекст',
+              onClick: () => setShowCreateModal(true),
+            }}
           />
         </div>
         {showCreateModal && (
@@ -90,18 +96,18 @@ export default function PricingPage() {
   return (
     <section className="animate-fadeIn">
       <div className="mb-5 flex items-center justify-between">
-        <h1 className="text-[40px] font-bold leading-[44px] tracking-tight text-app-text-dark">
+        <h1 className="text-app-text-dark text-[40px] leading-[44px] font-bold tracking-tight">
           Формулы цен
         </h1>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="rounded-lg bg-app-text px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="bg-app-text rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
         >
           + Контекст
         </button>
       </div>
 
-      <div className="rounded-2xl border border-[#f0f0f0] bg-white p-5">
+      <div className="border-app-border-soft rounded-2xl border bg-white p-5">
         <div className="flex flex-col gap-4">
           <ContextSwitcher />
           {contextId && (

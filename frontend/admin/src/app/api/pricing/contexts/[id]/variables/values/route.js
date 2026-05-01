@@ -1,13 +1,19 @@
 import { NextResponse } from 'next/server';
-import { backendFetch } from '@/lib/api-client';
-import { getAccessToken } from '@/lib/auth';
+import { backendFetch } from '@/shared/api/api-client';
+import { getAccessToken } from '@/shared/auth/cookies';
 
 export async function GET(_request, { params }) {
   const { id } = await params;
   const token = await getAccessToken();
   if (!token) {
     return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated', details: {} } },
+      {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Not authenticated',
+          details: {},
+        },
+      },
       { status: 401 },
     );
   }
@@ -19,7 +25,13 @@ export async function GET(_request, { params }) {
 
   if (!ok) {
     return NextResponse.json(
-      data ?? { error: { code: 'SERVICE_UNAVAILABLE', message: 'Backend unavailable', details: {} } },
+      data ?? {
+        error: {
+          code: 'SERVICE_UNAVAILABLE',
+          message: 'Backend unavailable',
+          details: {},
+        },
+      },
       { status: status || 502 },
     );
   }

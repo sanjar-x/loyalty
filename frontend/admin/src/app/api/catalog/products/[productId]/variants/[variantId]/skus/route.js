@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
-import { backendFetch } from '@/lib/api-client';
-import { getAccessToken } from '@/lib/auth';
+import { backendFetch } from '@/shared/api/api-client';
+import { getAccessToken } from '@/shared/auth/cookies';
 
 export async function GET(request, { params }) {
   const token = await getAccessToken();
-  if (!token) return NextResponse.json({ error: { code: 'UNAUTHORIZED' } }, { status: 401 });
+  if (!token)
+    return NextResponse.json(
+      { error: { code: 'UNAUTHORIZED' } },
+      { status: 401 },
+    );
 
   const { productId, variantId } = await params;
 
@@ -13,5 +17,7 @@ export async function GET(request, { params }) {
     { headers: { Authorization: `Bearer ${token}` } },
   );
 
-  return NextResponse.json(data ?? { error: { code: 'SERVICE_UNAVAILABLE' } }, { status: ok ? 200 : (status || 502) });
+  return NextResponse.json(data ?? { error: { code: 'SERVICE_UNAVAILABLE' } }, {
+    status: ok ? 200 : status || 502,
+  });
 }

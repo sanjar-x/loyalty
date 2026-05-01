@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
-import { getAccessToken } from '@/lib/auth';
+import { getAccessToken } from '@/shared/auth/cookies';
 
 export async function POST(request) {
   const token = await getAccessToken();
   if (!token) {
     return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated', details: {} } },
+      {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Not authenticated',
+          details: {},
+        },
+      },
       { status: 401 },
     );
   }
@@ -16,7 +22,13 @@ export async function POST(request) {
 
   if (!file || !presignedUrl) {
     return NextResponse.json(
-      { error: { code: 'MISSING_FIELDS', message: 'file and presignedUrl are required', details: {} } },
+      {
+        error: {
+          code: 'MISSING_FIELDS',
+          message: 'file and presignedUrl are required',
+          details: {},
+        },
+      },
       { status: 400 },
     );
   }
@@ -31,7 +43,13 @@ export async function POST(request) {
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: { code: 'S3_UPLOAD_FAILED', message: `S3 upload failed: ${res.status}`, details: {} } },
+        {
+          error: {
+            code: 'S3_UPLOAD_FAILED',
+            message: `S3 upload failed: ${res.status}`,
+            details: {},
+          },
+        },
         { status: 502 },
       );
     }
@@ -39,7 +57,13 @@ export async function POST(request) {
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch {
     return NextResponse.json(
-      { error: { code: 'S3_UPLOAD_FAILED', message: 'S3 upload failed', details: {} } },
+      {
+        error: {
+          code: 'S3_UPLOAD_FAILED',
+          message: 'S3 upload failed',
+          details: {},
+        },
+      },
       { status: 502 },
     );
   }

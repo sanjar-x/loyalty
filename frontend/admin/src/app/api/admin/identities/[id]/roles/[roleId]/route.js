@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { backendFetch } from '@/lib/api-client';
-import { getAccessToken } from '@/lib/auth';
+import { backendFetch } from '@/shared/api/api-client';
+import { getAccessToken } from '@/shared/auth/cookies';
 
 export async function DELETE(request, { params }) {
   const { id, roleId } = await params;

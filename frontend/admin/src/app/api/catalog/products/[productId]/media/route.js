@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { backendFetch } from '@/lib/api-client';
-import { imageBackendFetch } from '@/lib/image-api-client';
-import { getAccessToken } from '@/lib/auth';
+import { backendFetch } from '@/shared/api/api-client';
+import { imageBackendFetch } from '@/shared/api/image-api-client';
+import { getAccessToken } from '@/shared/auth/cookies';
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Resolve a media asset URL from main-backend fields or image-backend fallback.
@@ -16,7 +17,9 @@ async function resolveMediaUrl(asset) {
   }
   if (asset.storageObjectId) {
     try {
-      const { ok, data } = await imageBackendFetch(`/api/v1/media/${asset.storageObjectId}`);
+      const { ok, data } = await imageBackendFetch(
+        `/api/v1/media/${asset.storageObjectId}`,
+      );
       if (ok && data) {
         if (data.url) return data.url;
         if (data.variants?.length) {
@@ -24,19 +27,31 @@ async function resolveMediaUrl(asset) {
           return sorted[0]?.url ?? null;
         }
       }
-    } catch { /* graceful degradation */ }
+    } catch {
+      /* graceful degradation */
+    }
   }
   return null;
 }
 
 export async function GET(request, { params }) {
   const token = await getAccessToken();
-  if (!token) return NextResponse.json({ error: { code: 'UNAUTHORIZED' } }, { status: 401 });
+  if (!token)
+    return NextResponse.json(
+      { error: { code: 'UNAUTHORIZED' } },
+      { status: 401 },
+    );
 
   const { productId } = await params;
   if (!UUID_RE.test(productId)) {
     return NextResponse.json(
-      { error: { code: 'INVALID_ID', message: 'Invalid product ID', details: {} } },
+      {
+        error: {
+          code: 'INVALID_ID',
+          message: 'Invalid product ID',
+          details: {},
+        },
+      },
       { status: 400 },
     );
   }
@@ -70,23 +85,58 @@ export async function GET(request, { params }) {
 
 export async function POST(request, { params }) {
   const token = await getAccessToken();
-  if (!token) return NextResponse.json({ error: { code: 'UNAUTHORIZED' } }, { status: 401 });
+  if (!token)
+    return NextResponse.json(
+      { error: { code: 'UNAUTHORIZED' } },
+      { status: 401 },
+    );
 
   const { productId } = await params;
   if (!UUID_RE.test(productId)) {
     return NextResponse.json(
-      { error: { code: 'INVALID_ID', message: 'Invalid product ID', details: {} } },
+      {
+        error: {
+          code: 'INVALID_ID',
+          message: 'Invalid product ID',
+          details: {},
+        },
+      },
       { status: 400 },
     );
   }
   const body = await request.json();
-  const { storageObjectId, variantId, role, sortOrder, mediaType, isExternal, url } = body;
-  const payload = { storageObjectId, variantId, role, sortOrder, mediaType, isExternal, url };
+  const {
+    storageObjectId,
+    variantId,
+    role,
+    sortOrder,
+    mediaType,
+    isExternal,
+    url,
+  } = body;
+  const payload = {
+    storageObjectId,
+    variantId,
+    role,
+    sortOrder,
+    mediaType,
+    isExternal,
+    url,
+  };
 
   const { ok, status, data } = await backendFetch(
     `/api/v1/catalog/products/${productId}/media`,
-    { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) },
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
   );
 
-  return NextResponse.json(data ?? { error: { code: 'SERVICE_UNAVAILABLE' } }, { status: ok ? 201 : (status || 502) });
+  return NextResponse.json(data ?? { error: { code: 'SERVICE_UNAVAILABLE' } }, {
+    status: ok ? 201 : status || 502,
+  });
 }

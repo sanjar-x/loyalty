@@ -1,0 +1,111 @@
+.page {
+  animation: fadeIn 220ms ease-out;
+}
+
+.header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 22px;
+  margin-bottom: 24px;
+}
+
+.header::after {
+  content: '';
+  position: absolute;
+  right: -36px;
+  bottom: 0;
+  left: -36px;
+  border-bottom: 1px solid #f4f3f1;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #f4f3f1;
+  text-decoration: none;
+  color: #111111;
+  transition: background-color 0.15s ease;
+}
+
+.backButton svg {
+  display: block;
+  width: 30px;
+  height: 30px;
+}
+
+.backButton:hover {
+  background: #e8e7e4;
+}
+
+.backButton:active {
+  background: #dddcda;
+}
+
+.title {
+  margin: 0;
+  color: #2d2d2d;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 36px;
+  letter-spacing: -0.8px;
+}
+
+.breadcrumbs {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  width: 100%;
+  padding: 22px 27px;
+  border: 3px solid #f4f3f1;
+  border-radius: 30px;
+  background: #ffffff;
+  margin-bottom: 20px;
+}
+
+.crumb {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  min-height: 46px;
+  padding: 0 19px;
+  border-radius: 15px;
+  background: #f4f3f1;
+  color: #111111;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+}
+
+.crumbLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crumbChevron {
+  flex: 0 0 auto;
+  color: #111111;
+  font-size: 36px;
+  line-height: 1;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

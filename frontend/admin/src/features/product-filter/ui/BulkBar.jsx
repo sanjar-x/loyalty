@@ -1,0 +1,49 @@
+'use client';
+
+import { pluralizeRu } from '@/shared/lib/utils';
+import { productStyles as styles } from '@/entities/product';
+
+export function BulkBar({ selectedCount, onArchive, onDelete, onClear }) {
+  const selectedLabel = `${selectedCount.toLocaleString('ru-RU')} ${pluralizeRu(selectedCount, 'товар', 'товара', 'товаров')}`;
+
+  return (
+    <>
+      <div className={styles.bulkBar}>
+        <div className={styles.bulkBarInner}>
+          <div className={styles.bulkBarLeft}>
+            <span className={styles.bulkBarCheck} aria-hidden="true">
+              ✓
+            </span>
+            <span className={styles.bulkBarCount}>{selectedLabel}</span>
+          </div>
+
+          <div className={styles.bulkBarRight}>
+            <button
+              type="button"
+              onClick={onArchive}
+              className={styles.bulkBarPrimary}
+            >
+              В архив
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              className={styles.bulkBarDanger}
+            >
+              Удалить
+            </button>
+            <button
+              type="button"
+              onClick={onClear}
+              className={styles.bulkBarClose}
+              aria-label="Снять выделение"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className={styles.bulkBarSpacer} />
+    </>
+  );
+}

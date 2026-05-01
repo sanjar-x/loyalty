@@ -1,4 +1,4 @@
-import { PageStub } from '@/components/admin/PageStub';
+import { PageStub } from '@/widgets/PageStub';
 
 export default function SuppliersPage() {
   return <PageStub title="Поставщики" />;

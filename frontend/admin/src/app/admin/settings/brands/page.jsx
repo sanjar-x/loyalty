@@ -1,4 +1,4 @@
-import { PageStub } from '@/components/admin/PageStub';
+import { PageStub } from '@/widgets/PageStub';
 
 export default function BrandsPage() {
   return <PageStub title="Бренды" />;

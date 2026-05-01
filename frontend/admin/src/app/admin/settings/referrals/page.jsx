@@ -1,127 +1,45 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { cn } from '@/lib/utils';
 import UsersIcon from '@/assets/icons/users.svg';
 import BagIcon from '@/assets/icons/bag.svg';
-import dayjs from '@/lib/dayjs';
-import { referralsSeed } from '@/data/referrals';
+import dayjs from '@/shared/lib/dayjs';
+import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
+import { useEscapeKey } from '@/shared/hooks/useEscapeKey';
+import { getReferrals } from '@/entities/referral';
+import { Pagination } from '@/shared/ui/Pagination';
 import styles from './page.module.css';
 
-function Pagination({ page, pages, onPage }) {
-  const list = useMemo(() => {
-    const items = [];
-    const max = Math.min(pages, 7);
-    const start = Math.max(1, Math.min(page - 2, pages - max + 1));
-    for (let p = start; p < start + max; p += 1) items.push(p);
-    return items;
-  }, [page, pages]);
-
-  if (pages <= 1) return null;
-
-  return (
-    <div className={styles.pagination}>
-      <button
-        type="button"
-        onClick={() => onPage(Math.max(1, page - 1))}
-        className={styles.pageButton}
-        aria-label="Назад"
-      >
-        <svg
-          width="9"
-          height="16"
-          viewBox="0 0 9 16"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            fillRule="evenodd"
-            clipRule="evenodd"
-            d="M8.72252 15.7243C9.09249 15.3568 9.09249 14.7609 8.72252 14.3933L2.28715 8L8.72252 1.60669C9.09249 1.23914 9.09249 0.643216 8.72252 0.275663C8.35255 -0.0918894 7.75271 -0.0918894 7.38274 0.275663L0.277478 7.33449C-0.0924925 7.70204 -0.0924925 8.29796 0.277478 8.66551L7.38274 15.7243C7.75271 16.0919 8.35255 16.0919 8.72252 15.7243Z"
-            fill="#7E7E7E"
-          />
-        </svg>
-      </button>
-
-      {list.map((p) => (
-        <button
-          key={p}
-          type="button"
-          onClick={() => onPage(p)}
-          className={cn(
-            styles.pageButton,
-            p === page && styles.pageButtonActive,
-          )}
-        >
-          {p}
-        </button>
-      ))}
-
-      <button
-        type="button"
-        onClick={() => onPage(Math.min(pages, page + 1))}
-        className={styles.pageButton}
-        aria-label="Вперёд"
-      >
-        <svg
-          width="9"
-          height="16"
-          viewBox="0 0 9 16"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            fillRule="evenodd"
-            clipRule="evenodd"
-            d="M0.277478 15.7243C-0.0924926 15.3568 -0.0924926 14.7609 0.277478 14.3933L6.71285 8L0.277478 1.60669C-0.0924926 1.23914 -0.0924926 0.643216 0.277478 0.275663C0.647448 -0.0918894 1.24729 -0.0918894 1.61726 0.275663L8.72252 7.33449C9.09249 7.70204 9.09249 8.29796 8.72252 8.66551L1.61726 15.7243C1.24729 16.0919 0.647448 16.0919 0.277478 15.7243Z"
-            fill="#7E7E7E"
-          />
-        </svg>
-      </button>
-    </div>
-  );
-}
+const REFERRALS_PER_PAGE = 9;
 
 export default function ReferralsPage() {
   const [page, setPage] = useState(1);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const inputRef = useRef(null);
-  const perPage = 9;
 
+  const referrals = useMemo(() => getReferrals(), []);
   const pages = useMemo(
-    () => Math.max(1, Math.ceil(referralsSeed.length / perPage)),
-    [],
+    () => Math.max(1, Math.ceil(referrals.length / REFERRALS_PER_PAGE)),
+    [referrals.length],
   );
   const pageItems = useMemo(() => {
     const safePage = Math.min(page, pages);
-    const start = (safePage - 1) * perPage;
-    return referralsSeed.slice(start, start + perPage);
-  }, [page, pages]);
+    const start = (safePage - 1) * REFERRALS_PER_PAGE;
+    return referrals.slice(start, start + REFERRALS_PER_PAGE);
+  }, [page, pages, referrals]);
 
   const closeCreate = useCallback(() => {
     setIsCreateOpen(false);
     setNewLabel('');
   }, []);
 
+  useBodyScrollLock(isCreateOpen);
+  useEscapeKey(closeCreate, isCreateOpen);
+
   useEffect(() => {
-    if (!isCreateOpen) return undefined;
-
-    inputRef.current?.focus();
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') closeCreate();
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [isCreateOpen, closeCreate]);
+    if (isCreateOpen) inputRef.current?.focus();
+  }, [isCreateOpen]);
 
   return (
     <section>

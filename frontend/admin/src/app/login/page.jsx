@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import EyeIcon from '@/assets/icons/eye.svg';
+import EyeOffIcon from '@/assets/icons/eye-off.svg';
 
 const ERROR_MESSAGES = {
   INVALID_CREDENTIALS: 'Неверный логин или пароль',
@@ -49,7 +51,9 @@ export default function LoginPage() {
       const code = data?.error?.code;
       const backendMessage = data?.error?.message;
       setError(
-        ERROR_MESSAGES[code] ?? backendMessage ?? 'Ошибка входа. Попробуйте позже',
+        ERROR_MESSAGES[code] ??
+          backendMessage ??
+          'Ошибка входа. Попробуйте позже',
       );
     } catch {
       setError('Нет связи с сервером');
@@ -59,23 +63,26 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#efeff0] p-5">
+    <div className="bg-app-bg flex min-h-screen items-center justify-center p-5">
       <form
         onSubmit={handleSubmit}
         className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm"
       >
-        <h1 className="mb-6 text-center text-xl font-semibold text-[#22252b]">
+        <h1 className="text-app-text mb-6 text-center text-xl font-semibold">
           Вход в панель
         </h1>
 
         {error && (
-          <div role="alert" className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+          <div
+            role="alert"
+            className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600"
+          >
             {error}
           </div>
         )}
 
         <label className="mb-4 block">
-          <span className="mb-1 block text-sm font-medium text-[#22252b]">
+          <span className="text-app-text mb-1 block text-sm font-medium">
             Логин
           </span>
           <input
@@ -84,7 +91,7 @@ export default function LoginPage() {
             value={login}
             onChange={(e) => setLogin(e.target.value)}
             onFocus={() => setError('')}
-            className="w-full rounded-lg border border-[#dfdfe2] px-3 py-2.5 text-sm transition-colors outline-none focus:border-[#22252b]"
+            className="border-app-border focus:border-app-text w-full rounded-lg border px-3 py-2.5 text-sm transition-colors outline-none"
             placeholder="Email или имя пользователя"
             autoComplete="username"
           />
@@ -92,7 +99,7 @@ export default function LoginPage() {
 
         <div className="mb-6">
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-[#22252b]">
+            <span className="text-app-text mb-1 block text-sm font-medium">
               Пароль
             </span>
             <div className="relative">
@@ -101,16 +108,19 @@ export default function LoginPage() {
                 required
                 minLength={8}
                 value={password}
-                onFocus={() => { setPasswordTouched(true); setError(''); }}
+                onFocus={() => {
+                  setPasswordTouched(true);
+                  setError('');
+                }}
                 onChange={(e) => setPassword(e.target.value)}
                 className={`w-full rounded-lg border px-3 py-2.5 pr-10 text-sm transition-colors duration-300 outline-none ${
                   error
-                    ? 'border-[#22252b]'
+                    ? 'border-app-text'
                     : passwordTouched && passwordLength > 0 && !passwordValid
                       ? 'border-amber-400'
                       : passwordValid
                         ? 'border-emerald-400'
-                        : 'border-[#dfdfe2] focus:border-[#22252b]'
+                        : 'border-app-border focus:border-app-text'
                 }`}
                 placeholder="Минимум 8 символов"
                 autoComplete="current-password"
@@ -119,42 +129,30 @@ export default function LoginPage() {
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md p-1 text-[#878b93] transition-colors hover:text-[#22252b]"
+                className="text-app-muted hover:text-app-text absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md p-1 transition-colors"
                 aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
               >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="transition-transform duration-200"
-                >
-                  {showPassword ? (
-                    <>
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </>
-                  ) : (
-                    <>
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
-                    </>
-                  )}
-                </svg>
+                {showPassword ? (
+                  <EyeIcon
+                    width={18}
+                    height={18}
+                    className="transition-transform duration-200"
+                  />
+                ) : (
+                  <EyeOffIcon
+                    width={18}
+                    height={18}
+                    className="transition-transform duration-200"
+                  />
+                )}
               </button>
             </div>
           </label>
 
           {/* Password length indicator */}
           {passwordTouched && passwordLength > 0 && !error && (
-            <div className="mt-2 animate-fadeIn">
-              <div className="h-1 w-full overflow-hidden rounded-full bg-[#efeff0]">
+            <div className="animate-fadeIn mt-2">
+              <div className="bg-app-bg h-1 w-full overflow-hidden rounded-full">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ease-out ${
                     passwordValid ? 'bg-emerald-500' : 'bg-amber-400'
@@ -164,7 +162,7 @@ export default function LoginPage() {
               </div>
               {!passwordValid && (
                 <div className="mt-1.5 flex items-center justify-between">
-                  <span className="text-xs text-[#878b93]">
+                  <span className="text-app-muted text-xs">
                     {passwordLength} / 8 символов
                   </span>
                 </div>
@@ -176,7 +174,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-[#22252b] px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="bg-app-text w-full rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {loading ? 'Вход...' : 'Войти'}
         </button>

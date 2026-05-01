@@ -1,76 +1,70 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { getProduct, getProductCompleteness, changeProductStatus } from '@/services/products';
-import { PRODUCT_STATUS_LABELS } from '@/lib/constants';
-import { i18n } from '@/lib/utils';
-import { CompletenessPanel } from '@/components/admin/products/CompletenessPanel';
-import { StatusTransitionBar } from '@/components/admin/products/StatusTransitionBar';
+import {
+  changeProductStatus,
+  CompletenessPanel,
+  PRODUCT_STATUS_LABELS,
+  productKeys,
+  useProduct,
+  useProductCompleteness,
+} from '@/entities/product';
+import { StatusTransitionBar } from '@/features/product-status-change';
+import { i18n } from '@/shared/lib/utils';
 import styles from './page.module.css';
 
 export default function ProductDetailPage() {
   const { productId } = useParams();
-  const [product, setProduct] = useState(null);
-  const [completeness, setCompleteness] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [transitioning, setTransitioning] = useState(false);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
+  const [transitionError, setTransitionError] = useState(null);
 
-  const loadProduct = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [prod, comp] = await Promise.all([
-        getProduct(productId),
-        getProductCompleteness(productId),
-      ]);
-      setProduct(prod);
-      setCompleteness(comp);
-    } catch (err) {
-      setError(err.message ?? 'Не удалось загрузить продукт');
-    } finally {
-      setLoading(false);
-    }
-  }, [productId]);
+  const {
+    data: product,
+    isPending: productLoading,
+    error: productError,
+    refetch: refetchProduct,
+  } = useProduct(productId);
 
-  useEffect(() => {
-    loadProduct();
-  }, [loadProduct]);
+  const { data: completeness } = useProductCompleteness(productId);
 
-  const handleTransition = useCallback(async (targetStatus) => {
-    if (!product) return;
-    setTransitioning(true);
-    setError(null);
-    try {
-      const updated = await changeProductStatus(product.id, targetStatus);
-      setProduct(updated);
-      const comp = await getProductCompleteness(product.id);
-      setCompleteness(comp);
-    } catch (err) {
-      setError(err.message ?? 'Не удалось изменить статус');
-    } finally {
-      setTransitioning(false);
-    }
-  }, [product]);
+  const transitionMutation = useMutation({
+    mutationFn: (targetStatus) => changeProductStatus(productId, targetStatus),
+    onSuccess: () => {
+      // Prefix-invalidate the detail key (propagates to nested completeness
+      // and media), plus the list and FSM tab counts. The refetch lands
+      // before the user can react, so we don't bother with an optimistic
+      // setQueryData merge — it would just be overwritten anyway.
+      queryClient.invalidateQueries({
+        queryKey: productKeys.detail(productId),
+      });
+      queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: productKeys.counts() });
+    },
+    onError: (err) =>
+      setTransitionError(err.message ?? 'Не удалось изменить статус'),
+  });
 
-  if (loading && !product) {
+  if (productLoading && !product) {
     return (
       <div className={styles.loadingState}>
-        <p className="text-sm text-[#878b93]">Загрузка...</p>
+        <p className="text-app-muted text-sm">Загрузка...</p>
       </div>
     );
   }
 
-  if (error && !product) {
+  if (productError && !product) {
     return (
       <div className={styles.errorState}>
-        <p className="mb-3 text-sm text-red-600">{error}</p>
+        <p className="mb-3 text-sm text-red-600">
+          {productError.message ?? 'Не удалось загрузить продукт'}
+        </p>
         <button
           type="button"
-          onClick={loadProduct}
-          className="text-sm font-medium text-[#22252b] underline hover:no-underline"
+          onClick={() => refetchProduct()}
+          className="text-app-text text-sm font-medium underline hover:no-underline"
         >
           Попробовать снова
         </button>
@@ -99,21 +93,28 @@ export default function ProductDetailPage() {
             Редактировать
           </Link>
         </div>
-        <p className="text-sm text-[#878b93]">{product.slug}</p>
+        <p className="text-app-muted text-sm">{product.slug}</p>
       </div>
 
       <div className={styles.transitionSection}>
         <StatusTransitionBar
           status={product.status}
-          loading={transitioning}
-          onTransition={handleTransition}
+          loading={transitionMutation.isPending}
+          onTransition={(targetStatus) => {
+            setTransitionError(null);
+            transitionMutation.mutate(targetStatus);
+          }}
         />
       </div>
 
-      {error && (
+      {transitionError && (
         <div className={styles.errorBanner}>
-          <span>{error}</span>
-          <button type="button" onClick={() => setError(null)} className="ml-2 font-medium underline">
+          <span>{transitionError}</span>
+          <button
+            type="button"
+            onClick={() => setTransitionError(null)}
+            className="ml-2 font-medium underline"
+          >
             Скрыть
           </button>
         </div>
@@ -128,7 +129,9 @@ export default function ProductDetailPage() {
           {product.descriptionI18N && (
             <div className={styles.infoRow}>
               <span className={styles.infoLabel}>Описание</span>
-              <span className={styles.infoValue}>{i18n(product.descriptionI18N)}</span>
+              <span className={styles.infoValue}>
+                {i18n(product.descriptionI18N)}
+              </span>
             </div>
           )}
           <div className={styles.infoRow}>
@@ -137,12 +140,16 @@ export default function ProductDetailPage() {
           </div>
           <div className={styles.infoRow}>
             <span className={styles.infoLabel}>Категория</span>
-            <span className={styles.infoValue}>{product.primaryCategoryId}</span>
+            <span className={styles.infoValue}>
+              {product.primaryCategoryId}
+            </span>
           </div>
           {product.countryOfOrigin && (
             <div className={styles.infoRow}>
               <span className={styles.infoLabel}>Страна</span>
-              <span className={styles.infoValue}>{product.countryOfOrigin}</span>
+              <span className={styles.infoValue}>
+                {product.countryOfOrigin}
+              </span>
             </div>
           )}
           <div className={styles.infoRow}>

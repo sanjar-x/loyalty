@@ -1,20 +1,28 @@
 import { NextResponse } from 'next/server';
-import { backendFetch } from '@/lib/api-client';
-import { getAccessToken } from '@/lib/auth';
+import { backendFetch } from '@/shared/api/api-client';
+import { getAccessToken } from '@/shared/auth/cookies';
 
 export async function GET(request) {
   const token = await getAccessToken();
   if (!token) {
     return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated', details: {} } },
+      {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Not authenticated',
+          details: {},
+        },
+      },
       { status: 401 },
     );
   }
 
   const { searchParams } = new URL(request.url);
   const params = new URLSearchParams();
-  if (searchParams.has('is_active')) params.set('is_active', searchParams.get('is_active'));
-  if (searchParams.has('is_frozen')) params.set('is_frozen', searchParams.get('is_frozen'));
+  if (searchParams.has('is_active'))
+    params.set('is_active', searchParams.get('is_active'));
+  if (searchParams.has('is_frozen'))
+    params.set('is_frozen', searchParams.get('is_frozen'));
   const qs = params.toString();
 
   const { ok, status, data } = await backendFetch(
@@ -24,7 +32,13 @@ export async function GET(request) {
 
   if (!ok) {
     return NextResponse.json(
-      data ?? { error: { code: 'SERVICE_UNAVAILABLE', message: 'Backend unavailable', details: {} } },
+      data ?? {
+        error: {
+          code: 'SERVICE_UNAVAILABLE',
+          message: 'Backend unavailable',
+          details: {},
+        },
+      },
       { status: status || 502 },
     );
   }
@@ -36,15 +50,29 @@ export async function POST(request) {
   const token = await getAccessToken();
   if (!token) {
     return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated', details: {} } },
+      {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Not authenticated',
+          details: {},
+        },
+      },
       { status: 401 },
     );
   }
 
   let body;
-  try { body = await request.json(); } catch {
+  try {
+    body = await request.json();
+  } catch {
     return NextResponse.json(
-      { error: { code: 'BAD_REQUEST', message: 'Invalid request body', details: {} } },
+      {
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid request body',
+          details: {},
+        },
+      },
       { status: 400 },
     );
   }
@@ -57,7 +85,13 @@ export async function POST(request) {
 
   if (!ok) {
     return NextResponse.json(
-      data ?? { error: { code: 'SERVICE_UNAVAILABLE', message: 'Backend unavailable', details: {} } },
+      data ?? {
+        error: {
+          code: 'SERVICE_UNAVAILABLE',
+          message: 'Backend unavailable',
+          details: {},
+        },
+      },
       { status: status || 502 },
     );
   }

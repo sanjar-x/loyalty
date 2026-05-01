@@ -1,17 +1,23 @@
 import { NextResponse } from 'next/server';
-import { backendFetch } from '@/lib/api-client';
+import { backendFetch } from '@/shared/api/api-client';
 import {
   getRefreshToken,
   setAuthCookiesOnResponse,
   clearAuthCookiesOnResponse,
-} from '@/lib/auth';
+} from '@/shared/auth/cookies';
 
 export async function POST() {
   const refreshToken = await getRefreshToken();
 
   if (!refreshToken) {
     return NextResponse.json(
-      { error: { code: 'NO_REFRESH_TOKEN', message: 'No refresh token', details: {} } },
+      {
+        error: {
+          code: 'NO_REFRESH_TOKEN',
+          message: 'No refresh token',
+          details: {},
+        },
+      },
       { status: 401 },
     );
   }
@@ -23,7 +29,13 @@ export async function POST() {
 
   if (!ok) {
     const response = NextResponse.json(
-      data ?? { error: { code: 'REFRESH_FAILED', message: 'Token refresh failed', details: {} } },
+      data ?? {
+        error: {
+          code: 'REFRESH_FAILED',
+          message: 'Token refresh failed',
+          details: {},
+        },
+      },
       { status: status || 401 },
     );
     clearAuthCookiesOnResponse(response);

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { backendFetch } from '@/lib/api-client';
-import { imageBackendFetch } from '@/lib/image-api-client';
-import { getAccessToken } from '@/lib/auth';
-import { getOrFetch } from '@/lib/server-cache';
+import { backendFetch } from '@/shared/api/api-client';
+import { imageBackendFetch } from '@/shared/api/image-api-client';
+import { getAccessToken } from '@/shared/auth/cookies';
+import { getOrFetch } from '@/shared/api/server-cache';
 
 const ALLOWED_PARAMS = [
   'offset',
@@ -38,9 +38,12 @@ async function fetchProductMedia(token, productId) {
 async function fetchLookupData(token) {
   const [brands, categoryTree, suppliers] = await Promise.all([
     getOrFetch('catalog:brands', LOOKUP_TTL_MS, async () => {
-      const res = await backendFetch('/api/v1/catalog/brands?offset=0&limit=200', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await backendFetch(
+        '/api/v1/catalog/brands?offset=0&limit=200',
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       return res.ok && res.data?.items ? res.data.items : [];
     }),
     getOrFetch('catalog:categories:tree', LOOKUP_TTL_MS, async () => {
@@ -76,7 +79,8 @@ function buildCategoryMap(tree, map = {}) {
 
 function buildSupplierMap(suppliers) {
   const map = {};
-  for (const s of suppliers) map[s.id] = { type: s.type, countryCode: s.countryCode };
+  for (const s of suppliers)
+    map[s.id] = { type: s.type, countryCode: s.countryCode };
   return map;
 }
 
@@ -112,10 +116,14 @@ async function resolveMainImageUrl(mediaItems) {
   }
 
   // Step 2 — resolve from image backend using storageObjectId
-  const storageId = mainAsset.storageObjectId ?? mediaItems.find((m) => m.storageObjectId)?.storageObjectId;
+  const storageId =
+    mainAsset.storageObjectId ??
+    mediaItems.find((m) => m.storageObjectId)?.storageObjectId;
   if (storageId) {
     try {
-      const { ok, data } = await imageBackendFetch(`/api/v1/media/${storageId}`);
+      const { ok, data } = await imageBackendFetch(
+        `/api/v1/media/${storageId}`,
+      );
       if (ok && data) {
         if (data.url) return data.url;
         if (data.variants?.length) {
@@ -167,14 +175,18 @@ async function fetchAttributeLookup(token, attributeIds) {
           backendFetch(`/api/v1/catalog/attributes/${attrId}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          backendFetch(`/api/v1/catalog/attributes/${attrId}/values?offset=0&limit=200`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+          backendFetch(
+            `/api/v1/catalog/attributes/${attrId}/values?offset=0&limit=200`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            },
+          ),
         ]);
         const attrName = attrRes.ok
           ? (attrRes.data?.nameI18N?.ru ?? attrRes.data?.code ?? attrId)
           : attrId;
-        const values = valuesRes.ok && valuesRes.data?.items ? valuesRes.data.items : [];
+        const values =
+          valuesRes.ok && valuesRes.data?.items ? valuesRes.data.items : [];
         return { attrId, attrName, values };
       }),
     ),
@@ -217,12 +229,22 @@ function extractVariantAttributes(product, attrMeta, valueMap) {
   }));
 }
 
-async function enrichProduct(item, media, brandMap, categoryMap, supplierMap, attrMeta, valueMap) {
+async function enrichProduct(
+  item,
+  media,
+  brandMap,
+  categoryMap,
+  supplierMap,
+  attrMeta,
+  valueMap,
+) {
   const image = await resolveMainImageUrl(media);
   const brandName = brandMap[item.brandId] ?? null;
   const categoryI18N = categoryMap[item.primaryCategoryId] ?? null;
 
-  const supplier = item?.supplierId ? supplierMap[item.supplierId] ?? null : null;
+  const supplier = item?.supplierId
+    ? (supplierMap[item.supplierId] ?? null)
+    : null;
 
   const variantsCount = item?.variants?.length ?? 1;
 
@@ -275,7 +297,13 @@ export async function GET(request) {
   const token = await getAccessToken();
   if (!token) {
     return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated', details: {} } },
+      {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Not authenticated',
+          details: {},
+        },
+      },
       { status: 401 },
     );
   }
@@ -299,7 +327,11 @@ export async function GET(request) {
   if (!listRes.ok) {
     return NextResponse.json(
       listRes.data ?? {
-        error: { code: 'SERVICE_UNAVAILABLE', message: 'Backend unavailable', details: {} },
+        error: {
+          code: 'SERVICE_UNAVAILABLE',
+          message: 'Backend unavailable',
+          details: {},
+        },
       },
       { status: listRes.status || 502 },
     );
@@ -319,12 +351,23 @@ export async function GET(request) {
 
   // 3) Resolve variant attribute labels (sizes, colors, etc.) — cached per attrId.
   const attributeIds = collectAttributeIds(items);
-  const { attrMeta, valueMap } = await fetchAttributeLookup(token, attributeIds);
+  const { attrMeta, valueMap } = await fetchAttributeLookup(
+    token,
+    attributeIds,
+  );
 
   // 4) Enrich products with all resolved data
   const enriched = await Promise.all(
     items.map((item, i) =>
-      enrichProduct(item, mediaByProduct[i], brandMap, categoryMap, supplierMap, attrMeta, valueMap),
+      enrichProduct(
+        item,
+        mediaByProduct[i],
+        brandMap,
+        categoryMap,
+        supplierMap,
+        attrMeta,
+        valueMap,
+      ),
     ),
   );
 
@@ -341,7 +384,13 @@ export async function POST(request) {
   const token = await getAccessToken();
   if (!token) {
     return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated', details: {} } },
+      {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Not authenticated',
+          details: {},
+        },
+      },
       { status: 401 },
     );
   }
@@ -350,13 +399,22 @@ export async function POST(request) {
 
   const { ok, status, data } = await backendFetch('/api/v1/catalog/products', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(body),
   });
 
   if (!ok) {
     return NextResponse.json(
-      data ?? { error: { code: 'SERVICE_UNAVAILABLE', message: 'Backend unavailable', details: {} } },
+      data ?? {
+        error: {
+          code: 'SERVICE_UNAVAILABLE',
+          message: 'Backend unavailable',
+          details: {},
+        },
+      },
       { status: status || 502 },
     );
   }

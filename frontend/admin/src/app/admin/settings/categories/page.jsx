@@ -1,33 +1,20 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { CategoryTree } from '@/components/admin/settings/categories/CategoryTree';
-import { CategoryModal } from '@/components/admin/settings/categories/CategoryModal';
-import { CategorySkeleton } from '@/components/admin/settings/categories/CategorySkeleton';
-import { i18n } from '@/lib/utils';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  CategoryTree,
+  CategoryModal,
+  CategorySkeleton,
+  categoryKeys,
+  useCategoryTree,
+} from '@/entities/category';
+import { i18n } from '@/shared/lib/utils';
 
 export default function CategoriesPage() {
-  const [tree, setTree] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: tree = [], isPending: loading } = useCategoryTree();
   const [modal, setModal] = useState(null);
-
-  const fetchTree = useCallback(async () => {
-    try {
-      const res = await fetch('/api/categories/tree');
-      if (res.ok) {
-        const data = await res.json();
-        setTree(data);
-      }
-    } catch {
-      // silent — tree stays empty
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchTree();
-  }, [fetchTree]);
 
   function handleAddRoot() {
     setModal({ mode: 'create', parentId: null });
@@ -51,17 +38,16 @@ export default function CategoriesPage() {
 
   function handleModalSuccess() {
     setModal(null);
-    setLoading(true);
-    fetchTree();
+    queryClient.invalidateQueries({ queryKey: categoryKeys.all });
   }
 
   return (
     <div>
       <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-[#22252b]">Категории</h2>
+        <h2 className="text-app-text text-xl font-semibold">Категории</h2>
         <button
           onClick={handleAddRoot}
-          className="rounded-lg bg-[#22252b] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="bg-app-text rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
         >
           + Добавить
         </button>
@@ -71,10 +57,10 @@ export default function CategoriesPage() {
         <CategorySkeleton />
       ) : tree.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
-          <p className="text-sm text-[#878b93]">Категории не добавлены</p>
+          <p className="text-app-muted text-sm">Категории не добавлены</p>
           <button
             onClick={handleAddRoot}
-            className="text-sm font-medium text-[#22252b] underline hover:no-underline"
+            className="text-app-text text-sm font-medium underline hover:no-underline"
           >
             Добавить первую
           </button>

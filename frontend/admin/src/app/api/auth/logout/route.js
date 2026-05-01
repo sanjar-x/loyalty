@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
-import { backendFetch } from '@/lib/api-client';
-import { getAccessToken, clearAuthCookiesOnResponse } from '@/lib/auth';
+import { backendFetch } from '@/shared/api/api-client';
+import {
+  getAccessToken,
+  clearAuthCookiesOnResponse,
+} from '@/shared/auth/cookies';
 
 export async function POST() {
   const accessToken = await getAccessToken();

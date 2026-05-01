@@ -8,5 +8,9 @@ yarn-error.log*
 pnpm-debug.log*
 .DS_Store
 .env*
+!.env.example
 !.env.local.example
+
+# TS build info
+*.tsbuildinfo
 .claude/

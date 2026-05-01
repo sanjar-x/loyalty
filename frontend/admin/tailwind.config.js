@@ -29,13 +29,23 @@ const config = {
           'sidebar-text': '#d2d0ca',
           'badge-china': '#f2e5c2',
           'badge-china-text': '#5c4a17',
+          'text-darker': '#3d3d3d',
+          'border-soft': '#f0f0f0',
+          accent: '#429700',
+          'accent-danger': '#aa2d2d',
         },
       },
       boxShadow: {
         soft: '0 8px 24px rgba(18, 28, 45, 0.06)',
       },
       fontFamily: {
-        sans: ['Inter', '"Segoe UI"', '"SF Pro Text"', '"Helvetica Neue"', 'sans-serif'],
+        sans: [
+          'Inter',
+          '"Segoe UI"',
+          '"SF Pro Text"',
+          '"Helvetica Neue"',
+          'sans-serif',
+        ],
       },
       keyframes: {
         fadeIn: {

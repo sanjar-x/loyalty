@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAccessToken, decodeJwtPayload } from '@/lib/auth';
+import { getAccessToken, decodeJwtPayload } from '@/shared/auth/cookies';
 
 export async function GET() {
   const token = await getAccessToken();

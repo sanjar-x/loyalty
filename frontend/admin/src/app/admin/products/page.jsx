@@ -1,24 +1,34 @@
 'use client';
 
 import Link from 'next/link';
-import { cn, pluralizeRu } from '@/lib/utils';
+import { cn, pluralizeRu } from '@/shared/lib/utils';
 import SearchIcon from '@/assets/icons/search.svg';
 import CloseIcon from '@/assets/icons/close.svg';
-import { useProductFilters, tabs } from '@/hooks/useProductFilters';
-import { Pagination } from '@/components/ui/Pagination';
-import { SortControl } from '@/components/admin/products/SortControl';
-import { ProductRow } from '@/components/admin/products/ProductRow';
-import { ArchiveConfirmModal } from '@/components/admin/products/ArchiveConfirmModal';
-import { DeleteConfirmModal } from '@/components/admin/products/DeleteConfirmModal';
-import { BulkBar } from '@/components/admin/products/BulkBar';
-import { ProductTabs } from '@/components/admin/products/ProductTabs';
-import { ProductRowSkeleton } from '@/components/admin/products/ProductRowSkeleton';
-import { DropdownPill } from '@/components/admin/products/DropdownPill';
+import { Pagination } from '@/shared/ui/Pagination';
+import { ProductRow, ProductRowSkeleton } from '@/entities/product';
+import {
+  ArchiveConfirmModal,
+  DeleteConfirmModal,
+} from '@/features/product-archive';
+import {
+  useProductFilters,
+  tabs,
+  SortControl,
+  BulkBar,
+  ProductTabs,
+  DropdownPill,
+} from '@/features/product-filter';
 import styles from './page.module.css';
 
 const PER_PAGE_OPTIONS = [10, 25, 50];
 
-function ActiveFilters({ query, setQuery, brandFilter, setBrandFilter, brandOptions }) {
+function ActiveFilters({
+  query,
+  setQuery,
+  brandFilter,
+  setBrandFilter,
+  brandOptions,
+}) {
   const chips = [];
 
   if (query.trim())
@@ -57,7 +67,12 @@ function ResultsInfo({ page, perPage, total, searchActive, searchCount }) {
   if (total === 0 && !searchActive) return null;
 
   if (searchActive) {
-    const label = pluralizeRu(searchCount, 'совпадение', 'совпадения', 'совпадений');
+    const label = pluralizeRu(
+      searchCount,
+      'совпадение',
+      'совпадения',
+      'совпадений',
+    );
     return (
       <p className={styles.resultsInfo}>
         {searchCount} {label} на странице

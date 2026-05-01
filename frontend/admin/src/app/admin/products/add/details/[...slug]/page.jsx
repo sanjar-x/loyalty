@@ -1,26 +1,49 @@
 import Link from 'next/link';
-import { categoryLabel } from '@/services/categories';
-import { fetchCategoryTreeServer } from '@/services/categories.server';
-import ProductDetailsForm from '../ProductDetailsForm';
-import styles from '../page.module.css';
+import {
+  categoryLabel,
+  fetchCategoryTreeServer,
+} from '@/entities/category/server';
+import { ProductDetailsForm } from '@/features/product-form';
+import styles from './page.module.css';
 
-function BackArrowIcon() {
+// Inline SVG: this file is a Server Component, and the @svgr/webpack loader
+// only kicks in for client modules. Keep these chevrons inline rather than
+// switching to a client wrapper just for two icons.
+function ChevronGlyph() {
+  return (
+    <svg
+      width="9"
+      height="16"
+      viewBox="0 0 9 16"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M.277 15.724c-.37-.367-.37-.963 0-1.331L6.713 8 .277 1.607c-.37-.368-.37-.964 0-1.331.37-.368.97-.368 1.34 0l7.106 7.058c.37.368.37.964 0 1.331l-7.106 7.058c-.37.368-.97.368-1.34 0Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function ArrowLeftGlyph() {
   return (
     <svg
       width="30"
       height="30"
       viewBox="0 0 30 30"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
       <path
-        d="M11.9621 6.4751C12.1996 6.4751 12.4371 6.5626 12.6246 6.7501C12.9871 7.1126 12.9871 7.7126 12.6246 8.0751L5.69961 15.0001L12.6246 21.9251C12.9871 22.2876 12.9871 22.8876 12.6246 23.2501C12.2621 23.6126 11.6621 23.6126 11.2996 23.2501L3.71211 15.6626C3.34961 15.3001 3.34961 14.7001 3.71211 14.3376L11.2996 6.7501C11.4871 6.5626 11.7246 6.4751 11.9621 6.4751Z"
-        fill="black"
+        d="M11.96 6.475c.238 0 .475.088.663.275.362.363.362.963 0 1.325L5.7 15l6.925 6.925c.362.363.362.963 0 1.325-.363.363-.963.363-1.325 0L3.712 15.663a.937.937 0 0 1 0-1.325L11.3 6.75a.927.927 0 0 1 .662-.275Z"
+        fill="currentColor"
       />
       <path
-        d="M4.5875 14.0625L25.625 14.0625C26.1375 14.0625 26.5625 14.4875 26.5625 15C26.5625 15.5125 26.1375 15.9375 25.625 15.9375L4.5875 15.9375C4.075 15.9375 3.65 15.5125 3.65 15C3.65 14.4875 4.075 14.0625 4.5875 14.0625Z"
-        fill="black"
+        d="M4.587 14.063H25.625c.513 0 .938.425.938.937 0 .513-.425.938-.938.938H4.588a.937.937 0 0 1-.938-.938c0-.512.425-.937.937-.937Z"
+        fill="currentColor"
       />
     </svg>
   );
@@ -31,20 +54,7 @@ function Crumb({ label }) {
     <div className={styles.crumb}>
       <span className={styles.crumbLabel}>{label}</span>
       <span className={styles.crumbChevron}>
-        <svg
-          width="9"
-          height="16"
-          viewBox="0 0 9 16"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            fillRule="evenodd"
-            clipRule="evenodd"
-            d="M0.277478 15.7243C-0.0924926 15.3568 -0.0924926 14.7609 0.277478 14.3933L6.71285 8L0.277478 1.60669C-0.0924926 1.23914 -0.0924926 0.643215 0.277478 0.275663C0.647448 -0.0918894 1.24729 -0.0918894 1.61726 0.275663L8.72252 7.33449C9.09249 7.70204 9.09249 8.29796 8.72252 8.66551L1.61726 15.7243C1.24729 16.0919 0.647448 16.0919 0.277478 15.7243Z"
-            fill="black"
-          />
-        </svg>
+        <ChevronGlyph />
       </span>
     </div>
   );
@@ -81,7 +91,7 @@ export default async function AddProductDetailsPage({ params }) {
           className={styles.backButton}
           aria-label="Назад к выбору категории"
         >
-          <BackArrowIcon />
+          <ArrowLeftGlyph />
         </Link>
         <h1 className={styles.title}>Добавление товара</h1>
       </div>

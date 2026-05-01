@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
-import { getAccessToken } from '@/lib/auth';
+import { getAccessToken } from '@/shared/auth/cookies';
 
 export async function GET(request) {
   const token = await getAccessToken();
   if (!token) {
     return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated', details: {} } },
+      {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Not authenticated',
+          details: {},
+        },
+      },
       { status: 401 },
     );
   }
@@ -13,7 +19,13 @@ export async function GET(request) {
   const url = new URL(request.url).searchParams.get('url');
   if (!url || !url.startsWith('https://')) {
     return NextResponse.json(
-      { error: { code: 'BAD_REQUEST', message: 'Valid https URL required', details: {} } },
+      {
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Valid https URL required',
+          details: {},
+        },
+      },
       { status: 400 },
     );
   }
@@ -22,7 +34,7 @@ export async function GET(request) {
     const res = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; LoyalityAdmin/1.0)',
-        'Accept': 'image/*,*/*',
+        Accept: 'image/*,*/*',
       },
     });
     if (!res.ok) {
@@ -37,7 +49,13 @@ export async function GET(request) {
     });
   } catch {
     return NextResponse.json(
-      { error: { code: 'FETCH_FAILED', message: 'Failed to fetch image', details: {} } },
+      {
+        error: {
+          code: 'FETCH_FAILED',
+          message: 'Failed to fetch image',
+          details: {},
+        },
+      },
       { status: 502 },
     );
   }

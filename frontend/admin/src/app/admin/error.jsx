@@ -15,9 +15,7 @@ export default function AdminError({ error, reset }) {
         textAlign: 'center',
       }}
     >
-      <h2 style={{ fontSize: '20px', fontWeight: 600 }}>
-        Произошла ошибка
-      </h2>
+      <h2 style={{ fontSize: '20px', fontWeight: 600 }}>Произошла ошибка</h2>
       {isDev && error?.message ? (
         <p style={{ color: '#7e7e7e', fontSize: '14px', maxWidth: '480px' }}>
           {error.message}

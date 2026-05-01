@@ -1,0 +1,451 @@
+'use client';
+
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { cn } from '@/shared/lib/utils';
+
+export function ExpressionBuilder({
+  expr,
+  onChange,
+  variables,
+  bindings,
+  currentIndex,
+  readOnly,
+}) {
+  const lookups = useMemo(
+    () => buildLookups(variables, bindings, currentIndex),
+    [variables, bindings, currentIndex],
+  );
+
+  const [text, setText] = useState(() => exprToDisplay(expr, lookups));
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionFilter, setSuggestionFilter] = useState('');
+  const [caretPos, setCaretPos] = useState(0);
+  const textareaRef = useRef(null);
+  const lastParsedRef = useRef(expr);
+
+  useEffect(() => {
+    const incoming = JSON.stringify(expr);
+    const last = JSON.stringify(lastParsedRef.current);
+    if (incoming !== last) {
+      setText(exprToDisplay(expr, lookups));
+      lastParsedRef.current = expr;
+    }
+  }, [expr, lookups]);
+
+  const suggestions = useMemo(() => {
+    const items = [];
+    for (const v of variables || []) {
+      const display = v.name?.ru || v.code;
+      items.push({
+        type: 'var',
+        code: v.code,
+        display,
+        unit: v.unit,
+        scope: v.scope,
+      });
+    }
+    for (const b of lookups.refBindings) {
+      items.push({
+        type: 'ref',
+        code: b.name,
+        display: b.label || b.name,
+        unit: null,
+        scope: 'binding',
+      });
+    }
+    if (!suggestionFilter) return items;
+    const q = suggestionFilter.toLowerCase();
+    return items.filter(
+      (it) =>
+        it.display.toLowerCase().includes(q) ||
+        it.code.toLowerCase().includes(q),
+    );
+  }, [variables, lookups.refBindings, suggestionFilter]);
+
+  function autoResize(el) {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
+
+  const handleChange = useCallback(
+    (e) => {
+      const val = e.target.value;
+      setText(val);
+      autoResize(e.target);
+
+      const pos = e.target.selectionStart;
+      setCaretPos(pos);
+
+      const before = val.slice(0, pos);
+      const atMatch = before.match(/@(.*)$/);
+      if (atMatch) {
+        setSuggestionFilter(atMatch[1] || '');
+        setShowSuggestions(true);
+      } else {
+        setShowSuggestions(false);
+      }
+
+      const parsed = displayToExpr(val, lookups);
+      lastParsedRef.current = parsed;
+      onChange(parsed);
+    },
+    [onChange, lookups],
+  );
+
+  function handleKeyDown(e) {
+    if (e.key === 'Escape') setShowSuggestions(false);
+    if (e.key === 'Tab' && showSuggestions && suggestions.length > 0) {
+      e.preventDefault();
+      insertSuggestion(suggestions[0]);
+    }
+  }
+
+  function insertSuggestion(item) {
+    const el = textareaRef.current;
+    if (!el) return;
+
+    const before = text.slice(0, caretPos);
+    const after = text.slice(caretPos);
+    const atIdx = before.lastIndexOf('@');
+    const insertText = item.display;
+    const newBefore = before.slice(0, atIdx) + insertText;
+    const newText = newBefore + (after.startsWith(' ') ? after : ' ' + after);
+
+    setText(newText);
+    setShowSuggestions(false);
+
+    const parsed = displayToExpr(newText, lookups);
+    lastParsedRef.current = parsed;
+    onChange(parsed);
+
+    requestAnimationFrame(() => {
+      const newPos = newBefore.length + 1;
+      el.focus();
+      el.setSelectionRange(newPos, newPos);
+    });
+  }
+
+  const varCodes = new Set((variables || []).map((v) => v.code));
+  const tokens = text ? tokenize(text) : [];
+  const recognizedTokens = tokens.filter(
+    (t) =>
+      t.type === 'word' &&
+      (lookups.displayToCode.has(t.value) || varCodes.has(t.value)),
+  );
+
+  return (
+    <div className="relative">
+      <textarea
+        ref={(el) => {
+          textareaRef.current = el;
+          autoResize(el);
+        }}
+        value={text}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        onFocus={(e) => {
+          if (e.target.value === '0') e.target.select();
+        }}
+        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+        disabled={readOnly}
+        placeholder="Закупочная цена * Курс CNY/RUB"
+        rows={1}
+        spellCheck={false}
+        className={cn(
+          'border-app-border text-app-text w-full resize-none overflow-hidden rounded-lg border bg-white px-3 py-2 text-sm leading-6 transition-colors outline-none',
+          'focus:border-app-text focus:ring-app-text focus:ring-1',
+          'placeholder:text-app-muted',
+          'disabled:cursor-default disabled:bg-transparent disabled:opacity-60',
+        )}
+      />
+
+      {recognizedTokens.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          {recognizedTokens.map((tok, i) => {
+            const code = lookups.displayToCode.get(tok.value) || tok.value;
+            const v = (variables || []).find((x) => x.code === code);
+            const isRef = lookups.refNames.has(code);
+            const color = isRef
+              ? 'bg-violet-100 text-violet-700'
+              : SCOPE_COLORS[v?.scope] || 'bg-gray-100 text-gray-600';
+            return (
+              <span
+                key={`${tok.value}-${i}`}
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium',
+                  color,
+                )}
+              >
+                {tok.value}
+                {v?.unit && <span className="opacity-50">{v.unit}</span>}
+                {isRef && <span className="opacity-50">↑ref</span>}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-1 flex items-center gap-2">
+        {!readOnly && (
+          <span className="text-app-muted text-[10px]">
+            <kbd className="rounded border border-gray-300 bg-gray-100 px-1 py-0.5 font-mono text-[9px]">
+              @
+            </kbd>{' '}
+            вставить переменную или ссылку на строку
+          </span>
+        )}
+      </div>
+
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="border-app-border absolute left-0 z-30 mt-1 max-h-56 w-80 overflow-y-auto rounded-xl border bg-white p-1 shadow-xl">
+          {suggestions.slice(0, 20).map((item, i) => (
+            <button
+              key={`${item.code}-${i}`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                insertSuggestion(item);
+              }}
+              className="hover:bg-app-card flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors"
+            >
+              <span
+                className={cn(
+                  'shrink-0 rounded px-1.5 py-0.5 text-xs font-medium',
+                  item.type === 'ref'
+                    ? 'bg-violet-100 text-violet-700'
+                    : SCOPE_COLORS[item.scope] || 'bg-gray-100 text-gray-600',
+                )}
+              >
+                {item.display}
+              </span>
+              <span className="text-app-muted truncate text-[11px]">
+                {item.type === 'ref'
+                  ? '↑ строка формулы'
+                  : `${item.unit || ''} · ${SCOPE_LABELS[item.scope] || item.scope}`}
+              </span>
+            </button>
+          ))}
+          <div className="border-t border-gray-100 px-3 py-1.5 text-[10px] text-gray-400">
+            <kbd className="rounded border border-gray-200 px-1 font-mono">
+              Tab
+            </kbd>{' '}
+            вставить первый
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const SCOPE_LABELS = {
+  global: 'глобальная',
+  supplier: 'поставщик',
+  category: 'категория',
+  range: 'диапазон',
+  product_input: 'ввод товара',
+  sku_input: 'SKU',
+};
+
+const SCOPE_COLORS = {
+  global: 'bg-emerald-100 text-emerald-700',
+  supplier: 'bg-blue-100 text-blue-700',
+  category: 'bg-purple-100 text-purple-700',
+  range: 'bg-orange-100 text-orange-700',
+  product_input: 'bg-pink-100 text-pink-700',
+  sku_input: 'bg-cyan-100 text-cyan-700',
+};
+
+function buildLookups(variables, bindings, currentIndex) {
+  const displayToCode = new Map();
+  const codeToDisplay = new Map();
+  const refNames = new Set();
+  const refBindings = [];
+
+  for (const v of variables || []) {
+    const display = v.name?.ru || v.code;
+    displayToCode.set(display, v.code);
+    codeToDisplay.set(v.code, display);
+  }
+
+  for (let i = 0; i < (bindings || []).length; i++) {
+    if (i >= currentIndex) break;
+    const b = bindings[i];
+    if (!b.name) continue;
+    const display = b.label || b.name;
+    displayToCode.set(display, b.name);
+    codeToDisplay.set(b.name, display);
+    refNames.add(b.name);
+    refBindings.push(b);
+  }
+
+  return { displayToCode, codeToDisplay, refNames, refBindings };
+}
+
+function exprToDisplay(expr, lookups) {
+  if (!expr || typeof expr !== 'object') return '';
+  if ('const' in expr) return String(expr.const);
+  if ('var' in expr) return lookups.codeToDisplay.get(expr.var) || expr.var;
+  if ('ref' in expr) return lookups.codeToDisplay.get(expr.ref) || expr.ref;
+  if ('op' in expr && Array.isArray(expr.args)) {
+    return expr.args.map((a) => exprToDisplay(a, lookups)).join(` ${expr.op} `);
+  }
+  if ('fn' in expr && Array.isArray(expr.args)) {
+    return `${expr.fn}(${expr.args.map((a) => exprToDisplay(a, lookups)).join(', ')})`;
+  }
+  return JSON.stringify(expr);
+}
+
+function displayToExpr(text, lookups) {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return { const: '0' };
+
+  try {
+    const tokens = tokenize(trimmed).filter((t) => t.type !== 'space');
+    const resolved = tokens.map((t) => {
+      if (t.type === 'word') {
+        const code = lookups.displayToCode.get(t.value);
+        if (code && lookups.refNames.has(code))
+          return { ...t, type: 'ref_resolved', code };
+        if (code) return { ...t, type: 'var_resolved', code };
+      }
+      return t;
+    });
+    return parseExpr(resolved, 0).node;
+  } catch {
+    return { var: trimmed };
+  }
+}
+
+const KNOWN_FNS = new Set([
+  'min',
+  'max',
+  'round',
+  'ceil',
+  'floor',
+  'abs',
+  'if',
+]);
+const OPS = new Set(['+', '-', '*', '/']);
+
+function tokenize(text) {
+  const tokens = [];
+  let i = 0;
+  while (i < text.length) {
+    if (/\s/.test(text[i])) {
+      let ws = '';
+      while (i < text.length && /\s/.test(text[i])) {
+        ws += text[i];
+        i++;
+      }
+      tokens.push({ type: 'space', value: ws });
+      continue;
+    }
+    if (OPS.has(text[i])) {
+      tokens.push({ type: 'operator', value: text[i] });
+      i++;
+      continue;
+    }
+    if (text[i] === '(' || text[i] === ')' || text[i] === ',') {
+      tokens.push({ type: 'paren', value: text[i] });
+      i++;
+      continue;
+    }
+    if (
+      /\d/.test(text[i]) ||
+      (text[i] === '.' && i + 1 < text.length && /\d/.test(text[i + 1]))
+    ) {
+      let num = '';
+      while (i < text.length && /[\d.]/.test(text[i])) {
+        num += text[i];
+        i++;
+      }
+      tokens.push({ type: 'number', value: num });
+      continue;
+    }
+    if (/[^\s+\-*/(),]/.test(text[i])) {
+      let word = '';
+      while (i < text.length && /[^\s+\-*/(),]/.test(text[i])) {
+        word += text[i];
+        i++;
+      }
+      if (KNOWN_FNS.has(word)) {
+        tokens.push({ type: 'function', value: word });
+      } else {
+        tokens.push({ type: 'word', value: word });
+      }
+      continue;
+    }
+    tokens.push({ type: 'other', value: text[i] });
+    i++;
+  }
+  return tokens;
+}
+
+function parseExpr(tokens, pos) {
+  let { node, pos: p } = parseTerm(tokens, pos);
+  while (
+    p < tokens.length &&
+    (tokens[p].value === '+' || tokens[p].value === '-')
+  ) {
+    const op = tokens[p].value;
+    p++;
+    const right = parseTerm(tokens, p);
+    node = { op, args: [node, right.node] };
+    p = right.pos;
+  }
+  return { node, pos: p };
+}
+
+function parseTerm(tokens, pos) {
+  let { node, pos: p } = parseFactor(tokens, pos);
+  while (
+    p < tokens.length &&
+    (tokens[p].value === '*' || tokens[p].value === '/')
+  ) {
+    const op = tokens[p].value;
+    p++;
+    const right = parseFactor(tokens, p);
+    node = { op, args: [node, right.node] };
+    p = right.pos;
+  }
+  return { node, pos: p };
+}
+
+function parseFactor(tokens, pos) {
+  if (pos >= tokens.length) return { node: { const: '0' }, pos };
+  const tok = tokens[pos];
+
+  if (tok.type === 'paren' && tok.value === '(') {
+    const inner = parseExpr(tokens, pos + 1);
+    let p = inner.pos;
+    if (p < tokens.length && tokens[p].value === ')') p++;
+    return { node: inner.node, pos: p };
+  }
+  if (tok.type === 'number')
+    return { node: { const: tok.value }, pos: pos + 1 };
+  if (tok.type === 'ref_resolved')
+    return { node: { ref: tok.code }, pos: pos + 1 };
+  if (tok.type === 'var_resolved')
+    return { node: { var: tok.code }, pos: pos + 1 };
+  if (tok.type === 'function') {
+    let p = pos + 1;
+    if (p < tokens.length && tokens[p].value === '(') {
+      p++;
+      const args = [];
+      while (p < tokens.length && tokens[p].value !== ')') {
+        if (tokens[p].value === ',') {
+          p++;
+          continue;
+        }
+        const arg = parseExpr(tokens, p);
+        args.push(arg.node);
+        p = arg.pos;
+      }
+      if (p < tokens.length) p++;
+      return { node: { fn: tok.value, args }, pos: p };
+    }
+    return { node: { fn: tok.value, args: [{ const: '0' }] }, pos: p };
+  }
+  if (tok.type === 'word') return { node: { var: tok.value }, pos: pos + 1 };
+  return { node: { const: '0' }, pos: pos + 1 };
+}

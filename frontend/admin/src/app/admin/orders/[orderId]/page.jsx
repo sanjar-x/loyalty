@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
-import { OrderDetailsView } from '@/components/admin/OrderDetailsView';
-import { getOrderById } from '@/services/orders';
+import { OrderDetailsView } from '@/entities/order';
+import { getOrderById } from '@/entities/order';
 
 export default async function OrderDetailsPage({ params }) {
   const { orderId } = await params;
@@ -12,4 +12,3 @@ export default async function OrderDetailsPage({ params }) {
 
   return <OrderDetailsView order={order} />;
 }
-

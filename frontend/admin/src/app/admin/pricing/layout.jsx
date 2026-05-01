@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense } from 'react';
-import { PricingPageProvider } from '@/components/admin/pricing/PricingPageProvider';
+import { PricingPageProvider } from '@/features/pricing';
 
 export default function PricingLayout({ children }) {
   return (

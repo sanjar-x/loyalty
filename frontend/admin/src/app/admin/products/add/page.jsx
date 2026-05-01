@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ChevronIcon from '@/assets/icons/chevron.svg';
 import SearchIcon from '@/assets/icons/search.svg';
 import CloseIcon from '@/assets/icons/close.svg';
-import { fetchCategoryTree, categoryLabel } from '@/services/categories';
+import { categoryLabel, useCategoryTree } from '@/entities/category';
 import styles from './page.module.css';
 
 const COLUMN_LABELS = ['Раздел', 'Категория', 'Тип товара'];
@@ -97,9 +97,7 @@ function CategoryColumn({ items, selectedId, onSelect, label }) {
                   })
                 }
               >
-                <span className={styles.itemLabel}>
-                  {categoryLabel(item)}
-                </span>
+                <span className={styles.itemLabel}>{categoryLabel(item)}</span>
                 <ChevronIcon className={styles.itemIcon} />
               </Link>
             );
@@ -193,35 +191,33 @@ function RecentCategories() {
 }
 
 export default function AddProductPage() {
-  const [tree, setTree] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const {
+    data: tree = [],
+    isPending: loading,
+    isError,
+    refetch,
+  } = useCategoryTree();
+  const error = isError ? 'Не удалось загрузить категории' : '';
+
   const [selectedIds, setSelectedIds] = useState([]);
   const [search, setSearch] = useState('');
   const searchRef = useRef(null);
+  const initializedRef = useRef(false);
 
-  const loadTree = useCallback(() => {
-    setLoading(true);
-    setError('');
-    fetchCategoryTree()
-      .then((data) => {
-        const items = Array.isArray(data) ? data : [];
-        setTree(items);
-        const ids = [];
-        let current = items;
-        while (current?.length) {
-          ids.push(current[0].id);
-          current = current[0].children;
-        }
-        setSelectedIds(ids);
-      })
-      .catch(() => setError('Не удалось загрузить категории'))
-      .finally(() => setLoading(false));
-  }, []);
-
+  // When the tree first arrives, deep-select the leftmost branch by default.
+  // Guarded by a ref so background refetches (every 5 min) don't reset the
+  // user's manual selection.
   useEffect(() => {
-    loadTree();
-  }, [loadTree]);
+    if (initializedRef.current || !tree.length) return;
+    initializedRef.current = true;
+    const ids = [];
+    let current = tree;
+    while (current?.length) {
+      ids.push(current[0].id);
+      current = current[0].children;
+    }
+    setSelectedIds(ids);
+  }, [tree]);
 
   const flatItems = useMemo(() => flattenTree(tree), [tree]);
 
@@ -316,7 +312,7 @@ export default function AddProductPage() {
           <button
             type="button"
             className={styles.retryButton}
-            onClick={loadTree}
+            onClick={() => refetch()}
           >
             Попробовать снова
           </button>

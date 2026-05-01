@@ -1,13 +1,13 @@
 'use client';
 
-import { OrdersList } from '@/components/admin/OrdersList';
-import { OrderStatusModal } from '@/components/admin/OrderStatusModal';
-import { StatusTabs } from '@/components/admin/StatusTabs';
-import { TopMetrics } from '@/components/admin/TopMetrics';
-import { OrderFilters } from '@/components/admin/orders/OrderFilters';
-import { ReasonFilters } from '@/components/admin/orders/ReasonFilters';
-import { useOrderFilters } from '@/hooks/useOrderFilters';
-import { getOrders } from '@/services/orders';
+import { OrdersList } from '@/entities/order';
+import { OrderStatusModal } from '@/entities/order';
+import { StatusTabs } from '@/features/order-filter';
+import { TopMetrics } from '@/entities/order';
+import { OrderFilters } from '@/features/order-filter';
+import { ReasonFilters } from '@/features/order-filter';
+import { useOrderFilters } from '@/features/order-filter';
+import { getOrders } from '@/entities/order';
 
 export default function OrdersPage() {
   const {
@@ -38,7 +38,7 @@ export default function OrdersPage() {
 
   return (
     <section className="animate-fadeIn">
-      <h1 className="mb-6 text-[40px] leading-[44px] font-bold tracking-[-1px] text-[#2d2d2d]">
+      <h1 className="text-app-text-dark mb-6 text-[40px] leading-[44px] font-bold tracking-[-1px]">
         Заказы
       </h1>
 

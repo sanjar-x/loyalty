@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
-import { imageBackendFetch } from '@/lib/image-api-client';
-import { getAccessToken } from '@/lib/auth';
+import { imageBackendFetch } from '@/shared/api/image-api-client';
+import { getAccessToken } from '@/shared/auth/cookies';
 
 export async function POST(request) {
   const token = await getAccessToken();
   if (!token) {
     return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated', details: {} } },
+      {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Not authenticated',
+          details: {},
+        },
+      },
       { status: 401 },
     );
   }
@@ -25,7 +31,13 @@ export async function POST(request) {
 
   if (!ok) {
     return NextResponse.json(
-      data ?? { error: { code: 'IMAGE_SERVICE_ERROR', message: 'Image service error', details: {} } },
+      data ?? {
+        error: {
+          code: 'IMAGE_SERVICE_ERROR',
+          message: 'Image service error',
+          details: {},
+        },
+      },
       { status: status || 502 },
     );
   }
