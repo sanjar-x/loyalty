@@ -4,13 +4,13 @@ Modular monolith with three deployable services and two frontends.
 
 ## Components
 
-| Component      | Path               | Tech                                            | Port | Deployment |
-| -------------- | ------------------ | ----------------------------------------------- | ---- | ---------- |
-| Backend        | `backend/`         | FastAPI, Python 3.14, Clean Architecture        | 8080 | Railway    |
-| Image Backend  | `image_backend/`   | FastAPI, Python 3.14, Pillow, aiobotocore       | 8080 | Railway    |
-| Frontend Main  | `frontend/main/`   | Next.js 16, TypeScript, React 19, Redux Toolkit | 3000 | Netlify    |
-| Frontend Admin | `frontend/admin/`  | Next.js 16, JSX, Tailwind CSS 4                 | 3000 | Netlify    |
-| Telegram Bot   | `backend/src/bot/` | Aiogram 3, FSM states                           | —    | Railway    |
+| Component      | Path               | Tech                                                            | Port | Deployment |
+| -------------- | ------------------ | --------------------------------------------------------------- | ---- | ---------- |
+| Backend        | `backend/`         | FastAPI, Python 3.14, Clean Architecture                        | 8080 | Railway    |
+| Image Backend  | `image_backend/`   | FastAPI, Python 3.14, Pillow, aiobotocore                       | 8080 | Railway    |
+| Frontend Main  | `frontend/main/`   | Next.js 16, TypeScript, React 19, TanStack Query + Zustand + ky | 3000 | Netlify    |
+| Frontend Admin | `frontend/admin/`  | Next.js 16, JSX, Tailwind CSS 4, Feature-Sliced Design          | 3000 | Netlify    |
+| Telegram Bot   | `backend/src/bot/` | Aiogram 3, FSM states                                           | —    | Railway    |
 
 Each component has its own `CLAUDE.md` with specific commands, architecture, and patterns. Read it when working in that directory.
 

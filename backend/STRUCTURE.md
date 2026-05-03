@@ -48,19 +48,25 @@ src/
 ├── bootstrap/              # Инициализация приложения
 ├── api/                    # API-слой (роутер, мидлвари, обработчики ошибок)
 ├── bot/                    # Telegram-бот (Aiogram 3)
-├── modules/                # Функциональные модули (DDD bounded contexts)
+├── modules/                # Функциональные модули (DDD bounded contexts) — 13 шт.
 │   ├── catalog/            # Каталог: бренды, категории, товары, варианты, SKU, атрибуты, шаблоны, медиа
 │   ├── identity/           # IAM: аутентификация (LOCAL/OIDC/Telegram), роли, права, сессии, приглашения
 │   ├── user/               # Профили пользователей (Customer, StaffMember)
 │   ├── geo/                # Географические справочники (страны, регионы, районы, валюты, языки)
-│   ├── cart/               # Корзина и позиции, чек-аут снапшоты
-│   ├── logistics/          # Отправления, события трекинга, провайдеры доставки
+│   ├── cart/               # Корзина и позиции, чек-аут снапшоты (с pickup_carrier + recipient_id)
+│   ├── favorites/          # Многосписковые избранные (полиморфные таргеты product/brand)
+│   ├── logistics/          # Отправления, события трекинга, провайдеры (CDEK / Yandex / DobroPost)
 │   ├── supplier/           # Поставщики (cross-border / local), онбординг
-│   ├── pricing/            # Переменные, формулы (AST + evaluator), контексты ценообразования, профили товаров
-│   └── activity/           # Аналитика: трекинг событий (Redis), trending, co-view рекомендации
+│   ├── pricing/            # Переменные, формулы (AST + evaluator), контексты ценообразования, профили товаров, ADR-005 SKU recompute
+│   ├── activity/           # Аналитика: трекинг событий (Redis), trending, co-view рекомендации
+│   ├── order/              # Loyality FSM (14 состояний), RecipientSnapshot, dual-leg tracking, DobroPost integration с retry + circuit-breaker
+│   ├── payment/            # PaymentIntent FSM (двухшаговый authorize/capture), refund, fake/yookassa/sbp/tinkoff providers
+│   └── recipient/          # Customer-owned получатели для таможни (паспорт 4+6, ИНН 12, birth_date)
 ├── infrastructure/         # Кросс-модульная инфраструктура
 └── shared/                 # Общий код и интерфейсы
 ```
+
+**Ground truth для списка модулей:** `tests/architecture/test_boundaries.py:MODULES`. README/CLAUDE.md синхронизируются с этим списком, а не наоборот.
 
 > Ранее существовавший модуль `storage` был расформирован: S3-клиент переехал в `src/infrastructure/storage/factory.py`, а обработка изображений вынесена в отдельный сервис `image_backend/`.
 
@@ -541,7 +547,7 @@ logistics/
 │   ├── models.py               # Shipment, TrackingEvent ORM
 │   ├── provider.py             # LogisticsInfraProvider, CommandProvider, QueryProvider
 │   ├── repository.py
-│   └── carriers/               # Конкретные провайдеры (CDEK, Russian Post, Yandex Delivery)
+│   └── providers/              # Конкретные провайдеры (cdek/, yandex_delivery/, dobropost/)
 └── presentation/
     ├── router.py               # Внутренние API
     ├── router_webhooks.py      # Carrier webhooks
@@ -741,10 +747,11 @@ tests/
 │   ├── modules/
 │   │   ├── catalog/        # domain entities, FSM, AST для атрибутов, slug, i18n
 │   │   ├── identity/       # Identity, Session, Role, Invitation
-│   │   ├── logistics/      # Shipment FSM, TrackingEvent дедуп
+│   │   ├── logistics/      # Shipment FSM, TrackingEvent дедуп, провайдеры
 │   │   ├── pricing/        # Variable, FormulaVersion, AST validator + evaluator
 │   │   ├── supplier/       # Supplier (immutable type guard)
 │   │   └── user/           # Customer/StaffMember анонимизация
+│   ├── favorites/          # FavoriteList aggregate + default-list invariant
 │   ├── infrastructure/
 │   │   ├── logging/
 │   │   ├── outbox/         # test_relay, test_tasks
@@ -757,7 +764,9 @@ tests/
 │       ├── activity/       # Redis trackers + flush в PG
 │       ├── cart/           # cart endpoints + catalog adapter
 │       ├── catalog/        # commands, repositories, storefront queries, search
+│       ├── favorites/      # repo, query enrichment, target validator
 │       ├── identity/       # login/register/refresh, RBAC
+│       ├── logistics/      # provider adapters против контейнеров
 │       ├── pricing/        # формула publish/rollback, preview-расчёт
 │       └── supplier/
 ├── e2e/                    # HTTP E2E тесты через AsyncClient
@@ -772,7 +781,7 @@ tests/
 │       ├── cart/                   # Cart endpoints
 │       └── pricing/                # Variables, contexts, formulas, preview
 ├── architecture/           # Тесты архитектурных границ (pytest-archon)
-│   └── test_boundaries.py  # Import-linting для всех 9 модулей
+│   └── test_boundaries.py  # Import-linting для всех 10 модулей
 ├── load/                   # Нагрузочные тесты (Locust)
 │   ├── locustfile.py
 │   └── scenarios/          # auth_flow, browse_catalog, mixed_workload
@@ -809,27 +818,13 @@ alembic/
 ├── env.py                  # Async runner, подключается к Settings
 ├── script.py.mako          # Шаблон миграции
 └── versions/
-    └── 2026/03/
-        ├── 13_..._init.py                          # Начальная схема (каталог)
-        ├── 15_..._add_outbox_messages.py            # Transactional Outbox
-        ├── 15_..._add_correlation_id_to_outbox.py   # Трассировка запросов
-        ├── 16_..._create_iam_tables.py              # IAM: identities, sessions, roles, permissions
-        ├── 16_..._seed_iam_roles_and_permissions.py # Начальные роли и права
-        ├── 19_..._add_identity_deactivation_fields.py
-        ├── 19_..._users_staff_separation.py         # Customer / StaffMember разделение
-        ├── 20_..._add_telegram_credentials.py
-        ├── 20_..._iam_multi_provider.py             # LinkedAccount для OAuth
-        ├── 20_..._drop_telegram_credentials.py
-        ├── 21_..._create_countries_table.py         # Geo: страны
-        ├── 21_..._create_languages_table.py         # Geo: языки
-        ├── 21_..._create_country_translations_table.py
-        ├── 21_..._seed_languages_and_countries.py
-        ├── 22_..._create_currencies_tables.py       # Geo: валюты
-        ├── 22_..._seed_currencies.py
-        ├── 22_..._refactor_countries_table.py
-        ├── 22_..._add_missing_uz_cyrl_translations.py
-        ├── 22_..._add_sku_currency_fk.py            # SKU → Currency FK
-        └── 22_..._add_updated_at_to_geo_tables.py
+    ├── 2026/04/            # 28 миграций — init, FTS, cart, logistics, geo, pricing (формулы, контексты,
+    │                       # переменные, профили, settings, history), activity, co-view, sku pricing FSM,
+    │                       # provider_accounts unique, shipment_cross_border_arrived_at
+    └── 2026/05/            # 4 миграции — favorites_module, order_payment_modules,
+                            # recipient_module + order_recipient_snapshot,
+                            # extend_checkout_snapshots_with_recipient,
+                            # dobropost_shipment_mappings (int-id ↔ UUID side mapping)
 ```
 
 Особенности:
@@ -856,7 +851,7 @@ alembic/
 
 | Паттерн                      | Где применяется                                                        |
 | ---------------------------- | ---------------------------------------------------------------------- |
-| **DDD / Bounded Context**    | 5 модулей: catalog, identity, user, geo, storage — независимые области |
+| **DDD / Bounded Context**    | 13 модулей: catalog, identity, user, geo, cart, favorites, logistics, supplier, pricing, activity, order, payment, recipient — независимые области |
 | **CQRS**                     | commands/ и queries/ в каждом модуле — разделение записи и чтения      |
 | **Repository + Data Mapper** | `BrandRepository`: ORM ↔ Domain, без утечки ORM в домен                |
 | **Unit of Work**             | `IUnitOfWork` — транзакции через async context manager                 |

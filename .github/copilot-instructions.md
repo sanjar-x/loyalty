@@ -96,7 +96,7 @@ Error envelope: `{"error": {"code", "message", "details", "request_id"}}`.
 
 ### Backend — Clean Architecture + Modular Monolith
 
-Each module in `src/modules/{catalog,identity,user,geo,supplier}/` has 4 layers:
+Each of the 13 modules in `src/modules/{catalog,identity,user,geo,cart,favorites,logistics,pricing,activity,supplier,order,payment,recipient}/` has 4 layers:
 
 - **domain/** — `attrs` entities inheriting `AggregateRoot`, value objects, domain events, interfaces (Protocols). Zero framework imports.
 - **application/** — `commands/` (CQRS write), `queries/` (CQRS read, may use ORM directly), `consumers/` (event handlers).

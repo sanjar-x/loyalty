@@ -8,10 +8,12 @@ Parent directory for both frontends. See `../CLAUDE.md` for project overview, cr
 
 Two independent Next.js 16 apps sharing no code between them:
 
-- **main/** — Customer-facing Telegram Mini App (TypeScript, React 19, Redux Toolkit). Deployed on Netlify.
-- **admin/** — Admin panel (JavaScript/JSX, Tailwind CSS 4, CSS Modules). Uses `--webpack` flag for dev/build.
+- **main/** — Customer-facing Telegram Mini App (TypeScript, React 19, TanStack Query, Zustand, ky, Zod). Deployed on Netlify.
+- **admin/** — Admin panel (JSX/JavaScript, Tailwind CSS 4, Feature-Sliced Design). Uses `--webpack` flag for dev/build because `@svgr/webpack` is not Turbopack-compatible.
 
 Both use `npm` as package manager (package-lock.json present).
+
+> `frontend/main/AGENTS.md` warns: **"This is NOT the Next.js you know"** — APIs and conventions in Next.js 16 differ from training-data assumptions. Read `node_modules/next/dist/docs/` before writing code.
 
 ## Commands
 
@@ -19,19 +21,26 @@ Both use `npm` as package manager (package-lock.json present).
 
 ```bash
 npm install
-npm run dev      # next dev (port 3000)
-npm run build    # next build
-npm run lint     # eslint (core-web-vitals config)
+npm run dev          # next dev (port 3000)
+npm run build        # next build
+npm run start        # production server
+npm run lint         # eslint --max-warnings=0
+npm run typecheck    # tsc --noEmit
+npm run format       # prettier --write .
+npm test             # vitest (unit/component) — see vitest.config.ts
+npm run plop         # generate components/hooks from templates/*.hbs
 ```
 
 ### Frontend Admin (working directory: `frontend/admin/`)
 
 ```bash
 npm install
-npm run dev      # next dev --webpack (port 3000)
-npm run build    # next build --webpack
-npm run lint     # eslint .
-npm run format   # prettier --write .
+npm run dev          # next dev --webpack (port 3000)
+npm run build        # next build --webpack
+npm run lint         # eslint .
+npm run typecheck    # tsc --noEmit (LSP only — code is JSX)
+npm test             # vitest run
+npm run format       # prettier --write .
 ```
 
 ## Environment Variables
@@ -40,12 +49,16 @@ npm run format   # prettier --write .
 
 ```
 BACKEND_API_BASE_URL=http://localhost:8080   # Backend API (server-side only)
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 BROWSER_DEBUG_AUTH=true                       # Dev-only: mock auth without Telegram/backend
 NEXT_PUBLIC_BROWSER_DEBUG_AUTH=true
 COOKIE_DOMAIN=                                # Leave empty for localhost
 DADATA_TOKEN=...                              # Address suggestion service
 DADATA_SECRET=...
+AUTH_SECRET=...                               # ≥32 chars
 ```
+
+Validation: `src/env.ts` uses `@t3-oss/env-nextjs` with Zod schemas — invalid env at startup fails fast.
 
 ### admin/.env.local
 
@@ -59,92 +72,119 @@ IMAGE_BACKEND_API_KEY=dev-api-key
 
 ### main/ — Telegram Mini App
 
-**Project structure** (no `src/` directory — files at project root):
-
-```
-app/              — App Router pages and API routes
-components/
-  blocks/         — Feature components (cart, catalog, product, search, telegram, reviews, etc.)
-  ios/            — iOS WebView workarounds (InputFocusFix)
-  layout/         — Layout components
-  providers/      — StoreProvider (Redux)
-  ui/             — Shared UI primitives (Button, BottomSheet) with CSS Modules
-lib/
-  auth/           — Cookie helpers, token management (server-side)
-  format/         — Utility formatters (price, date, cn, brand-image, product-image)
-  hooks/          — Custom hooks (useItemFavorites)
-  store/          — Redux store, RTK Query API, authSlice
-  telegram/       — Telegram WebApp SDK wrapper, TelegramProvider, hooks
-  types/          — TypeScript types (api, catalog, user, auth, ui, telegram-globals)
-middleware.ts     — Edge middleware: CSRF defense + security headers for Telegram iframe
-```
-
-**Path alias**: `@/*` maps to project root (e.g. `@/lib/store/api` → `./lib/store/api`).
-
-**State management**: Redux Toolkit + RTK Query.
-- Store: `lib/store/store.ts` — two reducers: `api` (RTK Query) + `auth` (authSlice)
-- API client: `lib/store/api.ts` — `createApi` with auto-reauth on 401 (mutex-based token refresh)
-- Typed hooks: `lib/store/hooks.ts` — `useAppDispatch`, `useAppSelector`
-- Tag types: `User`, `Products`, `Product`, `Categories`, `Brands`
-
-**Auth flow**: Telegram initData → `POST /api/auth/telegram` (BFF route) → backend validates HMAC → JWT tokens stored in httpOnly cookies. RTK Query base query auto-refreshes on 401. Debug mode available via `BROWSER_DEBUG_AUTH=true`.
-
-**Backend proxy**: All backend calls go through `app/api/backend/[...path]/route.ts` — a catch-all BFF proxy that attaches Bearer token from cookies and forwards to `BACKEND_API_BASE_URL`.
-
-**Styling**: CSS Modules (`.module.css` files) + global CSS variables in `globals.css`. No Tailwind.
-
-**Root layout** wraps: `StoreProvider` → `TelegramProvider` → `TelegramAuthBootstrap` + `InputFocusFix` + `WebViewErrorAlert`.
-
-### admin/ — Admin Panel
-
-**Project structure** (code inside `src/`):
+**Project structure** (code lives under `src/`):
 
 ```
 src/
-  app/
-    admin/          — Protected admin pages (products, orders, users, reviews, returns, settings/)
-    api/            — BFF proxy routes mirroring backend API structure
-    login/          — Login page
-  assets/icons/     — SVG icons (imported as React components via @svgr/webpack)
-  components/
-    admin/          — Feature components per page (products, orders, reviews, settings/, users)
-    ui/             — Shared UI primitives (Badge, Modal, Pagination, SearchInput, etc.)
-  data/             — Seed/mock data files for development (fallback when API unavailable)
-  hooks/            — Custom hooks (useAuth, useProductForm, useSubmitProduct, useOrderFilters, etc.)
-  services/         — Client-side fetch wrappers calling local /api/* routes
-  lib/
-    api-client.js   — Server-side backendFetch() for main API
-    image-api-client.js — Server-side imageBackendFetch() for image service
-    auth.js         — Cookie-based JWT token management
-    utils.js        — cn(), formatCurrency(), pluralizeRu(), i18n(), buildI18nPayload()
-    constants.js    — Status labels, product FSM transitions
+├── app/                  — Next.js App Router (pages + /api BFF routes)
+│   ├── _providers/       — Client-side root providers
+│   ├── api/              — Catch-all BFF proxy to BACKEND_API_BASE_URL
+│   ├── cart/, catalog/, checkout/, favorites/, invite-friends/,
+│   │   poizon/, product/, profile/, promo/, search/
+│   ├── error.tsx, global-error.tsx, not-found.tsx, layout.tsx, page.tsx
+├── features/             — Feature slices (auth, cart, catalog, favorites,
+│                            home, orders, product, profile, referrals,
+│                            search, telegram, user)
+├── components/
+│   ├── layout/           — container, header, footer
+│   ├── providers/        — query-provider, theme-provider, toast-provider
+│   └── ui/               — Shared UI primitives
+├── lib/
+│   ├── api-client.ts     — ky-based browser client
+│   ├── api-server.ts     — server-side client (Bearer from cookies)
+│   ├── auth-events.ts    — auth state event bus
+│   ├── query-client.ts   — TanStack Query setup
+│   ├── query-keys.ts     — typed query key factories
+│   ├── utils.ts          — cn(), helpers
+│   └── format/           — price/date formatters
+├── stores/               — Zustand stores (cart-store, ui-store)
+├── schemas/              — Zod schemas (DTO validation)
+├── config/, constants/, hooks/, mocks/, styles/, types/
+├── env.ts                — @t3-oss/env-nextjs + Zod validation
+└── proxy.ts              — Edge middleware: CSRF defense + security headers
 ```
 
-**Path alias**: `@/*` maps to `src/*` (e.g. `@/lib/utils` → `src/lib/utils.js`).
+**Path alias**: `@/*` maps to `src/*`.
 
-**No TypeScript** — all files are `.js`/`.jsx`. Uses jsconfig.json for path aliases.
+**State management**:
+- **Server state** — `@tanstack/react-query` (`QueryClient` in `lib/query-client.ts`, hooks in feature slices).
+- **Client state** — `zustand` (`stores/cart-store.ts`, `stores/ui-store.ts`).
+- **Auth slice** — `features/auth/store.ts` (Zustand) + `features/auth/server.ts` (server-only token helpers).
 
-**Auth**: Context-based via `useAuth()` hook from `hooks/useAuth.jsx`. AuthProvider wraps admin layout, fetches `/api/auth/me` on mount.
+**HTTP client**: `ky` (`lib/api-client.ts` for browser, `lib/api-server.ts` for server). Auto-reauth on 401 lives in the BFF layer.
 
-**API pattern**: All API calls go through Next.js API routes (`src/app/api/`) which proxy to backend using `backendFetch()`. API routes handle auth cookies server-side. Image uploads go through `imageBackendFetch()` with API key auth.
+**Auth flow**: Telegram initData → `POST /api/auth/telegram` (BFF route) → backend validates HMAC → JWT tokens stored in httpOnly cookies. Auth state propagated via `lib/auth-events.ts`. Debug mode available via `BROWSER_DEBUG_AUTH=true`.
 
-**Styling**: Tailwind CSS 4 + CSS Modules for complex layouts. Custom design tokens defined as `app-*` colors in `tailwind.config.js`. **Always use `cn()` from `@/lib/utils`** for conditional classes — never use `clsx()` directly (cn wraps clsx + twMerge).
+**Backend proxy**: All backend calls go through `app/api/` route handlers — they attach Bearer token from cookies and forward to `BACKEND_API_BASE_URL`.
 
-**SVG imports**: `@svgr/webpack` configured in `next.config.js` — import SVGs directly as React components.
+**Styling**: CSS Modules + global CSS variables in `app/globals.css`. **Tailwind CSS 4** is also installed (via `@tailwindcss/postcss`), so utility classes are available.
 
-**i18n pattern**: Product data uses `{ru: "...", en: "..."}` objects. Use `i18n(obj)` to extract display value, `buildI18nPayload(ru, en)` to construct.
+**Telegram integration**: `features/telegram/` exports `TelegramProvider`, runtime/dom/state helpers, and typed `window.Telegram.WebApp` shims.
 
-**Why `--webpack`**: Admin uses `@svgr/webpack` for SVG component imports, which requires webpack bundler instead of Turbopack.
+**Tooling**:
+- **Vitest** for unit/component tests (`vitest.config.ts` — jsdom env, react plugin)
+- **Playwright** for e2e (`playwright.config.ts`, scenarios under `e2e/`)
+- **Plop** generators (`plopfile.ts` + `templates/*.hbs`) for components, hooks, server actions
+- **Husky + lint-staged + commitlint** (conventional commits)
+- **MSW** for request mocking in tests
+- **eslint-plugin-boundaries** to enforce slice import rules
 
-**Product status FSM**: `draft → enriching → ready_for_review → published → archived`. Transitions defined in `lib/constants.js` (`PRODUCT_STATUS_TRANSITIONS`). Status changes go through `PATCH /api/catalog/products/[productId]/status`.
+### admin/ — Admin Panel
 
-**Media upload flow** (3 steps): (1) reserve upload via image backend → get presigned S3 URL, (2) upload file directly to S3/MinIO, (3) confirm/poll image backend for processing status.
+Uses **Feature-Sliced Design (FSD)** under `src/`. See `frontend/admin/docs/ARCHITECTURE.md` for layering rules.
 
-**Data fetching layers**: `services/` (client-side, calls `/api/*` routes) → `app/api/` route handlers (server-side, calls backend via `backendFetch()`). Some services fall back to seed data from `data/` when API is unavailable.
+```
+src/
+├── app/                — Next.js App Router (pages + /api BFF handlers)
+├── widgets/            — Composite UI (Sidebar, PageStub)
+├── features/           — User actions (auth, order-filter, pricing,
+│                          product-archive, product-filter, product-form,
+│                          product-status-change)
+├── entities/           — Business entities (brand, category, order, product,
+│                          promocode, referral, review, role, staff,
+│                          supplier, user)
+├── shared/             — api/, auth/, hooks/, lib/, mocks/, query/, ui/
+├── assets/icons/       — SVGs imported as React components (@svgr/webpack)
+└── middleware.js       — Edge middleware: JWT refresh on /admin/*
+```
+
+**Layer dependency rules** (enforced by ESLint `eslint-plugin-boundaries`):
+
+| Layer       | May import from                                 |
+| ----------- | ----------------------------------------------- |
+| `app/`      | `widgets`, `features`, `entities`, `shared`     |
+| `widgets/`  | `features`, `entities`, `shared`                |
+| `features/` | `entities` (via index), `shared`, own internals |
+| `entities/` | other `entities` (via index), `shared`          |
+| `shared/`   | `shared` only                                   |
+
+**Slice public API**: every `entities/<x>` and `features/<x>` exposes only `index.js`. Deep imports break ESLint. `entities/category/server.js` is a server-only entry (uses `next/headers`).
+
+**Path alias**: `@/*` maps to `src/*` (jsconfig.json + webpack alias in next.config.js).
+
+**Auth**:
+- **Edge middleware** (`src/middleware.js`) — JWT refresh on `/admin/*`, sets httpOnly cookies.
+- **Client-side** — `useAuth()` from `@/features/auth` (Context + `/api/auth/me` on mount).
+- Tokens: `access_token` (15 min), `refresh_token` (30 d), managed by `@/shared/auth/cookies`.
+
+**Data fetching**: TanStack Query (`@/shared/query`). Slice `api/` modules call local `/api/*` routes; `app/api/` route handlers proxy to backend via `backendFetch()` (`@/shared/api/api-client`) or image service via `imageBackendFetch()` (`@/shared/api/image-api-client`).
+
+**Styling**: Tailwind CSS 4 + CSS Modules. Custom design tokens (`app-*`) in `tailwind.config.js`. **Always use `cn()` from `@/shared/lib/utils`** — never `clsx()` directly.
+
+**i18n pattern**: Entity data is `{ru, en}` objects. Use `i18n(obj)` and `buildI18nPayload(ru, en)`.
+
+**Product status FSM**: `draft → enriching → ready_for_review → published → archived`. Transitions in `@/entities/product` (`PRODUCT_STATUS_TRANSITIONS`). Status changes via `PATCH /api/catalog/products/[productId]/status`.
+
+**Media upload flow** (3 steps): reserve presigned S3 URL → direct upload → confirm/poll image backend status. All exposed through `@/entities/product`.
+
+**OpenAPI snapshots** (synced backend schemas) live in `frontend/admin/openapi/`:
+- `backend.json`, `backend-mini.json`, `image-backend.json`
+
+**Why `--webpack`**: `@svgr/webpack` is required for SVG-as-component imports and is not Turbopack-compatible.
 
 ### Shared Patterns
 
-- Both apps use BFF (Backend-for-Frontend) pattern — browser never calls the backend directly
-- Auth tokens stored in httpOnly cookies, managed by API routes
-- Both connect to the same backend API at `/api/v1/*`
-- Backend error envelope: `{"error": {"code", "message", "details", "request_id"}}`
+- Both apps use BFF (Backend-for-Frontend) — the browser never calls the backend directly.
+- Auth tokens stored in httpOnly cookies, managed by API routes.
+- Both connect to the same backend API at `/api/v1/*`.
+- Backend error envelope: `{"error": {"code", "message", "details", "request_id"}}`.

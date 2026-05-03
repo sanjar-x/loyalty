@@ -29,7 +29,7 @@ uv run pytest tests/path/to/test_file.py::test_name -v  # single test
 # Lint & format
 make lint                     # ruff check
 make format                   # ruff check --fix + ruff format
-make typecheck                # mypy
+make typecheck                # ty check (Astral type checker; mypy is also configured in pyproject.toml)
 
 # Migrations (auto-formatted by ruff post-hook in alembic.ini)
 uv run alembic revision --autogenerate -m "description"
@@ -38,23 +38,27 @@ uv run alembic upgrade head
 
 ## Architecture — Clean Architecture + Modular Monolith
 
-### Modules (bounded contexts)
+### Modules (bounded contexts) — 13 total
 
-| Module | Purpose | Files |
-|---|---|---|
-| `catalog` | Brands, categories, products, variants, SKUs, attributes (EAV), attribute templates, media | 145 |
-| `identity` | AuthN/AuthZ: JWT, sessions, RBAC, OIDC, Telegram Mini App, staff invitations | 69 |
-| `pricing` | Variables, formula AST + evaluator, pricing contexts, product pricing profiles, supplier/category settings | 69 |
-| `logistics` | Shipments, tracking events, carrier providers (CDEK, etc.) | 61 |
-| `geo` | Reference data: countries, subdivisions, districts, currencies, languages | 37 |
-| `cart` | Shopping cart and line items, checkout snapshots | 35 |
-| `supplier` | Supplier accounts (cross-border / local) and onboarding | 29 |
-| `user` | Customer and StaffMember profiles (PII storage) | 28 |
-| `activity` | User activity tracking (Redis hot path → partitioned PG), trending, co-view recommendations | 19 |
+| Module | Purpose |
+|---|---|
+| `catalog` | Brands, categories, products, variants, SKUs, attributes (EAV), attribute templates, media |
+| `identity` | AuthN/AuthZ: JWT, sessions, RBAC, OIDC, Telegram Mini App, staff invitations |
+| `pricing` | Variables, formula AST + evaluator, pricing contexts, product pricing profiles, supplier/category settings, SKU autonomous recompute (ADR-005) |
+| `logistics` | Shipments, tracking events, carrier providers (CDEK, Yandex Delivery, DobroPost cross-border) |
+| `geo` | Reference data: countries, subdivisions, districts, currencies, languages |
+| `cart` | Shopping cart and line items, checkout snapshots (with pickup_carrier + recipient_id) |
+| `favorites` | Multi-list favorites (products & brands), default-list invariant |
+| `supplier` | Supplier accounts (cross-border / local) and onboarding |
+| `user` | Customer and StaffMember profiles (PII storage) |
+| `activity` | User activity tracking (Redis hot path → partitioned PG), trending, co-view recommendations |
+| `order` | 14-state Loyality FSM, recipient snapshot, dual-leg tracking (DobroPost cross-border + russian carrier last-mile), DobroPost int-id ↔ UUID side mapping with retry + circuit-breaker, webhook → outbox dispatch |
+| `payment` | Two-step authorize-only at create + capture deferred to procure, payment intents FSM, refund, Visa-standard auth TTL, fake/yookassa/sbp/tinkoff providers behind `IPaymentProvider` |
+| `recipient` | Customer-owned customs recipients with passport (4+6) / INN (12, Минфин checksum) / birth_date validation, ownership boundary check at checkout, validation status FSM |
 
 Some modules have an extra `management/` layer (identity, supplier) for admin/back-office use cases.
 
-There is no separate `storage` module — file/media handling is split between `infrastructure/storage/factory.py` (S3 client) and `image_backend/` microservice.
+There is no separate `storage` module — image lifecycle is delegated to the `image_backend/` microservice; backend talks to it through `src/modules/catalog/infrastructure/adapters/image_backend_client.py` (X-API-Key, server-to-server).
 
 ### Module structure
 
@@ -69,12 +73,60 @@ presentation/    — FastAPI routers (`router_<scope>.py`), Pydantic schemas, Fa
 ```
 
 **Naming conventions:**
-- Routers: `router_<resource_or_scope>.py` (e.g. `router_brands.py`, `router_admin.py`, `router_webhooks.py`). When the module has a single router, name it after the resource (e.g. `router_suppliers.py`, `router_profile.py`).
 - Dishka providers: ALWAYS in `infrastructure/provider.py` — wiring infrastructure implementations to domain interfaces is an infrastructure concern.
 - FastAPI dependencies (`Depends`-callables, security): in `presentation/dependencies.py` — only the identity module currently uses this for `Auth` / `RequirePermission` / `BearerCredentials`.
 - External HTTP/RPC clients: `infrastructure/adapters/<service>_client.py` (e.g. catalog's `image_backend_client`, cart's `catalog_adapter`).
 - Stateless domain helpers: `domain/services.py` (e.g. user's `generate_referral_code`).
 - Bootstrap/CLI tooling: `<module>/management/<task>.py` — admin scripts that reach into the full DI container; not production request paths.
+
+### Router naming convention (audience-based)
+
+**Один файл — одна аудитория.** Каждый модуль с admin- и customer-аудиторией одновременно
+ОБЯЗАН иметь как минимум 2 router-файла. Три зарезервированных имени:
+
+| File                          | URL prefix                            | Audience                  | Auth                                                |
+| ----------------------------- | ------------------------------------- | ------------------------- | --------------------------------------------------- |
+| `router_admin.py`             | `/admin/<module-or-scope>/<resource>` | staff (admin/manager)     | `Depends(RequireStaffRole)` + permission per route  |
+| `router_<audience>.py`        | `/<resource>` или `/storefront/<resource>` | customer / public    | optional JWT (`Auth` или public)                    |
+| `router_webhooks.py`          | `/webhooks/<provider>`                | server-to-server          | shared secret / token / IP whitelist                |
+
+`<audience>`-варианты:
+- `router_customer.py` — customer-only с авторизацией (cart, orders, favorites, payments, recipients).
+- `router_storefront.py` — public read (storefront catalog, brands, search).
+- `router_account.py` — авторизованный пользователь любой роли (sessions, password).
+- `router_<resource>.py` — когда у модуля одна аудитория и это понятно (`router_auth.py`,
+  `router_invitation.py`, `router_profile.py`).
+
+**URL-уровень (3 namespace'а в `/api/v1/`):**
+
+```
+/api/v1/admin/<module>/<resource>     ← staff-only (admin panel)
+/api/v1/<resource>                    ← customer/public (storefront, cart, orders, ...)
+/api/v1/webhooks/<provider>           ← server-to-server (DobroPost, CDEK, Yandex, ...)
+```
+
+**Tag convention** (для группировки в `/docs`):
+- Admin: `tags=["Admin / <Resource>"]` → `Admin / Catalog / Brands`, `Admin / Pricing / Variables`
+- Customer: `tags=["<Resource>"]` → `Cart`, `Orders`, `Favorites`, `Storefront / Products`
+- Webhooks: `tags=["Webhooks / <Provider>"]` → `Webhooks / DobroPost`
+
+**DI baseline** для admin-routers:
+```python
+admin_router = APIRouter(
+    prefix="/admin/catalog/brands",
+    tags=["Admin / Catalog / Brands"],
+    dependencies=[Depends(RequireStaffRole)],  # baseline: must be staff
+    route_class=DishkaRoute,
+)
+# каждый endpoint может уточнить более узкое permission через RequirePermission("catalog:manage")
+```
+
+**Architecture fitness test** (`tests/architecture/test_router_audience.py`) проверяет:
+1. Файл `router_admin*.py` ⇒ APIRouter prefix начинается с `/admin/`.
+2. Endpoint в `/admin/*` ⇒ есть dependency на `RequireStaffRole` (или permission `*:manage`).
+3. Endpoint вне `/admin/*` НЕ использует `RequireStaffRole`.
+
+Полный список «было → стало» по URL и план рефакторинга — `docs/api/router-restructure-2026-05.md`.
 
 Dishka providers always live in `infrastructure/provider.py` — providers wire infrastructure implementations to domain interfaces, which is an infrastructure-layer concern. `presentation/dependencies.py`, when present, is reserved for FastAPI dependencies (e.g. `Auth`, `RequirePermission` in `identity/presentation/dependencies.py`).
 
@@ -84,7 +136,7 @@ Dishka providers always live in `infrastructure/provider.py` — providers wire 
 - Application commands MUST NOT import infrastructure. Exempt by rule: `*.application.queries.*` (CQRS read-side reads ORM directly), `*.application.consumers.*` (event consumers wire infrastructure), `geo.application.commands.*` (reference-data module without domain entities/UoW/events). Commands may compose queries (read-your-writes)
 - Modules MUST NOT import each other's domain/application/infrastructure. Whitelisted exceptions in `ALLOWED_CROSS_MODULE`: presentation→identity for auth/permission deps (user, catalog, pricing, activity); `cart.infrastructure.adapters.catalog_adapter` (anti-corruption adapter reading catalog/supplier ORM to validate SKUs); `identity.management.*` (admin CLI bootstrap reaching into the full DI container)
 - `src/shared/` is the shared kernel — MUST NOT import any module
-- Architecture tests parametrize `MODULES = ["catalog", "identity", "user", "cart", "logistics", "pricing", "activity", "geo", "supplier"]` — all nine modules are enforced
+- Architecture tests parametrize `MODULES = ["catalog", "identity", "user", "cart", "logistics", "pricing", "activity", "geo", "supplier", "favorites", "order", "payment", "recipient"]` — all 13 modules are enforced
 
 ### Command/Handler pattern
 
@@ -157,7 +209,7 @@ Exception hierarchy in `src/shared/exceptions.py`:
 - Domain events collected in-memory on `AggregateRoot`
 - `UnitOfWork.commit()` serializes events to `outbox_messages` table atomically (via `dataclasses.asdict()` with recursive UUID/datetime serialization, also persists `correlation_id` from request context)
 - Outbox Relay (`src/infrastructure/outbox/relay.py`) polls `outbox_messages` with `FOR UPDATE SKIP LOCKED`, processes each event in its own transaction, dispatches via `_EVENT_HANDLERS` registry, and prunes processed records older than 7 days. Multiple workers can run in parallel without blocking each other
-- **Current handlers (in `src/infrastructure/outbox/tasks.py`):** `identity_registered`, `identity_deactivated`, `role_assignment_changed`, `linked_account_created`. Events from catalog, cart, pricing, logistics, supplier are persisted but have no subscribers yet — they are marked processed by the relay's "unknown event_type, skipping" branch. Add a handler via `register_event_handler(event_type, handler)` when wiring a new consumer
+- **Current handlers (in `src/infrastructure/outbox/tasks.py`):** 4 IAM dispatchers with real consumers (`identity_registered`, `identity_deactivated`, `role_assignment_changed`, `linked_account_created`); 18 logistics + 5 favorites handlers wired as structured-log-only (replace body with `.kicker().kiq(...)` to attach a real consumer). Catalog / cart / pricing / supplier events are persisted but have no subscribers — they are marked processed by the relay's "unknown event_type, skipping" branch. Add a handler via `register_event_handler(event_type, handler)`. Relay runs every minute (cron `* * * * *`, batch=100, timeout=55s); pruning runs daily at 03:00 UTC
 
 ### Background tasks
 

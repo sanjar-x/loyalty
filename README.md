@@ -10,25 +10,16 @@ Production-grade e-commerce marketplace built as a **modular monolith** with Cle
 
 | Metric                                | Value   |
 | ------------------------------------- | ------- |
-| Commits                               | 750+    |
-| Backend source files                  | 442     |
-| Lines of code (backend modules)       | 82,600+ |
-| Bounded contexts                      | 9       |
-| Domain entities (`attrs.define`)      | 49      |
-| Value objects                         | 84      |
-| Domain events                         | 111     |
-| CQRS command handlers                 | 121     |
-| CQRS query handlers                   | 90      |
-| Protocol interfaces (domain + shared) | 35      |
-| ORM models (Data Mapper)              | 64      |
-| Repository implementations            | 84      |
-| Pydantic schemas                      | 264     |
-| API endpoints                         | 74      |
-| Alembic migrations                    | 25      |
-| Test files                            | 151     |
-| Test functions                        | 1,731   |
-| Enum types                            | 25      |
-| DI provider classes (Dishka)          | 19      |
+| Commits                               | 768+    |
+| Backend source files (`src/`)         | 784     |
+| Bounded contexts                      | 13      |
+| CQRS command handlers                 | 154     |
+| CQRS query handlers                   | 105     |
+| ORM models (Data Mapper)              | 13 modules × dedicated `models.py` |
+| Router files                          | 47      |
+| Alembic migrations                    | 32      |
+| Test files                            | 168     |
+| Outbox event handlers (registered)    | 27      |
 | Deployable services                   | 3       |
 | Frontend apps                         | 2       |
 
@@ -42,9 +33,12 @@ Production-grade e-commerce marketplace built as a **modular monolith** with Cle
     ┌──────────────┐      │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────┐ ┌─────┐ ┌─────────┐          │
     │  Frontend    │──────│─▶│ Catalog │ │Identity │ │Pricing  │ │ Cart │ │ Geo │ │Supplier │          │
     │  Next.js 16  │      │  └─────────┘ └─────────┘ └─────────┘ └──────┘ └─────┘ └─────────┘          │
-    │  (Main)      │      │  ┌──────────┐ ┌─────────┐ ┌──────────┐                                     │
-    └──────────────┘      │  │Logistics │ │  User   │ │ Activity │    Backend (FastAPI, Python 3.14)   │
-                          │  └──────────┘ └─────────┘ └──────────┘                                     │
+    │  (Main)      │      │  ┌──────────┐ ┌─────────┐ ┌──────────┐ ┌───────────┐ ┌──────┐               │
+    └──────────────┘      │  │Logistics │ │  User   │ │ Activity │ │ Favorites │ │Order │               │
+                          │  └──────────┘ └─────────┘ └──────────┘ └───────────┘ └──────┘               │
+                          │  ┌─────────┐ ┌───────────┐                                                  │
+                          │  │ Payment │ │ Recipient │  Backend (FastAPI)                              │
+                          │  └─────────┘ └───────────┘                                                  │
     ┌──────────────┐      │       │              │            │                                        │
     │  Frontend    │──────│─▶     └──────────────┴────────────┘                                        │
     │  Next.js 16  │      │       │                                                                    │
@@ -70,7 +64,7 @@ Three deployable services, two frontends, one Telegram bot — deployed on Railw
 | ----------------------- | --------------------------------------------------------------------------------- |
 | **Backend**             | Python 3.14, FastAPI, async SQLAlchemy 2.1, Alembic, Dishka DI, TaskIQ + RabbitMQ |
 | **Image Service**       | FastAPI, Pillow, aiobotocore, presigned upload pipeline                           |
-| **Frontend (Customer)** | Next.js 16, TypeScript, React 19, Redux Toolkit, RTK Query                        |
+| **Frontend (Customer)** | Next.js 16, TypeScript, React 19, TanStack Query, Zustand, ky, Zod                |
 | **Frontend (Admin)**    | Next.js 16, JSX, Tailwind CSS 4                                                   |
 | **Telegram Bot**        | Aiogram 3, FSM states, inline keyboards                                           |
 | **Infrastructure**      | PostgreSQL 18, Redis 8.4, RabbitMQ 4.2, MinIO (S3), Docker Compose                |
@@ -83,18 +77,18 @@ Three deployable services, two frontends, one Telegram bot — deployed on Railw
 
 ### 1. Domain-Driven Design — Not Just Folder Structure
 
-This is not "DDD" where you rename folders to `domain/` and call it a day. The domain layer is **genuinely framework-free**: 49 entities built with `attrs.define`, 84 value objects, 111 typed domain events — zero imports from FastAPI, SQLAlchemy, or any infrastructure framework.
+This is not "DDD" where you rename folders to `domain/` and call it a day. The domain layer is **genuinely framework-free** across 13 bounded contexts: entities built with `attrs.define`, value objects, typed domain events — zero imports from FastAPI, SQLAlchemy, or any infrastructure framework.
 
 - **Aggregate roots** with factory methods (`Entity.create(...)`) and encapsulated invariants
 - **Data Mapper pattern** — 64 ORM models are completely separate from 49 domain entities; repositories handle the conversion. No Active Record, no `Base.query`
 - **Domain events** are first-class citizens: collected in-memory on aggregates, flushed atomically via transactional outbox
 - **35 Protocol interfaces** define contracts between layers — domain depends on abstractions, infrastructure implements them
 
-### 2. CQRS — 121 Commands, 90 Queries, Strict Separation
+### 2. CQRS — 154 Commands, 105 Queries, Strict Separation
 
 Every write operation follows the same structure: frozen dataclass command → handler class with constructor-injected deps → `async with uow` → aggregate mutation → domain event → `uow.commit()`.
 
-- **121 command handler files** (writes) and **90 query handler files** (reads) — not a single endpoint that mixes both
+- **154 command handler files** (writes) and **105 query handler files** (reads) — not a single endpoint that mixes both
 - Queries read directly from ORM (performance) while commands go through domain entities (correctness) — a deliberate CQRS tradeoff, not laziness
 - Commands may compose queries (read-your-writes) but never the reverse
 
@@ -102,7 +96,7 @@ Every write operation follows the same structure: frozen dataclass command → h
 
 Modules don't call each other. Period. They communicate through domain events persisted atomically in the same transaction as the aggregate change.
 
-- **111 domain event types** across 9 modules — persisted to `outbox_messages` table within `UnitOfWork.commit()`
+- Domain event types across 13 modules — persisted to `outbox_messages` table within `UnitOfWork.commit()`. Handlers wired in `src/infrastructure/outbox/tasks.py` and `src/modules/order/infrastructure/tasks.py` (IAM dispatchers + order/payment/dobropost consumers + logistics/favorites observers)
 - Outbox relay polls with `FOR UPDATE SKIP LOCKED` — multiple workers can run in parallel without blocking
 - Each event processed in its own transaction — one failure doesn't block the queue
 - `correlation_id` propagated from HTTP request context through the outbox for end-to-end tracing
@@ -116,13 +110,13 @@ Not just a convention documented in a wiki — architectural rules are **executa
 tests/architecture/test_boundaries.py
 ```
 
-Parametrized across all 9 modules, these tests enforce:
+Parametrized across all 13 modules, these tests enforce:
 - Domain layer MUST NOT import application, infrastructure, presentation, or any framework
 - Application commands MUST NOT import infrastructure (with documented, whitelisted exceptions for CQRS read-side and reference-data module)
 - Modules MUST NOT import each other's internals — every cross-module exception is whitelisted and justified
 - Shared kernel (`src/shared/`) MUST NOT import any business module
 
-### 5. 9 Bounded Contexts — Real Module Isolation
+### 5. 13 Bounded Contexts — Real Module Isolation
 
 Each module is a self-contained vertical slice with 4 layers (`domain → application → infrastructure → presentation`), its own DI provider, its own ORM models, its own router files.
 
@@ -131,12 +125,16 @@ Each module is a self-contained vertical slice with 4 layers (`domain → applic
 | **catalog**   | Multi-variant products with EAV attributes, attribute templates with per-category bindings, full-text search vector (tsvector), storefront with keyset pagination, trending/for-you feed                                      |
 | **identity**  | 3 auth providers (email/Argon2id, OIDC, Telegram HMAC-SHA256), JWT access+refresh with rotation, max 5 concurrent sessions, hierarchical RBAC resolved via recursive CTE, Redis-cached permissions (300s TTL)                 |
 | **pricing**   | Versioned formula AST (draft → published → archived), pure-domain Decimal evaluator (no floating-point), 5-level variable scoping (global → supplier-type → category → range → product), pricing contexts with rounding modes |
-| **logistics** | Shipment aggregate with FSM (6 states, cancel/return branches), append-only tracking events, multi-carrier abstraction (CDEK + Yandex Delivery), OAuth2 token management with force-refresh, webhook ingestion                |
+| **logistics** | Shipment aggregate with FSM (6 states, cancel/return branches), append-only tracking events, multi-carrier abstraction (CDEK + Yandex Delivery + DobroPost cross-border), OAuth2 token management with force-refresh, webhook ingestion |
 | **cart**      | Cart aggregate with FSM (ACTIVE → FROZEN → MERGED → ORDERED), anonymous guest tokens, cart merge on login, checkout snapshots                                                                                                 |
+| **favorites** | Multi-list favorites (default + custom lists), polymorphic targets (product / brand), default-list invariant enforced in aggregate, batch favorited check                                                                     |
 | **supplier**  | Supplier types (local/cross-border), onboarding workflow, type-based pricing context mapping                                                                                                                                  |
 | **user**      | PII-isolated storage, GDPR account deletion cascading via domain events                                                                                                                                                       |
 | **geo**       | ISO 3166-1/2, OKTMO/FIAS districts, ISO 4217 currencies, BCP 47 languages with multi-language translations                                                                                                                    |
 | **activity**  | Fire-and-forget Redis hot path (LPUSH + ZINCRBY pipeline), flush to partitioned PostgreSQL, co-view matrix for recommendations                                                                                                |
+| **order**     | 14-state Loyality FSM (PENDING → PAID → PROCURED → ON_HOLD → ARRIVED_IN_RU → IN_LAST_MILE → AWAITING_PICKUP → DELIVERED → CLOSED + cancel/return branches), recipient snapshots, dual-leg tracking (DobroPost + russian carrier), DobroPost int-id ↔ UUID side mapping, retry + circuit-breaker on cross-border calls |
+| **payment**   | Two-step authorize-only at create + capture deferred to procure, payment intents FSM, refund flow, Visa-standard auth TTL hold, fake provider (default) with adapter port for real PSPs                                       |
+| **recipient** | Customer-owned customs recipients with passport (4+6) / INN (12, Минфин checksum) / birth_date validation, ownership boundary check at checkout, validation status FSM (pending → verified → invalid)                         |
 
 ### 6. Real Third-Party Integrations — Not Mocked APIs
 
@@ -146,7 +144,9 @@ Each module is a self-contained vertical slice with 4 layers (`domain → applic
 
 **Yandex Delivery** — rate quotes, pickup point search with caching, delivery scheduling
 
-Both providers sit behind a **provider-agnostic `IShippingProvider` interface** — adding a new carrier means implementing one adapter, not touching any business logic.
+**DobroPost** — cross-border (China → RU customs → DobroPost RU warehouse). Customs-recipient passport / ИНН / `incomingDeclaration` payload, 12h-token sign-in, 40-status_id taxonomy mapped to unified `TrackingStatus`, webhook-driven last-mile shipment creation.
+
+All providers sit behind a **provider-agnostic `IShippingProvider` interface** — adding a new carrier means implementing one adapter (factory + booking + tracking + webhook), not touching any business logic.
 
 ### 7. Pricing Engine — Not CRUD, a Formula Evaluator
 
@@ -157,14 +157,14 @@ The pricing module is a domain-level formula evaluation engine:
 - Preview endpoint lets admins simulate price changes before publishing
 - SKU-level autonomous recompute triggered by domain events (ADR-005)
 
-### 8. Testing Maturity — 1,731 Tests Across 4 Levels
+### 8. Testing Maturity — 4 Levels
 
-| Level            | Files | Tests  | What it proves                                                              |
-| ---------------- | ----- | ------ | --------------------------------------------------------------------------- |
-| **Unit**         | 92    | ~1,400 | Domain entities, value objects, command/query handlers, mappers, validators |
-| **Integration**  | 35    | ~200   | Repositories against real PostgreSQL, Redis operations, outbox relay        |
-| **E2E**          | 23    | ~100   | Full HTTP request → response cycles through FastAPI                         |
-| **Architecture** | 1     | 30+    | Parametrized boundary checks across all 9 modules                           |
+| Level            | Files | What it proves                                                              |
+| ---------------- | ----- | --------------------------------------------------------------------------- |
+| **Unit**         | 102   | Domain entities, value objects, command/query handlers, mappers, validators |
+| **Integration**  | 39    | Repositories against real PostgreSQL, Redis operations, outbox relay        |
+| **E2E**          | 26    | Full HTTP request → response cycles through FastAPI                         |
+| **Architecture** | 1     | Parametrized boundary checks across all 13 modules                          |
 
 Test infrastructure:
 - **Builder pattern factories** in `tests/factories/` — 11 factory/builder files for domain entities and ORM models
@@ -197,10 +197,10 @@ Test infrastructure:
 
 Not just "it works" — it's systematically organized:
 
-- **39 router files** following `router_<scope>.py` naming convention
-- **264 Pydantic schemas** — request/response DTOs in `presentation/schemas.py`
+- **47 router files** following `router_<scope>.py` naming convention
+- **Pydantic schemas** — request/response DTOs in `presentation/schemas.py` per module
 - **DI providers always in `infrastructure/provider.py`** — wiring is an infrastructure concern
-- **Naming is enforced**: entities, commands, handlers, repositories, providers all follow the same patterns across 9 modules
+- **Naming is enforced**: entities, commands, handlers, repositories, providers all follow the same patterns across 10 modules
 - **Error handling** — uniform JSON envelope `{"error": {"code", "message", "details", "request_id"}}` with 6 exception types mapped to HTTP codes
 
 ---
@@ -211,25 +211,25 @@ Not just "it works" — it's systematically organized:
 loyality/
 ├── backend/                   # Main API — FastAPI, Clean Architecture
 │   ├── src/
-│   │   ├── modules/           # 9 bounded contexts (442 source files)
+│   │   ├── modules/           # 13 bounded contexts
 │   │   ├── infrastructure/    # Cross-cutting: DB, cache, security, outbox
 │   │   ├── api/               # HTTP layer, middleware, auth
 │   │   ├── bot/               # Telegram bot (Aiogram 3)
 │   │   ├── bootstrap/         # Composition root, DI container, config
 │   │   └── shared/            # Shared kernel: interfaces, exceptions, pagination
-│   ├── tests/                 # 151 test files, 1,731 test functions
-│   ├── alembic/               # 25 database migrations
+│   ├── tests/                 # 168 test files (unit/integration/e2e/architecture)
+│   ├── alembic/               # 32 database migrations
 │   └── seed/                  # Reference data seeding
 │
-├── image_backend/             # Image processing microservice (73 source files)
+├── image_backend/             # Image processing microservice
 │   ├── src/                   # Presigned upload → Pillow resize → WebP variants
 │   └── tests/
 │
 ├── frontend/
-│   ├── main/                  # Customer-facing — Next.js 16, TypeScript, React 19
-│   └── admin/                 # Admin panel — Next.js 16, Tailwind CSS 4
+│   ├── main/                  # Customer-facing — Next.js 16, TypeScript, React 19, TanStack Query + Zustand
+│   └── admin/                 # Admin panel — Next.js 16, Tailwind CSS 4, Feature-Sliced Design
 │
-└── docker-compose.yml         # PostgreSQL 18, Redis 8.4, RabbitMQ 4.2, MinIO
+└── backend/docker-compose.yml # PostgreSQL 18, Redis 8.4, RabbitMQ 4.2, MinIO
 ```
 
 ---

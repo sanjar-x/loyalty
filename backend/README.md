@@ -39,7 +39,7 @@
 
 ## Elevator Pitch
 
-Enterprise API is an async REST backend for e-commerce loyalty platforms. It implements a **modular monolith** with strict bounded contexts — nine business domains (catalog, identity, user, geo, cart, logistics, supplier, pricing, activity) live in their own modules with independent layers, communicating only through domain events.
+Enterprise API is an async REST backend for e-commerce loyalty platforms. It implements a **modular monolith** with strict bounded contexts — 13 business domains (catalog, identity, user, geo, cart, favorites, logistics, supplier, pricing, activity, order, payment, recipient) live in their own modules with independent layers, communicating only through domain events.
 
 Unlike typical FastAPI CRUD apps, this project enforces **real DDD**: domain entities have zero framework imports, repositories use the Data Mapper pattern (not Active Record), and writes flow through CQRS command handlers with a transactional outbox for reliable event publishing.
 
@@ -49,17 +49,18 @@ Built for teams that want production architecture from day one — not a rewrite
 
 ## ✨ Features
 
-- **Modular Monolith** — nine isolated bounded contexts (Catalog, Identity, User, Geo, Cart, Logistics, Supplier, Pricing, Activity) with enforced architectural boundaries
+- **Modular Monolith** — 13 isolated bounded contexts (Catalog, Identity, User, Geo, Cart, Favorites, Logistics, Supplier, Pricing, Activity, Order, Payment, Recipient) with enforced architectural boundaries
 - **Full CQRS** — dedicated command and query handlers; writes never mix with reads
 - **Multi-Provider Authentication** — email/password (Argon2id), OIDC, and Telegram Mini App with access/refresh token rotation (max 5 sessions per identity)
 - **RBAC Authorization** — hierarchical roles and permissions with Redis-cached session lookups (300s TTL), resolved via recursive CTE
-- **Transactional Outbox** — domain events persist atomically with aggregates; the relay processes them in per-event transactions with `FOR UPDATE SKIP LOCKED` for concurrent workers, dispatched via TaskIQ + RabbitMQ. IAM events (identity registered/deactivated, role changes, linked account) have wired consumers; catalog/cart/pricing/logistics/supplier events are persisted for audit/future subscription
+- **Transactional Outbox** — domain events persist atomically with aggregates; the relay processes them in per-event transactions with `FOR UPDATE SKIP LOCKED` for concurrent workers, dispatched via TaskIQ + RabbitMQ on a 1-minute cron. 27 handlers registered: 4 IAM dispatchers (real consumers — identity registered/deactivated, role changes, linked account), plus 18 logistics + 5 favorites observers wired as structured-log-only. Catalog/cart/pricing/supplier events are persisted for audit/future subscription
 - **Presigned Uploads & Media Pipeline** — image processing extracted into a dedicated `image_backend/` microservice (server-to-server X-API-Key)
 - **Catalog with Variants & Templates** — products → variants → SKUs, attribute templates with per-category bindings, EAV product attribute values, full-text search vector
 - **Storefront APIs** — separate routers for product detail, listings, search + suggest, trending, and personalized "for you" feed (co-view recommendations)
 - **Pricing Engine** — versioned formula AST (draft → published → archived) with pure-domain Decimal evaluator, scoped variables (global / supplier / category / range / product_input), pricing contexts with rounding modes, and preview endpoint
 - **Cart with Guest Support** — cart aggregate with FSM (ACTIVE / FROZEN / MERGED / ORDERED), anonymous-token sessions for guests, and cart merge on login
-- **Logistics** — Shipment aggregate with local FSM and append-only carrier tracking events, multi-provider abstraction (CDEK, Russian Post, Yandex Delivery)
+- **Logistics** — Shipment aggregate with local FSM and append-only carrier tracking events, multi-provider abstraction (CDEK, Yandex Delivery, DobroPost cross-border)
+- **Favorites** — multi-list favorites (default + custom lists), polymorphic targets (product / brand), default-list invariant enforced in aggregate, batch favorited check
 - **Activity Tracking & Recommendations** — fire-and-forget Redis hot path (LPUSH + ZINCRBY pipeline) flushed to a partitioned PostgreSQL table; product co-view scores power "similar products" and "for you" feed
 - **Geo Reference Data** — ISO 3166-1/2 countries and subdivisions, districts (OKTMO/FIAS for RU), ISO 4217 currencies, IETF BCP 47 languages with multi-language translations
 - **Telegram Bot** — [Aiogram 3](https://docs.aiogram.dev/) bot with inline keyboards, FSM states, throttling, and user identification middleware
@@ -154,9 +155,11 @@ uv run alembic upgrade head
 ### Docker (Production)
 
 ```bash
-docker build -f deploy/docker/Dockerfile -t loyality-api .
+docker build -t loyality-api .
 docker run --env-file .env -p 8080:8080 loyality-api
 ```
+
+The `Dockerfile` lives at the repo root of `backend/`; deployment is wired through `railway.toml`. The entrypoint runs `alembic upgrade head` before launching uvicorn (`scripts/entrypoint.sh`).
 
 ### Common Issues
 
@@ -277,7 +280,16 @@ uv run taskiq worker src.bootstrap.worker:broker
 
 All endpoints are served under `/api/v1`. Interactive docs available at `/docs` (dev/test only).
 
-### Authentication
+The URL space is split into three audience namespaces (see
+`docs/api/router-restructure-2026-05.md` for the full migration map):
+
+* `/api/v1/<resource>` — customer / public (storefront, cart, orders, …)
+* `/api/v1/admin/<module>/<resource>` — staff-only (admin panel)
+* `/api/v1/webhooks/<provider>` — server-to-server (DobroPost, CDEK, Yandex)
+
+### Customer App
+
+#### Authentication
 
 | Method | Endpoint           | Auth   | Description                         |
 | ------ | ------------------ | ------ | ----------------------------------- |
@@ -288,27 +300,45 @@ All endpoints are served under `/api/v1`. Interactive docs available at `/docs` 
 | `POST` | `/auth/logout`     | Bearer | Revoke current session              |
 | `POST` | `/auth/logout/all` | Bearer | Revoke all sessions                 |
 
-### Catalog — Brands
+#### Storefront
 
-| Method   | Endpoint                  | Auth             | Description                                   |
-| -------- | ------------------------- | ---------------- | --------------------------------------------- |
-| `POST`   | `/catalog/brands`         | `catalog:manage` | Create brand (logo URL + storageObjectId opt) |
-| `POST`   | `/catalog/brands/bulk`    | `catalog:manage` | Bulk-create brands                            |
-| `GET`    | `/catalog/brands`         | Public           | List brands (paginated)                       |
-| `GET`    | `/catalog/brands/{id}`    | Public           | Get brand by ID                               |
-| `PATCH`  | `/catalog/brands/{id}`    | `catalog:manage` | Update brand name/slug/logo                   |
-| `DELETE` | `/catalog/brands/{id}`    | `catalog:manage` | Delete brand                                  |
+| Method | Endpoint                                            | Auth   | Description                       |
+| ------ | --------------------------------------------------- | ------ | --------------------------------- |
+| `GET`  | `/storefront/products`                              | Public | PLP — list products (filters)     |
+| `GET`  | `/storefront/products/{slug}`                       | Public | PDP — product detail              |
+| `GET`  | `/storefront/search`                                | Public | Full-text search                  |
+| `GET`  | `/storefront/search/suggest`                        | Public | Search suggestions                |
+| `GET`  | `/storefront/trending`                              | Public | Trending (Redis sorted sets)      |
+| `GET`  | `/storefront/for-you`                               | Public | Personalised feed                 |
+| `GET`  | `/storefront/categories`                            | Public | Flat category list                |
+| `GET`  | `/storefront/categories/tree`                       | Public | Nested category tree (navigation) |
+| `GET`  | `/storefront/categories/{id}`                       | Public | Category detail                   |
+| `GET`  | `/storefront/categories/{id}/...`                   | Public | Storefront category-scoped data   |
+| `GET`  | `/storefront/brands`                                | Public | Brand list                        |
+| `GET`  | `/storefront/brands/{id}`                           | Public | Brand detail                      |
+| `POST` | `/storefront/logistics/pickup-points`               | Public | List ПВЗ markers for checkout map |
 
-### Catalog — Categories
+### Admin Panel
 
-| Method   | Endpoint                   | Auth             | Description                 |
-| -------- | -------------------------- | ---------------- | --------------------------- |
-| `POST`   | `/catalog/categories`      | `catalog:manage` | Create category             |
-| `GET`    | `/catalog/categories`      | Public           | List categories (paginated) |
-| `GET`    | `/catalog/categories/tree` | Public           | Full nested category tree   |
-| `GET`    | `/catalog/categories/{id}` | Public           | Get category by ID          |
-| `PATCH`  | `/catalog/categories/{id}` | `catalog:manage` | Update category             |
-| `DELETE` | `/catalog/categories/{id}` | `catalog:manage` | Delete category (leaf only) |
+#### Catalog (`/admin/catalog/*`)
+
+| Method   | Endpoint                                        | Auth             | Description       |
+| -------- | ----------------------------------------------- | ---------------- | ----------------- |
+| `POST`   | `/admin/catalog/brands`                          | `catalog:manage` | Create brand      |
+| `POST`   | `/admin/catalog/brands/bulk`                     | `catalog:manage` | Bulk-create       |
+| `GET`    | `/admin/catalog/brands`                          | `catalog:read`   | List brands       |
+| `GET`    | `/admin/catalog/brands/{id}`                     | `catalog:read`   | Get brand         |
+| `PATCH`  | `/admin/catalog/brands/{id}`                     | `catalog:manage` | Update            |
+| `DELETE` | `/admin/catalog/brands/{id}`                     | `catalog:manage` | Delete            |
+| `*`      | `/admin/catalog/categories(/{id}\|/tree)`        | `catalog:manage` | Categories CRUD   |
+| `*`      | `/admin/catalog/products(/{id}\|...)`            | `catalog:manage` | Products CRUD     |
+| `*`      | `/admin/catalog/products/{id}/variants(/...)`    | `catalog:manage` | Variants CRUD     |
+| `*`      | `/admin/catalog/products/{id}/variants/{vid}/skus` | `catalog:manage` | SKUs CRUD       |
+| `*`      | `/admin/catalog/attributes(/{id}\|/values)`      | `catalog:manage` | Attribute CRUD    |
+| `*`      | `/admin/catalog/attribute-groups`                | `catalog:manage` | Groups CRUD       |
+| `*`      | `/admin/catalog/attribute-templates`             | `catalog:manage` | Templates CRUD    |
+| `*`      | `/admin/catalog/products/{id}/attributes`        | `catalog:manage` | Assign attrs      |
+| `*`      | `/admin/catalog/products/{id}/media`             | `catalog:manage` | Media CRUD        |
 
 ### Admin — Identity Management
 
@@ -403,38 +433,47 @@ All endpoints are served under `/api/v1`. Interactive docs available at `/docs` 
 | `POST`   | `/cart/clear`             | Bearer/Guest  | Clear all items                          |
 | `POST`   | `/cart/freeze`            | Bearer        | Freeze cart for checkout                 |
 
-### Pricing (Admin)
+#### Pricing (`/admin/pricing/*`)
 
-| Method  | Endpoint                                 | Auth             | Description                                    |
-| ------- | ---------------------------------------- | ---------------- | ---------------------------------------------- |
-| `*`     | `/pricing/variables`                     | `pricing:manage` | CRUD pricing variables                         |
-| `*`     | `/pricing/contexts`                      | `pricing:manage` | Manage pricing contexts (currency, rounding)   |
-| `*`     | `/pricing/contexts/{id}/values`          | `pricing:manage` | Set global variable values per context         |
-| `*`     | `/pricing/contexts/{id}/formula`         | `pricing:manage` | Draft/publish/rollback formula versions        |
-| `POST`  | `/pricing/preview`                       | `pricing:manage` | Preview computed price for a product           |
-| `*`     | `/pricing/profiles`                      | `pricing:manage` | Per-product input variable values              |
-| `*`     | `/pricing/category-settings`             | `pricing:manage` | Category-scoped variable values                |
-| `*`     | `/pricing/supplier-settings`             | `pricing:manage` | Supplier-scoped variable values                |
-| `*`     | `/pricing/supplier-type-mappings`        | `pricing:manage` | Supplier-type → context mappings               |
+| Method  | Endpoint                                            | Auth             | Description                                    |
+| ------- | --------------------------------------------------- | ---------------- | ---------------------------------------------- |
+| `*`     | `/admin/pricing/variables`                           | `pricing:manage` | Pricing variables CRUD                         |
+| `*`     | `/admin/pricing/contexts`                            | `pricing:manage` | Pricing contexts                               |
+| `*`     | `/admin/pricing/contexts/{id}/values`                | `pricing:manage` | Global variable values per context             |
+| `*`     | `/admin/pricing/contexts/{id}/formula`               | `pricing:manage` | Draft/publish/rollback formulas                |
+| `POST`  | `/admin/pricing/preview`                             | `pricing:admin`  | Preview computed price                         |
+| `*`     | `/admin/pricing/products`                            | `pricing:manage` | Per-product profiles                           |
+| `*`     | `/admin/pricing/categories/{id}`                     | `pricing:manage` | Category-scoped settings                       |
+| `*`     | `/admin/pricing/suppliers/{id}`                      | `pricing:manage` | Supplier-scoped settings                       |
+| `*`     | `/admin/pricing/supplier-type-mapping`               | `pricing:manage` | Supplier-type → context                        |
+| `POST`  | `/admin/pricing/recompute/...`                       | `pricing:admin`  | Manual SKU recompute (ADR-005)                 |
 
-### Logistics
+#### Logistics admin (`/admin/logistics/*`)
 
-| Method | Endpoint                              | Auth                | Description                            |
-| ------ | ------------------------------------- | ------------------- | -------------------------------------- |
-| `POST` | `/logistics/quotes`                   | Bearer              | Get delivery quotes from carriers      |
-| `POST` | `/logistics/shipments`                | `logistics:manage`  | Create shipment from selected quote    |
-| `GET`  | `/logistics/shipments/{id}`           | `logistics:manage`  | Get shipment with tracking events      |
-| `POST` | `/logistics/shipments/{id}/book`      | `logistics:manage`  | Book shipment with carrier             |
-| `POST` | `/logistics/shipments/{id}/cancel`    | `logistics:manage`  | Cancel shipment                        |
-| `POST` | `/logistics/webhooks/{provider}`      | Webhook secret      | Carrier tracking webhook               |
+| Method | Endpoint                                   | Auth                | Description                            |
+| ------ | ------------------------------------------ | ------------------- | -------------------------------------- |
+| `POST` | `/admin/logistics/rates`                   | `logistics:read`    | Calculate carrier quotes               |
+| `POST` | `/admin/logistics/shipments`               | `logistics:write`   | Create shipment from quote             |
+| `GET`  | `/admin/logistics/shipments/{id}`          | `logistics:read`    | Get shipment + tracking                |
+| `POST` | `/admin/logistics/shipments/{id}/book`     | `logistics:write`   | Book with carrier                      |
+| `POST` | `/admin/logistics/shipments/{id}/cancel`   | `logistics:write`   | Cancel shipment                        |
+| `*`    | `/admin/logistics/provider-accounts`       | `logistics:manage`  | Provider OAuth accounts                |
 
-### Suppliers (Admin)
+#### Suppliers (`/admin/suppliers/*`)
 
-| Method | Endpoint                            | Auth               | Description           |
-| ------ | ----------------------------------- | ------------------ | --------------------- |
-| `*`    | `/suppliers`                        | `suppliers:manage` | CRUD suppliers        |
-| `POST` | `/suppliers/{id}/activate`          | `suppliers:manage` | Activate supplier     |
-| `POST` | `/suppliers/{id}/deactivate`        | `suppliers:manage` | Deactivate supplier   |
+| Method | Endpoint                                   | Auth               | Description           |
+| ------ | ------------------------------------------ | ------------------ | --------------------- |
+| `*`    | `/admin/suppliers`                         | `suppliers:manage` | CRUD suppliers        |
+| `POST` | `/admin/suppliers/{id}/activate`           | `suppliers:manage` | Activate              |
+| `POST` | `/admin/suppliers/{id}/deactivate`         | `suppliers:manage` | Deactivate            |
+
+### Webhooks
+
+| Method | Endpoint                                | Auth                                | Description                       |
+| ------ | --------------------------------------- | ----------------------------------- | --------------------------------- |
+| `POST` | `/webhooks/dobropost/{token}`           | path-token + IP whitelist           | DobroPost status / passport       |
+| `POST` | `/webhooks/logistics/{provider}`        | provider secret                     | CDEK / Yandex tracking            |
+| `POST` | `/webhooks/payments/{provider}`         | per-provider signature              | PSP capture / refund webhook      |
 
 ### Activity (Admin)
 
@@ -545,24 +584,22 @@ cp .env.example .env
 ### High-Level Overview
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────────┐
-│                                FastAPI (ASGI Server)                                 │
-│ ┌─────────┐ ┌─────────┐ ┌──────┐ ┌─────┐ ┌──────┐ ┌───────────┐ ┌────────┐ ┌───────┐ │
-│ │ Catalog │ │ Identity│ │ User │ │ Geo │ │ Cart │ │ Logistics │ │Supplier│ │Pricing│ │
-│ └────┬────┘ └────┬────┘ └──┬───┘ └──┬──┘ └──┬───┘ └─────┬─────┘ └───┬────┘ └───┬───┘ │
-│      │           │         │        │       │           │           │          │     │
-│      └───────────┴────┬────┴────────┴───────┴───────────┴───────────┴────────┬─┘     │
-│                       │                              ┌────────────┐         │        │
-│                       │                              │  Activity  │─────────┘        │
-│                       │                              └─────┬──────┘                  │
-│   ┌───────────────────┴────────────────────────────────────┴─────────────────────┐   │
-│   │                       Shared Infrastructure Layer                            │   │
-│   │           PostgreSQL  ·  Redis  ·  RabbitMQ  ·  S3/MinIO                     │   │
-│   └──────────────────────────────────────────────────────────────────────────────┘   │
-│   ┌──────────────────────────────────────────────────────────────────────────────┐   │
-│   │                          Telegram Bot (Aiogram 3)                            │   │
-│   └──────────────────────────────────────────────────────────────────────────────┘   │
-└──────────────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                  FastAPI (ASGI Server)                                     │
+│ ┌─────────┐ ┌─────────┐ ┌──────┐ ┌─────┐ ┌──────┐ ┌───────────┐ ┌────────┐ ┌───────┐       │
+│ │ Catalog │ │ Identity│ │ User │ │ Geo │ │ Cart │ │ Logistics │ │Supplier│ │Pricing│       │
+│ └─────────┘ └─────────┘ └──────┘ └─────┘ └──────┘ └───────────┘ └────────┘ └───────┘       │
+│ ┌──────────┐ ┌───────────┐ ┌───────┐ ┌─────────┐ ┌───────────┐                              │
+│ │ Activity │ │ Favorites │ │ Order │ │ Payment │ │ Recipient │                              │
+│ └──────────┘ └───────────┘ └───────┘ └─────────┘ └───────────┘                              │
+│   ┌─────────────────────────────────────────────────────────────────────────────────────┐   │
+│   │                       Shared Infrastructure Layer                                   │   │
+│   │           PostgreSQL  ·  Redis  ·  RabbitMQ  ·  S3/MinIO                            │   │
+│   └─────────────────────────────────────────────────────────────────────────────────────┘   │
+│   ┌─────────────────────────────────────────────────────────────────────────────────────┐   │
+│   │                          Telegram Bot (Aiogram 3)                                   │   │
+│   └─────────────────────────────────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────────────────────────────────┘
                                             ▲
                                             │ X-API-Key (delete only)
                                             ▼
@@ -671,11 +708,15 @@ src/
 │   ├── identity/                 # Auth (LOCAL/OIDC/Telegram), sessions, roles, permissions, invitations
 │   ├── user/                     # Customer + StaffMember profiles (PII storage)
 │   ├── geo/                      # Countries, subdivisions, districts, currencies, languages
-│   ├── cart/                     # Cart aggregate, items, checkout snapshots (FSM)
+│   ├── cart/                     # Cart aggregate, items, checkout snapshots (FSM, pickup_carrier + recipient_id)
+│   ├── favorites/                # Multi-list favorites with default-list invariant
 │   ├── logistics/                # Shipments, tracking events, carrier providers
 │   ├── supplier/                 # Suppliers (cross-border / local)
 │   ├── pricing/                  # Variables, formula AST, contexts, profiles, settings
-│   └── activity/                 # User activity tracking, trending, co-view recommendations
+│   ├── activity/                 # User activity tracking, trending, co-view recommendations
+│   ├── order/                    # 14-state Loyality FSM, recipient snapshot, dual-leg tracking, DobroPost integration
+│   ├── payment/                  # Two-step authorize/capture, payment intents FSM, refund, fake/yookassa providers
+│   └── recipient/                # Customer-owned customs recipients (passport / INN / birth_date validation)
 │
 └── shared/                       # Cross-module interfaces + base classes
     ├── exceptions.py             # Base AppException hierarchy
@@ -716,12 +757,12 @@ uv run pytest tests/ --cov=src --cov-report=html
 
 ### Architecture Fitness Tests
 
-These tests **enforce Clean Architecture boundaries** at CI time across all nine modules:
+These tests **enforce Clean Architecture boundaries** at CI time across all 13 modules:
 
 - Domain layer has zero infrastructure or framework imports (attrs + stdlib only)
 - Application commands MUST NOT import infrastructure (queries and consumers exempt — CQRS read-side; `geo.commands` exempt — reference-data)
 - No direct cross-module imports — modules communicate via domain events through the outbox
-- Whitelisted exceptions: presentation→identity for auth/permission deps; `cart.infrastructure.adapters.catalog_adapter` (anti-corruption); `identity.management.*` (admin CLI)
+- Whitelisted exceptions: presentation→identity for auth/permission deps (user, catalog, pricing, activity, favorites); `cart.infrastructure.adapters.catalog_adapter` (anti-corruption SKU validation); `pricing.infrastructure.adapters.sku_pricing_*` (ADR-005 SKU recompute); `logistics.infrastructure.adapters.pricing_weight_adapter` (Parcel weight via category estimate); `favorites.infrastructure.adapters.catalog_target_validator` + `favorites.application.queries.get_list_items` (target existence + read-side enrichment); `identity.management.*` (admin CLI)
 - Shared kernel (`src/shared/`) MUST NOT import any business module
 
 ```bash
@@ -758,8 +799,8 @@ uv run pytest tests/unit/ tests/architecture/ -v
 uv run ruff check --fix .
 uv run ruff format .
 
-# Type check
-uv run mypy .
+# Type check (Astral ty — also runs in pre-commit)
+uv run ty check
 
 # Run all tests
 uv run pytest tests/unit/ tests/architecture/ -v
@@ -767,8 +808,8 @@ uv run pytest tests/unit/ tests/architecture/ -v
 
 ### Code Style
 
-- **Ruff** for linting and formatting (line length: 100, target: Python 3.14)
-- **mypy** strict mode with Pydantic plugin
+- **Ruff** for linting and formatting (line length: 88, target: Python 3.14, rule set `E,F,W,I,UP,B,SIM,RUF`)
+- **ty** (Astral type checker) wired into pre-commit; mypy is also configured in `pyproject.toml` as a secondary check
 - **Google-style docstrings** on all public modules, classes, and functions
 - Follow the layer order: domain first, then application, infrastructure, presentation
 
