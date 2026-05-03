@@ -110,6 +110,8 @@ class CheckoutSnapshot:
     cart_id: uuid.UUID
     items: tuple[CheckoutItemSnapshot, ...]
     pickup_point_id: uuid.UUID
+    pickup_carrier: str
+    recipient_id: uuid.UUID
     total_amount: int
     currency: str
     created_at: datetime

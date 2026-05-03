@@ -135,6 +135,33 @@ class Settings(BaseSettings):
     YANDEX_DELIVERY_TEST_OAUTH_TOKEN: SecretStr = SecretStr("")
     YANDEX_DELIVERY_TEST_PLATFORM_STATION_ID: str = ""
 
+    # -- Payment ------------------------------------------------------------
+    # ``fake`` is a deterministic in-process stub used outside ``prod``.
+    # Real PSP adapters (yookassa/sbp/tinkoff) are added behind the same
+    # ``IPaymentProvider`` port without touching application code.
+    PAYMENT_PROVIDER: Literal["fake", "yookassa", "sbp", "tinkoff"] = "fake"
+    PAYMENT_SIMULATION_ENABLED: bool = True
+    PAYMENT_AUTH_TTL_DAYS: int = 7  # Visa-стандарт hold
+
+    # -- DobroPost (cross-border) ------------------------------------------
+    DOBROPOST_BASE_URL: str = "https://api.dobropost.com"
+    DOBROPOST_EMAIL: SecretStr = SecretStr("")
+    DOBROPOST_PASSWORD: SecretStr = SecretStr("")
+    DOBROPOST_DEFAULT_TARIFF_ID: int = 1
+    DOBROPOST_TIMEOUT_SECONDS: float = 30.0
+    DOBROPOST_TOKEN_REFRESH_BEFORE_SECONDS: int = 3600  # refresh 1h before exp
+    # Webhook authentication: random secret embedded in URL path
+    # ``/api/v1/orders/webhooks/dobropost/{token}``.
+    DOBROPOST_WEBHOOK_TOKEN: SecretStr = SecretStr("")
+    DOBROPOST_ALLOWED_IPS: list[str] = []
+    DOBROPOST_USE_STUB: bool = True  # Flip to false in prod once creds wired
+    # HTTP resiliency
+    DOBROPOST_RETRY_MAX_ATTEMPTS: int = 4  # incl. first try
+    DOBROPOST_RETRY_BACKOFF_BASE_SECONDS: float = 0.5
+    DOBROPOST_RETRY_BACKOFF_MAX_SECONDS: float = 8.0
+    DOBROPOST_CIRCUIT_FAILURE_THRESHOLD: int = 5
+    DOBROPOST_CIRCUIT_RESET_TIMEOUT_SECONDS: float = 30.0
+
     @computed_field
     @property
     def redis_url(self) -> str:

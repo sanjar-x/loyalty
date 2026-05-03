@@ -280,6 +280,8 @@ async def initiate_checkout(
     command = InitiateCheckoutCommand(
         identity_id=identity_id,
         pickup_point_id=body.pickup_point_id,
+        pickup_carrier=body.pickup_carrier,
+        recipient_id=body.recipient_id,
     )
     result = await handler.handle(command)
     return CheckoutInitiatedResponse(

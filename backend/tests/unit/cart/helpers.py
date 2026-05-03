@@ -34,6 +34,8 @@ def make_checkout_snapshot(cart_id: uuid.UUID) -> CheckoutSnapshot:
             ),
         ),
         pickup_point_id=uuid.uuid4(),
+        pickup_carrier="cdek",
+        recipient_id=uuid.uuid4(),
         total_amount=10000,
         currency="RUB",
         created_at=datetime.now(UTC),

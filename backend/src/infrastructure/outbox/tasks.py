@@ -233,6 +233,51 @@ register_event_handler(
 
 
 # ---------------------------------------------------------------------------
+# Favorites event handlers
+# ---------------------------------------------------------------------------
+# Structured-log-only for now: favorites events are useful as analytics
+# / co-view signals (a strong "interest" indicator for the activity
+# module), but no synchronous downstream consumer exists yet. Replace
+# the body with a `.kicker().kiq(...)` call when wiring the activity
+# enrichment task — same pattern as the IAM handlers above.
+
+
+def _favorites_event_logger(event_label: str):
+    async def _handler(payload: dict, correlation_id: str | None = None) -> None:
+        log = logger.bind(
+            event=event_label,
+            correlation_id=correlation_id,
+            list_id=payload.get("list_id"),
+            identity_id=payload.get("identity_id"),
+        )
+        log.info("Outbox: favorites event observed", payload=payload)
+
+    return _handler
+
+
+register_event_handler(
+    "FavoriteListCreatedEvent",
+    _favorites_event_logger("favorites.list_created"),
+)
+register_event_handler(
+    "FavoriteListRenamedEvent",
+    _favorites_event_logger("favorites.list_renamed"),
+)
+register_event_handler(
+    "FavoriteListDeletedEvent",
+    _favorites_event_logger("favorites.list_deleted"),
+)
+register_event_handler(
+    "FavoriteItemAddedEvent",
+    _favorites_event_logger("favorites.item_added"),
+)
+register_event_handler(
+    "FavoriteItemRemovedEvent",
+    _favorites_event_logger("favorites.item_removed"),
+)
+
+
+# ---------------------------------------------------------------------------
 # TaskIQ: Outbox Relay (periodic polling)
 # ---------------------------------------------------------------------------
 

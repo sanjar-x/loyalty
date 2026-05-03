@@ -132,6 +132,20 @@ class IPickupPointReadService(ABC):
         """Check whether a pickup point exists."""
 
 
+class ICartRecipientLookup(ABC):
+    """Cross-module query for recipient ownership validation.
+
+    Used by ``InitiateCheckout`` to verify the recipient belongs to the
+    customer **before** the price snapshot is frozen. Order then trusts
+    that snapshot.
+    """
+
+    @abstractmethod
+    async def belongs_to_identity(
+        self, *, recipient_id: uuid.UUID, identity_id: uuid.UUID
+    ) -> bool: ...
+
+
 class IOrderCreationService(ABC):
     """Port for synchronous in-process order creation at checkout."""
 

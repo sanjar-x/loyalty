@@ -28,7 +28,7 @@ POST {API_V1_STR}/logistics/webhooks/dobropost
 Content-Type: application/json
 ```
 
-Регистрируется в общем webhook-роутере `src/modules/logistics/presentation/router_webhooks.py:22` (`/logistics/webhooks/{provider_code}`), `provider_code = "dobropost"`. См. шаблон CDEK как пример регистрации в registry.
+Регистрируется в общем webhook-роутере `src/modules/logistics/presentation/router_webhooks.py:28-39` (`/logistics/webhooks/{provider_code}`), `provider_code = "dobropost"`. См. шаблон CDEK как пример регистрации в registry.
 
 ## Аутентификация
 
@@ -138,11 +138,11 @@ async def handle_passport_validation(
 
 ### Уровень 1 — DB constraint
 
-`UniqueConstraint(shipment_id, timestamp, status)` на `shipment_tracking_events` (`models.py:218`). Дубликат webhook'а с тем же `(timestamp, status_id)` → `INSERT ... ON CONFLICT DO UPDATE` (см. `ShipmentRepository._sync_tracking_events`). Безопасно при concurrent webhook + tracking_poll.
+`UniqueConstraint(shipment_id, timestamp, status)` на `shipment_tracking_events` (`infrastructure/models.py:236`). Дубликат webhook'а с тем же `(timestamp, status_id)` → `INSERT ... ON CONFLICT DO UPDATE` (см. `ShipmentRepository._sync_tracking_events` в `infrastructure/repositories/shipment.py:184`). Безопасно при concurrent webhook + tracking_poll.
 
 ### Уровень 2 — domain-level dedup
 
-`Shipment.append_tracking_event` (`entities.py:429`) возвращает:
+`Shipment.append_tracking_event` (`entities.py:513`) возвращает:
 - `ADDED` — новое событие.
 - `REPLACED` — duplicate, но webhook принёс более богатое описание (location/description).
 - `NOOP` — точный дубликат.
@@ -151,13 +151,13 @@ async def handle_passport_validation(
 
 ### Уровень 3 — webhook router swallow
 
-Если `ShipmentNotFoundError` или любая другая exception → `acknowledged + log.warning` (см. `router_webhooks.py:104-129`):
+Если `ShipmentNotFoundError` или любая другая exception → `acknowledged + log.warning` (см. `router_webhooks.py:148-173` для generic ingest path; passport-validation special-case — `:95-108`):
 
 > ДоброПост ретраит на любой 4xx/5xx — мы **не возвращаем ошибку**, чтобы не запускать retry storm на наших pod'ах. Periodic `tracking_poll_task` (если ДоброПост даст `ITrackingPollProvider`) backfill'ит пропуск.
 
 ### Терминальные статусы и idempotency
 
-`mark_failed_from_tracking` (`entities.py:387`) и `mark_cancelled_from_tracking` (`:406`) **idempotent** на уже-FAILED/CANCELLED shipment — `if self.status == TARGET: return`. Это критично для повторных webhook'ов 541–546.
+`mark_failed_from_tracking` (`entities.py:453`) и `mark_cancelled_from_tracking` (`:480`) **idempotent** на уже-FAILED/CANCELLED shipment — `if self.status == TARGET: return`. Это критично для повторных webhook'ов 541–546.
 
 ## Retry-стратегия со стороны ДоброПост
 
@@ -178,30 +178,19 @@ async def handle_passport_validation(
 
 После успешного ingest webhook'а Shipment может эмитить (через UoW):
 
-| Событие                                | Когда                                     | Subscriber                              |
-| -------------------------------------- | ----------------------------------------- | --------------------------------------- |
-| `ShipmentTrackingUpdatedEvent`         | Любой ADDED tracking event                | (нет — резерв)                          |
-| `ShipmentDeliveryFailedEvent`          | Auto-transition в FAILED (LOST/EXCEPTION) | `OrderCompensationConsumer` (TBD): refund + Order → CANCELLED |
-| `ShipmentCancelledEvent`               | Auto-transition в CANCELLED               | `OrderCompensationConsumer` (TBD)       |
-| `CrossBorderArrivedEvent` *(новое)*    | status_id ∈ {648, 649}                    | `LastMileShipmentCreator` (TBD): создаёт Shipment #2 |
-| `OrderRequiresCustomerAction` *(новое)* | passport_validation=false                 | `CustomerServiceNotifier` (TBD)         |
+| Событие                                  | Когда                                     | Subscriber                              |
+| ---------------------------------------- | ----------------------------------------- | --------------------------------------- |
+| `ShipmentTrackingUpdatedEvent`           | Любой ADDED tracking event                | (нет — резерв)                          |
+| `ShipmentDeliveryFailedEvent`            | Auto-transition в FAILED (LOST/EXCEPTION) | `OrderCompensationConsumer` (TBD): refund + Order → CANCELLED |
+| `ShipmentCancelledEvent`                 | Auto-transition в CANCELLED               | `OrderCompensationConsumer` (TBD)       |
+| `CrossBorderArrivedEvent`                | status_id ∈ {648, 649}                    | `LastMileShipmentCreator` (TBD): создаёт Shipment #2 |
+| `ShipmentPassportValidationFailedEvent`  | passport_validation=false                 | `CustomerServiceNotifier` (TBD)         |
 
-> События `CrossBorderArrivedEvent` и `OrderRequiresCustomerAction` — **специфичны для Loyality cross-border flow** и в текущем `events.py` отсутствуют. Их добавление — часть milestone «Order module».
+> События `CrossBorderArrivedEvent` и `ShipmentPassportValidationFailedEvent` — **специфичны для Loyality cross-border flow** и реализованы в `src/modules/logistics/domain/events.py`. Subscriber'ы (`LastMileShipmentCreator`, `CustomerServiceNotifier`) — часть milestone «Order module» Q3 2026.
 
 ## Roadmap
 
-| # | Задача                                                            | Статус        |
-| - | ----------------------------------------------------------------- | ------------- |
-| 1 | Добавить `dobropost` в `_FACTORY_MAP` (`infrastructure/bootstrap.py:33`) | ✅ Done   |
-| 2 | Реализовать `DobroPostProviderFactory + DobroPostWebhookAdapter`  | ✅ Done       |
-| 3 | Реализовать `DobroPostBookingProvider` (POST `/api/shipment`)     | ✅ Done       |
-| 4 | Реализовать `DobroPostTrackingPollProvider` (GET `/api/shipment`) | ✅ Done       |
-| 5 | Добавить `dobropost` в `_PROVIDER_COVERAGE` (`services/routing.py:22`) | ❌ Не нужно — DobroPost админ-managed, не участвует в customer-facing rate fan-out (factory.create_rate_provider → None) |
-| 6 | Добавить `CrossBorderArrivedEvent` + хук в `Shipment.append_tracking_event` (idempotent) | ✅ Done |
-| 7 | `ShipmentPassportValidationFailedEvent` + `HandleDobroPostPassportValidationHandler` | ✅ Done |
-| 8 | Order-side consumer для `CrossBorderArrivedEvent` (создание Shipment #2) | ⏳ Order module (Q3 2026) |
-| 9 | Order-side consumer для `ShipmentPassportValidationFailedEvent` (CS escalation) | ⏳ Order module (Q3 2026) |
-| 10 | Регресс-тесты на дубликат webhook (idempotency e2e)               | ⏳ TODO       |
+Единый план реализации — в [`README.md` §Roadmap](./README.md#roadmap). Этот файл webhook-specific, дублирующий список не держим.
 
 ## Связанное
 

@@ -116,10 +116,10 @@ CANCELLED  CANCELLED  CANCELLED   CANCELLED + REFUND    NOT_DELIVERED
 
 ## FSM Shipment (cross-border специфика)
 
-`Shipment` aggregate (`src/modules/logistics/domain/entities.py:113`) общий для всех carrier'ов; cross-border специфика — только в **automatic transitions** при ingest webhook'а:
+`Shipment` aggregate (`src/modules/logistics/domain/entities.py:117`) общий для всех carrier'ов; cross-border специфика — только в **automatic transitions** при ingest webhook'а:
 
 ```python
-# entities.py:490-505
+# entities.py:574-589
 if event.status in TERMINAL_FAILURE_TRACKING_STATUSES:  # LOST, EXCEPTION
     self.mark_failed_from_tracking(reason=...)
 elif event.status in TERMINAL_CANCEL_TRACKING_STATUSES:  # CANCELLED
@@ -229,7 +229,7 @@ PROVIDER_DOBROPOST: ProviderCode = "dobropost"
 DOBROPOST_CROSS_BORDER_ARRIVED_CODES: frozenset[str] = frozenset({"648", "649"})
 ```
 
-**ДоброПост намеренно отсутствует в `_PROVIDER_COVERAGE`** (`services/routing.py:22`):
+**ДоброПост намеренно отсутствует в `_PROVIDER_COVERAGE`** (`infrastructure/services/routing.py:22`):
 
 - `routing.py` фильтрует только `list_rate_providers()`. `DobroPostProviderFactory.create_rate_provider() → None`, поэтому DobroPost вообще не попадает в `list_rate_providers()` и любой fan-out в `CalculateRatesHandler` его не увидит.
 - Этого достаточно: добавлять row в `_PROVIDER_COVERAGE` вредно (создаст ложную видимость, что carrier участвует в customer-facing pipe).
@@ -263,5 +263,5 @@ Error mapping (Deep Code Review C3 fix):
 - [[Research - Order (2) State Machine FSM]] §15 — детальная FSM Order для cross-border + dropship.
 - [[Research - Order (6) Logistics Integration]] — общая архитектура multi-carrier.
 - [[Research - Order (1) Domain-Driven Design]] — Order aggregate (TBD реализация).
-- `src/modules/logistics/domain/entities.py:113` — Shipment aggregate (общий для всех carrier'ов).
-- `src/modules/logistics/infrastructure/bootstrap.py:33` — `_FACTORY_MAP`, точка регистрации.
+- `src/modules/logistics/domain/entities.py:117` — Shipment aggregate (общий для всех carrier'ов).
+- `src/modules/logistics/infrastructure/bootstrap.py:37` — `_FACTORY_MAP`, точка регистрации.

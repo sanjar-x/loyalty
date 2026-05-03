@@ -19,6 +19,10 @@ MODULES = [
     "activity",
     "geo",
     "supplier",
+    "favorites",
+    "order",
+    "payment",
+    "recipient",
 ]
 
 
@@ -169,6 +173,61 @@ ALLOWED_CROSS_MODULE = {
     ("identity", "activity"): {"src.modules.identity.management.*"},
     ("identity", "geo"): {"src.modules.identity.management.*"},
     ("identity", "supplier"): {"src.modules.identity.management.*"},
+    # Favorites: the catalog ACL adapter validates target existence
+    # (Product/Brand) before saving, and the read-side queries enrich
+    # items with product/brand cards via direct ORM JOIN. Both are
+    # narrowly scoped — same CQRS-read exemption as catalog→supplier.
+    ("favorites", "catalog"): {
+        "src.modules.favorites.infrastructure.adapters.catalog_target_validator",
+        "src.modules.favorites.application.queries.get_list_items",
+    },
+    # Favorites router uses identity's Auth dependency.
+    ("favorites", "identity"): {"src.modules.favorites.presentation.*"},
+    # Order: read-side enrichment may JOIN catalog/supplier ORM via narrowly
+    # scoped query files (same CQRS-read exemption as catalog→supplier).
+    # Snapshot ingest from cart goes through a single ACL adapter so Order
+    # never sees Cart's domain entities; the Cart ``order_adapter`` is
+    # already whitelisted on the cart side as ``cart→order``.
+    ("order", "catalog"): {
+        "src.modules.order.application.queries.list_my_orders",
+        "src.modules.order.application.queries.get_order",
+    },
+    ("order", "supplier"): {
+        "src.modules.order.application.queries.list_my_orders",
+        "src.modules.order.application.queries.get_order",
+    },
+    ("order", "cart"): {
+        "src.modules.order.infrastructure.adapters.cart_snapshot_reader",
+    },
+    # Order ↔ Logistics: cross-border + last-mile shipments are created
+    # through ACL gateway adapters that today are stubs (no logistics
+    # imports). When the real integration lands, this whitelist becomes
+    # the single allowed touch point for those two adapter files.
+    ("order", "logistics"): set(),
+    # Payment never imports Order: payment publishes domain events to
+    # the outbox, and Order's consumers (PaymentCapturedConsumer /
+    # PaymentFailedConsumer) reach back into the Order FSM.
+    ("payment", "order"): set(),
+    # Order initiates payment by invoking the public payment command
+    # handler — single ACL adapter, no Payment ORM access.
+    ("order", "payment"): {
+        "src.modules.order.infrastructure.adapters.payment_gateway",
+    },
+    # Order routers use identity's Auth/RequirePermission deps.
+    ("order", "identity"): {"src.modules.order.presentation.*"},
+    # Payment routers use identity's Auth/RequirePermission deps.
+    ("payment", "identity"): {"src.modules.payment.presentation.*"},
+    # Recipient routers use identity's Auth dep.
+    ("recipient", "identity"): {"src.modules.recipient.presentation.*"},
+    # Order ↔ Recipient: order reads Recipient via a single ACL adapter
+    # (read-side projection). Recipient never imports order.
+    ("order", "recipient"): {
+        "src.modules.order.infrastructure.adapters.recipient_lookup",
+    },
+    # Cart ↔ Recipient: ownership check before freezing the snapshot.
+    ("cart", "recipient"): {
+        "src.modules.cart.infrastructure.adapters.recipient_lookup",
+    },
 }
 
 

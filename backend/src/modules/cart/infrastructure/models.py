@@ -137,6 +137,12 @@ class CheckoutSnapshotModel(Base):
     pickup_point_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False
     )
+    pickup_carrier: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="cdek"
+    )
+    recipient_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
     total_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="RUB")
     created_at: Mapped[datetime] = mapped_column(

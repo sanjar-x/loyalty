@@ -57,7 +57,7 @@ def _cache_control(lang: str | None, *, private: bool = False) -> str:
 
 storefront_router = APIRouter(
     prefix="/storefront/categories/{category_id}",
-    tags=["Storefront"],
+    tags=["Storefront / Categories"],
     route_class=DishkaRoute,
 )
 

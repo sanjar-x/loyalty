@@ -20,6 +20,7 @@ from src.modules.cart.domain.exceptions import (
     SkuNotAvailableError,
 )
 from src.modules.cart.domain.interfaces import (
+    ICartRecipientLookup,
     ICartRepository,
     IPickupPointReadService,
     ISkuReadService,
@@ -36,11 +37,17 @@ class InitiateCheckoutCommand:
 
     Attributes:
         identity_id: Authenticated user ID.
-        pickup_point_id: Selected pickup point.
+        pickup_point_id: Selected pickup point ID (string semantics
+            depend on the carrier — kept as UUID at the cart layer for
+            FK compatibility).
+        pickup_carrier: ``cdek`` / ``yandex`` / ``boxberry`` / ``pochta``.
+        recipient_id: Customs-data recipient owned by ``identity_id``.
     """
 
     identity_id: uuid.UUID
     pickup_point_id: uuid.UUID
+    pickup_carrier: str
+    recipient_id: uuid.UUID
 
 
 @dataclass(frozen=True)
@@ -70,12 +77,14 @@ class InitiateCheckoutHandler:
         cart_repo: ICartRepository,
         sku_service: ISkuReadService,
         pickup_service: IPickupPointReadService,
+        recipient_lookup: ICartRecipientLookup,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
         self._cart_repo = cart_repo
         self._sku_service = sku_service
         self._pickup_service = pickup_service
+        self._recipient_lookup = recipient_lookup
         self._uow = uow
         self._logger = logger.bind(handler="InitiateCheckoutHandler")
 
@@ -100,6 +109,18 @@ class InitiateCheckoutHandler:
                 raise ValidationError(
                     message=f"Pickup point not found: {command.pickup_point_id}",
                     error_code="PICKUP_POINT_NOT_FOUND",
+                )
+
+            # Validate recipient ownership: it MUST belong to this customer
+            # and be active. This is the single trust boundary for Order's
+            # snapshot — Order trusts cart's check.
+            if not await self._recipient_lookup.belongs_to_identity(
+                recipient_id=command.recipient_id,
+                identity_id=command.identity_id,
+            ):
+                raise ValidationError(
+                    message=f"Recipient not found: {command.recipient_id}",
+                    error_code="RECIPIENT_NOT_FOUND",
                 )
 
             # Batch-load SKU snapshots
@@ -135,6 +156,8 @@ class InitiateCheckoutHandler:
                 cart_id=cart.id,
                 items=tuple(checkout_items),
                 pickup_point_id=command.pickup_point_id,
+                pickup_carrier=command.pickup_carrier,
+                recipient_id=command.recipient_id,
                 total_amount=total_amount,
                 currency=currency,
                 created_at=now,

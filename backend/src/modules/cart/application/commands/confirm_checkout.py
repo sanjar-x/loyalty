@@ -171,6 +171,8 @@ class ConfirmCheckoutHandler:
                     cart_id=snapshot.cart_id,
                     items=tuple(updated_items),
                     pickup_point_id=snapshot.pickup_point_id,
+                    pickup_carrier=snapshot.pickup_carrier,
+                    recipient_id=snapshot.recipient_id,
                     total_amount=new_total,
                     currency=snapshot.currency,
                     created_at=snapshot.created_at,

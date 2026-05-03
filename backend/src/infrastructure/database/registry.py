@@ -30,6 +30,10 @@ from src.modules.catalog.infrastructure.models import (
     SKUAttributeValueLink,
     TemplateAttributeBinding,
 )
+from src.modules.favorites.infrastructure.models import (
+    FavoriteItemModel,
+    FavoriteListModel,
+)
 from src.modules.geo.infrastructure.models import (
     CountryCurrencyModel,
     CountryModel,
@@ -62,6 +66,13 @@ from src.modules.logistics.infrastructure.models import (
     ShipmentModel,
     ShipmentTrackingEventModel,
 )
+from src.modules.order.infrastructure.models import (
+    DobroPostShipmentMappingModel,
+    OrderIdempotencyKeyModel,
+    OrderItemModel,
+    OrderModel,
+)
+from src.modules.payment.infrastructure.models import PaymentIntentModel
 from src.modules.pricing.infrastructure.models import (
     CategoryPricingSettingsModel,
     FormulaVersionModel,
@@ -71,6 +82,7 @@ from src.modules.pricing.infrastructure.models import (
     SupplierTypeContextMappingModel,
     VariableModel,
 )
+from src.modules.recipient.infrastructure.models import RecipientModel
 from src.modules.supplier.infrastructure.models import Supplier
 from src.modules.user.infrastructure.models import CustomerModel, StaffMemberModel
 
@@ -95,7 +107,10 @@ __all__ = [
     "CurrencyTranslationModel",
     "CustomerModel",
     "DeliveryQuoteModel",
+    "DobroPostShipmentMappingModel",
     "FailedTask",
+    "FavoriteItemModel",
+    "FavoriteListModel",
     "FormulaVersionModel",
     "IdentityModel",
     "IdentityRoleModel",
@@ -103,7 +118,11 @@ __all__ = [
     "LinkedAccountModel",
     "LocalCredentialsModel",
     "MediaAsset",
+    "OrderIdempotencyKeyModel",
+    "OrderItemModel",
+    "OrderModel",
     "OutboxMessage",
+    "PaymentIntentModel",
     "PermissionModel",
     "PricingContextModel",
     "Product",
@@ -111,6 +130,7 @@ __all__ = [
     "ProductPricingProfileModel",
     "ProductVariant",
     "ProviderAccountModel",
+    "RecipientModel",
     "RoleHierarchyModel",
     "RoleModel",
     "RolePermissionModel",

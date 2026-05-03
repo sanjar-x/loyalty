@@ -36,7 +36,7 @@ from src.shared.interfaces.activity import IActivityQueryService
 
 storefront_trending_router = APIRouter(
     prefix="/storefront/trending",
-    tags=["Storefront Trending"],
+    tags=["Storefront / Trending"],
     route_class=DishkaRoute,
 )
 

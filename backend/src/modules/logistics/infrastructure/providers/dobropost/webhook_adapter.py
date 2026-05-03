@@ -4,11 +4,13 @@ DobroPost posts webhooks to a single URL but in **two distinct payload
 formats** (see ``docs/dobropost_shipment_api/webhooks.md``):
 
 * **Format №1 — passport validation:** carries
-  ``passportValidationStatus: bool``. Currently NOT routed through
-  ``IngestTrackingHandler`` — adapter returns ``[]`` and emits a
-  warning log so the failed-passport flow can be wired through a
-  dedicated consumer when the customer-service module is built. The
-  webhook router still ACKs to avoid retry storms.
+  ``passportValidationStatus: bool``. ``parse_events`` returns ``[]``
+  for this shape — the webhook router classifies the body via
+  ``extract_passport_failure_id`` *before* calling ``parse_events``
+  and dispatches a dedicated
+  :class:`HandleDobroPostPassportValidationHandler` when the validation
+  failed. The valid-passport branch is logged here for audit and
+  produces no side-effects.
 
 * **Format №2 — status update:** carries ``DPTrackNumber`` + ``status``
   string. Adapter resolves ``status`` text → numeric ``status_id`` and
@@ -69,17 +71,20 @@ class DobroPostWebhookAdapter:
         headers: dict[str, str],
         body: bytes,
     ) -> bool:
-        """Validate via shared secret OR IP allow-list (same shape as CDEK).
+        """Validate via shared secret AND/OR IP allow-list (same shape as CDEK).
 
-        Returns ``False`` when no auth source is configured — operators
-        must explicitly opt out via ``allowed_ips=["*"]``.
+        Both auth sources are independently optional, but at least one
+        must be configured — otherwise the adapter fail-closed returns
+        ``False`` for every payload (matches the
+        :func:`_validate_dobropost` provider-input validator). When a
+        source IS configured, it is enforced; operators that want to
+        skip the IP check should set ``allowed_ips=["*"]`` explicitly.
         """
         if not self._webhook_secret and not self._allowed_ips:
             return False
-
-        if self._webhook_secret and not self._validate_secret(headers):
-            return False
-        return not (self._allowed_ips and not self._validate_ip(headers))
+        secret_ok = not self._webhook_secret or self._validate_secret(headers)
+        ip_ok = not self._allowed_ips or self._validate_ip(headers)
+        return secret_ok and ip_ok
 
     async def parse_events(
         self,

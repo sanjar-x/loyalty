@@ -81,6 +81,8 @@ class TestCheckoutSnapshot:
             cart_id=uuid.uuid4(),
             items=items,
             pickup_point_id=uuid.uuid4(),
+            pickup_carrier="cdek",
+            recipient_id=uuid.uuid4(),
             total_amount=13000,
             currency="RUB",
             created_at=None,  # ty:ignore[invalid-argument-type]
@@ -95,6 +97,8 @@ class TestCheckoutSnapshot:
             cart_id=uuid.uuid4(),
             items=(),
             pickup_point_id=uuid.uuid4(),
+            pickup_carrier="cdek",
+            recipient_id=uuid.uuid4(),
             total_amount=0,
             currency="RUB",
             created_at=None,  # ty:ignore[invalid-argument-type]

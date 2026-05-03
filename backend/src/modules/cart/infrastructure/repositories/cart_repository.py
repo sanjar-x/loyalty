@@ -211,6 +211,8 @@ class CartRepository(ICartRepository):
                 for item in snapshot.items
             ],
             pickup_point_id=snapshot.pickup_point_id,
+            pickup_carrier=snapshot.pickup_carrier,
+            recipient_id=snapshot.recipient_id,
             total_amount=snapshot.total_amount,
             currency=snapshot.currency,
             created_at=snapshot.created_at,
@@ -265,6 +267,8 @@ class CartRepository(ICartRepository):
             cart_id=model.cart_id,
             items=items,
             pickup_point_id=model.pickup_point_id,
+            pickup_carrier=model.pickup_carrier,
+            recipient_id=model.recipient_id,
             total_amount=model.total_amount,
             currency=model.currency,
             created_at=model.created_at,

@@ -38,7 +38,7 @@ from src.modules.identity.presentation.schemas import (
 
 customer_admin_router = APIRouter(
     prefix="/admin/customers",
-    tags=["Admin — Customer Management"],
+    tags=["Admin / Customers"],
     route_class=DishkaRoute,
 )
 

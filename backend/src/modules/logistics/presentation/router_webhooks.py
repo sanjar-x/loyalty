@@ -26,8 +26,8 @@ from src.shared.exceptions import UnauthorizedError
 from src.shared.interfaces.logger import ILogger
 
 webhook_router = APIRouter(
-    prefix="/logistics/webhooks",
-    tags=["Logistics Webhooks"],
+    prefix="/webhooks/logistics",
+    tags=["Webhooks / Logistics"],
     route_class=DishkaRoute,
 )
 

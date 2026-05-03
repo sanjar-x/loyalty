@@ -36,7 +36,8 @@ component: backend
 | **Cross-border completed (триггер)** | `648`, `649`                                                    | Order → `ARRIVED_IN_RU`; **создаётся Shipment #2** (last-mile). |
 | **Terminal failure (refund)**        | `541`, `542`, `543`, `544`, `545`, `546`, `590xxx`, `600`       | Order → `CANCELLED + REFUND`. Cross-border shipment → `FAILED`. |
 | **Requires manual action**           | `510`, `531`, `540`                                             | Order остаётся в `PROCURED`, customer service нотифицируется. |
-| **Passport check failed**            | `544`, `545` + webhook `passportValidationStatus=false`         | Order остаётся в `PROCURED`, шипмент **зависает** перед таможней. CS запрашивает корректные данные → `PUT /api/shipment`. |
+| **Passport check failed (early — soft hold)** | webhook `passportValidationStatus=false` (DaData pre-check)        | Order остаётся в `PROCURED`, шипмент **зависает** перед таможней. CS запрашивает корректные данные → `PUT /api/shipment`. Shipment **не** маркируется FAILED. |
+| **Passport check failed (late — hard fail)**  | status update `544` / `545` (отказ таможни)                        | Поздний сигнал: таможня уже отказала. Идёт через generic terminal-failure path → Shipment `FAILED` → Order `CANCELLED + REFUND`. |
 | **Прочие (in-flight)**               | всё остальное                                                   | Информативные tracking events — обновляют прогресс. |
 
 ---
@@ -111,7 +112,7 @@ component: backend
 | 546 | Отказ по другим причинам                                                  | `EXCEPTION`    | `customs_other`                  |
 | 600 | Посылка не пришла                                                         | `LOST`         | `parcel_lost`                    |
 
-> Все эти статусы → **Order `CANCELLED + REFUND`** + Shipment `FAILED` (carrier-side terminal). См. `mark_failed_from_tracking` в `src/modules/logistics/domain/entities.py:369`.
+> Все эти статусы → **Order `CANCELLED + REFUND`** + Shipment `FAILED` (carrier-side terminal). См. `mark_failed_from_tracking` в `src/modules/logistics/domain/entities.py:453`.
 
 ## 4. Развёрнутые отказы с кодами причин (9)
 
@@ -159,4 +160,4 @@ TERMINAL_CANCEL_TRACKING_STATUSES = frozenset({TrackingStatus.CANCELLED})
 - [`integration.md`](./integration.md) — поведение FSM Order/Shipment при разных группах статусов.
 - [`webhooks.md`](./webhooks.md) — webhook payload и matching.
 - `src/modules/logistics/domain/value_objects.py:79` — `TrackingStatus` enum.
-- `src/modules/logistics/domain/entities.py:369` — `mark_failed_from_tracking`.
+- `src/modules/logistics/domain/entities.py:453` — `mark_failed_from_tracking`.

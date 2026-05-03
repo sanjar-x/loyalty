@@ -7,6 +7,7 @@ from datetime import datetime
 
 from src.modules.cart.domain.entities import Cart
 from src.modules.cart.domain.interfaces import (
+    ICartRecipientLookup,
     ICartRepository,
     IOrderCreationService,
     IPickupPointReadService,
@@ -192,6 +193,18 @@ class FakePickupPointReadService(IPickupPointReadService):
 
     async def exists(self, pickup_point_id: uuid.UUID) -> bool:
         return self._exists_result
+
+
+class FakeCartRecipientLookup(ICartRecipientLookup):
+    """Stub recipient lookup — accepts any (recipient_id, identity_id) pair."""
+
+    def __init__(self, *, owns_recipient: bool = True) -> None:
+        self._owns = owns_recipient
+
+    async def belongs_to_identity(
+        self, *, recipient_id: uuid.UUID, identity_id: uuid.UUID
+    ) -> bool:
+        return self._owns
 
 
 class FakeOrderCreationService(IOrderCreationService):

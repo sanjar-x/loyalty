@@ -24,6 +24,52 @@ import json
 from dataclasses import dataclass
 from datetime import date
 
+from src.shared.exceptions import ValidationError
+
+
+def _require_exact_length(value: str, length: int, field: str) -> None:
+    if len(value) != length:
+        raise ValidationError(
+            message=f"DobroPost: {field} must be exactly {length} characters",
+            error_code="DOBROPOST_INVALID_FIELD_LENGTH",
+            details={
+                "field": field,
+                "expected_length": length,
+                "actual_length": len(value),
+            },
+        )
+
+
+def _require_max_length(value: str, max_exclusive: int, field: str) -> None:
+    if len(value) >= max_exclusive:
+        raise ValidationError(
+            message=f"DobroPost: {field} must be shorter than {max_exclusive} characters",
+            error_code="DOBROPOST_INVALID_FIELD_LENGTH",
+            details={
+                "field": field,
+                "max_length_exclusive": max_exclusive,
+                "actual_length": len(value),
+            },
+        )
+
+
+def _require_non_empty(value: str, field: str) -> None:
+    if not value:
+        raise ValidationError(
+            message=f"DobroPost: {field} must not be empty",
+            error_code="DOBROPOST_EMPTY_FIELD",
+            details={"field": field},
+        )
+
+
+def _require_positive(value: int | float, field: str) -> None:
+    if value <= 0:
+        raise ValidationError(
+            message=f"DobroPost: {field} must be positive",
+            error_code="DOBROPOST_NON_POSITIVE_FIELD",
+            details={"field": field, "value": value},
+        )
+
 
 @dataclass(frozen=True)
 class DobroPostRecipientPassport:
@@ -51,6 +97,27 @@ class DobroPostRecipientPassport:
     email: str
     birth_date: date | None = None  # required only for DP Ultra tariff
 
+    def __post_init__(self) -> None:
+        _require_non_empty(self.family_name, "consigneeFamilyName")
+        _require_non_empty(self.name, "consigneeName")
+        _require_exact_length(self.passport_serial, 4, "consigneePassportSerial")
+        _require_exact_length(self.passport_number, 6, "consigneePassportNumber")
+        _require_exact_length(
+            self.vat_identification_number, 12, "vatIdentificationNumber"
+        )
+        _require_non_empty(self.full_address, "consigneeFullAddress")
+        _require_non_empty(self.city, "consigneeCity")
+        _require_non_empty(self.state, "consigneeState")
+        _require_non_empty(self.zip_code, "consigneeZipCode")
+        _require_non_empty(self.phone_number, "consigneePhoneNumber")
+        _require_non_empty(self.email, "consigneeEmail")
+        if "@" not in self.email:
+            raise ValidationError(
+                message="DobroPost: consigneeEmail must contain '@'",
+                error_code="DOBROPOST_INVALID_EMAIL",
+                details={"field": "consigneeEmail"},
+            )
+
 
 @dataclass(frozen=True)
 class DobroPostItem:
@@ -60,6 +127,13 @@ class DobroPostItem:
     pieces: int
     price_cny: float  # per-unit price in CNY (yuan)
     store_link: str  # URL to the listing on the Chinese marketplace
+
+    def __post_init__(self) -> None:
+        _require_non_empty(self.description, "itemDescription")
+        _require_max_length(self.description, 60, "itemDescription")
+        _require_positive(self.pieces, "numberOfItemPieces")
+        _require_positive(self.price_cny, "itemPrice")
+        _require_non_empty(self.store_link, "itemStoreLink")
 
 
 @dataclass(frozen=True)
@@ -78,6 +152,14 @@ class DobroPostShipmentPayload:
     dp_tariff_id: int
     incoming_declaration: str  # < 16 chars per DobroPost validation
     comment: str | None = None  # < 60 chars; appears on shipping label
+
+    def __post_init__(self) -> None:
+        _require_positive(self.total_amount_cny, "totalAmount")
+        _require_positive(self.dp_tariff_id, "dpTariffId")
+        _require_non_empty(self.incoming_declaration, "incomingDeclaration")
+        _require_max_length(self.incoming_declaration, 16, "incomingDeclaration")
+        if self.comment is not None:
+            _require_max_length(self.comment, 60, "comment")
 
     # ------------------------------------------------------------------
     # Serialization — None fields are omitted to keep the stored

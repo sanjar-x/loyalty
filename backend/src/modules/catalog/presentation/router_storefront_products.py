@@ -73,7 +73,7 @@ from src.shared.interfaces.security import ITokenProvider
 
 storefront_products_router = APIRouter(
     prefix="/storefront/products",
-    tags=["Storefront Products"],
+    tags=["Storefront / Products"],
     route_class=DishkaRoute,
 )
 

@@ -23,6 +23,7 @@ from src.modules.cart.application.commands.update_quantity import UpdateQuantity
 from src.modules.cart.application.queries.get_cart import GetCartHandler
 from src.modules.cart.application.queries.get_cart_summary import GetCartSummaryHandler
 from src.modules.cart.domain.interfaces import (
+    ICartRecipientLookup,
     ICartRepository,
     IOrderCreationService,
     IPickupPointReadService,
@@ -32,6 +33,9 @@ from src.modules.cart.infrastructure.adapters.catalog_adapter import CatalogSkuA
 from src.modules.cart.infrastructure.adapters.order_adapter import OrderCreationStub
 from src.modules.cart.infrastructure.adapters.pickup_point_adapter import (
     StubPickupPointAdapter,
+)
+from src.modules.cart.infrastructure.adapters.recipient_lookup import (
+    CartRecipientLookup,
 )
 from src.modules.cart.infrastructure.repositories.cart_repository import CartRepository
 
@@ -53,6 +57,11 @@ class CartProvider(Provider):
     )
     order_creation_service: CompositeDependencySource = provide(
         OrderCreationStub, scope=Scope.REQUEST, provides=IOrderCreationService
+    )
+    recipient_lookup: CompositeDependencySource = provide(
+        CartRecipientLookup,
+        scope=Scope.REQUEST,
+        provides=ICartRecipientLookup,
     )
 
     # --- Command handlers ---

@@ -55,7 +55,7 @@ _LOGISTICS_ADMIN = [Depends(RequirePermission(codename="logistics:admin"))]
 
 logistics_admin_router = APIRouter(
     prefix="/admin/logistics/provider-accounts",
-    tags=["Logistics Admin"],
+    tags=["Admin / Logistics / Provider Accounts"],
     route_class=DishkaRoute,
     dependencies=_LOGISTICS_ADMIN,
 )

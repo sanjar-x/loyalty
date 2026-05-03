@@ -29,6 +29,7 @@ from src.modules.catalog.infrastructure.provider import (
     ProductProvider,
     StorefrontCatalogProvider,
 )
+from src.modules.favorites.infrastructure.provider import FavoritesProvider
 from src.modules.geo.infrastructure.provider import GeoProvider
 from src.modules.identity.infrastructure.provider import IdentityProvider
 from src.modules.logistics.infrastructure.provider import (
@@ -36,7 +37,10 @@ from src.modules.logistics.infrastructure.provider import (
     LogisticsInfraProvider,
     LogisticsQueryProvider,
 )
+from src.modules.order.infrastructure.provider import OrderProvider
+from src.modules.payment.infrastructure.provider import PaymentProviderDI
 from src.modules.pricing.infrastructure.provider import PricingProvider
+from src.modules.recipient.infrastructure.provider import RecipientProvider
 from src.modules.supplier.infrastructure.provider import SupplierProvider
 from src.modules.user.infrastructure.provider import ProfileProvider
 
@@ -76,9 +80,13 @@ def create_container() -> AsyncContainer:
         ProfileProvider(),
         SupplierProvider(),
         CartProvider(),
+        FavoritesProvider(),
         LogisticsInfraProvider(),
         LogisticsCommandProvider(),
         LogisticsQueryProvider(),
         PricingProvider(),
         ActivityProvider(),
+        PaymentProviderDI(),
+        RecipientProvider(),
+        OrderProvider(),
     )

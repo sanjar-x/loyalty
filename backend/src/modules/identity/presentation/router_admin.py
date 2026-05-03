@@ -82,7 +82,7 @@ from src.modules.identity.presentation.schemas import (
 
 admin_router = APIRouter(
     prefix="/admin",
-    tags=["Admin — IAM"],
+    tags=["Admin / IAM"],
     route_class=DishkaRoute,
 )
 

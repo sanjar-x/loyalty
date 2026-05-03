@@ -58,7 +58,7 @@ from src.modules.identity.presentation.schemas import (
 
 staff_admin_router = APIRouter(
     prefix="/admin/staff",
-    tags=["Admin — Staff Management"],
+    tags=["Admin / Staff"],
     route_class=DishkaRoute,
 )
 

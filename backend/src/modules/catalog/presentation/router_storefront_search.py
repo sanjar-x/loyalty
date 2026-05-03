@@ -41,7 +41,7 @@ from src.shared.interfaces.security import ITokenProvider
 
 storefront_search_router = APIRouter(
     prefix="/storefront/search",
-    tags=["Storefront Search"],
+    tags=["Storefront / Search"],
     route_class=DishkaRoute,
 )
 

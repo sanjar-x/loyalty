@@ -121,7 +121,7 @@ _GEO_MANAGE = [Depends(RequirePermission("geo:manage"))]
 
 geo_admin_router = APIRouter(
     prefix="/admin/geo",
-    tags=["Geo Admin"],
+    tags=["Admin / Geo"],
     route_class=DishkaRoute,
     dependencies=_GEO_MANAGE,
 )

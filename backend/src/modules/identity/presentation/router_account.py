@@ -28,7 +28,7 @@ from src.modules.identity.presentation.schemas import (
 
 identity_account_router = APIRouter(
     prefix="/profile",
-    tags=["Account"],
+    tags=["Profile / Account"],
     route_class=DishkaRoute,
 )
 
@@ -64,7 +64,7 @@ async def delete_my_account(
 
 
 @identity_account_router.put(
-    "/me/password",
+    "/password",
     response_model=MessageResponse,
     summary="Change my password",
 )
@@ -99,7 +99,7 @@ async def change_password(
 
 
 @identity_account_router.get(
-    "/me/sessions",
+    "/sessions",
     response_model=list[SessionInfo],
     summary="List my active sessions",
 )

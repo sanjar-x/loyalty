@@ -73,24 +73,45 @@ Order ─┬─ Shipment #1 (provider=dobropost)  — Китай → склад 
 6. **`PUT /api/shipment` нужен только** для исправления паспортных данных при `passportValidationStatus=false` — не для других мутаций.
 7. **`DELETE /api/shipment/{id}` НЕ используется** в production flow; cancellation идёт через локальный Order `CANCELLED + REFUND`.
 
-## Текущий статус реализации
+## Roadmap
 
-Provider-стек ДоброПост — **реализован** (2026-04-30):
+Единый план интеграции ДоброПост (provider-стек + webhook + Order-side). Single source of truth для всех trackable пунктов — другие файлы ссылаются сюда.
 
-- ✅ `Shipment` aggregate + factory `create_admin_managed` (`domain/entities.py`).
-- ✅ `Shipment.cross_border_arrived_at` (миграция `30_0150_32_a27095efe3bc`).
-- ✅ `CrossBorderArrivedEvent` + `ShipmentPassportValidationFailedEvent`.
-- ✅ `DobroPostProviderFactory` + `DobroPostBookingProvider` + `DobroPostTrackingPollProvider` + `DobroPostWebhookAdapter`.
-- ✅ Зарегистрирован в `_FACTORY_MAP` (`infrastructure/bootstrap.py`).
-- ✅ Admin command `CreateCrossBorderShipmentHandler` (procurement flow).
-- ✅ `HandleDobroPostPassportValidationHandler` для passport-validation failure path.
-- ✅ Provider-input validator (`provider_validators.py`) — отвергает создание DobroPost-аккаунта без webhook auth.
-- ✅ Partial index `ix_shipments_stuck_cross_border` для nightly job.
-- ⏳ Order-side consumer для `CrossBorderArrivedEvent` (создание Shipment #2) — Order module Q3 2026.
-- ⏳ Order-side consumer для `ShipmentPassportValidationFailedEvent` (CS escalation) — Order module Q3 2026.
-- ⏳ E2E-тесты на webhook idempotency.
+| #   | Задача                                                                                  | Статус               |
+| --- | --------------------------------------------------------------------------------------- | -------------------- |
+| 1   | Добавить `dobropost` в `_FACTORY_MAP` (`infrastructure/bootstrap.py`)                   | ✅ Done              |
+| 2   | `DobroPostProviderFactory` + `DobroPostWebhookAdapter`                                  | ✅ Done              |
+| 3   | `DobroPostBookingProvider` (`POST /api/shipment`)                                       | ✅ Done              |
+| 4   | `DobroPostTrackingPollProvider` (`GET /api/shipment`)                                   | ✅ Done              |
+| 5   | `Shipment` factory `create_admin_managed` + поле `cross_border_arrived_at`              | ✅ Done              |
+| 6   | `CrossBorderArrivedEvent` + хук в `Shipment.append_tracking_event` (idempotent)         | ✅ Done              |
+| 7   | `ShipmentPassportValidationFailedEvent` + `HandleDobroPostPassportValidationHandler`    | ✅ Done              |
+| 8   | Admin command `CreateCrossBorderShipmentHandler` (procurement flow)                     | ✅ Done              |
+| 9   | Provider-input validator — отвергает DobroPost-аккаунт без webhook auth                 | ✅ Done              |
+| 10  | Partial index `ix_shipments_stuck_cross_border` для nightly job                         | ✅ Done              |
+| 11  | Не добавлять `dobropost` в `_PROVIDER_COVERAGE` — admin-managed, не участвует в rate fan-out | ✅ Решено (см. §архитектурные инварианты) |
+| 12  | Order-side consumer для `CrossBorderArrivedEvent` (создание Shipment #2)                | ⏳ Order module Q3 2026 |
+| 13  | Order-side consumer для `ShipmentPassportValidationFailedEvent` (CS escalation)         | ⏳ Order module Q3 2026 |
+| 14  | E2E-тесты webhook idempotency (дубликат payload)                                        | ⏳ TODO              |
 
-Полный roadmap — в [`webhooks.md` §Roadmap](./webhooks.md#roadmap).
+## Глоссарий
+
+Термины, которые встречаются на каждой странице — определения держим здесь, в других файлах не повторяем.
+
+| Термин                  | Что значит                                                                                                                                |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cross-border**        | Сегмент маршрута Китай → таможня → склад ДоброПост в РФ. Покрывается **Shipment #1** (provider=`dobropost`).                              |
+| **Last-mile**           | Сегмент склад ДоброПост → ПВЗ → customer. Покрывается **Shipment #2** (provider=`cdek` / `yandex_delivery`).                              |
+| **Shipment #1 / #2**    | Первый/второй shipment одного Order'а. На Order **минимум 2 shipment'а**, всегда. См. инвариант №1.                                         |
+| **`incomingDeclaration`** | Китайский трек-номер (поле в `POST /api/shipment`). Customer видит его как «трек по Китаю».                                              |
+| **`dptrackNumber`**     | Трек-номер ДоброПост (возвращается в ответе `POST /api/shipment`). Используется как `tracking_number` для Shipment #1.                    |
+| **`dpTariffId`**        | ID тарифа доставки ДоброПост (фиксированный по партнёрскому договору; Loyality передаёт hard-coded ID, не выбирает динамически).         |
+| **DP Ultra**            | Один из тарифов ДоброПост; единственный, для которого `consigneeBirthDate` обязательное.                                                   |
+| **DaData**              | Внешний сервис проверки актуальности паспорта по реестру МВД РФ. Используется ДоброПост перед таможенным оформлением.                       |
+| **ПВЗ**                 | Пункт выдачи заказов. Customer выбирает ПВЗ **российского** carrier'а (CDEK / Yandex), не ДоброПост.                                      |
+| **Procurement flow**    | Manager-action: выкуп товара в Китае + регистрация в ДоброПост. Реализован в `CreateCrossBorderShipmentHandler`.                          |
+| **Admin-managed shipment** | Shipment, создаваемый менеджером (а не customer'ом через checkout). Фабрика `Shipment.create_admin_managed`. Только cross-border сегмент. |
+| **Status_id 648 / 649** | Триггеры создания Shipment #2: «подготовлено к last-mile» / «передано на доставку по РФ». Emit'ит `CrossBorderArrivedEvent`.              |
 
 ## Источник и обновление
 

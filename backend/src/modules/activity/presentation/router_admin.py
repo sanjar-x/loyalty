@@ -28,7 +28,7 @@ from src.shared.interfaces.activity import IActivityQueryService
 
 activity_admin_router = APIRouter(
     prefix="/admin/analytics",
-    tags=["Admin — Analytics"],
+    tags=["Admin / Analytics"],
     route_class=DishkaRoute,
 )
 

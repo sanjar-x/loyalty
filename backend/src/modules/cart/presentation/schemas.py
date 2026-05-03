@@ -27,6 +27,8 @@ class UpdateQuantityRequest(CamelModel):
 
 class InitiateCheckoutRequest(CamelModel):
     pickup_point_id: uuid.UUID
+    pickup_carrier: str
+    recipient_id: uuid.UUID
 
 
 class ConfirmCheckoutRequest(CamelModel):

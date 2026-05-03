@@ -32,6 +32,7 @@ from tests.factories.cart_builder import CartBuilder, CartItemBuilder
 from tests.factories.sku_mothers import SkuSnapshotMother
 from tests.fakes.cart_fakes import (
     CartFakeUnitOfWork,
+    FakeCartRecipientLookup,
     FakeCartRepository,
     FakePickupPointReadService,
     FakeSkuReadService,
@@ -60,12 +61,16 @@ class TestInitiateCheckoutHandler:
             repo,
             sku_service,
             FakePickupPointReadService(),
+            FakeCartRecipientLookup(),
             CartFakeUnitOfWork(),
             make_cart_logger(),
         )
         result = await handler.handle(
             InitiateCheckoutCommand(
-                identity_id=identity_id, pickup_point_id=uuid.uuid4()
+                identity_id=identity_id,
+                pickup_point_id=uuid.uuid4(),
+                pickup_carrier="cdek",
+                recipient_id=uuid.uuid4(),
             )
         )
 
@@ -83,13 +88,17 @@ class TestInitiateCheckoutHandler:
             repo,
             FakeSkuReadService(),
             FakePickupPointReadService(),
+            FakeCartRecipientLookup(),
             CartFakeUnitOfWork(),
             make_cart_logger(),
         )
         with pytest.raises(CartEmptyError):
             await handler.handle(
                 InitiateCheckoutCommand(
-                    identity_id=identity_id, pickup_point_id=uuid.uuid4()
+                    identity_id=identity_id,
+                    pickup_point_id=uuid.uuid4(),
+                    pickup_carrier="cdek",
+                    recipient_id=uuid.uuid4(),
                 )
             )
 
@@ -98,13 +107,17 @@ class TestInitiateCheckoutHandler:
             FakeCartRepository(),
             FakeSkuReadService(),
             FakePickupPointReadService(),
+            FakeCartRecipientLookup(),
             CartFakeUnitOfWork(),
             make_cart_logger(),
         )
         with pytest.raises(CartNotFoundError):
             await handler.handle(
                 InitiateCheckoutCommand(
-                    identity_id=uuid.uuid4(), pickup_point_id=uuid.uuid4()
+                    identity_id=uuid.uuid4(),
+                    pickup_point_id=uuid.uuid4(),
+                    pickup_carrier="cdek",
+                    recipient_id=uuid.uuid4(),
                 )
             )
 
@@ -128,13 +141,17 @@ class TestInitiateCheckoutHandler:
             repo,
             sku_service,
             FakePickupPointReadService(),
+            FakeCartRecipientLookup(),
             CartFakeUnitOfWork(),
             make_cart_logger(),
         )
         with pytest.raises(DuplicateCheckoutAttemptError):
             await handler.handle(
                 InitiateCheckoutCommand(
-                    identity_id=identity_id, pickup_point_id=uuid.uuid4()
+                    identity_id=identity_id,
+                    pickup_point_id=uuid.uuid4(),
+                    pickup_carrier="cdek",
+                    recipient_id=uuid.uuid4(),
                 )
             )
 
@@ -153,13 +170,17 @@ class TestInitiateCheckoutHandler:
             repo,
             sku_service,
             FakePickupPointReadService(),
+            FakeCartRecipientLookup(),
             CartFakeUnitOfWork(),
             make_cart_logger(),
         )
         with pytest.raises(SkuNotAvailableError):
             await handler.handle(
                 InitiateCheckoutCommand(
-                    identity_id=identity_id, pickup_point_id=uuid.uuid4()
+                    identity_id=identity_id,
+                    pickup_point_id=uuid.uuid4(),
+                    pickup_carrier="cdek",
+                    recipient_id=uuid.uuid4(),
                 )
             )
 
@@ -187,12 +208,16 @@ class TestConfirmCheckoutHandler:
             repo,
             sku_service,
             FakePickupPointReadService(),
+            FakeCartRecipientLookup(),
             CartFakeUnitOfWork(),
             make_cart_logger(),
         )
         result = await initiate_handler.handle(
             InitiateCheckoutCommand(
-                identity_id=identity_id, pickup_point_id=uuid.uuid4()
+                identity_id=identity_id,
+                pickup_point_id=uuid.uuid4(),
+                pickup_carrier="cdek",
+                recipient_id=uuid.uuid4(),
             )
         )
         return repo, sku_service, cart, result
@@ -223,6 +248,8 @@ class TestConfirmCheckoutHandler:
             cart_id=snapshot.cart_id,
             items=snapshot.items,
             pickup_point_id=snapshot.pickup_point_id,
+            pickup_carrier=snapshot.pickup_carrier,
+            recipient_id=snapshot.recipient_id,
             total_amount=snapshot.total_amount,
             currency=snapshot.currency,
             created_at=snapshot.created_at,
@@ -363,12 +390,16 @@ class TestCancelCheckoutHandler:
             repo,
             sku_service,
             FakePickupPointReadService(),
+            FakeCartRecipientLookup(),
             CartFakeUnitOfWork(),
             make_cart_logger(),
         )
         await initiate_handler.handle(
             InitiateCheckoutCommand(
-                identity_id=identity_id, pickup_point_id=uuid.uuid4()
+                identity_id=identity_id,
+                pickup_point_id=uuid.uuid4(),
+                pickup_carrier="cdek",
+                recipient_id=uuid.uuid4(),
             )
         )
 

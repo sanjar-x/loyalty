@@ -19,8 +19,10 @@ from structlog.stdlib import BoundLogger
 # branch silently drops pricing events whenever the relay runs in any
 # process other than the worker.
 import src.infrastructure.outbox.tasks
+import src.modules.order.infrastructure.tasks
 import src.modules.pricing.infrastructure.tasks  # noqa: F401
 from src.api.exceptions.handlers import setup_exception_handlers
+from src.api.middlewares.legacy_redirects import LegacyRedirectsMiddleware
 from src.api.middlewares.logger import AccessLoggerMiddleware
 from src.api.router import router
 from src.bootstrap.broker import broker
@@ -99,6 +101,9 @@ def create_app() -> FastAPI:
         )
 
     app.add_middleware(AccessLoggerMiddleware)
+    # 308 redirects for the 2026-05 router restructure. Remove after
+    # 2026-05-09 — see docs/api/router-restructure-2026-05.md.
+    app.add_middleware(LegacyRedirectsMiddleware)
 
     setup_exception_handlers(app)
     app.include_router(router=router, prefix=settings.API_V1_STR)

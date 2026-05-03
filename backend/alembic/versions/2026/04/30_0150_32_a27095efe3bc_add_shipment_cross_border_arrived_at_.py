@@ -55,7 +55,7 @@ def upgrade() -> None:
         postgresql_where=sa.text(
             "cross_border_arrived_at IS NULL "
             "AND provider_code = 'dobropost' "
-            "AND status = 'booked'"
+            "AND status = 'BOOKED'"
         ),
     )
 

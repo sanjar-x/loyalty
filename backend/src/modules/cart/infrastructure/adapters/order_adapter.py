@@ -1,8 +1,15 @@
 """Stub adapter for order creation.
 
-The Order module is not yet implemented. This stub returns a new UUID,
-simulating successful order creation so the checkout confirm flow works
-end-to-end.
+By design, the customer flow uses an explicit ``POST /api/v1/orders`` —
+the cart's ``confirm_checkout`` does NOT auto-create an order. This stub
+remains in place to satisfy ``IOrderCreationService`` for the existing
+cart unit tests and Dishka wiring, but it is NOT invoked in the live
+checkout flow.
+
+If the wiring strategy changes (e.g. cart event-driven order creation),
+extend ``IOrderCreationService`` with ``identity_id`` and replace this
+stub with a real adapter calling Order's
+``CreateOrderFromCartHandler``.
 """
 
 import uuid
