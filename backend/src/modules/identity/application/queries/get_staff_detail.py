@@ -95,7 +95,8 @@ class GetStaffDetailHandler:
             NotFoundError: If no staff member with the given ID exists.
         """
         sql = text(
-            "SELECT i.id AS identity_id, lc.email, i.type AS auth_type, "
+            "SELECT i.id AS identity_id, lc.email, "
+            "i.primary_auth_method AS auth_type, "
             "i.is_active, sm.first_name, sm.last_name, sm.position, sm.department, "
             "sm.invited_by, i.created_at, i.deactivated_at, i.deactivated_by "
             "FROM identities i "

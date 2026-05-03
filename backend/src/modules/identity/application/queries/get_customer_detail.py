@@ -99,7 +99,8 @@ class GetCustomerDetailHandler:
             NotFoundError: If no customer with the given ID exists.
         """
         sql = text(
-            "SELECT i.id AS identity_id, lc.email, i.type AS auth_type, "
+            "SELECT i.id AS identity_id, lc.email, "
+            "i.primary_auth_method AS auth_type, "
             "i.is_active, c.first_name, c.last_name, c.phone, "
             "c.referral_code, c.username, c.referred_by, "
             "i.created_at, i.deactivated_at, i.deactivated_by "

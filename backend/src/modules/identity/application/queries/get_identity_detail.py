@@ -77,7 +77,8 @@ class GetIdentityDetailQuery:
 # exactly one of them — see ``user/infrastructure/models.py``. The
 # previous query joined a non-existent ``users`` table.
 _IDENTITY_DETAIL_SQL = text(
-    "SELECT i.id AS identity_id, lc.email, i.type AS auth_type, i.is_active, "
+    "SELECT i.id AS identity_id, lc.email, "
+    "i.primary_auth_method AS auth_type, i.is_active, "
     "COALESCE(c.first_name, sm.first_name) AS first_name, "
     "COALESCE(c.last_name, sm.last_name) AS last_name, "
     "c.phone AS phone, "

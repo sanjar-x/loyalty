@@ -92,7 +92,8 @@ _COUNT_SQL_PARTS = [
 ]
 
 _LIST_SQL_PARTS = [
-    "SELECT i.id AS identity_id, lc.email, i.type AS auth_type, i.is_active,",
+    "SELECT i.id AS identity_id, lc.email,",
+    "i.primary_auth_method AS auth_type, i.is_active,",
     "COALESCE(c.first_name, sm.first_name) AS first_name,",
     "COALESCE(c.last_name, sm.last_name) AS last_name,",
     "c.phone AS phone,",
