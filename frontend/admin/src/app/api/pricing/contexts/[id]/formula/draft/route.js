@@ -19,7 +19,7 @@ export async function GET(_request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/contexts/${id}/formula/draft`,
+    `/api/v1/admin/pricing/contexts/${id}/formula/draft`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
 
@@ -72,7 +72,7 @@ export async function PUT(request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/contexts/${id}/formula/draft`,
+    `/api/v1/admin/pricing/contexts/${id}/formula/draft`,
     {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}` },
@@ -113,7 +113,7 @@ export async function DELETE(_request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/contexts/${id}/formula/draft`,
+    `/api/v1/admin/pricing/contexts/${id}/formula/draft`,
     { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
   );
 

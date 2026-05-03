@@ -13,7 +13,7 @@ export async function GET(request, { params }) {
   const { productId, variantId } = await params;
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/products/${productId}/variants/${variantId}/skus?limit=200`,
+    `/api/v1/admin/catalog/products/${productId}/variants/${variantId}/skus?limit=200`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
 

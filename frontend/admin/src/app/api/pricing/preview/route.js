@@ -33,11 +33,14 @@ export async function POST(request) {
     );
   }
 
-  const { ok, status, data } = await backendFetch('/api/v1/pricing/preview', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
-  });
+  const { ok, status, data } = await backendFetch(
+    '/api/v1/admin/pricing/preview',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    },
+  );
 
   if (!ok) {
     return NextResponse.json(

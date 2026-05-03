@@ -29,7 +29,7 @@ export async function PATCH(request, { params }) {
   const body = await request.json();
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/products/${productId}/status`,
+    `/api/v1/admin/catalog/products/${productId}/status`,
     {
       method: 'PATCH',
       headers: {

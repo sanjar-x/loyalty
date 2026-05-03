@@ -35,7 +35,7 @@ export async function POST(request) {
 
   // Backend uses Pydantic CamelModel — accepts camelCase directly
   const { ok, status, data } = await backendFetch(
-    '/api/v1/catalog/categories',
+    '/api/v1/admin/catalog/categories',
     {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },

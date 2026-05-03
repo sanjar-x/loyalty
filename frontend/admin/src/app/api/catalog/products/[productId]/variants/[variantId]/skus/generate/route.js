@@ -21,7 +21,7 @@ export async function POST(request, { params }) {
   const body = await request.json();
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/products/${productId}/variants/${variantId}/skus/generate`,
+    `/api/v1/admin/catalog/products/${productId}/variants/${variantId}/skus/generate`,
     {
       method: 'POST',
       headers: {

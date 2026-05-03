@@ -19,7 +19,7 @@ export async function GET(_request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/suppliers/${supplierId}/pricing`,
+    `/api/v1/admin/pricing/suppliers/${supplierId}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
 
@@ -72,7 +72,7 @@ export async function PUT(request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/suppliers/${supplierId}/pricing`,
+    `/api/v1/admin/pricing/suppliers/${supplierId}`,
     {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}` },

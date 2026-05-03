@@ -25,7 +25,7 @@ export async function GET(request) {
   const qs = params.toString();
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/variables${qs ? `?${qs}` : ''}`,
+    `/api/v1/admin/pricing/variables${qs ? `?${qs}` : ''}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
 
@@ -76,11 +76,14 @@ export async function POST(request) {
     );
   }
 
-  const { ok, status, data } = await backendFetch('/api/v1/pricing/variables', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
-  });
+  const { ok, status, data } = await backendFetch(
+    '/api/v1/admin/pricing/variables',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    },
+  );
 
   if (!ok) {
     return NextResponse.json(

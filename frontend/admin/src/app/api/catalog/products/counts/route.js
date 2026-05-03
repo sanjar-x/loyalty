@@ -36,11 +36,16 @@ export async function GET() {
 
   try {
     const results = await Promise.all([
-      backendFetch('/api/v1/catalog/products?offset=0&limit=1', { headers }),
+      backendFetch('/api/v1/admin/catalog/products?offset=0&limit=1', {
+        headers,
+      }),
       ...STATUS_KEYS.map((s) =>
-        backendFetch(`/api/v1/catalog/products?offset=0&limit=1&status=${s}`, {
-          headers,
-        }),
+        backendFetch(
+          `/api/v1/admin/catalog/products?offset=0&limit=1&status=${s}`,
+          {
+            headers,
+          },
+        ),
       ),
     ]);
 

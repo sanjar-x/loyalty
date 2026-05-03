@@ -1,1 +1,1 @@
-export { AuthProvider, useAuth } from './hooks/useAuth';
+export { AuthProvider, useAuth } from './model/useAuth';

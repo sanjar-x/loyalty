@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { groupBrandsByLetter, useBrands, useCreateBrand } from '@/entities/brand';
+import {
+  groupBrandsByLetter,
+  useBrands,
+  useCreateBrand,
+} from '@/entities/brand';
 import {
   confirmMedia,
   extractRawUrl,

@@ -23,7 +23,7 @@ export async function GET(request, { params }) {
   const qs = statusFilter ? `?status=${statusFilter}` : '';
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/contexts/${id}/formula/versions${qs}`,
+    `/api/v1/admin/pricing/contexts/${id}/formula/versions${qs}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
 

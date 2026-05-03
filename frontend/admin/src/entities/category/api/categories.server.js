@@ -10,9 +10,12 @@ export async function fetchCategoryTreeServer() {
   try {
     const token = await getAccessToken();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    const { ok, data } = await backendFetch('/api/v1/catalog/categories/tree', {
-      headers,
-    });
+    const { ok, data } = await backendFetch(
+      '/api/v1/admin/catalog/categories/tree',
+      {
+        headers,
+      },
+    );
 
     if (ok && Array.isArray(data) && data.length > 0) return data;
   } catch {

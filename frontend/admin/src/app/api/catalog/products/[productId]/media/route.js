@@ -57,7 +57,7 @@ export async function GET(request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/products/${productId}/media?limit=200`,
+    `/api/v1/admin/catalog/products/${productId}/media?limit=200`,
     { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
   );
 
@@ -125,7 +125,7 @@ export async function POST(request, { params }) {
   };
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/products/${productId}/media`,
+    `/api/v1/admin/catalog/products/${productId}/media`,
     {
       method: 'POST',
       headers: {

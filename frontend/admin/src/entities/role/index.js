@@ -12,3 +12,9 @@ export {
 } from './api/roles';
 export { roleKeys, permissionKeys } from './api/keys';
 export { useRoles, useRole, usePermissions } from './api/queries';
+export {
+  useCreateRole,
+  useUpdateRole,
+  useDeleteRole,
+  useSetRolePermissions,
+} from './api/mutations';

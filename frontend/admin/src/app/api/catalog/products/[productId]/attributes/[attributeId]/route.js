@@ -20,7 +20,7 @@ export async function DELETE(request, { params }) {
   const { productId, attributeId } = await params;
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/products/${productId}/attributes/${attributeId}`,
+    `/api/v1/admin/catalog/products/${productId}/attributes/${attributeId}`,
     { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
   );
 

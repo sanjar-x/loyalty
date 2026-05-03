@@ -19,7 +19,7 @@ export async function GET(_request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/supplier-type-mapping/${supplierType}`,
+    `/api/v1/admin/pricing/supplier-type-mapping/${supplierType}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
 
@@ -72,7 +72,7 @@ export async function PUT(request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/supplier-type-mapping/${supplierType}`,
+    `/api/v1/admin/pricing/supplier-type-mapping/${supplierType}`,
     {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}` },
@@ -113,7 +113,7 @@ export async function DELETE(_request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/supplier-type-mapping/${supplierType}`,
+    `/api/v1/admin/pricing/supplier-type-mapping/${supplierType}`,
     { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
   );
 

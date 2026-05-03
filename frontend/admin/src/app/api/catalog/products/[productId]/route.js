@@ -20,7 +20,7 @@ export async function GET(request, { params }) {
   const { productId } = await params;
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/products/${productId}`,
+    `/api/v1/admin/catalog/products/${productId}`,
     { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
   );
 
@@ -62,7 +62,7 @@ export async function PATCH(request, { params }) {
   const body = await request.json();
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/products/${productId}`,
+    `/api/v1/admin/catalog/products/${productId}`,
     {
       method: 'PATCH',
       headers: {
@@ -103,7 +103,7 @@ export async function DELETE(request, { params }) {
   const { productId } = await params;
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/products/${productId}`,
+    `/api/v1/admin/catalog/products/${productId}`,
     { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
   );
 

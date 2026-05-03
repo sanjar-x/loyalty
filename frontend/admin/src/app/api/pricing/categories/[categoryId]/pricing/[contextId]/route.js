@@ -35,7 +35,7 @@ export async function PUT(request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/categories/${categoryId}/pricing/${contextId}`,
+    `/api/v1/admin/pricing/categories/${categoryId}/${contextId}`,
     {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}` },
@@ -76,7 +76,7 @@ export async function DELETE(_request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/categories/${categoryId}/pricing/${contextId}`,
+    `/api/v1/admin/pricing/categories/${categoryId}/${contextId}`,
     { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
   );
 

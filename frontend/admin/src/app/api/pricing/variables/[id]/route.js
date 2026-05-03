@@ -19,7 +19,7 @@ export async function GET(_request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/variables/${id}`,
+    `/api/v1/admin/pricing/variables/${id}`,
     {
       headers: { Authorization: `Bearer ${token}` },
     },
@@ -74,7 +74,7 @@ export async function PATCH(request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/variables/${id}`,
+    `/api/v1/admin/pricing/variables/${id}`,
     {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}` },
@@ -115,7 +115,7 @@ export async function DELETE(_request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/variables/${id}`,
+    `/api/v1/admin/pricing/variables/${id}`,
     {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },

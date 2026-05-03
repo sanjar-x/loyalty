@@ -19,8 +19,12 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
+            // `unsafe-eval` removed — disables a major XSS-escalation path.
+            // `unsafe-inline` for scripts is still required by Next.js' inline
+            // bootstrap; switch to nonce-based CSP when adopting Next.js
+            // middleware-driven nonces.
             value:
-              "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self';",
+              "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self';",
           },
           {
             key: 'Strict-Transport-Security',

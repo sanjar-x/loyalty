@@ -55,13 +55,22 @@ const deepFeatureImport = (slice) => ({
 });
 
 // Feature: may import shared, entities (via public API), widgets, and its own internals.
-// Forbidden: cross-feature imports, deep imports into other entities.
+// Forbidden: cross-feature imports, deep imports into other entities, AND
+// importing one's own slice barrel (creates a runtime cycle through index.js
+// — use relative paths to internal files instead).
 const featureBoundaryOverrides = FEATURES.map((self) => ({
   files: [`src/features/${self}/**/*.{js,jsx}`],
   rules: {
     'no-restricted-imports': [
       'error',
       {
+        paths: [
+          {
+            name: `@/features/${self}`,
+            message:
+              "Don't import your own slice's barrel from inside it — use relative paths (creates an index.js cycle).",
+          },
+        ],
         patterns: [
           // No cross-feature imports at all.
           ...FEATURES.filter((other) => other !== self).map((other) => ({
@@ -78,13 +87,22 @@ const featureBoundaryOverrides = FEATURES.map((self) => ({
 }));
 
 // Entity: may import shared and other entities (via public API).
-// Forbidden: features, widgets, app, deep paths into sibling entities.
+// Forbidden: features, widgets, app, deep paths into sibling entities, AND
+// importing one's own slice barrel (creates a runtime cycle through index.js
+// — use relative paths to internal files instead).
 const entityBoundaryOverrides = ENTITIES.map((self) => ({
   files: [`src/entities/${self}/**/*.{js,jsx}`],
   rules: {
     'no-restricted-imports': [
       'error',
       {
+        paths: [
+          {
+            name: `@/entities/${self}`,
+            message:
+              "Don't import your own slice's barrel from inside it — use relative paths (creates an index.js cycle).",
+          },
+        ],
         patterns: [
           {
             group: ['@/features/*', '@/widgets/*', '@/app/*'],

@@ -1,5 +1,5 @@
 import SearchIcon from '@/assets/icons/search.svg';
-import { SortSelect } from '@/features/order-filter';
+import { SortSelect } from './SortSelect';
 
 export function OrderFilters({
   searchValue,

@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal } from '@/shared/ui/Modal';
-import { createRole, deleteRole, roleKeys, updateRole } from '@/entities/role';
+import { createRole, deleteRole, updateRole } from '../api/roles';
+import { roleKeys } from '../api/keys';
 
 const ROLE_ERROR_CODES = {
   ROLE_ALREADY_EXISTS: 'Роль с таким именем уже существует',

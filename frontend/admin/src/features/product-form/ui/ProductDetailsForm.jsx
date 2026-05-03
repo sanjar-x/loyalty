@@ -2,12 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  useProductForm,
-  useImageUpload,
-  useSubmitProduct,
-  useUpdateProduct,
-} from '@/features/product-form';
+import useProductForm from '../model/useProductForm';
+import useImageUpload from '../model/useImageUpload';
+import useSubmitProduct from '../model/useSubmitProduct';
+import useUpdateProduct from '../model/useUpdateProduct';
 import { useToast } from '@/shared/hooks/useToast';
 import { i18n } from '@/shared/lib/utils';
 import { useCategoryFormAttributes } from '@/entities/category';

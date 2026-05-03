@@ -102,7 +102,6 @@ export default function EditProductPage() {
         mode="edit"
         initialProduct={product}
         initialMedia={media}
-        productId={productId}
       />
     </section>
   );

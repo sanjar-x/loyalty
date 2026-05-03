@@ -3,12 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal } from '@/shared/ui/Modal';
-import {
-  roleKeys,
-  setRolePermissions,
-  usePermissions,
-  useRole,
-} from '@/entities/role';
+import { roleKeys } from '../api/keys';
+import { setRolePermissions } from '../api/roles';
+import { usePermissions, useRole } from '../api/queries';
 
 const PERMISSION_ERROR_CODES = {
   PRIVILEGE_ESCALATION: 'Нельзя назначить права, которых у вас нет',

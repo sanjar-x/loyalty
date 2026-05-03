@@ -20,7 +20,7 @@ export async function GET(_request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/storefront/categories/${id}/form-attributes`,
+    `/api/v1/storefront/categories/${id}/form-attributes`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
 

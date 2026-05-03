@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRef } from 'react';
 import { cn, formatCurrency, formatDateTime } from '@/shared/lib/utils';
-import { PRODUCT_STATUS_TRANSITIONS } from '@/entities/product';
+import { PRODUCT_STATUS_TRANSITIONS } from '../lib/constants';
 import DotsIcon from '@/assets/icons/dots.svg';
 import PencilIcon from '@/assets/icons/pencil.svg';
 import { useOutsideClick } from '@/shared/hooks/useOutsideClick';

@@ -35,7 +35,7 @@ export async function PUT(request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/contexts/${id}/variables/values/${code}`,
+    `/api/v1/admin/pricing/contexts/${id}/variables/values/${code}`,
     {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}` },

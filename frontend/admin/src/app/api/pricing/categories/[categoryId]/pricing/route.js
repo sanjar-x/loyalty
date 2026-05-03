@@ -34,7 +34,7 @@ export async function GET(request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/categories/${categoryId}/pricing?context_id=${contextId}`,
+    `/api/v1/admin/pricing/categories/${categoryId}?context_id=${contextId}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
 

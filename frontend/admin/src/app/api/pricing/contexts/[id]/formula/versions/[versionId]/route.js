@@ -19,7 +19,7 @@ export async function GET(_request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/contexts/${id}/formula/versions/${versionId}`,
+    `/api/v1/admin/pricing/contexts/${id}/formula/versions/${versionId}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
 

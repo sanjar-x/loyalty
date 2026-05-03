@@ -17,3 +17,9 @@ export {
 } from './api/identities';
 export { identityKeys } from './api/keys';
 export { useIdentities, useIdentity } from './api/queries';
+export {
+  useAssignIdentityRole,
+  useRevokeIdentityRole,
+  useDeactivateIdentity,
+  useReactivateIdentity,
+} from './api/mutations';

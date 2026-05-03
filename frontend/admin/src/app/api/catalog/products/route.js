@@ -24,7 +24,7 @@ const ATTR_TTL_MS = 5 * 60 * 1000;
 async function fetchProductMedia(token, productId) {
   // List view only shows the main thumbnail, so limit=1 is enough.
   const { ok, data } = await backendFetch(
-    `/api/v1/catalog/products/${productId}/media?limit=1`,
+    `/api/v1/admin/catalog/products/${productId}/media?limit=1`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
 
@@ -39,7 +39,7 @@ async function fetchLookupData(token) {
   const [brands, categoryTree, suppliers] = await Promise.all([
     getOrFetch('catalog:brands', LOOKUP_TTL_MS, async () => {
       const res = await backendFetch(
-        '/api/v1/catalog/brands?offset=0&limit=200',
+        '/api/v1/admin/catalog/brands?offset=0&limit=200',
         {
           headers: { Authorization: `Bearer ${token}` },
         },
@@ -47,15 +47,18 @@ async function fetchLookupData(token) {
       return res.ok && res.data?.items ? res.data.items : [];
     }),
     getOrFetch('catalog:categories:tree', LOOKUP_TTL_MS, async () => {
-      const res = await backendFetch('/api/v1/catalog/categories/tree', {
+      const res = await backendFetch('/api/v1/admin/catalog/categories/tree', {
         headers: { Authorization: `Bearer ${token}` },
       });
       return res.ok && Array.isArray(res.data) ? res.data : [];
     }),
     getOrFetch('catalog:suppliers', LOOKUP_TTL_MS, async () => {
-      const res = await backendFetch('/api/v1/suppliers?offset=0&limit=200', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await backendFetch(
+        '/api/v1/admin/suppliers?offset=0&limit=200',
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       return res.ok && res.data?.items ? res.data.items : [];
     }),
   ]);
@@ -172,11 +175,11 @@ async function fetchAttributeLookup(token, attributeIds) {
     [...attributeIds].map((attrId) =>
       getOrFetch(`catalog:attribute:${attrId}`, ATTR_TTL_MS, async () => {
         const [attrRes, valuesRes] = await Promise.all([
-          backendFetch(`/api/v1/catalog/attributes/${attrId}`, {
+          backendFetch(`/api/v1/admin/catalog/attributes/${attrId}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
           backendFetch(
-            `/api/v1/catalog/attributes/${attrId}/values?offset=0&limit=200`,
+            `/api/v1/admin/catalog/attributes/${attrId}/values?offset=0&limit=200`,
             {
               headers: { Authorization: `Bearer ${token}` },
             },
@@ -316,7 +319,7 @@ export async function GET(request) {
   }
 
   const qs = params.toString();
-  const listPath = `/api/v1/catalog/products${qs ? `?${qs}` : ''}`;
+  const listPath = `/api/v1/admin/catalog/products${qs ? `?${qs}` : ''}`;
 
   // 1) Fetch list + lookup data in parallel
   const [listRes, lookup] = await Promise.all([
@@ -397,14 +400,17 @@ export async function POST(request) {
 
   const body = await request.json();
 
-  const { ok, status, data } = await backendFetch('/api/v1/catalog/products', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+  const { ok, status, data } = await backendFetch(
+    '/api/v1/admin/catalog/products',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
+  );
 
   if (!ok) {
     return NextResponse.json(

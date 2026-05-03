@@ -1,39 +1,29 @@
 import { NextResponse } from 'next/server';
 import { backendFetch } from '@/shared/api/api-client';
+import {
+  assertSameOrigin,
+  serviceUnavailableResponse,
+  unauthorizedResponse,
+} from '@/shared/api/bff';
 import { getAccessToken } from '@/shared/auth/cookies';
 
-export async function POST(_request, { params }) {
+export async function POST(request, { params }) {
+  const csrfFail = assertSameOrigin(request);
+  if (csrfFail) return csrfFail;
+
   const { id, versionId } = await params;
   const token = await getAccessToken();
-  if (!token) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-          details: {},
-        },
-      },
-      { status: 401 },
-    );
-  }
+  if (!token) return unauthorizedResponse();
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/contexts/${id}/formula/versions/${versionId}/rollback`,
+    `/api/v1/admin/pricing/contexts/${id}/formula/versions/${versionId}/rollback`,
     { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
   );
 
   if (!ok) {
-    return NextResponse.json(
-      data ?? {
-        error: {
-          code: 'SERVICE_UNAVAILABLE',
-          message: 'Backend unavailable',
-          details: {},
-        },
-      },
-      { status: status || 502 },
-    );
+    return data
+      ? NextResponse.json(data, { status: status || 502 })
+      : serviceUnavailableResponse();
   }
 
   return NextResponse.json(data);

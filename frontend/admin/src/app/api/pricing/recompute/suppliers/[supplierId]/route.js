@@ -19,7 +19,7 @@ export async function POST(_request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/pricing/recompute/suppliers/${supplierId}`,
+    `/api/v1/admin/pricing/recompute/suppliers/${supplierId}`,
     { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
   );
 

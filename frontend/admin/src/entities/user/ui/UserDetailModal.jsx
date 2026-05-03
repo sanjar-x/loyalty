@@ -8,11 +8,11 @@ import dayjs from '@/shared/lib/dayjs';
 import {
   assignIdentityRole,
   deactivateIdentity,
-  identityKeys,
   reactivateIdentity,
   revokeIdentityRole,
-  useIdentity,
-} from '@/entities/user';
+} from '../api/identities';
+import { identityKeys } from '../api/keys';
+import { useIdentity } from '../api/queries';
 import styles from './styles/users.module.css';
 
 const IDENTITY_ERROR_CODES = {

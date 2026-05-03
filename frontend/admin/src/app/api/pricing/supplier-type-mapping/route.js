@@ -18,7 +18,7 @@ export async function GET() {
   }
 
   const { ok, status, data } = await backendFetch(
-    '/api/v1/pricing/supplier-type-mapping',
+    '/api/v1/admin/pricing/supplier-type-mapping',
     { headers: { Authorization: `Bearer ${token}` } },
   );
 

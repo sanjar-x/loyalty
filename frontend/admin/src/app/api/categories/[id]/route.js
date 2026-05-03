@@ -36,7 +36,7 @@ export async function PATCH(request, { params }) {
 
   // Backend uses Pydantic CamelModel — accepts camelCase directly
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/categories/${id}`,
+    `/api/v1/admin/catalog/categories/${id}`,
     {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}` },
@@ -77,7 +77,7 @@ export async function DELETE(request, { params }) {
   }
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/categories/${id}`,
+    `/api/v1/admin/catalog/categories/${id}`,
     {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },

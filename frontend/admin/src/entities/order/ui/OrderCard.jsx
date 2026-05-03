@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { CopyMark } from '@/shared/ui/CopyMark';
-import { STATUS_PILL_LABELS } from '@/entities/order';
+import { STATUS_PILL_LABELS } from '../lib/constants';
 import { cn, formatCurrency, formatDateTime } from '@/shared/lib/utils';
 
 const statusClassName = {

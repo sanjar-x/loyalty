@@ -1,29 +1,9 @@
-import { NextResponse } from 'next/server';
-import { backendFetch } from '@/shared/api/api-client';
-import { getAccessToken } from '@/shared/auth/cookies';
+import { proxyToBackend } from '@/shared/api/bff';
 
-export async function GET() {
-  const token = await getAccessToken();
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-  const { ok, status, data } = await backendFetch(
-    '/api/v1/catalog/categories/tree',
-    { headers },
-  );
-
-  if (!ok) {
-    return NextResponse.json(
-      data ?? {
-        error: {
-          code: 'SERVICE_UNAVAILABLE',
-          message: 'Backend unavailable',
-          details: {},
-        },
-      },
-      { status: status || 502 },
-    );
-  }
-
-  // Backend already returns camelCase via Pydantic CamelModel
-  return NextResponse.json(data);
-}
+// Categories tree may resolve without an access token (used in pre-auth
+// contexts), so requireAuth=false: the Bearer is still attached when one
+// is available, but a missing token doesn't 401.
+export const GET = proxyToBackend({
+  pathFn: () => '/api/v1/admin/catalog/categories/tree',
+  requireAuth: false,
+});

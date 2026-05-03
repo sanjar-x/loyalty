@@ -21,7 +21,7 @@ export async function PATCH(request, { params }) {
   const body = await request.json();
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/products/${productId}/variants/${variantId}`,
+    `/api/v1/admin/catalog/products/${productId}/variants/${variantId}`,
     {
       method: 'PATCH',
       headers: {
@@ -62,7 +62,7 @@ export async function DELETE(request, { params }) {
   const { productId, variantId } = await params;
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/products/${productId}/variants/${variantId}`,
+    `/api/v1/admin/catalog/products/${productId}/variants/${variantId}`,
     { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
   );
 

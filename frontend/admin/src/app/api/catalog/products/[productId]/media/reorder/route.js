@@ -21,7 +21,7 @@ export async function POST(request, { params }) {
   const body = await request.json();
 
   const { ok, status, data } = await backendFetch(
-    `/api/v1/catalog/products/${productId}/media/reorder`,
+    `/api/v1/admin/catalog/products/${productId}/media/reorder`,
     {
       method: 'POST',
       headers: {
