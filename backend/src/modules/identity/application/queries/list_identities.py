@@ -78,24 +78,35 @@ class ListIdentitiesQuery:
     sort_order: str = "desc"
 
 
+# Profile data lives in two PII-isolated tables (one per ``account_type``):
+# ``customers`` for buyers (with ``phone``) and ``staff_members`` for back-office
+# (no ``phone``). Each identity has a 1:1 row in exactly one of them, so a
+# pair of LEFT JOINs + COALESCE projects a unified profile view without
+# requiring a fragile UNION CTE. There was no ``users`` table — earlier
+# code referenced an aspirational name that production hit at runtime.
 _COUNT_SQL_PARTS = [
     "SELECT COUNT(DISTINCT i.id) FROM identities i",
     "LEFT JOIN local_credentials lc ON lc.identity_id = i.id",
-    "LEFT JOIN users u ON u.id = i.id",
+    "LEFT JOIN customers c ON c.id = i.id",
+    "LEFT JOIN staff_members sm ON sm.id = i.id",
 ]
 
 _LIST_SQL_PARTS = [
     "SELECT i.id AS identity_id, lc.email, i.type AS auth_type, i.is_active,",
-    "u.first_name, u.last_name, u.phone, i.created_at",
+    "COALESCE(c.first_name, sm.first_name) AS first_name,",
+    "COALESCE(c.last_name, sm.last_name) AS last_name,",
+    "c.phone AS phone,",
+    "i.created_at",
     "FROM identities i",
     "LEFT JOIN local_credentials lc ON lc.identity_id = i.id",
-    "LEFT JOIN users u ON u.id = i.id",
+    "LEFT JOIN customers c ON c.id = i.id",
+    "LEFT JOIN staff_members sm ON sm.id = i.id",
 ]
 
 _SORT_COLUMNS = {
     "created_at": "i.created_at",
     "email": "lc.email",
-    "last_name": "u.last_name",
+    "last_name": "COALESCE(c.last_name, sm.last_name)",
 }
 
 _IDENTITY_ROLE_NAMES_SQL = text(
@@ -125,8 +136,9 @@ class ListIdentitiesHandler:
 
         if query.search is not None:
             where_clauses.append(
-                "(lc.email ILIKE :search OR u.first_name ILIKE :search "
-                "OR u.last_name ILIKE :search)"
+                "(lc.email ILIKE :search "
+                "OR c.first_name ILIKE :search OR c.last_name ILIKE :search "
+                "OR sm.first_name ILIKE :search OR sm.last_name ILIKE :search)"
             )
             params["search"] = f"%{query.search}%"
 

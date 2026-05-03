@@ -72,13 +72,20 @@ class GetIdentityDetailQuery:
     identity_id: uuid.UUID
 
 
+# Profile data is split between ``customers`` (PII for buyers) and
+# ``staff_members`` (back-office). Each identity has a 1:1 row in
+# exactly one of them — see ``user/infrastructure/models.py``. The
+# previous query joined a non-existent ``users`` table.
 _IDENTITY_DETAIL_SQL = text(
     "SELECT i.id AS identity_id, lc.email, i.type AS auth_type, i.is_active, "
-    "u.first_name, u.last_name, u.phone, i.created_at, "
-    "i.deactivated_at, i.deactivated_by "
+    "COALESCE(c.first_name, sm.first_name) AS first_name, "
+    "COALESCE(c.last_name, sm.last_name) AS last_name, "
+    "c.phone AS phone, "
+    "i.created_at, i.deactivated_at, i.deactivated_by "
     "FROM identities i "
     "LEFT JOIN local_credentials lc ON lc.identity_id = i.id "
-    "LEFT JOIN users u ON u.id = i.id "
+    "LEFT JOIN customers c ON c.id = i.id "
+    "LEFT JOIN staff_members sm ON sm.id = i.id "
     "WHERE i.id = :identity_id"
 )
 
