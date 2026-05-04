@@ -7,8 +7,10 @@ Dependency graph at worker startup:
     1. ``broker``        -- created in ``src/bootstrap/broker.py`` (imported above).
     2. ``container``     -- Dishka DI container (``create_container()``).
     3. ``setup_dishka()``-- registers ``DishkaMiddleware`` on the broker.
-    4. ``import tasks``  -- tasks register themselves via the ``@broker.task()``
-       decorator.
+    4. Module task imports -- tasks register themselves via the
+       ``@broker.task()`` decorator and the outbox relay's
+       ``register_event_handler`` helper. Both are import-time side
+       effects.
 
 Why this exact order?
     ``@broker.task()`` calls ``broker.register_task()`` at import time.
@@ -16,17 +18,11 @@ Why this exact order?
     point; otherwise ``FromDishka[...]`` dependencies will not resolve at
     execution time and the worker will crash with a runtime error.
 
-What breaks if the order is violated:
-    - Moving task imports above ``setup_dishka()``: tasks register without
-      the middleware, leading to ``AttributeError`` / ``KeyError`` at
-      execution time.
-    - Removing the ``# noqa`` markers and letting isort / ruff ``--fix``
-      hoist the task imports to the top: same problem.
-
-Auto-formatter protection:
-    Task imports are annotated with ``# noqa`` to suppress E402 (module-
-    level import not at top of file).  Do NOT delete these markers during
-    code cleanup.
+Module discovery:
+    Per-module task module paths come from each :class:`ModuleManifest`
+    in :mod:`src.bootstrap.modules`. The framework-level outbox-tasks
+    module is imported directly because it is not owned by any
+    bounded context.
 """
 
 import structlog
@@ -39,6 +35,8 @@ from taskiq.events import TaskiqEvents
 from src.bootstrap.broker import broker
 from src.bootstrap.config import settings
 from src.bootstrap.container import create_container
+from src.bootstrap.module_registry import import_task_modules
+from src.bootstrap.modules import MODULES
 from src.infrastructure.logging.dlq_middleware import DLQMiddleware
 
 logger = structlog.get_logger(__name__)
@@ -63,12 +61,11 @@ _dlq_session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
 broker.add_middlewares(DLQMiddleware(session_factory=_dlq_session_factory))
 
 # 2. Now import tasks so they register with the broker.
-import src.infrastructure.outbox.tasks  # noqa
-import src.modules.activity.infrastructure.tasks  # noqa
-import src.modules.identity.application.consumers.role_events  # noqa
-import src.modules.logistics.infrastructure.tasks  # noqa
-import src.modules.pricing.infrastructure.tasks  # noqa
-import src.modules.user.application.consumers.identity_events  # noqa
+# Framework-level outbox tasks first (relay + pruner schedules), then
+# per-module task modules listed on each manifest.
+import src.infrastructure.outbox.tasks  # noqa: F401, E402
+
+import_task_modules(MODULES)
 
 
 @broker.on_event(TaskiqEvents.WORKER_STARTUP)

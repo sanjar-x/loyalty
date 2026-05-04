@@ -1,0 +1,219 @@
+.header {
+  padding: 24px 15px 0;
+}
+
+.headerTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: #111111;
+}
+
+.closeBtn {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #f4f3f1;
+  border: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.closeBtn:active {
+  filter: brightness(0.98);
+  transform: scale(0.98);
+}
+
+.closeIcon {
+  /* font-size: 25px;
+  font-weight: 500;
+  line-height: 1;
+  color: #111111; */
+}
+
+.closeIcon > img {
+  width: 8px;
+  height: 8px;
+}
+
+.headerRow {
+  display: none;
+  align-items: center;
+  gap: 13px;
+  padding-top: 10px;
+}
+
+.backBtn {
+  background: transparent;
+  border: 0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.backBtn img {
+  width: 17.5px;
+  height: auto;
+}
+
+.backBtn:active {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.price {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #111111;
+}
+
+.body {
+  padding: 8px 12px 0;
+}
+
+.group {
+  display: grid;
+  gap: 10px;
+}
+
+.option {
+  width: 100%;
+  text-align: left;
+  border-radius: 18px;
+  border: 1px solid #2d2d2d47;
+  background: #ffffff;
+  padding: 14px 14px 12px;
+  cursor: pointer;
+}
+
+.optionActive {
+  border-color: #2d2d2d;
+}
+
+.optionTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.optionTitle {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: #111111;
+}
+
+.optionRight {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+}
+
+.payments {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #111111;
+}
+
+.sub {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: #8f8f8f;
+}
+
+.schedule {
+  margin-top: 10px;
+}
+
+.scheduleGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.scheduleItem {
+  display: grid;
+  gap: 2px;
+}
+
+.scheduleDate {
+  font-size: 11px;
+  color: #8f8f8f;
+}
+
+.scheduleAmount {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111111;
+}
+
+.progress {
+  margin-top: 10px;
+  height: 6px;
+  border-radius: 999px;
+  background: white;
+  overflow: hidden;
+  gap: 8px;
+  display: flex;
+}
+
+.progressNotFill {
+  background-color: #f4f3f1;
+  border-radius: 999px;
+}
+
+.progressFill {
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: #111111;
+  border-radius: 999px;
+}
+
+.hint {
+  margin-top: 12px;
+  padding: 0 2px;
+  font-size: 12px;
+  color: #8f8f8f;
+  display: none;
+}
+
+.hintStrong {
+  color: #111111;
+  font-weight: 700;
+}
+
+.cta {
+  width: 100%;
+  background: #2d2d2d;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 106%;
+  letter-spacing: 2%;
+  text-align: center;
+  border: none;
+  padding: 20px 0;
+  border-radius: 16px;
+  transition: all 0.2s ease;
+  margin-top: 6px;
+}
+
+.cta:active {
+  background: #1a1a1a;
+}

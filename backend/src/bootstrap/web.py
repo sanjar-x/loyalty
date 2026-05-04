@@ -3,6 +3,13 @@
 This module is the composition root for the web process.  It wires
 together middleware, exception handlers, routers, and the DI container,
 then exposes ``create_app()`` for the ASGI server.
+
+Outbox event handlers and TaskIQ task definitions register at import
+time via decorators / ``register_event_handler``. We import them once
+through :func:`import_task_modules` so the registry is identical
+across the web, worker, and scheduler processes — without that, the
+relay's "unknown event_type" branch silently drops events whenever the
+relay runs in a process that did not import the publishing module.
 """
 
 from contextlib import asynccontextmanager
@@ -13,14 +20,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from structlog.stdlib import BoundLogger
 
-# Outbox event handlers register at import time via ``register_event_handler``.
-# Importing the task modules here makes the registry identical across web /
-# worker / scheduler processes; without this the relay's "unknown event_type"
-# branch silently drops pricing events whenever the relay runs in any
-# process other than the worker.
-import src.infrastructure.outbox.tasks
-import src.modules.order.infrastructure.tasks
-import src.modules.pricing.infrastructure.tasks  # noqa: F401
+# Outbox-relay handler registrations (framework-level) and per-module
+# task imports — both are import-time side-effects, so they MUST run
+# at module load time, not inside ``create_app()``.
+import src.infrastructure.outbox.tasks  # noqa: F401
 from src.api.exceptions.handlers import setup_exception_handlers
 from src.api.middlewares.legacy_redirects import LegacyRedirectsMiddleware
 from src.api.middlewares.logger import AccessLoggerMiddleware
@@ -29,6 +32,10 @@ from src.bootstrap.broker import broker
 from src.bootstrap.config import settings
 from src.bootstrap.container import create_container
 from src.bootstrap.logger import setup_logging
+from src.bootstrap.module_registry import import_task_modules
+from src.bootstrap.modules import MODULES
+
+import_task_modules(MODULES)
 
 setup_logging()
 

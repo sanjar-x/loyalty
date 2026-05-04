@@ -1,69 +1,47 @@
-"""
-Logistics domain events.
+"""Logistics domain events.
 
-Events are plain (non-frozen) dataclasses — DomainEvent base is non-frozen.
-Treat all fields as immutable after construction.
-Part of the domain layer — zero framework imports.
+Logistics spans multiple aggregate kinds (``Shipment``, ``ProviderAccount``,
+``CarrierEvent``) within one bounded context, so concrete events MUST
+override ``aggregate_type`` with their specific aggregate name. Required-
+field validation and ``aggregate_id`` auto-fill come from
+:class:`src.shared.interfaces.entities.ModuleDomainEvent`.
 """
 
 import uuid
 from dataclasses import dataclass
-from typing import ClassVar
 
-from src.shared.interfaces.entities import DomainEvent
-
-# ---------------------------------------------------------------------------
-# Intermediate base for logistics events
-# ---------------------------------------------------------------------------
+from src.shared.interfaces.entities import ModuleDomainEvent
 
 
 @dataclass
-class LogisticsEvent(DomainEvent):
-    """Base class for all logistics domain events.
-
-    Concrete subclasses supply ``_required_fields`` and
-    ``_aggregate_id_field`` via ``__init_subclass__`` keyword arguments,
-    following the same pattern as ``CatalogEvent``.
-    """
-
-    _required_fields: ClassVar[tuple[str, ...]] = ()
-    _aggregate_id_field: ClassVar[str] = ""
+class LogisticsEvent(ModuleDomainEvent, abstract=True):
+    """Intermediate base for all logistics domain events."""
 
     aggregate_type: str = "Logistics"
-    event_type: str = "LogisticsEvent"
 
     def __init_subclass__(
         cls,
         *,
+        abstract: bool = False,
         required_fields: tuple[str, ...] | None = None,
         aggregate_id_field: str | None = None,
         **kwargs: object,
     ) -> None:
-        super().__init_subclass__(**kwargs)
-        if required_fields is not None:
-            cls._required_fields = required_fields
-        if aggregate_id_field is not None:
-            cls._aggregate_id_field = aggregate_id_field
-
-        if required_fields is not None:
-            if cls.event_type == "LogisticsEvent":
-                raise TypeError(
-                    f"{cls.__name__} must define its own 'event_type' "
-                    f"(inherited default 'LogisticsEvent' would misroute events)"
-                )
-            if cls.aggregate_type == "Logistics":
-                raise TypeError(
-                    f"{cls.__name__} must define its own 'aggregate_type' "
-                    f"(inherited default 'Logistics' would misroute events)"
-                )
-
-    def __post_init__(self) -> None:
-        cls_name = type(self).__name__
-        for field_name in self._required_fields:
-            if getattr(self, field_name) is None:
-                raise ValueError(f"{field_name} is required for {cls_name}")
-        if not self.aggregate_id and self._aggregate_id_field:
-            self.aggregate_id = str(getattr(self, self._aggregate_id_field))
+        super().__init_subclass__(
+            abstract=abstract,
+            required_fields=required_fields,
+            aggregate_id_field=aggregate_id_field,
+            **kwargs,
+        )
+        if abstract or required_fields is None:
+            return
+        if "aggregate_type" not in cls.__dict__:
+            raise TypeError(
+                f"{cls.__name__} must override 'aggregate_type' — logistics "
+                "events span multiple aggregate kinds (Shipment, "
+                "ProviderAccount, ...) and cannot inherit the placeholder "
+                "'Logistics'."
+            )
 
 
 # ---------------------------------------------------------------------------

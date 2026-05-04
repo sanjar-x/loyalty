@@ -20,7 +20,10 @@ from src.modules.logistics.domain.events import (
     ShipmentEditTaskScheduledEvent,
     ShipmentTrackingUpdatedEvent,
 )
-from src.modules.logistics.domain.exceptions import InvalidShipmentTransitionError
+from src.modules.logistics.domain.exceptions import (
+    InvalidShipmentTransitionError,
+    ShipmentAlreadyTerminalError,
+)
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_CDEK,
     Address,
@@ -300,7 +303,7 @@ class TestShipmentFSM:
         shipment = _make_shipment()
         shipment.mark_booking_pending()
         shipment.mark_booking_failed(reason="oops")
-        with pytest.raises(InvalidShipmentTransitionError):
+        with pytest.raises(ShipmentAlreadyTerminalError):
             shipment.mark_booking_pending()
 
     def test_cancelled_is_terminal(self):
@@ -309,7 +312,7 @@ class TestShipmentFSM:
         shipment.mark_booked(provider_shipment_id="X", tracking_number="Y")
         shipment.mark_cancel_pending()
         shipment.mark_cancelled()
-        with pytest.raises(InvalidShipmentTransitionError):
+        with pytest.raises(ShipmentAlreadyTerminalError):
             shipment.mark_booking_pending()
 
 

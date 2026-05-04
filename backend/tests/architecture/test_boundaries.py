@@ -23,6 +23,7 @@ MODULES = [
     "order",
     "payment",
     "recipient",
+    "referral",
 ]
 
 
@@ -125,27 +126,43 @@ ALLOWED_CROSS_MODULE = {
         "src.modules.catalog.application.queries.search_products",
         "src.modules.catalog.application.queries.get_storefront_cards_by_ids",
     },
-    # ADR-005 — pricing recompute service reads SKU purchase price from
-    # catalog and writes selling price back. The pricing domain stays
-    # ignorant of catalog ORM via ports (``ISkuPricingInputReader``,
-    # ``ISkuPricingResultWriter``); only these two infrastructure
-    # adapters touch catalog tables, and they translate ORM rows into
-    # pure pricing DTOs.
+    # ADR-005 / ADR-005a — pricing recompute reads SKU purchase price
+    # from catalog through a read-only ACL adapter and writes the
+    # selling price back through the catalog-side
+    # ``IInternalSkuPricingApplyPort`` (declared in
+    # ``catalog.domain.interfaces``, implemented in
+    # ``catalog.application.commands.apply_sku_pricing_result``). The
+    # writer adapter has been removed — pricing now imports only the
+    # port type from catalog domain, plus the read-side adapters below
+    # for inputs and scope:
+    #   * ``sku_pricing_input_reader`` — JOINs SKU + Product +
+    #     Supplier to materialise :class:`SkuPricingInputs` DTOs.
+    # The pricing service additionally imports
+    # ``catalog.domain.interfaces`` (port + DTOs); domain-only types
+    # are intentionally allowed because that's the sanctioned
+    # cross-module contract — the architecture rule should not see it
+    # as a violation, but we whitelist the recompute service file
+    # explicitly so any *new* file in pricing trying to reach into
+    # catalog is rejected by default.
     ("pricing", "catalog"): {
         "src.modules.pricing.infrastructure.adapters.sku_pricing_input_reader",
-        "src.modules.pricing.infrastructure.adapters.sku_pricing_result_writer",
+        "src.modules.pricing.infrastructure.services.recompute_service",
     },
-    # Same adapters resolve ``supplier.type`` to look up the per‑type
+    # Same input reader resolves ``supplier.type`` for the per-type
     # pricing context mapping during SKU recompute.
     ("pricing", "supplier"): {
         "src.modules.pricing.infrastructure.adapters.sku_pricing_input_reader",
     },
-    # Both pricing adapters look up ``CurrencyModel.minor_unit`` to
-    # convert between integer-kopecks (catalog storage) and
-    # Decimal-major-units (formula evaluator). Read-only ORM lookup.
+    # Pricing reads ``CurrencyModel.minor_unit`` for kopecks ↔
+    # major-unit conversion in both directions: input reader for
+    # ``purchase_price``, scope reader for ``target_currency``
+    # selling-price conversion (ADR-005a). The catalog-side
+    # ``ApplySkuPricingResultHandler`` receives the converted
+    # integer minor-unit value via :class:`SkuPricingApplyRequest`
+    # and never imports the geo module itself.
     ("pricing", "geo"): {
         "src.modules.pricing.infrastructure.adapters.sku_pricing_input_reader",
-        "src.modules.pricing.infrastructure.adapters.sku_pricing_result_writer",
+        "src.modules.pricing.infrastructure.adapters.sku_pricing_scope_reader",
     },
     # Logistics builds Parcel weights from a category-level estimate
     # maintained in pricing (Product → Category → CategoryPricingSettings).
@@ -262,6 +279,27 @@ def test_shared_kernel_is_independent():
     )
 
 
+# Rule 6b: shared/ledger is part of the shared kernel and may not depend
+# on any infrastructure implementation. It is a pure-domain abstraction
+# consumed by every module that owns balances (referral, future cashback,
+# supplier payouts, ...). SQLAlchemy / Dishka / Redis / TaskIQ touch it
+# only through ports, never the other way around.
+def test_shared_ledger_has_zero_framework_imports() -> None:
+    """src/shared/ledger/ MUST stay free of framework imports."""
+    (
+        archrule("shared_ledger_no_frameworks")
+        .match("src.shared.ledger.*")
+        .should_not_import("sqlalchemy.*")
+        .should_not_import("fastapi.*")
+        .should_not_import("dishka.*")
+        .should_not_import("redis.*")
+        .should_not_import("taskiq.*")
+        .should_not_import("pydantic.*")
+        .should_not_import("alembic.*")
+        .check("src")
+    )
+
+
 # Rule 7: No Reverse Layer Dependencies
 @pytest.mark.parametrize("module", MODULES)
 def test_no_reverse_layer_dependencies(module: str):
@@ -285,4 +323,121 @@ def test_no_reverse_layer_dependencies(module: str):
         .should_not_import(f"src.modules.{module}.infrastructure.*")
         .may_import(f"src.modules.{module}.application.queries.*")
         .check("src", only_direct_imports=True)
+    )
+
+
+# Rule 8: Module domain events must inherit ``ModuleDomainEvent``,
+# not ``DomainEvent`` directly. Centralizing required-field validation
+# and ``aggregate_id`` auto-fill on a single shared base prevents
+# 30-line ``__init_subclass__`` boilerplate from re-appearing in every
+# new module.
+#
+# Reference-data bounded contexts (``activity``, ``geo``, ``user``)
+# do not declare any ``domain/events.py`` of their own — they are
+# trivially compliant. ``user`` is included here because Customer /
+# StaffMember PII updates are handled by direct Identity-event
+# consumption rather than emitting new events; once that pattern
+# changes, drop ``user`` from this set.
+_MODULE_EVENT_BASE_OPT_OUT: frozenset[str] = frozenset({"activity", "geo", "user"})
+
+
+@pytest.mark.parametrize(
+    "module",
+    [m for m in MODULES if m not in _MODULE_EVENT_BASE_OPT_OUT],
+)
+def test_module_events_use_shared_module_event_base(module: str) -> None:
+    """``src/modules/<m>/domain/events.py`` must not import ``DomainEvent``
+    directly — it must use :class:`ModuleDomainEvent` from the shared
+    kernel so that validation, ``aggregate_id`` auto-fill, and the
+    abstract-base flag are uniform across the codebase.
+    """
+    (
+        archrule(f"{module}_events_use_module_domain_event")
+        .match(f"src.modules.{module}.domain.events")
+        .should_not_import("src.shared.interfaces.entities.DomainEvent")
+        .check("src")
+    )
+
+
+# Rule 9: Aggregates with a directed FSM (``_ALLOWED_TRANSITIONS`` ClassVar)
+# must inherit :class:`StateMachineMixin` from the shared kernel rather
+# than reimplementing transition validation in module-local helpers.
+#
+# Source-level enforcement is approximate (pytest-archon operates on
+# imports, not class graphs), so we lean on a textual check that the
+# domain layer of every FSM-bearing module imports the shared mixin.
+# Modules listed in the opt-out set use module-specific FSM mechanics
+# (``cart`` declares ``_ALLOWED_TRANSITIONS`` but does not enforce it
+# yet — see PR-0b followup; ``catalog/product`` overrides ``__setattr__``
+# and embeds non-FSM business invariants inside ``transition_status``).
+_FSM_MIXIN_OPT_OUT: frozenset[str] = frozenset({"cart", "catalog"})
+
+_FSM_MODULES: frozenset[str] = frozenset({"order", "payment", "logistics"})
+
+
+@pytest.mark.parametrize("module", sorted(_FSM_MODULES))
+def test_fsm_aggregates_use_shared_state_machine_mixin(module: str) -> None:
+    """FSM-bearing aggregates must use :class:`StateMachineMixin`."""
+    (
+        archrule(f"{module}_uses_shared_fsm_mixin")
+        .match(f"src.modules.{module}.domain.entities*")
+        .should_import("src.shared.interfaces.fsm")
+        .check("src")
+    )
+
+
+# Rule 10: idempotency keys + consumer inbox are owned by the shared
+# kernel. Modules MUST NOT declare their own ``IIdempotencyStore`` /
+# ``IInboxStore`` interfaces or per-module copies of the SQL adapter —
+# the contract lives in :mod:`src.shared.interfaces.idempotency` and
+# the Postgres implementation lives in :mod:`src.infrastructure.idempotency`.
+#
+# Per-module discrimination is achieved through the ``scope`` /
+# ``consumer`` columns on the shared tables (each module passes its own
+# values), not through duplicate table layouts.
+@pytest.mark.parametrize("module", MODULES)
+def test_modules_do_not_declare_local_idempotency_or_inbox_interfaces(
+    module: str,
+) -> None:
+    """Modules MUST NOT redefine ``IIdempotencyStore`` / ``IInboxStore``."""
+    domain_path = f"src/modules/{module}/domain/interfaces.py"
+    try:
+        with open(domain_path, encoding="utf-8") as fh:
+            source = fh.read()
+    except FileNotFoundError:
+        return  # module has no interfaces.py — trivially compliant
+    forbidden_names = (
+        "class IIdempotencyKeyStore",
+        "class IIdempotencyStore",
+        "class IInboxStore",
+    )
+    for name in forbidden_names:
+        assert name not in source, (
+            f"{domain_path} declares '{name}' — the interface lives in "
+            "src.shared.interfaces.idempotency. Remove the local copy."
+        )
+
+
+# Rule 11: Every bounded-context module listed in :data:`MODULES` must
+# expose a :class:`ModuleManifest` constant via
+# ``src/modules/<name>/module.py``. This is what the bootstrap loop
+# in :mod:`src.bootstrap.modules` aggregates — a missing manifest
+# means the module is silently absent from the DI container, the
+# aggregate router, and the worker / scheduler import chain.
+@pytest.mark.parametrize("module", MODULES)
+def test_every_module_has_a_bootstrap_manifest(module: str) -> None:
+    """``src/modules/<name>/module.py`` MUST exist and declare a manifest."""
+    import os
+
+    manifest_path = f"src/modules/{module}/module.py"
+    assert os.path.exists(manifest_path), (
+        f"Missing bootstrap manifest: {manifest_path}. Every module in "
+        "MODULES must declare a ModuleManifest constant so that the "
+        "DI container, FastAPI router aggregation, and TaskIQ worker "
+        "bootstrap can pick it up automatically."
+    )
+    with open(manifest_path, encoding="utf-8") as fh:
+        source = fh.read()
+    assert "ModuleManifest" in source, (
+        f"{manifest_path} must declare a ModuleManifest constant."
     )

@@ -11,12 +11,14 @@ from src.infrastructure.database.base import Base
 
 
 class CustomerModel(Base):
-    """ORM model for the ``customers`` table (customer profiles)."""
+    """ORM model for the ``customers`` table (customer profiles).
+
+    Stores PII only. Referral graph (codes, referred-by, loyalty wallet)
+    lives in the ``referral`` bounded context.
+    """
 
     __tablename__ = "customers"
-    __table_args__ = (
-        {"comment": "Customer profiles with referral data (GDPR-isolated)"},
-    )
+    __table_args__ = ({"comment": "Customer profiles (PII only)"},)
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -33,12 +35,6 @@ class CustomerModel(Base):
     username: Mapped[str | None] = mapped_column(String(64), nullable=True)
     photo_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    referral_code: Mapped[str | None] = mapped_column(
-        String(12), unique=True, nullable=True
-    )
-    referred_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("customers.id"), nullable=True
-    )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
     )

@@ -28,6 +28,22 @@ class PaymentIntentInvalidTransitionError(ConflictError):
         )
 
 
+class PaymentIntentAlreadyTerminalError(ConflictError):
+    """Raised when an FSM transition is attempted from a terminal state.
+
+    Terminal states (REFUNDED, CANCELLED, FAILED) accept no further
+    transitions. Surfaces a clearer error than a generic
+    ``InvalidTransition`` for log triage and admin UIs.
+    """
+
+    def __init__(self, *, status: str) -> None:
+        super().__init__(
+            message=f"Payment intent is already in a terminal state: {status}",
+            error_code="PAYMENT_INTENT_ALREADY_TERMINAL",
+            details={"status": status},
+        )
+
+
 class PaymentProviderError(UnprocessableEntityError):
     def __init__(self, *, provider: str, reason: str) -> None:
         super().__init__(

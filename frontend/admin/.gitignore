@@ -14,3 +14,11 @@ pnpm-debug.log*
 # TS build info
 *.tsbuildinfo
 .claude/
+
+# Workspace VS Code settings — root .gitignore блокирует .vscode/ глобально,
+# но admin коммитит общие settings/extensions/tasks для team-консистентности.
+!.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json

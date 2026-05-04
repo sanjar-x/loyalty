@@ -24,13 +24,13 @@ from src.modules.order.domain.exceptions import (
 from src.modules.order.domain.interfaces import (
     HistoryActor,
     ICartSnapshotReader,
-    IIdempotencyKeyStore,
     IOrderRepository,
     IOrderStateHistoryWriter,
     IRecipientLookup,
 )
 from src.modules.order.domain.recipient_snapshot import RecipientSnapshot
 from src.shared.exceptions import UnprocessableEntityError
+from src.shared.interfaces.idempotency import IIdempotencyStore
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -62,7 +62,7 @@ class CreateOrderFromCartHandler:
         order_repo: IOrderRepository,
         snapshot_reader: ICartSnapshotReader,
         recipient_lookup: IRecipientLookup,
-        idempotency_store: IIdempotencyKeyStore,
+        idempotency_store: IIdempotencyStore,
         payment_gateway: IPaymentGateway,
         history_writer: IOrderStateHistoryWriter,
         uow: IUnitOfWork,

@@ -1,57 +1,28 @@
 """Pricing domain events.
 
-Events are emitted by pricing aggregates during business operations, serialized
-via ``dataclasses.asdict()``, and persisted atomically to the Outbox table.
+Events are emitted by pricing aggregates during business operations,
+serialized via ``dataclasses.asdict()`` and persisted atomically to
+the Outbox table. ``Decimal`` payload fields are serialized as strings
+to survive JSON round-trips without precision loss; consumers parse
+them back to ``Decimal`` as needed.
 
-Decimal payload fields are serialized as strings to survive JSON round-trips
-without precision loss; consumers parse them back to ``Decimal`` as needed.
+Validation and ``aggregate_id`` auto-fill come from
+:class:`src.shared.interfaces.entities.ModuleDomainEvent`.
 """
 
 from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from typing import ClassVar
 
-from src.shared.interfaces.entities import DomainEvent
+from src.shared.interfaces.entities import ModuleDomainEvent
 
 
 @dataclass
-class PricingEvent(DomainEvent):
+class PricingEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all pricing domain events."""
 
-    _required_fields: ClassVar[tuple[str, ...]] = ()
-    _aggregate_id_field: ClassVar[str] = ""
-
     aggregate_type: str = "pricing_profile"
-    event_type: str = "PricingEvent"
-
-    def __init_subclass__(
-        cls,
-        *,
-        required_fields: tuple[str, ...] | None = None,
-        aggregate_id_field: str | None = None,
-        **kwargs: object,
-    ) -> None:
-        super().__init_subclass__(**kwargs)
-        if required_fields is not None:
-            cls._required_fields = required_fields
-        if aggregate_id_field is not None:
-            cls._aggregate_id_field = aggregate_id_field
-
-        if required_fields is not None and cls.event_type == "PricingEvent":
-            raise TypeError(
-                f"{cls.__name__} must define its own 'event_type' "
-                f"(inherited default 'PricingEvent' would misroute events)"
-            )
-
-    def __post_init__(self) -> None:
-        cls_name = type(self).__name__
-        for field_name in self._required_fields:
-            if getattr(self, field_name) is None:
-                raise ValueError(f"{field_name} is required for {cls_name}")
-        if not self.aggregate_id and self._aggregate_id_field:
-            self.aggregate_id = str(getattr(self, self._aggregate_id_field))
 
 
 @dataclass
@@ -111,41 +82,10 @@ class ProductPricingProfileDeletedEvent(
 
 
 @dataclass
-class VariableEvent(DomainEvent):
+class VariableEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all ``Variable``-registry domain events."""
 
-    _required_fields: ClassVar[tuple[str, ...]] = ()
-    _aggregate_id_field: ClassVar[str] = ""
-
     aggregate_type: str = "pricing_variable"
-    event_type: str = "VariableEvent"
-
-    def __init_subclass__(
-        cls,
-        *,
-        required_fields: tuple[str, ...] | None = None,
-        aggregate_id_field: str | None = None,
-        **kwargs: object,
-    ) -> None:
-        super().__init_subclass__(**kwargs)
-        if required_fields is not None:
-            cls._required_fields = required_fields
-        if aggregate_id_field is not None:
-            cls._aggregate_id_field = aggregate_id_field
-
-        if required_fields is not None and cls.event_type == "VariableEvent":
-            raise TypeError(
-                f"{cls.__name__} must define its own 'event_type' "
-                f"(inherited default 'VariableEvent' would misroute events)"
-            )
-
-    def __post_init__(self) -> None:
-        cls_name = type(self).__name__
-        for field_name in self._required_fields:
-            if getattr(self, field_name) is None:
-                raise ValueError(f"{field_name} is required for {cls_name}")
-        if not self.aggregate_id and self._aggregate_id_field:
-            self.aggregate_id = str(getattr(self, self._aggregate_id_field))
 
 
 @dataclass
@@ -209,41 +149,10 @@ class VariableDeletedEvent(
 
 
 @dataclass
-class PricingContextEvent(DomainEvent):
+class PricingContextEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all pricing-context domain events."""
 
-    _required_fields: ClassVar[tuple[str, ...]] = ()
-    _aggregate_id_field: ClassVar[str] = ""
-
     aggregate_type: str = "pricing_context"
-    event_type: str = "PricingContextEvent"
-
-    def __init_subclass__(
-        cls,
-        *,
-        required_fields: tuple[str, ...] | None = None,
-        aggregate_id_field: str | None = None,
-        **kwargs: object,
-    ) -> None:
-        super().__init_subclass__(**kwargs)
-        if required_fields is not None:
-            cls._required_fields = required_fields
-        if aggregate_id_field is not None:
-            cls._aggregate_id_field = aggregate_id_field
-
-        if required_fields is not None and cls.event_type == "PricingContextEvent":
-            raise TypeError(
-                f"{cls.__name__} must define its own 'event_type' "
-                f"(inherited default 'PricingContextEvent' would misroute events)"
-            )
-
-    def __post_init__(self) -> None:
-        cls_name = type(self).__name__
-        for field_name in self._required_fields:
-            if getattr(self, field_name) is None:
-                raise ValueError(f"{field_name} is required for {cls_name}")
-        if not self.aggregate_id and self._aggregate_id_field:
-            self.aggregate_id = str(getattr(self, self._aggregate_id_field))
 
 
 @dataclass
@@ -348,41 +257,10 @@ class PricingContextGlobalValueSetEvent(
 
 
 @dataclass
-class FormulaVersionEvent(DomainEvent):
+class FormulaVersionEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all formula-version domain events."""
 
-    _required_fields: ClassVar[tuple[str, ...]] = ()
-    _aggregate_id_field: ClassVar[str] = ""
-
     aggregate_type: str = "pricing_formula_version"
-    event_type: str = "FormulaVersionEvent"
-
-    def __init_subclass__(
-        cls,
-        *,
-        required_fields: tuple[str, ...] | None = None,
-        aggregate_id_field: str | None = None,
-        **kwargs: object,
-    ) -> None:
-        super().__init_subclass__(**kwargs)
-        if required_fields is not None:
-            cls._required_fields = required_fields
-        if aggregate_id_field is not None:
-            cls._aggregate_id_field = aggregate_id_field
-
-        if required_fields is not None and cls.event_type == "FormulaVersionEvent":
-            raise TypeError(
-                f"{cls.__name__} must define its own 'event_type' "
-                f"(inherited default 'FormulaVersionEvent' would misroute events)"
-            )
-
-    def __post_init__(self) -> None:
-        cls_name = type(self).__name__
-        for field_name in self._required_fields:
-            if getattr(self, field_name) is None:
-                raise ValueError(f"{field_name} is required for {cls_name}")
-        if not self.aggregate_id and self._aggregate_id_field:
-            self.aggregate_id = str(getattr(self, self._aggregate_id_field))
 
 
 @dataclass
@@ -453,44 +331,10 @@ class FormulaRolledBackEvent(
 
 
 @dataclass
-class CategoryPricingSettingsEvent(DomainEvent):
+class CategoryPricingSettingsEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for ``CategoryPricingSettings`` domain events."""
 
-    _required_fields: ClassVar[tuple[str, ...]] = ()
-    _aggregate_id_field: ClassVar[str] = ""
-
     aggregate_type: str = "pricing_category_settings"
-    event_type: str = "CategoryPricingSettingsEvent"
-
-    def __init_subclass__(
-        cls,
-        *,
-        required_fields: tuple[str, ...] | None = None,
-        aggregate_id_field: str | None = None,
-        **kwargs: object,
-    ) -> None:
-        super().__init_subclass__(**kwargs)
-        if required_fields is not None:
-            cls._required_fields = required_fields
-        if aggregate_id_field is not None:
-            cls._aggregate_id_field = aggregate_id_field
-
-        if (
-            required_fields is not None
-            and cls.event_type == "CategoryPricingSettingsEvent"
-        ):
-            raise TypeError(
-                f"{cls.__name__} must define its own 'event_type' "
-                f"(inherited default 'CategoryPricingSettingsEvent' would misroute events)"
-            )
-
-    def __post_init__(self) -> None:
-        cls_name = type(self).__name__
-        for field_name in self._required_fields:
-            if getattr(self, field_name) is None:
-                raise ValueError(f"{field_name} is required for {cls_name}")
-        if not self.aggregate_id and self._aggregate_id_field:
-            self.aggregate_id = str(getattr(self, self._aggregate_id_field))
 
 
 @dataclass
@@ -550,44 +394,10 @@ class CategoryPricingSettingsDeletedEvent(
 
 
 @dataclass
-class SupplierTypeContextMappingEvent(DomainEvent):
-    """Base for all SupplierTypeContextMapping aggregate events."""
+class SupplierTypeContextMappingEvent(ModuleDomainEvent, abstract=True):
+    """Intermediate base for ``SupplierTypeContextMapping`` events."""
 
     aggregate_type: str = "pricing_supplier_type_context_mapping"
-    event_type: str = "SupplierTypeContextMappingEvent"
-
-    _required_fields: ClassVar[tuple[str, ...]] = ()
-    _aggregate_id_field: ClassVar[str | None] = None
-
-    def __init_subclass__(
-        cls,
-        *,
-        required_fields: tuple[str, ...] | None = None,
-        aggregate_id_field: str | None = None,
-        **kwargs: object,
-    ) -> None:
-        super().__init_subclass__(**kwargs)
-        if required_fields is not None:
-            cls._required_fields = required_fields
-        if aggregate_id_field is not None:
-            cls._aggregate_id_field = aggregate_id_field
-
-        if (
-            required_fields is not None
-            and cls.event_type == "SupplierTypeContextMappingEvent"
-        ):
-            raise TypeError(
-                f"{cls.__name__} must define its own 'event_type' "
-                f"(inherited default 'SupplierTypeContextMappingEvent' would misroute events)"
-            )
-
-    def __post_init__(self) -> None:
-        cls_name = type(self).__name__
-        for field_name in self._required_fields:
-            if getattr(self, field_name) is None:
-                raise ValueError(f"{field_name} is required for {cls_name}")
-        if not self.aggregate_id and self._aggregate_id_field:
-            self.aggregate_id = str(getattr(self, self._aggregate_id_field))
 
 
 @dataclass
@@ -642,44 +452,10 @@ class SupplierTypeContextMappingDeletedEvent(
 
 
 @dataclass
-class SupplierPricingSettingsEvent(DomainEvent):
+class SupplierPricingSettingsEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for ``SupplierPricingSettings`` domain events."""
 
-    _required_fields: ClassVar[tuple[str, ...]] = ()
-    _aggregate_id_field: ClassVar[str] = ""
-
     aggregate_type: str = "pricing_supplier_settings"
-    event_type: str = "SupplierPricingSettingsEvent"
-
-    def __init_subclass__(
-        cls,
-        *,
-        required_fields: tuple[str, ...] | None = None,
-        aggregate_id_field: str | None = None,
-        **kwargs: object,
-    ) -> None:
-        super().__init_subclass__(**kwargs)
-        if required_fields is not None:
-            cls._required_fields = required_fields
-        if aggregate_id_field is not None:
-            cls._aggregate_id_field = aggregate_id_field
-
-        if (
-            required_fields is not None
-            and cls.event_type == "SupplierPricingSettingsEvent"
-        ):
-            raise TypeError(
-                f"{cls.__name__} must define its own 'event_type' "
-                f"(inherited default 'SupplierPricingSettingsEvent' would misroute events)"
-            )
-
-    def __post_init__(self) -> None:
-        cls_name = type(self).__name__
-        for field_name in self._required_fields:
-            if getattr(self, field_name) is None:
-                raise ValueError(f"{field_name} is required for {cls_name}")
-        if not self.aggregate_id and self._aggregate_id_field:
-            self.aggregate_id = str(getattr(self, self._aggregate_id_field))
 
 
 @dataclass

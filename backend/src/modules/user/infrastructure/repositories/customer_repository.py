@@ -2,7 +2,7 @@
 
 import uuid
 
-from sqlalchemy import select, update
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.user.domain.entities import Customer
@@ -25,8 +25,6 @@ class CustomerRepository(ICustomerRepository):
             username=orm.username,
             photo_url=orm.photo_url,
             phone=orm.phone,
-            referral_code=orm.referral_code or "",
-            referred_by=orm.referred_by,
             created_at=orm.created_at,
             updated_at=orm.updated_at,
         )
@@ -40,8 +38,6 @@ class CustomerRepository(ICustomerRepository):
             username=customer.username,
             photo_url=customer.photo_url,
             phone=customer.phone,
-            referral_code=customer.referral_code or None,
-            referred_by=customer.referred_by,
         )
         self._session.add(orm)
         await self._session.flush()
@@ -61,13 +57,6 @@ class CustomerRepository(ICustomerRepository):
                 last_name=customer.last_name,
                 username=customer.username,
                 phone=customer.phone,
-                referral_code=customer.referral_code or None,
             )
         )
         await self._session.execute(stmt)
-
-    async def get_by_referral_code(self, code: str) -> Customer | None:
-        stmt = select(CustomerModel).where(CustomerModel.referral_code == code)
-        result = await self._session.execute(stmt)
-        orm = result.scalar_one_or_none()
-        return self._to_domain(orm) if orm else None

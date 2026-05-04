@@ -42,9 +42,9 @@ class TestEventHandlerRegistrations:
     async def test_event_handlers_registered(self):
         """After module-level registration, all expected event types must be present."""
         expected_types = {
-            "identity_registered",
-            "identity_deactivated",
-            "role_assignment_changed",
+            "IdentityRegisteredEvent",
+            "IdentityDeactivatedEvent",
+            "RoleAssignmentChangedEvent",
         }
         assert expected_types.issubset(set(_EVENT_HANDLERS.keys()))
 

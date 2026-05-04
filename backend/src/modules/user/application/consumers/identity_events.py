@@ -1,8 +1,13 @@
 """TaskIQ consumers for cross-module Identity events.
 
 Handles events published by the Identity bounded context that require
-a reaction in the User module. Routes by account_type to create Customer
-or StaffMember profiles.
+a reaction in the User module — provisioning Customer / StaffMember
+profiles and PII anonymisation on deactivation.
+
+Referral attribution (``start_param`` → referrer link) is **not**
+handled here. The dedicated ``referral`` bounded context owns
+``ReferralCode`` and ``Referral`` aggregates and consumes the same
+``LinkedAccountCreatedEvent`` independently.
 """
 
 import uuid
@@ -17,7 +22,6 @@ from src.modules.user.domain.interfaces import (
     ICustomerRepository,
     IStaffMemberRepository,
 )
-from src.modules.user.domain.services import generate_referral_code
 from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
@@ -44,22 +48,7 @@ async def create_profile_on_identity_registered(
     last_name: str = "",
     username: str | None = None,
 ) -> dict:
-    """Create a profile when an identity registers. Routes by account_type.
-
-    Args:
-        identity_id: String UUID of the new identity.
-        email: Email from the registration event.
-        customer_repo: Injected Customer repository.
-        staff_repo: Injected StaffMember repository.
-        uow: Injected Unit of Work.
-        account_type: CUSTOMER or STAFF.
-        invited_by: Identity ID of inviter (for STAFF).
-        first_name: First name (for STAFF).
-        last_name: Last name (for STAFF).
-
-    Returns:
-        Status dict.
-    """
+    """Create a profile when an identity registers. Routes by ``account_type``."""
     identity_uuid = uuid.UUID(identity_id)
 
     if account_type == "STAFF":
@@ -85,17 +74,15 @@ async def _create_customer(
     uow: IUnitOfWork,
     username: str | None = None,
 ) -> dict:
-    """Create a Customer profile with auto-generated referral code."""
+    """Create a Customer profile."""
     existing = await customer_repo.get(identity_id)
     if existing:
         logger.info("customer.already_exists", identity_id=str(identity_id))
         return {"status": "skipped", "reason": "already_exists"}
 
-    referral_code = generate_referral_code()
     customer = Customer.create_from_identity(
         identity_id=identity_id,
         profile_email=email,
-        referral_code=referral_code,
         username=username,
     )
     async with uow:
@@ -157,14 +144,6 @@ async def anonymize_customer_on_identity_deactivated(
 
     Staff members are not anonymized (GDPR legitimate interest for
     employment records).
-
-    Args:
-        identity_id: String UUID of the deactivated identity.
-        customer_repo: Injected Customer repository.
-        uow: Injected Unit of Work.
-
-    Returns:
-        Status dict.
     """
     identity_uuid = uuid.UUID(identity_id)
 
@@ -197,8 +176,16 @@ async def on_linked_account_created(
     start_param: str | None = None,
     is_new_identity: bool = True,
     provider_sub_id: str = "",
+    signup_ip: str | None = None,
+    signup_user_agent: str | None = None,
 ) -> dict:
-    """Handle LinkedAccountCreatedEvent -- create or enrich Customer."""
+    """Handle ``LinkedAccountCreatedEvent`` — provision or enrich Customer.
+
+    The ``start_param`` / ``signup_ip`` / ``signup_user_agent`` fields
+    are forwarded by the dispatcher but ignored here — referral
+    attribution is the responsibility of the ``referral`` module's
+    independent consumer of the same event.
+    """
     identity_uuid = uuid.UUID(identity_id)
     provider_metadata = provider_metadata or {}
 
@@ -208,19 +195,12 @@ async def on_linked_account_created(
             logger.info("customer.already_exists", identity_id=identity_id)
             return {"status": "skipped", "reason": "already_exists"}
 
-        referred_by: uuid.UUID | None = None
-        if start_param:
-            referrer = await customer_repo.get_by_referral_code(start_param)
-            referred_by = referrer.id if referrer else None
-
         customer = Customer.create_from_identity(
             identity_id=identity_uuid,
             first_name=provider_metadata.get("first_name", ""),
             last_name=provider_metadata.get("last_name", ""),
             username=provider_metadata.get("username"),
             photo_url=provider_metadata.get("photo_url"),
-            referral_code=generate_referral_code(),
-            referred_by=referred_by,
         )
 
         try:
@@ -240,8 +220,6 @@ async def on_linked_account_created(
                 last_name=provider_metadata.get("last_name", ""),
                 username=None,
                 photo_url=provider_metadata.get("photo_url"),
-                referral_code=generate_referral_code(),
-                referred_by=referred_by,
             )
             async with uow:
                 await customer_repo.add(customer)
@@ -252,7 +230,6 @@ async def on_linked_account_created(
             "customer.created_from_provider",
             identity_id=identity_id,
             provider=provider,
-            referred_by=str(referred_by) if referred_by else None,
         )
         return {"status": "success", "type": "customer"}
     else:

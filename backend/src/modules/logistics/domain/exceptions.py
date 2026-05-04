@@ -53,15 +53,26 @@ class InvalidShipmentTransitionError(ConflictError):
 
     def __init__(
         self,
-        current_status: str,
-        target_status: str,
+        *,
+        current: str,
+        target: str,
         details: dict[str, Any] | None = None,
     ):
         super().__init__(
-            message=f"Cannot transition from '{current_status}' to '{target_status}'",
+            message=f"Cannot transition from '{current}' to '{target}'",
             error_code="INVALID_SHIPMENT_TRANSITION",
-            details=details
-            or {"current_status": current_status, "target_status": target_status},
+            details=details or {"current": current, "target": target},
+        )
+
+
+class ShipmentAlreadyTerminalError(ConflictError):
+    """Raised when an FSM transition is attempted from a terminal state."""
+
+    def __init__(self, *, status: str) -> None:
+        super().__init__(
+            message=f"Shipment is already in a terminal state: {status}",
+            error_code="SHIPMENT_ALREADY_TERMINAL",
+            details={"status": status},
         )
 
 

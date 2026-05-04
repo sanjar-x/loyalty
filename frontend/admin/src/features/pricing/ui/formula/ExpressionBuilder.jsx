@@ -1,8 +1,29 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+
 import { cn } from '@/shared/lib/utils';
 
+/**
+ * Two-layer formula editor:
+ *
+ * - **What the user types/sees** are human-readable display strings,
+ *   e.g. "Закупочная цена (CNY) * Курс CNY/RUB". Display strings may contain
+ *   spaces, parentheses, slashes, Cyrillic — anything that comes from
+ *   `Variable.name.ru` or a binding's `label`.
+ * - **What is sent to the backend** are machine codes (snake_case identifiers
+ *   like `purchase_price_cny`) inside the AST. The backend never sees a
+ *   display string.
+ *
+ * Translation happens in two functions:
+ * - `tokenize` does a *greedy longest-match* against the registered display
+ *   names before falling back to operators/numbers/words. That's why a
+ *   multi-word display like "Закупочная цена (CNY)" is recognised as a single
+ *   token instead of being shredded into ["Закупочная", "цена", "(", "CNY", ")"].
+ * - `displayToExpr` walks the resolved tokens. If any non-display word is
+ *   left unresolved, the parse is rejected (returns null) so the AST never
+ *   carries a half-typed Russian fragment up to the backend.
+ */
 export function ExpressionBuilder({
   expr,
   onChange,
@@ -23,6 +44,8 @@ export function ExpressionBuilder({
   const textareaRef = useRef(null);
   const lastParsedRef = useRef(expr);
 
+  // Re-sync the textarea only when the AST changes from outside (e.g. parent
+  // restored a draft) — local edits round-trip through `lastParsedRef`.
   useEffect(() => {
     const incoming = JSON.stringify(expr);
     const last = JSON.stringify(lastParsedRef.current);
@@ -35,7 +58,7 @@ export function ExpressionBuilder({
   const suggestions = useMemo(() => {
     const items = [];
     for (const v of variables || []) {
-      const display = v.name?.ru || v.code;
+      const display = v.name?.ru || v.name?.en || v.code;
       items.push({
         type: 'var',
         code: v.code,
@@ -77,18 +100,22 @@ export function ExpressionBuilder({
       const pos = e.target.selectionStart;
       setCaretPos(pos);
 
+      // The @-mention filter accepts spaces so users can search by full
+      // multi-word names (e.g. "@Закупочная цен" → matches "Закупочная цена…").
       const before = val.slice(0, pos);
-      const atMatch = before.match(/@(.*)$/);
+      const atMatch = before.match(/@([^@\n]*)$/);
       if (atMatch) {
-        setSuggestionFilter(atMatch[1] || '');
+        setSuggestionFilter(atMatch[1]);
         setShowSuggestions(true);
       } else {
         setShowSuggestions(false);
       }
 
       const parsed = displayToExpr(val, lookups);
-      lastParsedRef.current = parsed;
-      onChange(parsed);
+      if (parsed !== null) {
+        lastParsedRef.current = parsed;
+        onChange(parsed);
+      }
     },
     [onChange, lookups],
   );
@@ -107,31 +134,43 @@ export function ExpressionBuilder({
 
     const before = text.slice(0, caretPos);
     const after = text.slice(caretPos);
+
+    // Trim back to the start of the current @-mention if present, otherwise
+    // splice at the caret. The mention may contain spaces — strip everything
+    // from the last `@` to the caret.
     const atIdx = before.lastIndexOf('@');
+    const wordStart = atIdx >= 0 ? atIdx : caretPos;
+
+    // Insert the **display name** so the user sees a readable formula. The
+    // tokenizer will resolve it back to `item.code` on every re-parse, and
+    // the AST stays clean (snake_case codes only).
     const insertText = item.display;
-    const newBefore = before.slice(0, atIdx) + insertText;
-    const newText = newBefore + (after.startsWith(' ') ? after : ' ' + after);
+    const needsTrailingSpace = !after.startsWith(' ') && !after.startsWith(')');
+    const tail = needsTrailingSpace ? ' ' + after : after;
+    const newBefore = before.slice(0, wordStart) + insertText;
+    const newText = newBefore + tail;
 
     setText(newText);
     setShowSuggestions(false);
 
     const parsed = displayToExpr(newText, lookups);
-    lastParsedRef.current = parsed;
-    onChange(parsed);
+    if (parsed !== null) {
+      lastParsedRef.current = parsed;
+      onChange(parsed);
+    }
 
     requestAnimationFrame(() => {
-      const newPos = newBefore.length + 1;
+      const newPos = newBefore.length + (needsTrailingSpace ? 1 : 0);
       el.focus();
       el.setSelectionRange(newPos, newPos);
     });
   }
 
-  const varCodes = new Set((variables || []).map((v) => v.code));
-  const tokens = text ? tokenize(text) : [];
+  // Recognised tokens drive the chip strip below the textarea — each chip
+  // shows the display name with the machine code in its tooltip.
+  const tokens = text ? tokenize(text, lookups.sortedDisplays) : [];
   const recognizedTokens = tokens.filter(
-    (t) =>
-      t.type === 'word' &&
-      (lookups.displayToCode.has(t.value) || varCodes.has(t.value)),
+    (t) => t.type === 'var_resolved' || t.type === 'ref_resolved',
   );
 
   return (
@@ -149,7 +188,7 @@ export function ExpressionBuilder({
         }}
         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
         disabled={readOnly}
-        placeholder="Закупочная цена * Курс CNY/RUB"
+        placeholder="Закупочная цена (CNY) * Курс CNY/RUB"
         rows={1}
         spellCheck={false}
         className={cn(
@@ -163,21 +202,22 @@ export function ExpressionBuilder({
       {recognizedTokens.length > 0 && (
         <div className="mt-1.5 flex flex-wrap items-center gap-1">
           {recognizedTokens.map((tok, i) => {
-            const code = lookups.displayToCode.get(tok.value) || tok.value;
-            const v = (variables || []).find((x) => x.code === code);
-            const isRef = lookups.refNames.has(code);
+            const isRef = tok.type === 'ref_resolved';
+            const v = isRef ? null : lookups.codeToVar.get(tok.code);
             const color = isRef
               ? 'bg-violet-100 text-violet-700'
               : SCOPE_COLORS[v?.scope] || 'bg-gray-100 text-gray-600';
             return (
               <span
-                key={`${tok.value}-${i}`}
+                key={`${tok.code}-${i}`}
                 className={cn(
                   'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium',
                   color,
                 )}
+                title={tok.code}
               >
-                {tok.value}
+                <span>{tok.value}</span>
+                <code className="font-mono opacity-60">{tok.code}</code>
                 {v?.unit && <span className="opacity-50">{v.unit}</span>}
                 {isRef && <span className="opacity-50">↑ref</span>}
               </span>
@@ -198,7 +238,7 @@ export function ExpressionBuilder({
       </div>
 
       {showSuggestions && suggestions.length > 0 && (
-        <div className="border-app-border absolute left-0 z-30 mt-1 max-h-56 w-80 overflow-y-auto rounded-xl border bg-white p-1 shadow-xl">
+        <div className="border-app-border absolute left-0 z-30 mt-1 max-h-56 w-96 overflow-y-auto rounded-xl border bg-white p-1 shadow-xl">
           {suggestions.slice(0, 20).map((item, i) => (
             <button
               key={`${item.code}-${i}`}
@@ -207,6 +247,7 @@ export function ExpressionBuilder({
                 insertSuggestion(item);
               }}
               className="hover:bg-app-card flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors"
+              title={item.code}
             >
               <span
                 className={cn(
@@ -218,9 +259,12 @@ export function ExpressionBuilder({
               >
                 {item.display}
               </span>
-              <span className="text-app-muted truncate text-[11px]">
+              <code className="text-app-muted shrink-0 font-mono text-[11px]">
+                {item.code}
+              </code>
+              <span className="text-app-muted ml-auto shrink-0 text-[11px]">
                 {item.type === 'ref'
-                  ? '↑ строка формулы'
+                  ? '↑ строка'
                   : `${item.unit || ''} · ${SCOPE_LABELS[item.scope] || item.scope}`}
               </span>
             </button>
@@ -256,36 +300,55 @@ const SCOPE_COLORS = {
 };
 
 function buildLookups(variables, bindings, currentIndex) {
-  const displayToCode = new Map();
+  const codeToVar = new Map();
   const codeToDisplay = new Map();
+  const displayToCode = new Map();
   const refNames = new Set();
   const refBindings = [];
 
   for (const v of variables || []) {
-    const display = v.name?.ru || v.code;
-    displayToCode.set(display, v.code);
-    codeToDisplay.set(v.code, display);
+    codeToVar.set(v.code, v);
+    const display = v.name?.ru || v.name?.en || v.code;
+    if (!codeToDisplay.has(v.code)) codeToDisplay.set(v.code, display);
+    if (!displayToCode.has(display)) {
+      displayToCode.set(display, { code: v.code, isRef: false });
+    }
   }
 
   for (let i = 0; i < (bindings || []).length; i++) {
     if (i >= currentIndex) break;
     const b = bindings[i];
     if (!b.name) continue;
-    const display = b.label || b.name;
-    displayToCode.set(display, b.name);
-    codeToDisplay.set(b.name, display);
     refNames.add(b.name);
     refBindings.push(b);
+    const display = b.label || b.name;
+    if (!codeToDisplay.has(b.name)) codeToDisplay.set(b.name, display);
+    if (!displayToCode.has(display)) {
+      displayToCode.set(display, { code: b.name, isRef: true });
+    }
   }
 
-  return { displayToCode, codeToDisplay, refNames, refBindings };
+  // Greedy longest-match: try long phrases before single words so we never
+  // end up tokenising "Закупочная цена" into "Закупочная" + "цена".
+  const sortedDisplays = Array.from(displayToCode.entries())
+    .map(([display, info]) => ({ display, ...info }))
+    .sort((a, b) => b.display.length - a.display.length);
+
+  return {
+    codeToVar,
+    codeToDisplay,
+    displayToCode,
+    refNames,
+    refBindings,
+    sortedDisplays,
+  };
 }
 
 function exprToDisplay(expr, lookups) {
   if (!expr || typeof expr !== 'object') return '';
   if ('const' in expr) return String(expr.const);
-  if ('var' in expr) return lookups.codeToDisplay.get(expr.var) || expr.var;
-  if ('ref' in expr) return lookups.codeToDisplay.get(expr.ref) || expr.ref;
+  if ('var' in expr) return lookups.codeToDisplay.get(expr.var) ?? expr.var;
+  if ('ref' in expr) return lookups.codeToDisplay.get(expr.ref) ?? expr.ref;
   if ('op' in expr && Array.isArray(expr.args)) {
     return expr.args.map((a) => exprToDisplay(a, lookups)).join(` ${expr.op} `);
   }
@@ -299,20 +362,22 @@ function displayToExpr(text, lookups) {
   const trimmed = (text || '').trim();
   if (!trimmed) return { const: '0' };
 
+  const tokens = tokenize(trimmed, lookups.sortedDisplays).filter(
+    (t) => t.type !== 'space',
+  );
+
+  // If any plain word remains unresolved (user is mid-typing a name without
+  // having picked it from the suggestion list), bail out and keep the
+  // previous valid AST. Otherwise we'd send a half-typed Russian fragment
+  // to the backend as `{var:"Закупочная"}`.
+  for (const t of tokens) {
+    if (t.type === 'word' || t.type === 'other') return null;
+  }
+
   try {
-    const tokens = tokenize(trimmed).filter((t) => t.type !== 'space');
-    const resolved = tokens.map((t) => {
-      if (t.type === 'word') {
-        const code = lookups.displayToCode.get(t.value);
-        if (code && lookups.refNames.has(code))
-          return { ...t, type: 'ref_resolved', code };
-        if (code) return { ...t, type: 'var_resolved', code };
-      }
-      return t;
-    });
-    return parseExpr(resolved, 0).node;
+    return parseExpr(tokens, 0).node;
   } catch {
-    return { var: trimmed };
+    return null;
   }
 }
 
@@ -326,8 +391,13 @@ const KNOWN_FNS = new Set([
   'if',
 ]);
 const OPS = new Set(['+', '-', '*', '/']);
+// Identifiers in raw text are ASCII-only (snake_case). Multi-word display
+// names with Cyrillic + spaces + parens are not parsed here — they are
+// captured upstream by the greedy display matcher in `tokenize`.
+const IDENT_HEAD = /[A-Za-z_]/;
+const IDENT_TAIL = /[A-Za-z0-9_]/;
 
-function tokenize(text) {
+function tokenize(text, sortedDisplays) {
   const tokens = [];
   let i = 0;
   while (i < text.length) {
@@ -340,6 +410,40 @@ function tokenize(text) {
       tokens.push({ type: 'space', value: ws });
       continue;
     }
+
+    // 1) Greedy match against registered display names. Longest-first ensures
+    // "Курс CNY/RUB" wins over a shorter prefix, and "Закупочная цена (CNY)"
+    // is captured as ONE token instead of being shredded by the punctuation
+    // rules below.
+    let matched = null;
+    if (sortedDisplays) {
+      for (const d of sortedDisplays) {
+        if (d.display.length === 0) continue;
+        if (text.startsWith(d.display, i)) {
+          // Don't match in the middle of a longer ASCII identifier
+          // ("price_cnyfoo" should not match a display "price_cny").
+          const after = text[i + d.display.length];
+          const lastCharIsIdent = IDENT_TAIL.test(
+            d.display[d.display.length - 1],
+          );
+          const afterContinues = after && IDENT_TAIL.test(after);
+          if (!lastCharIsIdent || !afterContinues) {
+            matched = d;
+            break;
+          }
+        }
+      }
+    }
+    if (matched) {
+      tokens.push({
+        type: matched.isRef ? 'ref_resolved' : 'var_resolved',
+        value: matched.display,
+        code: matched.code,
+      });
+      i += matched.display.length;
+      continue;
+    }
+
     if (OPS.has(text[i])) {
       tokens.push({ type: 'operator', value: text[i] });
       i++;
@@ -362,9 +466,9 @@ function tokenize(text) {
       tokens.push({ type: 'number', value: num });
       continue;
     }
-    if (/[^\s+\-*/(),]/.test(text[i])) {
+    if (IDENT_HEAD.test(text[i])) {
       let word = '';
-      while (i < text.length && /[^\s+\-*/(),]/.test(text[i])) {
+      while (i < text.length && IDENT_TAIL.test(text[i])) {
         word += text[i];
         i++;
       }
@@ -375,6 +479,8 @@ function tokenize(text) {
       }
       continue;
     }
+    // Anything else (unmatched Cyrillic, punctuation we don't grammar) — emit
+    // 'other' so `displayToExpr` can detect a half-typed name and refuse.
     tokens.push({ type: 'other', value: text[i] });
     i++;
   }
@@ -446,6 +552,7 @@ function parseFactor(tokens, pos) {
     }
     return { node: { fn: tok.value, args: [{ const: '0' }] }, pos: p };
   }
-  if (tok.type === 'word') return { node: { var: tok.value }, pos: pos + 1 };
+  // Plain ASCII identifier that didn't resolve — refuse to absorb. Caller
+  // (`displayToExpr`) already filtered these out, but keep the safety net.
   return { node: { const: '0' }, pos: pos + 1 };
 }

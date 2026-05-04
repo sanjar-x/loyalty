@@ -172,48 +172,24 @@ class TestOverridesProvider(Provider):
 async def app_container(
     db_url, redis_url, test_settings
 ) -> AsyncIterable[AsyncContainer]:
+    from src.bootstrap.modules import MODULES
     from src.infrastructure.cache.provider import CacheProvider
     from src.infrastructure.database.provider import DatabaseProvider
+    from src.infrastructure.idempotency.provider import IdempotencyProvider
     from src.infrastructure.logging.provider import LoggingProvider
     from src.infrastructure.security.provider import SecurityProvider
-    from src.modules.activity.infrastructure.provider import ActivityProvider
-    from src.modules.cart.infrastructure.provider import CartProvider
-    from src.modules.catalog.infrastructure.provider import (
-        AttributeGroupProvider,
-        AttributeProvider,
-        AttributeTemplateProvider,
-        AttributeValueProvider,
-        BrandProvider,
-        CategoryProvider,
-        MediaAssetProvider,
-        ProductProvider,
-        StorefrontCatalogProvider,
-    )
-    from src.modules.geo.infrastructure.provider import GeoProvider
-    from src.modules.identity.infrastructure.provider import IdentityProvider
-    from src.modules.supplier.infrastructure.provider import SupplierProvider
-    from src.modules.user.infrastructure.provider import ProfileProvider
 
-    container = make_async_container(
+    framework_providers = (
         DatabaseProvider(),
+        IdempotencyProvider(),
         LoggingProvider(),
         CacheProvider(),
         SecurityProvider(),
-        GeoProvider(),
-        CategoryProvider(),
-        BrandProvider(),
-        AttributeGroupProvider(),
-        AttributeProvider(),
-        AttributeValueProvider(),
-        AttributeTemplateProvider(),
-        StorefrontCatalogProvider(),
-        ProductProvider(),
-        MediaAssetProvider(),
-        IdentityProvider(),
-        ProfileProvider(),
-        SupplierProvider(),
-        CartProvider(),
-        ActivityProvider(),
+    )
+    module_providers = tuple(p for m in MODULES for p in m.providers)
+    container = make_async_container(
+        *framework_providers,
+        *module_providers,
         TestOverridesProvider(
             db_url=db_url, redis_url=redis_url, settings=test_settings
         ),

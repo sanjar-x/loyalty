@@ -138,7 +138,7 @@ Error-envelope: `{ error: { code, message, details, request_id? } }`.
 
 - В UI всегда показать пользователю, что произошло. Не глотать молча.
 - В catch — `setError(err.message ?? 'Понятное дефолтное сообщение')`.
-- Для серверных 401 → клиент уже редиректит через middleware, дополнительно ничего не нужно.
+- Для серверных 401 → клиент уже редиректит через Edge proxy (`src/proxy.js`), дополнительно ничего не нужно.
 - Для 429 — учитывать `retry-after` (см. `entities/product/api/products.js`).
 
 ## Комментарии

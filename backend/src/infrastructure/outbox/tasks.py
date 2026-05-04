@@ -112,15 +112,18 @@ async def _handle_linked_account_created(
             start_param=payload.get("start_param"),
             is_new_identity=payload.get("is_new_identity", False),
             provider_sub_id=payload.get("provider_sub_id", ""),
+            signup_ip=payload.get("signup_ip"),
+            signup_user_agent=payload.get("signup_user_agent"),
         )  # ty:ignore[no-matching-overload]
     )
 
 
-# Register IAM event mappings
-register_event_handler("identity_registered", _handle_identity_registered)
-register_event_handler("identity_deactivated", _handle_identity_deactivated)
-register_event_handler("role_assignment_changed", _handle_role_assignment_changed)
-register_event_handler("linked_account_created", _handle_linked_account_created)
+# Register IAM event mappings (PascalCase event_type — matches the
+# values exported by ``src.modules.identity.domain.events``).
+register_event_handler("IdentityRegisteredEvent", _handle_identity_registered)
+register_event_handler("IdentityDeactivatedEvent", _handle_identity_deactivated)
+register_event_handler("RoleAssignmentChangedEvent", _handle_role_assignment_changed)
+register_event_handler("LinkedAccountCreatedEvent", _handle_linked_account_created)
 
 
 # ---------------------------------------------------------------------------

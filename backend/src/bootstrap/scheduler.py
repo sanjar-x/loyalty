@@ -9,9 +9,10 @@ Launch command::
 IMPORTANT: Run exactly ONE scheduler instance.  Multiple instances will
 cause duplicate task dispatches.
 
-Tasks dispatched via Beat:
-- ``outbox_relay_task``   -- every minute (polls the Outbox table).
-- ``outbox_pruning_task`` -- daily at 03:00 UTC (prunes stale records).
+Schedule discovery follows the same module-registry convention used by
+the worker process: each :class:`ModuleManifest` lists the dotted
+paths whose ``@broker.task(schedule=...)`` registrations the scheduler
+must see.
 """
 
 import structlog
@@ -22,6 +23,8 @@ from taskiq.schedule_sources import LabelScheduleSource
 
 from src.bootstrap.broker import broker
 from src.bootstrap.container import create_container
+from src.bootstrap.module_registry import import_task_modules
+from src.bootstrap.modules import MODULES
 
 logger = structlog.get_logger(__name__)
 
@@ -30,10 +33,9 @@ container: AsyncContainer = create_container()
 setup_dishka(container=container, broker=broker)
 
 # Import tasks so that their schedule labels are registered with the broker.
-import src.infrastructure.outbox.tasks  # noqa: E402
-import src.modules.activity.infrastructure.tasks  # noqa: E402
-import src.modules.logistics.infrastructure.tasks  # noqa: E402
-import src.modules.pricing.infrastructure.tasks  # noqa: E402, F401
+import src.infrastructure.outbox.tasks  # noqa: F401, E402
+
+import_task_modules(MODULES)
 
 scheduler = TaskiqScheduler(
     broker=broker,

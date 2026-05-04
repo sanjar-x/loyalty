@@ -95,6 +95,7 @@ def _scope_with_simple_markup(
     return SkuPricingScopeSnapshot(
         context_id=uuid.UUID("66666666-6666-6666-6666-666666666666"),
         target_currency="RUB",
+        target_currency_minor_unit=2,
         rounding_mode=RoundingMode.HALF_UP.value,
         rounding_step=rounding_step,
         formula_version_id=uuid.UUID("77777777-7777-7777-7777-777777777777"),
@@ -197,6 +198,7 @@ class TestRecomputeHappyPath:
         scope = SkuPricingScopeSnapshot(
             context_id=uuid.uuid4(),
             target_currency="RUB",
+            target_currency_minor_unit=2,
             rounding_mode=RoundingMode.HALF_UP.value,
             rounding_step=Decimal("0.01"),
             formula_version_id=uuid.uuid4(),
@@ -291,6 +293,7 @@ class TestRecomputeFailures:
         scope = SkuPricingScopeSnapshot(
             context_id=uuid.uuid4(),
             target_currency="RUB",
+            target_currency_minor_unit=2,
             rounding_mode=RoundingMode.HALF_UP.value,
             rounding_step=Decimal("0.01"),
             formula_version_id=uuid.uuid4(),
@@ -340,6 +343,7 @@ class TestRecomputeFailures:
             category_values={},
             supplier_values={},
             settings_versions=(),
+            target_currency_minor_unit=2,
         )
         inputs = _basic_inputs(
             purchase_price=Decimal("50.00"),

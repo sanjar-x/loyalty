@@ -50,7 +50,7 @@ src/
 ├── entities/   бизнес-сущности (product, order, …)
 ├── shared/     ui/lib/api/auth/hooks/mocks
 ├── assets/     SVG-иконки
-└── middleware.js  Edge: JWT refresh для /admin/*
+└── proxy.js    Edge: JWT refresh для /admin/* (Next.js 16 convention)
 ```
 
 Импорт **только через `index.js`** слайса — ESLint завалит deep-paths.
@@ -74,7 +74,7 @@ Browser ──cookie──► BFF (Next.js) ──Bearer──► Backend API (/
                     BFF ──API-Key──► Image Backend (/api/v1/media/*)
 ```
 
-JWT хранится в httpOnly cookies, refresh обрабатывает Edge middleware.
+JWT хранится в httpOnly cookies, refresh обрабатывает Edge proxy (`src/proxy.js`, Next.js 16 convention; matcher `/admin/:path*`).
 
 ## Pre-commit
 

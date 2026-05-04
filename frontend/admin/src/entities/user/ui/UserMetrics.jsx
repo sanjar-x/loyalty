@@ -1,36 +1,54 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { DateRangePicker } from '@/shared/ui/DateRangePicker';
+
 import { calculatePeriodStats, isWithinRange } from '@/shared/lib/stats';
+import { DateRangePicker } from '@/shared/ui/DateRangePicker';
+
 import styles from './styles/users.module.css';
 
 const initialRange = { from: null, to: null };
 
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString('ru-RU');
+}
+
+function formatChange(change) {
+  const sign = change > 0 ? '+' : change < 0 ? '−' : '';
+  return `${sign}${Math.abs(change)}%`;
+}
+
 export function Metric({ title, value, change }) {
-  const sign = change > 0 ? '+' : '';
+  const className =
+    change > 0
+      ? styles.metricChangePositive
+      : change < 0
+        ? styles.metricChangeNegative
+        : styles.metricChangeNeutral;
 
   return (
-    <div className="min-w-0">
+    <div className={styles.metric}>
       <div className={styles.metricValueRow}>
-        <p className={styles.metricValue}>{value.toLocaleString('ru-RU')}</p>
-        <span
-          className={`${styles.metricChange} ${
-            change >= 0
-              ? styles.metricChangePositive
-              : styles.metricChangeNegative
-          }`}
-        >
-          {sign}
-          {Math.abs(change)}%
-        </span>
+        <p className={styles.metricValue}>{formatNumber(value)}</p>
+        {change !== undefined && change !== null && (
+          <span className={`${styles.metricChange} ${className}`}>
+            {formatChange(change)}
+          </span>
+        )}
       </div>
       <p className={styles.metricTitle}>{title}</p>
     </div>
   );
 }
 
-export function UserMetrics({ users }) {
+/**
+ * Horizontal stats card mirroring the Figma «Пользователи» strip.
+ *
+ * `users` is the current page slice from `/admin/customers` — today/week/month
+ * are computed locally against that slice, while `total` ('Все время') comes
+ * from the response envelope and is authoritative across the dataset.
+ */
+export function UserMetrics({ users = [], total = 0 }) {
   const [range, setRange] = useState(initialRange);
 
   const userToday = useMemo(
@@ -73,9 +91,9 @@ export function UserMetrics({ users }) {
           change={userMonth.change}
         />
 
-        <div className="min-w-0">
+        <div className={styles.metric}>
           <p className={styles.metricValue}>
-            {selectedUsersCount.toLocaleString('ru-RU')}
+            {formatNumber(selectedUsersCount)}
           </p>
           <div className={styles.rangeRow}>
             <DateRangePicker value={range} onChange={setRange} />
@@ -92,10 +110,8 @@ export function UserMetrics({ users }) {
           </div>
         </div>
 
-        <div className="min-w-0">
-          <p className={styles.metricValue}>
-            {users.length.toLocaleString('ru-RU')}
-          </p>
+        <div className={styles.metric}>
+          <p className={styles.metricValue}>{formatNumber(total)}</p>
           <p className={styles.metricTitle}>Все время</p>
         </div>
       </div>

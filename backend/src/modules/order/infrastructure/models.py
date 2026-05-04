@@ -182,60 +182,6 @@ class OrderItemModel(Base):
     order: Mapped[OrderModel] = relationship(back_populates="items")
 
 
-class OrderIdempotencyKeyModel(Base):
-    __tablename__ = "order_idempotency_keys"
-    __table_args__ = (
-        Index(
-            "uix_order_idempotency_keys_key_scope",
-            "key",
-            "scope",
-            unique=True,
-        ),
-        Index("ix_order_idempotency_keys_expires_at", "expires_at"),
-        {"comment": "Idempotency keys (TTL 24h+)"},
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    key: Mapped[str] = mapped_column(String(128), nullable=False)
-    scope: Mapped[str] = mapped_column(String(64), nullable=False)
-    identity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    resource_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now()
-    )
-    expires_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=False
-    )
-
-
-class OrderInboxEventModel(Base):
-    """Inbox dedup table — UNIQUE (event_id, consumer)."""
-
-    __tablename__ = "order_inbox_events"
-    __table_args__ = (
-        Index(
-            "uix_order_inbox_events_event_consumer",
-            "event_id",
-            "consumer",
-            unique=True,
-        ),
-        {"comment": "Idempotent consumer dedup (event_id + consumer)"},
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    consumer: Mapped[str] = mapped_column(String(64), nullable=False)
-    processed_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), server_default=func.now()
-    )
-
-
 class OrderStateHistoryModel(Base):
     """Audit log of every Order FSM transition (research (2) §10.2)."""
 

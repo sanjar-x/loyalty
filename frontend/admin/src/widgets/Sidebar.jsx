@@ -72,9 +72,9 @@ export function Sidebar() {
                 key={href}
                 href={href}
                 className={cn(
-                  'group flex items-center gap-3 rounded-2xl px-4 py-3 text-base leading-5 font-medium tracking-normal text-[#d2d0ca] transition-colors',
+                  'group text-app-sidebar-text flex items-center gap-3 rounded-2xl px-4 py-3 text-base leading-5 font-medium tracking-normal transition-colors',
                   'hover:bg-white/10 hover:text-white',
-                  isActive && 'bg-[#555860] text-white',
+                  isActive && 'bg-app-sidebarSoft text-white',
                 )}
               >
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center">
@@ -88,7 +88,7 @@ export function Sidebar() {
 
         <button
           onClick={logout}
-          className="mt-auto flex items-center gap-3 rounded-2xl px-4 py-3 text-base leading-5 font-medium text-[#d2d0ca] transition-colors hover:bg-white/10 hover:text-white"
+          className="text-app-sidebar-text mt-auto flex items-center gap-3 rounded-2xl px-4 py-3 text-base leading-5 font-medium transition-colors hover:bg-white/10 hover:text-white"
         >
           <span className="flex h-6 w-6 shrink-0 items-center justify-center">
             <LogoutIcon className={cn('h-5 w-5.5', iconClassName)} />
@@ -107,8 +107,8 @@ export function Sidebar() {
                 key={href}
                 href={href}
                 className={cn(
-                  'flex min-w-fit items-center gap-2 rounded-xl px-3.5 py-2.5 text-base leading-5 font-medium text-[#d2d0ca]',
-                  isActive && 'bg-[#555860] text-white',
+                  'text-app-sidebar-text flex min-w-fit items-center gap-2 rounded-xl px-3.5 py-2.5 text-base leading-5 font-medium',
+                  isActive && 'bg-app-sidebarSoft text-white',
                 )}
               >
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center">
@@ -120,7 +120,7 @@ export function Sidebar() {
           })}
           <button
             onClick={logout}
-            className="flex min-w-fit items-center gap-2 rounded-xl px-3.5 py-2.5 text-base leading-5 font-medium text-[#d2d0ca]"
+            className="text-app-sidebar-text flex min-w-fit items-center gap-2 rounded-xl px-3.5 py-2.5 text-base leading-5 font-medium"
           >
             <span className="flex h-5 w-5 shrink-0 items-center justify-center">
               <LogoutIcon className={cn('h-4 w-4.5', iconClassName)} />

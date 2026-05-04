@@ -55,15 +55,15 @@ Authorization: Bearer <accessToken>
     {
       "groupId": "uuid | null",
       "groupCode": "physical | null",
-      "groupNameI18n": { "en": "Physical", "ru": "Физические характеристики" },
+      "groupNameI18N": { "en": "Physical", "ru": "Физические характеристики" },
       "groupSortOrder": 0,
       "attributes": [
         {
           "attributeId": "uuid",
           "code": "clothing_size",
           "slug": "clothing-size",
-          "nameI18n": { "en": "Clothing Size", "ru": "Размер одежды" },
-          "descriptionI18n": { "en": "Letter-based clothing size" },
+          "nameI18N": { "en": "Clothing Size", "ru": "Размер одежды" },
+          "descriptionI18N": { "en": "Letter-based clothing size" },
           "dataType": "string", // string | integer | float | boolean
           "uiType": "text_button", // text_button | color_swatch | dropdown | checkbox | range_slider
           "isDictionary": true, // true = выбор из values[], false = free input
@@ -75,7 +75,7 @@ Authorization: Bearer <accessToken>
               "id": "uuid",
               "code": "m",
               "slug": "m",
-              "valueI18n": { "en": "M", "ru": "M" },
+              "valueI18N": { "en": "M", "ru": "M" },
               "metaData": {},
               "valueGroup": null,
               "sortOrder": 4,
@@ -106,11 +106,11 @@ Authorization: Bearer <accessToken>
 
 ```json
 {
-  "titleI18n": { "ru": "Название", "en": "Title" },
+  "titleI18N": { "ru": "Название", "en": "Title" },
   "slug": "product-slug",
   "brandId": "uuid",
   "primaryCategoryId": "uuid",
-  "descriptionI18n": { "ru": "Описание" },
+  "descriptionI18N": { "ru": "Описание" },
   "supplierId": "uuid | null",
   "sourceUrl": "https://... | null",
   "countryOfOrigin": "RU | null",
@@ -118,8 +118,8 @@ Authorization: Bearer <accessToken>
 }
 ```
 
-**Обязательные:** `titleI18n` (мин. 1 язык), `slug` (^[a-z0-9-]+$), `brandId`, `primaryCategoryId`
-**Опциональные:** `descriptionI18n`, `supplierId`, `sourceUrl` (обязателен если supplier type = CROSS_BORDER; **immutable** — задаётся только при создании, в PATCH игнорируется), `countryOfOrigin` (ISO 3166-1 alpha-2), `tags`
+**Обязательные:** `titleI18N` (мин. 1 язык), `slug` (^[a-z0-9-]+$), `brandId`, `primaryCategoryId`
+**Опциональные:** `descriptionI18N`, `supplierId`, `sourceUrl` (обязателен если supplier type = CROSS_BORDER; **immutable** — задаётся только при создании, в PATCH игнорируется), `countryOfOrigin` (ISO 3166-1 alpha-2), `tags`
 
 ### Response (201)
 
@@ -401,7 +401,7 @@ const variantAttrs = allAttrs.filter((a) => a.level === 'variant');
 const { id: productId, defaultVariantId } = await api.post(
   '/catalog/products',
   {
-    titleI18n: { ru: 'Nike Air Force 1', en: 'Nike Air Force 1' },
+    titleI18N: { ru: 'Nike Air Force 1', en: 'Nike Air Force 1' },
     slug: 'nike-air-force-1',
     brandId: nikeBrandId,
     primaryCategoryId: categoryId,
@@ -469,7 +469,7 @@ interface FormAttributesResponse {
 interface FormGroup {
   groupId: string | null;
   groupCode: string | null;
-  groupNameI18n: Record<string, string>;
+  groupNameI18N: Record<string, string>;
   groupSortOrder: number;
   attributes: FormAttribute[];
 }
@@ -478,8 +478,8 @@ interface FormAttribute {
   attributeId: string;
   code: string;
   slug: string;
-  nameI18n: Record<string, string>;
-  descriptionI18n: Record<string, string>;
+  nameI18N: Record<string, string>;
+  descriptionI18N: Record<string, string>;
   dataType: 'string' | 'integer' | 'float' | 'boolean';
   uiType:
     | 'text_button'
@@ -499,7 +499,7 @@ interface AttributeValue {
   id: string;
   code: string;
   slug: string;
-  valueI18n: Record<string, string>;
+  valueI18N: Record<string, string>;
   metaData: Record<string, unknown>;
   valueGroup: string | null;
   sortOrder: number;
@@ -564,9 +564,9 @@ interface ProductAttribute {
   attributeId: string;
   attributeValueId: string;
   attributeCode: string;
-  attributeNameI18n: Record<string, string>;
+  attributeNameI18N: Record<string, string>;
   attributeValueCode: string;
-  attributeValueNameI18n: Record<string, string>; // e.g. { ru: "Хлопок", en: "Cotton" }
+  attributeValueNameI18N: Record<string, string>; // e.g. { ru: "Хлопок", en: "Cotton" }
 }
 
 // SKU in product response

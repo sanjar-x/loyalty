@@ -11,7 +11,7 @@
 ┌──────────────────────────────────────────────────────────┐
 │  app/         — Next.js routes (pages + /api BFF)        │ ← top
 ├──────────────────────────────────────────────────────────┤
-│  widgets/     — composite UI shell (Sidebar, PageStub)   │
+│  widgets/     — composite UI shell (плоско: Sidebar/PageStub) │
 ├──────────────────────────────────────────────────────────┤
 │  features/    — user actions / business interactions      │
 ├──────────────────────────────────────────────────────────┤
@@ -97,6 +97,8 @@ import { fetchCategoryTreeServer } from '@/entities/category/server';
 ### widgets
 
 Композитные блоки страничной оболочки: сайдбар, шапка, page-stub. Используются `app/` для построения layout-ов. В отличие от features, они почти не несут активных действий — это «UI-композиция».
+
+В отличие от `entities/` и `features/`, `widgets/` — **плоский слой без slice-структуры и без barrel `index.js`**. Сейчас лежат прямо в `src/widgets/`: `Sidebar.jsx`, `PageStub.jsx`. Импорт по прямому пути: `import { Sidebar } from '@/widgets/Sidebar'`. Если виджет вырастает в полноценный slice (`ui/model/api/...`), оформляй его как обычный slice с barrel.
 
 ### app
 

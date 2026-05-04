@@ -90,28 +90,28 @@ export async function POST(request) {
   }
 
   try {
-    // Stream the body straight through — no Buffer.from(arrayBuffer()) which
-    // would pin the entire file in RAM and OOM on serverless instances.
+    // Presigned URLs sign a fixed set of headers (X-Amz-SignedHeaders).
+    // Sending anything outside that set — notably Content-Length — makes
+    // S3-compatible providers (Tigris, R2, MinIO with strict mode) reject
+    // the request with 403 SignatureDoesNotMatch. Buffer the body so we can
+    // PUT without Transfer-Encoding: chunked and without extra headers.
+    const body = Buffer.from(await file.arrayBuffer());
     const res = await fetch(target, {
       method: 'PUT',
-      body: file.stream(),
-      // @ts-expect-error duplex required by undici when piping a stream body
-      duplex: 'half',
+      body,
       headers: {
         'Content-Type': file.type || 'application/octet-stream',
-        ...(typeof file.size === 'number'
-          ? { 'Content-Length': String(file.size) }
-          : {}),
       },
     });
 
     if (!res.ok) {
+      const body = await res.text().catch(() => '');
       return NextResponse.json(
         {
           error: {
             code: 'S3_UPLOAD_FAILED',
             message: `S3 upload failed: ${res.status}`,
-            details: {},
+            details: { status: res.status, body: body.slice(0, 1024) },
           },
         },
         { status: 502 },

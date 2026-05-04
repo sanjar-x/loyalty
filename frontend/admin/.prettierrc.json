@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json.schemastore.org/prettierrc",
+  "arrowParens": "always",
+  "bracketSameLine": false,
+  "bracketSpacing": true,
+  "embeddedLanguageFormatting": "auto",
+  "endOfLine": "lf",
+  "experimentalOperatorPosition": "start",
+  "experimentalTernaries": true,
+  "htmlWhitespaceSensitivity": "css",
+  "jsonRecursiveSort": true,
+  "jsxSingleQuote": false,
+  "objectWrap": "preserve",
+  "overrides": [
+    {
+      "files": ["*.json", "*.jsonc", ".prettierrc", ".eslintrc"],
+      "options": { "parser": "json", "tabWidth": 2, "trailingComma": "none" }
+    },
+    {
+      "files": ["package.json", "package-lock.json", "tsconfig*.json"],
+      "options": { "parser": "json-stringify" }
+    },
+    {
+      "files": ["*.json5"],
+      "options": {
+        "parser": "json5",
+        "singleQuote": false,
+        "quoteProps": "preserve"
+      }
+    },
+    {
+      "files": ["*.md", "*.mdx"],
+      "options": {
+        "parser": "markdown",
+        "proseWrap": "always",
+        "printWidth": 80,
+        "embeddedLanguageFormatting": "auto"
+      }
+    },
+    {
+      "files": ["*.yml", "*.yaml"],
+      "options": { "parser": "yaml", "tabWidth": 2, "singleQuote": false }
+    },
+    {
+      "files": ["*.css", "*.scss", "*.less"],
+      "options": { "singleQuote": false }
+    },
+    {
+      "files": ["*.html"],
+      "options": {
+        "parser": "html",
+        "printWidth": 120,
+        "htmlWhitespaceSensitivity": "css"
+      }
+    },
+    {
+      "files": ["*.graphql", "*.gql"],
+      "options": { "parser": "graphql" }
+    },
+    {
+      "files": ["*.{js,jsx,ts,tsx,mjs,cjs}"],
+      "options": { "experimentalTernaries": true }
+    },
+    {
+      "files": ["openapi/**/*.{json,yaml,yml}"],
+      "options": { "printWidth": 200, "jsonRecursiveSort": false }
+    },
+    {
+      "files": [".prettierrc.json", ".eslintrc*", ".stylelintrc*"],
+      "options": { "jsonRecursiveSort": false }
+    }
+  ],
+  "plugins": [
+    "prettier-plugin-sort-json",
+    "prettier-plugin-packagejson",
+    "prettier-plugin-tailwindcss"
+  ],
+  "printWidth": 100,
+  "proseWrap": "preserve",
+  "quoteProps": "as-needed",
+  "semi": true,
+  "singleAttributePerLine": false,
+  "singleQuote": true,
+  "tabWidth": 2,
+  "trailingComma": "all",
+  "useTabs": false
+}

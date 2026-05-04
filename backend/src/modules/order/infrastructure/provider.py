@@ -71,8 +71,6 @@ from src.modules.order.application.queries.get_order_tracking import (
 from src.modules.order.application.queries.list_my_orders import ListMyOrdersHandler
 from src.modules.order.domain.interfaces import (
     ICartSnapshotReader,
-    IIdempotencyKeyStore,
-    IInboxStore,
     IOrderRepository,
     IOrderStateHistoryWriter,
     IRecipientLookup,
@@ -97,10 +95,6 @@ from src.modules.order.infrastructure.adapters.russian_carrier_gateway import (
 from src.modules.order.infrastructure.repositories.dobropost_shipment_mapping_repository import (
     DobroPostShipmentMappingRepository,
 )
-from src.modules.order.infrastructure.repositories.idempotency_store import (
-    IdempotencyKeyStore,
-)
-from src.modules.order.infrastructure.repositories.inbox_store import InboxStore
 from src.modules.order.infrastructure.repositories.order_repository import (
     OrderRepository,
 )
@@ -113,12 +107,6 @@ class OrderProvider(Provider):
     # --- Repositories / stores ---
     order_repo: CompositeDependencySource = provide(
         OrderRepository, scope=Scope.REQUEST, provides=IOrderRepository
-    )
-    idempotency_store: CompositeDependencySource = provide(
-        IdempotencyKeyStore, scope=Scope.REQUEST, provides=IIdempotencyKeyStore
-    )
-    inbox_store: CompositeDependencySource = provide(
-        InboxStore, scope=Scope.REQUEST, provides=IInboxStore
     )
     dpsm_repo: CompositeDependencySource = provide(
         DobroPostShipmentMappingRepository,

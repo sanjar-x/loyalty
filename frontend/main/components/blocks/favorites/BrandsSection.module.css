@@ -1,0 +1,50 @@
+.c1 {
+  background: #ffffff;
+  border-bottom-left-radius: 25px;
+  border-bottom-right-radius: 25px;
+  padding-top: 22px;
+}
+.c2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  margin-bottom: 12px;
+}
+.c3 {
+  color: 20px;
+  font-weight: 600;
+  line-height: 1.06em;
+  letter-spacing: -0.01em;
+  color: #000000;
+}
+.c4 {
+  display: flex;
+  align-items: center;
+  color: 12px;
+  font-weight: 400;
+  line-height: 1.06em;
+  letter-spacing: -0.01em;
+  color: #f4f3f1;
+}
+.c6 {
+  display: flex;
+  overflow-x: auto;
+  padding-bottom: 23px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.tw1 {
+  gap: 0.25rem;
+}
+
+.tw2 {
+  width: 10px;
+  height: 12px;
+}
+
+.tw3 {
+  gap: 0.5rem;
+}

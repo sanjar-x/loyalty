@@ -1,10 +1,14 @@
-"""
-Catalog domain events.
+"""Catalog domain events.
 
-Events are emitted by Brand, Category, Attribute,
-and AttributeTemplate aggregates during business operations, serialized to JSON via
-``dataclasses.asdict()``, and stored atomically in the Outbox table.
-The infrastructure layer relays them to downstream consumers.
+Catalog is the only module whose events span **multiple** aggregate kinds
+(``Brand``, ``Category``, ``Attribute``, ``AttributeTemplate``,
+``AttributeGroup``, ``TemplateAttributeBinding``, ``Product``) within a
+single bounded context. Each concrete event therefore MUST override
+``aggregate_type`` with the specific aggregate name; the
+:class:`CatalogEvent` intermediate base enforces that explicitly.
+
+Required-field validation and ``aggregate_id`` auto-fill come from
+:class:`src.shared.interfaces.entities.ModuleDomainEvent`.
 
 Event Audit (2026-03-26):
 - 27 concrete events defined, 27 emitted (by command handlers or domain entities)
@@ -14,90 +18,52 @@ Event Audit (2026-03-26):
 - AttributeValue (4): Added / Updated / Deleted / Reordered
 - AttributeTemplate (3): Created / Updated / Deleted
 - TemplateAttributeBinding (3): Created / Updated / Deleted
-- Product (4): Created / StatusChanged / Updated / Deleted  (emitted from domain entity)
-- Variant (2): Added / Deleted  (emitted from domain entity)
-- SKU (2): Added / Deleted  (emitted from domain entity)
-- 0 relay/subscription handlers wired (catalog events are recorded to Outbox
-  but no consumer processes them yet — will be wired for ES sync)
-
-Typical usage:
-    brand.add_domain_event(BrandLogoUploadInitiatedEvent(brand_id=brand.id, ...))
-
-Note:
-    Events are plain (non-frozen) dataclasses because ``DomainEvent``
-    (the shared base class) is non-frozen and Python prohibits frozen
-    subclasses of non-frozen parents. Events MUST be treated as
-    immutable after construction — do not mutate event fields after
-    ``__post_init__`` has run.
+- Product (4): Created / StatusChanged / Updated / Deleted (from domain entity)
+- Variant (2): Added / Deleted (from domain entity)
+- SKU (2): Added / Deleted (from domain entity)
 """
 
 import uuid
 from dataclasses import dataclass
-from typing import ClassVar
 
-from src.shared.interfaces.entities import DomainEvent
+from src.shared.interfaces.entities import ModuleDomainEvent
 
 
 @dataclass
-class CatalogEvent(DomainEvent):
+class CatalogEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all catalog domain events.
 
-    Subclasses declare which UUID fields are required and which field
-    supplies the ``aggregate_id`` via two class-level tuples:
-
-    * ``_required_fields`` — field names that must not be ``None``.
-    * ``_aggregate_id_field`` — the single field whose ``str()`` value
-      is copied into ``aggregate_id`` when the caller does not set it
-      explicitly.
-
-    This eliminates the repetitive ``__post_init__`` boilerplate that
-    was previously copy-pasted across every concrete event class.
+    Catalog spans multiple aggregate kinds, so concrete events MUST
+    override ``aggregate_type`` with their specific aggregate name
+    (e.g. ``"Brand"``, ``"Category"``, ``"Attribute"``). The validator
+    below enforces that on class construction.
     """
 
-    # ClassVar so dataclasses ignores them; subclasses override via __init_subclass__
-    _required_fields: ClassVar[tuple[str, ...]] = ()
-    _aggregate_id_field: ClassVar[str] = ""
-
-    # Provide non-empty defaults so DomainEvent.__init_subclass__ doesn't
-    # reject CatalogEvent itself (concrete events override these).
     aggregate_type: str = "Catalog"
-    event_type: str = "CatalogEvent"
 
     def __init_subclass__(
         cls,
         *,
+        abstract: bool = False,
         required_fields: tuple[str, ...] | None = None,
         aggregate_id_field: str | None = None,
         **kwargs: object,
     ) -> None:
-        super().__init_subclass__(**kwargs)
-        if required_fields is not None:
-            cls._required_fields = required_fields
-        if aggregate_id_field is not None:
-            cls._aggregate_id_field = aggregate_id_field
-
-        # Guard: concrete events must override event_type and aggregate_type.
-        # Without this, a forgotten override silently inherits "CatalogEvent",
-        # causing misrouted events in downstream consumers.
-        if required_fields is not None:
-            if cls.event_type == "CatalogEvent":
-                raise TypeError(
-                    f"{cls.__name__} must define its own 'event_type' "
-                    f"(inherited default 'CatalogEvent' would misroute events)"
-                )
-            if cls.aggregate_type == "Catalog":
-                raise TypeError(
-                    f"{cls.__name__} must define its own 'aggregate_type' "
-                    f"(inherited default 'Catalog' would misroute events)"
-                )
-
-    def __post_init__(self) -> None:
-        cls_name = type(self).__name__
-        for field_name in self._required_fields:
-            if getattr(self, field_name) is None:
-                raise ValueError(f"{field_name} is required for {cls_name}")
-        if not self.aggregate_id and self._aggregate_id_field:
-            self.aggregate_id = str(getattr(self, self._aggregate_id_field))
+        super().__init_subclass__(
+            abstract=abstract,
+            required_fields=required_fields,
+            aggregate_id_field=aggregate_id_field,
+            **kwargs,
+        )
+        if abstract or required_fields is None:
+            return
+        if "aggregate_type" not in cls.__dict__:
+            raise TypeError(
+                f"{cls.__name__} must override 'aggregate_type' — catalog "
+                "events span multiple aggregate kinds (Brand, Category, "
+                "Attribute, ...) and cannot inherit the placeholder "
+                "'Catalog'."
+            )
 
 
 # ---------------------------------------------------------------------------

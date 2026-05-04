@@ -152,11 +152,27 @@ def test_every_router_prefix_uses_known_root() -> None:
 
 def test_aggregate_router_imports_every_module_router() -> None:
     """Each ``router_*.py`` file's exported symbol must be wired into
-    ``src/api/router.py``. Catches dead routers that would otherwise
-    silently 404.
+    a :class:`ModuleManifest` so the aggregate router picks it up. Catches
+    dead routers that would otherwise silently 404.
+
+    The aggregate composition is split across:
+
+    * ``src/api/router.py`` — iterates :data:`MODULES` and mounts each
+      manifest's audience-grouped routers; and
+    * ``src/modules/<name>/module.py`` — declares the manifest and
+      imports the concrete router objects.
+
+    Both files together form the "aggregate" surface; this test reads
+    both and looks for every exported router name.
     """
     backend_root = Path(__file__).resolve().parents[2]
-    aggregate = (backend_root / "src/api/router.py").read_text(encoding="utf-8")
+    aggregate_chunks: list[str] = [
+        (backend_root / "src/api/router.py").read_text(encoding="utf-8")
+    ]
+    for module_manifest_file in (backend_root / "src/modules").glob("*/module.py"):
+        aggregate_chunks.append(module_manifest_file.read_text(encoding="utf-8"))
+    aggregate = "\n".join(aggregate_chunks)
+
     missing: list[str] = []
     for path, _prefix in _collect_routers():
         # Heuristic: the export name is the *_router|_router_admin pattern
@@ -170,8 +186,9 @@ def test_aggregate_router_imports_every_module_router() -> None:
         if var_name not in aggregate:
             missing.append(
                 f"{path.relative_to(path.parents[4])}: export {var_name!r} "
-                "is not imported in src/api/router.py"
+                "is not wired into any ModuleManifest"
             )
     assert not missing, (
-        "Every router must be wired into the aggregate. Missing:\n" + "\n".join(missing)
+        "Every router must be wired into a ModuleManifest. Missing:\n"
+        + "\n".join(missing)
     )

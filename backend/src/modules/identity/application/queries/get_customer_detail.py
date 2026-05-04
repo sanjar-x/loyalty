@@ -42,10 +42,8 @@ class CustomerDetail(BaseModel):
         first_name: Customer's first name.
         last_name: Customer's last name.
         phone: Customer's phone number, if available.
-        referral_code: Customer's unique referral code.
         username: Customer's username, if available.
         auth_methods: List of auth methods (e.g. 'local', 'google', 'telegram').
-        referred_by: UUID of the customer who referred this one.
         roles: List of roles with full metadata.
         created_at: When the identity was created.
         deactivated_at: When the identity was deactivated, if applicable.
@@ -59,10 +57,8 @@ class CustomerDetail(BaseModel):
     first_name: str
     last_name: str
     phone: str | None
-    referral_code: str | None
     username: str | None = None
     auth_methods: list[str] = []
-    referred_by: uuid.UUID | None
     roles: list[CustomerRoleInfo]
     created_at: datetime
     deactivated_at: datetime | None
@@ -102,7 +98,7 @@ class GetCustomerDetailHandler:
             "SELECT i.id AS identity_id, lc.email, "
             "i.primary_auth_method AS auth_type, "
             "i.is_active, c.first_name, c.last_name, c.phone, "
-            "c.referral_code, c.username, c.referred_by, "
+            "c.username, "
             "i.created_at, i.deactivated_at, i.deactivated_by "
             "FROM identities i "
             "LEFT JOIN local_credentials lc ON lc.identity_id = i.id "
@@ -154,10 +150,8 @@ class GetCustomerDetailHandler:
             first_name=row["first_name"] or "",
             last_name=row["last_name"] or "",
             phone=row["phone"],
-            referral_code=row["referral_code"],
             username=row["username"],
             auth_methods=auth_methods,
-            referred_by=row["referred_by"],
             roles=roles,
             created_at=row["created_at"],
             deactivated_at=row["deactivated_at"],

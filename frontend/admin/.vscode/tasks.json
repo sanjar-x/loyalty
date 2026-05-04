@@ -1,0 +1,178 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    // -------------------------------------------------------------------------
+    // ESLint — full-workspace lint with problemMatcher.
+    //   * Auto-runs on folder open (runOn: "folderOpen") so issues appear in
+    //     the Problems panel before you start editing.
+    //   * "background": true keeps it as a long-running task watcher we can
+    //     re-trigger via "Tasks: Run Task -> ESLint: full workspace".
+    // -------------------------------------------------------------------------
+    {
+      "label": "ESLint: full workspace",
+      "type": "shell",
+      "command": "npx eslint . --cache --cache-location .eslintcache --max-warnings=0",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": true,
+        "close": true
+      },
+      "problemMatcher": ["$eslint-stylish"],
+      "runOptions": { "runOn": "folderOpen" },
+      "group": "test"
+    },
+
+    // -------------------------------------------------------------------------
+    // Stylelint — full-workspace CSS/SCSS lint.
+    // -------------------------------------------------------------------------
+    {
+      "label": "Stylelint: full workspace",
+      "type": "shell",
+      "command": "npx stylelint \"**/*.{css,scss}\" --cache --cache-location .stylelintcache",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": true,
+        "close": true
+      },
+      "problemMatcher": [
+        {
+          "owner": "stylelint",
+          "fileLocation": ["relative", "${workspaceFolder}"],
+          "severity": "error",
+          "pattern": [
+            { "regexp": "^(.+)$", "file": 1 },
+            {
+              "regexp": "^\\s+(\\d+):(\\d+)\\s+[✖✘×]\\s+(.+?)\\s+([a-z][a-z0-9-/]+)$",
+              "line": 1,
+              "column": 2,
+              "message": 3,
+              "code": 4,
+              "loop": true
+            }
+          ]
+        }
+      ],
+      "runOptions": { "runOn": "folderOpen" },
+      "group": "test"
+    },
+
+    // -------------------------------------------------------------------------
+    // Prettier — full-workspace format check (no writes, just diagnostics).
+    // -------------------------------------------------------------------------
+    {
+      "label": "Prettier: check full workspace",
+      "type": "shell",
+      "command": "npx prettier --check --cache --cache-strategy metadata .",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": true,
+        "close": false
+      },
+      "problemMatcher": [
+        {
+          "owner": "prettier",
+          "fileLocation": ["relative", "${workspaceFolder}"],
+          "severity": "warning",
+          "pattern": {
+            "regexp": "^\\[warn\\]\\s+(.+)$",
+            "file": 1,
+            "message": 0
+          }
+        }
+      ],
+      "runOptions": { "runOn": "folderOpen" },
+      "group": "test"
+    },
+
+    // -------------------------------------------------------------------------
+    // TypeScript — full project diagnostics in --watch mode. Catches errors
+    // in files you haven't opened. Long-running task, separate panel.
+    // -------------------------------------------------------------------------
+    {
+      "label": "TypeScript: watch project",
+      "type": "shell",
+      "command": "npx tsc --noEmit --watch --preserveWatchOutput",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false,
+        "close": false
+      },
+      "problemMatcher": ["$tsc-watch"],
+      "runOptions": { "runOn": "folderOpen" },
+      "group": "test"
+    },
+
+    // -------------------------------------------------------------------------
+    // Validate — single command that runs typecheck + lint + format:check +
+    //   stylelint in parallel (matches `npm run validate`).
+    // -------------------------------------------------------------------------
+    {
+      "label": "Validate: typecheck + lint + format + stylelint",
+      "type": "npm",
+      "script": "validate",
+      "path": "",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated"
+      },
+      "problemMatcher": ["$tsc", "$eslint-stylish"],
+      "group": { "kind": "test", "isDefault": true }
+    },
+
+    // -------------------------------------------------------------------------
+    // Build / dev — convenience wrappers around the existing npm scripts.
+    // -------------------------------------------------------------------------
+    {
+      "label": "Build",
+      "type": "npm",
+      "script": "build",
+      "path": "",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": ["$tsc"],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "Dev server",
+      "type": "npm",
+      "script": "dev",
+      "path": "",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}

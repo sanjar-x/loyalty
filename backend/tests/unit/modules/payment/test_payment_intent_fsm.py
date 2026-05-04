@@ -6,6 +6,7 @@ import pytest
 
 from src.modules.payment.domain.entities import PaymentIntent
 from src.modules.payment.domain.exceptions import (
+    PaymentIntentAlreadyTerminalError,
     PaymentIntentInvalidTransitionError,
 )
 from src.modules.payment.domain.value_objects import (
@@ -56,9 +57,12 @@ class TestIllegalTransitions:
             intent.refund()
 
     def test_failed_intent_cannot_authorize(self) -> None:
+        # FAILED is a terminal state, so any further transition surfaces
+        # the dedicated AlreadyTerminal error (not the generic Invalid-
+        # Transition one) to make log/triage diagnosis unambiguous.
         intent = _intent()
         intent.fail(reason="provider_rejected")
-        with pytest.raises(PaymentIntentInvalidTransitionError):
+        with pytest.raises(PaymentIntentAlreadyTerminalError):
             intent.authorize(provider_reference="x", client_secret="cs")
 
     def test_invalid_amount_raises(self) -> None:

@@ -87,7 +87,11 @@ class LoginTelegramHandler:
             is_new_user: bool = result is None
 
             if is_new_user:
-                identity: Identity = await self._provision_new_identity(telegram_user)
+                identity: Identity = await self._provision_new_identity(
+                    telegram_user,
+                    signup_ip=command.ip_address,
+                    signup_user_agent=command.user_agent,
+                )
             else:
                 assert result is not None  # narrowing: is_new_user is False
                 identity, linked_account = result
@@ -171,8 +175,21 @@ class LoginTelegramHandler:
             is_new_user=is_new_user,
         )
 
-    async def _provision_new_identity(self, data: TelegramUserData) -> Identity:
-        """Create Identity + LinkedAccount + default role atomically."""
+    async def _provision_new_identity(
+        self,
+        data: TelegramUserData,
+        *,
+        signup_ip: str | None = None,
+        signup_user_agent: str | None = None,
+    ) -> Identity:
+        """Create Identity + LinkedAccount + default role atomically.
+
+        ``signup_ip`` and ``signup_user_agent`` are forwarded to the
+        :class:`LinkedAccountCreatedEvent` payload so downstream
+        consumers (referral fraud evaluation, signup-channel analytics)
+        observe the same request-level context the rest of the auth
+        stack already records on ``sessions``.
+        """
         identity = Identity.register(PrimaryAuthMethod.TELEGRAM, AccountType.CUSTOMER)
         await self._identity_repo.add(identity)
 
@@ -211,6 +228,8 @@ class LoginTelegramHandler:
                 provider_metadata=provider_metadata,
                 start_param=data.start_param,
                 is_new_identity=True,
+                signup_ip=signup_ip,
+                signup_user_agent=signup_user_agent,
                 aggregate_id=str(identity.id),
             )
         )

@@ -1,0 +1,24 @@
+{
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "stylelint.vscode-stylelint",
+    "bradlc.vscode-tailwindcss",
+    "editorconfig.editorconfig",
+    "yoavbls.pretty-ts-errors",
+    "ms-vscode.vscode-typescript-next",
+    "mikestead.dotenv",
+    "wayou.vscode-todo-highlight",
+    "streetsidesoftware.code-spell-checker",
+    "vivaxy.vscode-conventional-commits",
+    "github.vscode-github-actions",
+    "github.vscode-pull-request-github",
+    "eamodio.gitlens",
+    "ms-vscode.vscode-json"
+  ],
+  "unwantedRecommendations": [
+    "hookyqr.beautify",
+    "ms-vscode.sublime-keybindings",
+    "rvest.vs-code-prettier-eslint"
+  ]
+}

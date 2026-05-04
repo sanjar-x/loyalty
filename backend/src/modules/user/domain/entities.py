@@ -25,10 +25,12 @@ _CUSTOMER_UPDATABLE_FIELDS = frozenset(
 
 @dataclass
 class Customer(AggregateRoot):
-    """Aggregate root -- customer profile (buyer).
+    """Aggregate root — customer profile (buyer).
 
-    Shared PK with Identity (customer.id == identity.id).
-    Referral code is auto-generated on creation.
+    Shared PK with Identity (``customer.id == identity.id``). Referral
+    bookkeeping (referral codes, referred-by graph, loyalty wallet) is
+    owned by the dedicated ``referral`` bounded context — Customer
+    stores only PII.
 
     Attributes:
         id: UUID = identity.id (shared PK).
@@ -36,8 +38,6 @@ class Customer(AggregateRoot):
         first_name: First name.
         last_name: Last name.
         phone: Phone number.
-        referral_code: Unique referral code (8 chars, auto-generated).
-        referred_by: Customer ID of the referrer (None if organic).
         created_at: Creation timestamp.
         updated_at: Last update timestamp.
     """
@@ -49,8 +49,6 @@ class Customer(AggregateRoot):
     username: str | None
     photo_url: str | None
     phone: str | None
-    referral_code: str
-    referred_by: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
 
@@ -63,8 +61,6 @@ class Customer(AggregateRoot):
         last_name: str = "",
         username: str | None = None,
         photo_url: str | None = None,
-        referral_code: str | None = None,
-        referred_by: uuid.UUID | None = None,
     ) -> Customer:
         """Create a new Customer from an Identity registration event.
 
@@ -73,9 +69,8 @@ class Customer(AggregateRoot):
             profile_email: Optional display email.
             first_name: Customer's first name (from credentials provider).
             last_name: Customer's last name (from credentials provider).
-            photo_url: Profile photo URL (from Telegram/OIDC provider).
-            referral_code: Unique referral code (generated in handler if not provided).
-            referred_by: Customer ID of the referrer, if any.
+            username: Optional username.
+            photo_url: Profile photo URL (from Telegram / OIDC provider).
 
         Returns:
             A new Customer instance.
@@ -89,8 +84,6 @@ class Customer(AggregateRoot):
             username=username,
             photo_url=photo_url,
             phone=None,
-            referral_code=referral_code or "",
-            referred_by=referred_by,
             created_at=now,
             updated_at=now,
         )
@@ -112,7 +105,7 @@ class Customer(AggregateRoot):
         self.updated_at = datetime.now(UTC)
 
     def anonymize(self) -> None:
-        """GDPR anonymization. Referral code is preserved (not PII)."""
+        """GDPR anonymization."""
         self.first_name = "[DELETED]"
         self.last_name = "[DELETED]"
         self.phone = None

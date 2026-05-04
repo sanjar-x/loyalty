@@ -97,7 +97,7 @@ export { getX } from './api/x.mock';
 ## Auth
 
 - Login: `<form>` POST `/api/auth/login` → cookies (httpOnly).
-- Edge middleware (`src/middleware.js`) рефрешит JWT за 30s до истечения, фильтр `/admin/:path*`.
+- Edge proxy (`src/proxy.js`, Next.js 16 convention) рефрешит JWT за 30s до истечения, matcher `/admin/:path*`.
 - `useAuth()` из `@/features/auth` — клиентский Context (`user`, `logout`).
 
 ## Media upload (3 шага + SSE)

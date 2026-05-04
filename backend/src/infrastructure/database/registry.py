@@ -8,6 +8,10 @@ module are registered with the shared ``Base.metadata``, so Alembic's
 from src.infrastructure.database.base import Base
 from src.infrastructure.database.models.failed_task import FailedTask
 from src.infrastructure.database.models.outbox import OutboxMessage
+from src.infrastructure.idempotency.models import (
+    ConsumerInboxModel,
+    IdempotencyKeyModel,
+)
 from src.modules.activity.infrastructure.models import UserActivityEventModel
 from src.modules.cart.infrastructure.models import (
     CartItemModel,
@@ -68,7 +72,6 @@ from src.modules.logistics.infrastructure.models import (
 )
 from src.modules.order.infrastructure.models import (
     DobroPostShipmentMappingModel,
-    OrderIdempotencyKeyModel,
     OrderItemModel,
     OrderModel,
 )
@@ -83,6 +86,13 @@ from src.modules.pricing.infrastructure.models import (
     VariableModel,
 )
 from src.modules.recipient.infrastructure.models import RecipientModel
+from src.modules.referral.infrastructure.models import (
+    LoyaltyAccountModel,
+    LoyaltyTransactionModel,
+    ReferralCodeModel,
+    ReferralModel,
+    ReferralRewardModel,
+)
 from src.modules.supplier.infrastructure.models import Supplier
 from src.modules.user.infrastructure.models import CustomerModel, StaffMemberModel
 
@@ -100,6 +110,7 @@ __all__ = [
     "CategoryPricingSettingsModel",
     "CheckoutAttemptModel",
     "CheckoutSnapshotModel",
+    "ConsumerInboxModel",
     "CountryCurrencyModel",
     "CountryModel",
     "CountryTranslationModel",
@@ -112,13 +123,13 @@ __all__ = [
     "FavoriteItemModel",
     "FavoriteListModel",
     "FormulaVersionModel",
+    "IdempotencyKeyModel",
     "IdentityModel",
     "IdentityRoleModel",
     "LanguageModel",
     "LinkedAccountModel",
     "LocalCredentialsModel",
     "MediaAsset",
-    "OrderIdempotencyKeyModel",
     "OrderItemModel",
     "OrderModel",
     "OutboxMessage",
@@ -147,6 +158,11 @@ __all__ = [
     "SubdivisionTranslationModel",
     "SubdivisionTypeModel",
     "SubdivisionTypeTranslationModel",
+    "LoyaltyAccountModel",
+    "LoyaltyTransactionModel",
+    "ReferralCodeModel",
+    "ReferralModel",
+    "ReferralRewardModel",
     "Supplier",
     "SupplierTypeContextMappingModel",
     "TemplateAttributeBinding",

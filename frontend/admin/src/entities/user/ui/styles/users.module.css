@@ -1,18 +1,11 @@
-.page {
-  animation: fadeIn 220ms ease-out;
-}
+/* ============================================================
+ * Users page — layout matches the Figma «Пользователи» mock.
+ * Sections: page > metrics card > filters row > flat list > pagination.
+ * ============================================================ */
 
-.title {
-  margin: 0 0 22px;
-  color: #2d2d2d;
-  font-size: 40px;
-  font-weight: 700;
-  line-height: 44px;
-  letter-spacing: -1px;
-}
-
+/* ---------- Filters row ---------- */
 .filters {
-  margin-top: 14px;
+  margin: 18px 0 10px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -24,16 +17,15 @@
   align-items: center;
   gap: 10px;
   height: 46px;
-  padding: 0 14px;
-  border-radius: 50px;
+  padding: 0 18px;
+  border-radius: 999px;
   background: #f4f3f1;
-  min-width: 280px;
+  min-width: 320px;
 }
 
 .searchIcon {
-  width: 18px;
-  height: 18px;
-  color: #7e7e7e;
+  width: 20px;
+  height: 20px;
   flex: 0 0 auto;
 }
 
@@ -42,190 +34,395 @@
   outline: none;
   background: transparent;
   width: 100%;
-  color: #111111;
+  color: #22252b;
   font-size: 16px;
   font-weight: 500;
-  line-height: 20px;
+  line-height: 22px;
 }
 
 .searchInput::placeholder {
-  color: #000000;
+  color: #7e7e7e;
 }
 
-.filterSelect {
+.sortWrap {
+  position: relative;
+}
+
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   height: 46px;
-  padding: 0 16px;
-  border-radius: 50px;
+  padding: 0 18px;
   border: 0;
+  border-radius: 999px;
   background: #f4f3f1;
-  color: #111111;
+  color: #22252b;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
   cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  padding-right: 36px;
-  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%237e7e7e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
+  transition: background-color 150ms;
 }
 
-.filterSelect:focus {
-  outline: 2px solid #4a90d9;
-  outline-offset: -2px;
+.sortButton:hover {
+  background: #ededeb;
+}
+
+.sortIcon {
+  color: #22252b;
+}
+
+.sortMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  min-width: 200px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(18, 28, 45, 0.12);
+  border: 1px solid #f0f0f0;
+}
+
+.sortMenuItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #22252b;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sortMenuItem:hover {
+  background: #f4f3f1;
+}
+
+.sortMenuItemActive {
+  background: #f4f3f1;
 }
 
 .resetButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
+  width: 36px;
   height: 46px;
   border: 0;
   background: transparent;
-  color: #7e7e7e;
-  font-size: 26px;
-  line-height: 1;
   cursor: pointer;
+  color: #7e7e7e;
 }
 
 .resetButton:hover {
-  color: #2d2d2d;
+  color: #22252b;
 }
 
-.list {
-  margin-top: 16px;
-  border-radius: 16px;
-  background: #ffffff;
-  overflow: hidden;
+/* ---------- Metrics card (top horizontal strip) ---------- */
+.metricsCard {
+  margin-top: 14px;
+  background: #f4f3f1;
+  border-radius: 18px;
+  padding: 22px 28px 18px;
 }
 
-.tableHeader {
-  display: grid;
-  grid-template-columns:
-    minmax(220px, 2fr) minmax(180px, 1.5fr) minmax(140px, 1fr)
-    minmax(100px, 0.8fr) minmax(80px, 0.5fr);
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.headerCell {
-  color: #878b93;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 18px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.row {
-  display: grid;
-  grid-template-columns:
-    minmax(220px, 2fr) minmax(180px, 1.5fr) minmax(140px, 1fr)
-    minmax(100px, 0.8fr) minmax(80px, 0.5fr);
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-}
-
-.row + .row {
-  border-top: 1px solid #f0f0f0;
-}
-
-.cell {
-  color: #111111;
+.cardLabel {
+  margin: 0 0 14px;
+  color: #7e7e7e;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
+  column-gap: 24px;
+  row-gap: 12px;
+}
+
+.metric {
+  min-width: 0;
+}
+
+.metricValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.metricValue {
+  margin: 0;
+  color: #22252b;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 32px;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.metricChange {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.metricChangePositive {
+  color: #429700;
+}
+
+.metricChangeNegative {
+  color: #c94c4c;
+}
+
+.metricChangeNeutral {
+  color: #7e7e7e;
+}
+
+.metricTitle {
+  margin: 6px 0 0;
+  color: #7e7e7e;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.rangeRow {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rangeClear {
+  border: 0;
+  background: transparent;
+  color: #7e7e7e;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.rangeClear:hover {
+  color: #22252b;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ---------- Flat list ---------- */
+.row {
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 1.4fr)
+    minmax(120px, 0.9fr)
+    minmax(140px, 1fr)
+    minmax(110px, 0.9fr)
+    minmax(72px, 0.6fr)
+    minmax(72px, 0.6fr)
+    minmax(180px, 0.9fr);
+  align-items: center;
+  gap: 18px;
+  padding: 16px 0;
+  border-top: 1px solid #ededeb;
+  position: relative;
+}
+
+.userCell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 50%;
+  border: 0;
+  cursor: pointer;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.4px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+}
+
+.usernameButton {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: #4a90d9;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+  text-align: left;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.emailCell {
+.usernameButton:hover {
+  text-decoration: underline;
+}
+
+.idCell {
+  color: #22252b;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dateCell {
+  color: #22252b;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.sourceCell {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.sourceLink {
   color: #4a90d9;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  text-align: left;
-  cursor: pointer;
-  text-decoration: none;
 }
 
-.emailCell:hover {
-  text-decoration: underline;
-}
-
-.rolesCell {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.statusDot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 6px;
-}
-
-.statusActive {
-  background-color: #429700;
-}
-
-.statusInactive {
-  background-color: #c94c4c;
-}
-
-.statusCell {
-  display: flex;
-  align-items: center;
+.sourceMuted {
+  color: #c4c4c4;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
-  color: #111111;
 }
 
-.editButton {
-  height: 34px;
-  padding: 0 14px;
-  border-radius: 15px;
+.statCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #22252b;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.statIcon {
+  color: #22252b;
+  flex: 0 0 auto;
+}
+
+.statValue {
+  min-width: 1ch;
+}
+
+.statDelta {
+  color: #7e7e7e;
+  font-size: 13px;
+}
+
+.actionsCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.actionIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
   border: 0;
+  border-radius: 12px;
   background: #f4f3f1;
-  color: #111111;
+  color: #22252b;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+.actionIconButton:hover {
+  background: #ededeb;
+}
+
+.actionIcon {
+  color: #22252b;
+}
+
+.actionChatButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #f4f3f1;
+  color: #22252b;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
   cursor: pointer;
+  transition: background-color 150ms;
 }
 
-.editButton:hover {
-  background: #ededed;
+.actionChatButton:hover {
+  background: #ededeb;
 }
 
+.inactiveBadge {
+  position: absolute;
+  right: 0;
+  top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fef2f2;
+  color: #c94c4c;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+}
+
+/* ---------- Skeleton + empty ---------- */
 .skeleton {
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0;
 }
 
 .skeletonRow {
-  height: 48px;
-  border-radius: 8px;
+  height: 56px;
+  border-radius: 12px;
   background: #f4f3f1;
-  margin-bottom: 8px;
   animation: pulse 1.5s ease-in-out infinite;
 }
 
@@ -234,38 +431,27 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 48px 16px;
+  padding: 64px 16px;
   text-align: center;
 }
 
 .emptyTitle {
-  color: #878b93;
+  color: #22252b;
   font-size: 16px;
-  font-weight: 500;
-  line-height: 24px;
+  font-weight: 600;
+  line-height: 22px;
   margin: 0;
 }
 
 .emptyDescription {
-  color: #878b93;
+  color: #7e7e7e;
   font-size: 14px;
   font-weight: 400;
   line-height: 20px;
   margin: 0;
 }
 
-.errorBanner {
-  margin-top: 16px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: #fef2f2;
-  color: #c94c4c;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
-}
-
-/* Modal styles */
+/* ---------- Modal styles ---------- */
 .detailSection {
   margin-top: 20px;
 }
@@ -289,11 +475,27 @@
 }
 
 .detailValue {
-  color: #111111;
+  color: #111;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
   text-align: right;
+}
+
+.statusDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.statusActive {
+  background-color: #429700;
+}
+
+.statusInactive {
+  background-color: #c94c4c;
 }
 
 .rolesSection {
@@ -328,67 +530,55 @@
   line-height: 18px;
 }
 
-.roleRemoveButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border: 0;
-  background: transparent;
-  color: #878b93;
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
-  border-radius: 50%;
-}
-
-.roleRemoveButton:hover {
-  color: #c94c4c;
-  background: rgba(201, 76, 76, 0.1);
-}
-
-.addRoleRow {
-  margin-top: 12px;
+.reasonSection {
+  margin-top: 18px;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.addRoleSelect {
-  flex: 1;
-  height: 38px;
-  padding: 0 12px;
+.reasonLabel {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: #22252b;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.reasonCounter {
+  color: #878b93;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.reasonInput {
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid #dfdfe2;
   background: #fff;
-  color: #111111;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.addRoleButton {
-  height: 38px;
-  padding: 0 14px;
-  border-radius: 12px;
-  border: 0;
-  background: #22252b;
-  color: #fff;
+  color: #111;
+  font-family: inherit;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
-  cursor: pointer;
-  white-space: nowrap;
+  resize: vertical;
 }
 
-.addRoleButton:hover {
-  opacity: 0.9;
+.reasonInput:focus {
+  outline: 2px solid #4a90d9;
+  outline-offset: -1px;
+  border-color: #4a90d9;
 }
 
-.addRoleButton:disabled {
-  opacity: 0.5;
+.reasonInput:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
@@ -455,22 +645,12 @@
   line-height: 18px;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @keyframes pulse {
   0%,
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }

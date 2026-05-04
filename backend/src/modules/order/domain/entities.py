@@ -59,6 +59,7 @@ from src.modules.order.domain.value_objects import (
     category_of,
 )
 from src.shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.fsm import StateMachineMixin
 
 MAX_ITEM_QUANTITY = 99
 HOLD_TTL_DAYS = 30
@@ -93,58 +94,54 @@ class OrderItem:
 
 
 @dataclass
-class Order(AggregateRoot):
+class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
     """Loyality order aggregate (14-state FSM)."""
 
-    _ALLOWED_TRANSITIONS: ClassVar[dict[OrderStatus, set[OrderStatus]]] = {
-        OrderStatus.PENDING: {
-            OrderStatus.PAID,
-            OrderStatus.CANCELLED,
-        },
-        OrderStatus.PAID: {
-            OrderStatus.PROCURED,
-            OrderStatus.CANCELLED,
-        },
-        OrderStatus.PROCURED: {
-            OrderStatus.ARRIVED_IN_RU,
-            OrderStatus.ON_HOLD,
-            OrderStatus.CANCELLED,
-        },
-        OrderStatus.ON_HOLD: {
-            OrderStatus.PROCURED,  # resume to where we came from
-            OrderStatus.PAID,
-            OrderStatus.ARRIVED_IN_RU,
-            OrderStatus.IN_LAST_MILE,
-            OrderStatus.CANCELLED,
-        },
-        OrderStatus.ARRIVED_IN_RU: {
-            OrderStatus.IN_LAST_MILE,
-            OrderStatus.ON_HOLD,
-        },
-        OrderStatus.IN_LAST_MILE: {
-            OrderStatus.AWAITING_PICKUP,
-            OrderStatus.RETURNING_TO_RU_WAREHOUSE,
-            OrderStatus.ON_HOLD,
-        },
-        OrderStatus.AWAITING_PICKUP: {
-            OrderStatus.DELIVERED,
-            OrderStatus.RETURNING_TO_RU_WAREHOUSE,
-        },
-        OrderStatus.DELIVERED: {
-            OrderStatus.CLOSED,
-            OrderStatus.RETURN_IN_PROGRESS,
-        },
-        OrderStatus.RETURNING_TO_RU_WAREHOUSE: {
-            OrderStatus.NOT_DELIVERED,
-        },
-        OrderStatus.RETURN_IN_PROGRESS: {
-            OrderStatus.RETURNED,
-        },
-        OrderStatus.NOT_DELIVERED: set(),
-        OrderStatus.RETURNED: set(),
-        OrderStatus.CLOSED: set(),
-        OrderStatus.CANCELLED: set(),
+    _ALLOWED_TRANSITIONS: ClassVar[dict[OrderStatus, frozenset[OrderStatus]]] = {
+        OrderStatus.PENDING: frozenset({OrderStatus.PAID, OrderStatus.CANCELLED}),
+        OrderStatus.PAID: frozenset({OrderStatus.PROCURED, OrderStatus.CANCELLED}),
+        OrderStatus.PROCURED: frozenset(
+            {
+                OrderStatus.ARRIVED_IN_RU,
+                OrderStatus.ON_HOLD,
+                OrderStatus.CANCELLED,
+            }
+        ),
+        OrderStatus.ON_HOLD: frozenset(
+            {
+                OrderStatus.PROCURED,  # resume to where we came from
+                OrderStatus.PAID,
+                OrderStatus.ARRIVED_IN_RU,
+                OrderStatus.IN_LAST_MILE,
+                OrderStatus.CANCELLED,
+            }
+        ),
+        OrderStatus.ARRIVED_IN_RU: frozenset(
+            {OrderStatus.IN_LAST_MILE, OrderStatus.ON_HOLD}
+        ),
+        OrderStatus.IN_LAST_MILE: frozenset(
+            {
+                OrderStatus.AWAITING_PICKUP,
+                OrderStatus.RETURNING_TO_RU_WAREHOUSE,
+                OrderStatus.ON_HOLD,
+            }
+        ),
+        OrderStatus.AWAITING_PICKUP: frozenset(
+            {OrderStatus.DELIVERED, OrderStatus.RETURNING_TO_RU_WAREHOUSE}
+        ),
+        OrderStatus.DELIVERED: frozenset(
+            {OrderStatus.CLOSED, OrderStatus.RETURN_IN_PROGRESS}
+        ),
+        OrderStatus.RETURNING_TO_RU_WAREHOUSE: frozenset({OrderStatus.NOT_DELIVERED}),
+        OrderStatus.RETURN_IN_PROGRESS: frozenset({OrderStatus.RETURNED}),
+        OrderStatus.NOT_DELIVERED: frozenset(),
+        OrderStatus.RETURNED: frozenset(),
+        OrderStatus.CLOSED: frozenset(),
+        OrderStatus.CANCELLED: frozenset(),
     }
+    _TERMINAL_STATES: ClassVar[frozenset[OrderStatus]] = TERMINAL_STATUSES
+    _invalid_transition_exc: ClassVar[type[Exception]] = OrderInvalidTransitionError
+    _already_terminal_exc: ClassVar[type[Exception]] = OrderAlreadyTerminalError
 
     id: uuid.UUID
     identity_id: uuid.UUID
@@ -241,23 +238,8 @@ class Order(AggregateRoot):
         return OrderNumber.from_id(self.id, self.created_at)
 
     @property
-    def is_terminal(self) -> bool:
-        return self.status in TERMINAL_STATUSES
-
-    @property
     def was_paid(self) -> bool:
         return self.status in PAID_STATUSES
-
-    def _transition(self, target: OrderStatus) -> None:
-        if self.is_terminal:
-            raise OrderAlreadyTerminalError(status=self.status.value)
-        allowed = self._ALLOWED_TRANSITIONS.get(self.status, set())
-        if target not in allowed:
-            raise OrderInvalidTransitionError(
-                current=self.status.value, target=target.value
-            )
-        self.status = target
-        self.updated_at = datetime.now(UTC)
 
     # ---------------------------------------------------------------------------
     # FSM operations

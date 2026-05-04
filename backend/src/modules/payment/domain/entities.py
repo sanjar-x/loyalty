@@ -23,6 +23,7 @@ from src.modules.payment.domain.events import (
     PaymentRefundedEvent,
 )
 from src.modules.payment.domain.exceptions import (
+    PaymentIntentAlreadyTerminalError,
     PaymentIntentInvalidTransitionError,
 )
 from src.modules.payment.domain.value_objects import (
@@ -30,6 +31,7 @@ from src.modules.payment.domain.value_objects import (
     ProviderCode,
 )
 from src.shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.fsm import StateMachineMixin
 
 TERMINAL_STATUSES: frozenset[PaymentIntentStatus] = frozenset(
     {
@@ -41,7 +43,7 @@ TERMINAL_STATUSES: frozenset[PaymentIntentStatus] = frozenset(
 
 
 @dataclass
-class PaymentIntent(AggregateRoot):
+class PaymentIntent(AggregateRoot, StateMachineMixin[PaymentIntentStatus]):
     """Payment intent aggregate.
 
     Attributes:
@@ -61,22 +63,28 @@ class PaymentIntent(AggregateRoot):
     """
 
     _ALLOWED_TRANSITIONS: ClassVar[
-        dict[PaymentIntentStatus, set[PaymentIntentStatus]]
+        dict[PaymentIntentStatus, frozenset[PaymentIntentStatus]]
     ] = {
-        PaymentIntentStatus.INITIATED: {
-            PaymentIntentStatus.AUTHORIZED,
-            PaymentIntentStatus.FAILED,
-        },
-        PaymentIntentStatus.AUTHORIZED: {
-            PaymentIntentStatus.CAPTURED,
-            PaymentIntentStatus.CANCELLED,
-            PaymentIntentStatus.FAILED,
-        },
-        PaymentIntentStatus.CAPTURED: {PaymentIntentStatus.REFUNDED},
-        PaymentIntentStatus.REFUNDED: set(),
-        PaymentIntentStatus.CANCELLED: set(),
-        PaymentIntentStatus.FAILED: set(),
+        PaymentIntentStatus.INITIATED: frozenset(
+            {PaymentIntentStatus.AUTHORIZED, PaymentIntentStatus.FAILED}
+        ),
+        PaymentIntentStatus.AUTHORIZED: frozenset(
+            {
+                PaymentIntentStatus.CAPTURED,
+                PaymentIntentStatus.CANCELLED,
+                PaymentIntentStatus.FAILED,
+            }
+        ),
+        PaymentIntentStatus.CAPTURED: frozenset({PaymentIntentStatus.REFUNDED}),
+        PaymentIntentStatus.REFUNDED: frozenset(),
+        PaymentIntentStatus.CANCELLED: frozenset(),
+        PaymentIntentStatus.FAILED: frozenset(),
     }
+    _TERMINAL_STATES: ClassVar[frozenset[PaymentIntentStatus]] = TERMINAL_STATUSES
+    _invalid_transition_exc: ClassVar[type[Exception]] = (
+        PaymentIntentInvalidTransitionError
+    )
+    _already_terminal_exc: ClassVar[type[Exception]] = PaymentIntentAlreadyTerminalError
 
     id: uuid.UUID
     order_id: uuid.UUID
@@ -134,19 +142,6 @@ class PaymentIntent(AggregateRoot):
             )
         )
         return intent
-
-    @property
-    def is_terminal(self) -> bool:
-        return self.status in TERMINAL_STATUSES
-
-    def _transition(self, target: PaymentIntentStatus) -> None:
-        allowed = self._ALLOWED_TRANSITIONS.get(self.status, set())
-        if target not in allowed:
-            raise PaymentIntentInvalidTransitionError(
-                current=self.status.value, target=target.value
-            )
-        self.status = target
-        self.updated_at = datetime.now(UTC)
 
     def authorize(
         self,

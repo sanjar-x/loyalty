@@ -1,0 +1,36 @@
+#!/usr/bin/env sh
+# Auto-prepend the issue ticket from the current branch name into the
+# commit message subject — e.g. branch `feature/LOY-123-add-brand`
+# turns "feat(catalog): add brand" into "LOY-123: feat(catalog): add brand".
+#
+# Skips:
+#   * merge / squash / fixup / amend / revert / rebase commits ($2 set)
+#   * branches without a ticket pattern (main, develop, release/*)
+#   * messages that already contain the ticket id
+
+COMMIT_MSG_FILE="$1"
+COMMIT_SOURCE="$2"
+
+# Only act on plain user commits (no source = `git commit -m ...` or editor commit).
+[ -n "$COMMIT_SOURCE" ] && exit 0
+
+branch="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
+[ -z "$branch" ] && exit 0
+
+# Conventional ticket pattern: <PROJECT>-<NUMBER>, e.g. LOY-123, ADMIN-42.
+ticket="$(printf '%s' "$branch" | grep -oE '[A-Z][A-Z0-9]+-[0-9]+' | head -n1 || true)"
+[ -z "$ticket" ] && exit 0
+
+# Already prefixed — leave the message alone.
+if grep -qE "^\[?$ticket" "$COMMIT_MSG_FILE"; then
+  exit 0
+fi
+
+# Prepend "TICKET: " to the first non-comment, non-empty line.
+tmp="$(mktemp)"
+awk -v t="$ticket" '
+  BEGIN { added = 0 }
+  /^#/ || NF == 0 { print; next }
+  added == 0 { print t ": " $0; added = 1; next }
+  { print }
+' "$COMMIT_MSG_FILE" > "$tmp" && mv "$tmp" "$COMMIT_MSG_FILE"

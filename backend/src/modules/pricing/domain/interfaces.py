@@ -284,7 +284,10 @@ class SkuPricingInputs:
 
     Pricing never holds a reference to a catalog ORM row; the reader
     adapter materialises this snapshot once per recompute and the
-    result writer adapter accepts a :class:`SkuPricingApplyRequest`.
+    catalog-side
+    :class:`~src.modules.catalog.domain.interfaces.IInternalSkuPricingApplyPort`
+    accepts a
+    :class:`~src.modules.catalog.domain.interfaces.SkuPricingApplyRequest`.
 
     Attributes:
         sku_id: Catalog SKU UUID.
@@ -314,44 +317,6 @@ class SkuPricingInputs:
     purchase_currency: str | None
     version: int
     pricing_status: str
-
-
-@dataclass(frozen=True)
-class SkuPricingApplyRequest:
-    """Successful recompute payload to persist on a SKU.
-
-    All Decimal-valued fields use *major* units (e.g. RUB rubles, not
-    kopecks); the writer adapter converts to the integer storage unit
-    using ISO 4217 minor-unit precision.
-
-    ``previous_status`` is the status observed at the start of the
-    recompute (under the same row lock); the writer copies it into the
-    audit trail so we don't need a second SELECT (which would otherwise
-    block on the ``FOR UPDATE`` taken by ``read_one(lock=True)`` and
-    defeat the SKIP LOCKED contract).
-    """
-
-    sku_id: uuid.UUID
-    expected_version: int
-    previous_status: str | None
-    selling_price: Decimal
-    selling_currency: str
-    formula_version_id: uuid.UUID
-    inputs_hash: str
-    priced_at: datetime
-    correlation_id: str | None = None
-
-
-@dataclass(frozen=True)
-class SkuPricingFailureRequest:
-    """Failed recompute payload to persist on a SKU."""
-
-    sku_id: uuid.UUID
-    expected_version: int
-    previous_status: str | None
-    pricing_status: str
-    failure_reason: str
-    correlation_id: str | None = None
 
 
 class ISkuPricingInputReader(ABC):
@@ -411,23 +376,6 @@ class ISkuPricingInputReader(ABC):
         """Async-iterate SKUs owned by ``supplier_id``."""
 
 
-class ISkuPricingResultWriter(ABC):
-    """Port: persist a SKU pricing result back into the catalog.
-
-    Implementations apply the result with optimistic locking
-    (``expected_version``) and must be safe to retry: identical
-    ``inputs_hash`` short-circuits as a no-op at the catalog row level.
-    """
-
-    @abstractmethod
-    async def apply_success(self, request: SkuPricingApplyRequest) -> bool:
-        """Apply a successful recompute. Returns False on no-op (hash match)."""
-
-    @abstractmethod
-    async def apply_failure(self, request: SkuPricingFailureRequest) -> bool:
-        """Apply a failure status. Returns False on no-op."""
-
-
 class ISkuPricingScopeReader(ABC):
     """Port: snapshot context-scope inputs (FX rate, supplier/category settings).
 
@@ -462,6 +410,7 @@ class SkuPricingScopeSnapshot:
 
     context_id: uuid.UUID
     target_currency: str
+    target_currency_minor_unit: int
     rounding_mode: str
     rounding_step: Decimal | None
     formula_version_id: uuid.UUID

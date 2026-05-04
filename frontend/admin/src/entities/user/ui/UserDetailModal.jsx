@@ -1,134 +1,132 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Modal } from '@/shared/ui/Modal';
-import { useRoles } from '@/entities/role';
+import { useEffect, useState } from 'react';
+
 import dayjs from '@/shared/lib/dayjs';
-import {
-  assignIdentityRole,
-  deactivateIdentity,
-  reactivateIdentity,
-  revokeIdentityRole,
-} from '../api/identities';
-import { identityKeys } from '../api/keys';
-import { useIdentity } from '../api/queries';
+import { Modal } from '@/shared/ui/Modal';
+
+import { useDeactivateCustomer, useReactivateCustomer } from '../api/mutations';
+import { useCustomer } from '../api/queries';
 import styles from './styles/users.module.css';
 
-const IDENTITY_ERROR_CODES = {
+const CUSTOMER_ERROR_CODES = {
   IDENTITY_NOT_FOUND: 'Пользователь не найден',
   IDENTITY_ALREADY_DEACTIVATED: 'Аккаунт уже деактивирован',
   SELF_DEACTIVATION_FORBIDDEN: 'Нельзя деактивировать свой аккаунт',
-  LAST_ADMIN_PROTECTION: 'Нельзя деактивировать последнего администратора',
   INSUFFICIENT_PERMISSIONS: 'Недостаточно прав',
+  VALIDATION_ERROR: 'Проверьте введённые данные',
+};
+
+const REASON_MAX = 200;
+const REASON_MIN = 1;
+const FALLBACK = '—';
+
+const AUTH_TYPE_LABELS = {
+  LOCAL: 'Email + пароль',
+  OIDC: 'OIDC',
+  TELEGRAM: 'Telegram',
+};
+
+const AUTH_METHOD_LABELS = {
+  email_password: 'Email + пароль',
+  telegram: 'Telegram',
+  oidc: 'OIDC',
 };
 
 function describeError(err, fallback = 'Произошла ошибка') {
-  return IDENTITY_ERROR_CODES[err?.code] ?? err?.message ?? fallback;
+  return CUSTOMER_ERROR_CODES[err?.code] ?? err?.message ?? fallback;
+}
+
+function formatDateTime(value) {
+  if (!value) return null;
+  const m = dayjs(value);
+  return m.isValid() ? m.format('D MMMM YYYY, HH:mm') : null;
+}
+
+function formatAuthMethod(method) {
+  return AUTH_METHOD_LABELS[method] ?? method;
 }
 
 export function UserDetailModal({ identityId, open, onClose, onUpdate }) {
-  const queryClient = useQueryClient();
   const enabled = open && Boolean(identityId);
 
   const {
     data: detail,
     isPending: detailLoading,
     error: detailError,
-  } = useIdentity(enabled ? identityId : null);
-
-  const { data: roles = [] } = useRoles();
+  } = useCustomer(enabled ? identityId : null);
 
   const [error, setError] = useState('');
-  const [selectedRoleId, setSelectedRoleId] = useState('');
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const [reason, setReason] = useState('');
 
   // Reset transient UI state every time the modal opens against a new user.
   useEffect(() => {
     if (open && identityId) {
-      setSelectedRoleId('');
       setConfirmDeactivate(false);
+      setReason('');
       setError('');
     }
   }, [open, identityId]);
 
-  // Fire-and-forget invalidation: the cache update happens in the background
-  // and we don't await it, so the modal's local state changes (clearing
-  // `selectedRoleId`, closing the confirm flow) finish synchronously and
-  // can't run after unmount.
-  const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({
-      queryKey: identityKeys.detail(identityId),
-    });
-    queryClient.invalidateQueries({ queryKey: identityKeys.lists() });
-    onUpdate?.();
-  }, [queryClient, identityId, onUpdate]);
+  const deactivateMutation = useDeactivateCustomer(identityId);
+  const reactivateMutation = useReactivateCustomer(identityId);
 
-  const assignMutation = useMutation({
-    mutationFn: (roleId) => assignIdentityRole(identityId, roleId),
-    onSuccess: () => {
-      setSelectedRoleId('');
-      invalidate();
-    },
-    onError: (err) => setError(describeError(err, 'Не удалось назначить роль')),
-  });
-
-  const revokeMutation = useMutation({
-    mutationFn: (roleId) => revokeIdentityRole(identityId, roleId),
-    onSuccess: () => invalidate(),
-    onError: (err) => setError(describeError(err, 'Не удалось удалить роль')),
-  });
-
-  const deactivateMutation = useMutation({
-    mutationFn: () => deactivateIdentity(identityId),
-    onSuccess: () => {
-      setConfirmDeactivate(false);
-      invalidate();
-    },
-    onError: (err) => setError(describeError(err, 'Не удалось деактивировать')),
-  });
-
-  const reactivateMutation = useMutation({
-    mutationFn: () => reactivateIdentity(identityId),
-    onSuccess: () => invalidate(),
-    onError: (err) => setError(describeError(err, 'Не удалось реактивировать')),
-  });
-
-  const mutating =
-    assignMutation.isPending ||
-    revokeMutation.isPending ||
-    deactivateMutation.isPending ||
-    reactivateMutation.isPending;
-
-  function handleAssignRole() {
-    if (!selectedRoleId) return;
-    setError('');
-    assignMutation.mutate(selectedRoleId);
-  }
-
-  function handleRevokeRole(roleId) {
-    setError('');
-    revokeMutation.mutate(roleId);
-  }
+  const mutating = deactivateMutation.isPending || reactivateMutation.isPending;
 
   function handleDeactivate() {
     if (!confirmDeactivate) {
       setConfirmDeactivate(true);
       return;
     }
+    const trimmed = reason.trim();
+    if (trimmed.length < REASON_MIN || trimmed.length > REASON_MAX) {
+      setError(`Укажите причину (${REASON_MIN}–${REASON_MAX} символов)`);
+      return;
+    }
     setError('');
-    deactivateMutation.mutate();
+    deactivateMutation.mutate(trimmed, {
+      onSuccess: () => {
+        setConfirmDeactivate(false);
+        setReason('');
+        onUpdate?.();
+      },
+      onError: (err) =>
+        setError(describeError(err, 'Не удалось деактивировать')),
+    });
   }
 
   function handleReactivate() {
     setError('');
-    reactivateMutation.mutate();
+    reactivateMutation.mutate(undefined, {
+      onSuccess: () => onUpdate?.(),
+      onError: (err) =>
+        setError(describeError(err, 'Не удалось реактивировать')),
+    });
   }
 
-  const assignedRoleIds = new Set(
-    (detail?.roles || []).map((r) => r.id || r.roleId),
-  );
-  const availableRoles = roles.filter((r) => !assignedRoleIds.has(r.id));
+  // `CustomerDetailResponse.roles` is RoleInfoResponse[] with `id`/`name`.
+  const detailRoles = Array.isArray(detail?.roles) ? detail.roles : [];
+  const authMethods = Array.isArray(detail?.authMethods)
+    ? detail.authMethods
+    : [];
+
+  const fullName = detail
+    ? [detail.firstName, detail.lastName].filter(Boolean).join(' ') || FALLBACK
+    : '';
+  const emailLabel = detail?.email || FALLBACK;
+  const usernameLabel = detail?.username ? `@${detail.username}` : null;
+  const authTypeLabel = detail?.authType
+    ? (AUTH_TYPE_LABELS[detail.authType] ?? detail.authType)
+    : null;
+  const createdAt = detail?.createdAt ? formatDateTime(detail.createdAt) : null;
+  const deactivatedAt = detail?.deactivatedAt
+    ? formatDateTime(detail.deactivatedAt)
+    : null;
+
+  const trimmedReasonLength = reason.trim().length;
+  const reasonValid =
+    trimmedReasonLength >= REASON_MIN && trimmedReasonLength <= REASON_MAX;
   const displayError =
     error ||
     (detailError ? describeError(detailError, 'Не удалось загрузить') : '');
@@ -148,20 +146,50 @@ export function UserDetailModal({ identityId, open, onClose, onUpdate }) {
           <div className={styles.detailSection}>
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Email</span>
-              <span className={styles.detailValue}>{detail.email}</span>
+              <span className={styles.detailValue}>{emailLabel}</span>
             </div>
+            {usernameLabel && (
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Username</span>
+                <span className={styles.detailValue}>{usernameLabel}</span>
+              </div>
+            )}
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Имя</span>
-              <span className={styles.detailValue}>
-                {[detail.firstName, detail.lastName]
-                  .filter(Boolean)
-                  .join(' ') || '—'}
-              </span>
+              <span className={styles.detailValue}>{fullName}</span>
             </div>
             {detail.phone && (
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>Телефон</span>
                 <span className={styles.detailValue}>{detail.phone}</span>
+              </div>
+            )}
+            {authTypeLabel && (
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Тип аккаунта</span>
+                <span className={styles.detailValue}>{authTypeLabel}</span>
+              </div>
+            )}
+            {authMethods.length > 0 && (
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Способы входа</span>
+                <span className={styles.detailValue}>
+                  {authMethods.map(formatAuthMethod).join(', ')}
+                </span>
+              </div>
+            )}
+            {detail.referralCode && (
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Реферальный код</span>
+                <span className={styles.detailValue}>
+                  {detail.referralCode}
+                </span>
+              </div>
+            )}
+            {detail.referredBy && (
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Пригласил</span>
+                <span className={styles.detailValue}>{detail.referredBy}</span>
               </div>
             )}
             <div className={styles.detailRow}>
@@ -177,62 +205,54 @@ export function UserDetailModal({ identityId, open, onClose, onUpdate }) {
                 {detail.isActive ? 'Активен' : 'Неактивен'}
               </span>
             </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Дата регистрации</span>
-              <span className={styles.detailValue}>
-                {dayjs(detail.createdAt).format('D MMMM YYYY, HH:mm')}
-              </span>
-            </div>
-          </div>
-
-          <div className={styles.rolesSection}>
-            <p className={styles.rolesTitle}>Роли</p>
-            <div className={styles.rolesList}>
-              {(detail.roles || []).map((role) => (
-                <span key={role.id || role.roleId} className={styles.roleBadge}>
-                  {role.name}
-                  <button
-                    type="button"
-                    className={styles.roleRemoveButton}
-                    onClick={() => handleRevokeRole(role.id || role.roleId)}
-                    disabled={mutating}
-                    aria-label={`Удалить роль ${role.name}`}
-                  >
-                    ✕
-                  </button>
-                </span>
-              ))}
-              {(detail.roles || []).length === 0 && (
-                <span className="text-app-muted text-sm">Нет ролей</span>
-              )}
-            </div>
-
-            {availableRoles.length > 0 && (
-              <div className={styles.addRoleRow}>
-                <select
-                  value={selectedRoleId}
-                  onChange={(e) => setSelectedRoleId(e.target.value)}
-                  className={styles.addRoleSelect}
-                  aria-label="Выбрать роль для назначения"
-                >
-                  <option value="">Выберите роль</option>
-                  {availableRoles.map((role) => (
-                    <option key={role.id} value={role.id}>
-                      {role.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className={styles.addRoleButton}
-                  onClick={handleAssignRole}
-                  disabled={!selectedRoleId || mutating}
-                >
-                  + Назначить роль
-                </button>
+            {createdAt && (
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Дата регистрации</span>
+                <span className={styles.detailValue}>{createdAt}</span>
+              </div>
+            )}
+            {!detail.isActive && deactivatedAt && (
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Деактивирован</span>
+                <span className={styles.detailValue}>{deactivatedAt}</span>
               </div>
             )}
           </div>
+
+          {detailRoles.length > 0 && (
+            <div className={styles.rolesSection}>
+              <p className={styles.rolesTitle}>Роли</p>
+              <div className={styles.rolesList}>
+                {detailRoles.map((role) => (
+                  <span key={role.id} className={styles.roleBadge}>
+                    {role.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {detail.isActive && confirmDeactivate && (
+            <div className={styles.reasonSection}>
+              <label htmlFor="deactivate-reason" className={styles.reasonLabel}>
+                <span>Причина деактивации</span>
+                <span className={styles.reasonCounter}>
+                  {trimmedReasonLength}/{REASON_MAX}
+                </span>
+              </label>
+              <textarea
+                id="deactivate-reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value.slice(0, REASON_MAX))}
+                placeholder="Например: нарушение правил, дубликат аккаунта…"
+                className={styles.reasonInput}
+                rows={3}
+                maxLength={REASON_MAX}
+                disabled={mutating}
+                autoFocus
+              />
+            </div>
+          )}
 
           <div className={styles.modalActions}>
             {detail.isActive ? (
@@ -240,10 +260,12 @@ export function UserDetailModal({ identityId, open, onClose, onUpdate }) {
                 type="button"
                 className={styles.deactivateButton}
                 onClick={handleDeactivate}
-                disabled={mutating}
+                disabled={mutating || (confirmDeactivate && !reasonValid)}
               >
                 {confirmDeactivate
-                  ? 'Подтвердить деактивацию'
+                  ? deactivateMutation.isPending
+                    ? 'Деактивация…'
+                    : 'Подтвердить деактивацию'
                   : 'Деактивировать'}
               </button>
             ) : (
@@ -253,7 +275,9 @@ export function UserDetailModal({ identityId, open, onClose, onUpdate }) {
                 onClick={handleReactivate}
                 disabled={mutating}
               >
-                Реактивировать
+                {reactivateMutation.isPending
+                  ? 'Реактивация…'
+                  : 'Реактивировать'}
               </button>
             )}
           </div>

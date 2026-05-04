@@ -27,7 +27,7 @@ Next.js 16 App Router, JavaScript/JSX (no TypeScript), Tailwind CSS 4. Code foll
 ```
 src/
 ├── app/                     # Next.js routes (pages + /api BFF handlers)
-├── widgets/                 # composite UI assembled from features/entities (Sidebar, PageStub)
+├── widgets/                 # composite UI — flat layer, no slices, no index.js (Sidebar.jsx, PageStub.jsx)
 ├── features/                # user actions / business interactions
 │   ├── auth/                                  hooks/, index.js
 │   ├── order-filter/                          ui/, model/, index.js
@@ -50,13 +50,14 @@ src/
 │   └── user/                                  ui/, api/, index.js
 ├── shared/                  # cross-cutting, no business logic
 │   ├── ui/                  # Badge, Modal, Pagination, SearchInput, StarsRow, Metric, CopyMark, DateRangePicker
-│   ├── lib/                 # cn, formatters, dayjs, stats (calculatePeriodStats, isWithinRange, …), pluralizeRu, i18n, copyToClipboard
-│   ├── api/                 # api-client, image-api-client, server-cache, geo
-│   ├── auth/                # cookies.js (httpOnly cookie helpers)
-│   ├── hooks/               # useToast, useOutsideClick, useBodyScrollLock
+│   ├── lib/                 # cn, formatters, dayjs, stats (calculatePeriodStats, isWithinRange, …), pluralizeRu, i18n, copyToClipboard, genId
+│   ├── api/                 # api-client (server backendFetch), image-api-client (server imageBackendFetch), bff (CSRF + proxyToBackend factory + error helpers), client-fetch (browser apiClient + ApiError), server-cache (TTL), geo
+│   ├── auth/                # cookies.js (httpOnly cookie helpers + JWT decode/refresh)
+│   ├── hooks/               # useToast, useOutsideClick, useBodyScrollLock, useEscapeKey
+│   ├── query/               # TanStack Query: QueryProvider + defaults (staleTime/gcTime/retry policy) + test-utils
 │   └── mocks/               # dev-only seed data
 ├── assets/icons/            # SVGs imported as React components
-└── middleware.js            # Next.js Edge middleware: JWT refresh for /admin/*
+└── proxy.js                 # Next.js 16 Edge proxy: JWT refresh for /admin/* (matcher in config)
 ```
 
 ### Slice anatomy
@@ -110,7 +111,7 @@ Some entity APIs (e.g. `entities/product/api/products.js:getProducts()`) fall ba
 
 ### Auth
 
-- **Edge middleware**: `src/middleware.js` handles token refresh on `/admin/*` — decodes JWT, checks expiry, refreshes via backend `/api/v1/auth/refresh`, sets httpOnly cookies. Matched via `config.matcher`.
+- **Edge proxy**: `src/proxy.js` (Next.js 16 convention — replaces the old `middleware.js`) handles token refresh on `/admin/*` — decodes JWT, checks expiry, refreshes via backend `/api/v1/auth/refresh`, sets httpOnly cookies. Matched via `config.matcher`. In-flight refresh attempts are deduplicated per instance (refresh tokens are one-time on the backend).
 - **Client-side**: `useAuth()` from `@/features/auth` — Context-based, fetches `/api/auth/me` on mount. `AuthProvider` wraps the admin layout.
 - JWT tokens stored in httpOnly cookies (`access_token` 15 min, `refresh_token` 30 d), managed by `@/shared/auth/cookies`.
 

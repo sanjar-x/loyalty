@@ -16,7 +16,12 @@
     "test:coverage": "vitest run --coverage",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "validate": "npm run typecheck && npm run lint && npm run format:check",
     "prepare": "husky"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=10.0.0"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

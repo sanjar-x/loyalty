@@ -1,0 +1,240 @@
+{
+  // ---------------------------------------------------------------------------
+  // Editor — global format-on-save defaults
+  // ---------------------------------------------------------------------------
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "file",
+  "editor.formatOnPaste": false,
+  "editor.formatOnType": false,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "editor.guides.bracketPairs": "active",
+  "editor.bracketPairColorization.enabled": true,
+  "editor.linkedEditing": true,
+  "editor.stickyScroll.enabled": true,
+  "editor.suggest.preview": true,
+  "editor.suggestSelection": "first",
+  "editor.inlineSuggest.enabled": true,
+  "editor.unicodeHighlight.nonBasicASCII": false,
+  "editor.unicodeHighlight.ambiguousCharacters": false,
+
+  // Code actions on save — order matters: ESLint --fix runs first to clean up
+  // imports/style violations, then Prettier formats the result. Stylelint
+  // handles CSS modules. Both use 'explicit' so they only run on Cmd/Ctrl+S,
+  // not when an extension calls saveAll programmatically (faster, predictable).
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.fixAll.stylelint": "explicit",
+    "source.organizeImports": "never",
+    "source.addMissingImports": "never"
+  },
+
+  // ---------------------------------------------------------------------------
+  // Per-language formatters — explicit pinning of esbenp.prettier-vscode for
+  // every supported file type. Required because some VS Code extensions
+  // (e.g. vscode-json-language-features) ship their own formatters and may
+  // hijack the default if not pinned per-language.
+  // ---------------------------------------------------------------------------
+  "[javascript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[javascriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[typescriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[json]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[jsonc]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[json5]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.wordWrap": "on",
+    "editor.quickSuggestions": {
+      "other": false,
+      "comments": false,
+      "strings": false
+    }
+  },
+  "[mdx]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[yaml]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[css]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[scss]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[less]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[html]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[graphql]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+
+  // ---------------------------------------------------------------------------
+  // Prettier extension settings (esbenp.prettier-vscode)
+  // ---------------------------------------------------------------------------
+
+  // Refuse to format files without a discovered config — prevents accidentally
+  // formatting third-party code opened in the editor.
+  "prettier.requireConfig": true,
+
+  // Honour .editorconfig values when no .prettierrc field overrides them.
+  "prettier.useEditorConfig": true,
+
+  // Prettier extension uses the workspace-installed Prettier from
+  // node_modules — not a globally installed or bundled version. Critical for
+  // version parity with CI / pre-commit hooks.
+  "prettier.resolveGlobalModules": false,
+  "prettier.withNodeModules": false,
+  "prettier.enable": true,
+  "prettier.enableDebugLogs": false,
+
+  // ---------------------------------------------------------------------------
+  // ESLint extension (dbaeumer.vscode-eslint)
+  // ---------------------------------------------------------------------------
+  "eslint.useFlatConfig": true,
+  "eslint.run": "onType",
+  "eslint.format.enable": false,
+  "eslint.lintTask.enable": true,
+  "eslint.lintTask.options": ".",
+  "eslint.workingDirectories": [{ "mode": "auto" }],
+  "eslint.problems.shortenToSingleLine": false,
+  "eslint.codeActionsOnSave.mode": "problems",
+  "eslint.runtime": "node",
+  "eslint.nodePath": "node_modules",
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+
+  // ---------------------------------------------------------------------------
+  // Stylelint extension (stylelint.vscode-stylelint)
+  // ---------------------------------------------------------------------------
+  "stylelint.validate": ["css", "scss"],
+  "stylelint.snippet": ["css", "scss"],
+  "css.validate": false,
+  "scss.validate": false,
+  "less.validate": false,
+
+  // ---------------------------------------------------------------------------
+  // TypeScript / JavaScript (workspace LSP)
+  // ---------------------------------------------------------------------------
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
+  "js/ts.tsdk.promptToUseWorkspaceVersion": true,
+  "js/ts.preferences.importModuleSpecifier": "non-relative",
+  "js/ts.tsserver.experimental.enableProjectDiagnostics": true,
+  "js/ts.suggest.completeFunctionCalls": false,
+  "js/ts.inlayHints.parameterNames.enabled": "literals",
+  "js/ts.inlayHints.parameterTypes.enabled": false,
+  "js/ts.inlayHints.variableTypes.enabled": false,
+  "js/ts.inlayHints.propertyDeclarationTypes.enabled": false,
+  "js/ts.inlayHints.functionLikeReturnTypes.enabled": false,
+  "js/ts.inlayHints.enumMemberValues.enabled": true,
+  "js/ts.updateImportsOnFileMove.enabled": "always",
+
+  // ---------------------------------------------------------------------------
+  // Tailwind CSS IntelliSense (bradlc.vscode-tailwindcss)
+  // ---------------------------------------------------------------------------
+  "tailwindCSS.experimental.classRegex": [
+    ["clsx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"],
+    ["cn\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"],
+    ["twMerge\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"],
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]
+  ],
+  "tailwindCSS.suggestCanonicalClasses": true,
+  "tailwindCSS.includeLanguages": {
+    "javascript": "javascript",
+    "javascriptreact": "javascriptreact",
+    "typescript": "typescript",
+    "typescriptreact": "typescriptreact"
+  },
+
+  // ---------------------------------------------------------------------------
+  // File system — EOL, whitespace, hidden noise
+  // ---------------------------------------------------------------------------
+  "files.eol": "\n",
+  "files.encoding": "utf8",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "files.trimFinalNewlines": true,
+  "files.associations": {
+    "*.css": "css",
+    ".env*": "dotenv",
+    ".prettierrc": "jsonc",
+    ".eslintrc": "jsonc",
+    ".stylelintrc": "jsonc",
+    ".husky/*": "shellscript"
+  },
+
+  // Hide build artefacts and caches from the explorer.
+  "files.exclude": {
+    "**/.next": true,
+    "**/node_modules": true,
+    "**/coverage": true,
+    "**/.eslintcache": true,
+    "**/.prettiercache": true,
+    "**/.stylelintcache": true,
+    "**/tsconfig.tsbuildinfo": true,
+    "**/.DS_Store": true
+  },
+
+  // Speed up VS Code search by skipping generated / locked content.
+  "search.exclude": {
+    "**/.next": true,
+    "**/node_modules": true,
+    "**/coverage": true,
+    "**/openapi/openapi.json": true,
+    "**/package-lock.json": true,
+    "**/*.tsbuildinfo": true,
+    "**/.eslintcache": true,
+    "**/.prettiercache": true,
+    "**/.stylelintcache": true
+  },
+
+  // Don't watch noisy directories — saves CPU on large repos.
+  "files.watcherExclude": {
+    "**/.next/**": true,
+    "**/node_modules/**": true,
+    "**/coverage/**": true,
+    "**/.git/objects/**": true
+  },
+
+  // ---------------------------------------------------------------------------
+  // Git
+  // ---------------------------------------------------------------------------
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "git.enableSmartCommit": false,
+  "git.suggestSmartCommit": false,
+  "git.openRepositoryInParentFolders": "never",
+  "diffEditor.ignoreTrimWhitespace": false,
+  "diffEditor.experimental.showMoves": true,
+
+  // ---------------------------------------------------------------------------
+  // Workbench polish
+  // ---------------------------------------------------------------------------
+  "explorer.compactFolders": false,
+  "explorer.confirmDragAndDrop": false,
+  "explorer.confirmDelete": true,
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "package.json": "package-lock.json,.npmrc,.nvmrc,.node-version,.npmignore,.yarnrc*",
+    "tsconfig.json": "tsconfig.*.json,next-env.d.ts,*.tsbuildinfo",
+    ".eslintrc*": "eslint.config.*,.eslintignore,.eslintcache",
+    ".prettierrc*": ".prettierignore,.prettiercache",
+    ".stylelintrc*": ".stylelintignore,.stylelintcache",
+    ".gitignore": ".gitattributes,.gitmessage,.gitkeep",
+    "next.config.*": "next-env.d.ts,middleware.*,proxy.*",
+    "README.md": "CLAUDE.md,CHANGELOG.md,LICENSE*,CONTRIBUTING.md,SECURITY.md,CODE_OF_CONDUCT.md"
+  },
+
+  // Terminal
+  "terminal.integrated.scrollback": 10000,
+  "terminal.integrated.defaultProfile.linux": "zsh",
+  "terminal.integrated.cwd": "${workspaceFolder}",
+
+  // ---------------------------------------------------------------------------
+  // Tasks — allow auto-run on folder open. Required for the full-workspace
+  // ESLint / Stylelint / Prettier / TypeScript scans declared in tasks.json.
+  // VS Code prompts once per workspace before honouring runOn:"folderOpen".
+  // ---------------------------------------------------------------------------
+  "task.allowAutomaticTasks": "on",
+  "task.problemMatchers.neverPrompt": {
+    "shell": true,
+    "npm": true
+  }
+}

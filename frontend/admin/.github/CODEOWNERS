@@ -7,10 +7,10 @@
 # Архитектура и ключевые слои — обязательное ревью лида.
 
 /src/app/ @sanjar-x
-/src/middleware.js @sanjar-x
+/src/proxy.js @sanjar-x
 /eslint.config.mjs @sanjar-x
 /tsconfig.json @sanjar-x
-/next.config.js @sanjar-x
+/next.config.mjs @sanjar-x
 /.github/ @sanjar-x
 /docs/ @sanjar-x
 

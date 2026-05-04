@@ -1,0 +1,50 @@
+.cardLink {
+  display: block;
+  width: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  height: 172px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #f4f3f1;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.card:hover {
+  opacity: 0.9;
+}
+
+.cardTitle {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  z-index: 10;
+  margin: 0;
+
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  font-family: var(--font-bebas), sans-serif;
+  color: #000000;
+}
+
+.cardImageWrap {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  height: 100%;
+  width: auto;
+}
+
+.cardImage {
+  object-fit: cover;
+  height: 100%;
+  width: auto;
+}
