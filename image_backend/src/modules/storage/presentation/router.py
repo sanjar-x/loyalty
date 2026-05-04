@@ -23,6 +23,7 @@ import httpx
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, HTTPException, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.storage.application.commands.process_image import build_variants
 from src.modules.storage.domain.entities import StorageFile
@@ -237,8 +238,14 @@ async def stream_status(
     storage_object_id: uuid.UUID,
     repo: FromDishka[IStorageRepository],
     sse_manager: FromDishka[SSEManager],
+    session: FromDishka[AsyncSession],
 ) -> AsyncIterable[ServerSentEvent]:
     storage_file = await repo.get_by_id(storage_object_id)
+    # Release the DB connection: the SSE loop polls Redis for up to 120s
+    # and would otherwise hold an idle-in-transaction session, which
+    # Postgres' idle_in_transaction_session_timeout will kill mid-stream.
+    await session.close()
+
     if not storage_file:
         yield ServerSentEvent(
             data={"error": "Storage object not found"},
