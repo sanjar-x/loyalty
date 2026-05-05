@@ -13,6 +13,7 @@ from structlog import BoundLogger
 from src.bootstrap.config import Settings, settings
 from src.infrastructure.cache.provider import CacheProvider
 from src.infrastructure.database.provider import DatabaseProvider
+from src.infrastructure.idempotency.provider import IdempotencyProvider
 from src.infrastructure.logging.provider import LoggingProvider
 from src.infrastructure.security.provider import SecurityProvider
 from src.infrastructure.tracking.provider import TrackingProvider
@@ -64,6 +65,7 @@ def create_container() -> AsyncContainer:
         LoggingProvider(),
         DatabaseProvider(),
         CacheProvider(),
+        IdempotencyProvider(),
         TrackingProvider(),
         SecurityProvider(),
         GeoProvider(),

@@ -71,8 +71,6 @@ from src.modules.order.application.queries.get_order_tracking import (
 from src.modules.order.application.queries.list_my_orders import ListMyOrdersHandler
 from src.modules.order.domain.interfaces import (
     ICartSnapshotReader,
-    IIdempotencyKeyStore,
-    IInboxStore,
     IOrderRepository,
     IOrderStateHistoryWriter,
     IRecipientLookup,
@@ -97,10 +95,6 @@ from src.modules.order.infrastructure.adapters.russian_carrier_gateway import (
 from src.modules.order.infrastructure.repositories.dobropost_shipment_mapping_repository import (
     DobroPostShipmentMappingRepository,
 )
-from src.modules.order.infrastructure.repositories.idempotency_store import (
-    IdempotencyKeyStore,
-)
-from src.modules.order.infrastructure.repositories.inbox_store import InboxStore
 from src.modules.order.infrastructure.repositories.order_repository import (
     OrderRepository,
 )
@@ -114,12 +108,10 @@ class OrderProvider(Provider):
     order_repo: CompositeDependencySource = provide(
         OrderRepository, scope=Scope.REQUEST, provides=IOrderRepository
     )
-    idempotency_store: CompositeDependencySource = provide(
-        IdempotencyKeyStore, scope=Scope.REQUEST, provides=IIdempotencyKeyStore
-    )
-    inbox_store: CompositeDependencySource = provide(
-        InboxStore, scope=Scope.REQUEST, provides=IInboxStore
-    )
+    # NOTE -- idempotency_store / inbox_store moved to the framework-shared
+    # ``IdempotencyProvider`` (registered in ``src.bootstrap.container``)
+    # per REFACT-001 PR-3a + PR-3b. Order consumes the same
+    # ``IIdempotencyStore`` / ``IInboxStore`` ports as every other module.
     dpsm_repo: CompositeDependencySource = provide(
         DobroPostShipmentMappingRepository,
         scope=Scope.REQUEST,
