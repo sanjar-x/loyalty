@@ -13,14 +13,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from structlog.stdlib import BoundLogger
 
-# Outbox event handlers register at import time via ``register_event_handler``.
-# Importing the task modules here makes the registry identical across web /
-# worker / scheduler processes; without this the relay's "unknown event_type"
-# branch silently drops pricing events whenever the relay runs in any
-# process other than the worker.
-import src.infrastructure.outbox.tasks
-import src.modules.order.infrastructure.tasks
-import src.modules.pricing.infrastructure.tasks  # noqa: F401
+# Outbox event handlers register at import time via ``register_event_handler``;
+# TaskIQ tasks register via the ``@broker.task`` decorator at import time too.
+# Importing the framework-level outbox tasks AND every module's declared
+# ``task_modules`` (REFACT-001 PR-5) makes the registry identical across
+# web / worker / scheduler processes. Without this the relay's
+# "unknown event_type" branch silently drops events whenever the relay
+# runs in a process that did not import the emitter's task module.
+import src.infrastructure.outbox.tasks  # noqa: F401
 from src.api.exceptions.handlers import setup_exception_handlers
 from src.api.middlewares.legacy_redirects import LegacyRedirectsMiddleware
 from src.api.middlewares.logger import AccessLoggerMiddleware
@@ -29,6 +29,10 @@ from src.bootstrap.broker import broker
 from src.bootstrap.config import settings
 from src.bootstrap.container import create_container
 from src.bootstrap.logger import setup_logging
+from src.bootstrap.module_registry import import_task_modules
+from src.bootstrap.modules import MODULES
+
+import_task_modules(MODULES)
 
 setup_logging()
 

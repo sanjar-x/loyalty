@@ -151,27 +151,57 @@ def test_every_router_prefix_uses_known_root() -> None:
 
 
 def test_aggregate_router_imports_every_module_router() -> None:
-    """Each ``router_*.py`` file's exported symbol must be wired into
-    ``src/api/router.py``. Catches dead routers that would otherwise
-    silently 404.
+    """Each ``router_*.py`` file's exported symbol must be wired into the
+    aggregate via its module's :class:`ModuleManifest` (REFACT-001 PR-5).
+
+    Before PR-5 the aggregate `src/api/router.py` listed every router
+    explicitly; after PR-5 it iterates ``src.bootstrap.modules.MODULES``
+    and pulls each manifest's ``routers`` property. The contract here
+    moves accordingly: a router file is "wired" iff its exported
+    ``APIRouter`` instance is referenced by some manifest's
+    ``customer_routers`` / ``admin_routers`` / ``webhook_routers``
+    tuple. Catches dead routers that would otherwise silently 404.
     """
-    backend_root = Path(__file__).resolve().parents[2]
-    aggregate = (backend_root / "src/api/router.py").read_text(encoding="utf-8")
+    import importlib
+
+    from src.bootstrap.modules import MODULES
+
+    aggregate_routers = {
+        id(r)
+        for manifest in MODULES
+        for r in (
+            *manifest.customer_routers,
+            *manifest.admin_routers,
+            *manifest.webhook_routers,
+        )
+    }
+
     missing: list[str] = []
     for path, _prefix in _collect_routers():
-        # Heuristic: the export name is the *_router|_router_admin pattern
-        # used inside the file. Extract the first variable assigned to
-        # APIRouter().
         text = path.read_text(encoding="utf-8")
         var_match = re.search(r"^(\w+)\s*=\s*APIRouter\(", text, flags=re.M)
         if var_match is None:
             continue
         var_name = var_match.group(1)
-        if var_name not in aggregate:
+        # Build dotted module path from filesystem path, then import
+        # and resolve the variable.
+        rel = path.relative_to(path.parents[4])
+        dotted = ".".join(rel.with_suffix("").parts)
+        try:
+            module = importlib.import_module(dotted)
+        except Exception:  # pragma: no cover -- import-time errors
+            missing.append(f"{rel}: failed to import module")
+            continue
+        router_obj = getattr(module, var_name, None)
+        if router_obj is None:
+            missing.append(f"{rel}: export {var_name!r} not found")
+            continue
+        if id(router_obj) not in aggregate_routers:
             missing.append(
-                f"{path.relative_to(path.parents[4])}: export {var_name!r} "
-                "is not imported in src/api/router.py"
+                f"{rel}: export {var_name!r} is not wired into any "
+                "ModuleManifest in src.bootstrap.modules.MODULES"
             )
     assert not missing, (
-        "Every router must be wired into the aggregate. Missing:\n" + "\n".join(missing)
+        "Every router must be wired into a ModuleManifest. Missing:\n"
+        + "\n".join(missing)
     )

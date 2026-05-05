@@ -63,12 +63,15 @@ _dlq_session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
 broker.add_middlewares(DLQMiddleware(session_factory=_dlq_session_factory))
 
 # 2. Now import tasks so they register with the broker.
-import src.infrastructure.outbox.tasks  # noqa
-import src.modules.activity.infrastructure.tasks  # noqa
-import src.modules.identity.application.consumers.role_events  # noqa
-import src.modules.logistics.infrastructure.tasks  # noqa
-import src.modules.pricing.infrastructure.tasks  # noqa
-import src.modules.user.application.consumers.identity_events  # noqa
+#    Framework-level outbox tasks plus every module's declared
+#    ``task_modules`` (REFACT-001 PR-5) -- adding a new bounded context
+#    with TaskIQ tasks no longer requires touching this file; just
+#    declare ``task_modules`` in the module's manifest.
+import src.infrastructure.outbox.tasks  # noqa: E402, F401
+from src.bootstrap.module_registry import import_task_modules  # noqa: E402
+from src.bootstrap.modules import MODULES  # noqa: E402
+
+import_task_modules(MODULES)
 
 
 @broker.on_event(TaskiqEvents.WORKER_STARTUP)
