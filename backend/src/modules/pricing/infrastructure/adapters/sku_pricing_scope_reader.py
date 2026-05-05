@@ -21,6 +21,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.modules.geo.infrastructure.models import CurrencyModel
 from src.modules.pricing.domain.entities.variable import Variable
 from src.modules.pricing.domain.interfaces import (
     ISkuPricingScopeReader,
@@ -44,6 +45,7 @@ class SkuPricingScopeReader(ISkuPricingScopeReader):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._variables_cache: tuple[Variable, ...] | None = None
+        self._fraction_digits_cache: dict[str, int] = {}
 
     async def snapshot_for_sku(
         self, inputs: SkuPricingInputs
@@ -82,9 +84,12 @@ class SkuPricingScopeReader(ISkuPricingScopeReader):
             supplier_id=inputs.supplier_id,
         )
 
+        target_currency = _target_currency_for_context(context)
+        target_currency_minor_unit = await self._fraction_digits(target_currency)
         return SkuPricingScopeSnapshot(
             context_id=context.id,
-            target_currency=_target_currency_for_context(context),
+            target_currency=target_currency,
+            target_currency_minor_unit=target_currency_minor_unit,
             rounding_mode=context.rounding_mode,
             rounding_step=Decimal(str(context.rounding_step))
             if context.rounding_step is not None
@@ -206,6 +211,26 @@ class SkuPricingScopeReader(ISkuPricingScopeReader):
             ("supplier", sup_v if sup_v is not None else -1),
             ("context", ctx_v),
         )
+
+    async def _fraction_digits(self, currency_code: str) -> int:
+        """Read ISO 4217 ``minor_unit`` for ``currency_code`` from the geo
+        currency table; fall back to 2 (the dominant fiat default) when
+        a currency without recorded subdivision (XAU, XXX, ...) is asked
+        for. Cached per-instance so repeated SKU snapshots within one
+        recompute pass do not re-query.
+        """
+        cached = self._fraction_digits_cache.get(currency_code)
+        if cached is not None:
+            return cached
+        stmt = select(CurrencyModel.minor_unit).where(
+            CurrencyModel.code == currency_code
+        )
+        result = await self._session.execute(stmt)
+        digits = result.scalar_one_or_none()
+        if digits is None:
+            digits = 2
+        self._fraction_digits_cache[currency_code] = digits
+        return digits
 
 
 def _variable_to_domain(model: VariableModel) -> Variable:

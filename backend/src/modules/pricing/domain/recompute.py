@@ -4,8 +4,9 @@ Given a :class:`SkuPricingInputs` snapshot from catalog and a
 :class:`SkuPricingScopeSnapshot` from pricing, produces either:
 
 * :class:`SkuPricingComputed` — a successful pricing result with a
-  deterministic ``inputs_hash``, ready to land via
-  :class:`ISkuPricingResultWriter.apply_success`.
+  deterministic ``inputs_hash``, ready to land via the catalog-side
+  :class:`~src.modules.catalog.domain.interfaces.IInternalSkuPricingApplyPort.apply_success`
+  port (ADR-005a).
 * :class:`SkuPricingFailed` — a failure status (``stale_fx`` /
   ``missing_purchase_price`` / ``formula_error``) with an admin-readable
   reason.

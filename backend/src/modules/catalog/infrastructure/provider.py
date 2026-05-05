@@ -18,6 +18,9 @@ from src.modules.catalog.application.commands.add_product_media import (
 )
 from src.modules.catalog.application.commands.add_sku import AddSKUHandler
 from src.modules.catalog.application.commands.add_variant import AddVariantHandler
+from src.modules.catalog.application.commands.apply_sku_pricing_result import (
+    ApplySkuPricingResultHandler,
+)
 from src.modules.catalog.application.commands.assign_product_attribute import (
     AssignProductAttributeHandler,
 )
@@ -223,7 +226,9 @@ from src.modules.catalog.domain.interfaces import (
     IBrandRepository,
     ICategoryRepository,
     IImageBackendClient,
+    IInternalSkuPricingApplyPort,
     IMediaAssetRepository,
+    IPricingHistoryRepository,
     IProductAttributeValueRepository,
     IProductRepository,
     ITemplateAttributeBindingRepository,
@@ -243,6 +248,9 @@ from src.modules.catalog.infrastructure.repositories import (
 )
 from src.modules.catalog.infrastructure.repositories.attribute_template import (
     AttributeTemplateRepository,
+)
+from src.modules.catalog.infrastructure.repositories.sku_pricing_history import (
+    SkuPricingHistoryRepository,
 )
 from src.modules.catalog.infrastructure.repositories.template_attribute_binding import (
     TemplateAttributeBindingRepository,
@@ -572,6 +580,21 @@ class ProductProvider(Provider):
     )
     get_product_completeness_handler: CompositeDependencySource = provide(
         GetProductCompletenessHandler, scope=Scope.REQUEST
+    )
+
+    # ADR-005a -- catalog-side SKU pricing apply path. The pricing
+    # recompute service consumes IInternalSkuPricingApplyPort to land
+    # results back into the catalog. The history repository persists
+    # the audit trail in the same UoW as the SKU mutation.
+    sku_pricing_history_repo: CompositeDependencySource = provide(
+        SkuPricingHistoryRepository,
+        scope=Scope.REQUEST,
+        provides=IPricingHistoryRepository,
+    )
+    apply_sku_pricing_result_handler: CompositeDependencySource = provide(
+        ApplySkuPricingResultHandler,
+        scope=Scope.REQUEST,
+        provides=IInternalSkuPricingApplyPort,
     )
 
 

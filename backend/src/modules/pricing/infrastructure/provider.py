@@ -106,7 +106,6 @@ from src.modules.pricing.domain.interfaces import (
     IPricingContextRepository,
     IProductPricingProfileRepository,
     ISkuPricingInputReader,
-    ISkuPricingResultWriter,
     ISkuPricingScopeReader,
     ISupplierPricingSettingsRepository,
     ISupplierTypeContextMappingRepository,
@@ -114,9 +113,6 @@ from src.modules.pricing.domain.interfaces import (
 )
 from src.modules.pricing.infrastructure.adapters.sku_pricing_input_reader import (
     SkuPricingInputReader,
-)
-from src.modules.pricing.infrastructure.adapters.sku_pricing_result_writer import (
-    SkuPricingResultWriter,
 )
 from src.modules.pricing.infrastructure.adapters.sku_pricing_scope_reader import (
     SkuPricingScopeReader,
@@ -198,11 +194,10 @@ class PricingProvider(Provider):
         scope=Scope.REQUEST,
         provides=ISkuPricingScopeReader,
     )
-    sku_pricing_result_writer: CompositeDependencySource = provide(
-        SkuPricingResultWriter,
-        scope=Scope.REQUEST,
-        provides=ISkuPricingResultWriter,
-    )
+    # ADR-005a -- pricing writes go through the catalog-side
+    # ``IInternalSkuPricingApplyPort`` (registered in
+    # ``catalog.infrastructure.provider.ProductProvider``). The legacy
+    # ``ISkuPricingResultWriter`` ACL writer adapter has been removed.
     recompute_sku_pricing_service: CompositeDependencySource = provide(
         RecomputeSkuPricingService,
         scope=Scope.REQUEST,
