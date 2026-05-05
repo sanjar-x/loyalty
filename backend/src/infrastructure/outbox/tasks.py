@@ -54,8 +54,8 @@ async def _handle_identity_registered(
         create_profile_on_identity_registered.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
-            identity_id=payload["identity_id"],
-            email=payload["email"],
+            identity_id=payload.get("identity_id"),
+            email=payload.get("email", ""),
         )  # ty:ignore[no-matching-overload]
     )
 
@@ -72,7 +72,7 @@ async def _handle_identity_deactivated(
         anonymize_customer_on_identity_deactivated.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
-            identity_id=payload["identity_id"],
+            identity_id=payload.get("identity_id"),
         )  # ty:ignore[no-matching-overload]
     )
 
@@ -89,7 +89,7 @@ async def _handle_role_assignment_changed(
         invalidate_permissions_cache_on_role_change.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
-            identity_id=payload["identity_id"],
+            identity_id=payload.get("identity_id"),
         )  # ty:ignore[no-matching-overload]
     )
 
@@ -106,7 +106,7 @@ async def _handle_linked_account_created(
         on_linked_account_created.kicker()
         .with_labels(**_build_labels(correlation_id))
         .kiq(
-            identity_id=payload["identity_id"],
+            identity_id=payload.get("identity_id"),
             provider=payload.get("provider", ""),
             provider_metadata=payload.get("provider_metadata", {}),
             start_param=payload.get("start_param"),
@@ -116,11 +116,66 @@ async def _handle_linked_account_created(
     )
 
 
-# Register IAM event mappings
+# Register IAM event mappings.
+#
+# REFACT-001 PR-4 dual-registration: each handler is registered against
+# both the legacy snake_case ``event_type`` (events emitted by the
+# pre-PR-4 codebase still sitting in the outbox or in a slow consumer
+# path) AND the canonical PascalCase ``event_type`` introduced by the
+# events.py migration. Removed in REFACT-008 (7 days post-merge) once
+# the snake_case shims age out -- both sides MUST resolve to the same
+# handler so dispatch is event-name-agnostic.
+#
+# Handler bodies are legacy-payload-tolerant: ``payload.get(field, default)``
+# everywhere, so a snake_case-emitted payload missing newer fields still
+# routes correctly without TypeError.
 register_event_handler("identity_registered", _handle_identity_registered)
+register_event_handler("IdentityRegisteredEvent", _handle_identity_registered)
 register_event_handler("identity_deactivated", _handle_identity_deactivated)
+register_event_handler("IdentityDeactivatedEvent", _handle_identity_deactivated)
 register_event_handler("role_assignment_changed", _handle_role_assignment_changed)
+register_event_handler("RoleAssignmentChangedEvent", _handle_role_assignment_changed)
 register_event_handler("linked_account_created", _handle_linked_account_created)
+register_event_handler("LinkedAccountCreatedEvent", _handle_linked_account_created)
+
+
+# ---------------------------------------------------------------------------
+# Supplier event handlers (REFACT-001 PR-4)
+# ---------------------------------------------------------------------------
+#
+# Supplier currently has no downstream consumers wired to these events --
+# the handler below structured-logs the payload so the relay observes a
+# known event_type rather than the «unknown event_type, skipping» branch.
+# Dual-registration covers both legacy dotted-snake (``supplier.created``)
+# and canonical PascalCase (``SupplierCreatedEvent``); REFACT-008 drops
+# the snake-case shims 7 days after PR-4 merge.
+#
+# Handler is payload-tolerant: derives ``supplier_id`` from
+# ``payload.get("supplier_id")`` (canonical) with fallback to
+# ``payload.get("aggregate_id")`` (legacy emitter, supplier_id absent).
+
+
+async def _handle_supplier_event(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    """Structured-log a supplier domain event (no downstream consumer yet)."""
+    supplier_id = payload.get("supplier_id") or payload.get("aggregate_id")
+    logger.info(
+        "supplier_event_observed",
+        supplier_id=supplier_id,
+        event_type=payload.get("event_type"),
+        correlation_id=correlation_id,
+    )
+
+
+register_event_handler("supplier.created", _handle_supplier_event)
+register_event_handler("SupplierCreatedEvent", _handle_supplier_event)
+register_event_handler("supplier.updated", _handle_supplier_event)
+register_event_handler("SupplierUpdatedEvent", _handle_supplier_event)
+register_event_handler("supplier.deactivated", _handle_supplier_event)
+register_event_handler("SupplierDeactivatedEvent", _handle_supplier_event)
+register_event_handler("supplier.activated", _handle_supplier_event)
+register_event_handler("SupplierActivatedEvent", _handle_supplier_event)
 
 
 # ---------------------------------------------------------------------------

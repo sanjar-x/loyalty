@@ -1,219 +1,228 @@
 """Domain events for the Identity module.
 
-Events are emitted by aggregates, serialized via ``dataclasses.asdict()``,
-and persisted atomically with business data via the Transactional Outbox pattern.
+Identity emits events from two distinct aggregate roots — ``Identity``
+itself (registration, lifecycle, linked-account / role / token-version
+changes) and ``StaffInvitation`` (the invite-accept hand-off). Concrete
+events therefore override ``aggregate_type`` per event class on top of
+:class:`IdentityEvent`, which only declares the placeholder default.
+
+Validation and ``aggregate_id`` auto-fill come from
+:class:`src.shared.interfaces.entities.ModuleDomainEvent`.
 """
+
+from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from src.shared.interfaces.entities import DomainEvent
+from src.shared.interfaces.entities import ModuleDomainEvent
 
 
 @dataclass
-class IdentityRegisteredEvent(DomainEvent):
+class IdentityEvent(ModuleDomainEvent, abstract=True):
+    """Intermediate base for events emitted by the identity bounded context.
+
+    Identity has two aggregate roots (``Identity`` and ``StaffInvitation``);
+    every concrete event MUST override ``aggregate_type`` with one of
+    them — the default below is only a placeholder so that
+    :class:`DomainEvent`'s integrity check passes for this abstract base.
+    """
+
+    aggregate_type: str = "Identity"
+
+    def __init_subclass__(
+        cls,
+        *,
+        abstract: bool = False,
+        required_fields: tuple[str, ...] | None = None,
+        aggregate_id_field: str | None = None,
+        **kwargs: object,
+    ) -> None:
+        super().__init_subclass__(
+            abstract=abstract,
+            required_fields=required_fields,
+            aggregate_id_field=aggregate_id_field,
+            **kwargs,
+        )
+        if abstract or required_fields is None:
+            return
+        if "aggregate_type" not in cls.__dict__:
+            raise TypeError(
+                f"{cls.__name__} must override 'aggregate_type' — identity "
+                "events span multiple aggregate kinds (Identity, "
+                "StaffInvitation, ...) and cannot inherit the placeholder."
+            )
+
+
+# ---------------------------------------------------------------------------
+# Identity aggregate events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class IdentityRegisteredEvent(
+    IdentityEvent,
+    required_fields=("identity_id",),
+    aggregate_id_field="identity_id",
+):
     """Emitted when a new identity is registered (local or OIDC).
 
-    Consumed by the User module (``CreateUserConsumer``) to create a User row
-    with a shared primary key.
-
-    Attributes:
-        identity_id: The newly registered identity's UUID.
-        email: The email address used during registration.
-        registered_at: Timestamp of registration (defaults to now).
-        aggregate_type: Aggregate type identifier for outbox routing.
-        event_type: Event type identifier for outbox routing.
+    Consumed by the User module to provision a Customer or StaffMember
+    profile sharing the identity's UUID.
     """
 
     identity_id: uuid.UUID | None = None
     email: str = ""
-    registered_at: datetime | None = None
+    registered_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     account_type: str = "CUSTOMER"
     username: str | None = None
     aggregate_type: str = "Identity"
-    event_type: str = "identity_registered"
-
-    def __post_init__(self) -> None:
-        if self.identity_id is None:
-            raise ValueError("identity_id is required")
-        if self.registered_at is None:
-            self.registered_at = datetime.now(UTC)
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.identity_id)
+    event_type: str = "IdentityRegisteredEvent"
 
 
 @dataclass
-class IdentityDeactivatedEvent(DomainEvent):
-    """Emitted when an identity is deactivated (all sessions revoked).
+class IdentityDeactivatedEvent(
+    IdentityEvent,
+    required_fields=("identity_id",),
+    aggregate_id_field="identity_id",
+):
+    """Emitted when an identity is deactivated; all sessions revoked.
 
-    Consumed by the User module (``AnonymizeUserConsumer``) for GDPR PII cleanup.
-
-    Attributes:
-        identity_id: The deactivated identity's UUID.
-        reason: Human-readable deactivation reason.
-        deactivated_at: Timestamp of deactivation (defaults to now).
-        aggregate_type: Aggregate type identifier for outbox routing.
-        event_type: Event type identifier for outbox routing.
+    Consumed by the User module for GDPR-driven PII anonymisation of
+    Customer profiles.
     """
 
     identity_id: uuid.UUID | None = None
     reason: str = ""
     deactivated_by: uuid.UUID | None = None
-    deactivated_at: datetime | None = None
+    deactivated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     aggregate_type: str = "Identity"
-    event_type: str = "identity_deactivated"
-
-    def __post_init__(self) -> None:
-        if self.identity_id is None:
-            raise ValueError("identity_id is required")
-        if self.deactivated_at is None:
-            self.deactivated_at = datetime.now(UTC)
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.identity_id)
+    event_type: str = "IdentityDeactivatedEvent"
 
 
 @dataclass
-class RoleAssignmentChangedEvent(DomainEvent):
-    """Emitted when a role is assigned to or revoked from an identity.
+class IdentityReactivatedEvent(
+    IdentityEvent,
+    required_fields=("identity_id",),
+    aggregate_id_field="identity_id",
+):
+    """Emitted when a deactivated identity is reactivated by an admin."""
 
-    Consumed by cache invalidation logic to delete ``perms:{session_id}``
-    keys from Redis.
+    identity_id: uuid.UUID | None = None
+    reactivated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    aggregate_type: str = "Identity"
+    event_type: str = "IdentityReactivatedEvent"
 
-    Attributes:
-        identity_id: The affected identity's UUID.
-        role_id: The role that was assigned or revoked.
-        action: Either "assigned" or "revoked".
-        aggregate_type: Aggregate type identifier for outbox routing.
-        event_type: Event type identifier for outbox routing.
+
+@dataclass
+class RoleAssignmentChangedEvent(
+    IdentityEvent,
+    required_fields=("identity_id", "role_id"),
+    aggregate_id_field="identity_id",
+):
+    """Emitted when a role is granted or revoked on an identity.
+
+    Consumed by cache-invalidation logic to drop ``perms:{session_id}``
+    keys from Redis so the next request rebuilds the permission set.
     """
 
     identity_id: uuid.UUID | None = None
     role_id: uuid.UUID | None = None
     action: str = ""  # "assigned" | "revoked"
     aggregate_type: str = "Identity"
-    event_type: str = "role_assignment_changed"
-
-    def __post_init__(self) -> None:
-        if self.identity_id is None:
-            raise ValueError("identity_id is required")
-        if self.role_id is None:
-            raise ValueError("role_id is required")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.identity_id)
+    event_type: str = "RoleAssignmentChangedEvent"
 
 
 @dataclass
-class IdentityReactivatedEvent(DomainEvent):
-    """Emitted when an identity is reactivated by an admin.
+class LinkedAccountCreatedEvent(
+    IdentityEvent,
+    required_fields=("identity_id",),
+    aggregate_id_field="identity_id",
+):
+    """Emitted when a new external provider is linked to an Identity.
 
-    Attributes:
-        identity_id: The reactivated identity's UUID.
-        reactivated_at: Timestamp of reactivation (defaults to now).
-        aggregate_type: Aggregate type identifier for outbox routing.
-        event_type: Event type identifier for outbox routing.
+    Triggered on Telegram Mini App / OIDC signup. Carries
+    ``provider_metadata`` (Telegram ``is_premium``, locale, photo URL),
+    ``start_param`` (deep-link payload), and the request-level
+    ``signup_ip`` / ``signup_user_agent`` so downstream consumers
+    (referral fraud-evaluator, login analytics, ...) can act without
+    re-querying ``sessions``.
     """
 
     identity_id: uuid.UUID | None = None
-    reactivated_at: datetime | None = None
+    provider: str = ""
+    provider_sub_id: str = ""
+    provider_metadata: dict = field(default_factory=dict)
+    start_param: str | None = None
+    is_new_identity: bool = False
+    signup_ip: str | None = None
+    signup_user_agent: str | None = None
     aggregate_type: str = "Identity"
-    event_type: str = "identity_reactivated"
-
-    def __post_init__(self) -> None:
-        if self.identity_id is None:
-            raise ValueError("identity_id is required")
-        if self.reactivated_at is None:
-            self.reactivated_at = datetime.now(UTC)
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.identity_id)
+    event_type: str = "LinkedAccountCreatedEvent"
 
 
 @dataclass
-class StaffInvitedEvent(DomainEvent):
-    """Emitted when a staff member is invited."""
+class LinkedAccountRemovedEvent(
+    IdentityEvent,
+    required_fields=("identity_id",),
+    aggregate_id_field="identity_id",
+):
+    """Emitted when an external provider link is removed."""
+
+    identity_id: uuid.UUID | None = None
+    provider: str = ""
+    provider_sub_id: str = ""
+    aggregate_type: str = "Identity"
+    event_type: str = "LinkedAccountRemovedEvent"
+
+
+@dataclass
+class IdentityTokenVersionBumpedEvent(
+    IdentityEvent,
+    required_fields=("identity_id",),
+    aggregate_id_field="identity_id",
+):
+    """Emitted when ``token_version`` is bumped — invalidates all live JWTs."""
+
+    identity_id: uuid.UUID | None = None
+    new_version: int = 0
+    reason: str = ""
+    aggregate_type: str = "Identity"
+    event_type: str = "IdentityTokenVersionBumpedEvent"
+
+
+# ---------------------------------------------------------------------------
+# StaffInvitation aggregate events
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class StaffInvitedEvent(
+    IdentityEvent,
+    required_fields=("invitation_id",),
+    aggregate_id_field="invitation_id",
+):
+    """Emitted when an admin invites a new staff member."""
 
     invitation_id: uuid.UUID | None = None
     email: str = ""
     invited_by: uuid.UUID | None = None
     role_ids: list[uuid.UUID] = field(default_factory=list)
     aggregate_type: str = "StaffInvitation"
-    event_type: str = "staff_invited"
-
-    def __post_init__(self) -> None:
-        if not self.email:
-            raise ValueError("email is required for StaffInvitedEvent")
-        if not self.aggregate_id and self.invitation_id:
-            self.aggregate_id = str(self.invitation_id)
+    event_type: str = "StaffInvitedEvent"
 
 
 @dataclass
-class StaffInvitationAcceptedEvent(DomainEvent):
-    """Emitted when a staff invitation is accepted."""
+class StaffInvitationAcceptedEvent(
+    IdentityEvent,
+    required_fields=("invitation_id",),
+    aggregate_id_field="invitation_id",
+):
+    """Emitted when a staff invitation is accepted and the identity is linked."""
 
     invitation_id: uuid.UUID | None = None
     identity_id: uuid.UUID | None = None
     email: str = ""
     aggregate_type: str = "StaffInvitation"
-    event_type: str = "staff_invitation_accepted"
-
-    def __post_init__(self) -> None:
-        if not self.email:
-            raise ValueError("email is required for StaffInvitationAcceptedEvent")
-        if not self.aggregate_id and self.invitation_id:
-            self.aggregate_id = str(self.invitation_id)
-
-
-@dataclass
-class LinkedAccountCreatedEvent(DomainEvent):
-    """Emitted when a new provider is linked to an Identity."""
-
-    identity_id: uuid.UUID | None = None
-    provider: str = ""
-    provider_sub_id: str = ""
-    provider_metadata: dict | None = None
-    start_param: str | None = None
-    is_new_identity: bool = False
-    aggregate_type: str = "Identity"
-    event_type: str = "linked_account_created"
-
-    def __post_init__(self) -> None:
-        if self.identity_id is None:
-            raise ValueError("identity_id is required")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.identity_id)
-        if self.provider_metadata is None:
-            self.provider_metadata = {}
-
-
-@dataclass
-class LinkedAccountDeletedEvent(DomainEvent):
-    """Emitted when a provider is unlinked from an Identity."""
-
-    identity_id: uuid.UUID | None = None
-    provider: str = ""
-    provider_sub_id: str = ""
-    aggregate_type: str = "Identity"
-    event_type: str = "linked_account_removed"
-
-    def __post_init__(self) -> None:
-        if self.identity_id is None:
-            raise ValueError("identity_id is required")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.identity_id)
-
-
-@dataclass
-class IdentityTokenVersionBumpedEvent(DomainEvent):
-    """Emitted when token_version is incremented (all JWTs invalidated)."""
-
-    identity_id: uuid.UUID | None = None
-    new_version: int = 0
-    reason: str = ""
-    aggregate_type: str = "Identity"
-    event_type: str = "token_version_bumped"
-
-    def __post_init__(self) -> None:
-        if self.identity_id is None:
-            raise ValueError("identity_id is required")
-        if not self.aggregate_id:
-            self.aggregate_id = str(self.identity_id)
+    event_type: str = "StaffInvitationAcceptedEvent"

@@ -338,6 +338,63 @@ _FSM_AGGREGATE_MODULES: tuple[tuple[str, str], ...] = (
 )
 
 
+# Rule 8: Module domain events inherit ModuleDomainEvent (REFACT-001 PR-4)
+# Concrete domain events MUST inherit ``ModuleDomainEvent`` from
+# ``src.shared.interfaces.entities`` (typically through a per-module
+# abstract base like ``OrderEvent`` / ``PaymentEvent`` / ``IdentityEvent``)
+# so every event picks up the canonical machinery: required-field
+# validation on ``__post_init__``, ``aggregate_id`` auto-fill from a
+# named field, and the abstract / required_fields / aggregate_id_field
+# class-keyword API. Modules without aggregate-bound events (activity,
+# geo, user) are opted out -- they emit no domain events of their own.
+#
+# CC-001 (CEO directive 2026-05-09) -- canonical convention enforced by
+# the same test: a concrete event's class name MUST equal its
+# ``event_type`` string. PascalCase format is the standard for every
+# event_type in the outbox; legacy snake_case / dotted forms are
+# transitional shims removed by REFACT-008 (7 days post-PR-4 merge).
+_RULE_8_OPT_OUT_MODULES: frozenset[str] = frozenset({"activity", "geo", "user"})
+
+
+@pytest.mark.parametrize(
+    "module", [m for m in MODULES if m not in _RULE_8_OPT_OUT_MODULES]
+)
+def test_module_events_inherit_module_domain_event_and_match_cc001(
+    module: str,
+) -> None:
+    """Every concrete event in the module inherits ``ModuleDomainEvent``
+    AND its class name equals its ``event_type`` (CC-001)."""
+    import importlib
+
+    from src.shared.interfaces.entities import DomainEvent, ModuleDomainEvent
+
+    events = importlib.import_module(f"src.modules.{module}.domain.events")
+    violations: list[str] = []
+    for name, obj in vars(events).items():
+        if not (isinstance(obj, type) and issubclass(obj, DomainEvent)):
+            continue
+        if obj is DomainEvent or obj is ModuleDomainEvent:
+            continue
+        # Skip per-module abstract bases (``__abstract_event__`` is the
+        # marker propagated by ``DomainEvent.__init_subclass__``).
+        if getattr(obj, "__abstract_event__", False):
+            continue
+        if not issubclass(obj, ModuleDomainEvent):
+            violations.append(f"{name}: must inherit ModuleDomainEvent (Rule 8)")
+            continue
+        # CC-001 -- class name must equal event_type string.
+        event_type = getattr(obj, "event_type", "")
+        if obj.__name__ != event_type:
+            violations.append(
+                f"{name}: class name != event_type='{event_type}' (CC-001)"
+            )
+    assert not violations, (
+        f"Module '{module}' has event violations:\n  - "
+        + "\n  - ".join(violations)
+        + "\n(REFACT-001 PR-4 Rule 8 / CC-001)"
+    )
+
+
 @pytest.mark.parametrize(("module", "aggregate"), _FSM_AGGREGATE_MODULES)
 def test_fsm_aggregate_inherits_state_machine_mixin(
     module: str, aggregate: str

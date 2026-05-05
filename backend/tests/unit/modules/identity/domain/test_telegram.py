@@ -11,7 +11,7 @@ from src.modules.identity.domain.entities import Identity, LinkedAccount
 from src.modules.identity.domain.events import (
     IdentityTokenVersionBumpedEvent,
     LinkedAccountCreatedEvent,
-    LinkedAccountDeletedEvent,
+    LinkedAccountRemovedEvent,
 )
 from src.modules.identity.domain.exceptions import (
     InitDataExpiredError,
@@ -161,7 +161,7 @@ class TestLinkedAccountCreatedEvent:
         )
         assert event.provider == "telegram"
         assert event.is_new_identity is True
-        assert event.event_type == "linked_account_created"
+        assert event.event_type == "LinkedAccountCreatedEvent"
 
     def test_requires_identity_id(self):
         with pytest.raises(ValueError):
@@ -175,16 +175,16 @@ class TestLinkedAccountCreatedEvent:
             )
 
 
-class TestLinkedAccountDeletedEvent:
+class TestLinkedAccountRemovedEvent:
     def test_creation(self):
         identity_id = uuid.uuid4()
-        event = LinkedAccountDeletedEvent(
+        event = LinkedAccountRemovedEvent(
             identity_id=identity_id,
             provider="telegram",
             provider_sub_id="123456",
             aggregate_id=str(identity_id),
         )
-        assert event.event_type == "linked_account_removed"
+        assert event.event_type == "LinkedAccountRemovedEvent"
 
 
 class TestIdentityTokenVersionBumpedEvent:

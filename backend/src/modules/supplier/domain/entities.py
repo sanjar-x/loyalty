@@ -126,6 +126,7 @@ class Supplier(AggregateRoot):
         )
         supplier.add_domain_event(
             SupplierCreatedEvent(
+                supplier_id=supplier.id,
                 aggregate_id=str(supplier.id),
                 supplier_name=supplier.name,
                 supplier_type=supplier.type.value,
@@ -159,18 +160,24 @@ class Supplier(AggregateRoot):
             )
 
         self.updated_at = datetime.now(UTC)
-        self.add_domain_event(SupplierUpdatedEvent(aggregate_id=str(self.id)))
+        self.add_domain_event(
+            SupplierUpdatedEvent(supplier_id=self.id, aggregate_id=str(self.id))
+        )
 
     def deactivate(self) -> None:
         if not self.is_active:
             raise SupplierAlreadyInactiveError(self.id)
         self.is_active = False
         self.updated_at = datetime.now(UTC)
-        self.add_domain_event(SupplierDeactivatedEvent(aggregate_id=str(self.id)))
+        self.add_domain_event(
+            SupplierDeactivatedEvent(supplier_id=self.id, aggregate_id=str(self.id))
+        )
 
     def activate(self) -> None:
         if self.is_active:
             raise SupplierAlreadyActiveError(self.id)
         self.is_active = True
         self.updated_at = datetime.now(UTC)
-        self.add_domain_event(SupplierActivatedEvent(aggregate_id=str(self.id)))
+        self.add_domain_event(
+            SupplierActivatedEvent(supplier_id=self.id, aggregate_id=str(self.id))
+        )

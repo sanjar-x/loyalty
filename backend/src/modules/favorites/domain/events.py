@@ -4,54 +4,21 @@ Events are emitted from the ``FavoriteList`` aggregate, persisted into
 the Outbox table inside the same transaction as the business write,
 and later picked up by the relay (``src/infrastructure/outbox/relay.py``).
 
-Follows the same ``__init_subclass__`` + ``__post_init__`` pattern as
-``CartEvent`` so that ``aggregate_id`` is auto-derived and required
-fields are validated centrally.
+Validation and ``aggregate_id`` auto-fill come from
+:class:`src.shared.interfaces.entities.ModuleDomainEvent`.
 """
 
 import uuid
 from dataclasses import dataclass
-from typing import ClassVar
 
-from src.shared.interfaces.entities import DomainEvent
+from src.shared.interfaces.entities import ModuleDomainEvent
 
 
 @dataclass
-class FavoritesEvent(DomainEvent):
+class FavoritesEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all favorites domain events."""
 
-    _required_fields: ClassVar[tuple[str, ...]] = ()
-    _aggregate_id_field: ClassVar[str] = ""
-
     aggregate_type: str = "favorites"
-    event_type: str = "FavoritesEvent"
-
-    def __init_subclass__(
-        cls,
-        *,
-        required_fields: tuple[str, ...] | None = None,
-        aggregate_id_field: str | None = None,
-        **kwargs: object,
-    ) -> None:
-        super().__init_subclass__(**kwargs)
-        if required_fields is not None:
-            cls._required_fields = required_fields
-        if aggregate_id_field is not None:
-            cls._aggregate_id_field = aggregate_id_field
-
-        if required_fields is not None and cls.event_type == "FavoritesEvent":
-            raise TypeError(
-                f"{cls.__name__} must define its own 'event_type' "
-                f"(inherited default 'FavoritesEvent' would misroute events)"
-            )
-
-    def __post_init__(self) -> None:
-        cls_name = type(self).__name__
-        for field_name in self._required_fields:
-            if getattr(self, field_name) is None:
-                raise ValueError(f"{field_name} is required for {cls_name}")
-        if not self.aggregate_id and self._aggregate_id_field:
-            self.aggregate_id = str(getattr(self, self._aggregate_id_field))
 
 
 # ---------------------------------------------------------------------------
