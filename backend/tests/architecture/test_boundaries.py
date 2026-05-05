@@ -125,27 +125,34 @@ ALLOWED_CROSS_MODULE = {
         "src.modules.catalog.application.queries.search_products",
         "src.modules.catalog.application.queries.get_storefront_cards_by_ids",
     },
-    # ADR-005 — pricing recompute service reads SKU purchase price from
-    # catalog and writes selling price back. The pricing domain stays
-    # ignorant of catalog ORM via ports (``ISkuPricingInputReader``,
-    # ``ISkuPricingResultWriter``); only these two infrastructure
-    # adapters touch catalog tables, and they translate ORM rows into
-    # pure pricing DTOs.
+    # ADR-005 / ADR-005a — pricing recompute reads SKU purchase price
+    # from catalog through a read-only ACL adapter and writes the
+    # selling price back through the catalog-side
+    # ``IInternalSkuPricingApplyPort`` (declared in
+    # ``catalog.domain.interfaces``, implemented in
+    # ``catalog.application.commands.apply_sku_pricing_result``). The
+    # writer adapter has been removed -- pricing now imports only the
+    # port type from catalog domain, plus the read-side adapter for
+    # pricing inputs.
     ("pricing", "catalog"): {
         "src.modules.pricing.infrastructure.adapters.sku_pricing_input_reader",
-        "src.modules.pricing.infrastructure.adapters.sku_pricing_result_writer",
+        "src.modules.pricing.infrastructure.services.recompute_service",
     },
-    # Same adapters resolve ``supplier.type`` to look up the per‑type
+    # Same input reader resolves ``supplier.type`` for the per-type
     # pricing context mapping during SKU recompute.
     ("pricing", "supplier"): {
         "src.modules.pricing.infrastructure.adapters.sku_pricing_input_reader",
     },
-    # Both pricing adapters look up ``CurrencyModel.minor_unit`` to
-    # convert between integer-kopecks (catalog storage) and
-    # Decimal-major-units (formula evaluator). Read-only ORM lookup.
+    # Pricing reads ``CurrencyModel.minor_unit`` for kopecks <->
+    # major-unit conversion in both directions: input reader for
+    # ``purchase_price``, scope reader for ``target_currency``
+    # selling-price conversion (ADR-005a). The catalog-side
+    # ``ApplySkuPricingResultHandler`` receives the converted integer
+    # minor-unit value via :class:`SkuPricingApplyRequest` and never
+    # imports the geo module itself.
     ("pricing", "geo"): {
         "src.modules.pricing.infrastructure.adapters.sku_pricing_input_reader",
-        "src.modules.pricing.infrastructure.adapters.sku_pricing_result_writer",
+        "src.modules.pricing.infrastructure.adapters.sku_pricing_scope_reader",
     },
     # Logistics builds Parcel weights from a category-level estimate
     # maintained in pricing (Product → Category → CategoryPricingSettings).
