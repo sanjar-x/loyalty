@@ -1084,4 +1084,10 @@ class SkuPricingHistoryModel(Base):
     )
     inputs_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     failure_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # ADR-005a Open Issue #3 -- discriminator that separates ordinary
+    # failure transitions (None) from optimistic-lock retry exhaustion
+    # ("retry_exhausted"). Underlying SQL column added in PR-S6 commit
+    # 6/8 migration; ORM declaration lands here in commit 4/8 so the
+    # concrete repository can persist the field at insert time.
+    failure_kind: Mapped[str | None] = mapped_column(String(32), nullable=True)
     correlation_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
