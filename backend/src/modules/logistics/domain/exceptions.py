@@ -49,19 +49,44 @@ class ShipmentNotFoundError(NotFoundError):
 
 
 class InvalidShipmentTransitionError(ConflictError):
-    """Raised when a Shipment FSM transition is not allowed (HTTP 409)."""
+    """Raised when a Shipment FSM transition is not allowed (HTTP 409).
+
+    Kwargs renamed in REFACT-001 PR-1b'' (``current_status=``/``target_status=``
+    → ``current=``/``target=``) to align with the
+    :class:`~src.shared.interfaces.fsm.StateMachineMixin` exception
+    Protocol shared by Order and PaymentIntent.
+    """
 
     def __init__(
         self,
-        current_status: str,
-        target_status: str,
+        *,
+        current: str,
+        target: str,
         details: dict[str, Any] | None = None,
     ):
         super().__init__(
-            message=f"Cannot transition from '{current_status}' to '{target_status}'",
+            message=f"Cannot transition from '{current}' to '{target}'",
             error_code="INVALID_SHIPMENT_TRANSITION",
-            details=details
-            or {"current_status": current_status, "target_status": target_status},
+            details=details or {"current": current, "target": target},
+        )
+
+
+class ShipmentAlreadyTerminalError(ConflictError):
+    """Raised when a Shipment FSM transition is attempted from a terminal state.
+
+    Distinguishable from :class:`InvalidShipmentTransitionError` so
+    observability can separate «moved into terminal long ago» from
+    «attempted a non-existent edge». Mandated by ``StateMachineMixin``
+    contract -- the mixin checks ``_TERMINAL_STATES`` before
+    ``_ALLOWED_TRANSITIONS`` and raises this class for terminal sources
+    (REFACT-001 PR-1b'').
+    """
+
+    def __init__(self, *, status: str) -> None:
+        super().__init__(
+            message=f"Shipment is in terminal state: {status}",
+            error_code="SHIPMENT_ALREADY_TERMINAL",
+            details={"status": status},
         )
 
 

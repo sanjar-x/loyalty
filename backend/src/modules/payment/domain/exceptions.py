@@ -28,6 +28,24 @@ class PaymentIntentInvalidTransitionError(ConflictError):
         )
 
 
+class PaymentIntentAlreadyTerminalError(ConflictError):
+    """Raised when an FSM transition is attempted from a terminal state.
+
+    Distinguishable from :class:`PaymentIntentInvalidTransitionError`
+    so observability can separate «moved into terminal long ago» from
+    «attempted a non-existent edge». Mandated by ``StateMachineMixin``
+    contract -- the mixin checks ``_TERMINAL_STATES`` before
+    ``_ALLOWED_TRANSITIONS`` and raises this class for terminal sources.
+    """
+
+    def __init__(self, *, status: str) -> None:
+        super().__init__(
+            message=f"PaymentIntent is in terminal state: {status}",
+            error_code="PAYMENT_INTENT_ALREADY_TERMINAL",
+            details={"status": status},
+        )
+
+
 class PaymentProviderError(UnprocessableEntityError):
     def __init__(self, *, provider: str, reason: str) -> None:
         super().__init__(

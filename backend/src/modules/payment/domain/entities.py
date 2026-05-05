@@ -23,6 +23,7 @@ from src.modules.payment.domain.events import (
     PaymentRefundedEvent,
 )
 from src.modules.payment.domain.exceptions import (
+    PaymentIntentAlreadyTerminalError,
     PaymentIntentInvalidTransitionError,
 )
 from src.modules.payment.domain.value_objects import (
@@ -30,6 +31,7 @@ from src.modules.payment.domain.value_objects import (
     ProviderCode,
 )
 from src.shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.fsm import StateMachineMixin
 
 TERMINAL_STATUSES: frozenset[PaymentIntentStatus] = frozenset(
     {
@@ -41,7 +43,7 @@ TERMINAL_STATUSES: frozenset[PaymentIntentStatus] = frozenset(
 
 
 @dataclass
-class PaymentIntent(AggregateRoot):
+class PaymentIntent(AggregateRoot, StateMachineMixin[PaymentIntentStatus]):
     """Payment intent aggregate.
 
     Attributes:
@@ -59,6 +61,11 @@ class PaymentIntent(AggregateRoot):
         updated_at: Last mutation timestamp.
         version: Optimistic locking counter.
     """
+
+    # FSM contract -- consumed by ``StateMachineMixin._transition``.
+    _TERMINAL_STATES: ClassVar[frozenset[PaymentIntentStatus]] = TERMINAL_STATUSES  # ty: ignore[invalid-type-form]
+    _invalid_transition_exc: ClassVar = PaymentIntentInvalidTransitionError
+    _already_terminal_exc: ClassVar = PaymentIntentAlreadyTerminalError
 
     _ALLOWED_TRANSITIONS: ClassVar[
         dict[PaymentIntentStatus, set[PaymentIntentStatus]]
@@ -135,18 +142,13 @@ class PaymentIntent(AggregateRoot):
         )
         return intent
 
-    @property
-    def is_terminal(self) -> bool:
-        return self.status in TERMINAL_STATUSES
-
-    def _transition(self, target: PaymentIntentStatus) -> None:
-        allowed = self._ALLOWED_TRANSITIONS.get(self.status, set())
-        if target not in allowed:
-            raise PaymentIntentInvalidTransitionError(
-                current=self.status.value, target=target.value
-            )
-        self.status = target
-        self.updated_at = datetime.now(UTC)
+    # ``is_terminal`` and ``_transition`` are inherited from
+    # ``StateMachineMixin`` (REFACT-001 PR-1b''). Behavioural delta vs
+    # the previous inlined ``_transition``: terminal-source attempts now
+    # raise :class:`PaymentIntentAlreadyTerminalError` (specific) instead
+    # of falling through to the generic
+    # :class:`PaymentIntentInvalidTransitionError`. Improves observability
+    # without changing the HTTP-status surface (both are 409 ConflictError).
 
     def authorize(
         self,

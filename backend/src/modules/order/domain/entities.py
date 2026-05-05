@@ -59,6 +59,7 @@ from src.modules.order.domain.value_objects import (
     category_of,
 )
 from src.shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.fsm import StateMachineMixin
 
 MAX_ITEM_QUANTITY = 99
 HOLD_TTL_DAYS = 30
@@ -93,8 +94,13 @@ class OrderItem:
 
 
 @dataclass
-class Order(AggregateRoot):
+class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
     """Loyality order aggregate (14-state FSM)."""
+
+    # FSM contract -- consumed by ``StateMachineMixin._transition``.
+    _TERMINAL_STATES: ClassVar[frozenset[OrderStatus]] = TERMINAL_STATUSES  # ty: ignore[invalid-type-form]
+    _invalid_transition_exc: ClassVar = OrderInvalidTransitionError
+    _already_terminal_exc: ClassVar = OrderAlreadyTerminalError
 
     _ALLOWED_TRANSITIONS: ClassVar[dict[OrderStatus, set[OrderStatus]]] = {
         OrderStatus.PENDING: {
@@ -240,24 +246,15 @@ class Order(AggregateRoot):
     def number(self) -> OrderNumber:
         return OrderNumber.from_id(self.id, self.created_at)
 
-    @property
-    def is_terminal(self) -> bool:
-        return self.status in TERMINAL_STATUSES
+    # ``is_terminal`` and ``_transition`` are now inherited from
+    # ``StateMachineMixin`` (REFACT-001 PR-1b''). The mixin enforces
+    # terminal-first then allowed-edge semantics with the same exception
+    # classes (`OrderAlreadyTerminalError` / `OrderInvalidTransitionError`)
+    # that the inlined version used.
 
     @property
     def was_paid(self) -> bool:
         return self.status in PAID_STATUSES
-
-    def _transition(self, target: OrderStatus) -> None:
-        if self.is_terminal:
-            raise OrderAlreadyTerminalError(status=self.status.value)
-        allowed = self._ALLOWED_TRANSITIONS.get(self.status, set())
-        if target not in allowed:
-            raise OrderInvalidTransitionError(
-                current=self.status.value, target=target.value
-            )
-        self.status = target
-        self.updated_at = datetime.now(UTC)
 
     # ---------------------------------------------------------------------------
     # FSM operations
