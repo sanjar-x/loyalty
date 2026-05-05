@@ -12,8 +12,11 @@ Typical usage:
             self._repo = repo
 """
 
+import enum
 import uuid
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from datetime import datetime
 
 from src.modules.catalog.domain.entities import Attribute as DomainAttribute
 from src.modules.catalog.domain.entities import AttributeGroup as DomainAttributeGroup
@@ -537,4 +540,169 @@ class ITemplateAttributeBindingRepository(
         self, attribute_id: uuid.UUID
     ) -> list[uuid.UUID]:
         """Return template IDs that bind the given attribute."""
+        pass
+
+
+# ---------------------------------------------------------------------------
+# SKU pricing — internal apply port (ADR-005a)
+# ---------------------------------------------------------------------------
+#
+# Catalog owns SKU pricing lifecycle (FOR UPDATE locks, version bumps,
+# pricing_status FSM transitions, sku_pricing_history audit, outbox
+# event emission). Pricing imports the port + DTOs declared below from
+# its recompute service to hand off computed results — see ADR-005a
+# for the architectural rationale and ADR-005 for the underlying
+# autonomous-recompute model.
+
+
+class WriteOutcome(enum.StrEnum):
+    """Discriminated outcome of a SKU pricing apply operation (ADR-005a).
+
+    Intentionally enumerated rather than ``bool`` so the pricing-side
+    caller can distinguish between (a) an idempotent hash-match no-op
+    (no retry needed), (b) a version mismatch (retryable race with a
+    concurrent admin edit or sibling recompute), and (c) terminal
+    success or failure paths. ``assert_never`` over this enum on the
+    caller side guarantees exhaustive handling.
+    """
+
+    APPLIED = "applied"
+    HASH_NOOP = "hash_noop"
+    VERSION_CONFLICT = "version_conflict"
+    FAILURE_PERSISTED = "failure_persisted"
+
+
+@dataclass(frozen=True)
+class SkuPricingApplyRequest:
+    """Successful recompute payload handed off to the catalog apply port.
+
+    The pricing-side service performs the Decimal-major-units → integer
+    minor-units conversion (using ``target_currency_minor_unit`` from
+    the scope snapshot, sourced from ``geo.Currency.minor_unit``)
+    before constructing this DTO; the catalog handler stores what it's
+    given and never imports the geo module.
+
+    ``previous_status`` is the status observed at the start of the
+    recompute pass (under the input reader's lock); copied into the
+    audit row so admins can reconstruct the transition without a
+    second SELECT.
+    """
+
+    product_id: uuid.UUID
+    sku_id: uuid.UUID
+    expected_version: int
+    previous_status: str | None
+    selling_price_minor: int
+    selling_currency: str
+    formula_version_id: uuid.UUID
+    inputs_hash: str
+    priced_at: datetime
+    correlation_id: str | None = None
+
+
+@dataclass(frozen=True)
+class SkuPricingFailureRequest:
+    """Failed recompute payload handed off to the catalog apply port.
+
+    ``failure_kind`` is the discriminator that separates ordinary
+    failure transitions (``None`` — value of ``pricing_status`` already
+    carries the kind: ``stale_fx`` / ``missing_purchase_price`` /
+    ``formula_error``) from optimistic-lock retry exhaustion
+    (``"retry_exhausted"``). ADR-005a Open Issue #3 fixed the decision
+    to persist retry-exhausted failures with this discriminator so
+    analytics dashboards can alert on rising rates separately from
+    formula bug rates.
+    """
+
+    product_id: uuid.UUID
+    sku_id: uuid.UUID
+    expected_version: int
+    previous_status: str | None
+    pricing_status: str
+    failure_reason: str
+    failure_kind: str | None = None
+    correlation_id: str | None = None
+
+
+@dataclass(frozen=True)
+class PricingHistoryEntry:
+    """Append-only audit row mirroring ``sku_pricing_history`` schema.
+
+    One entry per real state change (no entries for hash-match no-ops).
+    Persisted by :class:`IPricingHistoryRepository` in the same UoW
+    transaction as the SKU UPDATE so the audit trail can never desync
+    from the state it describes.
+    """
+
+    sku_id: uuid.UUID
+    new_status: str
+    previous_status: str | None
+    selling_price: int | None
+    selling_currency: str | None
+    formula_version_id: uuid.UUID | None
+    inputs_hash: str | None
+    failure_reason: str | None
+    failure_kind: str | None
+    correlation_id: str | None
+
+
+class IInternalSkuPricingApplyPort(ABC):
+    """Port: apply a SKU pricing recompute result on the catalog side.
+
+    Owned by catalog (the SKU lifecycle owner); imported by the
+    pricing recompute service per ADR-005a inversion. Both methods are
+    transaction-bound: the implementation takes a ``FOR UPDATE`` on
+    the owning Product aggregate (catalog UoW convention), mutates the
+    SKU child entity, writes the audit row, emits the appropriate
+    domain event, and commits in a single transaction.
+
+    Implementations must be safe to retry: identical
+    ``inputs_hash`` for ``apply_success`` short-circuits as
+    :attr:`WriteOutcome.HASH_NOOP` at the row level.
+    """
+
+    @abstractmethod
+    async def apply_success(self, request: SkuPricingApplyRequest) -> WriteOutcome:
+        """Persist a successful recompute result.
+
+        Returns:
+            :attr:`WriteOutcome.APPLIED` — selling_price/status/version
+                updated, history row inserted, ``SKUPricedEvent``
+                emitted.
+            :attr:`WriteOutcome.HASH_NOOP` — observed
+                ``priced_inputs_hash`` already matches
+                ``request.inputs_hash``; row already in desired state,
+                no mutation, no audit row, no event.
+            :attr:`WriteOutcome.VERSION_CONFLICT` — observed
+                ``version`` differs from ``request.expected_version``;
+                caller should retry with a fresh read.
+        """
+
+    @abstractmethod
+    async def apply_failure(self, request: SkuPricingFailureRequest) -> WriteOutcome:
+        """Persist a failure status (stale_fx / missing_purchase_price /
+        formula_error / retry-exhausted).
+
+        Returns:
+            :attr:`WriteOutcome.FAILURE_PERSISTED` — pricing_status
+                and ``priced_failure_reason`` updated, history row
+                inserted with the ``failure_kind`` discriminator,
+                ``SKUPricingFailedEvent`` emitted.
+            :attr:`WriteOutcome.VERSION_CONFLICT` — caller should
+                retry.
+        """
+
+
+class IPricingHistoryRepository(ABC):
+    """Port: append-only writer for the ``sku_pricing_history`` audit table.
+
+    Lives on the catalog side to keep the audit trail bound to the
+    SKU lifecycle owner (ADR-005a). Inserts run in the caller's UoW
+    so the history can never get out of sync with the SKU row it
+    describes.
+    """
+
+    @abstractmethod
+    async def add(self, entry: PricingHistoryEntry) -> None:
+        """Persist one audit row."""
         pass
