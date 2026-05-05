@@ -1,69 +1,28 @@
-"""
-Cart domain events.
+"""Cart domain events.
 
-Events are emitted by Cart aggregate during business operations, serialized
-to JSON via ``dataclasses.asdict()``, and stored atomically in the Outbox table.
+Events are emitted by the Cart aggregate during business operations,
+serialized via ``dataclasses.asdict()`` and stored atomically in the
+Outbox table. They are plain (non-frozen) dataclasses but MUST be
+treated as immutable after construction.
 
-Events are plain (non-frozen) dataclasses because ``DomainEvent`` base class
-is non-frozen. Events MUST be treated as immutable after construction.
-
-Follows the same ``__init_subclass__`` + ``__post_init__`` validation pattern
-established by ``CatalogEvent``.
+Validation and ``aggregate_id`` auto-fill come from
+:class:`src.shared.interfaces.entities.ModuleDomainEvent`; this module
+only declares the ``aggregate_type`` discriminator and the concrete
+event payloads.
 """
 
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import ClassVar
 
-from src.shared.interfaces.entities import DomainEvent
+from src.shared.interfaces.entities import ModuleDomainEvent
 
 
 @dataclass
-class CartEvent(DomainEvent):
-    """Intermediate base for all cart domain events.
-
-    Subclasses declare which UUID fields are required and which field
-    supplies the ``aggregate_id`` via class-level kwargs:
-
-    * ``required_fields`` — field names that must not be ``None``.
-    * ``aggregate_id_field`` — the single field whose ``str()`` value
-      is copied into ``aggregate_id`` when the caller does not set it
-      explicitly.
-    """
-
-    _required_fields: ClassVar[tuple[str, ...]] = ()
-    _aggregate_id_field: ClassVar[str] = ""
+class CartEvent(ModuleDomainEvent, abstract=True):
+    """Intermediate base for all cart domain events."""
 
     aggregate_type: str = "cart"
-    event_type: str = "CartEvent"
-
-    def __init_subclass__(
-        cls,
-        *,
-        required_fields: tuple[str, ...] | None = None,
-        aggregate_id_field: str | None = None,
-        **kwargs: object,
-    ) -> None:
-        super().__init_subclass__(**kwargs)
-        if required_fields is not None:
-            cls._required_fields = required_fields
-        if aggregate_id_field is not None:
-            cls._aggregate_id_field = aggregate_id_field
-
-        if required_fields is not None and cls.event_type == "CartEvent":
-            raise TypeError(
-                f"{cls.__name__} must define its own 'event_type' "
-                f"(inherited default 'CartEvent' would misroute events)"
-            )
-
-    def __post_init__(self) -> None:
-        cls_name = type(self).__name__
-        for field_name in self._required_fields:
-            if getattr(self, field_name) is None:
-                raise ValueError(f"{field_name} is required for {cls_name}")
-        if not self.aggregate_id and self._aggregate_id_field:
-            self.aggregate_id = str(getattr(self, self._aggregate_id_field))
 
 
 # ---------------------------------------------------------------------------

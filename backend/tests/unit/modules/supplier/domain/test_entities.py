@@ -27,7 +27,7 @@ class TestSupplierCreate:
         assert supplier.is_active is True
         assert supplier.version == 1
         assert len(supplier.domain_events) == 1
-        assert supplier.domain_events[0].event_type == "supplier.created"
+        assert supplier.domain_events[0].event_type == "SupplierCreatedEvent"
 
     def test_create_cross_border_supplier(self):
         supplier = Supplier.create(
@@ -102,7 +102,7 @@ class TestSupplierUpdate:
         supplier.update(name="New Name")
         assert supplier.name == "New Name"
         assert len(supplier.domain_events) == 1
-        assert supplier.domain_events[0].event_type == "supplier.updated"
+        assert supplier.domain_events[0].event_type == "SupplierUpdatedEvent"
 
     def test_update_country_code(self):
         supplier = Supplier.create(
@@ -165,7 +165,7 @@ class TestSupplierActivation:
         supplier.clear_domain_events()
         supplier.deactivate()
         assert supplier.is_active is False
-        assert supplier.domain_events[0].event_type == "supplier.deactivated"
+        assert supplier.domain_events[0].event_type == "SupplierDeactivatedEvent"
 
     def test_deactivate_already_inactive_raises(self):
         supplier = Supplier.create(
@@ -187,7 +187,7 @@ class TestSupplierActivation:
         supplier.clear_domain_events()
         supplier.activate()
         assert supplier.is_active is True
-        assert supplier.domain_events[0].event_type == "supplier.activated"
+        assert supplier.domain_events[0].event_type == "SupplierActivatedEvent"
 
     def test_activate_already_active_raises(self):
         supplier = Supplier.create(
