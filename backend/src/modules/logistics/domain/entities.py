@@ -8,6 +8,7 @@ Part of the domain layer — zero infrastructure imports.
 
 import uuid
 from datetime import UTC, datetime
+from typing import ClassVar
 
 import attrs
 
@@ -32,7 +33,10 @@ from src.modules.logistics.domain.events import (
     ShipmentReturnRegisteredEvent,
     ShipmentTrackingUpdatedEvent,
 )
-from src.modules.logistics.domain.exceptions import InvalidShipmentTransitionError
+from src.modules.logistics.domain.exceptions import (
+    InvalidShipmentTransitionError,
+    ShipmentAlreadyTerminalError,
+)
 from src.modules.logistics.domain.value_objects import (
     DOBROPOST_CROSS_BORDER_ARRIVED_CODES,
     PROVIDER_DOBROPOST,
@@ -59,62 +63,11 @@ from src.modules.logistics.domain.value_objects import (
     TrackingStatus,
 )
 from src.shared.interfaces.entities import AggregateRoot
-
-# ---------------------------------------------------------------------------
-# FSM transition table
-# ---------------------------------------------------------------------------
-
-_ALLOWED_TRANSITIONS: dict[ShipmentStatus, frozenset[ShipmentStatus]] = {
-    ShipmentStatus.DRAFT: frozenset(
-        {
-            ShipmentStatus.BOOKING_PENDING,
-            ShipmentStatus.CANCELLED,
-            # An out-of-band carrier event for a draft (rare — provider
-            # was never asked to book) still routes to FAILED so the
-            # FSM stays self-consistent.
-            ShipmentStatus.FAILED,
-        }
-    ),
-    ShipmentStatus.BOOKING_PENDING: frozenset(
-        {
-            # Idempotent retry of BOOKING_PENDING is handled by
-            # ``mark_booking_pending`` short-circuiting *before*
-            # ``_transition_to`` — it never reaches the table.
-            ShipmentStatus.BOOKED,
-            ShipmentStatus.FAILED,
-            # Auto-transition from terminal carrier statuses ingested
-            # while booking is still pending (e.g. webhook reports
-            # NOT_DELIVERED before the polling window resolves).
-            ShipmentStatus.CANCELLED,
-        }
-    ),
-    ShipmentStatus.BOOKED: frozenset(
-        {
-            ShipmentStatus.CANCEL_PENDING,
-            # Carrier-initiated terminal outcomes ingested via tracking events.
-            ShipmentStatus.FAILED,
-            ShipmentStatus.CANCELLED,
-        }
-    ),
-    ShipmentStatus.CANCEL_PENDING: frozenset(
-        {
-            ShipmentStatus.CANCELLED,
-            ShipmentStatus.BOOKED,  # revert when provider rejects cancellation
-            # A carrier-side terminal failure landing during the
-            # cancel-in-flight window is realistic — the request to
-            # cancel raced with the carrier reporting the package as
-            # LOST/DAMAGED. We accept it as the final state instead
-            # of crashing the webhook ingestion path.
-            ShipmentStatus.FAILED,
-        }
-    ),
-    ShipmentStatus.CANCELLED: frozenset(),
-    ShipmentStatus.FAILED: frozenset(),
-}
+from src.shared.interfaces.fsm import StateMachineMixin
 
 
 @attrs.define
-class Shipment(AggregateRoot):
+class Shipment(AggregateRoot, StateMachineMixin[ShipmentStatus]):
     """Shipment aggregate root.
 
     Tracks the local integration workflow. Provider-specific carrier
@@ -143,6 +96,68 @@ class Shipment(AggregateRoot):
         cancelled_at: When cancellation was confirmed.
         version: Optimistic locking counter.
     """
+
+    # FSM contract -- consumed by ``StateMachineMixin._transition``
+    # (REFACT-001 PR-1b''). ``_transition`` is overridden below to retain
+    # Logistics-specific inline ``self.version += 1`` -- see PR description
+    # / REC-012 for the deferred Strategy A migration plan.
+    _TERMINAL_STATES: ClassVar[frozenset[ShipmentStatus]] = frozenset(  # ty: ignore[invalid-type-form]
+        {ShipmentStatus.CANCELLED, ShipmentStatus.FAILED}
+    )
+    _invalid_transition_exc: ClassVar = InvalidShipmentTransitionError
+    _already_terminal_exc: ClassVar = ShipmentAlreadyTerminalError
+
+    _ALLOWED_TRANSITIONS: ClassVar[  # ty: ignore[invalid-type-form]
+        dict[ShipmentStatus, frozenset[ShipmentStatus]]
+    ] = {
+        ShipmentStatus.DRAFT: frozenset(
+            {
+                ShipmentStatus.BOOKING_PENDING,
+                ShipmentStatus.CANCELLED,
+                # An out-of-band carrier event for a draft (rare -- provider
+                # was never asked to book) still routes to FAILED so the
+                # FSM stays self-consistent.
+                ShipmentStatus.FAILED,
+            }
+        ),
+        ShipmentStatus.BOOKING_PENDING: frozenset(
+            {
+                # Idempotent retry of BOOKING_PENDING is handled by
+                # ``mark_booking_pending`` short-circuiting *before*
+                # ``_transition`` -- it never reaches the table.
+                ShipmentStatus.BOOKED,
+                ShipmentStatus.FAILED,
+                # Auto-transition from terminal carrier statuses ingested
+                # while booking is still pending (e.g. webhook reports
+                # NOT_DELIVERED before the polling window resolves).
+                ShipmentStatus.CANCELLED,
+            }
+        ),
+        ShipmentStatus.BOOKED: frozenset(
+            {
+                ShipmentStatus.CANCEL_PENDING,
+                # Carrier-initiated terminal outcomes ingested via
+                # tracking events.
+                ShipmentStatus.FAILED,
+                ShipmentStatus.CANCELLED,
+            }
+        ),
+        ShipmentStatus.CANCEL_PENDING: frozenset(
+            {
+                ShipmentStatus.CANCELLED,
+                # revert when provider rejects cancellation
+                ShipmentStatus.BOOKED,
+                # A carrier-side terminal failure landing during the
+                # cancel-in-flight window is realistic -- the request to
+                # cancel raced with the carrier reporting the package as
+                # LOST/DAMAGED. We accept it as the final state instead
+                # of crashing the webhook ingestion path.
+                ShipmentStatus.FAILED,
+            }
+        ),
+        ShipmentStatus.CANCELLED: frozenset(),
+        ShipmentStatus.FAILED: frozenset(),
+    }
 
     id: uuid.UUID
     order_id: uuid.UUID | None
@@ -336,16 +351,25 @@ class Shipment(AggregateRoot):
 
     # -- FSM transitions ----------------------------------------------------
 
-    def _transition_to(self, target: ShipmentStatus) -> None:
-        allowed = _ALLOWED_TRANSITIONS.get(self.status, frozenset())
-        if target not in allowed:
-            raise InvalidShipmentTransitionError(
-                current_status=self.status.value,
-                target_status=target.value,
-            )
-        self.status = target
-        self.updated_at = datetime.now(UTC)
+    def _transition(self, target: ShipmentStatus) -> ShipmentStatus:
+        """Override ``StateMachineMixin._transition`` to retain Logistics'
+        inline version-bump (Strategy B).
+
+        Logistics aggregate manages ``self.version`` inline across all 11
+        mutation methods (FSM transition + 10 non-FSM: tracking events,
+        recipient/destination changes, edit tasks, intake, returns,
+        refusals, passport flags). The ``ShipmentRepository`` does NOT
+        unconditionally bump on update -- it copies ``entity.version``.
+
+        Order and PaymentIntent follow the canonical Strategy A
+        (repo-bump). Migrating Logistics to align is tracked under
+        REC-012 (post-Sprint-0). This override preserves the established
+        pattern while still benefitting from the mixin's terminal-check
+        and exception unification (REFACT-001 PR-1b'').
+        """
+        previous = super()._transition(target)
         self.version += 1
+        return previous
 
     def mark_booking_pending(self) -> None:
         """Transition DRAFT → BOOKING_PENDING (idempotent on retry).
@@ -358,7 +382,7 @@ class Shipment(AggregateRoot):
         """
         if self.status == ShipmentStatus.BOOKING_PENDING:
             return
-        self._transition_to(ShipmentStatus.BOOKING_PENDING)
+        self._transition(ShipmentStatus.BOOKING_PENDING)
         self.add_domain_event(ShipmentBookingRequestedEvent(shipment_id=self.id))
 
     def mark_booked(
@@ -381,7 +405,7 @@ class Shipment(AggregateRoot):
         the quote survive a booking response that only echoes
         ``estimated_date``.
         """
-        self._transition_to(ShipmentStatus.BOOKED)
+        self._transition(ShipmentStatus.BOOKED)
         if provider_shipment_id:
             self.provider_shipment_id = provider_shipment_id
         if tracking_number:
@@ -403,7 +427,7 @@ class Shipment(AggregateRoot):
 
     def mark_booking_failed(self, reason: str) -> None:
         """Transition BOOKING_PENDING → FAILED."""
-        self._transition_to(ShipmentStatus.FAILED)
+        self._transition(ShipmentStatus.FAILED)
         self.failure_reason = reason
         self.add_domain_event(
             ShipmentBookingFailedEvent(
@@ -419,13 +443,13 @@ class Shipment(AggregateRoot):
         cancel attempt — a successful (re)cancellation must not
         surface stale error text downstream.
         """
-        self._transition_to(ShipmentStatus.CANCEL_PENDING)
+        self._transition(ShipmentStatus.CANCEL_PENDING)
         self.failure_reason = None
         self.add_domain_event(ShipmentCancellationRequestedEvent(shipment_id=self.id))
 
     def mark_cancelled(self) -> None:
         """Transition CANCEL_PENDING → CANCELLED."""
-        self._transition_to(ShipmentStatus.CANCELLED)
+        self._transition(ShipmentStatus.CANCELLED)
         self.cancelled_at = datetime.now(UTC)
         # Cancellation succeeded — drop any failure note from a prior
         # rejected cancel attempt so consumers don't read it as the
@@ -435,7 +459,7 @@ class Shipment(AggregateRoot):
 
     def mark_cancellation_failed(self, reason: str) -> None:
         """Transition CANCEL_PENDING → BOOKED (shipment still active with carrier)."""
-        self._transition_to(ShipmentStatus.BOOKED)
+        self._transition(ShipmentStatus.BOOKED)
         self.failure_reason = reason
         self.add_domain_event(
             ShipmentCancellationFailedEvent(
@@ -446,7 +470,7 @@ class Shipment(AggregateRoot):
 
     def cancel_draft(self) -> None:
         """Cancel a shipment that is still in DRAFT (no provider call needed)."""
-        self._transition_to(ShipmentStatus.CANCELLED)
+        self._transition(ShipmentStatus.CANCELLED)
         self.cancelled_at = datetime.now(UTC)
         self.add_domain_event(ShipmentCancelledEvent(shipment_id=self.id))
 
@@ -470,7 +494,7 @@ class Shipment(AggregateRoot):
         """
         if self.status == ShipmentStatus.FAILED:
             return
-        self._transition_to(ShipmentStatus.FAILED)
+        self._transition(ShipmentStatus.FAILED)
         self.failure_reason = reason
         self._discard_pending_carrier_state()
         self.add_domain_event(
@@ -489,7 +513,7 @@ class Shipment(AggregateRoot):
         """
         if self.status == ShipmentStatus.CANCELLED:
             return
-        self._transition_to(ShipmentStatus.CANCELLED)
+        self._transition(ShipmentStatus.CANCELLED)
         self.cancelled_at = datetime.now(UTC)
         if reason is not None:
             self.failure_reason = reason

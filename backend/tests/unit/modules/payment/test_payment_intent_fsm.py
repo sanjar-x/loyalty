@@ -6,6 +6,7 @@ import pytest
 
 from src.modules.payment.domain.entities import PaymentIntent
 from src.modules.payment.domain.exceptions import (
+    PaymentIntentAlreadyTerminalError,
     PaymentIntentInvalidTransitionError,
 )
 from src.modules.payment.domain.value_objects import (
@@ -56,9 +57,14 @@ class TestIllegalTransitions:
             intent.refund()
 
     def test_failed_intent_cannot_authorize(self) -> None:
+        # FAILED is a terminal state -- the StateMachineMixin raises
+        # the specific PaymentIntentAlreadyTerminalError (REFACT-001
+        # PR-1b''). Previously this was a generic invalid-transition
+        # because the inlined ``_transition`` did not check
+        # ``_TERMINAL_STATES`` separately.
         intent = _intent()
         intent.fail(reason="provider_rejected")
-        with pytest.raises(PaymentIntentInvalidTransitionError):
+        with pytest.raises(PaymentIntentAlreadyTerminalError):
             intent.authorize(provider_reference="x", client_secret="cs")
 
     def test_invalid_amount_raises(self) -> None:

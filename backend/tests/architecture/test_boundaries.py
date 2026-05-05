@@ -322,6 +322,47 @@ def test_fsm_mixin_is_framework_free():
     )
 
 
+# Rule 9: FSM aggregates inherit StateMachineMixin (REFACT-001 PR-1b'')
+# Order / PaymentIntent / Shipment own optimistic-locked status FSMs and
+# MUST consume the shared StateMachineMixin from
+# ``src.shared.interfaces.fsm`` rather than re-implementing terminal
+# checks, edge validation, and exception construction inline. The mixin
+# centralises mechanical contract (terminal-first, then allowed-edge;
+# kwargs-only ``current=``/``target=``/``status=`` exception signatures;
+# ``is_terminal`` property; ``updated_at`` advancement) so a future
+# fourth FSM aggregate gets the same semantics without copy-paste drift.
+_FSM_AGGREGATE_MODULES: tuple[tuple[str, str], ...] = (
+    ("order", "Order"),
+    ("payment", "PaymentIntent"),
+    ("logistics", "Shipment"),
+)
+
+
+@pytest.mark.parametrize(("module", "aggregate"), _FSM_AGGREGATE_MODULES)
+def test_fsm_aggregate_inherits_state_machine_mixin(
+    module: str, aggregate: str
+) -> None:
+    """FSM aggregates MUST inherit ``StateMachineMixin``."""
+    import importlib
+
+    from src.shared.interfaces.fsm import StateMachineMixin
+
+    entities = importlib.import_module(f"src.modules.{module}.domain.entities")
+    cls = getattr(entities, aggregate, None)
+    assert cls is not None, (
+        f"Module '{module}' does not expose aggregate '{aggregate}' in "
+        f"domain.entities -- Rule 9 cannot verify mixin inheritance."
+    )
+    assert issubclass(cls, StateMachineMixin), (
+        f"{aggregate} ({module}) must inherit "
+        f"src.shared.interfaces.fsm.StateMachineMixin -- declare four "
+        f"ClassVars (_ALLOWED_TRANSITIONS, _TERMINAL_STATES, "
+        f"_invalid_transition_exc, _already_terminal_exc) and apply the "
+        f"mixin (REFACT-001 PR-1b'' Rule 9). Inlined FSM logic is "
+        f"forbidden."
+    )
+
+
 # Rule 7: No Reverse Layer Dependencies
 @pytest.mark.parametrize("module", MODULES)
 def test_no_reverse_layer_dependencies(module: str):
