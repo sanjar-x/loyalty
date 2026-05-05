@@ -1013,3 +1013,75 @@ class ProductAttributeValue(Base):
         ),
         Index("ix_product_attr_val_lookup", "attribute_value_id", "product_id"),
     )
+
+
+# ---------------------------------------------------------------------------
+# SKU pricing audit (ADR-005 / ADR-005a)
+# ---------------------------------------------------------------------------
+
+
+class SkuPricingHistoryModel(Base):
+    """Append-only audit trail of SKU pricing recompute outcomes (ADR-005).
+
+    One row per state change (no rows for hash-match no-ops). Combined
+    with the SKU row's current state this lets admins reconstruct
+    exactly when, why, and from which inputs each price came to be.
+    Inserts run inside the same UoW transaction as the corresponding
+    SKU UPDATE so the history can never get out of sync with the
+    state it describes.
+
+    Lives on the catalog side (per ADR-005a §Decision -- catalog owns
+    the SKU lifecycle and therefore the audit storage that mirrors
+    each lifecycle transition). The SQL table is unchanged from its
+    original location in pricing; only the Python class location
+    moved.
+    """
+
+    __tablename__ = "sku_pricing_history"
+    __table_args__ = (
+        CheckConstraint(
+            "new_status IN ('legacy', 'pending', 'priced', 'stale_fx', "
+            "'missing_purchase_price', 'formula_error')",
+            name="ck_sku_pricing_history_status_enum",
+        ),
+        Index(
+            "ix_sku_pricing_history_sku_recorded",
+            "sku_id",
+            text("recorded_at DESC"),
+        ),
+        Index(
+            "ix_sku_pricing_history_recorded_at",
+            "recorded_at",
+        ),
+        {
+            "comment": (
+                "Append-only audit trail of SKU pricing recompute outcomes (ADR-005)"
+            )
+        },
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    sku_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("skus.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    recorded_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    previous_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    new_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    selling_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    selling_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    formula_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    inputs_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    correlation_id: Mapped[str | None] = mapped_column(String(64), nullable=True)

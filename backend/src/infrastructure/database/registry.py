@@ -28,6 +28,7 @@ from src.modules.catalog.infrastructure.models import (
     ProductAttributeValue,
     ProductVariant,
     SKUAttributeValueLink,
+    SkuPricingHistoryModel,
     TemplateAttributeBinding,
 )
 from src.modules.favorites.infrastructure.models import (
@@ -78,7 +79,6 @@ from src.modules.pricing.infrastructure.models import (
     FormulaVersionModel,
     PricingContextModel,
     ProductPricingProfileModel,
-    SkuPricingHistoryModel,
     SupplierTypeContextMappingModel,
     VariableModel,
 )

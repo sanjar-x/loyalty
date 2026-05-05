@@ -27,6 +27,7 @@ from decimal import Decimal
 from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.infrastructure.database.registry import SkuPricingHistoryModel
 from src.modules.catalog.infrastructure.models import SKU
 from src.modules.geo.infrastructure.models import CurrencyModel
 from src.modules.pricing.domain.interfaces import (
@@ -34,7 +35,6 @@ from src.modules.pricing.domain.interfaces import (
     SkuPricingApplyRequest,
     SkuPricingFailureRequest,
 )
-from src.modules.pricing.infrastructure.models import SkuPricingHistoryModel
 
 
 class SkuPricingResultWriter(ISkuPricingResultWriter):
