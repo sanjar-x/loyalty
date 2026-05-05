@@ -145,36 +145,12 @@ class IOrderRepository(ABC):
 
 
 # ---------------------------------------------------------------------------
-# Idempotency + inbox
+# Idempotency + inbox -- moved to shared kernel (REFACT-001 PR-3a + PR-3b).
+# Order now consumes ``IIdempotencyStore`` and ``IInboxStore`` from
+# ``src.shared.interfaces.idempotency``; the framework-shared
+# ``IdempotencyProvider`` (registered in ``bootstrap.container``) wires
+# the SqlIdempotencyStore / SqlInboxStore implementations.
 # ---------------------------------------------------------------------------
-
-
-class IIdempotencyKeyStore(ABC):
-    @abstractmethod
-    async def reserve(
-        self,
-        *,
-        key: str,
-        identity_id: uuid.UUID,
-        scope: str,
-        expires_at: datetime,
-    ) -> bool: ...
-
-    @abstractmethod
-    async def attach_result(
-        self, *, key: str, scope: str, resource_id: uuid.UUID
-    ) -> None: ...
-
-    @abstractmethod
-    async def get_result(self, *, key: str, scope: str) -> uuid.UUID | None: ...
-
-
-class IInboxStore(ABC):
-    """Per-consumer inbox (research (7) §6) — UNIQUE event_id deduplication."""
-
-    @abstractmethod
-    async def try_record(self, *, event_id: uuid.UUID, consumer: str) -> bool:
-        """Insert (event_id, consumer) row. Returns False if already present."""
 
 
 # ---------------------------------------------------------------------------

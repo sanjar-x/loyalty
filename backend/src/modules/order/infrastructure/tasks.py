@@ -9,21 +9,21 @@ Subscribes to:
 Plus three cron jobs (stuck-in-CN, hold TTL, return-window-close) on
 TaskIQ Beat.
 
-Idempotency: each TaskIQ task records the inbound event_id into the
-``order_inbox_events`` table (UNIQUE on ``(event_id, consumer)``)
-before processing. A duplicate delivery returns early as a no-op.
+Idempotency: each TaskIQ task wraps its body via
+``run_inbox_idempotent`` (``src.infrastructure.idempotency``) which
+records the inbound event_id into the framework-shared ``consumer_inbox``
+table (UNIQUE on ``(event_id, consumer)``) before processing. A
+duplicate delivery returns early as a no-op (REFACT-001 PR-3a/PR-3b).
 """
 
 from __future__ import annotations
-
-import uuid
-from collections.abc import Awaitable, Callable
 
 import structlog
 from dishka.integrations.taskiq import FromDishka, inject
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bootstrap.broker import broker
+from src.infrastructure.idempotency import run_inbox_idempotent
 from src.infrastructure.outbox.relay import register_event_handler
 from src.modules.order.application.consumers.logistics_events import (
     DobroPostPassportInvalidConsumer,
@@ -34,71 +34,18 @@ from src.modules.order.application.consumers.payment_events import (
     PaymentCapturedConsumer,
     PaymentFailedConsumer,
 )
-from src.modules.order.domain.interfaces import IInboxStore
 from src.modules.order.infrastructure.services.cron_jobs import (
     HoldTtlExpiredCanceller,
     ReturnWindowCloser,
     StuckInCnDetector,
 )
+from src.shared.interfaces.idempotency import IInboxStore
 
 logger = structlog.get_logger(__name__)
 
 
 def _labels(correlation_id: str | None) -> dict[str, str]:
     return {"correlation_id": correlation_id} if correlation_id else {}
-
-
-def _extract_event_id(payload: dict) -> uuid.UUID | None:
-    raw = payload.get("event_id")
-    if raw is None:
-        return None
-    try:
-        return uuid.UUID(str(raw))
-    except TypeError, ValueError:
-        return None
-
-
-async def _run_idempotent(
-    *,
-    payload: dict,
-    consumer_name: str,
-    inbox: IInboxStore,
-    session: AsyncSession,
-    body: Callable[[], Awaitable[None]],
-) -> dict:
-    """Inbox-protected wrapper for a TaskIQ consumer task.
-
-    Records ``(event_id, consumer_name)`` into ``order_inbox_events``
-    before invoking ``body``. Duplicates short-circuit to a no-op so
-    at-least-once delivery from the broker becomes effectively
-    exactly-once at the business-effect level.
-    """
-    event_id = _extract_event_id(payload)
-    if event_id is None:
-        # No event_id in payload — fall back to non-idempotent execution
-        # rather than silently dropping the event. Real outbox events
-        # always carry one (DomainEvent base class).
-        logger.warning(
-            "order.inbox.no_event_id",
-            consumer=consumer_name,
-            payload_keys=sorted(payload.keys()),
-        )
-        await body()
-        await session.commit()
-        return {"status": "ok", "deduplicated": False}
-
-    recorded = await inbox.try_record(event_id=event_id, consumer=consumer_name)
-    if not recorded:
-        logger.info(
-            "order.inbox.duplicate",
-            consumer=consumer_name,
-            event_id=str(event_id),
-        )
-        return {"status": "ok", "deduplicated": True}
-
-    await body()
-    await session.commit()
-    return {"status": "ok", "deduplicated": False}
 
 
 # ---------------------------------------------------------------------------
@@ -122,7 +69,7 @@ async def order_on_payment_captured_task(
     inbox: FromDishka[IInboxStore],
     session: FromDishka[AsyncSession],
 ) -> dict:
-    return await _run_idempotent(
+    return await run_inbox_idempotent(
         payload=payload,
         consumer_name="order.PaymentCaptured",
         inbox=inbox,
@@ -147,7 +94,7 @@ async def order_on_payment_failed_task(
     inbox: FromDishka[IInboxStore],
     session: FromDishka[AsyncSession],
 ) -> dict:
-    return await _run_idempotent(
+    return await run_inbox_idempotent(
         payload=payload,
         consumer_name="order.PaymentFailed",
         inbox=inbox,
@@ -172,7 +119,7 @@ async def order_on_dobropost_status_task(
     inbox: FromDishka[IInboxStore],
     session: FromDishka[AsyncSession],
 ) -> dict:
-    return await _run_idempotent(
+    return await run_inbox_idempotent(
         payload=payload,
         consumer_name="order.DobroPostStatus",
         inbox=inbox,
@@ -197,7 +144,7 @@ async def order_on_dobropost_passport_task(
     inbox: FromDishka[IInboxStore],
     session: FromDishka[AsyncSession],
 ) -> dict:
-    return await _run_idempotent(
+    return await run_inbox_idempotent(
         payload=payload,
         consumer_name="order.DobroPostPassport",
         inbox=inbox,
@@ -222,7 +169,7 @@ async def order_on_russian_carrier_task(
     inbox: FromDishka[IInboxStore],
     session: FromDishka[AsyncSession],
 ) -> dict:
-    return await _run_idempotent(
+    return await run_inbox_idempotent(
         payload=payload,
         consumer_name="order.RussianCarrierTracking",
         inbox=inbox,

@@ -293,3 +293,36 @@ def test_no_reverse_layer_dependencies(module: str):
         .may_import(f"src.modules.{module}.application.queries.*")
         .check("src", only_direct_imports=True)
     )
+
+
+# Rule 10: No module-local idempotency interfaces (REFACT-001 PR-3b)
+# Modules MUST NOT redefine ``IIdempotencyStore`` / ``IInboxStore`` (or
+# legacy aliases like ``IIdempotencyKeyStore``) inside their own domain
+# layer -- the canonical ports live in ``src.shared.interfaces.idempotency``
+# and the framework-shared ``IdempotencyProvider`` (in
+# ``src.bootstrap.container``) wires the SqlIdempotencyStore /
+# SqlInboxStore implementations across every bounded context. Module
+# code must import from the shared kernel; local re-definitions cause
+# DI graph fragmentation and re-introduce the duplication that
+# REFACT-001 PR-3a / PR-3b consolidated away.
+_FORBIDDEN_IDEMPOTENCY_PORT_NAMES = frozenset(
+    {"IIdempotencyStore", "IIdempotencyKeyStore", "IInboxStore"}
+)
+
+
+@pytest.mark.parametrize("module", MODULES)
+def test_no_module_local_idempotency_interfaces(module: str):
+    """Module ``domain.interfaces`` must not redefine idempotency ports."""
+    import importlib
+
+    try:
+        mod = importlib.import_module(f"src.modules.{module}.domain.interfaces")
+    except ModuleNotFoundError:
+        return  # module without domain.interfaces is allowed
+    found = _FORBIDDEN_IDEMPOTENCY_PORT_NAMES.intersection(vars(mod).keys())
+    assert not found, (
+        f"Module '{module}' defines forbidden idempotency port(s) "
+        f"{sorted(found)} in its domain.interfaces -- consume the "
+        f"shared-kernel ports from src.shared.interfaces.idempotency "
+        f"instead (REFACT-001 PR-3b Rule 10)."
+    )

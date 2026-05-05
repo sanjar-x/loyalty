@@ -69,7 +69,6 @@ from src.modules.logistics.infrastructure.models import (
 )
 from src.modules.order.infrastructure.models import (
     DobroPostShipmentMappingModel,
-    OrderIdempotencyKeyModel,
     OrderItemModel,
     OrderModel,
 )
@@ -118,7 +117,6 @@ __all__ = [
     "LinkedAccountModel",
     "LocalCredentialsModel",
     "MediaAsset",
-    "OrderIdempotencyKeyModel",
     "OrderItemModel",
     "OrderModel",
     "OutboxMessage",
