@@ -269,6 +269,59 @@ def test_shared_kernel_is_independent():
     )
 
 
+# Rule 6 (FSM mixin purity): src/shared/interfaces/fsm.py MUST be pure
+# stdlib -- the mixin will be imported by Order / PaymentIntent /
+# Shipment in PR-1b'' and any framework leak (sqlalchemy, dishka, fastapi,
+# pydantic, redis, taskiq, alembic, structlog) would pollute the domain
+# layers consuming it. Enforced as a focused test rather than an archrule
+# pattern because we want to whitelist stdlib + ``src.shared`` self-imports
+# but reject any third-party / framework module by name.
+_FSM_ALLOWED_IMPORT_PREFIXES = (
+    "collections",
+    "datetime",
+    "enum",
+    "typing",
+    "abc",
+    "uuid",
+    "decimal",
+    "src.shared",
+)
+
+
+def test_fsm_mixin_is_framework_free():
+    """src/shared/interfaces/fsm.py imports stdlib + src.shared only."""
+    import ast
+    import pathlib
+
+    fsm_path = (
+        pathlib.Path(__file__).resolve().parents[2]
+        / "src"
+        / "shared"
+        / "interfaces"
+        / "fsm.py"
+    )
+    source = fsm_path.read_text()
+    tree = ast.parse(source)
+    forbidden: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if not alias.name.startswith(_FSM_ALLOWED_IMPORT_PREFIXES):
+                    forbidden.append(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            if module == "__future__":
+                continue
+            if not module.startswith(_FSM_ALLOWED_IMPORT_PREFIXES):
+                forbidden.append(module)
+    assert not forbidden, (
+        f"src/shared/interfaces/fsm.py must remain pure-domain "
+        f"(stdlib + src.shared only). Forbidden imports: {sorted(set(forbidden))}. "
+        f"Adding a framework dependency here pollutes every domain "
+        f"layer that consumes the mixin (REFACT-001 Rule 6 / FSM mixin)."
+    )
+
+
 # Rule 7: No Reverse Layer Dependencies
 @pytest.mark.parametrize("module", MODULES)
 def test_no_reverse_layer_dependencies(module: str):
