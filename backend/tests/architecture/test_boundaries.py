@@ -395,6 +395,28 @@ def test_module_events_inherit_module_domain_event_and_match_cc001(
     )
 
 
+# Rule 11: Every MODULES entry exposes a ModuleManifest (REFACT-001 PR-5)
+# The bootstrap composition root iterates ``src.bootstrap.modules.MODULES``
+# to assemble the Dishka container, the FastAPI router aggregator, and
+# the TaskIQ task-module registry across web / worker / scheduler. Every
+# bounded context registered there MUST surface a ``ModuleManifest``
+# instance via its ``src/modules/<name>/module.py`` file -- otherwise
+# its providers / routers / task modules would be silently absent from
+# the running application.
+def test_every_module_in_modules_tuple_has_manifest() -> None:
+    """``src.bootstrap.modules.MODULES`` must contain only ``ModuleManifest`` instances."""
+    from src.bootstrap.module_registry import ModuleManifest
+    from src.bootstrap.modules import MODULES
+
+    for entry in MODULES:
+        assert isinstance(entry, ModuleManifest), (
+            f"MODULES contains non-ModuleManifest entry: {entry!r}. "
+            f"Every bounded context registered in src/bootstrap/modules.py "
+            f"MUST expose a ModuleManifest constant via its module.py file "
+            f"(REFACT-001 PR-5 Rule 11)."
+        )
+
+
 @pytest.mark.parametrize(("module", "aggregate"), _FSM_AGGREGATE_MODULES)
 def test_fsm_aggregate_inherits_state_machine_mixin(
     module: str, aggregate: str

@@ -30,10 +30,13 @@ container: AsyncContainer = create_container()
 setup_dishka(container=container, broker=broker)
 
 # Import tasks so that their schedule labels are registered with the broker.
-import src.infrastructure.outbox.tasks  # noqa: E402
-import src.modules.activity.infrastructure.tasks  # noqa: E402
-import src.modules.logistics.infrastructure.tasks  # noqa: E402
-import src.modules.pricing.infrastructure.tasks  # noqa: E402, F401
+# Framework-level outbox tasks plus every module's declared
+# ``task_modules`` (REFACT-001 PR-5).
+import src.infrastructure.outbox.tasks  # noqa: E402, F401
+from src.bootstrap.module_registry import import_task_modules  # noqa: E402
+from src.bootstrap.modules import MODULES  # noqa: E402
+
+import_task_modules(MODULES)
 
 scheduler = TaskiqScheduler(
     broker=broker,
