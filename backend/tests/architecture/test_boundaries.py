@@ -322,6 +322,70 @@ def test_fsm_mixin_is_framework_free():
     )
 
 
+# Rule 6b (Ledger kernel purity): src/shared/ledger/*.py MUST be pure
+# stdlib + ``attrs`` + ``src.shared`` -- the generic ledger types will be
+# imported by ``referral`` (loyalty wallet) in PR-6b and any future
+# consumer (cashback, supplier payouts, refund pool, ...). A framework
+# leak (sqlalchemy, dishka, fastapi, pydantic, redis, taskiq, alembic,
+# structlog) here would pollute every domain layer that consumes the
+# kernel, defeating the whole reason the ledger lives in src/shared/.
+# Persistence concerns are intentionally local to each consumer's
+# ``infrastructure`` -- the kernel knows nothing about table names,
+# indexes or SQL dialects (ADR-007 §"What lives where").
+_LEDGER_ALLOWED_IMPORT_PREFIXES = (
+    "collections",
+    "datetime",
+    "enum",
+    "typing",
+    "abc",
+    "uuid",
+    "decimal",
+    "dataclasses",
+    "attrs",
+    "src.shared",
+)
+
+
+def test_shared_ledger_is_framework_free():
+    """src/shared/ledger/*.py imports stdlib + attrs + src.shared only.
+
+    REFACT-001 PR-6a / ADR-007 / Rule 6b. Mirrors the FSM mixin purity
+    check so that future readers see consistent enforcement style across
+    every shared kernel.
+    """
+    import ast
+    import pathlib
+
+    ledger_dir = (
+        pathlib.Path(__file__).resolve().parents[2] / "src" / "shared" / "ledger"
+    )
+    forbidden_per_file: dict[str, list[str]] = {}
+    for py_file in sorted(ledger_dir.glob("*.py")):
+        source = py_file.read_text()
+        tree = ast.parse(source)
+        forbidden: list[str] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if not alias.name.startswith(_LEDGER_ALLOWED_IMPORT_PREFIXES):
+                        forbidden.append(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                module = node.module or ""
+                if module == "__future__":
+                    continue
+                if not module.startswith(_LEDGER_ALLOWED_IMPORT_PREFIXES):
+                    forbidden.append(module)
+        if forbidden:
+            forbidden_per_file[py_file.name] = sorted(set(forbidden))
+    assert not forbidden_per_file, (
+        "src/shared/ledger/*.py must remain pure-domain "
+        "(stdlib + attrs + src.shared only). Forbidden imports detected:\n"
+        + "\n".join(f"  {f}: {v}" for f, v in forbidden_per_file.items())
+        + "\nAdding a framework dependency here pollutes every consumer "
+        "module that imports the kernel (REFACT-001 PR-6a / ADR-007 / Rule 6b)."
+    )
+
+
 # Rule 9: FSM aggregates inherit StateMachineMixin (REFACT-001 PR-1b'')
 # Order / PaymentIntent / Shipment own optimistic-locked status FSMs and
 # MUST consume the shared StateMachineMixin from
