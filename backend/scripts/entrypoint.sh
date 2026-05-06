@@ -4,17 +4,23 @@
 # Single Docker image deploys to three Railway services that differ only
 # in the SERVICE_MODE env var:
 #
-#   SERVICE_MODE=web       (default) — alembic upgrade head + uvicorn HTTP server
+#   SERVICE_MODE=web       (default) — uvicorn HTTP server
 #   SERVICE_MODE=worker     — TaskIQ worker (consumes outbox tasks from RabbitMQ)
 #   SERVICE_MODE=scheduler  — TaskIQ scheduler (cron triggers, run exactly ONE instance)
 #
-# Migration policy: ONLY the web service runs `alembic upgrade head`. Worker
-# and scheduler skip migrations to avoid concurrent migration locks during
-# multi-service deploy (Railway may start all three services simultaneously).
+# Migration policy: managed exclusively via railway.toml preDeployCommand.
+# See that file for the canonical alembic invocation. Migrations run in a
+# fresh container BEFORE this entrypoint executes, so by the time we hit
+# the dispatch below the schema is already at head. Do NOT add
+# `alembic upgrade head` here — duplicate runners cause cross-service
+# migration-lock contention (the original reason worker / scheduler skip).
 #
 # REC-005 audit (2026-05-06) added worker + scheduler dispatch — previously
 # only web mode existed, leaving outbox events stuck PENDING and scheduled
 # tasks (relay cron, prune) never firing.
+#
+# HARD-1 (2026-05-06) extracted alembic from this script to railway.toml's
+# preDeployCommand for single-source-of-truth migration timing.
 
 set -e
 
@@ -22,8 +28,7 @@ MODE="${SERVICE_MODE:-web}"
 
 case "$MODE" in
     web)
-        echo "[entrypoint] mode=web — applying database migrations + starting uvicorn"
-        alembic upgrade head
+        echo "[entrypoint] mode=web — starting uvicorn (migrations applied by Railway preDeployCommand)"
         exec uvicorn main:app --host 0.0.0.0 --port "${PORT:-8080}"
         ;;
     worker)
