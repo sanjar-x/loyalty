@@ -38,16 +38,25 @@ uv run alembic upgrade head
 
 ## CI Verification Matrix
 
-Backend enforcement is **client-side, pre-push** (REC-019). The
-GHA workflow from REC-015 is preserved as the documented target state
-for if/when paid CI services are authorised, but does not actively
-gate merges today (CEO directive #2 — "no paid services").
+GitHub Actions disabled per **REC-020** (no paid services policy).
+Backend verification is delivered by the four-layer stack below — no
+GHA workflow file exists for this component (removed in REC-024;
+historical artifact preserved in git history under REC-015 commit
+`04c67f8d`, superseded by REC-019).
+
+**Verification stack (REC-020):**
+
+| Layer | Mechanism | Trigger | What it catches |
+| --- | --- | --- | --- |
+| Local canonical | **pre-push hooks** (REC-019) | every `git push` | undeclared deps, DI / import errors, unit + architecture regressions |
+| Deploy-time gate | **Railway `preDeployCommand`** (HARD-1) | every Railway deploy | migration apply success/failure, deploy aborts if alembic fails |
+| PR review automation | **CodeRabbit** (GitHub App, not Actions) | every PR | code-quality + diff comments |
+| Manual gate | **TL procedural review** (HARD-7) | every PR before merge | architectural fit, scope, risk |
 
 | Stage | Hooks | Where | Trigger |
 | --- | --- | --- | --- |
 | `commit` | `ruff check` · `ruff format` · `ty check` | `.pre-commit-config.yaml` | every `git commit` |
 | `pre-push` | `backend-production-smoke` · `backend-tests-unit` · `backend-tests-architecture` | `.pre-commit-config.yaml` | every `git push` |
-| (aspirational) | `Backend Production Smoke` | `.github/workflows/backend-production-smoke.yml` (REC-015) | every PR / push to `main` touching `backend/**` — only fires if GHA budget is enabled |
 
 ### One-time install
 
@@ -68,7 +77,7 @@ make production-smoke                                                     # stan
 
 | Hook | What it catches |
 | --- | --- |
-| `backend-production-smoke` | Undeclared runtime dependencies (via `uv sync --no-dev --frozen`) and DI / import errors (via `create_app()` and `broker` smoke imports). Runs the same gates REC-015 GHA does, locally, ~10s. **Closes the PR-6b nanoid gap.** A `trap` restores the dev venv on exit so a failed gate never leaves the local environment in `--no-dev` state. |
+| `backend-production-smoke` | Undeclared runtime dependencies (via `uv sync --no-dev --frozen`) and DI / import errors (via `create_app()` and `broker` smoke imports). ~10s locally. **Closes the PR-6b nanoid gap.** A `trap` restores the dev venv on exit so a failed gate never leaves the local environment in `--no-dev` state. |
 | `backend-tests-unit` | Domain regressions before they ever reach the remote. **Temporarily** ignores `tests/unit/activity/test_for_you_feed.py` (PC-201c — 9 known failures); the `--ignore` flag is removed the moment PC-201c lands the activity-slice fix. |
 | `backend-tests-architecture` | Architecture fitness rules (Rule 6 / 6b / 8 / 9 / 10 / 11 + CC-001) parametrized over the 14 modules. Catches structural regressions (cross-module imports, missing manifests, FSM mixin bypass, ...). |
 
