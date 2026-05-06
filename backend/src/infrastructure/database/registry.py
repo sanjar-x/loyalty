@@ -82,6 +82,13 @@ from src.modules.pricing.infrastructure.models import (
     VariableModel,
 )
 from src.modules.recipient.infrastructure.models import RecipientModel
+from src.modules.referral.infrastructure.models import (
+    LoyaltyAccountModel,
+    LoyaltyTransactionModel,
+    ReferralCodeModel,
+    ReferralModel,
+    ReferralRewardModel,
+)
 from src.modules.supplier.infrastructure.models import Supplier
 from src.modules.user.infrastructure.models import CustomerModel, StaffMemberModel
 
@@ -116,6 +123,8 @@ __all__ = [
     "LanguageModel",
     "LinkedAccountModel",
     "LocalCredentialsModel",
+    "LoyaltyAccountModel",
+    "LoyaltyTransactionModel",
     "MediaAsset",
     "OrderItemModel",
     "OrderModel",
@@ -129,6 +138,9 @@ __all__ = [
     "ProductVariant",
     "ProviderAccountModel",
     "RecipientModel",
+    "ReferralCodeModel",
+    "ReferralModel",
+    "ReferralRewardModel",
     "RoleHierarchyModel",
     "RoleModel",
     "RolePermissionModel",

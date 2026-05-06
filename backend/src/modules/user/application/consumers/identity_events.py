@@ -17,7 +17,6 @@ from src.modules.user.domain.interfaces import (
     ICustomerRepository,
     IStaffMemberRepository,
 )
-from src.modules.user.domain.services import generate_referral_code
 from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
@@ -85,17 +84,15 @@ async def _create_customer(
     uow: IUnitOfWork,
     username: str | None = None,
 ) -> dict:
-    """Create a Customer profile with auto-generated referral code."""
+    """Create a Customer profile."""
     existing = await customer_repo.get(identity_id)
     if existing:
         logger.info("customer.already_exists", identity_id=str(identity_id))
         return {"status": "skipped", "reason": "already_exists"}
 
-    referral_code = generate_referral_code()
     customer = Customer.create_from_identity(
         identity_id=identity_id,
         profile_email=email,
-        referral_code=referral_code,
         username=username,
     )
     async with uow:
@@ -194,7 +191,6 @@ async def on_linked_account_created(
     customer_repo: FromDishka[ICustomerRepository],
     uow: FromDishka[IUnitOfWork],
     provider_metadata: dict | None = None,
-    start_param: str | None = None,
     is_new_identity: bool = True,
     provider_sub_id: str = "",
 ) -> dict:
@@ -208,19 +204,12 @@ async def on_linked_account_created(
             logger.info("customer.already_exists", identity_id=identity_id)
             return {"status": "skipped", "reason": "already_exists"}
 
-        referred_by: uuid.UUID | None = None
-        if start_param:
-            referrer = await customer_repo.get_by_referral_code(start_param)
-            referred_by = referrer.id if referrer else None
-
         customer = Customer.create_from_identity(
             identity_id=identity_uuid,
             first_name=provider_metadata.get("first_name", ""),
             last_name=provider_metadata.get("last_name", ""),
             username=provider_metadata.get("username"),
             photo_url=provider_metadata.get("photo_url"),
-            referral_code=generate_referral_code(),
-            referred_by=referred_by,
         )
 
         try:
@@ -240,8 +229,6 @@ async def on_linked_account_created(
                 last_name=provider_metadata.get("last_name", ""),
                 username=None,
                 photo_url=provider_metadata.get("photo_url"),
-                referral_code=generate_referral_code(),
-                referred_by=referred_by,
             )
             async with uow:
                 await customer_repo.add(customer)
@@ -252,7 +239,6 @@ async def on_linked_account_created(
             "customer.created_from_provider",
             identity_id=identity_id,
             provider=provider,
-            referred_by=str(referred_by) if referred_by else None,
         )
         return {"status": "success", "type": "customer"}
     else:
