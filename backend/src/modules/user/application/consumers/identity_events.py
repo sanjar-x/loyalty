@@ -193,6 +193,15 @@ async def on_linked_account_created(
     provider_metadata: dict | None = None,
     is_new_identity: bool = True,
     provider_sub_id: str = "",
+    # Fields added by PR-4 LinkedAccountCreatedEvent schema expansion. The user
+    # module's customer-creation flow doesn't consume these directly (they
+    # surface через provider_metadata for downstream slices like analytics or
+    # referral attribution), but the handler signature MUST accept them — TaskIQ
+    # unpacks the event payload as kwargs, so unknown fields raise TypeError
+    # before the body runs (REC-005 audit found 10 failed_tasks of this class).
+    start_param: str | None = None,
+    signup_ip: str | None = None,
+    signup_user_agent: str | None = None,
 ) -> dict:
     """Handle LinkedAccountCreatedEvent -- create or enrich Customer."""
     identity_uuid = uuid.UUID(identity_id)
