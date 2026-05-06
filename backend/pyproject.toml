@@ -31,6 +31,7 @@ dependencies = [
     "structlog>=25.5.0",
     # --- Telegram bot ---
     "aiogram>=3.26.0",
+    "nanoid>=2.0.0",
 ]
 
 [dependency-groups]
