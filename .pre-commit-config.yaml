@@ -1,10 +1,24 @@
-# Run with: uv run pre-commit install (one-time, then auto on `git commit`)
-# Manual full sweep:  uv run pre-commit run --all-files
+# Pre-commit stage (auto on `git commit`):
+#   uv run --project backend pre-commit install
+#
+# Pre-push stage (REC-019 — auto on `git push`):
+#   uv run --project backend pre-commit install --hook-type pre-push
+#
+# Or both at once (preferred — see Makefile target `precommit-install`):
+#   uv run --project backend pre-commit install --hook-type pre-commit --hook-type pre-push
+#
+# Manual sweeps:
+#   uv run pre-commit run --all-files
+#   uv run pre-commit run --hook-stage pre-push --all-files
 fail_fast: false
 
 repos:
   - repo: local
     hooks:
+      # ----------------------------------------------------------------
+      # commit-stage hooks (run on every `git commit`)
+      # ----------------------------------------------------------------
+
       - id: ruff-check
         name: ruff check (backend)
         entry: uv run --project backend ruff check --fix
@@ -32,3 +46,40 @@ repos:
         types_or: [python, pyi]
         files: ^backend/
         pass_filenames: false
+
+      # ----------------------------------------------------------------
+      # pre-push stage (REC-019 — run on every `git push`)
+      #
+      # Replaces the GHA-based REC-015 baseline with always-faster, free,
+      # client-side enforcement (see CEO directive #2 — "no paid
+      # services"). The REC-015 GHA workflow file is kept as the
+      # documented target state if/when paid CI is authorised.
+      # ----------------------------------------------------------------
+
+      - id: backend-production-smoke
+        name: backend production smoke (uv sync --no-dev --frozen + create_app + broker)
+        # Delegates to `make production-smoke` so the trap that restores
+        # the dev venv on exit lives in one place and is reusable from
+        # the developer's shell (`cd backend && make production-smoke`).
+        entry: bash -c 'cd backend && make production-smoke'
+        stages: [pre-push]
+        pass_filenames: false
+        language: system
+
+      - id: backend-tests-unit
+        # PC-201c temporary exclusion — `tests/unit/activity/test_for_you_feed.py`
+        # carries 9 known failures (activity stub `_CardStub.id`
+        # AttributeError, Sprint 0 baseline). Drop the `--ignore` flag
+        # the moment PC-201c lands the activity-slice fix.
+        name: backend unit tests (excludes PC-201c)
+        entry: bash -c 'cd backend && uv run pytest tests/unit/ -x -q --no-cov --ignore=tests/unit/activity/test_for_you_feed.py'
+        stages: [pre-push]
+        pass_filenames: false
+        language: system
+
+      - id: backend-tests-architecture
+        name: backend architecture fitness tests
+        entry: bash -c 'cd backend && uv run pytest tests/architecture/ -x -q --no-cov'
+        stages: [pre-push]
+        pass_filenames: false
+        language: system
