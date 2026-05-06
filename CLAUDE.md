@@ -50,8 +50,8 @@ Error envelope: `{"error": {"code", "message", "details", "request_id"}}`.
 
 ## Knowledge Base (Obsidian Vault) — ALWAYS FOLLOW
 
-Vault: `/home/sanjar/Desktop/Knowledge/` (via `additionalDirectories`)
-Project docs: `/home/sanjar/Desktop/Knowledge/Projects/loyality/`
+Vault: `/home/sanjar/Desktop/knowledge-base/` (via `additionalDirectories`)
+Project docs: `/home/sanjar/Desktop/knowledge-base/Projects/loyality/`
 
 ### When to write to vault (PROACTIVE — do automatically)
 
