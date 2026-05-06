@@ -1,0 +1,71 @@
+# Backend Production Smoke (REC-015)
+#
+# First backend GitHub Actions workflow. Closes REC-015 and protects
+# against the recurrence of the PR-6b nanoid incident, where an
+# undeclared runtime dependency landed on main and broke the worker
+# mode at deploy time. The gate runs ``uv sync --no-dev --frozen`` so
+# any package imported at runtime must be present in ``pyproject.toml``
+# + ``uv.lock``, then performs two smoke imports that exercise the
+# full Dishka container assembly for the web and worker entrypoints.
+#
+# REC-019 (broader CI baseline -- ruff / ty / pytest) will add jobs
+# alongside ``production-smoke`` in this same workflow file. The
+# ``Backend Production Smoke`` job name is preserved so any branch
+# protection rule pinned to it stays valid as REC-019 lands.
+
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-production-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-production-smoke.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  production-smoke:
+    name: Backend Production Smoke
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      # Production-clean install: refuses to update the lockfile and
+      # excludes dev/test extras. Any runtime dependency that is not
+      # declared in pyproject.toml + uv.lock fails the install.
+      - name: uv sync --no-dev --frozen
+        run: uv sync --no-dev --frozen
+
+      # Web entrypoint -- exercises Dishka container assembly + every
+      # module's provider wiring + every module's router import path.
+      - name: Smoke import — web entrypoint
+        run: uv run python -c "from src.bootstrap.web import create_app; create_app()"
+
+      # Worker entrypoint -- exercises broker assembly + every TaskIQ
+      # task module imported via MODULES manifest. The PR-6b nanoid
+      # gap surfaced specifically through this entrypoint at deploy
+      # time; this step would have caught it pre-merge.
+      - name: Smoke import — worker entrypoint
+        run: uv run python -c "from src.bootstrap.broker import broker"

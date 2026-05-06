@@ -36,6 +36,21 @@ uv run alembic revision --autogenerate -m "description"
 uv run alembic upgrade head
 ```
 
+## CI Verification Matrix
+
+| Check | Where | Trigger |
+|---|---|---|
+| `Backend Production Smoke` (REC-015) | `.github/workflows/backend-production-smoke.yml` | every PR / push to `main` touching `backend/**` |
+| `make lint` / `make format` / `make typecheck` | local + pre-commit hook | every commit |
+| `make test-unit` / `make test-architecture` | local | every commit (developer discipline) |
+
+The **Backend Production Smoke** gate runs `uv sync --no-dev --frozen`
+followed by smoke imports of both the web (`create_app()`) and worker
+(`broker`) entrypoints. It catches undeclared runtime dependencies and
+DI / import errors before merge — closes the gap that surfaced as the
+PR-6b nanoid incident. REC-019 will add full lint / type / unit-test
+jobs alongside it.
+
 ## Architecture — Clean Architecture + Modular Monolith
 
 ### Modules (bounded contexts) — 13 total
