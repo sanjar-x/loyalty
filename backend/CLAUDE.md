@@ -270,6 +270,17 @@ TaskIQ with RabbitMQ (aio-pika):
 - Worker: `src/bootstrap/worker.py`
 - Scheduler: `src/bootstrap/scheduler.py`
 
+### Ops alerting (HARD-2)
+
+Cross-cutting infrastructure under `src/shared/infrastructure/alerts/`:
+
+- `TelegramAlerter` — Bot API `sendMessage` wrapper (httpx, retries on 429, never raises into the caller). Reuses the existing `BOT_TOKEN`; channel target is `TG_ALERTS_CHANNEL`. Empty channel → no-op.
+- `AlertLevel` + `format_alert(level, *, title, body)` — INFO / WARNING / CRITICAL with emoji prefix; plain-text body (deliberate: avoids MarkdownV2 escape footguns).
+- `monitors/outbox_monitor.py` — every minute via TaskIQ Beat; alerts CRITICAL when PENDING > 50 OR oldest pending > 5 min.
+- `monitors/failed_tasks_monitor.py` — every minute; alerts WARNING when new `failed_tasks` rows since the last tick (per-process watermark; restart cost = one false alarm).
+
+The two monitors are imported in `bootstrap/scheduler.py` (registers schedule labels) and `bootstrap/worker.py` (registers task handlers).
+
 ## Test infrastructure
 
 - **asyncio_mode = auto** with session-scoped event loop

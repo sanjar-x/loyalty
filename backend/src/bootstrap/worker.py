@@ -63,11 +63,13 @@ _dlq_session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
 broker.add_middlewares(DLQMiddleware(session_factory=_dlq_session_factory))
 
 # 2. Now import tasks so they register with the broker.
-#    Framework-level outbox tasks plus every module's declared
-#    ``task_modules`` (REFACT-001 PR-5) -- adding a new bounded context
-#    with TaskIQ tasks no longer requires touching this file; just
-#    declare ``task_modules`` in the module's manifest.
-import src.infrastructure.outbox.tasks  # noqa: E402, F401
+#    Framework-level outbox tasks + HARD-2 alert monitors + every
+#    module's declared ``task_modules`` (REFACT-001 PR-5) -- adding a
+#    new bounded context with TaskIQ tasks no longer requires touching
+#    this file; just declare ``task_modules`` in the module's manifest.
+import src.infrastructure.outbox.tasks  # noqa: E402
+import src.shared.infrastructure.alerts.monitors.failed_tasks_monitor  # noqa: E402
+import src.shared.infrastructure.alerts.monitors.outbox_monitor  # noqa: E402, F401
 from src.bootstrap.module_registry import import_task_modules  # noqa: E402
 from src.bootstrap.modules import MODULES  # noqa: E402
 

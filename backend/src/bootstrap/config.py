@@ -115,6 +115,12 @@ class Settings(BaseSettings):
     TELEGRAM_INIT_DATA_MAX_AGE: int = 300
     TELEGRAM_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # HARD-2 -- ops alerting via Telegram. Reuses ``BOT_TOKEN`` above. The
+    # channel handle (``@loyality_alerts``) or numeric chat_id is configured
+    # at the Railway service level. Empty default means alerter is a no-op
+    # (useful for local dev / tests).
+    TG_ALERTS_CHANNEL: str = ""
+
     # -- CDEK (logistics provider) -------------------------------------------
     # Credentials are seeded into ``provider_accounts`` by ``seed/logistics``;
     # at runtime the factory reads them from the DB row, not from env.
