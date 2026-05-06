@@ -21,8 +21,6 @@ class TestCustomer:
             username=None,
             photo_url=None,
             phone=phone,
-            referral_code="ABCD1234",
-            referred_by=None,
             created_at=now,
             updated_at=now,
         )
@@ -32,13 +30,11 @@ class TestCustomer:
         customer = Customer.create_from_identity(
             identity_id=identity_id,
             profile_email="customer@example.com",
-            referral_code="REFCODE1",
         )
         assert customer.id == identity_id
         assert customer.profile_email == "customer@example.com"
         assert customer.first_name == ""
         assert customer.last_name == ""
-        assert customer.referral_code == "REFCODE1"
 
     def test_update_profile(self):
         customer = self._make_customer()
@@ -64,7 +60,6 @@ class TestCustomer:
         assert customer.last_name == "[DELETED]"
         assert customer.phone is None
         assert customer.profile_email is None
-        assert customer.referral_code == "ABCD1234"  # preserved
 
     def test_anonymize_is_idempotent(self):
         customer = self._make_customer()
@@ -74,10 +69,7 @@ class TestCustomer:
 
     def test_create_from_identity_uses_shared_pk(self):
         identity_id = uuid.uuid4()
-        customer = Customer.create_from_identity(
-            identity_id=identity_id,
-            referral_code="REF12345",
-        )
+        customer = Customer.create_from_identity(identity_id=identity_id)
         assert customer.id == identity_id
 
     def test_update_profile_partial_fields(self):

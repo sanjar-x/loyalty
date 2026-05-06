@@ -26,6 +26,7 @@ from src.modules.order.module import ORDER_MODULE
 from src.modules.payment.module import PAYMENT_MODULE
 from src.modules.pricing.module import PRICING_MODULE
 from src.modules.recipient.module import RECIPIENT_MODULE
+from src.modules.referral.module import REFERRAL_MODULE
 from src.modules.supplier.module import SUPPLIER_MODULE
 from src.modules.user.module import USER_MODULE
 
@@ -36,9 +37,11 @@ from src.modules.user.module import USER_MODULE
 # Catalog precedes pricing so that pricing's CQRS read-side can
 # resolve catalog ORM models registered upstream.
 #
-# ``REFERRAL_MODULE`` is intentionally NOT registered yet — the
-# referral bounded context lands in PR-6b together with the shared
-# ledger kernel (PR-6a). PR-2 only wires what already exists in main.
+# Referral lands last — it consumes identity events (IdentityRegistered /
+# LinkedAccountCreated) via the outbox, owns the loyalty wallet that the
+# shared ledger kernel (PR-6a) backs, and ships its first concrete
+# ILedger consumer (SqlLoyaltyLedger) as the pattern reference for any
+# future ledger consumer (cashback, supplier payouts, refund pool).
 MODULES: tuple[ModuleManifest, ...] = (
     GEO_MODULE,
     IDENTITY_MODULE,
@@ -53,4 +56,5 @@ MODULES: tuple[ModuleManifest, ...] = (
     PAYMENT_MODULE,
     RECIPIENT_MODULE,
     ORDER_MODULE,
+    REFERRAL_MODULE,
 )

@@ -49,17 +49,6 @@ class ICustomerRepository(ABC):
             customer: The Customer domain entity with updated field values.
         """
 
-    @abstractmethod
-    async def get_by_referral_code(self, code: str) -> Customer | None:
-        """Retrieve a customer by referral code.
-
-        Args:
-            code: The referral code to search for.
-
-        Returns:
-            The Customer domain entity if found, or None.
-        """
-
 
 class IStaffMemberRepository(ABC):
     """Repository contract for StaffMember aggregate persistence.

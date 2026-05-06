@@ -23,6 +23,7 @@ MODULES = [
     "order",
     "payment",
     "recipient",
+    "referral",
 ]
 
 

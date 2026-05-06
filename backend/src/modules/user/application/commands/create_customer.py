@@ -11,7 +11,6 @@ from dataclasses import dataclass
 
 from src.modules.user.domain.entities import Customer
 from src.modules.user.domain.interfaces import ICustomerRepository
-from src.modules.user.domain.services import generate_referral_code
 from src.shared.exceptions import ConflictError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -24,7 +23,6 @@ class CreateCustomerCommand:
     Attributes:
         identity_id: The Identity aggregate ID (shared PK).
         profile_email: Optional display email.
-        referred_by: Customer ID of the referrer, if any.
         first_name: First name from provider metadata (e.g. Telegram).
         last_name: Last name from provider metadata.
         username: Username from provider metadata.
@@ -33,7 +31,6 @@ class CreateCustomerCommand:
 
     identity_id: uuid.UUID
     profile_email: str | None = None
-    referred_by: uuid.UUID | None = None
     first_name: str = ""
     last_name: str = ""
     username: str | None = None
@@ -45,7 +42,6 @@ class CreateCustomerHandler:
 
     Idempotent: if a customer with the given ID already exists, creation is skipped.
     Race-safe: concurrent creation attempts are tolerated (ConflictError caught).
-    Generates a unique referral code automatically.
     """
 
     def __init__(
@@ -73,7 +69,6 @@ class CreateCustomerHandler:
                 )
                 return
 
-            referral_code = generate_referral_code()
             customer = Customer.create_from_identity(
                 identity_id=command.identity_id,
                 profile_email=command.profile_email,
@@ -81,8 +76,6 @@ class CreateCustomerHandler:
                 last_name=command.last_name,
                 username=command.username,
                 photo_url=command.photo_url,
-                referral_code=referral_code,
-                referred_by=command.referred_by,
             )
             await self._customer_repo.add(customer)
             try:
@@ -97,5 +90,4 @@ class CreateCustomerHandler:
         self._logger.info(
             "customer.created",
             customer_id=str(command.identity_id),
-            referral_code=referral_code,
         )
