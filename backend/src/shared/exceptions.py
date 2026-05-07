@@ -138,3 +138,21 @@ class UnprocessableEntityError(AppException):
         details: dict[str, Any] | None = None,
     ):
         super().__init__(message, 422, error_code, details)
+
+
+class ServiceUnavailableError(AppException):
+    """Raised when an external service or dependency is unavailable (HTTP 503).
+
+    Use for downstream failures we cannot remedy locally — S3/MinIO
+    outages, payment-provider timeouts, third-party APIs returning
+    unexpected errors. The presentation layer maps it to a 503 response
+    so callers can retry with backoff.
+    """
+
+    def __init__(
+        self,
+        message: str = "Service temporarily unavailable",
+        error_code: str = "SERVICE_UNAVAILABLE",
+        details: dict[str, Any] | None = None,
+    ):
+        super().__init__(message, 503, error_code, details)

@@ -61,6 +61,7 @@ from src.modules.identity.infrastructure.models import (
     StaffInvitationModel,
     StaffInvitationRoleModel,
 )
+from src.modules.image.infrastructure.models import StorageObjectModel
 from src.modules.logistics.infrastructure.models import (
     DeliveryQuoteModel,
     ProviderAccountModel,
@@ -153,6 +154,7 @@ __all__ = [
     "StaffInvitationModel",
     "StaffInvitationRoleModel",
     "StaffMemberModel",
+    "StorageObjectModel",
     "SubdivisionModel",
     "SubdivisionTranslationModel",
     "SubdivisionTypeModel",
