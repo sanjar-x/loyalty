@@ -115,6 +115,22 @@ class Settings(BaseSettings):
     TELEGRAM_INIT_DATA_MAX_AGE: int = 300
     TELEGRAM_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # -- S3 / MinIO (image module — formerly image_backend microservice) -----
+    # Empty defaults so local dev / tests boot without S3 credentials. The
+    # image module providers raise at request time only if endpoints are
+    # actually invoked without proper config (REC-020 + image-backend
+    # consolidation per CEO directive 2026-05-08).
+    S3_ENDPOINT_URL: str = ""
+    S3_ACCESS_KEY: SecretStr = SecretStr("")
+    S3_SECRET_KEY: SecretStr = SecretStr("")
+    S3_REGION: str = "us-east-1"
+    S3_BUCKET_NAME: str = ""
+    S3_PUBLIC_BASE_URL: str = ""
+    # Media processing knobs (image module)
+    MEDIA_MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50 MB
+    MEDIA_PRESIGNED_URL_TTL: int = 300
+    MEDIA_SSE_TIMEOUT: int = 120
+
     # -- CDEK (logistics provider) -------------------------------------------
     # Credentials are seeded into ``provider_accounts`` by ``seed/logistics``;
     # at runtime the factory reads them from the DB row, not from env.

@@ -21,6 +21,7 @@ from src.modules.catalog.module import CATALOG_MODULE
 from src.modules.favorites.module import FAVORITES_MODULE
 from src.modules.geo.module import GEO_MODULE
 from src.modules.identity.module import IDENTITY_MODULE
+from src.modules.image.module import IMAGE_MODULE
 from src.modules.logistics.module import LOGISTICS_MODULE
 from src.modules.order.module import ORDER_MODULE
 from src.modules.payment.module import PAYMENT_MODULE
@@ -52,6 +53,7 @@ MODULES: tuple[ModuleManifest, ...] = (
     ACTIVITY_MODULE,
     CART_MODULE,
     FAVORITES_MODULE,
+    IMAGE_MODULE,
     LOGISTICS_MODULE,
     PAYMENT_MODULE,
     RECIPIENT_MODULE,

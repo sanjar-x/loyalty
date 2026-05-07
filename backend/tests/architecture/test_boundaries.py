@@ -20,6 +20,7 @@ MODULES = [
     "geo",
     "supplier",
     "favorites",
+    "image",
     "order",
     "payment",
     "recipient",

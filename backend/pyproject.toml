@@ -32,11 +32,13 @@ dependencies = [
     # --- Telegram bot ---
     "aiogram>=3.26.0",
     "nanoid>=2.0.0",
+    # --- Image module (S3 + Pillow processing) ---
+    "aiobotocore>=3.3.0",
+    "pillow>=11.0.0",
 ]
 
 [dependency-groups]
 dev = [
-    "aiobotocore>=3.3.0",
     "cloc>=0.2.5",
     "dirty-equals>=0.11",
     "httpx>=0.28.1",

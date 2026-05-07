@@ -87,6 +87,11 @@ PERMISSIONS: list[SeedPermission] = [
         "catalog:manage",
         "Управление каталогом (CRUD брендов, категорий, товаров, атрибутов, SKU)",
     ),
+    # ── Media (image module) ─────────────────────────────────────────────
+    SeedPermission(
+        "media:manage",
+        "Управление медиа (загрузка, замена, удаление картинок и обложек)",
+    ),
     # ── Orders ───────────────────────────────────────────────────────────
     SeedPermission("orders:read", "Просмотр заказов"),
     SeedPermission(
@@ -173,6 +178,7 @@ ROLES: list[SeedRole] = [
         permissions=[
             "catalog:read",
             "catalog:manage",
+            "media:manage",
             "orders:read",
             "orders:manage",
             "reviews:read",
