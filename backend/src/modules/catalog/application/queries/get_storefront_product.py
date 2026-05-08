@@ -92,6 +92,14 @@ class GetStorefrontProductHandler:
                 details={"slug": slug},
             )
 
+        # The five enrichment fetches below COULD be logically parallel
+        # (only ``product`` is the shared input) but every method uses
+        # ``self._session`` — SQLAlchemy ``AsyncSession`` rejects
+        # concurrent operations against a single session
+        # (``IllegalStateChangeError``). True parallelism would require
+        # one session per branch; deferred to a future refactor that
+        # collapses these into a single JOIN query (the more impactful
+        # path — single round-trip beats five concurrent ones).
         brand = await self._load_brand(product.brand_id)
         supplier = await self._load_supplier(product.supplier_id)
         media = await self._load_media(product.id)
