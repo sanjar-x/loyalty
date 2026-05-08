@@ -52,6 +52,20 @@ class CartFakeUnitOfWork(IUnitOfWork):
     def register_aggregate(self, aggregate: AggregateRoot) -> None:
         self._aggregates.append(aggregate)
 
+    def enqueue_external_event(
+        self,
+        *,
+        aggregate_type: str,
+        aggregate_id: str,
+        event_type: str,
+        payload: dict,
+        event_id=None,
+        correlation_id: str | None = None,
+    ) -> None:
+        # Cart-domain tests don't ingest external events; no-op satisfies
+        # the IUnitOfWork abstract contract introduced in ORD-001.
+        return None
+
 
 class FakeCartRepository(ICartRepository):
     """In-memory cart repository for unit tests."""

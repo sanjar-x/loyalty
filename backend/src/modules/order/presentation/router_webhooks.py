@@ -2,10 +2,16 @@
 
 Path-token + IP-whitelist authentication (research §10.5.3 — DobroPost
 does not publish a signing scheme). The receiver normalises the two
-DobroPost payload shapes into a single canonical event, persists the
-event into ``outbox_messages``, and returns 204. The outbox relay
-picks it up and dispatches to the matching consumer through TaskIQ;
+DobroPost payload shapes into a single canonical event and hands it
+to :class:`IngestDobroPostWebhookHandler`, which pushes the row through
+the UoW's external-event channel into ``outbox_messages``. The outbox
+relay picks it up and dispatches to the matching consumer via TaskIQ;
 ``order_inbox_events`` deduplicates retries on the consumer side.
+
+ORD-001 — moved the OutboxMessage write out of the router (was
+``session.add(...)`` straight from the FastAPI handler) into a proper
+application command so the UoW's ``IntegrityError`` translation +
+atomicity guarantees apply uniformly.
 
 Endpoints:
 * ``POST /api/v1/orders/webhooks/dobropost/{token}`` — accepts both
@@ -17,16 +23,17 @@ from __future__ import annotations
 
 import hmac
 import json
-import uuid
 from typing import Any
 
 import structlog
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Body, HTTPException, Path, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bootstrap.config import settings
-from src.infrastructure.database.models.outbox import OutboxMessage
+from src.modules.order.application.commands.ingest_dobropost_webhook import (
+    IngestDobroPostWebhookCommand,
+    IngestDobroPostWebhookHandler,
+)
 from src.modules.order.infrastructure.dobropost_status_map import (
     name_to_status_id,
 )
@@ -38,11 +45,6 @@ dobropost_webhook_router = APIRouter(
     tags=["Webhooks / DobroPost"],
     route_class=DishkaRoute,
 )
-
-# UUID5 namespace for deterministic event_id derivation. Same payload
-# from a DobroPost retry yields the same event_id → inbox dedup works
-# without DobroPost having to send an explicit event_id.
-_DOBROPOST_NS = uuid.UUID("8b6a3f50-e9b2-4d28-a26a-26b16f5dee20")
 
 
 def _check_token(token: str) -> None:
@@ -86,42 +88,26 @@ def _resolve_status_id(payload: dict) -> int | None:
     return None
 
 
-def _enqueue(
-    session: AsyncSession,
-    *,
-    event_type: str,
-    dp_shipment_id: int | None,
-    payload: dict[str, Any],
-    correlation_id: str | None,
-) -> None:
-    """Insert an outbox row in the request transaction.
+def _canonical_seed(
+    *, event_type: str, aggregate_id: str, payload: dict[str, Any]
+) -> str:
+    """Stable JSON snapshot used to derive UUID5 event ids.
 
-    The relay's at-least-once delivery + the consumer-side inbox dedup
-    table together provide effectively-exactly-once semantics.
+    ``sort_keys=True`` + ``default=str`` make the seed deterministic
+    across Python runs so DobroPost retries with the *same* payload
+    map to the *same* event_id (consumer-side dedup invariant).
     """
-    aggregate_id = str(dp_shipment_id) if dp_shipment_id is not None else "unknown"
-    seed = json.dumps(
+    return json.dumps(
         {"event_type": event_type, "agg": aggregate_id, "payload": payload},
         sort_keys=True,
         default=str,
-    )
-    event_id = uuid.uuid5(_DOBROPOST_NS, seed)
-    enriched = {**payload, "event_id": str(event_id)}
-    session.add(
-        OutboxMessage(
-            aggregate_type="DobroPostShipment",
-            aggregate_id=aggregate_id,
-            event_type=event_type,
-            payload=enriched,
-            correlation_id=correlation_id,
-        )
     )
 
 
 @dobropost_webhook_router.post("/{token}", status_code=status.HTTP_204_NO_CONTENT)
 async def dobropost_webhook(
     request: Request,
-    session: FromDishka[AsyncSession],
+    handler: FromDishka[IngestDobroPostWebhookHandler],
     payload: dict[str, Any] = Body(...),
     token: str = Path(..., min_length=8, max_length=128),
 ) -> None:
@@ -136,6 +122,7 @@ async def dobropost_webhook(
         or payload.get("dpShipmentId")
         or payload.get("dp_shipment_id")
     )
+    aggregate_id = str(dp_shipment_id) if dp_shipment_id is not None else "unknown"
 
     # ---- Passport-validation payload ----
     if "passportValidationStatus" in payload:
@@ -144,14 +131,19 @@ async def dobropost_webhook(
             "dp_shipment_id": dp_shipment_id,
             "passport_validation_status": valid,
         }
-        _enqueue(
-            session,
-            event_type="DobroPostPassportInvalidEvent",
-            dp_shipment_id=dp_shipment_id,
-            payload=normalized,
-            correlation_id=correlation_id,
+        await handler.handle(
+            IngestDobroPostWebhookCommand(
+                event_type="DobroPostPassportInvalidEvent",
+                dp_shipment_id=dp_shipment_id,
+                payload=normalized,
+                canonical_seed=_canonical_seed(
+                    event_type="DobroPostPassportInvalidEvent",
+                    aggregate_id=aggregate_id,
+                    payload=normalized,
+                ),
+                correlation_id=correlation_id,
+            )
         )
-        await session.commit()
         logger.info(
             "dobropost.webhook.passport_payload",
             dp_shipment_id=dp_shipment_id,
@@ -175,14 +167,19 @@ async def dobropost_webhook(
             "status_label": payload.get("status"),
             "dp_track_number": track,
         }
-        _enqueue(
-            session,
-            event_type="DobroPostStatusUpdatedEvent",
-            dp_shipment_id=dp_shipment_id,
-            payload=normalized,
-            correlation_id=correlation_id,
+        await handler.handle(
+            IngestDobroPostWebhookCommand(
+                event_type="DobroPostStatusUpdatedEvent",
+                dp_shipment_id=dp_shipment_id,
+                payload=normalized,
+                canonical_seed=_canonical_seed(
+                    event_type="DobroPostStatusUpdatedEvent",
+                    aggregate_id=aggregate_id,
+                    payload=normalized,
+                ),
+                correlation_id=correlation_id,
+            )
         )
-        await session.commit()
         logger.info(
             "dobropost.webhook.status_payload",
             dp_shipment_id=dp_shipment_id,
