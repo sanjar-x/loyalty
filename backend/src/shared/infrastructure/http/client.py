@@ -1,13 +1,16 @@
 """
-Base HTTP client for third-party provider adapters (REC-033).
+Generic HTTP client for outbound third-party integrations (REC-033 + REC-035).
 
 Provides retry with exponential backoff + jitter, configurable timeouts,
 automatic auth header injection, structured logging, and error mapping.
-Each concrete provider adapter composes this client rather than
-implementing raw HTTP calls. Promoted from
-``logistics/infrastructure/providers/base_client.py`` so any module that
-talks to an external HTTP service (payment, notification, …) can reuse
-the same retry / auth / circuit policies.
+Module-specific subclasses (logistics' ``BaseProviderClient``, payment's
+``BasePaymentClient``, …) compose or extend this base rather than
+implementing raw HTTP calls.
+
+REC-035 separated this file from logistics: shared kernel speaks
+``HttpClientConfig`` / ``BaseClient``; the "provider" vocabulary lives
+in the logistics module where the carrier-provider abstraction
+actually exists.
 """
 
 import asyncio
@@ -51,10 +54,12 @@ _RESPONSE_BODY_LOG_LIMIT = 8000
 
 
 @attrs.define(frozen=True)
-class ProviderClientConfig:
-    """HTTP client configuration for a logistics provider.
+class HttpClientConfig:
+    """Configuration for :class:`BaseClient`.
 
-    Infrastructure concern — lives alongside the client that uses it.
+    Generic HTTP-level knobs only — module-specific extensions
+    (e.g. provider-id, circuit-breaker thresholds) belong on
+    module-side subclasses.
     """
 
     base_url: str
@@ -63,34 +68,44 @@ class ProviderClientConfig:
     retry_base_delay: float = 1.0
 
 
-class BaseProviderClient:
-    """Shared HTTP client infrastructure for logistics provider adapters.
+class BaseClient:
+    """Generic HTTP client wrapper around ``httpx.AsyncClient``.
 
     Usage::
 
-        client = BaseProviderClient(auth_manager, config)
+        client = BaseClient(auth_manager, config)
         async with client:
             response = await client.request("POST", "/v2/calculator/tariff", json={...})
 
     Features:
         - Auth header injection via ``BaseAuthManager``
-        - Retry with exponential backoff + jitter on 429/5xx
+        - Retry with exponential backoff + jitter on 429 + idempotent 5xx
+        - Method-aware idempotency: 5xx and transport errors retry only
+          for naturally idempotent methods unless the caller opts in.
         - Configurable timeout per request
         - Structured request/response logging
-        - Unified error mapping to ``ProviderHTTPError`` / ``ProviderTimeoutError``
+        - Unified error mapping to ``ProviderHTTPError`` /
+          ``ProviderTimeoutError`` / ``ProviderAuthError``
+
+    Subclassing
+    -----------
+    Modules that need to add domain-specific concerns (provider
+    identification, custom error mapping, circuit-breaker policy)
+    extend this class — see ``logistics.infrastructure.providers.
+    BaseProviderClient`` for the carrier-integration flavour.
     """
 
     def __init__(
         self,
         auth_manager: BaseAuthManager,
-        config: ProviderClientConfig,
+        config: HttpClientConfig,
     ) -> None:
         self._auth: BaseAuthManager = auth_manager
-        self._config: ProviderClientConfig = config
+        self._config: HttpClientConfig = config
         self._client: httpx.AsyncClient | None = None
         self._client_lock: asyncio.Lock = asyncio.Lock()
 
-    async def __aenter__(self) -> BaseProviderClient:
+    async def __aenter__(self) -> BaseClient:
         # Kept for backwards-compatible test fixtures. Production code
         # opens the client lazily on the first request and closes it
         # via ``close()`` at app shutdown.
@@ -133,7 +148,7 @@ class BaseProviderClient:
     def client(self) -> httpx.AsyncClient:
         if self._client is None:
             raise RuntimeError(
-                "BaseProviderClient.client accessed before _ensure_client(); "
+                "BaseClient.client accessed before _ensure_client(); "
                 "call request() instead of touching .client directly."
             )
         return self._client
