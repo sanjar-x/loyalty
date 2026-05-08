@@ -18,14 +18,14 @@ from dataclasses import dataclass, field
 from src.shared.interfaces.entities import ModuleDomainEvent
 
 
-@dataclass
+@dataclass(frozen=True)
 class PricingEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all pricing domain events."""
 
     aggregate_type: str = "pricing_profile"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProductPricingProfileCreatedEvent(
     PricingEvent,
     required_fields=("profile_id", "product_id"),
@@ -42,7 +42,7 @@ class ProductPricingProfileCreatedEvent(
     event_type: str = "ProductPricingProfileCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProductPricingProfileUpdatedEvent(
     PricingEvent,
     required_fields=("profile_id", "product_id"),
@@ -63,7 +63,7 @@ class ProductPricingProfileUpdatedEvent(
     event_type: str = "ProductPricingProfileUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProductPricingProfileDeletedEvent(
     PricingEvent,
     required_fields=("profile_id", "product_id"),
@@ -81,14 +81,14 @@ class ProductPricingProfileDeletedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class VariableEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all ``Variable``-registry domain events."""
 
     aggregate_type: str = "pricing_variable"
 
 
-@dataclass
+@dataclass(frozen=True)
 class VariableCreatedEvent(
     VariableEvent,
     required_fields=("variable_id", "code", "scope", "data_type", "unit"),
@@ -110,7 +110,7 @@ class VariableCreatedEvent(
     event_type: str = "VariableCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class VariableUpdatedEvent(
     VariableEvent,
     required_fields=("variable_id", "code"),
@@ -129,7 +129,7 @@ class VariableUpdatedEvent(
     event_type: str = "VariableUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class VariableDeletedEvent(
     VariableEvent,
     required_fields=("variable_id", "code"),
@@ -148,14 +148,14 @@ class VariableDeletedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class PricingContextEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all pricing-context domain events."""
 
     aggregate_type: str = "pricing_context"
 
 
-@dataclass
+@dataclass(frozen=True)
 class PricingContextCreatedEvent(
     PricingContextEvent,
     required_fields=("context_id", "code"),
@@ -171,7 +171,7 @@ class PricingContextCreatedEvent(
     event_type: str = "PricingContextCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class PricingContextUpdatedEvent(
     PricingContextEvent,
     required_fields=("context_id", "code"),
@@ -193,7 +193,7 @@ class PricingContextUpdatedEvent(
     event_type: str = "PricingContextUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class PricingContextFrozenEvent(
     PricingContextEvent,
     required_fields=("context_id", "code", "freeze_reason"),
@@ -208,7 +208,7 @@ class PricingContextFrozenEvent(
     event_type: str = "PricingContextFrozenEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class PricingContextUnfrozenEvent(
     PricingContextEvent,
     required_fields=("context_id", "code"),
@@ -222,7 +222,7 @@ class PricingContextUnfrozenEvent(
     event_type: str = "PricingContextUnfrozenEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class PricingContextDeactivatedEvent(
     PricingContextEvent,
     required_fields=("context_id", "code"),
@@ -236,7 +236,7 @@ class PricingContextDeactivatedEvent(
     event_type: str = "PricingContextDeactivatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class PricingContextGlobalValueSetEvent(
     PricingContextEvent,
     required_fields=("context_id", "code", "variable_code"),
@@ -256,14 +256,14 @@ class PricingContextGlobalValueSetEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class FormulaVersionEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all formula-version domain events."""
 
     aggregate_type: str = "pricing_formula_version"
 
 
-@dataclass
+@dataclass(frozen=True)
 class FormulaDraftSavedEvent(
     FormulaVersionEvent,
     required_fields=("version_id", "context_id", "version_number"),
@@ -278,7 +278,7 @@ class FormulaDraftSavedEvent(
     event_type: str = "FormulaDraftSavedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class FormulaDraftDiscardedEvent(
     FormulaVersionEvent,
     required_fields=("version_id", "context_id"),
@@ -293,7 +293,7 @@ class FormulaDraftDiscardedEvent(
     event_type: str = "FormulaDraftDiscardedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class FormulaPublishedEvent(
     FormulaVersionEvent,
     required_fields=("version_id", "context_id", "version_number"),
@@ -309,7 +309,7 @@ class FormulaPublishedEvent(
     event_type: str = "FormulaPublishedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class FormulaRolledBackEvent(
     FormulaVersionEvent,
     required_fields=("version_id", "context_id", "version_number"),
@@ -330,14 +330,14 @@ class FormulaRolledBackEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class CategoryPricingSettingsEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for ``CategoryPricingSettings`` domain events."""
 
     aggregate_type: str = "pricing_category_settings"
 
 
-@dataclass
+@dataclass(frozen=True)
 class CategoryPricingSettingsCreatedEvent(
     CategoryPricingSettingsEvent,
     required_fields=("settings_id", "category_id", "context_id"),
@@ -355,7 +355,7 @@ class CategoryPricingSettingsCreatedEvent(
     event_type: str = "CategoryPricingSettingsCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class CategoryPricingSettingsUpdatedEvent(
     CategoryPricingSettingsEvent,
     required_fields=("settings_id", "category_id", "context_id"),
@@ -373,7 +373,7 @@ class CategoryPricingSettingsUpdatedEvent(
     event_type: str = "CategoryPricingSettingsUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class CategoryPricingSettingsDeletedEvent(
     CategoryPricingSettingsEvent,
     required_fields=("settings_id", "category_id", "context_id"),
@@ -393,14 +393,14 @@ class CategoryPricingSettingsDeletedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class SupplierTypeContextMappingEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for ``SupplierTypeContextMapping`` events."""
 
     aggregate_type: str = "pricing_supplier_type_context_mapping"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SupplierTypeContextMappingCreatedEvent(
     SupplierTypeContextMappingEvent,
     required_fields=("mapping_id", "supplier_type", "context_id"),
@@ -415,7 +415,7 @@ class SupplierTypeContextMappingCreatedEvent(
     event_type: str = "SupplierTypeContextMappingCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SupplierTypeContextMappingUpdatedEvent(
     SupplierTypeContextMappingEvent,
     required_fields=("mapping_id", "supplier_type", "context_id"),
@@ -431,7 +431,7 @@ class SupplierTypeContextMappingUpdatedEvent(
     event_type: str = "SupplierTypeContextMappingUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SupplierTypeContextMappingDeletedEvent(
     SupplierTypeContextMappingEvent,
     required_fields=("mapping_id", "supplier_type"),
@@ -451,14 +451,14 @@ class SupplierTypeContextMappingDeletedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class SupplierPricingSettingsEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for ``SupplierPricingSettings`` domain events."""
 
     aggregate_type: str = "pricing_supplier_settings"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SupplierPricingSettingsCreatedEvent(
     SupplierPricingSettingsEvent,
     required_fields=("settings_id", "supplier_id"),
@@ -473,7 +473,7 @@ class SupplierPricingSettingsCreatedEvent(
     event_type: str = "SupplierPricingSettingsCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SupplierPricingSettingsUpdatedEvent(
     SupplierPricingSettingsEvent,
     required_fields=("settings_id", "supplier_id"),
@@ -488,7 +488,7 @@ class SupplierPricingSettingsUpdatedEvent(
     event_type: str = "SupplierPricingSettingsUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SupplierPricingSettingsDeletedEvent(
     SupplierPricingSettingsEvent,
     required_fields=("settings_id", "supplier_id"),

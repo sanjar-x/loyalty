@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from src.shared.interfaces.entities import ModuleDomainEvent
 
 
-@dataclass
+@dataclass(frozen=True)
 class ImageEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all image module domain events."""
 

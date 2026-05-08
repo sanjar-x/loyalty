@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from src.shared.interfaces.entities import ModuleDomainEvent
 
 
-@dataclass
+@dataclass(frozen=True)
 class CatalogEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all catalog domain events.
 
@@ -71,7 +71,7 @@ class CatalogEvent(ModuleDomainEvent, abstract=True):
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class BrandCreatedEvent(
     CatalogEvent,
     required_fields=("brand_id",),
@@ -85,7 +85,7 @@ class BrandCreatedEvent(
     event_type: str = "BrandCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class BrandUpdatedEvent(
     CatalogEvent,
     required_fields=("brand_id",),
@@ -98,7 +98,7 @@ class BrandUpdatedEvent(
     event_type: str = "BrandUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class BrandDeletedEvent(
     CatalogEvent,
     required_fields=("brand_id",),
@@ -116,7 +116,7 @@ class BrandDeletedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class CategoryCreatedEvent(
     CatalogEvent,
     required_fields=("category_id",),
@@ -130,7 +130,7 @@ class CategoryCreatedEvent(
     event_type: str = "CategoryCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class CategoryUpdatedEvent(
     CatalogEvent,
     required_fields=("category_id",),
@@ -143,7 +143,7 @@ class CategoryUpdatedEvent(
     event_type: str = "CategoryUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class CategoryDeletedEvent(
     CatalogEvent,
     required_fields=("category_id",),
@@ -166,7 +166,7 @@ class CategoryDeletedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttributeCreatedEvent(
     CatalogEvent,
     required_fields=("attribute_id",),
@@ -185,7 +185,7 @@ class AttributeCreatedEvent(
     event_type: str = "AttributeCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttributeUpdatedEvent(
     CatalogEvent,
     required_fields=("attribute_id",),
@@ -202,7 +202,7 @@ class AttributeUpdatedEvent(
     event_type: str = "AttributeUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttributeDeletedEvent(
     CatalogEvent,
     required_fields=("attribute_id",),
@@ -226,7 +226,7 @@ class AttributeDeletedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttributeValueAddedEvent(
     CatalogEvent,
     required_fields=("attribute_id", "value_id"),
@@ -247,7 +247,7 @@ class AttributeValueAddedEvent(
     event_type: str = "AttributeValueAddedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttributeValueUpdatedEvent(
     CatalogEvent,
     required_fields=("attribute_id", "value_id"),
@@ -266,7 +266,7 @@ class AttributeValueUpdatedEvent(
     event_type: str = "AttributeValueUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttributeValueDeletedEvent(
     CatalogEvent,
     required_fields=("attribute_id", "value_id"),
@@ -287,7 +287,7 @@ class AttributeValueDeletedEvent(
     event_type: str = "AttributeValueDeletedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttributeValuesReorderedEvent(
     CatalogEvent,
     required_fields=("attribute_id",),
@@ -305,7 +305,7 @@ class AttributeValuesReorderedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttributeTemplateCreatedEvent(
     CatalogEvent,
     required_fields=("template_id",),
@@ -319,7 +319,7 @@ class AttributeTemplateCreatedEvent(
     event_type: str = "AttributeTemplateCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttributeTemplateUpdatedEvent(
     CatalogEvent,
     required_fields=("template_id",),
@@ -332,7 +332,7 @@ class AttributeTemplateUpdatedEvent(
     event_type: str = "AttributeTemplateUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttributeTemplateDeletedEvent(
     CatalogEvent,
     required_fields=("template_id",),
@@ -351,7 +351,7 @@ class AttributeTemplateDeletedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class TemplateAttributeBindingCreatedEvent(
     CatalogEvent,
     required_fields=("binding_id",),
@@ -366,7 +366,7 @@ class TemplateAttributeBindingCreatedEvent(
     event_type: str = "TemplateAttributeBindingCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class TemplateAttributeBindingUpdatedEvent(
     CatalogEvent,
     required_fields=("binding_id",),
@@ -379,7 +379,7 @@ class TemplateAttributeBindingUpdatedEvent(
     event_type: str = "TemplateAttributeBindingUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class TemplateAttributeBindingDeletedEvent(
     CatalogEvent,
     required_fields=("binding_id",),
@@ -399,7 +399,7 @@ class TemplateAttributeBindingDeletedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProductCreatedEvent(
     CatalogEvent,
     required_fields=("product_id",),
@@ -413,7 +413,7 @@ class ProductCreatedEvent(
     event_type: str = "ProductCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProductStatusChangedEvent(
     CatalogEvent,
     required_fields=("product_id",),
@@ -428,7 +428,7 @@ class ProductStatusChangedEvent(
     event_type: str = "ProductStatusChangedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProductUpdatedEvent(
     CatalogEvent,
     required_fields=("product_id",),
@@ -441,7 +441,7 @@ class ProductUpdatedEvent(
     event_type: str = "ProductUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProductDeletedEvent(
     CatalogEvent,
     required_fields=("product_id",),
@@ -460,7 +460,7 @@ class ProductDeletedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class VariantAddedEvent(
     CatalogEvent,
     required_fields=("product_id", "variant_id"),
@@ -474,7 +474,7 @@ class VariantAddedEvent(
     event_type: str = "VariantAddedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class VariantDeletedEvent(
     CatalogEvent,
     required_fields=("product_id", "variant_id"),
@@ -493,7 +493,7 @@ class VariantDeletedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class SKUAddedEvent(
     CatalogEvent,
     required_fields=("product_id", "variant_id", "sku_id"),
@@ -508,7 +508,7 @@ class SKUAddedEvent(
     event_type: str = "SKUAddedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SKUDeletedEvent(
     CatalogEvent,
     required_fields=("product_id", "variant_id", "sku_id"),
@@ -531,7 +531,7 @@ class SKUDeletedEvent(
 # enqueue a per-SKU TaskIQ job without re-reading the SKU row.
 
 
-@dataclass
+@dataclass(frozen=True)
 class SKUPurchasePriceUpdatedEvent(
     CatalogEvent,
     required_fields=("product_id", "sku_id", "purchase_currency"),
@@ -555,7 +555,7 @@ class SKUPurchasePriceUpdatedEvent(
     event_type: str = "SKUPurchasePriceUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SKUPricedEvent(
     CatalogEvent,
     required_fields=("product_id", "sku_id", "selling_price_amount"),
@@ -574,7 +574,7 @@ class SKUPricedEvent(
     event_type: str = "SKUPricedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SKUPricingFailedEvent(
     CatalogEvent,
     required_fields=("product_id", "sku_id", "pricing_status", "failure_reason"),
@@ -601,7 +601,7 @@ class SKUPricingFailedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttributeGroupCreatedEvent(
     CatalogEvent,
     required_fields=("group_id",),
@@ -615,7 +615,7 @@ class AttributeGroupCreatedEvent(
     event_type: str = "AttributeGroupCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttributeGroupUpdatedEvent(
     CatalogEvent,
     required_fields=("group_id",),
@@ -628,7 +628,7 @@ class AttributeGroupUpdatedEvent(
     event_type: str = "AttributeGroupUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttributeGroupDeletedEvent(
     CatalogEvent,
     required_fields=("group_id",),

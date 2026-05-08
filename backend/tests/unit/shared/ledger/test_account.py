@@ -175,7 +175,7 @@ class TestTransfer:
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class _ProbeEvent(
     ModuleDomainEvent,
     required_fields=("account_id",),

@@ -18,7 +18,7 @@ from datetime import datetime
 from src.shared.interfaces.entities import ModuleDomainEvent
 
 
-@dataclass
+@dataclass(frozen=True)
 class CartEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all cart domain events."""
 
@@ -30,7 +30,7 @@ class CartEvent(ModuleDomainEvent, abstract=True):
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class CartCreatedEvent(
     CartEvent,
     required_fields=("cart_id",),
@@ -44,7 +44,7 @@ class CartCreatedEvent(
     event_type: str = "CartCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class CartClearedEvent(
     CartEvent,
     required_fields=("cart_id",),
@@ -61,7 +61,7 @@ class CartClearedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class CartItemAddedEvent(
     CartEvent,
     required_fields=("cart_id", "item_id", "sku_id"),
@@ -76,7 +76,7 @@ class CartItemAddedEvent(
     event_type: str = "CartItemAddedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class CartItemRemovedEvent(
     CartEvent,
     required_fields=("cart_id", "item_id", "sku_id"),
@@ -90,7 +90,7 @@ class CartItemRemovedEvent(
     event_type: str = "CartItemRemovedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class CartItemQuantityUpdatedEvent(
     CartEvent,
     required_fields=("cart_id", "item_id"),
@@ -110,7 +110,7 @@ class CartItemQuantityUpdatedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class CartFrozenEvent(
     CartEvent,
     required_fields=("cart_id", "snapshot_id"),
@@ -124,7 +124,7 @@ class CartFrozenEvent(
     event_type: str = "CartFrozenEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class CartUnfrozenEvent(
     CartEvent,
     required_fields=("cart_id",),
@@ -137,7 +137,7 @@ class CartUnfrozenEvent(
     event_type: str = "CartUnfrozenEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class CartOrderedEvent(
     CartEvent,
     required_fields=("cart_id",),
@@ -156,7 +156,7 @@ class CartOrderedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class CartMergedEvent(
     CartEvent,
     required_fields=("target_cart_id", "source_cart_id"),

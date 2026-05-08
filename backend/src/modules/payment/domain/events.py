@@ -6,14 +6,14 @@ from dataclasses import dataclass
 from src.shared.interfaces.entities import ModuleDomainEvent
 
 
-@dataclass
+@dataclass(frozen=True)
 class PaymentEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all payment domain events."""
 
     aggregate_type: str = "payment_intent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class PaymentIntentInitiatedEvent(
     PaymentEvent,
     required_fields=("intent_id", "order_id"),
@@ -27,7 +27,7 @@ class PaymentIntentInitiatedEvent(
     event_type: str = "PaymentIntentInitiatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class PaymentAuthorizedEvent(
     PaymentEvent,
     required_fields=("intent_id", "order_id"),
@@ -39,7 +39,7 @@ class PaymentAuthorizedEvent(
     event_type: str = "PaymentAuthorizedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class PaymentCapturedEvent(
     PaymentEvent,
     required_fields=("intent_id", "order_id"),
@@ -53,7 +53,7 @@ class PaymentCapturedEvent(
     event_type: str = "PaymentCapturedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class PaymentFailedEvent(
     PaymentEvent,
     required_fields=("intent_id", "order_id"),
@@ -66,7 +66,7 @@ class PaymentFailedEvent(
     event_type: str = "PaymentFailedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class PaymentRefundedEvent(
     PaymentEvent,
     required_fields=("intent_id", "order_id"),
@@ -79,7 +79,7 @@ class PaymentRefundedEvent(
     event_type: str = "PaymentRefundedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class PaymentCancelledEvent(
     PaymentEvent,
     required_fields=("intent_id", "order_id"),

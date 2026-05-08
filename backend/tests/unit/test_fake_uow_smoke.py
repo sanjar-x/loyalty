@@ -24,7 +24,7 @@ from tests.fakes.fake_uow import FakeUnitOfWork
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class _TestEvent(DomainEvent):
     """Minimal domain event for testing FakeUoW event collection."""
 

@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 from src.shared.interfaces.entities import ModuleDomainEvent
 
 
-@dataclass
+@dataclass(frozen=True)
 class IdentityEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for events emitted by the identity bounded context.
 
@@ -60,7 +60,7 @@ class IdentityEvent(ModuleDomainEvent, abstract=True):
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class IdentityRegisteredEvent(
     IdentityEvent,
     required_fields=("identity_id",),
@@ -81,7 +81,7 @@ class IdentityRegisteredEvent(
     event_type: str = "IdentityRegisteredEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class IdentityDeactivatedEvent(
     IdentityEvent,
     required_fields=("identity_id",),
@@ -101,7 +101,7 @@ class IdentityDeactivatedEvent(
     event_type: str = "IdentityDeactivatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class IdentityReactivatedEvent(
     IdentityEvent,
     required_fields=("identity_id",),
@@ -115,7 +115,7 @@ class IdentityReactivatedEvent(
     event_type: str = "IdentityReactivatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class RoleAssignmentChangedEvent(
     IdentityEvent,
     required_fields=("identity_id", "role_id"),
@@ -134,7 +134,7 @@ class RoleAssignmentChangedEvent(
     event_type: str = "RoleAssignmentChangedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class LinkedAccountCreatedEvent(
     IdentityEvent,
     required_fields=("identity_id",),
@@ -162,7 +162,7 @@ class LinkedAccountCreatedEvent(
     event_type: str = "LinkedAccountCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class LinkedAccountRemovedEvent(
     IdentityEvent,
     required_fields=("identity_id",),
@@ -177,7 +177,7 @@ class LinkedAccountRemovedEvent(
     event_type: str = "LinkedAccountRemovedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class IdentityTokenVersionBumpedEvent(
     IdentityEvent,
     required_fields=("identity_id",),
@@ -197,7 +197,7 @@ class IdentityTokenVersionBumpedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class StaffInvitedEvent(
     IdentityEvent,
     required_fields=("invitation_id",),
@@ -213,7 +213,7 @@ class StaffInvitedEvent(
     event_type: str = "StaffInvitedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class StaffInvitationAcceptedEvent(
     IdentityEvent,
     required_fields=("invitation_id",),

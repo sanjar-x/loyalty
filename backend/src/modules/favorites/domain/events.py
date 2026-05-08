@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from src.shared.interfaces.entities import ModuleDomainEvent
 
 
-@dataclass
+@dataclass(frozen=True)
 class FavoritesEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all favorites domain events."""
 
@@ -26,7 +26,7 @@ class FavoritesEvent(ModuleDomainEvent, abstract=True):
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class FavoriteListCreatedEvent(
     FavoritesEvent,
     required_fields=("list_id", "identity_id"),
@@ -39,7 +39,7 @@ class FavoriteListCreatedEvent(
     event_type: str = "FavoriteListCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class FavoriteListRenamedEvent(
     FavoritesEvent,
     required_fields=("list_id", "identity_id"),
@@ -51,7 +51,7 @@ class FavoriteListRenamedEvent(
     event_type: str = "FavoriteListRenamedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class FavoriteListDeletedEvent(
     FavoritesEvent,
     required_fields=("list_id", "identity_id"),
@@ -67,7 +67,7 @@ class FavoriteListDeletedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class FavoriteItemAddedEvent(
     FavoritesEvent,
     required_fields=("list_id", "identity_id", "target_type", "target_id"),
@@ -80,7 +80,7 @@ class FavoriteItemAddedEvent(
     event_type: str = "FavoriteItemAddedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class FavoriteItemRemovedEvent(
     FavoritesEvent,
     required_fields=("list_id", "identity_id", "target_type", "target_id"),

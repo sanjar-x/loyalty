@@ -54,7 +54,7 @@ class IBase(Protocol):
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class DomainEvent:
     """Root base class for all domain events.
 
@@ -104,7 +104,7 @@ class DomainEvent:
             )
 
 
-@dataclass
+@dataclass(frozen=True)
 class ModuleDomainEvent(DomainEvent, abstract=True):
     """Intermediate event base shared by every bounded context.
 
@@ -168,8 +168,16 @@ class ModuleDomainEvent(DomainEvent, abstract=True):
         for field_name in self._required_fields:
             if getattr(self, field_name) is None:
                 raise ValueError(f"{field_name} is required for {cls_name}")
+        # T-H6 — events are now ``@dataclass(frozen=True)``; the
+        # ``aggregate_id`` auto-fill must use ``object.__setattr__``
+        # to bypass the frozen-instance setter. This is the documented
+        # escape hatch for ``__post_init__`` on frozen dataclasses.
         if not self.aggregate_id and self._aggregate_id_field:
-            self.aggregate_id = str(getattr(self, self._aggregate_id_field))
+            object.__setattr__(
+                self,
+                "aggregate_id",
+                str(getattr(self, self._aggregate_id_field)),
+            )
 
 
 class AggregateRoot:

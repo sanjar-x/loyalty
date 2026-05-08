@@ -50,7 +50,7 @@ class TestDomainEventInitSubclass:
                 pass
 
     def test_accepts_valid_subclass(self) -> None:
-        @dataclass
+        @dataclass(frozen=True)
         class GoodEvent(DomainEvent):
             aggregate_type: str = "TestAggregate"
             event_type: str = "GoodEvent"
@@ -74,7 +74,7 @@ class TestDomainEventInitSubclass:
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class _SampleModuleEvent(ModuleDomainEvent, abstract=True):
     """Reusable abstract base for unit tests.
 
@@ -91,7 +91,7 @@ class _SampleModuleEvent(ModuleDomainEvent, abstract=True):
 
 class TestModuleDomainEventValidation:
     def test_required_field_none_raises_on_construction(self) -> None:
-        @dataclass
+        @dataclass(frozen=True)
         class SampleCreatedEvent(
             _SampleModuleEvent,
             required_fields=("entity_id",),
@@ -104,7 +104,7 @@ class TestModuleDomainEventValidation:
             SampleCreatedEvent()
 
     def test_required_field_present_constructs_successfully(self) -> None:
-        @dataclass
+        @dataclass(frozen=True)
         class SampleCreatedEvent(
             _SampleModuleEvent,
             required_fields=("entity_id",),
@@ -120,7 +120,7 @@ class TestModuleDomainEventValidation:
         assert event.event_type == "SampleCreatedEvent"
 
     def test_aggregate_id_auto_filled_from_named_field(self) -> None:
-        @dataclass
+        @dataclass(frozen=True)
         class SampleEvent(
             _SampleModuleEvent,
             required_fields=("payload_id",),
@@ -134,7 +134,7 @@ class TestModuleDomainEventValidation:
         assert event.aggregate_id == str(payload_id)
 
     def test_explicit_aggregate_id_is_preserved(self) -> None:
-        @dataclass
+        @dataclass(frozen=True)
         class SampleEvent(
             _SampleModuleEvent,
             required_fields=("payload_id",),
@@ -154,7 +154,7 @@ class TestModuleDomainEventValidation:
             match="declares required_fields but does not override 'event_type'",
         ):
 
-            @dataclass
+            @dataclass(frozen=True)
             class BadEvent(
                 _SampleModuleEvent,
                 required_fields=("entity_id",),
@@ -164,7 +164,7 @@ class TestModuleDomainEventValidation:
                 # missing: event_type override
 
     def test_multiple_required_fields_validated_together(self) -> None:
-        @dataclass
+        @dataclass(frozen=True)
         class MultiFieldEvent(
             _SampleModuleEvent,
             required_fields=("entity_id", "actor_id"),

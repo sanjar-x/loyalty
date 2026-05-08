@@ -40,7 +40,7 @@ class _SyntheticAggregate(AggregateRoot):
     id: uuid.UUID
 
 
-@dataclass
+@dataclass(frozen=True)
 class _SyntheticEvent(DomainEvent):
     aggregate_type: str = "synthetic"
     event_type: str = "SyntheticEvent"
@@ -92,13 +92,13 @@ def test_domain_events_returns_defensive_copy() -> None:
 def test_module_domain_event_requires_concrete_event_type() -> None:
     """Subclass declaring ``required_fields`` must override ``event_type``."""
 
-    @dataclass
+    @dataclass(frozen=True)
     class _Base(ModuleDomainEvent, abstract=True):
         aggregate_type: str = "test"
 
     with pytest.raises(TypeError, match="event_type"):
 
-        @dataclass
+        @dataclass(frozen=True)
         class _LeafForgetsType(
             _Base,
             required_fields=("foo",),
@@ -110,11 +110,11 @@ def test_module_domain_event_requires_concrete_event_type() -> None:
 def test_module_domain_event_validates_required_fields() -> None:
     """Missing required field raises ``ValueError`` at construction."""
 
-    @dataclass
+    @dataclass(frozen=True)
     class _Base(ModuleDomainEvent, abstract=True):
         aggregate_type: str = "test"
 
-    @dataclass
+    @dataclass(frozen=True)
     class _Leaf(
         _Base,
         required_fields=("foo",),
@@ -130,11 +130,11 @@ def test_module_domain_event_validates_required_fields() -> None:
 def test_module_domain_event_auto_fills_aggregate_id() -> None:
     """``aggregate_id`` is derived from ``aggregate_id_field``."""
 
-    @dataclass
+    @dataclass(frozen=True)
     class _Base(ModuleDomainEvent, abstract=True):
         aggregate_type: str = "test"
 
-    @dataclass
+    @dataclass(frozen=True)
     class _Leaf(
         _Base,
         required_fields=("foo_id",),
@@ -151,7 +151,7 @@ def test_module_domain_event_auto_fills_aggregate_id() -> None:
 def test_abstract_module_domain_event_skips_required_field_check() -> None:
     """Intermediate ``abstract=True`` bases must not trigger validation."""
 
-    @dataclass
+    @dataclass(frozen=True)
     class _Base(ModuleDomainEvent, abstract=True):
         aggregate_type: str = "test"
 

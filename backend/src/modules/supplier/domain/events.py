@@ -12,14 +12,14 @@ from dataclasses import dataclass
 from src.shared.interfaces.entities import ModuleDomainEvent
 
 
-@dataclass
+@dataclass(frozen=True)
 class SupplierEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all supplier domain events."""
 
     aggregate_type: str = "Supplier"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SupplierCreatedEvent(
     SupplierEvent,
     required_fields=("supplier_id",),
@@ -34,7 +34,7 @@ class SupplierCreatedEvent(
     event_type: str = "SupplierCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SupplierUpdatedEvent(
     SupplierEvent,
     required_fields=("supplier_id",),
@@ -46,7 +46,7 @@ class SupplierUpdatedEvent(
     event_type: str = "SupplierUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SupplierDeactivatedEvent(
     SupplierEvent,
     required_fields=("supplier_id",),
@@ -58,7 +58,7 @@ class SupplierDeactivatedEvent(
     event_type: str = "SupplierDeactivatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SupplierActivatedEvent(
     SupplierEvent,
     required_fields=("supplier_id",),
