@@ -199,6 +199,12 @@ class UpdateProductHandler:
             storage_ids_to_delete: list[uuid.UUID] = []
             if command.media is not None:
                 existing = await self._media_repo.list_by_product(command.product_id)
+                # PERF-002 — index existing media by id once, look up
+                # in the update loop below. Was N separate
+                # ``await self._media_repo.get(id)`` calls; for a 30-item
+                # gallery being reordered that's 30 round-trips per
+                # request.
+                existing_by_id = {m.id: m for m in existing}
                 current_dicts = [
                     {
                         "id": str(m.id),
@@ -225,7 +231,7 @@ class UpdateProductHandler:
                         storage_ids_to_delete.append(uuid.UUID(sid))
 
                 for item in to_update:
-                    media = await self._media_repo.get(uuid.UUID(item["id"]))
+                    media = existing_by_id.get(uuid.UUID(item["id"]))
                     if media is None:
                         continue
                     media.role = item["role"]
