@@ -6,9 +6,9 @@ creates capability providers via the appropriate factory, and registers
 them into the ShippingProviderRegistry.
 """
 
-import logging
 from typing import Any
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -32,7 +32,7 @@ from src.modules.logistics.infrastructure.services.registry import (
     ShippingProviderRegistry,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 _FACTORY_MAP: dict[str, type[IProviderFactory]] = {
     PROVIDER_CDEK: CdekProviderFactory,

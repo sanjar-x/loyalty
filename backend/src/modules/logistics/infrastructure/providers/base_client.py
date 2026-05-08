@@ -8,12 +8,12 @@ implementing raw HTTP calls.
 """
 
 import asyncio
-import logging
 import random
 from typing import Any
 
 import attrs
 import httpx
+import structlog
 
 from src.modules.logistics.infrastructure.providers.base_auth import BaseAuthManager
 from src.modules.logistics.infrastructure.providers.errors import (
@@ -22,7 +22,7 @@ from src.modules.logistics.infrastructure.providers.errors import (
     ProviderTimeoutError,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # HTTP status codes safe to retry for *any* method (idempotent or not):
 # 429 is rate-limit back-off — replaying does not produce a duplicate

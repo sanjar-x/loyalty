@@ -6,8 +6,9 @@ pricing calculator, offers (create/confirm), order management,
 tracking history, pickup points, labels, and location detection.
 """
 
-import logging
 from typing import Any
+
+import structlog
 
 from src.modules.logistics.infrastructure.providers.base_auth import (
     BearerTokenAuthManager,
@@ -40,7 +41,7 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.constants im
     PATH_REQUESTS_INFO,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class YandexDeliveryClient:

@@ -235,6 +235,15 @@ ALLOWED_CROSS_MODULE = {
     ("payment", "identity"): {"src.modules.payment.presentation.*"},
     # Recipient routers use identity's Auth dep.
     ("recipient", "identity"): {"src.modules.recipient.presentation.*"},
+    # REC-030 — geo / supplier / image / logistics admin routers use
+    # identity's ``RequirePermission`` dependency. Caught by the
+    # presentation-layer extension of Rule 5 added in REC-030; previously
+    # invisible because the rule only iterated over
+    # domain/application/infrastructure.
+    ("geo", "identity"): {"src.modules.geo.presentation.*"},
+    ("supplier", "identity"): {"src.modules.supplier.presentation.*"},
+    ("image", "identity"): {"src.modules.image.presentation.*"},
+    ("logistics", "identity"): {"src.modules.logistics.presentation.*"},
     # Order ↔ Recipient: order reads Recipient via a single ACL adapter
     # (read-side projection). Recipient never imports order.
     ("order", "recipient"): {
@@ -252,9 +261,17 @@ ALLOWED_CROSS_MODULE = {
     [(s, t) for s in MODULES for t in MODULES if s != t],
 )
 def test_module_isolation(source: str, target: str):
-    """Modules MUST NOT directly import each other's internals."""
+    """Modules MUST NOT directly import each other's internals.
+
+    REC-030 — ``presentation`` is included in the layer sweep so that
+    cross-module imports of ``identity.presentation.dependencies``
+    (Auth, RequirePermission) are subject to the same whitelist
+    discipline as domain/application/infrastructure imports.
+    Previously such imports passed silently — the whitelist entries
+    for ``*.presentation.*`` were lying about what they protected.
+    """
     excludes = ALLOWED_CROSS_MODULE.get((source, target), set())
-    for layer in ["domain", "application", "infrastructure"]:
+    for layer in ["domain", "application", "infrastructure", "presentation"]:
         rule = archrule(f"{source}_cannot_import_{target}_{layer}").match(
             f"src.modules.{source}.*"
         )

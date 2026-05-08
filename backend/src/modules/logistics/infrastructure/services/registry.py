@@ -6,8 +6,9 @@ IBookingProvider, etc.). The registry indexes them by ProviderCode.
 """
 
 import asyncio
-import logging
 from collections.abc import Awaitable, Callable
+
+import structlog
 
 from src.modules.logistics.domain.exceptions import ProviderUnavailableError
 from src.modules.logistics.domain.interfaces import (
@@ -25,7 +26,7 @@ from src.modules.logistics.domain.interfaces import (
 )
 from src.modules.logistics.domain.value_objects import ProviderCode
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class ShippingProviderRegistry:

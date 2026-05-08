@@ -6,9 +6,10 @@ domain value objects and the JSON structures expected/returned by the
 Yandex Delivery "Other Day" API.
 """
 
-import logging
 from datetime import UTC, datetime
 from typing import Any
+
+import structlog
 
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_YANDEX_DELIVERY,
@@ -33,7 +34,7 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.constants im
     parse_pricing_string,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------

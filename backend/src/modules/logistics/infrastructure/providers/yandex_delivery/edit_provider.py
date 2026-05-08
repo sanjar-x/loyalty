@@ -25,8 +25,9 @@ must treat as "already complete".
 from __future__ import annotations
 
 import json
-import logging
 from typing import Any
+
+import structlog
 
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_YANDEX_DELIVERY,
@@ -53,7 +54,7 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.mappers impo
     build_redelivery_destination,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 _YANDEX_EDIT_STATUS_MAP: dict[str, EditTaskStatus] = {

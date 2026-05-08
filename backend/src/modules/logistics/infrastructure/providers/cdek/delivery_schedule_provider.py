@@ -9,8 +9,9 @@ Wraps:
 
 from __future__ import annotations
 
-import logging
 from typing import Any
+
+import structlog
 
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_CDEK,
@@ -21,7 +22,7 @@ from src.modules.logistics.domain.value_objects import (
 )
 from src.modules.logistics.infrastructure.providers.cdek.client import CdekClient
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class CdekDeliveryScheduleProvider:

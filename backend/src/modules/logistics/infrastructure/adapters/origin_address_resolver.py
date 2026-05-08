@@ -35,9 +35,9 @@ the DB twice when the handler also wants to compose downstream
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,7 +49,7 @@ from src.modules.logistics.infrastructure.models import ProviderAccountModel
 # Top-level config key under which the sender warehouse address lives.
 ORIGIN_CONFIG_KEY = "default_origin"
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class ProviderAccountOriginResolver(IOriginAddressResolver):

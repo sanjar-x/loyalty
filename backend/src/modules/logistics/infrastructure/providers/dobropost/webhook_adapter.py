@@ -27,8 +27,9 @@ from __future__ import annotations
 import hmac
 import ipaddress
 import json
-import logging
 from typing import Any
+
+import structlog
 
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_DOBROPOST,
@@ -39,7 +40,7 @@ from src.modules.logistics.infrastructure.providers.dobropost.mappers import (
     parse_status_update_event,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class DobroPostWebhookAdapter:
@@ -140,19 +141,15 @@ class DobroPostWebhookAdapter:
         is_valid = bool(payload.get("passportValidationStatus"))
         if is_valid:
             logger.info(
-                "DobroPost passport validation passed",
-                extra={
-                    "dp_id": shipment_id,
-                    "status_date": payload.get("statusDate"),
-                },
+                "dobropost_passport_validation_passed",
+                dp_id=shipment_id,
+                status_date=payload.get("statusDate"),
             )
             return
         logger.error(
-            "DobroPost passport validation FAILED",
-            extra={
-                "dp_id": shipment_id,
-                "status_date": payload.get("statusDate"),
-            },
+            "dobropost_passport_validation_failed",
+            dp_id=shipment_id,
+            status_date=payload.get("statusDate"),
         )
 
     def _handle_status_update(

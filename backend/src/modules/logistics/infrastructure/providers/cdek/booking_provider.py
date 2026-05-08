@@ -7,7 +7,8 @@ pattern (POST → poll GET for confirmation).
 
 import asyncio
 import json
-import logging
+
+import structlog
 
 from src.modules.logistics.domain.exceptions import BookingPendingError
 from src.modules.logistics.domain.value_objects import (
@@ -25,7 +26,7 @@ from src.modules.logistics.infrastructure.providers.cdek.mappers import (
 )
 from src.modules.logistics.infrastructure.providers.errors import ProviderHTTPError
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class CdekBookingProvider:

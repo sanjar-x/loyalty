@@ -18,7 +18,7 @@ cycle, and the webhook path remains the primary update channel.
 
 from __future__ import annotations
 
-import logging
+import structlog
 
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_DOBROPOST,
@@ -32,7 +32,7 @@ from src.modules.logistics.infrastructure.providers.dobropost.mappers import (
     parse_list_shipment_response,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # DobroPost ``GET /api/shipment`` paging — keep modest to fit the
 # ``logistics_tracking_poll`` task's 4-min timeout for ~200 shipments.
@@ -79,7 +79,11 @@ class DobroPostTrackingPollProvider:
             try:
                 data = await self._client.list_shipments({"offset": offset})
             except Exception as exc:
-                logger.warning("DobroPost poll offset=%d failed: %s", offset, exc)
+                logger.warning(
+                    "dobropost_poll_failed",
+                    offset=offset,
+                    error=str(exc),
+                )
                 break
 
             page_events = parse_list_shipment_response(data)

@@ -7,7 +7,8 @@ ensures eventual consistency if webhooks are delayed or lost.
 """
 
 import asyncio
-import logging
+
+import structlog
 
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_CDEK,
@@ -19,7 +20,7 @@ from src.modules.logistics.infrastructure.providers.cdek.mappers import (
     parse_tracking_events,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class CdekTrackingPollProvider:
@@ -44,7 +45,11 @@ class CdekTrackingPollProvider:
 
         for sid, resp in zip(provider_shipment_ids, responses, strict=False):
             if isinstance(resp, BaseException):
-                logger.warning("Failed to poll CDEK tracking for %s: %s", sid, resp)
+                logger.warning(
+                    "cdek_tracking_poll_failed",
+                    shipment_id=sid,
+                    error=str(resp),
+                )
                 result[sid] = []
             else:
                 result[sid] = resp
