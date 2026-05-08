@@ -835,14 +835,19 @@ class ProductStatusChangeRequest(CamelModel):
 
 
 class SKUCreateRequest(CamelModel):
-    """Request body for adding a SKU (variant) to a product."""
+    """Request body for adding a SKU (variant) to a product.
+
+    All monetary fields use the nested ``MoneySchema`` shape — symmetric
+    with the response schema. ``purchase_price.currency`` must be one of
+    ``RUB`` / ``CNY`` (the two ``PurchaseCurrency`` values supported by
+    the pricing recompute pipeline — ADR-005); the domain layer enforces
+    this at SKU construction.
+    """
 
     sku_code: str = Field(..., min_length=1, max_length=100)
-    price_amount: int | None = Field(None, ge=0)
-    price_currency: str = Field(
-        "RUB", min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"
-    )
-    compare_at_price_amount: int | None = Field(None, ge=0)
+    price: MoneySchema | None = None
+    compare_at_price: MoneySchema | None = None
+    purchase_price: MoneySchema | None = None
     is_active: bool = True
     variant_attributes: list[VariantAttributePairSchema] = Field(
         default_factory=list, max_length=50
@@ -857,14 +862,15 @@ class SKUCreateResponse(CamelModel):
 
 
 class SKUUpdateRequest(CamelModel):
-    """Partial update request for a SKU -- all fields optional (PATCH semantics)."""
+    """Partial update request for a SKU -- all fields optional (PATCH semantics).
+
+    Money fields use the nested ``MoneySchema`` shape (CAT-001).
+    """
 
     sku_code: str | None = Field(None, min_length=1, max_length=100)
-    price_amount: int | None = Field(None, ge=0)
-    price_currency: str | None = Field(
-        None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"
-    )
-    compare_at_price_amount: int | None = None
+    price: MoneySchema | None = None
+    compare_at_price: MoneySchema | None = None
+    purchase_price: MoneySchema | None = None
     is_active: bool | None = None
     variant_attributes: list[VariantAttributePairSchema] | None = Field(
         None, max_length=50
@@ -889,6 +895,7 @@ class SKUResponse(CamelModel):
     price: MoneySchema | None = None
     resolved_price: MoneySchema | None = None
     compare_at_price: MoneySchema | None = None
+    purchase_price: MoneySchema | None = None
     is_active: bool
     version: int
     created_at: datetime
@@ -1002,10 +1009,7 @@ class ProductVariantCreateRequest(CamelModel):
     name_i18n: I18nDict = Field(..., min_length=1)
     description_i18n: I18nDict | None = None
     sort_order: int = Field(0, ge=0)
-    default_price_amount: int | None = Field(None, ge=0)
-    default_price_currency: str | None = Field(
-        None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"
-    )
+    default_price: MoneySchema | None = None
 
 
 class ProductVariantCreateResponse(CamelModel):
@@ -1024,10 +1028,7 @@ class ProductVariantUpdateRequest(CamelModel):
     name_i18n: I18nDict | None = None
     description_i18n: I18nDict | None = None
     sort_order: int | None = Field(None, ge=0)
-    default_price_amount: int | None = Field(None, ge=0)
-    default_price_currency: str | None = Field(
-        None, min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"
-    )
+    default_price: MoneySchema | None = None
 
     @model_validator(mode="after")
     def at_least_one_field(self) -> ProductVariantUpdateRequest:
@@ -1065,11 +1066,8 @@ class SKUMatrixGenerateRequest(CamelModel):
     attribute_selections: list[AttributeSelectionSchema] = Field(
         ..., min_length=1, max_length=10
     )
-    price_amount: int | None = Field(None, ge=0)
-    price_currency: str = Field(
-        "RUB", min_length=3, max_length=3, pattern=r"^[A-Z]{3}$"
-    )
-    compare_at_price_amount: int | None = Field(None, ge=0)
+    price: MoneySchema | None = None
+    compare_at_price: MoneySchema | None = None
     is_active: bool = True
 
 

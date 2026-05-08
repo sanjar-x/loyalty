@@ -106,8 +106,7 @@ class TestAddVariant:
             AddVariantCommand(
                 product_id=product.id,
                 name_i18n={"en": "Size 42", "ru": "Размер 42"},
-                default_price_amount=5000,
-                default_price_currency="RUB",
+                default_price=Money(amount=5000, currency="RUB"),
             )
         )
 
@@ -215,11 +214,8 @@ class TestUpdateVariant:
             UpdateVariantCommand(
                 product_id=product.id,
                 variant_id=variant_id,
-                default_price_amount=3000,
-                default_price_currency="USD",
-                _provided_fields=frozenset(
-                    {"default_price_amount", "default_price_currency"}
-                ),
+                default_price=Money(amount=3000, currency="USD"),
+                _provided_fields=frozenset({"default_price"}),
             )
         )
 
@@ -273,29 +269,10 @@ class TestUpdateVariant:
 
         assert uow.committed is False
 
-    async def test_invalid_currency_format(self):
-        uow = FakeUnitOfWork()
-        product = _seed_product(uow)
-        variant_id = product.variants[0].id
-
-        handler = UpdateVariantHandler(
-            product_repo=uow.products,
-            uow=uow,
-            cache=AsyncMock(),
-            logger=_make_logger(),
-        )
-
-        with pytest.raises(ValueError, match="3 uppercase ASCII"):
-            await handler.handle(
-                UpdateVariantCommand(
-                    product_id=product.id,
-                    variant_id=variant_id,
-                    default_price_currency="ab",
-                    _provided_fields=frozenset({"default_price_currency"}),
-                )
-            )
-
-        assert uow.committed is False
+    # NOTE: ``test_invalid_currency_format`` was removed in CAT-001 — currency
+    # validation now lives in ``MoneySchema`` (Pydantic pattern at the
+    # presentation layer) and never reaches the command. The handler no longer
+    # accepts ``default_price_currency`` as a separate field.
 
 
 # ============================================================================

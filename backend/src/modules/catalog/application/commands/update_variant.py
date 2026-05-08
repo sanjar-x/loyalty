@@ -28,8 +28,8 @@ class UpdateVariantCommand:
 
     All fields except ``product_id`` and ``variant_id`` are optional;
     omitting a field means "keep the current value". Pass ``None``
-    explicitly for ``description_i18n`` or ``default_price_amount``
-    (with the field name in ``_provided_fields``) to clear the value.
+    explicitly for ``description_i18n`` or ``default_price`` (with the
+    field name in ``_provided_fields``) to clear the value.
 
     Attributes:
         product_id: UUID of the product that owns the variant.
@@ -37,8 +37,10 @@ class UpdateVariantCommand:
         name_i18n: New multilingual name, or None to keep current.
         description_i18n: New description, None to clear, or absent to keep.
         sort_order: New sort order, or None to keep current.
-        default_price_amount: New default price amount, None to clear, or absent to keep.
-        default_price_currency: New currency code, or None to keep current.
+        default_price: New default price as a domain ``Money``, ``None``
+            to clear, or absent (not in ``_provided_fields``) to keep
+            unchanged. (CAT-001 — was ``default_price_amount`` /
+            ``default_price_currency`` split fields.)
         _provided_fields: Set of field names explicitly provided by the caller.
     """
 
@@ -47,8 +49,7 @@ class UpdateVariantCommand:
     name_i18n: dict[str, str] | None = None
     description_i18n: dict[str, str] | None = None
     sort_order: int | None = None
-    default_price_amount: int | None = None
-    default_price_currency: str | None = None
+    default_price: Money | None = None
     _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 
@@ -122,31 +123,10 @@ class UpdateVariantHandler:
             if "sort_order" in command._provided_fields:
                 update_kwargs["sort_order"] = command.sort_order
 
-            if "default_price_currency" in command._provided_fields:
-                currency = command.default_price_currency
-                if currency is not None and not (
-                    len(currency) == 3 and currency.isascii() and currency.isupper()
-                ):
-                    raise ValueError(
-                        "default_price_currency must be exactly 3 uppercase ASCII letters"
-                    )
-
-            if "default_price_amount" in command._provided_fields:
-                if command.default_price_amount is not None:
-                    currency = (
-                        command.default_price_currency or variant.default_currency
-                    )
-                    update_kwargs["default_price"] = Money(
-                        amount=command.default_price_amount, currency=currency
-                    )
-                else:
-                    update_kwargs["default_price"] = None
-
-            if (
-                "default_price_currency" in command._provided_fields
-                and command.default_price_currency is not None
-            ):
-                update_kwargs["default_currency"] = command.default_price_currency
+            if "default_price" in command._provided_fields:
+                update_kwargs["default_price"] = command.default_price
+                if command.default_price is not None:
+                    update_kwargs["default_currency"] = command.default_price.currency
 
             if update_kwargs:
                 variant.update(**update_kwargs)

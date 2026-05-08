@@ -10,16 +10,13 @@ the result. Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass, field
 
-from src.modules.catalog.application.constants import (
-    DEFAULT_CURRENCY,
-    storefront_pdp_cache_key,
-)
+from src.modules.catalog.application.constants import storefront_pdp_cache_key
 from src.modules.catalog.domain.exceptions import (
     ProductNotFoundError,
     SKUCodeConflictError,
 )
 from src.modules.catalog.domain.interfaces import IProductRepository
-from src.modules.catalog.domain.value_objects import Money
+from src.modules.catalog.domain.value_objects import Money, PurchaseCurrency
 from src.shared.exceptions import ValidationError
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
@@ -33,21 +30,23 @@ class AddSKUCommand:
     Attributes:
         product_id: UUID of the product to add the SKU to.
         sku_code: Human-readable stock-keeping code.
-        price_amount: Price in smallest currency units (e.g. kopecks).
-        price_currency: 3-character ISO 4217 currency code.
-        compare_at_price_amount: Optional strikethrough price amount.
-            Must be greater than ``price_amount`` when provided.
+        price: Optional manual selling price (legacy fallback before
+            pricing recompute lands a value).
+        compare_at_price: Optional strikethrough price; must be greater
+            than ``price.amount`` when provided.
+        purchase_price: Wholesale cost in ``RUB`` or ``CNY`` (CAT-001).
+            Drives autonomous pricing recompute.
         is_active: Whether the variant is immediately available for sale.
-        variant_attributes: List of (attribute_id, attribute_value_id) pairs
-            that uniquely identify this variant combination.
+        variant_attributes: List of (attribute_id, attribute_value_id)
+            pairs that uniquely identify this variant combination.
     """
 
     product_id: uuid.UUID
     variant_id: uuid.UUID
     sku_code: str
-    price_amount: int | None = None
-    price_currency: str = DEFAULT_CURRENCY
-    compare_at_price_amount: int | None = None
+    price: Money | None = None
+    compare_at_price: Money | None = None
+    purchase_price: Money | None = None
     is_active: bool = True
     variant_attributes: list[tuple[uuid.UUID, uuid.UUID]] = field(default_factory=list)
 
@@ -112,30 +111,45 @@ class AddSKUHandler:
                     sku_code=command.sku_code, product_id=command.product_id
                 )
 
-            if command.price_amount is not None:
+            if command.compare_at_price is not None:
+                if command.price is None:
+                    raise ValidationError(
+                        message="compare_at_price requires a base price",
+                        error_code="INVALID_PRICE",
+                    )
+                if command.compare_at_price.currency != command.price.currency:
+                    raise ValidationError(
+                        message="compare_at_price.currency must match price.currency",
+                        error_code="INVALID_PRICE",
+                    )
+                if command.compare_at_price.amount <= command.price.amount:
+                    raise ValidationError(
+                        message="compare_at_price must be greater than price",
+                        error_code="INVALID_PRICE",
+                    )
+
+            purchase_currency_vo: PurchaseCurrency | None = None
+            if command.purchase_price is not None:
                 try:
-                    price, compare_at_price = Money.from_primitives(
-                        amount=command.price_amount,
-                        currency=command.price_currency,
-                        compare_at_amount=command.compare_at_price_amount,
+                    purchase_currency_vo = PurchaseCurrency(
+                        command.purchase_price.currency
                     )
                 except ValueError as exc:
                     raise ValidationError(
-                        message=str(exc),
-                        error_code="INVALID_PRICE",
-                        details={
-                            "price_amount": command.price_amount,
-                            "compare_at_price_amount": command.compare_at_price_amount,
-                        },
+                        message=(
+                            f"purchase_price.currency '{command.purchase_price.currency}'"
+                            " is not supported (use RUB or CNY)"
+                        ),
+                        error_code="INVALID_PURCHASE_CURRENCY",
                     ) from exc
-            else:
-                price, compare_at_price = None, None
 
             sku = product.add_sku(
                 variant_id=command.variant_id,
                 sku_code=command.sku_code,
-                price=price,
-                compare_at_price=compare_at_price,
+                price=command.price,
+                compare_at_price=command.compare_at_price,
+                purchase_price=command.purchase_price,
+                purchase_currency=purchase_currency_vo,
                 is_active=command.is_active,
                 variant_attributes=command.variant_attributes
                 if command.variant_attributes

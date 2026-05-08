@@ -24,16 +24,16 @@ class AddVariantCommand:
         name_i18n: Multilingual variant name (at least one entry required).
         description_i18n: Optional multilingual description.
         sort_order: Display ordering among sibling variants (default: 0).
-        default_price_amount: Optional default price in smallest currency units.
-        default_price_currency: Currency code for the default price (default: "RUB").
+        default_price: Optional default price as a domain ``Money`` value
+            (CAT-001 — was previously ``default_price_amount`` /
+            ``default_price_currency`` split fields).
     """
 
     product_id: uuid.UUID
     name_i18n: dict[str, str]
     description_i18n: dict[str, str] | None = None
     sort_order: int = 0
-    default_price_amount: int | None = None
-    default_price_currency: str = DEFAULT_CURRENCY
+    default_price: Money | None = None
 
 
 @dataclass(frozen=True)
@@ -87,19 +87,17 @@ class AddVariantHandler:
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
-            default_price: Money | None = None
-            if command.default_price_amount is not None:
-                default_price = Money(
-                    amount=command.default_price_amount,
-                    currency=command.default_price_currency,
-                )
-
+            default_currency = (
+                command.default_price.currency
+                if command.default_price is not None
+                else DEFAULT_CURRENCY
+            )
             variant = product.add_variant(
                 name_i18n=command.name_i18n,
                 description_i18n=command.description_i18n,
                 sort_order=command.sort_order,
-                default_price=default_price,
-                default_currency=command.default_price_currency,
+                default_price=command.default_price,
+                default_currency=default_currency,
             )
 
             await self._product_repo.update(product)

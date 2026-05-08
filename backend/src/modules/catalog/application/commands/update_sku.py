@@ -13,10 +13,7 @@ Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass, field
 
-from src.modules.catalog.application.constants import (
-    DEFAULT_CURRENCY,
-    storefront_pdp_cache_key,
-)
+from src.modules.catalog.application.constants import storefront_pdp_cache_key
 from src.modules.catalog.domain.exceptions import (
     ConcurrencyError,
     DuplicateVariantCombinationError,
@@ -25,7 +22,7 @@ from src.modules.catalog.domain.exceptions import (
     SKUNotFoundError,
 )
 from src.modules.catalog.domain.interfaces import IProductRepository
-from src.modules.catalog.domain.value_objects import Money
+from src.modules.catalog.domain.value_objects import Money, PurchaseCurrency
 from src.shared.exceptions import ValidationError
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
@@ -38,17 +35,21 @@ class UpdateSKUCommand:
 
     All fields except ``product_id`` and ``sku_id`` are optional; omitting
     a field (or leaving it at its default) means "keep the current value".
-    Pass ``None`` explicitly for ``compare_at_price_amount`` to *clear* the
-    compare-at price; leaving it out of ``_provided_fields`` keeps it unchanged.
+    Pass ``None`` explicitly for ``compare_at_price`` to *clear* the
+    compare-at price; leaving it out of ``_provided_fields`` keeps it
+    unchanged.
 
     Attributes:
         product_id: UUID of the product that owns the SKU.
         sku_id: UUID of the SKU to update.
         sku_code: New stock-keeping code, or None to keep current.
-        price_amount: New price in smallest currency units, or None to keep.
-        price_currency: Currency code for the new price, or None to keep.
-        compare_at_price_amount: New compare-at price amount, None to clear,
-            or absent (not in _provided_fields) to keep unchanged.
+        price: New selling price as a domain ``Money``, or None to keep
+            current. Use ``compare_at_price`` semantics to clear.
+        compare_at_price: New compare-at price (Money), None to clear,
+            or absent (not in ``_provided_fields``) to keep unchanged.
+        purchase_price: New wholesale cost (Money). When provided,
+            triggers ``set_purchase_price`` which arms the autonomous
+            recompute pipeline (CAT-001).
         is_active: New active flag, or None to keep current.
         variant_attributes: New variant attribute pairs, or None to keep.
         version: Expected SKU version for optimistic locking, or None to skip.
@@ -57,9 +58,9 @@ class UpdateSKUCommand:
     product_id: uuid.UUID
     sku_id: uuid.UUID
     sku_code: str | None = None
-    price_amount: int | None = None
-    price_currency: str | None = None
-    compare_at_price_amount: int | None = None
+    price: Money | None = None
+    compare_at_price: Money | None = None
+    purchase_price: Money | None = None
     is_active: bool | None = None
     variant_attributes: list[tuple[uuid.UUID, uuid.UUID]] | None = None
     version: int | None = None
@@ -150,60 +151,11 @@ class UpdateSKUHandler:
                     )
                 update_kwargs["sku_code"] = command.sku_code
 
-            # Build Money for price if provided.  Use existing currency
-            # when only the amount changes, and vice versa.
-            if command.price_amount is not None or command.price_currency is not None:
-                new_amount = (
-                    command.price_amount
-                    if command.price_amount is not None
-                    else (sku.price.amount if sku.price is not None else 0)
-                )
-                new_currency = (
-                    command.price_currency
-                    if command.price_currency is not None
-                    else (
-                        sku.price.currency
-                        if sku.price is not None
-                        else DEFAULT_CURRENCY
-                    )
-                )
-                try:
-                    update_kwargs["price"] = Money(
-                        amount=new_amount, currency=new_currency
-                    )
-                except ValueError as exc:
-                    raise ValidationError(
-                        message=str(exc),
-                        error_code="INVALID_PRICE",
-                    ) from exc
+            if "price" in command._provided_fields:
+                update_kwargs["price"] = command.price
 
-            # Handle compare_at_price via _provided_fields.
-            if "compare_at_price_amount" in command._provided_fields:
-                if command.compare_at_price_amount is None:
-                    # Caller explicitly wants to clear compare_at_price.
-                    update_kwargs["compare_at_price"] = None
-                else:
-                    # Build Money for compare_at_price.  Use the effective
-                    # price currency (new if being changed, else existing).
-                    effective_currency = (
-                        command.price_currency
-                        if command.price_currency is not None
-                        else (
-                            sku.price.currency
-                            if sku.price is not None
-                            else DEFAULT_CURRENCY
-                        )
-                    )
-                    try:
-                        update_kwargs["compare_at_price"] = Money(
-                            amount=command.compare_at_price_amount,
-                            currency=effective_currency,
-                        )
-                    except ValueError as exc:
-                        raise ValidationError(
-                            message=str(exc),
-                            error_code="INVALID_PRICE",
-                        ) from exc
+            if "compare_at_price" in command._provided_fields:
+                update_kwargs["compare_at_price"] = command.compare_at_price
 
             if command.is_active is not None:
                 update_kwargs["is_active"] = command.is_active
@@ -229,6 +181,26 @@ class UpdateSKUHandler:
                 update_kwargs["variant_hash"] = new_hash
 
             sku.update(**update_kwargs)
+
+            # purchase_price has its own setter that arms recompute (ADR-005)
+            if command.purchase_price is not None:
+                try:
+                    purchase_currency = PurchaseCurrency(
+                        command.purchase_price.currency
+                    )
+                except ValueError as exc:
+                    raise ValidationError(
+                        message=(
+                            f"purchase_price.currency '{command.purchase_price.currency}'"
+                            " is not supported (use RUB or CNY)"
+                        ),
+                        error_code="INVALID_PURCHASE_CURRENCY",
+                    ) from exc
+                sku.set_purchase_price(
+                    purchase_price=command.purchase_price,
+                    purchase_currency=purchase_currency,
+                )
+
             await self._product_repo.update(product)
             self._uow.register_aggregate(product)
             await self._uow.commit()

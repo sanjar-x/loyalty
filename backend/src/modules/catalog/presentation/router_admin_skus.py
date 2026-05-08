@@ -33,8 +33,10 @@ from src.modules.catalog.application.queries.list_skus import (
     ListSKUsQuery,
 )
 from src.modules.catalog.domain.exceptions import SKUNotFoundError
+from src.modules.catalog.domain.value_objects import Money
 from src.modules.catalog.presentation.mappers import to_sku_response
 from src.modules.catalog.presentation.schemas import (
+    MoneySchema,
     SKUCreateRequest,
     SKUCreateResponse,
     SKUListResponse,
@@ -45,6 +47,14 @@ from src.modules.catalog.presentation.schemas import (
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
+
+
+def _money_from_schema(schema: MoneySchema | None) -> Money | None:
+    """Convert presentation ``MoneySchema`` to domain ``Money`` value object."""
+    if schema is None:
+        return None
+    return Money(amount=schema.amount, currency=schema.currency)
+
 
 sku_router = APIRouter(
     prefix="/admin/catalog/products/{product_id}/variants/{variant_id}/skus",
@@ -72,9 +82,9 @@ async def add_sku(
         product_id=product_id,
         variant_id=variant_id,
         sku_code=request.sku_code,
-        price_amount=request.price_amount,
-        price_currency=request.price_currency,
-        compare_at_price_amount=request.compare_at_price_amount,
+        price=_money_from_schema(request.price),
+        compare_at_price=_money_from_schema(request.compare_at_price),
+        purchase_price=_money_from_schema(request.purchase_price),
         is_active=request.is_active,
         variant_attributes=[
             (pair.attribute_id, pair.attribute_value_id)
@@ -144,9 +154,8 @@ async def generate_sku_matrix(
             )
             for sel in request.attribute_selections
         ],
-        price_amount=request.price_amount,
-        price_currency=request.price_currency,
-        compare_at_price_amount=request.compare_at_price_amount,
+        price=_money_from_schema(request.price),
+        compare_at_price=_money_from_schema(request.compare_at_price),
         is_active=request.is_active,
     )
     result = await handler.handle(command)
@@ -183,6 +192,9 @@ async def update_sku(
             "variant_attributes": lambda pairs: [
                 (p.attribute_id, p.attribute_value_id) for p in pairs
             ],
+            "price": _money_from_schema,
+            "compare_at_price": _money_from_schema,
+            "purchase_price": _money_from_schema,
         },
         product_id=product_id,
         sku_id=sku_id,

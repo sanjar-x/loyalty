@@ -21,7 +21,7 @@ from src.modules.catalog.application.queries.list_variants import (
     ListVariantsHandler,
     ListVariantsQuery,
 )
-from src.modules.catalog.domain.constants import DEFAULT_CURRENCY
+from src.modules.catalog.domain.value_objects import Money
 from src.modules.catalog.presentation.mappers import to_variant_response
 from src.modules.catalog.presentation.schemas import (
     ProductVariantCreateRequest,
@@ -54,13 +54,18 @@ async def add_variant(
     handler: FromDishka[AddVariantHandler],
 ) -> ProductVariantCreateResponse:
     """Create a new variant for the given product."""
+    default_price_money: Money | None = None
+    if request.default_price is not None:
+        default_price_money = Money(
+            amount=request.default_price.amount,
+            currency=request.default_price.currency,
+        )
     command = AddVariantCommand(
         product_id=product_id,
         name_i18n=request.name_i18n,
         description_i18n=request.description_i18n,
         sort_order=request.sort_order,
-        default_price_amount=request.default_price_amount,
-        default_price_currency=request.default_price_currency or DEFAULT_CURRENCY,
+        default_price=default_price_money,
     )
     result = await handler.handle(command)
     return ProductVariantCreateResponse(id=result.variant_id, message="Variant created")
@@ -111,6 +116,13 @@ async def update_variant(
     command = build_update_command(
         request,
         UpdateVariantCommand,
+        field_converters={
+            "default_price": lambda schema: (
+                Money(amount=schema.amount, currency=schema.currency)
+                if schema is not None
+                else None
+            ),
+        },
         product_id=product_id,
         variant_id=variant_id,
     )

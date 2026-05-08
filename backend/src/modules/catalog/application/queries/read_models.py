@@ -331,6 +331,7 @@ class SKUReadModel(BaseModel):
     price: MoneyReadModel | None = None
     resolved_price: MoneyReadModel | None = None
     compare_at_price: MoneyReadModel | None = None
+    purchase_price: MoneyReadModel | None = None
     is_active: bool
     version: int
     deleted_at: datetime | None = None

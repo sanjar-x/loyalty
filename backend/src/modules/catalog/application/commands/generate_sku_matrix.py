@@ -12,7 +12,6 @@ import uuid
 from dataclasses import dataclass, field
 from itertools import product as cartesian_product
 
-from src.modules.catalog.application.constants import DEFAULT_CURRENCY
 from src.modules.catalog.application.queries.resolve_template_attributes import (
     resolve_effective_attribute_ids,
 )
@@ -56,18 +55,18 @@ class GenerateSKUMatrixCommand:
         variant_id: UUID of the variant that will own the new SKUs.
         attribute_selections: List of attribute selections whose cartesian
             product defines the SKU combinations.
-        price_amount: Optional price in smallest currency units.
-        price_currency: 3-character ISO 4217 currency code.
-        compare_at_price_amount: Optional strikethrough price amount.
+        price: Optional default selling price applied to every generated
+            SKU (CAT-001).
+        compare_at_price: Optional strikethrough price applied to every
+            generated SKU.
         is_active: Whether generated SKUs are immediately available.
     """
 
     product_id: uuid.UUID
     variant_id: uuid.UUID
     attribute_selections: list[AttributeSelection]
-    price_amount: int | None = None
-    price_currency: str = DEFAULT_CURRENCY
-    compare_at_price_amount: int | None = None
+    price: Money | None = None
+    compare_at_price: Money | None = None
     is_active: bool = True
 
 
@@ -133,25 +132,24 @@ class GenerateSKUMatrixHandler:
             # --- Validate attributes: level, values, template membership ---
             await self._validate_selections(product, command.attribute_selections)
 
-            # Build price/compare_at_price pair
-            if command.price_amount is not None:
-                try:
-                    price, compare_at_price = Money.from_primitives(
-                        amount=command.price_amount,
-                        currency=command.price_currency,
-                        compare_at_amount=command.compare_at_price_amount,
-                    )
-                except ValueError as exc:
+            price = command.price
+            compare_at_price = command.compare_at_price
+            if compare_at_price is not None:
+                if price is None:
                     raise ValidationError(
-                        message=str(exc),
+                        message="compare_at_price requires a base price",
                         error_code="INVALID_PRICE",
-                        details={
-                            "price_amount": command.price_amount,
-                            "compare_at_price_amount": command.compare_at_price_amount,
-                        },
-                    ) from exc
-            else:
-                price, compare_at_price = None, None
+                    )
+                if compare_at_price.currency != price.currency:
+                    raise ValidationError(
+                        message="compare_at_price.currency must match price.currency",
+                        error_code="INVALID_PRICE",
+                    )
+                if compare_at_price.amount <= price.amount:
+                    raise ValidationError(
+                        message="compare_at_price must be greater than price",
+                        error_code="INVALID_PRICE",
+                    )
 
             # Generate cartesian product of attribute selections
             MAX_SKU_COMBINATIONS = 1000
