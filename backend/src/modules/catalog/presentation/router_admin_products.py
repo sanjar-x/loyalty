@@ -285,6 +285,11 @@ async def delete_product(
 @product_router.get(
     path="/{product_id}/skus/pricing-events",
     response_class=EventSourceResponse,
+    # Stream endpoints return ``AsyncIterable[ServerSentEvent]``; Pydantic
+    # cannot resolve that forward reference into a JSON Schema, which crashes
+    # ``GET /openapi.json``. ``response_model=None`` tells FastAPI to skip
+    # response-schema introspection on this route (CAT-007).
+    response_model=None,
     summary="SSE stream of SKU pricing recompute events for one product",
     description=(
         "Server-Sent Events stream pushing live recompute outcomes for every "

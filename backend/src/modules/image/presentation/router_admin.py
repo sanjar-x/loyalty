@@ -234,6 +234,11 @@ async def confirm_upload(
 @media_admin_router.get(
     "/{storage_object_id}/status",
     response_class=EventSourceResponse,
+    # ``AsyncIterable[ServerSentEvent]`` return annotation is a forward
+    # reference Pydantic cannot resolve for OpenAPI schema generation —
+    # crashes ``GET /openapi.json``. Skip response-schema introspection
+    # for this stream route (CAT-007).
+    response_model=None,
     summary="Stream processing status via SSE",
     dependencies=[Depends(RequirePermission(codename=_MEDIA_PERMISSION))],
 )
