@@ -10,9 +10,11 @@ import uuid
 from collections.abc import AsyncIterable
 from datetime import datetime
 
+import structlog
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, Response, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
+from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.commands.bulk_set_purchase_price import (
@@ -78,6 +80,8 @@ from src.modules.identity.presentation.dependencies import RequirePermission
 # Serverless 30 s, Netlify Edge 30 s. 15 s gives a comfortable margin
 # without burning meaningful bandwidth (comment frame = ~12 bytes).
 _SSE_KEEPALIVE_INTERVAL_S = 15.0
+
+logger = structlog.get_logger(__name__)
 
 
 product_router = APIRouter(
@@ -324,16 +328,31 @@ async def stream_sku_pricing_events(
     await session.close()
 
     last_keepalive = asyncio.get_running_loop().time()
-    async for event in pubsub.subscribe(product_id):
-        if event is not None:
-            yield ServerSentEvent(data=event, event="status")
-            last_keepalive = asyncio.get_running_loop().time()
-            continue
+    try:
+        async for event in pubsub.subscribe(product_id):
+            if event is not None:
+                yield ServerSentEvent(data=event, event="status")
+                last_keepalive = asyncio.get_running_loop().time()
+                continue
 
-        now = asyncio.get_running_loop().time()
-        if now - last_keepalive >= _SSE_KEEPALIVE_INTERVAL_S:
-            yield ServerSentEvent(comment="keepalive")
-            last_keepalive = now
+            now = asyncio.get_running_loop().time()
+            if now - last_keepalive >= _SSE_KEEPALIVE_INTERVAL_S:
+                yield ServerSentEvent(comment="keepalive")
+                last_keepalive = now
+    except RedisError, OSError:
+        # Pub/sub backbone went down mid-stream — emit an explicit
+        # ``error`` SSE frame so the client knows it should reconnect
+        # rather than silently rendering a stale "OK" state. Browser
+        # ``EventSource`` auto-reconnects on close, the explicit frame
+        # gives the admin UI a hook to surface a transient banner.
+        logger.exception(
+            "sse_pricing_stream_pubsub_unavailable",
+            product_id=str(product_id),
+        )
+        yield ServerSentEvent(
+            data={"reason": "pubsub_unavailable"},
+            event="error",
+        )
 
 
 @product_router.post(

@@ -14,7 +14,11 @@ import json
 import uuid
 from collections.abc import AsyncGenerator
 
+import structlog
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
+
+logger = structlog.get_logger(__name__)
 
 
 class SSEManager:
@@ -46,24 +50,57 @@ class SSEManager:
 
         Keep-alive pings are NOT sent here — :class:`EventSourceResponse`
         handles them at the transport level.
+
+        Errors:
+            * Per-message ``json.JSONDecodeError`` is logged and the
+              loop continues — one malformed payload must NOT take
+              down every client watching the same storage object.
+            * ``RedisError`` (Redis connection drop, broker outage)
+              propagates so the SSE route can emit an ``error`` frame
+              and let the client auto-reconnect.
         """
         channel = self.channel_name(storage_object_id)
+        log = logger.bind(channel=channel, storage_object_id=str(storage_object_id))
         pubsub = self._redis.pubsub()
-        await pubsub.subscribe(channel)
+        try:
+            await pubsub.subscribe(channel)
+        except RedisError, OSError:
+            log.exception("sse_pubsub_subscribe_failed")
+            raise
+
         try:
             deadline = asyncio.get_running_loop().time() + timeout
             while asyncio.get_running_loop().time() < deadline:
-                msg = await pubsub.get_message(
-                    ignore_subscribe_messages=True,
-                    timeout=poll_interval,
-                )
+                try:
+                    msg = await pubsub.get_message(
+                        ignore_subscribe_messages=True,
+                        timeout=poll_interval,
+                    )
+                except RedisError, OSError:
+                    log.exception("sse_pubsub_poll_failed")
+                    raise
+
                 if msg and msg["type"] == "message":
-                    data = json.loads(msg["data"])
+                    try:
+                        data = json.loads(msg["data"])
+                    except json.JSONDecodeError, UnicodeDecodeError, TypeError:
+                        raw = msg.get("data")
+                        log.warning(
+                            "sse_pubsub_malformed_payload",
+                            raw=str(raw)[:200] if raw is not None else None,
+                        )
+                        continue
                     yield data
                     if data.get("status") in ("completed", "failed"):
                         return
                 else:
                     yield None
         finally:
-            await pubsub.unsubscribe(channel)
-            await pubsub.aclose()
+            try:
+                await pubsub.unsubscribe(channel)
+            except (RedisError, OSError) as exc:
+                log.warning("sse_pubsub_unsubscribe_failed", error=str(exc))
+            try:
+                await pubsub.aclose()
+            except (RedisError, OSError) as exc:
+                log.warning("sse_pubsub_aclose_failed", error=str(exc))

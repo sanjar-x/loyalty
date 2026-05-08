@@ -301,6 +301,15 @@ class RecomputeSkuPricingService:
         """
         inputs = await self._input_reader.read_one(sku_id, lock=False)
         if inputs is None:
+            # SKU was deleted between the last retry attempt and the
+            # audit-row read. Without this log line the orchestrator
+            # silently returns ``"formula_error"`` to its caller while
+            # NEVER emitting an audit row OR an
+            # ``SKUPricingFailedEvent`` — the admin SSE bridge would
+            # never fire and the analytics dashboard would miss the
+            # lock-thrash signal entirely. Surfacing this as a warning
+            # makes the rare case visible.
+            log.warning("retry_exhausted_audit_skipped_sku_disappeared")
             return
         failure = SkuPricingFailureRequest(
             product_id=inputs.product_id,

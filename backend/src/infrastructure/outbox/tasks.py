@@ -338,48 +338,124 @@ register_event_handler(
 
 
 async def _handle_sku_priced(payload: dict, correlation_id: str | None = None) -> None:
-    """Bridge ``SKUPricedEvent`` → per-product Redis pub/sub channel."""
+    """Bridge ``SKUPricedEvent`` → per-product Redis pub/sub channel.
+
+    Schema-validates the payload before kicking the SSE consumer: a
+    ``priced`` event MUST carry ``selling_price_amount`` /
+    ``selling_currency`` / ``product_id`` / ``sku_id``. Missing fields
+    indicate an event-schema regression, NOT a transient broker fault —
+    publishing a partial frame would surface as
+    ``pricingStatus="priced"`` + ``sellingPrice=null`` in the admin UI,
+    confusing operators worse than a missing notification.
+
+    Broker-enqueue failures (``kiq()`` raises) propagate so the outbox
+    relay marks the row failed and retries on the next poll cycle —
+    SKU is already priced in DB, only the SSE notification is missed.
+    """
     from src.modules.catalog.application.consumers.sku_pricing_events import (
         publish_sku_pricing_status,
     )
 
+    product_id = payload.get("product_id")
+    sku_id = payload.get("sku_id")
+    selling_price_amount = payload.get("selling_price_amount")
+    selling_currency = payload.get("selling_currency")
+    if (
+        product_id is None
+        or sku_id is None
+        or selling_price_amount is None
+        or selling_currency is None
+    ):
+        logger.error(
+            "sku_priced_event_malformed_skipped",
+            product_id=product_id,
+            sku_id=sku_id,
+            selling_price_amount=selling_price_amount,
+            selling_currency=selling_currency,
+            correlation_id=correlation_id,
+        )
+        return
+
     priced_at = payload.get("occurred_at") or payload.get("priced_at")
-    await (
-        publish_sku_pricing_status.kicker()
-        .with_labels(**_build_labels(correlation_id))
-        .kiq(
-            product_id=str(payload.get("product_id")),
-            sku_id=str(payload.get("sku_id")),
-            pricing_status="priced",
-            selling_price_amount=payload.get("selling_price_amount"),
-            selling_currency=payload.get("selling_currency"),
-            priced_at=priced_at,
-            priced_failure_reason=None,
-        )  # ty:ignore[no-matching-overload]
-    )
+    try:
+        await (
+            publish_sku_pricing_status.kicker()
+            .with_labels(**_build_labels(correlation_id))
+            .kiq(
+                product_id=str(product_id),
+                sku_id=str(sku_id),
+                pricing_status="priced",
+                selling_price_amount=selling_price_amount,
+                selling_currency=selling_currency,
+                priced_at=priced_at,
+                priced_failure_reason=None,
+            )  # ty:ignore[no-matching-overload]
+        )
+    except Exception:
+        # Broker enqueue failed — SKU is priced in DB and storefront
+        # already serves the right price, only admin SSE will not fire.
+        # Log the FULL payload so ops can replay manually if relay
+        # retries also exhaust. Re-raise so the relay marks this event
+        # failed and re-tries it on the next poll.
+        logger.exception(
+            "sku_priced_sse_bridge_dispatch_failed",
+            payload=payload,
+            correlation_id=correlation_id,
+        )
+        raise
 
 
 async def _handle_sku_pricing_failed(
     payload: dict, correlation_id: str | None = None
 ) -> None:
-    """Bridge ``SKUPricingFailedEvent`` → per-product Redis pub/sub channel."""
+    """Bridge ``SKUPricingFailedEvent`` → per-product Redis pub/sub channel.
+
+    Validates required fields (``product_id``, ``sku_id``,
+    ``failure_reason``) before kicking — a ``failed`` frame without a
+    reason field is worse than no notification: the UI shows a
+    permanent "FAILED" badge with no diagnosis.
+
+    Broker-enqueue failures propagate (same contract as
+    :func:`_handle_sku_priced`).
+    """
     from src.modules.catalog.application.consumers.sku_pricing_events import (
         publish_sku_pricing_status,
     )
 
-    await (
-        publish_sku_pricing_status.kicker()
-        .with_labels(**_build_labels(correlation_id))
-        .kiq(
-            product_id=str(payload.get("product_id")),
-            sku_id=str(payload.get("sku_id")),
-            pricing_status=payload.get("pricing_status", "formula_error"),
-            selling_price_amount=None,
-            selling_currency=None,
-            priced_at=payload.get("occurred_at"),
-            priced_failure_reason=payload.get("failure_reason"),
-        )  # ty:ignore[no-matching-overload]
-    )
+    product_id = payload.get("product_id")
+    sku_id = payload.get("sku_id")
+    failure_reason = payload.get("failure_reason")
+    if product_id is None or sku_id is None or failure_reason is None:
+        logger.error(
+            "sku_pricing_failed_event_malformed_skipped",
+            product_id=product_id,
+            sku_id=sku_id,
+            failure_reason=failure_reason,
+            correlation_id=correlation_id,
+        )
+        return
+
+    try:
+        await (
+            publish_sku_pricing_status.kicker()
+            .with_labels(**_build_labels(correlation_id))
+            .kiq(
+                product_id=str(product_id),
+                sku_id=str(sku_id),
+                pricing_status=payload.get("pricing_status", "formula_error"),
+                selling_price_amount=None,
+                selling_currency=None,
+                priced_at=payload.get("occurred_at"),
+                priced_failure_reason=failure_reason,
+            )  # ty:ignore[no-matching-overload]
+        )
+    except Exception:
+        logger.exception(
+            "sku_pricing_failed_sse_bridge_dispatch_failed",
+            payload=payload,
+            correlation_id=correlation_id,
+        )
+        raise
 
 
 register_event_handler("SKUPricedEvent", _handle_sku_priced)
@@ -421,8 +497,18 @@ async def outbox_relay_task(
         )
         return {"status": "success", "processed": processed}
     except Exception:
+        # Re-raise after logging so TaskIQ surfaces this in
+        # ``failed_tasks`` instead of returning a synthetic
+        # ``{"status": "error"}`` that monitoring tools never see.
+        # With ``max_retries=0, retry_on_error=False`` the failure
+        # lands in the DLQ immediately — exactly the signal HARD-2
+        # alerting watches for. Per-event isolation already happens
+        # inside ``relay_outbox_batch`` (each event in its own
+        # transaction), so a re-raise here only fires on
+        # batch-level catastrophes (DB unreachable, session-factory
+        # broken, …) which absolutely should page someone.
         logger.exception("Outbox Relay: critical error in polling cycle")
-        return {"status": "error", "processed": 0}
+        raise
 
 
 # ---------------------------------------------------------------------------

@@ -26,7 +26,11 @@ import json
 import uuid
 from collections.abc import AsyncGenerator
 
+import structlog
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
+
+logger = structlog.get_logger(__name__)
 
 
 class SkuPricingPubsub:
@@ -59,21 +63,63 @@ class SkuPricingPubsub:
 
         Stops after ``timeout`` seconds. Caller must reconnect for
         longer-running admin sessions.
+
+        Errors:
+            * Per-message ``json.JSONDecodeError`` is logged and the
+              loop continues — one malformed payload (e.g. publisher
+              regression, manual ``redis-cli publish``) must NOT take
+              down every admin watching the same product.
+            * ``RedisError`` (Redis connection drop, broker outage)
+              propagates so the SSE route can emit an ``error`` frame
+              and let the client auto-reconnect.
         """
         channel = self.channel_name(product_id)
+        log = logger.bind(channel=channel, product_id=str(product_id))
         pubsub = self._redis.pubsub()
-        await pubsub.subscribe(channel)
+        try:
+            await pubsub.subscribe(channel)
+        except RedisError, OSError:
+            log.exception("sse_pubsub_subscribe_failed")
+            raise
+
         try:
             deadline = asyncio.get_running_loop().time() + timeout
             while asyncio.get_running_loop().time() < deadline:
-                msg = await pubsub.get_message(
-                    ignore_subscribe_messages=True,
-                    timeout=poll_interval,
-                )
+                try:
+                    msg = await pubsub.get_message(
+                        ignore_subscribe_messages=True,
+                        timeout=poll_interval,
+                    )
+                except RedisError, OSError:
+                    log.exception("sse_pubsub_poll_failed")
+                    raise
+
                 if msg and msg["type"] == "message":
-                    yield json.loads(msg["data"])
+                    try:
+                        data = json.loads(msg["data"])
+                    except json.JSONDecodeError, UnicodeDecodeError, TypeError:
+                        # One bad payload must not blackhole the channel
+                        # for every admin connected. Log & continue —
+                        # the next valid message resumes normal flow.
+                        raw = msg.get("data")
+                        log.warning(
+                            "sse_pubsub_malformed_payload",
+                            raw=str(raw)[:200] if raw is not None else None,
+                        )
+                        continue
+                    yield data
                 else:
                     yield None
         finally:
-            await pubsub.unsubscribe(channel)
-            await pubsub.aclose()
+            # Cleanup must NOT mask an in-flight exception (e.g. the
+            # original Redis outage triggers both the loop error AND a
+            # secondary error inside aclose). Each step in its own
+            # try/except so the original traceback is preserved.
+            try:
+                await pubsub.unsubscribe(channel)
+            except (RedisError, OSError) as exc:
+                log.warning("sse_pubsub_unsubscribe_failed", error=str(exc))
+            try:
+                await pubsub.aclose()
+            except (RedisError, OSError) as exc:
+                log.warning("sse_pubsub_aclose_failed", error=str(exc))
