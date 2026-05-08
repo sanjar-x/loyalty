@@ -47,6 +47,24 @@ class Recipient(AggregateRoot):
     updated_at: datetime
     version: int
 
+    # TYPE-003 — guard ``validation_status`` against direct mutation.
+    # The ``mark_pending`` / ``mark_verified`` / ``mark_invalid`` methods
+    # bypass via ``object.__setattr__``.
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if name == "validation_status" and getattr(
+            self, "_Recipient__initialized", False
+        ):
+            raise AttributeError(
+                "Cannot set 'validation_status' directly on Recipient. "
+                "Use mark_pending() / mark_verified() / mark_invalid() instead."
+            )
+        super().__setattr__(name, value)
+
+    def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
+        object.__setattr__(self, "_Recipient__initialized", True)
+
     @classmethod
     def create(
         cls,
@@ -106,7 +124,7 @@ class Recipient(AggregateRoot):
             customs_changed = True
         # Any update invalidates previous validation status — we don't know
         # if the new values still match.
-        self.validation_status = RecipientValidationStatus.PENDING
+        object.__setattr__(self, "validation_status", RecipientValidationStatus.PENDING)
         self.validation_failed_reason = None
         self.updated_at = datetime.now(UTC)
         self.add_domain_event(
@@ -119,7 +137,9 @@ class Recipient(AggregateRoot):
         self._ensure_active()
         if self.validation_status == RecipientValidationStatus.VERIFIED:
             return  # idempotent
-        self.validation_status = RecipientValidationStatus.VERIFIED
+        object.__setattr__(
+            self, "validation_status", RecipientValidationStatus.VERIFIED
+        )
         self.validation_failed_reason = None
         self.updated_at = datetime.now(UTC)
         self.add_domain_event(RecipientVerifiedEvent(recipient_id=self.id))
@@ -129,7 +149,7 @@ class Recipient(AggregateRoot):
         if self.validation_status == RecipientValidationStatus.INVALID:
             self.validation_failed_reason = reason
             return  # idempotent on status, refresh reason
-        self.validation_status = RecipientValidationStatus.INVALID
+        object.__setattr__(self, "validation_status", RecipientValidationStatus.INVALID)
         self.validation_failed_reason = reason
         self.updated_at = datetime.now(UTC)
         self.add_domain_event(

@@ -155,7 +155,7 @@ class StateMachineMixin(Generic[StateT]):
     @property
     def is_terminal(self) -> bool:
         """``True`` iff ``self.status`` is a terminal sink."""
-        return self.status in self._TERMINAL_STATES  # type: ignore[attr-defined]
+        return self.status in self._TERMINAL_STATES  # ty: ignore[unresolved-attribute]
 
     # ------------------------------------------------------------------
     # Transition primitive
@@ -180,7 +180,7 @@ class StateMachineMixin(Generic[StateT]):
             self._invalid_transition_exc: if ``target`` is not present
                 in ``self._ALLOWED_TRANSITIONS[current]``.
         """
-        previous: StateT = self.status  # type: ignore[attr-defined]
+        previous: StateT = self.status  # ty: ignore[unresolved-attribute]
         if previous in self._TERMINAL_STATES:
             raise self._already_terminal_exc(status=previous.value)  # type: ignore[arg-type]
         allowed = self._ALLOWED_TRANSITIONS.get(previous, frozenset())
@@ -189,6 +189,11 @@ class StateMachineMixin(Generic[StateT]):
                 current=previous.value,
                 target=target.value,  # type: ignore[arg-type]
             )
-        self.status = target  # type: ignore[attr-defined]
-        self.updated_at = datetime.now(UTC)  # type: ignore[attr-defined]
+        # TYPE-003 — host aggregates may install a ``__setattr__`` guard
+        # that rejects direct assignment to ``status`` (forcing all
+        # transitions through the FSM mixin). The mixin's own
+        # transition is the *legitimate* setter — bypass any guard via
+        # ``object.__setattr__`` so the public API is preserved.
+        object.__setattr__(self, "status", target)
+        object.__setattr__(self, "updated_at", datetime.now(UTC))
         return previous

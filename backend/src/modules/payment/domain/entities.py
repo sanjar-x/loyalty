@@ -100,6 +100,23 @@ class PaymentIntent(AggregateRoot, StateMachineMixin[PaymentIntentStatus]):
     updated_at: datetime
     version: int
 
+    # TYPE-003 — guard ``status`` against direct mutation; FSM-managed
+    # transitions go through ``StateMachineMixin._transition`` which uses
+    # ``object.__setattr__`` to bypass this guard.
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if name == "status" and getattr(self, "_PaymentIntent__initialized", False):
+            raise AttributeError(
+                "Cannot set 'status' directly on PaymentIntent. "
+                "Use the FSM transition methods (authorize / capture / "
+                "refund / cancel / fail) instead."
+            )
+        super().__setattr__(name, value)
+
+    def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
+        object.__setattr__(self, "_PaymentIntent__initialized", True)
+
     @classmethod
     def initiate(
         cls,
