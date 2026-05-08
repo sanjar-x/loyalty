@@ -332,6 +332,12 @@ class SKUReadModel(BaseModel):
     resolved_price: MoneyReadModel | None = None
     compare_at_price: MoneyReadModel | None = None
     purchase_price: MoneyReadModel | None = None
+    # ADR-005 pricing FSM provenance — surface to admin UI so the
+    # autonomous recompute outcome is visible (CAT-003).
+    selling_price: MoneyReadModel | None = None
+    pricing_status: str = "legacy"
+    priced_at: datetime | None = None
+    priced_failure_reason: str | None = None
     is_active: bool
     version: int
     deleted_at: datetime | None = None
