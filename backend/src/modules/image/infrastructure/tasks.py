@@ -22,6 +22,7 @@ from dishka.integrations.taskiq import FromDishka, inject
 
 from src.bootstrap.broker import broker
 from src.bootstrap.config import Settings
+from src.modules.image.domain.events import StorageObjectProcessedEvent
 from src.modules.image.domain.interfaces import IBlobStorage, IStorageRepository
 from src.modules.image.domain.value_objects import StorageStatus
 from src.modules.image.infrastructure.services.image_processor import build_variants
@@ -86,6 +87,21 @@ async def process_image_task(
         storage_file.image_variants = variants_meta
         storage_file.size_bytes = len(main_bytes)
         await storage_repo.update(storage_file)
+
+        # IMG-004 — emit ``StorageObjectProcessedEvent`` so catalog
+        # mirrors the new ``url`` / ``image_variants`` into its
+        # denormalised ``media_assets`` rows. Critical for the
+        # ``/reupload`` flow: same storage_object_id but new processed
+        # output — without this event the storefront keeps serving the
+        # stale URL.
+        storage_file.add_domain_event(
+            StorageObjectProcessedEvent(
+                storage_object_id=storage_file.id,
+                url=public_url,
+                image_variants=list(variants_meta),
+            )
+        )
+        uow.register_aggregate(storage_file)
         await uow.commit()
 
         await sse.publish(
