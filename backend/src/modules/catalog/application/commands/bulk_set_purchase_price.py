@@ -17,6 +17,8 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 
+from redis.exceptions import RedisError
+
 from src.modules.catalog.application.constants import storefront_pdp_cache_key
 from src.modules.catalog.domain.events import SKUPurchasePriceUpdatedEvent
 from src.modules.catalog.domain.exceptions import ProductNotFoundError
@@ -173,8 +175,27 @@ class BulkSetPurchasePriceHandler:
         if updated > 0:
             try:
                 await self._cache.delete(storefront_pdp_cache_key(product.slug))
-            except Exception as exc:  # pragma: no cover
-                self._logger.warning("pdp_cache_invalidation_failed", error=str(exc))
+            except RedisError as exc:  # pragma: no cover
+                # Stale PDP cache means customers see the OLD purchase price
+                # for every SKU just bulk-updated until TTL — alert-worthy
+                # (CAT-018 H5).
+                self._logger.error(
+                    "pdp_cache_invalidation_failed",
+                    product_id=str(command.product_id),
+                    slug=product.slug,
+                    error=str(exc),
+                )
+
+        # Distinguish "all idempotent" (unchanged>0, errors=0) from
+        # "all failed" (unchanged=0, errors>0) at the log level —
+        # otherwise the ``info`` line below treats both as benign and
+        # operations cannot tell the difference (CAT-018 H4).
+        if updated == 0 and errors and unchanged == 0:
+            self._logger.warning(
+                "bulk_purchase_price_all_failed",
+                product_id=str(command.product_id),
+                errors=len(errors),
+            )
 
         self._logger.info(
             "Bulk purchase-price applied",

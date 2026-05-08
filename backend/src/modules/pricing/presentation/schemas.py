@@ -14,7 +14,7 @@ from src.modules.pricing.domain.value_objects import (
     VariableDataType,
     VariableScope,
 )
-from src.shared.schemas import CamelModel
+from src.shared.schemas import CamelModel, MoneySchema
 
 
 class UpsertProductPricingProfileRequest(CamelModel):
@@ -512,21 +512,6 @@ class PreviewPriceResponse(CamelModel):
     context_id: uuid.UUID
 
 
-class _MoneySchema(CamelModel):
-    """Local mirror of ``catalog.MoneySchema`` — same wire shape.
-
-    Cross-module schema imports aren't whitelisted in
-    ``ALLOWED_CROSS_MODULE``; defining the schema locally keeps the
-    pricing presentation layer self-contained without breaking
-    the architecture fitness test. Wire shape and validators match
-    catalog's exactly so the admin frontend serialises the same
-    ``{ amount, currency }`` object to both APIs.
-    """
-
-    amount: int = Field(..., ge=0)
-    currency: str = Field(..., min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
-
-
 class PreviewSkuPricingRequest(CamelModel):
     """Body of ``POST /pricing/preview-sku`` — admin-driven SKU price preview.
 
@@ -552,7 +537,7 @@ class PreviewSkuPricingRequest(CamelModel):
     context_id: uuid.UUID = Field(
         ..., description="Pricing context — selects the published formula."
     )
-    purchase_price: _MoneySchema = Field(
+    purchase_price: MoneySchema = Field(
         ...,
         description="Hypothetical wholesale cost (``RUB`` or ``CNY``).",
     )

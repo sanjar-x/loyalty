@@ -13,6 +13,8 @@ Part of the application layer (CQRS write side).
 import uuid
 from dataclasses import dataclass, field
 
+from redis.exceptions import RedisError
+
 from src.modules.catalog.application.constants import storefront_pdp_cache_key
 from src.modules.catalog.domain.events import SKUPurchasePriceUpdatedEvent
 from src.modules.catalog.domain.exceptions import (
@@ -221,7 +223,16 @@ class UpdateSKUHandler:
 
         try:
             await self._cache.delete(storefront_pdp_cache_key(product.slug))
-        except Exception as exc:  # pragma: no cover
-            self._logger.warning("pdp_cache_invalidation_failed", error=str(exc))
+        except RedisError as exc:  # pragma: no cover
+            # Stale PDP cache means customers see the OLD purchase price
+            # until TTL — surface as ``error`` so operators alert on it,
+            # not just a quiet warning. CAT-018 H5: also narrowed from
+            # ``except Exception`` so programmer errors propagate.
+            self._logger.error(
+                "pdp_cache_invalidation_failed",
+                product_id=str(command.product_id),
+                slug=product.slug,
+                error=str(exc),
+            )
 
         return UpdateSKUResult(id=sku.id)
