@@ -5,6 +5,7 @@ All mutating endpoints require the ``catalog:manage`` permission.
 Delegates to application-layer command/query handlers via Dishka DI.
 """
 
+import asyncio
 import uuid
 from collections.abc import AsyncIterable
 from datetime import datetime
@@ -71,6 +72,13 @@ from src.modules.catalog.presentation.schemas import (
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
+
+# CAT-006 — SSE comment-frame interval (seconds). Must be shorter than
+# every intermediary's idle timeout: undici default ~300 s, Vercel
+# Serverless 30 s, Netlify Edge 30 s. 15 s gives a comfortable margin
+# without burning meaningful bandwidth (comment frame = ~12 bytes).
+_SSE_KEEPALIVE_INTERVAL_S = 15.0
+
 
 product_router = APIRouter(
     prefix="/admin/catalog/products",
@@ -294,7 +302,15 @@ async def stream_sku_pricing_events(
     pubsub: FromDishka[SkuPricingPubsub],
     session: FromDishka[AsyncSession],
 ) -> AsyncIterable[ServerSentEvent]:
-    """Stream pricing recompute events as they land for ``product_id``."""
+    """Stream pricing recompute events as they land for ``product_id``.
+
+    A ``:keepalive`` SSE comment is emitted every
+    :data:`_SSE_KEEPALIVE_INTERVAL_S` seconds of channel-idle so that
+    intermediaries (BFF ``fetch`` in Next.js / Vercel / Netlify edge,
+    proxies, load balancers) don't drop the long-lived connection on
+    ``bodyTimeout`` (~5 min in undici / 30 s on some hosts). Comment
+    frames are ignored by ``EventSource`` clients per the SSE spec.
+    """
     # The pub/sub loop holds an idle Postgres session for up to 10 minutes
     # (see ``SkuPricingPubsub.subscribe`` timeout). Postgres'
     # idle_in_transaction_session_timeout would kill the connection mid-
@@ -302,10 +318,17 @@ async def stream_sku_pricing_events(
     # the image module's status SSE.
     await session.close()
 
+    last_keepalive = asyncio.get_running_loop().time()
     async for event in pubsub.subscribe(product_id):
-        if event is None:
+        if event is not None:
+            yield ServerSentEvent(data=event, event="status")
+            last_keepalive = asyncio.get_running_loop().time()
             continue
-        yield ServerSentEvent(data=event, event="status")
+
+        now = asyncio.get_running_loop().time()
+        if now - last_keepalive >= _SSE_KEEPALIVE_INTERVAL_S:
+            yield ServerSentEvent(comment="keepalive")
+            last_keepalive = now
 
 
 @product_router.post(
