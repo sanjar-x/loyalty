@@ -39,6 +39,7 @@ from src.modules.catalog.domain.value_objects import (
     Money,
     ProductStatus,
     PurchaseCurrency,
+    SkuPricingStatus,
     validate_i18n_completeness,
 )
 from src.shared.interfaces.entities import AggregateRoot
@@ -53,6 +54,84 @@ from .sku import SKU
 # ---------------------------------------------------------------------------
 
 _PRODUCT_GUARDED_FIELDS: frozenset[str] = frozenset({"status"})
+
+
+# ---------------------------------------------------------------------------
+# CAT-019 — actionable diagnostic for the publish-pricing gate.
+# ---------------------------------------------------------------------------
+
+
+def _publish_diagnostic_for_sku(s: SKU) -> dict:
+    """One row of per-SKU breakdown for ``ProductNotReadyError.details``.
+
+    The admin UI consumes this to show a per-SKU next-step instead of
+    the generic "no SKU has a price" message. Each row carries:
+
+    * ``sku_id`` — UUID of the SKU
+    * ``sku_code`` — admin-visible code
+    * ``pricing_status`` — current FSM state of the recompute pipeline
+    * ``has_manual_price`` — whether ``s.price`` is set (manual fallback)
+    * ``has_selling_price`` — whether autonomous recompute landed
+    * ``has_purchase_price`` — input to the recompute pipeline
+    * ``failure_reason`` — populated for ``stale_fx`` /
+      ``missing_purchase_price`` / ``formula_error``
+    * ``next_step`` — operator-actionable hint derived from the above
+    """
+    next_step = _next_step_for(s)
+    return {
+        "sku_id": str(s.id),
+        "sku_code": s.sku_code,
+        "pricing_status": s.pricing_status.value,
+        "has_manual_price": s.price is not None,
+        "has_selling_price": s.selling_price is not None,
+        "has_purchase_price": s.purchase_price is not None,
+        "failure_reason": s.priced_failure_reason,
+        "next_step": next_step,
+    }
+
+
+def _next_step_for(s: SKU) -> str:
+    """Derive an operator-readable next-step from the SKU's pricing state."""
+    if s.price is not None or s.selling_price is not None:
+        # Defensive — gate failure means none should reach this branch,
+        # but if a SKU is priced and the gate still fails (corrupt
+        # state), say so rather than printing a misleading next-step.
+        return "ok (already priced — investigate why publish gate fired)"
+    status = s.pricing_status
+    if status is SkuPricingStatus.PENDING:
+        return (
+            "Recompute is in flight. Wait a few seconds and retry, "
+            "or open the SSE stream to see when it lands."
+        )
+    if status is SkuPricingStatus.MISSING_PURCHASE_PRICE:
+        return (
+            "Set ``purchase_price`` on this SKU — the recompute pipeline "
+            "needs it to derive ``selling_price``. Alternatively, set a "
+            "manual ``price`` to bypass autonomous pricing."
+        )
+    if status is SkuPricingStatus.STALE_FX:
+        return (
+            "FX rate is stale — ask an admin to refresh the FX rate on "
+            "the pricing context, then re-save ``purchase_price`` to "
+            "trigger a fresh recompute."
+        )
+    if status is SkuPricingStatus.FORMULA_ERROR:
+        return (
+            "Pricing formula failed to evaluate — see "
+            "``failure_reason``. Either fix the formula version, "
+            "set a manual ``price`` as fallback, or investigate the "
+            "supplier-type → context mapping."
+        )
+    if status is SkuPricingStatus.LEGACY:
+        return (
+            "Legacy SKU never went through the recompute pipeline. "
+            "Either set ``purchase_price`` (to opt in to autonomous "
+            "pricing) or set a manual ``price``."
+        )
+    if status is SkuPricingStatus.PRICED:
+        # Shouldn't happen — PRICED implies selling_price is set.
+        return "ok (corrupt state — PRICED without selling_price)"
+    return f"unknown pricing_status: {status.value}"
 
 
 @dataclass
@@ -375,21 +454,21 @@ class Product(AggregateRoot):
                 )
             # CAT-009 — accept either a manual ``price`` (legacy / fallback
             # path) OR an autonomous ``selling_price`` produced by the
-            # ADR-005 recompute pipeline. Previously the rule only checked
-            # ``s.price`` which blocked publication of products that rely
-            # entirely on the formula-driven flow (purchase_price → recompute
-            # → selling_price), forcing admins to enter a manual price they
-            # never use.
+            # ADR-005 recompute pipeline.
+            # CAT-019 — when the gate fails, attach a per-SKU diagnostic
+            # so the admin UI can show actionable next-steps instead of
+            # the generic "no SKU has a price" message.
             if new_status == ProductStatus.PUBLISHED and not any(
                 s.price is not None or s.selling_price is not None for s in active_skus
             ):
+                sku_diagnostics = [_publish_diagnostic_for_sku(s) for s in active_skus]
                 raise ProductNotReadyError(
                     product_id=self.id,
                     reason=(
-                        "Cannot publish product without at least one SKU "
-                        "having either a manual price or an autonomous "
-                        "selling_price (from the pricing recompute pipeline)"
+                        "Cannot publish — no active SKU has a price. "
+                        "See ``sku_diagnostics`` for per-SKU next steps."
                     ),
+                    sku_diagnostics=sku_diagnostics,
                 )
         old_status = self.status.value
         # Bypass the guard for controlled FSM mutation
