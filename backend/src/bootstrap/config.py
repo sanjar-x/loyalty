@@ -76,6 +76,19 @@ class Settings(BaseSettings):
     PGPASSWORD: SecretStr
     PGDATABASE: str
 
+    # Connection pool sizing — INFRA-001.
+    # Conservative defaults so 4 uvicorn workers × N processes (api +
+    # outbox relay + scheduler + bot) stay under typical Postgres
+    # ``max_connections=100`` ceiling without PgBouncer. With pool=8 +
+    # overflow=4 = 12 max per process × 6 processes = 72 conns peak.
+    # Bump these when fronting Postgres with PgBouncer (transaction
+    # mode), where the engine pool becomes a soft semaphore against the
+    # bouncer rather than a hard PG limit.
+    DB_POOL_SIZE: int = 8
+    DB_POOL_MAX_OVERFLOW: int = 4
+    DB_POOL_TIMEOUT_SECONDS: float = 30.0
+    DB_POOL_RECYCLE_SECONDS: int = 3600
+
     @computed_field
     @property
     def database_url(self) -> URL:

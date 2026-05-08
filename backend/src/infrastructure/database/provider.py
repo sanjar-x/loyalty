@@ -51,11 +51,16 @@ class DatabaseProvider(Provider):
             echo=settings.DEBUG,
             execution_options={"isolation_level": "READ COMMITTED"},
             poolclass=AsyncAdaptedQueuePool,
-            pool_size=15,
-            max_overflow=10,
-            pool_timeout=30.0,
+            # INFRA-001: pool sizing pulled into Settings so prod can
+            # tune without a code change. Default keeps the per-process
+            # ceiling (size + overflow) below typical PG max_connections
+            # divided by the number of processes (api workers + relay +
+            # scheduler + bot).
+            pool_size=settings.DB_POOL_SIZE,
+            max_overflow=settings.DB_POOL_MAX_OVERFLOW,
+            pool_timeout=settings.DB_POOL_TIMEOUT_SECONDS,
             pool_pre_ping=True,
-            pool_recycle=3600,
+            pool_recycle=settings.DB_POOL_RECYCLE_SECONDS,
             pool_use_lifo=True,
             connect_args=DBA_CONNECT_ARGS,
         )
