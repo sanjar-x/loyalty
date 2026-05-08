@@ -63,7 +63,7 @@ class PaymentIntent(AggregateRoot, StateMachineMixin[PaymentIntentStatus]):
     """
 
     # FSM contract -- consumed by ``StateMachineMixin._transition``.
-    _TERMINAL_STATES: ClassVar[frozenset[PaymentIntentStatus]] = TERMINAL_STATUSES  # ty: ignore[invalid-type-form]
+    _TERMINAL_STATES: ClassVar[frozenset[PaymentIntentStatus]] = TERMINAL_STATUSES
     _invalid_transition_exc: ClassVar = PaymentIntentInvalidTransitionError
     _already_terminal_exc: ClassVar = PaymentIntentAlreadyTerminalError
 

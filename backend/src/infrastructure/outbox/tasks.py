@@ -155,27 +155,49 @@ register_event_handler("LinkedAccountCreatedEvent", _handle_linked_account_creat
 # ``payload.get("aggregate_id")`` (legacy emitter, supplier_id absent).
 
 
-async def _handle_supplier_event(
-    payload: dict, correlation_id: str | None = None
-) -> None:
-    """Structured-log a supplier domain event (no downstream consumer yet)."""
-    supplier_id = payload.get("supplier_id") or payload.get("aggregate_id")
-    logger.info(
-        "supplier_event_observed",
-        supplier_id=supplier_id,
-        event_type=payload.get("event_type"),
-        correlation_id=correlation_id,
-    )
+def _structured_log_handler(
+    event_label: str,
+    *,
+    bind_fields: tuple[str, ...] = (),
+    level: str = "info",
+):
+    """Build a structured-log-only outbox handler (REC-034).
+
+    Returns a coroutine suitable for ``register_event_handler`` that
+    binds ``event_label`` plus any payload fields named in
+    ``bind_fields`` to the structured logger and emits the configured
+    ``level`` line. Replaces three near-identical factories
+    (``_logistics_event_logger``, ``_favorites_event_logger``,
+    ``_handle_supplier_event``) that differed only in which fields
+    they extracted from the payload.
+    """
+
+    async def _handler(payload: dict, correlation_id: str | None = None) -> None:
+        bound: dict[str, object] = {
+            "event": event_label,
+            "correlation_id": correlation_id,
+        }
+        for field in bind_fields:
+            bound[field] = payload.get(field)
+        log = logger.bind(**bound)
+        getattr(log, level)("Outbox: event observed", payload=payload)
+
+    return _handler
 
 
-register_event_handler("supplier.created", _handle_supplier_event)
-register_event_handler("SupplierCreatedEvent", _handle_supplier_event)
-register_event_handler("supplier.updated", _handle_supplier_event)
-register_event_handler("SupplierUpdatedEvent", _handle_supplier_event)
-register_event_handler("supplier.deactivated", _handle_supplier_event)
-register_event_handler("SupplierDeactivatedEvent", _handle_supplier_event)
-register_event_handler("supplier.activated", _handle_supplier_event)
-register_event_handler("SupplierActivatedEvent", _handle_supplier_event)
+_supplier_handler = _structured_log_handler(
+    "supplier.event", bind_fields=("supplier_id", "aggregate_id", "event_type")
+)
+
+
+register_event_handler("supplier.created", _supplier_handler)
+register_event_handler("SupplierCreatedEvent", _supplier_handler)
+register_event_handler("supplier.updated", _supplier_handler)
+register_event_handler("SupplierUpdatedEvent", _supplier_handler)
+register_event_handler("supplier.deactivated", _supplier_handler)
+register_event_handler("SupplierDeactivatedEvent", _supplier_handler)
+register_event_handler("supplier.activated", _supplier_handler)
+register_event_handler("SupplierActivatedEvent", _supplier_handler)
 
 
 # ---------------------------------------------------------------------------
@@ -189,28 +211,11 @@ register_event_handler("SupplierActivatedEvent", _handle_supplier_event)
 # `.kicker().kiq(...)` call — same pattern as the IAM handlers above.
 
 
-def _logistics_event_logger(
-    event_label: str,
-    *,
-    level: str = "info",
-):
-    """Build a structured-log-only handler for a logistics event_type.
-
-    ``event_label`` is the human-readable verb (``"shipment.booked"``,
-    ``"shipment.cancelled"``, …) emitted on the structured logger so
-    that downstream observability tools can filter without scraping
-    the Pythonic class name.
-    """
-
-    async def _handler(payload: dict, correlation_id: str | None = None) -> None:
-        log = logger.bind(
-            event=event_label,
-            correlation_id=correlation_id,
-            shipment_id=payload.get("shipment_id"),
-        )
-        getattr(log, level)("Outbox: logistics event observed", payload=payload)
-
-    return _handler
+def _logistics_event_logger(event_label: str, *, level: str = "info"):
+    """Logistics-flavoured wrapper around :func:`_structured_log_handler`."""
+    return _structured_log_handler(
+        event_label, bind_fields=("shipment_id",), level=level
+    )
 
 
 register_event_handler(
@@ -298,16 +303,8 @@ register_event_handler(
 
 
 def _favorites_event_logger(event_label: str):
-    async def _handler(payload: dict, correlation_id: str | None = None) -> None:
-        log = logger.bind(
-            event=event_label,
-            correlation_id=correlation_id,
-            list_id=payload.get("list_id"),
-            identity_id=payload.get("identity_id"),
-        )
-        log.info("Outbox: favorites event observed", payload=payload)
-
-    return _handler
+    """Favorites-flavoured wrapper around :func:`_structured_log_handler`."""
+    return _structured_log_handler(event_label, bind_fields=("list_id", "identity_id"))
 
 
 register_event_handler(

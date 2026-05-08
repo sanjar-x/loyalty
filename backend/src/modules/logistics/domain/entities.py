@@ -101,15 +101,16 @@ class Shipment(AggregateRoot, StateMachineMixin[ShipmentStatus]):
     # (REFACT-001 PR-1b''). ``_transition`` is overridden below to retain
     # Logistics-specific inline ``self.version += 1`` -- see PR description
     # / REC-012 for the deferred Strategy A migration plan.
-    _TERMINAL_STATES: ClassVar[frozenset[ShipmentStatus]] = frozenset(  # ty: ignore[invalid-type-form]
-        {ShipmentStatus.CANCELLED, ShipmentStatus.FAILED}
+    _TERMINAL_STATES: ClassVar[frozenset[ShipmentStatus]] = frozenset(
+        {
+            ShipmentStatus.CANCELLED,
+            ShipmentStatus.FAILED,
+        }
     )
     _invalid_transition_exc: ClassVar = InvalidShipmentTransitionError
     _already_terminal_exc: ClassVar = ShipmentAlreadyTerminalError
 
-    _ALLOWED_TRANSITIONS: ClassVar[  # ty: ignore[invalid-type-form]
-        dict[ShipmentStatus, frozenset[ShipmentStatus]]
-    ] = {
+    _ALLOWED_TRANSITIONS: ClassVar[dict[ShipmentStatus, frozenset[ShipmentStatus]]] = {
         ShipmentStatus.DRAFT: frozenset(
             {
                 ShipmentStatus.BOOKING_PENDING,
