@@ -370,3 +370,49 @@ class TestPreviewSkuFxFreshness:
         assert exc_info.value.error_code == "PRICING_FX_STALE"
         assert "cny_to_rub" in exc_info.value.message
         assert "not configured" in exc_info.value.message
+
+
+# ---------------------------------------------------------------------------
+# CAT-022 — preview without product_id (create-product flow)
+# ---------------------------------------------------------------------------
+
+
+class TestPreviewSkuPreCreate:
+    """Admin enters ``purchase_price`` BEFORE the product is persisted.
+
+    The preview endpoint must compute a sensible selling price using
+    ``Variable.default_value`` for product_input scope (no
+    ``ProductPricingProfile`` exists yet).
+    """
+
+    @pytest.mark.asyncio
+    async def test_preview_without_product_id_uses_defaults(self) -> None:
+        context_id = uuid.uuid4()
+        ast = {
+            "version": 1,
+            "bindings": [
+                {
+                    "name": "final_price",
+                    "component_tag": "final_price",
+                    "expr": {"var": "purchase_price_rub"},
+                }
+            ],
+        }
+        # Identity formula — selling = purchase. No product-input vars
+        # referenced, so no defaults needed.
+        handler = _build_handler(
+            formula=_formula(context_id, ast),
+            variables=[_purchase_price_rub_var()],
+        )
+
+        result = await handler.handle(
+            PreviewSkuPricingQuery(
+                product_id=None,  # ← create-product flow
+                category_id=uuid.uuid4(),
+                context_id=context_id,
+                purchase_price_amount=10000,
+                purchase_currency="RUB",
+            )
+        )
+
+        assert result.final_price == Decimal("10000")
