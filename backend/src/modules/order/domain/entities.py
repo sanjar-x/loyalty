@@ -98,7 +98,7 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
     """Loyality order aggregate (14-state FSM)."""
 
     # FSM contract -- consumed by ``StateMachineMixin._transition``.
-    _TERMINAL_STATES: ClassVar[frozenset[OrderStatus]] = TERMINAL_STATUSES  # ty: ignore[invalid-type-form]
+    _TERMINAL_STATES: ClassVar[frozenset[OrderStatus]] = TERMINAL_STATUSES
     _invalid_transition_exc: ClassVar = OrderInvalidTransitionError
     _already_terminal_exc: ClassVar = OrderAlreadyTerminalError
 
