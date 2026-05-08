@@ -214,6 +214,23 @@ class Shipment(AggregateRoot, StateMachineMixin[ShipmentStatus]):
 
     version: int = 1
 
+    # TYPE-003 — guard ``status`` against direct mutation; FSM-managed
+    # transitions go through ``StateMachineMixin._transition`` which uses
+    # ``object.__setattr__`` to bypass this guard.
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if name == "status" and getattr(self, "_Shipment__initialized", False):
+            raise AttributeError(
+                "Cannot set 'status' directly on Shipment. "
+                "Use the FSM transition methods (mark_booked / "
+                "mark_cancelled / mark_failed_from_tracking / etc.) instead."
+            )
+        super().__setattr__(name, value)
+
+    def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
+        object.__setattr__(self, "_Shipment__initialized", True)
+
     # -- Factory method -----------------------------------------------------
 
     @classmethod

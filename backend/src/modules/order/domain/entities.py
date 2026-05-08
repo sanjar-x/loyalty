@@ -179,6 +179,25 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
     items: list[OrderItem] = field(factory=list)
 
     # ---------------------------------------------------------------------------
+    # TYPE-003 — guard ``status`` against direct mutation; FSM-managed
+    # transitions go through ``StateMachineMixin._transition`` which uses
+    # ``object.__setattr__`` to bypass this guard.
+    # ---------------------------------------------------------------------------
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if name == "status" and getattr(self, "_Order__initialized", False):
+            raise AttributeError(
+                "Cannot set 'status' directly on Order. "
+                "Use the FSM transition methods (mark_paid / hold_order / "
+                "cancel / etc.) instead."
+            )
+        super().__setattr__(name, value)
+
+    def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
+        object.__setattr__(self, "_Order__initialized", True)
+
+    # ---------------------------------------------------------------------------
     # Factory
     # ---------------------------------------------------------------------------
 

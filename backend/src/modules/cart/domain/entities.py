@@ -101,6 +101,21 @@ class Cart(AggregateRoot):
     last_repriced_at: datetime | None
     items: list[CartItem] = field(factory=list)
 
+    # TYPE-003 — guard ``status`` against direct mutation; the freeze /
+    # unfreeze / mark_ordered methods bypass via ``object.__setattr__``.
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if name == "status" and getattr(self, "_Cart__initialized", False):
+            raise AttributeError(
+                "Cannot set 'status' directly on Cart. "
+                "Use freeze() / unfreeze() / mark_ordered() instead."
+            )
+        super().__setattr__(name, value)
+
+    def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
+        object.__setattr__(self, "_Cart__initialized", True)
+
     @classmethod
     def create(
         cls,
@@ -271,7 +286,7 @@ class Cart(AggregateRoot):
         self._ensure_active()
         if not self.items:
             raise CartEmptyError()
-        self.status = CartStatus.FROZEN
+        object.__setattr__(self, "status", CartStatus.FROZEN)
         self.frozen_until = expires_at
         self._touch()
         self.add_domain_event(
@@ -286,7 +301,7 @@ class Cart(AggregateRoot):
         """Unfreeze cart. Transitions FROZEN → ACTIVE."""
         if self.status != CartStatus.FROZEN:
             raise CartNotActiveError(status=self.status.value)
-        self.status = CartStatus.ACTIVE
+        object.__setattr__(self, "status", CartStatus.ACTIVE)
         self.frozen_until = None
         self._touch()
         self.add_domain_event(
@@ -300,7 +315,7 @@ class Cart(AggregateRoot):
         """Mark cart as ordered. Transitions FROZEN → ORDERED."""
         if self.status != CartStatus.FROZEN:
             raise CartNotActiveError(status=self.status.value)
-        self.status = CartStatus.ORDERED
+        object.__setattr__(self, "status", CartStatus.ORDERED)
         self._touch()
         self.add_domain_event(
             CartOrderedEvent(
@@ -344,7 +359,7 @@ class Cart(AggregateRoot):
             else:
                 skipped.append(src_item.sku_id)
 
-        source.status = CartStatus.MERGED
+        object.__setattr__(source, "status", CartStatus.MERGED)
         source.updated_at = datetime.now(UTC)
 
         self._touch()

@@ -293,6 +293,22 @@ class FormulaVersion(AggregateRoot):
     updated_at: datetime = attrs.field(factory=lambda: datetime.now(UTC))
     updated_by: uuid.UUID | None = None
 
+    # TYPE-003 — guard ``status`` against direct mutation; the
+    # ``publish`` / ``archive`` / ``republish`` methods bypass via
+    # ``object.__setattr__``.
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if name == "status" and getattr(self, "_FormulaVersion__initialized", False):
+            raise AttributeError(
+                "Cannot set 'status' directly on FormulaVersion. "
+                "Use publish() / archive() / republish() instead."
+            )
+        super().__setattr__(name, value)
+
+    def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
+        object.__setattr__(self, "_FormulaVersion__initialized", True)
+
     # ------------------------------------------------------------------
     # Factory
     # ------------------------------------------------------------------
@@ -379,7 +395,7 @@ class FormulaVersion(AggregateRoot):
                 details={"version_id": str(self.id), "status": self.status.value},
             )
         now = datetime.now(UTC)
-        self.status = FormulaStatus.PUBLISHED
+        object.__setattr__(self, "status", FormulaStatus.PUBLISHED)
         self.published_at = now
         self.published_by = actor_id
         self._touch(actor_id)
@@ -403,7 +419,7 @@ class FormulaVersion(AggregateRoot):
                 ),
                 details={"version_id": str(self.id), "status": self.status.value},
             )
-        self.status = FormulaStatus.ARCHIVED
+        object.__setattr__(self, "status", FormulaStatus.ARCHIVED)
         self._touch(actor_id)
 
     def restore_as_published(
@@ -422,7 +438,7 @@ class FormulaVersion(AggregateRoot):
                 details={"version_id": str(self.id), "status": self.status.value},
             )
         now = datetime.now(UTC)
-        self.status = FormulaStatus.PUBLISHED
+        object.__setattr__(self, "status", FormulaStatus.PUBLISHED)
         self.published_at = now
         self.published_by = actor_id
         self._touch(actor_id)
