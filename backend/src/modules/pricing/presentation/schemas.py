@@ -512,6 +512,56 @@ class PreviewPriceResponse(CamelModel):
     context_id: uuid.UUID
 
 
+class PreviewSkuPricingRequest(CamelModel):
+    """Body of ``POST /pricing/preview-sku`` — admin-driven SKU price preview.
+
+    The admin UI calls this on every keystroke of the purchase-price input
+    (debounced) so the operator sees the formula-computed selling price
+    immediately, without persisting the SKU and waiting for the
+    autonomous recompute pipeline (CAT-013).
+    """
+
+    product_id: uuid.UUID = Field(
+        ...,
+        description="Product whose pricing profile supplies product-input values.",
+    )
+    category_id: uuid.UUID = Field(
+        ..., description="Category for scope=category values."
+    )
+    context_id: uuid.UUID = Field(
+        ..., description="Pricing context — selects the published formula."
+    )
+    purchase_price_amount: int = Field(
+        ...,
+        gt=0,
+        description="Hypothetical purchase price in smallest currency unit.",
+    )
+    purchase_currency: str = Field(
+        ...,
+        pattern=r"^(RUB|CNY)$",
+        description="Currency of ``purchaseFamilyAmount`` — RUB or CNY only.",
+    )
+    supplier_id: uuid.UUID | None = Field(
+        default=None,
+        description="Optional supplier for scope=supplier overrides.",
+    )
+
+
+class PreviewSkuPricingResponse(CamelModel):
+    """Response body for ``POST /pricing/preview-sku``."""
+
+    final_price: Decimal = Field(
+        ..., description="Selling price the recompute pipeline would land."
+    )
+    components: dict[str, Decimal] = Field(
+        ...,
+        description=("Intermediate binding values keyed by binding name (admin-only)."),
+    )
+    formula_version_id: uuid.UUID
+    formula_version_number: int
+    context_id: uuid.UUID
+
+
 # ---------------------------------------------------------------------------
 # Supplier pricing settings
 # ---------------------------------------------------------------------------

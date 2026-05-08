@@ -14,9 +14,15 @@ from src.modules.pricing.application.queries.preview_price import (
     PreviewPriceHandler,
     PreviewPriceQuery,
 )
+from src.modules.pricing.application.queries.preview_sku_pricing import (
+    PreviewSkuPricingHandler,
+    PreviewSkuPricingQuery,
+)
 from src.modules.pricing.presentation.schemas import (
     PreviewPriceRequest,
     PreviewPriceResponse,
+    PreviewSkuPricingRequest,
+    PreviewSkuPricingResponse,
 )
 from src.shared.interfaces.security import IPermissionResolver
 
@@ -63,6 +69,45 @@ async def preview_price(
     # lower-privilege users see only the final price.
     components = result.components if is_admin else {}
     return PreviewPriceResponse(
+        final_price=result.final_price,
+        components=components,
+        formula_version_id=result.formula_version_id,
+        formula_version_number=result.formula_version_number,
+        context_id=result.context_id,
+    )
+
+
+@pricing_preview_router.post(
+    "/preview-sku",
+    response_model=PreviewSkuPricingResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Preview a SKU's selling price for an admin-supplied purchase_price",
+    description=(
+        "Admin UI calls this as the operator types the purchase price field "
+        "(debounced) so the formula-computed selling price renders "
+        "immediately — no persistence, no waiting for the autonomous "
+        "recompute pipeline. Same evaluator path as the recompute service "
+        "so the preview value matches what eventually lands in the DB."
+    ),
+    dependencies=[Depends(RequirePermission(codename="pricing:read"))],
+)
+async def preview_sku_pricing(
+    body: PreviewSkuPricingRequest,
+    handler: FromDishka[PreviewSkuPricingHandler],
+    is_admin: bool = Depends(_caller_is_pricing_admin),
+) -> PreviewSkuPricingResponse:
+    result = await handler.handle(
+        PreviewSkuPricingQuery(
+            product_id=body.product_id,
+            category_id=body.category_id,
+            context_id=body.context_id,
+            purchase_price_amount=body.purchase_price_amount,
+            purchase_currency=body.purchase_currency,
+            supplier_id=body.supplier_id,
+        )
+    )
+    components = result.components if is_admin else {}
+    return PreviewSkuPricingResponse(
         final_price=result.final_price,
         components=components,
         formula_version_id=result.formula_version_id,

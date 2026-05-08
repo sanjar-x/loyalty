@@ -86,6 +86,9 @@ from src.modules.pricing.application.queries.get_product_pricing_profile import 
 from src.modules.pricing.application.queries.preview_price import (
     PreviewPriceHandler,
 )
+from src.modules.pricing.application.queries.preview_sku_pricing import (
+    PreviewSkuPricingHandler,
+)
 from src.modules.pricing.application.queries.required_variables import (
     GetRequiredVariablesHandler,
 )
@@ -275,6 +278,9 @@ class PricingProvider(Provider):
     )
     preview_price_handler: CompositeDependencySource = provide(
         PreviewPriceHandler, scope=Scope.REQUEST
+    )
+    preview_sku_pricing_handler: CompositeDependencySource = provide(
+        PreviewSkuPricingHandler, scope=Scope.REQUEST
     )
     get_variable_handler: CompositeDependencySource = provide(
         GetVariableHandler, scope=Scope.REQUEST
