@@ -17,6 +17,12 @@ from src.modules.catalog.domain.constants import (
     REQUIRED_LOCALES,
 )
 
+# REC-032 D5 — ``Money`` is now the canonical domain value object in
+# ``src.shared.domain.money``. Catalog re-exports it under the same
+# symbol so existing imports (``from src.modules.catalog.domain.value_objects
+# import Money``) continue to work without churn.
+from src.shared.domain.money import Money as Money
+
 
 def validate_i18n_completeness(
     i18n_dict: dict[str, str],
@@ -314,125 +320,6 @@ class ProductStatus(enum.StrEnum):
     READY_FOR_REVIEW = "ready_for_review"
     PUBLISHED = "published"
     ARCHIVED = "archived"
-
-
-# @frozen does not generate order methods by default in attrs, so custom
-# __lt__/__le__/__gt__/__ge__ are safe to define without conflict.
-# __attrs_post_init__ in @frozen classes must only read fields, never assign;
-# our validation only reads self.amount and self.currency, so this is safe.
-@frozen
-class Money:
-    """Immutable value object representing a monetary amount.
-
-    Stores the amount in the smallest currency units (e.g. kopecks for RUB,
-    cents for USD) to avoid floating-point rounding errors. Currency is
-    validated to be exactly 3 characters per ISO 4217; full whitelist
-    validation is deferred to the presentation layer.
-
-    Ordering comparisons are only meaningful within the same currency.
-    Comparing instances with different currencies raises ``ValueError``
-    to prevent silent currency confusion.
-
-    Attributes:
-        amount: Non-negative integer in smallest currency units (e.g. kopecks).
-        currency: 3-character ISO 4217 currency code (e.g. "RUB", "USD").
-
-    Raises:
-        ValueError: If ``amount`` is negative at construction time.
-        ValueError: If ``currency`` is not exactly 3 characters at construction time.
-        ValueError: If ordering comparison is attempted between instances with
-            different ``currency`` values.
-    """
-
-    amount: int
-    currency: str
-
-    def __attrs_post_init__(self) -> None:
-        """Validate field values after attrs-generated __init__ runs."""
-        if self.amount < 0:
-            raise ValueError("Money amount must be non-negative")
-        if len(self.currency) != 3:
-            raise ValueError("Currency must be a 3-character ISO code")
-        object.__setattr__(self, "currency", self.currency.upper())
-
-    @staticmethod
-    def from_primitives(
-        amount: int,
-        currency: str,
-        compare_at_amount: int | None = None,
-    ) -> tuple[Money, Money | None]:
-        """Build a price/compare-at-price pair from primitive values.
-
-        Convenience factory that eliminates repeated Money construction
-        boilerplate across command handlers.
-
-        Args:
-            amount: Price in smallest currency units.
-            currency: 3-character ISO 4217 currency code.
-            compare_at_amount: Optional compare-at (strikethrough) price.
-                When provided, must be strictly greater than *amount*.
-
-        Returns:
-            Tuple of ``(price, compare_at_price)``.  ``compare_at_price``
-            is ``None`` when *compare_at_amount* is ``None``.
-
-        Raises:
-            ValueError: If *compare_at_amount* is not greater than *amount*.
-        """
-        price = Money(amount=amount, currency=currency)
-        compare_at_price: Money | None = None
-        if compare_at_amount is not None:
-            if compare_at_amount <= amount:
-                raise ValueError("compare_at_price must be greater than price")
-            compare_at_price = Money(amount=compare_at_amount, currency=currency)
-        return price, compare_at_price
-
-    def _check_currency(self, other: Money) -> None:
-        """Assert both instances share the same currency.
-
-        Args:
-            other: The Money instance being compared against.
-
-        Raises:
-            ValueError: If ``self.currency != other.currency``.
-        """
-        if self.currency != other.currency:
-            raise ValueError(
-                f"Cannot compare Money with different currencies: "
-                f"{self.currency} vs {other.currency}"
-            )
-
-    def __lt__(self, other: object) -> bool:
-        """Return True if this amount is strictly less than *other*.
-
-        Returns NotImplemented for non-Money operands so Python can
-        try the reflected operation or raise TypeError.
-        """
-        if not isinstance(other, Money):
-            return NotImplemented
-        self._check_currency(other)
-        return self.amount < other.amount
-
-    def __le__(self, other: object) -> bool:
-        """Return True if this amount is less than or equal to *other*."""
-        if not isinstance(other, Money):
-            return NotImplemented
-        self._check_currency(other)
-        return self.amount <= other.amount
-
-    def __gt__(self, other: object) -> bool:
-        """Return True if this amount is strictly greater than *other*."""
-        if not isinstance(other, Money):
-            return NotImplemented
-        self._check_currency(other)
-        return self.amount > other.amount
-
-    def __ge__(self, other: object) -> bool:
-        """Return True if this amount is greater than or equal to *other*."""
-        if not isinstance(other, Money):
-            return NotImplemented
-        self._check_currency(other)
-        return self.amount >= other.amount
 
 
 # ---------------------------------------------------------------------------

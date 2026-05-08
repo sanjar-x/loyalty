@@ -6,120 +6,32 @@ camelCase <-> snake_case field aliasing.  These DTOs belong to the
 presentation layer and carry no business logic.
 """
 
-import json
-import re
 import uuid
 from datetime import datetime
-from typing import Annotated, Any, Generic, Literal, TypeVar
+from typing import Annotated, Any, Literal
 
-from pydantic import AfterValidator, ConfigDict, Field, computed_field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
-from src.shared.schemas import CamelModel
-from src.shared.schemas import MoneySchema as _SharedMoneySchema
+from src.shared.schemas import (
+    BoundedJsonDict as BoundedJsonDict,
+)
+from src.shared.schemas import (
+    CamelModel,
+)
+from src.shared.schemas import (
+    I18nDict as I18nDict,
+)
+from src.shared.schemas import (
+    MoneySchema as MoneySchema,
+)
+from src.shared.schemas import (
+    PaginatedResponse as PaginatedResponse,
+)
 
-# Re-export the project-wide canonical money shape under the catalog
-# module's symbol name to keep all existing ``from
-# src.modules.catalog.presentation.schemas import MoneySchema`` imports
-# working untouched (CAT-018 promoted the type to ``src/shared``).
-MoneySchema = _SharedMoneySchema
-
-S = TypeVar("S")
-
-
-class PaginatedResponse(CamelModel, Generic[S]):
-    """Generic paginated list response with camelCase serialization."""
-
-    items: list[S]
-    total: int
-    offset: int
-    limit: int
-
-    @computed_field
-    @property
-    def has_next(self) -> bool:
-        """True when more items exist beyond the current page."""
-        return self.offset + len(self.items) < self.total
-
-
-# ---------------------------------------------------------------------------
-# i18n language code validation
-# ---------------------------------------------------------------------------
-
-# ISO 639-1 two-letter language codes (lowercase).
-_LANG_CODE_RE = re.compile(r"^[a-z]{2}$")
-
-
-_MAX_I18N_ENTRIES = 20
-_MAX_I18N_VALUE_LENGTH = 10_000
-
-
-_REQUIRED_LOCALES = {"ru", "en"}
-
-
-def _validate_i18n_keys(value: dict[str, str]) -> dict[str, str]:
-    """Validate i18n dict: ISO 639-1 keys, required locales, bounded entries and value lengths."""
-    if len(value) > _MAX_I18N_ENTRIES:
-        raise ValueError(
-            f"Too many language entries: {len(value)} (max {_MAX_I18N_ENTRIES})"
-        )
-    missing = _REQUIRED_LOCALES - value.keys()
-    if missing:
-        raise ValueError(
-            f"Missing required locales: {', '.join(sorted(missing))}. "
-            f"Both 'ru' and 'en' must be provided."
-        )
-    for key, val in value.items():
-        if not _LANG_CODE_RE.match(key):
-            raise ValueError(
-                f"Invalid language code '{key}'. "
-                f"Keys must be ISO 639-1 two-letter lowercase codes (e.g. 'en', 'ru')."
-            )
-        if len(val) > _MAX_I18N_VALUE_LENGTH:
-            raise ValueError(
-                f"Value for '{key}' too long: {len(val)} chars (max {_MAX_I18N_VALUE_LENGTH})"
-            )
-    return value
-
-
-I18nDict = Annotated[dict[str, str], AfterValidator(_validate_i18n_keys)]
-"""A ``dict[str, str]`` whose keys are validated as ISO 639-1 language codes."""
-
-_MAX_JSON_DICT_BYTES = 10_240  # 10 KB
-_MAX_JSON_DICT_DEPTH = 4
-
-
-def _check_nesting_depth(obj: Any, current: int = 0) -> int:
-    """Return the maximum nesting depth of a JSON-like object."""
-    if current > _MAX_JSON_DICT_DEPTH:
-        return current
-    if isinstance(obj, dict):
-        if not obj:
-            return current
-        return max(_check_nesting_depth(v, current + 1) for v in obj.values())
-    if isinstance(obj, list):
-        if not obj:
-            return current
-        return max(_check_nesting_depth(v, current + 1) for v in obj)
-    return current
-
-
-def _validate_bounded_json_dict(value: dict[str, Any]) -> dict[str, Any]:
-    """Reject dicts that are too large or too deeply nested (JSON bomb protection)."""
-    serialized_size = len(json.dumps(value, default=str))
-    if serialized_size > _MAX_JSON_DICT_BYTES:
-        raise ValueError(
-            f"JSON object too large: {serialized_size} bytes (max {_MAX_JSON_DICT_BYTES} bytes)"
-        )
-    depth = _check_nesting_depth(value)
-    if depth > _MAX_JSON_DICT_DEPTH:
-        raise ValueError(
-            f"JSON object too deeply nested: depth {depth} (max {_MAX_JSON_DICT_DEPTH})"
-        )
-    return value
-
-
-BoundedJsonDict = Annotated[dict[str, Any], AfterValidator(_validate_bounded_json_dict)]
-"""A ``dict[str, Any]`` with size (10 KB) and nesting depth (4) limits."""
+# REC-032 promoted ``PaginatedResponse``, ``I18nDict``, ``BoundedJsonDict``,
+# and ``MoneySchema`` to the shared kernel. Re-exported here so existing
+# ``from src.modules.catalog.presentation.schemas import I18nDict`` (and
+# the other names) keep working without churn.
 
 
 class CategoryCreateRequest(CamelModel):
