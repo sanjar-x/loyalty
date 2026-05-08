@@ -110,7 +110,7 @@ the PR description.
 
 Some modules have an extra `management/` layer (identity, supplier) for admin/back-office use cases.
 
-There is no separate `storage` module — image lifecycle is delegated to the `image_backend/` microservice; backend talks to it through `src/modules/catalog/infrastructure/adapters/image_backend_client.py` (X-API-Key, server-to-server).
+Image lifecycle (S3 + Pillow processing) lives in the ``image`` module — formerly the standalone ``image_backend`` microservice, consolidated in PR #31. Catalog cleans orphan media via ``src/modules/catalog/infrastructure/adapters/media_cleanup_adapter.py`` which delegates in-process to the image module's ``DeleteStorageObjectHandler`` (REC-026; whitelisted in ``ALLOWED_CROSS_MODULE``).
 
 ### Module structure
 
@@ -127,7 +127,7 @@ presentation/    — FastAPI routers (`router_<scope>.py`), Pydantic schemas, Fa
 **Naming conventions:**
 - Dishka providers: ALWAYS in `infrastructure/provider.py` — wiring infrastructure implementations to domain interfaces is an infrastructure concern.
 - FastAPI dependencies (`Depends`-callables, security): in `presentation/dependencies.py` — only the identity module currently uses this for `Auth` / `RequirePermission` / `BearerCredentials`.
-- External HTTP/RPC clients: `infrastructure/adapters/<service>_client.py` (e.g. catalog's `image_backend_client`, cart's `catalog_adapter`).
+- External HTTP/RPC clients: `infrastructure/adapters/<service>_client.py` (e.g. cart's `catalog_adapter` validates SKUs by reading catalog ORM directly).
 - Stateless domain helpers: `domain/services.py` (e.g. user's `generate_referral_code`).
 - Bootstrap/CLI tooling: `<module>/management/<task>.py` — admin scripts that reach into the full DI container; not production request paths.
 

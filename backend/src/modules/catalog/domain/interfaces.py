@@ -36,17 +36,22 @@ from src.modules.catalog.domain.entities import (
 )
 
 
-class IImageBackendClient(ABC):
-    """Port for server-to-server media deletion calls.
+class IMediaCleanupPort(ABC):
+    """Port for cleaning up storage objects when a product/brand image
+    is replaced or removed.
 
-    The application layer depends on this abstraction; the concrete
-    HTTP adapter lives in the infrastructure layer.
+    Used by the catalog command handlers (``update_product``,
+    ``update_brand``, ``delete_product_media``) to drop orphaned media
+    after the business write commits. The implementation lives in the
+    catalog infrastructure layer (``adapters/media_cleanup_adapter.py``)
+    and delegates to the ``image`` module's :class:`DeleteStorageObjectHandler`
+    in-process — formerly an HTTP call to the standalone ``image_backend``
+    microservice (REC-026 collapsed it into the main backend).
     """
 
     @abstractmethod
     async def delete(self, storage_object_id: uuid.UUID) -> None:
-        """Delete a media file by its storage object ID. Best-effort."""
-        pass
+        """Delete a storage object (S3 keys + DB record). Best-effort."""
 
 
 class ICatalogRepository[T](ABC):

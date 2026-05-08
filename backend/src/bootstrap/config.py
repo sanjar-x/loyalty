@@ -95,10 +95,6 @@ class Settings(BaseSettings):
     REDISPASSWORD: SecretStr | None = None
     REDISDATABASE: int = 0
 
-    # ImageBackend (server-to-server)
-    IMAGE_BACKEND_URL: str = "http://localhost:8080"
-    IMAGE_BACKEND_API_KEY: SecretStr = SecretStr("")
-
     INTERNAL_WEBHOOK_SECRET: SecretStr = SecretStr("")
 
     RABBITMQ_PRIVATE_URL: str

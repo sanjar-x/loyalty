@@ -28,6 +28,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bootstrap.config import Settings
 from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.image.application.commands.delete_storage_object import (
+    DeleteStorageObjectHandler,
+)
 from src.modules.image.domain.entities import StorageFile
 from src.modules.image.domain.exceptions import (
     StorageFileAlreadyProcessedError,
@@ -311,32 +314,10 @@ async def get_metadata(
 )
 async def delete_media(
     storage_object_id: uuid.UUID,
-    repo: FromDishka[IStorageRepository],
-    blob_storage: FromDishka[IBlobStorage],
-    uow: FromDishka[IUnitOfWork],
+    handler: FromDishka[DeleteStorageObjectHandler],
 ) -> DeleteResponse:
-    log = logger.bind(storage_object_id=str(storage_object_id))
-
-    storage_file = await repo.get_by_id(storage_object_id)
-    if not storage_file:
-        return DeleteResponse(deleted=True)  # idempotent
-
-    keys_to_delete: list[str] = [
-        storage_file.object_key,
-        f"public/{storage_object_id}.webp",
-    ]
-    for suffix in ("thumb", "md", "lg"):
-        keys_to_delete.append(f"public/{storage_object_id}_{suffix}.webp")
-
-    try:
-        await blob_storage.delete_objects(keys_to_delete)
-    except Exception:
-        log.warning("Failed to batch-delete S3 objects", keys=keys_to_delete)
-
-    await repo.mark_as_deleted(storage_file.bucket_name, storage_file.object_key)
-    await uow.commit()
-
-    log.info("Media deleted", keys=keys_to_delete)
+    """Idempotent — handler is a no-op when the object doesn't exist."""
+    await handler.handle(storage_object_id)
     return DeleteResponse(deleted=True)
 
 

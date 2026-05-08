@@ -1,8 +1,9 @@
 """
 Command handler: delete a product media asset.
 
-Deletes the MediaAsset DB record and performs a best-effort cleanup call to
-ImageBackend (if a storage_object_id is present).
+Deletes the MediaAsset DB record and performs a best-effort in-process
+cleanup of the underlying storage object (S3 keys + image module's
+storage_objects row) via :class:`IMediaCleanupPort`.
 Part of the application layer (CQRS write side).
 """
 
@@ -11,8 +12,8 @@ from dataclasses import dataclass
 
 from src.modules.catalog.domain.exceptions import MediaAssetNotFoundError
 from src.modules.catalog.domain.interfaces import (
-    IImageBackendClient,
     IMediaAssetRepository,
+    IMediaCleanupPort,
 )
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -32,18 +33,18 @@ class DeleteProductMediaCommand:
 
 
 class DeleteProductMediaHandler:
-    """Delete a product media asset and clean up via ImageBackend."""
+    """Delete a product media asset and clean up the underlying storage object."""
 
     def __init__(
         self,
         media_repo: IMediaAssetRepository,
         uow: IUnitOfWork,
-        image_backend: IImageBackendClient,
+        media_cleanup: IMediaCleanupPort,
         logger: ILogger,
     ) -> None:
         self._media_repo = media_repo
         self._uow = uow
-        self._image_backend = image_backend
+        self._media_cleanup = media_cleanup
         self._logger = logger.bind(handler="DeleteProductMediaHandler")
 
     async def handle(self, command: DeleteProductMediaCommand) -> None:
@@ -70,9 +71,9 @@ class DeleteProductMediaHandler:
             await self._media_repo.delete(command.media_id)
             await self._uow.commit()
 
-        # Best-effort ImageBackend cleanup AFTER commit
+        # Best-effort in-process storage cleanup AFTER commit
         if storage_object_id:
-            await self._image_backend.delete(storage_object_id)
+            await self._media_cleanup.delete(storage_object_id)
 
         self._logger.info(
             "Media asset deleted",

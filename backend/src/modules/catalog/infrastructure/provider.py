@@ -9,7 +9,6 @@ providers are consumed by the FastAPI router layer via ``FromDishka``.
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 
-from src.bootstrap.config import Settings
 from src.modules.catalog.application.commands.add_attribute_value import (
     AddAttributeValueHandler,
 )
@@ -225,16 +224,16 @@ from src.modules.catalog.domain.interfaces import (
     IAttributeValueRepository,
     IBrandRepository,
     ICategoryRepository,
-    IImageBackendClient,
     IInternalSkuPricingApplyPort,
     IMediaAssetRepository,
+    IMediaCleanupPort,
     IPricingHistoryRepository,
     IProductAttributeValueRepository,
     IProductRepository,
     ITemplateAttributeBindingRepository,
 )
-from src.modules.catalog.infrastructure.adapters.image_backend_client import (
-    ImageBackendClient,
+from src.modules.catalog.infrastructure.adapters.media_cleanup_adapter import (
+    MediaCleanupAdapter,
 )
 from src.modules.catalog.infrastructure.repositories import (
     AttributeGroupRepository,
@@ -605,13 +604,11 @@ class MediaAssetProvider(Provider):
         MediaAssetRepository, scope=Scope.REQUEST, provides=IMediaAssetRepository
     )
 
-    @provide(scope=Scope.APP)
-    def image_backend_client(self, s: Settings) -> IImageBackendClient:
-        """Provide the ImageBackendClient singleton."""
-        return ImageBackendClient(
-            base_url=s.IMAGE_BACKEND_URL,
-            api_key=s.IMAGE_BACKEND_API_KEY.get_secret_value(),
-        )
+    media_cleanup_port: CompositeDependencySource = provide(
+        MediaCleanupAdapter,
+        scope=Scope.REQUEST,
+        provides=IMediaCleanupPort,
+    )
 
     # Command handlers
     add_product_media_handler: CompositeDependencySource = provide(

@@ -16,7 +16,7 @@ from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
     BrandSlugConflictError,
 )
-from src.modules.catalog.domain.interfaces import IBrandRepository, IImageBackendClient
+from src.modules.catalog.domain.interfaces import IBrandRepository, IMediaCleanupPort
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -65,12 +65,12 @@ class UpdateBrandHandler:
         self,
         brand_repo: IBrandRepository,
         uow: IUnitOfWork,
-        image_backend: IImageBackendClient,
+        media_cleanup: IMediaCleanupPort,
         logger: ILogger,
     ) -> None:
         self._brand_repo = brand_repo
         self._uow = uow
-        self._image_backend = image_backend
+        self._media_cleanup = media_cleanup
         self._logger = logger.bind(handler="UpdateBrandHandler")
 
     async def handle(self, command: UpdateBrandCommand) -> UpdateBrandResult:
@@ -132,7 +132,7 @@ class UpdateBrandHandler:
 
         # Best-effort cleanup of old logo after successful commit
         if old_logo_sid and old_logo_sid != command.logo_storage_object_id:
-            await self._image_backend.delete(old_logo_sid)
+            await self._media_cleanup.delete(old_logo_sid)
 
         self._logger.info("Brand updated", brand_id=str(brand.id))
 

@@ -116,6 +116,13 @@ ALLOWED_CROSS_MODULE = {
     # Same adapter JOINs supplier ORM to surface supplier_type on cart lines
     # (cross-border / local policy). Same anti-corruption justification.
     ("cart", "supplier"): {"src.modules.cart.infrastructure.adapters.catalog_adapter"},
+    # REC-026 — catalog's media cleanup adapter delegates to the image
+    # module's DeleteStorageObjectHandler so product/brand image replacement
+    # drops orphan S3 keys + soft-deletes the storage_objects row.
+    # Same anti-corruption pattern as cart→catalog above.
+    ("catalog", "image"): {
+        "src.modules.catalog.infrastructure.adapters.media_cleanup_adapter"
+    },
     # Storefront CQRS read-side projects ``supplier.type`` onto product cards
     # and PDPs (cross-border vs local policy). Read-only ORM JOIN — same
     # CQRS-read exemption that lets ``catalog.application.queries`` touch
