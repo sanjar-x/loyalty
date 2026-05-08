@@ -181,13 +181,28 @@ class CannotDeletePublishedProductError(ConflictError):
 
 
 class ProductNotReadyError(UnprocessableEntityError):
-    """Raised when a product is not ready for the requested status transition."""
+    """Raised when a product is not ready for the requested status transition.
 
-    def __init__(self, product_id: uuid.UUID, reason: str) -> None:
+    ``sku_diagnostics`` (CAT-019) carries a per-SKU breakdown when the
+    gate that fails is the publish-pricing rule, so the admin UI can
+    render an actionable next-step (set purchase_price / wait for
+    recompute / fix formula / set manual price) instead of a generic
+    "no SKU has a price".
+    """
+
+    def __init__(
+        self,
+        product_id: uuid.UUID,
+        reason: str,
+        sku_diagnostics: list[dict] | None = None,
+    ) -> None:
+        details: dict = {"product_id": str(product_id), "reason": reason}
+        if sku_diagnostics is not None:
+            details["sku_diagnostics"] = sku_diagnostics
         super().__init__(
             message=f"Product {product_id} is not ready: {reason}",
             error_code="PRODUCT_NOT_READY",
-            details={"product_id": str(product_id), "reason": reason},
+            details=details,
         )
 
 
