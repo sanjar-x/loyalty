@@ -176,12 +176,18 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
     created_at: datetime
     updated_at: datetime
     version: int
-    items: list[OrderItem] = field(factory=list)
+    _items: list[OrderItem] = field(factory=list, alias="items")
 
     # ---------------------------------------------------------------------------
     # TYPE-003 — guard ``status`` against direct mutation; FSM-managed
     # transitions go through ``StateMachineMixin._transition`` which uses
     # ``object.__setattr__`` to bypass this guard.
+    #
+    # TYPE-004 — ``items`` is exposed as a read-only ``tuple`` view; all
+    # item-level mutation goes through the aggregate's own methods
+    # (``attach_cross_border_shipment``, ``attach_last_mile_shipment``)
+    # which keep the cross-item invariant ("all items in a shipment
+    # share the same shipment_id") on a single code path.
     # ---------------------------------------------------------------------------
 
     def __setattr__(self, name: str, value: object) -> None:
@@ -196,6 +202,16 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
     def __attrs_post_init__(self) -> None:
         super().__attrs_post_init__()
         object.__setattr__(self, "_Order__initialized", True)
+
+    @property
+    def items(self) -> tuple[OrderItem, ...]:
+        """Immutable view of the order's line items (TYPE-004).
+
+        External consumers see a tuple; internal mutators stay on
+        ``self._items``. ``Order(items=[...])`` factory keyword is
+        preserved via the attrs ``alias=`` on the underlying field.
+        """
+        return tuple(self._items)
 
     # ---------------------------------------------------------------------------
     # Factory
@@ -339,7 +355,7 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
     def attach_cross_border_shipment(self, shipment_id: uuid.UUID) -> None:
         """Persist DobroPost shipment id after the gateway booked it."""
         self.cross_border_shipment_id = shipment_id
-        for item in self.items:
+        for item in self._items:
             if item.cross_border_shipment_id is None:
                 item.cross_border_shipment_id = shipment_id
         self.updated_at = datetime.now(UTC)
@@ -355,7 +371,7 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
 
     def attach_last_mile_shipment(self, shipment_id: uuid.UUID) -> None:
         self.last_mile_shipment_id = shipment_id
-        for item in self.items:
+        for item in self._items:
             if item.last_mile_shipment_id is None:
                 item.last_mile_shipment_id = shipment_id
         self.updated_at = datetime.now(UTC)
