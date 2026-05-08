@@ -24,6 +24,7 @@ import structlog
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
+from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bootstrap.config import Settings
@@ -272,12 +273,25 @@ async def stream_status(
     if storage_file.status.is_terminal:
         return
 
-    async for event in sse_manager.subscribe(storage_object_id):
-        if event is None:
-            continue
-        yield ServerSentEvent(data=event, event="status")
-        if event.get("status") in ("completed", "failed"):
-            return
+    try:
+        async for event in sse_manager.subscribe(storage_object_id):
+            if event is None:
+                continue
+            yield ServerSentEvent(data=event, event="status")
+            if event.get("status") in ("completed", "failed"):
+                return
+    except RedisError, OSError:
+        # Pub/sub backbone went down mid-stream — emit an explicit
+        # ``error`` SSE frame so the client knows it should reconnect
+        # rather than silently rendering a stale state.
+        logger.exception(
+            "sse_status_stream_pubsub_unavailable",
+            storage_object_id=str(storage_object_id),
+        )
+        yield ServerSentEvent(
+            data={"reason": "pubsub_unavailable"},
+            event="error",
+        )
 
 
 # ---------------------------------------------------------------------------

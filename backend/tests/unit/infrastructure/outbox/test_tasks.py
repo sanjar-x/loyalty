@@ -81,16 +81,21 @@ class TestOutboxRelayTask:
             assert result == {"status": "success", "processed": 5}
             mock_relay.assert_awaited_once()
 
-    async def test_outbox_relay_task_error(self):
+    async def test_outbox_relay_task_error_reraises(self):
+        """CAT-016 — batch-level catastrophes (DB unreachable, broken
+        session factory) MUST surface to TaskIQ as failed_tasks rather
+        than being silently absorbed into ``{"status": "error"}``.
+        """
         with patch(
             "src.infrastructure.outbox.tasks.relay_outbox_batch",
             new_callable=AsyncMock,
         ) as mock_relay:
             mock_relay.side_effect = RuntimeError("db connection lost")
 
-            result = await _relay_fn(session_factory=AsyncMock())
+            with pytest.raises(RuntimeError, match="db connection lost"):
+                await _relay_fn(session_factory=AsyncMock())
 
-            assert result == {"status": "error", "processed": 0}
+            mock_relay.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------
