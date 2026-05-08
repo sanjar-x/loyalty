@@ -47,6 +47,7 @@ silently being treated as success.
 from __future__ import annotations
 
 import asyncio
+import functools
 import random
 import uuid
 from datetime import UTC, datetime
@@ -168,9 +169,19 @@ class RecomputeSkuPricingService:
             scope.evaluation_timeout_ms / 1000.0 if scope.evaluation_timeout_ms else 1.0
         )
         loop = asyncio.get_running_loop()
+        # CAT-011 — ``recompute_sku_pricing`` declares ``now`` as keyword-only.
+        # ``run_in_executor(None, fn, *args)`` cannot pass kwargs, so the
+        # previous positional ``None`` triggered ``TypeError: takes 2
+        # positional arguments but 3 were given`` for every recompute attempt
+        # in production. Wrap with ``functools.partial`` instead — kwargs go
+        # through, and we drop the explicit ``None`` since that's already the
+        # default (production code never overrides ``now``; tests do).
         try:
             result = await asyncio.wait_for(
-                loop.run_in_executor(None, recompute_sku_pricing, inputs, scope, None),
+                loop.run_in_executor(
+                    None,
+                    functools.partial(recompute_sku_pricing, inputs, scope),
+                ),
                 timeout=timeout_s,
             )
         except TimeoutError:
