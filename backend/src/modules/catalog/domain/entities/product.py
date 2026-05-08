@@ -372,12 +372,23 @@ class Product(AggregateRoot):
                     product_id=self.id,
                     reason=f"Cannot transition to {new_status.value}: product has no active SKUs",
                 )
+            # CAT-009 — accept either a manual ``price`` (legacy / fallback
+            # path) OR an autonomous ``selling_price`` produced by the
+            # ADR-005 recompute pipeline. Previously the rule only checked
+            # ``s.price`` which blocked publication of products that rely
+            # entirely on the formula-driven flow (purchase_price → recompute
+            # → selling_price), forcing admins to enter a manual price they
+            # never use.
             if new_status == ProductStatus.PUBLISHED and not any(
-                s.price is not None for s in active_skus
+                s.price is not None or s.selling_price is not None for s in active_skus
             ):
                 raise ProductNotReadyError(
                     product_id=self.id,
-                    reason="Cannot publish product without at least one priced SKU",
+                    reason=(
+                        "Cannot publish product without at least one SKU "
+                        "having either a manual price or an autonomous "
+                        "selling_price (from the pricing recompute pipeline)"
+                    ),
                 )
         old_status = self.status.value
         # Bypass the guard for controlled FSM mutation

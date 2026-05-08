@@ -302,6 +302,30 @@ class TestProductFSMReadiness:
 
         assert product.status == ProductStatus.READY_FOR_REVIEW
 
+    def test_published_succeeds_with_only_autonomous_selling_price(self):
+        """CAT-009 — SKU with only ``selling_price`` (recompute output, no
+        manual ``price``) is enough to publish. Previously the rule
+        required a manual ``price`` and blocked the autonomous-pricing
+        flow (purchase_price → recompute → selling_price).
+        """
+        product = ProductBuilder().build()
+        variant = product.variants[0]
+        # SKU with no manual price...
+        sku = product.add_sku(
+            variant.id,
+            sku_code="SKU-AUTO-PRICED",
+            price=None,
+        )
+        # ...but with an autonomous selling_price as if recompute landed.
+        sku.selling_price = Money(amount=12500, currency="RUB")
+        product.clear_domain_events()
+        product.transition_status(ProductStatus.ENRICHING)
+        product.transition_status(ProductStatus.READY_FOR_REVIEW)
+
+        product.transition_status(ProductStatus.PUBLISHED)
+
+        assert product.status == ProductStatus.PUBLISHED
+
     def test_published_succeeds_with_priced_sku(self):
         """Product with a priced SKU can transition to PUBLISHED."""
         product = _product_with_priced_sku()
