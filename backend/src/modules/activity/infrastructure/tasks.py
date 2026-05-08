@@ -108,14 +108,18 @@ async def flush_activity_events_task(
     redis_client: FromDishka[redis.Redis],  # type: ignore[type-arg]
 ) -> dict:
     """Drain the Redis buffer and bulk-insert events into PostgreSQL."""
-    raw_events: list[bytes | str] = []
-    # RPOP with count would be more efficient but is only available on
-    # Redis 6.2+; the simple loop is fine at our current scale.
-    for _ in range(FLUSH_BATCH_SIZE):
-        item = await redis_client.rpop(ACTIVITY_QUEUE_KEY)  # ty: ignore[invalid-await]
-        if item is None:
-            break
-        raw_events.append(item)
+    # PERF-001 — single ``RPOP key count`` round-trip instead of N
+    # sequential RPOPs. Redis 8.4 (the project's deployed version)
+    # supports the count argument, so the previous "loop is fine at
+    # our current scale" trade-off is no longer needed; this scales
+    # the flush task linearly with batch size at constant network
+    # cost. ``RPOP`` with count returns ``list[bytes]`` (or ``None``
+    # if the key is empty); normalise to ``list`` so the downstream
+    # parsing path doesn't need to special-case.
+    popped = await redis_client.rpop(  # ty: ignore[invalid-await]
+        ACTIVITY_QUEUE_KEY, FLUSH_BATCH_SIZE
+    )
+    raw_events: list[bytes | str] = list(popped) if popped else []
 
     if not raw_events:
         return {"status": "success", "processed": 0}
