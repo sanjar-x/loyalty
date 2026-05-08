@@ -6,10 +6,13 @@ Delegates to application-layer command/query handlers via Dishka DI.
 """
 
 import uuid
+from collections.abc import AsyncIterable
 from datetime import datetime
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi.sse import EventSourceResponse, ServerSentEvent
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.application.commands.bulk_set_purchase_price import (
     BulkSetPurchasePriceCommand,
@@ -47,6 +50,9 @@ from src.modules.catalog.application.queries.read_models import (
     ProductReadModel,
 )
 from src.modules.catalog.domain.value_objects import Money, ProductStatus
+from src.modules.catalog.infrastructure.services.sku_pricing_pubsub import (
+    SkuPricingPubsub,
+)
 from src.modules.catalog.presentation.mappers import to_variant_response
 from src.modules.catalog.presentation.schemas import (
     BulkPurchasePriceItemError,
@@ -266,6 +272,40 @@ async def delete_product(
     """Soft-delete a product by marking it as deleted."""
     command = DeleteProductCommand(product_id=product_id)
     await handler.handle(command)
+
+
+@product_router.get(
+    path="/{product_id}/skus/pricing-events",
+    response_class=EventSourceResponse,
+    summary="SSE stream of SKU pricing recompute events for one product",
+    description=(
+        "Server-Sent Events stream pushing live recompute outcomes for every "
+        "SKU of the given product. Replaces admin polling. Each event payload "
+        "carries ``skuId`` / ``pricingStatus`` / ``sellingPrice`` / ``pricedAt`` "
+        "/ ``pricedFailureReason``. Backed by Redis pub/sub on channel "
+        "``catalog:sku-pricing:{product_id}`` — the outbox-driven consumer "
+        "publishes here when ``SKUPricedEvent`` / ``SKUPricingFailedEvent`` "
+        "are dispatched (CAT-005)."
+    ),
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
+)
+async def stream_sku_pricing_events(
+    product_id: uuid.UUID,
+    pubsub: FromDishka[SkuPricingPubsub],
+    session: FromDishka[AsyncSession],
+) -> AsyncIterable[ServerSentEvent]:
+    """Stream pricing recompute events as they land for ``product_id``."""
+    # The pub/sub loop holds an idle Postgres session for up to 10 minutes
+    # (see ``SkuPricingPubsub.subscribe`` timeout). Postgres'
+    # idle_in_transaction_session_timeout would kill the connection mid-
+    # stream, so release it before entering the long poll. Same pattern as
+    # the image module's status SSE.
+    await session.close()
+
+    async for event in pubsub.subscribe(product_id):
+        if event is None:
+            continue
+        yield ServerSentEvent(data=event, event="status")
 
 
 @product_router.post(

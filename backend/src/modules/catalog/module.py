@@ -88,4 +88,7 @@ CATALOG_MODULE = ModuleManifest(
         product_attribute_router,
         media_router,
     ),
+    # CAT-005 — bridges outbox-delivered SKUPricedEvent / SKUPricingFailedEvent
+    # to the per-product Redis pub/sub channel that admin SSE streams to UI.
+    task_modules=("src.modules.catalog.application.consumers.sku_pricing_events",),
 )
