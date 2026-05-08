@@ -22,7 +22,6 @@ class CustomerListItem(BaseModel):
         first_name: Customer's first name.
         last_name: Customer's last name.
         phone: Customer's phone number, if available.
-        referral_code: Customer's unique referral code.
         username: Customer's username, if available.
         auth_methods: List of auth methods (e.g. 'local', 'google', 'telegram').
         roles: List of role names assigned to this identity.
@@ -35,7 +34,6 @@ class CustomerListItem(BaseModel):
     first_name: str
     last_name: str
     phone: str | None
-    referral_code: str | None
     username: str | None = None
     auth_methods: list[str] = []
     roles: list[str]
@@ -141,9 +139,13 @@ class ListCustomersHandler:
         # Fetch page
         sort_col = _SORT_COLUMNS.get(query.sort_by, "i.created_at")
         sort_dir = "ASC" if query.sort_order == "asc" else "DESC"
+        # ``referral_code`` / ``referred_by`` were dropped from ``customers``
+        # in migration ``b8f3c2e6a401`` (2026-05-06) — public referral data
+        # now lives in the ``referral`` bounded context (``referral_codes``
+        # table). See REC-027 hotfix for the original 500 this caused.
         list_sql = (
             "SELECT i.id AS identity_id, lc.email, i.is_active, "
-            "c.first_name, c.last_name, c.phone, c.referral_code, "
+            "c.first_name, c.last_name, c.phone, "
             "c.username, i.created_at "
             "FROM identities i "
             "LEFT JOIN local_credentials lc ON lc.identity_id = i.id "
@@ -198,7 +200,6 @@ class ListCustomersHandler:
                     first_name=row["first_name"] or "",
                     last_name=row["last_name"] or "",
                     phone=row["phone"],
-                    referral_code=row["referral_code"],
                     username=row["username"],
                     auth_methods=auth_methods,
                     roles=roles_by_identity.get(row["identity_id"], []),
