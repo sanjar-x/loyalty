@@ -6,14 +6,14 @@ from dataclasses import dataclass
 from src.shared.interfaces.entities import ModuleDomainEvent
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all order-domain events."""
 
     aggregate_type: str = "order"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderCreatedEvent(
     OrderEvent,
     required_fields=("order_id", "identity_id"),
@@ -28,7 +28,7 @@ class OrderCreatedEvent(
     event_type: str = "OrderCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderPaidEvent(
     OrderEvent,
     required_fields=("order_id", "payment_intent_id"),
@@ -41,7 +41,7 @@ class OrderPaidEvent(
     event_type: str = "OrderPaidEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderProcuredEvent(
     OrderEvent,
     required_fields=("order_id", "incoming_declaration"),
@@ -53,7 +53,7 @@ class OrderProcuredEvent(
     event_type: str = "OrderProcuredEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderArrivedInRuEvent(
     OrderEvent,
     required_fields=("order_id",),
@@ -64,7 +64,7 @@ class OrderArrivedInRuEvent(
     event_type: str = "OrderArrivedInRuEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderEnteredLastMileEvent(
     OrderEvent,
     required_fields=("order_id",),
@@ -75,7 +75,7 @@ class OrderEnteredLastMileEvent(
     event_type: str = "OrderEnteredLastMileEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderAwaitingPickupEvent(
     OrderEvent,
     required_fields=("order_id",),
@@ -85,7 +85,7 @@ class OrderAwaitingPickupEvent(
     event_type: str = "OrderAwaitingPickupEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderDeliveredEvent(
     OrderEvent,
     required_fields=("order_id",),
@@ -95,7 +95,7 @@ class OrderDeliveredEvent(
     event_type: str = "OrderDeliveredEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderClosedEvent(
     OrderEvent,
     required_fields=("order_id",),
@@ -105,7 +105,7 @@ class OrderClosedEvent(
     event_type: str = "OrderClosedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderEnteredHoldEvent(
     OrderEvent,
     required_fields=("order_id",),
@@ -118,7 +118,7 @@ class OrderEnteredHoldEvent(
     event_type: str = "OrderEnteredHoldEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderResumedFromHoldEvent(
     OrderEvent,
     required_fields=("order_id",),
@@ -129,7 +129,7 @@ class OrderResumedFromHoldEvent(
     event_type: str = "OrderResumedFromHoldEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderReturningToWarehouseEvent(
     OrderEvent,
     required_fields=("order_id",),
@@ -140,7 +140,7 @@ class OrderReturningToWarehouseEvent(
     event_type: str = "OrderReturningToWarehouseEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderNotDeliveredEvent(
     OrderEvent,
     required_fields=("order_id",),
@@ -150,7 +150,7 @@ class OrderNotDeliveredEvent(
     event_type: str = "OrderNotDeliveredEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderReturnRequestedEvent(
     OrderEvent,
     required_fields=("order_id",),
@@ -161,7 +161,7 @@ class OrderReturnRequestedEvent(
     event_type: str = "OrderReturnRequestedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderReturnedEvent(
     OrderEvent,
     required_fields=("order_id",),
@@ -171,7 +171,7 @@ class OrderReturnedEvent(
     event_type: str = "OrderReturnedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderCancelledEvent(
     OrderEvent,
     required_fields=("order_id",),
@@ -186,7 +186,7 @@ class OrderCancelledEvent(
     event_type: str = "OrderCancelledEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderRefundedEvent(
     OrderEvent,
     required_fields=("order_id",),
@@ -198,7 +198,7 @@ class OrderRefundedEvent(
     event_type: str = "OrderRefundedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class OrderPickupPointChangedEvent(
     OrderEvent,
     required_fields=("order_id",),

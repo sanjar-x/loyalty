@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from src.shared.interfaces.entities import ModuleDomainEvent
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReferralEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for every referral-domain event."""
 
@@ -50,7 +50,7 @@ class ReferralEvent(ModuleDomainEvent, abstract=True):
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReferralCodeIssuedEvent(
     ReferralEvent,
     required_fields=("code_id", "customer_id"),
@@ -63,7 +63,7 @@ class ReferralCodeIssuedEvent(
     event_type: str = "ReferralCodeIssuedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReferralCodeRevokedEvent(
     ReferralEvent,
     required_fields=("code_id", "customer_id"),
@@ -81,7 +81,7 @@ class ReferralCodeRevokedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReferralCreatedEvent(
     ReferralEvent,
     required_fields=("referral_id", "referrer_customer_id", "invitee_customer_id"),
@@ -95,7 +95,7 @@ class ReferralCreatedEvent(
     event_type: str = "ReferralCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReferralActivatedEvent(
     ReferralEvent,
     required_fields=(
@@ -115,7 +115,7 @@ class ReferralActivatedEvent(
     event_type: str = "ReferralActivatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReferralRewardedEvent(
     ReferralEvent,
     required_fields=("referral_id", "referrer_customer_id"),
@@ -127,7 +127,7 @@ class ReferralRewardedEvent(
     event_type: str = "ReferralRewardedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReferralExpiredEvent(
     ReferralEvent,
     required_fields=("referral_id",),
@@ -138,7 +138,7 @@ class ReferralExpiredEvent(
     event_type: str = "ReferralExpiredEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReferralCancelledEvent(
     ReferralEvent,
     required_fields=("referral_id",),
@@ -150,7 +150,7 @@ class ReferralCancelledEvent(
     event_type: str = "ReferralCancelledEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReferralFraudBlockedEvent(
     ReferralEvent,
     required_fields=("referral_id",),
@@ -163,7 +163,7 @@ class ReferralFraudBlockedEvent(
     event_type: str = "ReferralFraudBlockedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReferralPendingReviewEvent(
     ReferralEvent,
     required_fields=("referral_id",),
@@ -180,7 +180,7 @@ class ReferralPendingReviewEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReferralRewardAccruedEvent(
     ReferralEvent,
     required_fields=("reward_id", "customer_id"),
@@ -195,7 +195,7 @@ class ReferralRewardAccruedEvent(
     event_type: str = "ReferralRewardAccruedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReferralRewardReleasedEvent(
     ReferralEvent,
     required_fields=("reward_id", "customer_id"),
@@ -208,7 +208,7 @@ class ReferralRewardReleasedEvent(
     event_type: str = "ReferralRewardReleasedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReferralRewardReversedEvent(
     ReferralEvent,
     required_fields=("reward_id", "customer_id"),
@@ -223,7 +223,7 @@ class ReferralRewardReversedEvent(
     event_type: str = "ReferralRewardReversedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReferralRewardExpiredEvent(
     ReferralEvent,
     required_fields=("reward_id",),
@@ -240,7 +240,7 @@ class ReferralRewardExpiredEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class CustomerTierUpgradedEvent(
     ReferralEvent,
     required_fields=("customer_id",),

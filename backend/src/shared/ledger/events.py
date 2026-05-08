@@ -19,14 +19,14 @@ from dataclasses import dataclass
 from src.shared.interfaces.entities import ModuleDomainEvent
 
 
-@dataclass
+@dataclass(frozen=True)
 class LedgerEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all shared-ledger events."""
 
     aggregate_type: str = "ledger_account"
 
 
-@dataclass
+@dataclass(frozen=True)
 class LedgerTransactionPostedEvent(
     LedgerEvent,
     required_fields=("transaction_id", "account_id"),

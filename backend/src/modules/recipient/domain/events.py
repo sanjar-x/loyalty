@@ -6,14 +6,14 @@ from dataclasses import dataclass
 from src.shared.interfaces.entities import ModuleDomainEvent
 
 
-@dataclass
+@dataclass(frozen=True)
 class RecipientEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all recipient-domain events."""
 
     aggregate_type: str = "recipient"
 
 
-@dataclass
+@dataclass(frozen=True)
 class RecipientCreatedEvent(
     RecipientEvent,
     required_fields=("recipient_id", "identity_id"),
@@ -24,7 +24,7 @@ class RecipientCreatedEvent(
     event_type: str = "RecipientCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class RecipientUpdatedEvent(
     RecipientEvent,
     required_fields=("recipient_id",),
@@ -35,7 +35,7 @@ class RecipientUpdatedEvent(
     event_type: str = "RecipientUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class RecipientVerifiedEvent(
     RecipientEvent,
     required_fields=("recipient_id",),
@@ -45,7 +45,7 @@ class RecipientVerifiedEvent(
     event_type: str = "RecipientVerifiedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class RecipientInvalidatedEvent(
     RecipientEvent,
     required_fields=("recipient_id",),
@@ -56,7 +56,7 @@ class RecipientInvalidatedEvent(
     event_type: str = "RecipientInvalidatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class RecipientArchivedEvent(
     RecipientEvent,
     required_fields=("recipient_id",),

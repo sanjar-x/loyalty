@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from src.shared.interfaces.entities import ModuleDomainEvent
 
 
-@dataclass
+@dataclass(frozen=True)
 class LogisticsEvent(ModuleDomainEvent, abstract=True):
     """Intermediate base for all logistics domain events."""
 
@@ -49,7 +49,7 @@ class LogisticsEvent(ModuleDomainEvent, abstract=True):
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentCreatedEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
@@ -64,7 +64,7 @@ class ShipmentCreatedEvent(
     event_type: str = "ShipmentCreatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentBookingRequestedEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
@@ -77,7 +77,7 @@ class ShipmentBookingRequestedEvent(
     event_type: str = "ShipmentBookingRequestedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentBookedEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
@@ -97,7 +97,7 @@ class ShipmentBookedEvent(
     event_type: str = "ShipmentBookedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentBookingFailedEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
@@ -111,7 +111,7 @@ class ShipmentBookingFailedEvent(
     event_type: str = "ShipmentBookingFailedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentDeliveryFailedEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
@@ -133,7 +133,7 @@ class ShipmentDeliveryFailedEvent(
     event_type: str = "ShipmentDeliveryFailedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentCancellationRequestedEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
@@ -146,7 +146,7 @@ class ShipmentCancellationRequestedEvent(
     event_type: str = "ShipmentCancellationRequestedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentCancelledEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
@@ -159,7 +159,7 @@ class ShipmentCancelledEvent(
     event_type: str = "ShipmentCancelledEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentCancellationFailedEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
@@ -173,7 +173,7 @@ class ShipmentCancellationFailedEvent(
     event_type: str = "ShipmentCancellationFailedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentTrackingUpdatedEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
@@ -193,7 +193,7 @@ class ShipmentTrackingUpdatedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentRecipientUpdatedEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
@@ -206,7 +206,7 @@ class ShipmentRecipientUpdatedEvent(
     event_type: str = "ShipmentRecipientUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentDestinationUpdatedEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
@@ -219,7 +219,7 @@ class ShipmentDestinationUpdatedEvent(
     event_type: str = "ShipmentDestinationUpdatedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentEditTaskScheduledEvent(
     LogisticsEvent,
     required_fields=("shipment_id", "task_id", "kind"),
@@ -239,7 +239,7 @@ class ShipmentEditTaskScheduledEvent(
     event_type: str = "ShipmentEditTaskScheduledEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentEditTaskCompletedEvent(
     LogisticsEvent,
     required_fields=("shipment_id", "task_id"),
@@ -261,7 +261,7 @@ class ShipmentEditTaskCompletedEvent(
     event_type: str = "ShipmentEditTaskCompletedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentEditTaskFailedEvent(
     LogisticsEvent,
     required_fields=("shipment_id", "task_id"),
@@ -288,7 +288,7 @@ class ShipmentEditTaskFailedEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentIntakeScheduledEvent(
     LogisticsEvent,
     required_fields=("shipment_id", "provider_intake_id"),
@@ -303,7 +303,7 @@ class ShipmentIntakeScheduledEvent(
     event_type: str = "ShipmentIntakeScheduledEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentIntakeCancelledEvent(
     LogisticsEvent,
     required_fields=("provider_intake_id",),
@@ -326,7 +326,7 @@ class ShipmentIntakeCancelledEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentReturnRegisteredEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
@@ -340,7 +340,7 @@ class ShipmentReturnRegisteredEvent(
     event_type: str = "ShipmentReturnRegisteredEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentRefusalRegisteredEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
@@ -359,7 +359,7 @@ class ShipmentRefusalRegisteredEvent(
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class CrossBorderArrivedEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
@@ -387,7 +387,7 @@ class CrossBorderArrivedEvent(
     event_type: str = "CrossBorderArrivedEvent"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShipmentPassportValidationFailedEvent(
     LogisticsEvent,
     required_fields=("shipment_id",),
