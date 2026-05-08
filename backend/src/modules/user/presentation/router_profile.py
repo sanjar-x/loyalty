@@ -5,12 +5,8 @@ customer's profile. All endpoints require appropriate permissions enforced
 via the Identity module's authentication dependencies.
 """
 
-import uuid
-
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.identity.presentation.dependencies import Auth, RequirePermission
 from src.modules.identity.presentation.schemas import MessageResponse
@@ -27,6 +23,7 @@ from src.modules.user.application.queries.get_my_profile import (
     GetMyProfileQuery,
 )
 from src.modules.user.domain.exceptions import CustomerNotFoundError
+from src.modules.user.domain.interfaces import ILinkedAccountReader
 from src.modules.user.presentation.schemas import (
     ProfileResponse,
     UpdateProfileRequest,
@@ -38,29 +35,15 @@ profile_router = APIRouter(
     route_class=DishkaRoute,
 )
 
-_LINKED_ACCOUNT_METADATA_SQL = text(
-    "SELECT provider_metadata FROM linked_accounts "
-    "WHERE identity_id = :identity_id "
-    "ORDER BY created_at DESC LIMIT 1"
-)
 
+def _optional_str(value: object) -> str | None:
+    """Coerce a ``provider_metadata`` field to ``str | None``.
 
-async def _fetch_provider_metadata(
-    session: AsyncSession, identity_id: uuid.UUID
-) -> dict:
-    """Fetch provider_metadata from linked_accounts for auto-provisioning.
-
-    Returns the most recent linked account's metadata (Telegram/OIDC)
-    so that first_name, last_name, and username can be populated
-    on the auto-created Customer record.
+    ``ILinkedAccountReader`` returns ``dict[str, object]`` because the
+    provider-specific JSON schema is not enumerable upfront; this helper
+    narrows individual fields where the consumer expects a string.
     """
-    result = await session.execute(
-        _LINKED_ACCOUNT_METADATA_SQL, {"identity_id": identity_id}
-    )
-    row = result.mappings().first()
-    if row and row["provider_metadata"]:
-        return dict(row["provider_metadata"])
-    return {}
+    return value if isinstance(value, str) else None
 
 
 @profile_router.get(
@@ -73,7 +56,7 @@ async def get_my_profile(
     auth: Auth,
     handler: FromDishka[GetMyProfileHandler],
     create_handler: FromDishka[CreateCustomerHandler],
-    session: FromDishka[AsyncSession],
+    linked_account_reader: FromDishka[ILinkedAccountReader],
 ) -> ProfileResponse:
     """Retrieve the authenticated customer's profile.
 
@@ -83,14 +66,16 @@ async def get_my_profile(
     try:
         profile = await handler.handle(GetMyProfileQuery(customer_id=auth.identity_id))
     except CustomerNotFoundError:
-        metadata = await _fetch_provider_metadata(session, auth.identity_id)
+        metadata = await linked_account_reader.get_latest_provider_metadata(
+            auth.identity_id
+        )
         await create_handler.handle(
             CreateCustomerCommand(
                 identity_id=auth.identity_id,
-                first_name=metadata.get("first_name", ""),
-                last_name=metadata.get("last_name", ""),
-                username=metadata.get("username"),
-                photo_url=metadata.get("photo_url"),
+                first_name=str(metadata.get("first_name") or ""),
+                last_name=str(metadata.get("last_name") or ""),
+                username=_optional_str(metadata.get("username")),
+                photo_url=_optional_str(metadata.get("photo_url")),
             )
         )
         profile = await handler.handle(GetMyProfileQuery(customer_id=auth.identity_id))
@@ -116,7 +101,7 @@ async def update_profile(
     auth: Auth,
     handler: FromDishka[UpdateProfileHandler],
     create_handler: FromDishka[CreateCustomerHandler],
-    session: FromDishka[AsyncSession],
+    linked_account_reader: FromDishka[ILinkedAccountReader],
 ) -> MessageResponse:
     """Update the authenticated customer's profile fields.
 
@@ -133,14 +118,16 @@ async def update_profile(
     try:
         await handler.handle(command)
     except CustomerNotFoundError:
-        metadata = await _fetch_provider_metadata(session, auth.identity_id)
+        metadata = await linked_account_reader.get_latest_provider_metadata(
+            auth.identity_id
+        )
         await create_handler.handle(
             CreateCustomerCommand(
                 identity_id=auth.identity_id,
-                first_name=metadata.get("first_name", ""),
-                last_name=metadata.get("last_name", ""),
-                username=metadata.get("username"),
-                photo_url=metadata.get("photo_url"),
+                first_name=str(metadata.get("first_name") or ""),
+                last_name=str(metadata.get("last_name") or ""),
+                username=_optional_str(metadata.get("username")),
+                photo_url=_optional_str(metadata.get("photo_url")),
             )
         )
         await handler.handle(command)

@@ -99,3 +99,31 @@ class IUsernameUniquenessChecker(ABC):
         exclude_identity_id: uuid.UUID | None = None,
     ) -> bool:
         """Return True if username is not taken (case-insensitive)."""
+
+
+class ILinkedAccountReader(ABC):
+    """Anti-corruption port to identity's ``linked_accounts`` table (USR-001).
+
+    Customer auto-provisioning seeds first_name / last_name / username /
+    photo_url from the most recent linked account's ``provider_metadata``
+    (Telegram / OIDC). The data lives in the identity module's table —
+    user-side code reads it through this port via
+    :class:`src.modules.user.infrastructure.adapters.linked_account_reader.LinkedAccountReader`,
+    which is whitelisted in ``ALLOWED_CROSS_MODULE`` as the only file
+    in the user module allowed to import identity ORM models.
+
+    Replaces a raw ``text("SELECT provider_metadata FROM linked_accounts ...")``
+    in ``user/presentation/router_profile.py`` that was invisible to
+    pytest-archon's cross-module rule.
+    """
+
+    @abstractmethod
+    async def get_latest_provider_metadata(
+        self, identity_id: uuid.UUID
+    ) -> dict[str, object]:
+        """Return ``provider_metadata`` of the most recent linked account.
+
+        Returns an empty dict when the identity has no linked account
+        yet — auto-provisioning falls back to empty profile fields in
+        that case (the user can fill them in via PATCH later).
+        """

@@ -105,7 +105,16 @@ def test_infrastructure_does_not_import_presentation():
 #   user.presentation → identity.presentation  (profile router uses auth deps)
 #   catalog.presentation → identity.presentation  (catalog router uses RequirePermission)
 ALLOWED_CROSS_MODULE = {
-    ("user", "identity"): {"src.modules.user.presentation.*"},
+    # User: presentation uses identity's Auth/RequirePermission deps;
+    # the linked-account ACL adapter (USR-001) reads identity's
+    # ``LinkedAccountModel`` ORM directly to seed customer
+    # auto-provisioning with provider_metadata. Same anti-corruption
+    # pattern as ``cart→catalog`` ``CatalogSkuAdapter`` — single file
+    # is the only allowed cross-module ORM touch point.
+    ("user", "identity"): {
+        "src.modules.user.presentation.*",
+        "src.modules.user.infrastructure.adapters.linked_account_reader",
+    },
     ("catalog", "identity"): {"src.modules.catalog.presentation.*"},
     ("pricing", "identity"): {"src.modules.pricing.presentation.*"},
     ("activity", "identity"): {"src.modules.activity.presentation.*"},
