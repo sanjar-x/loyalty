@@ -152,7 +152,7 @@ class TestRemoveItem:
             target_type=FavoriteTargetType.BRAND, target_id=target_id
         )
         assert removed is True
-        assert favorite_list.items == []
+        assert favorite_list.items == ()
         events = favorite_list.domain_events
         assert len(events) == 1
         assert isinstance(events[0], FavoriteItemRemovedEvent)

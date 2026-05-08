@@ -92,7 +92,17 @@ class FavoriteList(AggregateRoot):
     sort_order: int
     created_at: datetime
     updated_at: datetime
-    items: list[FavoriteItem] = field(factory=list)
+    _items: list[FavoriteItem] = field(factory=list, alias="items")
+
+    @property
+    def items(self) -> tuple[FavoriteItem, ...]:
+        """Immutable view of the list's items (TYPE-004).
+
+        External code reads this tuple; ``add_item`` / ``remove_item``
+        mutate the private ``self._items`` after enforcing the
+        uniqueness invariant on a single code path.
+        """
+        return tuple(self._items)
 
     # ------------------------------------------------------------------
     # Factories
@@ -215,7 +225,7 @@ class FavoriteList(AggregateRoot):
         target_id: uuid.UUID,
     ) -> FavoriteItem | None:
         """Locate an item by (target_type, target_id) or return None."""
-        for item in self.items:
+        for item in self._items:
             if item.target_type == target_type and item.target_id == target_id:
                 return item
         return None
@@ -243,7 +253,7 @@ class FavoriteList(AggregateRoot):
             target_type=target_type,
             target_id=target_id,
         )
-        self.items.append(item)
+        self._items.append(item)
         self.updated_at = datetime.now(UTC)
         self.add_domain_event(
             FavoriteItemAddedEvent(
@@ -270,7 +280,7 @@ class FavoriteList(AggregateRoot):
         item = self.find_item(target_type, target_id)
         if item is None:
             return False
-        self.items.remove(item)
+        self._items.remove(item)
         self.updated_at = datetime.now(UTC)
         self.add_domain_event(
             FavoriteItemRemovedEvent(
