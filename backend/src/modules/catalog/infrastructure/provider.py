@@ -257,6 +257,9 @@ from src.modules.catalog.infrastructure.repositories.sku_pricing_history import 
 from src.modules.catalog.infrastructure.repositories.template_attribute_binding import (
     TemplateAttributeBindingRepository,
 )
+from src.modules.catalog.infrastructure.services.sku_pricing_pubsub import (
+    SkuPricingPubsub,
+)
 
 
 class CategoryProvider(Provider):
@@ -600,6 +603,12 @@ class ProductProvider(Provider):
         ApplySkuPricingResultHandler,
         scope=Scope.REQUEST,
         provides=IInternalSkuPricingApplyPort,
+    )
+
+    # CAT-005 — Redis pub/sub for SKU pricing-status updates.
+    sku_pricing_pubsub: CompositeDependencySource = provide(
+        SkuPricingPubsub,
+        scope=Scope.REQUEST,
     )
 
 

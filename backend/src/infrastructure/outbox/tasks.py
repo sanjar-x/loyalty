@@ -333,6 +333,60 @@ register_event_handler(
 
 
 # ---------------------------------------------------------------------------
+# Catalog SKU pricing → admin SSE bridge (CAT-005)
+# ---------------------------------------------------------------------------
+
+
+async def _handle_sku_priced(payload: dict, correlation_id: str | None = None) -> None:
+    """Bridge ``SKUPricedEvent`` → per-product Redis pub/sub channel."""
+    from src.modules.catalog.application.consumers.sku_pricing_events import (
+        publish_sku_pricing_status,
+    )
+
+    priced_at = payload.get("occurred_at") or payload.get("priced_at")
+    await (
+        publish_sku_pricing_status.kicker()
+        .with_labels(**_build_labels(correlation_id))
+        .kiq(
+            product_id=str(payload.get("product_id")),
+            sku_id=str(payload.get("sku_id")),
+            pricing_status="priced",
+            selling_price_amount=payload.get("selling_price_amount"),
+            selling_currency=payload.get("selling_currency"),
+            priced_at=priced_at,
+            priced_failure_reason=None,
+        )  # ty:ignore[no-matching-overload]
+    )
+
+
+async def _handle_sku_pricing_failed(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    """Bridge ``SKUPricingFailedEvent`` → per-product Redis pub/sub channel."""
+    from src.modules.catalog.application.consumers.sku_pricing_events import (
+        publish_sku_pricing_status,
+    )
+
+    await (
+        publish_sku_pricing_status.kicker()
+        .with_labels(**_build_labels(correlation_id))
+        .kiq(
+            product_id=str(payload.get("product_id")),
+            sku_id=str(payload.get("sku_id")),
+            pricing_status=payload.get("pricing_status", "formula_error"),
+            selling_price_amount=None,
+            selling_currency=None,
+            priced_at=payload.get("occurred_at"),
+            priced_failure_reason=payload.get("failure_reason"),
+        )  # ty:ignore[no-matching-overload]
+    )
+
+
+register_event_handler("SKUPricedEvent", _handle_sku_priced)
+register_event_handler("SKUPricingFailedEvent", _handle_sku_pricing_failed)
+
+
+# ---------------------------------------------------------------------------
 # TaskIQ: Outbox Relay (periodic polling)
 # ---------------------------------------------------------------------------
 
