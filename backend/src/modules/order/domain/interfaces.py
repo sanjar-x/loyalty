@@ -9,6 +9,7 @@ from attrs import frozen
 
 from src.modules.order.domain.entities import Order
 from src.modules.order.domain.value_objects import OrderStatus, PickupPointPreference
+from src.shared.domain.supplier_type import SupplierType
 
 # ---------------------------------------------------------------------------
 # Cart ACL snapshot
@@ -22,7 +23,7 @@ class CartCheckoutItemSnapshot:
     variant_id: uuid.UUID
     product_name: str
     variant_label: str | None
-    supplier_type: str
+    supplier_type: SupplierType
     quantity: int
     unit_price_amount: int
     currency: str

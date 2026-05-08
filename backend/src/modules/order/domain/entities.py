@@ -58,6 +58,7 @@ from src.modules.order.domain.value_objects import (
     PickupPointPreference,
     category_of,
 )
+from src.shared.domain.supplier_type import SupplierType
 from src.shared.interfaces.entities import AggregateRoot
 from src.shared.interfaces.fsm import StateMachineMixin
 
@@ -81,7 +82,7 @@ class OrderItem:
     variant_id: uuid.UUID
     product_name: str
     variant_label: str | None
-    supplier_type: str
+    supplier_type: SupplierType
     quantity: int
     unit_price_amount: int
     currency: str

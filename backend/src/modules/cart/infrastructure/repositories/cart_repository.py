@@ -26,6 +26,7 @@ from src.modules.cart.infrastructure.models import (
     CheckoutAttemptModel,
     CheckoutSnapshotModel,
 )
+from src.shared.domain.supplier_type import SupplierType
 
 
 class CartRepository(ICartRepository):
@@ -46,7 +47,7 @@ class CartRepository(ICartRepository):
                 sku_id=item_model.sku_id,
                 product_id=item_model.product_id,
                 variant_id=item_model.variant_id,
-                supplier_type=item_model.supplier_type,
+                supplier_type=SupplierType(item_model.supplier_type),
                 quantity=item_model.quantity,
                 added_at=item_model.added_at,
             )

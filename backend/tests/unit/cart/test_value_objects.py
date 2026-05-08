@@ -10,6 +10,7 @@ from src.modules.cart.domain.value_objects import (
     CheckoutSnapshot,
     SkuSnapshot,
 )
+from src.shared.domain.supplier_type import SupplierType
 
 
 @pytest.mark.unit
@@ -36,7 +37,7 @@ class TestSkuSnapshot:
             image_url=None,
             price_amount=10000,
             currency="RUB",
-            supplier_type="local",
+            supplier_type=SupplierType.LOCAL,
             is_active=True,
         )
         assert snap.price_amount == 10000
@@ -52,7 +53,7 @@ class TestSkuSnapshot:
             image_url=None,
             price_amount=5000,
             currency="RUB",
-            supplier_type="cross_border",
+            supplier_type=SupplierType.CROSS_BORDER,
             is_active=True,
         )
         with pytest.raises(AttributeError):

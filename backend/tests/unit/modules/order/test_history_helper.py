@@ -29,6 +29,7 @@ from src.modules.order.domain.value_objects import (
     PickupCarrier,
     PickupPointPreference,
 )
+from src.shared.domain.supplier_type import SupplierType
 
 pytestmark = pytest.mark.unit
 
@@ -91,7 +92,7 @@ def _order() -> Order:
                 variant_id=uuid.uuid4(),
                 product_name="Item",
                 variant_label=None,
-                supplier_type="cross_border",
+                supplier_type=SupplierType.CROSS_BORDER,
                 quantity=1,
                 unit_price_amount=10_000,
                 currency="RUB",

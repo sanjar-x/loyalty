@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 
 from src.modules.cart.domain.value_objects import SkuSnapshot
+from src.shared.domain.supplier_type import SupplierType
 
 
 class SkuSnapshotMother:
@@ -16,7 +17,7 @@ class SkuSnapshotMother:
         sku_id: uuid.UUID | None = None,
         price_amount: int = 10000,
         currency: str = "RUB",
-        supplier_type: str = "local",
+        supplier_type: SupplierType = SupplierType.LOCAL,
         product_name: str = "Test Product",
     ) -> SkuSnapshot:
         return SkuSnapshot(
@@ -43,7 +44,7 @@ class SkuSnapshotMother:
             image_url=None,
             price_amount=5000,
             currency="RUB",
-            supplier_type="local",
+            supplier_type=SupplierType.LOCAL,
             is_active=False,
         )
 
@@ -60,6 +61,6 @@ class SkuSnapshotMother:
             image_url="https://cdn.example.com/img.webp",
             price_amount=price_amount,
             currency="RUB",
-            supplier_type="cross_border",
+            supplier_type=SupplierType.CROSS_BORDER,
             is_active=True,
         )

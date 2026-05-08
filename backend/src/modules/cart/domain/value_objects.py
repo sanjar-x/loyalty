@@ -11,6 +11,8 @@ from datetime import datetime
 
 from attrs import frozen
 
+from src.shared.domain.supplier_type import SupplierType
+
 
 class CartStatus(enum.StrEnum):
     """Lifecycle states for a shopping cart.
@@ -58,7 +60,7 @@ class SkuSnapshot:
         image_url: Primary image URL, or None.
         price_amount: Price in kopecks (smallest currency unit).
         currency: ISO 4217 currency code (e.g. "RUB").
-        supplier_type: "cross_border" | "local" (not imported as enum).
+        supplier_type: ``SupplierType.CROSS_BORDER`` / ``SupplierType.LOCAL``.
         is_active: Whether the SKU is currently purchasable.
     """
 
@@ -70,7 +72,7 @@ class SkuSnapshot:
     image_url: str | None
     price_amount: int
     currency: str
-    supplier_type: str
+    supplier_type: SupplierType
     is_active: bool
 
 
