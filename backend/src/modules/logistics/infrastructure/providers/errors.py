@@ -1,36 +1,17 @@
+"""Logistics-flavoured re-export of HTTP provider error types.
+
+Promoted to ``src/shared/infrastructure/http/errors.py`` in REC-033.
+Existing imports
+``from src.modules.logistics.infrastructure.providers.errors import ...``
+keep working.
 """
-Provider-level error types for HTTP communication failures.
 
-These are infrastructure-layer exceptions that provider adapters raise;
-the application layer maps them to domain exceptions
-(``ProviderUnavailableError``, ``BookingError``, etc.).
-"""
-
-
-class ProviderHTTPError(Exception):
-    """Non-retryable HTTP error from a logistics provider."""
-
-    def __init__(
-        self,
-        status_code: int,
-        message: str = "",
-        response_body: str | None = None,
-    ):
-        self.status_code: int = status_code
-        self.message: str = message
-        self.response_body = response_body
-        super().__init__(f"HTTP {status_code}: {message}")
-
-
-class ProviderTimeoutError(Exception):
-    """Request to a logistics provider timed out after retries."""
-
-    def __init__(self, message: str = "Provider request timed out"):
-        super().__init__(message)
-
-
-class ProviderAuthError(Exception):
-    """Authentication with a logistics provider failed."""
-
-    def __init__(self, message: str = "Provider authentication failed"):
-        super().__init__(message)
+from src.shared.infrastructure.http.errors import (
+    ProviderAuthError as ProviderAuthError,
+)
+from src.shared.infrastructure.http.errors import (
+    ProviderHTTPError as ProviderHTTPError,
+)
+from src.shared.infrastructure.http.errors import (
+    ProviderTimeoutError as ProviderTimeoutError,
+)
