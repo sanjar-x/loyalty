@@ -460,6 +460,59 @@ register_event_handler("SKUPricingFailedEvent", _handle_sku_pricing_failed)
 
 
 # ---------------------------------------------------------------------------
+# Image → catalog sync bridge (IMG-004)
+# ---------------------------------------------------------------------------
+
+
+async def _handle_storage_object_processed(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    """Bridge ``StorageObjectProcessedEvent`` → catalog media-sync consumer.
+
+    Catalog mirrors ``url`` / ``image_variants`` into denormalised
+    ``media_assets`` rows so the storefront doesn't need a cross-module
+    JOIN. After ``/reupload`` triggers a fresh worker pass the URL
+    changes — the consumer re-syncs every catalog row pointing at this
+    ``storage_object_id`` so the denorm stays consistent.
+    """
+    from src.modules.catalog.application.consumers.storage_object_processed import (
+        sync_media_assets_on_processed,
+    )
+
+    storage_object_id = payload.get("storage_object_id")
+    url = payload.get("url")
+    if storage_object_id is None or url is None:
+        logger.error(
+            "storage_object_processed_event_malformed_skipped",
+            storage_object_id=storage_object_id,
+            url=url,
+            correlation_id=correlation_id,
+        )
+        return
+
+    try:
+        await (
+            sync_media_assets_on_processed.kicker()
+            .with_labels(**_build_labels(correlation_id))
+            .kiq(
+                storage_object_id=str(storage_object_id),
+                url=str(url),
+                image_variants=payload.get("image_variants") or [],
+            )  # ty:ignore[no-matching-overload]
+        )
+    except Exception:
+        logger.exception(
+            "storage_object_processed_bridge_dispatch_failed",
+            payload=payload,
+            correlation_id=correlation_id,
+        )
+        raise
+
+
+register_event_handler("StorageObjectProcessedEvent", _handle_storage_object_processed)
+
+
+# ---------------------------------------------------------------------------
 # TaskIQ: Outbox Relay (periodic polling)
 # ---------------------------------------------------------------------------
 

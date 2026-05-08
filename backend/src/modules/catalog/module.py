@@ -90,5 +90,10 @@ CATALOG_MODULE = ModuleManifest(
     ),
     # CAT-005 — bridges outbox-delivered SKUPricedEvent / SKUPricingFailedEvent
     # to the per-product Redis pub/sub channel that admin SSE streams to UI.
-    task_modules=("src.modules.catalog.application.consumers.sku_pricing_events",),
+    # IMG-004 — bridges StorageObjectProcessedEvent into the catalog
+    # media-sync consumer so reuploads keep ``media_assets.url`` fresh.
+    task_modules=(
+        "src.modules.catalog.application.consumers.sku_pricing_events",
+        "src.modules.catalog.application.consumers.storage_object_processed",
+    ),
 )
