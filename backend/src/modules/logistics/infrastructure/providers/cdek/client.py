@@ -10,8 +10,9 @@ is encapsulated in helper methods.
 """
 
 import asyncio
-import logging
 from typing import Any
+
+import structlog
 
 from src.modules.logistics.infrastructure.providers.base_auth import (
     OAuth2ClientCredentialsAuthManager,
@@ -27,7 +28,7 @@ from src.modules.logistics.infrastructure.providers.errors import (
     ProviderHTTPError,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class CdekClient:

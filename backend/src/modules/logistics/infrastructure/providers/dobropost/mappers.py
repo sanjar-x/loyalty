@@ -13,9 +13,10 @@
 from __future__ import annotations
 
 import json
-import logging
 from datetime import datetime
 from typing import Any
+
+import structlog
 
 from src.modules.logistics.application.commands.dobropost_payload import (
     DobroPostShipmentPayload,
@@ -31,7 +32,7 @@ from src.modules.logistics.infrastructure.providers.dobropost.constants import (
     dobropost_status_to_tracking,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -136,14 +137,14 @@ def parse_status_update_event(payload: dict[str, Any]) -> TrackingEvent | None:
     """
     raw_status = str(payload.get("status") or "").strip()
     if not raw_status:
-        logger.warning("DobroPost webhook: empty status string")
+        logger.warning("dobropost_webhook_empty_status_string")
         return None
 
     status_id = dobropost_name_to_status_id(raw_status)
     if status_id is None:
         logger.warning(
-            "DobroPost webhook: unknown status name '%s' — skipping event",
-            raw_status,
+            "dobropost_webhook_unknown_status_name",
+            raw_status=raw_status,
         )
         return None
     if status_id in DOBROPOST_INFO_ONLY_STATUS_IDS:
@@ -229,7 +230,7 @@ def _parse_iso_timestamp(raw: object) -> datetime | None:
             # Python 3.11+ accepts trailing 'Z'
             return datetime.fromisoformat(raw.replace("Z", "+00:00"))
         except ValueError:
-            logger.warning("DobroPost webhook: bad statusDate '%s'", raw)
+            logger.warning("dobropost_webhook_bad_status_date", raw=raw)
     else:
-        logger.warning("DobroPost webhook: missing statusDate")
+        logger.warning("dobropost_webhook_missing_status_date")
     return None

@@ -6,8 +6,9 @@ Cancel via POST request/cancel.
 """
 
 import json
-import logging
 from typing import Any
+
+import structlog
 
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_YANDEX_DELIVERY,
@@ -28,7 +29,7 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.mappers impo
     parse_offers_response,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class YandexDeliveryBookingProvider:

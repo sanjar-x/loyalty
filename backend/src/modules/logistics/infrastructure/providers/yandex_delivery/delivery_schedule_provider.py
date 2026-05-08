@@ -22,8 +22,9 @@ Anything else falls back to ``time_interval``.
 
 from __future__ import annotations
 
-import logging
 from typing import Any
+
+import structlog
 
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_YANDEX_DELIVERY,
@@ -46,7 +47,7 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.mappers impo
     parse_offer_info_intervals,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 # Translates the cross-provider numeric tariff hint into Yandex's last-mile
@@ -126,7 +127,7 @@ class YandexDeliveryDeliveryScheduleProvider:
             data = await self._client.offers_info(body, last_mile_policy=last_mile)
         except ProviderHTTPError as exc:
             if exc.status_code == 400:
-                logger.debug("Yandex offers/info: no slots (%s)", exc.message)
+                logger.debug("yandex_offers_info_no_slots", message=exc.message)
                 return []
             raise
         return parse_offer_info_intervals(data)

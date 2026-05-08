@@ -8,9 +8,10 @@ Dimensions: CDEK uses centimeters (int) = domain convention — no conversion ne
 """
 
 import json
-import logging
 import uuid
 from datetime import UTC, datetime
+
+import structlog
 
 from src.modules.logistics.domain.value_objects import (
     DEFAULT_QUOTE_TTL,
@@ -49,7 +50,7 @@ from src.modules.logistics.infrastructure.providers.errors import (
 # cleanup job, and ``CreateShipmentHandler`` all share one expiry window.
 CDEK_QUOTE_TTL = DEFAULT_QUOTE_TTL
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Helpers

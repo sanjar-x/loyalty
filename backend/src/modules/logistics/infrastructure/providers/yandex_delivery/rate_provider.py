@@ -5,10 +5,11 @@ Uses the pricing-calculator endpoint for preliminary cost estimation.
 Calls twice (courier + pickup) to return both delivery options.
 """
 
-import logging
 import uuid
 from datetime import UTC, datetime
 from typing import Any
+
+import structlog
 
 from src.modules.logistics.domain.value_objects import (
     DEFAULT_QUOTE_TTL,
@@ -37,7 +38,7 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.mappers impo
 # does not depend on which provider served the quote.
 YANDEX_QUOTE_TTL = DEFAULT_QUOTE_TTL
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class YandexDeliveryRateProvider:

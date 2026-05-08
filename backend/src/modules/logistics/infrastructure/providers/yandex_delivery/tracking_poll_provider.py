@@ -5,7 +5,7 @@ Uses the batch POST /requests/info endpoint to poll multiple orders
 in a single API call.
 """
 
-import logging
+import structlog
 
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_YANDEX_DELIVERY,
@@ -20,7 +20,7 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.mappers impo
     parse_batch_requests_info,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Yandex API may limit batch size; chunk to avoid issues
 _MAX_BATCH_SIZE = 100

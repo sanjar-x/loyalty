@@ -21,8 +21,9 @@ The CDEK contract for these endpoints is sparse:
 from __future__ import annotations
 
 import json
-import logging
 from typing import Any
+
+import structlog
 
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_CDEK,
@@ -37,7 +38,7 @@ from src.modules.logistics.domain.value_objects import (
 from src.modules.logistics.infrastructure.providers.cdek.client import CdekClient
 from src.modules.logistics.infrastructure.providers.errors import ProviderHTTPError
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class CdekReturnProvider:
@@ -75,11 +76,9 @@ class CdekReturnProvider:
         # logged here for audit but never wired into the request.
         if request.reason:
             logger.info(
-                "CDEK refusal note (audit only)",
-                extra={
-                    "order_provider_id": request.order_provider_id,
-                    "reason": request.reason,
-                },
+                "cdek_refusal_note_audit_only",
+                order_provider_id=request.order_provider_id,
+                reason=request.reason,
             )
         try:
             data = await self._client.register_refusal(request.order_provider_id, None)

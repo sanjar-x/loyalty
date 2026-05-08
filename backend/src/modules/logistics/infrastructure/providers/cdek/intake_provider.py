@@ -11,7 +11,8 @@ Wraps the four ``/v2/intakes`` endpoints into a unified capability:
 from __future__ import annotations
 
 import json
-import logging
+
+import structlog
 
 from src.modules.logistics.domain.value_objects import (
     PROVIDER_CDEK,
@@ -33,7 +34,7 @@ from src.modules.logistics.infrastructure.providers.cdek.constants import (
 )
 from src.modules.logistics.infrastructure.providers.errors import ProviderHTTPError
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 _CDEK_INTAKE_STATUS_MAP = {

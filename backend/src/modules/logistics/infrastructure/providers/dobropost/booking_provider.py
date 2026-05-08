@@ -25,7 +25,8 @@ Error mapping:
 from __future__ import annotations
 
 import json
-import logging
+
+import structlog
 
 from src.modules.logistics.application.commands.dobropost_payload import (
     DobroPostShipmentPayload,
@@ -54,7 +55,7 @@ from src.modules.logistics.infrastructure.providers.errors import (
 )
 from src.shared.exceptions import ValidationError
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class DobroPostBookingProvider:
@@ -136,12 +137,10 @@ class DobroPostBookingProvider:
             ) from exc
 
         logger.info(
-            "DobroPost shipment created",
-            extra={
-                "dp_id": result.provider_shipment_id,
-                "dp_track": result.tracking_number,
-                "incoming_declaration": payload.incoming_declaration,
-            },
+            "dobropost_shipment_created",
+            dp_id=result.provider_shipment_id,
+            dp_track=result.tracking_number,
+            incoming_declaration=payload.incoming_declaration,
         )
         return result
 
@@ -155,8 +154,8 @@ class DobroPostBookingProvider:
         cross-border parcel.
         """
         logger.warning(
-            "DobroPost cancel rejected — coordinate refund manually",
-            extra={"dp_id": provider_shipment_id},
+            "dobropost_cancel_rejected",
+            dp_id=provider_shipment_id,
         )
         return CancelResult(
             success=False,

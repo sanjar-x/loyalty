@@ -22,8 +22,9 @@ fail with a clear provider error and the customer is told to pick another.
 from __future__ import annotations
 
 import json
-import logging
 from typing import Any
+
+import structlog
 
 from src.modules.logistics.domain.interfaces import IPickupPointResolver
 from src.modules.logistics.domain.value_objects import (
@@ -39,7 +40,7 @@ from src.shared.interfaces.cache import ICacheService
 _PICKUP_POINT_TTL_SECONDS = 24 * 60 * 60
 _KEY_PREFIX = "logistics:pickup_point:"
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class RedisPickupPointResolver(IPickupPointResolver):
@@ -69,8 +70,9 @@ class RedisPickupPointResolver(IPickupPointResolver):
             payload = json.loads(raw)
         except TypeError, ValueError:
             logger.warning(
-                "Cached pickup-point JSON is malformed; treating as miss",
-                extra={"provider_code": provider_code, "external_id": external_id},
+                "pickup_point_cache_malformed_json",
+                provider_code=provider_code,
+                external_id=external_id,
             )
             return None
         return _payload_to_pickup_point(payload)
@@ -182,7 +184,7 @@ def _payload_to_pickup_point(data: dict[str, Any]) -> PickupPoint | None:
             ),
         )
     except (KeyError, ValueError, TypeError) as exc:
-        logger.warning("Cached pickup-point payload could not be rebuilt: %s", exc)
+        logger.warning("pickup_point_cache_rebuild_failed", error=str(exc))
         return None
 
 
