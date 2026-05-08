@@ -54,6 +54,10 @@ class PreviewSkuPricingQuery:
         product_id: Product whose pricing profile supplies
             scope=product_input values (sku_input override happens
             via ``purchase_price_amount`` / ``purchase_currency``).
+            ``None`` during the create-product flow when no product
+            has been persisted yet — variable resolution falls back
+            to ``Variable.default_value`` for product-input scope
+            (CAT-022).
         category_id: Category for scope=category values.
         context_id: Pricing context — selects the published formula.
         purchase_price_amount: Hypothetical wholesale cost (smallest
@@ -63,11 +67,11 @@ class PreviewSkuPricingQuery:
         supplier_id: Optional supplier for scope=supplier overrides.
     """
 
-    product_id: uuid.UUID
     category_id: uuid.UUID
     context_id: uuid.UUID
     purchase_price_amount: int
     purchase_currency: str
+    product_id: uuid.UUID | None = None
     supplier_id: uuid.UUID | None = None
 
 
@@ -128,7 +132,16 @@ class PreviewSkuPricingHandler:
             )
 
         variables = await self._variables.list()
-        profile = await self._profiles.get_by_product_id(query.product_id)
+        # CAT-022 — ``product_id`` is optional during the create-product
+        # flow; when absent, variable resolution simply falls back to
+        # ``Variable.default_value`` for product_input scope (the
+        # admin's "as-you-type" preview is good enough without a
+        # persisted profile).
+        profile = (
+            await self._profiles.get_by_product_id(query.product_id)
+            if query.product_id is not None
+            else None
+        )
         settings = await self._settings.get_by_category_and_context(
             category_id=query.category_id,
             context_id=query.context_id,
@@ -221,7 +234,7 @@ class PreviewSkuPricingHandler:
 
         self._logger.info(
             "sku_price_previewed",
-            product_id=str(query.product_id),
+            product_id=str(query.product_id) if query.product_id else None,
             context_id=str(query.context_id),
             purchase_price_amount=query.purchase_price_amount,
             purchase_currency=query.purchase_currency,

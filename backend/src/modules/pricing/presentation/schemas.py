@@ -527,9 +527,14 @@ class PreviewSkuPricingRequest(CamelModel):
     ``purchase_price_cny`` only).
     """
 
-    product_id: uuid.UUID = Field(
-        ...,
-        description="Product whose pricing profile supplies product-input values.",
+    product_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "Product whose pricing profile supplies product-input values. "
+            "``null`` during the create-product flow before the product is "
+            "persisted — variable resolution falls back to defaults "
+            "(CAT-022)."
+        ),
     )
     category_id: uuid.UUID = Field(
         ..., description="Category for scope=category values."
