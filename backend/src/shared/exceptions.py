@@ -140,6 +140,47 @@ class UnprocessableEntityError(AppException):
         super().__init__(message, 422, error_code, details)
 
 
+class OptimisticLockError(ConflictError):
+    """Raised on aggregate version mismatch during optimistic locking (HTTP 409).
+
+    Catches the ``sqlalchemy.orm.exc.StaleDataError`` that surfaces when a
+    flushed UPDATE finds the row's ``version`` column has moved. Replaces a
+    fan-out of 7+ near-identical ``*VersionConflictError`` classes that lived
+    in catalog / cart / pricing domains (REC-031 D5 consolidation).
+
+    Args:
+        entity_type: Human-readable label, e.g. ``"Product"`` / ``"Cart"`` /
+            ``"FormulaVersion"``.
+        entity_id: The UUID of the contested aggregate.
+        expected_version: Version the caller observed at the start of the
+            transaction.
+        actual_version: Version observed at flush time, or ``None`` when the
+            row vanished between read and write.
+    """
+
+    def __init__(
+        self,
+        *,
+        entity_type: str,
+        entity_id: Any,
+        expected_version: int,
+        actual_version: int | None,
+        error_code: str = "OPTIMISTIC_LOCK_CONFLICT",
+    ) -> None:
+        super().__init__(
+            message=(
+                f"Concurrent modification detected for {entity_type} {entity_id}."
+            ),
+            error_code=error_code,
+            details={
+                "entity_type": entity_type,
+                "entity_id": str(entity_id),
+                "expected_version": expected_version,
+                "actual_version": actual_version,
+            },
+        )
+
+
 class ServiceUnavailableError(AppException):
     """Raised when an external service or dependency is unavailable (HTTP 503).
 

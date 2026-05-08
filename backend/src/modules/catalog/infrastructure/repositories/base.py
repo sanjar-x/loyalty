@@ -1,9 +1,11 @@
-"""
-Base repository implementing the Data Mapper pattern for catalog aggregates.
+"""Catalog-flavoured Data Mapper repository.
 
-Provides generic CRUD operations that convert between SQLAlchemy ORM models
-and domain entities.  Concrete repositories inherit from :class:`BaseRepository`
-and supply the ``_to_domain`` / ``_to_orm`` mapping methods.
+Thin alias over the shared kernel's
+:class:`src.shared.infrastructure.repositories.base.BaseRepository`,
+narrowed to also satisfy :class:`ICatalogRepository[EntityType]`.
+The CRUD plumbing lives in shared (REC-031). Existing imports of
+``from src.modules.catalog.infrastructure.repositories.base import
+BaseRepository`` keep working untouched.
 
 Note:
     Most catalog repositories inherit this base class.
@@ -11,148 +13,23 @@ Note:
     implementations due to their specialised query requirements.
 """
 
-import uuid
-from abc import abstractmethod
-from typing import Any
-
-from sqlalchemy import delete, select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from __future__ import annotations
 
 from src.modules.catalog.domain.interfaces import ICatalogRepository
+from src.shared.infrastructure.repositories.base import (
+    BaseRepository as _SharedBaseRepository,
+)
 from src.shared.interfaces.entities import IBase
 
 
-class BaseRepository[EntityType, ModelType: IBase](ICatalogRepository[EntityType]):
-    """Generic Data Mapper repository.
+class BaseRepository[EntityType, ModelType: IBase](
+    _SharedBaseRepository[EntityType, ModelType], ICatalogRepository[EntityType]
+):
+    """Catalog Data Mapper base — composes shared CRUD + catalog typing.
 
-    Accepts and returns only domain entities (``EntityType``).
-    Subclasses declare the ORM model via the ``model_class`` class argument
-    and implement the ``_to_domain`` / ``_to_orm`` mapping hooks.
-
-    Args:
-        session: SQLAlchemy async session scoped to the current request.
+    The two parents reach the same abstract methods (``add`` / ``get`` /
+    ``update`` / ``delete``); shared provides the implementation,
+    ``ICatalogRepository[EntityType]`` keeps catalog-side typing
+    contracts (``IBrandRepository(ICatalogRepository[DomainBrand])``)
+    intact for downstream consumers.
     """
-
-    model: type[ModelType]
-
-    def __init_subclass__(
-        cls, model_class: type[ModelType] | None = None, **kwargs: Any
-    ) -> None:
-        super().__init_subclass__(**kwargs)
-        if model_class:
-            cls.model = model_class
-
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
-
-    @abstractmethod
-    def _to_domain(self, orm: ModelType) -> EntityType:
-        """Convert an ORM model instance to a domain entity."""
-
-    @abstractmethod
-    def _to_orm(self, entity: EntityType, orm: ModelType | None = None) -> ModelType:
-        """Convert a domain entity to an ORM model instance.
-
-        Args:
-            entity: Domain entity to map.
-            orm: Existing ORM instance to update in-place, or ``None``
-                to create a new one.
-        """
-
-    async def add(self, entity: EntityType) -> EntityType:
-        """Persist a new domain entity and return the refreshed copy."""
-        orm = self._to_orm(entity)
-        self._session.add(orm)
-        await self._session.flush()
-        return self._to_domain(orm)
-
-    async def get(self, entity_id: uuid.UUID) -> EntityType | None:
-        """Retrieve a domain entity by primary key, or ``None``."""
-        orm = await self._session.get(self.model, entity_id)
-        if orm:
-            return self._to_domain(orm)
-        return None
-
-    async def update(self, entity: EntityType) -> EntityType:
-        """Merge updated domain state into the corresponding ORM row.
-
-        Catches ``IntegrityError`` from unique-constraint violations and
-        re-raises via :meth:`_translate_integrity_error` so that subclasses
-        can map them to domain exceptions.
-
-        Raises:
-            ValueError: If the entity has no ``id`` or the row is missing.
-        """
-        pk = getattr(entity, "id", None)
-        if not pk:
-            raise ValueError("Domain entity must have an id for updates")
-
-        orm = await self._session.get(self.model, pk)
-        if not orm:
-            raise ValueError(f"Entity with id {pk} not found in the database")
-
-        orm = self._to_orm(entity, orm)
-        try:
-            await self._session.flush()
-        except IntegrityError as e:
-            self._translate_integrity_error(e, entity)
-            raise  # re-raise if subclass did not translate
-        return self._to_domain(orm)
-
-    def _translate_integrity_error(
-        self, error: IntegrityError, entity: EntityType
-    ) -> None:
-        """Translate an ``IntegrityError`` into a domain exception.
-
-        Subclasses override this to inspect the constraint name and raise
-        the appropriate domain-specific error.  The default implementation
-        is a no-op, which lets the original ``IntegrityError`` propagate.
-        """
-
-    async def delete(self, entity_id: uuid.UUID) -> None:
-        """Delete a row by primary key.  Transaction control is in the UoW."""
-        stmt = delete(self.model).where(self.model.id == entity_id)  # ty:ignore[invalid-argument-type]
-        await self._session.execute(stmt)
-
-    async def _field_exists(
-        self,
-        field_name: str,
-        value: object,
-        *,
-        exclude_id: uuid.UUID | None = None,
-        extra_filters: list[Any] | None = None,
-    ) -> bool:
-        """Check whether a row with the given field value exists.
-
-        Generic uniqueness-check helper used by concrete repositories
-        for slug / code duplicate detection.
-
-        Args:
-            field_name: Name of the ORM column to check (e.g. ``"slug"``).
-            value: The value to look for.
-            exclude_id: When provided, excludes the row with this primary
-                key from the check (used during updates).
-            extra_filters: Additional SQLAlchemy filter clauses
-                (e.g. ``[Model.parent_id == parent_id]``).
-        """
-        column = getattr(self.model, field_name)
-        filters: list[Any] = [column == value]
-        if exclude_id is not None:
-            filters.append(self.model.id != exclude_id)  # type: ignore[arg-type]
-        if extra_filters:
-            filters.extend(extra_filters)
-        stmt = select(self.model.id).where(*filters).limit(1)  # ty: ignore[no-matching-overload]
-        result = await self._session.execute(stmt)
-        return result.first() is not None
-
-    async def get_for_update(self, entity_id: uuid.UUID) -> EntityType | None:
-        """Retrieve a domain entity with a ``SELECT ... FOR UPDATE`` row lock.
-
-        Used to prevent concurrent modifications on the same row.
-        Subclasses may override to add extra filters (e.g. soft-delete).
-        """
-        stmt = select(self.model).where(self.model.id == entity_id).with_for_update()  # type: ignore[arg-type]
-        result = await self._session.execute(stmt)
-        orm = result.scalar_one_or_none()
-        return self._to_domain(orm) if orm else None
