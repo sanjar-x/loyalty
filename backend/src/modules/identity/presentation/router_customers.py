@@ -95,7 +95,6 @@ async def list_customers(
                 first_name=item.first_name,
                 last_name=item.last_name,
                 phone=item.phone,
-                referral_code=item.referral_code,
                 username=item.username,
                 auth_methods=item.auth_methods,
                 roles=item.roles,
@@ -138,10 +137,8 @@ async def get_customer_detail(
         first_name=result.first_name,
         last_name=result.last_name,
         phone=result.phone,
-        referral_code=result.referral_code,
         username=result.username,
         auth_methods=result.auth_methods,
-        referred_by=result.referred_by,
         roles=[
             RoleInfoResponse(
                 id=r.id, name=r.name, description=r.description, is_system=r.is_system
