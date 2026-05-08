@@ -1,13 +1,12 @@
 # Loyality — Loyalty Marketplace
 
-Modular monolith with three deployable services and two frontends.
+Modular monolith with one backend service (image module incl.) and two frontends.
 
 ## Components
 
 | Component      | Path               | Tech                                                            | Port | Deployment |
 | -------------- | ------------------ | --------------------------------------------------------------- | ---- | ---------- |
-| Backend        | `backend/`         | FastAPI, Python 3.14, Clean Architecture                        | 8080 | Railway    |
-| Image Backend  | `image_backend/`   | FastAPI, Python 3.14, Pillow, aiobotocore                       | 8080 | Railway    |
+| Backend        | `backend/`         | FastAPI, Python 3.14, Clean Architecture (incl. image module)   | 8080 | Railway    |
 | Frontend Main  | `frontend/main/`   | Next.js 16, TypeScript, React 19, TanStack Query + Zustand + ky | 3000 | Netlify    |
 | Frontend Admin | `frontend/admin/`  | Next.js 16, JSX, Tailwind CSS 4, Feature-Sliced Design          | 3000 | Netlify    |
 | Telegram Bot   | `backend/src/bot/` | Aiogram 3, FSM states                                           | —    | Railway    |
@@ -21,7 +20,6 @@ When running Claude Code from a subdirectory, identify which component you are i
 | Working directory contains | Component ID     | Vault tag                            |
 | -------------------------- | ---------------- | ------------------------------------ |
 | `backend/src/modules/`     | `backend`        | `[project/loyality, backend]`        |
-| `image_backend/`           | `image-backend`  | `[project/loyality, image-backend]`  |
 | `frontend/main/`           | `frontend-main`  | `[project/loyality, frontend-main]`  |
 | `frontend/admin/`          | `frontend-admin` | `[project/loyality, frontend-admin]` |
 | Root `loyality/`           | `project`        | `[project/loyality]`                 |
@@ -31,7 +29,7 @@ Use the **Vault tag** column when writing notes to the Knowledge vault — alway
 ## Infrastructure
 
 ```bash
-# From backend/ or image_backend/:
+# From backend/:
 docker compose up -d    # Postgres 18, Redis 8.4, RabbitMQ 4.2, MinIO
 ```
 
@@ -40,10 +38,13 @@ docker compose up -d    # Postgres 18, Redis 8.4, RabbitMQ 4.2, MinIO
 ```
 Frontend Main ──cookie──► BFF proxy ──Bearer──► Backend API (/api/v1/*)
 Frontend Admin ──cookie──► BFF proxy ──Bearer──► Backend API (/api/v1/*)
-                           BFF proxy ──API-Key──► Image Backend (/api/v1/media/*)
-Backend ──X-API-Key──► Image Backend (delete only)
+                                                    └─ /api/v1/admin/media/* (image module)
 Telegram Bot ──direct──► Backend API
 ```
+
+Image lifecycle (S3 + Pillow processing) lives inside the backend as the
+``image`` bounded-context module — formerly a standalone ``image_backend``
+microservice, consolidated in PR #31 / REC-026 (2026-05-08).
 
 Auth: JWT (HS256) + RBAC (admin → manager → customer). Telegram Mini App: HMAC-SHA256.
 Error envelope: `{"error": {"code", "message", "details", "request_id"}}`.
@@ -72,8 +73,7 @@ Projects/loyality/
 ├── Loyality FRD.md                  ← project-level (sections per module)
 ├── Loyality TRD.md                  ← project-level (all components)
 ├── ADR-{NNN} *.md                   ← cross-cutting ADRs
-├── backend/                         ← backend-specific docs
-├── image-backend/                   ← image backend-specific docs
+├── backend/                         ← backend-specific docs (incl. image module)
 ├── frontend-main/                   ← customer app-specific docs
 └── frontend-admin/                  ← admin panel-specific docs
 ```
@@ -102,7 +102,7 @@ type: research|brd|frd|trd|adr|spec|sprint|meeting|note
 date: YYYY-MM-DD
 status: draft|active|accepted|archived
 project: "[[Loyality Project]]"           # wikilink to dashboard
-component: backend|image-backend|frontend-main|frontend-admin|project
+component: backend|frontend-main|frontend-admin|project
 ---
 ```
 

@@ -59,8 +59,8 @@ def make_logger():
     return logger
 
 
-def make_image_backend():
-    """AsyncMock for IImageBackendClient (needed by UpdateBrandHandler)."""
+def make_media_cleanup():
+    """AsyncMock for IMediaCleanupPort (needed by UpdateBrandHandler)."""
     return AsyncMock()
 
 
@@ -146,7 +146,7 @@ class TestUpdateBrand:
     """Tests for UpdateBrandHandler.
 
     CRITICAL: Every UpdateBrandCommand MUST include _provided_fields frozenset.
-    CRITICAL: UpdateBrandHandler requires image_backend (IImageBackendClient).
+    CRITICAL: UpdateBrandHandler requires media_cleanup (IMediaCleanupPort).
     """
 
     async def test_updates_name_and_commits(self):
@@ -157,7 +157,7 @@ class TestUpdateBrand:
         handler = UpdateBrandHandler(
             brand_repo=uow.brands,
             uow=uow,
-            image_backend=make_image_backend(),
+            media_cleanup=make_media_cleanup(),
             logger=make_logger(),
         )
 
@@ -177,7 +177,7 @@ class TestUpdateBrand:
         handler = UpdateBrandHandler(
             brand_repo=uow.brands,
             uow=uow,
-            image_backend=make_image_backend(),
+            media_cleanup=make_media_cleanup(),
             logger=make_logger(),
         )
 
@@ -202,7 +202,7 @@ class TestUpdateBrand:
         handler = UpdateBrandHandler(
             brand_repo=uow.brands,
             uow=uow,
-            image_backend=make_image_backend(),
+            media_cleanup=make_media_cleanup(),
             logger=make_logger(),
         )
 
@@ -225,7 +225,7 @@ class TestUpdateBrand:
         handler = UpdateBrandHandler(
             brand_repo=uow.brands,
             uow=uow,
-            image_backend=make_image_backend(),
+            media_cleanup=make_media_cleanup(),
             logger=make_logger(),
         )
 
@@ -254,11 +254,11 @@ class TestUpdateBrand:
         )
         uow.brands._store[brand.id] = brand
 
-        image_backend = make_image_backend()
+        media_cleanup = make_media_cleanup()
         handler = UpdateBrandHandler(
             brand_repo=uow.brands,
             uow=uow,
-            image_backend=image_backend,
+            media_cleanup=media_cleanup,
             logger=make_logger(),
         )
 
@@ -271,7 +271,7 @@ class TestUpdateBrand:
             )
         )
 
-        image_backend.delete.assert_called_once_with(old_storage_id)
+        media_cleanup.delete.assert_called_once_with(old_storage_id)
 
 
 # ============================================================================

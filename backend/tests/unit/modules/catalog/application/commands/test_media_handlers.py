@@ -36,7 +36,7 @@ from src.modules.catalog.domain.exceptions import (
     ProductNotFoundError,
     VariantNotFoundError,
 )
-from src.modules.catalog.domain.interfaces import IImageBackendClient
+from src.modules.catalog.domain.interfaces import IMediaCleanupPort
 from src.modules.catalog.domain.value_objects import MediaRole
 from tests.factories.product_builder import ProductBuilder
 from tests.fakes.fake_uow import FakeUnitOfWork
@@ -53,9 +53,9 @@ def _make_logger():
     return logger
 
 
-def _make_image_backend():
-    """Create an AsyncMock for IImageBackendClient."""
-    return AsyncMock(spec=IImageBackendClient)
+def _make_media_cleanup():
+    """Create an AsyncMock for IMediaCleanupPort."""
+    return AsyncMock(spec=IMediaCleanupPort)
 
 
 def _seed_product(uow, slug=None):
@@ -408,12 +408,12 @@ class TestDeleteProductMedia:
         product = _seed_product(uow)
         storage_id = uuid.uuid4()
         media = _seed_media(uow, product_id=product.id, storage_object_id=storage_id)
-        image_backend = _make_image_backend()
+        media_cleanup = _make_media_cleanup()
 
         handler = DeleteProductMediaHandler(
             media_repo=uow.media_assets,
             uow=uow,
-            image_backend=image_backend,
+            media_cleanup=media_cleanup,
             logger=_make_logger(),
         )
         await handler.handle(
@@ -425,18 +425,18 @@ class TestDeleteProductMedia:
 
         assert media.id not in uow.media_assets._store
         assert uow.committed is True
-        image_backend.delete.assert_called_once_with(storage_id)
+        media_cleanup.delete.assert_called_once_with(storage_id)
 
     async def test_no_cleanup_when_no_storage_object(self):
         uow = FakeUnitOfWork()
         product = _seed_product(uow)
         media = _seed_media(uow, product_id=product.id, storage_object_id=None)
-        image_backend = _make_image_backend()
+        media_cleanup = _make_media_cleanup()
 
         handler = DeleteProductMediaHandler(
             media_repo=uow.media_assets,
             uow=uow,
-            image_backend=image_backend,
+            media_cleanup=media_cleanup,
             logger=_make_logger(),
         )
         await handler.handle(
@@ -447,16 +447,16 @@ class TestDeleteProductMedia:
         )
 
         assert uow.committed is True
-        image_backend.delete.assert_not_called()
+        media_cleanup.delete.assert_not_called()
 
     async def test_media_not_found(self):
         uow = FakeUnitOfWork()
-        image_backend = _make_image_backend()
+        media_cleanup = _make_media_cleanup()
 
         handler = DeleteProductMediaHandler(
             media_repo=uow.media_assets,
             uow=uow,
-            image_backend=image_backend,
+            media_cleanup=media_cleanup,
             logger=_make_logger(),
         )
         with pytest.raises(MediaAssetNotFoundError):
@@ -472,12 +472,12 @@ class TestDeleteProductMedia:
         uow = FakeUnitOfWork()
         product = _seed_product(uow)
         media = _seed_media(uow, product_id=product.id)
-        image_backend = _make_image_backend()
+        media_cleanup = _make_media_cleanup()
 
         handler = DeleteProductMediaHandler(
             media_repo=uow.media_assets,
             uow=uow,
-            image_backend=image_backend,
+            media_cleanup=media_cleanup,
             logger=_make_logger(),
         )
         with pytest.raises(MediaAssetNotFoundError):
@@ -490,7 +490,7 @@ class TestDeleteProductMedia:
         assert uow.committed is False
 
     async def test_cleanup_after_commit_not_before(self):
-        """Verify image_backend.delete is called AFTER uow.commit."""
+        """Verify media_cleanup.delete is called AFTER uow.commit."""
         uow = FakeUnitOfWork()
         product = _seed_product(uow)
         storage_id = uuid.uuid4()
@@ -505,17 +505,17 @@ class TestDeleteProductMedia:
 
         uow.commit = tracking_commit  # ty: ignore[invalid-assignment]
 
-        image_backend = _make_image_backend()
+        media_cleanup = _make_media_cleanup()
 
         async def tracking_delete(sid):
             call_order.append("delete")
 
-        image_backend.delete = tracking_delete
+        media_cleanup.delete = tracking_delete
 
         handler = DeleteProductMediaHandler(
             media_repo=uow.media_assets,
             uow=uow,
-            image_backend=image_backend,
+            media_cleanup=media_cleanup,
             logger=_make_logger(),
         )
         await handler.handle(

@@ -23,8 +23,8 @@ from src.modules.catalog.domain.exceptions import (
 from src.modules.catalog.domain.interfaces import (
     IBrandRepository,
     ICategoryRepository,
-    IImageBackendClient,
     IMediaAssetRepository,
+    IMediaCleanupPort,
     IProductRepository,
 )
 from src.shared.cache_keys import bump_storefront_product_generation
@@ -96,7 +96,7 @@ class UpdateProductHandler:
         brand_repo: IBrandRepository,
         category_repo: ICategoryRepository,
         media_repo: IMediaAssetRepository,
-        image_backend: IImageBackendClient,
+        media_cleanup: IMediaCleanupPort,
         uow: IUnitOfWork,
         cache: ICacheService,
         logger: ILogger,
@@ -105,7 +105,7 @@ class UpdateProductHandler:
         self._brand_repo = brand_repo
         self._category_repo = category_repo
         self._media_repo = media_repo
-        self._image_backend = image_backend
+        self._media_cleanup = media_cleanup
         self._uow = uow
         self._cache = cache
         self._logger = logger.bind(handler="UpdateProductHandler")
@@ -259,9 +259,9 @@ class UpdateProductHandler:
             self._uow.register_aggregate(product)
             await self._uow.commit()
 
-        # Best-effort ImageBackend cleanup AFTER successful commit
+        # Best-effort in-process storage cleanup AFTER successful commit
         for sid in storage_ids_to_delete:
-            await self._image_backend.delete(sid)
+            await self._media_cleanup.delete(sid)
 
         # Bump the storefront product generation — invalidates PLP,
         # search and PDP caches in one INCR (the counter participates
