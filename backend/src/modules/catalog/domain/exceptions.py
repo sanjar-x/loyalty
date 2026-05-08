@@ -12,6 +12,7 @@ from src.modules.catalog.domain.value_objects import ProductStatus
 from src.shared.exceptions import (
     ConflictError,
     NotFoundError,
+    OptimisticLockError,
     UnprocessableEntityError,
     ValidationError,
 )
@@ -270,19 +271,15 @@ class ProductAttributeValueNotFoundError(NotFoundError):
         )
 
 
-class ConcurrencyError(ConflictError):
-    """Raised when an optimistic locking version mismatch is detected.
+class ConcurrencyError(OptimisticLockError):
+    """Catalog alias for :class:`src.shared.exceptions.OptimisticLockError`.
 
-    This is typically triggered when the infrastructure layer catches
-    ``sqlalchemy.orm.exc.StaleDataError`` during a flush and re-raises it
-    as this domain exception.
-
-    Args:
-        entity_type: Human-readable entity type name, e.g. ``"Product"`` or
-            ``"SKU"``.
-        entity_id: The UUID of the entity that has the version mismatch.
-        expected_version: The version the caller assumed was current.
-        actual_version: The version found in the database at flush time.
+    REC-031 D5 collapsed the fan-out of per-module ``*VersionConflictError``
+    classes into a single shared exception. ``ConcurrencyError`` is kept as a
+    catalog-specific alias to preserve existing call sites
+    (``from src.modules.catalog.domain.exceptions import ConcurrencyError``)
+    and the historical ``error_code="CONCURRENCY_ERROR"`` envelope so admin
+    UI translations don't have to be updated.
     """
 
     def __init__(
@@ -293,14 +290,11 @@ class ConcurrencyError(ConflictError):
         actual_version: int | None,
     ) -> None:
         super().__init__(
-            message=f"Concurrent modification detected for {entity_type} {entity_id}.",
+            entity_type=entity_type,
+            entity_id=entity_id,
+            expected_version=expected_version,
+            actual_version=actual_version,
             error_code="CONCURRENCY_ERROR",
-            details={
-                "entity_type": entity_type,
-                "entity_id": str(entity_id),
-                "expected_version": expected_version,
-                "actual_version": actual_version,
-            },
         )
 
 

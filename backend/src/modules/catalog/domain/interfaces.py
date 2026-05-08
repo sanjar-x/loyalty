@@ -34,6 +34,7 @@ from src.modules.catalog.domain.entities import (
 from src.modules.catalog.domain.entities import (
     TemplateAttributeBinding as DomainTemplateAttributeBinding,
 )
+from src.shared.interfaces.repositories import IBaseRepository
 
 
 class IMediaCleanupPort(ABC):
@@ -54,32 +55,15 @@ class IMediaCleanupPort(ABC):
         """Delete a storage object (S3 keys + DB record). Best-effort."""
 
 
-class ICatalogRepository[T](ABC):
-    """Generic CRUD repository contract for catalog aggregates.
+class ICatalogRepository[T](IBaseRepository[T]):
+    """Catalog-flavoured generic CRUD repository contract.
 
-    Type parameter ``T`` is the domain entity type (e.g. ``DomainBrand``).
-    Module-specific repositories extend this with additional query methods.
+    Inherits the canonical ``add/get/update/delete`` methods from
+    :class:`src.shared.interfaces.repositories.IBaseRepository` (REC-031).
+    Kept as a distinct alias so existing imports
+    ``from src.modules.catalog.domain.interfaces import ICatalogRepository``
+    continue working — the type parameter is the same domain entity.
     """
-
-    @abstractmethod
-    async def add(self, entity: T) -> T:
-        """Persist a new aggregate and return it with any generated fields."""
-        pass
-
-    @abstractmethod
-    async def get(self, entity_id: uuid.UUID) -> T | None:
-        """Retrieve an aggregate by its unique identifier."""
-        pass
-
-    @abstractmethod
-    async def update(self, entity: T) -> T:
-        """Persist changes to an existing aggregate."""
-        pass
-
-    @abstractmethod
-    async def delete(self, entity_id: uuid.UUID) -> None:
-        """Delete an aggregate by its unique identifier."""
-        pass
 
 
 class IBrandRepository(ICatalogRepository[DomainBrand]):
