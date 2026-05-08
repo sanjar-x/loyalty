@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from src.modules.cart.domain.entities import Cart, CartItem
 from src.modules.cart.domain.value_objects import CartStatus
+from src.shared.domain.supplier_type import SupplierType
 
 
 class CartItemBuilder:
@@ -17,7 +18,7 @@ class CartItemBuilder:
         self._sku_id: uuid.UUID = uuid.uuid4()
         self._product_id: uuid.UUID = uuid.uuid4()
         self._variant_id: uuid.UUID = uuid.uuid4()
-        self._supplier_type: str = "local"
+        self._supplier_type: SupplierType = SupplierType.LOCAL
         self._quantity: int = 1
         self._added_at: datetime = datetime.now(UTC)
 
@@ -33,7 +34,7 @@ class CartItemBuilder:
         self._quantity = quantity
         return self
 
-    def with_supplier_type(self, supplier_type: str) -> CartItemBuilder:
+    def with_supplier_type(self, supplier_type: SupplierType) -> CartItemBuilder:
         self._supplier_type = supplier_type
         return self
 

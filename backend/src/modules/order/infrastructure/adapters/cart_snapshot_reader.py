@@ -30,6 +30,7 @@ from src.modules.order.domain.value_objects import (
     PickupCarrier,
     PickupPointPreference,
 )
+from src.shared.domain.supplier_type import SupplierType
 
 
 class CartSnapshotReader(ICartSnapshotReader):
@@ -71,7 +72,9 @@ class CartSnapshotReader(ICartSnapshotReader):
                     variant_id=cart_item.variant_id if cart_item else sku_id,
                     product_name="",
                     variant_label=None,
-                    supplier_type=cart_item.supplier_type if cart_item else "",
+                    supplier_type=SupplierType(cart_item.supplier_type)
+                    if cart_item
+                    else SupplierType.LOCAL,
                     quantity=qty,
                     unit_price_amount=unit_price,
                     currency=currency,

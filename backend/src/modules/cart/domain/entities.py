@@ -35,6 +35,7 @@ from src.modules.cart.domain.value_objects import (
     CheckoutSnapshot,
     SkuSnapshot,
 )
+from src.shared.domain.supplier_type import SupplierType
 from src.shared.interfaces.entities import AggregateRoot
 
 MAX_CART_ITEMS = 50
@@ -51,7 +52,7 @@ class CartItem:
         sku_id: Reference to the SKU in Catalog.
         product_id: Denormalized for grouping.
         variant_id: Denormalized for display.
-        supplier_type: "cross_border" | "local".
+        supplier_type: ``SupplierType.CROSS_BORDER`` / ``SupplierType.LOCAL``.
         quantity: Number of units (1..99).
         added_at: When the item was added.
     """
@@ -60,7 +61,7 @@ class CartItem:
     sku_id: uuid.UUID
     product_id: uuid.UUID
     variant_id: uuid.UUID
-    supplier_type: str
+    supplier_type: SupplierType
     quantity: int
     added_at: datetime = field(factory=lambda: datetime.now(UTC))
 

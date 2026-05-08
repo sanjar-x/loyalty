@@ -14,13 +14,14 @@ from src.modules.cart.domain.value_objects import (
     SkuSnapshot,
 )
 from src.modules.cart.infrastructure.repositories.cart_repository import CartRepository
+from src.shared.domain.supplier_type import SupplierType
 
 
 def _make_sku_snapshot(
     sku_id: uuid.UUID | None = None,
     product_id: uuid.UUID | None = None,
     variant_id: uuid.UUID | None = None,
-    supplier_type: str = "local",
+    supplier_type: SupplierType = SupplierType.LOCAL,
 ) -> SkuSnapshot:
     return SkuSnapshot(
         sku_id=sku_id or uuid.uuid4(),

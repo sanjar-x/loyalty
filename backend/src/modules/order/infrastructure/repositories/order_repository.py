@@ -26,6 +26,7 @@ from src.modules.order.domain.value_objects import (
     PickupPointPreference,
 )
 from src.modules.order.infrastructure.models import OrderItemModel, OrderModel
+from src.shared.domain.supplier_type import SupplierType
 
 __all__ = [
     "HOLD_TTL_DAYS",
@@ -284,7 +285,7 @@ def _to_domain(row: OrderModel) -> Order:
             variant_id=it.variant_id,
             product_name=it.product_name,
             variant_label=it.variant_label,
-            supplier_type=it.supplier_type,
+            supplier_type=SupplierType(it.supplier_type),
             quantity=it.quantity,
             unit_price_amount=it.unit_price_amount,
             currency=it.currency,

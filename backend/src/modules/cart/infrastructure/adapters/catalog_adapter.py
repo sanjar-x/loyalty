@@ -19,6 +19,7 @@ from src.modules.catalog.infrastructure.models import (
     ProductVariant,
 )
 from src.modules.supplier.infrastructure.models import Supplier
+from src.shared.domain.supplier_type import SupplierType
 
 
 class CatalogSkuAdapter(ISkuReadService):
@@ -141,7 +142,9 @@ class CatalogSkuAdapter(ISkuReadService):
                 price_amount=effective_amount if effective_amount is not None else 0,
                 currency=effective_currency or "RUB",
                 is_active=row.is_active and effective_amount is not None,
-                supplier_type=row.supplier_type.value if row.supplier_type else "local",
+                supplier_type=row.supplier_type
+                if row.supplier_type is not None
+                else SupplierType.LOCAL,
             )
 
         return snapshots

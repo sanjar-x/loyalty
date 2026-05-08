@@ -1,14 +1,10 @@
-"""Supplier domain value objects."""
+"""Supplier domain value objects.
 
-import enum
+``SupplierType`` was promoted to the shared kernel in TYPE-002 because
+it crosses bounded-context boundaries (cart/order/pricing/logistics
+all branch on it). Re-exported here so existing imports
+``from src.modules.supplier.domain.value_objects import SupplierType``
+keep working.
+"""
 
-
-class SupplierType(enum.StrEnum):
-    """Classification of supplier by geography and logistics model.
-
-    CROSS_BORDER: Chinese marketplace suppliers (Poizon, Taobao, etc.)
-    LOCAL: Russian regional suppliers
-    """
-
-    CROSS_BORDER = "cross_border"
-    LOCAL = "local"
+from src.shared.domain.supplier_type import SupplierType as SupplierType
