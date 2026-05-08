@@ -5,9 +5,10 @@ input override so the admin UI can show the formula-computed selling
 price *as the operator types* — without persisting the SKU first and
 waiting for the autonomous recompute pipeline to land.
 
-The same evaluator + resolver as the recompute service runs here, so a
-preview value is by construction equal to whatever the recompute
-pipeline would produce for the same inputs (CAT-013).
+The same evaluator + resolver + FX-freshness gate as the recompute
+service runs here, so a preview value is by construction equal to
+whatever the recompute pipeline would produce for the same inputs
+(CAT-013, parity hardened in CAT-017).
 """
 
 from __future__ import annotations
@@ -15,9 +16,13 @@ from __future__ import annotations
 import asyncio
 import functools
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from src.modules.pricing.domain.entities.pricing_context import PricingContext
+from src.modules.pricing.domain.entities.variable import Variable
 from src.modules.pricing.domain.exceptions import (
     FormulaEvaluationError,
     FormulaVersionNotFoundError,
@@ -135,6 +140,21 @@ class PreviewSkuPricingHandler:
         )
         context = await self._contexts.get_by_id(query.context_id)
 
+        # Mirror :func:`recompute._check_fx_freshness` from the autonomous
+        # pipeline — without it the preview happily renders a "valid"
+        # selling price that the recompute would later reject as
+        # ``stale_fx``, breaking the UX promise that "what you see in
+        # preview is what lands in the DB" (CAT-017).
+        fx_failure_reason = _check_fx_freshness(
+            variables, context, now=datetime.now(UTC)
+        )
+        if fx_failure_reason is not None:
+            raise ValidationError(
+                message=fx_failure_reason,
+                error_code="PRICING_FX_STALE",
+                details={"context_id": str(query.context_id)},
+            )
+
         # Same scope sources as recompute, minus the actual SKU read —
         # the resolver below skips ``sku_input`` variables because we
         # inject them manually after.
@@ -215,3 +235,44 @@ class PreviewSkuPricingHandler:
             formula_version_number=formula.version_number,
             context_id=query.context_id,
         )
+
+
+def _check_fx_freshness(
+    variables: Iterable[Variable],
+    context: PricingContext | None,
+    *,
+    now: datetime,
+) -> str | None:
+    """Return a stale-FX reason string, or ``None`` when every FX rate is fresh.
+
+    Mirrors the staleness rule applied by
+    :func:`src.modules.pricing.domain.recompute._check_fx_freshness`
+    so the preview cannot hand the admin a price that the autonomous
+    recompute would immediately reject. Decoupled from the
+    ``SkuPricingScopeSnapshot`` indirection because the preview path
+    already has the underlying ``Variable`` registry + ``PricingContext``
+    in hand — replicating the snapshot just for staleness would be
+    incidental coupling.
+    """
+    if context is None:
+        # Preview without a context behaves like recompute when scope is
+        # missing — surfaces as a configuration error elsewhere; nothing
+        # to validate here.
+        return None
+    for variable in variables:
+        if not variable.is_fx_rate:
+            continue
+        if variable.code not in context.global_values:
+            return f"FX rate '{variable.code}' is not configured on the pricing context"
+        set_at = context.global_values_set_at.get(variable.code)
+        if set_at is None:
+            return f"FX rate '{variable.code}' has no recorded set-at timestamp"
+        if variable.max_age_days is None:
+            continue
+        if now - set_at > timedelta(days=variable.max_age_days):
+            return (
+                f"FX rate '{variable.code}' is older than "
+                f"{variable.max_age_days} days "
+                f"(set at {set_at.isoformat()})"
+            )
+    return None
