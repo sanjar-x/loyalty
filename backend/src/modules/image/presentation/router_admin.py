@@ -23,7 +23,6 @@ import asyncio
 import uuid
 from collections.abc import AsyncIterable
 
-import httpx
 import structlog
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, status
@@ -72,10 +71,9 @@ from src.modules.image.presentation.schemas import (
     UploadResponse,
 )
 from src.modules.image.presentation.validators import (
-    validate_external_url,
+    secure_external_fetch,
     validate_image_content_type,
 )
-from src.shared.exceptions import UnprocessableEntityError
 
 logger = structlog.get_logger(__name__)
 
@@ -308,27 +306,15 @@ async def import_external(
     log = logger.bind(external_url=body.url)
     log.info("External import started")
 
-    validate_external_url(body.url)
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.get(body.url, follow_redirects=True)
-        if response.status_code != 200:
-            raise UnprocessableEntityError(
-                message=f"Failed to download image: HTTP {response.status_code}",
-                error_code="EXTERNAL_IMPORT_DOWNLOAD_FAILED",
-                details={"url": body.url, "status": response.status_code},
-            )
-        raw_data = response.content
-
-    if len(raw_data) > settings.MEDIA_MAX_FILE_SIZE:
-        raise UnprocessableEntityError(
-            message=(
-                f"File too large: {len(raw_data)} bytes "
-                f"(max {settings.MEDIA_MAX_FILE_SIZE})."
-            ),
-            error_code="STORAGE_OBJECT_TOO_LARGE",
-            details={"size": len(raw_data), "max": settings.MEDIA_MAX_FILE_SIZE},
-        )
+    # IMG-002 — single helper handles SSRF (redirect re-validation +
+    # IP pinning) AND streamed-with-size-cap download. Replaces the
+    # prior ``validate_external_url`` + ``httpx.get(follow_redirects=True)``
+    # + ``len(response.content)`` combo that left both the redirect
+    # bypass and the memory-exhaustion DoS open.
+    raw_data = await secure_external_fetch(
+        body.url,
+        max_size_bytes=settings.MEDIA_MAX_FILE_SIZE,
+    )
 
     sid = uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4()
 
