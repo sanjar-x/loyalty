@@ -14,6 +14,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from src.modules.catalog.application.constants import storefront_pdp_cache_key
+from src.modules.catalog.domain.events import SKUPurchasePriceUpdatedEvent
 from src.modules.catalog.domain.exceptions import (
     ConcurrencyError,
     DuplicateVariantCombinationError,
@@ -196,10 +197,23 @@ class UpdateSKUHandler:
                         ),
                         error_code="INVALID_PURCHASE_CURRENCY",
                     ) from exc
-                sku.set_purchase_price(
+                changed = sku.set_purchase_price(
                     purchase_price=command.purchase_price,
                     purchase_currency=purchase_currency,
                 )
+                # CAT-010 — emit on aggregate root only when value actually
+                # changed; idempotent re-submits skip the event.
+                if changed:
+                    product.add_domain_event(
+                        SKUPurchasePriceUpdatedEvent(
+                            product_id=product.id,
+                            variant_id=sku.variant_id,
+                            sku_id=sku.id,
+                            purchase_price_amount=command.purchase_price.amount,
+                            purchase_currency=purchase_currency.value,
+                            aggregate_id=str(product.id),
+                        )
+                    )
 
             await self._product_repo.update(product)
             self._uow.register_aggregate(product)

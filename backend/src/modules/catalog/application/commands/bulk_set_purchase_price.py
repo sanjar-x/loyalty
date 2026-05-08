@@ -18,6 +18,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from src.modules.catalog.application.constants import storefront_pdp_cache_key
+from src.modules.catalog.domain.events import SKUPurchasePriceUpdatedEvent
 from src.modules.catalog.domain.exceptions import ProductNotFoundError
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money, PurchaseCurrency
@@ -147,6 +148,19 @@ class BulkSetPurchasePriceHandler:
                     continue
 
                 if changed:
+                    # CAT-010 — emit on aggregate root so the recompute
+                    # pipeline picks up via the outbox relay. Without this
+                    # SKU stays in PENDING forever.
+                    product.add_domain_event(
+                        SKUPurchasePriceUpdatedEvent(
+                            product_id=product.id,
+                            variant_id=sku.variant_id,
+                            sku_id=sku.id,
+                            purchase_price_amount=item.purchase_price.amount,
+                            purchase_currency=purchase_currency.value,
+                            aggregate_id=str(product.id),
+                        )
+                    )
                     updated += 1
                 else:
                     unchanged += 1

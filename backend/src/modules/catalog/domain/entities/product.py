@@ -21,6 +21,7 @@ from src.modules.catalog.domain.events import (
     ProductUpdatedEvent,
     SKUAddedEvent,
     SKUDeletedEvent,
+    SKUPurchasePriceUpdatedEvent,
     VariantAddedEvent,
     VariantDeletedEvent,
 )
@@ -566,6 +567,21 @@ class Product(AggregateRoot):
             sku.set_purchase_price(
                 purchase_price=purchase_price,
                 purchase_currency=purchase_currency,
+            )
+            # CAT-010 — emit on the aggregate so the outbox relay arms the
+            # autonomous recompute pipeline. ``SKU.set_purchase_price``
+            # arms ``pricing_status=PENDING`` but only the aggregate root
+            # accumulates domain events; without this emit the SKU sits
+            # in PENDING forever and the storefront never sees a price.
+            self.add_domain_event(
+                SKUPurchasePriceUpdatedEvent(
+                    product_id=self.id,
+                    variant_id=variant_id,
+                    sku_id=sku.id,
+                    purchase_price_amount=purchase_price.amount,
+                    purchase_currency=purchase_currency.value,
+                    aggregate_id=str(self.id),
+                )
             )
         variant._skus.append(sku)
         self.add_domain_event(
