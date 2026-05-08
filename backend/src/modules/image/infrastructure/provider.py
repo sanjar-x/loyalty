@@ -19,9 +19,15 @@ from dishka.dependency_source.composite import CompositeDependencySource
 from redis.asyncio.client import Redis
 
 from src.bootstrap.config import Settings
+from src.modules.image.application.commands.confirm_upload import ConfirmUploadHandler
 from src.modules.image.application.commands.delete_storage_object import (
     DeleteStorageObjectHandler,
 )
+from src.modules.image.application.commands.import_external import (
+    ImportExternalHandler,
+)
+from src.modules.image.application.commands.request_upload import RequestUploadHandler
+from src.modules.image.application.commands.reupload import ReuploadHandler
 from src.modules.image.domain.interfaces import IBlobStorage, IStorageRepository
 from src.modules.image.infrastructure.repositories.storage_object_repository import (
     StorageObjectRepository,
@@ -41,6 +47,18 @@ class ImageProvider(Provider):
 
     delete_storage_object_handler: CompositeDependencySource = provide(
         DeleteStorageObjectHandler, scope=Scope.REQUEST
+    )
+    request_upload_handler: CompositeDependencySource = provide(
+        RequestUploadHandler, scope=Scope.REQUEST
+    )
+    reupload_handler: CompositeDependencySource = provide(
+        ReuploadHandler, scope=Scope.REQUEST
+    )
+    confirm_upload_handler: CompositeDependencySource = provide(
+        ConfirmUploadHandler, scope=Scope.REQUEST
+    )
+    import_external_handler: CompositeDependencySource = provide(
+        ImportExternalHandler, scope=Scope.REQUEST
     )
 
     @provide(scope=Scope.APP)

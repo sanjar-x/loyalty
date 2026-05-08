@@ -11,6 +11,10 @@
 Auth: staff JWT + ``RequirePermission("media:manage")`` per route. Replaces
 the X-API-Key model used by the legacy ``image_backend`` microservice
 (CEO directive 2026-05-08, β: full JWT migration).
+
+IMG-001 — pulled the upload / reupload / confirm / external-import
+business logic out of the route bodies into proper application
+commands so the router only handles HTTP framing + auth.
 """
 
 from __future__ import annotations
@@ -29,19 +33,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bootstrap.config import Settings
 from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.image.application.commands.confirm_upload import (
+    ConfirmUploadCommand,
+    ConfirmUploadHandler,
+)
 from src.modules.image.application.commands.delete_storage_object import (
     DeleteStorageObjectHandler,
 )
-from src.modules.image.domain.entities import StorageFile
-from src.modules.image.domain.exceptions import (
-    StorageFileAlreadyProcessedError,
-    StorageFileNotFoundError,
+from src.modules.image.application.commands.import_external import (
+    ImportExternalCommand,
+    ImportExternalHandler,
+    _VariantUpload,
 )
-from src.modules.image.domain.interfaces import IBlobStorage, IStorageRepository
-from src.modules.image.domain.value_objects import StorageStatus
+from src.modules.image.application.commands.request_upload import (
+    RequestUploadCommand,
+    RequestUploadHandler,
+)
+from src.modules.image.application.commands.reupload import (
+    ReuploadCommand,
+    ReuploadHandler,
+)
+from src.modules.image.domain.exceptions import StorageFileNotFoundError
+from src.modules.image.domain.interfaces import IStorageRepository
 from src.modules.image.infrastructure.services.image_processor import build_variants
 from src.modules.image.infrastructure.services.sse_manager import SSEManager
-from src.modules.image.infrastructure.services.streams import bytes_to_async_stream
 from src.modules.image.infrastructure.tasks import process_image_task
 from src.modules.image.presentation.schemas import (
     ConfirmResponse,
@@ -60,11 +75,7 @@ from src.modules.image.presentation.validators import (
     validate_external_url,
     validate_image_content_type,
 )
-from src.shared.exceptions import (
-    ConflictError,
-    UnprocessableEntityError,
-)
-from src.shared.interfaces.uow import IUnitOfWork
+from src.shared.exceptions import UnprocessableEntityError
 
 logger = structlog.get_logger(__name__)
 
@@ -89,37 +100,22 @@ _MEDIA_PERMISSION = "media:manage"
 )
 async def request_upload(
     body: UploadRequest,
-    repo: FromDishka[IStorageRepository],
-    blob_storage: FromDishka[IBlobStorage],
+    handler: FromDishka[RequestUploadHandler],
     settings: FromDishka[Settings],
-    uow: FromDishka[IUnitOfWork],
 ) -> UploadResponse:
     validate_image_content_type(body.content_type)
-
-    filename = body.filename or f"upload.{body.content_type.split('/')[-1]}"
-
-    storage_file = StorageFile.create(
-        bucket_name=settings.S3_BUCKET_NAME,
-        object_key="",
-        content_type=body.content_type,
-        filename=filename,
+    result = await handler.handle(
+        RequestUploadCommand(
+            content_type=body.content_type,
+            filename=body.filename,
+            bucket_name=settings.S3_BUCKET_NAME,
+            presigned_url_ttl=settings.MEDIA_PRESIGNED_URL_TTL,
+        )
     )
-    object_key = f"raw/{storage_file.id}/{filename}"
-    storage_file.object_key = object_key
-
-    presigned_url = await blob_storage.generate_presigned_put_url(
-        object_name=object_key,
-        content_type=body.content_type,
-        expiration=settings.MEDIA_PRESIGNED_URL_TTL,
-    )
-
-    await repo.add(storage_file)
-    await uow.commit()
-
     return UploadResponse(
-        storage_object_id=storage_file.id,
-        presigned_url=presigned_url,
-        expires_in=settings.MEDIA_PRESIGNED_URL_TTL,
+        storage_object_id=result.storage_object_id,
+        presigned_url=result.presigned_url,
+        expires_in=result.expires_in,
     )
 
 
@@ -136,43 +132,22 @@ async def request_upload(
 async def reupload(
     storage_object_id: uuid.UUID,
     body: ReuploadRequest,
-    repo: FromDishka[IStorageRepository],
-    blob_storage: FromDishka[IBlobStorage],
+    handler: FromDishka[ReuploadHandler],
     settings: FromDishka[Settings],
-    uow: FromDishka[IUnitOfWork],
 ) -> ReuploadResponse:
-    storage_file = await repo.get_by_id(storage_object_id)
-    if not storage_file:
-        raise StorageFileNotFoundError(storage_object_id=str(storage_object_id))
-
-    if storage_file.status == StorageStatus.PROCESSING:
-        raise ConflictError(
-            message="Cannot reupload while image is being processed.",
-            error_code="STORAGE_FILE_PROCESSING_IN_PROGRESS",
-            details={"storage_object_id": str(storage_object_id)},
-        )
-
     validate_image_content_type(body.content_type)
-    filename = body.filename or f"upload.{body.content_type.split('/')[-1]}"
-    object_key = f"raw/{storage_object_id}/{filename}"
-
-    presigned_url = await blob_storage.generate_presigned_put_url(
-        object_name=object_key,
-        content_type=body.content_type,
-        expiration=settings.MEDIA_PRESIGNED_URL_TTL,
+    result = await handler.handle(
+        ReuploadCommand(
+            storage_object_id=storage_object_id,
+            content_type=body.content_type,
+            filename=body.filename,
+            presigned_url_ttl=settings.MEDIA_PRESIGNED_URL_TTL,
+        )
     )
-
-    storage_file.object_key = object_key
-    storage_file.content_type = body.content_type
-    storage_file.filename = filename
-    storage_file.status = StorageStatus.PENDING_UPLOAD
-    await repo.update(storage_file)
-    await uow.commit()
-
     return ReuploadResponse(
-        storage_object_id=storage_object_id,
-        presigned_url=presigned_url,
-        expires_in=settings.MEDIA_PRESIGNED_URL_TTL,
+        storage_object_id=result.storage_object_id,
+        presigned_url=result.presigned_url,
+        expires_in=result.expires_in,
     )
 
 
@@ -188,44 +163,21 @@ async def reupload(
 )
 async def confirm_upload(
     storage_object_id: uuid.UUID,
-    repo: FromDishka[IStorageRepository],
-    blob_storage: FromDishka[IBlobStorage],
-    uow: FromDishka[IUnitOfWork],
+    handler: FromDishka[ConfirmUploadHandler],
     settings: FromDishka[Settings],
 ) -> ConfirmResponse:
-    storage_file = await repo.get_by_id(storage_object_id)
-    if not storage_file:
-        raise StorageFileNotFoundError(storage_object_id=str(storage_object_id))
-
-    if storage_file.status != StorageStatus.PENDING_UPLOAD:
-        raise StorageFileAlreadyProcessedError(storage_object_id=str(storage_object_id))
-
-    metadata = await blob_storage.get_object_metadata(storage_file.object_key)
-    if not metadata:
-        raise UnprocessableEntityError(
-            message="File not found in S3. Upload may not have completed.",
-            error_code="STORAGE_OBJECT_NOT_UPLOADED",
-            details={"storage_object_id": str(storage_object_id)},
+    await handler.handle(
+        ConfirmUploadCommand(
+            storage_object_id=storage_object_id,
+            max_file_size=settings.MEDIA_MAX_FILE_SIZE,
         )
-
-    file_size = metadata.get("content_length", 0)
-    if file_size > settings.MEDIA_MAX_FILE_SIZE:
-        raise UnprocessableEntityError(
-            message=f"File too large: {file_size} bytes (max {settings.MEDIA_MAX_FILE_SIZE}).",
-            error_code="STORAGE_OBJECT_TOO_LARGE",
-            details={
-                "storage_object_id": str(storage_object_id),
-                "size": file_size,
-                "max": settings.MEDIA_MAX_FILE_SIZE,
-            },
-        )
-
-    storage_file.status = StorageStatus.PROCESSING
-    await repo.update(storage_file)
-    await uow.commit()
-
-    await process_image_task.kiq(str(storage_object_id))  # ty:ignore[no-matching-overload]
-
+    )
+    # Variant-generation kicked HERE so the worker observes a
+    # committed PROCESSING row. ``process_image_task`` is infrastructure
+    # — invoking it from the application command would violate Rule 3.
+    await process_image_task.kiq(  # ty:ignore[no-matching-overload]
+        str(storage_object_id)
+    )
     return ConfirmResponse(storage_object_id=storage_object_id)
 
 
@@ -312,30 +264,28 @@ async def get_metadata(
         raise StorageFileNotFoundError(storage_object_id=str(storage_object_id))
 
     return MetadataResponse(
-        storage_object_id=storage_file.id,
-        status=storage_file.status.value,
+        storage_object_id=storage_object_id,
         url=storage_file.url,
         content_type=storage_file.content_type,
         size_bytes=storage_file.size_bytes,
+        status=storage_file.status.value,
         variants=[MediaVariant(**v) for v in (storage_file.image_variants or [])],
-        created_at=storage_file.created_at,
     )
 
 
 # ---------------------------------------------------------------------------
-# 6. DELETE /{storage_object_id} — Delete files + record (idempotent)
+# 6. DELETE /{storage_object_id} — Delete media + S3 keys
 # ---------------------------------------------------------------------------
 @media_admin_router.delete(
     "/{storage_object_id}",
     response_model=DeleteResponse,
-    summary="Delete media object and all variants",
+    summary="Delete media (S3 + DB record)",
     dependencies=[Depends(RequirePermission(codename=_MEDIA_PERMISSION))],
 )
 async def delete_media(
     storage_object_id: uuid.UUID,
     handler: FromDishka[DeleteStorageObjectHandler],
 ) -> DeleteResponse:
-    """Idempotent — handler is a no-op when the object doesn't exist."""
     await handler.handle(storage_object_id)
     return DeleteResponse(deleted=True)
 
@@ -352,9 +302,7 @@ async def delete_media(
 )
 async def import_external(
     body: ExternalImportRequest,
-    blob_storage: FromDishka[IBlobStorage],
-    repo: FromDishka[IStorageRepository],
-    uow: FromDishka[IUnitOfWork],
+    handler: FromDishka[ImportExternalHandler],
     settings: FromDishka[Settings],
 ) -> ExternalImportResponse:
     log = logger.bind(external_url=body.url)
@@ -374,7 +322,10 @@ async def import_external(
 
     if len(raw_data) > settings.MEDIA_MAX_FILE_SIZE:
         raise UnprocessableEntityError(
-            message=f"File too large: {len(raw_data)} bytes (max {settings.MEDIA_MAX_FILE_SIZE}).",
+            message=(
+                f"File too large: {len(raw_data)} bytes "
+                f"(max {settings.MEDIA_MAX_FILE_SIZE})."
+            ),
             error_code="STORAGE_OBJECT_TOO_LARGE",
             details={"size": len(raw_data), "max": settings.MEDIA_MAX_FILE_SIZE},
         )
@@ -386,35 +337,27 @@ async def import_external(
     )
 
     main_key = f"public/{sid}.webp"
-    await blob_storage.upload_stream(
-        main_key, bytes_to_async_stream(main_bytes), "image/webp"
-    )
-    for s3_key, data in variants_data.items():
-        await blob_storage.upload_stream(
-            s3_key, bytes_to_async_stream(data), "image/webp"
-        )
-
     public_url = f"{settings.S3_PUBLIC_BASE_URL.rstrip('/')}/{main_key}"
+    filename = body.url.split("/")[-1].split("?")[0]
 
-    storage_file = StorageFile(
-        id=sid,
-        bucket_name=settings.S3_BUCKET_NAME,
-        object_key=main_key,
-        content_type="image/webp",
-        size_bytes=len(main_bytes),
-        owner_module="external",
-        status=StorageStatus.COMPLETED,
-        url=public_url,
-        image_variants=variants_meta,
-        filename=body.url.split("/")[-1].split("?")[0],
+    result = await handler.handle(
+        ImportExternalCommand(
+            storage_object_id=sid,
+            bucket_name=settings.S3_BUCKET_NAME,
+            main_key=main_key,
+            main_bytes=main_bytes,
+            variants_data=tuple(
+                _VariantUpload(s3_key=k, data=d) for k, d in variants_data.items()
+            ),
+            variants_meta=variants_meta,
+            public_url=public_url,
+            filename=filename,
+            source_url=body.url,
+        )
     )
-    await repo.add(storage_file)
-    await uow.commit()
-
-    log.info("External import completed", storage_object_id=str(sid))
 
     return ExternalImportResponse(
-        storage_object_id=sid,
-        url=public_url,
-        variants=[MediaVariant(**v) for v in variants_meta],
+        storage_object_id=result.storage_object_id,
+        url=result.public_url,
+        variants=[MediaVariant(**v) for v in result.variants_meta],
     )
