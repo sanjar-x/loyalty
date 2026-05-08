@@ -21,8 +21,12 @@ from src.modules.user.application.queries.get_customer_by_identity import (
 from src.modules.user.application.queries.get_my_profile import GetMyProfileHandler
 from src.modules.user.domain.interfaces import (
     ICustomerRepository,
+    ILinkedAccountReader,
     IStaffMemberRepository,
     IUsernameUniquenessChecker,
+)
+from src.modules.user.infrastructure.adapters.linked_account_reader import (
+    LinkedAccountReader,
 )
 from src.modules.user.infrastructure.repositories.customer_repository import (
     CustomerRepository,
@@ -53,6 +57,11 @@ class ProfileProvider(Provider):
         UsernameUniquenessChecker,
         scope=Scope.REQUEST,
         provides=IUsernameUniquenessChecker,
+    )
+    linked_account_reader: CompositeDependencySource = provide(
+        LinkedAccountReader,
+        scope=Scope.REQUEST,
+        provides=ILinkedAccountReader,
     )
 
     # Command handlers
