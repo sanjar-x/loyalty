@@ -15,6 +15,13 @@ from typing import Annotated, Any, Generic, Literal, TypeVar
 from pydantic import AfterValidator, ConfigDict, Field, computed_field, model_validator
 
 from src.shared.schemas import CamelModel
+from src.shared.schemas import MoneySchema as _SharedMoneySchema
+
+# Re-export the project-wide canonical money shape under the catalog
+# module's symbol name to keep all existing ``from
+# src.modules.catalog.presentation.schemas import MoneySchema`` imports
+# working untouched (CAT-018 promoted the type to ``src/shared``).
+MoneySchema = _SharedMoneySchema
 
 S = TypeVar("S")
 
@@ -744,13 +751,6 @@ class StorefrontFormResponse(CamelModel):
 # ---------------------------------------------------------------------------
 # Product schemas
 # ---------------------------------------------------------------------------
-
-
-class MoneySchema(CamelModel):
-    """Monetary value with amount in smallest currency unit and ISO 4217 code."""
-
-    amount: int = Field(..., ge=0)
-    currency: str = Field(..., min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
 
 
 class VariantAttributePairSchema(CamelModel):
