@@ -11,6 +11,11 @@ from datetime import datetime
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, Response, status
 
+from src.modules.catalog.application.commands.bulk_set_purchase_price import (
+    BulkSetPurchasePriceCommand,
+    BulkSetPurchasePriceHandler,
+    BulkSetPurchasePriceItem,
+)
 from src.modules.catalog.application.commands.change_product_status import (
     ChangeProductStatusCommand,
     ChangeProductStatusHandler,
@@ -41,9 +46,12 @@ from src.modules.catalog.application.queries.list_products import (
 from src.modules.catalog.application.queries.read_models import (
     ProductReadModel,
 )
-from src.modules.catalog.domain.value_objects import ProductStatus
+from src.modules.catalog.domain.value_objects import Money, ProductStatus
 from src.modules.catalog.presentation.mappers import to_variant_response
 from src.modules.catalog.presentation.schemas import (
+    BulkPurchasePriceItemError,
+    BulkPurchasePriceRequest,
+    BulkPurchasePriceResponse,
     MissingAttributeItem,
     ProductAttributeResponse,
     ProductCompletenessResponse,
@@ -258,6 +266,52 @@ async def delete_product(
     """Soft-delete a product by marking it as deleted."""
     command = DeleteProductCommand(product_id=product_id)
     await handler.handle(command)
+
+
+@product_router.post(
+    path="/{product_id}/skus/bulk-purchase-price",
+    status_code=status.HTTP_200_OK,
+    response_model=BulkPurchasePriceResponse,
+    summary="Bulk-set purchase_price across many SKUs of one product",
+    description=(
+        "Apply ``purchasePrice`` updates to many SKUs in a single transaction. "
+        "Each item is validated independently (currency, ownership); per-SKU "
+        "failures are returned in the ``errors`` list without aborting the batch."
+    ),
+    dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
+)
+async def bulk_set_purchase_price(
+    product_id: uuid.UUID,
+    request: BulkPurchasePriceRequest,
+    handler: FromDishka[BulkSetPurchasePriceHandler],
+) -> BulkPurchasePriceResponse:
+    """Bulk update SKU purchase prices for one product."""
+    command = BulkSetPurchasePriceCommand(
+        product_id=product_id,
+        items=[
+            BulkSetPurchasePriceItem(
+                sku_id=item.sku_id,
+                purchase_price=Money(
+                    amount=item.purchase_price.amount,
+                    currency=item.purchase_price.currency,
+                ),
+            )
+            for item in request.items
+        ],
+    )
+    result = await handler.handle(command)
+    return BulkPurchasePriceResponse(
+        updated_count=result.updated_count,
+        unchanged_count=result.unchanged_count,
+        errors=[
+            BulkPurchasePriceItemError(
+                sku_id=err.sku_id,
+                error_code=err.error_code,
+                message=err.message,
+            )
+            for err in result.errors
+        ],
+    )
 
 
 @product_router.patch(

@@ -41,6 +41,9 @@ from src.modules.catalog.application.commands.bulk_create_brands import (
 from src.modules.catalog.application.commands.bulk_create_categories import (
     BulkCreateCategoriesHandler,
 )
+from src.modules.catalog.application.commands.bulk_set_purchase_price import (
+    BulkSetPurchasePriceHandler,
+)
 from src.modules.catalog.application.commands.change_product_status import (
     ChangeProductStatusHandler,
 )
@@ -550,6 +553,9 @@ class ProductProvider(Provider):
     )
     delete_sku_handler: CompositeDependencySource = provide(
         DeleteSKUHandler, scope=Scope.REQUEST
+    )
+    bulk_set_purchase_price_handler: CompositeDependencySource = provide(
+        BulkSetPurchasePriceHandler, scope=Scope.REQUEST
     )
     assign_product_attribute_handler: CompositeDependencySource = provide(
         AssignProductAttributeHandler, scope=Scope.REQUEST

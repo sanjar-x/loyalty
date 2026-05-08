@@ -886,7 +886,14 @@ class SKUUpdateRequest(CamelModel):
 
 
 class SKUResponse(CamelModel):
-    """Full SKU detail response."""
+    """Full SKU detail response.
+
+    ``sellingPrice`` / ``pricingStatus`` / ``pricedAt`` /
+    ``pricedFailureReason`` surface the autonomous recompute outcome
+    (ADR-005) so admin UI can show the pipeline result alongside the
+    manual ``price``. ``resolvedPrice`` is the storefront-effective
+    value (selling-priced when available, manual fallback otherwise).
+    """
 
     id: uuid.UUID
     product_id: uuid.UUID
@@ -896,6 +903,10 @@ class SKUResponse(CamelModel):
     resolved_price: MoneySchema | None = None
     compare_at_price: MoneySchema | None = None
     purchase_price: MoneySchema | None = None
+    selling_price: MoneySchema | None = None
+    pricing_status: str = "legacy"
+    priced_at: datetime | None = None
+    priced_failure_reason: str | None = None
     is_active: bool
     version: int
     created_at: datetime
@@ -1078,6 +1089,44 @@ class SKUMatrixGenerateResponse(CamelModel):
     skipped_count: int
     sku_ids: list[uuid.UUID]
     message: str
+
+
+# ---------------------------------------------------------------------------
+# Bulk purchase-price update (CAT-003)
+# ---------------------------------------------------------------------------
+
+
+class BulkPurchasePriceItemRequest(CamelModel):
+    """One SKU update in a bulk purchase-price request."""
+
+    sku_id: uuid.UUID
+    purchase_price: MoneySchema
+
+
+class BulkPurchasePriceRequest(CamelModel):
+    """Set ``purchasePrice`` on many SKUs of one product in one transaction.
+
+    Per-SKU failures are reported in the response without aborting the
+    batch — admin can fix the bad rows in a follow-up call.
+    """
+
+    items: list[BulkPurchasePriceItemRequest] = Field(..., min_length=1, max_length=500)
+
+
+class BulkPurchasePriceItemError(CamelModel):
+    """Per-SKU failure inside a bulk purchase-price response."""
+
+    sku_id: uuid.UUID
+    error_code: str
+    message: str
+
+
+class BulkPurchasePriceResponse(CamelModel):
+    """Outcome of a bulk purchase-price update."""
+
+    updated_count: int
+    unchanged_count: int
+    errors: list[BulkPurchasePriceItemError] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
