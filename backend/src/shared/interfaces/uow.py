@@ -15,6 +15,7 @@ Typical usage:
 
 from __future__ import annotations
 
+import uuid
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
@@ -72,5 +73,44 @@ class IUnitOfWork(ABC):
 
         Args:
             aggregate: The mutated aggregate root instance.
+        """
+        pass
+
+    @abstractmethod
+    def enqueue_external_event(
+        self,
+        *,
+        aggregate_type: str,
+        aggregate_id: str,
+        event_type: str,
+        payload: dict[str, Any],
+        event_id: uuid.UUID | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Stage a one-off external event for atomic Outbox insertion on commit.
+
+        Distinct from :meth:`register_aggregate`: external events do not
+        come from a domain aggregate of ours — typical sources are
+        third-party webhook payloads (DobroPost / payment-provider
+        callbacks) where the upstream system emits a fact and our
+        consumers should observe it through the same Outbox/relay
+        pipeline as native domain events. Using this method instead of
+        ``session.add(OutboxMessage(...))`` from a router preserves the
+        UoW's atomicity + IntegrityError translation contract.
+
+        Args:
+            aggregate_type: Logical aggregate label for routing
+                (e.g. ``"DobroPostShipment"``).
+            aggregate_id: Stable id for inbox dedup.
+            event_type: ``PascalCase`` matching the consumer's
+                registration in the outbox dispatch registry.
+            payload: JSON-serialisable dict; must include any field
+                consumers expect (the UoW does not augment it).
+            event_id: Optional pre-computed UUID. When provided, lets
+                the caller derive a deterministic id (e.g. UUID5 from
+                the canonical payload) so DobroPost retries collapse
+                into one Outbox row instead of N.
+            correlation_id: Request-correlation marker. Defaults to
+                whatever the request context carries.
         """
         pass

@@ -16,6 +16,9 @@ from src.modules.order.application.commands.create_order_from_cart import (
     CreateOrderFromCartHandler,
 )
 from src.modules.order.application.commands.hold_order import HoldOrderHandler
+from src.modules.order.application.commands.ingest_dobropost_webhook import (
+    IngestDobroPostWebhookHandler,
+)
 from src.modules.order.application.commands.mark_order_arrived_in_ru import (
     MarkOrderArrivedInRuHandler,
 )
@@ -227,6 +230,9 @@ class OrderProvider(Provider):
     )
     change_pickup_handler: CompositeDependencySource = provide(
         ChangePickupPointHandler, scope=Scope.REQUEST
+    )
+    ingest_dobropost_webhook_handler: CompositeDependencySource = provide(
+        IngestDobroPostWebhookHandler, scope=Scope.REQUEST
     )
 
     # --- Consumers ---

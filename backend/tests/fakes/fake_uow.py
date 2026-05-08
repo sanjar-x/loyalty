@@ -87,6 +87,7 @@ class FakeUnitOfWork(IUnitOfWork):
         self._committed: bool = False
         self._rolled_back: bool = False
         self._collected_events: list[DomainEvent] = []
+        self._external_events: list[dict] = []
 
         # Initialize all 10 catalog repository fakes
         self.brands: FakeBrandRepository = FakeBrandRepository()
@@ -168,6 +169,33 @@ class FakeUnitOfWork(IUnitOfWork):
         """
         if aggregate not in self._aggregates:
             self._aggregates.append(aggregate)
+
+    def enqueue_external_event(
+        self,
+        *,
+        aggregate_type: str,
+        aggregate_id: str,
+        event_type: str,
+        payload: dict,
+        event_id=None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Stage an external event — recorded on ``self._external_events``.
+
+        Mirrors the real UoW's behavior so tests of webhook handlers
+        and similar can assert what would have landed in the outbox
+        without a live DB.
+        """
+        self._external_events.append(
+            {
+                "aggregate_type": aggregate_type,
+                "aggregate_id": aggregate_id,
+                "event_type": event_type,
+                "payload": payload,
+                "event_id": event_id,
+                "correlation_id": correlation_id,
+            }
+        )
 
     @property
     def committed(self) -> bool:

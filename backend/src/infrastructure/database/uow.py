@@ -39,10 +39,12 @@ class UnitOfWork(IUnitOfWork):
         """
         self._session: AsyncSession = session
         self._aggregates: list[AggregateRoot] = []
+        self._external_events: list[OutboxMessage] = []
 
     async def __aenter__(self) -> UnitOfWork:
         """Enter the UoW context and reset tracked aggregates."""
         self._aggregates.clear()
+        self._external_events.clear()
         return self
 
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
@@ -50,6 +52,7 @@ class UnitOfWork(IUnitOfWork):
         if exc_type:
             await self.rollback()
         self._aggregates.clear()
+        self._external_events.clear()
 
     async def flush(self) -> None:
         """Flush pending changes to the database without committing."""
@@ -63,6 +66,42 @@ class UnitOfWork(IUnitOfWork):
         """
         if aggregate not in self._aggregates:
             self._aggregates.append(aggregate)
+
+    def enqueue_external_event(
+        self,
+        *,
+        aggregate_type: str,
+        aggregate_id: str,
+        event_type: str,
+        payload: dict[str, Any],
+        event_id: UUID | None = None,
+        correlation_id: str | None = None,
+    ) -> None:
+        """Stage an external (non-aggregate) event for Outbox insertion on commit.
+
+        See :meth:`IUnitOfWork.enqueue_external_event` for the full contract.
+        Implementation: builds the ``OutboxMessage`` row eagerly so a UoW
+        rollback discards it cleanly, then defers ``session.add_all`` until
+        :meth:`commit` so it lands in the same DB transaction as registered
+        aggregates' events.
+        """
+        from src.shared.context import get_request_id
+
+        if correlation_id is None:
+            request_correlation = get_request_id()
+            if request_correlation != "UNKNOWN":
+                correlation_id = request_correlation
+
+        self._external_events.append(
+            OutboxMessage(
+                id=event_id,
+                aggregate_type=aggregate_type,
+                aggregate_id=aggregate_id,
+                event_type=event_type,
+                payload=payload,
+                correlation_id=correlation_id,
+            )
+        )
 
     async def commit(self) -> None:
         """Commit the transaction, persisting outbox events atomically.
@@ -103,10 +142,13 @@ class UnitOfWork(IUnitOfWork):
 
         Iterates over all registered aggregates, serializes their pending
         domain events into ``OutboxMessage`` ORM instances, and adds them
-        to the session. Called immediately before ``session.commit()`` so
-        that business data and outbox records are committed atomically.
+        to the session along with any external events staged via
+        :meth:`enqueue_external_event`. Called immediately before
+        ``session.commit()`` so that business data, aggregate events, and
+        external events are committed atomically.
         """
-        outbox_messages: list[OutboxMessage] = []
+        outbox_messages: list[OutboxMessage] = list(self._external_events)
+        self._external_events.clear()
 
         for aggregate in self._aggregates:
             for event in aggregate.domain_events:

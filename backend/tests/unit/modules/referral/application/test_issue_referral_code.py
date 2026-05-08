@@ -108,6 +108,18 @@ class _FakeUow(IUnitOfWork):
     def register_aggregate(self, aggregate: AggregateRoot) -> None:
         self.aggregates.append(aggregate)
 
+    def enqueue_external_event(
+        self,
+        *,
+        aggregate_type: str,
+        aggregate_id: str,
+        event_type: str,
+        payload: dict,
+        event_id=None,
+        correlation_id: str | None = None,
+    ) -> None:
+        return None
+
 
 def _logger() -> StructlogAdapter:
     return StructlogAdapter(structlog.get_logger("test"))
