@@ -194,8 +194,7 @@ class TestAddSKU:
                 product_id=product.id,
                 variant_id=variant_id,
                 sku_code="SKU-002",
-                price_amount=1000,
-                price_currency="RUB",
+                price=Money(amount=1000, currency="RUB"),
             )
         )
 
@@ -357,7 +356,8 @@ class TestUpdateSKU:
             UpdateSKUCommand(
                 product_id=product.id,
                 sku_id=sku.id,
-                price_amount=2000,
+                price=Money(amount=2000, currency="RUB"),
+                _provided_fields=frozenset({"price"}),
             )
         )
 

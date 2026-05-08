@@ -37,6 +37,7 @@ from src.modules.catalog.domain.value_objects import (
     DEFAULT_CURRENCY,
     Money,
     ProductStatus,
+    PurchaseCurrency,
     validate_i18n_completeness,
 )
 from src.shared.interfaces.entities import AggregateRoot
@@ -486,6 +487,8 @@ class Product(AggregateRoot):
         sku_code: str,
         price: Money | None = None,
         compare_at_price: Money | None = None,
+        purchase_price: Money | None = None,
+        purchase_currency: PurchaseCurrency | None = None,
         is_active: bool = True,
         variant_attributes: list[tuple[uuid.UUID, uuid.UUID]] | None = None,
     ) -> SKU:
@@ -499,6 +502,10 @@ class Product(AggregateRoot):
             sku_code: Human-readable stock-keeping code.
             price: Optional base selling price (can be None; inherits from variant).
             compare_at_price: Optional strikethrough price (must be > price).
+            purchase_price: Wholesale cost (CAT-001). When provided, drives
+                the autonomous pricing recompute pipeline (ADR-005).
+                ``purchase_currency`` must be supplied alongside.
+            purchase_currency: Required iff ``purchase_price`` is provided.
             is_active: Whether the new SKU is immediately available.
             variant_attributes: List of (attribute_id, attribute_value_id) pairs
                 that uniquely identify this variant combination.
@@ -510,6 +517,8 @@ class Product(AggregateRoot):
             VariantNotFoundError: If no active variant with the given ID exists.
             DuplicateVariantCombinationError: If an active SKU with the same
                 variant attribute combination already exists.
+            ValueError: If only one of ``purchase_price`` / ``purchase_currency``
+                is provided, or their currencies disagree.
         """
         variant = self.find_variant(variant_id)
         if variant is None:
@@ -538,6 +547,15 @@ class Product(AggregateRoot):
             is_active=is_active,
             variant_attributes=list(effective_attrs),
         )
+        if purchase_price is not None or purchase_currency is not None:
+            if purchase_price is None or purchase_currency is None:
+                raise ValueError(
+                    "purchase_price and purchase_currency must be set together"
+                )
+            sku.set_purchase_price(
+                purchase_price=purchase_price,
+                purchase_currency=purchase_currency,
+            )
         variant._skus.append(sku)
         self.add_domain_event(
             SKUAddedEvent(
