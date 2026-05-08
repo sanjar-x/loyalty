@@ -512,13 +512,34 @@ class PreviewPriceResponse(CamelModel):
     context_id: uuid.UUID
 
 
+class _MoneySchema(CamelModel):
+    """Local mirror of ``catalog.MoneySchema`` — same wire shape.
+
+    Cross-module schema imports aren't whitelisted in
+    ``ALLOWED_CROSS_MODULE``; defining the schema locally keeps the
+    pricing presentation layer self-contained without breaking
+    the architecture fitness test. Wire shape and validators match
+    catalog's exactly so the admin frontend serialises the same
+    ``{ amount, currency }`` object to both APIs.
+    """
+
+    amount: int = Field(..., ge=0)
+    currency: str = Field(..., min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
+
+
 class PreviewSkuPricingRequest(CamelModel):
     """Body of ``POST /pricing/preview-sku`` — admin-driven SKU price preview.
 
     The admin UI calls this on every keystroke of the purchase-price input
     (debounced) so the operator sees the formula-computed selling price
     immediately, without persisting the SKU and waiting for the
-    autonomous recompute pipeline (CAT-013).
+    autonomous recompute pipeline (CAT-013 / CAT-015).
+
+    ``purchasePrice`` uses the project-wide nested ``MoneySchema`` shape
+    introduced in CAT-001 — request/response symmetry across the whole
+    admin API. Currency is constrained to ``RUB | CNY`` by the handler
+    (the registered SKU-input variables are ``purchase_price_rub`` and
+    ``purchase_price_cny`` only).
     """
 
     product_id: uuid.UUID = Field(
@@ -531,15 +552,9 @@ class PreviewSkuPricingRequest(CamelModel):
     context_id: uuid.UUID = Field(
         ..., description="Pricing context — selects the published formula."
     )
-    purchase_price_amount: int = Field(
+    purchase_price: _MoneySchema = Field(
         ...,
-        gt=0,
-        description="Hypothetical purchase price in smallest currency unit.",
-    )
-    purchase_currency: str = Field(
-        ...,
-        pattern=r"^(RUB|CNY)$",
-        description="Currency of ``purchaseFamilyAmount`` — RUB or CNY only.",
+        description="Hypothetical wholesale cost (``RUB`` or ``CNY``).",
     )
     supplier_id: uuid.UUID | None = Field(
         default=None,

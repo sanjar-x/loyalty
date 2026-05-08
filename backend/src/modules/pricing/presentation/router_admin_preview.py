@@ -101,8 +101,8 @@ async def preview_sku_pricing(
             product_id=body.product_id,
             category_id=body.category_id,
             context_id=body.context_id,
-            purchase_price_amount=body.purchase_price_amount,
-            purchase_currency=body.purchase_currency,
+            purchase_price_amount=body.purchase_price.amount,
+            purchase_currency=body.purchase_price.currency,
             supplier_id=body.supplier_id,
         )
     )
