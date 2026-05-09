@@ -6,6 +6,7 @@ Pruning: daily cleanup of processed records older than 7 days (03:00 UTC).
 
 import structlog
 from dishka.integrations.taskiq import FromDishka, inject
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.bootstrap.broker import broker
@@ -690,3 +691,127 @@ async def outbox_pruning_task(
     """
     deleted = await prune_processed_messages(session_factory=session_factory)
     return {"status": "success", "deleted": deleted}
+
+
+# ---------------------------------------------------------------------------
+# OBS-001 (D2.1) — Outbox lag metric
+# ---------------------------------------------------------------------------
+
+# Threshold (seconds) for "lag is bad". The relay's own cron fires every
+# minute and drains 100 events per tick — under normal load lag should
+# stay well under this.
+_OUTBOX_LAG_WARNING_THRESHOLD_S = 300
+
+_OUTBOX_LAG_SQL = text(
+    """
+    SELECT EXTRACT(EPOCH FROM (NOW() - MIN(created_at)))::bigint AS lag_seconds,
+           COUNT(*) AS pending_count
+    FROM outbox_messages
+    WHERE processed_at IS NULL
+    """
+)
+
+
+@broker.task(
+    queue="outbox_observability",
+    exchange="taskiq_rpc_exchange",
+    routing_key="infrastructure.outbox.lag",
+    max_retries=0,
+    retry_on_error=False,
+    timeout=30,
+    schedule=[{"cron": "* * * * *", "schedule_id": "outbox_lag_metric_every_min"}],
+)
+@inject
+async def outbox_lag_metric_task(
+    session_factory: FromDishka[async_sessionmaker[AsyncSession]],
+) -> dict:
+    """Emit an outbox-lag observation every minute.
+
+    Lag = ``NOW() - MIN(created_at)`` over unprocessed rows. Logged as
+    INFO normally, escalated to WARNING when the oldest pending event
+    is older than ``_OUTBOX_LAG_WARNING_THRESHOLD_S`` (5 minutes) so
+    log-aggregator alerts can fire without an extra metric backend.
+
+    Picks the OLDEST unprocessed event so a slow consumer surfaces
+    immediately rather than averaging out across the queue.
+    """
+    async with session_factory() as session:
+        row = (await session.execute(_OUTBOX_LAG_SQL)).one_or_none()
+    lag_seconds = int(row.lag_seconds) if row and row.lag_seconds is not None else 0
+    pending = int(row.pending_count) if row and row.pending_count is not None else 0
+    payload = {
+        "lag_seconds": lag_seconds,
+        "pending_count": pending,
+        "threshold_seconds": _OUTBOX_LAG_WARNING_THRESHOLD_S,
+    }
+    if lag_seconds > _OUTBOX_LAG_WARNING_THRESHOLD_S:
+        logger.warning("outbox_lag_high", **payload)
+    else:
+        logger.info("outbox_lag", **payload)
+    return {"status": "success", **payload}
+
+
+# ---------------------------------------------------------------------------
+# OBS-002 (D2.2) — DLQ growth alerting
+# ---------------------------------------------------------------------------
+
+# 10 failed tasks in 15 minutes = roughly one every 90s. That's the
+# point at which something systemic is wrong (vs. a single transient
+# failure). Tune via the constant below; threshold lives next to the
+# query so audit reviewers can see both at once.
+_DLQ_GROWTH_THRESHOLD = 10
+_DLQ_WINDOW_MINUTES = 15
+
+_DLQ_GROWTH_SQL = text(
+    """
+    SELECT task_name, COUNT(*) AS failures
+    FROM failed_tasks
+    WHERE failed_at > NOW() - (:window_minutes || ' minutes')::interval
+    GROUP BY task_name
+    ORDER BY failures DESC
+    """
+)
+
+
+@broker.task(
+    queue="outbox_observability",
+    exchange="taskiq_rpc_exchange",
+    routing_key="infrastructure.failed_tasks.alert",
+    max_retries=0,
+    retry_on_error=False,
+    timeout=30,
+    schedule=[
+        {"cron": "*/15 * * * *", "schedule_id": "failed_tasks_alert_every_15min"},
+    ],
+)
+@inject
+async def failed_tasks_alert_task(
+    session_factory: FromDishka[async_sessionmaker[AsyncSession]],
+) -> dict:
+    """Emit a DLQ-growth alert when failed_tasks pile up.
+
+    Aggregates failures by ``task_name`` over a rolling 15-minute
+    window. When the total exceeds ``_DLQ_GROWTH_THRESHOLD`` (10), a
+    single ``logger.error("dlq_growth_alert", …)`` line is emitted
+    with the per-task breakdown so the on-call can immediately see
+    *which* task is blowing up. Below threshold → INFO line for
+    routine observability.
+    """
+    async with session_factory() as session:
+        result = await session.execute(
+            _DLQ_GROWTH_SQL, {"window_minutes": str(_DLQ_WINDOW_MINUTES)}
+        )
+        rows = result.all()
+    breakdown = {row.task_name: int(row.failures) for row in rows}
+    total = sum(breakdown.values())
+    payload = {
+        "window_minutes": _DLQ_WINDOW_MINUTES,
+        "threshold": _DLQ_GROWTH_THRESHOLD,
+        "total_failures": total,
+        "by_task": breakdown,
+    }
+    if total > _DLQ_GROWTH_THRESHOLD:
+        logger.error("dlq_growth_alert", **payload)
+    else:
+        logger.info("dlq_growth_ok", **payload)
+    return {"status": "success", **payload}
