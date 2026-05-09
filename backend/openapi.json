@@ -14452,6 +14452,205 @@
       }
     },
     "/api/v1/admin/logistics/shipments": {
+      "get": {
+        "tags": [
+          "Admin / Logistics / Shipments"
+        ],
+        "summary": "List shipments with filters and cursor pagination",
+        "description": "List shipments for the admin dashboard.\n\nCursor pagination is forward-only: the response carries\n``next_cursor`` (the last row's ``created_at``) when more rows are\navailable; pass it back as ``cursor`` to fetch the next page.\n\nFilters compose with AND semantics. ``provider`` and ``status``\nare validated against closed enums — invalid values surface as\nHTTP 422 from FastAPI's Query validation rather than silently\nfalling through.",
+        "operationId": "list_admin_shipments_api_v1_admin_logistics_shipments_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "cdek",
+                    "yandex_delivery",
+                    "dobropost",
+                    "russian_post",
+                    "boxberry",
+                    "pochta"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Restrict to a single provider code.",
+              "title": "Provider"
+            },
+            "description": "Restrict to a single provider code."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "draft",
+                    "booking_pending",
+                    "booked",
+                    "cancel_pending",
+                    "cancelled",
+                    "failed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Restrict to a single FSM state.",
+              "title": "Status"
+            },
+            "description": "Restrict to a single FSM state."
+          },
+          {
+            "name": "order_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Restrict to shipments linked to a specific order.",
+              "title": "Order Id"
+            },
+            "description": "Restrict to shipments linked to a specific order."
+          },
+          {
+            "name": "created_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive lower bound on ``created_at``.",
+              "title": "Created After"
+            },
+            "description": "Inclusive lower bound on ``created_at``."
+          },
+          {
+            "name": "created_before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclusive upper bound on ``created_at``.",
+              "title": "Created Before"
+            },
+            "description": "Exclusive upper bound on ``created_at``."
+          },
+          {
+            "name": "tracking_number_contains",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Case-insensitive substring match on tracking_number.",
+              "title": "Tracking Number Contains"
+            },
+            "description": "Case-insensitive substring match on tracking_number."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Page size.",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Page size."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "``next_cursor`` from the previous response.",
+              "title": "Cursor"
+            },
+            "description": "``next_cursor`` from the previous response."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminShipmentListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "Admin / Logistics / Shipments"
@@ -14459,15 +14658,20 @@
         "summary": "Create a shipment (DRAFT)",
         "description": "Create a DRAFT shipment from a server-side quote.\n\nThe frontend supplies only the trusted ``quote_id`` plus the\nrecipient contact — origin, destination, weight and provider all\ncome from the persisted ``DeliveryQuote`` so the booking call can't\nbe tampered with.",
         "operationId": "create_shipment_api_v1_admin_logistics_shipments_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateShipmentRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -14490,12 +14694,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/admin/logistics/shipments/{shipment_id}/book": {
@@ -17690,6 +17889,162 @@
           "items"
         ],
         "title": "AdminOrderSchema"
+      },
+      "AdminShipmentListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminShipmentSummarySchema"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "``created_at`` of the last row when more rows are available; pass back as the ``cursor`` query param on the next request. ``None`` means no further pages."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "AdminShipmentListResponse",
+        "description": "Cursor-paginated page of admin shipment summaries."
+      },
+      "AdminShipmentSummarySchema": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "provider_code": {
+            "type": "string",
+            "title": "Provider Code",
+            "description": "Open provider identifier. Wider than ``ProviderCodeLiteral`` so legacy rows (e.g. dobropost) and rolled-back integrations still serialise."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "booking_pending",
+              "booked",
+              "cancel_pending",
+              "cancelled",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "tracking_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tracking Number"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
+          },
+          "delivery_type": {
+            "type": "string",
+            "enum": [
+              "courier",
+              "pickup_point",
+              "post_office"
+            ],
+            "title": "Delivery Type"
+          },
+          "destination_city": {
+            "type": "string",
+            "title": "Destination City",
+            "description": "City of the recipient (extracted from destination payload)."
+          },
+          "quoted_cost": {
+            "$ref": "#/components/schemas/src__modules__logistics__presentation__schemas__MoneySchema"
+          },
+          "latest_tracking_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "created",
+                  "accepted",
+                  "in_transit",
+                  "out_for_delivery",
+                  "ready_for_pickup",
+                  "delivered",
+                  "returned",
+                  "lost",
+                  "exception",
+                  "attempt_failed",
+                  "customs",
+                  "cancelled"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Tracking Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "booked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "provider_code",
+          "status",
+          "delivery_type",
+          "destination_city",
+          "quoted_cost",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AdminShipmentSummarySchema",
+        "description": "List-view row for ``GET /admin/logistics/shipments``.\n\nCompact projection — full payload (origin/destination/parcels) is\nfetched on demand via ``GET /admin/logistics/shipments/{id}``."
       },
       "AnonymousTokenResponse": {
         "properties": {

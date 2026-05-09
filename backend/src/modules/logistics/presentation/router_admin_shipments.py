@@ -7,10 +7,11 @@ delivery intervals, edits, returns. All endpoints require
 """
 
 import uuid
+from datetime import datetime
 from typing import cast
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from src.modules.identity.presentation.dependencies import RequirePermission
 from src.modules.logistics.application.commands.book_shipment import (
@@ -97,6 +98,10 @@ from src.modules.logistics.application.queries.get_tracking import (
     GetTrackingHandler,
     GetTrackingQuery,
 )
+from src.modules.logistics.application.queries.list_admin_shipments import (
+    ListAdminShipmentsHandler,
+    ListAdminShipmentsQuery,
+)
 from src.modules.logistics.application.queries.list_pickup_points import (
     ListPickupPointsHandler,
     ListPickupPointsQuery,
@@ -121,12 +126,16 @@ from src.modules.logistics.domain.value_objects import (
     Money,
     Parcel,
     PickupPointQuery,
+    ShipmentStatus,
     Weight,
 )
 from src.modules.logistics.presentation.schemas import (
     ActualDeliveryInfoResponse,
     ActualDeliveryInfoSchema,
     AddressSchema,
+    AdminShipmentListResponse,
+    AdminShipmentProviderFilterLiteral,
+    AdminShipmentSummarySchema,
     AvailableIntakeDaysRequest,
     AvailableIntakeDaysResponse,
     BookShipmentResponse,
@@ -170,6 +179,7 @@ from src.modules.logistics.presentation.schemas import (
     ReverseAvailabilityRequestSchema,
     ReverseAvailabilityResponse,
     ShipmentResponse,
+    ShipmentStatusLiteral,
     ShippingRateSchema,
     TrackingEventSchema,
     TrackingResponse,
@@ -377,6 +387,97 @@ async def quote_for_pickup_point(
         quoted_at=result.quoted_at,
         expires_at=result.expires_at,
         fallback_alternatives=list(result.fallback_alternatives),
+    )
+
+
+@logistics_router.get(
+    path="/shipments",
+    status_code=status.HTTP_200_OK,
+    response_model=AdminShipmentListResponse,
+    summary="List shipments with filters and cursor pagination",
+    dependencies=[_LOGISTICS_READ],
+)
+async def list_admin_shipments(
+    handler: FromDishka[ListAdminShipmentsHandler],
+    provider: AdminShipmentProviderFilterLiteral | None = Query(
+        default=None,
+        description="Restrict to a single provider code.",
+    ),
+    shipment_status: ShipmentStatusLiteral | None = Query(
+        default=None,
+        alias="status",
+        description="Restrict to a single FSM state.",
+    ),
+    order_id: uuid.UUID | None = Query(
+        default=None,
+        description="Restrict to shipments linked to a specific order.",
+    ),
+    created_after: datetime | None = Query(
+        default=None,
+        description="Inclusive lower bound on ``created_at``.",
+    ),
+    created_before: datetime | None = Query(
+        default=None,
+        description="Exclusive upper bound on ``created_at``.",
+    ),
+    tracking_number_contains: str | None = Query(
+        default=None,
+        min_length=1,
+        max_length=64,
+        description="Case-insensitive substring match on tracking_number.",
+    ),
+    limit: int = Query(default=50, ge=1, le=200, description="Page size."),
+    cursor: datetime | None = Query(
+        default=None,
+        description="``next_cursor`` from the previous response.",
+    ),
+) -> AdminShipmentListResponse:
+    """List shipments for the admin dashboard.
+
+    Cursor pagination is forward-only: the response carries
+    ``next_cursor`` (the last row's ``created_at``) when more rows are
+    available; pass it back as ``cursor`` to fetch the next page.
+
+    Filters compose with AND semantics. ``provider`` and ``status``
+    are validated against closed enums — invalid values surface as
+    HTTP 422 from FastAPI's Query validation rather than silently
+    falling through.
+    """
+    query = ListAdminShipmentsQuery(
+        provider=provider,
+        status=ShipmentStatus(shipment_status) if shipment_status else None,
+        order_id=order_id,
+        created_after=created_after,
+        created_before=created_before,
+        tracking_number_contains=tracking_number_contains,
+        limit=limit,
+        cursor=cursor,
+    )
+    page = await handler.handle(query)
+    return AdminShipmentListResponse(
+        items=[
+            AdminShipmentSummarySchema(
+                id=row.id,
+                provider_code=row.provider_code,
+                status=cast(ShipmentStatusLiteral, row.status),
+                tracking_number=row.tracking_number,
+                order_id=row.order_id,
+                delivery_type=cast(DeliveryTypeLiteral, row.delivery_type),
+                destination_city=row.destination_city,
+                quoted_cost=MoneySchema(
+                    amount=row.quoted_cost_amount,
+                    currency_code=row.quoted_cost_currency,
+                ),
+                latest_tracking_status=cast(
+                    "TrackingStatusLiteral | None", row.latest_tracking_status
+                ),
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+                booked_at=row.booked_at,
+            )
+            for row in page.items
+        ],
+        next_cursor=page.next_cursor,
     )
 
 

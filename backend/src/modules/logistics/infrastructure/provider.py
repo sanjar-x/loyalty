@@ -89,6 +89,9 @@ from src.modules.logistics.application.queries.get_shipment import (
 from src.modules.logistics.application.queries.get_tracking import (
     GetTrackingHandler,
 )
+from src.modules.logistics.application.queries.list_admin_shipments import (
+    ListAdminShipmentsHandler,
+)
 from src.modules.logistics.application.queries.list_pickup_points import (
     ListPickupPointsHandler,
 )
@@ -268,6 +271,9 @@ class LogisticsQueryProvider(Provider):
     )
     get_shipment: CompositeDependencySource = provide(
         GetShipmentHandler, scope=Scope.REQUEST
+    )
+    list_admin_shipments: CompositeDependencySource = provide(
+        ListAdminShipmentsHandler, scope=Scope.REQUEST
     )
     get_available_intake_days: CompositeDependencySource = provide(
         GetAvailableIntakeDaysHandler, scope=Scope.REQUEST
