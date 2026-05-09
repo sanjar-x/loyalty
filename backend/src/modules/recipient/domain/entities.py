@@ -122,10 +122,18 @@ class Recipient(AggregateRoot):
         if customs_data is not None and customs_data != self.customs_data:
             self.customs_data = customs_data
             customs_changed = True
-        # Any update invalidates previous validation status — we don't know
-        # if the new values still match.
-        object.__setattr__(self, "validation_status", RecipientValidationStatus.PENDING)
-        self.validation_failed_reason = None
+        # REC-002 (D1.3) — only customs_data changes invalidate the
+        # DobroPost validation result. Phone / email / full_name edits
+        # are recipient-side metadata; DobroPost validates passport +
+        # INN + birth_date only, so non-customs changes don't require
+        # a re-verification round-trip. Pre-fix: every edit reset to
+        # PENDING, forcing customers to wait for a fresh DaData ping
+        # even after a typo fix.
+        if customs_changed:
+            object.__setattr__(
+                self, "validation_status", RecipientValidationStatus.PENDING
+            )
+            self.validation_failed_reason = None
         self.updated_at = datetime.now(UTC)
         self.add_domain_event(
             RecipientUpdatedEvent(
