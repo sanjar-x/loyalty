@@ -169,6 +169,12 @@ class HoldReason(enum.StrEnum):
     CUSTOMS_REJECTED = "customs_rejected"
     STUCK_IN_CN = "stuck_in_cn"
     MANUAL_REVIEW = "manual_review"
+    BOOKING_FAILED = "booking_failed"
+    """ORD-006 (D1.2) — async DobroPost booking exhausted retries.
+    Order goes ON_HOLD with this reason instead of staying stuck in
+    PROCURED with no shipment. Manager triages from the admin
+    dashboard; resume via :class:`ResumeOrderHandler` after the
+    DobroPost outage clears."""
 
 
 # ---------------------------------------------------------------------------

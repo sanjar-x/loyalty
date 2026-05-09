@@ -120,6 +120,25 @@ class FakeCartRepository(ICartRepository):
         self._store[cart.id] = cart
         return cart
 
+    async def find_expired_frozen(
+        self, *, now: datetime, limit: int = 100
+    ) -> list[uuid.UUID]:
+        # Test fixture default — return ids of any FROZEN cart whose
+        # ``frozen_until`` is past ``now``. Real semantics, no surprise.
+        from src.modules.cart.domain.value_objects import CartStatus
+
+        result: list[uuid.UUID] = []
+        for cart in self._store.values():
+            if (
+                cart.status == CartStatus.FROZEN
+                and cart.frozen_until is not None
+                and cart.frozen_until <= now
+            ):
+                result.append(cart.id)
+                if len(result) >= limit:
+                    break
+        return result
+
     async def save_checkout_snapshot(self, snapshot: CheckoutSnapshot) -> None:
         self._snapshots[snapshot.id] = snapshot
 

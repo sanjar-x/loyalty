@@ -24068,7 +24068,8 @@
           "passport_invalid",
           "customs_rejected",
           "stuck_in_cn",
-          "manual_review"
+          "manual_review",
+          "booking_failed"
         ],
         "title": "HoldReason"
       },

@@ -50,6 +50,9 @@ from src.modules.order.application.consumers.logistics_events import (
     DobroPostStatusUpdatedConsumer,
     RussianCarrierTrackingConsumer,
 )
+from src.modules.order.application.consumers.order_procured import (
+    OrderProcuredConsumer,
+)
 from src.modules.order.application.consumers.payment_events import (
     PaymentCapturedConsumer,
     PaymentFailedConsumer,
@@ -250,6 +253,9 @@ class OrderProvider(Provider):
     )
     russian_carrier_consumer: CompositeDependencySource = provide(
         RussianCarrierTrackingConsumer, scope=Scope.REQUEST
+    )
+    order_procured_consumer: CompositeDependencySource = provide(
+        OrderProcuredConsumer, scope=Scope.REQUEST
     )
 
     # --- Query handlers ---

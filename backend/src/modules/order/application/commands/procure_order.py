@@ -1,10 +1,19 @@
 """Manager command: PAID → PROCURED after entering Chinese tracking number.
 
-Side effects:
+ORD-006 (D1.2) — DobroPost booking is now async via the outbox.
+Pre-fix the handler called ``dobropost.book_cross_border`` synchronously,
+which left a split-state risk: capture succeeded, DobroPost down →
+order stuck in PAID with no shipment + manual refund.
+
+Post-fix synchronous side effects (all atomic in one UoW):
+
 1. Capture the (until now AUTHORIZED-only) PaymentIntent.
-2. Book a DobroPost cross-border shipment with the supplied
-   ``incoming_declaration``.
-3. Move Order FSM to PROCURED.
+2. Move Order FSM to PROCURED + emit ``OrderProcuredEvent``.
+
+The ``OrderProcuredConsumer`` (subscribed via the outbox) then books
+the DobroPost shipment with TaskIQ retry + circuit breaker. On
+exhausted retries → ``HoldOrder(reason=BOOKING_FAILED)`` so the
+manager can triage from the admin dashboard.
 
 Idempotent on ``incoming_declaration`` (UNIQUE constraint at DB level).
 """
@@ -14,7 +23,6 @@ from dataclasses import dataclass
 
 from src.modules.order.application._history import record_history
 from src.modules.order.application.ports import (
-    IDobroPostGateway,
     IPaymentGateway,
 )
 from src.modules.order.domain.exceptions import (
@@ -47,14 +55,12 @@ class ProcureOrderHandler:
         self,
         order_repo: IOrderRepository,
         payment_gateway: IPaymentGateway,
-        dobropost_gateway: IDobroPostGateway,
         history_writer: IOrderStateHistoryWriter,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
         self._order_repo = order_repo
         self._payment_gateway = payment_gateway
-        self._dobropost = dobropost_gateway
         self._history = history_writer
         self._uow = uow
         self._logger = logger.bind(handler="ProcureOrderHandler")
@@ -94,18 +100,12 @@ class ProcureOrderHandler:
                 idempotency_key=f"order:{order.id}:capture",
             )
 
-            # 2) Book DobroPost cross-border shipment.
-            cross_border_shipment_id = await self._dobropost.book_cross_border(
-                order_id=order.id,
-                identity_id=order.identity_id,
-                incoming_declaration=declaration.value,
-                idempotency_key=f"order:{order.id}:dobropost",
-            )
-
-            # 3) Move FSM and persist all the new fields atomically.
+            # 2) Move FSM. ``OrderProcuredEvent`` lands in the outbox
+            # via ``register_aggregate(order)`` + ``commit()``; the
+            # ``OrderProcuredConsumer`` then books DobroPost + attaches
+            # ``cross_border_shipment_id`` asynchronously.
             pre = order.status
             order.procure(incoming_declaration=declaration, admin_id=command.admin_id)
-            order.attach_cross_border_shipment(cross_border_shipment_id)
             await self._order_repo.update(order)
             await record_history(
                 order=order,
@@ -123,5 +123,4 @@ class ProcureOrderHandler:
                 order_id=str(order.id),
                 admin_id=str(command.admin_id),
                 incoming_declaration=declaration.value,
-                cross_border_shipment_id=str(cross_border_shipment_id),
             )

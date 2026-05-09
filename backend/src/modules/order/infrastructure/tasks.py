@@ -30,6 +30,9 @@ from src.modules.order.application.consumers.logistics_events import (
     DobroPostStatusUpdatedConsumer,
     RussianCarrierTrackingConsumer,
 )
+from src.modules.order.application.consumers.order_procured import (
+    OrderProcuredConsumer,
+)
 from src.modules.order.application.consumers.payment_events import (
     PaymentCapturedConsumer,
     PaymentFailedConsumer,
@@ -178,6 +181,37 @@ async def order_on_russian_carrier_task(
     )
 
 
+# ORD-006 (D1.2) — async DobroPost booking after Order is procured.
+# ``max_retries=0`` because the underlying ``IDobroPostGateway`` adapter
+# already owns its own retry budget + circuit breaker. The consumer
+# itself catches gateway exceptions and pivots the Order into
+# ``ON_HOLD(BOOKING_FAILED)`` — no point asking TaskIQ to retry on
+# top because the consumer has already done its terminal-state work.
+@broker.task(
+    queue="order_consumers",
+    exchange="taskiq_rpc_exchange",
+    routing_key="order.procured",
+    max_retries=0,
+    retry_on_error=False,
+    timeout=60,
+)
+@inject
+async def order_on_procured_task(
+    payload: dict,
+    *,
+    consumer: FromDishka[OrderProcuredConsumer],
+    inbox: FromDishka[IInboxStore],
+    session: FromDishka[AsyncSession],
+) -> dict:
+    return await run_inbox_idempotent(
+        payload=payload,
+        consumer_name="order.OrderProcured",
+        inbox=inbox,
+        session=session,
+        body=lambda: consumer.handle(payload),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Cron jobs (TaskIQ Beat)
 # ---------------------------------------------------------------------------
@@ -294,8 +328,18 @@ async def _on_russian_carrier(payload: dict, correlation_id: str | None = None) 
     )
 
 
+async def _on_order_procured(payload: dict, correlation_id: str | None = None) -> None:
+    """ORD-006 (D1.2) — bridge ``OrderProcuredEvent`` → DobroPost booking."""
+    await (
+        order_on_procured_task.kicker()
+        .with_labels(**_labels(correlation_id))
+        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+    )
+
+
 register_event_handler("PaymentCapturedEvent", _on_payment_captured)
 register_event_handler("PaymentFailedEvent", _on_payment_failed)
 register_event_handler("DobroPostStatusUpdatedEvent", _on_dobropost_status)
 register_event_handler("DobroPostPassportInvalidEvent", _on_dobropost_passport)
 register_event_handler("RussianCarrierTrackingEvent", _on_russian_carrier)
+register_event_handler("OrderProcuredEvent", _on_order_procured)
