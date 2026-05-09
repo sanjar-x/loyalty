@@ -7,9 +7,9 @@ throughout the codebase.
 
 import uuid
 from functools import lru_cache
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import BeforeValidator, computed_field
+from pydantic import BeforeValidator, Field, computed_field, model_validator
 from pydantic.types import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
@@ -50,28 +50,31 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["dev", "test", "prod"] = "dev"
     DEBUG: bool = False
 
+    # CFG-001 — ``API_V2_STR`` removed (0 readers; ``API_V1_STR`` is the
+    # only mounted prefix today, see ``bootstrap/web.py``). Add back when
+    # /api/v2 lands; keeping unused config keys hides intent.
     API_V1_STR: str = "/api/v1"
-    API_V2_STR: str = "/api/v2"
     ALGORITHM: str = "HS256"
 
     SECRET_KEY: SecretStr
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15, gt=0)
 
     # IAM RBAC settings
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
-    SESSION_PERMISSIONS_CACHE_TTL: int = 300
-    MAX_ACTIVE_SESSIONS_PER_IDENTITY: int = 5
-    SESSION_IDLE_TIMEOUT_MINUTES: int = 30
-    SESSION_ABSOLUTE_LIFETIME_HOURS: int = 24
-    TELEGRAM_SESSION_IDLE_TIMEOUT_MINUTES: int = 1440
-    TELEGRAM_SESSION_ABSOLUTE_LIFETIME_HOURS: int = 168
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=30, gt=0)
+    SESSION_PERMISSIONS_CACHE_TTL: int = Field(default=300, ge=0)
+    MAX_ACTIVE_SESSIONS_PER_IDENTITY: int = Field(default=5, ge=1)
+    SESSION_IDLE_TIMEOUT_MINUTES: int = Field(default=30, gt=0)
+    # CFG-001 — ``SESSION_ABSOLUTE_LIFETIME_HOURS`` and
+    # ``TELEGRAM_SESSION_ABSOLUTE_LIFETIME_HOURS`` removed (0 readers).
+    # Restore when an absolute-cap policy lands in identity.
+    TELEGRAM_SESSION_IDLE_TIMEOUT_MINUTES: int = Field(default=1440, gt=0)
 
     CORS_ORIGINS: Annotated[list[str] | str, BeforeValidator(parse_cors)] = []
 
     SYSTEM_USER_ID: uuid.UUID = uuid.UUID(int=0)
 
     PGHOST: str
-    PGPORT: int
+    PGPORT: int = Field(ge=1, le=65535)
     PGUSER: str
     PGPASSWORD: SecretStr
     PGDATABASE: str
@@ -84,10 +87,10 @@ class Settings(BaseSettings):
     # Bump these when fronting Postgres with PgBouncer (transaction
     # mode), where the engine pool becomes a soft semaphore against the
     # bouncer rather than a hard PG limit.
-    DB_POOL_SIZE: int = 8
-    DB_POOL_MAX_OVERFLOW: int = 4
-    DB_POOL_TIMEOUT_SECONDS: float = 30.0
-    DB_POOL_RECYCLE_SECONDS: int = 3600
+    DB_POOL_SIZE: int = Field(default=8, gt=0)
+    DB_POOL_MAX_OVERFLOW: int = Field(default=4, ge=0)
+    DB_POOL_TIMEOUT_SECONDS: float = Field(default=30.0, gt=0)
+    DB_POOL_RECYCLE_SECONDS: int = Field(default=3600, gt=0)
 
     @computed_field
     @property
@@ -103,26 +106,28 @@ class Settings(BaseSettings):
         )
 
     REDISHOST: str
-    REDISPORT: int
+    REDISPORT: int = Field(ge=1, le=65535)
     REDISUSER: str = "default"
     REDISPASSWORD: SecretStr | None = None
-    REDISDATABASE: int = 0
+    REDISDATABASE: int = Field(default=0, ge=0)
 
-    INTERNAL_WEBHOOK_SECRET: SecretStr = SecretStr("")
+    # CFG-001 — ``INTERNAL_WEBHOOK_SECRET`` removed (0 readers).
+    # Restore via ``Field(min_length=32)`` when the s2s webhook signing
+    # path is wired up.
 
     RABBITMQ_PRIVATE_URL: str
 
     # -- Telegram Bot --------------------------------------------------------
     BOT_TOKEN: SecretStr
-    BOT_ADMIN_IDS: list[int] = []
-    BOT_WEBHOOK_URL: str = ""
-    BOT_WEBHOOK_SECRET: str = ""
-    THROTTLE_RATE: float = 0.5
-    FSM_STATE_TTL: int | None = None
-    FSM_DATA_TTL: int | None = None
+    # CFG-001 — ``BOT_ADMIN_IDS`` / ``BOT_WEBHOOK_URL`` /
+    # ``BOT_WEBHOOK_SECRET`` removed (0 readers). Bot uses long-polling
+    # in current deploy; restore when webhook mode lands.
+    THROTTLE_RATE: float = Field(default=0.5, gt=0)
+    FSM_STATE_TTL: int | None = Field(default=None, ge=0)
+    FSM_DATA_TTL: int | None = Field(default=None, ge=0)
 
-    TELEGRAM_INIT_DATA_MAX_AGE: int = 300
-    TELEGRAM_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    TELEGRAM_INIT_DATA_MAX_AGE: int = Field(default=300, gt=0)
+    TELEGRAM_REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7, gt=0)
 
     # -- S3 / MinIO (image module — formerly image_backend microservice) -----
     # Empty defaults so local dev / tests boot without S3 credentials. The
@@ -136,9 +141,9 @@ class Settings(BaseSettings):
     S3_BUCKET_NAME: str = ""
     S3_PUBLIC_BASE_URL: str = ""
     # Media processing knobs (image module)
-    MEDIA_MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50 MB
-    MEDIA_PRESIGNED_URL_TTL: int = 300
-    MEDIA_SSE_TIMEOUT: int = 120
+    MEDIA_MAX_FILE_SIZE: int = Field(default=50 * 1024 * 1024, gt=0)
+    MEDIA_PRESIGNED_URL_TTL: int = Field(default=300, gt=0)
+    # CFG-001 — ``MEDIA_SSE_TIMEOUT`` removed (0 readers).
 
     # -- Background removal (IMG-007) ---------------------------------------
     # Toggleable feature: the admin endpoint returns 503 with a clear
@@ -160,7 +165,7 @@ class Settings(BaseSettings):
     # the regular gallery main (q=90) is fine — the cutout is the
     # foreground only and visual artefacts in fully-transparent
     # regions are invisible.
-    BG_REMOVAL_WEBP_QUALITY: int = 92
+    BG_REMOVAL_WEBP_QUALITY: int = Field(default=92, ge=0, le=100)
 
     # -- CDEK (logistics provider) -------------------------------------------
     # Credentials are seeded into ``provider_accounts`` by ``seed/logistics``;
@@ -188,26 +193,28 @@ class Settings(BaseSettings):
     # ``IPaymentProvider`` port without touching application code.
     PAYMENT_PROVIDER: Literal["fake", "yookassa", "sbp", "tinkoff"] = "fake"
     PAYMENT_SIMULATION_ENABLED: bool = True
-    PAYMENT_AUTH_TTL_DAYS: int = 7  # Visa-стандарт hold
+    PAYMENT_AUTH_TTL_DAYS: int = Field(default=7, gt=0)  # Visa-стандарт hold
 
     # -- DobroPost (cross-border) ------------------------------------------
     DOBROPOST_BASE_URL: str = "https://api.dobropost.com"
     DOBROPOST_EMAIL: SecretStr = SecretStr("")
     DOBROPOST_PASSWORD: SecretStr = SecretStr("")
-    DOBROPOST_DEFAULT_TARIFF_ID: int = 1
-    DOBROPOST_TIMEOUT_SECONDS: float = 30.0
-    DOBROPOST_TOKEN_REFRESH_BEFORE_SECONDS: int = 3600  # refresh 1h before exp
+    DOBROPOST_DEFAULT_TARIFF_ID: int = Field(default=1, gt=0)
+    DOBROPOST_TIMEOUT_SECONDS: float = Field(default=30.0, gt=0)
+    DOBROPOST_TOKEN_REFRESH_BEFORE_SECONDS: int = Field(default=3600, gt=0)
     # Webhook authentication: random secret embedded in URL path
     # ``/api/v1/orders/webhooks/dobropost/{token}``.
     DOBROPOST_WEBHOOK_TOKEN: SecretStr = SecretStr("")
     DOBROPOST_ALLOWED_IPS: list[str] = []
     DOBROPOST_USE_STUB: bool = True  # Flip to false in prod once creds wired
-    # HTTP resiliency
-    DOBROPOST_RETRY_MAX_ATTEMPTS: int = 4  # incl. first try
-    DOBROPOST_RETRY_BACKOFF_BASE_SECONDS: float = 0.5
-    DOBROPOST_RETRY_BACKOFF_MAX_SECONDS: float = 8.0
-    DOBROPOST_CIRCUIT_FAILURE_THRESHOLD: int = 5
-    DOBROPOST_CIRCUIT_RESET_TIMEOUT_SECONDS: float = 30.0
+    # HTTP resiliency. ``RETRY_MAX_ATTEMPTS`` includes the first try, so
+    # ``ge=1`` means "at least try once". ``BACKOFF_BASE <= MAX`` is
+    # checked in :meth:`_validate_dobropost_invariants`.
+    DOBROPOST_RETRY_MAX_ATTEMPTS: int = Field(default=4, ge=1)
+    DOBROPOST_RETRY_BACKOFF_BASE_SECONDS: float = Field(default=0.5, gt=0)
+    DOBROPOST_RETRY_BACKOFF_MAX_SECONDS: float = Field(default=8.0, gt=0)
+    DOBROPOST_CIRCUIT_FAILURE_THRESHOLD: int = Field(default=5, ge=1)
+    DOBROPOST_CIRCUIT_RESET_TIMEOUT_SECONDS: float = Field(default=30.0, gt=0)
 
     @computed_field
     @property
@@ -218,6 +225,52 @@ class Settings(BaseSettings):
             credentials = f"{self.REDISUSER}:{self.REDISPASSWORD.get_secret_value()}@"
 
         return f"redis://{credentials}{self.REDISHOST}:{self.REDISPORT}/{self.REDISDATABASE}"
+
+    # ------------------------------------------------------------------ #
+    # Cross-field invariants (CFG-001)
+    # ------------------------------------------------------------------ #
+
+    @model_validator(mode="after")
+    def _validate_dobropost_invariants(self) -> Self:
+        """Fail startup if DobroPost real-mode is on without credentials.
+
+        Pre-CFG-001 the missing credential surfaced as a 401 from
+        ``/api/shipment/sign-in`` on the first webhook (or order
+        booking) hitting prod. Now we fail boot, which is observable
+        on the deploy-readiness probe and rolls back the bad release
+        before it serves any traffic.
+
+        Also enforces ``BACKOFF_BASE <= BACKOFF_MAX`` — without it the
+        retry loop would compute a max-clamp below the base, which
+        :func:`min` silently swallows but defeats the whole point of
+        capping backoff growth.
+        """
+        if not self.DOBROPOST_USE_STUB:
+            missing: list[str] = []
+            if not self.DOBROPOST_EMAIL.get_secret_value():
+                missing.append("DOBROPOST_EMAIL")
+            if not self.DOBROPOST_PASSWORD.get_secret_value():
+                missing.append("DOBROPOST_PASSWORD")
+            if not self.DOBROPOST_WEBHOOK_TOKEN.get_secret_value():
+                missing.append("DOBROPOST_WEBHOOK_TOKEN")
+            if missing:
+                raise ValueError(
+                    "DOBROPOST_USE_STUB=false requires non-empty credentials: "
+                    f"{', '.join(missing)}. Either flip USE_STUB=true or "
+                    "fill the missing env vars."
+                )
+
+        if self.DOBROPOST_RETRY_BACKOFF_BASE_SECONDS > (
+            self.DOBROPOST_RETRY_BACKOFF_MAX_SECONDS
+        ):
+            raise ValueError(
+                "DOBROPOST_RETRY_BACKOFF_BASE_SECONDS "
+                f"({self.DOBROPOST_RETRY_BACKOFF_BASE_SECONDS}) must be "
+                "<= DOBROPOST_RETRY_BACKOFF_MAX_SECONDS "
+                f"({self.DOBROPOST_RETRY_BACKOFF_MAX_SECONDS})."
+            )
+
+        return self
 
     model_config = SettingsConfigDict(
         env_file=".env",
