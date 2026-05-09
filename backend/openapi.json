@@ -9167,6 +9167,55 @@
         }
       }
     },
+    "/api/v1/admin/catalog/products/{product_id}/_validate-publish": {
+      "post": {
+        "tags": [
+          "Admin / Catalog / Products"
+        ],
+        "summary": "Preview the PUBLISHED transition without committing",
+        "description": "Read-only validator that mirrors the gate enforced by ``Product.transition_status(PUBLISHED)``. Returns the same per-SKU diagnostics + structured failure codes the front-end uses to render its publish-gate panel — without mutating the aggregate or emitting events. ``ok=true`` means the next PATCH ``/status`` to ``published`` will succeed; ``ok=false`` with a non-empty ``gateFailures`` list means the operator has fixes to make first. The endpoint never returns an HTTP 4xx for a 'cannot publish yet' verdict — that's a valid preview.",
+        "operationId": "validate_product_publish_api_v1_admin_catalog_products__product_id___validate_publish_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Product Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidatePublishResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/catalog/products/{product_id}/variants": {
       "post": {
         "tags": [
@@ -29445,6 +29494,63 @@
         ],
         "title": "SimulateCaptureRequest"
       },
+      "SkuPublishDiagnosticSchema": {
+        "properties": {
+          "skuId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Skuid"
+          },
+          "skuCode": {
+            "type": "string",
+            "title": "Skucode"
+          },
+          "pricingStatus": {
+            "type": "string",
+            "title": "Pricingstatus"
+          },
+          "hasManualPrice": {
+            "type": "boolean",
+            "title": "Hasmanualprice"
+          },
+          "hasSellingPrice": {
+            "type": "boolean",
+            "title": "Hassellingprice"
+          },
+          "hasPurchasePrice": {
+            "type": "boolean",
+            "title": "Haspurchaseprice"
+          },
+          "failureReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failurereason"
+          },
+          "nextStep": {
+            "type": "string",
+            "title": "Nextstep"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skuId",
+          "skuCode",
+          "pricingStatus",
+          "hasManualPrice",
+          "hasSellingPrice",
+          "hasPurchasePrice",
+          "failureReason",
+          "nextStep"
+        ],
+        "title": "SkuPublishDiagnosticSchema",
+        "description": "One row of per-SKU pricing diagnostics for the publish-gate UI.\n\nMirrors the dict shape produced by\n``catalog.domain.entities.product._publish_diagnostic_for_sku`` so the\nfront-end consumes one schema for both ``_validate-publish`` and\n``ProductNotReadyError.details`` payloads."
+      },
       "StaffDetailResponse": {
         "properties": {
           "identityId": {
@@ -33667,6 +33773,70 @@
           "created"
         ],
         "title": "UpsertSupplierTypeContextMappingResponse"
+      },
+      "ValidatePublishGateFailureSchema": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "NO_ACTIVE_SKU",
+              "ALL_SKUS_UNPRICED",
+              "STATUS_NOT_TRANSITIONABLE"
+            ],
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ValidatePublishGateFailureSchema",
+        "description": "One named reason the publish gate is closed."
+      },
+      "ValidatePublishResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "currentStatus": {
+            "type": "string",
+            "title": "Currentstatus"
+          },
+          "nextStatus": {
+            "type": "string",
+            "title": "Nextstatus"
+          },
+          "skuDiagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/SkuPublishDiagnosticSchema"
+            },
+            "type": "array",
+            "title": "Skudiagnostics"
+          },
+          "gateFailures": {
+            "items": {
+              "$ref": "#/components/schemas/ValidatePublishGateFailureSchema"
+            },
+            "type": "array",
+            "title": "Gatefailures"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "currentStatus",
+          "nextStatus",
+          "skuDiagnostics",
+          "gateFailures"
+        ],
+        "title": "ValidatePublishResponse",
+        "description": "Verdict + diagnostics returned by ``POST /admin/.../_validate-publish``.\n\n``ok`` is true iff ``gate_failures`` is empty. The endpoint never\nraises an HTTP 4xx for a \"cannot publish yet\" verdict — that's a\nvalid preview, surfaced in the body."
       },
       "ValidationError": {
         "properties": {

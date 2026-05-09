@@ -52,6 +52,10 @@ from src.modules.catalog.application.queries.list_products import (
 from src.modules.catalog.application.queries.read_models import (
     ProductReadModel,
 )
+from src.modules.catalog.application.queries.validate_product_publish import (
+    ValidateProductPublishHandler,
+    ValidateProductPublishQuery,
+)
 from src.modules.catalog.domain.value_objects import Money, ProductStatus
 from src.modules.catalog.infrastructure.services.sku_pricing_pubsub import (
     SkuPricingPubsub,
@@ -71,6 +75,9 @@ from src.modules.catalog.presentation.schemas import (
     ProductResponse,
     ProductStatusChangeRequest,
     ProductUpdateRequest,
+    SkuPublishDiagnosticSchema,
+    ValidatePublishGateFailureSchema,
+    ValidatePublishResponse,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
@@ -426,6 +433,49 @@ async def change_product_status(
     # Fetch updated product for response
     read_model: ProductReadModel = await get_handler.handle(product_id)
     return _to_product_response(read_model)
+
+
+# ---------------------------------------------------------------------------
+# C1.1 — Publish-gate preview (read-only, no side effects)
+# ---------------------------------------------------------------------------
+
+
+@product_router.post(
+    path="/{product_id}/_validate-publish",
+    status_code=status.HTTP_200_OK,
+    response_model=ValidatePublishResponse,
+    summary="Preview the PUBLISHED transition without committing",
+    description=(
+        "Read-only validator that mirrors the gate enforced by "
+        "``Product.transition_status(PUBLISHED)``. Returns the same "
+        "per-SKU diagnostics + structured failure codes the front-end "
+        "uses to render its publish-gate panel — without mutating the "
+        "aggregate or emitting events. ``ok=true`` means the next "
+        "PATCH ``/status`` to ``published`` will succeed; ``ok=false`` "
+        "with a non-empty ``gateFailures`` list means the operator has "
+        "fixes to make first. The endpoint never returns an HTTP 4xx "
+        "for a 'cannot publish yet' verdict — that's a valid preview."
+    ),
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
+)
+async def validate_product_publish(
+    product_id: uuid.UUID,
+    handler: FromDishka[ValidateProductPublishHandler],
+) -> ValidatePublishResponse:
+    """Compute the publish-gate verdict for a single product."""
+    result = await handler.handle(ValidateProductPublishQuery(product_id=product_id))
+    return ValidatePublishResponse(
+        ok=result.ok,
+        current_status=result.current_status,
+        next_status=result.next_status,
+        sku_diagnostics=[
+            SkuPublishDiagnosticSchema(**d) for d in result.sku_diagnostics
+        ],
+        gate_failures=[
+            ValidatePublishGateFailureSchema(code=f.code, message=f.message)  # ty: ignore[invalid-argument-type]
+            for f in result.gate_failures
+        ],
+    )
 
 
 def _to_product_response(model: ProductReadModel) -> ProductResponse:

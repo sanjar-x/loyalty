@@ -220,6 +220,9 @@ from src.modules.catalog.application.queries.storefront import (
     StorefrontFilterableAttributesHandler,
     StorefrontFormAttributesHandler,
 )
+from src.modules.catalog.application.queries.validate_product_publish import (
+    ValidateProductPublishHandler,
+)
 from src.modules.catalog.domain.interfaces import (
     IAttributeGroupRepository,
     IAttributeRepository,
@@ -573,6 +576,9 @@ class ProductProvider(Provider):
     # Query handlers
     get_product_handler: CompositeDependencySource = provide(
         GetProductHandler, scope=Scope.REQUEST
+    )
+    validate_product_publish_handler: CompositeDependencySource = provide(
+        ValidateProductPublishHandler, scope=Scope.REQUEST
     )
     list_products_handler: CompositeDependencySource = provide(
         ListProductsHandler, scope=Scope.REQUEST

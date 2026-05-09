@@ -1362,3 +1362,53 @@ class TemplateAttributeBindingEnrichedResponse(CamelModel):
     id: uuid.UUID
     affected_categories_count: int
     message: str = "Attribute bound to template"
+
+
+# ---------------------------------------------------------------------------
+# CAT-019 / C1.1 — Validate-publish preview
+# ---------------------------------------------------------------------------
+
+
+class SkuPublishDiagnosticSchema(CamelModel):
+    """One row of per-SKU pricing diagnostics for the publish-gate UI.
+
+    Mirrors the dict shape produced by
+    ``catalog.domain.entities.product._publish_diagnostic_for_sku`` so the
+    front-end consumes one schema for both ``_validate-publish`` and
+    ``ProductNotReadyError.details`` payloads.
+    """
+
+    sku_id: uuid.UUID
+    sku_code: str
+    pricing_status: str
+    has_manual_price: bool
+    has_selling_price: bool
+    has_purchase_price: bool
+    failure_reason: str | None
+    next_step: str
+
+
+class ValidatePublishGateFailureSchema(CamelModel):
+    """One named reason the publish gate is closed."""
+
+    code: Literal[
+        "NO_ACTIVE_SKU",
+        "ALL_SKUS_UNPRICED",
+        "STATUS_NOT_TRANSITIONABLE",
+    ]
+    message: str
+
+
+class ValidatePublishResponse(CamelModel):
+    """Verdict + diagnostics returned by ``POST /admin/.../_validate-publish``.
+
+    ``ok`` is true iff ``gate_failures`` is empty. The endpoint never
+    raises an HTTP 4xx for a "cannot publish yet" verdict — that's a
+    valid preview, surfaced in the body.
+    """
+
+    ok: bool
+    current_status: str
+    next_status: str
+    sku_diagnostics: list[SkuPublishDiagnosticSchema]
+    gate_failures: list[ValidatePublishGateFailureSchema]

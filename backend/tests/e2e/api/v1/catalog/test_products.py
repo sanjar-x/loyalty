@@ -208,6 +208,16 @@ class TestProductEndpoints:
         )
         assert resp.status_code == 422
 
+    # ── POST /products/{id}/_validate-publish (C1.1) ──
+
+    async def test_validate_publish_returns_404_for_unknown_product(
+        self, admin_client: AsyncClient
+    ):
+        resp = await admin_client.post(
+            f"/api/v1/admin/catalog/products/{uuid.uuid4()}/_validate-publish"
+        )
+        assert resp.status_code == 404
+
     # ── GET /products/{id}/completeness ──
 
     async def test_get_product_completeness(
