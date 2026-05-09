@@ -194,3 +194,59 @@ class TestMediaAssetRoundtrip:
         result = await repo.list_by_product(_seed_product.id)
         assert result[0].id == assets[2].id  # was sort 2, now sort 0
         assert result[2].id == assets[0].id  # was sort 0, now sort 2
+
+    async def test_bulk_update_sort_order_uses_single_update(
+        self,
+        db_session: AsyncSession,
+        _seed_product: Product,
+    ) -> None:
+        """C2.3 — drag-and-drop on a 50-item gallery hits the DB exactly once.
+
+        Locks the N+1 contract: one UPDATE statement (with CASE WHEN over
+        the id list) regardless of batch size. A regression that loops
+        per-item would fail this loudly.
+        """
+        from sqlalchemy import event
+
+        repo = MediaAssetRepository(session=db_session)
+        # Seed 50 assets with sort_order = i.
+        assets: list[MediaAsset] = []
+        for i in range(50):
+            asset = MediaAsset.create(
+                product_id=_seed_product.id,
+                media_type=MediaType.IMAGE,
+                role=MediaRole.GALLERY,
+                sort_order=i,
+            )
+            await repo.add(asset)
+            assets.append(asset)
+        await db_session.flush()
+
+        # Reverse the order — every row mutates.
+        updates = [(assets[i].id, 49 - i) for i in range(50)]
+
+        # Hook the underlying sync engine (asyncpg adapter dispatches
+        # ``before_cursor_execute`` on it). Counts only UPDATE statements
+        # against the ``media_assets`` table — selects + flushes from
+        # other tables are filtered out.
+        update_calls: list[str] = []
+
+        sync_engine = db_session.bind.sync_engine
+
+        @event.listens_for(sync_engine, "before_cursor_execute")
+        def _capture(_conn, _cursor, statement, *_args, **_kwargs):
+            normalised = statement.lstrip().upper()
+            if normalised.startswith("UPDATE MEDIA_ASSETS"):
+                update_calls.append(statement)
+
+        try:
+            updated = await repo.bulk_update_sort_order(_seed_product.id, updates)
+            await db_session.flush()
+        finally:
+            event.remove(sync_engine, "before_cursor_execute", _capture)
+
+        assert updated == 50
+        assert len(update_calls) == 1, (
+            f"Expected 1 UPDATE statement, got {len(update_calls)} — "
+            "bulk_update_sort_order regressed into a per-item loop."
+        )
