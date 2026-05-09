@@ -15,6 +15,7 @@ from sqlalchemy import (
     TIMESTAMP,
     BigInteger,
     Boolean,
+    ForeignKey,
     Index,
     String,
     func,
@@ -27,7 +28,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infrastructure.database.base import Base
-from src.modules.image.domain.value_objects import StorageStatus
+from src.modules.image.domain.value_objects import DerivationKind, StorageStatus
 
 
 class StorageObjectModel(Base):
@@ -109,6 +110,28 @@ class StorageObjectModel(Base):
         comment="Original upload filename",
     )
 
+    parent_storage_object_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "storage_objects.id",
+            ondelete="SET NULL",
+            name="fk_storage_objects_parent",
+        ),
+        nullable=True,
+        comment=(
+            "Parent storage object when this row is a derivation "
+            "(IMG-007); NULL for plain uploads"
+        ),
+    )
+    derivation_kind: Mapped[DerivationKind | None] = mapped_column(
+        SAEnum(DerivationKind, name="derivation_kind_enum", create_type=True),
+        nullable=True,
+        comment=(
+            "Discriminator for the kind of transformation when this "
+            "row is a derivation (BG_REMOVED, future UPSCALED, ...)"
+        ),
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
     )
@@ -124,5 +147,19 @@ class StorageObjectModel(Base):
             "object_key",
             unique=True,
             postgresql_where=text("is_latest = true"),
+        ),
+        # IMG-007 — idempotency anchor for derivations: the application
+        # layer asserts that at most one *active* derivation of a given
+        # ``kind`` exists per parent before kicking off a new ML run.
+        # ``is_latest = true`` excludes soft-deleted rows so a previous
+        # bg-removed copy (since detached) doesn't block a re-run.
+        Index(
+            "uix_storage_parent_derivation",
+            "parent_storage_object_id",
+            "derivation_kind",
+            unique=True,
+            postgresql_where=text(
+                "parent_storage_object_id IS NOT NULL AND is_latest = true"
+            ),
         ),
     )

@@ -78,3 +78,27 @@ class MetadataResponse(CamelModel):
 
 class DeleteResponse(CamelModel):
     deleted: bool = True
+
+
+class RemoveBackgroundResponse(CamelModel):
+    """202 response for ``POST /admin/media/{id}/remove-background`` (IMG-007).
+
+    The ``derived_storage_object_id`` is what the admin UI subscribes
+    to via the existing ``GET /admin/media/{id}/status`` SSE channel.
+
+    ``status``:
+        - ``processing`` — work was queued (or was already running on
+          a prior call). Listen on SSE for the ``completed`` /
+          ``failed`` event.
+        - ``completed`` — a derivation already exists; ``url`` is
+          populated and no SSE subscription is needed.
+
+    ``alreadyExisted`` distinguishes "instant return" (idempotent
+    re-call) from "we just queued work" so the UI can skip a spinner
+    when nothing was kicked off.
+    """
+
+    derived_storage_object_id: uuid.UUID
+    status: str  # "processing" | "completed"
+    url: str | None = None
+    already_existed: bool

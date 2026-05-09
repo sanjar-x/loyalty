@@ -587,6 +587,30 @@ async def _handle_media_asset_attached(
 register_event_handler("MediaAssetAttachedEvent", _handle_media_asset_attached)
 
 
+async def _handle_background_removed(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    """Bridge ``BackgroundRemovedEvent`` → audit log (IMG-007).
+
+    Audit-only for now; no downstream consumer is registered. Replace
+    the body with a ``.kicker().kiq(...)`` dispatch once a real
+    consumer (search reindex, moderation queue, ML feedback loop)
+    lands. Persisted in ``outbox_messages`` so future consumers can
+    backfill by replaying processed events.
+    """
+    logger.info(
+        "background_removed",
+        storage_object_id=payload.get("storage_object_id"),
+        parent_storage_object_id=payload.get("parent_storage_object_id"),
+        url=payload.get("url"),
+        derivation_kind=payload.get("derivation_kind"),
+        correlation_id=correlation_id,
+    )
+
+
+register_event_handler("BackgroundRemovedEvent", _handle_background_removed)
+
+
 # ---------------------------------------------------------------------------
 # TaskIQ: Outbox Relay (periodic polling)
 # ---------------------------------------------------------------------------

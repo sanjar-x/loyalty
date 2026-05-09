@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.image.domain.entities import StorageFile
 from src.modules.image.domain.interfaces import IStorageRepository
-from src.modules.image.domain.value_objects import StorageStatus
+from src.modules.image.domain.value_objects import DerivationKind, StorageStatus
 from src.modules.image.infrastructure.models import StorageObjectModel
 
 logger = structlog.get_logger(__name__)
@@ -46,6 +46,8 @@ class StorageObjectRepository(IStorageRepository):
             url=orm.url,
             image_variants=orm.image_variants,
             filename=orm.filename,
+            parent_storage_object_id=orm.parent_storage_object_id,
+            derivation_kind=orm.derivation_kind,
             created_at=orm.created_at,
             last_modified_in_s3=orm.last_modified_in_s3,
         )
@@ -68,6 +70,8 @@ class StorageObjectRepository(IStorageRepository):
             url=entity.url,
             image_variants=entity.image_variants,
             filename=entity.filename,
+            parent_storage_object_id=entity.parent_storage_object_id,
+            derivation_kind=entity.derivation_kind,
             last_modified_in_s3=entity.last_modified_in_s3,
         )
 
@@ -157,3 +161,19 @@ class StorageObjectRepository(IStorageRepository):
         )
         result = await self._session.execute(stmt)
         return [self._to_domain(row) for row in result.scalars().all()]
+
+    async def find_derivation(
+        self, parent_storage_object_id: uuid.UUID, kind: DerivationKind
+    ) -> StorageFile | None:
+        # IMG-007 — pairs with the partial unique index
+        # ``uix_storage_parent_derivation`` so the read sees at most
+        # one row. ``is_latest = true`` is the same predicate the
+        # index uses, so the planner can use it directly.
+        stmt = select(StorageObjectModel).where(
+            StorageObjectModel.parent_storage_object_id == parent_storage_object_id,
+            StorageObjectModel.derivation_kind == kind,
+            StorageObjectModel.is_latest.is_(True),
+        )
+        result = await self._session.execute(stmt)
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None

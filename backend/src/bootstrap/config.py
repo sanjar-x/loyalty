@@ -140,6 +140,28 @@ class Settings(BaseSettings):
     MEDIA_PRESIGNED_URL_TTL: int = 300
     MEDIA_SSE_TIMEOUT: int = 120
 
+    # -- Background removal (IMG-007) ---------------------------------------
+    # Toggleable feature: the admin endpoint returns 503 with a clear
+    # error when ``BG_REMOVAL_ENABLED=False`` so the contract stays
+    # observable even on environments where the heavy ML deps
+    # (``torch`` / ``transformers``) aren't installed. Production
+    # ``image_ml`` worker installs the optional ``[bg-removal]`` extra
+    # and flips this to True; the web service stays lean.
+    BG_REMOVAL_ENABLED: bool = False
+    # ``auto`` picks ``cuda`` when ``torch.cuda.is_available()``,
+    # else ``cpu``. Override to a specific value when running on a
+    # known device (avoids the import-time ``torch`` probe in tests).
+    BG_REMOVAL_DEVICE: Literal["auto", "cpu", "cuda"] = "auto"
+    # HF_HOME / cache directory for the briaai/RMBG-2.0 weights
+    # (~1.6 GB). Persistent volume on Railway so worker restarts
+    # don't re-download. Falls back to a tmp path locally.
+    BG_REMOVAL_MODEL_CACHE_DIR: str = "/tmp/hf_cache"
+    # Output WebP quality for the alpha-channel result. Lower than
+    # the regular gallery main (q=90) is fine — the cutout is the
+    # foreground only and visual artefacts in fully-transparent
+    # regions are invisible.
+    BG_REMOVAL_WEBP_QUALITY: int = 92
+
     # -- CDEK (logistics provider) -------------------------------------------
     # Credentials are seeded into ``provider_accounts`` by ``seed/logistics``;
     # at runtime the factory reads them from the DB row, not from env.

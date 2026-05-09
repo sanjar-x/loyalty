@@ -18,7 +18,7 @@ from datetime import datetime
 
 from attr import define
 
-from src.modules.image.domain.value_objects import StorageStatus
+from src.modules.image.domain.value_objects import DerivationKind, StorageStatus
 from src.shared.interfaces.entities import AggregateRoot
 
 
@@ -50,6 +50,15 @@ class StorageFile(AggregateRoot):
         url: Public URL of the processed file (set after processing completes).
         image_variants: List of generated image variant metadata dicts.
         filename: Original filename of the uploaded file.
+        parent_storage_object_id: Set when this row is a *derivation*
+            (e.g. background-removed copy) of another storage object —
+            ``None`` for plain uploads. Together with
+            ``derivation_kind`` it gives the admin UI a "revert to
+            original" hand-off without a fresh upload.
+        derivation_kind: Discriminator for the kind of transformation
+            applied (``BG_REMOVED``, future ``UPSCALED``, ...). Always
+            set when ``parent_storage_object_id`` is set; mutually
+            exclusive with original-upload rows.
         created_at: Timestamp when the record was created.
         last_modified_in_s3: Timestamp of the last modification on the S3 side.
     """
@@ -69,6 +78,8 @@ class StorageFile(AggregateRoot):
     url: str | None = None
     image_variants: list[dict] | None = None
     filename: str | None = None
+    parent_storage_object_id: uuid.UUID | None = None
+    derivation_kind: DerivationKind | None = None
     created_at: datetime | None = None
     last_modified_in_s3: datetime | None = None
 
@@ -81,6 +92,8 @@ class StorageFile(AggregateRoot):
         size_bytes: int = 0,
         owner_module: str | None = None,
         filename: str | None = None,
+        parent_storage_object_id: uuid.UUID | None = None,
+        derivation_kind: DerivationKind | None = None,
     ) -> StorageFile:
         """Create a new ``StorageFile`` with a generated UUID.
 
@@ -94,10 +107,25 @@ class StorageFile(AggregateRoot):
             size_bytes: File size in bytes. Defaults to 0.
             owner_module: Name of the module that owns this file.
             filename: Original filename of the uploaded file.
+            parent_storage_object_id: Parent storage object when this
+                file is a derivation; ``None`` for plain uploads.
+            derivation_kind: Required iff ``parent_storage_object_id``
+                is provided.
 
         Returns:
             A new ``StorageFile`` instance with a generated ``id``.
+
+        Raises:
+            ValueError: If exactly one of ``parent_storage_object_id``
+                / ``derivation_kind`` is provided. Both fields must
+                travel together — a derivation without a kind, or a
+                kind without a parent, is meaningless.
         """
+        if (parent_storage_object_id is None) != (derivation_kind is None):
+            raise ValueError(
+                "parent_storage_object_id and derivation_kind must be "
+                "provided together (or both omitted)."
+            )
         return cls(
             id=_generate_id(),
             bucket_name=bucket_name,
@@ -106,4 +134,6 @@ class StorageFile(AggregateRoot):
             size_bytes=size_bytes,
             owner_module=owner_module,
             filename=filename,
+            parent_storage_object_id=parent_storage_object_id,
+            derivation_kind=derivation_kind,
         )
