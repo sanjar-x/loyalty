@@ -1,5 +1,21 @@
 # Order Event-Chain Audit — Sprint 1 (2026-05-09)
 
+> [!success] GAP A — RESOLVED in LOG-002 (Sprint 2 hotfix, 2026-05-09).
+> ``IngestTrackingHandler`` now bridges russian-carrier tracking events
+> into ``RussianCarrierTrackingEvent`` via ``UoW.enqueue_external_event``
+> with deterministic UUID5 ids per ``(shipment, status, occurred_at)``.
+> The pre-existing ``RussianCarrierTrackingConsumer`` consumes them and
+> drives the Order FSM. Producer tests:
+> ``tests/unit/modules/logistics/test_russian_carrier_status_map.py`` +
+> ``tests/unit/modules/logistics/application/commands/test_ingest_tracking.py::TestRussianCarrierBridge``;
+> end-to-end:
+> ``tests/integration/modules/logistics/test_ingest_tracking_bridge.py``.
+> A consumer-side terminal-state guard (``_ACTION_TARGET_STATUS``) was
+> added so a re-broadcast webhook for an already-transitioned order
+> short-circuits before reaching the handler.
+
+
+
 **Scope**: Sprint 1 / B1 audit перед подключением Frontend Admin Orders UI и
 последующим Sprint 2 (Logistics Shipments UI). Цель — понять, какие из
 шести критичных Order-FSM-переходов реально несут downstream side-effects,

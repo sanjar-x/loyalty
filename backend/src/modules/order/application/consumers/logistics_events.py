@@ -26,6 +26,7 @@ Russian carrier canonical statuses (research (6) §4.3):
 """
 
 import uuid
+from typing import ClassVar
 
 from src.modules.order.application.commands.cancel_order import (
     CancelOrderCommand,
@@ -63,6 +64,7 @@ from src.modules.order.domain.interfaces import IOrderRepository
 from src.modules.order.domain.value_objects import (
     CancellationReason,
     HoldReason,
+    OrderStatus,
 )
 from src.modules.order.infrastructure.dobropost_status_map import (
     DobroPostFsmAction,
@@ -282,6 +284,23 @@ class RussianCarrierTrackingConsumer:
         self._returning = returning_handler
         self._logger = logger.bind(consumer="RussianCarrierTrackingConsumer")
 
+    # LOG-002 — terminal-state safety: webhooks may legitimately arrive
+    # after the order already reached the target state (ARRIVED_IN_RU →
+    # IN_LAST_MILE arrived earlier from polling, then a webhook
+    # re-broadcasts the same status). Each Mark*Handler does its own
+    # ``if order.status != EXPECTED: return`` early-exit, but we ALSO
+    # short-circuit here so the consumer doesn't even build a command
+    # that would be a no-op — keeps logs cleaner and the inbox dedup
+    # counter accurate. Only forward-going moves are listed; RETURN_TO_SENDER
+    # can fire from two different source states and the handler validates
+    # them itself, so it's intentionally absent.
+    _ACTION_TARGET_STATUS: ClassVar[dict[str, OrderStatus]] = {
+        "IN_TRANSIT": OrderStatus.IN_LAST_MILE,
+        "OUT_FOR_DELIVERY": OrderStatus.IN_LAST_MILE,
+        "AT_PICKUP_POINT": OrderStatus.AWAITING_PICKUP,
+        "DELIVERED": OrderStatus.DELIVERED,
+    }
+
     async def handle(self, payload: dict) -> None:
         canonical = payload.get("canonical_status") or payload.get("status")
         shipment_id_raw = payload.get("shipment_id") or payload.get(
@@ -304,6 +323,22 @@ class RussianCarrierTrackingConsumer:
             return
 
         normalized = str(canonical).upper()
+
+        # Lazy idempotency guard — if the order is already in or beyond
+        # the target state, drop the message without invoking the handler.
+        # ``_ACTION_TARGET_STATUS`` only carries the forward-going moves;
+        # RETURN_TO_SENDER doesn't qualify because it can fire from two
+        # different source states and the handler validates them itself.
+        target = self._ACTION_TARGET_STATUS.get(normalized)
+        if target is not None and order.status == target:
+            self._logger.info(
+                "russian_carrier.noop",
+                reason="already_in_target_status",
+                order_id=str(order.id),
+                status=order.status.value,
+            )
+            return
+
         try:
             if normalized in {"IN_TRANSIT", "OUT_FOR_DELIVERY"}:
                 await self._in_last_mile.handle(
