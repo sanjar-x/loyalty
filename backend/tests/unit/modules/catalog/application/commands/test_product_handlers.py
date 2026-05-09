@@ -696,6 +696,7 @@ class TestDeleteProduct:
 
         handler = DeleteProductHandler(
             product_repo=uow.products,
+            media_repo=uow.media_assets,
             uow=uow,
             logger=_make_logger(),
         )
@@ -711,6 +712,7 @@ class TestDeleteProduct:
 
         handler = DeleteProductHandler(
             product_repo=uow.products,
+            media_repo=uow.media_assets,
             uow=uow,
             logger=_make_logger(),
         )
@@ -719,6 +721,44 @@ class TestDeleteProduct:
             await handler.handle(DeleteProductCommand(product_id=uuid.uuid4()))
 
         assert uow.committed is False
+
+    async def test_cascades_media_cleanup_via_outbox(self):
+        """C2.1 — every attached media row is deleted AND a
+        ``MediaAssetDetachedEvent`` is emitted so the IMG-005 cleanup
+        consumer sweeps S3 + the storage_objects row asynchronously."""
+        uow = FakeUnitOfWork()
+        brand = _seed_brand(uow)
+        cat = _seed_category(uow)
+        product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
+        media_a = _seed_media_asset(uow, product_id=product.id)
+        media_b = _seed_media_asset(uow, product_id=product.id)
+
+        handler = DeleteProductHandler(
+            product_repo=uow.products,
+            media_repo=uow.media_assets,
+            uow=uow,
+            logger=_make_logger(),
+        )
+
+        await handler.handle(DeleteProductCommand(product_id=product.id))
+
+        assert uow.committed is True
+        # Both media rows physically removed from the in-memory store.
+        assert media_a.id not in uow.media_assets._store
+        assert media_b.id not in uow.media_assets._store
+        # Detached events queued on the product aggregate (carried into
+        # the outbox by ``register_aggregate(product)`` + ``commit()``).
+        from src.modules.catalog.domain.events import MediaAssetDetachedEvent
+
+        detached = [
+            e for e in uow._collected_events if isinstance(e, MediaAssetDetachedEvent)
+        ]
+        emitted_storage_ids = {e.storage_object_id for e in detached}
+        expected_storage_ids = {media_a.storage_object_id, media_b.storage_object_id}
+        assert emitted_storage_ids == expected_storage_ids
+        for evt in detached:
+            assert evt.product_id == product.id
+            assert evt.storage_object_id is not None
 
 
 # ============================================================================
