@@ -59,20 +59,28 @@ class RequestBackgroundRemovalResult:
         derived_storage_object_id: ID of the derivation row — same
             value the caller subscribes to via
             ``GET /admin/media/{id}/status`` for SSE updates.
-        status: Lifecycle state at the moment of return. ``COMPLETED``
-            means the URL is already attached and no work was kicked.
-            ``PROCESSING`` means the worker has been queued (or was
-            already running on a prior call).
+        status: Lifecycle state at the moment of return.
+            * ``COMPLETED`` — URL is already attached, no work kicked.
+            * ``PROCESSING`` — worker has been queued (or was already
+              running on a prior call).
+            * ``FAILED`` — a previous run terminated; the row is held
+              so the operator can decide whether to retry. C2.2 — the
+              UI surfaces a "retry" button and is responsible for
+              calling the future ``/derivations/{id}`` DELETE +
+              POSTing again. We deliberately don't auto-replay here
+              because BG removal is an expensive ML operation; one
+              accidental double-click should never trigger two paid
+              inferences.
         url: Public URL of the cutout when ``status=COMPLETED``;
-            ``None`` while processing.
+            ``None`` otherwise.
         already_existed: ``True`` when an existing derivation was
             returned instead of provisioning a new row — lets the
-            admin UI distinguish "already done" (instant feedback)
-            from "queued, please wait" (show progress).
+            admin UI distinguish "already done" / "still queued" /
+            "failed previously" from "freshly queued, please wait".
     """
 
     derived_storage_object_id: uuid.UUID
-    status: Literal["COMPLETED", "PROCESSING"]
+    status: Literal["COMPLETED", "PROCESSING", "FAILED"]
     url: str | None
     already_existed: bool
 
@@ -118,23 +126,39 @@ class RequestBackgroundRemovalHandler:
                 parent_id, DerivationKind.BG_REMOVED
             )
             if existing is not None:
-                # Idempotent re-call. Returning the existing row
-                # (whatever its status) lets the admin UI subscribe
-                # to the same SSE stream without re-dispatching the
-                # task — protects against accidental N×$$ ML cost.
+                # C2.2 — idempotent re-call. Surfaces the live status
+                # honestly (COMPLETED / PROCESSING / FAILED) instead of
+                # collapsing FAILED into PROCESSING — without this the
+                # admin UI listens to a dead SSE stream forever and
+                # can't tell the difference between "in flight" and
+                # "permanently broken". The FAILED branch holds the
+                # row; the operator drives retries explicitly so one
+                # double-click can't trigger two paid inferences.
                 log.info(
                     "background_removal_already_exists",
                     derived_storage_object_id=str(existing.id),
                     status=existing.status.value,
                 )
+                if existing.status == StorageStatus.COMPLETED:
+                    return RequestBackgroundRemovalResult(
+                        derived_storage_object_id=existing.id,
+                        status="COMPLETED",
+                        url=existing.url,
+                        already_existed=True,
+                    )
+                if existing.status == StorageStatus.FAILED:
+                    return RequestBackgroundRemovalResult(
+                        derived_storage_object_id=existing.id,
+                        status="FAILED",
+                        url=None,
+                        already_existed=True,
+                    )
+                # PROCESSING (or any other non-terminal) — same
+                # SSE channel, caller can subscribe.
                 return RequestBackgroundRemovalResult(
                     derived_storage_object_id=existing.id,
-                    status="COMPLETED"
-                    if existing.status == StorageStatus.COMPLETED
-                    else "PROCESSING",
-                    url=existing.url
-                    if existing.status == StorageStatus.COMPLETED
-                    else None,
+                    status="PROCESSING",
+                    url=None,
                     already_existed=True,
                 )
 

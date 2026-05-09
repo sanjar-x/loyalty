@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import Field
 
@@ -92,6 +93,11 @@ class RemoveBackgroundResponse(CamelModel):
           ``failed`` event.
         - ``completed`` — a derivation already exists; ``url`` is
           populated and no SSE subscription is needed.
+        - ``failed`` (C2.2) — a previous run terminated and the row
+          is held. The UI surfaces a "retry" affordance; we do NOT
+          auto-replay because BG removal is an expensive ML op and
+          one accidental double-click should never fire two paid
+          inferences.
 
     ``alreadyExisted`` distinguishes "instant return" (idempotent
     re-call) from "we just queued work" so the UI can skip a spinner
@@ -99,6 +105,6 @@ class RemoveBackgroundResponse(CamelModel):
     """
 
     derived_storage_object_id: uuid.UUID
-    status: str  # "processing" | "completed"
+    status: Literal["processing", "completed", "failed"]
     url: str | None = None
     already_existed: bool

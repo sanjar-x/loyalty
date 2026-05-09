@@ -11,8 +11,8 @@ keyword. This matches the pattern used by every other module here
 from src.shared.exceptions import (
     ConflictError,
     NotFoundError,
+    ServiceUnavailableError,
     UnprocessableEntityError,
-    ValidationError,
 )
 
 
@@ -54,20 +54,30 @@ class StorageFileNotReadyError(UnprocessableEntityError):
         )
 
 
-class BackgroundRemovalDisabledError(ValidationError):
+class BackgroundRemovalDisabledError(ServiceUnavailableError):
     """Raised when ``BG_REMOVAL_ENABLED=False`` on the current node.
 
-    Surfaces as 400 with a precise error code so the admin UI can
-    hide / disable the action proactively rather than relying on a
-    blind 500.
+    C2.2 — surfaces as 503 (was 400) so the admin UI can render the
+    correct "service temporarily unavailable" affordance and so the
+    error envelope cleanly communicates that this is an infrastructure
+    feature flag, not a client-data problem. The ``details.feature_flag``
+    key tells the front-end exactly which env var to flip — protects
+    against the gate being silently re-enabled with the same envelope
+    text.
+
+    Important invariant: even if the ``image_ml`` worker has the
+    ``[bg-removal]`` extra installed, the web service still rejects
+    when the flag is off — clients cannot bypass the feature flag by
+    spamming the endpoint.
     """
 
     def __init__(self) -> None:
         super().__init__(
             message=(
-                "Background removal is disabled on this deployment. "
-                "Enable BG_REMOVAL_ENABLED on the image_ml worker."
+                "Background removal feature is currently unavailable. "
+                "Enable BG_REMOVAL_ENABLED on the web service AND ensure "
+                "the image_ml worker has the [bg-removal] extra installed."
             ),
-            error_code="BACKGROUND_REMOVAL_DISABLED",
-            details={},
+            error_code="BG_REMOVAL_DISABLED",
+            details={"feature_flag": "BG_REMOVAL_ENABLED"},
         )

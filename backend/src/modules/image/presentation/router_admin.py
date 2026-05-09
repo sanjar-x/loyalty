@@ -391,9 +391,16 @@ async def request_background_removal(
         await remove_background_task.kiq(  # ty:ignore[no-matching-overload]
             derived_storage_object_id=str(result.derived_storage_object_id),
         )
+    # C2.2 — surface FAILED honestly so the UI can show a retry
+    # affordance instead of subscribing to a dead SSE stream.
+    status_map = {
+        "COMPLETED": "completed",
+        "PROCESSING": "processing",
+        "FAILED": "failed",
+    }
     return RemoveBackgroundResponse(
         derived_storage_object_id=result.derived_storage_object_id,
-        status="completed" if result.status == "COMPLETED" else "processing",
+        status=status_map[result.status],  # ty: ignore[invalid-argument-type]
         url=result.url,
         already_existed=result.already_existed,
     )

@@ -220,6 +220,80 @@ class TestRequestBackgroundRemovalHandler:
         # whatever status it already had.
         assert len(repo.store) == 2
 
+    async def test_idempotent_returns_failed_status_explicitly(self) -> None:
+        """C2.2 — a previous FAILED run must surface as ``status='FAILED'``,
+        not collapse to ``PROCESSING``. Without this the UI subscribes
+        to a dead SSE stream forever."""
+        repo, uow = _FakeStorageRepo(), _FakeUow()
+        parent = _make_completed_parent()
+        repo.store[parent.id] = parent
+
+        existing = StorageFile.create(
+            bucket_name=parent.bucket_name,
+            object_key="public/derived.placeholder",
+            content_type="image/webp",
+            parent_storage_object_id=parent.id,
+            derivation_kind=DerivationKind.BG_REMOVED,
+        )
+        existing.status = StorageStatus.FAILED
+        repo.store[existing.id] = existing
+
+        handler = RequestBackgroundRemovalHandler(
+            repo=repo, uow=uow, settings=_settings(enabled=True)
+        )
+
+        result = await handler.handle(
+            RequestBackgroundRemovalCommand(parent_storage_object_id=parent.id)
+        )
+
+        assert result.derived_storage_object_id == existing.id
+        assert result.status == "FAILED"
+        assert result.already_existed is True
+        assert result.url is None
+        # No replay — the FAILED row stays held.
+        assert len(repo.store) == 2
+        assert uow.commits == 0
+
+    async def test_idempotent_returns_processing_for_in_flight_run(self) -> None:
+        repo, uow = _FakeStorageRepo(), _FakeUow()
+        parent = _make_completed_parent()
+        repo.store[parent.id] = parent
+
+        existing = StorageFile.create(
+            bucket_name=parent.bucket_name,
+            object_key="public/derived.placeholder",
+            content_type="image/webp",
+            parent_storage_object_id=parent.id,
+            derivation_kind=DerivationKind.BG_REMOVED,
+        )
+        existing.status = StorageStatus.PROCESSING
+        repo.store[existing.id] = existing
+
+        handler = RequestBackgroundRemovalHandler(
+            repo=repo, uow=uow, settings=_settings(enabled=True)
+        )
+
+        result = await handler.handle(
+            RequestBackgroundRemovalCommand(parent_storage_object_id=parent.id)
+        )
+
+        assert result.derived_storage_object_id == existing.id
+        assert result.status == "PROCESSING"
+        assert result.already_existed is True
+        assert result.url is None
+
+    async def test_disabled_error_envelope_carries_feature_flag_detail(self) -> None:
+        """C2.2 — the 503 envelope must point at the env var so the UI
+        can render an actionable "feature unavailable" affordance."""
+        from src.shared.exceptions import ServiceUnavailableError
+
+        try:
+            raise BackgroundRemovalDisabledError()
+        except ServiceUnavailableError as exc:
+            assert exc.status_code == 503
+            assert exc.error_code == "BG_REMOVAL_DISABLED"
+            assert exc.details == {"feature_flag": "BG_REMOVAL_ENABLED"}
+
     async def test_fresh_call_provisions_processing_placeholder(self) -> None:
         repo, uow = _FakeStorageRepo(), _FakeUow()
         parent = _make_completed_parent()

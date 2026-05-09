@@ -28100,6 +28100,11 @@
           },
           "status": {
             "type": "string",
+            "enum": [
+              "processing",
+              "completed",
+              "failed"
+            ],
             "title": "Status"
           },
           "url": {
@@ -28125,7 +28130,7 @@
           "alreadyExisted"
         ],
         "title": "RemoveBackgroundResponse",
-        "description": "202 response for ``POST /admin/media/{id}/remove-background`` (IMG-007).\n\nThe ``derived_storage_object_id`` is what the admin UI subscribes\nto via the existing ``GET /admin/media/{id}/status`` SSE channel.\n\n``status``:\n    - ``processing`` — work was queued (or was already running on\n      a prior call). Listen on SSE for the ``completed`` /\n      ``failed`` event.\n    - ``completed`` — a derivation already exists; ``url`` is\n      populated and no SSE subscription is needed.\n\n``alreadyExisted`` distinguishes \"instant return\" (idempotent\nre-call) from \"we just queued work\" so the UI can skip a spinner\nwhen nothing was kicked off."
+        "description": "202 response for ``POST /admin/media/{id}/remove-background`` (IMG-007).\n\nThe ``derived_storage_object_id`` is what the admin UI subscribes\nto via the existing ``GET /admin/media/{id}/status`` SSE channel.\n\n``status``:\n    - ``processing`` — work was queued (or was already running on\n      a prior call). Listen on SSE for the ``completed`` /\n      ``failed`` event.\n    - ``completed`` — a derivation already exists; ``url`` is\n      populated and no SSE subscription is needed.\n    - ``failed`` (C2.2) — a previous run terminated and the row\n      is held. The UI surfaces a \"retry\" affordance; we do NOT\n      auto-replay because BG removal is an expensive ML op and\n      one accidental double-click should never fire two paid\n      inferences.\n\n``alreadyExisted`` distinguishes \"instant return\" (idempotent\nre-call) from \"we just queued work\" so the UI can skip a spinner\nwhen nothing was kicked off."
       },
       "RemoveOrderItemsRequest": {
         "properties": {
