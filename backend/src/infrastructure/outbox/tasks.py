@@ -513,6 +513,55 @@ register_event_handler("StorageObjectProcessedEvent", _handle_storage_object_pro
 
 
 # ---------------------------------------------------------------------------
+# Catalog → image cleanup bridge (IMG-005)
+# ---------------------------------------------------------------------------
+
+
+async def _handle_media_asset_detached(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    """Bridge ``MediaAssetDetachedEvent`` → catalog media-cleanup consumer.
+
+    Replaces the pre-IMG-005 best-effort post-commit cleanup loop in
+    ``UpdateProductHandler``. Atomicity: catalog now only writes the
+    DB row + this event in one UoW; the actual S3 delete happens via
+    TaskIQ retry, so a worker crash mid-delete leaves a row in
+    ``failed_tasks`` instead of an unrecoverable orphan in S3.
+    """
+    from src.modules.catalog.application.consumers.media_asset_detached import (
+        cleanup_storage_after_detached,
+    )
+
+    storage_object_id = payload.get("storage_object_id")
+    if storage_object_id is None:
+        logger.error(
+            "media_asset_detached_event_missing_storage_object_id",
+            payload=payload,
+            correlation_id=correlation_id,
+        )
+        return
+
+    try:
+        await (
+            cleanup_storage_after_detached.kicker()
+            .with_labels(**_build_labels(correlation_id))
+            .kiq(
+                storage_object_id=str(storage_object_id),
+            )  # ty:ignore[no-matching-overload]
+        )
+    except Exception:
+        logger.exception(
+            "media_asset_detached_bridge_dispatch_failed",
+            payload=payload,
+            correlation_id=correlation_id,
+        )
+        raise
+
+
+register_event_handler("MediaAssetDetachedEvent", _handle_media_asset_detached)
+
+
+# ---------------------------------------------------------------------------
 # TaskIQ: Outbox Relay (periodic polling)
 # ---------------------------------------------------------------------------
 

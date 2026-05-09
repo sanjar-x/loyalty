@@ -13,6 +13,7 @@ from typing import Any
 
 from src.modules.catalog.application.commands.sync_media import compute_media_diff
 from src.modules.catalog.domain.entities import MediaAsset, Product
+from src.modules.catalog.domain.events import MediaAssetDetachedEvent
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
     CategoryNotFoundError,
@@ -24,7 +25,6 @@ from src.modules.catalog.domain.interfaces import (
     IBrandRepository,
     ICategoryRepository,
     IMediaAssetRepository,
-    IMediaCleanupPort,
     IProductRepository,
 )
 from src.shared.cache_keys import bump_storefront_product_generation
@@ -96,7 +96,6 @@ class UpdateProductHandler:
         brand_repo: IBrandRepository,
         category_repo: ICategoryRepository,
         media_repo: IMediaAssetRepository,
-        media_cleanup: IMediaCleanupPort,
         uow: IUnitOfWork,
         cache: ICacheService,
         logger: ILogger,
@@ -105,7 +104,9 @@ class UpdateProductHandler:
         self._brand_repo = brand_repo
         self._category_repo = category_repo
         self._media_repo = media_repo
-        self._media_cleanup = media_cleanup
+        # IMG-005 — ``media_cleanup`` removed; storage cleanup now flows
+        # through ``MediaAssetDetachedEvent`` → outbox → TaskIQ
+        # consumer (``catalog.application.consumers.media_asset_detached``).
         self._uow = uow
         self._cache = cache
         self._logger = logger.bind(handler="UpdateProductHandler")
@@ -196,7 +197,6 @@ class UpdateProductHandler:
 
             product.update(**update_kwargs)
 
-            storage_ids_to_delete: list[uuid.UUID] = []
             if command.media is not None:
                 existing = await self._media_repo.list_by_product(command.product_id)
                 # PERF-002 — index existing media by id once, look up
@@ -228,7 +228,17 @@ class UpdateProductHandler:
                     await self._media_repo.delete(mid)
                     sid = item.get("storage_object_id")
                     if sid:
-                        storage_ids_to_delete.append(uuid.UUID(sid))
+                        # IMG-005 — emit event so cleanup runs via the
+                        # outbox/TaskIQ retry pipeline instead of the
+                        # prior best-effort post-commit loop. Failure
+                        # surfaces in failed_tasks instead of an
+                        # unrecoverable S3 orphan.
+                        product.add_domain_event(
+                            MediaAssetDetachedEvent(
+                                product_id=product.id,
+                                storage_object_id=uuid.UUID(sid),
+                            )
+                        )
 
                 for item in to_update:
                     media = existing_by_id.get(uuid.UUID(item["id"]))
@@ -265,9 +275,11 @@ class UpdateProductHandler:
             self._uow.register_aggregate(product)
             await self._uow.commit()
 
-        # Best-effort in-process storage cleanup AFTER successful commit
-        for sid in storage_ids_to_delete:
-            await self._media_cleanup.delete(sid)
+        # IMG-005 — storage cleanup is now atomic with the catalog
+        # commit (event landed in the outbox under the same
+        # transaction; TaskIQ consumer drives the actual S3 + DB
+        # delete with retry). The pre-IMG-005 best-effort
+        # ``media_cleanup.delete`` loop here is gone.
 
         # Bump the storefront product generation — invalidates PLP,
         # search and PDP caches in one INCR (the counter participates
