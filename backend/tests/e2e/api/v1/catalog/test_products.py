@@ -218,6 +218,17 @@ class TestProductEndpoints:
         )
         assert resp.status_code == 404
 
+    # ── POST /products/{id}/_validate-update (C1.2) ──
+
+    async def test_validate_update_returns_404_for_unknown_product(
+        self, admin_client: AsyncClient
+    ):
+        resp = await admin_client.post(
+            f"/api/v1/admin/catalog/products/{uuid.uuid4()}/_validate-update",
+            json={"slug": "doesnt-matter"},
+        )
+        assert resp.status_code == 404
+
     # ── GET /products/{id}/completeness ──
 
     async def test_get_product_completeness(

@@ -56,6 +56,10 @@ from src.modules.catalog.application.queries.validate_product_publish import (
     ValidateProductPublishHandler,
     ValidateProductPublishQuery,
 )
+from src.modules.catalog.application.queries.validate_product_update import (
+    ValidateProductUpdateHandler,
+    ValidateProductUpdateQuery,
+)
 from src.modules.catalog.domain.value_objects import Money, ProductStatus
 from src.modules.catalog.infrastructure.services.sku_pricing_pubsub import (
     SkuPricingPubsub,
@@ -65,6 +69,7 @@ from src.modules.catalog.presentation.schemas import (
     BulkPurchasePriceItemError,
     BulkPurchasePriceRequest,
     BulkPurchasePriceResponse,
+    FieldDiffSchema,
     MissingAttributeItem,
     ProductAttributeResponse,
     ProductCompletenessResponse,
@@ -78,6 +83,9 @@ from src.modules.catalog.presentation.schemas import (
     SkuPublishDiagnosticSchema,
     ValidatePublishGateFailureSchema,
     ValidatePublishResponse,
+    ValidateUpdateResponse,
+    ValidationErrorSchema,
+    ValidationWarningSchema,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
@@ -438,6 +446,63 @@ async def change_product_status(
 # ---------------------------------------------------------------------------
 # C1.1 — Publish-gate preview (read-only, no side effects)
 # ---------------------------------------------------------------------------
+
+
+@product_router.post(
+    path="/{product_id}/_validate-update",
+    status_code=status.HTTP_200_OK,
+    response_model=ValidateUpdateResponse,
+    summary="Preview a product PATCH without committing",
+    description=(
+        "Read-only validator. Accepts the same body shape as "
+        "``PATCH /admin/catalog/products/{id}`` and returns a verdict "
+        "containing the field-level diff, advisory warnings, and any "
+        "validation errors that the real PATCH would raise. "
+        "``ok=true`` means the next PATCH will succeed; ``warnings`` "
+        "are advisory and do not close the gate (e.g. supplier change "
+        "triggers a per-SKU recompute fan-out — the operator should "
+        "know but it's still allowed)."
+    ),
+    dependencies=[Depends(RequirePermission(codename="catalog:read"))],
+)
+async def validate_product_update(
+    product_id: uuid.UUID,
+    body: ProductUpdateRequest,
+    handler: FromDishka[ValidateProductUpdateHandler],
+) -> ValidateUpdateResponse:
+    """Compute the validate-update verdict for a single product."""
+    # Mirror the router-level "_provided_fields" detection used by the
+    # real PATCH endpoint: only fields present in the parsed body are
+    # validated. ``model_fields_set`` exposes that exact set on Pydantic.
+    provided = frozenset(body.model_fields_set)
+    query = ValidateProductUpdateQuery(
+        product_id=product_id,
+        title_i18n=body.title_i18n,
+        description_i18n=body.description_i18n,
+        slug=body.slug,
+        brand_id=body.brand_id,
+        primary_category_id=body.primary_category_id,
+        supplier_id=body.supplier_id,
+        country_of_origin=body.country_of_origin,
+        tags=body.tags,
+        _provided_fields=provided,
+    )
+    result = await handler.handle(query)
+    return ValidateUpdateResponse(
+        ok=result.ok,
+        diff=[
+            FieldDiffSchema(field=d.field, from_value=d.from_value, to_value=d.to_value)
+            for d in result.diff
+        ],
+        warnings=[
+            ValidationWarningSchema(code=w.code, message=w.message, details=w.details)
+            for w in result.warnings
+        ],
+        validation_errors=[
+            ValidationErrorSchema(code=e.code, message=e.message, field=e.field)
+            for e in result.validation_errors
+        ],
+    )
 
 
 @product_router.post(

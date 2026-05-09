@@ -1412,3 +1412,57 @@ class ValidatePublishResponse(CamelModel):
     next_status: str
     sku_diagnostics: list[SkuPublishDiagnosticSchema]
     gate_failures: list[ValidatePublishGateFailureSchema]
+
+
+# ---------------------------------------------------------------------------
+# C1.2 — Validate-update preview
+# ---------------------------------------------------------------------------
+
+
+class FieldDiffSchema(CamelModel):
+    """One row of the field-level diff returned to the validate-update UI."""
+
+    field: str
+    from_value: Any | None
+    to_value: Any | None
+
+
+class ValidationWarningSchema(CamelModel):
+    """Heuristic advisory — does NOT close the validation gate.
+
+    Known codes: ``SUPPLIER_CHANGE_TRIGGERS_RECOMPUTE``,
+    ``CATEGORY_CHANGE_TRIGGERS_RECOMPUTE``, ``BRAND_CHANGE``.
+    """
+
+    code: str
+    message: str
+    details: dict[str, Any]
+
+
+class ValidationErrorSchema(CamelModel):
+    """Validation failure equivalent to what UpdateProductHandler would raise.
+
+    Returned as data so the UI can render inline form errors instead of
+    relying on a ``409`` / ``422`` envelope. Known codes: ``TITLE_EMPTY``,
+    ``TITLE_INCOMPLETE_I18N``, ``BRAND_ID_REQUIRED``, ``BRAND_NOT_FOUND``,
+    ``PRIMARY_CATEGORY_ID_REQUIRED``, ``CATEGORY_NOT_FOUND``,
+    ``SLUG_CONFLICT``.
+    """
+
+    code: str
+    message: str
+    field: str | None = None
+
+
+class ValidateUpdateResponse(CamelModel):
+    """Verdict + diff + advisories returned by ``POST /admin/.../_validate-update``.
+
+    ``ok`` is true iff ``validation_errors`` is empty. ``warnings`` are
+    advisory and do not close the gate; the front-end shows them as a
+    secondary panel.
+    """
+
+    ok: bool
+    diff: list[FieldDiffSchema]
+    warnings: list[ValidationWarningSchema]
+    validation_errors: list[ValidationErrorSchema]

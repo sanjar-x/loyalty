@@ -9167,6 +9167,65 @@
         }
       }
     },
+    "/api/v1/admin/catalog/products/{product_id}/_validate-update": {
+      "post": {
+        "tags": [
+          "Admin / Catalog / Products"
+        ],
+        "summary": "Preview a product PATCH without committing",
+        "description": "Read-only validator. Accepts the same body shape as ``PATCH /admin/catalog/products/{id}`` and returns a verdict containing the field-level diff, advisory warnings, and any validation errors that the real PATCH would raise. ``ok=true`` means the next PATCH will succeed; ``warnings`` are advisory and do not close the gate (e.g. supplier change triggers a per-SKU recompute fan-out — the operator should know but it's still allowed).",
+        "operationId": "validate_product_update_api_v1_admin_catalog_products__product_id___validate_update_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Product Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateUpdateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/catalog/products/{product_id}/_validate-publish": {
       "post": {
         "tags": [
@@ -23611,6 +23670,40 @@
         "title": "FavoriteTargetType",
         "description": "Kinds of entities a user can mark as favorite.\n\nThe set is closed at the domain level — adding a new target type\nrequires updating the catalog ACL validator and the storefront\nenrichment query."
       },
+      "FieldDiffSchema": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "fromValue": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fromvalue"
+          },
+          "toValue": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tovalue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "fromValue",
+          "toValue"
+        ],
+        "title": "FieldDiffSchema",
+        "description": "One row of the field-level diff returned to the validate-update UI."
+      },
       "ForYouFeedResponse": {
         "properties": {
           "items": {
@@ -33838,6 +33931,44 @@
         "title": "ValidatePublishResponse",
         "description": "Verdict + diagnostics returned by ``POST /admin/.../_validate-publish``.\n\n``ok`` is true iff ``gate_failures`` is empty. The endpoint never\nraises an HTTP 4xx for a \"cannot publish yet\" verdict — that's a\nvalid preview, surfaced in the body."
       },
+      "ValidateUpdateResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "diff": {
+            "items": {
+              "$ref": "#/components/schemas/FieldDiffSchema"
+            },
+            "type": "array",
+            "title": "Diff"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationWarningSchema"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "validationErrors": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationErrorSchema"
+            },
+            "type": "array",
+            "title": "Validationerrors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "diff",
+          "warnings",
+          "validationErrors"
+        ],
+        "title": "ValidateUpdateResponse",
+        "description": "Verdict + diff + advisories returned by ``POST /admin/.../_validate-update``.\n\n``ok`` is true iff ``validation_errors`` is empty. ``warnings`` are\nadvisory and do not close the gate; the front-end shows them as a\nsecondary panel."
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -33877,6 +34008,61 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "ValidationErrorSchema": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ValidationErrorSchema",
+        "description": "Validation failure equivalent to what UpdateProductHandler would raise.\n\nReturned as data so the UI can render inline form errors instead of\nrelying on a ``409`` / ``422`` envelope. Known codes: ``TITLE_EMPTY``,\n``TITLE_INCOMPLETE_I18N``, ``BRAND_ID_REQUIRED``, ``BRAND_NOT_FOUND``,\n``PRIMARY_CATEGORY_ID_REQUIRED``, ``CATEGORY_NOT_FOUND``,\n``SLUG_CONFLICT``."
+      },
+      "ValidationWarningSchema": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "details"
+        ],
+        "title": "ValidationWarningSchema",
+        "description": "Heuristic advisory — does NOT close the validation gate.\n\nKnown codes: ``SUPPLIER_CHANGE_TRIGGERS_RECOMPUTE``,\n``CATEGORY_CHANGE_TRIGGERS_RECOMPUTE``, ``BRAND_CHANGE``."
       },
       "VariableDataType": {
         "type": "string",
