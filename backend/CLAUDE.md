@@ -78,7 +78,7 @@ make production-smoke                                                     # stan
 | Hook | What it catches |
 | --- | --- |
 | `backend-production-smoke` | Undeclared runtime dependencies (via `uv sync --no-dev --frozen`) and DI / import errors (via `create_app()` and `broker` smoke imports). ~10s locally. **Closes the PR-6b nanoid gap.** A `trap` restores the dev venv on exit so a failed gate never leaves the local environment in `--no-dev` state. |
-| `backend-tests-unit` | Domain regressions before they ever reach the remote. **Temporarily** ignores `tests/unit/activity/test_for_you_feed.py` (PC-201c — 9 known failures); the `--ignore` flag is removed the moment PC-201c lands the activity-slice fix. |
+| `backend-tests-unit` | Domain regressions before they ever reach the remote. Full unit suite — PC-201c resolved in Sprint 3 (D0.2), no `--ignore` flag any more. |
 | `backend-tests-architecture` | Architecture fitness rules (Rule 6 / 6b / 8 / 9 / 10 / 11 + CC-001) parametrized over the 14 modules. Catches structural regressions (cross-module imports, missing manifests, FSM mixin bypass, ...). |
 
 ### Escape hatch

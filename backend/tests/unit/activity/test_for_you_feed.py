@@ -107,12 +107,23 @@ class _FakeCoViewReader:
 
 @dataclass
 class _CardStub:
-    product_id: uuid.UUID
+    """Minimal card stub mirroring ``StorefrontProductCardReadModel``.
+
+    The for-you feed handler reads ``.id`` (the product id) — this stub
+    matches that contract. ``product_id`` is kept as an alias so any
+    older test branch that still references it doesn't crash.
+    """
+
+    id: uuid.UUID
+
+    @property
+    def product_id(self) -> uuid.UUID:
+        return self.id
 
 
 class _FakeCardsHandler:
     async def handle(self, query: Any) -> list[_CardStub]:
-        return [_CardStub(product_id=pid) for pid in query.product_ids]
+        return [_CardStub(id=pid) for pid in query.product_ids]
 
 
 def _mk_ranked(ids: list[uuid.UUID]) -> list[RankedEntity]:

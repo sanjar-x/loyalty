@@ -67,12 +67,14 @@ repos:
         language: system
 
       - id: backend-tests-unit
-        # PC-201c temporary exclusion — `tests/unit/activity/test_for_you_feed.py`
-        # carries 9 known failures (activity stub `_CardStub.id`
-        # AttributeError, Sprint 0 baseline). Drop the `--ignore` flag
-        # the moment PC-201c lands the activity-slice fix.
-        name: backend unit tests (excludes PC-201c)
-        entry: bash -c 'cd backend && uv run pytest tests/unit/ -x -q --no-cov --ignore=tests/unit/activity/test_for_you_feed.py'
+        # PC-201c resolved (Sprint 3, D0.2) — the previous 9 failures
+        # all stemmed from one stub mismatch (``_CardStub.product_id``
+        # vs ``StorefrontProductCardReadModel.id``). Stub fixed in
+        # ``tests/unit/activity/test_for_you_feed.py`` and the
+        # ``--ignore`` flag dropped here. The full unit suite gates
+        # every push from now on.
+        name: backend unit tests
+        entry: bash -c 'cd backend && uv run pytest tests/unit/ -x -q --no-cov'
         stages: [pre-push]
         pass_filenames: false
         language: system
