@@ -44,3 +44,31 @@ class StorageObjectProcessedEvent(
     url: str | None = None
     image_variants: list[dict] = field(default_factory=list)
     event_type: str = "StorageObjectProcessedEvent"
+
+
+@dataclass(frozen=True)
+class BackgroundRemovedEvent(
+    ImageEvent,
+    required_fields=("storage_object_id", "parent_storage_object_id", "url"),
+    aggregate_id_field="storage_object_id",
+):
+    """A background-removal derivation finished successfully (IMG-007).
+
+    Emitted from ``remove_background_task`` after the inference and
+    S3 upload commit. Carries both ends of the parent → derived link
+    so audit consumers and future search-reindex / moderation jobs do
+    not need a JOIN to the ``storage_objects`` table.
+
+    Distinct from :class:`StorageObjectProcessedEvent` so subscribers
+    can decide which lifecycle they care about — catalog mirrors only
+    ``Processed`` (URL refresh on reupload), while a future
+    moderation queue would consume ``BackgroundRemoved`` (extra
+    review pass for ML output).
+    """
+
+    storage_object_id: uuid.UUID | None = None
+    parent_storage_object_id: uuid.UUID | None = None
+    url: str | None = None
+    derivation_kind: str = ""
+    image_variants: list[dict] = field(default_factory=list)
+    event_type: str = "BackgroundRemovedEvent"

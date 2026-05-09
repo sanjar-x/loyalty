@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Any, Protocol
 
 from src.modules.image.domain.entities import StorageFile
+from src.modules.image.domain.value_objects import DerivationKind
 
 
 class IStorageRepository(ABC):
@@ -68,6 +69,22 @@ class IStorageRepository(ABC):
         """List files stuck in PENDING_UPLOAD status past a threshold.
 
         Useful for garbage-collection of uploads that were never completed.
+        """
+
+    @abstractmethod
+    async def find_derivation(
+        self, parent_storage_object_id: uuid.UUID, kind: DerivationKind
+    ) -> StorageFile | None:
+        """Look up an existing derivation of a parent storage object.
+
+        Idempotency anchor for ML pipelines (background removal,
+        upscaling, ...): a duplicate ``POST .../remove-background``
+        must return the existing derived row instead of creating a new
+        one and re-running an expensive inference.
+
+        Returns ``None`` if no derivation of ``kind`` exists for the
+        parent yet (the caller then provisions a new ``PROCESSING``
+        row + dispatches the worker).
         """
 
 
@@ -139,3 +156,45 @@ class IBlobStorage(Protocol):
     async def copy_object(self, source_name: str, dest_name: str) -> None:
         """Copy an object within the same bucket."""
         ...
+
+
+class IBackgroundRemover(ABC):
+    """Domain port for background removal of an image.
+
+    Implementations (BriaRMBGAdapter, RembgAdapter, RemoveBgApiAdapter,
+    ...) live in the infrastructure layer and are wired through Dishka.
+    The application layer depends on this contract only — the choice
+    of model / API / hosting can be swapped without touching command
+    handlers.
+
+    Stateless per-call: pass raw image bytes in (any Pillow-readable
+    format), receive a transparent-background image out as PNG or
+    WebP-with-alpha bytes. Implementations are expected to be safe to
+    invoke concurrently (lazy-load heavy weights once on first call,
+    keep a singleton in worker memory).
+    """
+
+    @abstractmethod
+    async def remove(self, image_bytes: bytes) -> bytes:
+        """Run the background-removal pipeline against ``image_bytes``.
+
+        Args:
+            image_bytes: Original image; any Pillow-readable format.
+
+        Returns:
+            Image bytes with the background replaced by transparent
+            alpha. Encoded as PNG or WebP-with-alpha — caller is
+            expected to honour the ``content_type`` returned by
+            :meth:`output_content_type` when uploading to S3.
+        """
+
+    @property
+    @abstractmethod
+    def output_content_type(self) -> str:
+        """MIME type the implementation produces (e.g. ``image/webp``).
+
+        Used by the worker that uploads the result to S3 — keeping
+        the content type colocated with the producer avoids hardcoding
+        ``image/webp`` (or ``image/png``) at the S3 layer when a
+        future adapter switches encoding.
+        """

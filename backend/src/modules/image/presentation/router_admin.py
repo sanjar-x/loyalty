@@ -1,12 +1,13 @@
 """Image module admin router (staff-only).
 
-  POST   /admin/media/upload                   reserve slot, return presigned PUT URL
-  POST   /admin/media/{id}/reupload            replace image, keep same ID & URLs
-  POST   /admin/media/{id}/confirm             verify S3, dispatch processing
-  GET    /admin/media/{id}/status              SSE stream for processing status
-  GET    /admin/media/{id}                      get metadata
-  DELETE /admin/media/{id}                      delete files + record
-  POST   /admin/media/external                 import from external URL
+  POST   /admin/media/upload                       reserve slot, return presigned PUT URL
+  POST   /admin/media/{id}/reupload                replace image, keep same ID & URLs
+  POST   /admin/media/{id}/confirm                 verify S3, dispatch processing
+  GET    /admin/media/{id}/status                  SSE stream for processing status
+  GET    /admin/media/{id}                          get metadata
+  DELETE /admin/media/{id}                          delete files + record
+  POST   /admin/media/external                     import from external URL
+  POST   /admin/media/{id}/remove-background       kick off Bria RMBG-2.0 cutout (IMG-007)
 
 Auth: staff JWT + ``RequirePermission("media:manage")`` per route. Replaces
 the X-API-Key model used by the legacy ``image_backend`` microservice
@@ -44,6 +45,10 @@ from src.modules.image.application.commands.import_external import (
     ImportExternalHandler,
     _VariantUpload,
 )
+from src.modules.image.application.commands.request_background_removal import (
+    RequestBackgroundRemovalCommand,
+    RequestBackgroundRemovalHandler,
+)
 from src.modules.image.application.commands.request_upload import (
     RequestUploadCommand,
     RequestUploadHandler,
@@ -56,7 +61,10 @@ from src.modules.image.domain.exceptions import StorageFileNotFoundError
 from src.modules.image.domain.interfaces import IStorageRepository
 from src.modules.image.infrastructure.services.image_processor import build_variants
 from src.modules.image.infrastructure.services.sse_manager import SSEManager
-from src.modules.image.infrastructure.tasks import process_image_task
+from src.modules.image.infrastructure.tasks import (
+    process_image_task,
+    remove_background_task,
+)
 from src.modules.image.presentation.schemas import (
     ConfirmResponse,
     DeleteResponse,
@@ -64,6 +72,7 @@ from src.modules.image.presentation.schemas import (
     ExternalImportResponse,
     MediaVariant,
     MetadataResponse,
+    RemoveBackgroundResponse,
     ReuploadRequest,
     ReuploadResponse,
     StatusEventData,
@@ -346,4 +355,45 @@ async def import_external(
         storage_object_id=result.storage_object_id,
         url=result.public_url,
         variants=[MediaVariant(**v) for v in result.variants_meta],
+    )
+
+
+# ---------------------------------------------------------------------------
+# 8. POST /{id}/remove-background — kick off Bria RMBG-2.0 cutout (IMG-007)
+# ---------------------------------------------------------------------------
+@media_admin_router.post(
+    "/{storage_object_id}/remove-background",
+    response_model=RemoveBackgroundResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Request a background-removal derivation",
+    description=(
+        "Provisions a derived StorageObject with a parent link and "
+        "dispatches the Bria RMBG-2.0 inference task on the "
+        "``image_ml`` worker. Idempotent: a second call returns the "
+        "existing derivation without re-running inference. Subscribe "
+        "to ``GET /admin/media/{derived_storage_object_id}/status`` "
+        "for SSE updates."
+    ),
+    dependencies=[Depends(RequirePermission(codename=_MEDIA_PERMISSION))],
+)
+async def request_background_removal(
+    storage_object_id: uuid.UUID,
+    handler: FromDishka[RequestBackgroundRemovalHandler],
+) -> RemoveBackgroundResponse:
+    result = await handler.handle(
+        RequestBackgroundRemovalCommand(parent_storage_object_id=storage_object_id)
+    )
+    # Dispatch only when we just provisioned a fresh PROCESSING row.
+    # The idempotent path (``already_existed=True``) returns the
+    # existing derivation untouched; firing the task again would
+    # re-run inference for nothing.
+    if not result.already_existed and result.status == "PROCESSING":
+        await remove_background_task.kiq(  # ty:ignore[no-matching-overload]
+            derived_storage_object_id=str(result.derived_storage_object_id),
+        )
+    return RemoveBackgroundResponse(
+        derived_storage_object_id=result.derived_storage_object_id,
+        status="completed" if result.status == "COMPLETED" else "processing",
+        url=result.url,
+        already_existed=result.already_existed,
     )
