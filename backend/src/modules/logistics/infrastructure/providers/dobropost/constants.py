@@ -9,10 +9,15 @@ domain enum. Source — ``docs/dobropost_shipment_api/status-codes.md``
 from src.modules.logistics.domain.value_objects import TrackingStatus
 
 # ---------------------------------------------------------------------------
-# DobroPost API URLs
+# DobroPost API paths
 # ---------------------------------------------------------------------------
-
-DOBROPOST_PRODUCTION_URL = "https://api.dobropost.com"
+# Base URL is the *single* source of truth in ``Settings.DOBROPOST_BASE_URL``
+# (shared kernel) — read by both ``order.infrastructure.adapters.
+# dobropost_client`` and the logistics factory. Removed the prior
+# ``DOBROPOST_PRODUCTION_URL`` constant: the architecture boundary
+# (no cross-module imports between order and logistics) would
+# otherwise force the two consumers to maintain duplicate constants
+# in lockstep.
 DOBROPOST_SIGN_IN_PATH = "/api/shipment/sign-in"
 DOBROPOST_SHIPMENT_PATH = "/api/shipment"
 
