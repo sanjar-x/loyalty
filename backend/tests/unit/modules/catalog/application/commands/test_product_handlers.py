@@ -71,7 +71,6 @@ from src.modules.catalog.domain.exceptions import (
     ProductSlugConflictError,
     SourceUrlRequiredError,
 )
-from src.modules.catalog.domain.interfaces import IMediaCleanupPort
 from src.modules.catalog.domain.value_objects import (
     AttributeDataType,
     AttributeLevel,
@@ -110,11 +109,6 @@ def _make_supplier_service(
     elif supplier_info:
         svc.assert_active.return_value = supplier_info
     return svc
-
-
-def _make_media_cleanup():
-    """Create an AsyncMock image backend client."""
-    return AsyncMock(spec=IMediaCleanupPort)
 
 
 def _seed_brand(uow, slug="nike", name="Nike"):
@@ -499,14 +493,12 @@ class TestUpdateProduct:
         brand = _seed_brand(uow)
         cat = _seed_category(uow)
         product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
-        media_cleanup = _make_media_cleanup()
 
         handler = UpdateProductHandler(
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
             media_repo=uow.media_assets,
-            media_cleanup=media_cleanup,
             uow=uow,
             cache=AsyncMock(),
             logger=_make_logger(),
@@ -531,14 +523,12 @@ class TestUpdateProduct:
         brand = _seed_brand(uow)
         cat = _seed_category(uow)
         product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
-        media_cleanup = _make_media_cleanup()
 
         handler = UpdateProductHandler(
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
             media_repo=uow.media_assets,
-            media_cleanup=media_cleanup,
             uow=uow,
             cache=AsyncMock(),
             logger=_make_logger(),
@@ -557,14 +547,12 @@ class TestUpdateProduct:
 
     async def test_product_not_found(self):
         uow = FakeUnitOfWork()
-        media_cleanup = _make_media_cleanup()
 
         handler = UpdateProductHandler(
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
             media_repo=uow.media_assets,
-            media_cleanup=media_cleanup,
             uow=uow,
             cache=AsyncMock(),
             logger=_make_logger(),
@@ -586,14 +574,12 @@ class TestUpdateProduct:
         brand = _seed_brand(uow)
         cat = _seed_category(uow)
         product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
-        media_cleanup = _make_media_cleanup()
 
         handler = UpdateProductHandler(
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
             media_repo=uow.media_assets,
-            media_cleanup=media_cleanup,
             uow=uow,
             cache=AsyncMock(),
             logger=_make_logger(),
@@ -617,14 +603,12 @@ class TestUpdateProduct:
         cat = _seed_category(uow)
         product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
         _seed_product(uow, brand_id=brand.id, category_id=cat.id, slug="taken-slug")
-        media_cleanup = _make_media_cleanup()
 
         handler = UpdateProductHandler(
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
             media_repo=uow.media_assets,
-            media_cleanup=media_cleanup,
             uow=uow,
             cache=AsyncMock(),
             logger=_make_logger(),
@@ -646,14 +630,12 @@ class TestUpdateProduct:
         brand = _seed_brand(uow)
         cat = _seed_category(uow)
         product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
-        media_cleanup = _make_media_cleanup()
 
         handler = UpdateProductHandler(
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
             media_repo=uow.media_assets,
-            media_cleanup=media_cleanup,
             uow=uow,
             cache=AsyncMock(),
             logger=_make_logger(),
@@ -675,14 +657,12 @@ class TestUpdateProduct:
         brand = _seed_brand(uow)
         cat = _seed_category(uow)
         product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
-        media_cleanup = _make_media_cleanup()
 
         handler = UpdateProductHandler(
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
             media_repo=uow.media_assets,
-            media_cleanup=media_cleanup,
             uow=uow,
             cache=AsyncMock(),
             logger=_make_logger(),

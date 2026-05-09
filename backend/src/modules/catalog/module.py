@@ -92,8 +92,12 @@ CATALOG_MODULE = ModuleManifest(
     # to the per-product Redis pub/sub channel that admin SSE streams to UI.
     # IMG-004 — bridges StorageObjectProcessedEvent into the catalog
     # media-sync consumer so reuploads keep ``media_assets.url`` fresh.
+    # IMG-005 — bridges MediaAssetDetachedEvent into a TaskIQ cleanup
+    # job so storage objects are dropped asynchronously after the
+    # catalog row commit (atomicity + retry vs. best-effort post-commit).
     task_modules=(
         "src.modules.catalog.application.consumers.sku_pricing_events",
         "src.modules.catalog.application.consumers.storage_object_processed",
+        "src.modules.catalog.application.consumers.media_asset_detached",
     ),
 )

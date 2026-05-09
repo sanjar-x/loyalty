@@ -455,6 +455,30 @@ class ProductDeletedEvent(
     event_type: str = "ProductDeletedEvent"
 
 
+@dataclass(frozen=True)
+class MediaAssetDetachedEvent(
+    CatalogEvent,
+    required_fields=("product_id", "storage_object_id"),
+    aggregate_id_field="product_id",
+):
+    """Emitted when a media asset is removed from a product (IMG-005).
+
+    Carries the underlying ``storage_object_id`` so the image module
+    can drop the S3 keys + DB row in a separate transaction.
+    Atomicity: this event is written to the outbox in the same UoW as
+    the catalog ``DELETE FROM media_assets`` row, so a failed commit
+    discards both. Cleanup happens via TaskIQ after the catalog write
+    succeeds — orphan-free even on worker crashes (relay retries).
+    Replaces the prior best-effort post-commit ``media_cleanup.delete``
+    loop in ``UpdateProductHandler``.
+    """
+
+    product_id: uuid.UUID | None = None
+    storage_object_id: uuid.UUID | None = None
+    aggregate_type: str = "Product"
+    event_type: str = "MediaAssetDetachedEvent"
+
+
 # ---------------------------------------------------------------------------
 # ProductVariant events
 # ---------------------------------------------------------------------------
