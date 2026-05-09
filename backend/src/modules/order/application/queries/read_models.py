@@ -2,7 +2,7 @@
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 
 
 @dataclass(frozen=True)
@@ -43,6 +43,33 @@ class CustomerOrderReadModel:
 
 
 @dataclass(frozen=True)
+class RecipientSnapshotReadModel:
+    """Customs PII captured on the order at checkout — admin-only.
+
+    C5.1 — surfaced on ``AdminOrderReadModel`` so the manager dashboard
+    can display the customs-validation context without a cross-module
+    join into the recipient table. The snapshot is the single source
+    of truth for what was sent to DobroPost; the live ``Recipient``
+    aggregate may have edits since.
+
+    Frontend admin masks ``passport_serial`` / ``passport_number`` /
+    ``inn`` in the UI (last 2/4 digits). Never echoed in customer-
+    facing read models.
+    """
+
+    recipient_id: uuid.UUID
+    full_name_ru: str
+    full_name_lat: str
+    phone: str
+    email: str
+    passport_serial: str
+    passport_number: str
+    passport_issue_date: date
+    birth_date: date
+    inn: str
+
+
+@dataclass(frozen=True)
 class AdminOrderReadModel:
     """Admin-facing projection — raw FSM, история, метаданные hold/cancel."""
 
@@ -71,6 +98,7 @@ class AdminOrderReadModel:
     created_at: datetime
     updated_at: datetime
     items: list[OrderItemReadModel] = field(default_factory=list)
+    recipient_snapshot: RecipientSnapshotReadModel | None = None
 
 
 @dataclass(frozen=True)

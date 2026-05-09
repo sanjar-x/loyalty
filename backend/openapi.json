@@ -16333,6 +16333,33 @@
         }
       }
     },
+    "/api/v1/admin/orders/_meta/cancellation-reasons": {
+      "get": {
+        "tags": [
+          "Admin / Orders"
+        ],
+        "summary": "Admin Get Cancellation Reasons Meta",
+        "description": "C5.2 — taxonomy of cancellation reasons grouped by category.\n\nFrontend uses this to render a grouped dropdown in the\nForceCancelModal without hard-coding the 19 reasons. The order\ninside each group is the order in which the enum was declared,\nwhich already follows the customer-facing severity ordering\n(least disruptive first).",
+        "operationId": "admin_get_cancellation_reasons_meta_api_v1_admin_orders__meta_cancellation_reasons_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancellationReasonsMetaResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/admin/orders": {
       "get": {
         "tags": [
@@ -17548,13 +17575,12 @@
           "holdReason": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/HoldReason"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Holdreason"
+            ]
           },
           "holdStartedAt": {
             "anyOf": [
@@ -17583,13 +17609,12 @@
           "cancellationReason": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/CancellationReason"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Cancellationreason"
+            ]
           },
           "createdAt": {
             "type": "string",
@@ -17607,6 +17632,16 @@
             },
             "type": "array",
             "title": "Items"
+          },
+          "recipientSnapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecipientSnapshotSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -19802,9 +19837,7 @@
       "CancelOrderRequest": {
         "properties": {
           "reason": {
-            "type": "string",
-            "maxLength": 64,
-            "title": "Reason",
+            "$ref": "#/components/schemas/CancellationReason",
             "default": "customer_changed_mind"
           },
           "idempotencyKey": {
@@ -19833,6 +19866,71 @@
           "shipment_id"
         ],
         "title": "CancelShipmentResponse"
+      },
+      "CancellationReason": {
+        "type": "string",
+        "enum": [
+          "customer_changed_mind",
+          "customer_found_better_price",
+          "customer_wrong_item",
+          "customer_delivery_too_slow",
+          "customer_duplicate_order",
+          "merchant_out_of_stock",
+          "merchant_price_error",
+          "merchant_fraud_suspected",
+          "merchant_region_not_served",
+          "merchant_item_discontinued",
+          "merchant_force_cancel",
+          "system_payment_failed",
+          "system_payment_timeout",
+          "system_auth_expired",
+          "system_hold_ttl_expired",
+          "logistics_customs_rejected",
+          "logistics_lost_in_transit",
+          "logistics_undeliverable_address",
+          "logistics_passport_invalid"
+        ],
+        "title": "CancellationReason",
+        "description": "Specific cancellation reason codes (taxonomized enum)."
+      },
+      "CancellationReasonGroupSchema": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/CancellationReason"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "reasons"
+        ],
+        "title": "CancellationReasonGroupSchema",
+        "description": "One taxonomy bucket from the cancellation-reasons meta endpoint.\n\nThe category code is one of ``customer / merchant / system /\nlogistics`` (see :class:`order.domain.value_objects.CancellationCategory`);\n``reasons`` lists every :class:`CancellationReason` that belongs to\nthat category. Front-end uses this to render a grouped dropdown\nin the ForceCancelModal without hard-coding the taxonomy."
+      },
+      "CancellationReasonsMetaResponse": {
+        "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/CancellationReasonGroupSchema"
+            },
+            "type": "array",
+            "title": "Categories"
+          }
+        },
+        "type": "object",
+        "required": [
+          "categories"
+        ],
+        "title": "CancellationReasonsMetaResponse",
+        "description": "Response for ``GET /admin/orders/_meta/cancellation-reasons``."
       },
       "CartGroupResponse": {
         "properties": {
@@ -23938,9 +24036,7 @@
       "HoldOrderRequest": {
         "properties": {
           "reason": {
-            "type": "string",
-            "maxLength": 32,
-            "title": "Reason"
+            "$ref": "#/components/schemas/HoldReason"
           }
         },
         "type": "object",
@@ -23948,6 +24044,16 @@
           "reason"
         ],
         "title": "HoldOrderRequest"
+      },
+      "HoldReason": {
+        "type": "string",
+        "enum": [
+          "passport_invalid",
+          "customs_rejected",
+          "stuck_in_cn",
+          "manual_review"
+        ],
+        "title": "HoldReason"
       },
       "I18nText": {
         "properties": {
@@ -27949,6 +28055,68 @@
           "updatedAt"
         ],
         "title": "RecipientSchema"
+      },
+      "RecipientSnapshotSchema": {
+        "properties": {
+          "recipientId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Recipientid"
+          },
+          "fullNameRu": {
+            "type": "string",
+            "title": "Fullnameru"
+          },
+          "fullNameLat": {
+            "type": "string",
+            "title": "Fullnamelat"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "passportSerial": {
+            "type": "string",
+            "title": "Passportserial"
+          },
+          "passportNumber": {
+            "type": "string",
+            "title": "Passportnumber"
+          },
+          "passportIssueDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Passportissuedate"
+          },
+          "birthDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Birthdate"
+          },
+          "inn": {
+            "type": "string",
+            "title": "Inn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recipientId",
+          "fullNameRu",
+          "fullNameLat",
+          "phone",
+          "email",
+          "passportSerial",
+          "passportNumber",
+          "passportIssueDate",
+          "birthDate",
+          "inn"
+        ],
+        "title": "RecipientSnapshotSchema",
+        "description": "Customs PII frozen on the order at checkout.\n\nC5.1 — admin-only. Frontend admin masks ``passportSerial`` /\n``passportNumber`` / ``inn`` in the UI (last 2-4 digits). Never\nsurfaced via the customer order endpoint."
       },
       "RecomputeFanoutResponse": {
         "properties": {

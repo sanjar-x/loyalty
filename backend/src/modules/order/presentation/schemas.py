@@ -1,11 +1,24 @@
 """Pydantic schemas for order endpoints (camelCase aliases)."""
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import Field
 
+from src.modules.order.domain.value_objects import (
+    CancellationReason as DomainCancellationReason,
+)
+from src.modules.order.domain.value_objects import (
+    HoldReason as DomainHoldReason,
+)
 from src.shared.schemas import CamelModel
+
+# C5.2 — re-export domain enums to the presentation layer so FastAPI
+# generates ``HoldReason`` / ``CancellationReason`` enum schemas in the
+# OpenAPI snapshot. This replaces the prior opaque ``str`` request
+# fields and gives the front-end a typed dropdown source.
+HoldReason = DomainHoldReason
+CancellationReason = DomainCancellationReason
 
 # ---------------------------------------------------------------------------
 # Customer-facing
@@ -28,7 +41,7 @@ class CreateOrderResponse(CamelModel):
 
 
 class CancelOrderRequest(CamelModel):
-    reason: str = Field(default="customer_changed_mind", max_length=64)
+    reason: CancellationReason = CancellationReason.CUSTOMER_CHANGED_MIND
     idempotency_key: str = Field(min_length=8, max_length=128)
 
 
@@ -105,7 +118,27 @@ class ProcureOrderRequest(CamelModel):
 
 
 class HoldOrderRequest(CamelModel):
-    reason: str = Field(max_length=32)
+    reason: HoldReason
+
+
+class RecipientSnapshotSchema(CamelModel):
+    """Customs PII frozen on the order at checkout.
+
+    C5.1 — admin-only. Frontend admin masks ``passportSerial`` /
+    ``passportNumber`` / ``inn`` in the UI (last 2-4 digits). Never
+    surfaced via the customer order endpoint.
+    """
+
+    recipient_id: uuid.UUID
+    full_name_ru: str
+    full_name_lat: str
+    phone: str
+    email: str
+    passport_serial: str
+    passport_number: str
+    passport_issue_date: date
+    birth_date: date
+    inn: str
 
 
 class AdminOrderSchema(CamelModel):
@@ -127,13 +160,14 @@ class AdminOrderSchema(CamelModel):
     cross_border_shipment_id: uuid.UUID | None
     last_mile_shipment_id: uuid.UUID | None
     pre_hold_status: str | None
-    hold_reason: str | None
+    hold_reason: HoldReason | None
     hold_started_at: datetime | None
     hold_until: datetime | None
-    cancellation_reason: str | None
+    cancellation_reason: CancellationReason | None
     created_at: datetime
     updated_at: datetime
     items: list[OrderItemSchema]
+    recipient_snapshot: RecipientSnapshotSchema | None = None
 
 
 class AdminOrderListResponse(CamelModel):
@@ -151,3 +185,28 @@ class OrderStateHistoryEntrySchema(CamelModel):
     actor_id: str
     metadata: dict | None
     occurred_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# C5.2 — taxonomy meta endpoint
+# ---------------------------------------------------------------------------
+
+
+class CancellationReasonGroupSchema(CamelModel):
+    """One taxonomy bucket from the cancellation-reasons meta endpoint.
+
+    The category code is one of ``customer / merchant / system /
+    logistics`` (see :class:`order.domain.value_objects.CancellationCategory`);
+    ``reasons`` lists every :class:`CancellationReason` that belongs to
+    that category. Front-end uses this to render a grouped dropdown
+    in the ForceCancelModal without hard-coding the taxonomy.
+    """
+
+    code: str
+    reasons: list[CancellationReason]
+
+
+class CancellationReasonsMetaResponse(CamelModel):
+    """Response for ``GET /admin/orders/_meta/cancellation-reasons``."""
+
+    categories: list[CancellationReasonGroupSchema]

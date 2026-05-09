@@ -12,6 +12,7 @@ from src.modules.order.application.queries.read_models import (
     AdminOrderListPage,
     AdminOrderReadModel,
     OrderItemReadModel,
+    RecipientSnapshotReadModel,
 )
 from src.modules.order.domain.exceptions import OrderNotFoundError
 from src.modules.order.domain.value_objects import (
@@ -20,6 +21,27 @@ from src.modules.order.domain.value_objects import (
     to_customer_facing,
 )
 from src.modules.order.infrastructure.models import OrderItemModel, OrderModel
+
+
+def _to_recipient_snapshot(row: OrderModel) -> RecipientSnapshotReadModel:
+    """Read-projection of the order's frozen customs recipient snapshot.
+
+    Mirrors the columns persisted by ``CreateOrderFromCartHandler`` —
+    pure column-to-field mapping, no joins. Admin-only — never returned
+    via customer-facing read models.
+    """
+    return RecipientSnapshotReadModel(
+        recipient_id=row.recipient_id,
+        full_name_ru=row.recipient_full_name_ru,
+        full_name_lat=row.recipient_full_name_lat,
+        phone=row.recipient_phone,
+        email=row.recipient_email,
+        passport_serial=row.recipient_passport_serial,
+        passport_number=row.recipient_passport_number,
+        passport_issue_date=row.recipient_passport_issue_date,
+        birth_date=row.recipient_birth_date,
+        inn=row.recipient_inn,
+    )
 
 
 def _to_admin_read_model(row: OrderModel) -> AdminOrderReadModel:
@@ -72,6 +94,7 @@ def _to_admin_read_model(row: OrderModel) -> AdminOrderReadModel:
             for it in sorted(row.items, key=lambda i: i.id)
             if isinstance(it, OrderItemModel)
         ],
+        recipient_snapshot=_to_recipient_snapshot(row),
     )
 
 

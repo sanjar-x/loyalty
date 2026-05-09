@@ -54,19 +54,24 @@ from src.modules.order.application.queries.get_order_state_history import (
 )
 from src.modules.order.application.queries.read_models import AdminOrderReadModel
 from src.modules.order.domain.value_objects import (
+    CancellationCategory,
     CancellationReason,
     HoldReason,
     OrderStatus,
+    category_of,
 )
 from src.modules.order.presentation.schemas import (
     AdminOrderListResponse,
     AdminOrderSchema,
+    CancellationReasonGroupSchema,
+    CancellationReasonsMetaResponse,
     CancelOrderRequest,
     ChangePickupPointRequest,
     HoldOrderRequest,
     OrderItemSchema,
     OrderStateHistoryEntrySchema,
     ProcureOrderRequest,
+    RecipientSnapshotSchema,
 )
 
 admin_order_router = APIRouter(
@@ -77,6 +82,21 @@ admin_order_router = APIRouter(
 
 
 def _serialize_admin(model: AdminOrderReadModel) -> AdminOrderSchema:
+    snapshot_schema: RecipientSnapshotSchema | None = None
+    if model.recipient_snapshot is not None:
+        rs = model.recipient_snapshot
+        snapshot_schema = RecipientSnapshotSchema(
+            recipient_id=rs.recipient_id,
+            full_name_ru=rs.full_name_ru,
+            full_name_lat=rs.full_name_lat,
+            phone=rs.phone,
+            email=rs.email,
+            passport_serial=rs.passport_serial,
+            passport_number=rs.passport_number,
+            passport_issue_date=rs.passport_issue_date,
+            birth_date=rs.birth_date,
+            inn=rs.inn,
+        )
     return AdminOrderSchema(
         order_id=model.order_id,
         order_number=model.order_number,
@@ -96,10 +116,14 @@ def _serialize_admin(model: AdminOrderReadModel) -> AdminOrderSchema:
         cross_border_shipment_id=model.cross_border_shipment_id,
         last_mile_shipment_id=model.last_mile_shipment_id,
         pre_hold_status=model.pre_hold_status,
-        hold_reason=model.hold_reason,
+        hold_reason=HoldReason(model.hold_reason) if model.hold_reason else None,
         hold_started_at=model.hold_started_at,
         hold_until=model.hold_until,
-        cancellation_reason=model.cancellation_reason,
+        cancellation_reason=(
+            CancellationReason(model.cancellation_reason)
+            if model.cancellation_reason
+            else None
+        ),
         created_at=model.created_at,
         updated_at=model.updated_at,
         items=[
@@ -120,6 +144,34 @@ def _serialize_admin(model: AdminOrderReadModel) -> AdminOrderSchema:
             )
             for it in model.items
         ],
+        recipient_snapshot=snapshot_schema,
+    )
+
+
+@admin_order_router.get(
+    "/_meta/cancellation-reasons",
+    response_model=CancellationReasonsMetaResponse,
+    dependencies=[Depends(RequirePermission("orders:read"))],
+)
+async def admin_get_cancellation_reasons_meta() -> CancellationReasonsMetaResponse:
+    """C5.2 — taxonomy of cancellation reasons grouped by category.
+
+    Frontend uses this to render a grouped dropdown in the
+    ForceCancelModal without hard-coding the 19 reasons. The order
+    inside each group is the order in which the enum was declared,
+    which already follows the customer-facing severity ordering
+    (least disruptive first).
+    """
+    grouped: dict[CancellationCategory, list[CancellationReason]] = {
+        cat: [] for cat in CancellationCategory
+    }
+    for reason in CancellationReason:
+        grouped[category_of(reason)].append(reason)
+    return CancellationReasonsMetaResponse(
+        categories=[
+            CancellationReasonGroupSchema(code=cat.value, reasons=reasons)
+            for cat, reasons in grouped.items()
+        ]
     )
 
 
@@ -220,9 +272,10 @@ async def admin_hold_order(
     body: HoldOrderRequest,
     handler: FromDishka[HoldOrderHandler],
 ) -> None:
-    await handler.handle(
-        HoldOrderCommand(order_id=order_id, reason=HoldReason(body.reason))
-    )
+    # C5.2 — body.reason is now a typed HoldReason enum (was str), so
+    # pass it through verbatim. Pydantic rejects unknown values with
+    # 422 before the handler sees them.
+    await handler.handle(HoldOrderCommand(order_id=order_id, reason=body.reason))
 
 
 @admin_order_router.post(
@@ -248,10 +301,11 @@ async def admin_force_cancel(
     auth: Auth,
     handler: FromDishka[CancelOrderHandler],
 ) -> None:
-    try:
-        reason = CancellationReason(body.reason)
-    except ValueError:
-        reason = CancellationReason.MERCHANT_FORCE_CANCEL
+    # C5.2 — body.reason is now a typed CancellationReason enum.
+    # Pydantic rejects unknown values with 422 before the handler sees
+    # them, so the legacy ValueError fallback is no longer reachable —
+    # we pass it through verbatim.
+    reason = body.reason
     await handler.handle(
         CancelOrderCommand(
             order_id=order_id,

@@ -75,3 +75,17 @@ async def test_simulate_capture_requires_auth(
         json={"idempotencyKey": "idemp-cap"},
     )
     assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# C5.2 — cancellation-reasons meta endpoint (auth gating only;
+# happy-path is asserted at the unit level — see
+# tests/unit/modules/order/test_cancellation_reasons_meta.py)
+# ---------------------------------------------------------------------------
+
+
+async def test_cancellation_reasons_meta_requires_auth(
+    async_client: AsyncClient,
+) -> None:
+    resp = await async_client.get("/api/v1/admin/orders/_meta/cancellation-reasons")
+    assert resp.status_code == 401
