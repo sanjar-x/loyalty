@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.bootstrap.broker import broker
+from src.infrastructure.logging.pii_redactor import redact_pii
 from src.infrastructure.outbox.relay import (
     prune_processed_messages,
     register_event_handler,
@@ -181,7 +182,12 @@ def _structured_log_handler(
         for field in bind_fields:
             bound[field] = payload.get(field)
         log = logger.bind(**bound)
-        getattr(log, level)("Outbox: event observed", payload=payload)
+        # SEC-001 (D2.3) — outbox event payloads can carry customs PII
+        # (passport, INN, phone, email, incoming_declaration). Redact
+        # before structured-log emission. The redactor is idempotent
+        # so a payload that's already been redacted by a peer pass-
+        # through doesn't lose its tail digits.
+        getattr(log, level)("Outbox: event observed", payload=redact_pii(payload))
 
     return _handler
 
