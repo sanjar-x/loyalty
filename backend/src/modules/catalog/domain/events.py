@@ -456,6 +456,34 @@ class ProductDeletedEvent(
 
 
 @dataclass(frozen=True)
+class MediaAssetAttachedEvent(
+    CatalogEvent,
+    required_fields=("product_id", "media_asset_id"),
+    aggregate_id_field="product_id",
+):
+    """Emitted when a media asset is added to a product.
+
+    Audit signal for downstream subscribers (analytics, search reindex,
+    moderation queue). Companion event to
+    :class:`MediaAssetDetachedEvent` — together they form the lifecycle
+    pair around the ``media_assets`` table.
+
+    ``storage_object_id`` is optional because external-URL imports
+    (``is_external=True``) attach a media row without a backing S3
+    object.
+    """
+
+    product_id: uuid.UUID | None = None
+    media_asset_id: uuid.UUID | None = None
+    storage_object_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
+    role: str = ""
+    is_external: bool = False
+    aggregate_type: str = "Product"
+    event_type: str = "MediaAssetAttachedEvent"
+
+
+@dataclass(frozen=True)
 class MediaAssetDetachedEvent(
     CatalogEvent,
     required_fields=("product_id", "storage_object_id"),

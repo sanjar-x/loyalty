@@ -11,6 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from src.modules.catalog.domain.entities import MediaAsset, Product
+from src.modules.catalog.domain.events import MediaAssetAttachedEvent
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
     CategoryNotFoundError,
@@ -177,6 +178,16 @@ class CreateProductHandler:
                         image_variants=item.get("image_variants"),
                     )
                     await self._media_repo.add(media_asset)
+                    product.add_domain_event(
+                        MediaAssetAttachedEvent(
+                            product_id=product.id,
+                            media_asset_id=media_asset.id,
+                            storage_object_id=media_asset.storage_object_id,
+                            variant_id=media_asset.variant_id,
+                            role=media_asset.role,
+                            is_external=media_asset.is_external,
+                        )
+                    )
 
             self._uow.register_aggregate(product)
             await self._uow.commit()
