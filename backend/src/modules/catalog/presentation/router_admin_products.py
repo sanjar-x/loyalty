@@ -17,6 +17,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.dependencies.etag import attach_etag, parse_if_match
 from src.modules.catalog.application.commands.bulk_set_purchase_price import (
     BulkSetPurchasePriceCommand,
     BulkSetPurchasePriceHandler,
@@ -60,6 +61,7 @@ from src.modules.catalog.application.queries.validate_product_update import (
     ValidateProductUpdateHandler,
     ValidateProductUpdateQuery,
 )
+from src.modules.catalog.domain.exceptions import ConcurrencyError
 from src.modules.catalog.domain.value_objects import Money, ProductStatus
 from src.modules.catalog.infrastructure.services.sku_pricing_pubsub import (
     SkuPricingPubsub,
@@ -89,6 +91,7 @@ from src.modules.catalog.presentation.schemas import (
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
+from src.shared.exceptions import PreconditionFailedError
 
 # CAT-006 — SSE comment-frame interval (seconds). Must be shorter than
 # every intermediary's idle timeout: undici default ~300 s, Vercel
@@ -253,6 +256,11 @@ async def get_product(
     """Retrieve a single product with nested SKUs and attributes."""
     response.headers["Cache-Control"] = "no-store"
     read_model: ProductReadModel = await handler.handle(product_id)
+    # C4.1 — strong ETag based on the aggregate's optimistic-lock
+    # version. Frontend echoes this back as ``If-Match`` on the next
+    # PATCH/DELETE so concurrent edits land a 412 instead of silently
+    # clobbering each other.
+    attach_etag(response, read_model.version)
     return _to_product_response(read_model)
 
 
@@ -267,21 +275,48 @@ async def get_product(
 async def update_product(
     product_id: uuid.UUID,
     request: ProductUpdateRequest,
+    response: Response,
     handler: FromDishka[UpdateProductHandler],
     get_handler: FromDishka[GetProductHandler],
+    if_match_version: int | None = Depends(parse_if_match),
 ) -> ProductResponse:
-    """Update an existing product (full or partial fields)."""
+    """Update an existing product (full or partial fields).
+
+    C4.1 — accepts ``If-Match: "v{N}"`` header. When present, the
+    expected version takes precedence over any ``version`` field in
+    the request body. Mismatch → 412 ``PRECONDITION_FAILED``.
+    Header absent → fall back to legacy ``request.version`` optimistic
+    locking (kept for backward compat through M+1).
+    """
+    expected_version = (
+        if_match_version if if_match_version is not None else request.version
+    )
     command = build_update_command(
         request,
         UpdateProductCommand,
         exclude_from_provided=frozenset({"version"}),
         product_id=product_id,
-        version=request.version,
+        version=expected_version,
     )
-    result: UpdateProductResult = await handler.handle(command)
+    try:
+        result: UpdateProductResult = await handler.handle(command)
+    except ConcurrencyError as exc:
+        # If-Match was used → upgrade 409 to 412 with the expected /
+        # current version in the envelope. Without If-Match we keep
+        # the legacy 409 surface so frontend interceptors that haven't
+        # been upgraded yet don't break.
+        if if_match_version is not None:
+            raise PreconditionFailedError(
+                entity_type="Product",
+                entity_id=product_id,
+                expected_version=if_match_version,
+                current_version=exc.details.get("actual_version"),
+            ) from exc
+        raise
 
     # Fetch the full product for response
     read_model: ProductReadModel = await get_handler.handle(result.id)
+    attach_etag(response, read_model.version)
     return _to_product_response(read_model)
 
 

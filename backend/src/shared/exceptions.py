@@ -181,6 +181,41 @@ class OptimisticLockError(ConflictError):
         )
 
 
+class PreconditionFailedError(AppException):
+    """Raised when ``If-Match`` header version doesn't match current state (HTTP 412).
+
+    C4.1 — distinct from :class:`ConflictError` (409) so the front-end
+    interceptor can distinguish "you read stale data, refetch and try
+    again" from "the action you tried conflicts with current state for
+    a different reason" (e.g. duplicate slug, duplicate idempotency key).
+
+    The exception envelope carries ``expected_version`` /
+    ``current_version`` so the UI can render a useful "version 5 → 7"
+    diagnostic without an extra round-trip.
+    """
+
+    def __init__(
+        self,
+        *,
+        entity_type: str,
+        entity_id: Any,
+        expected_version: int,
+        current_version: int | None,
+        error_code: str = "PRECONDITION_FAILED",
+    ) -> None:
+        super().__init__(
+            message="Resource version has changed since you read it",
+            status_code=412,
+            error_code=error_code,
+            details={
+                "entity_type": entity_type,
+                "entity_id": str(entity_id),
+                "expected_version": expected_version,
+                "current_version": current_version,
+            },
+        )
+
+
 class ServiceUnavailableError(AppException):
     """Raised when an external service or dependency is unavailable (HTTP 503).
 
