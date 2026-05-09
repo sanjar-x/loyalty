@@ -1,6 +1,7 @@
 """Data Mapper for the PaymentIntent aggregate."""
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,6 +73,28 @@ class PaymentIntentRepository(IPaymentIntentRepository):
         row.updated_at = intent.updated_at
         await self._session.flush()
         return intent
+
+    async def find_expired_authorized(
+        self, *, now: datetime, limit: int = 100
+    ) -> list[uuid.UUID]:
+        """Select ids of intents whose authorization hold has elapsed.
+
+        Cheap projection (id only) so the cron can fan-out per-intent
+        ``FailPaymentIntent`` calls without holding a wide row lock or
+        eagerly loading full aggregates that the cron will never read.
+        """
+        stmt = (
+            select(PaymentIntentModel.id)
+            .where(
+                PaymentIntentModel.status == PaymentIntentStatus.AUTHORIZED.value,
+                PaymentIntentModel.auth_expires_at.is_not(None),
+                PaymentIntentModel.auth_expires_at <= now,
+            )
+            .order_by(PaymentIntentModel.auth_expires_at.asc())
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
 
 
 def _to_domain(row: PaymentIntentModel) -> PaymentIntent:

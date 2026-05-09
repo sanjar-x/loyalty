@@ -10,4 +10,5 @@ PAYMENT_MODULE = ModuleManifest(
     providers=(PaymentProviderDI(),),
     customer_routers=(payment_router,),
     webhook_routers=(payment_webhook_router,),
+    task_modules=("src.modules.payment.infrastructure.tasks",),
 )

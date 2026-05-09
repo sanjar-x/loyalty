@@ -47,14 +47,27 @@ class PaymentFailedConsumer:
             self._logger.warning("payment.failed.skip", reason="bad_payload")
             return
         intent_id = str(payload.get("intent_id", ""))
+        # B3 — distinguish "auth_expired" (cron-driven post-7d hold) from
+        # generic provider rejections so the cancellation taxonomy stays
+        # accurate. AuthExpiryCanceller writes ``failure_reason="auth_expired"``
+        # on PaymentIntent.fail(); the value rides through PaymentFailedEvent.reason
+        # to this consumer verbatim.
+        if payload.get("reason") == "auth_expired":
+            cancel_reason = CancellationReason.SYSTEM_AUTH_EXPIRED
+            actor_id = "payment-cron:auth_expiry"
+            idempotency_key = f"payment-auth-expired:{intent_id}"
+        else:
+            cancel_reason = CancellationReason.SYSTEM_PAYMENT_FAILED
+            actor_id = "payment-service"
+            idempotency_key = f"payment-failed:{intent_id}"
         try:
             await self._cancel_handler.handle(
                 CancelOrderCommand(
                     order_id=order_uuid,
                     identity_id=None,
-                    reason=CancellationReason.SYSTEM_PAYMENT_FAILED,
-                    actor_id="payment-service",
-                    idempotency_key=f"payment-failed:{intent_id}",
+                    reason=cancel_reason,
+                    actor_id=actor_id,
+                    idempotency_key=idempotency_key,
                 )
             )
         except OrderNotFoundError:

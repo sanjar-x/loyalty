@@ -28,6 +28,9 @@ from src.modules.payment.infrastructure.providers.fake.provider import (
 from src.modules.payment.infrastructure.repositories.payment_intent_repository import (
     PaymentIntentRepository,
 )
+from src.modules.payment.infrastructure.services.auth_expiry_canceller import (
+    AuthExpiryCanceller,
+)
 
 
 class PaymentProviderDI(Provider):
@@ -57,4 +60,8 @@ class PaymentProviderDI(Provider):
 
     get_intent_handler: CompositeDependencySource = provide(
         GetPaymentIntentHandler, scope=Scope.REQUEST
+    )
+
+    auth_expiry_canceller: CompositeDependencySource = provide(
+        AuthExpiryCanceller, scope=Scope.REQUEST
     )

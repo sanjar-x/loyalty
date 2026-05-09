@@ -4,6 +4,7 @@ Payment domain ports.
 
 import uuid
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from attrs import frozen
 
@@ -50,6 +51,18 @@ class IPaymentIntentRepository(ABC):
 
     @abstractmethod
     async def update(self, intent: PaymentIntent) -> PaymentIntent: ...
+
+    @abstractmethod
+    async def find_expired_authorized(
+        self, *, now: datetime, limit: int = 100
+    ) -> list[uuid.UUID]:
+        """Return ids of intents in AUTHORIZED with elapsed ``auth_expires_at``.
+
+        Used by the auth-expiry cron (B3) to fail expired holds before
+        the provider rejects a stale capture. Caller must invoke
+        :class:`FailPaymentIntentHandler` per id inside its own UoW so
+        per-intent failures don't poison the batch.
+        """
 
 
 class IPaymentProvider(ABC):
