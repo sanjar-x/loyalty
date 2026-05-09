@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.bootstrap.config import settings
 from src.modules.logistics.domain.interfaces import (
     IBookingProvider,
     IDeliveryScheduleProvider,
@@ -48,9 +49,6 @@ from src.modules.logistics.infrastructure.providers.dobropost.booking_provider i
 from src.modules.logistics.infrastructure.providers.dobropost.client import (
     DobroPostClient,
 )
-from src.modules.logistics.infrastructure.providers.dobropost.constants import (
-    DOBROPOST_PRODUCTION_URL,
-)
 from src.modules.logistics.infrastructure.providers.dobropost.tracking_poll_provider import (
     DobroPostTrackingPollProvider,
 )
@@ -72,7 +70,9 @@ class DobroPostProviderFactory:
     Optional config dict::
 
         {
-            "base_url": "https://api.dobropost.com",   # default production
+            "base_url": "https://api.dobropost.com",   # override; default
+                                                       # comes from
+                                                       # settings.DOBROPOST_BASE_URL
             "timeout_seconds": 30.0,
             "max_retries": 3,
             "webhook_secret": "...",                    # for IWebhookAdapter
@@ -94,7 +94,10 @@ class DobroPostProviderFactory:
         self, credentials: dict[str, Any], config: dict[str, Any] | None = None
     ) -> DobroPostClient:
         cfg = config or {}
-        base_url = cfg.get("base_url", DOBROPOST_PRODUCTION_URL)
+        # LOG-001 — base URL falls back to ``Settings.DOBROPOST_BASE_URL``
+        # (single source of truth, see constants.py rationale). Per-account
+        # ``cfg["base_url"]`` is the rare on-prem / multi-region override.
+        base_url = cfg.get("base_url") or settings.DOBROPOST_BASE_URL
         email = credentials["email"]
         cache_key = f"{email}:{base_url}"
 
