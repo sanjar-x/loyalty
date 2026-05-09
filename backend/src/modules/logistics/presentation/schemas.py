@@ -662,3 +662,75 @@ class EditItemRemovalSchema(BaseModel):
 
 class RemoveOrderItemsRequest(BaseModel):
     removals: list[EditItemRemovalSchema] = Field(..., min_length=1)
+
+
+# ---------------------------------------------------------------------------
+# Admin shipments list (LOG-003)
+# ---------------------------------------------------------------------------
+
+# Distinct from ``ProviderCodeLiteral`` (the customer-facing enum that
+# only lists fully-rolled-out carriers) because the admin dashboard
+# must surface every provider whose shipments may exist in the table —
+# including DobroPost (cross-border) and the not-yet-rolled-out Russian
+# Post / Boxberry / Pochta integrations. Validation runs only on the
+# *filter* side; the response field is a free string so legacy rows
+# with future provider codes do not break list serialisation.
+AdminShipmentProviderFilterLiteral = Literal[
+    "cdek",
+    "yandex_delivery",
+    "dobropost",
+    "russian_post",
+    "boxberry",
+    "pochta",
+]
+"""Closed set of provider codes accepted as a filter on the admin list.
+
+An invalid value surfaces as a 422 from FastAPI's Query validation —
+``provider`` is intentionally explicit (vs. silent ignore) so the
+frontend cannot drop a typo'd filter without seeing it bounce back.
+"""
+
+
+class AdminShipmentSummarySchema(BaseModel):
+    """List-view row for ``GET /admin/logistics/shipments``.
+
+    Compact projection — full payload (origin/destination/parcels) is
+    fetched on demand via ``GET /admin/logistics/shipments/{id}``.
+    """
+
+    id: uuid.UUID
+    provider_code: str = Field(
+        ...,
+        description=(
+            "Open provider identifier. Wider than ``ProviderCodeLiteral`` "
+            "so legacy rows (e.g. dobropost) and rolled-back integrations "
+            "still serialise."
+        ),
+    )
+    status: ShipmentStatusLiteral
+    tracking_number: str | None = None
+    order_id: uuid.UUID | None = None
+    delivery_type: DeliveryTypeLiteral
+    destination_city: str = Field(
+        ...,
+        description="City of the recipient (extracted from destination payload).",
+    )
+    quoted_cost: MoneySchema
+    latest_tracking_status: TrackingStatusLiteral | None = None
+    created_at: datetime
+    updated_at: datetime
+    booked_at: datetime | None = None
+
+
+class AdminShipmentListResponse(BaseModel):
+    """Cursor-paginated page of admin shipment summaries."""
+
+    items: list[AdminShipmentSummarySchema]
+    next_cursor: datetime | None = Field(
+        default=None,
+        description=(
+            "``created_at`` of the last row when more rows are available; "
+            "pass back as the ``cursor`` query param on the next request. "
+            "``None`` means no further pages."
+        ),
+    )
