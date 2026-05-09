@@ -20,6 +20,7 @@ from src.modules.recipient.domain.value_objects import (
     FullName,
     Phone,
 )
+from src.shared.exceptions import OptimisticLockError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -37,6 +38,12 @@ class UpdateRecipientCommand:
     passport_issue_date: date | None = None
     birth_date: date | None = None
     inn: str | None = None
+    expected_version: int | None = None
+    """D0.3 — when set, the handler enforces optimistic locking before
+    mutating: aggregate ``version`` mismatch raises
+    :class:`OptimisticLockError`. ``None`` (default) keeps the legacy
+    last-write-wins behaviour for clients that haven't adopted ETag /
+    If-Match yet."""
 
 
 class UpdateRecipientHandler:
@@ -57,6 +64,23 @@ class UpdateRecipientHandler:
                 raise RecipientNotFoundError(recipient_id=str(command.recipient_id))
             if recipient.identity_id != command.identity_id:
                 raise RecipientOwnershipError(recipient_id=str(command.recipient_id))
+
+            # D0.3 — early optimistic-lock check when an expected version
+            # was provided (typically via the router's ``If-Match`` header).
+            # Mismatch surfaces as :class:`OptimisticLockError` (409) at the
+            # handler layer; the router then upgrades it to 412
+            # ``PRECONDITION_FAILED`` when the client used If-Match (see
+            # ``recipient/presentation/router_recipients.py``).
+            if (
+                command.expected_version is not None
+                and command.expected_version != recipient.version
+            ):
+                raise OptimisticLockError(
+                    entity_type="Recipient",
+                    entity_id=recipient.id,
+                    expected_version=command.expected_version,
+                    actual_version=recipient.version,
+                )
 
             full_name = (
                 FullName.parse(

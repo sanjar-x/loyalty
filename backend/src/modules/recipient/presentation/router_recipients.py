@@ -3,8 +3,9 @@
 import uuid
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
+from src.api.dependencies.etag import attach_etag, parse_if_match
 from src.modules.identity.presentation.dependencies import Auth
 from src.modules.recipient.application.commands.archive_recipient import (
     ArchiveRecipientCommand,
@@ -36,6 +37,7 @@ from src.modules.recipient.presentation.schemas import (
     RecipientSchema,
     UpdateRecipientRequest,
 )
+from src.shared.exceptions import OptimisticLockError, PreconditionFailedError
 
 recipient_router = APIRouter(
     prefix="/recipients",
@@ -61,6 +63,7 @@ def _serialize(model: RecipientReadModel) -> RecipientSchema:
         is_archived=model.is_archived,
         created_at=model.created_at,
         updated_at=model.updated_at,
+        version=model.version,
     )
 
 
@@ -109,12 +112,16 @@ async def list_my_recipients(
 @recipient_router.get("/{recipient_id}", response_model=RecipientSchema)
 async def get_recipient(
     recipient_id: uuid.UUID,
+    response: Response,
     auth: Auth,
     handler: FromDishka[GetRecipientHandler],
 ) -> RecipientSchema:
     rm = await handler.handle(
         GetRecipientQuery(recipient_id=recipient_id, identity_id=auth.identity_id)
     )
+    # D0.3 — strong ETag based on the aggregate's optimistic-lock
+    # version. Frontend echoes this back as ``If-Match`` on PATCH.
+    attach_etag(response, rm.version)
     return _serialize(rm)
 
 
@@ -124,22 +131,38 @@ async def update_recipient(
     body: UpdateRecipientRequest,
     auth: Auth,
     handler: FromDishka[UpdateRecipientHandler],
+    if_match_version: int | None = Depends(parse_if_match),
 ) -> None:
-    await handler.handle(
-        UpdateRecipientCommand(
-            recipient_id=recipient_id,
-            identity_id=auth.identity_id,
-            full_name_ru=body.full_name_ru,
-            full_name_lat=body.full_name_lat,
-            phone=body.phone,
-            email=body.email,
-            passport_serial=body.passport_serial,
-            passport_number=body.passport_number,
-            passport_issue_date=body.passport_issue_date,
-            birth_date=body.birth_date,
-            inn=body.inn,
+    """D0.3 — accepts ``If-Match: "v{N}"``. Mismatch → 412
+    ``PRECONDITION_FAILED``. Header absent → legacy last-write-wins
+    (no behaviour change for clients still on the old contract).
+    """
+    try:
+        await handler.handle(
+            UpdateRecipientCommand(
+                recipient_id=recipient_id,
+                identity_id=auth.identity_id,
+                full_name_ru=body.full_name_ru,
+                full_name_lat=body.full_name_lat,
+                phone=body.phone,
+                email=body.email,
+                passport_serial=body.passport_serial,
+                passport_number=body.passport_number,
+                passport_issue_date=body.passport_issue_date,
+                birth_date=body.birth_date,
+                inn=body.inn,
+                expected_version=if_match_version,
+            )
         )
-    )
+    except OptimisticLockError as exc:
+        if if_match_version is not None:
+            raise PreconditionFailedError(
+                entity_type="Recipient",
+                entity_id=recipient_id,
+                expected_version=if_match_version,
+                current_version=exc.details.get("actual_version"),
+            ) from exc
+        raise
 
 
 @recipient_router.delete("/{recipient_id}", status_code=status.HTTP_204_NO_CONTENT)

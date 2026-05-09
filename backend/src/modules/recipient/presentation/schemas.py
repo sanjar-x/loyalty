@@ -48,6 +48,7 @@ class RecipientSchema(CamelModel):
     is_archived: bool
     created_at: datetime
     updated_at: datetime
+    version: int = 0
 
 
 class RecipientListResponse(CamelModel):

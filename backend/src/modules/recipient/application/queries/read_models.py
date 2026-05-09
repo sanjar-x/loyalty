@@ -22,6 +22,10 @@ class RecipientReadModel:
     is_archived: bool
     created_at: datetime
     updated_at: datetime
+    version: int = 0
+    """Optimistic-locking counter — surfaced as ``ETag: "v{N}"`` on
+    GET so the front-end can echo it as ``If-Match`` on the next
+    PATCH/DELETE (D0.3)."""
 
 
 @dataclass(frozen=True)

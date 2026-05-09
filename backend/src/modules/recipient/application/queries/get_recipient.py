@@ -52,4 +52,5 @@ def _to_read_model(row: RecipientModel) -> RecipientReadModel:
         is_archived=row.is_archived,
         created_at=row.created_at,
         updated_at=row.updated_at,
+        version=row.version,
     )

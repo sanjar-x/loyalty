@@ -15897,6 +15897,7 @@
           "Recipients"
         ],
         "summary": "Update Recipient",
+        "description": "D0.3 — accepts ``If-Match: \"v{N}\"``. Mismatch → 412\n``PRECONDITION_FAILED``. Header absent → legacy last-write-wins\n(no behaviour change for clients still on the old contract).",
         "operationId": "update_recipient_api_v1_recipients__recipient_id__patch",
         "security": [
           {
@@ -15912,6 +15913,22 @@
               "type": "string",
               "format": "uuid",
               "title": "Recipient Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
             }
           }
         ],
@@ -28034,6 +28051,11 @@
             "type": "string",
             "format": "date-time",
             "title": "Updatedat"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 0
           }
         },
         "type": "object",
