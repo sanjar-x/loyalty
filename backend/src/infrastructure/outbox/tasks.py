@@ -561,6 +561,32 @@ async def _handle_media_asset_detached(
 register_event_handler("MediaAssetDetachedEvent", _handle_media_asset_detached)
 
 
+async def _handle_media_asset_attached(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    """Bridge ``MediaAssetAttachedEvent`` → audit log.
+
+    Audit-only for now; no downstream consumer is registered. Replace
+    the body with a ``.kicker().kiq(...)`` dispatch when a real
+    consumer (analytics, search reindex, moderation queue) lands.
+    Persisted in ``outbox_messages`` so future consumers can backfill
+    by replaying processed events.
+    """
+    logger.info(
+        "media_asset_attached",
+        product_id=payload.get("product_id"),
+        media_asset_id=payload.get("media_asset_id"),
+        storage_object_id=payload.get("storage_object_id"),
+        variant_id=payload.get("variant_id"),
+        role=payload.get("role"),
+        is_external=payload.get("is_external"),
+        correlation_id=correlation_id,
+    )
+
+
+register_event_handler("MediaAssetAttachedEvent", _handle_media_asset_attached)
+
+
 # ---------------------------------------------------------------------------
 # TaskIQ: Outbox Relay (periodic polling)
 # ---------------------------------------------------------------------------

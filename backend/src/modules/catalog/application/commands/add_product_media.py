@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from src.modules.catalog.application.constants import storefront_pdp_cache_key
 from src.modules.catalog.domain.entities import MediaAsset
+from src.modules.catalog.domain.events import MediaAssetAttachedEvent
 from src.modules.catalog.domain.exceptions import (
     DuplicateMainMediaError,
     ProductNotFoundError,
@@ -115,6 +116,17 @@ class AddProductMediaHandler:
             )
 
             await self._media_repo.add(media)
+            product.add_domain_event(
+                MediaAssetAttachedEvent(
+                    product_id=product.id,
+                    media_asset_id=media.id,
+                    storage_object_id=media.storage_object_id,
+                    variant_id=media.variant_id,
+                    role=media.role,
+                    is_external=media.is_external,
+                )
+            )
+            self._uow.register_aggregate(product)
             await self._uow.commit()
 
         try:
