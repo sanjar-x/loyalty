@@ -194,6 +194,28 @@ class CartRepository(ICartRepository):
         await self._session.flush()
         return cart
 
+    async def find_expired_frozen(
+        self, *, now: datetime, limit: int = 100
+    ) -> list[uuid.UUID]:
+        """Select ids of FROZEN carts whose ``frozen_until`` has elapsed.
+
+        D1.1 — id-only projection so the cron can fan out per-cart
+        unfreezes without holding a wide row lock or eagerly loading
+        items the cron will never read.
+        """
+        stmt = (
+            select(CartModel.id)
+            .where(
+                CartModel.status == CartStatus.FROZEN.value,
+                CartModel.frozen_until.is_not(None),
+                CartModel.frozen_until <= now,
+            )
+            .order_by(CartModel.frozen_until.asc())
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
     # ---------------------------------------------------------------------------
     # Checkout snapshot & attempt methods
     # ---------------------------------------------------------------------------

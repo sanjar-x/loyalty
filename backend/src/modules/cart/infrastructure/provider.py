@@ -38,6 +38,9 @@ from src.modules.cart.infrastructure.adapters.recipient_lookup import (
     CartRecipientLookup,
 )
 from src.modules.cart.infrastructure.repositories.cart_repository import CartRepository
+from src.modules.cart.infrastructure.services.freeze_expiry_canceller import (
+    FreezeExpiryCanceller,
+)
 
 
 class CartProvider(Provider):
@@ -96,4 +99,9 @@ class CartProvider(Provider):
     )
     get_cart_summary_handler: CompositeDependencySource = provide(
         GetCartSummaryHandler, scope=Scope.REQUEST
+    )
+
+    # --- Background services ---
+    freeze_expiry_canceller: CompositeDependencySource = provide(
+        FreezeExpiryCanceller, scope=Scope.REQUEST
     )

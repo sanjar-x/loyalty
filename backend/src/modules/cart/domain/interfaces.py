@@ -58,6 +58,18 @@ class ICartRepository(ABC):
         """Persist changes to an existing cart."""
 
     @abstractmethod
+    async def find_expired_frozen(
+        self, *, now: datetime, limit: int = 100
+    ) -> list[uuid.UUID]:
+        """Return ids of FROZEN carts whose ``frozen_until`` has elapsed.
+
+        D1.1 — id-only projection used by the
+        ``cart_freeze_expiry_cron`` to fan out per-cart unfreezes.
+        Caller drives ``Cart.unfreeze()`` per id inside its own UoW so
+        a transient failure on one cart doesn't poison the batch.
+        """
+
+    @abstractmethod
     async def save_checkout_snapshot(self, snapshot: CheckoutSnapshot) -> None:
         """Persist a checkout snapshot."""
 

@@ -8,4 +8,5 @@ CART_MODULE = ModuleManifest(
     name="cart",
     providers=(CartProvider(),),
     customer_routers=(cart_router,),
+    task_modules=("src.modules.cart.infrastructure.tasks",),
 )
