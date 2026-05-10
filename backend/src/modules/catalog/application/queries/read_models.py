@@ -399,6 +399,10 @@ class ProductVariantReadModel(BaseModel):
     sort_order: int
     default_price: MoneyReadModel | None
     skus: list[SKUReadModel]
+    version: int = 0
+    """T-1.3 — optimistic-lock counter surfaced as ``ETag: "v{N}"`` on
+    GET. Default ``0`` keeps callers (e.g. nested-in-product reads)
+    compatible with rows that don't surface a version directly."""
 
 
 class ProductAttributeValueReadModel(BaseModel):

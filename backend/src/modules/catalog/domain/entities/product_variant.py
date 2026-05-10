@@ -41,6 +41,9 @@ class ProductVariant:
     deleted_at: datetime | None = None
     created_at: datetime = field(factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(factory=lambda: datetime.now(UTC))
+    version: int = 0
+    """T-1.3 — optimistic-lock counter; bumped server-side on UPDATE
+    via SQLAlchemy ``version_id_col``."""
 
     @property
     def skus(self) -> tuple[SKU, ...]:

@@ -685,6 +685,21 @@ class ProductVariant(Base):
         "MediaAsset", back_populates="variant", cascade="all, delete-orphan"
     )
 
+    version: Mapped[int] = mapped_column(
+        Integer,
+        server_default=text("0"),
+        nullable=False,
+        comment=(
+            "Optimistic-locking counter (T-1.3). SQLAlchemy version_id_col "
+            'bumps it on every UPDATE; surfaced as ``ETag: "v{N}"`` on '
+            "GET, accepted as ``If-Match`` on PATCH."
+        ),
+    )
+
+    __mapper_args__: ClassVar[dict[str, Any]] = {
+        "version_id_col": version,
+    }
+
     __table_args__ = (Index("ix_product_variants_product_id", "product_id"),)
 
 

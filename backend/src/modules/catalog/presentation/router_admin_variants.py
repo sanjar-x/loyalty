@@ -5,6 +5,7 @@ import uuid
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, Response, status
 
+from src.api.dependencies.etag import attach_etag, parse_if_match
 from src.modules.catalog.application.commands.add_variant import (
     AddVariantCommand,
     AddVariantHandler,
@@ -32,6 +33,7 @@ from src.modules.catalog.presentation.schemas import (
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
+from src.shared.exceptions import OptimisticLockError, PreconditionFailedError
 
 variant_router = APIRouter(
     prefix="/admin/catalog/products/{product_id}/variants",
@@ -110,9 +112,15 @@ async def update_variant(
     product_id: uuid.UUID,
     variant_id: uuid.UUID,
     request: ProductVariantUpdateRequest,
+    response: Response,
     handler: FromDishka[UpdateVariantHandler],
+    if_match_version: int | None = Depends(parse_if_match),
 ) -> ProductVariantUpdateResponse:
-    """Partially update a product variant. Only provided fields are modified."""
+    """Partially update a product variant.
+
+    T-1.3 — accepts ``If-Match: "v{N}"``. Mismatch → 412
+    ``PRECONDITION_FAILED``. Header absent → legacy last-write-wins.
+    """
     command = build_update_command(
         request,
         UpdateVariantCommand,
@@ -125,9 +133,23 @@ async def update_variant(
         },
         product_id=product_id,
         variant_id=variant_id,
+        expected_version=if_match_version,
     )
-    result = await handler.handle(command)
-    return ProductVariantUpdateResponse(id=result.id, message="Variant updated")
+    try:
+        result = await handler.handle(command)
+    except OptimisticLockError as exc:
+        if if_match_version is not None:
+            raise PreconditionFailedError(
+                entity_type="ProductVariant",
+                entity_id=variant_id,
+                expected_version=if_match_version,
+                current_version=exc.details.get("actual_version"),
+            ) from exc
+        raise
+    attach_etag(response, result.version)
+    return ProductVariantUpdateResponse(
+        id=result.id, message="Variant updated", version=result.version
+    )
 
 
 @variant_router.delete(

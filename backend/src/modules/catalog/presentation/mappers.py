@@ -58,4 +58,5 @@ def to_variant_response(v: ProductVariantReadModel) -> ProductVariantResponse:
         sort_order=v.sort_order,
         default_price=_money(v.default_price),
         skus=[to_sku_response(s) for s in v.skus],
+        version=v.version,
     )

@@ -9485,6 +9485,22 @@
               "format": "uuid",
               "title": "Variant Id"
             }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
           }
         ],
         "requestBody": {
@@ -27814,6 +27830,11 @@
             },
             "type": "array",
             "title": "Skus"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 0
           }
         },
         "type": "object",
@@ -27893,6 +27914,11 @@
           "message": {
             "type": "string",
             "title": "Message"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 0
           }
         },
         "type": "object",
