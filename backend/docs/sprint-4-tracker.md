@@ -13,13 +13,13 @@
 | T-1.3 | ProductVariant ETag/If-Match | ✅ committed | c1ae4b05 |
 | T-1.4 | SKU ETag/If-Match | ✅ committed | 56a233a2 |
 | T-2 | Telegram bot push consumer (shipment events) | ✅ committed | fc0f6f18 |
-| T-3 | Activity enrichment (favorites events) | ⏳ in-flight | — |
+| T-3 | Activity enrichment (favorites events) | ✅ committed | 27e49b6d |
 
 ## Phase 2 — pre-launch hardening
 
 | Task | Title | Status | Commit |
 | --- | --- | --- | --- |
-| T-4 | Secrets rotation playbook + .env.example finalization | pending | — |
+| T-4 | Secrets rotation playbook + .env.example finalization | ⏳ in-flight | — |
 | T-5 | Deploy playbook + rollback procedure | pending | — |
 | T-6 | Production readiness checklist + findings | pending | — |
 
