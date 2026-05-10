@@ -11,8 +11,8 @@
 | T-1.1 | Brand ETag/If-Match | ✅ committed | a1585788 |
 | T-1.2 | Category ETag/If-Match | ✅ committed | 780504af |
 | T-1.3 | ProductVariant ETag/If-Match | ✅ committed | c1ae4b05 |
-| T-1.4 | SKU ETag/If-Match | ⏳ in-flight | — |
-| T-2 | Telegram bot push consumer (shipment events) | pending | — |
+| T-1.4 | SKU ETag/If-Match | ✅ committed | 56a233a2 |
+| T-2 | Telegram bot push consumer (shipment events) | ⏳ in-flight | — |
 | T-3 | Activity enrichment (favorites events) | pending | — |
 
 ## Phase 2 — pre-launch hardening

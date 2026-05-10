@@ -37,6 +37,9 @@ from src.modules.order.application.consumers.payment_events import (
     PaymentCapturedConsumer,
     PaymentFailedConsumer,
 )
+from src.modules.order.application.consumers.telegram_notifications import (
+    TelegramOrderNotifier,
+)
 from src.modules.order.infrastructure.services.cron_jobs import (
     HoldTtlExpiredCanceller,
     ReturnWindowCloser,
@@ -212,6 +215,117 @@ async def order_on_procured_task(
     )
 
 
+# T-2 / D3.1 — Telegram push notifications for the customer-facing
+# subset of the Order FSM. ``max_retries=2`` so transient Telegram
+# 5xx / network errors get a couple of broker-side retries; permanent
+# failures (user blocked the bot, chat not found) are swallowed
+# inside the adapter so no retry storm hammers the API.
+def _telegram_task(routing_key: str):
+    """Decorator factory for the five identical-shape Telegram tasks."""
+
+    def decorator(fn):
+        return broker.task(
+            queue="order_consumers",
+            exchange="taskiq_rpc_exchange",
+            routing_key=routing_key,
+            max_retries=2,
+            retry_on_error=True,
+            timeout=20,
+        )(fn)
+
+    return decorator
+
+
+@_telegram_task("order.telegram.procured")
+@inject
+async def telegram_on_order_procured_task(
+    payload: dict,
+    *,
+    consumer: FromDishka[TelegramOrderNotifier],
+    inbox: FromDishka[IInboxStore],
+    session: FromDishka[AsyncSession],
+) -> dict:
+    return await run_inbox_idempotent(
+        payload=payload,
+        consumer_name="order.TelegramOrderProcured",
+        inbox=inbox,
+        session=session,
+        body=lambda: consumer.on_order_procured(payload),
+    )
+
+
+@_telegram_task("order.telegram.arrived_in_ru")
+@inject
+async def telegram_on_order_arrived_in_ru_task(
+    payload: dict,
+    *,
+    consumer: FromDishka[TelegramOrderNotifier],
+    inbox: FromDishka[IInboxStore],
+    session: FromDishka[AsyncSession],
+) -> dict:
+    return await run_inbox_idempotent(
+        payload=payload,
+        consumer_name="order.TelegramOrderArrivedInRu",
+        inbox=inbox,
+        session=session,
+        body=lambda: consumer.on_order_arrived_in_ru(payload),
+    )
+
+
+@_telegram_task("order.telegram.last_mile")
+@inject
+async def telegram_on_order_entered_last_mile_task(
+    payload: dict,
+    *,
+    consumer: FromDishka[TelegramOrderNotifier],
+    inbox: FromDishka[IInboxStore],
+    session: FromDishka[AsyncSession],
+) -> dict:
+    return await run_inbox_idempotent(
+        payload=payload,
+        consumer_name="order.TelegramOrderEnteredLastMile",
+        inbox=inbox,
+        session=session,
+        body=lambda: consumer.on_order_entered_last_mile(payload),
+    )
+
+
+@_telegram_task("order.telegram.awaiting_pickup")
+@inject
+async def telegram_on_order_awaiting_pickup_task(
+    payload: dict,
+    *,
+    consumer: FromDishka[TelegramOrderNotifier],
+    inbox: FromDishka[IInboxStore],
+    session: FromDishka[AsyncSession],
+) -> dict:
+    return await run_inbox_idempotent(
+        payload=payload,
+        consumer_name="order.TelegramOrderAwaitingPickup",
+        inbox=inbox,
+        session=session,
+        body=lambda: consumer.on_order_awaiting_pickup(payload),
+    )
+
+
+@_telegram_task("order.telegram.delivered")
+@inject
+async def telegram_on_order_delivered_task(
+    payload: dict,
+    *,
+    consumer: FromDishka[TelegramOrderNotifier],
+    inbox: FromDishka[IInboxStore],
+    session: FromDishka[AsyncSession],
+) -> dict:
+    return await run_inbox_idempotent(
+        payload=payload,
+        consumer_name="order.TelegramOrderDelivered",
+        inbox=inbox,
+        session=session,
+        body=lambda: consumer.on_order_delivered(payload),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Cron jobs (TaskIQ Beat)
 # ---------------------------------------------------------------------------
@@ -329,9 +443,59 @@ async def _on_russian_carrier(payload: dict, correlation_id: str | None = None) 
 
 
 async def _on_order_procured(payload: dict, correlation_id: str | None = None) -> None:
-    """ORD-006 (D1.2) — bridge ``OrderProcuredEvent`` → DobroPost booking."""
+    """ORD-006 (D1.2) — bridge ``OrderProcuredEvent`` → DobroPost booking
+    AND T-2 / D3.1 — bridge into the Telegram customer-notification fan-out.
+    Both consumers are independent (one books shipment, the other pushes
+    a "your parcel is on the way from China" message) and tolerate each
+    other's failures via ``run_inbox_idempotent``.
+    """
+    labels = _labels(correlation_id)
     await (
-        order_on_procured_task.kicker()
+        order_on_procured_task.kicker().with_labels(**labels).kiq(payload=payload)  # ty:ignore[no-matching-overload]
+    )
+    await (
+        telegram_on_order_procured_task.kicker()
+        .with_labels(**labels)
+        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+    )
+
+
+# T-2 / D3.1 — telegram-only bridges for the post-procure FSM events.
+async def _on_order_arrived_in_ru_telegram(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    await (
+        telegram_on_order_arrived_in_ru_task.kicker()
+        .with_labels(**_labels(correlation_id))
+        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+    )
+
+
+async def _on_order_entered_last_mile_telegram(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    await (
+        telegram_on_order_entered_last_mile_task.kicker()
+        .with_labels(**_labels(correlation_id))
+        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+    )
+
+
+async def _on_order_awaiting_pickup_telegram(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    await (
+        telegram_on_order_awaiting_pickup_task.kicker()
+        .with_labels(**_labels(correlation_id))
+        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+    )
+
+
+async def _on_order_delivered_telegram(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    await (
+        telegram_on_order_delivered_task.kicker()
         .with_labels(**_labels(correlation_id))
         .kiq(payload=payload)  # ty:ignore[no-matching-overload]
     )
@@ -343,3 +507,9 @@ register_event_handler("DobroPostStatusUpdatedEvent", _on_dobropost_status)
 register_event_handler("DobroPostPassportInvalidEvent", _on_dobropost_passport)
 register_event_handler("RussianCarrierTrackingEvent", _on_russian_carrier)
 register_event_handler("OrderProcuredEvent", _on_order_procured)
+register_event_handler("OrderArrivedInRuEvent", _on_order_arrived_in_ru_telegram)
+register_event_handler(
+    "OrderEnteredLastMileEvent", _on_order_entered_last_mile_telegram
+)
+register_event_handler("OrderAwaitingPickupEvent", _on_order_awaiting_pickup_telegram)
+register_event_handler("OrderDeliveredEvent", _on_order_delivered_telegram)

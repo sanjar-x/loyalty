@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator
 
+from aiogram import Bot
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,11 +58,16 @@ from src.modules.order.application.consumers.payment_events import (
     PaymentCapturedConsumer,
     PaymentFailedConsumer,
 )
+from src.modules.order.application.consumers.telegram_notifications import (
+    TelegramOrderNotifier,
+)
 from src.modules.order.application.ports import (
     IDobroPostGateway,
     IDobroPostShipmentMappingRepository,
     IPaymentGateway,
     IRussianCarrierGateway,
+    ITelegramChatLookup,
+    ITelegramNotifier,
 )
 from src.modules.order.application.queries.admin_list_orders import (
     AdminGetOrderHandler,
@@ -97,6 +103,12 @@ from src.modules.order.infrastructure.adapters.recipient_lookup import (
 )
 from src.modules.order.infrastructure.adapters.russian_carrier_gateway import (
     RussianCarrierGatewayStub,
+)
+from src.modules.order.infrastructure.adapters.telegram_chat_lookup import (
+    TelegramChatLookup,
+)
+from src.modules.order.infrastructure.adapters.telegram_notifier import (
+    AiogramTelegramNotifier,
 )
 from src.modules.order.infrastructure.repositories.dobropost_shipment_mapping_repository import (
     DobroPostShipmentMappingRepository,
@@ -256,6 +268,40 @@ class OrderProvider(Provider):
     )
     order_procured_consumer: CompositeDependencySource = provide(
         OrderProcuredConsumer, scope=Scope.REQUEST
+    )
+
+    # T-2 / D3.1 — Telegram push for order lifecycle.
+    telegram_chat_lookup: CompositeDependencySource = provide(
+        TelegramChatLookup, scope=Scope.REQUEST, provides=ITelegramChatLookup
+    )
+
+    @provide(scope=Scope.APP)
+    async def telegram_bot(self) -> AsyncIterator[Bot]:
+        """Aiogram Bot with the platform ``BOT_TOKEN`` for outbound pushes.
+
+        APP-scoped because the Bot owns an httpx ``AsyncClient`` pool —
+        re-creating it per request would burn sockets. Closed at
+        application shutdown via the generator finally-clause so
+        Railway redeploys don't leak connections.
+        """
+        from aiogram.client.default import DefaultBotProperties
+        from aiogram.enums import ParseMode
+
+        bot = Bot(
+            token=settings.BOT_TOKEN.get_secret_value(),
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+        )
+        try:
+            yield bot
+        finally:
+            await bot.session.close()
+
+    @provide(scope=Scope.REQUEST)
+    def telegram_notifier(self, bot: Bot) -> ITelegramNotifier:
+        return AiogramTelegramNotifier(bot=bot)
+
+    telegram_order_notifier: CompositeDependencySource = provide(
+        TelegramOrderNotifier, scope=Scope.REQUEST
     )
 
     # --- Query handlers ---
