@@ -138,3 +138,87 @@ class TestCategoryEndpoints:
         created = await create_category(admin_client)
         resp = await admin_client.delete(f"/api/v1/catalog/categories/{created['id']}")
         assert resp.status_code == 204
+
+
+# ---------------------------------------------------------------------------
+# T-1.2 — ETag/If-Match optimistic locking on Category
+# ---------------------------------------------------------------------------
+
+
+class TestCategoryETagFlow:
+    """Wire-level checks for the ETag/If-Match contract on Category.
+
+    Mirrors the Brand pattern (T-1.1): GET emits ``ETag: "v{N}"``,
+    PATCH accepts ``If-Match`` and surfaces 412 on stale versions,
+    header-absent path keeps the legacy 200/409 behaviour.
+    """
+
+    async def test_get_category_emits_etag_header(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        created = await create_category(admin_client)
+        resp = await admin_client.get(
+            f"/api/v1/admin/catalog/categories/{created['id']}"
+        )
+        assert resp.status_code == 200
+        etag = resp.headers.get("etag")
+        assert etag is not None
+        assert etag.startswith('"v')
+        body = resp.json()
+        assert "version" in body
+        assert int(etag.strip('"').lstrip("v")) == body["version"]
+
+    async def test_patch_with_matching_if_match_succeeds_and_bumps_version(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        created = await create_category(admin_client)
+        get_resp = await admin_client.get(
+            f"/api/v1/admin/catalog/categories/{created['id']}"
+        )
+        etag = get_resp.headers["etag"]
+        original_version = get_resp.json()["version"]
+
+        patch_resp = await admin_client.patch(
+            f"/api/v1/admin/catalog/categories/{created['id']}",
+            json={"sortOrder": 7},
+            headers={"If-Match": etag},
+        )
+        assert patch_resp.status_code == 200
+        body = patch_resp.json()
+        assert body["sortOrder"] == 7
+        assert body["version"] > original_version
+        new_etag = patch_resp.headers.get("etag")
+        assert new_etag is not None
+        assert new_etag != etag
+
+    async def test_patch_with_stale_if_match_returns_412(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        created = await create_category(admin_client)
+        # First update bumps version off v0.
+        await admin_client.patch(
+            f"/api/v1/admin/catalog/categories/{created['id']}",
+            json={"sortOrder": 1},
+            headers={"If-Match": '"v0"'},
+        )
+        # Replay with the stale v0 — must be rejected.
+        resp = await admin_client.patch(
+            f"/api/v1/admin/catalog/categories/{created['id']}",
+            json={"sortOrder": 2},
+            headers={"If-Match": '"v0"'},
+        )
+        assert resp.status_code == 412
+        body = resp.json()
+        assert body["error"]["code"] == "PRECONDITION_FAILED"
+        assert body["error"]["details"]["entity_type"] == "Category"
+
+    async def test_patch_without_if_match_keeps_legacy_200(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        created = await create_category(admin_client)
+        resp = await admin_client.patch(
+            f"/api/v1/admin/catalog/categories/{created['id']}",
+            json={"sortOrder": 9},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["sortOrder"] == 9

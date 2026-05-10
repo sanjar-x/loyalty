@@ -170,6 +170,21 @@ class Category(Base):
         "AttributeTemplate", foreign_keys=[template_id]
     )
 
+    version: Mapped[int] = mapped_column(
+        Integer,
+        server_default=text("0"),
+        nullable=False,
+        comment=(
+            "Optimistic-locking counter (T-1.2). SQLAlchemy version_id_col "
+            'bumps it on every UPDATE; surfaced as ``ETag: "v{N}"`` on '
+            "GET, accepted as ``If-Match`` on PATCH."
+        ),
+    )
+
+    __mapper_args__: ClassVar[dict[str, Any]] = {
+        "version_id_col": version,
+    }
+
     __table_args__ = (
         Index(
             "uix_categories_slug",

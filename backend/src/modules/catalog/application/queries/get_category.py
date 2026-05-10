@@ -27,6 +27,7 @@ def category_orm_to_read_model(orm: OrmCategory) -> CategoryReadModel:
         level=orm.level,
         sort_order=orm.sort_order,
         parent_id=orm.parent_id,
+        version=orm.version,
     )
 
 

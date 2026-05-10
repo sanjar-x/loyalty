@@ -67,6 +67,10 @@ class CategoryReadModel(BaseModel):
     level: int
     sort_order: int
     parent_id: uuid.UUID | None = None
+    version: int = 0
+    """T-1.2 — optimistic-lock counter surfaced as ``ETag: "v{N}"`` on
+    GET. Default ``0`` keeps callers compatible with rows returned by
+    tree-shaped queries that don't carry a version."""
 
 
 CategoryListReadModel = PaginatedReadModel[CategoryReadModel]

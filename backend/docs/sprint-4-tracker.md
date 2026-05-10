@@ -8,8 +8,8 @@
 
 | Task | Title | Status | Commit |
 | --- | --- | --- | --- |
-| T-1.1 | Brand ETag/If-Match | ⏳ in-flight | — |
-| T-1.2 | Category ETag/If-Match | pending | — |
+| T-1.1 | Brand ETag/If-Match | ✅ committed | a1585788 |
+| T-1.2 | Category ETag/If-Match | ⏳ in-flight | — |
 | T-1.3 | ProductVariant ETag/If-Match | pending | — |
 | T-1.4 | SKU ETag/If-Match | pending | — |
 | T-2 | Telegram bot push consumer (shipment events) | pending | — |

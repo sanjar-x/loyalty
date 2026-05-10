@@ -42,12 +42,17 @@ class CategoryRepository(
             sort_order=orm.sort_order,
             template_id=orm.template_id,
             effective_template_id=orm.effective_template_id,
+            version=orm.version,
         )
 
     def _to_orm(
         self, entity: DomainCategory, orm: OrmCategory | None = None
     ) -> OrmCategory:
-        """Map a domain Category entity to an ORM row (create or update)."""
+        """Map a domain Category entity to an ORM row (create or update).
+
+        ``version`` is intentionally NOT copied from the entity onto
+        the ORM row — SQLAlchemy owns the column via ``version_id_col``.
+        """
         if orm is None:
             orm = OrmCategory()
         orm.id = entity.id

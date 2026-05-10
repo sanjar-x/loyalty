@@ -29,6 +29,7 @@ from src.modules.catalog.domain.interfaces import (
     IAttributeTemplateRepository,
     ICategoryRepository,
 )
+from src.shared.exceptions import OptimisticLockError
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -52,6 +53,12 @@ class UpdateCategoryCommand:
     sort_order: int | None = None
     template_id: uuid.UUID | None | EllipsisType = ...
     _provided_fields: frozenset[str] = field(default_factory=frozenset)
+    expected_version: int | None = None
+    """T-1.2 — when set, the handler enforces optimistic locking before
+    mutating: aggregate ``version`` mismatch raises
+    :class:`OptimisticLockError`. ``None`` (default) keeps the legacy
+    last-write-wins behaviour for clients that haven't adopted ETag /
+    If-Match yet."""
 
 
 @dataclass(frozen=True)
@@ -78,6 +85,7 @@ class UpdateCategoryResult:
     parent_id: uuid.UUID | None = None
     template_id: uuid.UUID | None = None
     effective_template_id: uuid.UUID | None = None
+    version: int = 0
 
 
 class UpdateCategoryHandler:
@@ -131,6 +139,23 @@ class UpdateCategoryHandler:
             if category is None:
                 raise CategoryNotFoundError(category_id=command.category_id)
 
+            # T-1.2 — early optimistic-lock check when an expected
+            # version was provided (typically via the router's
+            # ``If-Match`` header). Mismatch surfaces as
+            # :class:`OptimisticLockError` (409); the router upgrades
+            # it to 412 ``PRECONDITION_FAILED`` when the client used
+            # If-Match.
+            if (
+                command.expected_version is not None
+                and command.expected_version != category.version
+            ):
+                raise OptimisticLockError(
+                    entity_type="Category",
+                    entity_id=category.id,
+                    expected_version=command.expected_version,
+                    actual_version=category.version,
+                )
+
             if (
                 command.slug is not None
                 and command.slug != category.slug
@@ -166,7 +191,14 @@ class UpdateCategoryHandler:
                     new_effective = None
                 category.set_effective_template_id(new_effective)
 
-            await self._category_repo.update(category)
+            # T-1.2 — repo.update() returns a freshly-mapped domain
+            # entity built from the post-flush ORM row, so its
+            # ``version`` reflects the SQLAlchemy-side bump. Lift the
+            # value back onto the original ``category`` so the response
+            # carries the new ETag without losing the in-memory
+            # ``domain_events`` list.
+            persisted = await self._category_repo.update(category)
+            category.version = persisted.version
             category.add_domain_event(
                 CategoryUpdatedEvent(
                     category_id=category.id,
@@ -228,4 +260,5 @@ class UpdateCategoryHandler:
             parent_id=category.parent_id,
             template_id=category.template_id,
             effective_template_id=category.effective_template_id,
+            version=category.version,
         )

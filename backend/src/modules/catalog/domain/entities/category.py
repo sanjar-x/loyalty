@@ -66,6 +66,9 @@ class Category(AggregateRoot):
     sort_order: int
     template_id: uuid.UUID | None = None
     effective_template_id: uuid.UUID | None = None
+    version: int = 0
+    """T-1.2 — optimistic-lock counter; bumped server-side on UPDATE
+    via SQLAlchemy ``version_id_col``."""
 
     # DDD-01: guard slug against direct mutation
     def __setattr__(self, name: str, value: object) -> None:
