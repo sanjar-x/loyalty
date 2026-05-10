@@ -161,6 +161,54 @@ class RedisActivityTracker:
         except Exception:  # pragma: no cover — defensive
             self._logger.warning("activity_tracking.plp_view_failed")
 
+    async def track_favorite_added(
+        self,
+        *,
+        product_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        list_id: uuid.UUID | None,
+        extra: dict[str, Any] | None = None,
+    ) -> None:
+        """T-3 / D3.2 — record a favorite-added event for co-view scoring.
+
+        Same hot-path semantics as :meth:`track_product_view`: bump
+        the trending sorted set with a heavier weight (3.0 vs 1.0
+        for a passing view — favoriting is a stronger interest
+        signal than a single PDP visit) AND enqueue the event payload
+        for the daily flush into ``user_activity_events``.
+        """
+        payload: dict[str, Any] = {
+            "product_id": str(product_id),
+        }
+        if list_id is not None:
+            payload["list_id"] = str(list_id)
+        if extra:
+            payload.update(extra)
+
+        try:
+            pipe = self._client.pipeline(transaction=False)
+            daily_key = trending_daily_key()
+            pipe.zincrby(daily_key, 3.0, str(product_id).encode())
+            pipe.expire(daily_key, _TRENDING_DAILY_TTL_SECONDS)
+            pipe.zincrby(TRENDING_WEEKLY_KEY, 3.0, str(product_id).encode())
+            pipe.expire(TRENDING_WEEKLY_KEY, _TRENDING_WEEKLY_TTL_SECONDS)
+            self._enqueue(
+                pipe,
+                event_type="favorite_added",
+                actor_id=actor_id,
+                session_id=None,  # favorites flow has no session context
+                product_id=product_id,
+                category_id=None,
+                search_query=None,
+                payload=payload,
+            )
+            await pipe.execute()
+        except Exception:  # pragma: no cover — defensive
+            self._logger.warning(
+                "activity_tracking.favorite_added_failed",
+                product_id=str(product_id),
+            )
+
     async def track_search(
         self,
         *,

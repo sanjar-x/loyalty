@@ -29,11 +29,17 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.bootstrap.broker import broker
+from src.infrastructure.idempotency import run_inbox_idempotent
+from src.infrastructure.outbox.relay import register_event_handler
+from src.modules.activity.application.consumers.favorites_events import (
+    FavoritesActivityEnricher,
+)
 from src.modules.activity.domain.entities import UserActivityEvent
 from src.modules.activity.infrastructure.redis_tracker import ACTIVITY_QUEUE_KEY
 from src.modules.activity.infrastructure.repository import (
     SqlAlchemyActivityEventRepository,
 )
+from src.shared.interfaces.idempotency import IInboxStore
 
 logger = structlog.get_logger(__name__)
 
@@ -512,3 +518,63 @@ async def refresh_co_view_scores_task(
             return {"status": "skipped", "rows": 0}
         logger.exception("activity.co_view.failed")
         return {"status": "error", "rows": 0}
+
+
+# ---------------------------------------------------------------------------
+# T-3 / D3.2 — Favorites → activity enrichment
+# ---------------------------------------------------------------------------
+# Outbox-driven consumer: ``FavoriteItemAddedEvent`` from the favorites
+# module triggers ``track_favorite_added`` so the co-view matrix and
+# trending sorted sets pick up the strong "interest" signal. Idempotent
+# via :func:`run_inbox_idempotent` so duplicate broker deliveries are
+# no-ops at the business-effect level.
+
+
+def _favorites_labels(correlation_id: str | None) -> dict[str, str]:
+    return {"correlation_id": correlation_id} if correlation_id else {}
+
+
+@broker.task(
+    queue="activity_consumers",
+    exchange="taskiq_rpc_exchange",
+    routing_key="activity.favorites.item_added",
+    max_retries=2,
+    retry_on_error=True,
+    timeout=15,
+)
+@inject
+async def activity_on_favorite_added_task(
+    payload: dict,
+    *,
+    consumer: FromDishka[FavoritesActivityEnricher],
+    inbox: FromDishka[IInboxStore],
+    session: FromDishka[AsyncSession],
+) -> dict:
+    return await run_inbox_idempotent(
+        payload=payload,
+        consumer_name="activity.FavoriteItemAdded",
+        inbox=inbox,
+        session=session,
+        body=lambda: consumer.on_favorite_item_added(payload),
+    )
+
+
+async def _on_favorite_item_added(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    """Outbox bridge: ``FavoriteItemAddedEvent`` → activity enrichment.
+
+    Replaces the structured-log-only handler the framework registered
+    in ``infrastructure/outbox/tasks.py``: ``register_event_handler``
+    overwrites the previous mapping when called twice for the same
+    event_type, so the activity-side import order (later than the
+    framework's bootstrap import) wins by design.
+    """
+    await (
+        activity_on_favorite_added_task.kicker()
+        .with_labels(**_favorites_labels(correlation_id))
+        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+    )
+
+
+register_event_handler("FavoriteItemAddedEvent", _on_favorite_item_added)
