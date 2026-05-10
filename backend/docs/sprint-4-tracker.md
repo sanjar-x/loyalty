@@ -19,8 +19,8 @@
 
 | Task | Title | Status | Commit |
 | --- | --- | --- | --- |
-| T-4 | Secrets rotation playbook + .env.example finalization | ⏳ in-flight | — |
-| T-5 | Deploy playbook + rollback procedure | pending | — |
+| T-4 | Secrets rotation playbook + .env.example finalization | ✅ committed | 1a2d1013 |
+| T-5 | Deploy playbook + rollback procedure | ⏳ in-flight | — |
 | T-6 | Production readiness checklist + findings | pending | — |
 
 ## Phase 3 — optional polishing
