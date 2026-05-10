@@ -17,6 +17,7 @@ from src.modules.catalog.domain.exceptions import (
 )
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money
+from src.shared.exceptions import OptimisticLockError
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -51,6 +52,11 @@ class UpdateVariantCommand:
     sort_order: int | None = None
     default_price: Money | None = None
     _provided_fields: frozenset[str] = field(default_factory=frozenset)
+    expected_version: int | None = None
+    """T-1.3 — when set, the handler enforces optimistic locking before
+    mutating the variant: ``ProductVariant.version`` mismatch raises
+    :class:`OptimisticLockError`. ``None`` (default) keeps the legacy
+    last-write-wins behaviour."""
 
 
 @dataclass(frozen=True)
@@ -59,9 +65,11 @@ class UpdateVariantResult:
 
     Attributes:
         id: UUID of the updated variant.
+        version: Post-mutation optimistic-lock counter.
     """
 
     id: uuid.UUID
+    version: int = 0
 
 
 class UpdateVariantHandler:
@@ -112,6 +120,20 @@ class UpdateVariantHandler:
                     variant_id=command.variant_id, product_id=command.product_id
                 )
 
+            # T-1.3 — early optimistic-lock check on the variant version
+            # when an expected value was provided (typically via the
+            # router's ``If-Match`` header).
+            if (
+                command.expected_version is not None
+                and command.expected_version != variant.version
+            ):
+                raise OptimisticLockError(
+                    entity_type="ProductVariant",
+                    entity_id=variant.id,
+                    expected_version=command.expected_version,
+                    actual_version=variant.version,
+                )
+
             update_kwargs: dict[str, object] = {}
 
             if "name_i18n" in command._provided_fields:
@@ -131,6 +153,10 @@ class UpdateVariantHandler:
             if update_kwargs:
                 variant.update(**update_kwargs)
 
+            # T-1.3 — ``ProductRepository.update`` propagates post-
+            # flush variant version bumps back onto the domain
+            # variants in-place, so ``variant.version`` is the new
+            # ETag value once the call returns.
             await self._product_repo.update(product)
             self._uow.register_aggregate(product)
             await self._uow.commit()
@@ -145,4 +171,4 @@ class UpdateVariantHandler:
             variant_id=str(variant.id),
             product_id=str(command.product_id),
         )
-        return UpdateVariantResult(id=variant.id)
+        return UpdateVariantResult(id=variant.id, version=variant.version)

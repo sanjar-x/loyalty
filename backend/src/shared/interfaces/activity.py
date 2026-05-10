@@ -80,6 +80,26 @@ class IActivityTracker(Protocol):
         """
         ...
 
+    async def track_favorite_added(
+        self,
+        *,
+        product_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        list_id: uuid.UUID | None,
+        extra: dict[str, Any] | None = None,
+    ) -> None:
+        """Record that a customer favorited a product (T-3 / D3.2).
+
+        ``favorite_added`` is a strong "interest" signal for the
+        co-view recommendation matrix — heavier weight than a passing
+        product view. Brand favorites are NOT tracked here (they go
+        through a separate brand-affinity pipeline); the favorites
+        consumer filters ``target_type == "product"`` upstream.
+
+        Must never raise — failures are logged and swallowed.
+        """
+        ...
+
 
 @dataclass(frozen=True)
 class CategoryAffinity:

@@ -11,6 +11,7 @@ import uuid
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, Response, status
 
+from src.api.dependencies.etag import attach_etag, parse_if_match
 from src.modules.catalog.application.commands.add_sku import (
     AddSKUCommand,
     AddSKUHandler,
@@ -32,7 +33,7 @@ from src.modules.catalog.application.queries.list_skus import (
     ListSKUsHandler,
     ListSKUsQuery,
 )
-from src.modules.catalog.domain.exceptions import SKUNotFoundError
+from src.modules.catalog.domain.exceptions import ConcurrencyError, SKUNotFoundError
 from src.modules.catalog.domain.value_objects import Money
 from src.modules.catalog.presentation.mappers import to_sku_response
 from src.modules.catalog.presentation.schemas import (
@@ -47,6 +48,7 @@ from src.modules.catalog.presentation.schemas import (
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
+from src.shared.exceptions import OptimisticLockError, PreconditionFailedError
 
 
 def _money_from_schema(schema: MoneySchema | None) -> Money | None:
@@ -180,10 +182,18 @@ async def update_sku(
     variant_id: uuid.UUID,
     sku_id: uuid.UUID,
     request: SKUUpdateRequest,
+    response: Response,
     update_handler: FromDishka[UpdateSKUHandler],
     list_handler: FromDishka[ListSKUsHandler],
+    if_match_version: int | None = Depends(parse_if_match),
 ) -> SKUResponse:
-    """Apply a partial update to a SKU and return the updated state."""
+    """Apply a partial update to a SKU and return the updated state.
+
+    T-1.4 — accepts ``If-Match: "v{N}"``. Mismatch → 412
+    ``PRECONDITION_FAILED``. Header absent → legacy body-level
+    ``version`` field continues to enforce optimistic locking with
+    409 ``CONCURRENCY_ERROR`` (kept for backwards compatibility).
+    """
     command = build_update_command(
         request,
         UpdateSKUCommand,
@@ -199,10 +209,26 @@ async def update_sku(
         product_id=product_id,
         sku_id=sku_id,
         version=request.version,
+        expected_version=if_match_version,
     )
     # The handler already validates that the SKU belongs to the product
     # (raises SKUNotFoundError if not found within the aggregate).
-    result = await update_handler.handle(command)
+    try:
+        result = await update_handler.handle(command)
+    except OptimisticLockError as exc:
+        # Only the header-driven path upgrades to 412; legacy body
+        # version mismatches keep their existing 409 ``ConcurrencyError``
+        # surface (which itself extends OptimisticLockError but is
+        # raised separately, hence the ``isinstance`` narrowing).
+        if if_match_version is not None and not isinstance(exc, ConcurrencyError):
+            raise PreconditionFailedError(
+                entity_type="SKU",
+                entity_id=sku_id,
+                expected_version=if_match_version,
+                current_version=exc.details.get("actual_version"),
+            ) from exc
+        raise
+    attach_etag(response, result.version)
 
     # Fetch updated SKU read model scoped to the variant.
     sku_list = await list_handler.handle(

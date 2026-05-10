@@ -88,6 +88,17 @@ class Brand(Base):
         comment="Cached public URL from the Storage module",
     )
 
+    version: Mapped[int] = mapped_column(
+        Integer,
+        server_default=text("0"),
+        nullable=False,
+        comment=(
+            "Optimistic-locking counter (T-1.1). SQLAlchemy version_id_col "
+            'bumps it on every UPDATE; surfaced as ``ETag: "v{N}"`` on '
+            "GET, accepted as ``If-Match`` on PATCH."
+        ),
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         server_default=func.now(),
@@ -97,6 +108,10 @@ class Brand(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+    __mapper_args__: ClassVar[dict[str, Any]] = {
+        "version_id_col": version,
+    }
 
 
 class Category(Base):
@@ -154,6 +169,21 @@ class Category(Base):
     template: Mapped[AttributeTemplate | None] = relationship(
         "AttributeTemplate", foreign_keys=[template_id]
     )
+
+    version: Mapped[int] = mapped_column(
+        Integer,
+        server_default=text("0"),
+        nullable=False,
+        comment=(
+            "Optimistic-locking counter (T-1.2). SQLAlchemy version_id_col "
+            'bumps it on every UPDATE; surfaced as ``ETag: "v{N}"`` on '
+            "GET, accepted as ``If-Match`` on PATCH."
+        ),
+    )
+
+    __mapper_args__: ClassVar[dict[str, Any]] = {
+        "version_id_col": version,
+    }
 
     __table_args__ = (
         Index(
@@ -654,6 +684,21 @@ class ProductVariant(Base):
     media_assets: Mapped[list[MediaAsset]] = relationship(
         "MediaAsset", back_populates="variant", cascade="all, delete-orphan"
     )
+
+    version: Mapped[int] = mapped_column(
+        Integer,
+        server_default=text("0"),
+        nullable=False,
+        comment=(
+            "Optimistic-locking counter (T-1.3). SQLAlchemy version_id_col "
+            'bumps it on every UPDATE; surfaced as ``ETag: "v{N}"`` on '
+            "GET, accepted as ``If-Match`` on PATCH."
+        ),
+    )
+
+    __mapper_args__: ClassVar[dict[str, Any]] = {
+        "version_id_col": version,
+    }
 
     __table_args__ = (Index("ix_product_variants_product_id", "product_id"),)
 

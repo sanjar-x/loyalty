@@ -138,3 +138,32 @@ class IRussianCarrierGateway(ABC):
         idempotency_key: str,
     ) -> uuid.UUID:
         """Book a russian carrier shipment and return its shipment_id."""
+
+
+class ITelegramChatLookup(ABC):
+    """T-2 / D3.1 — read-side ACL into identity for Telegram chat resolution.
+
+    Implemented as an anti-corruption adapter that reads
+    ``linked_accounts`` directly (whitelisted in
+    ``ALLOWED_CROSS_MODULE`` for the single adapter file). Returns the
+    Telegram chat_id (an ``int`` per Bot API) for an identity that has
+    a Telegram-linked account, or ``None`` if the customer signed up
+    via email/OIDC without linking Telegram.
+    """
+
+    @abstractmethod
+    async def get_chat_id(self, identity_id: uuid.UUID) -> int | None: ...
+
+
+class ITelegramNotifier(ABC):
+    """T-2 / D3.1 — outbound port for Telegram push notifications.
+
+    The infrastructure adapter wraps the aiogram ``Bot.send_message``
+    call. Implementations MUST swallow user-blocked-the-bot errors
+    (HTTP 403) so a single bad recipient does not cause TaskIQ to
+    retry indefinitely; transient failures (5xx, network) propagate
+    so the broker's retry policy handles them.
+    """
+
+    @abstractmethod
+    async def send_html(self, *, chat_id: int, html: str) -> None: ...

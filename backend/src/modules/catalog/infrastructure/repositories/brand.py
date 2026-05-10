@@ -41,10 +41,18 @@ class BrandRepository(
             slug=orm.slug,
             logo_url=orm.logo_url,
             logo_storage_object_id=orm.logo_storage_object_id,
+            version=orm.version,
         )
 
     def _to_orm(self, entity: DomainBrand, orm: OrmBrand | None = None) -> OrmBrand:
-        """Map a domain Brand entity to an ORM row (create or update)."""
+        """Map a domain Brand entity to an ORM row (create or update).
+
+        ``version`` is intentionally NOT copied from the entity onto
+        the ORM row: SQLAlchemy owns the column via ``version_id_col``,
+        reading the previous value off the row to compose the
+        optimistic-lock WHERE clause and bumping it server-side.
+        Writing ``entity.version`` here would race with that machinery.
+        """
         if orm is None:
             orm = OrmBrand()
         orm.id = entity.id

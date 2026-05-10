@@ -24,6 +24,7 @@ def brand_orm_to_read_model(orm: OrmBrand) -> BrandReadModel:
         name=orm.name,
         slug=orm.slug,
         logo_url=orm.logo_url,
+        version=orm.version,
     )
 
 

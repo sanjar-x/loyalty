@@ -26,7 +26,7 @@ from src.modules.catalog.domain.exceptions import (
 )
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import Money, PurchaseCurrency
-from src.shared.exceptions import ValidationError
+from src.shared.exceptions import OptimisticLockError, ValidationError
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -67,6 +67,14 @@ class UpdateSKUCommand:
     is_active: bool | None = None
     variant_attributes: list[tuple[uuid.UUID, uuid.UUID]] | None = None
     version: int | None = None
+    expected_version: int | None = None
+    """T-1.4 — header-level optimistic-lock counter, sourced from
+    ``If-Match: "v{N}"``. Distinct from the legacy body-level
+    ``version`` (kept for backwards compatibility): when set and
+    different from the current SKU version, raises
+    :class:`OptimisticLockError` so the router can upgrade it to 412
+    ``PRECONDITION_FAILED``. Body ``version`` continues to raise
+    :class:`ConcurrencyError` (409 with ``CONCURRENCY_ERROR``)."""
     _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 
@@ -76,9 +84,12 @@ class UpdateSKUResult:
 
     Attributes:
         id: UUID of the updated SKU.
+        version: Post-mutation optimistic-lock counter (used by the
+            router to attach the new ``ETag`` on the response).
     """
 
     id: uuid.UUID
+    version: int = 0
 
 
 class UpdateSKUHandler:
@@ -133,7 +144,23 @@ class UpdateSKUHandler:
             if sku is None:
                 raise SKUNotFoundError(sku_id=command.sku_id)
 
-            # --- Optimistic locking: API-level version guard ---
+            # T-1.4 — header-level optimistic locking via If-Match.
+            # Mismatch raises :class:`OptimisticLockError` (router
+            # upgrades to 412 PRECONDITION_FAILED). Distinct path from
+            # the legacy ``command.version`` body-level guard below
+            # which surfaces as :class:`ConcurrencyError` (409).
+            if (
+                command.expected_version is not None
+                and command.expected_version != sku.version
+            ):
+                raise OptimisticLockError(
+                    entity_type="SKU",
+                    entity_id=sku.id,
+                    expected_version=command.expected_version,
+                    actual_version=sku.version,
+                )
+
+            # --- Optimistic locking: API-level version guard (legacy body-level) ---
             if command.version is not None and command.version != sku.version:
                 raise ConcurrencyError(
                     entity_type="SKU",
@@ -235,4 +262,4 @@ class UpdateSKUHandler:
                 error=str(exc),
             )
 
-        return UpdateSKUResult(id=sku.id)
+        return UpdateSKUResult(id=sku.id, version=sku.version)

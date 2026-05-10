@@ -234,6 +234,7 @@ class ProductRepository(IProductRepository):
             deleted_at=orm_variant.deleted_at,
             created_at=orm_variant.created_at,
             updated_at=orm_variant.updated_at,
+            version=orm_variant.version,
         )
 
     def _variant_to_orm(
@@ -498,6 +499,24 @@ class ProductRepository(IProductRepository):
                 expected_version=entity.version,
                 actual_version=None,
             ) from None
+
+        # T-1.3 / T-1.4 — propagate post-flush ``version`` bumps for
+        # child variants AND their SKUs back into the domain aggregate
+        # so ``UpdateVariantHandler`` / ``UpdateSKUHandler`` can return
+        # the new ETag without an extra SELECT round-trip. Plain
+        # column reads on the already-loaded ORM rows — no lazy load
+        # involved.
+        orm_variants_by_id = {v.id: v for v in orm.variants}
+        for domain_variant in entity.variants:
+            orm_variant = orm_variants_by_id.get(domain_variant.id)
+            if orm_variant is None:
+                continue
+            domain_variant.version = orm_variant.version
+            orm_skus_by_id = {s.id: s for s in orm_variant.skus}
+            for domain_sku in domain_variant.skus:
+                orm_sku = orm_skus_by_id.get(domain_sku.id)
+                if orm_sku is not None:
+                    domain_sku.version = orm_sku.version
 
         # Return the input domain entity instead of re-mapping from ORM.
         # After flush(), ORM attributes are expired and _to_domain(orm)

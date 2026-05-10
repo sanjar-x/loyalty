@@ -67,6 +67,10 @@ class CategoryReadModel(BaseModel):
     level: int
     sort_order: int
     parent_id: uuid.UUID | None = None
+    version: int = 0
+    """T-1.2 — optimistic-lock counter surfaced as ``ETag: "v{N}"`` on
+    GET. Default ``0`` keeps callers compatible with rows returned by
+    tree-shaped queries that don't carry a version."""
 
 
 CategoryListReadModel = PaginatedReadModel[CategoryReadModel]
@@ -79,6 +83,11 @@ class BrandReadModel(BaseModel):
     name: str
     slug: str
     logo_url: str | None = None
+    version: int = 0
+    """T-1.1 — optimistic-lock counter surfaced as ``ETag: "v{N}"`` on
+    GET. Default ``0`` keeps callers (e.g. list view) compatible with
+    rows from before the migration — the GET handler always populates
+    it from the ORM column."""
 
 
 BrandListReadModel = PaginatedReadModel[BrandReadModel]
@@ -390,6 +399,10 @@ class ProductVariantReadModel(BaseModel):
     sort_order: int
     default_price: MoneyReadModel | None
     skus: list[SKUReadModel]
+    version: int = 0
+    """T-1.3 — optimistic-lock counter surfaced as ``ETag: "v{N}"`` on
+    GET. Default ``0`` keeps callers (e.g. nested-in-product reads)
+    compatible with rows that don't surface a version directly."""
 
 
 class ProductAttributeValueReadModel(BaseModel):

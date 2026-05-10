@@ -239,7 +239,15 @@ ALLOWED_CROSS_MODULE = {
         "src.modules.order.infrastructure.adapters.payment_gateway",
     },
     # Order routers use identity's Auth/RequirePermission deps.
-    ("order", "identity"): {"src.modules.order.presentation.*"},
+    # T-2 / D3.1 — additionally, the customer-notification consumer
+    # reads ``linked_accounts`` directly through a single read-side
+    # ACL adapter (``telegram_chat_lookup``) so we don't introduce a
+    # new query handler for a single-column lookup that fans out
+    # across every shipment-state event.
+    ("order", "identity"): {
+        "src.modules.order.presentation.*",
+        "src.modules.order.infrastructure.adapters.telegram_chat_lookup",
+    },
     # Payment routers use identity's Auth/RequirePermission deps.
     ("payment", "identity"): {"src.modules.payment.presentation.*"},
     # Recipient routers use identity's Auth dep.

@@ -12,6 +12,7 @@ import uuid
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, Response, status
 
+from src.api.dependencies.etag import attach_etag, parse_if_match
 from src.modules.catalog.application.commands.bulk_create_brands import (
     BulkBrandItem,
     BulkCreateBrandsCommand,
@@ -51,6 +52,7 @@ from src.modules.catalog.presentation.schemas import (
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
+from src.shared.exceptions import OptimisticLockError, PreconditionFailedError
 
 brand_router = APIRouter(
     prefix="/admin/catalog/brands",
@@ -133,6 +135,7 @@ async def list_brands(
                 name=item.name,
                 slug=item.slug,
                 logo_url=item.logo_url,
+                version=item.version,
             )
             for item in result.items
         ],
@@ -157,11 +160,15 @@ async def get_brand(
 ) -> BrandResponse:
     response.headers["Cache-Control"] = "no-store"
     result: BrandReadModel = await handler.handle(brand_id)
+    # T-1.1 — strong ETag based on the aggregate's optimistic-lock
+    # version. Frontend echoes this back as ``If-Match`` on PATCH.
+    attach_etag(response, result.version)
     return BrandResponse(
         id=result.id,
         name=result.name,
         slug=result.slug,
         logo_url=result.logo_url,
+        version=result.version,
     )
 
 
@@ -176,19 +183,38 @@ async def get_brand(
 async def update_brand(
     brand_id: uuid.UUID,
     request: BrandUpdateRequest,
+    response: Response,
     handler: FromDishka[UpdateBrandHandler],
+    if_match_version: int | None = Depends(parse_if_match),
 ) -> BrandResponse:
+    """T-1.1 — accepts ``If-Match: "v{N}"``. Mismatch → 412
+    ``PRECONDITION_FAILED``. Header absent → legacy last-write-wins
+    (no behaviour change for clients still on the old contract).
+    """
     command = build_update_command(
         request,
         UpdateBrandCommand,
         brand_id=brand_id,
+        expected_version=if_match_version,
     )
-    result: UpdateBrandResult = await handler.handle(command)
+    try:
+        result: UpdateBrandResult = await handler.handle(command)
+    except OptimisticLockError as exc:
+        if if_match_version is not None:
+            raise PreconditionFailedError(
+                entity_type="Brand",
+                entity_id=brand_id,
+                expected_version=if_match_version,
+                current_version=exc.details.get("actual_version"),
+            ) from exc
+        raise
+    attach_etag(response, result.version)
     return BrandResponse(
         id=result.id,
         name=result.name,
         slug=result.slug,
         logo_url=result.logo_url,
+        version=result.version,
     )
 
 

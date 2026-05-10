@@ -85,6 +85,10 @@ class CategoryResponse(CamelModel):
     level: int
     sort_order: int
     parent_id: uuid.UUID | None = None
+    version: int = 0
+    """T-1.2 — surfaced for the frontend ETag interceptor. The router
+    additionally emits ``ETag: "v{N}"`` on the GET response so the
+    interceptor can echo it back via ``If-Match`` on the next mutate."""
 
 
 class CategoryUpdateRequest(CamelModel):
@@ -182,6 +186,10 @@ class BrandResponse(CamelModel):
     name: str
     slug: str
     logo_url: str | None = None
+    version: int = 0
+    """T-1.1 — surfaced for the frontend ETag interceptor. The router
+    additionally emits ``ETag: "v{N}"`` on the GET response so the
+    interceptor can echo it back via ``If-Match`` on the next mutate."""
 
 
 class BrandUpdateRequest(CamelModel):
@@ -835,6 +843,10 @@ class ProductVariantResponse(CamelModel):
     sort_order: int
     default_price: MoneySchema | None = None
     skus: list[SKUResponse]
+    version: int = 0
+    """T-1.3 — surfaced for the frontend ETag interceptor on
+    GET /admin/catalog/products/{id}/variants/{variant_id} and the
+    PATCH response."""
 
 
 class ProductAttributeAssignRequest(CamelModel):
@@ -966,6 +978,9 @@ class ProductVariantUpdateResponse(CamelModel):
 
     id: uuid.UUID
     message: str
+    version: int = 0
+    """T-1.3 — post-mutation optimistic-lock counter. The router
+    additionally emits ``ETag: "v{N}"`` on the response."""
 
 
 # ---------------------------------------------------------------------------

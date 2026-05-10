@@ -140,3 +140,89 @@ class TestBrandEndpoints:
     ):
         resp = await admin_client.delete(f"/api/v1/catalog/brands/{uuid.uuid4()}")
         assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# T-1.1 — ETag/If-Match optimistic locking on Brand
+# ---------------------------------------------------------------------------
+
+
+class TestBrandETagFlow:
+    """Wire-level checks for the ETag/If-Match contract on Brand.
+
+    Mirrors the Recipient pattern (Sprint 3 D0.3): GET emits
+    ``ETag: "v{N}"``, PATCH accepts ``If-Match`` and surfaces 412 on
+    stale versions, header-absent path keeps the legacy 200/409
+    behaviour for clients that haven't adopted the contract yet.
+    """
+
+    async def test_get_brand_emits_etag_header(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        created = await create_brand(admin_client)
+        resp = await admin_client.get(f"/api/v1/admin/catalog/brands/{created['id']}")
+        assert resp.status_code == 200
+        etag = resp.headers.get("etag")
+        assert etag is not None
+        # Strong validator: ``"v{N}"`` (no ``W/`` prefix).
+        assert etag.startswith('"v')
+        body = resp.json()
+        assert "version" in body
+        assert int(etag.strip('"').lstrip("v")) == body["version"]
+
+    async def test_patch_with_matching_if_match_succeeds_and_bumps_version(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        created = await create_brand(admin_client)
+        get_resp = await admin_client.get(
+            f"/api/v1/admin/catalog/brands/{created['id']}"
+        )
+        etag = get_resp.headers["etag"]
+        original_version = get_resp.json()["version"]
+
+        patch_resp = await admin_client.patch(
+            f"/api/v1/admin/catalog/brands/{created['id']}",
+            json={"name": "ETag Updated"},
+            headers={"If-Match": etag},
+        )
+        assert patch_resp.status_code == 200
+        body = patch_resp.json()
+        assert body["name"] == "ETag Updated"
+        assert body["version"] > original_version
+        # The updated ETag is reflected on the response.
+        new_etag = patch_resp.headers.get("etag")
+        assert new_etag is not None
+        assert new_etag != etag
+
+    async def test_patch_with_stale_if_match_returns_412(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        created = await create_brand(admin_client)
+        # First update bumps version to 1 (or higher).
+        await admin_client.patch(
+            f"/api/v1/admin/catalog/brands/{created['id']}",
+            json={"name": "First"},
+            headers={"If-Match": '"v0"'},
+        )
+        # Replay the original v0 — must be rejected as stale.
+        resp = await admin_client.patch(
+            f"/api/v1/admin/catalog/brands/{created['id']}",
+            json={"name": "Race"},
+            headers={"If-Match": '"v0"'},
+        )
+        assert resp.status_code == 412
+        body = resp.json()
+        assert body["error"]["code"] == "PRECONDITION_FAILED"
+        assert body["error"]["details"]["entity_type"] == "Brand"
+
+    async def test_patch_without_if_match_keeps_legacy_200(
+        self, admin_client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        """Header-absent path stays on last-write-wins (no breaking change)."""
+        created = await create_brand(admin_client)
+        resp = await admin_client.patch(
+            f"/api/v1/admin/catalog/brands/{created['id']}",
+            json={"name": "No If-Match"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "No If-Match"

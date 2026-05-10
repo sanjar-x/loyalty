@@ -12,6 +12,7 @@ import uuid
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Query, Response, status
 
+from src.api.dependencies.etag import attach_etag, parse_if_match
 from src.modules.catalog.application.commands.bulk_create_categories import (
     BulkCategoryItem,
     BulkCreateCategoriesCommand,
@@ -57,6 +58,7 @@ from src.modules.catalog.presentation.schemas import (
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
+from src.shared.exceptions import OptimisticLockError, PreconditionFailedError
 
 category_router = APIRouter(
     prefix="/admin/catalog/categories",
@@ -185,6 +187,7 @@ async def list_categories(
                 level=item.level,
                 sort_order=item.sort_order,
                 parent_id=item.parent_id,
+                version=item.version,
             )
             for item in result.items
         ],
@@ -209,6 +212,9 @@ async def get_category(
 ) -> CategoryResponse:
     response.headers["Cache-Control"] = "no-store"
     result: CategoryReadModel = await handler.handle(category_id)
+    # T-1.2 — strong ETag based on the aggregate's optimistic-lock
+    # version. Frontend echoes this back as ``If-Match`` on PATCH.
+    attach_etag(response, result.version)
     return CategoryResponse(
         id=result.id,
         name_i18n=result.name_i18n,
@@ -217,6 +223,7 @@ async def get_category(
         level=result.level,
         sort_order=result.sort_order,
         parent_id=result.parent_id,
+        version=result.version,
     )
 
 
@@ -231,14 +238,31 @@ async def get_category(
 async def update_category(
     category_id: uuid.UUID,
     request: CategoryUpdateRequest,
+    response: Response,
     handler: FromDishka[UpdateCategoryHandler],
+    if_match_version: int | None = Depends(parse_if_match),
 ) -> CategoryResponse:
+    """T-1.2 — accepts ``If-Match: "v{N}"``. Mismatch → 412
+    ``PRECONDITION_FAILED``. Header absent → legacy last-write-wins.
+    """
     command = build_update_command(
         request,
         UpdateCategoryCommand,
         category_id=category_id,
+        expected_version=if_match_version,
     )
-    result: UpdateCategoryResult = await handler.handle(command)
+    try:
+        result: UpdateCategoryResult = await handler.handle(command)
+    except OptimisticLockError as exc:
+        if if_match_version is not None:
+            raise PreconditionFailedError(
+                entity_type="Category",
+                entity_id=category_id,
+                expected_version=if_match_version,
+                current_version=exc.details.get("actual_version"),
+            ) from exc
+        raise
+    attach_etag(response, result.version)
     return CategoryResponse(
         id=result.id,
         name_i18n=result.name_i18n,
@@ -247,6 +271,7 @@ async def update_category(
         level=result.level,
         sort_order=result.sort_order,
         parent_id=result.parent_id,
+        version=result.version,
     )
 
 

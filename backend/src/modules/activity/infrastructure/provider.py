@@ -14,6 +14,9 @@ from __future__ import annotations
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
 
+from src.modules.activity.application.consumers.favorites_events import (
+    FavoritesActivityEnricher,
+)
 from src.modules.activity.domain.interfaces import IActivityEventRepository
 from src.modules.activity.infrastructure.co_view_reader import (
     SqlAlchemyCoViewReader,
@@ -67,4 +70,9 @@ class ActivityProvider(Provider):
         SqlAlchemyCoViewReader,
         scope=Scope.REQUEST,
         provides=ICoViewReader,
+    )
+
+    # T-3 / D3.2 — favorites → activity enrichment consumer.
+    favorites_activity_enricher: CompositeDependencySource = provide(
+        FavoritesActivityEnricher, scope=Scope.REQUEST
     )
