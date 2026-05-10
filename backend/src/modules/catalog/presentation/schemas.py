@@ -182,6 +182,10 @@ class BrandResponse(CamelModel):
     name: str
     slug: str
     logo_url: str | None = None
+    version: int = 0
+    """T-1.1 — surfaced for the frontend ETag interceptor. The router
+    additionally emits ``ETag: "v{N}"`` on the GET response so the
+    interceptor can echo it back via ``If-Match`` on the next mutate."""
 
 
 class BrandUpdateRequest(CamelModel):

@@ -33,6 +33,9 @@ class Brand(AggregateRoot):
         slug: URL-safe identifier, unique across all brands.
         logo_url: Public URL of the brand logo, or None.
         logo_storage_object_id: Reference to the StorageObject record, or None.
+        version: Optimistic-locking counter (T-1.1). Bumped server-side
+            on every UPDATE via SQLAlchemy ``version_id_col``; surfaced
+            as ``ETag: "v{N}"`` and accepted as ``If-Match``.
     """
 
     id: uuid.UUID
@@ -40,6 +43,7 @@ class Brand(AggregateRoot):
     slug: str
     logo_url: str | None = None
     logo_storage_object_id: uuid.UUID | None = None
+    version: int = 0
 
     # DDD-01: guard slug against direct mutation
     def __setattr__(self, name: str, value: object) -> None:

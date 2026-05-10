@@ -6272,6 +6272,22 @@
               "format": "uuid",
               "title": "Brand Id"
             }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
           }
         ],
         "requestBody": {
@@ -19421,6 +19437,11 @@
               }
             ],
             "title": "Logourl"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 0
           }
         },
         "type": "object",

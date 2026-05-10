@@ -17,6 +17,7 @@ from src.modules.catalog.domain.exceptions import (
     BrandSlugConflictError,
 )
 from src.modules.catalog.domain.interfaces import IBrandRepository, IMediaCleanupPort
+from src.shared.exceptions import OptimisticLockError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -39,6 +40,12 @@ class UpdateBrandCommand:
     logo_url: str | None = None
     logo_storage_object_id: uuid.UUID | None = None
     _provided_fields: frozenset[str] = field(default_factory=frozenset)
+    expected_version: int | None = None
+    """T-1.1 — when set, the handler enforces optimistic locking before
+    mutating: aggregate ``version`` mismatch raises
+    :class:`OptimisticLockError`. ``None`` (default) keeps the legacy
+    last-write-wins behaviour for clients that haven't adopted ETag /
+    If-Match yet."""
 
 
 @dataclass(frozen=True)
@@ -50,12 +57,16 @@ class UpdateBrandResult:
         name: Updated display name.
         slug: Updated URL-safe slug.
         logo_url: Current public logo URL, if any.
+        version: Post-mutation optimistic-lock counter. The router
+            attaches this to the response so the next round-trip can
+            use it as ``If-Match``.
     """
 
     id: uuid.UUID
     name: str
     slug: str
     logo_url: str | None = None
+    version: int = 0
 
 
 class UpdateBrandHandler:
@@ -95,6 +106,23 @@ class UpdateBrandHandler:
             if brand is None:
                 raise BrandNotFoundError(brand_id=command.brand_id)
 
+            # T-1.1 — early optimistic-lock check when an expected
+            # version was provided (typically via the router's
+            # ``If-Match`` header). Mismatch surfaces as
+            # :class:`OptimisticLockError` (409) at the handler layer;
+            # the router upgrades it to 412 ``PRECONDITION_FAILED`` when
+            # the client used If-Match.
+            if (
+                command.expected_version is not None
+                and command.expected_version != brand.version
+            ):
+                raise OptimisticLockError(
+                    entity_type="Brand",
+                    entity_id=brand.id,
+                    expected_version=command.expected_version,
+                    actual_version=brand.version,
+                )
+
             if (
                 command.slug is not None
                 and command.slug != brand.slug
@@ -126,7 +154,14 @@ class UpdateBrandHandler:
                     aggregate_id=str(brand.id),
                 )
             )
-            await self._brand_repo.update(brand)
+            # T-1.1 — repo.update() returns a freshly-mapped domain
+            # entity built from the post-flush ORM row, so its
+            # ``version`` reflects the SQLAlchemy-side bump. Lift the
+            # value back onto the original ``brand`` so the response
+            # carries the new ETag without losing the in-memory
+            # ``domain_events`` list (register_aggregate uses them).
+            persisted = await self._brand_repo.update(brand)
+            brand.version = persisted.version
             self._uow.register_aggregate(brand)
             await self._uow.commit()
 
@@ -141,4 +176,5 @@ class UpdateBrandHandler:
             name=brand.name,
             slug=brand.slug,
             logo_url=brand.logo_url,
+            version=brand.version,
         )

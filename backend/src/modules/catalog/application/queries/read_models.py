@@ -79,6 +79,11 @@ class BrandReadModel(BaseModel):
     name: str
     slug: str
     logo_url: str | None = None
+    version: int = 0
+    """T-1.1 — optimistic-lock counter surfaced as ``ETag: "v{N}"`` on
+    GET. Default ``0`` keeps callers (e.g. list view) compatible with
+    rows from before the migration — the GET handler always populates
+    it from the ORM column."""
 
 
 BrandListReadModel = PaginatedReadModel[BrandReadModel]
