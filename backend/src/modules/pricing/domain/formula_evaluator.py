@@ -49,6 +49,31 @@ class EvaluationResult:
     components: dict[str, Decimal]
 
 
+_LEGACY_FINAL_COMPONENT_CODE = "final_price"
+"""v1 hard-coded the final binding's name as ``final_price``. The
+evaluator keeps that as a fallback for ASTs that haven't passed
+through :func:`normalize_ast_to_v2` yet (which would have hoisted a
+top-level ``final_component_code``)."""
+
+
+def _binding_code(binding: dict[str, Any]) -> str:
+    """Return the binding identifier under v1 OR v2.
+
+    v2 stores it as ``code``; v1 used ``component_tag`` (admin-facing)
+    + ``name`` (evaluator-internal). The evaluator only needs ONE
+    canonical key per binding — pick whichever exists, preferring the
+    new contract.
+    """
+    for key in ("code", "component_tag", "name"):
+        value = binding.get(key)
+        if isinstance(value, str) and value:
+            return value
+    raise FormulaEvaluationError(
+        message="Binding is missing required code / component_tag / name.",
+        error_code="PRICING_FORMULA_EVALUATION_FAILED",
+    )
+
+
 def evaluate_formula(
     ast: dict[str, Any],
     variable_values: Mapping[str, Decimal],
@@ -58,6 +83,11 @@ def evaluate_formula(
     Assumes the AST has already passed shape validation via ``_validate_ast``;
     structural bugs are converted into :class:`FormulaEvaluationError` for
     defence in depth.
+
+    Reads ``final_component_code`` from the AST root (v2). Falls back
+    to the hard-coded ``"final_price"`` sentinel when absent (v1 ASTs
+    that bypassed normalization — shouldn't happen post-migration but
+    the safety net keeps the evaluator robust to direct DB inserts).
     """
     bindings = ast.get("bindings")
     if not isinstance(bindings, list) or not bindings:
@@ -66,24 +96,31 @@ def evaluate_formula(
             error_code="PRICING_FORMULA_EVALUATION_FAILED",
         )
 
+    final_component_code = ast.get("final_component_code")
+    if not isinstance(final_component_code, str) or not final_component_code:
+        final_component_code = _LEGACY_FINAL_COMPONENT_CODE
+
     components: dict[str, Decimal] = {}
     for binding in bindings:
-        name = binding["name"]
+        code = _binding_code(binding)
         value = _eval_expr(
             binding["expr"],
             variable_values=variable_values,
             components=components,
-            binding_name=name,
+            binding_name=code,
         )
-        components[name] = value
+        components[code] = value
 
-    if "final_price" not in components:
+    if final_component_code not in components:
         raise FormulaEvaluationError(
-            message="Formula did not produce a 'final_price' binding.",
+            message=(
+                f"Formula did not produce the {final_component_code!r} "
+                "binding pointed to by final_component_code."
+            ),
             error_code="PRICING_FORMULA_EVALUATION_FAILED",
         )
 
-    final_price = components["final_price"]
+    final_price = components[final_component_code]
     if not final_price.is_finite():
         raise FormulaEvaluationError(
             message="final_price evaluated to a non-finite Decimal (NaN/Infinity).",
