@@ -2,9 +2,11 @@
 #
 # Differs from the main Dockerfile only in installing the optional
 # `[bg-removal]` extra (torch + transformers + timm + kornia). The
-# CPU-only torch wheel is selected at build time via the `UV_TORCH_BACKEND=cpu`
-# env var that Railway injects from the service settings — keeps the
-# image around ~200 MB heavier instead of the ~3 GB CUDA default.
+# CPU-only torch wheel is pinned via the build-time ENV below — Railway's
+# runtime service variables are NOT propagated into the build phase for
+# Dockerfile builders, so relying on a service-level UV_TORCH_BACKEND=cpu
+# silently fell back to the default CUDA wheel (~2.5 GB heavier than the
+# CPU variant and useless on the Railway nodes which have no GPU).
 #
 # web / core-worker / scheduler services keep using the lean main Dockerfile.
 
@@ -18,16 +20,22 @@ ENV UV_LINK_MODE=copy
 ENV UV_NO_DEV=1
 ENV PATH="/app/.venv/bin:$PATH"
 
+# Pin torch to CPU wheels at build time. Without this ``uv sync`` resolves
+# the multi-GB CUDA build of torch, which (a) wastes ~2.5 GB of image
+# layer, (b) lazy-loads CUDA libs at runtime and crashes on the GPU-less
+# Railway node, and (c) blows past Railway's 8 GB build-image cap. uv
+# reads this variable via the ``[tool.uv.sources]`` torch entry in
+# ``pyproject.toml``.
+ENV UV_TORCH_BACKEND=cpu
+
 WORKDIR /app
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 COPY pyproject.toml uv.lock ./
 
-# Install deps + optional [bg-removal] extra. CPU-only torch wheel
-# selected via the runtime env var UV_TORCH_BACKEND=cpu (set on the
-# Railway service); without that override uv would default to the
-# multi-GB CUDA wheel.
+# Install deps + optional [bg-removal] extra. CPU-only torch is selected
+# via the ENV above (build-time, not runtime — see comment).
 RUN uv sync --frozen --no-dev --no-install-project --extra bg-removal
 
 COPY . .
