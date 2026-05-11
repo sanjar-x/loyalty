@@ -19,6 +19,7 @@ from src.modules.pricing.application.queries.preview_sku_pricing import (
     PreviewSkuPricingQuery,
 )
 from src.modules.pricing.presentation.schemas import (
+    FormulaBindingValue,
     PreviewPriceRequest,
     PreviewPriceResponse,
     PreviewSkuPricingRequest,
@@ -107,9 +108,15 @@ async def preview_sku_pricing(
         )
     )
     components = result.components if is_admin else {}
+    bindings = (
+        [FormulaBindingValue.model_validate(b) for b in result.bindings]
+        if is_admin
+        else []
+    )
     return PreviewSkuPricingResponse(
         final_price=result.final_price,
         components=components,
+        bindings=bindings,
         formula_version_id=result.formula_version_id,
         formula_version_number=result.formula_version_number,
         context_id=result.context_id,

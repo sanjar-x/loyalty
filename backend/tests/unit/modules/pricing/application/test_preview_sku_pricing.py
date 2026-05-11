@@ -416,3 +416,115 @@ class TestPreviewSkuPreCreate:
         )
 
         assert result.final_price == Decimal("10000")
+
+
+# ---------------------------------------------------------------------------
+# T-X — ``bindings`` list on the preview result (admin UI step-by-step view)
+# ---------------------------------------------------------------------------
+
+
+class TestPreviewSkuBindings:
+    """``result.bindings`` mirrors the AST binding order and pairs each
+    binding's authoring metadata (``name``, ``component_tag``, ``label``,
+    ``is_visible``) with the evaluator's computed value. ``expr`` is
+    tolerated here — it's filtered downstream by the Pydantic schema's
+    ``extra="ignore"``.
+    """
+
+    @pytest.mark.asyncio
+    async def test_bindings_preserve_ast_order_and_carry_values(self) -> None:
+        context_id = uuid.uuid4()
+        # Three bindings, last one chained off the second — order matters.
+        ast = {
+            "version": 1,
+            "bindings": [
+                {
+                    "name": "base",
+                    "component_tag": "intermediate",
+                    "label": "Базовая цена",
+                    "is_visible": True,
+                    "expr": {"var": "purchase_price_rub"},
+                },
+                {
+                    "name": "with_margin",
+                    "component_tag": "intermediate",
+                    "label": "С наценкой",
+                    "is_visible": False,
+                    "expr": {"op": "*", "args": [{"ref": "base"}, {"const": "1.5"}]},
+                },
+                {
+                    "name": "final_price",
+                    "component_tag": "final_price",
+                    "label": "Итоговая цена",
+                    "is_visible": True,
+                    "expr": {"ref": "with_margin"},
+                },
+            ],
+        }
+        handler = _build_handler(
+            formula=_formula(context_id, ast),
+            variables=[_purchase_price_rub_var()],
+        )
+
+        result = await handler.handle(
+            PreviewSkuPricingQuery(
+                product_id=None,
+                category_id=uuid.uuid4(),
+                context_id=context_id,
+                purchase_price_amount=10000,
+                purchase_currency="RUB",
+            )
+        )
+
+        assert result.final_price == Decimal("15000")
+        # Order, metadata, computed values — all in one assertion.
+        assert [
+            (b["name"], b["component_tag"], b["value"]) for b in result.bindings
+        ] == [
+            ("base", "intermediate", Decimal("10000")),
+            ("with_margin", "intermediate", Decimal("15000")),
+            ("final_price", "final_price", Decimal("15000")),
+        ]
+        # Authoring metadata is preserved verbatim.
+        assert result.bindings[1]["label"] == "С наценкой"
+        assert result.bindings[1]["is_visible"] is False
+
+    @pytest.mark.asyncio
+    async def test_bindings_handle_legacy_ast_without_label_or_visibility(self) -> None:
+        """Legacy formulas pre-date ``label`` / ``is_visible``. The handler
+        passes the binding through as-is — the presentation schema then
+        defaults the missing fields via Pydantic's field defaults.
+        """
+        context_id = uuid.uuid4()
+        ast = {
+            "version": 1,
+            "bindings": [
+                {
+                    "name": "final_price",
+                    "component_tag": "final_price",
+                    "expr": {"var": "purchase_price_rub"},
+                }
+            ],
+        }
+        handler = _build_handler(
+            formula=_formula(context_id, ast),
+            variables=[_purchase_price_rub_var()],
+        )
+
+        result = await handler.handle(
+            PreviewSkuPricingQuery(
+                product_id=None,
+                category_id=uuid.uuid4(),
+                context_id=context_id,
+                purchase_price_amount=7777,
+                purchase_currency="RUB",
+            )
+        )
+
+        assert len(result.bindings) == 1
+        legacy = result.bindings[0]
+        assert legacy["name"] == "final_price"
+        assert legacy["component_tag"] == "final_price"
+        assert legacy["value"] == Decimal("7777")
+        assert "label" not in legacy
+        assert "is_visible" not in legacy
