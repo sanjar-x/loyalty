@@ -42,7 +42,7 @@ logger = structlog.get_logger(__name__)
 
 @broker.task(
     task_name="process_image",
-    queue_name="image_processing",
+    queue_name="image.processing",
     retry_on_error=True,
     max_retries=2,
     timeout=300,
@@ -140,7 +140,7 @@ async def process_image_task(
 
 @broker.task(
     task_name="image_cleanup_orphans",
-    queue_name="image_maintenance",
+    queue_name="image.maintenance",
     timeout=600,
     schedule=[{"cron": "0 */6 * * *"}],
 )
@@ -313,7 +313,7 @@ async def remove_background_task(
 if settings.BG_REMOVAL_ENABLED:
     remove_background_task = broker.task(
         task_name="remove_background",
-        queue_name="image_ml",
+        queue_name="image.ml",
         retry_on_error=True,
         max_retries=2,
         timeout=240,
