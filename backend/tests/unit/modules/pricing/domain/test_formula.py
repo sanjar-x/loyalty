@@ -26,15 +26,12 @@ CONTEXT_ID = uuid.uuid4()
 
 
 def _minimal_ast() -> dict[str, Any]:
-    """Minimal v2 AST — one binding, full required metadata."""
     return {
         "version": 1,
-        "final_component_code": "final_price",
         "bindings": [
             {
-                "code": "final_price",
-                "label_i18n": {"ru": "Итоговая цена"},
-                "is_visible": True,
+                "name": "final_price",
+                "component_tag": "final_price",
                 "expr": {"const": "100"},
             }
         ],
@@ -42,21 +39,17 @@ def _minimal_ast() -> dict[str, Any]:
 
 
 def _two_binding_ast() -> dict[str, Any]:
-    """Two-binding v2 AST — ``base`` referenced by ``final_price``."""
     return {
         "version": 1,
-        "final_component_code": "final_price",
         "bindings": [
             {
-                "code": "base",
-                "label_i18n": {"ru": "Базовая цена"},
-                "is_visible": True,
+                "name": "base",
+                "component_tag": "raw",
                 "expr": {"var": "purchase_price"},
             },
             {
-                "code": "final_price",
-                "label_i18n": {"ru": "Итоговая цена"},
-                "is_visible": True,
+                "name": "final_price",
+                "component_tag": "final_price",
                 "expr": {
                     "op": "*",
                     "args": [{"ref": "base"}, {"const": "1.15"}],
@@ -99,9 +92,9 @@ class TestValidateAst:
         with pytest.raises(FormulaValidationError):
             _validate_ast(ast)
 
-    def test_rejects_duplicate_binding_codes(self) -> None:
+    def test_rejects_duplicate_binding_names(self) -> None:
         ast = _two_binding_ast()
-        ast["bindings"][1]["code"] = "base"
+        ast["bindings"][1]["name"] = "base"
         with pytest.raises(FormulaValidationError):
             _validate_ast(ast)
 
@@ -114,25 +107,19 @@ class TestValidateAst:
 
     def test_rejects_self_ref(self) -> None:
         ast = _minimal_ast()
-        # Self-reference: the only binding's code IS ``final_price`` —
-        # validator forbids self-ref because the binding's code only
-        # enters ``known_refs`` after its expr is checked.
         ast["bindings"][0]["expr"] = {"ref": "final_price"}
         with pytest.raises(FormulaValidationError):
             _validate_ast(ast)
 
-    def test_final_component_code_must_match_a_binding(self) -> None:
-        """v2 — ``final_component_code`` must resolve to an existing binding."""
+    def test_last_binding_must_be_final_price(self) -> None:
         ast = _two_binding_ast()
-        # Rename the would-be final binding without updating the
-        # top-level pointer.
-        ast["bindings"][1]["code"] = "something_else"
+        ast["bindings"][1]["name"] = "something_else"
         with pytest.raises(FormulaValidationError):
             _validate_ast(ast)
 
-    def test_missing_final_component_code_is_rejected(self) -> None:
-        ast = _minimal_ast()
-        del ast["final_component_code"]
+    def test_last_binding_must_have_final_price_tag(self) -> None:
+        ast = _two_binding_ast()
+        ast["bindings"][1]["component_tag"] = "other"
         with pytest.raises(FormulaValidationError):
             _validate_ast(ast)
 
@@ -150,8 +137,8 @@ class TestValidateAst:
 
     def test_rejects_json_over_length_limit(self) -> None:
         ast = _minimal_ast()
-        # Build a 10 KB string in a const — exceeds the v2 limit of 8 KB.
-        ast["bindings"][0]["expr"] = {"const": "1" + "0" * 10_000}
+        # Build a 5 KB string in a const.
+        ast["bindings"][0]["expr"] = {"const": "1" + "0" * 5000}
         with pytest.raises(FormulaValidationError):
             _validate_ast(ast)
 
@@ -170,12 +157,10 @@ class TestValidateAst:
             expr = {"op": "+", "args": [expr, {"const": "1"}]}
         ast = {
             "version": 1,
-            "final_component_code": "final_price",
             "bindings": [
                 {
-                    "code": "final_price",
-                    "label_i18n": {"ru": "Итоговая цена"},
-                    "is_visible": True,
+                    "name": "final_price",
+                    "component_tag": "final_price",
                     "expr": expr,
                 }
             ],

@@ -17,18 +17,8 @@ def _ast(*bindings: dict) -> dict:
     return {"version": 1, "bindings": list(bindings)}
 
 
-def _b(name: str, expr: dict, tag: str | None = None) -> dict:
-    """Tiny test helper for v1-style binding fixtures.
-
-    ``tag`` defaults to ``name`` so each binding gets a unique
-    ``component_tag`` (matching real-world authoring patterns where
-    ``component_tag == name`` is the default). The evaluator picks the
-    first of ``code / component_tag / name`` that's set — passing the
-    same fallback for both keeps these unit tests compatible with the
-    v2-aware evaluator without forcing every fixture to fill in v2
-    fields.
-    """
-    return {"name": name, "component_tag": tag or name, "expr": expr}
+def _b(name: str, expr: dict, tag: str = "component") -> dict:
+    return {"name": name, "component_tag": tag, "expr": expr}
 
 
 # ---------------------------------------------------------------------------

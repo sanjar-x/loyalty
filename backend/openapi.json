@@ -26781,14 +26781,6 @@
             "title": "Components",
             "description": "Intermediate binding values keyed by binding name (admin-only)."
           },
-          "componentsBreakdown": {
-            "items": {
-              "$ref": "#/components/schemas/PricingComponentBreakdownSchema"
-            },
-            "type": "array",
-            "title": "Componentsbreakdown",
-            "description": "Ordered, labelled view of ``components`` — same data with human-readable names attached. Admin-only (empty list for lower-privilege callers, mirroring the ``components`` redaction)."
-          },
           "formulaVersionId": {
             "type": "string",
             "format": "uuid",
@@ -26838,46 +26830,6 @@
         ],
         "title": "PriceRangeResponse",
         "description": "Min/max price range for the current filter set."
-      },
-      "PricingComponentBreakdownSchema": {
-        "properties": {
-          "code": {
-            "type": "string",
-            "title": "Code",
-            "description": "Machine identifier — formula binding's ``code`` (snake_case, stable across formula versions)."
-          },
-          "name": {
-            "type": "string",
-            "title": "Name",
-            "description": "Display label — Russian, sourced from ``binding.label_i18n['ru']`` (AST v2 contract). Falls back to a humanised version of the code for legacy v1 ASTs that bypassed normalisation."
-          },
-          "value": {
-            "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Value",
-            "description": "Decimal value the evaluator computed for this binding."
-          },
-          "isVisible": {
-            "type": "boolean",
-            "title": "Isvisible",
-            "description": "Author-controlled flag. ``False`` hides this row from the admin breakdown table (internal-only intermediate).",
-            "default": true
-          },
-          "isFinal": {
-            "type": "boolean",
-            "title": "Isfinal",
-            "description": "``True`` for the single binding referenced by the AST's top-level ``final_component_code`` — the value that ultimately lands in the SKU's ``selling_price``.",
-            "default": false
-          }
-        },
-        "type": "object",
-        "required": [
-          "code",
-          "name",
-          "value"
-        ],
-        "title": "PricingComponentBreakdownSchema",
-        "description": "Human-readable row in the preview breakdown list.\n\nReads metadata directly off the AST v2 binding (``label_i18n``,\n``is_visible``) — the admin UI iterates this list in order to\nrender the formula step-by-step instead of decoding raw\nsnake_case keys."
       },
       "PricingContextResponse": {
         "properties": {

@@ -76,46 +76,11 @@ class PreviewSkuPricingQuery:
 
 
 @dataclass(frozen=True)
-class ComponentBreakdown:
-    """Human-readable projection of one formula binding's computed value.
-
-    Loyality pricing formulas (FRD §Price Computation) emit a flat
-    ``dict[binding_code, Decimal]`` from the evaluator. This breakdown
-    row pairs each binding with the operator-facing label stored on
-    the binding itself (``label_i18n`` per the v2 AST contract) so
-    the admin sees "Цена с доставкой: 50010 ₽" instead of the raw
-    snake_case code.
-
-    Attributes:
-        code: Machine identifier — formula binding's ``code``
-            (snake_case, stable across versions). Persisted on the
-            AST so the field never drifts vs the evaluator's keys.
-        name: Russian display label sourced from
-            ``binding.label_i18n["ru"]``; AST validator guarantees
-            non-empty.
-        value: Decimal value the evaluator computed for this
-            binding.
-        is_visible: ``False`` for internal-only intermediate steps
-            the formula author chose to hide from the UI (defaults
-            to ``True`` for v1 ASTs migrated to v2).
-        is_final: ``True`` for the single binding that matches the
-            AST's top-level ``final_component_code``.
-    """
-
-    code: str
-    name: str
-    value: Decimal
-    is_visible: bool
-    is_final: bool
-
-
-@dataclass(frozen=True)
 class PreviewSkuPricingResult:
     """Output of the preview computation."""
 
     final_price: Decimal
     components: dict[str, Decimal]
-    components_breakdown: list[ComponentBreakdown]
     formula_version_id: uuid.UUID
     formula_version_number: int
     context_id: uuid.UUID
@@ -276,107 +241,13 @@ class PreviewSkuPricingHandler:
             final_price=str(evaluation.final_price),
         )
 
-        # Build the labelled breakdown — preserves AST binding order so
-        # the admin UI can render "first → last" exactly like the formula
-        # author intended (variable resolution → intermediate → final).
-        # Labels live on the binding itself per the v2 AST contract.
-        components_breakdown = _build_breakdown(
-            ast=formula.ast,
-            components=evaluation.components,
-        )
-
         return PreviewSkuPricingResult(
             final_price=evaluation.final_price,
             components=evaluation.components,
-            components_breakdown=components_breakdown,
             formula_version_id=formula.id,
             formula_version_number=formula.version_number,
             context_id=query.context_id,
         )
-
-
-_PREFERRED_LABEL_LOCALES: tuple[str, ...] = ("ru", "en")
-
-
-def _pick_label(label_i18n: dict[str, str], fallback: str) -> str:
-    """Pick the operator-facing locale from a binding's ``label_i18n``.
-
-    The v2 AST validator already guarantees a non-empty ``ru`` entry,
-    but the picker keeps an ``en`` fallback (post-RS lookup) and a
-    last-resort "any value" hop in case a future locale lands without
-    a code change.
-    """
-    for locale in _PREFERRED_LABEL_LOCALES:
-        candidate = label_i18n.get(locale)
-        if candidate:
-            return candidate
-    for candidate in label_i18n.values():
-        if candidate:
-            return candidate
-    return fallback
-
-
-def _build_breakdown(
-    *,
-    ast: dict,
-    components: dict[str, Decimal],
-) -> list[ComponentBreakdown]:
-    """Pair every evaluated component with its v2 binding metadata.
-
-    Reads ``label_i18n`` / ``is_visible`` directly off each binding —
-    no Variable-registry lookup needed (those were v1 heuristics).
-    AST validator guarantees these fields exist; we still keep a
-    defensive humanised fallback for ASTs that bypassed
-    normalisation via direct DB writes.
-    """
-    bindings = ast.get("bindings") or []
-    final_code = ast.get("final_component_code")
-    breakdown: list[ComponentBreakdown] = []
-    seen: set[str] = set()
-
-    for binding in bindings:
-        if not isinstance(binding, dict):
-            continue
-        code = (
-            binding.get("code") or binding.get("component_tag") or binding.get("name")
-        )
-        if not isinstance(code, str) or code not in components:
-            continue
-        raw_label = binding.get("label_i18n")
-        label = (
-            _pick_label(raw_label, fallback=code.replace("_", " ").capitalize())
-            if isinstance(raw_label, dict)
-            else code.replace("_", " ").capitalize()
-        )
-        breakdown.append(
-            ComponentBreakdown(
-                code=code,
-                name=label,
-                value=components[code],
-                is_visible=bool(binding.get("is_visible", True)),
-                is_final=code == final_code,
-            )
-        )
-        seen.add(code)
-
-    # Defensive: surface any evaluator-emitted code missing from the
-    # AST bindings list (shouldn't happen — evaluator only writes
-    # what bindings declared — but the projection should never lose
-    # data).
-    for code, value in components.items():
-        if code in seen:
-            continue
-        breakdown.append(
-            ComponentBreakdown(
-                code=code,
-                name=code.replace("_", " ").capitalize(),
-                value=value,
-                is_visible=True,
-                is_final=code == final_code,
-            )
-        )
-
-    return breakdown
 
 
 def _check_fx_freshness(

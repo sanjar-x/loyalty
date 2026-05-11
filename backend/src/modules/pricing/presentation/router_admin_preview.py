@@ -23,7 +23,6 @@ from src.modules.pricing.presentation.schemas import (
     PreviewPriceResponse,
     PreviewSkuPricingRequest,
     PreviewSkuPricingResponse,
-    PricingComponentBreakdownSchema,
 )
 from src.shared.interfaces.security import IPermissionResolver
 
@@ -108,24 +107,9 @@ async def preview_sku_pricing(
         )
     )
     components = result.components if is_admin else {}
-    components_breakdown = (
-        [
-            PricingComponentBreakdownSchema(
-                code=row.code,
-                name=row.name,
-                value=row.value,
-                is_visible=row.is_visible,
-                is_final=row.is_final,
-            )
-            for row in result.components_breakdown
-        ]
-        if is_admin
-        else []
-    )
     return PreviewSkuPricingResponse(
         final_price=result.final_price,
         components=components,
-        components_breakdown=components_breakdown,
         formula_version_id=result.formula_version_id,
         formula_version_number=result.formula_version_number,
         context_id=result.context_id,

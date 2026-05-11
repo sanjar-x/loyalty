@@ -552,51 +552,6 @@ class PreviewSkuPricingRequest(CamelModel):
     )
 
 
-class PricingComponentBreakdownSchema(CamelModel):
-    """Human-readable row in the preview breakdown list.
-
-    Reads metadata directly off the AST v2 binding (``label_i18n``,
-    ``is_visible``) — the admin UI iterates this list in order to
-    render the formula step-by-step instead of decoding raw
-    snake_case keys.
-    """
-
-    code: str = Field(
-        ...,
-        description=(
-            "Machine identifier — formula binding's ``code`` "
-            "(snake_case, stable across formula versions)."
-        ),
-    )
-    name: str = Field(
-        ...,
-        description=(
-            "Display label — Russian, sourced from "
-            "``binding.label_i18n['ru']`` (AST v2 contract). Falls "
-            "back to a humanised version of the code for legacy v1 "
-            "ASTs that bypassed normalisation."
-        ),
-    )
-    value: Decimal = Field(
-        ..., description="Decimal value the evaluator computed for this binding."
-    )
-    is_visible: bool = Field(
-        default=True,
-        description=(
-            "Author-controlled flag. ``False`` hides this row from "
-            "the admin breakdown table (internal-only intermediate)."
-        ),
-    )
-    is_final: bool = Field(
-        default=False,
-        description=(
-            "``True`` for the single binding referenced by the AST's "
-            "top-level ``final_component_code`` — the value that "
-            "ultimately lands in the SKU's ``selling_price``."
-        ),
-    )
-
-
 class PreviewSkuPricingResponse(CamelModel):
     """Response body for ``POST /pricing/preview-sku``."""
 
@@ -606,15 +561,6 @@ class PreviewSkuPricingResponse(CamelModel):
     components: dict[str, Decimal] = Field(
         ...,
         description=("Intermediate binding values keyed by binding name (admin-only)."),
-    )
-    components_breakdown: list[PricingComponentBreakdownSchema] = Field(
-        default_factory=list,
-        description=(
-            "Ordered, labelled view of ``components`` — same data with "
-            "human-readable names attached. Admin-only (empty list for "
-            "lower-privilege callers, mirroring the ``components`` "
-            "redaction)."
-        ),
     )
     formula_version_id: uuid.UUID
     formula_version_number: int
