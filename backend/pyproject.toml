@@ -127,3 +127,30 @@ disallow_untyped_defs = false
 members = [
     "loyality",
 ]
+
+# -----------------------------------------------------------------------------
+# Torch CPU pin for the `bg-removal` extra.
+#
+# Default PyPI resolution of `torch` pulls the multi-GB CUDA wheel
+# (`nvidia-cublas`, `nvidia-cudnn-cu13`, `triton`, etc. — ~2.5 GB total) which
+# is wasted on Railway's GPU-less nodes and blows past the 8 GB build cap on
+# the media-worker image. The CPU-only wheel is available at the dedicated
+# PyTorch index below and is roughly 200 MB.
+#
+# uv.lock is regenerated after this block lands so `uv sync --frozen` (the
+# Dockerfile.media build command) installs the CPU variant deterministically.
+# The runtime UV_TORCH_BACKEND=cpu hint has no effect when `--frozen` reuses
+# the lockfile, so the source pin is the only durable fix.
+# -----------------------------------------------------------------------------
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", marker = "platform_system == 'Linux'" },
+]
+torchvision = [
+    { index = "pytorch-cpu", marker = "platform_system == 'Linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
