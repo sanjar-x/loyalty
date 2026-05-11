@@ -33,10 +33,15 @@ case "$MODE" in
         exec uvicorn main:app --host 0.0.0.0 --port "${PORT:-8080}"
         ;;
     worker)
-        echo "[entrypoint] mode=worker — starting TaskIQ worker (consumes outbox tasks)"
+        # Domain-split: this general worker subscribes to ALL queues
+        # EXCEPT the image module's (which the dedicated image-ml-worker
+        # service owns exclusively via ``worker_image_ml`` bootstrap).
+        # Zero queue overlap → RabbitMQ delivers each task deterministically
+        # to the correct service, no round-robin contention.
+        echo "[entrypoint] mode=worker — starting general TaskIQ worker (all domains except image)"
         # --workers controls concurrency per process; multiple worker service
         # replicas can run safely (FOR UPDATE SKIP LOCKED on outbox_messages).
-        exec taskiq worker src.bootstrap.worker:broker --workers "${TASKIQ_WORKER_CONCURRENCY:-2}"
+        exec taskiq worker src.bootstrap.worker_general:broker --workers "${TASKIQ_WORKER_CONCURRENCY:-2}"
         ;;
     image_ml_worker)
         # IMG-007 — dedicated ML worker for the Bria RMBG-2.0 cutout pipeline.
