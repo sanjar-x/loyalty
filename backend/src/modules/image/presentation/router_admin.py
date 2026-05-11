@@ -61,10 +61,6 @@ from src.modules.image.domain.exceptions import StorageFileNotFoundError
 from src.modules.image.domain.interfaces import IStorageRepository
 from src.modules.image.infrastructure.services.image_processor import build_variants
 from src.modules.image.infrastructure.services.sse_manager import SSEManager
-from src.modules.image.infrastructure.tasks import (
-    process_image_task,
-    remove_background_task,
-)
 from src.modules.image.presentation.schemas import (
     ConfirmResponse,
     DeleteResponse,
@@ -182,9 +178,15 @@ async def confirm_upload(
     # Variant-generation kicked HERE so the worker observes a
     # committed PROCESSING row. ``process_image_task`` is infrastructure
     # — invoking it from the application command would violate Rule 3.
-    await process_image_task.kiq(  # ty:ignore[no-matching-overload]
-        str(storage_object_id)
-    )
+    #
+    # Lazy import: module-level would eagerly fire ``@broker.task``
+    # registration whenever ``image/module.py`` is loaded, leaking the
+    # image queue subscription onto ``worker_core`` (the filter in
+    # ``worker_core.py`` only drops the manifest's task_modules, not
+    # the transitive router import that pulls them in).
+    from src.modules.image.infrastructure.tasks import process_image_task
+
+    await process_image_task.kiq(str(storage_object_id))
     return ConfirmResponse(storage_object_id=storage_object_id)
 
 
@@ -388,7 +390,10 @@ async def request_background_removal(
     # existing derivation untouched; firing the task again would
     # re-run inference for nothing.
     if not result.already_existed and result.status == "PROCESSING":
-        await remove_background_task.kiq(  # ty:ignore[unresolved-attribute]
+        # Lazy import — see process_image_task lazy-import note above.
+        from src.modules.image.infrastructure.tasks import remove_background_task
+
+        await remove_background_task.kiq(
             derived_storage_object_id=str(result.derived_storage_object_id),
         )
     # C2.2 — surface FAILED honestly so the UI can show a retry

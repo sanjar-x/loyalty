@@ -117,6 +117,22 @@ class Settings(BaseSettings):
 
     RABBITMQ_PRIVATE_URL: str
 
+    # -- TaskIQ broker / RabbitMQ queue isolation ---------------------------
+    # Domain-split: the broker is configured with TWO queues
+    # (``taskiq_core_jobs`` and ``taskiq_media_jobs``) so that label-based
+    # routing in ``DomainSplitBroker.kick`` correctly addresses both
+    # domains from any publisher. Each worker process picks ONE queue
+    # to consume from via ``TASKIQ_PRIMARY_QUEUE`` — publishers leave it
+    # at the default. See ``src/bootstrap/broker.py`` for the topology
+    # rationale.
+    #
+    # Per-Railway-service env override:
+    #
+    #   backend / scheduler       — no override (publish-only).
+    #   core-worker               → TASKIQ_PRIMARY_QUEUE=taskiq_core_jobs
+    #   media-worker              → TASKIQ_PRIMARY_QUEUE=taskiq_media_jobs
+    TASKIQ_PRIMARY_QUEUE: str = "taskiq_core_jobs"
+
     # -- Telegram Bot --------------------------------------------------------
     BOT_TOKEN: SecretStr
     # CFG-001 — ``BOT_ADMIN_IDS`` / ``BOT_WEBHOOK_URL`` /
@@ -166,6 +182,15 @@ class Settings(BaseSettings):
     # foreground only and visual artefacts in fully-transparent
     # regions are invisible.
     BG_REMOVAL_WEBP_QUALITY: int = Field(default=92, ge=0, le=100)
+    # HuggingFace auth token for the gated ``briaai/RMBG-2.0`` repo.
+    # ``transformers`` falls back to ``os.environ["HF_TOKEN"]`` /
+    # ``huggingface-cli login`` cache, but Pydantic-loaded ``.env`` values do
+    # NOT make it into ``os.environ`` automatically — surfacing the token as
+    # a typed Settings field and passing it explicitly to ``from_pretrained``
+    # keeps the local-dev and Railway-deploy paths consistent (both work via
+    # the same ``HF_TOKEN=...`` line). ``None`` keeps backward-compat with
+    # non-gated alternative models if we ever swap.
+    HF_TOKEN: SecretStr | None = None
 
     # -- CDEK (logistics provider) -------------------------------------------
     # Credentials are seeded into ``provider_accounts`` by ``seed/logistics``;

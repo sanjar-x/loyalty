@@ -1,4 +1,4 @@
-# Dockerfile.image-ml — dedicated image for the `image-ml-worker` Railway service.
+# Dockerfile.media — dedicated image for the `media-worker` Railway service.
 #
 # Differs from the main Dockerfile only in installing the optional
 # `[bg-removal]` extra (torch + transformers + timm + kornia). The
@@ -6,7 +6,7 @@
 # env var that Railway injects from the service settings — keeps the
 # image around ~200 MB heavier instead of the ~3 GB CUDA default.
 #
-# Web / worker / scheduler services keep using the lean main Dockerfile.
+# web / core-worker / scheduler services keep using the lean main Dockerfile.
 
 FROM python:3.14-slim-trixie
 

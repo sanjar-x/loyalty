@@ -1,0 +1,35 @@
+# Railway service config — media-worker (SERVICE_MODE=media_worker).
+#
+# Used INSTEAD of the default ``railway.toml`` for this service only:
+# the media worker needs the heavier ``Dockerfile.media`` image that
+# installs the optional ``[bg-removal]`` extra (torch + transformers +
+# timm + kornia, ~1.5 GB of CPU wheels selected via UV_TORCH_BACKEND=cpu).
+#
+# How Railway picks this file: the per-service env var
+# ``RAILWAY_CONFIG_FILE_PATH=railway.media.toml`` (set in the dashboard
+# or via ``railway variables --service media-worker --set ...``) tells
+# Railway to load this config instead of the default ``railway.toml``.
+# Without the override the service would fall back to ``railway.toml``
+# and pull the lean ``Dockerfile`` — losing the ML deps and reproducing
+# the ``ModuleNotFoundError: No module named 'transformers'`` failure
+# at the first ``remove_background`` task.
+#
+# Everything except ``dockerfilePath`` mirrors the default ``railway.toml``
+# so changes to migration / deploy policy stay in one place. If you
+# touch ``preDeployCommand`` in ``railway.toml``, mirror the edit here.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.media"
+
+[deploy]
+# HARD-1 — canonical migration timing. Runs once per deploy, in a fresh
+# container, BEFORE the new instance takes traffic. Failure aborts the
+# deploy and leaves the previous revision serving.
+#
+# media-worker is a TaskIQ consumer (SERVICE_MODE=media_worker), so the
+# skip branch fires — only the ``web`` service applies migrations to
+# avoid concurrent migration locks during the parallel deploy fan-out.
+preDeployCommand = [
+    "sh -c 'if [ \"${SERVICE_MODE:-web}\" = \"web\" ]; then alembic upgrade head; else echo \"[preDeploy] skip (mode=${SERVICE_MODE})\"; fi'",
+]
