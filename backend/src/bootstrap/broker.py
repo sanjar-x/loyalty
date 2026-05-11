@@ -110,7 +110,7 @@ class DomainSplitBroker(AioPikaBroker):
             message.labels[self._label_for_routing] = self._fallback_routing_key
         await super().kick(message)
 
-    async def listen(self) -> AsyncGenerator[object, None]:
+    async def listen(self) -> AsyncGenerator[object]:
         """Consume only from the primary queue, hiding the other queues
         from the upstream listener that would otherwise merge them.
         """

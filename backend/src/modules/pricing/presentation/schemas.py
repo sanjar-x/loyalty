@@ -552,6 +552,57 @@ class PreviewSkuPricingRequest(CamelModel):
     )
 
 
+class FormulaBindingValue(CamelModel):
+    """Single binding from the formula AST + the evaluator's computed value.
+
+    The shape mirrors the authored AST (``name`` = machine id used by
+    intra-formula ``ref:`` resolution, ``component_tag`` = an
+    author-chosen group/category tag, ``label`` = human-readable Russian
+    text) and adds ``value`` from the evaluator. Order in the response
+    matches the AST's binding order — primitives first, final price
+    last. ``extra="ignore"`` keeps internals like ``expr`` from leaking.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str = Field(
+        ...,
+        description=(
+            "Machine identifier — referenced by ``ref:`` inside the "
+            "formula AST. Unique within a formula version."
+        ),
+    )
+    component_tag: str = Field(
+        ...,
+        description=(
+            "Authoring group/category tag (e.g. ``intermediate``, "
+            "``final_price``). May repeat across bindings — purely a UI hint."
+        ),
+    )
+    label: str | None = Field(
+        default=None,
+        description=(
+            "Human-readable label as authored on the formula. Falls back "
+            "to ``null`` for legacy formulas that pre-date the field."
+        ),
+    )
+    is_visible: bool = Field(
+        default=True,
+        description=(
+            "Author-controlled visibility flag. ``False`` is a hint to "
+            "the admin UI to collapse this binding under an expander."
+        ),
+    )
+    value: Decimal | None = Field(
+        default=None,
+        description=(
+            "Evaluator's computed value for this binding. ``null`` only "
+            "if evaluation skipped this binding (should not happen in "
+            "practice)."
+        ),
+    )
+
+
 class PreviewSkuPricingResponse(CamelModel):
     """Response body for ``POST /pricing/preview-sku``."""
 
@@ -561,6 +612,17 @@ class PreviewSkuPricingResponse(CamelModel):
     components: dict[str, Decimal] = Field(
         ...,
         description=("Intermediate binding values keyed by binding name (admin-only)."),
+    )
+    bindings: list[FormulaBindingValue] = Field(
+        default_factory=list,
+        description=(
+            "Ordered list view of the formula's bindings paired with "
+            "their evaluator-computed values. Admin-only — returned "
+            "empty for non-admin callers, mirroring the ``components`` "
+            "redaction. The list lets the UI render the formula "
+            "step-by-step with the authored ``label`` instead of "
+            "decoding snake_case keys from ``components``."
+        ),
     )
     formula_version_id: uuid.UUID
     formula_version_number: int

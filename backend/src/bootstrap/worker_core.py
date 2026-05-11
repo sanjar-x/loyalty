@@ -58,7 +58,6 @@ broker.add_middlewares(DLQMiddleware(session_factory=_dlq_session_factory))
 
 # 2. Framework-level outbox tasks (image-domain-agnostic).
 import src.infrastructure.outbox.tasks  # noqa: E402, F401
-
 from src.bootstrap.module_registry import import_task_modules  # noqa: E402
 from src.bootstrap.modules import MODULES  # noqa: E402
 

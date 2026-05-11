@@ -17,9 +17,10 @@ import asyncio
 import functools
 import uuid
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
 from src.modules.pricing.domain.entities.pricing_context import PricingContext
 from src.modules.pricing.domain.entities.variable import Variable
@@ -77,13 +78,23 @@ class PreviewSkuPricingQuery:
 
 @dataclass(frozen=True)
 class PreviewSkuPricingResult:
-    """Output of the preview computation."""
+    """Output of the preview computation.
+
+    ``bindings`` mirrors the formula AST's binding list — same order, each
+    item carries the binding's metadata (``name``, ``component_tag``,
+    ``label`` and any other authoring field that happens to be there) plus
+    the evaluator's computed ``value``. The presentation layer's
+    ``FormulaBindingValue`` schema picks the fields it cares about via
+    Pydantic's ``extra="ignore"``; new AST fields surface to the wire as
+    they get added, no plumbing required.
+    """
 
     final_price: Decimal
     components: dict[str, Decimal]
     formula_version_id: uuid.UUID
     formula_version_number: int
     context_id: uuid.UUID
+    bindings: list[dict[str, Any]] = field(default_factory=list)
 
 
 class PreviewSkuPricingHandler:
@@ -241,12 +252,24 @@ class PreviewSkuPricingHandler:
             final_price=str(evaluation.final_price),
         )
 
+        # Combine AST binding metadata with the evaluator's computed
+        # values — preserves binding order and exposes ``label`` / other
+        # authoring fields without touching the evaluator. ``expr`` is
+        # tolerated here (it's an internal AST detail); the presentation
+        # schema drops it via ``extra="ignore"``.
+        bindings_with_values: list[dict[str, Any]] = [
+            {**binding, "value": evaluation.components.get(binding.get("name", ""))}
+            for binding in formula.ast.get("bindings", [])
+            if isinstance(binding, dict)
+        ]
+
         return PreviewSkuPricingResult(
             final_price=evaluation.final_price,
             components=evaluation.components,
             formula_version_id=formula.id,
             formula_version_number=formula.version_number,
             context_id=query.context_id,
+            bindings=bindings_with_values,
         )
 
 

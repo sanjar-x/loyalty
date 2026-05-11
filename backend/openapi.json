@@ -24304,6 +24304,58 @@
         ],
         "title": "ForYouFeedResponse"
       },
+      "FormulaBindingValue": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Machine identifier — referenced by ``ref:`` inside the formula AST. Unique within a formula version."
+          },
+          "componentTag": {
+            "type": "string",
+            "title": "Componenttag",
+            "description": "Authoring group/category tag (e.g. ``intermediate``, ``final_price``). May repeat across bindings — purely a UI hint."
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "Human-readable label as authored on the formula. Falls back to ``null`` for legacy formulas that pre-date the field."
+          },
+          "isVisible": {
+            "type": "boolean",
+            "title": "Isvisible",
+            "description": "Author-controlled visibility flag. ``False`` is a hint to the admin UI to collapse this binding under an expander.",
+            "default": true
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "Evaluator's computed value for this binding. ``null`` only if evaluation skipped this binding (should not happen in practice)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "componentTag"
+        ],
+        "title": "FormulaBindingValue",
+        "description": "Single binding from the formula AST + the evaluator's computed value.\n\nThe shape mirrors the authored AST (``name`` = machine id used by\nintra-formula ``ref:`` resolution, ``component_tag`` = an\nauthor-chosen group/category tag, ``label`` = human-readable Russian\ntext) and adds ``value`` from the evaluator. Order in the response\nmatches the AST's binding order — primitives first, final price\nlast. ``extra=\"ignore\"`` keeps internals like ``expr`` from leaking."
+      },
       "FormulaStatus": {
         "type": "string",
         "enum": [
@@ -26780,6 +26832,14 @@
             "type": "object",
             "title": "Components",
             "description": "Intermediate binding values keyed by binding name (admin-only)."
+          },
+          "bindings": {
+            "items": {
+              "$ref": "#/components/schemas/FormulaBindingValue"
+            },
+            "type": "array",
+            "title": "Bindings",
+            "description": "Ordered list view of the formula's bindings paired with their evaluator-computed values. Admin-only — returned empty for non-admin callers, mirroring the ``components`` redaction. The list lets the UI render the formula step-by-step with the authored ``label`` instead of decoding snake_case keys from ``components``."
           },
           "formulaVersionId": {
             "type": "string",
