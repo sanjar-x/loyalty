@@ -40,14 +40,23 @@ case "$MODE" in
         ;;
     image_ml_worker)
         # IMG-007 — dedicated ML worker for the Bria RMBG-2.0 cutout pipeline.
-        # The `remove_background` task registers ONLY when BG_REMOVAL_ENABLED=true
-        # (conditional in src/modules/image/infrastructure/tasks.py), so this
-        # service subscribes to the `image_ml` queue and no other worker does.
-        # Concurrency stays at 1: the model is ~1.6 GB in RAM, parallel inference
-        # would multiply that. Scale horizontally via replicas if throughput
-        # becomes the bottleneck.
+        # Uses ``src.bootstrap.worker_image_ml:broker`` instead of
+        # ``src.bootstrap.worker:broker`` so the worker imports ONLY the
+        # image module's task module. This narrows the subscription to
+        # ``image_processing`` / ``image_maintenance`` / ``image_ml``
+        # queues — no longer round-robins logistics / order / payment /
+        # activity / outbox tasks with the regular ``worker`` service.
+        #
+        # The ``remove_background`` task itself registers ONLY when
+        # BG_REMOVAL_ENABLED=true (conditional in image/tasks.py), so the
+        # general ``worker`` service does NOT subscribe to ``image_ml``
+        # even though it also imports the image task module.
+        #
+        # Concurrency stays at 1: the Bria model is ~1.6 GB in RAM,
+        # parallel inference would multiply that. Scale horizontally via
+        # replicas if throughput becomes the bottleneck.
         echo "[entrypoint] mode=image_ml_worker — starting TaskIQ worker (Bria RMBG-2.0)"
-        exec taskiq worker src.bootstrap.worker:broker --workers 1
+        exec taskiq worker src.bootstrap.worker_image_ml:broker --workers 1
         ;;
     scheduler)
         echo "[entrypoint] mode=scheduler — starting TaskIQ scheduler (cron dispatch)"
