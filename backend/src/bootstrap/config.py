@@ -166,6 +166,15 @@ class Settings(BaseSettings):
     # foreground only and visual artefacts in fully-transparent
     # regions are invisible.
     BG_REMOVAL_WEBP_QUALITY: int = Field(default=92, ge=0, le=100)
+    # HuggingFace auth token for the gated ``briaai/RMBG-2.0`` repo.
+    # ``transformers`` falls back to ``os.environ["HF_TOKEN"]`` /
+    # ``huggingface-cli login`` cache, but Pydantic-loaded ``.env`` values do
+    # NOT make it into ``os.environ`` automatically — surfacing the token as
+    # a typed Settings field and passing it explicitly to ``from_pretrained``
+    # keeps the local-dev and Railway-deploy paths consistent (both work via
+    # the same ``HF_TOKEN=...`` line). ``None`` keeps backward-compat with
+    # non-gated alternative models if we ever swap.
+    HF_TOKEN: SecretStr | None = None
 
     # -- CDEK (logistics provider) -------------------------------------------
     # Credentials are seeded into ``provider_accounts`` by ``seed/logistics``;

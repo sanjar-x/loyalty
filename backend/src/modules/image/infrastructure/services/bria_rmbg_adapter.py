@@ -108,10 +108,22 @@ class BriaRMBGAdapter(IBackgroundRemover):
             device=self._device,
             cache_dir=self._settings.BG_REMOVAL_MODEL_CACHE_DIR,
         )
+        # briaai/RMBG-2.0 is gated — pass the configured HF token explicitly
+        # so we work both with the Railway env-var path (``HF_TOKEN`` lands in
+        # ``os.environ``) AND the local ``.env`` path (Pydantic Settings does
+        # NOT export to ``os.environ``, so ``transformers``' implicit lookup
+        # would miss it). ``None`` is a valid value — falls through to the
+        # default anonymous fetch which 401s on gated repos with a clear error.
+        hf_token = (
+            self._settings.HF_TOKEN.get_secret_value()
+            if self._settings.HF_TOKEN
+            else None
+        )
         model = AutoModelForImageSegmentation.from_pretrained(
             "briaai/RMBG-2.0",
             trust_remote_code=True,
             cache_dir=self._settings.BG_REMOVAL_MODEL_CACHE_DIR,
+            token=hf_token,
         )
         model.to(self._device)
         _switch_to_inference_mode(model)
