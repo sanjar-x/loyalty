@@ -89,9 +89,9 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.PROJECT_NAME,
         version=settings.VERSION,
-        docs_url="/docs" if settings.ENVIRONMENT != "prod" else None,
-        redoc_url=None,
-        openapi_url="/openapi.json" if settings.ENVIRONMENT != "prod" else None,
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
         lifespan=lifespan,
     )
 
