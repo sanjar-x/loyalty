@@ -1,17 +1,17 @@
-"""TaskIQ worker entry point — general (everything except image domain).
+"""TaskIQ worker entry point — core domain (everything except media).
 
-Pairs with :mod:`src.bootstrap.worker_image_ml` to achieve a clean
+Pairs with :mod:`src.bootstrap.worker_media` to achieve a clean
 domain-based split between the two Railway worker services:
 
-* ``worker``           (this bootstrap) — subscribes to all queues except
-                       the image module's (``image_processing``,
-                       ``image_maintenance``, ``image_ml``).
-* ``image-ml-worker``  (worker_image_ml.py) — subscribes ONLY to the
-                       image queues.
+* ``core-worker``   (this bootstrap) — subscribes to all queues except
+                    the image module's (``image_processing``,
+                    ``image_maintenance``, ``image_ml``).
+* ``media-worker``  (worker_media.py) — subscribes ONLY to the image
+                    queues.
 
 The result: zero queue overlap. RabbitMQ delivers each task to the
 correct service deterministically — no round-robin contention between a
-heavyweight ML worker and a lean outbox/order/payment worker.
+heavyweight media/ML worker and a lean outbox/order/payment worker.
 
 Initialization order mirrors :mod:`src.bootstrap.worker` exactly (see
 that module's docstring for why ``broker → container → setup_dishka →
@@ -21,8 +21,8 @@ with the image module dropped.
 
 ``src.bootstrap.worker:broker`` still exists and imports every module —
 useful as a single-process fallback for tests / local dev where running
-two workers is overkill. Production splits via ``worker_general`` +
-``worker_image_ml``.
+two workers is overkill. Production splits via ``worker_core`` +
+``worker_media``.
 """
 
 import structlog
@@ -63,27 +63,27 @@ from src.bootstrap.module_registry import import_task_modules  # noqa: E402
 from src.bootstrap.modules import MODULES  # noqa: E402
 
 # 3. Filter out the image module — its tasks are exclusively owned by
-#    the ``image-ml-worker`` service (worker_image_ml.py bootstrap).
+#    the ``media-worker`` service (worker_media.py bootstrap).
 #    Everything else (outbox handlers, order, payment, logistics, activity,
 #    cart, identity, user, referral, supplier, etc.) is registered here.
-_GENERAL_MODULES = tuple(m for m in MODULES if m.name != "image")
-import_task_modules(_GENERAL_MODULES)
+_CORE_MODULES = tuple(m for m in MODULES if m.name != "image")
+import_task_modules(_CORE_MODULES)
 
 
 @broker.on_event(TaskiqEvents.WORKER_STARTUP)
 async def startup_event(state) -> None:
-    """General worker startup hook — stores container in state."""
+    """Core worker startup hook — stores container in state."""
     logger.info(
-        "general TaskIQ Worker started and ready to process tasks",
-        registered_modules=[m.name for m in _GENERAL_MODULES],
+        "core TaskIQ Worker started and ready to process tasks",
+        registered_modules=[m.name for m in _CORE_MODULES],
     )
     state.dishka_container = container
 
 
 @broker.on_event(TaskiqEvents.WORKER_SHUTDOWN)
 async def shutdown_event(state) -> None:
-    """General worker shutdown hook — closes Dishka container."""
-    logger.info("Shutting down general TaskIQ Worker...")
+    """Core worker shutdown hook — closes Dishka container."""
+    logger.info("Shutting down core TaskIQ Worker...")
     if hasattr(state, "dishka_container"):
         await state.dishka_container.close()
         logger.info("Dishka DI container closed successfully")

@@ -1,11 +1,15 @@
-"""TaskIQ worker entry point — image-ml dedicated.
+"""TaskIQ worker entry point — media domain dedicated.
 
 Mirrors :mod:`src.bootstrap.worker` but imports ONLY the image module's
 task module. This narrows the worker's subscription to the
 ``image_processing`` / ``image_maintenance`` / ``image_ml`` queues —
-the dedicated ``image-ml-worker`` Railway service no longer round-robins
-logistics / order / payment / activity / outbox tasks with the regular
-``worker`` service.
+the dedicated ``media-worker`` Railway service no longer round-robins
+logistics / order / payment / activity / outbox tasks with the
+``core-worker`` service.
+
+Naming note: ``media`` is the broader semantic — the worker handles
+image processing today, and is the natural home for future video /
+audio pipelines without another rename.
 
 Why a separate bootstrap rather than ``worker.py`` + a CLI flag: TaskIQ
 ``taskiq worker`` discovers queue subscriptions through whichever tasks
@@ -69,15 +73,15 @@ import src.modules.image.infrastructure.tasks  # noqa: E402, F401
 
 @broker.on_event(TaskiqEvents.WORKER_STARTUP)
 async def startup_event(state) -> None:
-    """image-ml worker startup hook — stores container in state."""
-    logger.info("image-ml TaskIQ Worker started and ready to process tasks")
+    """Media worker startup hook — stores container in state."""
+    logger.info("media TaskIQ Worker started and ready to process tasks")
     state.dishka_container = container
 
 
 @broker.on_event(TaskiqEvents.WORKER_SHUTDOWN)
 async def shutdown_event(state) -> None:
-    """image-ml worker shutdown hook — closes Dishka container."""
-    logger.info("Shutting down image-ml TaskIQ Worker...")
+    """Media worker shutdown hook — closes Dishka container."""
+    logger.info("Shutting down media TaskIQ Worker...")
     if hasattr(state, "dishka_container"):
         await state.dishka_container.close()
         logger.info("Dishka DI container closed successfully")
