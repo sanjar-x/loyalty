@@ -21,7 +21,7 @@ import structlog
 from dishka.integrations.taskiq import FromDishka, inject
 
 from src.bootstrap.broker import broker
-from src.bootstrap.config import Settings
+from src.bootstrap.config import Settings, settings
 from src.modules.image.domain.events import (
     BackgroundRemovedEvent,
     StorageObjectProcessedEvent,
@@ -170,16 +170,24 @@ async def cleanup_orphans_task(
 # ---------------------------------------------------------------------------
 # IMG-007 — background removal (Bria RMBG-2.0) on a separate ML queue
 # ---------------------------------------------------------------------------
+#
+# Conditional registration: only the dedicated ``image-ml-worker`` Railway
+# service (BG_REMOVAL_ENABLED=true + [bg-removal] extras installed +
+# Bria RMBG-2.0 model on a persistent volume) subscribes to the
+# ``image_ml`` queue. General workers (web / worker / scheduler with
+# BG_REMOVAL_ENABLED=false) do NOT register this task and therefore are
+# NOT round-robin consumers of the queue — eliminating the race where a
+# lean worker would pick up an ML task and serve a 503 via
+# NoopBackgroundRemover.
+#
+# Implementation note: we keep the function body at module level (regular
+# ``async def``) so its indentation stays sane, then rebind the name to
+# the broker-decorated task only when the flag is on. The else-branch is
+# a no-op: the bare coroutine remains importable but is NOT registered
+# with the broker and therefore the worker never subscribes to the
+# ``image_ml`` queue.
 
 
-@broker.task(
-    task_name="remove_background",
-    queue_name="image_ml",
-    retry_on_error=True,
-    max_retries=2,
-    timeout=240,
-)
-@inject
 async def remove_background_task(
     derived_storage_object_id: str,
     blob_storage: FromDishka[IBlobStorage],
@@ -296,3 +304,17 @@ async def remove_background_task(
             },
         )
         raise
+
+
+# IMG-007 — conditional registration. See the long comment above the
+# function for the rationale. The rebind below converts the bare
+# ``remove_background_task`` coroutine into a TaskIQ-registered task
+# only on the dedicated ``image-ml-worker`` service.
+if settings.BG_REMOVAL_ENABLED:
+    remove_background_task = broker.task(
+        task_name="remove_background",
+        queue_name="image_ml",
+        retry_on_error=True,
+        max_retries=2,
+        timeout=240,
+    )(inject(remove_background_task))
