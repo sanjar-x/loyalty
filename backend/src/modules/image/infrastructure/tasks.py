@@ -311,7 +311,7 @@ async def remove_background_task(
 # ``remove_background_task`` coroutine into a TaskIQ-registered task
 # only on the dedicated ``image-ml-worker`` service.
 if settings.BG_REMOVAL_ENABLED:
-    remove_background_task = broker.task(
+    remove_background_task = broker.task(  # ty:ignore[invalid-assignment]
         task_name="remove_background",
         queue_name="image_ml",
         retry_on_error=True,

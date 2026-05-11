@@ -388,7 +388,7 @@ async def request_background_removal(
     # existing derivation untouched; firing the task again would
     # re-run inference for nothing.
     if not result.already_existed and result.status == "PROCESSING":
-        await remove_background_task.kiq(  # ty:ignore[no-matching-overload]
+        await remove_background_task.kiq(  # ty:ignore[unresolved-attribute]
             derived_storage_object_id=str(result.derived_storage_object_id),
         )
     # C2.2 — surface FAILED honestly so the UI can show a retry

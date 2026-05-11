@@ -260,7 +260,11 @@ class TestPreviewPriceHandler:
             "bindings": [
                 {
                     "name": "markup",
-                    "component_tag": "component",
+                    # component_tag aligned with ``name`` so the ref below
+                    # resolves under the v2 code-derivation rule (the
+                    # normaliser collapses these two fields into a single
+                    # ``code``, preferring ``component_tag``).
+                    "component_tag": "markup",
                     "expr": {
                         "op": "*",
                         "args": [
