@@ -20,6 +20,6 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock ./
 COPY apps/ ./apps/
 
-RUN uv sync --frozen --no-dev --package loyality-bot
+RUN uv sync --frozen --no-dev --package telegram-bot
 
-CMD ["python", "-m", "loyality_bot.main"]
+CMD ["python", "-m", "telegram_bot.main"]

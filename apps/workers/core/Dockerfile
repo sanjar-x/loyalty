@@ -2,7 +2,7 @@
 #
 # apps/workers/core — TaskIQ worker for non-image domain queues.
 #
-# Build context: monorepo root. ``uv sync --package loyality-worker-core``
+# Build context: monorepo root. ``uv sync --package core-worker``
 # installs the backend graph WITHOUT torch / transformers / timm / kornia
 # (those live in apps/workers/image/rmbg).
 
@@ -22,6 +22,6 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock ./
 COPY apps/ ./apps/
 
-RUN uv sync --frozen --no-dev --package loyality-worker-core
+RUN uv sync --frozen --no-dev --package core-worker
 
-CMD ["taskiq", "worker", "loyality_worker_core.worker:broker"]
+CMD ["taskiq", "worker", "core_worker.worker:broker"]

@@ -3,9 +3,9 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "loyality"
+name = "backend"
 version = "0.1.0"
-description = "Loyalty marketplace backend — shared module library consumed by apps/ entry points (ADR-008)."
+description = "Loyalty marketplace backend — FastAPI HTTP service AND the library module consumed by the other apps in this workspace (ADR-008)."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [

@@ -19,6 +19,6 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock ./
 COPY apps/ ./apps/
 
-RUN uv sync --frozen --no-dev --package loyality-worker-scheduler
+RUN uv sync --frozen --no-dev --package scheduler-worker
 
-CMD ["taskiq", "scheduler", "loyality_worker_scheduler.scheduler:scheduler"]
+CMD ["taskiq", "scheduler", "scheduler_worker.scheduler:scheduler"]

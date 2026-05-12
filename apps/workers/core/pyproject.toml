@@ -6,27 +6,26 @@
 # ``apps/workers/image/storage`` and ``apps/workers/image/rmbg``.
 #
 # Workspace member (see ../../../pyproject.toml). ``uv sync --package
-# loyality-worker-core`` installs only the backend graph — NO torch /
-# transformers / timm / kornia, because those live in
-# ``apps/workers/image/rmbg``'s ``[project.dependencies]`` and are not in
-# this app's transitive closure.
+# core-worker`` installs only the backend graph — NO torch / transformers
+# / timm / kornia, because those live in ``apps/workers/image/rmbg``'s
+# ``[project.dependencies]`` and are not in this app's transitive closure.
 # =============================================================================
 
 [project]
-name = "loyality-worker-core"
+name = "core-worker"
 version = "0.1.0"
 description = "TaskIQ worker — non-image domain queues (orders, payments, logistics, outbox, cron)."
 requires-python = ">=3.14"
 dependencies = [
-    "loyality",
+    "backend",
 ]
 
 [tool.uv.sources]
-loyality = { workspace = true }
+backend = { workspace = true }
 
 [build-system]
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/loyality_worker_core"]
+packages = ["src/core_worker"]

@@ -12,7 +12,7 @@
 #
 #     docker build -f apps/backend/Dockerfile -t loyality-backend .
 #
-# ``uv sync --package loyality`` installs only this app's transitive
+# ``uv sync --package backend`` installs only this app's transitive
 # graph — no torch / transformers / timm / kornia, those live in
 # ``apps/workers/image/rmbg``.
 
@@ -31,12 +31,12 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Workspace metadata + lockfile, plus every member's pyproject. uv needs
 # to see every workspace member's manifest to resolve the lockfile; the
-# install graph itself is narrowed by ``--package loyality``.
+# install graph itself is narrowed by ``--package backend``.
 COPY pyproject.toml uv.lock ./
 COPY apps/ ./apps/
 
 # Install only what the backend graph requires.
-RUN uv sync --frozen --no-dev --package loyality
+RUN uv sync --frozen --no-dev --package backend
 
 EXPOSE 8080
 

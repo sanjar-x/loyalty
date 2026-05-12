@@ -33,6 +33,6 @@ COPY apps/ ./apps/
 # Heavy install — torch + transformers + timm + kornia are ~2.5 GB
 # resolved. Layer cached as long as the lockfile and the app's
 # pyproject don't change.
-RUN uv sync --frozen --no-dev --package loyality-worker-image-rmbg
+RUN uv sync --frozen --no-dev --package image-rmbg-worker
 
-CMD ["taskiq", "worker", "loyality_worker_image_rmbg.worker:broker"]
+CMD ["taskiq", "worker", "image_rmbg_worker.worker:broker"]

@@ -14,12 +14,12 @@
 # =============================================================================
 
 [project]
-name = "loyality-worker-image-rmbg"
+name = "image-rmbg-worker"
 version = "0.1.0"
 description = "TaskIQ worker — Bria RMBG-2.0 background removal (ML inference, image.ml queue)."
 requires-python = ">=3.14"
 dependencies = [
-    "loyality",
+    "backend",
     "torch>=2.5.0",
     "transformers>=4.46.0",
     "timm>=0.9.0",
@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-loyality = { workspace = true }
+backend = { workspace = true }
 torch = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 torchvision = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 
@@ -36,4 +36,4 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/loyality_worker_image_rmbg"]
+packages = ["src/image_rmbg_worker"]

@@ -4,16 +4,16 @@ uv-workspace monorepo. Each deployable artefact lives under `apps/` with its own
 
 ## Components
 
-| Component       | Path                              | Package name                   | Tech                                              | Port | Deployment |
-| --------------- | --------------------------------- | ------------------------------ | ------------------------------------------------- | ---- | ---------- |
-| Backend / Web   | `apps/backend/`                   | `loyality`                     | FastAPI HTTP + library (no torch)                 | 8080 | Railway    |
-| Bot             | `apps/bot/`                       | `loyality-bot`                 | Aiogram 3 polling (not yet deployed)              | —    | (planned)  |
-| Core worker     | `apps/workers/core/`              | `loyality-worker-core`         | TaskIQ worker, non-image queues                   | —    | Railway    |
-| Image storage   | `apps/workers/image/storage/`     | `loyality-worker-image-storage`| (planned) Pillow + S3, no torch                   | —    | (Phase 5)  |
-| Image rmbg      | `apps/workers/image/rmbg/`        | `loyality-worker-image-rmbg`   | TaskIQ + torch/transformers/timm/kornia           | —    | Railway    |
-| Scheduler       | `apps/workers/scheduler/`         | `loyality-worker-scheduler`    | TaskIQ scheduler (cron)                           | —    | Railway    |
-| Frontend Admin  | `frontend/admin/`                 | (NextJS, separate repo)        | Next.js 16, JSX, Tailwind 4                       | 3000 | Netlify    |
-| Frontend Main   | `frontend/main/`                  | (NextJS, separate repo)        | Next.js 16, TypeScript, React 19                  | 3000 | Netlify    |
+| Component       | Path                              | Package name           | Tech                                              | Port | Deployment |
+| --------------- | --------------------------------- | ---------------------- | ------------------------------------------------- | ---- | ---------- |
+| Backend / Web   | `apps/backend/`                   | `backend`              | FastAPI HTTP + library (no torch)                 | 8080 | Railway    |
+| Bot             | `apps/bot/`                       | `telegram-bot`         | Aiogram 3 polling (not yet deployed)              | —    | (planned)  |
+| Core worker     | `apps/workers/core/`              | `core-worker`          | TaskIQ worker, non-image queues                   | —    | Railway    |
+| Image storage   | `apps/workers/image/storage/`     | `image-storage-worker` | (planned) Pillow + S3, no torch                   | —    | (Phase 5)  |
+| Image rmbg      | `apps/workers/image/rmbg/`        | `image-rmbg-worker`    | TaskIQ + torch/transformers/timm/kornia           | —    | Railway    |
+| Scheduler       | `apps/workers/scheduler/`         | `scheduler-worker`     | TaskIQ scheduler (cron)                           | —    | Railway    |
+| Frontend Admin  | `frontend/admin/`                 | (NextJS, separate repo)| Next.js 16, JSX, Tailwind 4                       | 3000 | Netlify    |
+| Frontend Main   | `frontend/main/`                  | (NextJS, separate repo)| Next.js 16, TypeScript, React 19                  | 3000 | Netlify    |
 
 Each component has its own `CLAUDE.md` with specific commands, architecture, and patterns. Read it when working in that directory.
 
@@ -34,8 +34,8 @@ docker build -f apps/<path>/Dockerfile -t <image-name> .   # context = monorepo 
 ```
 
 Verified build isolation (Phase 1):
-- `loyality`, `loyality-worker-core`, `loyality-worker-scheduler`, `loyality-bot` — **0** lines matching `^torch==` in their export
-- `loyality-worker-image-rmbg` — 5 lines (torch + torchvision + transformers + timm + kornia)
+- `backend`, `core-worker`, `scheduler-worker`, `telegram-bot` — **0** lines matching `^torch==` in their export
+- `image-rmbg-worker` — 5 lines (torch + torchvision + transformers + timm + kornia)
 
 ## Component Identity Map
 
