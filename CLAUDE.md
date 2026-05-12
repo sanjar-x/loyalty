@@ -12,8 +12,8 @@ uv-workspace monorepo. Each deployable artefact lives under `apps/` with its own
 | Image storage   | `apps/workers/image/storage/`     | `image-storage-worker` | Pillow + S3 (no torch)                            | —    | Railway    |
 | Image rmbg      | `apps/workers/image/rmbg/`        | `image-rmbg-worker`    | TaskIQ + torch/transformers/timm/kornia           | —    | Railway    |
 | Scheduler       | `apps/workers/scheduler/`         | `scheduler-worker`     | TaskIQ scheduler (cron)                           | —    | Railway    |
-| Frontend Admin  | `frontend/admin/`                 | (NextJS, separate repo)| Next.js 16, JSX, Tailwind 4                       | 3000 | Netlify    |
-| Frontend Main   | `frontend/main/`                  | (NextJS, separate repo)| Next.js 16, TypeScript, React 19                  | 3000 | Netlify    |
+| Frontend Admin  | `apps/frontend/admin/`            | (NextJS, git submodule)| Next.js 16, JSX, Tailwind 4                       | 3000 | Netlify    |
+| Mini App        | `apps/frontend/mini-app/`         | (NextJS)               | Next.js 16, TypeScript, React 19                  | 3000 | Netlify    |
 
 Each component has its own `CLAUDE.md` with specific commands, architecture, and patterns. Read it when working in that directory.
 
@@ -55,8 +55,8 @@ When running Claude Code from a subdirectory, identify which component you are i
 | Working directory contains | Component ID     | Vault tag                            |
 | -------------------------- | ---------------- | ------------------------------------ |
 | `apps/backend/src/modules/`| `backend`        | `[project/loyality, backend]`        |
-| `frontend/main/`           | `frontend-main`  | `[project/loyality, frontend-main]`  |
-| `frontend/admin/`          | `frontend-admin` | `[project/loyality, frontend-admin]` |
+| `apps/frontend/mini-app/`  | `frontend-main`  | `[project/loyality, frontend-main]`  |
+| `apps/frontend/admin/`     | `frontend-admin` | `[project/loyality, frontend-admin]` |
 | Root `loyality/`           | `project`        | `[project/loyality]`                 |
 
 Use the **Vault tag** column when writing notes to the Knowledge vault — always include the component tag.
