@@ -20,13 +20,6 @@ ENV UV_LINK_MODE=copy
 ENV UV_NO_DEV=1
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Pin torch to CPU wheels at build time. Without this ``uv sync`` resolves
-# the multi-GB CUDA build of torch, which (a) wastes ~2.5 GB of image
-# layer, (b) lazy-loads CUDA libs at runtime and crashes on the GPU-less
-# Railway node, and (c) blows past Railway's 8 GB build-image cap. uv
-# reads this variable via the ``[tool.uv.sources]`` torch entry in
-# ``pyproject.toml``.
-ENV UV_TORCH_BACKEND=auto
 
 WORKDIR /app
 
