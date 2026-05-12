@@ -1,17 +1,34 @@
 # Loyality — Loyalty Marketplace
 
-Modular monolith with one backend service (image module incl.) and two frontends.
+uv-workspace monorepo: `backend/` hosts shared library code (modules, shared kernel, infrastructure), `apps/*` are thin deployable artefacts that re-export the relevant backend entry points. See [[ADR-008 Multi-Package Modular Monorepo]] for the rationale.
 
 ## Components
 
-| Component      | Path               | Tech                                                            | Port | Deployment |
-| -------------- | ------------------ | --------------------------------------------------------------- | ---- | ---------- |
-| Backend        | `backend/`         | FastAPI, Python 3.14, Clean Architecture (incl. image module)   | 8080 | Railway    |
-| Frontend Main  | `frontend/main/`   | Next.js 16, TypeScript, React 19, TanStack Query + Zustand + ky | 3000 | Netlify    |
-| Frontend Admin | `frontend/admin/`  | Next.js 16, JSX, Tailwind CSS 4, Feature-Sliced Design          | 3000 | Netlify    |
-| Telegram Bot   | `backend/src/bot/` | Aiogram 3, FSM states                                           | —    | Railway    |
+| Component       | Path                       | Tech                                                            | Port | Deployment |
+| --------------- | -------------------------- | --------------------------------------------------------------- | ---- | ---------- |
+| Backend library | `backend/`                 | Python 3.14, Clean Architecture, modules + shared + infra       | —    | (workspace member, not deployed directly) |
+| Web             | `apps/web/`                | FastAPI HTTP (lean — no torch)                                  | 8080 | Railway    |
+| Core worker     | `apps/core_worker/`        | TaskIQ worker, non-image queues                                 | —    | Railway    |
+| Media-ML worker | `apps/media_ml_worker/`    | TaskIQ worker + torch/transformers/timm/kornia                  | —    | Railway    |
+| Scheduler       | `apps/scheduler/`          | TaskIQ scheduler (cron)                                         | —    | Railway    |
+| Bot             | `apps/bot/`                | Aiogram 3 polling (placeholder — not yet deployed)              | —    | (planned)  |
+| Frontend Main   | `frontend/main/`           | Next.js 16, TypeScript, React 19, TanStack Query + Zustand + ky | 3000 | Netlify    |
+| Frontend Admin  | `frontend/admin/`          | Next.js 16, JSX, Tailwind CSS 4, Feature-Sliced Design          | 3000 | Netlify    |
 
 Each component has its own `CLAUDE.md` with specific commands, architecture, and patterns. Read it when working in that directory.
+
+## uv workspace
+
+```bash
+# From repo root:
+uv sync --all-groups          # shared .venv with every member installed editable + dev tools
+uv tree --package <name>      # inspect a single artefact's dependency graph
+uv export --package <name> --no-dev --format requirements-txt
+                              # what a Docker build for <name> will install (Phase 1: verified that
+                              # lean apps have zero torch deps, media_ml_worker has the full ML stack)
+```
+
+`<name>` is the `[project.name]` from the app's `pyproject.toml` — e.g. `loyality-web`, `loyality-core-worker`, `loyality-media-ml-worker`, `loyality-scheduler`, `loyality-bot`. Backend itself is the `loyality` package.
 
 ## Component Identity Map
 

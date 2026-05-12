@@ -1,7 +1,11 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
 [project]
 name = "loyality"
 version = "0.1.0"
-description = "Add your description here"
+description = "Loyalty marketplace backend — shared module library consumed by apps/ entry points (ADR-008)."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -61,27 +65,11 @@ dev = [
     "ty>=0.0.32",
 ]
 
-# IMG-007 — heavy ML dependencies for background removal
-# (briaai/RMBG-2.0 BiRefNet). Installed on the dedicated
-# ``media-worker`` TaskIQ worker only. The web process stays lean
-# (``torch`` wheel alone is ~800 MB) — when the feature flag
-# ``BG_REMOVAL_ENABLED`` is False, the endpoint returns 503 even
-# without these deps installed.
-#
-# NOTE (REC-027): Python 3.14 support in PyTorch is limited. If torch
-# import fails during worker initialization, the background removal
-# endpoint gracefully degrades to 503 Service Unavailable. Initialization
-# errors are trapped and stored, so they don't crash the entire worker.
-# Revert pyproject.toml to Python 3.13 if background removal is critical.
-#
-#   uv sync --extra bg-removal   # on the worker
-[project.optional-dependencies]
-bg-removal = [
-    "torch>=2.5.0",
-    "transformers>=4.46.0",
-    "timm>=0.9.0",
-    "kornia>=0.7.0",
-]
+# IMG-007 / ADR-008 — ML dependencies (torch, transformers, timm, kornia)
+# moved to ``apps/media_ml_worker/pyproject.toml``. Backend itself stays
+# lean and is consumed as a workspace member by every app. Web, core
+# worker, scheduler, and bot do NOT install the ML stack because it is
+# not in their transitive graph.
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -129,28 +117,17 @@ plugins = ["pydantic.mypy"]
 module = "tests.*"
 disallow_untyped_defs = false
 
-[tool.uv.workspace]
-members = ["loyality"]
+# ----------------------------------------------------------------------------
+# Build configuration — backend acts as an importable Python package
+# consumed by the apps/ entry points (see ADR-008 Multi-Package Modular
+# Monorepo). Each app declares ``loyality = { path = "../../backend", editable = true }``
+# in its own ``pyproject.toml`` and imports ``from src.modules.<name>...``
+# at runtime, just as if backend were a regular pip package.
+# ----------------------------------------------------------------------------
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
 
-# -----------------------------------------------------------------------------
-# Torch CPU pin for the `bg-removal` extra.
-#
-# Default PyPI resolution of `torch` pulls the multi-GB CUDA wheel
-# (`nvidia-cublas`, `nvidia-cudnn-cu13`, `triton`, etc. — ~2.5 GB total) which
-# is wasted on Railway's GPU-less nodes and blows past the 8 GB build cap on
-# the media-worker image. The CPU-only wheel is available at the dedicated
-# PyTorch index below and is roughly 200 MB.
-#
-# uv.lock is regenerated after this block lands so `uv sync --frozen` (the
-# Dockerfile.media build command) installs the CPU variant deterministically.
-# The runtime UV_TORCH_BACKEND=cpu hint has no effect when `--frozen` reuses
-# the lockfile, so the source pin is the only durable fix.
-# -----------------------------------------------------------------------------
-[tool.uv.sources]
-torch = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
-torchvision = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
-
-[[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-explicit = true
+# Torch CPU pin moved to the workspace root (``../pyproject.toml``) under
+# ``[[tool.uv.index]] pytorch-cpu``. Per-app ``[tool.uv.sources]`` redirect
+# torch / torchvision to that index (see ``apps/media_ml_worker``). Backend
+# does not depend on torch and therefore declares no source overrides.

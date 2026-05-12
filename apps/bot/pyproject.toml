@@ -1,0 +1,31 @@
+# =============================================================================
+# apps/bot — Telegram bot (Aiogram, polling mode).
+#
+# Currently NOT deployed in production — the bot factory exists at
+# ``src.bot.factory`` but no polling/webhook entry was wired up before
+# Phase 1 of the workspace refactor (ADR-008). This app provides the
+# missing entry point so a future deploy is a one-config-change away:
+# point a Railway service at ``apps/bot/Dockerfile``.
+#
+# Inherits the aiogram dependency from the ``loyality`` workspace member
+# (backend) — no extra install required for this app.
+# =============================================================================
+
+[project]
+name = "loyality-bot"
+version = "0.1.0"
+description = "Telegram bot entry point — long-polling Aiogram dispatcher."
+requires-python = ">=3.14"
+dependencies = [
+    "loyality",
+]
+
+[tool.uv.sources]
+loyality = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/loyality_bot"]

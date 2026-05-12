@@ -1,0 +1,44 @@
+# =============================================================================
+# Loyalty — monorepo workspace root.
+#
+# This file declares the uv workspace. The workspace contains the legacy
+# ``backend/`` package plus per-app deployable artefacts in ``apps/*`` (and,
+# in later phases, ``shared/``, ``infrastructure/``, ``modules/*``).
+#
+# Local dev: ``uv sync`` from this directory creates one shared ``.venv/``
+# at the workspace root with every member installed in editable mode.
+#
+# Docker builds: each ``apps/<name>/Dockerfile`` runs
+# ``uv sync --frozen --no-dev --package loyality-<name>`` so only the
+# transitive dependency graph of that app's ``pyproject.toml`` lands in the
+# image. ``apps/media_ml_worker`` pulls torch + transformers; ``apps/web``
+# does not. ``apps/web`` pulls FastAPI; ``apps/core_worker`` does not.
+#
+# See ADR-008 (Multi-Package Modular Monorepo) for the rationale.
+# =============================================================================
+
+[project]
+name = "loyality-workspace"
+version = "0.1.0"
+description = "Loyalty marketplace monorepo workspace root — not deployed; the workspace lives in apps/* (see ADR-008)."
+requires-python = ">=3.14"
+
+[tool.uv.workspace]
+# Phase 1: backend (legacy package, still hosts modules/shared/infrastructure)
+# + per-app artefacts. Phase 2+ will add ``shared``, ``infrastructure``,
+# ``modules/*`` as separate workspace members.
+members = ["backend", "apps/*"]
+
+# ----------------------------------------------------------------------------
+# Torch CPU pin — shared across the workspace.
+#
+# Default PyPI resolution of ``torch`` pulls the multi-GB CUDA wheel
+# (~2.5 GB of ``nvidia-*`` packages) which is wasted on Railway's GPU-less
+# nodes. The CPU-only wheel is roughly 200 MB. Each app that depends on
+# torch (currently only ``apps/media_ml_worker``) redirects the package
+# to this index via its own ``[tool.uv.sources]``.
+# ----------------------------------------------------------------------------
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

@@ -1,0 +1,33 @@
+# =============================================================================
+# apps/core_worker — TaskIQ worker for non-image domains.
+#
+# Subscribes to non-media taskiq queues (orders, payments, logistics, cron,
+# outbox, ...). Image processing + ML inference live in their own workers
+# (``apps/media_ml_worker`` today; ``apps/media_worker`` once Phase 5 splits
+# the image module).
+#
+# Workspace member (see ../../pyproject.toml). ``uv sync --package
+# loyality-core-worker`` installs only the backend graph — NO torch,
+# transformers, timm, or kornia, because those live in
+# ``apps/media_ml_worker``'s ``[project.dependencies]`` and are not in this
+# app's transitive closure.
+# =============================================================================
+
+[project]
+name = "loyality-core-worker"
+version = "0.1.0"
+description = "TaskIQ worker — non-image domain queues (orders, payments, logistics, outbox, cron)."
+requires-python = ">=3.14"
+dependencies = [
+    "loyality",
+]
+
+[tool.uv.sources]
+loyality = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/loyality_core_worker"]

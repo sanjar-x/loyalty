@@ -1,0 +1,43 @@
+# =============================================================================
+# apps/media_ml_worker — TaskIQ worker for image processing + ML inference.
+#
+# Subscribes to image_processing, image_maintenance, and image.ml queues.
+# Pulls in the heavy ML stack (torch + transformers + timm + kornia) for
+# the Bria RMBG-2.0 background-removal task. The lean ``core_worker`` does
+# NOT install these because they are not in its transitive graph.
+#
+# Phase 5 will split this further into ``apps/media_worker`` (Pillow + S3
+# only, image_processing/maintenance queues) and ``apps/media_ml_worker``
+# (image.ml queue only, ~1.6 GB torch + bria model). For Phase 1 this
+# single artefact replaces the former monolithic media-worker.
+#
+# Torch CPU wheel pin lives on the workspace root via the ``pytorch-cpu``
+# index; this app's ``[tool.uv.sources]`` redirects ``torch`` /
+# ``torchvision`` to that index so the multi-GB CUDA build is never
+# resolved on Railway's GPU-less nodes (REC-024 lesson).
+# =============================================================================
+
+[project]
+name = "loyality-media-ml-worker"
+version = "0.1.0"
+description = "TaskIQ worker — image processing + Bria RMBG-2.0 background removal."
+requires-python = ">=3.14"
+dependencies = [
+    "loyality",
+    "torch>=2.5.0",
+    "transformers>=4.46.0",
+    "timm>=0.9.0",
+    "kornia>=0.7.0",
+]
+
+[tool.uv.sources]
+loyality = { workspace = true }
+torch = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/loyality_media_ml_worker"]
