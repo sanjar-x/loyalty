@@ -1,0 +1,30 @@
+# =============================================================================
+# apps/workers/image/storage — TaskIQ worker for image processing without ML.
+#
+# Subscribes to ``image.processing`` + ``image.maintenance`` queues:
+#   * ``process_image_task``     — Pillow resize → WebP variants → S3
+#   * ``cleanup_orphans_task``   — six-hourly prune of stale uploads
+#
+# Virtual workspace project (``[tool.uv] package = false``). Lean
+# install — NO torch / transformers / timm / kornia. The ML inference
+# task lives in the sibling ``apps/workers/image/rmbg`` artefact.
+#
+# Run command:
+#
+#     cd apps/workers/image/storage && python -m taskiq worker main:broker
+# =============================================================================
+
+[project]
+name = "image-storage-worker"
+version = "0.1.0"
+description = "TaskIQ worker — image processing (Pillow + S3), NO ML deps."
+requires-python = ">=3.14"
+dependencies = [
+    "backend",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+backend = { workspace = true }

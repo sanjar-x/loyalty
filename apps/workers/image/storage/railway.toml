@@ -1,0 +1,7 @@
+# Railway service config — apps/workers/image/storage.
+#
+# Workers skip migrations (REC-005 + HARD-1). Lean image — no model
+# cache volume needed; no ML inference.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/workers/image/storage/Dockerfile"

@@ -13,6 +13,7 @@ members = [
     "backend",
     "core-worker",
     "image-rmbg-worker",
+    "image-storage-worker",
     "loyality-workspace",
     "scheduler-worker",
     "telegram-bot",
@@ -1422,6 +1423,17 @@ requires-dist = [
     { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.5.0", index = "https://download.pytorch.org/whl/cpu" },
     { name = "transformers", specifier = ">=4.46.0" },
 ]
+
+[[package]]
+name = "image-storage-worker"
+version = "0.1.0"
+source = { virtual = "apps/workers/image/storage" }
+dependencies = [
+    { name = "backend" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "backend", editable = "apps/backend" }]
 
 [[package]]
 name = "iniconfig"

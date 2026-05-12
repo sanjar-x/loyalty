@@ -42,8 +42,8 @@ members = [
     "apps/bot",
     "apps/workers/core",
     "apps/workers/scheduler",
-    "apps/workers/image/storage",
     "apps/workers/image/rmbg",
+    "apps/workers/image/storage",
 ]
 
 # ----------------------------------------------------------------------------
