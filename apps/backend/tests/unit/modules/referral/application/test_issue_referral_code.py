@@ -20,9 +20,9 @@ from src.modules.referral.domain.ports import (
     ICodeGenerator,
     IReferralCodeRepository,
 )
-from shared.exceptions import ConflictError
-from shared.interfaces.entities import AggregateRoot
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.exceptions import ConflictError
+from src.shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.uow import IUnitOfWork
 
 pytestmark = pytest.mark.unit
 

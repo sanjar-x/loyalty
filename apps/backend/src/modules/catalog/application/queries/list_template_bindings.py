@@ -17,8 +17,8 @@ from sqlalchemy.orm import selectinload
 from src.modules.catalog.infrastructure.models import (
     TemplateAttributeBinding as OrmBinding,
 )
-from shared.interfaces.logger import ILogger
-from shared.pagination import paginate
+from src.shared.interfaces.logger import ILogger
+from src.shared.pagination import paginate
 
 # ---------------------------------------------------------------------------
 # Read Models

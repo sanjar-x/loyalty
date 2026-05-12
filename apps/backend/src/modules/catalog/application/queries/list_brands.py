@@ -16,8 +16,8 @@ from src.modules.catalog.application.queries.read_models import (
     BrandListReadModel,
 )
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
-from shared.interfaces.logger import ILogger
-from shared.pagination import paginate
+from src.shared.interfaces.logger import ILogger
+from src.shared.pagination import paginate
 
 
 @dataclass(frozen=True)

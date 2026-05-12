@@ -22,7 +22,7 @@ from src.modules.referral.application.consumers.identity_events import (
     IssueCodeOnIdentityRegisteredConsumer,
     IssueCodeOnLinkedAccountCreatedConsumer,
 )
-from shared.interfaces.idempotency import IInboxStore
+from src.shared.interfaces.idempotency import IInboxStore
 
 logger = structlog.get_logger(__name__)
 

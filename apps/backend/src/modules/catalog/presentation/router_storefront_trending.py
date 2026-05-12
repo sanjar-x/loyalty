@@ -32,7 +32,7 @@ from src.modules.catalog.presentation.schemas_storefront import (
     StorefrontPLPResponse,
     StorefrontProductCardResponse,
 )
-from shared.interfaces.activity import IActivityQueryService
+from src.shared.interfaces.activity import IActivityQueryService
 
 storefront_trending_router = APIRouter(
     prefix="/storefront/trending",

@@ -55,13 +55,13 @@ from src.modules.catalog.application.queries.read_models import (
 )
 from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
-from shared.interfaces.activity import (
+from src.shared.interfaces.activity import (
     CategoryAffinity,
     IActivityQueryService,
     ICoViewReader,
     IUserActivityReader,
 )
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 # ---------------------------------------------------------------------------
 # Tunables

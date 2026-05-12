@@ -18,8 +18,8 @@ from src.modules.cart.domain.value_objects import (
     CheckoutSnapshot,
     SkuSnapshot,
 )
-from shared.interfaces.entities import AggregateRoot, DomainEvent
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.entities import AggregateRoot, DomainEvent
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 class CartFakeUnitOfWork(IUnitOfWork):

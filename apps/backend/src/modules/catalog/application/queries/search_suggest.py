@@ -27,8 +27,8 @@ from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.infrastructure.models import Brand as OrmBrand
 from src.modules.catalog.infrastructure.models import Category as OrmCategory
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
-from shared.interfaces.cache import ICacheService
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.cache import ICacheService
+from src.shared.interfaces.logger import ILogger
 
 
 def _escape_like(value: str) -> str:

@@ -58,7 +58,7 @@ from src.modules.catalog.presentation.schemas import (
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
-from shared.exceptions import OptimisticLockError, PreconditionFailedError
+from src.shared.exceptions import OptimisticLockError, PreconditionFailedError
 
 category_router = APIRouter(
     prefix="/admin/catalog/categories",

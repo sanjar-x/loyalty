@@ -9,8 +9,6 @@ description = "Loyalty marketplace backend — FastAPI HTTP service AND the libr
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    # --- Workspace foundation ---
-    "shared",
     # --- Web framework & ASGI server ---
     "fastapi[standard]>=0.115.0",
     "uvicorn[standard]>=0.41.0",
@@ -68,25 +66,13 @@ dev = [
 ]
 
 # IMG-007 / ADR-008 — ML dependencies (torch, transformers, timm, kornia)
-# moved to ``apps/workers/image/rmbg/pyproject.toml``. Backend itself
-# stays lean and is consumed as a workspace member by every app. Web,
-# core worker, scheduler, image-storage worker, and bot do NOT install
-# the ML stack because it is not in their transitive graph.
-
-[tool.uv.sources]
-# ADR-008 Phase 2: shared kernel promoted to its own workspace member.
-shared = { workspace = true }
+# moved to ``apps/media_ml_worker/pyproject.toml``. Backend itself stays
+# lean and is consumed as a workspace member by every app. Web, core
+# worker, scheduler, and bot do NOT install the ML stack because it is
+# not in their transitive graph.
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-# ADR-008 Phase 2: ``tests/unit/shared/`` collides with the now-promoted
-# ``shared`` workspace package — pytest's default rootdir-based import
-# resolution treats ``tests/unit/shared/test_x.py`` as the dotted module
-# ``shared.test_x`` and clashes with the installed package. ``importlib``
-# mode keeps each test file as its own ad-hoc module, sidestepping the
-# collision. Adding ``__init__.py`` everywhere under ``tests/`` would
-# also fix it but uglies up the tree.
-addopts = "--import-mode=importlib"
 markers = [
     "architecture: Fitness functions and boundary enforcement",
     "unit: Domain-layer pure logic, zero I/O",

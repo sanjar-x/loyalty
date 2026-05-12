@@ -7,8 +7,8 @@ from datetime import UTC, datetime
 from src.modules.cart.domain.exceptions import CartNotFoundError
 from src.modules.cart.domain.interfaces import ICartRepository
 from src.modules.cart.domain.value_objects import CheckoutAttemptStatus
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

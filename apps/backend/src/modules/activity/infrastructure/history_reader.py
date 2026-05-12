@@ -25,8 +25,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.activity.domain.value_objects import ActivityEventType
 from src.modules.activity.infrastructure.models import UserActivityEventModel
-from shared.interfaces.activity import CategoryAffinity
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.activity import CategoryAffinity
+from src.shared.interfaces.logger import ILogger
 
 # Use the canonical enum value so the reader and the Redis tracker writer
 # can never drift apart ("product_view" vs "product_viewed" caused a

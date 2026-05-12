@@ -16,7 +16,7 @@ from src.modules.recipient.application.commands.mark_validation_status import (
     MarkRecipientVerifiedHandler,
 )
 from src.modules.recipient.domain.exceptions import RecipientNotFoundError
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 
 class DobroPostPassportValidatedConsumer:

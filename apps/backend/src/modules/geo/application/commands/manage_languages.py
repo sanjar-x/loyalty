@@ -12,7 +12,7 @@ from src.modules.geo.application.commands import safe_commit
 from src.modules.geo.application.queries.read_models import LanguageReadModel
 from src.modules.geo.domain.exceptions import LanguageNotFoundError
 from src.modules.geo.infrastructure.models import LanguageModel
-from shared.exceptions import ConflictError
+from src.shared.exceptions import ConflictError
 
 logger = structlog.get_logger(__name__)
 

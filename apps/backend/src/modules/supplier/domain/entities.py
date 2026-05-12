@@ -18,7 +18,7 @@ from src.modules.supplier.domain.exceptions import (
     SupplierAlreadyInactiveError,
 )
 from src.modules.supplier.domain.value_objects import SupplierType
-from shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.entities import AggregateRoot
 
 _COUNTRY_CODE_RE = re.compile(r"^[A-Z]{2}$")
 _SUBDIVISION_CODE_RE = re.compile(r"^[A-Z]{2}-[A-Z0-9]{1,6}$")

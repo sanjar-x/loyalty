@@ -31,7 +31,7 @@ from src.modules.geo.infrastructure.models import (
     SubdivisionTypeModel,
     SubdivisionTypeTranslationModel,
 )
-from shared.exceptions import ConflictError, NotFoundError, UnprocessableEntityError
+from src.shared.exceptions import ConflictError, NotFoundError, UnprocessableEntityError
 
 logger = structlog.get_logger(__name__)
 

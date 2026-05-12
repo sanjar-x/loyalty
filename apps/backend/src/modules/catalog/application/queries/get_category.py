@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.modules.catalog.application.queries.read_models import CategoryReadModel
 from src.modules.catalog.domain.exceptions import CategoryNotFoundError
 from src.modules.catalog.infrastructure.models import Category as OrmCategory
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 
 def category_orm_to_read_model(orm: OrmCategory) -> CategoryReadModel:

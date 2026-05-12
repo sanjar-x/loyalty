@@ -20,8 +20,8 @@ from dataclasses import dataclass
 from src.modules.image.domain.entities import StorageFile
 from src.modules.image.domain.interfaces import IBlobStorage, IStorageRepository
 from src.modules.image.domain.value_objects import StorageStatus
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 async def _bytes_to_async_stream(data: bytes) -> AsyncIterator[bytes]:

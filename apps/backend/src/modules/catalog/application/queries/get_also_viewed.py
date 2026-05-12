@@ -30,8 +30,8 @@ from src.modules.catalog.application.queries.read_models import (
 )
 from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
-from shared.exceptions import NotFoundError
-from shared.interfaces.activity import ICoViewReader
+from src.shared.exceptions import NotFoundError
+from src.shared.interfaces.activity import ICoViewReader
 
 
 @dataclass(frozen=True)

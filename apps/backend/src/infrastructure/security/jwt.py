@@ -15,8 +15,8 @@ import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
 from src.bootstrap.config import settings
-from shared.exceptions import UnauthorizedError
-from shared.interfaces.security import ITokenProvider
+from src.shared.exceptions import UnauthorizedError
+from src.shared.interfaces.security import ITokenProvider
 
 
 class JwtTokenProvider(ITokenProvider):

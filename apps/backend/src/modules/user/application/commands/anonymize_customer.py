@@ -8,8 +8,8 @@ import uuid
 from dataclasses import dataclass
 
 from src.modules.user.domain.interfaces import ICustomerRepository
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

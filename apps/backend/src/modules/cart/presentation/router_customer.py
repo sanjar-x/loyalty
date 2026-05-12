@@ -69,8 +69,8 @@ from src.modules.cart.presentation.schemas import (
     MoneyResponse,
     UpdateQuantityRequest,
 )
-from shared.exceptions import UnauthorizedError
-from shared.interfaces.security import ITokenProvider
+from src.shared.exceptions import UnauthorizedError
+from src.shared.interfaces.security import ITokenProvider
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 

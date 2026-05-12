@@ -12,7 +12,7 @@ from typing import Generic, TypeVar
 
 from pydantic import Field
 
-from shared.schemas import CamelModel
+from src.shared.schemas import CamelModel
 
 S = TypeVar("S")
 

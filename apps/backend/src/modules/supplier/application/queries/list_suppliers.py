@@ -10,7 +10,7 @@ from src.modules.supplier.application.queries.get_supplier import (
 )
 from src.modules.supplier.application.queries.read_models import SupplierListReadModel
 from src.modules.supplier.infrastructure.models import Supplier as OrmSupplier
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)

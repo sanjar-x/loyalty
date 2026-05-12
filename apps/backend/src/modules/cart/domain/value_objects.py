@@ -11,7 +11,7 @@ from datetime import datetime
 
 from attrs import frozen
 
-from shared.domain.supplier_type import SupplierType
+from src.shared.domain.supplier_type import SupplierType
 
 
 class CartStatus(enum.StrEnum):

@@ -35,7 +35,7 @@ from src.modules.identity.domain.value_objects import (
     IdentityType,
     InvitationStatus,
 )
-from shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.entities import AggregateRoot
 
 
 @dataclass

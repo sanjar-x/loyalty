@@ -9,7 +9,7 @@ from datetime import datetime
 
 from pydantic import Field
 
-from shared.schemas import CamelModel
+from src.shared.schemas import CamelModel
 
 # ---------------------------------------------------------------------------
 # Request schemas

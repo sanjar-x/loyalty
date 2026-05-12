@@ -7,7 +7,7 @@ to survive JSON round-trips without precision loss; consumers parse
 them back to ``Decimal`` as needed.
 
 Validation and ``aggregate_id`` auto-fill come from
-:class:`shared.interfaces.entities.ModuleDomainEvent`.
+:class:`src.shared.interfaces.entities.ModuleDomainEvent`.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 
-from shared.interfaces.entities import ModuleDomainEvent
+from src.shared.interfaces.entities import ModuleDomainEvent
 
 
 @dataclass(frozen=True)

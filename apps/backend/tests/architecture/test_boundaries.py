@@ -306,7 +306,7 @@ def test_shared_kernel_is_independent():
     """src/shared/ MUST NOT import from any business module."""
     (
         archrule("shared_kernel_independence")
-        .match("shared.*")
+        .match("src.shared.*")
         .should_not_import("src.modules.*")
         .check("src")
     )
@@ -317,7 +317,7 @@ def test_shared_kernel_is_independent():
 # Shipment in PR-1b'' and any framework leak (sqlalchemy, dishka, fastapi,
 # pydantic, redis, taskiq, alembic, structlog) would pollute the domain
 # layers consuming it. Enforced as a focused test rather than an archrule
-# pattern because we want to whitelist stdlib + ``shared`` self-imports
+# pattern because we want to whitelist stdlib + ``src.shared`` self-imports
 # but reject any third-party / framework module by name.
 _FSM_ALLOWED_IMPORT_PREFIXES = (
     "collections",
@@ -327,12 +327,12 @@ _FSM_ALLOWED_IMPORT_PREFIXES = (
     "abc",
     "uuid",
     "decimal",
-    "shared",
+    "src.shared",
 )
 
 
 def test_fsm_mixin_is_framework_free():
-    """src/shared/interfaces/fsm.py imports stdlib + shared only."""
+    """src/shared/interfaces/fsm.py imports stdlib + src.shared only."""
     import ast
     import pathlib
 
@@ -359,14 +359,14 @@ def test_fsm_mixin_is_framework_free():
                 forbidden.append(module)
     assert not forbidden, (
         f"src/shared/interfaces/fsm.py must remain pure-domain "
-        f"(stdlib + shared only). Forbidden imports: {sorted(set(forbidden))}. "
+        f"(stdlib + src.shared only). Forbidden imports: {sorted(set(forbidden))}. "
         f"Adding a framework dependency here pollutes every domain "
         f"layer that consumes the mixin (REFACT-001 Rule 6 / FSM mixin)."
     )
 
 
 # Rule 6b (Ledger kernel purity): src/shared/ledger/*.py MUST be pure
-# stdlib + ``attrs`` + ``shared`` -- the generic ledger types will be
+# stdlib + ``attrs`` + ``src.shared`` -- the generic ledger types will be
 # imported by ``referral`` (loyalty wallet) in PR-6b and any future
 # consumer (cashback, supplier payouts, refund pool, ...). A framework
 # leak (sqlalchemy, dishka, fastapi, pydantic, redis, taskiq, alembic,
@@ -385,12 +385,12 @@ _LEDGER_ALLOWED_IMPORT_PREFIXES = (
     "decimal",
     "dataclasses",
     "attrs",
-    "shared",
+    "src.shared",
 )
 
 
 def test_shared_ledger_is_framework_free():
-    """src/shared/ledger/*.py imports stdlib + attrs + shared only.
+    """src/shared/ledger/*.py imports stdlib + attrs + src.shared only.
 
     REFACT-001 PR-6a / ADR-007 / Rule 6b. Mirrors the FSM mixin purity
     check so that future readers see consistent enforcement style across
@@ -422,7 +422,7 @@ def test_shared_ledger_is_framework_free():
             forbidden_per_file[py_file.name] = sorted(set(forbidden))
     assert not forbidden_per_file, (
         "src/shared/ledger/*.py must remain pure-domain "
-        "(stdlib + attrs + shared only). Forbidden imports detected:\n"
+        "(stdlib + attrs + src.shared only). Forbidden imports detected:\n"
         + "\n".join(f"  {f}: {v}" for f, v in forbidden_per_file.items())
         + "\nAdding a framework dependency here pollutes every consumer "
         "module that imports the kernel (REFACT-001 PR-6a / ADR-007 / Rule 6b)."
@@ -432,7 +432,7 @@ def test_shared_ledger_is_framework_free():
 # Rule 9: FSM aggregates inherit StateMachineMixin (REFACT-001 PR-1b'')
 # Order / PaymentIntent / Shipment own optimistic-locked status FSMs and
 # MUST consume the shared StateMachineMixin from
-# ``shared.interfaces.fsm`` rather than re-implementing terminal
+# ``src.shared.interfaces.fsm`` rather than re-implementing terminal
 # checks, edge validation, and exception construction inline. The mixin
 # centralises mechanical contract (terminal-first, then allowed-edge;
 # kwargs-only ``current=``/``target=``/``status=`` exception signatures;
@@ -447,7 +447,7 @@ _FSM_AGGREGATE_MODULES: tuple[tuple[str, str], ...] = (
 
 # Rule 8: Module domain events inherit ModuleDomainEvent (REFACT-001 PR-4)
 # Concrete domain events MUST inherit ``ModuleDomainEvent`` from
-# ``shared.interfaces.entities`` (typically through a per-module
+# ``src.shared.interfaces.entities`` (typically through a per-module
 # abstract base like ``OrderEvent`` / ``PaymentEvent`` / ``IdentityEvent``)
 # so every event picks up the canonical machinery: required-field
 # validation on ``__post_init__``, ``aggregate_id`` auto-fill from a
@@ -473,7 +473,7 @@ def test_module_events_inherit_module_domain_event_and_match_cc001(
     AND its class name equals its ``event_type`` (CC-001)."""
     import importlib
 
-    from shared.interfaces.entities import DomainEvent, ModuleDomainEvent
+    from src.shared.interfaces.entities import DomainEvent, ModuleDomainEvent
 
     events = importlib.import_module(f"src.modules.{module}.domain.events")
     violations: list[str] = []
@@ -531,7 +531,7 @@ def test_fsm_aggregate_inherits_state_machine_mixin(
     """FSM aggregates MUST inherit ``StateMachineMixin``."""
     import importlib
 
-    from shared.interfaces.fsm import StateMachineMixin
+    from src.shared.interfaces.fsm import StateMachineMixin
 
     entities = importlib.import_module(f"src.modules.{module}.domain.entities")
     cls = getattr(entities, aggregate, None)
@@ -541,7 +541,7 @@ def test_fsm_aggregate_inherits_state_machine_mixin(
     )
     assert issubclass(cls, StateMachineMixin), (
         f"{aggregate} ({module}) must inherit "
-        f"shared.interfaces.fsm.StateMachineMixin -- declare four "
+        f"src.shared.interfaces.fsm.StateMachineMixin -- declare four "
         f"ClassVars (_ALLOWED_TRANSITIONS, _TERMINAL_STATES, "
         f"_invalid_transition_exc, _already_terminal_exc) and apply the "
         f"mixin (REFACT-001 PR-1b'' Rule 9). Inlined FSM logic is "
@@ -578,7 +578,7 @@ def test_no_reverse_layer_dependencies(module: str):
 # Rule 10: No module-local idempotency interfaces (REFACT-001 PR-3b)
 # Modules MUST NOT redefine ``IIdempotencyStore`` / ``IInboxStore`` (or
 # legacy aliases like ``IIdempotencyKeyStore``) inside their own domain
-# layer -- the canonical ports live in ``shared.interfaces.idempotency``
+# layer -- the canonical ports live in ``src.shared.interfaces.idempotency``
 # and the framework-shared ``IdempotencyProvider`` (in
 # ``src.bootstrap.container``) wires the SqlIdempotencyStore /
 # SqlInboxStore implementations across every bounded context. Module
@@ -603,6 +603,6 @@ def test_no_module_local_idempotency_interfaces(module: str):
     assert not found, (
         f"Module '{module}' defines forbidden idempotency port(s) "
         f"{sorted(found)} in its domain.interfaces -- consume the "
-        f"shared-kernel ports from shared.interfaces.idempotency "
+        f"shared-kernel ports from src.shared.interfaces.idempotency "
         f"instead (REFACT-001 PR-3b Rule 10)."
     )

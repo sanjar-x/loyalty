@@ -22,7 +22,7 @@ from src.modules.catalog.application.queries.read_models import (
 from src.modules.catalog.infrastructure.models import (
     SKU as OrmSKU,
 )
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 
 def sku_orm_to_read_model(

@@ -19,7 +19,7 @@ from src.infrastructure.idempotency.models import (
     ConsumerInboxModel,
     IdempotencyKeyModel,
 )
-from shared.interfaces.idempotency import IIdempotencyStore, IInboxStore
+from src.shared.interfaces.idempotency import IIdempotencyStore, IInboxStore
 
 
 class SqlIdempotencyStore(IIdempotencyStore):

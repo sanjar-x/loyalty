@@ -28,8 +28,8 @@ from src.modules.activity.infrastructure.redis_tracker import (
     trending_category_key,
     trending_daily_key,
 )
-from shared.interfaces.activity import RankedEntity
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.activity import RankedEntity
+from src.shared.interfaces.logger import ILogger
 
 
 class RedisActivityQueryService:

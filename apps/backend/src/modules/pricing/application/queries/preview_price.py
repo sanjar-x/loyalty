@@ -30,7 +30,7 @@ from src.modules.pricing.domain.interfaces import (
     IVariableRepository,
 )
 from src.modules.pricing.domain.variable_resolver import resolve_variables
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)

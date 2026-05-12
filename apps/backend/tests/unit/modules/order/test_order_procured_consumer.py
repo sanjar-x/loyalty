@@ -20,7 +20,7 @@ from src.modules.order.domain.value_objects import (
     PickupCarrier,
     PickupPointPreference,
 )
-from shared.domain.supplier_type import SupplierType
+from src.shared.domain.supplier_type import SupplierType
 
 pytestmark = pytest.mark.unit
 

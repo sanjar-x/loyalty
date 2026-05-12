@@ -17,7 +17,7 @@ from src.modules.user.domain.interfaces import (
     ICustomerRepository,
     IStaffMemberRepository,
 )
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
 

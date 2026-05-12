@@ -14,9 +14,9 @@ from dataclasses import dataclass
 from src.modules.image.domain.exceptions import StorageFileNotFoundError
 from src.modules.image.domain.interfaces import IBlobStorage, IStorageRepository
 from src.modules.image.domain.value_objects import StorageStatus
-from shared.exceptions import ConflictError
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.exceptions import ConflictError
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

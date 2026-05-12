@@ -11,9 +11,9 @@ from dishka.dependency_source.composite import CompositeDependencySource
 from src.infrastructure.tracking.redis_cardinality import RedisCardinalityService
 from src.infrastructure.tracking.redis_event_buffer import RedisEventBufferService
 from src.infrastructure.tracking.redis_sorted_set import RedisSortedSetService
-from shared.interfaces.cardinality import ICardinalityService
-from shared.interfaces.event_buffer import IEventBufferService
-from shared.interfaces.sorted_set import ISortedSetService
+from src.shared.interfaces.cardinality import ICardinalityService
+from src.shared.interfaces.event_buffer import IEventBufferService
+from src.shared.interfaces.sorted_set import ISortedSetService
 
 
 class TrackingProvider(Provider):

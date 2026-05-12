@@ -27,7 +27,7 @@ from src.modules.pricing.domain.events import (
 )
 from src.modules.pricing.domain.exceptions import PricingProfileValidationError
 from src.modules.pricing.domain.value_objects import ProfileStatus
-from shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.entities import AggregateRoot
 
 _VARIABLE_CODE_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 

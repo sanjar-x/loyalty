@@ -13,8 +13,8 @@ from src.modules.pricing.domain.interfaces import (
     IVariableRepository,
 )
 from src.modules.pricing.domain.value_objects import RoundingMode
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

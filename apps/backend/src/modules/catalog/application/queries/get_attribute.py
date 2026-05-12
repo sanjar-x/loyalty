@@ -16,7 +16,7 @@ from src.modules.catalog.application.queries.list_attributes import (
 from src.modules.catalog.application.queries.read_models import AttributeReadModel
 from src.modules.catalog.domain.exceptions import AttributeNotFoundError
 from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 
 class GetAttributeHandler:

@@ -23,8 +23,8 @@ from src.modules.referral.domain.value_objects import (
     CustomerTier,
     LoyaltyBalanceKind,
 )
-from shared.interfaces.entities import AggregateRoot
-from shared.ledger import Account, Balance
+from src.shared.interfaces.entities import AggregateRoot
+from src.shared.ledger import Account, Balance
 
 
 def _new_id() -> uuid.UUID:

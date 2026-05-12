@@ -15,7 +15,7 @@ from src.modules.catalog.domain.exceptions import (
     AttributeTemplateHasCategoryReferencesError,
 )
 from src.modules.catalog.domain.value_objects import validate_i18n_completeness
-from shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.entities import AggregateRoot
 
 from ._common import _generate_id, _validate_i18n_values, _validate_sort_order
 

@@ -1,7 +1,7 @@
 """Dishka provider for shared idempotency / inbox stores.
 
 Both stores depend solely on the request-scoped ``AsyncSession`` and
-expose their respective interfaces from :mod:`shared.interfaces.idempotency`,
+expose their respective interfaces from :mod:`src.shared.interfaces.idempotency`,
 so any module that injects ``IIdempotencyStore`` or ``IInboxStore`` gets
 the same implementation without having to wire it locally.
 """
@@ -14,7 +14,7 @@ from src.infrastructure.idempotency.repositories import (
     SqlIdempotencyStore,
     SqlInboxStore,
 )
-from shared.interfaces.idempotency import IIdempotencyStore, IInboxStore
+from src.shared.interfaces.idempotency import IIdempotencyStore, IInboxStore
 
 
 class IdempotencyProvider(Provider):

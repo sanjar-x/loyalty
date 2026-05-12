@@ -30,7 +30,7 @@ from src.modules.logistics.presentation.schemas import (
     PickupPointsResponse,
     ProviderCodeLiteral,
 )
-from shared.exceptions import ValidationError as AppValidationError
+from src.shared.exceptions import ValidationError as AppValidationError
 
 logistics_storefront_router = APIRouter(
     prefix="/storefront/logistics",

@@ -27,7 +27,7 @@ from src.modules.recipient.domain.value_objects import (
     Phone,
     RecipientValidationStatus,
 )
-from shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.entities import AggregateRoot
 
 
 @dataclass

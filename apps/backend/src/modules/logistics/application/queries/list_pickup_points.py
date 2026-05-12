@@ -17,7 +17,7 @@ from src.modules.logistics.domain.value_objects import (
     PickupPointQuery,
     ProviderCode,
 )
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)

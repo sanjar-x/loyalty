@@ -31,7 +31,7 @@ from src.modules.referral.infrastructure.repositories.referral_code_repository i
 from src.modules.referral.infrastructure.services.code_generator import (
     NanoidCodeGenerator,
 )
-from shared.ledger import ILedger
+from src.shared.ledger import ILedger
 
 
 class ReferralProvider(Provider):

@@ -29,9 +29,9 @@ from src.modules.logistics.application.commands.provider_validators import (
 )
 from src.modules.logistics.domain.interfaces import IProviderAccountRepository
 from src.modules.logistics.domain.provider_account import ProviderAccount
-from shared.exceptions import ConflictError, NotFoundError
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.exceptions import ConflictError, NotFoundError
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 # Postgres constraint name from the
 # ``uq_provider_accounts_active_code`` partial unique index. Surfaced

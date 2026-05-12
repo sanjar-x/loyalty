@@ -33,7 +33,7 @@ from src.modules.catalog.presentation.router_storefront_products import (
 from src.modules.catalog.presentation.schemas_storefront import (
     StorefrontProductCardResponse,
 )
-from shared.interfaces.security import ITokenProvider
+from src.shared.interfaces.security import ITokenProvider
 
 storefront_for_you_router = APIRouter(
     prefix="/storefront/for-you",

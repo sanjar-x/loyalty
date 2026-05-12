@@ -24,7 +24,7 @@ from src.modules.catalog.domain.value_objects import (
     validate_i18n_completeness,
     validate_validation_rules,
 )
-from shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.entities import AggregateRoot
 
 from ._common import _generate_id, _validate_i18n_values, _validate_slug
 

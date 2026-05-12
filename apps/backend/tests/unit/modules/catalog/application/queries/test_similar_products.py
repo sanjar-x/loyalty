@@ -17,7 +17,7 @@ from src.modules.catalog.application.queries.get_similar_products import (
     GetSimilarProductsQuery,
     SimilarProductsResult,
 )
-from shared.exceptions import NotFoundError
+from src.shared.exceptions import NotFoundError
 
 pytestmark = pytest.mark.unit
 

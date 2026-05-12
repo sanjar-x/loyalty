@@ -11,8 +11,8 @@ from src.modules.catalog.application.queries.read_models import (
     MediaAssetReadModel,
 )
 from src.modules.catalog.infrastructure.models import MediaAsset as OrmMediaAsset
-from shared.interfaces.logger import ILogger
-from shared.pagination import paginate
+from src.shared.interfaces.logger import ILogger
+from src.shared.pagination import paginate
 
 
 @dataclass(frozen=True)

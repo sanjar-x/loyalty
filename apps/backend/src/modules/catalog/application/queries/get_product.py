@@ -32,7 +32,7 @@ from src.modules.catalog.infrastructure.models import (
 from src.modules.catalog.infrastructure.models import (
     ProductVariant as OrmProductVariant,
 )
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 
 class GetProductHandler:

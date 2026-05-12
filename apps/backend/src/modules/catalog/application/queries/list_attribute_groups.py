@@ -20,8 +20,8 @@ from src.modules.catalog.application.queries.read_models import (
 from src.modules.catalog.infrastructure.models import (
     AttributeGroup as OrmAttributeGroup,
 )
-from shared.interfaces.logger import ILogger
-from shared.pagination import paginate
+from src.shared.interfaces.logger import ILogger
+from src.shared.pagination import paginate
 
 
 @dataclass(frozen=True)

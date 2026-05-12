@@ -185,7 +185,7 @@ from src.modules.logistics.presentation.schemas import (
     TrackingResponse,
     TrackingStatusLiteral,
 )
-from shared.exceptions import ValidationError as AppValidationError
+from src.shared.exceptions import ValidationError as AppValidationError
 
 # Permission codenames for logistics resources. ``logistics:read`` covers
 # all GET endpoints (rates, shipment / tracking lookup, pickup points,

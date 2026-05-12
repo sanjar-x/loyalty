@@ -21,8 +21,8 @@ from src.modules.pricing.domain.interfaces import (
     IPricingContextRepository,
 )
 from src.modules.pricing.domain.value_objects import FormulaStatus
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

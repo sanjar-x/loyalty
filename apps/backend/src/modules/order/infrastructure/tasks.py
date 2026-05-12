@@ -45,7 +45,7 @@ from src.modules.order.infrastructure.services.cron_jobs import (
     ReturnWindowCloser,
     StuckInCnDetector,
 )
-from shared.interfaces.idempotency import IInboxStore
+from src.shared.interfaces.idempotency import IInboxStore
 
 logger = structlog.get_logger(__name__)
 

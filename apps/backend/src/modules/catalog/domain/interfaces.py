@@ -34,7 +34,7 @@ from src.modules.catalog.domain.entities import (
 from src.modules.catalog.domain.entities import (
     TemplateAttributeBinding as DomainTemplateAttributeBinding,
 )
-from shared.interfaces.repositories import IBaseRepository
+from src.shared.interfaces.repositories import IBaseRepository
 
 
 class IMediaCleanupPort(ABC):
@@ -59,7 +59,7 @@ class ICatalogRepository[T](IBaseRepository[T]):
     """Catalog-flavoured generic CRUD repository contract.
 
     Inherits the canonical ``add/get/update/delete`` methods from
-    :class:`shared.interfaces.repositories.IBaseRepository` (REC-031).
+    :class:`src.shared.interfaces.repositories.IBaseRepository` (REC-031).
     Kept as a distinct alias so existing imports
     ``from src.modules.catalog.domain.interfaces import ICatalogRepository``
     continue working — the type parameter is the same domain entity.

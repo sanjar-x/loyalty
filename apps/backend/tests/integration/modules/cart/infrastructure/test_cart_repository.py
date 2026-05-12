@@ -14,7 +14,7 @@ from src.modules.cart.domain.value_objects import (
     SkuSnapshot,
 )
 from src.modules.cart.infrastructure.repositories.cart_repository import CartRepository
-from shared.domain.supplier_type import SupplierType
+from src.shared.domain.supplier_type import SupplierType
 
 
 def _make_sku_snapshot(

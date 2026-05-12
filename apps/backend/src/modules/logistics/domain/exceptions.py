@@ -7,7 +7,7 @@ Part of the domain layer — zero framework imports.
 
 from typing import Any
 
-from shared.exceptions import (
+from src.shared.exceptions import (
     AppException,
     ConflictError,
     NotFoundError,
@@ -53,7 +53,7 @@ class InvalidShipmentTransitionError(ConflictError):
 
     Kwargs renamed in REFACT-001 PR-1b'' (``current_status=``/``target_status=``
     → ``current=``/``target=``) to align with the
-    :class:`~shared.interfaces.fsm.StateMachineMixin` exception
+    :class:`~src.shared.interfaces.fsm.StateMachineMixin` exception
     Protocol shared by Order and PaymentIntent.
     """
 

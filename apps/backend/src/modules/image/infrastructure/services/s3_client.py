@@ -18,7 +18,7 @@ from aiobotocore.client import AioBaseClient
 from botocore.exceptions import ClientError
 
 from src.modules.image.domain.interfaces import IBlobStorage
-from shared.exceptions import NotFoundError, ServiceUnavailableError
+from src.shared.exceptions import NotFoundError, ServiceUnavailableError
 
 logger = structlog.get_logger(__name__)
 

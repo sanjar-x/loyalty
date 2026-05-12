@@ -12,8 +12,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from structlog.stdlib import BoundLogger
 
-from shared.context import get_request_id
-from shared.exceptions import AppException
+from src.shared.context import get_request_id
+from src.shared.exceptions import AppException
 
 logger: BoundLogger = structlog.get_logger("api.exceptions")
 

@@ -9,7 +9,7 @@ from attrs import frozen
 
 from src.modules.order.domain.entities import Order
 from src.modules.order.domain.value_objects import OrderStatus, PickupPointPreference
-from shared.domain.supplier_type import SupplierType
+from src.shared.domain.supplier_type import SupplierType
 
 # ---------------------------------------------------------------------------
 # Cart ACL snapshot
@@ -148,7 +148,7 @@ class IOrderRepository(ABC):
 # ---------------------------------------------------------------------------
 # Idempotency + inbox -- moved to shared kernel (REFACT-001 PR-3a + PR-3b).
 # Order now consumes ``IIdempotencyStore`` and ``IInboxStore`` from
-# ``shared.interfaces.idempotency``; the framework-shared
+# ``src.shared.interfaces.idempotency``; the framework-shared
 # ``IdempotencyProvider`` (registered in ``bootstrap.container``) wires
 # the SqlIdempotencyStore / SqlInboxStore implementations.
 # ---------------------------------------------------------------------------

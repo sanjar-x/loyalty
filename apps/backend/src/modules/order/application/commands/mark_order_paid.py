@@ -11,8 +11,8 @@ from src.modules.order.domain.interfaces import (
     IOrderStateHistoryWriter,
 )
 from src.modules.order.domain.value_objects import OrderStatus
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

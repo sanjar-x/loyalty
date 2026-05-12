@@ -39,7 +39,7 @@ from src.modules.activity.infrastructure.redis_tracker import ACTIVITY_QUEUE_KEY
 from src.modules.activity.infrastructure.repository import (
     SqlAlchemyActivityEventRepository,
 )
-from shared.interfaces.idempotency import IInboxStore
+from src.shared.interfaces.idempotency import IInboxStore
 
 logger = structlog.get_logger(__name__)
 

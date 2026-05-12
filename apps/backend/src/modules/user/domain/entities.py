@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 
 from attr import dataclass
 
-from shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.entities import AggregateRoot
 
 _CUSTOMER_UPDATABLE_FIELDS = frozenset(
     {

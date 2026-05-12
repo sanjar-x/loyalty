@@ -12,8 +12,8 @@ from src.modules.catalog.domain.entities import AttributeGroup
 from src.modules.catalog.domain.events import AttributeGroupCreatedEvent
 from src.modules.catalog.domain.exceptions import AttributeGroupCodeConflictError
 from src.modules.catalog.domain.interfaces import IAttributeGroupRepository
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

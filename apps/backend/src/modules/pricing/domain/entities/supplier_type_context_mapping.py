@@ -24,7 +24,7 @@ from src.modules.pricing.domain.events import (
 from src.modules.pricing.domain.exceptions import (
     SupplierTypeContextMappingValidationError,
 )
-from shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.entities import AggregateRoot
 
 _SUPPLIER_TYPE_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 

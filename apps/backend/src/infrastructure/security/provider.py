@@ -12,8 +12,8 @@ from src.bootstrap.config import settings
 from src.infrastructure.security.authorization import PermissionResolver
 from src.infrastructure.security.jwt import JwtTokenProvider
 from src.infrastructure.security.password import Argon2PasswordHasher
-from shared.interfaces.cache import ICacheService
-from shared.interfaces.security import (
+from src.shared.interfaces.cache import ICacheService
+from src.shared.interfaces.security import (
     IPasswordHasher,
     IPermissionResolver,
     ITokenProvider,

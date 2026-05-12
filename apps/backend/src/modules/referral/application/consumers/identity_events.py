@@ -22,7 +22,7 @@ from src.modules.referral.application.commands.issue_referral_code import (
     IssueReferralCodeCommand,
     IssueReferralCodeHandler,
 )
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 
 class IssueCodeOnIdentityRegisteredConsumer:

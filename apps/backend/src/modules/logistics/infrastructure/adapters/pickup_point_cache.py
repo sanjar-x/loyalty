@@ -34,7 +34,7 @@ from src.modules.logistics.domain.value_objects import (
     PickupPointType,
     ProviderCode,
 )
-from shared.interfaces.cache import ICacheService
+from src.shared.interfaces.cache import ICacheService
 
 # 24 hours per BRD diagram (LOG → PRV: GET /v2/deliverypoints (кэш 24ч)).
 _PICKUP_POINT_TTL_SECONDS = 24 * 60 * 60

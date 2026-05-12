@@ -17,7 +17,7 @@ from src.modules.catalog.application.queries.read_models import (
     BreadcrumbItemReadModel,
     CategoryNode,
 )
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 
 class BreadcrumbsBuilder:

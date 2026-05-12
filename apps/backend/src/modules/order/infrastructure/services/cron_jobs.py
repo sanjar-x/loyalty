@@ -38,7 +38,7 @@ from src.modules.order.infrastructure.repositories.order_repository import (
     close_threshold,
     stuck_in_cn_threshold,
 )
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 STUCK_IN_CN_THRESHOLD_DAYS = 14
 

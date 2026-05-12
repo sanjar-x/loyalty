@@ -53,7 +53,7 @@ from src.modules.logistics.infrastructure.providers.errors import (
     ProviderHTTPError,
     ProviderTimeoutError,
 )
-from shared.exceptions import ValidationError
+from src.shared.exceptions import ValidationError
 
 logger = structlog.get_logger(__name__)
 

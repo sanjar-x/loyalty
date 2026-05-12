@@ -22,7 +22,7 @@ from dishka.integrations.taskiq import FromDishka, inject
 
 from src.bootstrap.broker import broker
 from src.modules.catalog.domain.interfaces import IMediaAssetRepository
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
 

@@ -15,8 +15,8 @@ from src.modules.catalog.application.queries.get_similar_products import (
     GetSimilarProductsQuery,
     SimilarProductsResult,
 )
-from shared.exceptions import NotFoundError
-from shared.interfaces.activity import CoViewScore
+from src.shared.exceptions import NotFoundError
+from src.shared.interfaces.activity import CoViewScore
 
 pytestmark = pytest.mark.unit
 

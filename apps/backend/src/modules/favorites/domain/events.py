@@ -5,13 +5,13 @@ the Outbox table inside the same transaction as the business write,
 and later picked up by the relay (``src/infrastructure/outbox/relay.py``).
 
 Validation and ``aggregate_id`` auto-fill come from
-:class:`shared.interfaces.entities.ModuleDomainEvent`.
+:class:`src.shared.interfaces.entities.ModuleDomainEvent`.
 """
 
 import uuid
 from dataclasses import dataclass
 
-from shared.interfaces.entities import ModuleDomainEvent
+from src.shared.interfaces.entities import ModuleDomainEvent
 
 
 @dataclass(frozen=True)

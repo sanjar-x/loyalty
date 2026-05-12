@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import uuid
 
-from shared.interfaces.activity import IActivityTracker
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.activity import IActivityTracker
+from src.shared.interfaces.logger import ILogger
 
 
 class FavoritesActivityEnricher:

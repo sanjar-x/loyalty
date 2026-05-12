@@ -20,9 +20,9 @@ from src.modules.identity.domain.interfaces import (
     ISessionRepository,
 )
 from src.modules.identity.domain.value_objects import PrimaryAuthMethod
-from shared.interfaces.logger import ILogger
-from shared.interfaces.security import IOIDCProvider, ITokenProvider
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.security import IOIDCProvider, ITokenProvider
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

@@ -37,7 +37,7 @@ from src.modules.recipient.presentation.schemas import (
     RecipientSchema,
     UpdateRecipientRequest,
 )
-from shared.exceptions import OptimisticLockError, PreconditionFailedError
+from src.shared.exceptions import OptimisticLockError, PreconditionFailedError
 
 recipient_router = APIRouter(
     prefix="/recipients",

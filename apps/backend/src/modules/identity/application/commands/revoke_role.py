@@ -14,9 +14,9 @@ from src.modules.identity.domain.interfaces import (
     IRoleRepository,
     ISessionRepository,
 )
-from shared.interfaces.logger import ILogger
-from shared.interfaces.security import IPermissionResolver
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.security import IPermissionResolver
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

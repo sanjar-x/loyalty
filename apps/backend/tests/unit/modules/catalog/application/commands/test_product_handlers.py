@@ -77,8 +77,8 @@ from src.modules.catalog.domain.value_objects import (
     AttributeUIType,  # TEXT_BUTTON, COLOR_SWATCH, DROPDOWN, CHECKBOX, RANGE_SLIDER
     ProductStatus,
 )
-from shared.exceptions import UnprocessableEntityError
-from shared.interfaces.supplier_directory import (
+from src.shared.exceptions import UnprocessableEntityError
+from src.shared.interfaces.supplier_directory import (
     ISupplierDirectory,
     SupplierDirectoryInactiveError,
     SupplierSnapshot,

@@ -22,8 +22,8 @@ from src.modules.logistics.domain.value_objects import (
     TrackingAppendOutcome,
     TrackingEvent,
 )
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 # UUID5 namespace for ``RussianCarrierTrackingEvent`` external-event ids.
 # Stable across processes so identical (shipment, status, occurred_at)

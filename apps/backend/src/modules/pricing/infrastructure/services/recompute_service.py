@@ -69,7 +69,7 @@ from src.modules.pricing.domain.recompute import (
     SkuPricingFailed,
     recompute_sku_pricing,
 )
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 # Bounded retry parameters for optimistic-lock conflicts.
 _RETRY_MAX_ATTEMPTS = 3

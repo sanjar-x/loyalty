@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared.exceptions import NotFoundError
+from src.shared.exceptions import NotFoundError
 
 
 class RoleInfo(BaseModel):

@@ -21,7 +21,7 @@ from src.modules.geo.infrastructure.models import (
     CurrencyTranslationModel,
     LanguageModel,
 )
-from shared.exceptions import ConflictError, UnprocessableEntityError
+from src.shared.exceptions import ConflictError, UnprocessableEntityError
 
 logger = structlog.get_logger(__name__)
 

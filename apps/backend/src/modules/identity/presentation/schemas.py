@@ -10,7 +10,7 @@ from typing import Self
 
 from pydantic import EmailStr, Field, model_validator
 
-from shared.schemas import CamelModel
+from src.shared.schemas import CamelModel
 
 # ---------------------------------------------------------------------------
 # Authentication schemas

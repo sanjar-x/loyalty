@@ -1,6 +1,6 @@
 """Recipient domain exceptions."""
 
-from shared.exceptions import (
+from src.shared.exceptions import (
     ConflictError,
     NotFoundError,
     ValidationError,

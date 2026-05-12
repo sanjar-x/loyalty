@@ -10,8 +10,8 @@ from dataclasses import dataclass
 
 from src.modules.cart.domain.exceptions import CartNotFoundError
 from src.modules.cart.domain.interfaces import ICartRepository
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

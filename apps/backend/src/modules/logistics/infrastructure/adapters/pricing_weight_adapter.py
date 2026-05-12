@@ -39,7 +39,7 @@ from src.modules.pricing.infrastructure.models import (
     VariableModel,
 )
 from src.modules.supplier.infrastructure.models import Supplier
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 # Variable code shared with ``seed/pricing/system_variables.json``. Kept as
 # a constant so a typo here vs. there fails a single grep, not a quote.

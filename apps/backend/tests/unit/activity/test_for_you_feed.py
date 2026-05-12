@@ -26,7 +26,7 @@ from src.modules.catalog.application.queries.get_for_you_feed import (
     ForYouFeedQuery,
     _candidate_cache_key,
 )
-from shared.interfaces.activity import CategoryAffinity, CoViewScore, RankedEntity
+from src.shared.interfaces.activity import CategoryAffinity, CoViewScore, RankedEntity
 
 pytestmark = pytest.mark.unit
 

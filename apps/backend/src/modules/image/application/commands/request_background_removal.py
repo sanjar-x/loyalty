@@ -39,7 +39,7 @@ from src.modules.image.domain.exceptions import (
 )
 from src.modules.image.domain.interfaces import IStorageRepository
 from src.modules.image.domain.value_objects import DerivationKind, StorageStatus
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
 

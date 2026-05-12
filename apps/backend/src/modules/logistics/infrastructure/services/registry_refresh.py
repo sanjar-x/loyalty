@@ -36,7 +36,7 @@ from src.modules.logistics.infrastructure.bootstrap import bootstrap_registry
 from src.modules.logistics.infrastructure.services.registry import (
     ShippingProviderRegistry,
 )
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)

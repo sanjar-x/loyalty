@@ -5,8 +5,8 @@ from dataclasses import dataclass
 
 from src.modules.recipient.domain.exceptions import RecipientNotFoundError
 from src.modules.recipient.domain.interfaces import IRecipientRepository
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

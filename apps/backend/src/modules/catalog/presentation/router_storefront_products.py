@@ -67,9 +67,9 @@ from src.modules.catalog.presentation.schemas_storefront import (
     StorefrontProductCardResponse,
     StorefrontProductDetailResponse,
 )
-from shared.exceptions import ValidationError
-from shared.interfaces.activity import IActivityTracker
-from shared.interfaces.security import ITokenProvider
+from src.shared.exceptions import ValidationError
+from src.shared.interfaces.activity import IActivityTracker
+from src.shared.interfaces.security import ITokenProvider
 
 storefront_products_router = APIRouter(
     prefix="/storefront/products",

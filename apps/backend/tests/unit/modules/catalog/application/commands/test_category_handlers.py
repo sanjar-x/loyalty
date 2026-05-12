@@ -49,7 +49,7 @@ from src.modules.catalog.domain.exceptions import (
     CategoryNotFoundError,
     CategorySlugConflictError,
 )
-from shared.exceptions import ValidationError
+from src.shared.exceptions import ValidationError
 from tests.factories.attribute_template_builder import AttributeTemplateBuilder
 from tests.factories.product_builder import ProductBuilder
 from tests.fakes.fake_uow import FakeUnitOfWork

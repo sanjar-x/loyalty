@@ -7,7 +7,7 @@ to return the effective permission codenames for the given session.
 import uuid
 from dataclasses import dataclass
 
-from shared.interfaces.security import IPermissionResolver
+from src.shared.interfaces.security import IPermissionResolver
 
 
 @dataclass(frozen=True)

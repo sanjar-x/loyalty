@@ -11,7 +11,7 @@ from src.modules.order.domain.value_objects import (
 from src.modules.order.domain.value_objects import (
     HoldReason as DomainHoldReason,
 )
-from shared.schemas import CamelModel
+from src.shared.schemas import CamelModel
 
 # C5.2 — re-export domain enums to the presentation layer so FastAPI
 # generates ``HoldReason`` / ``CancellationReason`` enum schemas in the

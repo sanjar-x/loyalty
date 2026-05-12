@@ -7,7 +7,7 @@ maps them to the right response without ad-hoc translation.
 
 from __future__ import annotations
 
-from shared.exceptions import (
+from src.shared.exceptions import (
     AppException,
     ConflictError,
     NotFoundError,

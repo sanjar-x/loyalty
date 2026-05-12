@@ -27,7 +27,7 @@ from src.modules.favorites.domain.exceptions import (
     DefaultListImmutableError,
 )
 from src.modules.favorites.domain.value_objects import FavoriteTargetType
-from shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.entities import AggregateRoot
 
 DEFAULT_LIST_NAME = "Избранное"
 MAX_LIST_NAME_LENGTH = 120

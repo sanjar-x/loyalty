@@ -14,8 +14,8 @@ from dishka.integrations.fastapi import FromDishka
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from shared.exceptions import UnauthorizedError
-from shared.interfaces.security import ITokenProvider
+from src.shared.exceptions import UnauthorizedError
+from src.shared.interfaces.security import ITokenProvider
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 

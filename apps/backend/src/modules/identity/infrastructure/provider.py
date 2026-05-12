@@ -107,14 +107,14 @@ from src.modules.identity.infrastructure.repositories.session_repository import 
 from src.modules.identity.infrastructure.repositories.staff_invitation_repository import (
     StaffInvitationRepository,
 )
-from shared.interfaces.cache import ICacheService
-from shared.interfaces.logger import ILogger
-from shared.interfaces.security import (
+from src.shared.interfaces.cache import ICacheService
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.security import (
     IPasswordHasher,
     IPermissionResolver,
     ITokenProvider,
 )
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 class IdentityProvider(Provider):

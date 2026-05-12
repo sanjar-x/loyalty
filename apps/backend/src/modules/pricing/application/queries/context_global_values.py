@@ -12,7 +12,7 @@ from src.modules.pricing.domain.interfaces import (
     IVariableRepository,
 )
 from src.modules.pricing.domain.value_objects import VariableScope
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)

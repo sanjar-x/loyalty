@@ -1,12 +1,11 @@
 # Loyality — Loyalty Marketplace
 
-uv-workspace monorepo. Foundation library `shared/` (cross-module abstractions, exceptions, schemas, ledger) lives at the workspace root as its own package — `backend` depends on it transitively. Each deployable artefact lives under `apps/` with its own `pyproject.toml`, `Dockerfile`, and Railway service config. Only `apps/backend/` is a real Python package (installable as `backend`, importable as `src.*`); every other app is a uv **virtual project** (`[tool.uv] package = false`) — uv resolves its dependencies but doesn't install it as a module, because deployment artefacts are run, not imported. The entry point of each virtual app is a plain `main.py` at the app root; Docker invokes `python -m <runner> main:<symbol>` from that directory. See [[ADR-008 Multi-Package Modular Monorepo]] for the rationale.
+uv-workspace monorepo. Each deployable artefact lives under `apps/` with its own `pyproject.toml`, `Dockerfile`, and Railway service config. Only `apps/backend/` is a real Python package (installable as `backend`, importable as `src.*`); every other app is a uv **virtual project** (`[tool.uv] package = false`) — uv resolves its dependencies but doesn't install it as a module, because deployment artefacts are run, not imported. The entry point of each virtual app is a plain `main.py` at the app root; Docker invokes `python -m <runner> main:<symbol>` from that directory. See [[ADR-008 Multi-Package Modular Monorepo]] for the rationale.
 
 ## Components
 
 | Component       | Path                              | Package name           | Tech                                              | Port | Deployment |
 | --------------- | --------------------------------- | ---------------------- | ------------------------------------------------- | ---- | ---------- |
-| Shared kernel   | `shared/`                         | `shared`               | Foundation library (interfaces, exceptions, ledger) | —    | (workspace member, library only) |
 | Backend / Web   | `apps/backend/`                   | `backend`              | FastAPI HTTP + library (no torch)                 | 8080 | Railway    |
 | Bot             | `apps/bot/`                       | `telegram-bot`         | Aiogram 3 polling (not yet deployed)              | —    | (planned)  |
 | Core worker     | `apps/workers/core/`              | `core-worker`          | TaskIQ worker, non-image queues                   | —    | Railway    |
@@ -46,7 +45,7 @@ docker build -f apps/<path>/Dockerfile -t <image-name> .
 ```
 
 Verified build isolation:
-- `shared`, `backend`, `core-worker`, `scheduler-worker`, `telegram-bot`, `image-storage-worker` — **0** lines matching `^torch==` in their export
+- `backend`, `core-worker`, `scheduler-worker`, `telegram-bot`, `image-storage-worker` — **0** lines matching `^torch==` in their export
 - `image-rmbg-worker` — 5 lines (torch + torchvision + transformers + timm + kornia)
 
 ## Component Identity Map

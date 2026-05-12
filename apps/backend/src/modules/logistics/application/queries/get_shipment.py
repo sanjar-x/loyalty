@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from src.modules.logistics.domain.entities import Shipment
 from src.modules.logistics.domain.exceptions import ShipmentNotFoundError
 from src.modules.logistics.domain.interfaces import IShipmentRepository
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)

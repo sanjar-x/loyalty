@@ -11,9 +11,9 @@ from dataclasses import dataclass
 
 from src.modules.user.domain.entities import Customer
 from src.modules.user.domain.interfaces import ICustomerRepository
-from shared.exceptions import ConflictError
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.exceptions import ConflictError
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

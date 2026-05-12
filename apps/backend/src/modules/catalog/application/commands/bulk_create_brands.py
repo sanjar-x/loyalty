@@ -19,9 +19,9 @@ from src.modules.catalog.domain.exceptions import (
     BrandSlugConflictError,
 )
 from src.modules.catalog.domain.interfaces import IBrandRepository
-from shared.exceptions import ValidationError
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.exceptions import ValidationError
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 MAX_BULK_BRANDS = 100
 

@@ -7,7 +7,7 @@ and the uniform error envelope.
 
 import uuid
 
-from shared.exceptions import (
+from src.shared.exceptions import (
     ConflictError,
     ForbiddenError,
     NotFoundError,

@@ -45,9 +45,9 @@ from src.modules.logistics.domain.value_objects import (
     Parcel,
     Weight,
 )
-from shared.exceptions import ValidationError
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.exceptions import ValidationError
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

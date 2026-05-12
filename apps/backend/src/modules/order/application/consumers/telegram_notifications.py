@@ -31,7 +31,7 @@ from src.modules.order.application.ports import (
 )
 from src.modules.order.domain.entities import Order
 from src.modules.order.domain.interfaces import IOrderRepository
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 # Carrier code → human-readable Russian label for last-mile push.
 _PICKUP_CARRIER_LABELS_RU: Final[dict[str, str]] = {

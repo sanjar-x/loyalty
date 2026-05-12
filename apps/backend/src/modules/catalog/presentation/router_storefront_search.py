@@ -36,8 +36,8 @@ from src.modules.catalog.presentation.schemas_storefront import (
     StorefrontPLPResponse,
     StorefrontProductCardResponse,
 )
-from shared.interfaces.activity import IActivityTracker
-from shared.interfaces.security import ITokenProvider
+from src.shared.interfaces.activity import IActivityTracker
+from src.shared.interfaces.security import ITokenProvider
 
 storefront_search_router = APIRouter(
     prefix="/storefront/search",

@@ -4,7 +4,7 @@
   tables shared across every bounded context.
 * :class:`SqlIdempotencyStore` / :class:`SqlInboxStore` — PostgreSQL
   adapters implementing the :class:`IIdempotencyStore` /
-  :class:`IInboxStore` ports from :mod:`shared.interfaces.idempotency`.
+  :class:`IInboxStore` ports from :mod:`src.shared.interfaces.idempotency`.
 * :func:`run_inbox_idempotent` — TaskIQ-consumer wrapper that
   short-circuits on duplicate ``event_id``.
 """

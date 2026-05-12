@@ -22,8 +22,8 @@ from src.modules.logistics.domain.interfaces import (
     IShippingProviderRegistry,
 )
 from src.modules.logistics.domain.value_objects import PROVIDER_DOBROPOST
-from shared.exceptions import UnauthorizedError
-from shared.interfaces.logger import ILogger
+from src.shared.exceptions import UnauthorizedError
+from src.shared.interfaces.logger import ILogger
 
 webhook_router = APIRouter(
     prefix="/webhooks/logistics",

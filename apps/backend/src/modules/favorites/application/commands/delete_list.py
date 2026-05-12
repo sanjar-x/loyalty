@@ -8,8 +8,8 @@ from src.modules.favorites.domain.exceptions import (
     FavoriteListNotOwnedError,
 )
 from src.modules.favorites.domain.interfaces import IFavoriteListRepository
-from shared.interfaces.logger import ILogger
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

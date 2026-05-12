@@ -43,8 +43,8 @@ from src.modules.pricing.domain.recompute import (
 )
 from src.modules.pricing.domain.value_objects import VariableScope
 from src.modules.pricing.domain.variable_resolver import resolve_variables
-from shared.exceptions import ValidationError
-from shared.interfaces.logger import ILogger
+from src.shared.exceptions import ValidationError
+from src.shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)

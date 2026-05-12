@@ -19,8 +19,8 @@ from src.modules.catalog.application.constants import (
 )
 from src.modules.catalog.application.queries.read_models import CategoryNode
 from src.modules.catalog.infrastructure.models import Category as OrmCategory
-from shared.interfaces.cache import ICacheService
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.cache import ICacheService
+from src.shared.interfaces.logger import ILogger
 
 
 class GetCategoryTreeHandler:

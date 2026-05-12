@@ -10,13 +10,13 @@ Concrete event types:
   a JOIN.
 
 Validation + ``aggregate_id`` auto-fill come from
-:class:`shared.interfaces.entities.ModuleDomainEvent`.
+:class:`src.shared.interfaces.entities.ModuleDomainEvent`.
 """
 
 import uuid
 from dataclasses import dataclass, field
 
-from shared.interfaces.entities import ModuleDomainEvent
+from src.shared.interfaces.entities import ModuleDomainEvent
 
 
 @dataclass(frozen=True)

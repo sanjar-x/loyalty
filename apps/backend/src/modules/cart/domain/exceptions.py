@@ -6,7 +6,7 @@ Each exception subclasses a specific shared exception from
 and error envelope format.
 """
 
-from shared.exceptions import (
+from src.shared.exceptions import (
     ConflictError,
     NotFoundError,
     UnprocessableEntityError,

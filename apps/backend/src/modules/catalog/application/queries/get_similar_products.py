@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
-from shared.interfaces.logger import ILogger
+from src.shared.interfaces.logger import ILogger
 
 # Same-brand boost weight.  Chosen so that a same-brand product with zero
 # views still outranks a different-brand product with up to 999 views.

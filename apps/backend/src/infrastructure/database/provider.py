@@ -19,7 +19,7 @@ from sqlalchemy.pool import AsyncAdaptedQueuePool
 
 from src.bootstrap.config import settings
 from src.infrastructure.database.uow import UnitOfWork
-from shared.interfaces.uow import IUnitOfWork
+from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
 

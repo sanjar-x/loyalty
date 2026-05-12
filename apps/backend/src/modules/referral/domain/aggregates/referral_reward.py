@@ -28,8 +28,8 @@ from src.modules.referral.domain.events import (
 )
 from src.modules.referral.domain.exceptions import RewardInvalidStateError
 from src.modules.referral.domain.value_objects import RewardKind, RewardStatus
-from shared.interfaces.entities import AggregateRoot
-from shared.interfaces.fsm import StateMachineMixin
+from src.shared.interfaces.entities import AggregateRoot
+from src.shared.interfaces.fsm import StateMachineMixin
 
 _TERMINAL: frozenset[RewardStatus] = frozenset(
     {RewardStatus.REVERSED, RewardStatus.EXPIRED}

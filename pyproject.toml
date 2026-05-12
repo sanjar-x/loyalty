@@ -38,7 +38,6 @@ requires-python = ">=3.14"
 # Phase 2+ will promote ``shared``, ``infrastructure``, and ``modules/*`` to
 # standalone workspace members; apps/backend will shrink accordingly.
 members = [
-    "shared",
     "apps/backend",
     "apps/bot",
     "apps/workers/core",
