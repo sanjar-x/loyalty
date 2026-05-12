@@ -254,7 +254,7 @@ def main() -> None:
     needs_api = any(not s.db_only for s in steps)
 
     if needs_api:
-        ctx.client = httpx.Client(base_url=ctx.base_url, timeout=30.0)
+        ctx.client = httpx.Client(base_url=ctx.base_url, timeout=30.0, follow_redirects=True)
         try:
             print(f"→ Logging in as {ctx.login} @ {ctx.base_url}")
             _login(ctx)

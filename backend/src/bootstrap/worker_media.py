@@ -44,6 +44,11 @@ from src.infrastructure.logging.dlq_middleware import DLQMiddleware
 
 logger = structlog.get_logger(__name__)
 
+if settings.BG_REMOVAL_ENABLED:
+    import kornia  # noqa: F401
+    import timm  # noqa: F401
+    import torch  # noqa: F401
+    import torchvision  # noqa: F401
 # 1. Initialise the container and DI integration BEFORE importing tasks.
 #    Identical to ``worker.py``.
 container: AsyncContainer = create_container()
@@ -68,6 +73,7 @@ broker.add_middlewares(DLQMiddleware(session_factory=_dlq_session_factory))
 #       * ``image_processing``  — Pillow resize variants
 #       * ``image_maintenance`` — orphan cleanup cron
 #       * ``image_ml``          — Bria RMBG-2.0 (gated on BG_REMOVAL_ENABLED)
+
 import src.modules.image.infrastructure.tasks  # noqa: E402, F401
 
 

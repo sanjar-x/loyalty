@@ -162,7 +162,7 @@ def _build_notifier(
         order_repo=_StubOrderRepo(orders),  # ty:ignore[invalid-argument-type]
         chat_lookup=_StubChatLookup(chat_mapping),
         notifier=notifier_stub,
-        logger=_NullLogger(),  # ty:ignore[invalid-argument-type]
+        logger=_NullLogger(),
     )
     return consumer, notifier_stub
 

@@ -40,15 +40,13 @@ class _StubTracker(IActivityTracker):
         list_id: uuid.UUID | None,
         extra: dict[str, Any] | None = None,
     ) -> None:
-        self.calls.append(
-            {
-                "kind": "favorite_added",
-                "product_id": product_id,
-                "actor_id": actor_id,
-                "list_id": list_id,
-                "extra": extra,
-            }
-        )
+        self.calls.append({
+            "kind": "favorite_added",
+            "product_id": product_id,
+            "actor_id": actor_id,
+            "list_id": list_id,
+            "extra": extra,
+        })
 
 
 class _NullLogger:
@@ -67,7 +65,7 @@ def _build() -> tuple[FavoritesActivityEnricher, _StubTracker]:
     tracker = _StubTracker()
     consumer = FavoritesActivityEnricher(
         tracker=tracker,
-        logger=_NullLogger(),  # ty:ignore[invalid-argument-type]
+        logger=_NullLogger(),
     )
     return consumer, tracker
 
@@ -78,14 +76,12 @@ async def test_product_target_invokes_tracker() -> None:
     product_id = uuid.uuid4()
     list_id = uuid.uuid4()
 
-    await consumer.on_favorite_item_added(
-        {
-            "list_id": str(list_id),
-            "identity_id": str(identity_id),
-            "target_type": "product",
-            "target_id": str(product_id),
-        }
-    )
+    await consumer.on_favorite_item_added({
+        "list_id": str(list_id),
+        "identity_id": str(identity_id),
+        "target_type": "product",
+        "target_id": str(product_id),
+    })
 
     assert len(tracker.calls) == 1
     call = tracker.calls[0]
@@ -98,63 +94,53 @@ async def test_product_target_invokes_tracker() -> None:
 async def test_brand_target_is_skipped() -> None:
     """Brand favorites: not a product co-view signal."""
     consumer, tracker = _build()
-    await consumer.on_favorite_item_added(
-        {
-            "list_id": str(uuid.uuid4()),
-            "identity_id": str(uuid.uuid4()),
-            "target_type": "brand",
-            "target_id": str(uuid.uuid4()),
-        }
-    )
+    await consumer.on_favorite_item_added({
+        "list_id": str(uuid.uuid4()),
+        "identity_id": str(uuid.uuid4()),
+        "target_type": "brand",
+        "target_id": str(uuid.uuid4()),
+    })
     assert tracker.calls == []
 
 
 async def test_missing_identity_id_is_skipped() -> None:
     consumer, tracker = _build()
-    await consumer.on_favorite_item_added(
-        {
-            "list_id": str(uuid.uuid4()),
-            "target_type": "product",
-            "target_id": str(uuid.uuid4()),
-        }
-    )
+    await consumer.on_favorite_item_added({
+        "list_id": str(uuid.uuid4()),
+        "target_type": "product",
+        "target_id": str(uuid.uuid4()),
+    })
     assert tracker.calls == []
 
 
 async def test_missing_target_id_is_skipped() -> None:
     consumer, tracker = _build()
-    await consumer.on_favorite_item_added(
-        {
-            "list_id": str(uuid.uuid4()),
-            "identity_id": str(uuid.uuid4()),
-            "target_type": "product",
-        }
-    )
+    await consumer.on_favorite_item_added({
+        "list_id": str(uuid.uuid4()),
+        "identity_id": str(uuid.uuid4()),
+        "target_type": "product",
+    })
     assert tracker.calls == []
 
 
 async def test_bad_uuid_is_skipped() -> None:
     consumer, tracker = _build()
-    await consumer.on_favorite_item_added(
-        {
-            "list_id": str(uuid.uuid4()),
-            "identity_id": "not-a-uuid",
-            "target_type": "product",
-            "target_id": str(uuid.uuid4()),
-        }
-    )
+    await consumer.on_favorite_item_added({
+        "list_id": str(uuid.uuid4()),
+        "identity_id": "not-a-uuid",
+        "target_type": "product",
+        "target_id": str(uuid.uuid4()),
+    })
     assert tracker.calls == []
 
 
 async def test_null_list_id_passes_through_as_none() -> None:
     consumer, tracker = _build()
-    await consumer.on_favorite_item_added(
-        {
-            "list_id": None,
-            "identity_id": str(uuid.uuid4()),
-            "target_type": "product",
-            "target_id": str(uuid.uuid4()),
-        }
-    )
+    await consumer.on_favorite_item_added({
+        "list_id": None,
+        "identity_id": str(uuid.uuid4()),
+        "target_type": "product",
+        "target_id": str(uuid.uuid4()),
+    })
     assert len(tracker.calls) == 1
     assert tracker.calls[0]["list_id"] is None

@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     # within the optional ``bg-removal`` extra. ``ty`` doesn't have
     # the wheels in its venv either, so import-time references
     # below are tagged with ``ty:ignore[unresolved-import]``.
-    import torch  # ty:ignore[unresolved-import]
+    import torch
 
 logger = structlog.get_logger(__name__)
 
@@ -90,7 +90,7 @@ class BriaRMBGAdapter(IBackgroundRemover):
     # ------------------------------------------------------------------
 
     def _resolve_device(self) -> str:
-        import torch  # ty:ignore[unresolved-import]
+        import torch
 
         configured = self._settings.BG_REMOVAL_DEVICE
         if configured == "auto":
@@ -98,7 +98,7 @@ class BriaRMBGAdapter(IBackgroundRemover):
         return configured
 
     def _initialise(self) -> None:
-        from transformers import (  # ty:ignore[unresolved-import]
+        from transformers import (
             AutoModelForImageSegmentation,
         )
 
@@ -131,8 +131,8 @@ class BriaRMBGAdapter(IBackgroundRemover):
         self._log.info("briaai_rmbg2_ready", device=self._device)
 
     def _run_inference(self, image_bytes: bytes) -> bytes:
-        import torch  # ty:ignore[unresolved-import]
-        from torchvision import transforms  # ty:ignore[unresolved-import]
+        import torch
+        from torchvision import transforms
 
         if self._model is None or self._device is None:
             raise RuntimeError(
@@ -142,13 +142,11 @@ class BriaRMBGAdapter(IBackgroundRemover):
         original = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         target_size = original.size  # (width, height) preserved for the alpha matte
 
-        preprocess = transforms.Compose(
-            [
-                transforms.Resize(_MODEL_INPUT_SIZE),
-                transforms.ToTensor(),
-                transforms.Normalize(_IMAGENET_MEAN, _IMAGENET_STD),
-            ]
-        )
+        preprocess = transforms.Compose([
+            transforms.Resize(_MODEL_INPUT_SIZE),
+            transforms.ToTensor(),
+            transforms.Normalize(_IMAGENET_MEAN, _IMAGENET_STD),
+        ])
         input_tensor: torch.Tensor = preprocess(original).unsqueeze(0).to(self._device)
 
         with torch.no_grad():

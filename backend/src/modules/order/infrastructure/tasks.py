@@ -400,7 +400,8 @@ async def _on_payment_captured(
     payload: dict, correlation_id: str | None = None
 ) -> None:
     await (
-        order_on_payment_captured_task.kicker()
+        order_on_payment_captured_task
+        .kicker()
         .with_labels(**_labels(correlation_id))
         .kiq(payload=payload)  # ty:ignore[no-matching-overload]
     )
@@ -408,7 +409,8 @@ async def _on_payment_captured(
 
 async def _on_payment_failed(payload: dict, correlation_id: str | None = None) -> None:
     await (
-        order_on_payment_failed_task.kicker()
+        order_on_payment_failed_task
+        .kicker()
         .with_labels(**_labels(correlation_id))
         .kiq(payload=payload)  # ty:ignore[no-matching-overload]
     )
@@ -418,7 +420,8 @@ async def _on_dobropost_status(
     payload: dict, correlation_id: str | None = None
 ) -> None:
     await (
-        order_on_dobropost_status_task.kicker()
+        order_on_dobropost_status_task
+        .kicker()
         .with_labels(**_labels(correlation_id))
         .kiq(payload=payload)  # ty:ignore[no-matching-overload]
     )
@@ -428,7 +431,8 @@ async def _on_dobropost_passport(
     payload: dict, correlation_id: str | None = None
 ) -> None:
     await (
-        order_on_dobropost_passport_task.kicker()
+        order_on_dobropost_passport_task
+        .kicker()
         .with_labels(**_labels(correlation_id))
         .kiq(payload=payload)  # ty:ignore[no-matching-overload]
     )
@@ -436,7 +440,8 @@ async def _on_dobropost_passport(
 
 async def _on_russian_carrier(payload: dict, correlation_id: str | None = None) -> None:
     await (
-        order_on_russian_carrier_task.kicker()
+        order_on_russian_carrier_task
+        .kicker()
         .with_labels(**_labels(correlation_id))
         .kiq(payload=payload)  # ty:ignore[no-matching-overload]
     )
@@ -454,9 +459,10 @@ async def _on_order_procured(payload: dict, correlation_id: str | None = None) -
         order_on_procured_task.kicker().with_labels(**labels).kiq(payload=payload)  # ty:ignore[no-matching-overload]
     )
     await (
-        telegram_on_order_procured_task.kicker()
+        telegram_on_order_procured_task
+        .kicker()
         .with_labels(**labels)
-        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+        .kiq(payload=payload)
     )
 
 
@@ -465,9 +471,10 @@ async def _on_order_arrived_in_ru_telegram(
     payload: dict, correlation_id: str | None = None
 ) -> None:
     await (
-        telegram_on_order_arrived_in_ru_task.kicker()
+        telegram_on_order_arrived_in_ru_task
+        .kicker()
         .with_labels(**_labels(correlation_id))
-        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+        .kiq(payload=payload)
     )
 
 
@@ -475,9 +482,10 @@ async def _on_order_entered_last_mile_telegram(
     payload: dict, correlation_id: str | None = None
 ) -> None:
     await (
-        telegram_on_order_entered_last_mile_task.kicker()
+        telegram_on_order_entered_last_mile_task
+        .kicker()
         .with_labels(**_labels(correlation_id))
-        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+        .kiq(payload=payload)
     )
 
 
@@ -485,9 +493,10 @@ async def _on_order_awaiting_pickup_telegram(
     payload: dict, correlation_id: str | None = None
 ) -> None:
     await (
-        telegram_on_order_awaiting_pickup_task.kicker()
+        telegram_on_order_awaiting_pickup_task
+        .kicker()
         .with_labels(**_labels(correlation_id))
-        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+        .kiq(payload=payload)
     )
 
 
@@ -495,9 +504,10 @@ async def _on_order_delivered_telegram(
     payload: dict, correlation_id: str | None = None
 ) -> None:
     await (
-        telegram_on_order_delivered_task.kicker()
+        telegram_on_order_delivered_task
+        .kicker()
         .with_labels(**_labels(correlation_id))
-        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+        .kiq(payload=payload)
     )
 
 
