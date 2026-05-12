@@ -26,7 +26,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 # Railway node, and (c) blows past Railway's 8 GB build-image cap. uv
 # reads this variable via the ``[tool.uv.sources]`` torch entry in
 # ``pyproject.toml``.
-ENV UV_TORCH_BACKEND=cpu
+ENV UV_TORCH_BACKEND=auto
 
 WORKDIR /app
 
