@@ -1,6 +1,6 @@
 # Loyality — Loyalty Marketplace
 
-uv-workspace monorepo. Each deployable artefact lives under `apps/` with its own `pyproject.toml`, Dockerfile, and Railway service config; `apps/backend/` doubles as the FastAPI web service AND the `loyality` workspace member that every other app re-exports from. See [[ADR-008 Multi-Package Modular Monorepo]] for the rationale.
+uv-workspace monorepo. Each deployable artefact lives under `apps/` with its own `pyproject.toml`, `Dockerfile`, and Railway service config. Only `apps/backend/` is a real Python package (installable as `backend`, importable as `src.*`); every other app is a uv **virtual project** (`[tool.uv] package = false`) — uv resolves its dependencies but doesn't install it as a module, because deployment artefacts are run, not imported. The entry point of each virtual app is a plain `main.py` at the app root; Docker invokes `python -m <runner> main:<symbol>` from that directory. See [[ADR-008 Multi-Package Modular Monorepo]] for the rationale.
 
 ## Components
 
@@ -27,10 +27,20 @@ uv export --package <package-name> --no-dev --format requirements-txt
                                                            # exact list a Docker build will install
 ```
 
-Docker build per app:
+Local run (uses the shared workspace `.venv`):
 
 ```bash
-docker build -f apps/<path>/Dockerfile -t <image-name> .   # context = monorepo root
+cd apps/backend            && python -m uvicorn main:app --port 8080
+cd apps/workers/core       && python -m taskiq worker main:broker
+cd apps/workers/scheduler  && python -m taskiq scheduler main:scheduler
+cd apps/workers/image/rmbg && python -m taskiq worker main:broker
+cd apps/bot                && python main.py
+```
+
+Docker build per app (context = monorepo root):
+
+```bash
+docker build -f apps/<path>/Dockerfile -t <image-name> .
 ```
 
 Verified build isolation (Phase 1):

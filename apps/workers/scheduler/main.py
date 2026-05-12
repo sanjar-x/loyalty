@@ -3,9 +3,9 @@
 Re-exports the canonical scheduler instance from
 ``src.bootstrap.scheduler`` so Railway can target a stable import path.
 
-Run command:
+Run command (from this app's directory):
 
-    taskiq scheduler scheduler_worker.scheduler:scheduler
+    cd apps/workers/scheduler && taskiq scheduler main:scheduler
 """
 
 from __future__ import annotations

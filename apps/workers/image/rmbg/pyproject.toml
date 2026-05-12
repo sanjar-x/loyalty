@@ -2,10 +2,15 @@
 # apps/workers/image/rmbg — TaskIQ worker dedicated to Bria RMBG-2.0
 # background removal (the ``image.ml`` queue).
 #
+# Virtual workspace project (``[tool.uv] package = false``). Run from
+# inside the app dir:
+#
+#     cd apps/workers/image/rmbg && taskiq worker main:broker
+#
 # This is the ONLY workspace member that pulls in the ML stack
 # (torch + transformers + timm + kornia, ~2.5 GB resolved). The lean
-# ``apps/workers/image/storage`` worker handles Pillow resize + S3 uploads
-# without these dependencies.
+# ``apps/workers/image/storage`` worker (Phase 5) will handle Pillow
+# resize + S3 uploads without these dependencies.
 #
 # Torch CPU wheel is pinned via the ``pytorch-cpu`` index defined at the
 # workspace root; the ``[tool.uv.sources]`` below redirects torch /
@@ -26,14 +31,10 @@ dependencies = [
     "kornia>=0.7.0",
 ]
 
+[tool.uv]
+package = false
+
 [tool.uv.sources]
 backend = { workspace = true }
 torch = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 torchvision = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
-
-[build-system]
-requires = ["hatchling>=1.27"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/image_rmbg_worker"]

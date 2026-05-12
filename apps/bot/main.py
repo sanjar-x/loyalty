@@ -6,9 +6,9 @@ by ``src.bootstrap.container.create_container`` and starts long-polling.
 The factory itself does the heavy lifting (FSM storage, middleware chain,
 router registration); this module is just the lifecycle harness.
 
-Run command:
+Run command (from this app's directory):
 
-    python -m telegram_bot.main
+    cd apps/bot && python -m main
 
 Not currently deployed — the corresponding Railway service has not been
 provisioned yet. The artefact is ready for the day it is.

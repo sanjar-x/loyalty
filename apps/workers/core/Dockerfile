@@ -24,4 +24,8 @@ COPY apps/ ./apps/
 
 RUN uv sync --frozen --no-dev --package core-worker
 
-CMD ["taskiq", "worker", "core_worker.worker:broker"]
+# Run taskiq via ``python -m`` so ``main.py`` in the WORKDIR is on
+# ``sys.path`` (the cwd-first behaviour the installed ``taskiq`` script
+# does not provide).
+WORKDIR /workspace/apps/workers/core
+CMD ["python", "-m", "taskiq", "worker", "main:broker"]

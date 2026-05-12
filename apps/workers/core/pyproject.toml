@@ -1,14 +1,16 @@
 # =============================================================================
 # apps/workers/core — TaskIQ worker for non-image domain queues.
 #
-# Subscribes to orders / payments / logistics / outbox / cron queues — every
-# domain except the image module's processing + ML queues, which live in
-# ``apps/workers/image/storage`` and ``apps/workers/image/rmbg``.
+# Virtual workspace project (``[tool.uv] package = false``): uv resolves
+# this app's dependencies into the shared lockfile but does NOT install
+# the app itself as a Python package. Entry point is ``main.py`` next to
+# this file; run from inside the app directory:
 #
-# Workspace member (see ../../../pyproject.toml). ``uv sync --package
-# core-worker`` installs only the backend graph — NO torch / transformers
-# / timm / kornia, because those live in ``apps/workers/image/rmbg``'s
-# ``[project.dependencies]`` and are not in this app's transitive closure.
+#     cd apps/workers/core && taskiq worker main:broker
+#
+# Build isolation — ``uv sync --package core-worker`` installs ONLY the
+# backend graph (no torch / transformers / timm / kornia, those live in
+# ``apps/workers/image/rmbg``).
 # =============================================================================
 
 [project]
@@ -20,12 +22,8 @@ dependencies = [
     "backend",
 ]
 
+[tool.uv]
+package = false
+
 [tool.uv.sources]
 backend = { workspace = true }
-
-[build-system]
-requires = ["hatchling>=1.27"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/core_worker"]

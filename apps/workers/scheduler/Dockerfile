@@ -21,4 +21,5 @@ COPY apps/ ./apps/
 
 RUN uv sync --frozen --no-dev --package scheduler-worker
 
-CMD ["taskiq", "scheduler", "scheduler_worker.scheduler:scheduler"]
+WORKDIR /workspace/apps/workers/scheduler
+CMD ["python", "-m", "taskiq", "scheduler", "main:scheduler"]

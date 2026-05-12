@@ -35,4 +35,5 @@ COPY apps/ ./apps/
 # pyproject don't change.
 RUN uv sync --frozen --no-dev --package image-rmbg-worker
 
-CMD ["taskiq", "worker", "image_rmbg_worker.worker:broker"]
+WORKDIR /workspace/apps/workers/image/rmbg
+CMD ["python", "-m", "taskiq", "worker", "main:broker"]

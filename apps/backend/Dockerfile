@@ -40,9 +40,10 @@ RUN uv sync --frozen --no-dev --package backend
 
 EXPOSE 8080
 
-# uvicorn is on PATH thanks to the workspace .venv. ``main:app`` works
-# because WORKDIR's apps/backend/main.py is shipped via the COPY apps/
-# layer above; we cd into it for the run command to keep import paths
-# stable.
+# Run uvicorn via ``python -m`` so the interpreter prepends an empty
+# string to ``sys.path`` (i.e. cwd is searched first). This is the
+# canonical pattern for picking up a top-level ``main.py`` in the WORKDIR
+# without packaging it as an installable module — appropriate because
+# apps don't get imported from other code, only executed.
 WORKDIR /workspace/apps/backend
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

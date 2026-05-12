@@ -22,4 +22,5 @@ COPY apps/ ./apps/
 
 RUN uv sync --frozen --no-dev --package telegram-bot
 
-CMD ["python", "-m", "telegram_bot.main"]
+WORKDIR /workspace/apps/bot
+CMD ["python", "main.py"]

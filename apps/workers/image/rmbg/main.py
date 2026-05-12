@@ -17,9 +17,9 @@ torch ≥ 2.4 rejects. Importing those modules here ensures the
 registration happens exactly once in the main interpreter, and subsequent
 worker-thread imports hit ``sys.modules`` cache.
 
-Run command:
+Run command (from this app's directory):
 
-    taskiq worker image_rmbg_worker.worker:broker
+    cd apps/workers/image/rmbg && taskiq worker main:broker
 """
 
 from __future__ import annotations

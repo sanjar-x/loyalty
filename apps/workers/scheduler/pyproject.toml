@@ -1,10 +1,11 @@
 # =============================================================================
 # apps/workers/scheduler — TaskIQ scheduler (cron triggers).
 #
-# Runs exactly ONE instance per deployment — multiple schedulers would
-# duplicate every scheduled kick. Lives under ``apps/workers/`` because it
-# shares the broker setup with the other workers and dispatches the cron
-# kicks they consume.
+# Virtual workspace project (``[tool.uv] package = false``). Run exactly
+# ONE replica per deployment — multiple schedulers would duplicate every
+# scheduled kick.
+#
+#     cd apps/workers/scheduler && taskiq scheduler main:scheduler
 # =============================================================================
 
 [project]
@@ -16,12 +17,8 @@ dependencies = [
     "backend",
 ]
 
+[tool.uv]
+package = false
+
 [tool.uv.sources]
 backend = { workspace = true }
-
-[build-system]
-requires = ["hatchling>=1.27"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/scheduler_worker"]

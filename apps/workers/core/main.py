@@ -7,9 +7,10 @@ side-effectful task registration on import (DishkaMiddleware → DLQ →
 ``from src.bootstrap.worker_core import broker`` is enough — TaskIQ
 discovers everything registered by the time it reads ``broker``.
 
-Run command (Railway / local):
+Run command (Railway / local — invoke from this app's directory so
+``main`` resolves on cwd):
 
-    taskiq worker core_worker.worker:broker
+    cd apps/workers/core && taskiq worker main:broker
 """
 
 from __future__ import annotations
