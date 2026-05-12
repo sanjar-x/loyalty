@@ -63,21 +63,23 @@ dev = [
 
 # IMG-007 — heavy ML dependencies for background removal
 # (briaai/RMBG-2.0 BiRefNet). Installed on the dedicated
-# ``image_ml`` TaskIQ worker only. The web process stays lean
+# ``media-worker`` TaskIQ worker only. The web process stays lean
 # (``torch`` wheel alone is ~800 MB) — when the feature flag
 # ``BG_REMOVAL_ENABLED`` is False, the endpoint returns 503 even
 # without these deps installed.
 #
-# Version constraints: timm <1.0.27 avoids torch.library._register_fake()
-# incompatibility on Python 3.14 (REC-027). Downgraded to 0.9.x series
-# which is known to work with torch 2.11.0 on this Python version.
+# NOTE (REC-027): Python 3.14 support in PyTorch is limited. If torch
+# import fails during worker initialization, the background removal
+# endpoint gracefully degrades to 503 Service Unavailable. Initialization
+# errors are trapped and stored, so they don't crash the entire worker.
+# Revert pyproject.toml to Python 3.13 if background removal is critical.
 #
 #   uv sync --extra bg-removal   # on the worker
 [project.optional-dependencies]
 bg-removal = [
     "torch>=2.5.0",
     "transformers>=4.46.0",
-    "timm>=0.9.0,<1.0.0",
+    "timm>=0.9.0",
     "kornia>=0.7.0",
 ]
 

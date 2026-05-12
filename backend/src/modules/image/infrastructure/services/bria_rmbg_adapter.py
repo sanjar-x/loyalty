@@ -63,6 +63,7 @@ class BriaRMBGAdapter(IBackgroundRemover):
         self._model: Any | None = None
         self._device: str | None = None
         self._lock = asyncio.Lock()
+        self._init_error: Exception | None = None
         self._log = logger.bind(component="BriaRMBGAdapter")
 
     @property
@@ -71,13 +72,24 @@ class BriaRMBGAdapter(IBackgroundRemover):
 
     async def remove(self, image_bytes: bytes) -> bytes:
         # Lazy-load the model; first request pays the warmup cost
-        # (CPU: ~10–20s, GPU: ~3–5s) — readiness probes for the
-        # ``image_ml`` worker should fire one synthetic request at
-        # boot if you want startup latency on the deploy hot path.
-        if self._model is None:
+        # (CPU: ~10–20s, GPU: ~3–5s). If initialization failed, store the error
+        # to avoid repeated attempts and provide clear feedback to clients.
+        if self._model is None and self._init_error is None:
             async with self._lock:
-                if self._model is None:
-                    await asyncio.to_thread(self._initialise)
+                if self._model is None and self._init_error is None:
+                    try:
+                        await asyncio.to_thread(self._initialise)
+                    except Exception as exc:
+                        self._init_error = exc
+                        self._log.exception(
+                            "briaai_rmbg2_failed_to_initialize",
+                            error=type(exc).__name__,
+                        )
+                        raise
+        
+        # If initialization previously failed, raise the same error
+        if self._init_error is not None:
+            raise self._init_error
 
         # Inference is GIL-bound (NumPy + torch C++ kernels) but
         # blocks the event loop; offload to the default thread pool
