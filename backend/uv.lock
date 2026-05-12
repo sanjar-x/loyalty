@@ -1523,7 +1523,7 @@ requires-dist = [
     { name = "structlog", specifier = ">=25.5.0" },
     { name = "taskiq", specifier = ">=0.12.1" },
     { name = "taskiq-aio-pika", specifier = ">=0.6.0" },
-    { name = "timm", marker = "extra == 'bg-removal'", specifier = ">=1.0.0" },
+    { name = "timm", marker = "extra == 'bg-removal'", specifier = ">=0.9.0,<1.0.0" },
     { name = "torch", marker = "sys_platform == 'linux' and extra == 'bg-removal'", specifier = ">=2.5.0", index = "https://download.pytorch.org/whl/cpu" },
     { name = "torch", marker = "sys_platform != 'linux' and extra == 'bg-removal'", specifier = ">=2.5.0" },
     { name = "transformers", marker = "extra == 'bg-removal'", specifier = ">=4.46.0" },
@@ -2869,7 +2869,7 @@ redis = [
 
 [[package]]
 name = "timm"
-version = "1.0.27"
+version = "0.9.16"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -2879,9 +2879,9 @@ dependencies = [
     { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'linux'" },
     { name = "torchvision" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/08/54/ece85b0eef3700c90db8271a43669b05a0ebbe2edb1962329c34374a297e/timm-1.0.27.tar.gz", hash = "sha256:315dfe63186ca9fb7ff941268941231fd5be259f2b4bb4afa28560ae1015cb9a", size = 2439861, upload-time = "2026-05-08T19:38:36.844Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c5/ba/3d5f3381dc291d21114e707b39791f483431361f61402483d9839b61350d/timm-0.9.16.tar.gz", hash = "sha256:891e54f375d55adf31a71ab0c117761f0e472f9f3971858ecdd1e7376b7071e6", size = 2121824, upload-time = "2024-02-19T19:33:45.468Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1f/2e/26bab7686ff4aed48f8f5f6c23e2aa37b7a37ddd9effe3aa61e908fd518f/timm-1.0.27-py3-none-any.whl", hash = "sha256:5ff07c9ddf53cbada88eab1c93ff175c64cab683b5a2fddf863bcee985926f89", size = 2589280, upload-time = "2026-05-08T19:38:35.034Z" },
+    { url = "https://files.pythonhosted.org/packages/68/99/2018622d268f6017ddfa5ee71f070bad5d07590374793166baa102849d17/timm-0.9.16-py3-none-any.whl", hash = "sha256:bf5704014476ab011589d3c14172ee4c901fd18f9110a928019cac5be2945914", size = 2249737, upload-time = "2024-02-19T19:33:42.542Z" },
 ]
 
 [[package]]
