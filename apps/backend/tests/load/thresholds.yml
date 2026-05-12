@@ -1,0 +1,20 @@
+# tests/load/thresholds.yml
+# Performance thresholds for load test scenarios.
+# Verified by the CI pipeline or manual Locust runs.
+scenarios:
+  auth_flow:
+    max_p99_ms: 500
+    max_error_rate: 0.001
+    min_rps: 100
+  catalog_browse:
+    max_p99_ms: 200
+    max_error_rate: 0.0001
+    min_rps: 500
+  connection_pool_saturation:
+    expect_graceful_503: true
+    max_connection_leak_count: 0
+  mixed_workload:
+    max_p99_ms: 300
+    max_error_rate: 0.005
+    min_rps: 1000
+    duration_minutes: 5

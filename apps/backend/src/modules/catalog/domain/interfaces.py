@@ -1,0 +1,697 @@
+"""
+Catalog repository port interfaces.
+
+Defines the abstract repository contracts for Brand, Category, Product,
+Attribute, and AttributeGroup aggregates. The application layer depends
+only on these interfaces; concrete implementations live in the
+infrastructure layer.
+
+Typical usage:
+    class CreateBrandHandler:
+        def __init__(self, repo: IBrandRepository) -> None:
+            self._repo = repo
+"""
+
+import enum
+import uuid
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from datetime import datetime
+
+from src.modules.catalog.domain.entities import Attribute as DomainAttribute
+from src.modules.catalog.domain.entities import AttributeGroup as DomainAttributeGroup
+from src.modules.catalog.domain.entities import (
+    AttributeTemplate as DomainAttributeTemplate,
+)
+from src.modules.catalog.domain.entities import AttributeValue as DomainAttributeValue
+from src.modules.catalog.domain.entities import Brand as DomainBrand
+from src.modules.catalog.domain.entities import Category as DomainCategory
+from src.modules.catalog.domain.entities import MediaAsset as DomainMediaAsset
+from src.modules.catalog.domain.entities import Product as DomainProduct
+from src.modules.catalog.domain.entities import (
+    ProductAttributeValue as DomainProductAttributeValue,
+)
+from src.modules.catalog.domain.entities import (
+    TemplateAttributeBinding as DomainTemplateAttributeBinding,
+)
+from src.shared.interfaces.repositories import IBaseRepository
+
+
+class IMediaCleanupPort(ABC):
+    """Port for cleaning up storage objects when a product/brand image
+    is replaced or removed.
+
+    Used by the catalog command handlers (``update_product``,
+    ``update_brand``, ``delete_product_media``) to drop orphaned media
+    after the business write commits. The implementation lives in the
+    catalog infrastructure layer (``adapters/media_cleanup_adapter.py``)
+    and delegates to the ``image`` module's :class:`DeleteStorageObjectHandler`
+    in-process — formerly an HTTP call to the standalone ``image_backend``
+    microservice (REC-026 collapsed it into the main backend).
+    """
+
+    @abstractmethod
+    async def delete(self, storage_object_id: uuid.UUID) -> None:
+        """Delete a storage object (S3 keys + DB record). Best-effort."""
+
+
+class ICatalogRepository[T](IBaseRepository[T]):
+    """Catalog-flavoured generic CRUD repository contract.
+
+    Inherits the canonical ``add/get/update/delete`` methods from
+    :class:`src.shared.interfaces.repositories.IBaseRepository` (REC-031).
+    Kept as a distinct alias so existing imports
+    ``from src.modules.catalog.domain.interfaces import ICatalogRepository``
+    continue working — the type parameter is the same domain entity.
+    """
+
+
+class IBrandRepository(ICatalogRepository[DomainBrand]):
+    """Repository contract for the Brand aggregate."""
+
+    @abstractmethod
+    async def check_slug_exists(self, slug: str) -> bool:
+        """Check whether a brand with the given slug already exists."""
+        pass
+
+    @abstractmethod
+    async def get_for_update(self, brand_id: uuid.UUID) -> DomainBrand | None:
+        """Retrieve a brand with a pessimistic lock (SELECT FOR UPDATE)."""
+        pass
+
+    @abstractmethod
+    async def check_slug_exists_excluding(
+        self, slug: str, exclude_id: uuid.UUID
+    ) -> bool:
+        """Check if a slug is taken by another brand (excluding given ID)."""
+        pass
+
+    @abstractmethod
+    async def has_products(self, brand_id: uuid.UUID) -> bool:
+        """Check whether any non-deleted products reference this brand."""
+        pass
+
+    @abstractmethod
+    async def check_name_exists(self, name: str) -> bool:
+        """Check whether a brand with the given name already exists."""
+        pass
+
+    @abstractmethod
+    async def check_name_exists_excluding(
+        self, name: str, exclude_id: uuid.UUID
+    ) -> bool:
+        """Check if a name is taken by another brand (excluding given ID)."""
+        pass
+
+
+class ICategoryRepository(ICatalogRepository[DomainCategory]):
+    """Repository contract for the Category aggregate."""
+
+    @abstractmethod
+    async def get_all_ordered(self) -> list[DomainCategory]:
+        """Retrieve the full category tree ordered by level and sort_order."""
+        pass
+
+    @abstractmethod
+    async def check_slug_exists(self, slug: str, parent_id: uuid.UUID | None) -> bool:
+        """Check whether a category slug exists at the given parent level."""
+        pass
+
+    @abstractmethod
+    async def get_for_update(self, category_id: uuid.UUID) -> DomainCategory | None:
+        """Retrieve a category with a pessimistic lock (SELECT FOR UPDATE)."""
+        pass
+
+    @abstractmethod
+    async def check_slug_exists_excluding(
+        self, slug: str, parent_id: uuid.UUID | None, exclude_id: uuid.UUID
+    ) -> bool:
+        """Check if a slug is taken by another category at the same level."""
+        pass
+
+    @abstractmethod
+    async def has_children(self, category_id: uuid.UUID) -> bool:
+        """Check whether a category has any child categories."""
+        pass
+
+    @abstractmethod
+    async def has_products(self, category_id: uuid.UUID) -> bool:
+        """Check whether any non-deleted products reference this category."""
+        pass
+
+    @abstractmethod
+    async def update_descendants_full_slug(
+        self, old_prefix: str, new_prefix: str
+    ) -> None:
+        """Bulk-update full_slug for all descendants when a parent's slug changes."""
+        pass
+
+    @abstractmethod
+    async def propagate_effective_template_id(
+        self, category_id: uuid.UUID, effective_template_id: uuid.UUID | None
+    ) -> list[uuid.UUID]:
+        """Propagate effective_template_id to inheriting descendants via recursive CTE.
+
+        Only updates children (and their descendants) where template_id IS NULL.
+        Stops at nodes that have their own template_id.
+        Returns affected category IDs (excluding root) for cache invalidation.
+        """
+        pass
+
+
+class IAttributeGroupRepository(ICatalogRepository[DomainAttributeGroup]):
+    """Repository contract for the AttributeGroup aggregate."""
+
+    @abstractmethod
+    async def get_for_update(self, group_id: uuid.UUID) -> DomainAttributeGroup | None:
+        """Retrieve an attribute group with a pessimistic lock (SELECT FOR UPDATE)."""
+        pass
+
+    @abstractmethod
+    async def check_code_exists(self, code: str) -> bool:
+        """Check whether a group with the given code already exists."""
+        pass
+
+    @abstractmethod
+    async def get_by_code(self, code: str) -> DomainAttributeGroup | None:
+        """Retrieve an attribute group by its unique code."""
+        pass
+
+    @abstractmethod
+    async def has_attributes(self, group_id: uuid.UUID) -> bool:
+        """Check whether the group contains any attributes."""
+        pass
+
+    @abstractmethod
+    async def move_attributes_to_group(
+        self, source_group_id: uuid.UUID, target_group_id: uuid.UUID
+    ) -> None:
+        """Bulk-move all attributes from one group to another."""
+        pass
+
+
+class IAttributeRepository(ICatalogRepository[DomainAttribute]):
+    """Repository contract for the Attribute aggregate."""
+
+    @abstractmethod
+    async def get_many(self, ids: list[uuid.UUID]) -> dict[uuid.UUID, DomainAttribute]:
+        """Retrieve multiple attributes by their UUIDs. Missing IDs are omitted."""
+        pass
+
+    @abstractmethod
+    async def get_for_update(self, attribute_id: uuid.UUID) -> DomainAttribute | None:
+        """Retrieve an attribute with a pessimistic lock (SELECT FOR UPDATE)."""
+        pass
+
+    @abstractmethod
+    async def check_code_exists(self, code: str) -> bool:
+        """Check whether an attribute with the given code already exists."""
+        pass
+
+    @abstractmethod
+    async def check_slug_exists(self, slug: str) -> bool:
+        """Check whether an attribute with the given slug already exists."""
+        pass
+
+    @abstractmethod
+    async def has_product_attribute_values(self, attribute_id: uuid.UUID) -> bool:
+        """Check whether any products reference this attribute."""
+        pass
+
+
+class IAttributeValueRepository(ABC):
+    """Repository contract for AttributeValue entities (children of Attribute)."""
+
+    @abstractmethod
+    async def get_many(
+        self, ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, DomainAttributeValue]:
+        """Retrieve multiple attribute values by their UUIDs. Missing IDs are omitted."""
+        pass
+
+    @abstractmethod
+    async def add(self, entity: DomainAttributeValue) -> DomainAttributeValue:
+        """Persist a new attribute value."""
+        pass
+
+    @abstractmethod
+    async def get(self, value_id: uuid.UUID) -> DomainAttributeValue | None:
+        """Retrieve an attribute value by its unique identifier."""
+        pass
+
+    @abstractmethod
+    async def update(self, entity: DomainAttributeValue) -> DomainAttributeValue:
+        """Persist changes to an existing attribute value."""
+        pass
+
+    @abstractmethod
+    async def delete(self, value_id: uuid.UUID) -> None:
+        """Delete an attribute value by its unique identifier."""
+        pass
+
+    @abstractmethod
+    async def check_code_exists(self, attribute_id: uuid.UUID, code: str) -> bool:
+        """Check if a code is taken within the given attribute."""
+        pass
+
+    @abstractmethod
+    async def check_slug_exists(self, attribute_id: uuid.UUID, slug: str) -> bool:
+        """Check if a slug is taken within the given attribute."""
+        pass
+
+    @abstractmethod
+    async def has_product_references(self, value_id: uuid.UUID) -> bool:
+        """Check whether any products reference this attribute value."""
+        pass
+
+    @abstractmethod
+    async def list_ids_by_attribute(self, attribute_id: uuid.UUID) -> set[uuid.UUID]:
+        """Return the set of value IDs belonging to the given attribute."""
+        pass
+
+    @abstractmethod
+    async def check_codes_exist(
+        self, attribute_id: uuid.UUID, codes: list[str]
+    ) -> set[str]:
+        """Return the subset of codes that already exist for this attribute."""
+        pass
+
+    @abstractmethod
+    async def check_slugs_exist(
+        self, attribute_id: uuid.UUID, slugs: list[str]
+    ) -> set[str]:
+        """Return the subset of slugs that already exist for this attribute."""
+        pass
+
+    @abstractmethod
+    async def bulk_update_sort_order(
+        self, updates: list[tuple[uuid.UUID, int]]
+    ) -> None:
+        """Bulk-update sort_order for multiple values atomically.
+
+        Args:
+            updates: List of (value_id, new_sort_order) tuples.
+        """
+        pass
+
+
+class IProductRepository(ICatalogRepository[DomainProduct]):
+    """Repository contract for the Product aggregate.
+
+    Extends the generic CRUD base with slug-based lookups,
+    pessimistic locking, and eager SKU loading.
+    """
+
+    @abstractmethod
+    async def check_slug_exists(self, slug: str) -> bool:
+        """Check whether a product with the given slug already exists."""
+        pass
+
+    @abstractmethod
+    async def check_slug_exists_excluding(
+        self, slug: str, exclude_id: uuid.UUID
+    ) -> bool:
+        """Check if a slug is taken by another product (excluding given ID)."""
+        pass
+
+    @abstractmethod
+    async def get_for_update_with_variants(
+        self, product_id: uuid.UUID
+    ) -> DomainProduct | None:
+        """Retrieve a product with pessimistic lock AND eagerly loaded variants/SKUs."""
+        pass
+
+    @abstractmethod
+    async def get_with_variants(self, product_id: uuid.UUID) -> DomainProduct | None:
+        """Retrieve a product with eagerly loaded variant and SKU child entities."""
+        pass
+
+    @abstractmethod
+    async def check_sku_code_exists(
+        self, sku_code: str, exclude_sku_id: uuid.UUID | None = None
+    ) -> bool:
+        """Check whether a non-deleted SKU with the given code already exists.
+
+        Args:
+            sku_code: The SKU code to check.
+            exclude_sku_id: Optional SKU ID to exclude from the check
+                (used during updates to ignore the SKU being updated).
+        """
+        pass
+
+
+class IProductAttributeValueRepository(ABC):
+    """Repository contract for ProductAttributeValue entities.
+
+    Manages product-level EAV assignments -- linking products to
+    attribute dictionary values. This is a child-entity repository
+    (not an aggregate root repository).
+    """
+
+    @abstractmethod
+    async def add(
+        self, entity: DomainProductAttributeValue
+    ) -> DomainProductAttributeValue:
+        """Persist a new product attribute assignment."""
+        pass
+
+    @abstractmethod
+    async def get(self, pav_id: uuid.UUID) -> DomainProductAttributeValue | None:
+        """Retrieve a product attribute value by its unique identifier."""
+        pass
+
+    @abstractmethod
+    async def delete(self, pav_id: uuid.UUID) -> None:
+        """Delete a product attribute assignment by its unique identifier."""
+        pass
+
+    @abstractmethod
+    async def list_by_product(
+        self, product_id: uuid.UUID
+    ) -> list[DomainProductAttributeValue]:
+        """List all attribute assignments for a given product."""
+        pass
+
+    @abstractmethod
+    async def get_by_product_and_attribute(
+        self, product_id: uuid.UUID, attribute_id: uuid.UUID
+    ) -> DomainProductAttributeValue | None:
+        """Retrieve a product attribute value by the product+attribute pair."""
+        pass
+
+    @abstractmethod
+    async def check_assignment_exists(
+        self, product_id: uuid.UUID, attribute_id: uuid.UUID
+    ) -> bool:
+        """Check whether a product+attribute pair already exists (duplicate guard)."""
+        pass
+
+    @abstractmethod
+    async def check_assignments_exist_bulk(
+        self, product_id: uuid.UUID, attribute_ids: list[uuid.UUID]
+    ) -> set[uuid.UUID]:
+        """Return set of attribute_ids that already have assignments for this product."""
+        pass
+
+
+class IMediaAssetRepository(ABC):
+    """Repository contract for MediaAsset entities."""
+
+    @abstractmethod
+    async def add(self, media: DomainMediaAsset) -> DomainMediaAsset:
+        """Persist a new media asset and return it."""
+        pass
+
+    @abstractmethod
+    async def get(self, media_id: uuid.UUID) -> DomainMediaAsset | None:
+        """Retrieve a media asset by ID."""
+        pass
+
+    @abstractmethod
+    async def get_for_update(self, media_id: uuid.UUID) -> DomainMediaAsset | None:
+        """Retrieve a media asset with row-level lock (SELECT FOR UPDATE)."""
+        pass
+
+    @abstractmethod
+    async def update(self, media: DomainMediaAsset) -> DomainMediaAsset:
+        """Persist changes to an existing media asset and return it."""
+        pass
+
+    @abstractmethod
+    async def delete(self, media_id: uuid.UUID) -> None:
+        """Delete a media asset by ID."""
+        pass
+
+    @abstractmethod
+    async def list_by_product(self, product_id: uuid.UUID) -> list[DomainMediaAsset]:
+        """List all media assets for a product, ordered by (variant_id, sort_order)."""
+        pass
+
+    @abstractmethod
+    async def list_by_storage_ids(
+        self,
+        storage_object_ids: list[uuid.UUID],
+    ) -> list[DomainMediaAsset]:
+        """Get media assets by their storage_object_ids."""
+        ...
+
+    @abstractmethod
+    async def delete_by_product(
+        self,
+        product_id: uuid.UUID,
+    ) -> list[uuid.UUID]:
+        """Delete all media for a product. Returns storage_object_ids for cleanup."""
+        ...
+
+    @abstractmethod
+    async def bulk_update_sort_order(
+        self,
+        product_id: uuid.UUID,
+        updates: list[tuple[uuid.UUID, int]],
+    ) -> int:
+        """Bulk-update sort_order for media assets belonging to a product.
+
+        Returns the number of rows updated. If fewer rows than updates,
+        some media_ids did not belong to the given product.
+        """
+        ...
+
+    @abstractmethod
+    async def check_main_exists(
+        self,
+        product_id: uuid.UUID,
+        variant_id: uuid.UUID | None,
+        exclude_media_id: uuid.UUID | None = None,
+    ) -> bool:
+        """Check if a MAIN media asset exists for the given product+variant scope."""
+        ...
+
+
+class IAttributeTemplateRepository(ICatalogRepository[DomainAttributeTemplate]):
+    """Repository contract for the AttributeTemplate aggregate."""
+
+    @abstractmethod
+    async def check_code_exists(self, code: str) -> bool:
+        """Check whether a template with the given code already exists."""
+        pass
+
+    @abstractmethod
+    async def has_category_references(self, template_id: uuid.UUID) -> bool:
+        """Check whether any categories reference this template."""
+        pass
+
+    @abstractmethod
+    async def get_category_ids_by_template_ids(
+        self, template_ids: list[uuid.UUID]
+    ) -> list[uuid.UUID]:
+        """Return category IDs that reference any of the given template IDs."""
+        pass
+
+
+class ITemplateAttributeBindingRepository(
+    ICatalogRepository[DomainTemplateAttributeBinding]
+):
+    """Repository contract for the TemplateAttributeBinding aggregate."""
+
+    @abstractmethod
+    async def check_binding_exists(
+        self, template_id: uuid.UUID, attribute_id: uuid.UUID
+    ) -> bool:
+        """Return True if a binding for this pair already exists."""
+        pass
+
+    @abstractmethod
+    async def list_ids_by_template(self, template_id: uuid.UUID) -> set[uuid.UUID]:
+        """Return the set of binding IDs belonging to the given template."""
+        pass
+
+    @abstractmethod
+    async def get_bindings_for_templates(
+        self, template_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, list[DomainTemplateAttributeBinding]]:
+        """Batch-load all bindings for a list of template IDs."""
+        pass
+
+    @abstractmethod
+    async def bulk_update_sort_order(
+        self, updates: list[tuple[uuid.UUID, int]]
+    ) -> None:
+        """Bulk-update sort_order for multiple bindings."""
+        pass
+
+    @abstractmethod
+    async def has_bindings_for_attribute(self, attribute_id: uuid.UUID) -> bool:
+        """Check whether any template binds this attribute (for deletion guard)."""
+        pass
+
+    @abstractmethod
+    async def get_template_ids_for_attribute(
+        self, attribute_id: uuid.UUID
+    ) -> list[uuid.UUID]:
+        """Return template IDs that bind the given attribute."""
+        pass
+
+
+# ---------------------------------------------------------------------------
+# SKU pricing — internal apply port (ADR-005a)
+# ---------------------------------------------------------------------------
+#
+# Catalog owns SKU pricing lifecycle (FOR UPDATE locks, version bumps,
+# pricing_status FSM transitions, sku_pricing_history audit, outbox
+# event emission). Pricing imports the port + DTOs declared below from
+# its recompute service to hand off computed results — see ADR-005a
+# for the architectural rationale and ADR-005 for the underlying
+# autonomous-recompute model.
+
+
+class WriteOutcome(enum.StrEnum):
+    """Discriminated outcome of a SKU pricing apply operation (ADR-005a).
+
+    Intentionally enumerated rather than ``bool`` so the pricing-side
+    caller can distinguish between (a) an idempotent hash-match no-op
+    (no retry needed), (b) a version mismatch (retryable race with a
+    concurrent admin edit or sibling recompute), and (c) terminal
+    success or failure paths. ``assert_never`` over this enum on the
+    caller side guarantees exhaustive handling.
+    """
+
+    APPLIED = "applied"
+    HASH_NOOP = "hash_noop"
+    VERSION_CONFLICT = "version_conflict"
+    FAILURE_PERSISTED = "failure_persisted"
+
+
+@dataclass(frozen=True)
+class SkuPricingApplyRequest:
+    """Successful recompute payload handed off to the catalog apply port.
+
+    The pricing-side service performs the Decimal-major-units → integer
+    minor-units conversion (using ``target_currency_minor_unit`` from
+    the scope snapshot, sourced from ``geo.Currency.minor_unit``)
+    before constructing this DTO; the catalog handler stores what it's
+    given and never imports the geo module.
+
+    ``previous_status`` is the status observed at the start of the
+    recompute pass (under the input reader's lock); copied into the
+    audit row so admins can reconstruct the transition without a
+    second SELECT.
+    """
+
+    product_id: uuid.UUID
+    sku_id: uuid.UUID
+    expected_version: int
+    previous_status: str | None
+    selling_price_minor: int
+    selling_currency: str
+    formula_version_id: uuid.UUID
+    inputs_hash: str
+    priced_at: datetime
+    correlation_id: str | None = None
+
+
+@dataclass(frozen=True)
+class SkuPricingFailureRequest:
+    """Failed recompute payload handed off to the catalog apply port.
+
+    ``failure_kind`` is the discriminator that separates ordinary
+    failure transitions (``None`` — value of ``pricing_status`` already
+    carries the kind: ``stale_fx`` / ``missing_purchase_price`` /
+    ``formula_error``) from optimistic-lock retry exhaustion
+    (``"retry_exhausted"``). ADR-005a Open Issue #3 fixed the decision
+    to persist retry-exhausted failures with this discriminator so
+    analytics dashboards can alert on rising rates separately from
+    formula bug rates.
+    """
+
+    product_id: uuid.UUID
+    sku_id: uuid.UUID
+    expected_version: int
+    previous_status: str | None
+    pricing_status: str
+    failure_reason: str
+    failure_kind: str | None = None
+    correlation_id: str | None = None
+
+
+@dataclass(frozen=True)
+class PricingHistoryEntry:
+    """Append-only audit row mirroring ``sku_pricing_history`` schema.
+
+    One entry per real state change (no entries for hash-match no-ops).
+    Persisted by :class:`IPricingHistoryRepository` in the same UoW
+    transaction as the SKU UPDATE so the audit trail can never desync
+    from the state it describes.
+    """
+
+    sku_id: uuid.UUID
+    new_status: str
+    previous_status: str | None
+    selling_price: int | None
+    selling_currency: str | None
+    formula_version_id: uuid.UUID | None
+    inputs_hash: str | None
+    failure_reason: str | None
+    failure_kind: str | None
+    correlation_id: str | None
+
+
+class IInternalSkuPricingApplyPort(ABC):
+    """Port: apply a SKU pricing recompute result on the catalog side.
+
+    Owned by catalog (the SKU lifecycle owner); imported by the
+    pricing recompute service per ADR-005a inversion. Both methods are
+    transaction-bound: the implementation takes a ``FOR UPDATE`` on
+    the owning Product aggregate (catalog UoW convention), mutates the
+    SKU child entity, writes the audit row, emits the appropriate
+    domain event, and commits in a single transaction.
+
+    Implementations must be safe to retry: identical
+    ``inputs_hash`` for ``apply_success`` short-circuits as
+    :attr:`WriteOutcome.HASH_NOOP` at the row level.
+    """
+
+    @abstractmethod
+    async def apply_success(self, request: SkuPricingApplyRequest) -> WriteOutcome:
+        """Persist a successful recompute result.
+
+        Returns:
+            :attr:`WriteOutcome.APPLIED` — selling_price/status/version
+                updated, history row inserted, ``SKUPricedEvent``
+                emitted.
+            :attr:`WriteOutcome.HASH_NOOP` — observed
+                ``priced_inputs_hash`` already matches
+                ``request.inputs_hash``; row already in desired state,
+                no mutation, no audit row, no event.
+            :attr:`WriteOutcome.VERSION_CONFLICT` — observed
+                ``version`` differs from ``request.expected_version``;
+                caller should retry with a fresh read.
+        """
+
+    @abstractmethod
+    async def apply_failure(self, request: SkuPricingFailureRequest) -> WriteOutcome:
+        """Persist a failure status (stale_fx / missing_purchase_price /
+        formula_error / retry-exhausted).
+
+        Returns:
+            :attr:`WriteOutcome.FAILURE_PERSISTED` — pricing_status
+                and ``priced_failure_reason`` updated, history row
+                inserted with the ``failure_kind`` discriminator,
+                ``SKUPricingFailedEvent`` emitted.
+            :attr:`WriteOutcome.VERSION_CONFLICT` — caller should
+                retry.
+        """
+
+
+class IPricingHistoryRepository(ABC):
+    """Port: append-only writer for the ``sku_pricing_history`` audit table.
+
+    Lives on the catalog side to keep the audit trail bound to the
+    SKU lifecycle owner (ADR-005a). Inserts run in the caller's UoW
+    so the history can never get out of sync with the SKU row it
+    describes.
+    """
+
+    @abstractmethod
+    async def add(self, entry: PricingHistoryEntry) -> None:
+        """Persist one audit row."""
+        pass

@@ -1,0 +1,19 @@
+{
+  "source": {
+    "platform_station_id": "fbed3aa1-2cc6-4370-ab4d-59c5cc9bb924"
+  },
+  "destination": {
+    "platform_station_id": "e1139f6d-e34f-47a9-a55f-31f032a861a6",
+    "address": "Санкт-Петербург, Большая Монетная улица, 1к1А"
+  },
+  "places": [
+    {
+      "physical_dims": {
+        "weight_gross": 100,
+        "dx": 10,
+        "dy": 10,
+        "dz": 10
+      }
+    }
+  ]
+}

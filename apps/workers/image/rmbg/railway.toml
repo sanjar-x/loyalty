@@ -1,0 +1,8 @@
+# Railway service config — apps/workers/image/rmbg.
+#
+# Workers skip migrations (REC-005 + HARD-1). The ML model cache lives
+# under /data/hf_cache, persisted via a Railway volume mounted on /data;
+# first inference downloads briaai/RMBG-2.0 (~1.6 GB) once.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/workers/image/rmbg/Dockerfile"

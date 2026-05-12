@@ -1,0 +1,7 @@
+# Railway service config — apps/workers/core.
+#
+# Workers do NOT run migrations — only apps/backend does (REC-005 +
+# HARD-1). This avoids parallel-deploy migration-lock contention.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/workers/core/Dockerfile"

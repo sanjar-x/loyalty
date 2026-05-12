@@ -1,0 +1,293 @@
+<article class="article">
+  <h3>Получение списка свободных таймслотов при перебронировании</h3>
+  <div>
+    Получение списка свободных таймслотов при перебронировании. Данный метод
+    необходимо вызывать, когда заказ существует в системе на любых этапах
+    обработки.
+  </div>
+  <br />
+  Введите
+  <a href="#/authorization-token" target="_blank"
+    >токен авторизации приложения</a
+  >
+  и
+  <a href="#/authorization-key" target="_blank">ключ авторизации пользователя</a
+  >, тогда значения заголовков будут сгенерированы автоматически.<br />
+  <br />
+  <table>
+    <tbody>
+      <tr>
+        <td width="25%">Токен авторизации</td>
+        <td>
+          <div class="input input__field-wrap">
+            <input
+              id="token"
+              type="text"
+              name="token"
+              ng-model="token"
+              value=""
+              class="input__field"
+              size="51"
+            />
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td width="25%">Ключ авторизации</td>
+        <td>
+          <div class="input input__field-wrap">
+            <input
+              id="key"
+              type="text"
+              name="key"
+              ng-model="key"
+              value=""
+              class="input__field"
+              size="51"
+            />
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td width="25%">
+          <b>uuidOrBarcode</b>
+          <br />UUID предварительного бронирования или ШПИ
+        </td>
+        <td>
+          <div class="input input__field-wrap">
+            <input
+              id="uuidOrBarcode"
+              type="text"
+              name="uuidOrBarcode"
+              ng-model="uuidOrBarcode"
+              value=""
+              class="input__field"
+              max="5"
+            />
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td width="25%">
+          <b>contractNumber</b> (Опционально) <br />Номер договора
+        </td>
+        <td>
+          <div class="input input__field-wrap">
+            <input
+              id="contractNumber"
+              type="text"
+              name="contractNumber"
+              ng-model="contractNumber"
+              value=""
+              class="input__field"
+              max="50"
+            />
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td width="25%">
+          <b>plannedShippingDate</b><br />
+          Плановая дата в формате: yyyy-MM-dd
+        </td>
+        <td>
+          <div class="input input__field-wrap">
+            <input
+              id="plannedShippingDate"
+              type="text"
+              name="plannedShippingDate"
+              ng-model="plannedShippingDate"
+              value=""
+              class="input__field"
+              max="10"
+              pattern="^((19|20)\d\d)-(0?[1-9]|1[012])-(0?[1-9]|[12][0-9]|3[01])$"
+            />
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <b>Параметры запроса</b><br />
+  <table>
+    <tbody>
+      <tr>
+        <td width="25%">Локальный URL</td>
+        <td>
+          <b
+            >/external/v1/timeslots-for-rebooking{{ buildUrlParams({
+            uuidOrBarcode: { value: uuidOrBarcode, prefix: 'uuidOrBarcode' },
+            contractNumber: { value: contractNumber, prefix: 'contractNumber' },
+            plannedShippingDate: { value: plannedShippingDate, prefix:
+            'plannedShippingDate' } }) }}</b
+          >
+        </td>
+      </tr>
+      <tr>
+        <td width="25%">Тип</td>
+        <td><b>GET</b></td>
+      </tr>
+    </tbody>
+  </table>
+  <b>Заголовки запроса</b><br />
+  <table>
+    <tbody>
+      <tr>
+        <td width="30%"><b>Authorization</b></td>
+        <td>
+          <span ng-show="token"><b>AccessToken {{ token }}</b></span>
+        </td>
+      </tr>
+      <tr>
+        <td width="30%"><b>X-User-Authorization</b></td>
+        <td>
+          <span ng-show="key"><b>Basic {{ key }}</b></span>
+        </td>
+      </tr>
+      <tr>
+        <td><b>Content-Type</b></td>
+        <td><b>application/json;charset=UTF-8</b></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <b class="code-header">Ответ на запрос</b>
+  <span class="code-desc"
+    >Нажмите на элемент структуры, чтобы увидеть описание<a
+      href=""
+      class="code-desc__copy"
+      ng-click="copySchema('response')"
+      >скопировать схему</a
+    ></span
+  ><br />
+  <table>
+    <tbody>
+      <tr>
+        <td width="15%">Структура</td>
+        <td>
+          <div class="code">
+            <div class="code-body">
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description">{</span>
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>{</b> - Символ</span
+                  ><span class="api-struct__tooltip-body"
+                    >Начало структуры</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1"
+                  >"timeslots": [</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>timeslots</b> - Массив</span
+                  ><span class="api-struct__tooltip-body"
+                    >Список доступных слотов</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-2">{</span>
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>{</b> - Символ</span
+                  ><span class="api-struct__tooltip-body"
+                    >Начало структуры</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-3"
+                  >"id": 0</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>id</b> - Целое число</span
+                  ><span class="api-struct__tooltip-body">Идентификатор</span>
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-3"
+                  >"date": "2023-02-06"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>date</b> - Строка</span
+                  ><span class="api-struct__tooltip-body">Дата действия</span>
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-3"
+                  >"beginTime": "09:00"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>beginTime</b> - Строка</span
+                  ><span class="api-struct__tooltip-body"
+                    >Время с которого действует</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-3"
+                  >"endTime": "18:00"</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>endTime</b> - Строка</span
+                  ><span class="api-struct__tooltip-body"
+                    >Время до которого действует</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-3"
+                  >"capacity": 0</span
+                >
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>capacity</b> - Целое число</span
+                  ><span class="api-struct__tooltip-body"
+                    >Емкость таймслота</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-2">}</span>
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>}</b> - Символ</span
+                  ><span class="api-struct__tooltip-body"
+                    >Окончание структуры</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description col-offset-1">]</span>
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>]</b> - Символ</span
+                  ><span class="api-struct__tooltip-body"
+                    >Окончание группы</span
+                  >
+                </p>
+              </div>
+              <div class="api-struct" tabindex="0">
+                <span class="api-struct__description">}</span>
+                <p class="api-struct__tooltip">
+                  <span class="api-struct__tooltip-header"
+                    ><b>}</b> - Символ</span
+                  ><span class="api-struct__tooltip-body"
+                    >Окончание структуры</span
+                  >
+                </p>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</article>

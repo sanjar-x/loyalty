@@ -1,0 +1,133 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "loyality"
+version = "0.1.0"
+description = "Loyalty marketplace backend — shared module library consumed by apps/ entry points (ADR-008)."
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    # --- Web framework & ASGI server ---
+    "fastapi[standard]>=0.115.0",
+    "uvicorn[standard]>=0.41.0",
+    # --- Database & ORM ---
+    "sqlalchemy[asyncio]>=2.1.0b1",
+    "asyncpg>=0.31.0",
+    "alembic>=1.18.4",
+    # --- DI container ---
+    "dishka>=1.9.1",
+    # --- Domain modeling ---
+    "attrs>=25.4.0",
+    # --- Auth & security ---
+    "pyjwt[crypto]>=2.12.0",
+    "pwdlib[argon2,bcrypt]>=0.3.0",
+    # --- Cache ---
+    "redis[hiredis]>=7.3.0",
+    "cachetools>=7.0.5",
+    # --- Background tasks (RabbitMQ) ---
+    "taskiq>=0.12.1",
+    "taskiq-aio-pika>=0.6.0",
+    # --- HTTP client ---
+    "httpx[http2]>=0.28.1",
+    # --- Structured logging ---
+    "structlog>=25.5.0",
+    # --- Telegram bot ---
+    "aiogram>=3.26.0",
+    "nanoid>=2.0.0",
+    # --- Image module (S3 + Pillow processing) ---
+    "aiobotocore>=3.3.0",
+    "pillow>=11.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "cloc>=0.2.5",
+    "dirty-equals>=0.11",
+    "httpx>=0.28.1",
+    "hypothesis>=6.151.9",
+    "locust>=2.43.3",
+    "mypy>=1.19.1",
+    "polyfactory>=3.3.0",
+    "pre-commit>=4.0",
+    "pyclean>=3.5.0",
+    "pytest>=9.0.2",
+    "pytest-archon>=0.0.7",
+    "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.0.0",
+    "pytest-randomly>=4.0.1",
+    "pytest-timeout>=2.4.0",
+    "respx>=0.22.0",
+    "ruff>=0.15.9",
+    "schemathesis>=4.14.1",
+    "testcontainers[minio,postgres,rabbitmq,redis]>=4.14.1",
+    "ty>=0.0.32",
+]
+
+# IMG-007 / ADR-008 — ML dependencies (torch, transformers, timm, kornia)
+# moved to ``apps/media_ml_worker/pyproject.toml``. Backend itself stays
+# lean and is consumed as a workspace member by every app. Web, core
+# worker, scheduler, and bot do NOT install the ML stack because it is
+# not in their transitive graph.
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "architecture: Fitness functions and boundary enforcement",
+    "unit: Domain-layer pure logic, zero I/O",
+    "integration: Application + Infrastructure with real database",
+    "e2e: Presentation-layer HTTP round-trips",
+    "load: Resilience and threshold testing (Locust)",
+]
+filterwarnings = ["ignore::DeprecationWarning:dishka.*"]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+extend-exclude = [".claude/skills"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501", "RUF001", "RUF002", "RUF003", "B008", "UP042", "UP046"]
+
+[tool.ruff.lint.per-file-ignores]
+# load_dotenv() must run before the rest of the imports — they read env vars
+# at import time. Allow E402 in conftest only.
+"tests/conftest.py" = ["E402"]
+# Top-level FastAPI route registration runs imports lazily by design.
+"src/modules/catalog/presentation/router_storefront_products.py" = ["E402"]
+# Test file intentionally redefines parametrized class hierarchies for
+# the two evaluation modes (eager vs deferred). Renaming would break
+# pytest collection IDs that downstream dashboards key off of.
+"tests/unit/modules/pricing/domain/test_variable_resolver.py" = ["F811"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.mypy]
+python_version = "3.14"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+# ----------------------------------------------------------------------------
+# Build configuration — backend acts as an importable Python package
+# consumed by the apps/ entry points (see ADR-008 Multi-Package Modular
+# Monorepo). Each app declares ``loyality = { path = "../../backend", editable = true }``
+# in its own ``pyproject.toml`` and imports ``from src.modules.<name>...``
+# at runtime, just as if backend were a regular pip package.
+# ----------------------------------------------------------------------------
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# Torch CPU pin moved to the workspace root (``../pyproject.toml``) under
+# ``[[tool.uv.index]] pytorch-cpu``. Per-app ``[tool.uv.sources]`` redirect
+# torch / torchvision to that index (see ``apps/media_ml_worker``). Backend
+# does not depend on torch and therefore declares no source overrides.

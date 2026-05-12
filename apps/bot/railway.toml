@@ -1,0 +1,5 @@
+# Railway service config — apps/bot. Placeholder until a Railway service
+# is provisioned for the Telegram bot.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/bot/Dockerfile"

@@ -24,10 +24,27 @@ description = "Loyalty marketplace monorepo workspace root — not deployed; the
 requires-python = ">=3.14"
 
 [tool.uv.workspace]
-# Phase 1: backend (legacy package, still hosts modules/shared/infrastructure)
-# + per-app artefacts. Phase 2+ will add ``shared``, ``infrastructure``,
-# ``modules/*`` as separate workspace members.
-members = ["backend", "apps/*"]
+# Phase 1.10: hierarchical apps/ layout.
+#
+#   apps/backend           ← FastAPI HTTP service + the library code every
+#                            other app re-exports (modules, shared kernel,
+#                            infrastructure, bootstraps)
+#   apps/bot               ← Telegram bot (Aiogram polling; not yet deployed)
+#   apps/workers/core      ← TaskIQ worker, non-image domain queues
+#   apps/workers/scheduler ← TaskIQ scheduler (cron)
+#   apps/workers/image/storage  ← image processing (Pillow + S3), NO ML
+#   apps/workers/image/rmbg     ← Bria RMBG-2.0 background removal (torch)
+#
+# Phase 2+ will promote ``shared``, ``infrastructure``, and ``modules/*`` to
+# standalone workspace members; apps/backend will shrink accordingly.
+members = [
+    "apps/backend",
+    "apps/bot",
+    "apps/workers/core",
+    "apps/workers/scheduler",
+    "apps/workers/image/storage",
+    "apps/workers/image/rmbg",
+]
 
 # ----------------------------------------------------------------------------
 # Torch CPU pin — shared across the workspace.

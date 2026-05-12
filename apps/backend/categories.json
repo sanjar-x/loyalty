@@ -1,0 +1,253 @@
+[
+  {
+    "name": "Одежда",
+    "slug": "clothing",
+    "full_slug": "clothing",
+    "level": 0,
+    "sort_order": 1,
+    "children": [
+      {
+        "name": "Футболки",
+        "slug": "tees",
+        "full_slug": "clothing/tees",
+        "level": 1,
+        "sort_order": 1
+      },
+      {
+        "name": "Худи",
+        "slug": "hoodies",
+        "full_slug": "clothing/hoodies",
+        "level": 1,
+        "sort_order": 2
+      },
+      {
+        "name": "Зип-худи",
+        "slug": "zip-hoodies",
+        "full_slug": "clothing/zip-hoodies",
+        "level": 1,
+        "sort_order": 3
+      },
+      {
+        "name": "Джинсы",
+        "slug": "jeans",
+        "full_slug": "clothing/jeans",
+        "level": 1,
+        "sort_order": 4
+      },
+      {
+        "name": "Штаны",
+        "slug": "pants",
+        "full_slug": "clothing/pants",
+        "level": 1,
+        "sort_order": 5
+      },
+      {
+        "name": "Шорты",
+        "slug": "shorts",
+        "full_slug": "clothing/shorts",
+        "level": 1,
+        "sort_order": 6
+      },
+      {
+        "name": "Майки",
+        "slug": "tank-tops",
+        "full_slug": "clothing/tank-tops",
+        "level": 1,
+        "sort_order": 7
+      },
+      {
+        "name": "Лонгсливы",
+        "slug": "long-sleeves",
+        "full_slug": "clothing/long-sleeves",
+        "level": 1,
+        "sort_order": 8
+      },
+      {
+        "name": "Свитшоты",
+        "slug": "sweatshirts",
+        "full_slug": "clothing/sweatshirts",
+        "level": 1,
+        "sort_order": 9
+      },
+      {
+        "name": "Свитеры",
+        "slug": "sweaters",
+        "full_slug": "clothing/sweaters",
+        "level": 1,
+        "sort_order": 10
+      },
+      {
+        "name": "Рубашки",
+        "slug": "shirts",
+        "full_slug": "clothing/shirts",
+        "level": 1,
+        "sort_order": 11
+      },
+      {
+        "name": "Ветровки",
+        "slug": "windbreakers",
+        "full_slug": "clothing/windbreakers",
+        "level": 1,
+        "sort_order": 12
+      },
+      {
+        "name": "Бомберы",
+        "slug": "bomber-jackets",
+        "full_slug": "clothing/bomber-jackets",
+        "level": 1,
+        "sort_order": 13
+      },
+      {
+        "name": "Куртки",
+        "slug": "jackets",
+        "full_slug": "clothing/jackets",
+        "level": 1,
+        "sort_order": 14
+      },
+      {
+        "name": "Пуховики",
+        "slug": "puffers",
+        "full_slug": "clothing/puffers",
+        "level": 1,
+        "sort_order": 15
+      },
+      {
+        "name": "Жилеты",
+        "slug": "vests",
+        "full_slug": "clothing/vests",
+        "level": 1,
+        "sort_order": 16
+      },
+      {
+        "name": "Носки",
+        "slug": "socks",
+        "full_slug": "clothing/socks",
+        "level": 1,
+        "sort_order": 17
+      },
+      {
+        "name": "Нижнее бельё",
+        "slug": "underwear",
+        "full_slug": "clothing/underwear",
+        "level": 1,
+        "sort_order": 18
+      }
+    ]
+  },
+  {
+    "name": "Обувь",
+    "slug": "footwear",
+    "full_slug": "footwear",
+    "level": 0,
+    "sort_order": 2,
+    "children": [
+      {
+        "name": "Кроссовки",
+        "slug": "sneakers",
+        "full_slug": "footwear/sneakers",
+        "level": 1,
+        "sort_order": 1
+      },
+      {
+        "name": "Кеды",
+        "slug": "canvas-shoes",
+        "full_slug": "footwear/canvas-shoes",
+        "level": 1,
+        "sort_order": 2
+      },
+      {
+        "name": "Туфли",
+        "slug": "dress-shoes",
+        "full_slug": "footwear/dress-shoes",
+        "level": 1,
+        "sort_order": 3
+      },
+      {
+        "name": "Шлепанцы",
+        "slug": "slides",
+        "full_slug": "footwear/slides",
+        "level": 1,
+        "sort_order": 4
+      },
+      {
+        "name": "Ботинки",
+        "slug": "boots",
+        "full_slug": "footwear/boots",
+        "level": 1,
+        "sort_order": 5
+      }
+    ]
+  },
+  {
+    "name": "Аксессуары",
+    "slug": "accessories",
+    "full_slug": "accessories",
+    "level": 0,
+    "sort_order": 3,
+    "children": [
+      {
+        "name": "Сумки",
+        "slug": "bags",
+        "full_slug": "accessories/bags",
+        "level": 1,
+        "sort_order": 1
+      },
+      {
+        "name": "Часы",
+        "slug": "watches",
+        "full_slug": "accessories/watches",
+        "level": 1,
+        "sort_order": 2
+      },
+      {
+        "name": "Украшения",
+        "slug": "jewelry",
+        "full_slug": "accessories/jewelry",
+        "level": 1,
+        "sort_order": 3
+      },
+      {
+        "name": "Рюкзаки",
+        "slug": "backpacks",
+        "full_slug": "accessories/backpacks",
+        "level": 1,
+        "sort_order": 4
+      },
+      {
+        "name": "Ремни",
+        "slug": "belts",
+        "full_slug": "accessories/belts",
+        "level": 1,
+        "sort_order": 5
+      },
+      {
+        "name": "Кепки",
+        "slug": "caps",
+        "full_slug": "accessories/caps",
+        "level": 1,
+        "sort_order": 6
+      },
+      {
+        "name": "Шапки",
+        "slug": "beanies",
+        "full_slug": "accessories/beanies",
+        "level": 1,
+        "sort_order": 7
+      },
+      {
+        "name": "Очки",
+        "slug": "eyewear",
+        "full_slug": "accessories/eyewear",
+        "level": 1,
+        "sort_order": 8
+      },
+      {
+        "name": "Кошельки",
+        "slug": "wallets",
+        "full_slug": "accessories/wallets",
+        "level": 1,
+        "sort_order": 9
+      }
+    ]
+  }
+]

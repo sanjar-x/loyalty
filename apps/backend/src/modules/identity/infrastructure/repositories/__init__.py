@@ -1,0 +1,33 @@
+"""Repository implementations for the Identity module (infrastructure layer).
+
+Re-exports all concrete SQLAlchemy-based repository classes for convenient
+imports by the Dishka DI provider.
+"""
+
+from src.modules.identity.infrastructure.repositories.identity_repository import (
+    IdentityRepository,
+)
+from src.modules.identity.infrastructure.repositories.linked_account_repository import (
+    LinkedAccountRepository,
+)
+from src.modules.identity.infrastructure.repositories.permission_repository import (
+    PermissionRepository,
+)
+from src.modules.identity.infrastructure.repositories.role_repository import (
+    RoleRepository,
+)
+from src.modules.identity.infrastructure.repositories.session_repository import (
+    SessionRepository,
+)
+from src.modules.identity.infrastructure.repositories.staff_invitation_repository import (
+    StaffInvitationRepository,
+)
+
+__all__ = [
+    "IdentityRepository",
+    "LinkedAccountRepository",
+    "PermissionRepository",
+    "RoleRepository",
+    "SessionRepository",
+    "StaffInvitationRepository",
+]

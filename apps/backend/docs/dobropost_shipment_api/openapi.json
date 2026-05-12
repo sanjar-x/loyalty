@@ -1,0 +1,760 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "DobroPost Shipment API",
+    "description": "API для управления отправками (Шипментами) ДоброПост.\n\nКонечные точки покрывают полный жизненный цикл отправлений: получение JWT-токена, создание / получение списка / обновление / удаление шипмента, а также webhook-уведомления о валидации паспорта и обновлении статусов.\n\nСрок действия токена авторизации — **12 часов**. Все защищённые методы требуют заголовок `Authorization: Bearer {token}`.\n\nИсточник: «API Шипменты 16.04.2025.pdf» (внутренняя документация ДоброПост).",
+    "version": "2025-04-16",
+    "contact": {
+      "name": "DobroPost",
+      "url": "https://api.dobropost.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.dobropost.com",
+      "description": "Production"
+    }
+  ],
+  "tags": [
+    {
+      "name": "auth",
+      "description": "Авторизация и получение JWT-токена"
+    },
+    {
+      "name": "shipment",
+      "description": "Управление отправлениями (Шипментами)"
+    },
+    {
+      "name": "webhook",
+      "description": "Webhook-уведомления (входящие callback'и от ДоброПост на endpoint клиента)"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/shipment/sign-in": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Получение JWT-токена",
+        "description": "Метод для получения токена авторизации по логину и паролю. Срок действия токена — 12 часов.",
+        "operationId": "signIn",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInRequest"
+              },
+              "example": {
+                "email": "partner@example.com",
+                "password": "S3cretPa$$word"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInResponse"
+                },
+                "example": {
+                  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/shipment": {
+      "post": {
+        "tags": ["shipment"],
+        "summary": "Создание шипмента",
+        "description": "Создаёт новый Шипмент. Возвращает полную структуру созданного шипмента, включая `id`, присвоенный `dptrackNumber`, тариф доставки и статус.",
+        "operationId": "createShipment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShipmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Шипмент успешно создан",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShipmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "get": {
+        "tags": ["shipment"],
+        "summary": "Получение списка шипментов",
+        "description": "Возвращает постраничный список шипментов с возможностью фильтрации по статусу. Каждый элемент массива `content` имеет ту же структуру, что и ответ на `Create Shipment`.",
+        "operationId": "getShipments",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Номер страницы для постраничного отображения.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Количество записей, которые необходимо пропустить для постраничного отображения.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "statusId",
+            "in": "query",
+            "description": "Идентификатор статуса отправления (см. справочник статусов в README).",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список шипментов",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShipmentPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": ["shipment"],
+        "summary": "Обновление шипмента",
+        "description": "Обновляет данные существующего Шипмента. Структура запроса идентична `POST /api/shipment`. Ответ — обновлённый Шипмент в той же структуре, что и `Create Shipment`.",
+        "operationId": "updateShipment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShipmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Шипмент успешно обновлён",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShipmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/shipment/{id}": {
+      "delete": {
+        "tags": ["shipment"],
+        "summary": "Удаление шипмента",
+        "description": "Удаляет Шипмент по его уникальному идентификатору.",
+        "operationId": "deleteShipment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Уникальный идентификатор Шипмента.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Шипмент удалён"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Шипмент с указанным id не найден"
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "shipmentEvent": {
+      "post": {
+        "tags": ["webhook"],
+        "summary": "Webhook от ДоброПост на URL клиента",
+        "description": "Конечная точка на стороне клиента (`https://yourdomain.com/webhook` — заменить на фактический URL), на которую ДоброПост отправляет уведомления:\n\n- **Проверка актуальности паспорта** по базе данных DaData (`WebhookPassportPayload`).\n- **Обновление статуса Шипмента** (`WebhookStatusPayload`).\n\nКонечная точка должна вернуть `200 OK` с пустым телом при успешной обработке. При ошибке: `400 Bad Request` (отсутствуют обязательные поля или неправильный формат), `401 Unauthorized` (токен не прошёл валидацию), `500 Internal Server Error` (непредвиденная ошибка на стороне клиента).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookPassportPayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/WebhookStatusPayload"
+                  }
+                ]
+              },
+              "examples": {
+                "passportValidation": {
+                  "summary": "Проверка паспорта",
+                  "value": {
+                    "shipmentId": 12345,
+                    "statusDate": "2025-02-04T14:30:00Z",
+                    "passportValidationStatus": true
+                  }
+                },
+                "statusUpdate": {
+                  "summary": "Обновление статуса",
+                  "value": {
+                    "shipmentId": 12345,
+                    "DPTrackNumber": "DP123456789RU",
+                    "statusDate": "2025-02-04T14:30:00Z",
+                    "status": "В пути"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Уведомление успешно обработано (тело пустое)"
+          },
+          "400": {
+            "description": "Bad Request: отсутствуют обязательные поля или запрос неправильного формата"
+          },
+          "401": {
+            "description": "Unauthorized: токен не прошёл валидацию"
+          },
+          "500": {
+            "description": "Internal Server Error: непредвиденная ошибка на стороне сервера клиента"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT-токен из метода `POST /api/shipment/sign-in`. Срок действия — 12 часов."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Bad Request — некорректные параметры запроса или валидация полей не пройдена"
+      },
+      "Unauthorized": {
+        "description": "Unauthorized — отсутствует или невалидный JWT-токен"
+      }
+    },
+    "schemas": {
+      "SignInRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email партнёра"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "Пароль партнёра"
+          }
+        }
+      },
+      "SignInResponse": {
+        "type": "object",
+        "required": ["token"],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "JWT-токен (срок действия — 12 часов)."
+          }
+        }
+      },
+      "ShipmentRequest": {
+        "type": "object",
+        "description": "Тело запроса для создания и обновления Шипмента.",
+        "required": [
+          "totalAmount",
+          "consigneeFamilyName",
+          "consigneeName",
+          "consigneePassportSerial",
+          "consigneePassportNumber",
+          "passportIssueDate",
+          "vatIdentificationNumber",
+          "consigneeFullAddress",
+          "consigneeCity",
+          "consigneeState",
+          "consigneeZipCode",
+          "consigneePhoneNumber",
+          "consigneeEmail",
+          "itemDescription",
+          "numberOfItemPieces",
+          "itemPrice",
+          "itemStoreLink",
+          "dpTariffId",
+          "incomingDeclaration"
+        ],
+        "properties": {
+          "totalAmount": {
+            "type": "number",
+            "description": "Общая стоимость товаров Шипмента в юанях. Должно быть числовым значением.",
+            "example": 2500
+          },
+          "consigneeFamilyName": {
+            "type": "string",
+            "description": "Фамилия получателя для таможни. Не должно быть пустым или нулевым.",
+            "minLength": 1
+          },
+          "consigneeName": {
+            "type": "string",
+            "description": "Имя получателя для таможни. Не должно быть пустым или нулевым.",
+            "minLength": 1
+          },
+          "consigneeMiddleName": {
+            "type": "string",
+            "description": "Отчество получателя для таможни. Необязательное поле.",
+            "nullable": true
+          },
+          "consigneeBirthDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата рождения получателя. Обязательное только для тарифа DP Ultra.",
+            "nullable": true,
+            "example": "1990-05-12"
+          },
+          "consigneePassportSerial": {
+            "type": "string",
+            "description": "Серия паспорта получателя. Не должно быть пустым или нулевым. Длина — ровно 4 символа.",
+            "minLength": 4,
+            "maxLength": 4
+          },
+          "consigneePassportNumber": {
+            "type": "string",
+            "description": "Номер паспорта получателя. Не должно быть пустым или нулевым. Длина — ровно 6 символов.",
+            "minLength": 6,
+            "maxLength": 6
+          },
+          "passportIssueDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата выдачи паспорта получателя. Не должно быть пустым или нулевым.",
+            "example": "2015-03-20"
+          },
+          "vatIdentificationNumber": {
+            "type": "string",
+            "description": "ИНН получателя. Не должно быть пустым или нулевым. Длина — ровно 12 символов.",
+            "minLength": 12,
+            "maxLength": 12
+          },
+          "consigneeFullAddress": {
+            "type": "string",
+            "description": "Полный адрес получателя для таможни. Не должно быть пустым или нулевым."
+          },
+          "consigneeCity": {
+            "type": "string",
+            "description": "Город проживания получателя для таможни. Не должно быть пустым или нулевым."
+          },
+          "consigneeState": {
+            "type": "string",
+            "description": "Область проживания получателя для таможни. Не должно быть пустым или нулевым."
+          },
+          "consigneeZipCode": {
+            "type": "string",
+            "description": "Почтовый индекс адреса получателя для таможни. Не должно быть пустым или нулевым."
+          },
+          "consigneePhoneNumber": {
+            "type": "string",
+            "description": "Номер телефона получателя для таможни. Не должно быть пустым или нулевым."
+          },
+          "consigneeEmail": {
+            "type": "string",
+            "format": "email",
+            "description": "Адрес электронной почты получателя для таможни. Должен быть корректным email-адресом."
+          },
+          "itemDescription": {
+            "type": "string",
+            "description": "Описание товара. Не должно быть пустым или нулевым. Длина — менее 60 символов.",
+            "maxLength": 59
+          },
+          "numberOfItemPieces": {
+            "type": "integer",
+            "description": "Количество единиц товара. Не должно быть пустым или нулевым; рекомендуется не более 4 товаров.",
+            "minimum": 1
+          },
+          "itemPrice": {
+            "type": "number",
+            "description": "Цена за одну единицу товара в юанях. Не должно быть пустым или нулевым."
+          },
+          "itemStoreLink": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL-адрес страницы товара, где был куплен товар. Не должно быть пустым или нулевым. Должна быть корректной ссылкой (URL)."
+          },
+          "dpTariffId": {
+            "type": "integer",
+            "description": "Идентификатор тарифа доставки Шипмента. Не должно быть пустым или нулевым."
+          },
+          "incomingDeclaration": {
+            "type": "string",
+            "description": "Трек-номер Шипмента по Китаю. Не должно быть пустым или нулевым. Длина — менее 16 символов.",
+            "maxLength": 15
+          },
+          "comment": {
+            "type": "string",
+            "description": "Комментарий партнёра к Шипменту, отображается на этикетке шипмента. Длина — менее 60 символов.",
+            "maxLength": 59,
+            "nullable": true
+          }
+        }
+      },
+      "ShipmentPage": {
+        "type": "object",
+        "description": "Постраничный ответ для GET /api/shipment.",
+        "properties": {
+          "content": {
+            "type": "array",
+            "description": "Массив шипментов; структура каждого элемента — `ShipmentResponse`.",
+            "items": {
+              "$ref": "#/components/schemas/ShipmentResponse"
+            }
+          }
+        }
+      },
+      "ShipmentResponse": {
+        "type": "object",
+        "description": "Ответ при создании/обновлении/получении Шипмента.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Уникальный идентификатор Шипмента."
+          },
+          "totalAmount": {
+            "type": "number",
+            "description": "Общая стоимость товаров в юанях."
+          },
+          "currency": {
+            "type": "string",
+            "description": "Код валюты товаров (например, CNY)."
+          },
+          "consigneeFamilyName": {
+            "type": "string"
+          },
+          "consigneeMiddleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "consigneeName": {
+            "type": "string"
+          },
+          "consigneeBirthDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "consigneePassportSerial": {
+            "type": "string"
+          },
+          "consigneePassportNumber": {
+            "type": "string"
+          },
+          "passportIssueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "consigneeFullAddress": {
+            "type": "string"
+          },
+          "consigneeCity": {
+            "type": "string"
+          },
+          "consigneeState": {
+            "type": "string"
+          },
+          "consigneeZipCode": {
+            "type": "string"
+          },
+          "consigneePhoneNumber": {
+            "type": "string"
+          },
+          "consigneeEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "itemDescription": {
+            "type": "string"
+          },
+          "numberOfItemPieces": {
+            "type": "integer"
+          },
+          "itemPrice": {
+            "type": "number"
+          },
+          "itemWeight": {
+            "type": "number",
+            "description": "Вес одной единицы товара в килограммах."
+          },
+          "totalWeightKG": {
+            "type": "number",
+            "description": "Общий вес Шипмента в килограммах.",
+            "nullable": true
+          },
+          "itemStoreLink": {
+            "type": "string",
+            "format": "uri"
+          },
+          "statusDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Дата последнего обновления статуса (ISO 8601)."
+          },
+          "deliveryTariff": {
+            "$ref": "#/components/schemas/DeliveryTariff"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ShipmentStatus"
+          },
+          "vatidentificationNumber": {
+            "type": "string",
+            "description": "ИНН получателя (в ответе именуется через нижний регистр `vatidentificationNumber`)."
+          },
+          "incomingDeclaration": {
+            "type": "string",
+            "description": "Трек-номер Шипмента по Китаю."
+          },
+          "dptrackNumber": {
+            "type": "string",
+            "description": "Трек-номер ДоброПост для отслеживания Шипмента."
+          }
+        }
+      },
+      "DeliveryTariff": {
+        "type": "object",
+        "description": "Информация о тарифе доставки.",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "measureQty": {
+            "type": "number",
+            "description": "Количество единиц измерения тарифа."
+          },
+          "pricePerUnit": {
+            "type": "number",
+            "description": "Цена за единицу измерения."
+          },
+          "country": {
+            "$ref": "#/components/schemas/Country"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "name": {
+            "type": "string",
+            "description": "Название тарифа."
+          },
+          "description": {
+            "type": "string"
+          },
+          "minTariffPerMeasureQty": {
+            "type": "number",
+            "description": "Минимальный тариф на единицу измерения."
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "amountUnits": {
+            "$ref": "#/components/schemas/AmountUnits"
+          }
+        }
+      },
+      "Country": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "Цифровой код страны."
+          },
+          "name": {
+            "type": "string"
+          },
+          "a2": {
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2 код."
+          },
+          "a3": {
+            "type": "string",
+            "description": "ISO 3166-1 alpha-3 код."
+          },
+          "priority": {
+            "type": "integer"
+          }
+        }
+      },
+      "Currency": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "Цифровой код валюты."
+          },
+          "ccy": {
+            "type": "string",
+            "description": "Буквенный код валюты (CNY, RUB, USD и т.д.)."
+          },
+          "base": {
+            "type": "boolean",
+            "description": "Признак базовой валюты."
+          }
+        }
+      },
+      "AmountUnits": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "caption": {
+            "type": "string"
+          }
+        }
+      },
+      "ShipmentStatus": {
+        "type": "object",
+        "description": "Текущий статус Шипмента. Полный набор из 40 статусов в 4 группах: базовая логистика (1–9), редактирование (270–272), таможенное оформление (500–649), развёрнутые отказы (590xxx).",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Идентификатор статуса.",
+            "enum": [
+              1, 2, 3, 4, 5, 6, 7, 8, 9,
+              270, 271, 272,
+              500, 510, 520, 521, 530, 531, 532,
+              540, 541, 542, 543, 544, 545, 546,
+              570, 591, 600, 648, 649,
+              590204, 590401, 590404, 590405, 590409, 590410, 590413, 590420, 590592
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Текстовое имя статуса. Возможные значения соответствуют id: `1=Ожидается на складе`, `2=Получен от курьера`, `3=Обработан на складе`, `4=Добавлен в мешок`, `5=Добавлен в реестр`, `6=Покинул склад в Китае`, `7=Поступил на таможню в Китае`, `8=Поступил на таможню в России`, `9=Передан партнеру`, `270=Запрос на редактирование данных посылки`, `271=Запрос на редактирование данных посылки отклонен`, `272=Произведено редактирование данных посылки`, `500=Начало таможенного оформления`, `510=Требуется уплатить таможенные пошлины`, `520=Выпуск товаров без уплаты таможенных платежей`, `521=Выпуск товаров без уплаты таможенных платежей`, `530=Выпуск товаров (таможенные платежи уплачены)`, `531=Требуется уплатить таможенные пошлины`, `532=Выпуск товаров (таможенные платежи уплачены)`, `540=Ожидание обязательной оплаты таможенной пошлины`, `541=Отказ в выпуске посылки по причине признания партии коммерческой или не относящейся к товарам для личного пользования`, `542=Отказ в выпуске посылки в связи с отсутствием необходимых документов для целей таможенного контроля либо отсутствием документов, подтверждающих оплату таможенной пошлины`, `543=Отказ в выпуске посылки по причине некорректного заполнения информации о характеристиках товара`, `544=Отказ в выпуске посылки по причине отсутствия корректных паспортных данных`, `545=Отказ в выпуске посылки по причине отсутствия заявленных паспортных данных в списке достоверных паспортов`, `546=Отказ в выпуске посылки по другим причинам`, `570=Продление времени обработки`, `591=Начало таможенного оформления`, `600=Посылка не пришла`, `648=Подготовлено к отгрузке в доставку последней мили`, `649=Покинула таможню и передана на доставку по РФ`, `590204/590401/590405/590409/590420=Отказ в выпуске товаров с указанием кода причины отказа`, `590404=...Не представлены документы и сведения`, `590410=...товар входит в перечень категорий товаров`, `590413=...Не подана корректировка пп.2 п.1 ст.125 ТК ЕАЭС.`, `590592=Отказ в выпуске товаров с указанием кода причины отказа.`"
+          }
+        }
+      },
+      "WebhookPassportPayload": {
+        "type": "object",
+        "description": "Тело webhook-уведомления о результате проверки паспорта по DaData.",
+        "required": ["shipmentId", "statusDate", "passportValidationStatus"],
+        "properties": {
+          "shipmentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Уникальный идентификатор отправления."
+          },
+          "statusDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Дата и время обновления статуса. Формат ISO 8601 (например, `2025-02-04T14:30:00Z`)."
+          },
+          "passportValidationStatus": {
+            "type": "boolean",
+            "description": "Указывает, прошёл паспорт проверку на актуальность (`true`) или нет (`false`)."
+          }
+        }
+      },
+      "WebhookStatusPayload": {
+        "type": "object",
+        "description": "Тело webhook-уведомления при общем обновлении статуса отправления.",
+        "required": ["shipmentId", "DPTrackNumber", "statusDate", "status"],
+        "properties": {
+          "shipmentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Уникальный идентификатор Шипмента."
+          },
+          "DPTrackNumber": {
+            "type": "string",
+            "description": "Номер отслеживания, предоставленный ДоброПост для Шипмента."
+          },
+          "statusDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Дата и время обновления статуса. Формат ISO 8601."
+          },
+          "status": {
+            "type": "string",
+            "description": "Текстовое представление текущего статуса отправления (например, `В пути`, `Доставлено`, `Задерживается`)."
+          }
+        }
+      }
+    }
+  }
+}

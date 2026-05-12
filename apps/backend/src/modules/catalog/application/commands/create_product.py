@@ -1,0 +1,199 @@
+"""
+Command handler: create a new product.
+
+Validates FK references (brand, category) and slug uniqueness, persists the
+Product aggregate in DRAFT status, registers it with the Unit of Work so that
+the ``ProductCreatedEvent`` reaches the Outbox, and returns the newly assigned
+product ID. Part of the application layer (CQRS write side).
+"""
+
+import uuid
+from dataclasses import dataclass, field
+
+from src.modules.catalog.domain.entities import MediaAsset, Product
+from src.modules.catalog.domain.events import MediaAssetAttachedEvent
+from src.modules.catalog.domain.exceptions import (
+    BrandNotFoundError,
+    CategoryNotFoundError,
+    ProductSlugConflictError,
+    SourceUrlRequiredError,
+)
+from src.modules.catalog.domain.interfaces import (
+    IBrandRepository,
+    ICategoryRepository,
+    IMediaAssetRepository,
+    IProductRepository,
+)
+from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.supplier_directory import ISupplierDirectory
+from src.shared.interfaces.uow import IUnitOfWork
+
+# Supplier type code signalling a cross-border supplier. String literal
+# (rather than an imported enum) keeps catalog decoupled from the supplier
+# bounded context's internal type; the value is part of the published
+# ISupplierDirectory contract.
+_SUPPLIER_TYPE_CROSS_BORDER = "cross_border"
+
+
+@dataclass(frozen=True)
+class CreateProductCommand:
+    """Input for creating a new product.
+
+    Attributes:
+        title_i18n: Multilingual product title. At least one language entry
+            is required; validated by ``Product.create()``.
+        slug: URL-safe unique identifier for the product.
+        brand_id: UUID of the owning Brand aggregate.
+        primary_category_id: UUID of the primary Category aggregate.
+        description_i18n: Optional multilingual product description.
+        supplier_id: Optional UUID of the Supplier (FK-only reference).
+        country_of_origin: Optional ISO 3166-1 alpha-2 country code.
+        tags: Optional list of searchable tag strings.
+    """
+
+    title_i18n: dict[str, str]
+    slug: str
+    brand_id: uuid.UUID
+    primary_category_id: uuid.UUID
+    description_i18n: dict[str, str] | None = None
+    supplier_id: uuid.UUID | None = None
+    source_url: str | None = None
+    country_of_origin: str | None = None
+    tags: list[str] = field(default_factory=list)
+    media: list[dict] | None = None
+
+
+@dataclass(frozen=True)
+class CreateProductResult:
+    """Output of product creation.
+
+    Attributes:
+        product_id: UUID of the newly created product.
+        default_variant_id: UUID of the auto-created default variant.
+    """
+
+    product_id: uuid.UUID
+    default_variant_id: uuid.UUID
+
+
+class CreateProductHandler:
+    """Create a new product with FK and slug uniqueness validation.
+
+    The product is persisted in DRAFT status. A ``ProductCreatedEvent`` is
+    emitted via the Unit of Work aggregate registration.
+    """
+
+    def __init__(
+        self,
+        product_repo: IProductRepository,
+        brand_repo: IBrandRepository,
+        category_repo: ICategoryRepository,
+        supplier_directory: ISupplierDirectory,
+        media_repo: IMediaAssetRepository,
+        uow: IUnitOfWork,
+        logger: ILogger,
+    ) -> None:
+        self._product_repo = product_repo
+        self._brand_repo = brand_repo
+        self._category_repo = category_repo
+        self._supplier_directory = supplier_directory
+        self._media_repo = media_repo
+        self._uow = uow
+        self._logger = logger.bind(handler="CreateProductHandler")
+
+    async def handle(self, command: CreateProductCommand) -> CreateProductResult:
+        """Execute the create-product command.
+
+        Args:
+            command: Product creation parameters.
+
+        Returns:
+            Result containing the new product's UUID.
+
+        Raises:
+            BrandNotFoundError: If the referenced brand does not exist.
+            CategoryNotFoundError: If the referenced category does not exist.
+            ProductSlugConflictError: If a product with the given slug
+                already exists.
+            ValueError: If ``title_i18n`` is empty (propagated from
+                ``Product.create()``).
+        """
+        async with self._uow:
+            brand = await self._brand_repo.get(command.brand_id)
+            if brand is None:
+                raise BrandNotFoundError(brand_id=command.brand_id)
+
+            category = await self._category_repo.get(command.primary_category_id)
+            if category is None:
+                raise CategoryNotFoundError(category_id=command.primary_category_id)
+
+            # Validate supplier exists and is active (via published directory port)
+            if command.supplier_id is not None:
+                supplier_snapshot = await self._supplier_directory.assert_active(
+                    command.supplier_id
+                )
+                if (
+                    supplier_snapshot.type_code == _SUPPLIER_TYPE_CROSS_BORDER
+                    and not command.source_url
+                ):
+                    raise SourceUrlRequiredError()
+
+            if await self._product_repo.check_slug_exists(command.slug):
+                raise ProductSlugConflictError(slug=command.slug)
+
+            product = Product.create(
+                slug=command.slug,
+                title_i18n=command.title_i18n,
+                brand_id=command.brand_id,
+                primary_category_id=command.primary_category_id,
+                description_i18n=command.description_i18n
+                if command.description_i18n
+                else None,
+                supplier_id=command.supplier_id,
+                source_url=command.source_url,
+                country_of_origin=command.country_of_origin,
+                tags=list(command.tags) if command.tags else None,
+            )
+
+            await self._product_repo.add(product)
+
+            if command.media and len(command.media) > 100:
+                raise ValueError("Cannot attach more than 100 media items to a product")
+
+            if command.media:
+                for item in command.media:
+                    media_asset = MediaAsset.create(
+                        product_id=product.id,
+                        variant_id=uuid.UUID(item["variant_id"])
+                        if item.get("variant_id")
+                        else None,
+                        media_type=item.get("media_type", "IMAGE"),
+                        role=item.get("role", "GALLERY"),
+                        sort_order=item.get("sort_order", 0),
+                        is_external=item.get("is_external", False),
+                        storage_object_id=uuid.UUID(item["storage_object_id"])
+                        if item.get("storage_object_id")
+                        else None,
+                        url=item.get("url"),
+                        image_variants=item.get("image_variants"),
+                    )
+                    await self._media_repo.add(media_asset)
+                    product.add_domain_event(
+                        MediaAssetAttachedEvent(
+                            product_id=product.id,
+                            media_asset_id=media_asset.id,
+                            storage_object_id=media_asset.storage_object_id,
+                            variant_id=media_asset.variant_id,
+                            role=media_asset.role,
+                            is_external=media_asset.is_external,
+                        )
+                    )
+
+            self._uow.register_aggregate(product)
+            await self._uow.commit()
+
+        default_variant_id = product.variants[0].id if product.variants else product.id
+        return CreateProductResult(
+            product_id=product.id,
+            default_variant_id=default_variant_id,
+        )

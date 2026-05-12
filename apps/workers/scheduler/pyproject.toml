@@ -1,0 +1,27 @@
+# =============================================================================
+# apps/workers/scheduler — TaskIQ scheduler (cron triggers).
+#
+# Runs exactly ONE instance per deployment — multiple schedulers would
+# duplicate every scheduled kick. Lives under ``apps/workers/`` because it
+# shares the broker setup with the other workers and dispatches the cron
+# kicks they consume.
+# =============================================================================
+
+[project]
+name = "loyality-worker-scheduler"
+version = "0.1.0"
+description = "TaskIQ scheduler — periodic cron triggers (outbox prune, image cleanup, etc)."
+requires-python = ">=3.14"
+dependencies = [
+    "loyality",
+]
+
+[tool.uv.sources]
+loyality = { workspace = true }
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/loyality_worker_scheduler"]

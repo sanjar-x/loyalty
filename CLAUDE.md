@@ -1,19 +1,19 @@
 # Loyality — Loyalty Marketplace
 
-uv-workspace monorepo: `backend/` hosts shared library code (modules, shared kernel, infrastructure), `apps/*` are thin deployable artefacts that re-export the relevant backend entry points. See [[ADR-008 Multi-Package Modular Monorepo]] for the rationale.
+uv-workspace monorepo. Each deployable artefact lives under `apps/` with its own `pyproject.toml`, Dockerfile, and Railway service config; `apps/backend/` doubles as the FastAPI web service AND the `loyality` workspace member that every other app re-exports from. See [[ADR-008 Multi-Package Modular Monorepo]] for the rationale.
 
 ## Components
 
-| Component       | Path                       | Tech                                                            | Port | Deployment |
-| --------------- | -------------------------- | --------------------------------------------------------------- | ---- | ---------- |
-| Backend library | `backend/`                 | Python 3.14, Clean Architecture, modules + shared + infra       | —    | (workspace member, not deployed directly) |
-| Web             | `apps/web/`                | FastAPI HTTP (lean — no torch)                                  | 8080 | Railway    |
-| Core worker     | `apps/core_worker/`        | TaskIQ worker, non-image queues                                 | —    | Railway    |
-| Media-ML worker | `apps/media_ml_worker/`    | TaskIQ worker + torch/transformers/timm/kornia                  | —    | Railway    |
-| Scheduler       | `apps/scheduler/`          | TaskIQ scheduler (cron)                                         | —    | Railway    |
-| Bot             | `apps/bot/`                | Aiogram 3 polling (placeholder — not yet deployed)              | —    | (planned)  |
-| Frontend Main   | `frontend/main/`           | Next.js 16, TypeScript, React 19, TanStack Query + Zustand + ky | 3000 | Netlify    |
-| Frontend Admin  | `frontend/admin/`          | Next.js 16, JSX, Tailwind CSS 4, Feature-Sliced Design          | 3000 | Netlify    |
+| Component       | Path                              | Package name                   | Tech                                              | Port | Deployment |
+| --------------- | --------------------------------- | ------------------------------ | ------------------------------------------------- | ---- | ---------- |
+| Backend / Web   | `apps/backend/`                   | `loyality`                     | FastAPI HTTP + library (no torch)                 | 8080 | Railway    |
+| Bot             | `apps/bot/`                       | `loyality-bot`                 | Aiogram 3 polling (not yet deployed)              | —    | (planned)  |
+| Core worker     | `apps/workers/core/`              | `loyality-worker-core`         | TaskIQ worker, non-image queues                   | —    | Railway    |
+| Image storage   | `apps/workers/image/storage/`     | `loyality-worker-image-storage`| (planned) Pillow + S3, no torch                   | —    | (Phase 5)  |
+| Image rmbg      | `apps/workers/image/rmbg/`        | `loyality-worker-image-rmbg`   | TaskIQ + torch/transformers/timm/kornia           | —    | Railway    |
+| Scheduler       | `apps/workers/scheduler/`         | `loyality-worker-scheduler`    | TaskIQ scheduler (cron)                           | —    | Railway    |
+| Frontend Admin  | `frontend/admin/`                 | (NextJS, separate repo)        | Next.js 16, JSX, Tailwind 4                       | 3000 | Netlify    |
+| Frontend Main   | `frontend/main/`                  | (NextJS, separate repo)        | Next.js 16, TypeScript, React 19                  | 3000 | Netlify    |
 
 Each component has its own `CLAUDE.md` with specific commands, architecture, and patterns. Read it when working in that directory.
 
@@ -21,14 +21,21 @@ Each component has its own `CLAUDE.md` with specific commands, architecture, and
 
 ```bash
 # From repo root:
-uv sync --all-groups          # shared .venv with every member installed editable + dev tools
-uv tree --package <name>      # inspect a single artefact's dependency graph
-uv export --package <name> --no-dev --format requirements-txt
-                              # what a Docker build for <name> will install (Phase 1: verified that
-                              # lean apps have zero torch deps, media_ml_worker has the full ML stack)
+uv sync --all-groups                                       # shared .venv at <root>/.venv
+uv tree --package <package-name>                           # dependency graph of one app
+uv export --package <package-name> --no-dev --format requirements-txt
+                                                           # exact list a Docker build will install
 ```
 
-`<name>` is the `[project.name]` from the app's `pyproject.toml` — e.g. `loyality-web`, `loyality-core-worker`, `loyality-media-ml-worker`, `loyality-scheduler`, `loyality-bot`. Backend itself is the `loyality` package.
+Docker build per app:
+
+```bash
+docker build -f apps/<path>/Dockerfile -t <image-name> .   # context = monorepo root
+```
+
+Verified build isolation (Phase 1):
+- `loyality`, `loyality-worker-core`, `loyality-worker-scheduler`, `loyality-bot` — **0** lines matching `^torch==` in their export
+- `loyality-worker-image-rmbg` — 5 lines (torch + torchvision + transformers + timm + kornia)
 
 ## Component Identity Map
 
@@ -36,7 +43,7 @@ When running Claude Code from a subdirectory, identify which component you are i
 
 | Working directory contains | Component ID     | Vault tag                            |
 | -------------------------- | ---------------- | ------------------------------------ |
-| `backend/src/modules/`     | `backend`        | `[project/loyality, backend]`        |
+| `apps/backend/src/modules/`| `backend`        | `[project/loyality, backend]`        |
 | `frontend/main/`           | `frontend-main`  | `[project/loyality, frontend-main]`  |
 | `frontend/admin/`          | `frontend-admin` | `[project/loyality, frontend-admin]` |
 | Root `loyality/`           | `project`        | `[project/loyality]`                 |
