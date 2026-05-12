@@ -13,7 +13,7 @@ from typing import Any, ClassVar
 from attr import dataclass
 
 from src.modules.catalog.domain.value_objects import RequirementLevel
-from src.shared.interfaces.entities import AggregateRoot
+from shared.interfaces.entities import AggregateRoot
 
 from ._common import _generate_id, _validate_filter_settings, _validate_sort_order
 

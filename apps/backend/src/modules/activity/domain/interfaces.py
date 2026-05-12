@@ -2,7 +2,7 @@
 Activity domain repository interfaces.
 
 Only the persistence contract needed by the flush background task lives
-here; the runtime ``IActivityTracker`` port is in ``src.shared.interfaces``
+here; the runtime ``IActivityTracker`` port is in ``shared.interfaces``
 so that any module (primarily ``catalog``) can depend on it without
 introducing cross-module coupling at the domain layer.
 """

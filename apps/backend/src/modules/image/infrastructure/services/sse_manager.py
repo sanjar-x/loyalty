@@ -5,7 +5,7 @@ Owned by the image module because the channel-name convention
 ``StatusEventData`` shape is part of the image module's API contract.
 Low-level Redis plumbing (subscribe loop, JSON, error handling,
 cleanup) is composed from
-:class:`src.shared.infrastructure.redis_pubsub.RedisChannelStream`
+:class:`shared.infrastructure.redis_pubsub.RedisChannelStream`
 so a fix to the streaming layer lands once and benefits every module.
 
 Image-specific semantics that stay here: the ``subscribe`` loop
@@ -21,7 +21,7 @@ from collections.abc import AsyncGenerator
 
 from redis.asyncio import Redis
 
-from src.shared.infrastructure.redis_pubsub import RedisChannelStream
+from shared.infrastructure.redis_pubsub import RedisChannelStream
 
 
 class SSEManager:

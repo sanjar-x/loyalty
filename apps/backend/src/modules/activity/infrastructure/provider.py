@@ -31,7 +31,7 @@ from src.modules.activity.infrastructure.redis_tracker import RedisActivityTrack
 from src.modules.activity.infrastructure.repository import (
     SqlAlchemyActivityEventRepository,
 )
-from src.shared.interfaces.activity import (
+from shared.interfaces.activity import (
     IActivityQueryService,
     IActivityTracker,
     ICoViewReader,

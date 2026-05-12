@@ -6,7 +6,7 @@ import redis.asyncio as redis
 import structlog
 from redis.exceptions import RedisError
 
-from src.shared.interfaces.cardinality import ICardinalityService
+from shared.interfaces.cardinality import ICardinalityService
 
 logger = structlog.get_logger(__name__)
 

@@ -22,10 +22,10 @@ from src.modules.identity.domain.interfaces import (
     IStaffInvitationRepository,
 )
 from src.modules.identity.domain.value_objects import AccountType
-from src.shared.exceptions import ConflictError
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.security import IPasswordHasher, ITokenProvider
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.exceptions import ConflictError
+from shared.interfaces.logger import ILogger
+from shared.interfaces.security import IPasswordHasher, ITokenProvider
+from shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

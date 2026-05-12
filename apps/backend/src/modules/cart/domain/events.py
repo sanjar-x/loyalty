@@ -6,7 +6,7 @@ Outbox table. They are plain (non-frozen) dataclasses but MUST be
 treated as immutable after construction.
 
 Validation and ``aggregate_id`` auto-fill come from
-:class:`src.shared.interfaces.entities.ModuleDomainEvent`; this module
+:class:`shared.interfaces.entities.ModuleDomainEvent`; this module
 only declares the ``aggregate_type`` discriminator and the concrete
 event payloads.
 """
@@ -15,7 +15,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from src.shared.interfaces.entities import ModuleDomainEvent
+from shared.interfaces.entities import ModuleDomainEvent
 
 
 @dataclass(frozen=True)

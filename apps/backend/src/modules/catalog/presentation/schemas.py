@@ -12,19 +12,19 @@ from typing import Annotated, Any, Literal
 
 from pydantic import ConfigDict, Field, model_validator
 
-from src.shared.schemas import (
+from shared.schemas import (
     BoundedJsonDict as BoundedJsonDict,
 )
-from src.shared.schemas import (
+from shared.schemas import (
     CamelModel,
 )
-from src.shared.schemas import (
+from shared.schemas import (
     I18nDict as I18nDict,
 )
-from src.shared.schemas import (
+from shared.schemas import (
     MoneySchema as MoneySchema,
 )
-from src.shared.schemas import (
+from shared.schemas import (
     PaginatedResponse as PaginatedResponse,
 )
 

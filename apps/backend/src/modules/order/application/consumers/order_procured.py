@@ -24,8 +24,8 @@ from src.modules.order.application.ports import IDobroPostGateway
 from src.modules.order.domain.exceptions import OrderNotFoundError
 from src.modules.order.domain.interfaces import IOrderRepository
 from src.modules.order.domain.value_objects import HoldReason, OrderStatus
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 
 class OrderProcuredConsumer:

@@ -46,8 +46,8 @@ from src.modules.catalog.infrastructure.models import (
     ProductAttributeValue as OrmProductAttributeValue,
 )
 from src.modules.catalog.infrastructure.models import ProductVariant as OrmVariant
-from src.shared.interfaces.cache import ICacheService
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.cache import ICacheService
+from shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)

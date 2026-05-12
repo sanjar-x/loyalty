@@ -9,7 +9,7 @@ import pytest
 from src.modules.referral.domain.aggregates import CustomerLoyalty
 from src.modules.referral.domain.events import CustomerTierUpgradedEvent
 from src.modules.referral.domain.value_objects import CustomerTier, LoyaltyBalanceKind
-from src.shared.ledger import InsufficientBalanceError
+from shared.ledger import InsufficientBalanceError
 
 pytestmark = pytest.mark.unit
 

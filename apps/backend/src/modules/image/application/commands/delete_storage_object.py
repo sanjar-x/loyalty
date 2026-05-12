@@ -17,7 +17,7 @@ import uuid
 import structlog
 
 from src.modules.image.domain.interfaces import IBlobStorage, IStorageRepository
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
 

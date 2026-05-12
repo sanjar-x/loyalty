@@ -39,8 +39,8 @@ from src.modules.order.domain.value_objects import (
     IncomingDeclaration,
     OrderStatus,
 )
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

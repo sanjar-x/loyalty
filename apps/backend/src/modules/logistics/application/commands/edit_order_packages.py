@@ -15,9 +15,9 @@ from src.modules.logistics.domain.interfaces import (
     IShippingProviderRegistry,
 )
 from src.modules.logistics.domain.value_objects import EditPackage, EditTaskKind
-from src.shared.exceptions import ConflictError, ValidationError
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.exceptions import ConflictError, ValidationError
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

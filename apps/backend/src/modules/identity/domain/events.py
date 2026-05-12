@@ -7,7 +7,7 @@ events therefore override ``aggregate_type`` per event class on top of
 :class:`IdentityEvent`, which only declares the placeholder default.
 
 Validation and ``aggregate_id`` auto-fill come from
-:class:`src.shared.interfaces.entities.ModuleDomainEvent`.
+:class:`shared.interfaces.entities.ModuleDomainEvent`.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from src.shared.interfaces.entities import ModuleDomainEvent
+from shared.interfaces.entities import ModuleDomainEvent
 
 
 @dataclass(frozen=True)

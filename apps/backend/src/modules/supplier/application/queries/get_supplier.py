@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.modules.supplier.application.queries.read_models import SupplierReadModel
 from src.modules.supplier.domain.exceptions import SupplierNotFoundError
 from src.modules.supplier.infrastructure.models import Supplier as OrmSupplier
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 
 def supplier_orm_to_read_model(orm: OrmSupplier) -> SupplierReadModel:

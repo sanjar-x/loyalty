@@ -26,7 +26,7 @@ from src.modules.pricing.domain.events import (
 from src.modules.pricing.domain.exceptions import (
     CategoryPricingSettingsValidationError,
 )
-from src.shared.interfaces.entities import AggregateRoot
+from shared.interfaces.entities import AggregateRoot
 
 _VARIABLE_CODE_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
 _MAX_RANGES = 64

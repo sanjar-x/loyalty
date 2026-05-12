@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from src.bootstrap.config import Settings
-from src.shared.interfaces.security import IOIDCProvider
+from shared.interfaces.security import IOIDCProvider
 from tests.fakes.oidc_provider import StubOIDCProvider
 
 warnings.filterwarnings(
@@ -56,7 +56,7 @@ def event_loop():
 @pytest.fixture(autouse=True)
 def _reset_context_vars():
     """Reset request_id ContextVar per test to prevent cross-test contamination."""
-    from src.shared.context import _request_id_var
+    from shared.context import _request_id_var
 
     token = _request_id_var.set("test-request-id")
     yield

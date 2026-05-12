@@ -1,6 +1,6 @@
 """Pricing domain exceptions.
 
-Thin wrappers over ``src.shared.exceptions`` with pricing-specific error codes
+Thin wrappers over ``shared.exceptions`` with pricing-specific error codes
 and messages. The presentation layer relies on ``AppException`` mapping for
 HTTP status codes.
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from src.shared.exceptions import (
+from shared.exceptions import (
     ConflictError,
     NotFoundError,
     UnprocessableEntityError,

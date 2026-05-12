@@ -24,7 +24,7 @@ from src.modules.catalog.infrastructure.models import (
 from src.modules.catalog.infrastructure.models import (
     ProductVariant as OrmProductVariant,
 )
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 
 def variant_orm_to_read_model(orm: OrmProductVariant) -> ProductVariantReadModel:

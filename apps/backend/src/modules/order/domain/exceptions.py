@@ -1,6 +1,6 @@
 """Order domain exceptions."""
 
-from src.shared.exceptions import (
+from shared.exceptions import (
     ConflictError,
     NotFoundError,
     UnprocessableEntityError,

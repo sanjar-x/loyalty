@@ -19,7 +19,7 @@ from src.modules.referral.domain.events import (
     ReferralCodeIssuedEvent,
     ReferralCodeRevokedEvent,
 )
-from src.shared.interfaces.entities import AggregateRoot
+from shared.interfaces.entities import AggregateRoot
 
 
 def _new_id() -> uuid.UUID:

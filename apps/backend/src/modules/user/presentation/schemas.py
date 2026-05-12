@@ -8,7 +8,7 @@ import uuid
 
 from pydantic import Field, model_validator
 
-from src.shared.schemas import CamelModel
+from shared.schemas import CamelModel
 
 
 class ProfileResponse(CamelModel):

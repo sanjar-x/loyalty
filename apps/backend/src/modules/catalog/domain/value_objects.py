@@ -18,10 +18,10 @@ from src.modules.catalog.domain.constants import (
 )
 
 # REC-032 D5 — ``Money`` is now the canonical domain value object in
-# ``src.shared.domain.money``. Catalog re-exports it under the same
+# ``shared.domain.money``. Catalog re-exports it under the same
 # symbol so existing imports (``from src.modules.catalog.domain.value_objects
 # import Money``) continue to work without churn.
-from src.shared.domain.money import Money as Money
+from shared.domain.money import Money as Money
 
 
 def validate_i18n_completeness(

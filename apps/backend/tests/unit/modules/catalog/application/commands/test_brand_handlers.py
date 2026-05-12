@@ -46,7 +46,7 @@ from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
     BrandSlugConflictError,
 )
-from src.shared.exceptions import ValidationError
+from shared.exceptions import ValidationError
 from tests.factories.brand_builder import BrandBuilder
 from tests.factories.product_builder import ProductBuilder
 from tests.fakes.fake_uow import FakeUnitOfWork

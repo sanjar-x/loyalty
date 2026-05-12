@@ -16,8 +16,8 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from src.shared.interfaces.entities import AggregateRoot, DomainEvent
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.entities import AggregateRoot, DomainEvent
+from shared.interfaces.uow import IUnitOfWork
 from tests.fakes.fake_catalog_repos import (
     FakeAttributeGroupRepository,
     FakeAttributeRepository,

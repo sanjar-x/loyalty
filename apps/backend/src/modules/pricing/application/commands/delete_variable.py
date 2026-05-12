@@ -13,8 +13,8 @@ from src.modules.pricing.domain.interfaces import (
     IProductPricingProfileRepository,
     IVariableRepository,
 )
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

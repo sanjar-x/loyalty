@@ -32,7 +32,7 @@ from src.modules.pricing.domain.entities.supplier_pricing_settings import (
 from src.modules.pricing.domain.entities.variable import Variable
 from src.modules.pricing.domain.interfaces import VariableListFilter
 from src.modules.pricing.domain.value_objects import VariableDataType, VariableScope
-from src.shared.exceptions import ValidationError
+from shared.exceptions import ValidationError
 
 
 class _FakeLogger:

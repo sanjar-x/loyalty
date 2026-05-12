@@ -12,7 +12,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from src.shared.schemas import CamelModel
+from shared.schemas import CamelModel
 
 
 class UploadRequest(CamelModel):

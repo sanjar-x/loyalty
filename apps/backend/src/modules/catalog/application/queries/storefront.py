@@ -43,8 +43,8 @@ from src.modules.catalog.application.queries.resolve_template_attributes import 
     ResolveTemplateAttributesHandler,
 )
 from src.modules.catalog.domain.exceptions import CategoryNotFoundError
-from src.shared.interfaces.cache import ICacheService
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.cache import ICacheService
+from shared.interfaces.logger import ILogger
 
 # ---------------------------------------------------------------------------
 # Shared helpers

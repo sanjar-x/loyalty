@@ -5,7 +5,7 @@ from datetime import date, datetime
 
 from pydantic import Field
 
-from src.shared.schemas import CamelModel
+from shared.schemas import CamelModel
 
 
 class CreateRecipientRequest(CamelModel):

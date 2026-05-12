@@ -19,8 +19,8 @@ from src.modules.order.application.commands.ingest_dobropost_webhook import (
     IngestDobroPostWebhookCommand,
     IngestDobroPostWebhookHandler,
 )
-from src.shared.interfaces.entities import AggregateRoot
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.entities import AggregateRoot
+from shared.interfaces.uow import IUnitOfWork
 
 
 class _FakeUow(IUnitOfWork):

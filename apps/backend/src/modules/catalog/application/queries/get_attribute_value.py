@@ -16,7 +16,7 @@ from src.modules.catalog.domain.exceptions import AttributeValueNotFoundError
 from src.modules.catalog.infrastructure.models import (
     AttributeValue as OrmAttributeValue,
 )
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 
 class GetAttributeValueHandler:

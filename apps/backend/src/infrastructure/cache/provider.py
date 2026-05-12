@@ -15,7 +15,7 @@ from redis.asyncio.connection import ConnectionPool
 
 from src.bootstrap.config import settings
 from src.infrastructure.cache.redis import RedisService
-from src.shared.interfaces.cache import ICacheService
+from shared.interfaces.cache import ICacheService
 
 logger = structlog.get_logger(__name__)
 

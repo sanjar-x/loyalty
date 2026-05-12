@@ -5,10 +5,10 @@ from dataclasses import dataclass, field
 
 from src.modules.supplier.domain.exceptions import SupplierNotFoundError
 from src.modules.supplier.domain.interfaces import ISupplierRepository
-from src.shared.cache_keys import bump_storefront_product_generation
-from src.shared.interfaces.cache import ICacheService
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.cache_keys import bump_storefront_product_generation
+from shared.interfaces.cache import ICacheService
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 _UNSET = object()
 

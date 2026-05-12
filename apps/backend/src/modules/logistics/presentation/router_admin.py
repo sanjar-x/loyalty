@@ -49,7 +49,7 @@ from src.modules.logistics.presentation.schemas_admin import (
     SetProviderAccountActiveRequest,
     UpdateProviderAccountRequest,
 )
-from src.shared.exceptions import NotFoundError
+from shared.exceptions import NotFoundError
 
 _LOGISTICS_ADMIN = [Depends(RequirePermission(codename="logistics:admin"))]
 

@@ -30,8 +30,8 @@ from src.modules.payment.domain.value_objects import (
     PaymentIntentStatus,
     ProviderCode,
 )
-from src.shared.interfaces.entities import AggregateRoot
-from src.shared.interfaces.fsm import StateMachineMixin
+from shared.interfaces.entities import AggregateRoot
+from shared.interfaces.fsm import StateMachineMixin
 
 TERMINAL_STATUSES: frozenset[PaymentIntentStatus] = frozenset(
     {

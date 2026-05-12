@@ -19,7 +19,7 @@ from collections.abc import Awaitable, Callable
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.shared.interfaces.idempotency import IInboxStore
+from shared.interfaces.idempotency import IInboxStore
 
 logger = structlog.get_logger(__name__)
 

@@ -1,7 +1,7 @@
 """Logistics carrier-provider HTTP client (REC-033 + REC-035).
 
 Concrete logistics-domain layer over the shared kernel's
-:class:`src.shared.infrastructure.http.client.BaseClient`. The
+:class:`shared.infrastructure.http.client.BaseClient`. The
 "provider" vocabulary lives here — shared kernel itself stays
 domain-agnostic so payment / notification / future integrations can
 sit on the same ``BaseClient`` without inheriting carrier semantics.
@@ -20,7 +20,7 @@ beyond the shared base. It exists to:
 
 from __future__ import annotations
 
-from src.shared.infrastructure.http.client import BaseClient, HttpClientConfig
+from shared.infrastructure.http.client import BaseClient, HttpClientConfig
 
 
 class ProviderClientConfig(HttpClientConfig):

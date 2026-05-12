@@ -19,7 +19,7 @@ from fastapi import Request
 from starlette.datastructures import State
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from src.shared.context import set_request_id
+from shared.context import set_request_id
 
 logger: structlog.BoundLogger = structlog.get_logger("api.access")
 

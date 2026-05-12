@@ -8,7 +8,7 @@ than importing structlog directly.
 from dishka import Provider, Scope, provide
 
 from src.infrastructure.logging.adapter import StructlogAdapter
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 
 class LoggingProvider(Provider):

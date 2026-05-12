@@ -40,7 +40,7 @@ from src.modules.identity.domain.exceptions import (
     SystemRoleModificationError,
 )
 from src.modules.identity.domain.value_objects import AccountType, IdentityType
-from src.shared.exceptions import ConflictError, NotFoundError
+from shared.exceptions import ConflictError, NotFoundError
 
 pytestmark = pytest.mark.asyncio
 

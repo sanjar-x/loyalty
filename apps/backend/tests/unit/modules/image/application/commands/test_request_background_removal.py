@@ -33,8 +33,8 @@ from src.modules.image.domain.exceptions import (
 )
 from src.modules.image.domain.interfaces import IStorageRepository
 from src.modules.image.domain.value_objects import DerivationKind, StorageStatus
-from src.shared.interfaces.entities import AggregateRoot
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.entities import AggregateRoot
+from shared.interfaces.uow import IUnitOfWork
 
 
 class _FakeStorageRepo(IStorageRepository):
@@ -285,7 +285,7 @@ class TestRequestBackgroundRemovalHandler:
     async def test_disabled_error_envelope_carries_feature_flag_detail(self) -> None:
         """C2.2 — the 503 envelope must point at the env var so the UI
         can render an actionable "feature unavailable" affordance."""
-        from src.shared.exceptions import ServiceUnavailableError
+        from shared.exceptions import ServiceUnavailableError
 
         try:
             raise BackgroundRemovalDisabledError()

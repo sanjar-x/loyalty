@@ -19,8 +19,8 @@ from src.modules.catalog.application.queries.read_models import (
 )
 from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
-from src.shared.interfaces.logger import ILogger
-from src.shared.pagination import paginate
+from shared.interfaces.logger import ILogger
+from shared.pagination import paginate
 
 
 @dataclass(frozen=True)

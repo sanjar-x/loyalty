@@ -12,7 +12,7 @@ import uuid
 
 from src.modules.order.application.ports import IRussianCarrierGateway
 from src.modules.order.domain.value_objects import PickupPointPreference
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 
 class RussianCarrierGatewayStub(IRussianCarrierGateway):

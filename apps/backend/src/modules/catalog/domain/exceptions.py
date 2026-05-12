@@ -9,7 +9,7 @@ HTTP error responses via the global exception handler.
 import uuid
 
 from src.modules.catalog.domain.value_objects import ProductStatus
-from src.shared.exceptions import (
+from shared.exceptions import (
     ConflictError,
     NotFoundError,
     OptimisticLockError,
@@ -287,7 +287,7 @@ class ProductAttributeValueNotFoundError(NotFoundError):
 
 
 class ConcurrencyError(OptimisticLockError):
-    """Catalog alias for :class:`src.shared.exceptions.OptimisticLockError`.
+    """Catalog alias for :class:`shared.exceptions.OptimisticLockError`.
 
     REC-031 D5 collapsed the fan-out of per-module ``*VersionConflictError``
     classes into a single shared exception. ``ConcurrencyError`` is kept as a

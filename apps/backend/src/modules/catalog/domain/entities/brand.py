@@ -11,7 +11,7 @@ from types import EllipsisType
 from attr import dataclass
 
 from src.modules.catalog.domain.exceptions import BrandHasProductsError
-from src.shared.interfaces.entities import AggregateRoot
+from shared.interfaces.entities import AggregateRoot
 
 from ._common import _generate_id, _validate_slug
 

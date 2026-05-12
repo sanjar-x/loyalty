@@ -24,7 +24,7 @@ from src.modules.geo.infrastructure.models import (
     CurrencyModel,
     LanguageModel,
 )
-from src.shared.exceptions import (
+from shared.exceptions import (
     ConflictError,
     UnprocessableEntityError,
     ValidationError,

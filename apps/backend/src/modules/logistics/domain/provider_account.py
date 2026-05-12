@@ -26,8 +26,8 @@ from typing import Any
 import attrs
 
 from src.modules.logistics.domain.value_objects import ProviderCode
-from src.shared.exceptions import ValidationError
-from src.shared.interfaces.entities import AggregateRoot
+from shared.exceptions import ValidationError
+from shared.interfaces.entities import AggregateRoot
 
 _MAX_PROVIDER_CODE = 50
 _MAX_NAME = 255

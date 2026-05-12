@@ -23,7 +23,7 @@ from src.modules.supplier.domain.interfaces import (
 )
 from src.modules.supplier.infrastructure.query_service import SupplierQueryService
 from src.modules.supplier.infrastructure.repositories.supplier import SupplierRepository
-from src.shared.interfaces.supplier_directory import ISupplierDirectory
+from shared.interfaces.supplier_directory import ISupplierDirectory
 
 
 class SupplierProvider(Provider):

@@ -44,10 +44,10 @@ from src.modules.catalog.infrastructure.models import (
 )
 from src.modules.catalog.infrastructure.models import ProductVariant as OrmVariant
 from src.modules.supplier.infrastructure.models import Supplier as OrmSupplier
-from src.shared.cache_keys import read_storefront_product_generation
-from src.shared.interfaces.cache import ICacheService
-from src.shared.interfaces.logger import ILogger
-from src.shared.pagination import CursorPage, decode_cursor, encode_cursor
+from shared.cache_keys import read_storefront_product_generation
+from shared.interfaces.cache import ICacheService
+from shared.interfaces.logger import ILogger
+from shared.pagination import CursorPage, decode_cursor, encode_cursor
 
 
 @dataclass(frozen=True)

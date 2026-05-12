@@ -8,7 +8,7 @@ from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
 from pwdlib.hashers.bcrypt import BcryptHasher
 
-from src.shared.interfaces.security import IPasswordHasher
+from shared.interfaces.security import IPasswordHasher
 
 
 class Argon2PasswordHasher(IPasswordHasher):

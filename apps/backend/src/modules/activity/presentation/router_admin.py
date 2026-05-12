@@ -24,7 +24,7 @@ from src.modules.activity.presentation.schemas import (
     TrendingProductsResponse,
 )
 from src.modules.identity.presentation.dependencies import RequirePermission
-from src.shared.interfaces.activity import IActivityQueryService
+from shared.interfaces.activity import IActivityQueryService
 
 activity_admin_router = APIRouter(
     prefix="/admin/analytics",

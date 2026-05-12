@@ -35,8 +35,8 @@ from src.modules.cart.domain.value_objects import (
     CheckoutSnapshot,
     SkuSnapshot,
 )
-from src.shared.domain.supplier_type import SupplierType
-from src.shared.interfaces.entities import AggregateRoot
+from shared.domain.supplier_type import SupplierType
+from shared.interfaces.entities import AggregateRoot
 
 MAX_CART_ITEMS = 50
 MAX_QTY_PER_ITEM = 99

@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 
 from src.modules.cart.domain.entities import Cart, CartItem
 from src.modules.cart.domain.value_objects import CartStatus
-from src.shared.domain.supplier_type import SupplierType
+from shared.domain.supplier_type import SupplierType
 
 
 class CartItemBuilder:

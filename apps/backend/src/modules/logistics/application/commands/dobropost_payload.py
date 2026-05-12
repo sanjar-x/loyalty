@@ -24,7 +24,7 @@ import json
 from dataclasses import dataclass
 from datetime import date
 
-from src.shared.exceptions import ValidationError
+from shared.exceptions import ValidationError
 
 
 def _require_exact_length(value: str, length: int, field: str) -> None:

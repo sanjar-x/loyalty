@@ -9,9 +9,9 @@ from dataclasses import dataclass
 
 from src.modules.identity.domain.exceptions import IdentityAlreadyActiveError
 from src.modules.identity.domain.interfaces import IIdentityRepository
-from src.shared.exceptions import NotFoundError
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.exceptions import NotFoundError
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

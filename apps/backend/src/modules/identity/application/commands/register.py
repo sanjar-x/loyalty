@@ -14,10 +14,10 @@ from src.modules.identity.domain.events import IdentityRegisteredEvent
 from src.modules.identity.domain.exceptions import IdentityAlreadyExistsError
 from src.modules.identity.domain.interfaces import IIdentityRepository, IRoleRepository
 from src.modules.identity.domain.value_objects import AccountType, PrimaryAuthMethod
-from src.shared.exceptions import ConflictError
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.security import IPasswordHasher
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.exceptions import ConflictError
+from shared.interfaces.logger import ILogger
+from shared.interfaces.security import IPasswordHasher
+from shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

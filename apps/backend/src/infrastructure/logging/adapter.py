@@ -11,7 +11,7 @@ from typing import Any
 
 import structlog
 
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 
 class StructlogAdapter(ILogger):

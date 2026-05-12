@@ -4,7 +4,7 @@ Each exception maps to a specific HTTP status code and machine-readable error
 code, enabling consistent API error responses across the identity bounded context.
 """
 
-from src.shared.exceptions import (
+from shared.exceptions import (
     AppException,
     ConflictError,
     ForbiddenError,

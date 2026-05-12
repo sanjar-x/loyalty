@@ -16,9 +16,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.database.models.outbox import OutboxMessage
-from src.shared.exceptions import ConflictError, UnprocessableEntityError
-from src.shared.interfaces.entities import AggregateRoot, DomainEvent
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.exceptions import ConflictError, UnprocessableEntityError
+from shared.interfaces.entities import AggregateRoot, DomainEvent
+from shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
 
@@ -85,7 +85,7 @@ class UnitOfWork(IUnitOfWork):
         :meth:`commit` so it lands in the same DB transaction as registered
         aggregates' events.
         """
-        from src.shared.context import get_request_id
+        from shared.context import get_request_id
 
         if correlation_id is None:
             request_correlation = get_request_id()
@@ -202,7 +202,7 @@ class UnitOfWork(IUnitOfWork):
         Returns:
             An ``OutboxMessage`` ready to be added to the session.
         """
-        from src.shared.context import get_request_id
+        from shared.context import get_request_id
 
         correlation_id = get_request_id()
         return OutboxMessage(

@@ -6,7 +6,7 @@ import redis.asyncio as redis
 import structlog
 from redis.exceptions import RedisError
 
-from src.shared.interfaces.sorted_set import ISortedSetService
+from shared.interfaces.sorted_set import ISortedSetService
 
 logger = structlog.get_logger(__name__)
 

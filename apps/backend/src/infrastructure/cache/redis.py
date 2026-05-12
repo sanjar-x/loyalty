@@ -9,7 +9,7 @@ import redis.asyncio as redis
 import structlog
 from redis.exceptions import RedisError
 
-from src.shared.interfaces.cache import ICacheService
+from shared.interfaces.cache import ICacheService
 
 logger = structlog.get_logger("redis")
 

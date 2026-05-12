@@ -38,7 +38,7 @@ from src.modules.catalog.infrastructure.models import (
     SKUAttributeValueLink as OrmSKUAttrLink,
 )
 from src.modules.supplier.infrastructure.models import Supplier as OrmSupplier
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)

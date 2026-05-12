@@ -16,10 +16,10 @@ from src.modules.identity.domain.interfaces import (
     IIdentityRepository,
     ISessionRepository,
 )
-from src.shared.interfaces.cache import ICacheService
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.security import IPermissionResolver, ITokenProvider
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.cache import ICacheService
+from shared.interfaces.logger import ILogger
+from shared.interfaces.security import IPermissionResolver, ITokenProvider
+from shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

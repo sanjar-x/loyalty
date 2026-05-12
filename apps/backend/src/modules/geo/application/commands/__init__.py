@@ -10,7 +10,7 @@ import structlog
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.shared.exceptions import ConflictError, UnprocessableEntityError
+from shared.exceptions import ConflictError, UnprocessableEntityError
 
 logger = structlog.get_logger(__name__)
 

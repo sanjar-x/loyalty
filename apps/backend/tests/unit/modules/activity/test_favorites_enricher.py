@@ -10,7 +10,7 @@ import pytest
 from src.modules.activity.application.consumers.favorites_events import (
     FavoritesActivityEnricher,
 )
-from src.shared.interfaces.activity import IActivityTracker
+from shared.interfaces.activity import IActivityTracker
 
 pytestmark = pytest.mark.unit
 

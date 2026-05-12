@@ -30,7 +30,7 @@ from src.modules.image.domain.interfaces import (
 from src.modules.image.domain.value_objects import DerivationKind, StorageStatus
 from src.modules.image.infrastructure.services.sse_manager import SSEManager
 from src.modules.image.infrastructure.services.streams import bytes_to_async_stream
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
 

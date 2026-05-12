@@ -26,7 +26,7 @@ from src.modules.cart.infrastructure.models import (
     CheckoutAttemptModel,
     CheckoutSnapshotModel,
 )
-from src.shared.domain.supplier_type import SupplierType
+from shared.domain.supplier_type import SupplierType
 
 
 class CartRepository(ICartRepository):

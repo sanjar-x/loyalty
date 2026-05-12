@@ -41,8 +41,8 @@ from src.modules.referral.domain.value_objects import (
     AttributionContext,
     ReferralStatus,
 )
-from src.shared.interfaces.entities import AggregateRoot
-from src.shared.interfaces.fsm import StateMachineMixin
+from shared.interfaces.entities import AggregateRoot
+from shared.interfaces.fsm import StateMachineMixin
 
 _TERMINAL: frozenset[ReferralStatus] = frozenset(
     {

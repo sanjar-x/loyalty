@@ -4,7 +4,7 @@ Stub implementation of IOIDCProvider for testing.
 Returns configurable OIDCUserInfo without real OAuth calls.
 """
 
-from src.shared.interfaces.security import OIDCUserInfo
+from shared.interfaces.security import OIDCUserInfo
 
 
 class StubOIDCProvider:

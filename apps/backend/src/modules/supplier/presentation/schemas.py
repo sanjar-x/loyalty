@@ -5,7 +5,7 @@ from datetime import datetime
 
 from pydantic import Field
 
-from src.shared.schemas import CamelModel
+from shared.schemas import CamelModel
 
 
 class PaginatedResponse[S](CamelModel):

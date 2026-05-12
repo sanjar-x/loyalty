@@ -2,7 +2,7 @@
 
 import uuid
 
-from src.shared.exceptions import NotFoundError
+from shared.exceptions import NotFoundError
 
 
 class CustomerNotFoundError(NotFoundError):

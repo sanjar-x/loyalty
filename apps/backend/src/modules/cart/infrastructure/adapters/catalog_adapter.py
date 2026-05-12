@@ -19,7 +19,7 @@ from src.modules.catalog.infrastructure.models import (
     ProductVariant,
 )
 from src.modules.supplier.infrastructure.models import Supplier
-from src.shared.domain.supplier_type import SupplierType
+from shared.domain.supplier_type import SupplierType
 
 
 class CatalogSkuAdapter(ISkuReadService):

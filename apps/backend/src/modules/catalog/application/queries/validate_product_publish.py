@@ -21,7 +21,7 @@ from src.modules.catalog.domain.entities.product import (
 from src.modules.catalog.domain.exceptions import ProductNotFoundError
 from src.modules.catalog.domain.interfaces import IProductRepository
 from src.modules.catalog.domain.value_objects import ProductStatus
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)

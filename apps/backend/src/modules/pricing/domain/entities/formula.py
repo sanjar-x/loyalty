@@ -35,7 +35,7 @@ from src.modules.pricing.domain.exceptions import (
     FormulaVersionInvalidStateError,
 )
 from src.modules.pricing.domain.value_objects import FormulaStatus
-from src.shared.interfaces.entities import AggregateRoot
+from shared.interfaces.entities import AggregateRoot
 
 _AST_MAX_DEPTH = 64
 _AST_MAX_JSON_LEN = 4096

@@ -26,7 +26,7 @@ from src.modules.payment.application.commands.fail_payment_intent import (
 )
 from src.modules.payment.domain.exceptions import PaymentIntentNotFoundError
 from src.modules.payment.domain.interfaces import IPaymentIntentRepository
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 AUTH_EXPIRED_REASON = "auth_expired"
 """Sentinel reason string. Order's PaymentFailedConsumer matches on this

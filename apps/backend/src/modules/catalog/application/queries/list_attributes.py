@@ -17,8 +17,8 @@ from src.modules.catalog.application.queries.read_models import (
     AttributeReadModel,
 )
 from src.modules.catalog.infrastructure.models import Attribute as OrmAttribute
-from src.shared.interfaces.logger import ILogger
-from src.shared.pagination import paginate
+from shared.interfaces.logger import ILogger
+from shared.pagination import paginate
 
 
 def attribute_orm_to_read_model(orm: OrmAttribute) -> AttributeReadModel:

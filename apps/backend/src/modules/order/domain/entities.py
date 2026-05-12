@@ -58,9 +58,9 @@ from src.modules.order.domain.value_objects import (
     PickupPointPreference,
     category_of,
 )
-from src.shared.domain.supplier_type import SupplierType
-from src.shared.interfaces.entities import AggregateRoot
-from src.shared.interfaces.fsm import StateMachineMixin
+from shared.domain.supplier_type import SupplierType
+from shared.interfaces.entities import AggregateRoot
+from shared.interfaces.fsm import StateMachineMixin
 
 MAX_ITEM_QUANTITY = 99
 HOLD_TTL_DAYS = 30

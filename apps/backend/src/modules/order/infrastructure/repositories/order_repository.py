@@ -26,7 +26,7 @@ from src.modules.order.domain.value_objects import (
     PickupPointPreference,
 )
 from src.modules.order.infrastructure.models import OrderItemModel, OrderModel
-from src.shared.domain.supplier_type import SupplierType
+from shared.domain.supplier_type import SupplierType
 
 __all__ = [
     "HOLD_TTL_DAYS",

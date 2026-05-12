@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.shared.exceptions import NotFoundError
+from shared.exceptions import NotFoundError
 
 
 class PermissionDetail(BaseModel):

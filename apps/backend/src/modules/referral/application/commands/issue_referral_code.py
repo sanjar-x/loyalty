@@ -27,9 +27,9 @@ from src.modules.referral.domain.ports import (
     ICodeGenerator,
     IReferralCodeRepository,
 )
-from src.shared.exceptions import ConflictError
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.exceptions import ConflictError
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 _MAX_COLLISION_RETRIES = 8
 

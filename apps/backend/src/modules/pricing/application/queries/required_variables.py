@@ -16,7 +16,7 @@ from decimal import Decimal
 
 from src.modules.pricing.domain.interfaces import IVariableRepository
 from src.modules.pricing.domain.value_objects import VariableScope
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)

@@ -31,7 +31,7 @@ from src.modules.catalog.application.queries.read_models import (
 )
 from src.modules.catalog.domain.value_objects import ProductStatus
 from src.modules.catalog.infrastructure.models import Product as OrmProduct
-from src.shared.exceptions import NotFoundError
+from shared.exceptions import NotFoundError
 
 
 @dataclass(frozen=True)

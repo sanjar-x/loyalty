@@ -39,10 +39,10 @@ from src.modules.referral.infrastructure.models import (
     LoyaltyAccountModel,
     LoyaltyTransactionModel,
 )
-from src.shared.context import get_request_id
-from src.shared.exceptions import NotFoundError
-from src.shared.interfaces.logger import ILogger
-from src.shared.ledger import (
+from shared.context import get_request_id
+from shared.exceptions import NotFoundError
+from shared.interfaces.logger import ILogger
+from shared.ledger import (
     Account,
     EmptyLedgerTransactionError,
     ILedger,

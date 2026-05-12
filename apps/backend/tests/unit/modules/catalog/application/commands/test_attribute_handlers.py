@@ -106,7 +106,7 @@ from src.modules.catalog.domain.value_objects import (
     AttributeUIType,
     RequirementLevel,
 )
-from src.shared.exceptions import ValidationError
+from shared.exceptions import ValidationError
 from tests.factories.attribute_builder import AttributeBuilder
 from tests.factories.attribute_group_builder import AttributeGroupBuilder
 from tests.factories.attribute_template_builder import (

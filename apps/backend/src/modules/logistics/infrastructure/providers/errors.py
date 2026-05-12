@@ -6,12 +6,12 @@ Existing imports
 keep working.
 """
 
-from src.shared.infrastructure.http.errors import (
+from shared.infrastructure.http.errors import (
     ProviderAuthError as ProviderAuthError,
 )
-from src.shared.infrastructure.http.errors import (
+from shared.infrastructure.http.errors import (
     ProviderHTTPError as ProviderHTTPError,
 )
-from src.shared.infrastructure.http.errors import (
+from shared.infrastructure.http.errors import (
     ProviderTimeoutError as ProviderTimeoutError,
 )

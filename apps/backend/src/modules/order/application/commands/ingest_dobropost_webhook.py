@@ -15,8 +15,8 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 # Logical aggregate label routed through the outbox dispatch registry.
 _AGGREGATE_TYPE = "DobroPostShipment"

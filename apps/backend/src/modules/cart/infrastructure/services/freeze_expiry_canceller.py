@@ -19,8 +19,8 @@ from datetime import UTC, datetime
 from src.modules.cart.domain.entities import CartStatus
 from src.modules.cart.domain.exceptions import CartNotFoundError
 from src.modules.cart.domain.interfaces import ICartRepository
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 UNFREEZE_REASON = "freeze_ttl_expired"
 """Sentinel reason string emitted on the ``CartUnfrozenEvent``. Future

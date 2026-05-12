@@ -5,8 +5,8 @@ from dataclasses import dataclass
 
 from src.modules.identity.domain.exceptions import InvitationNotFoundError
 from src.modules.identity.domain.interfaces import IStaffInvitationRepository
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

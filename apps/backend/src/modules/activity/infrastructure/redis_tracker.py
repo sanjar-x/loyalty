@@ -24,7 +24,7 @@ from typing import Any
 
 import redis.asyncio as redis
 
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 # ---------------------------------------------------------------------------
 # Redis key layout — documented in Research - Activity Tracking Architecture §5

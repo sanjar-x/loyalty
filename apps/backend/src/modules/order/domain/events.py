@@ -3,7 +3,7 @@
 import uuid
 from dataclasses import dataclass
 
-from src.shared.interfaces.entities import ModuleDomainEvent
+from shared.interfaces.entities import ModuleDomainEvent
 
 
 @dataclass(frozen=True)

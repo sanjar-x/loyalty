@@ -20,8 +20,8 @@ from src.modules.catalog.domain.exceptions import AttributeTemplateNotFoundError
 from src.modules.catalog.infrastructure.models import (
     AttributeTemplate as OrmAttributeTemplate,
 )
-from src.shared.interfaces.logger import ILogger
-from src.shared.pagination import paginate
+from shared.interfaces.logger import ILogger
+from shared.pagination import paginate
 
 # ---------------------------------------------------------------------------
 # ORM -> Read Model converter

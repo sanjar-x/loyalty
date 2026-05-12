@@ -33,7 +33,7 @@ from src.modules.pricing.domain.events import (
 )
 from src.modules.pricing.domain.exceptions import PricingContextValidationError
 from src.modules.pricing.domain.value_objects import RoundingMode
-from src.shared.interfaces.entities import AggregateRoot
+from shared.interfaces.entities import AggregateRoot
 
 _CONTEXT_CODE_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
 _VARIABLE_CODE_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")

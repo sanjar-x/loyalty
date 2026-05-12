@@ -52,10 +52,10 @@ from src.modules.catalog.infrastructure.models import (
     SKUAttributeValueLink as OrmSKUAttributeValueLink,
 )
 from src.modules.supplier.infrastructure.models import Supplier as OrmSupplier
-from src.shared.cache_keys import read_storefront_product_generation
-from src.shared.exceptions import NotFoundError
-from src.shared.interfaces.cache import ICacheService
-from src.shared.interfaces.logger import ILogger
+from shared.cache_keys import read_storefront_product_generation
+from shared.exceptions import NotFoundError
+from shared.interfaces.cache import ICacheService
+from shared.interfaces.logger import ILogger
 
 
 class GetStorefrontProductHandler:

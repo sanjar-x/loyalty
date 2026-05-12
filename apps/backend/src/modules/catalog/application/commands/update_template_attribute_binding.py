@@ -23,9 +23,9 @@ from src.modules.catalog.domain.interfaces import (
     ITemplateAttributeBindingRepository,
 )
 from src.modules.catalog.domain.value_objects import RequirementLevel
-from src.shared.interfaces.cache import ICacheService
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.cache import ICacheService
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

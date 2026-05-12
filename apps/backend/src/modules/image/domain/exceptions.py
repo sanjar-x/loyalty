@@ -8,7 +8,7 @@ keyword. This matches the pattern used by every other module here
 (see ``favorites/domain/exceptions.py`` for reference).
 """
 
-from src.shared.exceptions import (
+from shared.exceptions import (
     ConflictError,
     NotFoundError,
     ServiceUnavailableError,

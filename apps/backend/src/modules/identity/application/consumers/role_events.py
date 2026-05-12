@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.bootstrap.broker import broker
-from src.shared.interfaces.security import IPermissionResolver
+from shared.interfaces.security import IPermissionResolver
 
 logger = structlog.get_logger(__name__)
 

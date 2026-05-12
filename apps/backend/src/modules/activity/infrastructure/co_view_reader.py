@@ -21,8 +21,8 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.shared.interfaces.activity import CoViewScore
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.activity import CoViewScore
+from shared.interfaces.logger import ILogger
 
 
 class SqlAlchemyCoViewReader:

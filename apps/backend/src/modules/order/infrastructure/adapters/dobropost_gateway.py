@@ -43,7 +43,7 @@ from src.modules.order.infrastructure.adapters.dobropost_client import (
     build_update_shipment_payload,
 )
 from src.modules.order.infrastructure.models import OrderModel
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 logger = structlog.get_logger(__name__)
 

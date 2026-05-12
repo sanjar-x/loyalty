@@ -14,7 +14,7 @@ from src.modules.pricing.domain.value_objects import (
     VariableDataType,
     VariableScope,
 )
-from src.shared.schemas import CamelModel, MoneySchema
+from shared.schemas import CamelModel, MoneySchema
 
 
 class UpsertProductPricingProfileRequest(CamelModel):

@@ -8,7 +8,7 @@ single bounded context. Each concrete event therefore MUST override
 :class:`CatalogEvent` intermediate base enforces that explicitly.
 
 Required-field validation and ``aggregate_id`` auto-fill come from
-:class:`src.shared.interfaces.entities.ModuleDomainEvent`.
+:class:`shared.interfaces.entities.ModuleDomainEvent`.
 
 Event Audit (2026-03-26):
 - 27 concrete events defined, 27 emitted (by command handlers or domain entities)
@@ -26,7 +26,7 @@ Event Audit (2026-03-26):
 import uuid
 from dataclasses import dataclass
 
-from src.shared.interfaces.entities import ModuleDomainEvent
+from shared.interfaces.entities import ModuleDomainEvent
 
 
 @dataclass(frozen=True)

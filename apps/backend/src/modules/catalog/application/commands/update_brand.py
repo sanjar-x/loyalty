@@ -17,9 +17,9 @@ from src.modules.catalog.domain.exceptions import (
     BrandSlugConflictError,
 )
 from src.modules.catalog.domain.interfaces import IBrandRepository, IMediaCleanupPort
-from src.shared.exceptions import OptimisticLockError
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.exceptions import OptimisticLockError
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

@@ -13,7 +13,7 @@ import pytest
 from src.modules.activity.infrastructure.redis_query_service import (
     RedisActivityQueryService,
 )
-from src.shared.interfaces.activity import RankedEntity
+from shared.interfaces.activity import RankedEntity
 
 pytestmark = pytest.mark.unit
 

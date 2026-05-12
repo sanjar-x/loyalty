@@ -13,7 +13,7 @@ from src.modules.logistics.domain.interfaces import (
     IShipmentRepository,
     IShippingProviderRegistry,
 )
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)

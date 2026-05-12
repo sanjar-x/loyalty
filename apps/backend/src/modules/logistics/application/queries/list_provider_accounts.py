@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.logistics.infrastructure.models import ProviderAccountModel
-from src.shared.exceptions import NotFoundError
+from shared.exceptions import NotFoundError
 
 # ---------------------------------------------------------------------------
 # Read model

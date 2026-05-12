@@ -38,7 +38,7 @@ from src.modules.identity.presentation.schemas import (
     TelegramTokenResponse,
     TokenResponse,
 )
-from src.shared.exceptions import UnauthorizedError
+from shared.exceptions import UnauthorizedError
 
 auth_router = APIRouter(
     prefix="/auth",

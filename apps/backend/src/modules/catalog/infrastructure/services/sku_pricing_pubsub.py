@@ -4,7 +4,7 @@ Per-product fan-out of recompute outcomes from the outbox-driven
 consumer to admin SSE subscribers. Channel naming and payload shape
 are catalog-specific concerns and live here; the low-level Redis
 plumbing (subscribe loop, JSON, error handling, cleanup) is composed
-from :class:`src.shared.infrastructure.redis_pubsub.RedisChannelStream`
+from :class:`shared.infrastructure.redis_pubsub.RedisChannelStream`
 so a fix to the streaming layer lands once and benefits every module
 that needs SSE fan-out.
 
@@ -28,7 +28,7 @@ from collections.abc import AsyncGenerator
 
 from redis.asyncio import Redis
 
-from src.shared.infrastructure.redis_pubsub import RedisChannelStream
+from shared.infrastructure.redis_pubsub import RedisChannelStream
 
 
 class SkuPricingPubsub:

@@ -4,13 +4,13 @@ Logistics spans multiple aggregate kinds (``Shipment``, ``ProviderAccount``,
 ``CarrierEvent``) within one bounded context, so concrete events MUST
 override ``aggregate_type`` with their specific aggregate name. Required-
 field validation and ``aggregate_id`` auto-fill come from
-:class:`src.shared.interfaces.entities.ModuleDomainEvent`.
+:class:`shared.interfaces.entities.ModuleDomainEvent`.
 """
 
 import uuid
 from dataclasses import dataclass
 
-from src.shared.interfaces.entities import ModuleDomainEvent
+from shared.interfaces.entities import ModuleDomainEvent
 
 
 @dataclass(frozen=True)

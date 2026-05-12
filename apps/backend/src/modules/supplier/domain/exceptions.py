@@ -2,7 +2,7 @@
 
 import uuid
 
-from src.shared.exceptions import ConflictError, NotFoundError, UnprocessableEntityError
+from shared.exceptions import ConflictError, NotFoundError, UnprocessableEntityError
 
 
 class SupplierNotFoundError(NotFoundError):

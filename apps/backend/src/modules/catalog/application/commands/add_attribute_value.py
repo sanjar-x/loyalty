@@ -31,9 +31,9 @@ from src.modules.catalog.domain.value_objects import (
     AttributeUIType,
     validate_i18n_completeness,
 )
-from src.shared.interfaces.cache import ICacheService
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.cache import ICacheService
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 _HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 

@@ -18,7 +18,7 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 
-from src.shared.exceptions import UnprocessableEntityError, ValidationError
+from shared.exceptions import UnprocessableEntityError, ValidationError
 
 ALLOWED_IMAGE_TYPES = frozenset(
     {

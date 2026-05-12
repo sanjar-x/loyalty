@@ -24,9 +24,9 @@ from src.modules.catalog.domain.interfaces import (
     IMediaAssetRepository,
     IProductRepository,
 )
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.supplier_directory import ISupplierDirectory
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.logger import ILogger
+from shared.interfaces.supplier_directory import ISupplierDirectory
+from shared.interfaces.uow import IUnitOfWork
 
 # Supplier type code signalling a cross-border supplier. String literal
 # (rather than an imported enum) keeps catalog decoupled from the supplier

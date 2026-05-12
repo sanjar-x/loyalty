@@ -28,8 +28,8 @@ from dataclasses import dataclass
 from src.modules.logistics.domain.exceptions import ShipmentNotFoundError
 from src.modules.logistics.domain.interfaces import IShipmentRepository
 from src.modules.logistics.domain.value_objects import PROVIDER_DOBROPOST
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 
 def extract_passport_failure_id(body: bytes) -> int | None:

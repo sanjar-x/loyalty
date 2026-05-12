@@ -19,7 +19,7 @@ from datetime import datetime
 from attr import define
 
 from src.modules.image.domain.value_objects import DerivationKind, StorageStatus
-from src.shared.interfaces.entities import AggregateRoot
+from shared.interfaces.entities import AggregateRoot
 
 
 def _generate_id() -> uuid.UUID:

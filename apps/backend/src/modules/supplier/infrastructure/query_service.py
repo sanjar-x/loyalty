@@ -11,7 +11,7 @@ from src.modules.supplier.domain.exceptions import (
 )
 from src.modules.supplier.domain.interfaces import ISupplierQueryService, SupplierInfo
 from src.modules.supplier.infrastructure.models import Supplier as OrmSupplier
-from src.shared.interfaces.supplier_directory import (
+from shared.interfaces.supplier_directory import (
     ISupplierDirectory,
     SupplierDirectoryInactiveError,
     SupplierDirectoryNotFoundError,

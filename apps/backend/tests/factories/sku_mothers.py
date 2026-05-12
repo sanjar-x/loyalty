@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 
 from src.modules.cart.domain.value_objects import SkuSnapshot
-from src.shared.domain.supplier_type import SupplierType
+from shared.domain.supplier_type import SupplierType
 
 
 class SkuSnapshotMother:

@@ -13,8 +13,8 @@ from src.modules.pricing.domain.entities.supplier_pricing_settings import (
 from src.modules.pricing.domain.interfaces import (
     ISupplierPricingSettingsRepository,
 )
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

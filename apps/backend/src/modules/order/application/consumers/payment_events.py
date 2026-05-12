@@ -12,7 +12,7 @@ from src.modules.order.application.commands.mark_order_paid import (
 )
 from src.modules.order.domain.exceptions import OrderNotFoundError
 from src.modules.order.domain.value_objects import CancellationReason
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 
 class PaymentCapturedConsumer:

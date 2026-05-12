@@ -16,7 +16,7 @@ import pytest
 
 from src.modules.catalog.domain.entities import Brand as DomainBrand
 from src.modules.catalog.domain.entities import Product as DomainProduct
-from src.shared.interfaces.entities import DomainEvent
+from shared.interfaces.entities import DomainEvent
 from tests.fakes.fake_uow import FakeUnitOfWork
 
 # ---------------------------------------------------------------------------

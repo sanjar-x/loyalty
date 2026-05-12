@@ -6,7 +6,7 @@ import redis.asyncio as redis
 import structlog
 from redis.exceptions import RedisError
 
-from src.shared.interfaces.event_buffer import IEventBufferService
+from shared.interfaces.event_buffer import IEventBufferService
 
 logger = structlog.get_logger(__name__)
 

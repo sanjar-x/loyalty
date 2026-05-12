@@ -7,4 +7,4 @@ all branch on it). Re-exported here so existing imports
 keep working.
 """
 
-from src.shared.domain.supplier_type import SupplierType as SupplierType
+from shared.domain.supplier_type import SupplierType as SupplierType

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from src.modules.logistics.application.dto import GetIntakeResult
 from src.modules.logistics.domain.interfaces import IShippingProviderRegistry
 from src.modules.logistics.domain.value_objects import ProviderCode
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 
 @dataclass(frozen=True)

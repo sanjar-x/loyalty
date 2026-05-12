@@ -25,7 +25,7 @@ from src.modules.pricing.presentation.schemas import (
     PreviewSkuPricingRequest,
     PreviewSkuPricingResponse,
 )
-from src.shared.interfaces.security import IPermissionResolver
+from shared.interfaces.security import IPermissionResolver
 
 _ADMIN_PERMISSION = "pricing:admin"
 

@@ -18,7 +18,7 @@ from src.modules.catalog.domain.exceptions import AttributeGroupNotFoundError
 from src.modules.catalog.infrastructure.models import (
     AttributeGroup as OrmAttributeGroup,
 )
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 
 def attribute_group_orm_to_read_model(

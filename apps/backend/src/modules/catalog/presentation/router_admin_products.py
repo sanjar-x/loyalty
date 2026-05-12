@@ -91,7 +91,7 @@ from src.modules.catalog.presentation.schemas import (
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
-from src.shared.exceptions import PreconditionFailedError
+from shared.exceptions import PreconditionFailedError
 
 # CAT-006 — SSE comment-frame interval (seconds). Must be shorter than
 # every intermediary's idle timeout: undici default ~300 s, Vercel

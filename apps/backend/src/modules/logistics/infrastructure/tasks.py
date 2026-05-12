@@ -30,7 +30,7 @@ from src.modules.logistics.domain.value_objects import (
 )
 from src.modules.logistics.infrastructure.models import ShipmentModel
 from src.modules.logistics.infrastructure.providers.errors import ProviderHTTPError
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
 

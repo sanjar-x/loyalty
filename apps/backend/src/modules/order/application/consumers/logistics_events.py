@@ -71,7 +71,7 @@ from src.modules.order.infrastructure.dobropost_status_map import (
     map_status_id_to_action,
     status_label,
 )
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.logger import ILogger
 
 
 def _coerce_int(value: object) -> int | None:

@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from src.modules.supplier.domain.entities import Supplier
 from src.modules.supplier.domain.interfaces import ISupplierRepository
 from src.modules.supplier.domain.value_objects import SupplierType
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

@@ -13,8 +13,8 @@ import structlog
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.shared.interfaces.cache import ICacheService
-from src.shared.interfaces.security import IPermissionResolver
+from shared.interfaces.cache import ICacheService
+from shared.interfaces.security import IPermissionResolver
 
 logger = structlog.get_logger(__name__)
 

@@ -25,8 +25,8 @@ from src.modules.catalog.domain.interfaces import (
 from src.modules.catalog.infrastructure.models import (
     Attribute as OrmAttribute,
 )
-from src.shared.interfaces.cache import ICacheService
-from src.shared.interfaces.logger import ILogger
+from shared.interfaces.cache import ICacheService
+from shared.interfaces.logger import ILogger
 
 # ---------------------------------------------------------------------------
 # Read Models

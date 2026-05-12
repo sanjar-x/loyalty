@@ -8,7 +8,7 @@ Flow:
    handler. **Capture deferred** until the manager procures the goods.
 
 Idempotent through ``IIdempotencyStore`` from the shared kernel
-(``src.shared.interfaces.idempotency``).
+(``shared.interfaces.idempotency``).
 """
 
 import uuid
@@ -30,10 +30,10 @@ from src.modules.order.domain.interfaces import (
     IRecipientLookup,
 )
 from src.modules.order.domain.recipient_snapshot import RecipientSnapshot
-from src.shared.exceptions import UnprocessableEntityError
-from src.shared.interfaces.idempotency import IIdempotencyStore
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.exceptions import UnprocessableEntityError
+from shared.interfaces.idempotency import IIdempotencyStore
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 IDEMPOTENCY_TTL_HOURS = 24
 SCOPE = "order.create"

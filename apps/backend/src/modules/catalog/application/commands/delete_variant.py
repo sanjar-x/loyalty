@@ -11,9 +11,9 @@ from dataclasses import dataclass
 from src.modules.catalog.application.constants import storefront_pdp_cache_key
 from src.modules.catalog.domain.exceptions import ProductNotFoundError
 from src.modules.catalog.domain.interfaces import IProductRepository
-from src.shared.interfaces.cache import ICacheService
-from src.shared.interfaces.logger import ILogger
-from src.shared.interfaces.uow import IUnitOfWork
+from shared.interfaces.cache import ICacheService
+from shared.interfaces.logger import ILogger
+from shared.interfaces.uow import IUnitOfWork
 
 
 @dataclass(frozen=True)

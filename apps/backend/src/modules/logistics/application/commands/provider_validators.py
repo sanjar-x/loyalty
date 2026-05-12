@@ -17,7 +17,7 @@ from collections.abc import Callable
 from typing import Any
 
 from src.modules.logistics.domain.value_objects import PROVIDER_DOBROPOST
-from src.shared.exceptions import ValidationError
+from shared.exceptions import ValidationError
 
 
 def _validate_dobropost(credentials: dict[str, Any], config: dict[str, Any]) -> None:
