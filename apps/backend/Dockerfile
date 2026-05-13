@@ -32,16 +32,13 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock README.md ./
 
 # Application code. Backend's installable package is ``src/`` (see
-# ``[tool.hatch.build.targets.wheel] packages = ["src"]``). ``main.py``
+# ``[tool.hatch.build.targets.wheel] packages = [\"src\"]``). ``main.py``
 # is the uvicorn entry point. ``alembic.ini`` + ``alembic/`` are needed
-# at runtime by ``preDeployCommand`` (alembic upgrade head). ``seed/``
-# carries the one-off CLI bootstrappers (admin/roles/geo/...).
+# at runtime by ``preDeployCommand`` (alembic upgrade head).
 COPY src/ ./src/
 COPY main.py ./
 COPY alembic.ini ./
 COPY alembic/ ./alembic/
-COPY seed/ ./seed/
-
 RUN uv sync --frozen --no-dev
 
 EXPOSE 8080
