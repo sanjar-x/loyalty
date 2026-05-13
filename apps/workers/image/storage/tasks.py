@@ -31,6 +31,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
+from PIL import UnidentifiedImageError
+from PIL.Image import DecompressionBombError
 from sqlalchemy import text
 
 from broker import broker
@@ -40,6 +42,19 @@ from image_processor import build_variants
 from publisher import StatusPublisher
 from redis_client import redis_client
 from s3 import delete_object, download_bytes, upload_bytes
+
+
+# Errors we know we cannot recover from by retrying — they originate
+# from the uploaded bytes themselves (corrupted file, decompression
+# bomb, unrecognised format). Retrying the same payload will fail the
+# same way, so we mark FAILED and skip the TaskIQ retry path. Anything
+# else (S3 timeout, Redis connection blip, asyncpg disconnect) is
+# treated as transient and re-raised so the broker will retry.
+_TERMINAL_PROCESSING_ERRORS: tuple[type[BaseException], ...] = (
+    UnidentifiedImageError,
+    DecompressionBombError,
+    ValueError,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -52,11 +67,14 @@ _STATUS_FAILED = "FAILED"
 _STATUS_PENDING_UPLOAD = "PENDING_UPLOAD"
 _STATUS_DELETED = "DELETED"
 
-# Outbox event metadata — must match what backend's relay dispatcher
-# registry recognises. The relay matches on ``event_type`` to dispatch
-# to the right consumer task (catalog mirrors processed URLs into its
-# denormalised ``media_assets`` rows).
-_AGGREGATE_TYPE = "StorageObject"
+# Outbox event metadata — must match what backend writes via
+# :class:`ImageEvent` (see ``apps/backend/src/modules/image/domain/events.py``).
+# Relay's dispatcher matches on ``event_type`` to fan out to subscribers
+# (catalog mirrors processed URLs into its denormalised ``media_assets``
+# rows on ``StorageObjectProcessedEvent``); ``aggregate_type`` is the
+# bounded-context label and must stay aligned with backend's events so
+# operators reading the outbox table see one consistent value.
+_AGGREGATE_TYPE = "image"
 _EVENT_TYPE_PROCESSED = "StorageObjectProcessedEvent"
 
 
@@ -137,6 +155,41 @@ async def _mark_failed(sid: uuid.UUID) -> None:
         )
 
 
+async def _mark_failed_safe(
+    sid: uuid.UUID, log: structlog.stdlib.BoundLogger
+) -> None:
+    """Best-effort wrapper around :func:`_mark_failed`.
+
+    The caller is already on the failure path — we don't want a second
+    error (e.g. a Postgres connection drop while flipping status) to
+    suppress the failure SSE frame the user is waiting for. Swallow
+    any exception here and log it; the row will be cleaned up later by
+    a manual sweep or the orphan cron.
+    """
+    try:
+        await _mark_failed(sid)
+    except Exception:
+        log.exception("mark_failed_swallowed")
+
+
+async def _publish_safe(
+    publisher: StatusPublisher,
+    sid: uuid.UUID,
+    payload: dict[str, Any],
+    log: structlog.stdlib.BoundLogger,
+) -> None:
+    """Best-effort publish.
+
+    The DB is the source of truth — SSE is a UX convenience. A Redis
+    blip while publishing must NOT roll back a successful commit, so
+    we never re-raise here.
+    """
+    try:
+        await publisher.publish(sid, payload)
+    except Exception:
+        log.warning("status_publish_swallowed", payload_status=payload.get("status"))
+
+
 @broker.task(
     task_name="process_image",
     queue_name="image.processing",
@@ -170,34 +223,76 @@ async def process_image_task(storage_object_id: str) -> None:
         for s3_key, data in variants_data.items():
             await upload_bytes(s3_key, data, "image/webp")
 
-        await delete_object(object_key)
+        # Raw upload is now redundant — the WebP main + variants
+        # carry the public surface. Best-effort cleanup: a failure
+        # here is non-fatal because the orphan-cleanup cron will
+        # sweep stale raw uploads on its 6-hourly run. Marking the
+        # whole task FAILED for a transient S3 DELETE blip would
+        # roll back a successful processing run.
+        try:
+            await delete_object(object_key)
+        except Exception:
+            log.warning(
+                "raw_delete_swallowed_will_be_cleaned_by_orphan_cron",
+                key=object_key,
+            )
 
         public_url = f"{settings.S3_PUBLIC_BASE_URL.rstrip('/')}/{main_key}"
         await _mark_completed(sid, public_url, variants_meta, len(main_bytes))
 
-        await publisher.publish(
+    except _TERMINAL_PROCESSING_ERRORS as exc:
+        # File-shape errors — retrying with the same bytes will fail
+        # the same way. Mark FAILED + publish + swallow so TaskIQ does
+        # NOT retry. The user gets a single ``failed`` SSE frame.
+        log.warning("processing_failed_terminal", error=type(exc).__name__)
+        await _mark_failed_safe(sid, log)
+        await _publish_safe(
+            publisher,
             sid,
             {
-                "status": "completed",
+                "status": "failed",
                 "storage_object_id": str(sid),
-                "url": public_url,
-                "variants": variants_meta,
+                "error": "Invalid image data",
             },
+            log,
         )
-        log.info("Processing completed", url=public_url)
+        return
 
     except Exception:
-        log.exception("Processing failed")
-        await _mark_failed(sid)
-        await publisher.publish(
+        # Transient — re-raise so TaskIQ retries (up to ``max_retries``).
+        # We still flip the row + publish a failure frame so the SSE
+        # client doesn't sit on a stale PROCESSING; if a retry succeeds,
+        # ``_mark_completed`` will flip the row back to COMPLETED and
+        # the next publish will overwrite the SSE state with completed.
+        log.exception("processing_failed_will_retry")
+        await _mark_failed_safe(sid, log)
+        await _publish_safe(
+            publisher,
             sid,
             {
                 "status": "failed",
                 "storage_object_id": str(sid),
                 "error": "Processing failed",
             },
+            log,
         )
         raise
+
+    # Success publish is isolated from the outer try so a Redis blip
+    # while announcing completion does NOT undo a committed DB row
+    # and uploaded WebPs (which the FAILED branch above would do).
+    await _publish_safe(
+        publisher,
+        sid,
+        {
+            "status": "completed",
+            "storage_object_id": str(sid),
+            "url": public_url,
+            "variants": variants_meta,
+        },
+        log,
+    )
+    log.info("Processing completed", url=public_url)
 
 
 @broker.task(
@@ -223,13 +318,24 @@ async def cleanup_orphans_task() -> None:
 
     log.info("Found orphans", count=len(orphans))
 
+    deleted = 0
+    skipped = 0
     for orphan in orphans:
         try:
             await delete_object(orphan.object_key)
         except Exception:
+            # S3 delete failed — leave the row in PENDING_UPLOAD so
+            # the next cron run retries. Flipping to DELETED here
+            # would leak the S3 object: the row says "deleted" so no
+            # future sweep would look at it, but the bytes are still
+            # in the bucket.
             log.warning(
-                "Failed to delete S3 object", key=orphan.object_key
+                "orphan_s3_delete_failed_will_retry",
+                key=orphan.object_key,
+                id=str(orphan.id),
             )
+            skipped += 1
+            continue
         async with session_factory() as session, session.begin():
             await session.execute(
                 text(
@@ -238,5 +344,6 @@ async def cleanup_orphans_task() -> None:
                 ),
                 {"id": orphan.id, "status": _STATUS_DELETED},
             )
+        deleted += 1
 
-    log.info("Orphan cleanup done", deleted=len(orphans))
+    log.info("orphan_cleanup_done", deleted=deleted, skipped=skipped)

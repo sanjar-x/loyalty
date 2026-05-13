@@ -129,5 +129,5 @@ packages = ["src"]
 
 # Torch CPU pin moved to the workspace root (``../pyproject.toml``) under
 # ``[[tool.uv.index]] pytorch-cpu``. Per-app ``[tool.uv.sources]`` redirect
-# torch / torchvision to that index (see ``apps/media_ml_worker``). Backend
-# does not depend on torch and therefore declares no source overrides.
+# torch / torchvision to that index (see ``apps/workers/image/rmbg``).
+# Backend does not depend on torch and therefore declares no source overrides.

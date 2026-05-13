@@ -179,15 +179,14 @@ async def confirm_upload(
     # committed PROCESSING row. ``process_image_task`` is infrastructure
     # — invoking it from the application command would violate Rule 3.
     #
-    # Phase 5b — backend is a publisher only: the consumer body lives in
-    # ``apps/workers/image/storage/tasks.py``. Dispatch by task name
-    # via the broker's kicker so we don't need to import (or even know
-    # about) the task body that lives in another deploy artefact.
-    from src.bootstrap.broker import broker
+    # Phase 5b — backend imports a publisher STUB declaration only (it
+    # never executes the body). The real consumer body lives in
+    # ``apps/workers/image/storage/tasks.py`` and runs in that worker's
+    # process. TaskIQ matches publisher + consumer by ``task_name``;
+    # RabbitMQ routes by the queue label declared on the stub.
+    from src.modules.image.infrastructure.tasks import process_image_task
 
-    await broker.kicker().with_task_name("process_image").kiq(
-        str(storage_object_id)
-    )
+    await process_image_task.kiq(str(storage_object_id))
     return ConfirmResponse(storage_object_id=storage_object_id)
 
 
@@ -218,11 +217,29 @@ async def stream_status(
     # connection missed during the network blip.
     last_event_id: str | None = request.headers.get("last-event-id")
 
-    storage_file = await repo.get_by_id(storage_object_id)
-    # Release the DB connection: the SSE loop polls Redis for up to 120s
-    # and would otherwise hold an idle-in-transaction session, which
-    # Postgres' idle_in_transaction_session_timeout would kill mid-stream.
-    await session.close()
+    # Pre-stream setup can fail (DB connection drop, transient
+    # session bind error). Once the route has started yielding the
+    # response can no longer return HTTP 500 — the only way to inform
+    # the client of an error is an ``error`` SSE frame. Wrap both
+    # the lookup and the session-close in a single guard so either
+    # surface yields a structured frame instead of an opaque 500.
+    try:
+        storage_file = await repo.get_by_id(storage_object_id)
+        # Release the DB connection: the SSE loop polls Redis for
+        # up to 120s and would otherwise hold an idle-in-transaction
+        # session which Postgres' idle_in_transaction_session_timeout
+        # would kill mid-stream.
+        await session.close()
+    except Exception:
+        logger.exception(
+            "sse_status_stream_setup_failed",
+            storage_object_id=str(storage_object_id),
+        )
+        yield ServerSentEvent(
+            data={"reason": "stream_unavailable"},
+            event="error",
+        )
+        return
 
     if not storage_file:
         yield ServerSentEvent(
@@ -413,12 +430,13 @@ async def request_background_removal(
     # existing derivation untouched; firing the task again would
     # re-run inference for nothing.
     if not result.already_existed and result.status == "PROCESSING":
-        # Phase 5b symmetric — backend is publisher-only for rmbg too.
-        # Consumer body lives in ``apps/workers/image/rmbg/tasks.py``;
-        # dispatch by task name so backend never imports the ML body.
-        from src.bootstrap.broker import broker
+        # Phase 5b symmetric — backend imports a STUB declaration only.
+        # The real body lives in ``apps/workers/image/rmbg/tasks.py``
+        # and runs in that worker's process (only artefact carrying the
+        # torch + Bria RMBG-2.0 stack).
+        from src.modules.image.infrastructure.tasks import remove_background_task
 
-        await broker.kicker().with_task_name("remove_background").kiq(
+        await remove_background_task.kiq(
             derived_storage_object_id=str(result.derived_storage_object_id),
         )
     # C2.2 — surface FAILED honestly so the UI can show a retry

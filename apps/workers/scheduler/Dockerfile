@@ -1,7 +1,9 @@
 # syntax=docker/dockerfile:1.7
 #
-# apps/workers/scheduler — TaskIQ scheduler (cron). Same lean image as
-# apps/workers/core.
+# apps/workers/scheduler — TaskIQ scheduler (cron). Same lean image
+# class as the backend's core-worker (no torch / no Pillow). The cron
+# loop only ``.kicker()``-s the periodic tasks declared on its broker
+# (e.g. image_cleanup_orphans). Bodies run in the consumer workers.
 
 FROM python:3.14-slim-trixie
 

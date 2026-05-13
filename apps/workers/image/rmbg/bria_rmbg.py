@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+import time
 from typing import Any
 
 import structlog
@@ -21,6 +22,15 @@ from PIL import Image
 from PIL.Image import Resampling
 
 from config import settings
+
+# Cooldown between failed init attempts. The most common transient
+# init failure is the Hugging Face download (rate-limit, connection
+# blip, cache-dir permission glitch on a freshly-mounted volume).
+# Caching the error forever would require an operator restart for any
+# transient hiccup, so we let the next call retry after the window
+# expires. Permanent errors (bad HF token, model removed upstream)
+# will simply re-fail and re-cache.
+_INIT_ERROR_COOLDOWN_SECONDS = 300.0
 
 logger = structlog.get_logger(__name__)
 
@@ -54,27 +64,50 @@ class BriaRMBG:
         self._device: str | None = None
         self._lock = asyncio.Lock()
         self._init_error: Exception | None = None
+        self._init_error_at: float | None = None
         self._log = logger.bind(component="BriaRMBG")
+
+    def _init_error_is_active(self) -> bool:
+        """A cached init error suppresses re-tries until the cooldown
+        window has elapsed. See :data:`_INIT_ERROR_COOLDOWN_SECONDS`.
+        """
+        if self._init_error is None or self._init_error_at is None:
+            return False
+        return (
+            time.monotonic() - self._init_error_at
+            < _INIT_ERROR_COOLDOWN_SECONDS
+        )
 
     @property
     def output_content_type(self) -> str:
         return "image/webp"
 
     async def remove(self, image_bytes: bytes) -> bytes:
-        if self._model is None and self._init_error is None:
+        if self._model is None and not self._init_error_is_active():
             async with self._lock:
-                if self._model is None and self._init_error is None:
+                if self._model is None and not self._init_error_is_active():
+                    # Clear a stale (cooldown-expired) error before
+                    # we retry — otherwise the retry sets a fresh
+                    # error and the next caller would see the old one.
+                    self._init_error = None
+                    self._init_error_at = None
                     try:
                         await asyncio.to_thread(self._initialise)
                     except Exception as exc:
                         self._init_error = exc
+                        self._init_error_at = time.monotonic()
                         self._log.exception(
                             "briaai_rmbg2_failed_to_initialize",
                             error=type(exc).__name__,
                         )
                         raise
 
-        if self._init_error is not None:
+        if self._init_error_is_active():
+            # We re-raise the cached error so the calling task fails
+            # cleanly and TaskIQ retries — by the time the broker's
+            # retry-delay elapses the cooldown is likely to have
+            # passed and we get a fresh init attempt.
+            assert self._init_error is not None
             raise self._init_error
 
         # Inference is GIL-bound (NumPy + torch C++ kernels) but blocks

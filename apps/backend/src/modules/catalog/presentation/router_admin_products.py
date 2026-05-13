@@ -349,10 +349,12 @@ async def delete_product(
         "Server-Sent Events stream pushing live recompute outcomes for every "
         "SKU of the given product. Replaces admin polling. Each event payload "
         "carries ``skuId`` / ``pricingStatus`` / ``sellingPrice`` / ``pricedAt`` "
-        "/ ``pricedFailureReason``. Backed by Redis pub/sub on channel "
+        "/ ``pricedFailureReason``. Backed by Redis Streams on channel "
         "``catalog:sku-pricing:{product_id}`` — the outbox-driven consumer "
-        "publishes here when ``SKUPricedEvent`` / ``SKUPricingFailedEvent`` "
-        "are dispatched (CAT-005)."
+        "appends an entry here when ``SKUPricedEvent`` / "
+        "``SKUPricingFailedEvent`` are dispatched (CAT-005). Honours the "
+        "SSE-standard ``Last-Event-ID`` header on reconnect to replay "
+        "entries appended after the cached cursor."
     ),
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )

@@ -12,18 +12,18 @@ Coordination with backend happens through three external surfaces:
 * Redis Streams — channel ``media:status:{uuid}``.
 * RabbitMQ task name ``remove_background`` (queue ``image.ml``).
 
-No Python import crosses the boundary. Conditional registration on
-the broker is intentional: the worker may be deployed with the model
-weights pre-warmed, or without (in which case it skips registering
-the task and never subscribes to ``image.ml``).
+No Python import crosses the boundary.
 """
 
 from __future__ import annotations
 
 import json
 import uuid
+from typing import Any
 
 import structlog
+from PIL import UnidentifiedImageError
+from PIL.Image import DecompressionBombError
 from sqlalchemy import text
 
 from bria_rmbg import bria_rmbg
@@ -34,12 +34,27 @@ from publisher import StatusPublisher
 from redis_client import redis_client
 from s3 import download_bytes, upload_bytes
 
+# Errors we know we cannot recover from by retrying — they originate
+# from the bytes themselves (corrupted parent WebP). Retrying with
+# the same payload will fail the same way, so we mark FAILED + publish
+# + swallow rather than re-raising. Anything else (CUDA OOM, HF
+# download blip, S3 timeout, asyncpg disconnect, Redis blip) is
+# treated as transient and re-raised so TaskIQ retries.
+_TERMINAL_PROCESSING_ERRORS: tuple[type[BaseException], ...] = (
+    UnidentifiedImageError,
+    DecompressionBombError,
+)
+
 logger = structlog.get_logger(__name__)
 
 _STATUS_COMPLETED = "COMPLETED"
 _STATUS_FAILED = "FAILED"
 
-_AGGREGATE_TYPE = "StorageObject"
+# Outbox event metadata — must match :class:`ImageEvent` in
+# ``apps/backend/src/modules/image/domain/events.py``. The
+# ``aggregate_type`` is the bounded-context label, NOT the SQL table
+# name; ``BackgroundRemovedEvent`` belongs to the ``image`` context.
+_AGGREGATE_TYPE = "image"
 _EVENT_TYPE_BG_REMOVED = "BackgroundRemovedEvent"
 _DERIVATION_KIND_BG_REMOVED = "bg_removed"
 
@@ -130,6 +145,37 @@ async def _mark_failed(sid: uuid.UUID) -> None:
         )
 
 
+async def _mark_failed_safe(
+    sid: uuid.UUID, log: structlog.stdlib.BoundLogger
+) -> None:
+    """Best-effort wrapper around :func:`_mark_failed`. See the storage
+    worker's twin for the rationale — we never let a secondary error
+    on the failure path swallow the failure SSE frame.
+    """
+    try:
+        await _mark_failed(sid)
+    except Exception:
+        log.exception("mark_failed_swallowed")
+
+
+async def _publish_safe(
+    publisher: StatusPublisher,
+    sid: uuid.UUID,
+    payload: dict[str, Any],
+    log: structlog.stdlib.BoundLogger,
+) -> None:
+    """Best-effort publish — Redis is a UX convenience, not the source
+    of truth. A blip here must not roll back the DB commit.
+    """
+    try:
+        await publisher.publish(sid, payload)
+    except Exception:
+        log.warning(
+            "status_publish_swallowed",
+            payload_status=payload.get("status"),
+        )
+
+
 @broker.task(
     task_name="remove_background",
     queue_name="image.ml",
@@ -169,22 +215,38 @@ async def remove_background_task(derived_storage_object_id: str) -> None:
             sid, parent_id, cutout_key, public_url, len(cutout_bytes)
         )
 
-        await publisher.publish(
+    except _TERMINAL_PROCESSING_ERRORS as exc:
+        # The parent WebP is corrupt — retrying with the same bytes
+        # will fail the same way. Mark FAILED + publish + return so
+        # TaskIQ does NOT retry.
+        log.warning(
+            "background_removal_failed_terminal",
+            error=type(exc).__name__,
+        )
+        await _mark_failed_safe(sid, log)
+        await _publish_safe(
+            publisher,
             sid,
             {
-                "status": "completed",
+                "status": "failed",
                 "storage_object_id": str(sid),
-                "url": public_url,
-                "variants": [],
+                "error": "Invalid parent image",
                 "kind": _DERIVATION_KIND_BG_REMOVED,
             },
+            log,
         )
-        log.info("background_removal_completed", url=public_url)
+        return
 
     except Exception:
-        log.exception("background_removal_failed")
-        await _mark_failed(sid)
-        await publisher.publish(
+        # Transient — re-raise so TaskIQ retries (up to ``max_retries``).
+        # The mark-failed + publish below land before the retry so the
+        # SSE client sees a failure frame promptly; if a retry succeeds,
+        # ``_mark_completed`` flips the row back and the success frame
+        # overwrites the SSE state.
+        log.exception("background_removal_failed_will_retry")
+        await _mark_failed_safe(sid, log)
+        await _publish_safe(
+            publisher,
             sid,
             {
                 "status": "failed",
@@ -192,5 +254,23 @@ async def remove_background_task(derived_storage_object_id: str) -> None:
                 "error": "Background removal failed",
                 "kind": _DERIVATION_KIND_BG_REMOVED,
             },
+            log,
         )
         raise
+
+    # Success publish is isolated from the outer try so a Redis blip
+    # while announcing completion does NOT undo a committed DB row
+    # and uploaded cutout (which the FAILED branch above would do).
+    await _publish_safe(
+        publisher,
+        sid,
+        {
+            "status": "completed",
+            "storage_object_id": str(sid),
+            "url": public_url,
+            "variants": [],
+            "kind": _DERIVATION_KIND_BG_REMOVED,
+        },
+        log,
+    )
+    log.info("background_removal_completed", url=public_url)
