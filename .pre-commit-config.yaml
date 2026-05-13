@@ -1,11 +1,11 @@
 # Pre-commit stage (auto on `git commit`):
-#   uv run --project backend pre-commit install
+#   uv run --project apps/backend pre-commit install
 #
 # Pre-push stage (REC-019 — auto on `git push`):
-#   uv run --project backend pre-commit install --hook-type pre-push
+#   uv run --project apps/backend pre-commit install --hook-type pre-push
 #
 # Or both at once (preferred — see Makefile target `precommit-install`):
-#   uv run --project backend pre-commit install --hook-type pre-commit --hook-type pre-push
+#   uv run --project apps/backend pre-commit install --hook-type pre-commit --hook-type pre-push
 #
 # Manual sweeps:
 #   uv run pre-commit run --all-files
@@ -21,30 +21,30 @@ repos:
 
       - id: ruff-check
         name: ruff check (backend)
-        entry: uv run --project backend ruff check --fix
+        entry: uv run --project apps/backend ruff check --fix
         language: system
         types_or: [python, pyi]
-        files: ^backend/
-        exclude: ^backend/\.claude/
+        files: ^apps/backend/
+        exclude: ^apps/backend/\.claude/
         pass_filenames: true
 
       - id: ruff-format
         name: ruff format (backend)
-        entry: uv run --project backend ruff format
+        entry: uv run --project apps/backend ruff format
         language: system
         types_or: [python, pyi]
-        files: ^backend/
-        exclude: ^backend/\.claude/
+        files: ^apps/backend/
+        exclude: ^apps/backend/\.claude/
         pass_filenames: true
 
       - id: ty-check
         name: ty check (backend)
         # ty operates project-wide via its own config; ignore filenames
         # so a single invocation per commit covers the whole tree.
-        entry: bash -c 'cd backend && uv run ty check'
+        entry: bash -c 'cd apps/backend && uv run ty check'
         language: system
         types_or: [python, pyi]
-        files: ^backend/
+        files: ^apps/backend/
         pass_filenames: false
 
       # ----------------------------------------------------------------
@@ -60,8 +60,8 @@ repos:
         name: backend production smoke (uv sync --no-dev --frozen + create_app + broker)
         # Delegates to `make production-smoke` so the trap that restores
         # the dev venv on exit lives in one place and is reusable from
-        # the developer's shell (`cd backend && make production-smoke`).
-        entry: bash -c 'cd backend && make production-smoke'
+        # the developer's shell (`cd apps/backend && make production-smoke`).
+        entry: bash -c 'cd apps/backend && make production-smoke'
         stages: [pre-push]
         pass_filenames: false
         language: system
@@ -74,14 +74,14 @@ repos:
         # ``--ignore`` flag dropped here. The full unit suite gates
         # every push from now on.
         name: backend unit tests
-        entry: bash -c 'cd backend && uv run pytest tests/unit/ -x -q --no-cov'
+        entry: bash -c 'cd apps/backend && uv run pytest tests/unit/ -x -q --no-cov'
         stages: [pre-push]
         pass_filenames: false
         language: system
 
       - id: backend-tests-architecture
         name: backend architecture fitness tests
-        entry: bash -c 'cd backend && uv run pytest tests/architecture/ -x -q --no-cov'
+        entry: bash -c 'cd apps/backend && uv run pytest tests/architecture/ -x -q --no-cov'
         stages: [pre-push]
         pass_filenames: false
         language: system
