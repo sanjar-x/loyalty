@@ -1,16 +1,20 @@
-"""Image module storage tasks — Pillow + S3, no ML.
+"""Image-storage consumer tasks — Pillow resize + S3 cleanup.
 
 * ``process_image_task`` — consumes a confirmed upload, downloads raw,
   produces WebP main + variants via Pillow, uploads to S3, marks
   ``status=COMPLETED`` and pushes status via SSE pub/sub.
-* ``cleanup_orphans_task`` — six-hourly cron that prunes ``PENDING_UPLOAD``
-  rows older than 24 hours.
+* ``cleanup_orphans_task`` — six-hourly cron that prunes
+  ``PENDING_UPLOAD`` rows older than 24 hours.
 
 Both tasks are queued on ``image.processing`` / ``image.maintenance``.
-The lean ``apps/workers/image/storage`` worker subscribes to these
-queues; the ML inference task lives in :mod:`.rmbg` and is consumed
-exclusively by ``apps/workers/image/rmbg`` (separate Railway service
-with the torch + transformers + timm + kornia stack installed).
+
+Phase 5b extracted these bodies out of ``apps/backend/`` (where they
+used to live at ``src/modules/image/infrastructure/tasks/storage.py``)
+into this worker's directory — backend now only dispatches by task
+name via ``broker.kicker().with_task_name(...).kiq(...)`` and never
+imports this module. Domain interfaces, ORM models, and shared services
+(Pillow processor, SSE manager, byte-stream helper) still live in
+backend and are imported transitively via the workspace dependency.
 """
 
 from __future__ import annotations

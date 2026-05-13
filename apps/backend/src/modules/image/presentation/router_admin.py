@@ -179,14 +179,15 @@ async def confirm_upload(
     # committed PROCESSING row. ``process_image_task`` is infrastructure
     # — invoking it from the application command would violate Rule 3.
     #
-    # Lazy import: module-level would eagerly fire ``@broker.task``
-    # registration whenever ``image/module.py`` is loaded, leaking the
-    # image queue subscription onto ``worker_core`` (the filter in
-    # ``worker_core.py`` only drops the manifest's task_modules, not
-    # the transitive router import that pulls them in).
-    from src.modules.image.infrastructure.tasks import process_image_task
+    # Phase 5b — backend is a publisher only: the consumer body lives in
+    # ``apps/workers/image/storage/tasks.py``. Dispatch by task name
+    # via the broker's kicker so we don't need to import (or even know
+    # about) the task body that lives in another deploy artefact.
+    from src.bootstrap.broker import broker
 
-    await process_image_task.kiq(str(storage_object_id))
+    await broker.kicker().with_task_name("process_image").kiq(
+        str(storage_object_id)
+    )
     return ConfirmResponse(storage_object_id=storage_object_id)
 
 
