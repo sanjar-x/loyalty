@@ -24,4 +24,6 @@ COPY apps/ ./apps/
 RUN uv sync --frozen --no-dev --package scheduler-worker
 
 WORKDIR /workspace/apps/workers/scheduler
-CMD ["python", "-m", "taskiq", "scheduler", "main:scheduler"]
+
+# No CMD on purpose — start command lives in
+# ``apps/workers/scheduler/railway.toml``.

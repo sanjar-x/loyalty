@@ -9,3 +9,6 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "python -m taskiq worker main:broker"

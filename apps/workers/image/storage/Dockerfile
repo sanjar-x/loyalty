@@ -37,4 +37,5 @@ RUN uv sync --frozen --no-dev
 # directory root next to ``main.py``.
 COPY *.py ./
 
-CMD ["python", "-m", "taskiq", "worker", "main:broker"]
+# No CMD on purpose — start command lives in
+# ``apps/workers/image/storage/railway.toml``.

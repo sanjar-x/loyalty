@@ -23,4 +23,6 @@ COPY apps/ ./apps/
 RUN uv sync --frozen --no-dev --package telegram-bot
 
 WORKDIR /workspace/apps/bot
-CMD ["python", "main.py"]
+
+# No CMD on purpose — start command lives in
+# ``apps/bot/railway.toml``.

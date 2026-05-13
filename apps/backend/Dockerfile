@@ -49,7 +49,9 @@ RUN uv sync --frozen --no-dev
 
 EXPOSE 8080
 
-# ``python -m`` prepends an empty string to ``sys.path`` (cwd first),
-# so the top-level ``main.py`` resolves without packaging it as a
-# module. Same pattern as the worker apps.
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+# No CMD on purpose — the start command is owned by the Railway
+# service config (``apps/backend/railway.toml`` for backend / web,
+# Railway UI override for the core-worker service that shares this
+# image). Keeping the start command out of the Dockerfile means one
+# image can power multiple Railway services (web, core-worker) with
+# different ``startCommand`` per service.

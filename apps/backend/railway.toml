@@ -12,8 +12,11 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Backend's image now uses ``WORKDIR /app`` (single self-contained layout
-# instead of the prior workspace ``/workspace/apps/backend``).
-preDeployCommand = [
-    "sh -c 'cd /app && uv run alembic upgrade head'",
-]
+# Backend's image uses ``WORKDIR /app`` (single self-contained layout).
+# ``startCommand`` lives here instead of the Dockerfile so the same image
+# can power multiple Railway services with different roles. This file
+# configures the backend / web service (uvicorn). The core-worker
+# service shares this image and overrides startCommand via the Railway
+# UI to ``python -m taskiq worker src.bootstrap.worker_core:broker``.
+startCommand = "python -m uvicorn main:app --host 0.0.0.0 --port 8080"
+preDeployCommand = ["sh -c 'cd /app && uv run alembic upgrade head'"]

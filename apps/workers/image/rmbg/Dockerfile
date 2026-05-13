@@ -39,4 +39,6 @@ RUN uv sync --frozen --no-dev
 # directory root next to ``main.py``.
 COPY *.py ./
 
-CMD ["python", "-m", "taskiq", "worker", "main:broker"]
+# No CMD on purpose — start command lives in
+# ``apps/workers/image/rmbg/railway.toml`` so it can be tuned per
+# environment without rebuilding the image.

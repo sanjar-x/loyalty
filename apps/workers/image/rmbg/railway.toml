@@ -10,3 +10,8 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
+
+[deploy]
+# Single role per image — startCommand lives here for parity with
+# backend's setup, and so it can be changed without an image rebuild.
+startCommand = "python -m taskiq worker main:broker"
