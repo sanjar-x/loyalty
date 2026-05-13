@@ -4,7 +4,7 @@ the corresponding media asset (IMG-005).
 Replaces the prior best-effort post-commit ``media_cleanup.delete`` loop
 in ``UpdateProductHandler``. With the loop, a process crash after the
 DB commit but before the S3 delete left an orphan that
-``cleanup_orphans_task`` did not pick up (it only sweeps
+``image_cleanup_orphans_task`` did not pick up (it only sweeps
 ``PENDING_UPLOAD`` rows, not COMPLETED-but-orphaned).
 
 Now the cleanup runs via TaskIQ after the relay picks up

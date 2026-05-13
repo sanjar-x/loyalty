@@ -27,8 +27,8 @@ from broker import broker
 from db import engine
 from redis_client import redis_client
 
-# Side-effect import — registers ``process_image_task`` and
-# ``cleanup_orphans_task`` on the broker. Must run BEFORE TaskIQ's
+# Side-effect import — registers ``image_process_task`` and
+# ``image_cleanup_orphans_task`` on the broker. Must run BEFORE TaskIQ's
 # worker process scans the broker for registered tasks.
 import tasks  # noqa: E402, F401
 

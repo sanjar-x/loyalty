@@ -45,6 +45,21 @@ class Settings(BaseSettings):
     BG_REMOVAL_MODEL_CACHE_DIR: str = "/data/hf_cache"
     BG_REMOVAL_WEBP_QUALITY: int = 90
 
+    # rmbg recipe tuning (see rmbg/README.md for the rationale).
+    # Letterbox to 1024×1024 instead of stretching — preserves aspect
+    # ratio so fine structures (hair, fur, transparent edges) survive.
+    BG_REMOVAL_KEEP_ASPECT: bool = True
+    # Gaussian blur radius (px) softening the alpha mask edge. 1.0 hides
+    # the hard 1-pixel transition where the mask meets the keep region.
+    BG_REMOVAL_FEATHER: float = 1.0
+    # NHWC layout — oneDNN picks faster Conv2d kernels on CPU. Also
+    # benefits Ampere+ GPUs. Free win, leave on.
+    BG_REMOVAL_CHANNELS_LAST: bool = True
+    # CPU intra-op thread count. ``None`` lets PyTorch auto-pick.
+    # Pin to physical core count to dodge hyper-threading contention.
+    # Only applied when device resolves to ``cpu``.
+    BG_REMOVAL_NUM_THREADS: int | None = None
+
     @property
     def database_url(self) -> str:
         return (

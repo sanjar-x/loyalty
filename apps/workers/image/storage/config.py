@@ -44,8 +44,8 @@ class Settings(BaseSettings):
     S3_BUCKET_NAME: str
     S3_PUBLIC_BASE_URL: str
 
-    # RabbitMQ — worker consumes from image.processing /
-    # image.maintenance queues on this broker.
+    # RabbitMQ — worker consumes ``image_storage_jobs`` (bindings
+    # ``image.storage.process`` + ``image.storage.cleanup_orphans``).
     RABBITMQ_PRIVATE_URL: str
 
     @property

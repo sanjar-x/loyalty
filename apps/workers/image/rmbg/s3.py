@@ -6,19 +6,20 @@ wire-level contract with backend but not the Python code.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from aiobotocore.session import AioSession
-from config import settings
 from types_aiobotocore_s3.client import S3Client
+
+from config import settings
 
 _session = AioSession()
 
 
 @asynccontextmanager
 async def s3_client() -> AsyncIterator[S3Client]:
-    async with _session.create_client(  # ty:ignore
+    async with _session.create_client(
         "s3",
         endpoint_url=settings.S3_ENDPOINT_URL,
         region_name=settings.S3_REGION,
@@ -30,7 +31,7 @@ async def s3_client() -> AsyncIterator[S3Client]:
 
 async def download_bytes(object_key: str) -> bytes:
     async with s3_client() as client:
-        response = await client.get_object(  # ty:ignore
+        response = await client.get_object(
             Bucket=settings.S3_BUCKET_NAME, Key=object_key
         )
         async with response["Body"] as stream:
@@ -39,7 +40,7 @@ async def download_bytes(object_key: str) -> bytes:
 
 async def upload_bytes(object_key: str, data: bytes, content_type: str) -> None:
     async with s3_client() as client:
-        await client.put_object(  # ty:ignore
+        await client.put_object(
             Bucket=settings.S3_BUCKET_NAME,
             Key=object_key,
             Body=data,

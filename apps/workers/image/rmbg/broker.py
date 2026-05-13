@@ -1,32 +1,33 @@
 """TaskIQ broker — image-rmbg (background-removal) worker.
 
-Subscribes to the **media** queue on the workspace-wide RabbitMQ topic
-exchange. Mirrors backend's broker topology (see
-``apps/backend/src/bootstrap/broker.py``) so the worker binds to the
-same exchange/queue/routing-key tuple that backend publishes to.
+Subscribes to ``image_rmbg_jobs`` on the workspace-wide RabbitMQ topic
+exchange ``taskiq_rpc_exchange``. The queue is bound to the single
+routing key ``image.rmbg.remove`` so the worker receives ONLY the
+background-removal task published by backend's
+``image_remove_background_task``.
 
 Wire-level contract (must stay in sync with backend):
 
 * exchange ``taskiq_rpc_exchange`` — type TOPIC, durable
-* queue    ``taskiq_media_jobs``   — durable, bound with routing key
-  ``image.#`` (this worker only receives ``image.ml`` messages
-  published by backend's ``remove_background_task``, the
-  ``taskiq_storage_worker`` competes for ``image.processing`` /
-  ``image.maintenance`` on the same queue but the task name on the
-  payload routes execution to the right consumer)
+* queue    ``image_rmbg_jobs``     — durable, bound with routing key
+  ``image.rmbg.remove``
+
+The storage worker subscribes to its own ``image_storage_jobs``
+(bindings ``image.storage.process`` + ``image.storage.cleanup_orphans``).
+The two queues are siblings on the same exchange; the topic-key
+bindings keep each worker's traffic isolated.
 
 Why a plain :class:`AioPikaBroker` (not :class:`DomainSplitBroker`):
 
-This worker is consume-only and listens to a single queue, so the
-upstream broker's stock behaviour is sufficient. The split-broker
-subclass exists to let backend's web service publish to multiple
-queues by label and to let backend's core-worker consume from one
-queue while seeing all of them — neither concern applies here.
+This worker is consume-only and never publishes, so the upstream
+broker's stock behaviour is sufficient. The split-broker subclass
+exists in backend for label-routed publishing.
 
-Worker-owned: no import from backend. ``qos=1`` because rmbg inference
-is heavy (torch + Bria RMBG-2.0) — we want one message per worker
-process in-flight at a time so a slow message doesn't queue up behind
-faster ones.
+Worker-owned: no import from backend.
+
+``qos=1`` because rmbg inference is heavy (torch + Bria RMBG-2.0) and
+holds the GIL for ~6-30 seconds per image. One in-flight message per
+process avoids head-of-line blocking on the broker side.
 """
 
 from __future__ import annotations
@@ -38,9 +39,9 @@ from taskiq_aio_pika.queue import Queue
 from config import settings
 
 _EXCHANGE = Exchange(name="taskiq_rpc_exchange", declare=True, durable=True)
-_MEDIA_QUEUE = Queue(
-    name="taskiq_media_jobs",
-    routing_key="image.#",
+_RMBG_QUEUE = Queue(
+    name="image_rmbg_jobs",
+    routing_key="image.rmbg.remove",
     declare=True,
     durable=True,
 )
@@ -48,6 +49,6 @@ _MEDIA_QUEUE = Queue(
 broker: AioPikaBroker = AioPikaBroker(
     url=settings.RABBITMQ_PRIVATE_URL,
     exchange=_EXCHANGE,
-    task_queues=[_MEDIA_QUEUE],
+    task_queues=[_RMBG_QUEUE],
     qos=1,
 )

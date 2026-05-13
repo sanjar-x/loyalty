@@ -1,10 +1,10 @@
 """Image-storage worker tasks — Pillow resize + S3, no backend imports.
 
-* ``process_image_task`` — consumes a confirmed upload, downloads raw,
+* ``image_process_task`` — consumes a confirmed upload, downloads raw,
   produces WebP main + variants via Pillow, uploads to S3, updates
   the row, writes the StorageObjectProcessedEvent to the outbox and
   pushes a status frame to Redis Streams.
-* ``cleanup_orphans_task`` — six-hourly cron that prunes
+* ``image_cleanup_orphans_task`` — six-hourly cron that prunes
   ``PENDING_UPLOAD`` rows older than 24 hours.
 
 Coordination with backend happens through three external surfaces:
@@ -16,7 +16,7 @@ Coordination with backend happens through three external surfaces:
 * Redis Streams — channel ``media:status:{uuid}`` (publisher here,
   subscriber in backend's SSE endpoint), wire format = single ``data``
   field carrying a JSON payload.
-* RabbitMQ task name ``process_image`` / ``image_cleanup_orphans``
+* RabbitMQ task names ``image_process`` / ``image_cleanup_orphans``
   (publisher = backend's ``broker.kicker()``).
 
 No Python import crosses the boundary.
@@ -76,6 +76,15 @@ _STATUS_DELETED = "DELETED"
 # operators reading the outbox table see one consistent value.
 _AGGREGATE_TYPE = "image"
 _EVENT_TYPE_PROCESSED = "StorageObjectProcessedEvent"
+
+# Progress stages emitted between ``status: processing`` start and the
+# terminal ``status: completed`` / ``status: failed`` frames. Stage
+# names are part of the wire contract with the SSE subscriber — adding
+# or renaming one is a breaking change.
+_PROGRESS_STAGE_STARTED = "started"
+_PROGRESS_STAGE_DOWNLOADED = "downloaded"
+_PROGRESS_STAGE_VARIANTS_BUILT = "variants_built"
+_PROGRESS_STAGE_UPLOADED = "uploaded"
 
 
 async def _fetch_storage_object(
@@ -190,14 +199,39 @@ async def _publish_safe(
         log.warning("status_publish_swallowed", payload_status=payload.get("status"))
 
 
+async def _publish_progress(
+    publisher: StatusPublisher,
+    sid: uuid.UUID,
+    stage: str,
+    log: structlog.stdlib.BoundLogger,
+) -> None:
+    """Publish an intermediate ``status: processing`` frame.
+
+    Carries the same best-effort semantics as :func:`_publish_safe` —
+    Redis blips never roll back DB work. The ``stage`` field lets the
+    SSE consumer render a progress indicator without inventing its own
+    timing heuristic.
+    """
+    await _publish_safe(
+        publisher,
+        sid,
+        {
+            "status": "processing",
+            "storage_object_id": str(sid),
+            "stage": stage,
+        },
+        log,
+    )
+
+
 @broker.task(
-    task_name="process_image",
-    queue_name="image.processing",
+    task_name="image_process",
+    queue_name="image.storage.process",
     retry_on_error=True,
     max_retries=2,
     timeout=300,
 )
-async def process_image_task(storage_object_id: str) -> None:
+async def image_process_task(storage_object_id: str) -> None:
     """Download raw, run Pillow, upload variants, update DB, push status."""
     sid = uuid.UUID(storage_object_id)
     log = logger.bind(storage_object_id=storage_object_id)
@@ -210,18 +244,25 @@ async def process_image_task(storage_object_id: str) -> None:
         return
     object_key, _bucket_name = fetched
 
+    await _publish_progress(publisher, sid, _PROGRESS_STAGE_STARTED, log)
+
     try:
         raw_data = await download_bytes(object_key)
         log.info("Downloaded raw", size=len(raw_data))
+        await _publish_progress(publisher, sid, _PROGRESS_STAGE_DOWNLOADED, log)
 
         main_bytes, variants_meta, variants_data = await asyncio.to_thread(
             build_variants, raw_data, sid, settings.S3_PUBLIC_BASE_URL
+        )
+        await _publish_progress(
+            publisher, sid, _PROGRESS_STAGE_VARIANTS_BUILT, log
         )
 
         main_key = f"public/{sid}.webp"
         await upload_bytes(main_key, main_bytes, "image/webp")
         for s3_key, data in variants_data.items():
             await upload_bytes(s3_key, data, "image/webp")
+        await _publish_progress(publisher, sid, _PROGRESS_STAGE_UPLOADED, log)
 
         # Raw upload is now redundant — the WebP main + variants
         # carry the public surface. Best-effort cleanup: a failure
@@ -297,11 +338,11 @@ async def process_image_task(storage_object_id: str) -> None:
 
 @broker.task(
     task_name="image_cleanup_orphans",
-    queue_name="image.maintenance",
+    queue_name="image.storage.cleanup_orphans",
     timeout=600,
     schedule=[{"cron": "0 */6 * * *"}],
 )
-async def cleanup_orphans_task() -> None:
+async def image_cleanup_orphans_task() -> None:
     """Delete PENDING_UPLOAD storage objects older than 24 hours."""
     log = logger.bind(task="image_cleanup_orphans")
     cutoff = datetime.now(UTC) - timedelta(hours=24)

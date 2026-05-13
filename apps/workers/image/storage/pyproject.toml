@@ -8,7 +8,8 @@
 #   * PostgreSQL (storage_objects + outbox_messages tables, schema
 #     owned by backend's alembic migrations)
 #   * Redis Streams (channel ``media:status:{uuid}``, JSON wire format)
-#   * RabbitMQ (queues ``image.processing`` + ``image.maintenance``,
+#   * RabbitMQ (queue ``image_storage_jobs`` with routing-key bindings
+#     ``image.storage.process`` + ``image.storage.cleanup_orphans``,
 #     task names ``process_image`` + ``image_cleanup_orphans``)
 #
 # No Python import crosses the boundary. Schema drift between this

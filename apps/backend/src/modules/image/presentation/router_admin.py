@@ -176,7 +176,7 @@ async def confirm_upload(
         )
     )
     # Variant-generation kicked HERE so the worker observes a
-    # committed PROCESSING row. ``process_image_task`` is infrastructure
+    # committed PROCESSING row. ``image_process_task`` is infrastructure
     # — invoking it from the application command would violate Rule 3.
     #
     # Phase 5b — backend imports a publisher STUB declaration only (it
@@ -184,9 +184,9 @@ async def confirm_upload(
     # ``apps/workers/image/storage/tasks.py`` and runs in that worker's
     # process. TaskIQ matches publisher + consumer by ``task_name``;
     # RabbitMQ routes by the queue label declared on the stub.
-    from src.modules.image.infrastructure.tasks import process_image_task
+    from src.modules.image.infrastructure.tasks import image_process_task
 
-    await process_image_task.kiq(str(storage_object_id))
+    await image_process_task.kiq(str(storage_object_id))
     return ConfirmResponse(storage_object_id=storage_object_id)
 
 
@@ -434,9 +434,11 @@ async def request_background_removal(
         # The real body lives in ``apps/workers/image/rmbg/tasks.py``
         # and runs in that worker's process (only artefact carrying the
         # torch + Bria RMBG-2.0 stack).
-        from src.modules.image.infrastructure.tasks import remove_background_task
+        from src.modules.image.infrastructure.tasks import (
+            image_remove_background_task,
+        )
 
-        await remove_background_task.kiq(
+        await image_remove_background_task.kiq(
             derived_storage_object_id=str(result.derived_storage_object_id),
         )
     # C2.2 — surface FAILED honestly so the UI can show a retry

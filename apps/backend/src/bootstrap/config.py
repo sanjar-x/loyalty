@@ -118,20 +118,21 @@ class Settings(BaseSettings):
     RABBITMQ_PRIVATE_URL: str
 
     # -- TaskIQ broker / RabbitMQ queue isolation ---------------------------
-    # Domain-split: the broker is configured with TWO queues
-    # (``taskiq_core_jobs`` and ``taskiq_media_jobs``) so that label-based
-    # routing in ``DomainSplitBroker.kick`` correctly addresses both
-    # domains from any publisher. Each worker process picks ONE queue
-    # to consume from via ``TASKIQ_PRIMARY_QUEUE`` — publishers leave it
-    # at the default. See ``src/bootstrap/broker.py`` for the topology
-    # rationale.
+    # Backend's broker declares only ``core_jobs`` (bound to the flat
+    # routing key ``core``). Image workers declare their own queues
+    # (``image_storage_jobs`` and ``image_rmbg_jobs``) with dotted
+    # routing keys (``image.storage.*`` / ``image.rmbg.*``). Publishers
+    # do not need media queues in their ``task_queues`` — the topic
+    # exchange routes by binding regardless.
     #
     # Per-Railway-service env override:
     #
     #   backend / scheduler       — no override (publish-only).
-    #   core-worker               → TASKIQ_PRIMARY_QUEUE=taskiq_core_jobs
-    #   media-worker              → TASKIQ_PRIMARY_QUEUE=taskiq_media_jobs
-    TASKIQ_PRIMARY_QUEUE: str = "taskiq_core_jobs"
+    #   core-worker               → TASKIQ_PRIMARY_QUEUE=core_jobs
+    #   image-storage-worker      — sets its own primary queue via the
+    #                                worker bootstrap; not read here.
+    #   image-rmbg-worker         — same.
+    TASKIQ_PRIMARY_QUEUE: str = "core_jobs"
 
     # -- Telegram Bot --------------------------------------------------------
     BOT_TOKEN: SecretStr

@@ -21,23 +21,26 @@ Run command:
 
 from __future__ import annotations
 
-# 1. Eager-import the heavy ML stack on the main thread.
-import torch  # noqa: F401, E402
-import torchvision  # noqa: F401, E402
-import timm  # noqa: F401, E402
-import kornia  # noqa: F401, E402
+# Step 1 — eager-import the heavy ML stack on the main thread BEFORE
+# any task body or torch-using module is imported. See the module
+# docstring for the torchvision::nms double-registration rationale.
+import torch  # noqa: F401
+import torchvision  # noqa: F401
+import timm  # noqa: F401
+import kornia  # noqa: F401
 
-import structlog  # noqa: E402
-from taskiq.events import TaskiqEvents  # noqa: E402
+# Step 2 — framework imports.
+import structlog
+from taskiq.events import TaskiqEvents
 
-from broker import broker  # noqa: E402
-from db import engine  # noqa: E402
-from redis_client import redis_client  # noqa: E402
-
-# Side-effect import — registers ``remove_background_task`` on the
-# broker. Must run BEFORE TaskIQ's worker process scans the broker
-# for registered tasks.
-import tasks  # noqa: E402, F401
+# Step 3 — worker-local modules. ``tasks`` is imported for its
+# side effect (``@broker.task`` registers ``image_remove_background_task``);
+# it must run BEFORE TaskIQ's worker process scans the broker for
+# registered tasks at startup.
+from broker import broker
+from db import engine
+from redis_client import redis_client
+import tasks  # noqa: F401
 
 logger = structlog.get_logger(__name__)
 

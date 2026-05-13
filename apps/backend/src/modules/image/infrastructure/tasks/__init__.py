@@ -10,18 +10,19 @@ so the publisher side needs an ``@broker.task`` declaration even though
 it never runs the body. The actual implementations live in the
 dedicated worker artefacts:
 
-* ``apps/workers/image/storage/tasks.py``  → ``process_image_task``,
-  ``cleanup_orphans_task``
-* ``apps/workers/image/rmbg/tasks.py``     → ``remove_background_task``
+* ``apps/workers/image/storage/tasks.py``  → ``image_process_task``,
+  ``image_cleanup_orphans_task``
+* ``apps/workers/image/rmbg/tasks.py``     → ``image_remove_background_task``
 
 How TaskIQ routes correctly
 ===========================
 
 Both backend (publisher) and worker (consumer) register tasks with the
 same ``task_name``. RabbitMQ routes the message by routing-key
-(``image.processing`` / ``image.ml`` / ``image.maintenance``) to the
-``taskiq_media_jobs`` queue. The worker process consumes from that
-queue and executes its own task body — backend's stub body never runs.
+(``image.storage.process`` / ``image.storage.cleanup_orphans`` /
+``image.rmbg.remove``) to the worker-owned queue. The worker process
+consumes from that queue and executes its own task body — backend's
+stub body never runs.
 
 Why ``NotImplementedError`` and not ``pass``
 =============================================
@@ -51,67 +52,67 @@ from src.bootstrap.broker import broker
 
 
 @broker.task(
-    task_name="process_image",
-    queue_name="image.processing",
+    task_name="image_process",
+    queue_name="image.storage.process",
     retry_on_error=True,
     max_retries=2,
     timeout=300,
 )
-async def process_image_task(storage_object_id: str) -> None:
+async def image_process_task(storage_object_id: str) -> None:
     """Stub — consumer body lives in ``apps/workers/image/storage/tasks.py``.
 
     Routing: RabbitMQ exchange ``taskiq_rpc_exchange`` topic key
-    ``image.processing`` → queue ``taskiq_media_jobs`` → consumed by
-    ``image-storage-worker``.
+    ``image.storage.process`` → queue ``image_storage_jobs`` →
+    consumed by ``image-storage-worker``.
     """
     raise NotImplementedError(
-        "process_image_task is a publisher stub. The body runs in "
+        "image_process_task is a publisher stub. The body runs in "
         "apps/workers/image/storage/tasks.py — only that worker should "
-        "consume from the image.processing routing key. If you hit "
+        "consume from the image.storage.process routing key. If you hit "
         "this, your worker bootstrap is subscribing to the wrong queue."
     )
 
 
 @broker.task(
     task_name="image_cleanup_orphans",
-    queue_name="image.maintenance",
+    queue_name="image.storage.cleanup_orphans",
     timeout=600,
     schedule=[{"cron": "0 */6 * * *"}],
 )
-async def cleanup_orphans_task() -> None:
+async def image_cleanup_orphans_task() -> None:
     """Stub — body in ``apps/workers/image/storage/tasks.py``.
 
     Six-hourly cron, published by ``apps/workers/scheduler`` and
     consumed by ``image-storage-worker``.
     """
     raise NotImplementedError(
-        "cleanup_orphans_task is a publisher stub. Body in "
+        "image_cleanup_orphans_task is a publisher stub. Body in "
         "apps/workers/image/storage/tasks.py."
     )
 
 
 @broker.task(
-    task_name="remove_background",
-    queue_name="image.ml",
+    task_name="image_remove_background",
+    queue_name="image.rmbg.remove",
     retry_on_error=True,
     max_retries=2,
     timeout=240,
 )
-async def remove_background_task(derived_storage_object_id: str) -> None:
+async def image_remove_background_task(derived_storage_object_id: str) -> None:
     """Stub — body in ``apps/workers/image/rmbg/tasks.py``.
 
-    Routing key ``image.ml`` → queue ``taskiq_media_jobs`` → consumed
-    by ``image-rmbg-worker`` which alone carries the torch + Bria
-    RMBG-2.0 stack.
+    Routing key ``image.rmbg.remove`` → queue ``image_rmbg_jobs`` →
+    consumed by ``image-rmbg-worker`` which alone carries the torch +
+    Bria RMBG-2.0 stack.
     """
     raise NotImplementedError(
-        "remove_background_task is a publisher stub. Body in "
+        "image_remove_background_task is a publisher stub. Body in "
         "apps/workers/image/rmbg/tasks.py."
     )
 
 
 __all__ = [
-    "cleanup_orphans_task",
-    "process_image_task",
-    "remove_background_task",
+    "image_cleanup_orphans_task",
+    "image_process_task",
+    "image_remove_background_task",
 ]

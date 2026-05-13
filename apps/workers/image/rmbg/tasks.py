@@ -1,16 +1,17 @@
 """Image-rmbg worker tasks — Bria RMBG-2.0, no backend imports.
 
-* ``remove_background_task`` — downloads the processed parent WebP from
-  S3, runs Bria RMBG-2.0 inference, uploads the cutout, updates the
-  derived row, writes the BackgroundRemovedEvent to the outbox and
-  pushes a status frame to Redis Streams.
+* ``image_remove_background_task`` — downloads the processed parent
+  WebP from S3, runs Bria RMBG-2.0 inference, uploads the cutout,
+  updates the derived row, writes the BackgroundRemovedEvent to the
+  outbox and pushes a status frame to Redis Streams.
 
 Coordination with backend happens through three external surfaces:
 
 * PostgreSQL — the ``storage_objects`` + ``outbox_messages`` tables
   (schema owned by backend's alembic migrations).
 * Redis Streams — channel ``media:status:{uuid}``.
-* RabbitMQ task name ``remove_background`` (queue ``image.ml``).
+* RabbitMQ task name ``image_remove_background`` published with
+  routing key ``image.rmbg.remove`` (bound to ``image_rmbg_jobs``).
 
 No Python import crosses the boundary.
 """
@@ -22,11 +23,10 @@ import uuid
 from typing import Any
 
 import structlog
-from PIL import UnidentifiedImageError
-from PIL.Image import DecompressionBombError
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy import text
 
-from bria_rmbg import bria_rmbg
+from bria_rmbg import BriaRMBGPermanentInitError, bria_rmbg
 from broker import broker
 from config import settings
 from db import session_factory
@@ -34,15 +34,23 @@ from publisher import StatusPublisher
 from redis_client import redis_client
 from s3 import download_bytes, upload_bytes
 
-# Errors we know we cannot recover from by retrying — they originate
-# from the bytes themselves (corrupted parent WebP). Retrying with
-# the same payload will fail the same way, so we mark FAILED + publish
-# + swallow rather than re-raising. Anything else (CUDA OOM, HF
-# download blip, S3 timeout, asyncpg disconnect, Redis blip) is
-# treated as transient and re-raised so TaskIQ retries.
+# Errors we know we cannot recover from by retrying. Two flavours:
+#
+# * Payload-driven (``UnidentifiedImageError``, ``DecompressionBombError``):
+#   the parent WebP itself is bad — retrying with the same bytes will
+#   fail the same way.
+# * Worker-config-driven (``BriaRMBGPermanentInitError``): bad HF token,
+#   gated repo, or missing model. Every task on this worker will fail
+#   identically until the operator fixes config and restarts; fail
+#   fast and surface FAILED frames quickly so the operator notices.
+#
+# Anything else (CUDA OOM, S3 timeout, asyncpg disconnect, Redis blip,
+# transient HF download error) is treated as recoverable and re-raised
+# so TaskIQ retries.
 _TERMINAL_PROCESSING_ERRORS: tuple[type[BaseException], ...] = (
     UnidentifiedImageError,
-    DecompressionBombError,
+    Image.DecompressionBombError,
+    BriaRMBGPermanentInitError,
 )
 
 logger = structlog.get_logger(__name__)
@@ -58,6 +66,17 @@ _AGGREGATE_TYPE = "image"
 _EVENT_TYPE_BG_REMOVED = "BackgroundRemovedEvent"
 _DERIVATION_KIND_BG_REMOVED = "bg_removed"
 
+# Progress stages emitted between ``status: processing`` start and the
+# terminal ``status: completed`` / ``status: failed`` frames. Stage
+# names are part of the wire contract with the SSE subscriber — adding
+# or renaming one is a breaking change. ``started``, ``downloaded``,
+# ``uploaded`` are aligned with the storage worker's sibling vocabulary;
+# ``inference_done`` is rmbg-specific (CPU/GPU heavy step).
+_PROGRESS_STAGE_STARTED = "started"
+_PROGRESS_STAGE_DOWNLOADED = "downloaded"
+_PROGRESS_STAGE_INFERENCE_DONE = "inference_done"
+_PROGRESS_STAGE_UPLOADED = "uploaded"
+
 
 async def _fetch_derivation(
     sid: uuid.UUID,
@@ -65,10 +84,7 @@ async def _fetch_derivation(
     """Return ``(parent_storage_object_id, parent_processed_key)``."""
     async with session_factory() as session:
         result = await session.execute(
-            text(
-                "SELECT parent_storage_object_id FROM storage_objects "
-                "WHERE id = :id"
-            ),
+            text("SELECT parent_storage_object_id FROM storage_objects WHERE id = :id"),
             {"id": sid},
         )
         row = result.first()
@@ -78,7 +94,7 @@ async def _fetch_derivation(
 
     # Parent's processed WebP lives at the deterministic key
     # ``public/{parent_id}.webp`` — established by the storage worker
-    # when it finished ``process_image_task``.
+    # when it finished ``image_process_task``.
     return parent_id, f"public/{parent_id}.webp"
 
 
@@ -138,16 +154,12 @@ async def _mark_completed(
 async def _mark_failed(sid: uuid.UUID) -> None:
     async with session_factory() as session, session.begin():
         await session.execute(
-            text(
-                "UPDATE storage_objects SET status = :status WHERE id = :id"
-            ),
+            text("UPDATE storage_objects SET status = :status WHERE id = :id"),
             {"id": sid, "status": _STATUS_FAILED},
         )
 
 
-async def _mark_failed_safe(
-    sid: uuid.UUID, log: structlog.stdlib.BoundLogger
-) -> None:
+async def _mark_failed_safe(sid: uuid.UUID, log: structlog.stdlib.BoundLogger) -> None:
     """Best-effort wrapper around :func:`_mark_failed`. See the storage
     worker's twin for the rationale — we never let a secondary error
     on the failure path swallow the failure SSE frame.
@@ -176,14 +188,40 @@ async def _publish_safe(
         )
 
 
+async def _publish_progress(
+    publisher: StatusPublisher,
+    sid: uuid.UUID,
+    stage: str,
+    log: structlog.stdlib.BoundLogger,
+) -> None:
+    """Publish an intermediate ``status: processing`` frame.
+
+    Carries the same best-effort semantics as :func:`_publish_safe` —
+    Redis blips never roll back DB work. ``kind`` is included so the
+    SSE consumer can distinguish bg-removed progress frames from
+    parent-upload progress on the same channel-naming pattern.
+    """
+    await _publish_safe(
+        publisher,
+        sid,
+        {
+            "status": "processing",
+            "storage_object_id": str(sid),
+            "stage": stage,
+            "kind": _DERIVATION_KIND_BG_REMOVED,
+        },
+        log,
+    )
+
+
 @broker.task(
-    task_name="remove_background",
-    queue_name="image.ml",
+    task_name="image_remove_background",
+    queue_name="image.rmbg.remove",
     retry_on_error=True,
     max_retries=2,
     timeout=240,
 )
-async def remove_background_task(derived_storage_object_id: str) -> None:
+async def image_remove_background_task(derived_storage_object_id: str) -> None:
     """Run Bria RMBG-2.0 inference for a pre-provisioned derivation row."""
     sid = uuid.UUID(derived_storage_object_id)
     log = logger.bind(derived_storage_object_id=derived_storage_object_id)
@@ -196,24 +234,25 @@ async def remove_background_task(derived_storage_object_id: str) -> None:
         return
     parent_id, processed_key = fetched
 
+    await _publish_progress(publisher, sid, _PROGRESS_STAGE_STARTED, log)
+
     try:
         parent_bytes = await download_bytes(processed_key)
         log.info("parent_bytes_fetched", size=len(parent_bytes))
+        await _publish_progress(publisher, sid, _PROGRESS_STAGE_DOWNLOADED, log)
 
         cutout_bytes = await bria_rmbg.remove(parent_bytes)
         log.info("inference_done", cutout_size=len(cutout_bytes))
+        await _publish_progress(
+            publisher, sid, _PROGRESS_STAGE_INFERENCE_DONE, log
+        )
 
         cutout_key = f"public/{sid}_bg_removed.webp"
-        await upload_bytes(
-            cutout_key, cutout_bytes, bria_rmbg.output_content_type
-        )
+        await upload_bytes(cutout_key, cutout_bytes, bria_rmbg.output_content_type)
+        await _publish_progress(publisher, sid, _PROGRESS_STAGE_UPLOADED, log)
 
-        public_url = (
-            f"{settings.S3_PUBLIC_BASE_URL.rstrip('/')}/{cutout_key}"
-        )
-        await _mark_completed(
-            sid, parent_id, cutout_key, public_url, len(cutout_bytes)
-        )
+        public_url = f"{settings.S3_PUBLIC_BASE_URL.rstrip('/')}/{cutout_key}"
+        await _mark_completed(sid, parent_id, cutout_key, public_url, len(cutout_bytes))
 
     except _TERMINAL_PROCESSING_ERRORS as exc:
         # The parent WebP is corrupt — retrying with the same bytes

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 #
 # apps/workers/image/rmbg — TaskIQ worker for Bria RMBG-2.0 background
-# removal (image.ml queue).
+# removal (image_rmbg_jobs queue, routing key image.rmbg.remove).
 #
 # This is the only app that pulls in torch + transformers + timm +
 # kornia (~2.5 GB resolved). The lean ``apps/workers/image/storage``

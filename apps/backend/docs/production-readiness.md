@@ -113,7 +113,7 @@ row below MUST appear in scheduler logs after first 24h of traffic.
 | `tracking_poll_task` | `*/5 * * * *` | logistics |
 | `cleanup_expired_quotes_task` | `0 * * * *` | logistics |
 | `edit_task_poll_task` | `* * * * *` | logistics |
-| `cleanup_orphans_task` | `0 */6 * * *` | image |
+| `image_cleanup_orphans_task` | `0 */6 * * *` | image |
 
 Note: TaskIQ requires exactly ONE scheduler instance per cron. If
 Railway runs >1 scheduler replica, every cron fires N times. Verify
