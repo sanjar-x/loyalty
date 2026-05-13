@@ -10,9 +10,8 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from aiobotocore.session import AioSession
-from types_aiobotocore_s3.client import S3Client
-
 from config import settings
+from types_aiobotocore_s3.client import S3Client
 
 _session = AioSession()
 
@@ -38,9 +37,7 @@ async def download_bytes(object_key: str) -> bytes:
             return await stream.read()
 
 
-async def upload_bytes(
-    object_key: str, data: bytes, content_type: str
-) -> None:
+async def upload_bytes(object_key: str, data: bytes, content_type: str) -> None:
     async with s3_client() as client:
         await client.put_object(  # ty:ignore
             Bucket=settings.S3_BUCKET_NAME,

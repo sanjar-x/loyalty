@@ -7,10 +7,10 @@ uv-workspace monorepo. Each deployable artefact lives under `apps/` with its own
 | Component       | Path                              | Package name           | Tech                                              | Port | Deployment |
 | --------------- | --------------------------------- | ---------------------- | ------------------------------------------------- | ---- | ---------- |
 | Backend / Web   | `apps/backend/`                   | `backend`              | FastAPI HTTP + library (no torch)                 | 8080 | Railway    |
+| Core worker     | `apps/backend/` (same image)      | `backend`              | TaskIQ worker — non-image queues. Railway service runs the same backend Docker image with overridden start command: `python -m taskiq worker src.bootstrap.worker_core:broker`. Not a separate workspace member because every non-image task body already lives inside backend's `src/modules/*/infrastructure/tasks.py`. | — | Railway |
 | Bot             | `apps/bot/`                       | `telegram-bot`         | Aiogram 3 polling (not yet deployed)              | —    | (planned)  |
-| Core worker     | `apps/workers/core/`              | `core-worker`          | TaskIQ worker, non-image queues                   | —    | Railway    |
-| Image storage   | `apps/workers/image/storage/`     | `image-storage-worker` | Pillow + S3 (no torch)                            | —    | Railway    |
-| Image rmbg      | `apps/workers/image/rmbg/`        | `image-rmbg-worker`    | TaskIQ + torch/transformers/timm/kornia           | —    | Railway    |
+| Image storage   | `apps/workers/image/storage/`     | `image-storage-worker` | Pillow + S3 (no torch, no backend dep)            | —    | Railway    |
+| Image rmbg      | `apps/workers/image/rmbg/`        | `image-rmbg-worker`    | torch / transformers / timm / kornia (no backend dep) | — | Railway   |
 | Scheduler       | `apps/workers/scheduler/`         | `scheduler-worker`     | TaskIQ scheduler (cron)                           | —    | Railway    |
 | Frontend Admin  | `apps/frontend/admin/`            | (NextJS, git submodule)| Next.js 16, JSX, Tailwind 4                       | 3000 | Netlify    |
 | Mini App        | `apps/frontend/mini-app/`         | (NextJS)               | Next.js 16, TypeScript, React 19                  | 3000 | Netlify    |
@@ -31,7 +31,7 @@ Local run (uses the shared workspace `.venv`):
 
 ```bash
 cd apps/backend                  && python -m uvicorn main:app --port 8080
-cd apps/workers/core             && python -m taskiq worker main:broker
+cd apps/backend                  && python -m taskiq worker src.bootstrap.worker_core:broker  # core-worker (same image)
 cd apps/workers/scheduler        && python -m taskiq scheduler main:scheduler
 cd apps/workers/image/storage    && python -m taskiq worker main:broker
 cd apps/workers/image/rmbg       && python -m taskiq worker main:broker

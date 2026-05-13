@@ -11,7 +11,6 @@ resolution-markers = [
 [manifest]
 members = [
     "backend",
-    "core-worker",
     "image-rmbg-worker",
     "image-storage-worker",
     "loyality-workspace",
@@ -687,17 +686,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/3f/0b/30328302903c55218
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fe/19/3ba5e1b0bcc7b91aeab6c258afd70e4907d220fed3972febe38feb40db30/configargparse-1.7.5-py3-none-any.whl", hash = "sha256:1e63fdffedf94da9cd435fc13a1cd24777e76879dd2343912c1f871d4ac8c592", size = 27692, upload-time = "2026-03-11T02:19:36.442Z" },
 ]
-
-[[package]]
-name = "core-worker"
-version = "0.1.0"
-source = { virtual = "apps/workers/core" }
-dependencies = [
-    { name = "backend" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "backend", editable = "apps/backend" }]
 
 [[package]]
 name = "coverage"

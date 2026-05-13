@@ -40,11 +40,17 @@ requires-python = ">=3.14"
 members = [
     "apps/backend",
     "apps/bot",
-    "apps/workers/core",
     "apps/workers/scheduler",
     "apps/workers/image/rmbg",
     "apps/workers/image/storage",
 ]
+# NOTE: core-worker is NOT a separate workspace member. It runs on the
+# same Docker image as ``apps/backend`` (the web service) — only the
+# Railway start command differs:
+#   web         → python -m uvicorn main:app --host 0.0.0.0 --port 8080
+#   core-worker → python -m taskiq worker src.bootstrap.worker_core:broker
+# Backend's bootstrap module ``src.bootstrap.worker_core`` does the
+# container + DLQ wiring and imports every non-image module's tasks.
 
 # ----------------------------------------------------------------------------
 # Torch CPU pin — shared across the workspace.
