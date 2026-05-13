@@ -1,20 +1,17 @@
 # syntax=docker/dockerfile:1.7
 #
-# apps/backend — FastAPI HTTP service + the library code consumed by every
-# other app. This is BOTH a deployable artefact (the web service) and the
-# ``loyality`` workspace member that ``apps/bot`` / ``apps/workers/*``
-# depend on.
+# apps/backend — FastAPI HTTP service.
 #
-# Build context: monorepo root (``.``), NOT ``apps/backend``. The workspace
-# lockfile and sibling apps live above this directory. Invoke from repo
-# root via Railway's ``dockerfilePath = apps/backend/Dockerfile`` config
-# or:
+# Standalone artefact: build context = THIS directory (``apps/backend/``),
+# not the monorepo root. Railway service config sets Root Directory =
+# ``apps/backend`` so the build can copy ``pyproject.toml uv.lock src/
+# main.py …`` without reaching outside the directory. Local build:
 #
-#     docker build -f apps/backend/Dockerfile -t loyality-backend .
+#     docker build -t loyality-backend apps/backend
 #
-# ``uv sync --package backend`` installs only this app's transitive
-# graph — no torch / transformers / timm / kornia, those live in
-# ``apps/workers/image/rmbg``.
+# ``apps/bot`` and ``apps/workers/scheduler`` still consume backend
+# Python code via a path dependency (``backend = { path = "../backend" }``)
+# and build from the monorepo root.
 
 FROM python:3.14-slim-trixie
 
@@ -23,27 +20,33 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_NO_DEV=1 \
-    PATH="/workspace/.venv/bin:$PATH"
+    PATH="/app/.venv/bin:$PATH"
 
-WORKDIR /workspace
+WORKDIR /app
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Workspace metadata + lockfile, plus every member's pyproject. uv needs
-# to see every workspace member's manifest to resolve the lockfile; the
-# install graph itself is narrowed by ``--package backend``.
-COPY pyproject.toml uv.lock ./
-COPY apps/ ./apps/
+# Resolution metadata + lockfile + README first so the layer cache
+# survives any change that doesn't touch them. README is required by
+# hatchling because ``pyproject.toml`` declares ``readme = "README.md"``.
+COPY pyproject.toml uv.lock README.md ./
 
-# Install only what the backend graph requires.
-RUN uv sync --frozen --no-dev --package backend
+# Application code. Backend's installable package is ``src/`` (see
+# ``[tool.hatch.build.targets.wheel] packages = ["src"]``). ``main.py``
+# is the uvicorn entry point. ``alembic.ini`` + ``alembic/`` are needed
+# at runtime by ``preDeployCommand`` (alembic upgrade head). ``seed/``
+# carries the one-off CLI bootstrappers (admin/roles/geo/...).
+COPY src/ ./src/
+COPY main.py ./
+COPY alembic.ini ./
+COPY alembic/ ./alembic/
+COPY seed/ ./seed/
+
+RUN uv sync --frozen --no-dev
 
 EXPOSE 8080
 
-# Run uvicorn via ``python -m`` so the interpreter prepends an empty
-# string to ``sys.path`` (i.e. cwd is searched first). This is the
-# canonical pattern for picking up a top-level ``main.py`` in the WORKDIR
-# without packaging it as an installable module — appropriate because
-# apps don't get imported from other code, only executed.
-WORKDIR /workspace/apps/backend
+# ``python -m`` prepends an empty string to ``sys.path`` (cwd first),
+# so the top-level ``main.py`` resolves without packaging it as a
+# module. Same pattern as the worker apps.
 CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

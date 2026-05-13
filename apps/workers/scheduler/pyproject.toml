@@ -21,4 +21,8 @@ dependencies = [
 package = false
 
 [tool.uv.sources]
-backend = { workspace = true }
+# Path-based reference (was ``workspace = true`` before the standalone
+# refactor took backend out of the root uv workspace).
+# ``apps/workers/scheduler`` → ``../../backend`` is ``apps/backend``.
+# Editable so changes to backend's src/ show up without re-installing.
+backend = { path = "../../backend", editable = true }

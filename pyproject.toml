@@ -1,66 +1,44 @@
 # =============================================================================
-# Loyalty — monorepo workspace root.
+# Loyalty — monorepo root.
 #
-# This file declares the uv workspace. The workspace lives under
-# ``apps/*`` with one deployable artefact per directory.
+# Three deployable artefacts each have their OWN ``uv.lock`` and Dockerfile
+# that builds from their own directory (Railway Root Directory = that
+# directory). They are independent of this root project:
 #
-# Local dev: ``uv sync`` from this directory creates one shared
-# ``.venv/`` at the workspace root with every member installed in
-# editable mode.
+#   * apps/backend                  — FastAPI HTTP + library code
+#   * apps/workers/image/rmbg       — Bria RMBG-2.0 (torch ML stack)
+#   * apps/workers/image/storage    — Pillow + S3 (no ML)
 #
-# Docker builds: each ``apps/<path>/Dockerfile`` runs
-# ``uv sync --frozen --no-dev --package <package-name>`` so only the
-# transitive dependency graph of that app's ``pyproject.toml`` lands
-# in the image. ``apps/workers/image/rmbg`` pulls torch + transformers
-# + timm + kornia; everything else does not. ``apps/backend`` pulls
-# FastAPI; the workers do not.
+# The remaining workspace members below still depend on backend's Python
+# code (``from src.bootstrap...``) — they consume backend via a local
+# path dependency rather than a workspace reference, and their Dockerfiles
+# still need the monorepo root as build context to see the backend tree.
 #
-# See ADR-008 (Multi-Package Modular Monorepo) for the rationale.
+#   * apps/bot                      — Telegram bot (Aiogram polling)
+#   * apps/workers/scheduler        — TaskIQ scheduler (cron)
+#
+# ``apps/backend`` runs core-worker too (same Docker image, different
+# start command); not a separate workspace member.
+#
+# See ADR-008 (Multi-Package Modular Monorepo) for context.
 # =============================================================================
 
 [project]
 name = "loyality-workspace"
 version = "0.1.0"
-description = "Loyalty marketplace monorepo workspace root — not deployed; the workspace lives in apps/* (see ADR-008)."
+description = "Loyalty marketplace monorepo root — workspace for apps that share backend code (bot, scheduler). The three standalone artefacts (backend, image-rmbg, image-storage) own their own lockfiles."
 requires-python = ">=3.14"
 
 [tool.uv.workspace]
-# Phase 1.10: hierarchical apps/ layout.
-#
-#   apps/backend           ← FastAPI HTTP service + the library code every
-#                            other app re-exports (modules, shared kernel,
-#                            infrastructure, bootstraps)
-#   apps/bot               ← Telegram bot (Aiogram polling; not yet deployed)
-#   apps/workers/core      ← TaskIQ worker, non-image domain queues
-#   apps/workers/scheduler ← TaskIQ scheduler (cron)
-#   apps/workers/image/storage  ← image processing (Pillow + S3), NO ML
-#   apps/workers/image/rmbg     ← Bria RMBG-2.0 background removal (torch)
-#
-# Phase 2+ will promote ``shared``, ``infrastructure``, and ``modules/*`` to
-# standalone workspace members; apps/backend will shrink accordingly.
 members = [
-    "apps/backend",
     "apps/bot",
     "apps/workers/scheduler",
-    "apps/workers/image/rmbg",
-    "apps/workers/image/storage",
 ]
-# NOTE: core-worker is NOT a separate workspace member. It runs on the
-# same Docker image as ``apps/backend`` (the web service) — only the
-# Railway start command differs:
-#   web         → python -m uvicorn main:app --host 0.0.0.0 --port 8080
-#   core-worker → python -m taskiq worker src.bootstrap.worker_core:broker
-# Backend's bootstrap module ``src.bootstrap.worker_core`` does the
-# container + DLQ wiring and imports every non-image module's tasks.
 
 # ----------------------------------------------------------------------------
-# Torch CPU pin — shared across the workspace.
-#
-# Default PyPI resolution of ``torch`` pulls the multi-GB CUDA wheel
-# (~2.5 GB of ``nvidia-*`` packages) which is wasted on Railway's
-# GPU-less nodes. The CPU-only wheel is roughly 200 MB. Each app that
-# depends on torch (currently only ``apps/workers/image/rmbg``)
-# redirects the package to this index via its own ``[tool.uv.sources]``.
+# Torch CPU pin — kept here for any future workspace member that pulls
+# torch. The standalone ``apps/workers/image/rmbg`` declares the same
+# index in its own ``pyproject.toml`` since it no longer shares this one.
 # ----------------------------------------------------------------------------
 [[tool.uv.index]]
 name = "pytorch-cpu"

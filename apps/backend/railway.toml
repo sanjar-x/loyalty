@@ -5,11 +5,15 @@
 # ``alembic upgrade head``; workers and the scheduler skip to avoid
 # concurrent migration-lock contention during the parallel deploy fan-out.
 # Alembic config lives in ``apps/backend/alembic.ini``.
+# Railway service is configured with Root Directory = ``apps/backend``,
+# so paths here are relative to that directory.
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "apps/backend/Dockerfile"
+dockerfilePath = "Dockerfile"
 
 [deploy]
+# Backend's image now uses ``WORKDIR /app`` (single self-contained layout
+# instead of the prior workspace ``/workspace/apps/backend``).
 preDeployCommand = [
-    "sh -c 'cd /workspace/apps/backend && uv run alembic upgrade head'",
+    "sh -c 'cd /app && uv run alembic upgrade head'",
 ]

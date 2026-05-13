@@ -1,7 +1,11 @@
 # Railway service config — apps/workers/image/storage.
 #
+# Railway service is configured with Root Directory =
+# ``apps/workers/image/storage``, so paths here are relative to that
+# directory.
+#
 # Workers skip migrations (REC-005 + HARD-1). Lean image — no model
 # cache volume needed; no ML inference.
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "apps/workers/image/storage/Dockerfile"
+dockerfilePath = "Dockerfile"

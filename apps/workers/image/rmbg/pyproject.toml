@@ -49,3 +49,12 @@ package = false
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 torchvision = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
+
+# Standalone artefact (no longer a workspace member) — declare the
+# CPU-only torch wheel index locally. Default PyPI resolution pulls the
+# multi-GB CUDA wheel (~2.5 GB of nvidia-* packages) which is wasted on
+# Railway's GPU-less nodes (REC-024).
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
