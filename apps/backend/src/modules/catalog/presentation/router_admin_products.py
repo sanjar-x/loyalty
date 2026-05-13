@@ -12,7 +12,7 @@ from datetime import datetime
 
 import structlog
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -358,6 +358,7 @@ async def delete_product(
 )
 async def stream_sku_pricing_events(
     product_id: uuid.UUID,
+    request: Request,
     pubsub: FromDishka[SkuPricingPubsub],
     session: FromDishka[AsyncSession],
 ) -> AsyncIterable[ServerSentEvent]:
@@ -369,19 +370,29 @@ async def stream_sku_pricing_events(
     proxies, load balancers) don't drop the long-lived connection on
     ``bodyTimeout`` (~5 min in undici / 30 s on some hosts). Comment
     frames are ignored by ``EventSource`` clients per the SSE spec.
+
+    Honours the SSE-standard ``Last-Event-ID`` header on reconnect so
+    that a brief network blip doesn't lose pricing ticks: the channel
+    stream replays everything appended after the cached entry ID.
     """
-    # The pub/sub loop holds an idle Postgres session for up to 10 minutes
-    # (see ``SkuPricingPubsub.subscribe`` timeout). Postgres'
-    # idle_in_transaction_session_timeout would kill the connection mid-
-    # stream, so release it before entering the long poll. Same pattern as
-    # the image module's status SSE.
+    last_event_id: str | None = request.headers.get("last-event-id")
+
+    # The subscribe loop holds an idle Postgres session for up to
+    # 10 minutes (see ``SkuPricingPubsub.subscribe`` timeout). Postgres'
+    # idle_in_transaction_session_timeout would kill the connection
+    # mid-stream, so release it before entering the long poll. Same
+    # pattern as the image module's status SSE.
     await session.close()
 
     last_keepalive = asyncio.get_running_loop().time()
     try:
-        async for event in pubsub.subscribe(product_id):
+        async for event in pubsub.subscribe(
+            product_id, last_event_id=last_event_id
+        ):
             if event is not None:
-                yield ServerSentEvent(data=event, event="status")
+                yield ServerSentEvent(
+                    data=event.data, event="status", id=event.id
+                )
                 last_keepalive = asyncio.get_running_loop().time()
                 continue
 
@@ -389,18 +400,18 @@ async def stream_sku_pricing_events(
             if now - last_keepalive >= _SSE_KEEPALIVE_INTERVAL_S:
                 yield ServerSentEvent(comment="keepalive")
                 last_keepalive = now
-    except RedisError, OSError:
-        # Pub/sub backbone went down mid-stream — emit an explicit
+    except (RedisError, OSError):
+        # Streaming backbone went down mid-stream — emit an explicit
         # ``error`` SSE frame so the client knows it should reconnect
         # rather than silently rendering a stale "OK" state. Browser
         # ``EventSource`` auto-reconnects on close, the explicit frame
         # gives the admin UI a hook to surface a transient banner.
         logger.exception(
-            "sse_pricing_stream_pubsub_unavailable",
+            "sse_pricing_stream_backbone_unavailable",
             product_id=str(product_id),
         )
         yield ServerSentEvent(
-            data={"reason": "pubsub_unavailable"},
+            data={"reason": "stream_unavailable"},
             event="error",
         )
 

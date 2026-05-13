@@ -30,15 +30,15 @@ Run command:
 
 from __future__ import annotations
 
+import kornia  # noqa: F401, E402
+import structlog  # noqa: E402
+import timm  # noqa: F401, E402
+
 # 1. Eager-import the heavy ML stack on the main thread. Order matters:
 #    torch first (registers core ops), then torchvision (extends with
 #    NMS / RoI), then timm (pulls torchvision.models.feature_extraction).
 import torch  # noqa: F401, E402
 import torchvision  # noqa: F401, E402
-import timm  # noqa: F401, E402
-import kornia  # noqa: F401, E402
-
-import structlog  # noqa: E402
 from dishka.async_container import AsyncContainer  # noqa: E402
 from dishka.integrations.taskiq import setup_dishka  # noqa: E402
 from sqlalchemy.ext.asyncio import (  # noqa: E402
@@ -47,12 +47,11 @@ from sqlalchemy.ext.asyncio import (  # noqa: E402
     create_async_engine,
 )
 from sqlalchemy.pool import AsyncAdaptedQueuePool  # noqa: E402
-from taskiq.events import TaskiqEvents  # noqa: E402
-
 from src.bootstrap.broker import broker  # noqa: E402
 from src.bootstrap.config import settings  # noqa: E402
 from src.bootstrap.container import create_container  # noqa: E402
 from src.infrastructure.logging.dlq_middleware import DLQMiddleware  # noqa: E402
+from taskiq.events import TaskiqEvents  # noqa: E402
 
 logger = structlog.get_logger(__name__)
 

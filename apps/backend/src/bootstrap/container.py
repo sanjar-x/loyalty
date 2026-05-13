@@ -22,6 +22,7 @@ from src.infrastructure.database.provider import DatabaseProvider
 from src.infrastructure.idempotency.provider import IdempotencyProvider
 from src.infrastructure.logging.provider import LoggingProvider
 from src.infrastructure.security.provider import SecurityProvider
+from src.infrastructure.streams.provider import StreamsProvider
 from src.infrastructure.tracking.provider import TrackingProvider
 
 logger: BoundLogger = structlog.get_logger(__name__)
@@ -51,6 +52,7 @@ def _framework_providers() -> tuple[Provider, ...]:
         LoggingProvider(),
         DatabaseProvider(),
         CacheProvider(),
+        StreamsProvider(),
         IdempotencyProvider(),
         TrackingProvider(),
         SecurityProvider(),

@@ -1,12 +1,13 @@
-"""Redis pub/sub for SKU pricing status updates (CAT-005, REC-029).
+"""Channel-stream fan-out for SKU pricing status updates (CAT-005).
 
 Per-product fan-out of recompute outcomes from the outbox-driven
 consumer to admin SSE subscribers. Channel naming and payload shape
-are catalog-specific concerns and live here; the low-level Redis
-plumbing (subscribe loop, JSON, error handling, cleanup) is composed
-from :class:`src.shared.infrastructure.redis_pubsub.RedisChannelStream`
-so a fix to the streaming layer lands once and benefits every module
-that needs SSE fan-out.
+are catalog-specific concerns and live here; the low-level streaming
+plumbing (XADD/XREAD, JSON, error handling, retention bounds) is
+composed from
+:class:`src.shared.interfaces.channel_stream.IChannelStream` so a fix
+to the streaming layer lands once and benefits every module that needs
+SSE fan-out.
 
 Channel naming: ``catalog:sku-pricing:{product_id}``.
 
@@ -26,48 +27,55 @@ from __future__ import annotations
 import uuid
 from collections.abc import AsyncGenerator
 
-from redis.asyncio import Redis
-
-from src.shared.infrastructure.redis_pubsub import RedisChannelStream
+from src.shared.interfaces.channel_stream import IChannelStream, StreamEvent
 
 
 class SkuPricingPubsub:
-    """Per-product pricing-status pub/sub via Redis."""
+    """Per-product pricing-status fan-out via the workspace channel stream."""
 
-    def __init__(self, redis: Redis) -> None:
-        self._stream = RedisChannelStream(redis)
+    def __init__(self, stream: IChannelStream) -> None:
+        self._stream = stream
 
     @staticmethod
     def channel_name(product_id: uuid.UUID) -> str:
         return f"catalog:sku-pricing:{product_id}"
 
-    async def publish(self, product_id: uuid.UUID, data: dict) -> None:
+    async def publish(self, product_id: uuid.UUID, data: dict) -> str:
         """Fan out a status update to all admin clients watching this product."""
-        await self._stream.publish(self.channel_name(product_id), data)
+        return await self._stream.publish(self.channel_name(product_id), data)
 
     async def subscribe(
         self,
         product_id: uuid.UUID,
         *,
+        last_event_id: str | None = None,
         timeout: float = 600.0,
         poll_interval: float = 1.0,
-    ) -> AsyncGenerator[dict | None]:
-        """Yield status dicts pushed to this product's channel.
+    ) -> AsyncGenerator[StreamEvent | None]:
+        """Yield ``StreamEvent``s pushed to this product's channel.
 
-        Yields ``None`` when no message arrived within ``poll_interval`` —
-        gives the SSE handler a chance to send a comment-frame keepalive
-        on idle connections (FastAPI's ``EventSourceResponse(ping=N)``
-        also does this at the transport level).
+        ``last_event_id`` is the SSE resume point (mirror of the
+        ``Last-Event-ID`` HTTP header). ``None`` (fresh connection)
+        reads only new entries; a previously delivered
+        ``StreamEvent.id`` replays everything appended after that
+        point — useful when a long admin session reconnects after a
+        network blip without losing in-flight pricing ticks.
 
-        Stops after ``timeout`` seconds. Caller must reconnect for
+        Yields ``None`` when no message arrived within
+        ``poll_interval`` — gives the SSE handler a chance to send a
+        comment-frame keepalive on idle connections (FastAPI's
+        ``EventSourceResponse(ping=N)`` also does this at the transport
+        level). Stops after ``timeout`` seconds — callers reconnect for
         longer-running admin sessions.
 
         Error semantics (Redis outage, malformed payload, cleanup) are
-        owned by :class:`RedisChannelStream`.
+        owned by the underlying :class:`IChannelStream` binding.
         """
-        async for msg in self._stream.subscribe(
+        start_id = last_event_id or "$"
+        async for event in self._stream.subscribe(
             self.channel_name(product_id),
+            start_id=start_id,
             timeout=timeout,
             poll_interval=poll_interval,
         ):
-            yield msg
+            yield event

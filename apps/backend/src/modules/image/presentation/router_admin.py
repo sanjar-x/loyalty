@@ -26,7 +26,7 @@ from collections.abc import AsyncIterable
 
 import structlog
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -207,10 +207,17 @@ async def confirm_upload(
 )
 async def stream_status(
     storage_object_id: uuid.UUID,
+    request: Request,
     repo: FromDishka[IStorageRepository],
     sse_manager: FromDishka[SSEManager],
     session: FromDishka[AsyncSession],
 ) -> AsyncIterable[ServerSentEvent]:
+    # ``Last-Event-ID`` is the SSE-standard resume header that browsers
+    # echo back on automatic ``EventSource`` reconnect. Forwarded to the
+    # channel-stream binding so we replay any entries the previous
+    # connection missed during the network blip.
+    last_event_id: str | None = request.headers.get("last-event-id")
+
     storage_file = await repo.get_by_id(storage_object_id)
     # Release the DB connection: the SSE loop polls Redis for up to 120s
     # and would otherwise hold an idle-in-transaction session, which
@@ -224,34 +231,49 @@ async def stream_status(
         )
         return
 
-    current = StatusEventData(
-        status=storage_file.status.value,
-        storage_object_id=storage_object_id,
-        url=storage_file.url,
-        variants=[MediaVariant(**v) for v in (storage_file.image_variants or [])],
-    )
-    yield ServerSentEvent(data=current.model_dump(by_alias=True), event="status")
+    # Only emit the seed frame on fresh connections — on a reconnect the
+    # client already has it (that's what Last-Event-ID is for) and a
+    # duplicate would race with the replayed entries from the stream.
+    if last_event_id is None:
+        current = StatusEventData(
+            status=storage_file.status.value,
+            storage_object_id=storage_object_id,
+            url=storage_file.url,
+            variants=[
+                MediaVariant(**v) for v in (storage_file.image_variants or [])
+            ],
+        )
+        yield ServerSentEvent(
+            data=current.model_dump(by_alias=True), event="status"
+        )
 
-    if storage_file.status.is_terminal:
-        return
+        if storage_file.status.is_terminal:
+            return
 
     try:
-        async for event in sse_manager.subscribe(storage_object_id):
+        async for event in sse_manager.subscribe(
+            storage_object_id, last_event_id=last_event_id
+        ):
             if event is None:
                 continue
-            yield ServerSentEvent(data=event, event="status")
-            if event.get("status") in ("completed", "failed"):
+            # ``id=`` is what browsers cache as ``Last-Event-ID`` for the
+            # next reconnect — without it the resume contract has nothing
+            # to round-trip.
+            yield ServerSentEvent(
+                data=event.data, event="status", id=event.id
+            )
+            if event.data.get("status") in ("completed", "failed"):
                 return
-    except RedisError, OSError:
-        # Pub/sub backbone went down mid-stream — emit an explicit
+    except (RedisError, OSError):
+        # Streaming backbone went down mid-stream — emit an explicit
         # ``error`` SSE frame so the client knows it should reconnect
         # rather than silently rendering a stale state.
         logger.exception(
-            "sse_status_stream_pubsub_unavailable",
+            "sse_status_stream_backbone_unavailable",
             storage_object_id=str(storage_object_id),
         )
         yield ServerSentEvent(
-            data={"reason": "pubsub_unavailable"},
+            data={"reason": "stream_unavailable"},
             event="error",
         )
 

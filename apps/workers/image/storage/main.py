@@ -30,12 +30,11 @@ from dishka.async_container import AsyncContainer
 from dishka.integrations.taskiq import setup_dishka
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import AsyncAdaptedQueuePool
-from taskiq.events import TaskiqEvents
-
 from src.bootstrap.broker import broker
 from src.bootstrap.config import settings
 from src.bootstrap.container import create_container
 from src.infrastructure.logging.dlq_middleware import DLQMiddleware
+from taskiq.events import TaskiqEvents
 
 logger = structlog.get_logger(__name__)
 

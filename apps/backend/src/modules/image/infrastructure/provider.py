@@ -16,7 +16,9 @@ from aiobotocore.client import AioBaseClient
 from aiobotocore.session import get_session
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
-from redis.asyncio.client import Redis
+from redis.asyncio.client import Redis  # noqa: F401  # kept for legacy references; new bindings use IChannelStream
+
+from src.shared.interfaces.channel_stream import IChannelStream
 
 from src.bootstrap.config import Settings
 from src.modules.image.application.commands.confirm_upload import ConfirmUploadHandler
@@ -103,9 +105,13 @@ class ImageProvider(Provider):
         )
 
     @provide(scope=Scope.REQUEST)
-    def sse_manager(self, redis: Redis) -> SSEManager:
-        """SSEManager for media-status pub/sub (Redis-backed)."""
-        return SSEManager(redis=redis)
+    def sse_manager(self, stream: IChannelStream) -> SSEManager:
+        """SSEManager for media-status streaming (Redis-Streams-backed).
+
+        The underlying ``IChannelStream`` binding is supplied by
+        :class:`src.infrastructure.streams.provider.StreamsProvider`.
+        """
+        return SSEManager(stream=stream)
 
     @provide(scope=Scope.APP)
     def background_remover(self, settings: Settings) -> IBackgroundRemover:

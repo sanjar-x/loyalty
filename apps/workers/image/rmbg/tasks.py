@@ -24,7 +24,6 @@ import uuid
 
 import structlog
 from dishka.integrations.taskiq import FromDishka, inject
-
 from src.bootstrap.broker import broker
 from src.bootstrap.config import Settings, settings
 from src.modules.image.domain.events import BackgroundRemovedEvent
@@ -164,7 +163,7 @@ async def remove_background_task(
 # bg-removal, but it is only wired to the broker (and therefore only
 # starts subscribing to ``image.ml``) when the flag is on.
 if settings.BG_REMOVAL_ENABLED:
-    remove_background_task = broker.task(  # ty:ignore[invalid-assignment]
+    remove_background_task = broker.task(
         task_name="remove_background",
         queue_name="image.ml",
         retry_on_error=True,
