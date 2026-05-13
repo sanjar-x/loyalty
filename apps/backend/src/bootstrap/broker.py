@@ -43,13 +43,13 @@ not register it.
 Per-process responsibilities:
 
 * **web / scheduler / core-worker** — publish via the broker defined
-  here. The broker declares only the core queue; routing to media
-  queues happens through the topic exchange and bindings declared by
-  the respective workers. Publishers do not need media queues in
-  ``task_queues``: ``AioPikaBroker.kick`` resolves the routing key
-  from the per-task ``queue_name=`` label and publishes to the
-  exchange — the bindings owned by the workers route to the right
-  queue.
+  here. The broker lists every queue in ``task_queues`` (core PLUS all
+  three image queues) — declarations are idempotent with the workers'
+  own declarations. The image entries are present ONLY so upstream's
+  ``kick()`` honours the per-task ``queue_name=`` label as the AMQP
+  routing key; ``DomainSplitBroker.listen`` filters back to the primary
+  queue at consume time so backend never accidentally consumes media
+  work.
 * **core-worker** — sets ``TASKIQ_PRIMARY_QUEUE=core_jobs`` and
   consumes from that queue alone. It may still kick image tasks (e.g.
   from an outbox handler that triggers media work) and the label-based
@@ -58,10 +58,20 @@ Per-process responsibilities:
 
 Why ``DomainSplitBroker`` instead of stock :class:`AioPikaBroker`:
 
+* Upstream's ``kick()`` short-circuits when ``task_queues`` has
+  exactly ONE queue, forcing every publish to use that queue's routing
+  key regardless of the per-task label. That is precisely why this
+  broker lists the image queues even though backend never consumes
+  them — without them, every image task would be misrouted to the
+  core queue and dropped.
+* Upstream's ``listen()`` consumes from every queue in ``task_queues``.
+  This subclass overrides ``listen()`` to filter back to a single
+  primary queue per process, so the core-worker reads core_jobs alone
+  while still keeping every queue visible at publish time.
 * Upstream's ``kick()`` returns ``""`` as the routing key when no
-  ``queue_name`` label is set and the broker has 2+ queues. The
-  fallback in this subclass injects the primary queue's routing key
-  so unlabeled tasks still land on the core queue.
+  ``queue_name`` label is set; the subclass injects the primary
+  queue's routing key as a fallback so unlabeled tasks (the majority
+  of core jobs) still land on the core queue.
 
 Deploy note: queues from the prior naming scheme (``taskiq_core_jobs``,
 ``taskiq_media_jobs``, ``taskiq_storage_jobs``, ``taskiq_rmbg_jobs``)
@@ -90,6 +100,20 @@ logger = structlog.get_logger(__name__)
 
 _CORE_QUEUE_NAME = "core_jobs"
 _CORE_ROUTING_KEY = "core"
+
+# Image-worker queues are owned by the workers (they declare and consume).
+# Backend lists them in ``task_queues`` ONLY so the upstream broker's
+# ``kick()`` honours the per-task ``queue_name=`` label as the AMQP
+# routing key. Without 2+ entries here, ``AioPikaBroker.kick()`` short-
+# circuits to ``task_queues[0].routing_key`` (``core``) for EVERY task
+# regardless of label — every image task would land on the core queue
+# and starve the image workers. See receiver / broker source at
+# ``taskiq_aio_pika/broker.py:375``. Declarations are idempotent (workers
+# declare with identical name + routing_key + durable), so listing them
+# here adds no resource cost.
+_IMAGE_STORAGE_PROCESS_KEY = "image.storage.process"
+_IMAGE_STORAGE_CLEANUP_KEY = "image.storage.cleanup_orphans"
+_IMAGE_RMBG_REMOVE_KEY = "image.rmbg.remove"
 
 
 class DomainSplitBroker(AioPikaBroker):
@@ -154,15 +178,43 @@ _CORE_QUEUE = Queue(
     declare=True,
     durable=True,
 )
+# Image worker queues are owned (consumed) by their workers, but backend
+# lists them here for one reason only: ``AioPikaBroker.kick()`` short-
+# circuits to ``task_queues[0]``'s routing key whenever the broker has
+# exactly ONE queue, ignoring every per-task ``queue_name=`` label.
+# Without these entries every image task would be published with
+# routing key ``core`` and starve the image workers. Declarations are
+# idempotent (workers declare with identical name + routing_key +
+# durable). ``DomainSplitBroker.listen`` filters back to the primary
+# queue at consume time so backend itself never receives image work.
+_IMAGE_STORAGE_PROCESS_QUEUE = Queue(
+    name="image_storage_jobs",
+    routing_key=_IMAGE_STORAGE_PROCESS_KEY,
+    declare=True,
+    durable=True,
+)
+_IMAGE_STORAGE_CLEANUP_QUEUE = Queue(
+    name="image_storage_jobs",
+    routing_key=_IMAGE_STORAGE_CLEANUP_KEY,
+    declare=True,
+    durable=True,
+)
+_IMAGE_RMBG_QUEUE = Queue(
+    name="image_rmbg_jobs",
+    routing_key=_IMAGE_RMBG_REMOVE_KEY,
+    declare=True,
+    durable=True,
+)
 
-# Media-domain queues are declared by their workers (apps/workers/image/*),
-# not here, so each worker owns its routing-key binding and the two
-# image workers never compete-consume from a shared queue. See module
-# docstring for the deploy note about the orphaned ``taskiq_media_jobs``.
 broker: DomainSplitBroker = DomainSplitBroker(
     url=str(settings.RABBITMQ_PRIVATE_URL),
     exchange=_EXCHANGE,
-    task_queues=[_CORE_QUEUE],
+    task_queues=[
+        _CORE_QUEUE,
+        _IMAGE_STORAGE_PROCESS_QUEUE,
+        _IMAGE_STORAGE_CLEANUP_QUEUE,
+        _IMAGE_RMBG_QUEUE,
+    ],
     qos=10,
     primary_queue_name=settings.TASKIQ_PRIMARY_QUEUE,
 ).with_middlewares(LoggingTaskiqMiddleware())
