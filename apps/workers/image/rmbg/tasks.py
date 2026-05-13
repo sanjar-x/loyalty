@@ -1,15 +1,21 @@
-"""Image module ML task — Bria RMBG-2.0 background removal.
+"""Image-rmbg consumer task — Bria RMBG-2.0 background removal.
 
-Lives in its own submodule so the lean ``apps/workers/image/storage``
-worker can import :mod:`.storage` without registering this task on its
-broker (and therefore without subscribing to the ``image.ml`` queue
-that only the heavy ML worker should drain).
+Phase 5b extracted this body out of ``apps/backend/`` (where it used
+to live at ``src/modules/image/infrastructure/tasks/rmbg.py``) into
+this worker's directory. Backend now dispatches by task name only via
+``broker.kicker().with_task_name("remove_background").kiq(...)`` and
+never imports this module — the ML stack (torch, transformers, timm,
+kornia) does not leak into backend's runtime graph.
 
 Conditional registration on ``BG_REMOVAL_ENABLED``: the function body
-is always defined at module level (importing it must not require torch
-on machines that don't have it), but the broker decorator only runs
-when the flag is on. ``apps/workers/image/rmbg`` flips the flag via
-its environment; every other deployment leaves it false.
+is always defined at module level so it stays importable on developer
+machines that don't have torch installed, but the broker decorator
+only runs when the flag is on. ``apps/workers/image/rmbg``'s
+environment flips it; every other deployment leaves it false.
+
+Domain interfaces, ORM models, and shared services (SSE manager,
+byte-stream helper) still live in backend and are imported
+transitively via the workspace dependency.
 """
 
 from __future__ import annotations

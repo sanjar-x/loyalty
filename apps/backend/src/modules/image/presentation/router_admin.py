@@ -391,10 +391,12 @@ async def request_background_removal(
     # existing derivation untouched; firing the task again would
     # re-run inference for nothing.
     if not result.already_existed and result.status == "PROCESSING":
-        # Lazy import — see process_image_task lazy-import note above.
-        from src.modules.image.infrastructure.tasks import remove_background_task
+        # Phase 5b symmetric — backend is publisher-only for rmbg too.
+        # Consumer body lives in ``apps/workers/image/rmbg/tasks.py``;
+        # dispatch by task name so backend never imports the ML body.
+        from src.bootstrap.broker import broker
 
-        await remove_background_task.kiq(
+        await broker.kicker().with_task_name("remove_background").kiq(
             derived_storage_object_id=str(result.derived_storage_object_id),
         )
     # C2.2 — surface FAILED honestly so the UI can show a retry
