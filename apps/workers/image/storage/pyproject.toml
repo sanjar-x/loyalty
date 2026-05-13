@@ -9,6 +9,12 @@
 # install — NO torch / transformers / timm / kornia. The ML inference
 # task lives in the sibling ``apps/workers/image/rmbg`` artefact.
 #
+# Status publishing is owned by this worker (no dependency on backend's
+# image-domain ``SSEManager``): the local ``publisher.py`` calls
+# ``XADD media:status:{uuid}`` directly on the Redis client injected
+# from the workspace cache provider. Same wire format as backend's SSE
+# endpoint, no shared Python primitive on top of it.
+#
 # Run command:
 #
 #     cd apps/workers/image/storage && python -m taskiq worker main:broker

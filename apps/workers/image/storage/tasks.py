@@ -25,14 +25,17 @@ from datetime import UTC, datetime, timedelta
 
 import structlog
 from dishka.integrations.taskiq import FromDishka, inject
+from redis.asyncio import Redis
 
+# Worker-local publisher — direct XADD writer, no dependency on
+# backend's ``IChannelStream`` Protocol or ``SSEManager`` wrapper.
+from publisher import StatusPublisher
 from src.bootstrap.broker import broker
 from src.bootstrap.config import Settings
 from src.modules.image.domain.events import StorageObjectProcessedEvent
 from src.modules.image.domain.interfaces import IBlobStorage, IStorageRepository
 from src.modules.image.domain.value_objects import StorageStatus
 from src.modules.image.infrastructure.services.image_processor import build_variants
-from src.modules.image.infrastructure.services.sse_manager import SSEManager
 from src.modules.image.infrastructure.services.streams import bytes_to_async_stream
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -53,12 +56,13 @@ async def process_image_task(
     storage_repo: FromDishka[IStorageRepository],
     uow: FromDishka[IUnitOfWork],
     settings: FromDishka[Settings],
-    sse: FromDishka[SSEManager],
+    redis: FromDishka[Redis],
 ) -> None:
     """Download raw, run Pillow, upload variants, update DB, push SSE."""
     sid = uuid.UUID(storage_object_id)
     log = logger.bind(storage_object_id=storage_object_id)
     log.info("Processing image started")
+    publisher = StatusPublisher(redis)
 
     storage_file = await storage_repo.get_by_id(sid)
     if not storage_file:
@@ -109,7 +113,7 @@ async def process_image_task(
         uow.register_aggregate(storage_file)
         await uow.commit()
 
-        await sse.publish(
+        await publisher.publish(
             sid,
             {
                 "status": "completed",
@@ -125,7 +129,7 @@ async def process_image_task(
         storage_file.status = StorageStatus.FAILED
         await storage_repo.update(storage_file)
         await uow.commit()
-        await sse.publish(
+        await publisher.publish(
             sid,
             {
                 "status": "failed",

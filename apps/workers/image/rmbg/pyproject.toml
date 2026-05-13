@@ -5,17 +5,22 @@
 # Virtual workspace project (``[tool.uv] package = false``). Run from
 # inside the app dir:
 #
-#     cd apps/workers/image/rmbg && taskiq worker main:broker
+#     cd apps/workers/image/rmbg && python -m taskiq worker main:broker
 #
 # This is the ONLY workspace member that pulls in the ML stack
 # (torch + transformers + timm + kornia, ~2.5 GB resolved). The lean
-# ``apps/workers/image/storage`` worker (Phase 5) will handle Pillow
-# resize + S3 uploads without these dependencies.
+# ``apps/workers/image/storage`` worker handles Pillow resize + S3
+# uploads without these dependencies.
 #
 # Torch CPU wheel is pinned via the ``pytorch-cpu`` index defined at the
 # workspace root; the ``[tool.uv.sources]`` below redirects torch /
 # torchvision to it so we never resolve the multi-GB CUDA build on
 # Railway's GPU-less nodes (REC-024 lesson).
+#
+# Status publishing is owned by this worker (no dependency on backend's
+# image-domain ``SSEManager``): the local ``publisher.py`` calls
+# ``XADD media:status:{uuid}`` directly on the Redis client injected
+# from the workspace cache provider.
 # =============================================================================
 
 [project]

@@ -24,6 +24,11 @@ import uuid
 
 import structlog
 from dishka.integrations.taskiq import FromDishka, inject
+from redis.asyncio import Redis
+
+# Worker-local publisher — direct XADD writer, no dependency on
+# backend's ``IChannelStream`` Protocol or ``SSEManager`` wrapper.
+from publisher import StatusPublisher
 from src.bootstrap.broker import broker
 from src.bootstrap.config import Settings, settings
 from src.modules.image.domain.events import BackgroundRemovedEvent
@@ -33,7 +38,6 @@ from src.modules.image.domain.interfaces import (
     IStorageRepository,
 )
 from src.modules.image.domain.value_objects import DerivationKind, StorageStatus
-from src.modules.image.infrastructure.services.sse_manager import SSEManager
 from src.modules.image.infrastructure.services.streams import bytes_to_async_stream
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -46,7 +50,7 @@ async def remove_background_task(
     storage_repo: FromDishka[IStorageRepository],
     uow: FromDishka[IUnitOfWork],
     settings: FromDishka[Settings],
-    sse: FromDishka[SSEManager],
+    redis: FromDishka[Redis],
     bg_remover: FromDishka[IBackgroundRemover],
 ) -> None:
     """Run the ML cutout for a pre-provisioned derivation row.
@@ -65,6 +69,7 @@ async def remove_background_task(
     sid = uuid.UUID(derived_storage_object_id)
     log = logger.bind(derived_storage_object_id=derived_storage_object_id)
     log.info("background_removal_started")
+    publisher = StatusPublisher(redis)
 
     derived = await storage_repo.get_by_id(sid)
     if derived is None or derived.parent_storage_object_id is None:
@@ -129,7 +134,7 @@ async def remove_background_task(
         uow.register_aggregate(derived)
         await uow.commit()
 
-        await sse.publish(
+        await publisher.publish(
             sid,
             {
                 "status": "completed",
@@ -146,7 +151,7 @@ async def remove_background_task(
         derived.status = StorageStatus.FAILED
         await storage_repo.update(derived)
         await uow.commit()
-        await sse.publish(
+        await publisher.publish(
             sid,
             {
                 "status": "failed",
