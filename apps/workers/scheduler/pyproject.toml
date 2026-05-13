@@ -1,0 +1,24 @@
+# =============================================================================
+# apps/workers/scheduler — TaskIQ scheduler (cron triggers).
+#
+# Virtual workspace project (``[tool.uv] package = false``). Run exactly
+# ONE replica per deployment — multiple schedulers would duplicate every
+# scheduled kick.
+#
+#     cd apps/workers/scheduler && taskiq scheduler main:scheduler
+# =============================================================================
+
+[project]
+name = "scheduler-worker"
+version = "0.1.0"
+description = "TaskIQ scheduler — periodic cron triggers (outbox prune, image cleanup, etc)."
+requires-python = ">=3.14"
+dependencies = [
+    "backend",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+backend = { workspace = true }

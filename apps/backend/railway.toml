@@ -1,0 +1,15 @@
+# Railway service config — apps/backend (FastAPI web).
+#
+# Backend is the canonical migration-running service (cross-service
+# policy inherited from REC-005 + HARD-1): only the web service applies
+# ``alembic upgrade head``; workers and the scheduler skip to avoid
+# concurrent migration-lock contention during the parallel deploy fan-out.
+# Alembic config lives in ``apps/backend/alembic.ini``.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/backend/Dockerfile"
+
+[deploy]
+preDeployCommand = [
+    "sh -c 'cd /workspace/apps/backend && uv run alembic upgrade head'",
+]

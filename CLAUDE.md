@@ -1,17 +1,52 @@
 # Loyality — Loyalty Marketplace
 
-Modular monolith with one backend service (image module incl.) and two frontends.
+uv-workspace monorepo. Each deployable artefact lives under `apps/` with its own `pyproject.toml`, `Dockerfile`, and Railway service config. Only `apps/backend/` is a real Python package (installable as `backend`, importable as `src.*`); every other app is a uv **virtual project** (`[tool.uv] package = false`) — uv resolves its dependencies but doesn't install it as a module, because deployment artefacts are run, not imported. The entry point of each virtual app is a plain `main.py` at the app root; Docker invokes `python -m <runner> main:<symbol>` from that directory. See [[ADR-008 Multi-Package Modular Monorepo]] for the rationale.
 
 ## Components
 
-| Component      | Path               | Tech                                                            | Port | Deployment |
-| -------------- | ------------------ | --------------------------------------------------------------- | ---- | ---------- |
-| Backend        | `backend/`         | FastAPI, Python 3.14, Clean Architecture (incl. image module)   | 8080 | Railway    |
-| Frontend Main  | `frontend/main/`   | Next.js 16, TypeScript, React 19, TanStack Query + Zustand + ky | 3000 | Netlify    |
-| Frontend Admin | `frontend/admin/`  | Next.js 16, JSX, Tailwind CSS 4, Feature-Sliced Design          | 3000 | Netlify    |
-| Telegram Bot   | `backend/src/bot/` | Aiogram 3, FSM states                                           | —    | Railway    |
+| Component       | Path                              | Package name           | Tech                                              | Port | Deployment |
+| --------------- | --------------------------------- | ---------------------- | ------------------------------------------------- | ---- | ---------- |
+| Backend / Web   | `apps/backend/`                   | `backend`              | FastAPI HTTP + library (no torch)                 | 8080 | Railway    |
+| Core worker     | `apps/backend/` (same image)      | `backend`              | TaskIQ worker — non-image queues. Railway service runs the same backend Docker image with overridden start command: `python -m taskiq worker src.bootstrap.worker_core:broker`. Not a separate workspace member because every non-image task body already lives inside backend's `src/modules/*/infrastructure/tasks.py`. | — | Railway |
+| Bot             | `apps/bot/`                       | `telegram-bot`         | Aiogram 3 polling (not yet deployed)              | —    | (planned)  |
+| Image storage   | `apps/workers/image/storage/`     | `image-storage-worker` | Pillow + S3 (no torch, no backend dep)            | —    | Railway    |
+| Image rmbg      | `apps/workers/image/rmbg/`        | `image-rmbg-worker`    | torch / transformers / timm / kornia (no backend dep) | — | Railway   |
+| Scheduler       | `apps/workers/scheduler/`         | `scheduler-worker`     | TaskIQ scheduler (cron)                           | —    | Railway    |
+| Frontend Admin  | `apps/frontend/admin/`            | (NextJS, git submodule)| Next.js 16, JSX, Tailwind 4                       | 3000 | Netlify    |
+| Mini App        | `apps/frontend/mini-app/`         | (NextJS)               | Next.js 16, TypeScript, React 19                  | 3000 | Netlify    |
 
 Each component has its own `CLAUDE.md` with specific commands, architecture, and patterns. Read it when working in that directory.
+
+## uv workspace
+
+```bash
+# From repo root:
+uv sync --all-groups                                       # shared .venv at <root>/.venv
+uv tree --package <package-name>                           # dependency graph of one app
+uv export --package <package-name> --no-dev --format requirements-txt
+                                                           # exact list a Docker build will install
+```
+
+Local run (uses the shared workspace `.venv`):
+
+```bash
+cd apps/backend                  && python -m uvicorn main:app --port 8080
+cd apps/backend                  && python -m taskiq worker src.bootstrap.worker_core:broker  # core-worker (same image)
+cd apps/workers/scheduler        && python -m taskiq scheduler main:scheduler
+cd apps/workers/image/storage    && python -m taskiq worker main:broker
+cd apps/workers/image/rmbg       && python -m taskiq worker main:broker
+cd apps/bot                      && python main.py
+```
+
+Docker build per app (context = monorepo root):
+
+```bash
+docker build -f apps/<path>/Dockerfile -t <image-name> .
+```
+
+Verified build isolation:
+- `backend`, `core-worker`, `scheduler-worker`, `telegram-bot`, `image-storage-worker` — **0** lines matching `^torch==` in their export
+- `image-rmbg-worker` — 5 lines (torch + torchvision + transformers + timm + kornia)
 
 ## Component Identity Map
 
@@ -19,9 +54,9 @@ When running Claude Code from a subdirectory, identify which component you are i
 
 | Working directory contains | Component ID     | Vault tag                            |
 | -------------------------- | ---------------- | ------------------------------------ |
-| `backend/src/modules/`     | `backend`        | `[project/loyality, backend]`        |
-| `frontend/main/`           | `frontend-main`  | `[project/loyality, frontend-main]`  |
-| `frontend/admin/`          | `frontend-admin` | `[project/loyality, frontend-admin]` |
+| `apps/backend/src/modules/`| `backend`        | `[project/loyality, backend]`        |
+| `apps/frontend/mini-app/`  | `frontend-main`  | `[project/loyality, frontend-main]`  |
+| `apps/frontend/admin/`     | `frontend-admin` | `[project/loyality, frontend-admin]` |
 | Root `loyality/`           | `project`        | `[project/loyality]`                 |
 
 Use the **Vault tag** column when writing notes to the Knowledge vault — always include the component tag.

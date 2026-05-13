@@ -1,0 +1,51 @@
+# =============================================================================
+# apps/workers/image/rmbg — fully independent ML inference worker.
+#
+# Virtual workspace project (``[tool.uv] package = false``). NO
+# dependency on ``backend`` — coordination is via shared PostgreSQL
+# rows, Redis Streams wire format, and RabbitMQ queue + task names.
+#
+# This is the ONLY workspace member that pulls in the ML stack
+# (torch + transformers + timm + kornia, ~2.5 GB resolved). Torch CPU
+# wheel is pinned via the ``pytorch-cpu`` index defined at the
+# workspace root.
+#
+# Run command:
+#
+#     cd apps/workers/image/rmbg && python -m taskiq worker main:broker
+# =============================================================================
+
+[project]
+name = "image-rmbg-worker"
+version = "0.1.0"
+description = "Bria RMBG-2.0 background-removal TaskIQ worker — fully standalone."
+requires-python = ">=3.14"
+dependencies = [
+    "accelerate>=1.0",
+    "aiobotocore>=3.3.0",
+    "asyncpg>=0.31.0",
+    "einops>=0.8",
+    "huggingface-hub>=0.25",
+    "kornia>=0.7.0",
+    "pillow>=11.0.0",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "redis[hiredis]>=7.3.0",
+    "safetensors>=0.4",
+    "sqlalchemy[asyncio]>=2.1.0b1",
+    "structlog>=25.5.0",
+    "taskiq>=0.12.1",
+    "taskiq-aio-pika>=0.6.0",
+    "timm>=1.0",
+    "torch>=2.6",
+    "torchvision>=0.21",
+    "transformers>=4.46.0",
+    "types-aiobotocore-s3>=2.18",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]

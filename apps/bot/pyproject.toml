@@ -1,0 +1,30 @@
+# =============================================================================
+# apps/bot — Telegram bot (Aiogram, polling mode).
+#
+# Virtual workspace project (``[tool.uv] package = false``): uv resolves
+# this app's dependencies into the shared lockfile but does NOT install
+# the app itself as a Python package. We don't need that — bots are run,
+# not imported. The entry point is plain ``main.py`` next to this file.
+#
+# Run command (cd into app dir first so ``main`` is importable):
+#
+#     cd apps/bot && python -m main
+#
+# Not currently deployed; the corresponding Railway service has not been
+# provisioned yet. The artefact is ready for the day it is.
+# =============================================================================
+
+[project]
+name = "telegram-bot"
+version = "0.1.0"
+description = "Telegram bot entry point — long-polling Aiogram dispatcher."
+requires-python = ">=3.14"
+dependencies = [
+    "backend",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+backend = { workspace = true }

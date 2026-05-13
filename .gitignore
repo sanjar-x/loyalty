@@ -1,4 +1,20 @@
-backend/.hypothesis/
+# Hypothesis stateful-test cache + similar Python build/test caches
+# anywhere in the workspace (the legacy ``backend/.hypothesis/`` pattern
+# became inert after backend/ moved to apps/backend/ — ADR-008 / Phase 1).
+**/.hypothesis/
+**/.mypy_cache/
+**/.pytest_cache/
+**/.ruff_cache/
+**/htmlcov/
+**/coverage.xml
+**/.coverage
+
+# Wheels / build artefacts at any depth
+**/dist/
+
+# Standalone experiments (e.g. rmbg/) — they have their own git repos and
+# pyproject and are NOT workspace members.
+/rmbg/
 
 # ── Claude Code (local-only files) ──
 **/.claude/settings.local.json

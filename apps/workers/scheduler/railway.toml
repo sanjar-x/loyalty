@@ -1,0 +1,7 @@
+# Railway service config — apps/workers/scheduler.
+#
+# Run EXACTLY ONE replica. Multiple schedulers duplicate every scheduled
+# kick. Scheduler skips migrations (REC-005 + HARD-1).
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/workers/scheduler/Dockerfile"
