@@ -31,18 +31,16 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
-from PIL import UnidentifiedImageError
-from PIL.Image import DecompressionBombError
-from sqlalchemy import text
-
 from broker import broker
 from config import settings
 from db import session_factory
 from image_processor import build_variants
+from PIL import UnidentifiedImageError
+from PIL.Image import DecompressionBombError
 from publisher import StatusPublisher
 from redis_client import redis_client
 from s3 import delete_object, download_bytes, upload_bytes
-
+from sqlalchemy import text
 
 # Errors we know we cannot recover from by retrying — they originate
 # from the uploaded bytes themselves (corrupted file, decompression
@@ -93,10 +91,7 @@ async def _fetch_storage_object(
     """Return ``(object_key, bucket_name)`` for ``sid`` or ``None``."""
     async with session_factory() as session:
         result = await session.execute(
-            text(
-                "SELECT object_key, bucket_name "
-                "FROM storage_objects WHERE id = :id"
-            ),
+            text("SELECT object_key, bucket_name FROM storage_objects WHERE id = :id"),
             {"id": sid},
         )
         row = result.first()
@@ -120,9 +115,15 @@ async def _mark_completed(
     async with session_factory() as session, session.begin():
         await session.execute(
             text(
+                # ``CAST(:variants AS jsonb)`` instead of ``:variants::jsonb``
+                # because SQLAlchemy's ``text()`` bind-param parser fails on
+                # ``:name::cast`` — it treats the trailing ``::`` as a cast
+                # operator AFTER consuming ``:name``, leaving the placeholder
+                # untranslated. PG then sees a literal ``:variants`` and
+                # raises ``syntax error at or near \":\"``.
                 "UPDATE storage_objects "
                 "SET status = :status, url = :url, "
-                "    image_variants = :variants::jsonb, "
+                "    image_variants = CAST(:variants AS jsonb), "
                 "    size_bytes = :size "
                 "WHERE id = :id"
             ),
@@ -136,10 +137,12 @@ async def _mark_completed(
         )
         await session.execute(
             text(
+                # ``CAST(:payload AS jsonb)`` instead of ``:payload::jsonb``
+                # for the same reason as the UPDATE above.
                 "INSERT INTO outbox_messages "
                 "(id, aggregate_type, aggregate_id, event_type, payload, created_at) "
                 "VALUES "
-                "(:id, :agg_type, :agg_id, :event_type, :payload::jsonb, NOW())"
+                "(:id, :agg_type, :agg_id, :event_type, CAST(:payload AS jsonb), NOW())"
             ),
             {
                 "id": uuid.uuid4(),
@@ -157,16 +160,12 @@ async def _mark_failed(sid: uuid.UUID) -> None:
     """
     async with session_factory() as session, session.begin():
         await session.execute(
-            text(
-                "UPDATE storage_objects SET status = :status WHERE id = :id"
-            ),
+            text("UPDATE storage_objects SET status = :status WHERE id = :id"),
             {"id": sid, "status": _STATUS_FAILED},
         )
 
 
-async def _mark_failed_safe(
-    sid: uuid.UUID, log: structlog.stdlib.BoundLogger
-) -> None:
+async def _mark_failed_safe(sid: uuid.UUID, log: structlog.stdlib.BoundLogger) -> None:
     """Best-effort wrapper around :func:`_mark_failed`.
 
     The caller is already on the failure path — we don't want a second
@@ -254,9 +253,7 @@ async def image_process_task(storage_object_id: str) -> None:
         main_bytes, variants_meta, variants_data = await asyncio.to_thread(
             build_variants, raw_data, sid, settings.S3_PUBLIC_BASE_URL
         )
-        await _publish_progress(
-            publisher, sid, _PROGRESS_STAGE_VARIANTS_BUILT, log
-        )
+        await _publish_progress(publisher, sid, _PROGRESS_STAGE_VARIANTS_BUILT, log)
 
         main_key = f"public/{sid}.webp"
         await upload_bytes(main_key, main_bytes, "image/webp")
@@ -379,10 +376,7 @@ async def image_cleanup_orphans_task() -> None:
             continue
         async with session_factory() as session, session.begin():
             await session.execute(
-                text(
-                    "UPDATE storage_objects SET status = :status "
-                    "WHERE id = :id"
-                ),
+                text("UPDATE storage_objects SET status = :status WHERE id = :id"),
                 {"id": orphan.id, "status": _STATUS_DELETED},
             )
         deleted += 1

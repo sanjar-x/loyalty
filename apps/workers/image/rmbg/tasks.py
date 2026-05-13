@@ -136,10 +136,15 @@ async def _mark_completed(
         )
         await session.execute(
             text(
+                # ``CAST(:payload AS jsonb)`` instead of ``:payload::jsonb``
+                # — SQLAlchemy's ``text()`` bind-param parser silently
+                # fails to translate ``:name::cast`` (the trailing ``::``
+                # collides with the named-param syntax), so the placeholder
+                # would be sent verbatim and PG would raise a syntax error.
                 "INSERT INTO outbox_messages "
                 "(id, aggregate_type, aggregate_id, event_type, payload, created_at) "
                 "VALUES "
-                "(:id, :agg_type, :agg_id, :event_type, :payload::jsonb, NOW())"
+                "(:id, :agg_type, :agg_id, :event_type, CAST(:payload AS jsonb), NOW())"
             ),
             {
                 "id": uuid.uuid4(),
