@@ -1,45 +1,140 @@
-"""Image-storage consumer tasks — Pillow resize + S3 cleanup.
+"""Image-storage worker tasks — Pillow resize + S3, no backend imports.
 
 * ``process_image_task`` — consumes a confirmed upload, downloads raw,
-  produces WebP main + variants via Pillow, uploads to S3, marks
-  ``status=COMPLETED`` and pushes status via SSE pub/sub.
+  produces WebP main + variants via Pillow, uploads to S3, updates
+  the row, writes the StorageObjectProcessedEvent to the outbox and
+  pushes a status frame to Redis Streams.
 * ``cleanup_orphans_task`` — six-hourly cron that prunes
   ``PENDING_UPLOAD`` rows older than 24 hours.
 
-Both tasks are queued on ``image.processing`` / ``image.maintenance``.
+Coordination with backend happens through three external surfaces:
 
-Phase 5b extracted these bodies out of ``apps/backend/`` (where they
-used to live at ``src/modules/image/infrastructure/tasks/storage.py``)
-into this worker's directory — backend now only dispatches by task
-name via ``broker.kicker().with_task_name(...).kiq(...)`` and never
-imports this module. Domain interfaces, ORM models, and shared services
-(Pillow processor, SSE manager, byte-stream helper) still live in
-backend and are imported transitively via the workspace dependency.
+* PostgreSQL — the ``storage_objects`` + ``outbox_messages`` tables,
+  whose schema is owned by backend's alembic migrations. This worker
+  only reads / updates specific columns via raw SQL — no ORM model
+  import.
+* Redis Streams — channel ``media:status:{uuid}`` (publisher here,
+  subscriber in backend's SSE endpoint), wire format = single ``data``
+  field carrying a JSON payload.
+* RabbitMQ task name ``process_image`` / ``image_cleanup_orphans``
+  (publisher = backend's ``broker.kicker()``).
+
+No Python import crosses the boundary.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import structlog
-from dishka.integrations.taskiq import FromDishka, inject
-from redis.asyncio import Redis
+from sqlalchemy import text
 
-# Worker-local publisher — direct XADD writer, no dependency on
-# backend's ``IChannelStream`` Protocol or ``SSEManager`` wrapper.
+from broker import broker
+from config import settings
+from db import session_factory
+from image_processor import build_variants
 from publisher import StatusPublisher
-from src.bootstrap.broker import broker
-from src.bootstrap.config import Settings
-from src.modules.image.domain.events import StorageObjectProcessedEvent
-from src.modules.image.domain.interfaces import IBlobStorage, IStorageRepository
-from src.modules.image.domain.value_objects import StorageStatus
-from src.modules.image.infrastructure.services.image_processor import build_variants
-from src.modules.image.infrastructure.services.streams import bytes_to_async_stream
-from src.shared.interfaces.uow import IUnitOfWork
+from redis_client import redis_client
+from s3 import delete_object, download_bytes, upload_bytes
 
 logger = structlog.get_logger(__name__)
+
+
+# Status values match what backend writes (StorageStatus enum mirrored
+# at the wire level). Worker never imports the enum class — keeps the
+# string contract local.
+_STATUS_COMPLETED = "COMPLETED"
+_STATUS_FAILED = "FAILED"
+_STATUS_PENDING_UPLOAD = "PENDING_UPLOAD"
+_STATUS_DELETED = "DELETED"
+
+# Outbox event metadata — must match what backend's relay dispatcher
+# registry recognises. The relay matches on ``event_type`` to dispatch
+# to the right consumer task (catalog mirrors processed URLs into its
+# denormalised ``media_assets`` rows).
+_AGGREGATE_TYPE = "StorageObject"
+_EVENT_TYPE_PROCESSED = "StorageObjectProcessedEvent"
+
+
+async def _fetch_storage_object(
+    sid: uuid.UUID,
+) -> tuple[str, str] | None:
+    """Return ``(object_key, bucket_name)`` for ``sid`` or ``None``."""
+    async with session_factory() as session:
+        result = await session.execute(
+            text(
+                "SELECT object_key, bucket_name "
+                "FROM storage_objects WHERE id = :id"
+            ),
+            {"id": sid},
+        )
+        row = result.first()
+        return (row.object_key, row.bucket_name) if row else None
+
+
+async def _mark_completed(
+    sid: uuid.UUID,
+    public_url: str,
+    variants_meta: list[dict[str, Any]],
+    main_size_bytes: int,
+) -> None:
+    """Update the row to COMPLETED and append the processed event in
+    the same transaction so the outbox relay sees both atomically.
+    """
+    payload = {
+        "storage_object_id": str(sid),
+        "url": public_url,
+        "image_variants": variants_meta,
+    }
+    async with session_factory() as session, session.begin():
+        await session.execute(
+            text(
+                "UPDATE storage_objects "
+                "SET status = :status, url = :url, "
+                "    image_variants = :variants::jsonb, "
+                "    size_bytes = :size "
+                "WHERE id = :id"
+            ),
+            {
+                "id": sid,
+                "status": _STATUS_COMPLETED,
+                "url": public_url,
+                "variants": json.dumps(variants_meta),
+                "size": main_size_bytes,
+            },
+        )
+        await session.execute(
+            text(
+                "INSERT INTO outbox_messages "
+                "(id, aggregate_type, aggregate_id, event_type, payload, created_at) "
+                "VALUES "
+                "(:id, :agg_type, :agg_id, :event_type, :payload::jsonb, NOW())"
+            ),
+            {
+                "id": uuid.uuid4(),
+                "agg_type": _AGGREGATE_TYPE,
+                "agg_id": str(sid),
+                "event_type": _EVENT_TYPE_PROCESSED,
+                "payload": json.dumps(payload),
+            },
+        )
+
+
+async def _mark_failed(sid: uuid.UUID) -> None:
+    """Flip the row to FAILED. No outbox row — failure is surfaced via
+    the SSE channel only; downstream consumers don't react to it.
+    """
+    async with session_factory() as session, session.begin():
+        await session.execute(
+            text(
+                "UPDATE storage_objects SET status = :status WHERE id = :id"
+            ),
+            {"id": sid, "status": _STATUS_FAILED},
+        )
 
 
 @broker.task(
@@ -49,31 +144,21 @@ logger = structlog.get_logger(__name__)
     max_retries=2,
     timeout=300,
 )
-@inject
-async def process_image_task(
-    storage_object_id: str,
-    blob_storage: FromDishka[IBlobStorage],
-    storage_repo: FromDishka[IStorageRepository],
-    uow: FromDishka[IUnitOfWork],
-    settings: FromDishka[Settings],
-    redis: FromDishka[Redis],
-) -> None:
-    """Download raw, run Pillow, upload variants, update DB, push SSE."""
+async def process_image_task(storage_object_id: str) -> None:
+    """Download raw, run Pillow, upload variants, update DB, push status."""
     sid = uuid.UUID(storage_object_id)
     log = logger.bind(storage_object_id=storage_object_id)
     log.info("Processing image started")
-    publisher = StatusPublisher(redis)
+    publisher = StatusPublisher(redis_client)
 
-    storage_file = await storage_repo.get_by_id(sid)
-    if not storage_file:
+    fetched = await _fetch_storage_object(sid)
+    if fetched is None:
         log.error("StorageFile not found")
         return
+    object_key, _bucket_name = fetched
 
     try:
-        raw_chunks: list[bytes] = []
-        async for chunk in blob_storage.download_stream(storage_file.object_key):
-            raw_chunks.append(chunk)
-        raw_data = b"".join(raw_chunks)
+        raw_data = await download_bytes(object_key)
         log.info("Downloaded raw", size=len(raw_data))
 
         main_bytes, variants_meta, variants_data = await asyncio.to_thread(
@@ -81,37 +166,14 @@ async def process_image_task(
         )
 
         main_key = f"public/{sid}.webp"
-        await blob_storage.upload_stream(
-            main_key, bytes_to_async_stream(main_bytes), "image/webp"
-        )
+        await upload_bytes(main_key, main_bytes, "image/webp")
         for s3_key, data in variants_data.items():
-            await blob_storage.upload_stream(
-                s3_key, bytes_to_async_stream(data), "image/webp"
-            )
+            await upload_bytes(s3_key, data, "image/webp")
 
-        await blob_storage.delete_object(storage_file.object_key)
+        await delete_object(object_key)
 
         public_url = f"{settings.S3_PUBLIC_BASE_URL.rstrip('/')}/{main_key}"
-        storage_file.status = StorageStatus.COMPLETED
-        storage_file.url = public_url
-        storage_file.image_variants = variants_meta
-        storage_file.size_bytes = len(main_bytes)
-        await storage_repo.update(storage_file)
-
-        # IMG-004 — emit ``StorageObjectProcessedEvent`` so catalog mirrors
-        # the new ``url`` / ``image_variants`` into its denormalised
-        # ``media_assets`` rows. Critical for the ``/reupload`` flow: same
-        # storage_object_id but new processed output — without this event
-        # the storefront keeps serving the stale URL.
-        storage_file.add_domain_event(
-            StorageObjectProcessedEvent(
-                storage_object_id=storage_file.id,
-                url=public_url,
-                image_variants=list(variants_meta),
-            )
-        )
-        uow.register_aggregate(storage_file)
-        await uow.commit()
+        await _mark_completed(sid, public_url, variants_meta, len(main_bytes))
 
         await publisher.publish(
             sid,
@@ -126,9 +188,7 @@ async def process_image_task(
 
     except Exception:
         log.exception("Processing failed")
-        storage_file.status = StorageStatus.FAILED
-        await storage_repo.update(storage_file)
-        await uow.commit()
+        await _mark_failed(sid)
         await publisher.publish(
             sid,
             {
@@ -146,24 +206,37 @@ async def process_image_task(
     timeout=600,
     schedule=[{"cron": "0 */6 * * *"}],
 )
-@inject
-async def cleanup_orphans_task(
-    storage_repo: FromDishka[IStorageRepository],
-    blob_storage: FromDishka[IBlobStorage],
-    uow: FromDishka[IUnitOfWork],
-) -> None:
+async def cleanup_orphans_task() -> None:
     """Delete PENDING_UPLOAD storage objects older than 24 hours."""
     log = logger.bind(task="image_cleanup_orphans")
     cutoff = datetime.now(UTC) - timedelta(hours=24)
-    orphans = await storage_repo.list_pending_expired(cutoff)
+
+    async with session_factory() as session:
+        result = await session.execute(
+            text(
+                "SELECT id, object_key, bucket_name FROM storage_objects "
+                "WHERE status = :status AND created_at < :cutoff"
+            ),
+            {"status": _STATUS_PENDING_UPLOAD, "cutoff": cutoff},
+        )
+        orphans = list(result.all())
+
     log.info("Found orphans", count=len(orphans))
 
     for orphan in orphans:
         try:
-            await blob_storage.delete_object(orphan.object_key)
+            await delete_object(orphan.object_key)
         except Exception:
-            log.warning("Failed to delete S3 object", key=orphan.object_key)
-        await storage_repo.mark_as_deleted(orphan.bucket_name, orphan.object_key)
+            log.warning(
+                "Failed to delete S3 object", key=orphan.object_key
+            )
+        async with session_factory() as session, session.begin():
+            await session.execute(
+                text(
+                    "UPDATE storage_objects SET status = :status "
+                    "WHERE id = :id"
+                ),
+                {"id": orphan.id, "status": _STATUS_DELETED},
+            )
 
-    await uow.commit()
     log.info("Orphan cleanup done", deleted=len(orphans))

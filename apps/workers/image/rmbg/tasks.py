@@ -1,138 +1,173 @@
-"""Image-rmbg consumer task — Bria RMBG-2.0 background removal.
+"""Image-rmbg worker tasks — Bria RMBG-2.0, no backend imports.
 
-Phase 5b extracted this body out of ``apps/backend/`` (where it used
-to live at ``src/modules/image/infrastructure/tasks/rmbg.py``) into
-this worker's directory. Backend now dispatches by task name only via
-``broker.kicker().with_task_name("remove_background").kiq(...)`` and
-never imports this module — the ML stack (torch, transformers, timm,
-kornia) does not leak into backend's runtime graph.
+* ``remove_background_task`` — downloads the processed parent WebP from
+  S3, runs Bria RMBG-2.0 inference, uploads the cutout, updates the
+  derived row, writes the BackgroundRemovedEvent to the outbox and
+  pushes a status frame to Redis Streams.
 
-Conditional registration on ``BG_REMOVAL_ENABLED``: the function body
-is always defined at module level so it stays importable on developer
-machines that don't have torch installed, but the broker decorator
-only runs when the flag is on. ``apps/workers/image/rmbg``'s
-environment flips it; every other deployment leaves it false.
+Coordination with backend happens through three external surfaces:
 
-Domain interfaces, ORM models, and shared services (SSE manager,
-byte-stream helper) still live in backend and are imported
-transitively via the workspace dependency.
+* PostgreSQL — the ``storage_objects`` + ``outbox_messages`` tables
+  (schema owned by backend's alembic migrations).
+* Redis Streams — channel ``media:status:{uuid}``.
+* RabbitMQ task name ``remove_background`` (queue ``image.ml``).
+
+No Python import crosses the boundary. Conditional registration on
+the broker is intentional: the worker may be deployed with the model
+weights pre-warmed, or without (in which case it skips registering
+the task and never subscribes to ``image.ml``).
 """
 
 from __future__ import annotations
 
+import json
 import uuid
 
 import structlog
-from dishka.integrations.taskiq import FromDishka, inject
-from redis.asyncio import Redis
+from sqlalchemy import text
 
-# Worker-local publisher — direct XADD writer, no dependency on
-# backend's ``IChannelStream`` Protocol or ``SSEManager`` wrapper.
+from bria_rmbg import bria_rmbg
+from broker import broker
+from config import settings
+from db import session_factory
 from publisher import StatusPublisher
-from src.bootstrap.broker import broker
-from src.bootstrap.config import Settings, settings
-from src.modules.image.domain.events import BackgroundRemovedEvent
-from src.modules.image.domain.interfaces import (
-    IBackgroundRemover,
-    IBlobStorage,
-    IStorageRepository,
-)
-from src.modules.image.domain.value_objects import DerivationKind, StorageStatus
-from src.modules.image.infrastructure.services.streams import bytes_to_async_stream
-from src.shared.interfaces.uow import IUnitOfWork
+from redis_client import redis_client
+from s3 import download_bytes, upload_bytes
 
 logger = structlog.get_logger(__name__)
 
+_STATUS_COMPLETED = "COMPLETED"
+_STATUS_FAILED = "FAILED"
 
-async def remove_background_task(
-    derived_storage_object_id: str,
-    blob_storage: FromDishka[IBlobStorage],
-    storage_repo: FromDishka[IStorageRepository],
-    uow: FromDishka[IUnitOfWork],
-    settings: FromDishka[Settings],
-    redis: FromDishka[Redis],
-    bg_remover: FromDishka[IBackgroundRemover],
+_AGGREGATE_TYPE = "StorageObject"
+_EVENT_TYPE_BG_REMOVED = "BackgroundRemovedEvent"
+_DERIVATION_KIND_BG_REMOVED = "bg_removed"
+
+
+async def _fetch_derivation(
+    sid: uuid.UUID,
+) -> tuple[uuid.UUID, str] | None:
+    """Return ``(parent_storage_object_id, parent_processed_key)``."""
+    async with session_factory() as session:
+        result = await session.execute(
+            text(
+                "SELECT parent_storage_object_id FROM storage_objects "
+                "WHERE id = :id"
+            ),
+            {"id": sid},
+        )
+        row = result.first()
+        if row is None or row.parent_storage_object_id is None:
+            return None
+        parent_id = row.parent_storage_object_id
+
+    # Parent's processed WebP lives at the deterministic key
+    # ``public/{parent_id}.webp`` — established by the storage worker
+    # when it finished ``process_image_task``.
+    return parent_id, f"public/{parent_id}.webp"
+
+
+async def _mark_completed(
+    sid: uuid.UUID,
+    parent_id: uuid.UUID,
+    cutout_key: str,
+    public_url: str,
+    cutout_size: int,
 ) -> None:
-    """Run the ML cutout for a pre-provisioned derivation row.
-
-    The ``RequestBackgroundRemovalHandler`` already inserted the
-    PROCESSING placeholder so the SSE channel is addressable from the
-    moment the HTTP 202 response left the API. This task fills in the
-    real ``object_key`` / ``url`` / ``image_variants`` and pushes the
-    completion / failure event.
-
-    Run on a dedicated queue (``image.ml``) so the regular image-storage
-    workers stay free of the ~1.6 GB model footprint. The matching
-    Railway service (``apps/workers/image/rmbg``) installs torch +
-    transformers + timm + kornia; every other service does not.
+    """Update the derived row to COMPLETED and append the bg-removed
+    event to the outbox in the same transaction.
     """
+    payload = {
+        "storage_object_id": str(sid),
+        "parent_storage_object_id": str(parent_id),
+        "url": public_url,
+        "derivation_kind": _DERIVATION_KIND_BG_REMOVED,
+        "image_variants": [],
+    }
+    async with session_factory() as session, session.begin():
+        await session.execute(
+            text(
+                "UPDATE storage_objects "
+                "SET status = :status, object_key = :object_key, "
+                "    url = :url, size_bytes = :size, "
+                "    content_type = :content_type, "
+                "    image_variants = '[]'::jsonb "
+                "WHERE id = :id"
+            ),
+            {
+                "id": sid,
+                "status": _STATUS_COMPLETED,
+                "object_key": cutout_key,
+                "url": public_url,
+                "size": cutout_size,
+                "content_type": bria_rmbg.output_content_type,
+            },
+        )
+        await session.execute(
+            text(
+                "INSERT INTO outbox_messages "
+                "(id, aggregate_type, aggregate_id, event_type, payload, created_at) "
+                "VALUES "
+                "(:id, :agg_type, :agg_id, :event_type, :payload::jsonb, NOW())"
+            ),
+            {
+                "id": uuid.uuid4(),
+                "agg_type": _AGGREGATE_TYPE,
+                "agg_id": str(sid),
+                "event_type": _EVENT_TYPE_BG_REMOVED,
+                "payload": json.dumps(payload),
+            },
+        )
+
+
+async def _mark_failed(sid: uuid.UUID) -> None:
+    async with session_factory() as session, session.begin():
+        await session.execute(
+            text(
+                "UPDATE storage_objects SET status = :status WHERE id = :id"
+            ),
+            {"id": sid, "status": _STATUS_FAILED},
+        )
+
+
+@broker.task(
+    task_name="remove_background",
+    queue_name="image.ml",
+    retry_on_error=True,
+    max_retries=2,
+    timeout=240,
+)
+async def remove_background_task(derived_storage_object_id: str) -> None:
+    """Run Bria RMBG-2.0 inference for a pre-provisioned derivation row."""
     sid = uuid.UUID(derived_storage_object_id)
     log = logger.bind(derived_storage_object_id=derived_storage_object_id)
     log.info("background_removal_started")
-    publisher = StatusPublisher(redis)
+    publisher = StatusPublisher(redis_client)
 
-    derived = await storage_repo.get_by_id(sid)
-    if derived is None or derived.parent_storage_object_id is None:
+    fetched = await _fetch_derivation(sid)
+    if fetched is None:
         log.error("derived_storage_object_missing_or_not_a_derivation")
         return
-
-    parent_id = derived.parent_storage_object_id
-    parent = await storage_repo.get_by_id(parent_id)
-    if parent is None:
-        log.error("parent_storage_object_missing")
-        derived.status = StorageStatus.FAILED
-        await storage_repo.update(derived)
-        await uow.commit()
-        return
+    parent_id, processed_key = fetched
 
     try:
-        # Pull the *processed* parent bytes — that's the public WebP the
-        # storefront already serves, so the cutout always runs against
-        # the same pixels the customer will see.
-        processed_key = f"public/{parent_id}.webp"
-        raw_chunks: list[bytes] = []
-        async for chunk in blob_storage.download_stream(processed_key):
-            raw_chunks.append(chunk)
-        parent_bytes = b"".join(raw_chunks)
+        parent_bytes = await download_bytes(processed_key)
         log.info("parent_bytes_fetched", size=len(parent_bytes))
 
-        cutout_bytes = await bg_remover.remove(parent_bytes)
+        cutout_bytes = await bria_rmbg.remove(parent_bytes)
         log.info("inference_done", cutout_size=len(cutout_bytes))
 
         cutout_key = f"public/{sid}_bg_removed.webp"
-        await blob_storage.upload_stream(
-            cutout_key,
-            bytes_to_async_stream(cutout_bytes),
-            bg_remover.output_content_type,
+        await upload_bytes(
+            cutout_key, cutout_bytes, bria_rmbg.output_content_type
         )
 
-        # Drop the placeholder — the real key replaces it. We don't
-        # delete the placeholder from S3 because no upload was ever made
-        # for it (it's just a DB-side string).
-
-        public_url = f"{settings.S3_PUBLIC_BASE_URL.rstrip('/')}/{cutout_key}"
-        derived.status = StorageStatus.COMPLETED
-        derived.object_key = cutout_key
-        derived.url = public_url
-        derived.size_bytes = len(cutout_bytes)
-        derived.content_type = bg_remover.output_content_type
-        # No variants for the cutout in this iteration. The downstream
-        # ``compute_media_diff`` flow accepts an empty list — variant
-        # generation can layer on top later if needed.
-        derived.image_variants = []
-        await storage_repo.update(derived)
-
-        derived.add_domain_event(
-            BackgroundRemovedEvent(
-                storage_object_id=derived.id,
-                parent_storage_object_id=parent_id,
-                url=public_url,
-                derivation_kind=DerivationKind.BG_REMOVED.value,
-                image_variants=[],
-            )
+        public_url = (
+            f"{settings.S3_PUBLIC_BASE_URL.rstrip('/')}/{cutout_key}"
         )
-        uow.register_aggregate(derived)
-        await uow.commit()
+        await _mark_completed(
+            sid, parent_id, cutout_key, public_url, len(cutout_bytes)
+        )
 
         await publisher.publish(
             sid,
@@ -141,37 +176,21 @@ async def remove_background_task(
                 "storage_object_id": str(sid),
                 "url": public_url,
                 "variants": [],
-                "kind": DerivationKind.BG_REMOVED.value,
+                "kind": _DERIVATION_KIND_BG_REMOVED,
             },
         )
         log.info("background_removal_completed", url=public_url)
 
     except Exception:
         log.exception("background_removal_failed")
-        derived.status = StorageStatus.FAILED
-        await storage_repo.update(derived)
-        await uow.commit()
+        await _mark_failed(sid)
         await publisher.publish(
             sid,
             {
                 "status": "failed",
                 "storage_object_id": str(sid),
                 "error": "Background removal failed",
-                "kind": DerivationKind.BG_REMOVED.value,
+                "kind": _DERIVATION_KIND_BG_REMOVED,
             },
         )
         raise
-
-
-# IMG-007 — conditional registration. The function body is always
-# defined above so it remains importable on workers that don't enable
-# bg-removal, but it is only wired to the broker (and therefore only
-# starts subscribing to ``image.ml``) when the flag is on.
-if settings.BG_REMOVAL_ENABLED:
-    remove_background_task = broker.task(
-        task_name="remove_background",
-        queue_name="image.ml",
-        retry_on_error=True,
-        max_retries=2,
-        timeout=240,
-    )(inject(remove_background_task))

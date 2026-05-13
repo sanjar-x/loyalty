@@ -1,45 +1,46 @@
 # =============================================================================
-# apps/workers/image/rmbg — TaskIQ worker dedicated to Bria RMBG-2.0
-# background removal (the ``image.ml`` queue).
+# apps/workers/image/rmbg — fully independent ML inference worker.
 #
-# Virtual workspace project (``[tool.uv] package = false``). Run from
-# inside the app dir:
-#
-#     cd apps/workers/image/rmbg && python -m taskiq worker main:broker
+# Virtual workspace project (``[tool.uv] package = false``). NO
+# dependency on ``backend`` — coordination is via shared PostgreSQL
+# rows, Redis Streams wire format, and RabbitMQ queue + task names.
 #
 # This is the ONLY workspace member that pulls in the ML stack
-# (torch + transformers + timm + kornia, ~2.5 GB resolved). The lean
-# ``apps/workers/image/storage`` worker handles Pillow resize + S3
-# uploads without these dependencies.
+# (torch + transformers + timm + kornia, ~2.5 GB resolved). Torch CPU
+# wheel is pinned via the ``pytorch-cpu`` index defined at the
+# workspace root.
 #
-# Torch CPU wheel is pinned via the ``pytorch-cpu`` index defined at the
-# workspace root; the ``[tool.uv.sources]`` below redirects torch /
-# torchvision to it so we never resolve the multi-GB CUDA build on
-# Railway's GPU-less nodes (REC-024 lesson).
+# Run command:
 #
-# Status publishing is owned by this worker (no dependency on backend's
-# image-domain ``SSEManager``): the local ``publisher.py`` calls
-# ``XADD media:status:{uuid}`` directly on the Redis client injected
-# from the workspace cache provider.
+#     cd apps/workers/image/rmbg && python -m taskiq worker main:broker
 # =============================================================================
 
 [project]
 name = "image-rmbg-worker"
 version = "0.1.0"
-description = "TaskIQ worker — Bria RMBG-2.0 background removal (ML inference, image.ml queue)."
+description = "Bria RMBG-2.0 background-removal TaskIQ worker — fully standalone."
 requires-python = ">=3.14"
 dependencies = [
-    "backend",
+    "aiobotocore>=3.3.0",
+    "asyncpg>=0.31.0",
+    "kornia>=0.7.0",
+    "pillow>=11.0.0",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "redis[hiredis]>=7.3.0",
+    "sqlalchemy[asyncio]>=2.1.0b1",
+    "structlog>=25.5.0",
+    "taskiq>=0.12.1",
+    "taskiq-aio-pika>=0.6.0",
+    "timm>=0.9.0",
     "torch>=2.5.0",
     "transformers>=4.46.0",
-    "timm>=0.9.0",
-    "kornia>=0.7.0",
+    "types-aiobotocore-s3>=2.18",
 ]
 
 [tool.uv]
 package = false
 
 [tool.uv.sources]
-backend = { workspace = true }
 torch = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 torchvision = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]

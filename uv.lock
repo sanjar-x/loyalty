@@ -1406,22 +1406,42 @@ name = "image-rmbg-worker"
 version = "0.1.0"
 source = { virtual = "apps/workers/image/rmbg" }
 dependencies = [
-    { name = "backend" },
+    { name = "aiobotocore" },
+    { name = "asyncpg" },
     { name = "kornia" },
+    { name = "pillow" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "redis", extra = ["hiredis"] },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "structlog" },
+    { name = "taskiq" },
+    { name = "taskiq-aio-pika" },
     { name = "timm" },
     { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
     { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'linux'" },
     { name = "transformers" },
+    { name = "types-aiobotocore-s3" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "backend", editable = "apps/backend" },
+    { name = "aiobotocore", specifier = ">=3.3.0" },
+    { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "kornia", specifier = ">=0.7.0" },
+    { name = "pillow", specifier = ">=11.0.0" },
+    { name = "pydantic", specifier = ">=2.10" },
+    { name = "pydantic-settings", specifier = ">=2.7" },
+    { name = "redis", extras = ["hiredis"], specifier = ">=7.3.0" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.1.0b1" },
+    { name = "structlog", specifier = ">=25.5.0" },
+    { name = "taskiq", specifier = ">=0.12.1" },
+    { name = "taskiq-aio-pika", specifier = ">=0.6.0" },
     { name = "timm", specifier = ">=0.9.0" },
     { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.5.0" },
     { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.5.0", index = "https://download.pytorch.org/whl/cpu" },
     { name = "transformers", specifier = ">=4.46.0" },
+    { name = "types-aiobotocore-s3", specifier = ">=2.18" },
 ]
 
 [[package]]
@@ -1429,11 +1449,33 @@ name = "image-storage-worker"
 version = "0.1.0"
 source = { virtual = "apps/workers/image/storage" }
 dependencies = [
-    { name = "backend" },
+    { name = "aiobotocore" },
+    { name = "asyncpg" },
+    { name = "pillow" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "redis", extra = ["hiredis"] },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "structlog" },
+    { name = "taskiq" },
+    { name = "taskiq-aio-pika" },
+    { name = "types-aiobotocore-s3" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "backend", editable = "apps/backend" }]
+requires-dist = [
+    { name = "aiobotocore", specifier = ">=3.3.0" },
+    { name = "asyncpg", specifier = ">=0.31.0" },
+    { name = "pillow", specifier = ">=11.0.0" },
+    { name = "pydantic", specifier = ">=2.10" },
+    { name = "pydantic-settings", specifier = ">=2.7" },
+    { name = "redis", extras = ["hiredis"], specifier = ">=7.3.0" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.1.0b1" },
+    { name = "structlog", specifier = ">=25.5.0" },
+    { name = "taskiq", specifier = ">=0.12.1" },
+    { name = "taskiq-aio-pika", specifier = ">=0.6.0" },
+    { name = "types-aiobotocore-s3", specifier = ">=2.18" },
+]
 
 [[package]]
 name = "iniconfig"
@@ -3177,6 +3219,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e4/51/9aed62104cea109b820bbd6c14245af756112017d309da813ef107d42e7e/typer-0.25.1.tar.gz", hash = "sha256:9616eb8853a09ffeabab1698952f33c6f29ffdbceb4eaeecf571880e8d7664cc", size = 122276, upload-time = "2026-04-30T19:32:16.964Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3f/f9/2b3ff4e56e5fa7debfaf9eb135d0da96f3e9a1d5b27222223c7296336e5f/typer-0.25.1-py3-none-any.whl", hash = "sha256:75caa44ed46a03fb2dab8808753ffacdbfea88495e74c85a28c5eefcf5f39c89", size = 58409, upload-time = "2026-04-30T19:32:18.271Z" },
+]
+
+[[package]]
+name = "types-aiobotocore-s3"
+version = "3.7.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/ce/5b7baa06cde79ab5f083f56f060ccd2b60f6249127d70bbb8a37aafbdcd4/types_aiobotocore_s3-3.7.0.tar.gz", hash = "sha256:6ec738853dbba9133707991b98ea4dab19f7c62e02b3cca016e6cd8e3d684576", size = 77662, upload-time = "2026-05-10T03:17:35.088Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e9/ac/67240c3804a3e1c1e8f0f402155d7ed5351faf7a2085136083e5ca3f26b8/types_aiobotocore_s3-3.7.0-py3-none-any.whl", hash = "sha256:5dbb5479ece3e1aceaccac224fc3dd1ab7d912c4457419bd19e88a0a5b3844fc", size = 85450, upload-time = "2026-05-10T03:17:33.061Z" },
 ]
 
 [[package]]

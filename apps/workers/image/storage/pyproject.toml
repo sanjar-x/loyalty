@@ -1,19 +1,19 @@
 # =============================================================================
-# apps/workers/image/storage — TaskIQ worker for image processing without ML.
+# apps/workers/image/storage — fully independent image-processing worker.
 #
-# Subscribes to ``image.processing`` + ``image.maintenance`` queues:
-#   * ``process_image_task``     — Pillow resize → WebP variants → S3
-#   * ``cleanup_orphans_task``   — six-hourly prune of stale uploads
+# Virtual workspace project (``[tool.uv] package = false``). NO
+# dependency on ``backend`` — coordination with the rest of the
+# platform is via three external surfaces:
 #
-# Virtual workspace project (``[tool.uv] package = false``). Lean
-# install — NO torch / transformers / timm / kornia. The ML inference
-# task lives in the sibling ``apps/workers/image/rmbg`` artefact.
+#   * PostgreSQL (storage_objects + outbox_messages tables, schema
+#     owned by backend's alembic migrations)
+#   * Redis Streams (channel ``media:status:{uuid}``, JSON wire format)
+#   * RabbitMQ (queues ``image.processing`` + ``image.maintenance``,
+#     task names ``process_image`` + ``image_cleanup_orphans``)
 #
-# Status publishing is owned by this worker (no dependency on backend's
-# image-domain ``SSEManager``): the local ``publisher.py`` calls
-# ``XADD media:status:{uuid}`` directly on the Redis client injected
-# from the workspace cache provider. Same wire format as backend's SSE
-# endpoint, no shared Python primitive on top of it.
+# No Python import crosses the boundary. Schema drift between this
+# worker and backend is caught at runtime by the raw-SQL UPDATE — there
+# is no shared ORM model to compile.
 #
 # Run command:
 #
@@ -23,14 +23,21 @@
 [project]
 name = "image-storage-worker"
 version = "0.1.0"
-description = "TaskIQ worker — image processing (Pillow + S3), NO ML deps."
+description = "Image-storage TaskIQ worker — Pillow resize + S3, fully standalone."
 requires-python = ">=3.14"
 dependencies = [
-    "backend",
+    "aiobotocore>=3.3.0",
+    "asyncpg>=0.31.0",
+    "pillow>=11.0.0",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "redis[hiredis]>=7.3.0",
+    "sqlalchemy[asyncio]>=2.1.0b1",
+    "structlog>=25.5.0",
+    "taskiq>=0.12.1",
+    "taskiq-aio-pika>=0.6.0",
+    "types-aiobotocore-s3>=2.18",
 ]
 
 [tool.uv]
 package = false
-
-[tool.uv.sources]
-backend = { workspace = true }
