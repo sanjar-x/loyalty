@@ -250,3 +250,61 @@ class TestGetEditStatus:
         provider = YandexDeliveryEditProvider(yandex_client)
 
         assert await provider.get_edit_status("task-1") is EditTaskStatus.SUCCESS
+
+
+class TestPhysicalDimsAxes:
+    """The dx/dy/dz axis mapping (dx=Длина, dy=Высота, dz=Ширина) is
+    delegated to ``build_physical_dims``; these guard the edit-provider
+    call sites against a regression with non-cube dimensions."""
+
+    @pytest.mark.asyncio
+    async def test_edit_packages_maps_axes(self, yandex_client: AsyncMock) -> None:
+        yandex_client.request_places_edit.return_value = {"editing_task_id": "t"}
+        provider = YandexDeliveryEditProvider(yandex_client)
+
+        await provider.edit_packages(
+            "order-uuid",
+            [
+                EditPackage(
+                    barcode="PKG-1",
+                    weight=Weight(grams=600),
+                    dimensions=Dimensions(length_cm=30, width_cm=20, height_cm=10),
+                    items=(EditPackageItem(item_barcode="i1", count=1),),
+                )
+            ],
+        )
+
+        dims = yandex_client.request_places_edit.await_args.args[0]["places"][0][
+            "dimensions"
+        ]
+        assert dims == {"weight_gross": 600, "dx": 30, "dy": 10, "dz": 20}
+
+    @pytest.mark.asyncio
+    async def test_edit_order_place_swap_maps_axes(
+        self, yandex_client: AsyncMock
+    ) -> None:
+        yandex_client.request_edit.return_value = {"edit_id": "e"}
+        provider = YandexDeliveryEditProvider(yandex_client)
+
+        await provider.edit_order(
+            EditOrderRequest(
+                order_provider_id="order-uuid",
+                places=(
+                    EditPlaceSwap(
+                        old_barcode="OLD",
+                        new_barcode="NEW",
+                        new_parcel=Parcel(
+                            weight=Weight(grams=900),
+                            dimensions=Dimensions(
+                                length_cm=40, width_cm=25, height_cm=15
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        )
+
+        dims = yandex_client.request_edit.await_args.args[0]["places"][0]["place"][
+            "physical_dims"
+        ]
+        assert dims == {"weight_gross": 900, "dx": 40, "dy": 15, "dz": 25}

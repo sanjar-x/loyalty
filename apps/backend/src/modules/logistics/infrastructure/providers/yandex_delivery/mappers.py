@@ -1,9 +1,12 @@
 """
-Yandex Delivery mappers — pure functions for domain ↔ API conversion.
+Yandex Delivery mappers — stateless functions for domain ↔ API conversion.
 
-All functions are stateless and side-effect free. They convert between
-domain value objects and the JSON structures expected/returned by the
-Yandex Delivery "Other Day" API.
+Each function is a pure data transformation between domain value objects
+and the JSON structures the Yandex Delivery "Other Day" API expects /
+returns. The only side effect is a structured warning log emitted when
+an input cannot be mapped (an unknown status, an unparseable price) —
+the result is still returned, never raised, so a single odd record never
+fails a batch.
 """
 
 from datetime import UTC, datetime
@@ -17,6 +20,7 @@ from src.modules.logistics.domain.value_objects import (
     BookingRequest,
     DeliveryInterval,
     DeliveryType,
+    Dimensions,
     Money,
     Parcel,
     PickupPoint,
@@ -31,10 +35,60 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.constants im
     LAST_MILE_PICKUP,
     YANDEX_PICKUP_TYPE_MAP,
     YANDEX_STATUS_MAP,
+    country_code_for,
+    country_name_for,
     parse_pricing_string,
 )
 
 logger = structlog.get_logger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Shared building blocks (used across the API-specific sections below)
+# ---------------------------------------------------------------------------
+
+
+def _map_yandex_status(status_code: str) -> TrackingStatus:
+    """Map a Yandex status string to the unified ``TrackingStatus``.
+
+    Unknown statuses default to ``IN_TRANSIT`` — a *non-terminal* state —
+    rather than ``EXCEPTION``. ``EXCEPTION`` is a member of
+    ``TERMINAL_FAILURE_TRACKING_STATUSES``, so an unrecognised status (a
+    newly-introduced Yandex status, a rarely-seen detail status) defaulting
+    to it would make ``Shipment.append_tracking_event`` auto-transition the
+    shipment to ``FAILED`` and emit ``ShipmentDeliveryFailedEvent``. A
+    non-terminal default keeps an unknown status visible but harmless; the
+    raw code is still preserved verbatim in
+    ``TrackingEvent.provider_status_code`` for triage.
+    """
+    mapped = YANDEX_STATUS_MAP.get(status_code)
+    if mapped is None:
+        logger.warning("yandex.unknown_tracking_status", status_code=status_code)
+        return TrackingStatus.IN_TRANSIT
+    return mapped
+
+
+def build_physical_dims(
+    weight_grams: int, dimensions: Dimensions | None
+) -> dict[str, Any]:
+    """Build a Yandex ``physical_dims`` / ``dimensions`` fragment.
+
+    Single source of truth for the carrier's axis convention — shared by
+    every request builder in this module and by the edit-provider's
+    package builders. Per the Yandex docs (``pricing_calculator.md`` /
+    ``request_create.md`` / ``request_places_edit.md``): ``dx`` = Длина
+    (length), ``dy`` = Высота (height), ``dz`` = Ширина (width). The
+    domain ``Dimensions`` value object names its fields explicitly, so
+    each axis maps by meaning, not by position — and keeping the
+    convention in one place stops the three call sites from drifting
+    apart (which is exactly how the original dy/dz swap crept in).
+    """
+    dims: dict[str, Any] = {"weight_gross": weight_grams}
+    if dimensions is not None:
+        dims["dx"] = dimensions.length_cm
+        dims["dy"] = dimensions.height_cm
+        dims["dz"] = dimensions.width_cm
+    return dims
 
 
 # ---------------------------------------------------------------------------
@@ -70,12 +124,10 @@ def build_pricing_request(
         (p.declared_value.amount if p.declared_value else 0) for p in parcels
     )
 
-    places = []
-    for parcel in parcels:
-        place: dict[str, Any] = {
-            "physical_dims": _build_physical_dims(parcel),
-        }
-        places.append(place)
+    places = [
+        {"physical_dims": build_physical_dims(p.weight.grams, p.dimensions)}
+        for p in parcels
+    ]
 
     body: dict[str, Any] = {
         "source": {"platform_station_id": platform_station_id},
@@ -167,10 +219,19 @@ def build_offers_create_request(
         # ``delivery_cost`` is the amount the courier collects on receipt.
         billing_info["delivery_cost"] = request.cod.amount.amount
 
+    # ``operator_request_id`` is our idempotency key (the shipment UUID);
+    # ``merchant_id`` identifies the sending merchant and is only required
+    # for multi-merchant accounts — sent when configured on the provider
+    # account, omitted otherwise (single-merchant marketplace flow).
+    info: dict[str, Any] = {"operator_request_id": str(request.shipment_id)}
+    merchant_id = config.get("merchant_id")
+    if merchant_id:
+        # ``config`` is loaded from a JSONB column — coerce to ``str`` so a
+        # merchant id stored as a number still serialises as Yandex expects.
+        info["merchant_id"] = str(merchant_id)
+
     body: dict[str, Any] = {
-        "info": {
-            "operator_request_id": str(request.shipment_id),
-        },
+        "info": info,
         "source": {
             "platform_station": {"platform_id": platform_station_id},
         },
@@ -225,7 +286,7 @@ def parse_tracking_history(data: dict[str, Any]) -> list[TrackingEvent]:
 
     for entry in state_history:
         status_code = entry.get("status", "")
-        tracking_status = YANDEX_STATUS_MAP.get(status_code, TrackingStatus.EXCEPTION)
+        tracking_status = _map_yandex_status(status_code)
 
         timestamp = _parse_timestamp(entry)
         if timestamp is None:
@@ -264,7 +325,7 @@ def parse_batch_requests_info(
             continue
 
         status_code = state.get("status", "")
-        tracking_status = YANDEX_STATUS_MAP.get(status_code, TrackingStatus.EXCEPTION)
+        tracking_status = _map_yandex_status(status_code)
         timestamp = _parse_timestamp(state)
 
         if timestamp is None:
@@ -342,7 +403,10 @@ def build_offers_info_request(
     return {
         "source": {"platform_station_id": platform_station_id},
         "destination": dest,
-        "places": [{"physical_dims": _build_physical_dims(p)} for p in parcels],
+        "places": [
+            {"physical_dims": build_physical_dims(p.weight.grams, p.dimensions)}
+            for p in parcels
+        ],
     }
 
 
@@ -437,24 +501,36 @@ def build_redelivery_destination(
 
 def build_pickup_points_request(
     query: PickupPointQuery,
+    *,
+    geo_id: int | None = None,
 ) -> dict[str, Any]:
     """Build request body for POST /pickup-points/list.
 
     Yandex returns the entire pickup-point catalogue when the request body
     is empty — tens of thousands of points, which causes API timeouts and
-    OOM on the client side. We require at least one geographic filter
-    (lat/lng pair OR ``city``) so the response stays bounded.
+    OOM on the client side. The body must carry at least one bound: a
+    latitude+longitude box OR a ``geo_id``.
+
+    ``geo_id`` is resolved from the query's ``city`` by the provider via
+    ``location/detect`` — a bare ``city`` string is *not* a valid filter
+    for this endpoint, so the previous "city is enough" guard let
+    city-only queries through and produced the very unbounded response
+    the guard was meant to prevent. ``geo_id`` and the lat/lng box may be
+    combined; Yandex intersects them.
     """
     lat = query.latitude
     lng = query.longitude
     has_geo_box = lat is not None and lng is not None
-    if not has_geo_box and not query.city:
+    if not has_geo_box and geo_id is None:
         raise ValueError(
-            "Yandex pickup_points query requires at least latitude+longitude "
-            "or city to bound the response"
+            "Yandex pickup_points query requires latitude+longitude or a "
+            "resolved geo_id to bound the response"
         )
 
     body: dict[str, Any] = {}
+
+    if geo_id is not None:
+        body["geo_id"] = geo_id
 
     if lat is not None and lng is not None:
         radius_deg = (query.radius_km or 10) / 111.0
@@ -483,9 +559,10 @@ def parse_pickup_points(data: dict[str, Any]) -> list[PickupPoint]:
         position = pt.get("position", {})
 
         address = Address(
-            country_code=address_data.get("country", "RU")[:2]
-            if address_data.get("country")
-            else "RU",
+            # Yandex returns the country as a Russian display name
+            # ("Россия"); ``country_code_for`` maps it back to an ISO
+            # alpha-2 code (was ``"Россия"[:2]`` → ``"Ро"``).
+            country_code=country_code_for(address_data.get("country", "")),
             city=address_data.get("locality", ""),
             region=address_data.get("region"),
             postal_code=address_data.get("postal_code"),
@@ -515,10 +592,16 @@ def parse_pickup_points(data: dict[str, Any]) -> list[PickupPoint]:
                 address=address,
                 work_schedule=schedule_str,
                 phone=phone,
-                is_cash_allowed="cash" in payment_methods,
+                # Yandex "Other Day" has no cash-on-delivery: its
+                # PaymentMethod enum is already_paid / card_on_receipt /
+                # postpay only. ``"cash"`` was never a valid value, so the
+                # old check was dead-always-False — state it honestly.
+                is_cash_allowed=False,
+                # ``card_on_receipt`` and ``postpay`` are both card-based
+                # payment-at-receipt; ``already_paid`` only means the point
+                # accepts prepaid orders, not that it has a card terminal.
                 is_card_allowed=(
-                    "card_on_receipt" in payment_methods
-                    or "already_paid" in payment_methods
+                    "card_on_receipt" in payment_methods or "postpay" in payment_methods
                 ),
             )
         )
@@ -584,7 +667,11 @@ def _build_location_details(addr: Address) -> dict[str, Any]:
     if addr.postal_code:
         details["postal_code"] = addr.postal_code
     if addr.country_code:
-        details["country"] = addr.country_code
+        # Yandex expects the country as a display name ("Россия"), not an
+        # ISO code — see LocationDetails in the request_create / offers
+        # docs. ``country_name_for`` maps known codes and passes the rest
+        # through unchanged.
+        details["country"] = country_name_for(addr.country_code)
     if addr.raw_address:
         details["full_address"] = addr.raw_address
     return details
@@ -652,23 +739,13 @@ def _build_places(parcels: list[Parcel]) -> list[dict[str, Any]]:
         barcode = f"PKG-{idx + 1:03d}"
         places.append(
             {
-                "physical_dims": _build_physical_dims(parcel),
+                "physical_dims": build_physical_dims(
+                    parcel.weight.grams, parcel.dimensions
+                ),
                 "barcode": barcode,
             }
         )
     return places
-
-
-def _build_physical_dims(parcel: Parcel) -> dict[str, Any]:
-    """Build ``physical_dims`` dict from a Parcel."""
-    dims: dict[str, Any] = {
-        "weight_gross": parcel.weight.grams,
-    }
-    if parcel.dimensions:
-        dims["dx"] = parcel.dimensions.length_cm
-        dims["dy"] = parcel.dimensions.width_cm
-        dims["dz"] = parcel.dimensions.height_cm
-    return dims
 
 
 def _parse_timestamp(entry: dict[str, Any]) -> datetime | None:

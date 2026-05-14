@@ -51,6 +51,7 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.constants im
     LAST_MILE_PICKUP,
 )
 from src.modules.logistics.infrastructure.providers.yandex_delivery.mappers import (
+    build_physical_dims,
     build_redelivery_destination,
 )
 
@@ -205,15 +206,13 @@ def _build_recipient(contact: ContactInfo) -> dict[str, Any]:
 
 def _build_place_swap(swap: EditPlaceSwap) -> dict[str, Any]:
     parcel = swap.new_parcel
-    physical: dict[str, Any] = {"weight_gross": parcel.weight.grams}
-    if parcel.dimensions:
-        physical["dx"] = parcel.dimensions.length_cm
-        physical["dy"] = parcel.dimensions.width_cm
-        physical["dz"] = parcel.dimensions.height_cm
     return {
         "barcode": swap.old_barcode,
         "place": {
-            "physical_dims": physical,
+            # ``build_physical_dims`` owns the dx/dy/dz axis convention.
+            "physical_dims": build_physical_dims(
+                parcel.weight.grams, parcel.dimensions
+            ),
             "barcode": swap.new_barcode,
         },
     }
@@ -222,12 +221,9 @@ def _build_place_swap(swap: EditPlaceSwap) -> dict[str, Any]:
 def _build_edit_package(package: EditPackage) -> dict[str, Any]:
     return {
         "barcode": package.barcode,
-        "dimensions": {
-            "weight_gross": package.weight.grams,
-            "dx": package.dimensions.length_cm,
-            "dy": package.dimensions.width_cm,
-            "dz": package.dimensions.height_cm,
-        },
+        # ``build_physical_dims`` owns the dx/dy/dz axis convention; the
+        # 3.12 ``dimensions`` block shares the same shape as ``physical_dims``.
+        "dimensions": build_physical_dims(package.weight.grams, package.dimensions),
         "items": [
             {"item_barcode": item.item_barcode, "count": item.count}
             for item in package.items

@@ -94,10 +94,20 @@ class YandexDeliveryClient:
     # Pricing                                                              #
     # ------------------------------------------------------------------ #
 
-    async def pricing_calculator(self, body: dict[str, Any]) -> dict[str, Any]:
-        """POST /pricing-calculator — preliminary cost estimation."""
+    async def pricing_calculator(
+        self, body: dict[str, Any], *, is_oversized: bool | None = None
+    ) -> dict[str, Any]:
+        """POST /pricing-calculator — preliminary cost estimation.
+
+        ``is_oversized`` (КГТ — крупногабаритный товар) is the optional
+        query flag documented for this endpoint; it is forwarded only
+        when the caller passes an explicit value.
+        """
+        params: dict[str, Any] = {}
+        if is_oversized is not None:
+            params["is_oversized"] = "true" if is_oversized else "false"
         resp = await self._provider_client.request(
-            "POST", PATH_PRICING_CALCULATOR, json=body
+            "POST", PATH_PRICING_CALCULATOR, json=body, params=params or None
         )
         return resp.json()
 
@@ -163,11 +173,17 @@ class YandexDeliveryClient:
         return resp.json()
 
     async def get_requests_info(self, request_ids: list[str]) -> dict[str, Any]:
-        """POST /requests/info — batch get orders info."""
+        """POST /requests/info — batch get orders info.
+
+        ``request_ids`` is sent as a JSON array — the documented type for
+        the field (``requests_info_post.md``: ``string[]``). The previous
+        comma-joined string matched neither the type nor the single-value
+        example and silently returned no matches.
+        """
         resp = await self._provider_client.request(
             "POST",
             PATH_REQUESTS_INFO,
-            json={"request_ids": ",".join(request_ids)},
+            json={"request_ids": list(request_ids)},
         )
         return resp.json()
 

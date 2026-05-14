@@ -20,7 +20,6 @@ YANDEX_TEST_URL = "https://b2b.taxi.tst.yandex.net"
 # ---------------------------------------------------------------------------
 
 PATH_PRICING_CALCULATOR = "/api/b2b/platform/pricing-calculator"
-PATH_OFFERS_INFO_GET = "/api/b2b/platform/offers/info"
 PATH_OFFERS_INFO_POST = "/api/b2b/platform/offers/info"
 PATH_OFFERS_CREATE = "/api/b2b/platform/offers/create"
 PATH_OFFERS_CONFIRM = "/api/b2b/platform/offers/confirm"
@@ -118,6 +117,54 @@ YANDEX_PICKUP_TYPE_MAP: dict[str, str] = {
     "terminal": "postamat",
     "warehouse": "terminal",
 }
+
+# ---------------------------------------------------------------------------
+# Country code ↔ Russian name
+# ---------------------------------------------------------------------------
+# Yandex "Other Day" address payloads carry the country as a Russian display
+# name ("Россия"), not an ISO code — the ``LocationDetails.country`` field in
+# every doc example is a full name. The API is RU-only (see the logistics
+# routing policy), so a small bidirectional table covers every value seen in
+# practice; unknown inputs degrade gracefully rather than being corrupted.
+
+_COUNTRY_NAME_BY_CODE: dict[str, str] = {
+    "RU": "Россия",
+    "BY": "Беларусь",
+    "KZ": "Казахстан",
+}
+_COUNTRY_CODE_BY_NAME: dict[str, str] = {
+    name: code for code, name in _COUNTRY_NAME_BY_CODE.items()
+}
+
+
+def country_name_for(code: str) -> str:
+    """ISO 3166-1 alpha-2 → Russian country name for outbound address payloads.
+
+    Unknown codes pass through unchanged — Yandex geocodes primarily from
+    ``full_address``, so an unrecognised country is non-fatal — but the
+    common ``"RU"`` → ``"Россия"`` mapping keeps the payload aligned with
+    what the API documents and expects.
+    """
+    if not code:
+        return code
+    return _COUNTRY_NAME_BY_CODE.get(code.upper(), code)
+
+
+def country_code_for(name: str) -> str:
+    """Russian country name → ISO 3166-1 alpha-2 for inbound pickup-point parsing.
+
+    Tolerates a value that is already a 2-letter code. Falls back to
+    ``"RU"`` — the only country this API serves — when the name is empty
+    or unrecognised, instead of slicing a localised name into garbage
+    (the previous ``"Россия"[:2]`` → ``"Ро"`` bug).
+    """
+    if not name:
+        return "RU"
+    stripped = name.strip()
+    if len(stripped) == 2 and stripped.isalpha():
+        return stripped.upper()
+    return _COUNTRY_CODE_BY_NAME.get(stripped, "RU")
+
 
 # ---------------------------------------------------------------------------
 # Helpers
