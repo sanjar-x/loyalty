@@ -77,8 +77,22 @@ class RemoveOrderItemsHandler:
             )
 
         provider = self._registry.get_edit_provider(shipment.provider_code)
+        order_provider_id = shipment.provider_shipment_id or ""
+        actions = await provider.get_editable_actions(order_provider_id)
+        if not actions.update_items:
+            raise ConflictError(
+                message=(
+                    "Carrier does not allow editing items for this "
+                    "order in its current state."
+                ),
+                error_code="EDIT_ACTION_NOT_AVAILABLE",
+                details={
+                    "shipment_id": str(command.shipment_id),
+                    "action": "update_items",
+                },
+            )
         result = await provider.remove_items(
-            order_provider_id=shipment.provider_shipment_id or "",
+            order_provider_id=order_provider_id,
             items=list(command.removals),
         )
 

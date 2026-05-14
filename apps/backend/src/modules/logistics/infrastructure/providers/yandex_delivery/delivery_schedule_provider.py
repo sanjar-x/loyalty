@@ -31,6 +31,7 @@ from src.modules.logistics.domain.value_objects import (
     ActualDeliveryInfo,
     Address,
     DeliveryInterval,
+    DeliveryType,
     ProviderCode,
 )
 from src.modules.logistics.infrastructure.providers.errors import ProviderHTTPError
@@ -43,6 +44,7 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.constants im
 )
 from src.modules.logistics.infrastructure.providers.yandex_delivery.mappers import (
     build_offers_info_request,
+    build_redelivery_destination,
     parse_datetime_options,
     parse_offer_info_intervals,
 )
@@ -131,6 +133,41 @@ class YandexDeliveryDeliveryScheduleProvider:
                 return []
             raise
         return parse_offer_info_intervals(data)
+
+    async def get_redelivery_intervals(
+        self,
+        provider_shipment_id: str,
+        destination: Address,
+        delivery_type: DeliveryType,
+    ) -> list[DeliveryInterval]:
+        """Delivery windows for a *new* destination on a booked order (3.08).
+
+        ``request/redelivery_options`` ignores any interval inside the
+        destination block and answers with the same
+        ``{"options": [TimeIntervalUTC]}`` shape as ``datetime_options``.
+        HTTP 400 (Yandex "no_delivery_options") collapses to an empty list
+        — "no slots for this address", not a hard provider failure.
+        """
+        last_mile = (
+            LAST_MILE_PICKUP
+            if delivery_type == DeliveryType.PICKUP_POINT
+            else LAST_MILE_COURIER
+        )
+        destination_block = build_redelivery_destination(destination, last_mile)
+        try:
+            data = await self._client.request_redelivery_options(
+                provider_shipment_id, destination_block
+            )
+        except ProviderHTTPError as exc:
+            if exc.status_code == 400:
+                logger.debug(
+                    "yandex.redelivery_options_no_slots",
+                    provider_shipment_id=provider_shipment_id,
+                    message=exc.message,
+                )
+                return []
+            raise
+        return parse_datetime_options(data)
 
 
 # Single placeholder parcel used by ``get_estimated_intervals`` when the

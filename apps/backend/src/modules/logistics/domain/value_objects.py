@@ -707,6 +707,26 @@ class EditTaskStatus(StrEnum):
 
 
 @attrs.define(frozen=True)
+class EditableActions:
+    """Per-order edit permissions reported by the carrier.
+
+    Mirrors the carrier's "available actions" block (Yandex 3.03
+    ``request/info`` → ``available_actions``): each flag gates one edit
+    operation. Every flag defaults to ``True`` so a missing or unknown
+    field never blocks an edit the carrier would otherwise accept — this
+    is only a fast-fail pre-check; the edit call itself stays the final
+    authority. Providers without a per-order capability endpoint return
+    the all-``True`` default.
+    """
+
+    update_recipient: bool = True
+    update_address: bool = True
+    update_dates: bool = True
+    update_items: bool = True
+    update_places: bool = True
+
+
+@attrs.define(frozen=True)
 class EditTaskResult:
     """Async ticket returned by every edit-style operation.
 

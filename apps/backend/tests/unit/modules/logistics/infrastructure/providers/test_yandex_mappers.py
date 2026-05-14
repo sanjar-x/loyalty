@@ -12,6 +12,8 @@ Covers the doc-divergence fixes:
 - ``build_pickup_points_request`` requires a bound (lat/lng box or
   ``geo_id``) and rejects an unbounded query.
 - ``parse_tracking_history`` keeps an unknown status non-terminal.
+- ``parse_editable_actions`` reads 3.03 ``available_actions``, degrading
+  any payload gap to "allowed" so the pre-check never over-blocks.
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ from src.modules.logistics.domain.value_objects import (
     ContactInfo,
     DeliveryType,
     Dimensions,
+    EditableActions,
     Parcel,
     PickupPointQuery,
     TrackingStatus,
@@ -36,6 +39,7 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.mappers impo
     build_offers_create_request,
     build_physical_dims,
     build_pickup_points_request,
+    parse_editable_actions,
     parse_pickup_points,
     parse_tracking_history,
 )
@@ -228,3 +232,39 @@ class TestParseTrackingHistory:
         }
         [event] = parse_tracking_history(data)
         assert event.status is TrackingStatus.DELIVERED
+
+
+class TestParseEditableActions:
+    def test_parses_full_available_actions(self) -> None:
+        data = {
+            "request": {
+                "available_actions": {
+                    "update_recipient": True,
+                    "update_address_available": False,
+                    "update_dates_available": True,
+                    "update_items": False,
+                    "update_places": True,
+                }
+            }
+        }
+        assert parse_editable_actions(data) == EditableActions(
+            update_recipient=True,
+            update_address=False,
+            update_dates=True,
+            update_items=False,
+            update_places=True,
+        )
+
+    def test_missing_flags_default_to_true(self) -> None:
+        # A gap in the carrier payload must never block an edit.
+        actions = parse_editable_actions({"request": {"available_actions": {}}})
+        assert actions == EditableActions()  # every flag True
+
+    def test_malformed_payload_degrades_to_all_true(self) -> None:
+        default = EditableActions()
+        assert parse_editable_actions({}) == default
+        assert parse_editable_actions({"request": {}}) == default
+        assert (
+            parse_editable_actions({"request": {"available_actions": None}}) == default
+        )
+        assert parse_editable_actions({"request": "broken"}) == default

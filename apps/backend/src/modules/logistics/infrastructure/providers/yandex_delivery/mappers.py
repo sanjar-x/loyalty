@@ -21,6 +21,7 @@ from src.modules.logistics.domain.value_objects import (
     DeliveryInterval,
     DeliveryType,
     Dimensions,
+    EditableActions,
     Money,
     Parcel,
     PickupPoint,
@@ -343,6 +344,31 @@ def parse_batch_requests_info(
         ]
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# Request info (3.03) — editable actions
+# ---------------------------------------------------------------------------
+
+
+def parse_editable_actions(data: dict[str, Any]) -> EditableActions:
+    """Parse ``available_actions`` out of a ``GET /request/info`` (3.03) body.
+
+    The flags live under ``request.available_actions``. Anything missing
+    or malformed degrades to the all-``True`` :class:`EditableActions`
+    default — the pre-check must never block an edit on a payload gap.
+    """
+    request = data.get("request") if isinstance(data, dict) else None
+    actions = request.get("available_actions") if isinstance(request, dict) else None
+    if not isinstance(actions, dict):
+        return EditableActions()
+    return EditableActions(
+        update_recipient=bool(actions.get("update_recipient", True)),
+        update_address=bool(actions.get("update_address_available", True)),
+        update_dates=bool(actions.get("update_dates_available", True)),
+        update_items=bool(actions.get("update_items", True)),
+        update_places=bool(actions.get("update_places", True)),
+    )
 
 
 # ---------------------------------------------------------------------------

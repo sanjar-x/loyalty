@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.modules.logistics.domain.value_objects import Address
+from src.modules.logistics.domain.value_objects import Address, DeliveryType
 from src.modules.logistics.infrastructure.providers.cdek.delivery_schedule_provider import (
     CdekDeliveryScheduleProvider,
     _parse_intervals,
@@ -93,3 +93,23 @@ class TestGetEstimatedIntervals:
         assert sent_body["tariff_code"] == 139
         assert sent_body["from_location"]["code"] == 44
         assert sent_body["to_location"]["code"] == 137
+
+
+class TestGetRedeliveryIntervals:
+    @pytest.mark.asyncio
+    async def test_returns_empty_without_calling_the_client(self) -> None:
+        # CDEK has no per-order redelivery-interval endpoint — the impl
+        # answers [] locally to keep the shared port satisfiable, never
+        # hitting the API.
+        client = AsyncMock()
+        client.__aenter__.return_value = client
+        client.__aexit__.return_value = False
+        provider = CdekDeliveryScheduleProvider(client)
+
+        intervals = await provider.get_redelivery_intervals(
+            "cdek-order-uuid", _addr(), DeliveryType.PICKUP_POINT
+        )
+
+        assert intervals == []
+        client.get_delivery_intervals.assert_not_awaited()
+        client.get_estimated_delivery_intervals.assert_not_awaited()

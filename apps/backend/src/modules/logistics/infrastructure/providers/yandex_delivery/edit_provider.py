@@ -33,6 +33,7 @@ from src.modules.logistics.domain.value_objects import (
     PROVIDER_YANDEX_DELIVERY,
     ContactInfo,
     DeliveryType,
+    EditableActions,
     EditItemMarking,
     EditItemRemoval,
     EditOrderRequest,
@@ -53,6 +54,7 @@ from src.modules.logistics.infrastructure.providers.yandex_delivery.constants im
 from src.modules.logistics.infrastructure.providers.yandex_delivery.mappers import (
     build_physical_dims,
     build_redelivery_destination,
+    parse_editable_actions,
 )
 
 logger = structlog.get_logger(__name__)
@@ -165,6 +167,21 @@ class YandexDeliveryEditProvider:
             raise
         raw_status = (data.get("status") or "") if isinstance(data, dict) else ""
         return _YANDEX_EDIT_STATUS_MAP.get(raw_status, EditTaskStatus.UNKNOWN)
+
+    # ------------------------------------------------------------------ #
+    # 3.03 — editable-actions pre-check                                    #
+    # ------------------------------------------------------------------ #
+
+    async def get_editable_actions(self, order_provider_id: str) -> EditableActions:
+        """Read the order's ``available_actions`` (3.03 ``request/info``).
+
+        Lets the edit command handlers fail fast with a clear reason
+        instead of surfacing a raw provider 4xx. Any provider error
+        propagates — an order that cannot be inspected cannot be edited
+        either, so there is nothing to swallow.
+        """
+        data = await self._client.get_request_info(order_provider_id)
+        return parse_editable_actions(data)
 
 
 # ---------------------------------------------------------------------------

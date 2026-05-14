@@ -20,7 +20,9 @@ from src.modules.logistics.domain.value_objects import (
     ClientReturnRequest,
     DeliveryInterval,
     DeliveryQuote,
+    DeliveryType,
     DocumentResult,
+    EditableActions,
     EditItemMarking,
     EditItemRemoval,
     EditOrderRequest,
@@ -174,6 +176,22 @@ class IDeliveryScheduleProvider(Protocol):
         provider_shipment_id: str,
     ) -> ActualDeliveryInfo | None: ...
 
+    async def get_redelivery_intervals(
+        self,
+        provider_shipment_id: str,
+        destination: Address,
+        delivery_type: DeliveryType,
+    ) -> list[DeliveryInterval]:
+        """Delivery windows available for a *new* destination on an
+        already-booked order (Yandex 3.08 ``request/redelivery_options``).
+
+        Distinct from :py:meth:`get_intervals` (the order's *current*
+        destination) and :py:meth:`get_estimated_intervals` (a
+        pre-booking estimate for a hypothetical route). Providers without
+        a per-order redelivery endpoint return an empty list.
+        """
+        ...
+
 
 class IReturnProvider(Protocol):
     """Handles client returns, refusals, and reverse-shipment validation.
@@ -242,6 +260,18 @@ class IEditProvider(Protocol):
     ) -> EditTaskResult: ...
 
     async def get_edit_status(self, task_id: str) -> EditTaskStatus: ...
+
+    async def get_editable_actions(self, order_provider_id: str) -> EditableActions:
+        """Per-order edit permissions the carrier currently reports
+        (Yandex 3.03 ``request/info`` → ``available_actions``).
+
+        Consumed by the edit command handlers as a fast-fail pre-check,
+        so an operator gets a clear "not allowed" error instead of a raw
+        provider 4xx. A provider with no per-order capability endpoint
+        returns the all-``True`` :class:`EditableActions` default — i.e.
+        "let the edit call itself be the authority".
+        """
+        ...
 
 
 # ---------------------------------------------------------------------------

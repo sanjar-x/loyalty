@@ -79,10 +79,25 @@ class EditOrderPackagesHandler:
                 },
             )
 
-        # Phase 2: provider call (async — returns editing_task_id).
+        # Phase 2: editable-actions pre-check, then the provider call
+        # (async — returns editing_task_id).
         provider = self._registry.get_edit_provider(shipment.provider_code)
+        order_provider_id = shipment.provider_shipment_id or ""
+        actions = await provider.get_editable_actions(order_provider_id)
+        if not actions.update_places:
+            raise ConflictError(
+                message=(
+                    "Carrier does not allow editing packages for this "
+                    "order in its current state."
+                ),
+                error_code="EDIT_ACTION_NOT_AVAILABLE",
+                details={
+                    "shipment_id": str(command.shipment_id),
+                    "action": "update_places",
+                },
+            )
         result = await provider.edit_packages(
-            order_provider_id=shipment.provider_shipment_id or "",
+            order_provider_id=order_provider_id,
             packages=list(command.packages),
         )
 

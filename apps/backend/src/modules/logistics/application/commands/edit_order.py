@@ -105,10 +105,35 @@ class EditOrderHandler:
                 },
             )
 
-        # Phase 2: provider call.
+        # Phase 2: editable-actions pre-check, then the provider call.
+        # Yandex 3.03 reports which mutations the order currently allows;
+        # checking up front turns an opaque provider 4xx into a clear,
+        # typed error. A provider that can't be inspected raises here —
+        # an un-inspectable order can't be edited either, nothing to swallow.
         provider = self._registry.get_edit_provider(shipment.provider_code)
+        order_provider_id = shipment.provider_shipment_id or ""
+        actions = await provider.get_editable_actions(order_provider_id)
+        blocked: list[str] = []
+        if command.recipient is not None and not actions.update_recipient:
+            blocked.append("recipient")
+        if command.destination is not None and not actions.update_address:
+            blocked.append("destination")
+        if command.places and not actions.update_places:
+            blocked.append("places")
+        if blocked:
+            raise ConflictError(
+                message=(
+                    "Carrier does not allow editing "
+                    f"{', '.join(blocked)} for this order in its current state."
+                ),
+                error_code="EDIT_ACTION_NOT_AVAILABLE",
+                details={
+                    "shipment_id": str(command.shipment_id),
+                    "blocked": blocked,
+                },
+            )
         request = EditOrderRequest(
-            order_provider_id=shipment.provider_shipment_id or "",
+            order_provider_id=order_provider_id,
             recipient=command.recipient,
             destination=command.destination,
             delivery_type=command.delivery_type,

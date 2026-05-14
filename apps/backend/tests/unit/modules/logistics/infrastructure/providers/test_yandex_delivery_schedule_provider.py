@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.modules.logistics.domain.value_objects import Address
+from src.modules.logistics.domain.value_objects import Address, DeliveryType
 from src.modules.logistics.infrastructure.providers.errors import ProviderHTTPError
 from src.modules.logistics.infrastructure.providers.yandex_delivery.constants import (
     LAST_MILE_COURIER,
@@ -219,3 +219,74 @@ class TestGetIntervals:
         )
         provider = YandexDeliveryDeliveryScheduleProvider(yandex_client, {})
         assert await provider.get_intervals("request-uuid") == []
+
+
+class TestGetRedeliveryIntervals:
+    @pytest.mark.asyncio
+    async def test_parses_options_for_courier_destination(
+        self, yandex_client: AsyncMock
+    ) -> None:
+        yandex_client.request_redelivery_options.return_value = {
+            "options": [
+                {
+                    "from": "2026-02-01T07:00:00.000000Z",
+                    "to": "2026-02-01T15:00:00.000000Z",
+                }
+            ]
+        }
+        provider = YandexDeliveryDeliveryScheduleProvider(yandex_client, {})
+
+        intervals = await provider.get_redelivery_intervals(
+            "request-uuid",
+            _addr(raw="Moscow, Lenina, 1"),
+            DeliveryType.COURIER,
+        )
+
+        assert len(intervals) == 1
+        assert intervals[0].date == "2026-02-01"
+        call = yandex_client.request_redelivery_options.await_args
+        assert call.args[0] == "request-uuid"
+        # COURIER → custom_location destination block.
+        assert call.args[1]["type"] == "custom_location"
+
+    @pytest.mark.asyncio
+    async def test_pickup_delivery_type_builds_platform_station(
+        self, yandex_client: AsyncMock
+    ) -> None:
+        yandex_client.request_redelivery_options.return_value = {"options": []}
+        provider = YandexDeliveryDeliveryScheduleProvider(yandex_client, {})
+
+        await provider.get_redelivery_intervals(
+            "request-uuid",
+            _addr(platform_id="pvz-uuid"),
+            DeliveryType.PICKUP_POINT,
+        )
+
+        call = yandex_client.request_redelivery_options.await_args
+        assert call.args[1]["type"] == "platform_station"
+
+    @pytest.mark.asyncio
+    async def test_no_delivery_options_returns_empty_list(
+        self, yandex_client: AsyncMock
+    ) -> None:
+        yandex_client.request_redelivery_options.side_effect = ProviderHTTPError(
+            status_code=400, message="No delivery options for interval"
+        )
+        provider = YandexDeliveryDeliveryScheduleProvider(yandex_client, {})
+
+        intervals = await provider.get_redelivery_intervals(
+            "request-uuid", _addr(raw="Moscow, Lenina, 1"), DeliveryType.COURIER
+        )
+        assert intervals == []
+
+    @pytest.mark.asyncio
+    async def test_5xx_propagates(self, yandex_client: AsyncMock) -> None:
+        yandex_client.request_redelivery_options.side_effect = ProviderHTTPError(
+            status_code=500, message="boom"
+        )
+        provider = YandexDeliveryDeliveryScheduleProvider(yandex_client, {})
+
+        with pytest.raises(ProviderHTTPError):
+            await provider.get_redelivery_intervals(
+                "request-uuid", _addr(raw="Moscow, Lenina, 1"), DeliveryType.COURIER
+            )

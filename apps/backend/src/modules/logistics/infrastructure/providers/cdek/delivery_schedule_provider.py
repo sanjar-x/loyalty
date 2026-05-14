@@ -18,6 +18,7 @@ from src.modules.logistics.domain.value_objects import (
     ActualDeliveryInfo,
     Address,
     DeliveryInterval,
+    DeliveryType,
     ProviderCode,
 )
 from src.modules.logistics.infrastructure.providers.cdek.client import CdekClient
@@ -63,6 +64,23 @@ class CdekDeliveryScheduleProvider:
         }
         data = await self._client.get_estimated_delivery_intervals(body)
         return _parse_intervals(data)
+
+    async def get_redelivery_intervals(
+        self,
+        provider_shipment_id: str,
+        destination: Address,
+        delivery_type: DeliveryType,
+    ) -> list[DeliveryInterval]:
+        """CDEK has no per-order redelivery-interval endpoint.
+
+        Its delivery slots are queried either against the booked order's
+        existing route (:py:meth:`get_intervals`) or pre-booking
+        (:py:meth:`get_estimated_intervals`) — there is no "intervals for
+        a changed destination" call. Returns an empty list to keep the
+        shared ``IDeliveryScheduleProvider`` port satisfiable; callers
+        read it as "this carrier offers no redelivery slots".
+        """
+        return []
 
 
 def _build_estimate_location(address: Address) -> dict[str, Any]:

@@ -20,6 +20,7 @@ from src.modules.logistics.domain.value_objects import (
     ContactInfo,
     DeliveryType,
     Dimensions,
+    EditableActions,
     EditItemMarking,
     EditItemRemoval,
     EditOrderRequest,
@@ -308,3 +309,44 @@ class TestPhysicalDimsAxes:
             "physical_dims"
         ]
         assert dims == {"weight_gross": 900, "dx": 40, "dy": 15, "dz": 25}
+
+
+class TestGetEditableActions:
+    @pytest.mark.asyncio
+    async def test_parses_available_actions_from_request_info(
+        self, yandex_client: AsyncMock
+    ) -> None:
+        yandex_client.get_request_info.return_value = {
+            "request": {
+                "available_actions": {
+                    "update_recipient": True,
+                    "update_address_available": False,
+                    "update_items": True,
+                    "update_places": False,
+                    # update_dates_available omitted → defaults to True
+                }
+            }
+        }
+        provider = YandexDeliveryEditProvider(yandex_client)
+
+        actions = await provider.get_editable_actions("order-uuid")
+
+        yandex_client.get_request_info.assert_awaited_once_with("order-uuid")
+        assert actions == EditableActions(
+            update_recipient=True,
+            update_address=False,
+            update_dates=True,
+            update_items=True,
+            update_places=False,
+        )
+
+    @pytest.mark.asyncio
+    async def test_provider_error_propagates(self, yandex_client: AsyncMock) -> None:
+        # An un-inspectable order can't be edited either — nothing to swallow.
+        yandex_client.get_request_info.side_effect = ProviderHTTPError(
+            status_code=404, message="not found"
+        )
+        provider = YandexDeliveryEditProvider(yandex_client)
+
+        with pytest.raises(ProviderHTTPError):
+            await provider.get_editable_actions("order-uuid")
