@@ -1,0 +1,10 @@
+# ty (Astral type checker) configuration.
+#
+# ``bria_rmbg_adapter.py`` imports the ML stack (torch / transformers /
+# torchvision) that is intentionally absent from backend's venv — that
+# stack lives only in ``apps/workers/image/rmbg`` (ADR-008). The adapter's
+# real type-check environment is the rmbg-worker venv, not backend's, so
+# it is excluded from backend's project-wide ty run. The module already
+# guards those imports for runtime (lazy, inside methods).
+[src]
+exclude = ["src/modules/image/infrastructure/services/bria_rmbg_adapter.py"]

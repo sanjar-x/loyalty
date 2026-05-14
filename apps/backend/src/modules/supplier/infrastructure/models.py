@@ -55,6 +55,6 @@ class Supplier(Base):
 
     __table_args__ = (Index("ix_suppliers_country_code", "country_code"),)
 
-    __mapper_args__: ClassVar[dict[str, Any]] = {
+    __mapper_args__: ClassVar[dict[str, Any]] = {  # ty: ignore[invalid-attribute-override]
         "version_id_col": version,
     }

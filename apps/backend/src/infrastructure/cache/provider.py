@@ -46,7 +46,7 @@ class CacheProvider(Provider):
 
         logger.info(
             "Redis connection established",
-            ping=await client.ping(),  # ty:ignore[invalid-await]
+            ping=await client.ping(),
         )
 
         yield client

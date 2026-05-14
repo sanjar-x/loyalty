@@ -84,8 +84,10 @@ running.
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from typing import Any
 
 import structlog
+from taskiq import AckableMessage
 from taskiq.message import BrokerMessage
 from taskiq_aio_pika import AioPikaBroker
 from taskiq_aio_pika.broker import parse_val
@@ -125,9 +127,9 @@ class DomainSplitBroker(AioPikaBroker):
 
     def __init__(
         self,
-        *args: object,
+        *args: Any,
         primary_queue_name: str,
-        **kwargs: object,
+        **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self._primary_queue_name = primary_queue_name
@@ -151,7 +153,7 @@ class DomainSplitBroker(AioPikaBroker):
             message.labels[self._label_for_routing] = self._fallback_routing_key
         await super().kick(message)
 
-    async def listen(self) -> AsyncGenerator[object]:
+    async def listen(self) -> AsyncGenerator[AckableMessage]:
         """Consume only from the primary queue, hiding the other queues
         from the upstream listener that would otherwise merge them.
         """

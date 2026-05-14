@@ -187,12 +187,16 @@ async def app_container(
     from src.infrastructure.idempotency.provider import IdempotencyProvider
     from src.infrastructure.logging.provider import LoggingProvider
     from src.infrastructure.security.provider import SecurityProvider
+    from src.infrastructure.streams.provider import StreamsProvider
+    from src.infrastructure.tracking.provider import TrackingProvider
 
     framework_providers = (
         DatabaseProvider(),
         LoggingProvider(),
         CacheProvider(),
+        StreamsProvider(),
         IdempotencyProvider(),
+        TrackingProvider(),
         SecurityProvider(),
     )
     module_providers = tuple(p for m in MODULES for p in m.providers)
