@@ -109,18 +109,20 @@ async def search_products(
     response: Response,
     q: str = Query(..., min_length=1, max_length=200, description="Search query text"),
     category_id: uuid.UUID | None = Query(
-        None, description="Optional: scope search to a category"
+        None, description="Optional: scope search to a category", alias="categoryId"
     ),
     brand_id: list[uuid.UUID] | None = Query(
-        None, description="Filter by brand IDs (OR semantics)"
+        None, description="Filter by brand IDs (OR semantics)", alias="brandId"
     ),
     price_min: int | None = Query(
-        None, ge=0, description="Min price (smallest currency unit)"
+        None, ge=0, description="Min price (smallest currency unit)", alias="priceMin"
     ),
     price_max: int | None = Query(
-        None, ge=0, description="Max price (smallest currency unit)"
+        None, ge=0, description="Max price (smallest currency unit)", alias="priceMax"
     ),
-    in_stock: bool | None = Query(None, description="Only show in-stock products"),
+    in_stock: bool | None = Query(
+        None, description="Only show in-stock products", alias="inStock"
+    ),
     sort: str = Query(
         "relevant",
         pattern="^(relevant|popular|newest|price_asc|price_desc)$",
@@ -128,10 +130,13 @@ async def search_products(
     ),
     limit: int = Query(24, ge=1, le=48, description="Page size"),
     cursor: str | None = Query(None, description="Opaque pagination cursor"),
-    include_total: bool = Query(False, description="Include total count (slower)"),
+    include_total: bool = Query(
+        False, description="Include total count (slower)", alias="includeTotal"
+    ),
     include_facets: bool = Query(
         False,
-        description="Include facet counts (requires category_id)",
+        description="Include facet counts (requires categoryId)",
+        alias="includeFacets",
     ),
     lang: str | None = Query(
         None,

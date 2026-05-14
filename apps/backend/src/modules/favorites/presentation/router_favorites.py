@@ -7,9 +7,10 @@ here.
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Path, Query, status
 
 from src.modules.favorites.application.commands.add_item import (
     AddFavoriteItemCommand,
@@ -124,12 +125,12 @@ async def create_favorite_list(
 
 
 @favorite_router.patch(
-    "/lists/{list_id}",
+    "/lists/{listId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Rename a favorite list",
 )
 async def rename_favorite_list(
-    list_id: uuid.UUID,
+    list_id: Annotated[uuid.UUID, Path(alias="listId")],
     body: RenameFavoriteListRequest,
     auth: Auth,
     handler: FromDishka[RenameFavoriteListHandler],
@@ -144,12 +145,12 @@ async def rename_favorite_list(
 
 
 @favorite_router.delete(
-    "/lists/{list_id}",
+    "/lists/{listId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a favorite list (cascades to items)",
 )
 async def delete_favorite_list(
-    list_id: uuid.UUID,
+    list_id: Annotated[uuid.UUID, Path(alias="listId")],
     auth: Auth,
     handler: FromDishka[DeleteFavoriteListHandler],
 ) -> None:
@@ -164,15 +165,15 @@ async def delete_favorite_list(
 
 
 @favorite_router.get(
-    "/lists/{list_id}/items",
+    "/lists/{listId}/items",
     response_model=FavoriteItemsPageResponse,
     summary="Get items in a favorite list (cursor-paginated)",
 )
 async def list_favorite_items(
-    list_id: uuid.UUID,
+    list_id: Annotated[uuid.UUID, Path(alias="listId")],
     auth: Auth,
     handler: FromDishka[GetFavoriteListItemsHandler],
-    target_type: FavoriteTargetType | None = Query(default=None),
+    target_type: FavoriteTargetType | None = Query(default=None, alias="targetType"),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
 ) -> FavoriteItemsPageResponse:
@@ -247,14 +248,14 @@ async def add_favorite_item(
 
 
 @favorite_router.delete(
-    "/lists/{list_id}/items/{target_type}/{target_id}",
+    "/lists/{listId}/items/{targetType}/{targetId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove a favorite item (idempotent)",
 )
 async def remove_favorite_item(
-    list_id: uuid.UUID,
-    target_type: FavoriteTargetType,
-    target_id: uuid.UUID,
+    list_id: Annotated[uuid.UUID, Path(alias="listId")],
+    target_type: Annotated[FavoriteTargetType, Path(alias="targetType")],
+    target_id: Annotated[uuid.UUID, Path(alias="targetId")],
     auth: Auth,
     handler: FromDishka[RemoveFavoriteItemHandler],
 ) -> None:

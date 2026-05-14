@@ -6,12 +6,13 @@ the result. Used by admin interfaces for role management.
 
 import uuid
 
-from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.shared.schemas import CamelModel
 
-class RoleWithPermissions(BaseModel):
+
+class RoleWithPermissions(CamelModel):
     """Read model for a role with its associated permission codenames.
 
     Attributes:

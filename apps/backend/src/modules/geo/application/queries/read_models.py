@@ -4,14 +4,16 @@ Flat projections for the CQRS read side.  Carry no business logic —
 only data for API responses.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from src.shared.schemas import CamelModel
 
 # ------------------------------------------------------------------ #
 #  Country
 # ------------------------------------------------------------------ #
 
 
-class CountryTranslationReadModel(BaseModel):
+class CountryTranslationReadModel(CamelModel):
     """Single translation row for a country."""
 
     lang_code: str
@@ -19,7 +21,7 @@ class CountryTranslationReadModel(BaseModel):
     official_name: str | None = None
 
 
-class CountryReadModel(BaseModel):
+class CountryReadModel(CamelModel):
     """Country with inline translations."""
 
     alpha2: str
@@ -28,7 +30,7 @@ class CountryReadModel(BaseModel):
     translations: list[CountryTranslationReadModel] = Field(default_factory=list)
 
 
-class CountryListReadModel(BaseModel):
+class CountryListReadModel(CamelModel):
     """Full country list response."""
 
     items: list[CountryReadModel]
@@ -40,14 +42,14 @@ class CountryListReadModel(BaseModel):
 # ------------------------------------------------------------------ #
 
 
-class CurrencyTranslationReadModel(BaseModel):
+class CurrencyTranslationReadModel(CamelModel):
     """Single translation row for a currency."""
 
     lang_code: str
     name: str
 
 
-class CurrencyReadModel(BaseModel):
+class CurrencyReadModel(CamelModel):
     """Currency with inline translations."""
 
     code: str
@@ -59,7 +61,7 @@ class CurrencyReadModel(BaseModel):
     translations: list[CurrencyTranslationReadModel] = Field(default_factory=list)
 
 
-class CurrencyListReadModel(BaseModel):
+class CurrencyListReadModel(CamelModel):
     """Currency list response."""
 
     items: list[CurrencyReadModel]
@@ -71,7 +73,7 @@ class CurrencyListReadModel(BaseModel):
 # ------------------------------------------------------------------ #
 
 
-class LanguageReadModel(BaseModel):
+class LanguageReadModel(CamelModel):
     """Language / locale read model."""
 
     code: str
@@ -87,7 +89,7 @@ class LanguageReadModel(BaseModel):
     sort_order: int
 
 
-class LanguageListReadModel(BaseModel):
+class LanguageListReadModel(CamelModel):
     """Language list response."""
 
     items: list[LanguageReadModel]
@@ -99,7 +101,7 @@ class LanguageListReadModel(BaseModel):
 # ------------------------------------------------------------------ #
 
 
-class SubdivisionTranslationReadModel(BaseModel):
+class SubdivisionTranslationReadModel(CamelModel):
     """Single translation row for a subdivision."""
 
     lang_code: str
@@ -108,7 +110,7 @@ class SubdivisionTranslationReadModel(BaseModel):
     local_variant: str | None = None
 
 
-class SubdivisionReadModel(BaseModel):
+class SubdivisionReadModel(CamelModel):
     """Subdivision with inline translations."""
 
     code: str
@@ -122,7 +124,7 @@ class SubdivisionReadModel(BaseModel):
     translations: list[SubdivisionTranslationReadModel] = Field(default_factory=list)
 
 
-class SubdivisionListReadModel(BaseModel):
+class SubdivisionListReadModel(CamelModel):
     """Subdivision list response."""
 
     items: list[SubdivisionReadModel]
@@ -134,14 +136,14 @@ class SubdivisionListReadModel(BaseModel):
 # ------------------------------------------------------------------ #
 
 
-class SubdivisionTypeTranslationReadModel(BaseModel):
+class SubdivisionTypeTranslationReadModel(CamelModel):
     """Single translation row for a subdivision type."""
 
     lang_code: str
     name: str
 
 
-class SubdivisionTypeReadModel(BaseModel):
+class SubdivisionTypeReadModel(CamelModel):
     """Subdivision type with inline translations."""
 
     code: str
@@ -151,7 +153,7 @@ class SubdivisionTypeReadModel(BaseModel):
     )
 
 
-class SubdivisionTypeListReadModel(BaseModel):
+class SubdivisionTypeListReadModel(CamelModel):
     """Subdivision type list response."""
 
     items: list[SubdivisionTypeReadModel]
@@ -163,7 +165,7 @@ class SubdivisionTypeListReadModel(BaseModel):
 # ------------------------------------------------------------------ #
 
 
-class CountryCurrencyLinkReadModel(BaseModel):
+class CountryCurrencyLinkReadModel(CamelModel):
     """A single country-currency association."""
 
     currency_code: str
@@ -175,7 +177,7 @@ class CountryCurrencyLinkReadModel(BaseModel):
 # ------------------------------------------------------------------ #
 
 
-class DistrictTranslationReadModel(BaseModel):
+class DistrictTranslationReadModel(CamelModel):
     """Single translation row for a district."""
 
     lang_code: str
@@ -184,7 +186,7 @@ class DistrictTranslationReadModel(BaseModel):
     local_variant: str | None = None
 
 
-class DistrictReadModel(BaseModel):
+class DistrictReadModel(CamelModel):
     """District with inline translations."""
 
     id: str
@@ -199,7 +201,7 @@ class DistrictReadModel(BaseModel):
     translations: list[DistrictTranslationReadModel] = Field(default_factory=list)
 
 
-class DistrictListReadModel(BaseModel):
+class DistrictListReadModel(CamelModel):
     """District list response."""
 
     items: list[DistrictReadModel]
@@ -211,14 +213,14 @@ class DistrictListReadModel(BaseModel):
 # ------------------------------------------------------------------ #
 
 
-class DistrictTypeTranslationReadModel(BaseModel):
+class DistrictTypeTranslationReadModel(CamelModel):
     """Single translation row for a district type."""
 
     lang_code: str
     name: str
 
 
-class DistrictTypeReadModel(BaseModel):
+class DistrictTypeReadModel(CamelModel):
     """District type with inline translations."""
 
     code: str
@@ -226,7 +228,7 @@ class DistrictTypeReadModel(BaseModel):
     translations: list[DistrictTypeTranslationReadModel] = Field(default_factory=list)
 
 
-class DistrictTypeListReadModel(BaseModel):
+class DistrictTypeListReadModel(CamelModel):
     """District type list response."""
 
     items: list[DistrictTypeReadModel]

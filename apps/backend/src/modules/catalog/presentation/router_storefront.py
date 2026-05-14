@@ -7,9 +7,10 @@ All endpoints are public (no auth required) and read-only.
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from src.modules.catalog.application.queries.storefront import (
     StorefrontCardAttributesHandler,
@@ -56,7 +57,7 @@ def _cache_control(lang: str | None, *, private: bool = False) -> str:
 
 
 storefront_router = APIRouter(
-    prefix="/storefront/categories/{category_id}",
+    prefix="/storefront/categories/{categoryId}",
     tags=["Storefront / Categories"],
     route_class=DishkaRoute,
 )
@@ -74,7 +75,7 @@ storefront_router = APIRouter(
     ),
 )
 async def get_filterable_attributes(
-    category_id: uuid.UUID,
+    category_id: Annotated[uuid.UUID, Path(alias="categoryId")],
     handler: FromDishka[StorefrontFilterableAttributesHandler],
     response: Response,
     lang: str | None = Query(
@@ -104,7 +105,7 @@ async def get_filterable_attributes(
     ),
 )
 async def get_card_attributes(
-    category_id: uuid.UUID,
+    category_id: Annotated[uuid.UUID, Path(alias="categoryId")],
     handler: FromDishka[StorefrontCardAttributesHandler],
     response: Response,
     lang: str | None = Query(
@@ -135,7 +136,7 @@ async def get_card_attributes(
     ),
 )
 async def get_comparison_attributes(
-    category_id: uuid.UUID,
+    category_id: Annotated[uuid.UUID, Path(alias="categoryId")],
     handler: FromDishka[StorefrontComparisonAttributesHandler],
     response: Response,
     lang: str | None = Query(
@@ -167,7 +168,7 @@ async def get_comparison_attributes(
     ),
 )
 async def get_form_attributes(
-    category_id: uuid.UUID,
+    category_id: Annotated[uuid.UUID, Path(alias="categoryId")],
     handler: FromDishka[StorefrontFormAttributesHandler],
     response: Response,
     lang: str | None = Query(

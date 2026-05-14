@@ -32,7 +32,7 @@ async def test_full_favorites_flow(authed_client, seeded_published_product):
     assert add_resp.status_code == 201
     body = add_resp.json()
     assert body["created"] is True
-    assert body["list_id"] == list_id
+    assert body["listId"] == list_id
 
     # Idempotent re-add — same list, same target → created=False
     repeat_resp = await authed_client.post(

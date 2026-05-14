@@ -8,12 +8,13 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.shared.schemas import CamelModel
 
-class SessionInfo(BaseModel):
+
+class SessionInfo(CamelModel):
     """Read model for a session summary.
 
     Attributes:

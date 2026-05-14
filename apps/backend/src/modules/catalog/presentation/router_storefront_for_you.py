@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Query, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from src.modules.catalog.application.queries.get_for_you_feed import (
     ForYouFeedHandler,
@@ -34,6 +34,7 @@ from src.modules.catalog.presentation.schemas_storefront import (
     StorefrontProductCardResponse,
 )
 from src.shared.interfaces.security import ITokenProvider
+from src.shared.schemas import CamelModel
 
 storefront_for_you_router = APIRouter(
     prefix="/storefront/for-you",
@@ -47,7 +48,7 @@ storefront_for_you_router = APIRouter(
 _FOR_YOU_CACHE_CONTROL = "private, max-age=60, stale-while-revalidate=120"
 
 
-class ForYouFeedResponse(BaseModel):
+class ForYouFeedResponse(CamelModel):
     items: list[StorefrontProductCardResponse]
     next_cursor: str | None = Field(
         default=None,

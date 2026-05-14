@@ -1,9 +1,10 @@
 """Customer-facing Recipient endpoints (under ``/recipients``)."""
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from src.api.dependencies.etag import attach_etag, parse_if_match
 from src.modules.identity.presentation.dependencies import Auth
@@ -98,7 +99,7 @@ async def create_recipient(
 async def list_my_recipients(
     auth: Auth,
     handler: FromDishka[ListMyRecipientsHandler],
-    include_archived: bool = Query(default=False),
+    include_archived: bool = Query(default=False, alias="includeArchived"),
 ) -> RecipientListResponse:
     page = await handler.handle(
         ListMyRecipientsQuery(
@@ -109,9 +110,9 @@ async def list_my_recipients(
     return RecipientListResponse(items=[_serialize(r) for r in page.items])
 
 
-@recipient_router.get("/{recipient_id}", response_model=RecipientSchema)
+@recipient_router.get("/{recipientId}", response_model=RecipientSchema)
 async def get_recipient(
-    recipient_id: uuid.UUID,
+    recipient_id: Annotated[uuid.UUID, Path(alias="recipientId")],
     response: Response,
     auth: Auth,
     handler: FromDishka[GetRecipientHandler],
@@ -125,9 +126,9 @@ async def get_recipient(
     return _serialize(rm)
 
 
-@recipient_router.patch("/{recipient_id}", status_code=status.HTTP_204_NO_CONTENT)
+@recipient_router.patch("/{recipientId}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_recipient(
-    recipient_id: uuid.UUID,
+    recipient_id: Annotated[uuid.UUID, Path(alias="recipientId")],
     body: UpdateRecipientRequest,
     auth: Auth,
     handler: FromDishka[UpdateRecipientHandler],
@@ -165,9 +166,9 @@ async def update_recipient(
         raise
 
 
-@recipient_router.delete("/{recipient_id}", status_code=status.HTTP_204_NO_CONTENT)
+@recipient_router.delete("/{recipientId}", status_code=status.HTTP_204_NO_CONTENT)
 async def archive_recipient(
-    recipient_id: uuid.UUID,
+    recipient_id: Annotated[uuid.UUID, Path(alias="recipientId")],
     auth: Auth,
     handler: FromDishka[ArchiveRecipientHandler],
 ) -> None:

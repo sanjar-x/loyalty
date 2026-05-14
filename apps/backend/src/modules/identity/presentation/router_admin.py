@@ -7,9 +7,10 @@ reactivation, role detail, and grouped permissions.
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from src.modules.identity.application.commands.admin_deactivate_identity import (
     AdminDeactivateIdentityCommand,
@@ -103,10 +104,12 @@ async def list_identities(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     search: str | None = Query(None, max_length=200),
-    role_id: uuid.UUID | None = None,
-    is_active: bool | None = Query(None),
-    sort_by: str = Query("created_at", pattern=r"^(created_at|email|last_name)$"),
-    sort_order: str = Query("desc", pattern=r"^(asc|desc)$"),
+    role_id: uuid.UUID | None = Query(None, alias="roleId"),
+    is_active: bool | None = Query(None, alias="isActive"),
+    sort_by: str = Query(
+        "created_at", pattern=r"^(created_at|email|last_name)$", alias="sortBy"
+    ),
+    sort_order: str = Query("desc", pattern=r"^(asc|desc)$", alias="sortOrder"),
 ) -> AdminIdentityListResponse:
     """List all identities with pagination, search, and filtering.
 
@@ -145,13 +148,13 @@ async def list_identities(
 
 
 @admin_router.get(
-    "/identities/{identity_id}",
+    "/identities/{identityId}",
     response_model=AdminIdentityDetailResponse,
     summary="Get identity detail",
     dependencies=[Depends(RequirePermission("identities:manage"))],
 )
 async def get_identity_detail(
-    identity_id: uuid.UUID,
+    identity_id: Annotated[uuid.UUID, Path(alias="identityId")],
     handler: FromDishka[GetIdentityDetailHandler],
 ) -> AdminIdentityDetailResponse:
     """Get a single identity's full detail with roles.
@@ -184,13 +187,13 @@ async def get_identity_detail(
 
 
 @admin_router.post(
-    "/identities/{identity_id}/deactivate",
+    "/identities/{identityId}/deactivate",
     response_model=MessageResponse,
     summary="Admin deactivate identity",
     dependencies=[Depends(RequirePermission("identities:manage"))],
 )
 async def admin_deactivate_identity(
-    identity_id: uuid.UUID,
+    identity_id: Annotated[uuid.UUID, Path(alias="identityId")],
     body: AdminDeactivateRequest,
     handler: FromDishka[AdminDeactivateIdentityHandler],
     auth: Auth,
@@ -216,13 +219,13 @@ async def admin_deactivate_identity(
 
 
 @admin_router.post(
-    "/identities/{identity_id}/reactivate",
+    "/identities/{identityId}/reactivate",
     response_model=MessageResponse,
     summary="Admin reactivate identity",
     dependencies=[Depends(RequirePermission("identities:manage"))],
 )
 async def admin_reactivate_identity(
-    identity_id: uuid.UUID,
+    identity_id: Annotated[uuid.UUID, Path(alias="identityId")],
     handler: FromDishka[ReactivateIdentityHandler],
     auth: Auth,
 ) -> MessageResponse:
@@ -295,13 +298,13 @@ async def create_role(
 
 
 @admin_router.get(
-    "/roles/{role_id}",
+    "/roles/{roleId}",
     response_model=RoleDetailResponse,
     summary="Get role detail with permissions",
     dependencies=[Depends(RequirePermission("roles:manage"))],
 )
 async def get_role_detail(
-    role_id: uuid.UUID,
+    role_id: Annotated[uuid.UUID, Path(alias="roleId")],
     handler: FromDishka[GetRoleDetailHandler],
 ) -> RoleDetailResponse:
     """Get a single role's full detail with permissions.
@@ -319,13 +322,13 @@ async def get_role_detail(
 
 
 @admin_router.patch(
-    "/roles/{role_id}",
+    "/roles/{roleId}",
     response_model=RoleDetailResponse,
     summary="Update role name/description",
     dependencies=[Depends(RequirePermission("roles:manage"))],
 )
 async def update_role(
-    role_id: uuid.UUID,
+    role_id: Annotated[uuid.UUID, Path(alias="roleId")],
     body: UpdateRoleRequest,
     handler: FromDishka[UpdateRoleHandler],
     detail_handler: FromDishka[GetRoleDetailHandler],
@@ -360,13 +363,13 @@ async def update_role(
 
 
 @admin_router.delete(
-    "/roles/{role_id}",
+    "/roles/{roleId}",
     response_model=MessageResponse,
     summary="Delete a custom role",
     dependencies=[Depends(RequirePermission("roles:manage"))],
 )
 async def delete_role(
-    role_id: uuid.UUID,
+    role_id: Annotated[uuid.UUID, Path(alias="roleId")],
     handler: FromDishka[DeleteRoleHandler],
 ) -> MessageResponse:
     """Delete a custom role by its UUID. System roles cannot be deleted.
@@ -383,13 +386,13 @@ async def delete_role(
 
 
 @admin_router.put(
-    "/roles/{role_id}/permissions",
+    "/roles/{roleId}/permissions",
     response_model=RoleDetailResponse,
     summary="Set role permissions (full replace)",
     dependencies=[Depends(RequirePermission("roles:manage"))],
 )
 async def set_role_permissions(
-    role_id: uuid.UUID,
+    role_id: Annotated[uuid.UUID, Path(alias="roleId")],
     body: SetRolePermissionsRequest,
     handler: FromDishka[SetRolePermissionsHandler],
     detail_handler: FromDishka[GetRoleDetailHandler],
@@ -459,13 +462,13 @@ async def list_permissions(
 
 
 @admin_router.post(
-    "/identities/{identity_id}/roles",
+    "/identities/{identityId}/roles",
     response_model=MessageResponse,
     summary="Assign role to identity",
     dependencies=[Depends(RequirePermission("roles:manage"))],
 )
 async def assign_role(
-    identity_id: uuid.UUID,
+    identity_id: Annotated[uuid.UUID, Path(alias="identityId")],
     body: AssignRoleRequest,
     handler: FromDishka[AssignRoleHandler],
     auth: Auth,
@@ -491,14 +494,14 @@ async def assign_role(
 
 
 @admin_router.delete(
-    "/identities/{identity_id}/roles/{role_id}",
+    "/identities/{identityId}/roles/{roleId}",
     response_model=MessageResponse,
     summary="Revoke role from identity",
     dependencies=[Depends(RequirePermission("roles:manage"))],
 )
 async def revoke_role(
-    identity_id: uuid.UUID,
-    role_id: uuid.UUID,
+    identity_id: Annotated[uuid.UUID, Path(alias="identityId")],
+    role_id: Annotated[uuid.UUID, Path(alias="roleId")],
     handler: FromDishka[RevokeRoleHandler],
 ) -> MessageResponse:
     """Revoke a role from an identity.

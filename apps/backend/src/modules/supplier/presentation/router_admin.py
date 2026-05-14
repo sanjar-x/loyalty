@@ -1,9 +1,10 @@
 """FastAPI router for Supplier CRUD and lifecycle endpoints."""
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from src.modules.identity.presentation.dependencies import RequirePermission
 from src.modules.supplier.application.commands.activate_supplier import (
@@ -99,13 +100,13 @@ async def list_suppliers(
 
 
 @supplier_admin_router.get(
-    path="/{supplier_id}",
+    path="/{supplierId}",
     response_model=SupplierResponse,
     summary="Get supplier by ID",
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_supplier(
-    supplier_id: uuid.UUID,
+    supplier_id: Annotated[uuid.UUID, Path(alias="supplierId")],
     handler: FromDishka[GetSupplierHandler],
 ) -> SupplierResponse:
     result = await handler.handle(supplier_id)
@@ -122,13 +123,13 @@ async def get_supplier(
 
 
 @supplier_admin_router.put(
-    path="/{supplier_id}",
+    path="/{supplierId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Update supplier",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_supplier(
-    supplier_id: uuid.UUID,
+    supplier_id: Annotated[uuid.UUID, Path(alias="supplierId")],
     request: SupplierUpdateRequest,
     handler: FromDishka[UpdateSupplierHandler],
 ) -> None:
@@ -148,26 +149,26 @@ async def update_supplier(
 
 
 @supplier_admin_router.patch(
-    path="/{supplier_id}/deactivate",
+    path="/{supplierId}/deactivate",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Deactivate a supplier",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def deactivate_supplier(
-    supplier_id: uuid.UUID,
+    supplier_id: Annotated[uuid.UUID, Path(alias="supplierId")],
     handler: FromDishka[DeactivateSupplierHandler],
 ) -> None:
     await handler.handle(DeactivateSupplierCommand(supplier_id=supplier_id))
 
 
 @supplier_admin_router.patch(
-    path="/{supplier_id}/activate",
+    path="/{supplierId}/activate",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Reactivate a supplier",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def activate_supplier(
-    supplier_id: uuid.UUID,
+    supplier_id: Annotated[uuid.UUID, Path(alias="supplierId")],
     handler: FromDishka[ActivateSupplierHandler],
 ) -> None:
     await handler.handle(ActivateSupplierCommand(supplier_id=supplier_id))

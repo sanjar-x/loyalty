@@ -15,9 +15,10 @@ length) so operators can verify identity without leaking the secret.
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from src.modules.identity.presentation.dependencies import RequirePermission
 from src.modules.logistics.application.commands.manage_provider_accounts import (
@@ -107,8 +108,8 @@ async def _get_read_model(
 )
 async def list_provider_accounts(
     handler: FromDishka[ListProviderAccountsHandler],
-    provider_code: str | None = Query(default=None),
-    only_active: bool = Query(default=False),
+    provider_code: str | None = Query(default=None, alias="providerCode"),
+    only_active: bool = Query(default=False, alias="onlyActive"),
 ) -> ProviderAccountListResponse:
     result = await handler.handle(
         ListProviderAccountsQuery(
@@ -122,12 +123,12 @@ async def list_provider_accounts(
 
 
 @logistics_admin_router.get(
-    "/{account_id}",
+    "/{accountId}",
     response_model=ProviderAccountResponse,
     summary="Get a provider account",
 )
 async def get_provider_account(
-    account_id: uuid.UUID,
+    account_id: Annotated[uuid.UUID, Path(alias="accountId")],
     handler: FromDishka[GetProviderAccountHandler],
 ) -> ProviderAccountResponse:
     rm = await _get_read_model(handler, account_id)
@@ -161,12 +162,12 @@ async def create_provider_account(
 
 
 @logistics_admin_router.put(
-    "/{account_id}",
+    "/{accountId}",
     response_model=ProviderAccountResponse,
     summary="Update a provider account (partial)",
 )
 async def update_provider_account(
-    account_id: uuid.UUID,
+    account_id: Annotated[uuid.UUID, Path(alias="accountId")],
     request: UpdateProviderAccountRequest,
     update_handler: FromDishka[UpdateProviderAccountHandler],
     get_handler: FromDishka[GetProviderAccountHandler],
@@ -185,12 +186,12 @@ async def update_provider_account(
 
 
 @logistics_admin_router.post(
-    "/{account_id}/active",
+    "/{accountId}/active",
     response_model=ProviderAccountResponse,
     summary="Activate or deactivate a provider account",
 )
 async def set_provider_account_active(
-    account_id: uuid.UUID,
+    account_id: Annotated[uuid.UUID, Path(alias="accountId")],
     request: SetProviderAccountActiveRequest,
     set_active_handler: FromDishka[SetProviderAccountActiveHandler],
     get_handler: FromDishka[GetProviderAccountHandler],
@@ -206,12 +207,12 @@ async def set_provider_account_active(
 
 
 @logistics_admin_router.delete(
-    "/{account_id}",
+    "/{accountId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a provider account",
 )
 async def delete_provider_account(
-    account_id: uuid.UUID,
+    account_id: Annotated[uuid.UUID, Path(alias="accountId")],
     handler: FromDishka[DeleteProviderAccountHandler],
 ) -> None:
     removed = await handler.handle(DeleteProviderAccountCommand(account_id=account_id))

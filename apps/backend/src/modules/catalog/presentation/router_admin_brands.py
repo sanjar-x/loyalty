@@ -8,9 +8,10 @@ Delegates to application-layer command/query handlers via Dishka DI.
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from src.api.dependencies.etag import attach_etag, parse_if_match
 from src.modules.catalog.application.commands.bulk_create_brands import (
@@ -146,7 +147,7 @@ async def list_brands(
 
 
 @brand_router.get(
-    path="/{brand_id}",
+    path="/{brandId}",
     status_code=status.HTTP_200_OK,
     response_model=BrandResponse,
     summary="Get brand by ID",
@@ -154,7 +155,7 @@ async def list_brands(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_brand(
-    brand_id: uuid.UUID,
+    brand_id: Annotated[uuid.UUID, Path(alias="brandId")],
     response: Response,
     handler: FromDishka[GetBrandHandler],
 ) -> BrandResponse:
@@ -173,7 +174,7 @@ async def get_brand(
 
 
 @brand_router.patch(
-    path="/{brand_id}",
+    path="/{brandId}",
     status_code=status.HTTP_200_OK,
     response_model=BrandResponse,
     summary="Update a brand",
@@ -181,7 +182,7 @@ async def get_brand(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_brand(
-    brand_id: uuid.UUID,
+    brand_id: Annotated[uuid.UUID, Path(alias="brandId")],
     request: BrandUpdateRequest,
     response: Response,
     handler: FromDishka[UpdateBrandHandler],
@@ -219,14 +220,14 @@ async def update_brand(
 
 
 @brand_router.delete(
-    path="/{brand_id}",
+    path="/{brandId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a brand",
     description="Permanently delete a brand by its ID.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_brand(
-    brand_id: uuid.UUID,
+    brand_id: Annotated[uuid.UUID, Path(alias="brandId")],
     handler: FromDishka[DeleteBrandHandler],
 ) -> None:
     command = DeleteBrandCommand(brand_id=brand_id)

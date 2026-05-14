@@ -23,10 +23,11 @@ from __future__ import annotations
 import asyncio
 import uuid
 from collections.abc import AsyncIterable
+from typing import Annotated
 
 import structlog
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Path, Request, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -126,14 +127,14 @@ async def request_upload(
 # 2. POST /{storage_object_id}/reupload — Replace image, keep same ID & URLs
 # ---------------------------------------------------------------------------
 @media_admin_router.post(
-    "/{storage_object_id}/reupload",
+    "/{storageObjectId}/reupload",
     response_model=ReuploadResponse,
     status_code=status.HTTP_200_OK,
     summary="Get a new presigned URL to replace the image (same ID & URLs)",
     dependencies=[Depends(RequirePermission(codename=_MEDIA_PERMISSION))],
 )
 async def reupload(
-    storage_object_id: uuid.UUID,
+    storage_object_id: Annotated[uuid.UUID, Path(alias="storageObjectId")],
     body: ReuploadRequest,
     handler: FromDishka[ReuploadHandler],
     settings: FromDishka[Settings],
@@ -158,14 +159,14 @@ async def reupload(
 # 3. POST /{storage_object_id}/confirm — Verify S3, dispatch processing
 # ---------------------------------------------------------------------------
 @media_admin_router.post(
-    "/{storage_object_id}/confirm",
+    "/{storageObjectId}/confirm",
     response_model=ConfirmResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Confirm upload and start processing",
     dependencies=[Depends(RequirePermission(codename=_MEDIA_PERMISSION))],
 )
 async def confirm_upload(
-    storage_object_id: uuid.UUID,
+    storage_object_id: Annotated[uuid.UUID, Path(alias="storageObjectId")],
     handler: FromDishka[ConfirmUploadHandler],
     settings: FromDishka[Settings],
 ) -> ConfirmResponse:
@@ -194,7 +195,7 @@ async def confirm_upload(
 # 4. GET /{storage_object_id}/status — SSE stream for processing status
 # ---------------------------------------------------------------------------
 @media_admin_router.get(
-    "/{storage_object_id}/status",
+    "/{storageObjectId}/status",
     response_class=EventSourceResponse,
     # ``AsyncIterable[ServerSentEvent]`` return annotation is a forward
     # reference Pydantic cannot resolve for OpenAPI schema generation —
@@ -205,7 +206,7 @@ async def confirm_upload(
     dependencies=[Depends(RequirePermission(codename=_MEDIA_PERMISSION))],
 )
 async def stream_status(
-    storage_object_id: uuid.UUID,
+    storage_object_id: Annotated[uuid.UUID, Path(alias="storageObjectId")],
     request: Request,
     repo: FromDishka[IStorageRepository],
     sse_manager: FromDishka[SSEManager],
@@ -256,13 +257,9 @@ async def stream_status(
             status=storage_file.status.value,
             storage_object_id=storage_object_id,
             url=storage_file.url,
-            variants=[
-                MediaVariant(**v) for v in (storage_file.image_variants or [])
-            ],
+            variants=[MediaVariant(**v) for v in (storage_file.image_variants or [])],
         )
-        yield ServerSentEvent(
-            data=current.model_dump(by_alias=True), event="status"
-        )
+        yield ServerSentEvent(data=current.model_dump(by_alias=True), event="status")
 
         if storage_file.status.is_terminal:
             return
@@ -276,12 +273,10 @@ async def stream_status(
             # ``id=`` is what browsers cache as ``Last-Event-ID`` for the
             # next reconnect — without it the resume contract has nothing
             # to round-trip.
-            yield ServerSentEvent(
-                data=event.data, event="status", id=event.id
-            )
+            yield ServerSentEvent(data=event.data, event="status", id=event.id)
             if event.data.get("status") in ("completed", "failed"):
                 return
-    except (RedisError, OSError):
+    except RedisError, OSError:
         # Streaming backbone went down mid-stream — emit an explicit
         # ``error`` SSE frame so the client knows it should reconnect
         # rather than silently rendering a stale state.
@@ -299,13 +294,13 @@ async def stream_status(
 # 5. GET /{storage_object_id} — Get metadata
 # ---------------------------------------------------------------------------
 @media_admin_router.get(
-    "/{storage_object_id}",
+    "/{storageObjectId}",
     response_model=MetadataResponse,
     summary="Get media metadata and variants",
     dependencies=[Depends(RequirePermission(codename=_MEDIA_PERMISSION))],
 )
 async def get_metadata(
-    storage_object_id: uuid.UUID,
+    storage_object_id: Annotated[uuid.UUID, Path(alias="storageObjectId")],
     repo: FromDishka[IStorageRepository],
 ) -> MetadataResponse:
     storage_file = await repo.get_by_id(storage_object_id)
@@ -326,13 +321,13 @@ async def get_metadata(
 # 6. DELETE /{storage_object_id} — Delete media + S3 keys
 # ---------------------------------------------------------------------------
 @media_admin_router.delete(
-    "/{storage_object_id}",
+    "/{storageObjectId}",
     response_model=DeleteResponse,
     summary="Delete media (S3 + DB record)",
     dependencies=[Depends(RequirePermission(codename=_MEDIA_PERMISSION))],
 )
 async def delete_media(
-    storage_object_id: uuid.UUID,
+    storage_object_id: Annotated[uuid.UUID, Path(alias="storageObjectId")],
     handler: FromDishka[DeleteStorageObjectHandler],
 ) -> DeleteResponse:
     await handler.handle(storage_object_id)
@@ -404,7 +399,7 @@ async def import_external(
 # 8. POST /{id}/remove-background — kick off Bria RMBG-2.0 cutout (IMG-007)
 # ---------------------------------------------------------------------------
 @media_admin_router.post(
-    "/{storage_object_id}/remove-background",
+    "/{storageObjectId}/remove-background",
     response_model=RemoveBackgroundResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Request a background-removal derivation",
@@ -419,7 +414,7 @@ async def import_external(
     dependencies=[Depends(RequirePermission(codename=_MEDIA_PERMISSION))],
 )
 async def request_background_removal(
-    storage_object_id: uuid.UUID,
+    storage_object_id: Annotated[uuid.UUID, Path(alias="storageObjectId")],
     handler: FromDishka[RequestBackgroundRemovalHandler],
 ) -> RemoveBackgroundResponse:
     result = await handler.handle(

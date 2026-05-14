@@ -8,9 +8,10 @@ Delegates to application-layer command/query handlers via Dishka DI.
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from src.api.dependencies.etag import attach_etag, parse_if_match
 from src.modules.catalog.application.commands.bulk_create_categories import (
@@ -152,7 +153,11 @@ async def get_category_tree(
     response: Response,
     handler: FromDishka[GetCategoryTreeHandler],
     max_depth: int | None = Query(
-        default=None, ge=1, le=10, description="Maximum tree depth to return"
+        default=None,
+        ge=1,
+        le=10,
+        description="Maximum tree depth to return",
+        alias="maxDepth",
     ),
 ) -> list[CategoryTreeResponse]:
     response.headers["Cache-Control"] = "public, max-age=300, s-maxage=3600"
@@ -198,7 +203,7 @@ async def list_categories(
 
 
 @category_router.get(
-    path="/{category_id}",
+    path="/{categoryId}",
     status_code=status.HTTP_200_OK,
     response_model=CategoryResponse,
     summary="Get category by ID",
@@ -206,7 +211,7 @@ async def list_categories(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_category(
-    category_id: uuid.UUID,
+    category_id: Annotated[uuid.UUID, Path(alias="categoryId")],
     response: Response,
     handler: FromDishka[GetCategoryHandler],
 ) -> CategoryResponse:
@@ -228,7 +233,7 @@ async def get_category(
 
 
 @category_router.patch(
-    path="/{category_id}",
+    path="/{categoryId}",
     status_code=status.HTTP_200_OK,
     response_model=CategoryResponse,
     summary="Update a category",
@@ -236,7 +241,7 @@ async def get_category(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_category(
-    category_id: uuid.UUID,
+    category_id: Annotated[uuid.UUID, Path(alias="categoryId")],
     request: CategoryUpdateRequest,
     response: Response,
     handler: FromDishka[UpdateCategoryHandler],
@@ -276,14 +281,14 @@ async def update_category(
 
 
 @category_router.delete(
-    path="/{category_id}",
+    path="/{categoryId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a category",
     description="Permanently delete a category and its subtree.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_category(
-    category_id: uuid.UUID,
+    category_id: Annotated[uuid.UUID, Path(alias="categoryId")],
     handler: FromDishka[DeleteCategoryHandler],
 ) -> None:
     command = DeleteCategoryCommand(category_id=category_id)

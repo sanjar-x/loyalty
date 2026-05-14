@@ -43,7 +43,7 @@ async def get_trending_products(
     query_service: FromDishka[IActivityQueryService],
     limit: int = Query(50, ge=1, le=500),
     window: str = Query("weekly", pattern=r"^(daily|weekly)$"),
-    category_id: uuid.UUID | None = Query(None),
+    category_id: uuid.UUID | None = Query(None, alias="categoryId"),
 ) -> TrendingProductsResponse:
     ranked = await query_service.get_trending_products(
         limit=limit, window=window, category_id=category_id

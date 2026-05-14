@@ -9,10 +9,11 @@ import asyncio
 import uuid
 from collections.abc import AsyncIterable
 from datetime import datetime
+from typing import Annotated
 
 import structlog
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Request, Response, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -155,15 +156,17 @@ async def list_products(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
     product_status: str | None = Query(default=None, alias="status"),
-    brand_id: uuid.UUID | None = None,
+    brand_id: uuid.UUID | None = Query(default=None, alias="brandId"),
     sort_by: str | None = Query(
         default=None,
         pattern="^(newest|oldest|popularity|name_asc|name_desc)$",
         description="Sort order: newest, oldest, popularity, name_asc, name_desc",
+        alias="sortBy",
     ),
     published_after: datetime | None = Query(
         default=None,
         description="Only include products published on or after this timestamp",
+        alias="publishedAfter",
     ),
 ) -> ProductListResponse:
     """Retrieve a paginated list of products with optional filters."""
@@ -199,7 +202,7 @@ async def list_products(
 
 
 @product_router.get(
-    path="/{product_id}/completeness",
+    path="/{productId}/completeness",
     status_code=status.HTTP_200_OK,
     response_model=ProductCompletenessResponse,
     summary="Check product attribute completeness",
@@ -207,7 +210,7 @@ async def list_products(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_product_completeness(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     response: Response,
     handler: FromDishka[GetProductCompletenessHandler],
 ) -> ProductCompletenessResponse:
@@ -241,7 +244,7 @@ async def get_product_completeness(
 
 
 @product_router.get(
-    path="/{product_id}",
+    path="/{productId}",
     status_code=status.HTTP_200_OK,
     response_model=ProductResponse,
     summary="Get product detail by ID",
@@ -249,7 +252,7 @@ async def get_product_completeness(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_product(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     response: Response,
     handler: FromDishka[GetProductHandler],
 ) -> ProductResponse:
@@ -265,7 +268,7 @@ async def get_product(
 
 
 @product_router.patch(
-    path="/{product_id}",
+    path="/{productId}",
     status_code=status.HTTP_200_OK,
     response_model=ProductResponse,
     summary="Update a product",
@@ -273,7 +276,7 @@ async def get_product(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_product(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     request: ProductUpdateRequest,
     response: Response,
     handler: FromDishka[UpdateProductHandler],
@@ -321,14 +324,14 @@ async def update_product(
 
 
 @product_router.delete(
-    path="/{product_id}",
+    path="/{productId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Soft-delete a product",
     description="Mark a product as deleted without removing it from the database.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_product(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     handler: FromDishka[DeleteProductHandler],
 ) -> None:
     """Soft-delete a product by marking it as deleted."""
@@ -337,7 +340,7 @@ async def delete_product(
 
 
 @product_router.get(
-    path="/{product_id}/skus/pricing-events",
+    path="/{productId}/skus/pricing-events",
     response_class=EventSourceResponse,
     # Stream endpoints return ``AsyncIterable[ServerSentEvent]``; Pydantic
     # cannot resolve that forward reference into a JSON Schema, which crashes
@@ -359,7 +362,7 @@ async def delete_product(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def stream_sku_pricing_events(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     request: Request,
     pubsub: FromDishka[SkuPricingPubsub],
     session: FromDishka[AsyncSession],
@@ -388,13 +391,9 @@ async def stream_sku_pricing_events(
 
     last_keepalive = asyncio.get_running_loop().time()
     try:
-        async for event in pubsub.subscribe(
-            product_id, last_event_id=last_event_id
-        ):
+        async for event in pubsub.subscribe(product_id, last_event_id=last_event_id):
             if event is not None:
-                yield ServerSentEvent(
-                    data=event.data, event="status", id=event.id
-                )
+                yield ServerSentEvent(data=event.data, event="status", id=event.id)
                 last_keepalive = asyncio.get_running_loop().time()
                 continue
 
@@ -402,7 +401,7 @@ async def stream_sku_pricing_events(
             if now - last_keepalive >= _SSE_KEEPALIVE_INTERVAL_S:
                 yield ServerSentEvent(comment="keepalive")
                 last_keepalive = now
-    except (RedisError, OSError):
+    except RedisError, OSError:
         # Streaming backbone went down mid-stream — emit an explicit
         # ``error`` SSE frame so the client knows it should reconnect
         # rather than silently rendering a stale "OK" state. Browser
@@ -419,7 +418,7 @@ async def stream_sku_pricing_events(
 
 
 @product_router.post(
-    path="/{product_id}/skus/bulk-purchase-price",
+    path="/{productId}/skus/bulk-purchase-price",
     status_code=status.HTTP_200_OK,
     response_model=BulkPurchasePriceResponse,
     summary="Bulk-set purchase_price across many SKUs of one product",
@@ -431,7 +430,7 @@ async def stream_sku_pricing_events(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def bulk_set_purchase_price(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     request: BulkPurchasePriceRequest,
     handler: FromDishka[BulkSetPurchasePriceHandler],
 ) -> BulkPurchasePriceResponse:
@@ -465,7 +464,7 @@ async def bulk_set_purchase_price(
 
 
 @product_router.patch(
-    path="/{product_id}/status",
+    path="/{productId}/status",
     status_code=status.HTTP_200_OK,
     response_model=ProductResponse,
     summary="Change product status",
@@ -473,7 +472,7 @@ async def bulk_set_purchase_price(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def change_product_status(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     request: ProductStatusChangeRequest,
     handler: FromDishka[ChangeProductStatusHandler],
     get_handler: FromDishka[GetProductHandler],
@@ -497,7 +496,7 @@ async def change_product_status(
 
 
 @product_router.post(
-    path="/{product_id}/_validate-update",
+    path="/{productId}/_validate-update",
     status_code=status.HTTP_200_OK,
     response_model=ValidateUpdateResponse,
     summary="Preview a product PATCH without committing",
@@ -514,7 +513,7 @@ async def change_product_status(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def validate_product_update(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     body: ProductUpdateRequest,
     handler: FromDishka[ValidateProductUpdateHandler],
 ) -> ValidateUpdateResponse:
@@ -554,7 +553,7 @@ async def validate_product_update(
 
 
 @product_router.post(
-    path="/{product_id}/_validate-publish",
+    path="/{productId}/_validate-publish",
     status_code=status.HTTP_200_OK,
     response_model=ValidatePublishResponse,
     summary="Preview the PUBLISHED transition without committing",
@@ -572,7 +571,7 @@ async def validate_product_update(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def validate_product_publish(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     handler: FromDishka[ValidateProductPublishHandler],
 ) -> ValidatePublishResponse:
     """Compute the publish-gate verdict for a single product."""

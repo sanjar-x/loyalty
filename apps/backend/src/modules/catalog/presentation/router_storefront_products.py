@@ -156,17 +156,21 @@ async def list_storefront_products(
     tracker: FromDishka[IActivityTracker],
     token_provider: FromDishka[ITokenProvider],
     response: Response,
-    category_id: uuid.UUID = Query(..., description="Category to browse"),
+    category_id: uuid.UUID = Query(
+        ..., description="Category to browse", alias="categoryId"
+    ),
     brand_id: list[uuid.UUID] | None = Query(
-        None, description="Filter by brand IDs (OR semantics)"
+        None, description="Filter by brand IDs (OR semantics)", alias="brandId"
     ),
     price_min: int | None = Query(
-        None, ge=0, description="Min price (smallest currency unit)"
+        None, ge=0, description="Min price (smallest currency unit)", alias="priceMin"
     ),
     price_max: int | None = Query(
-        None, ge=0, description="Max price (smallest currency unit)"
+        None, ge=0, description="Max price (smallest currency unit)", alias="priceMax"
     ),
-    in_stock: bool | None = Query(None, description="Only show in-stock products"),
+    in_stock: bool | None = Query(
+        None, description="Only show in-stock products", alias="inStock"
+    ),
     sort: str = Query(
         "popular",
         pattern="^(popular|newest|price_asc|price_desc)$",
@@ -174,9 +178,13 @@ async def list_storefront_products(
     ),
     limit: int = Query(24, ge=1, le=48, description="Page size"),
     cursor: str | None = Query(None, description="Opaque pagination cursor"),
-    include_total: bool = Query(False, description="Include total count (slower)"),
+    include_total: bool = Query(
+        False, description="Include total count (slower)", alias="includeTotal"
+    ),
     include_facets: bool = Query(
-        False, description="Include facet counts for the filter panel"
+        False,
+        description="Include facet counts for the filter panel",
+        alias="includeFacets",
     ),
     lang: str | None = Query(
         None,

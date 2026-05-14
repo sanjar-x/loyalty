@@ -3,25 +3,26 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from src.modules.favorites.domain.entities import MAX_LIST_NAME_LENGTH
 from src.modules.favorites.domain.value_objects import FavoriteTargetType
+from src.shared.schemas import CamelModel
 
 # ---------------------------------------------------------------------------
 # Lists
 # ---------------------------------------------------------------------------
 
 
-class CreateFavoriteListRequest(BaseModel):
+class CreateFavoriteListRequest(CamelModel):
     name: str = Field(min_length=1, max_length=MAX_LIST_NAME_LENGTH)
 
 
-class RenameFavoriteListRequest(BaseModel):
+class RenameFavoriteListRequest(CamelModel):
     name: str = Field(min_length=1, max_length=MAX_LIST_NAME_LENGTH)
 
 
-class FavoriteListResponse(BaseModel):
+class FavoriteListResponse(CamelModel):
     id: uuid.UUID
     name: str
     is_default: bool
@@ -31,11 +32,11 @@ class FavoriteListResponse(BaseModel):
     updated_at: datetime
 
 
-class FavoriteListsResponse(BaseModel):
+class FavoriteListsResponse(CamelModel):
     items: list[FavoriteListResponse]
 
 
-class CreateFavoriteListResponse(BaseModel):
+class CreateFavoriteListResponse(CamelModel):
     id: uuid.UUID
 
 
@@ -44,40 +45,40 @@ class CreateFavoriteListResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class AddFavoriteItemRequest(BaseModel):
+class AddFavoriteItemRequest(CamelModel):
     target_type: FavoriteTargetType
     target_id: uuid.UUID
     list_id: uuid.UUID | None = None
 
 
-class AddFavoriteItemResponse(BaseModel):
+class AddFavoriteItemResponse(CamelModel):
     list_id: uuid.UUID
     item_id: uuid.UUID
     created: bool
 
 
-class MoveFavoriteItemRequest(BaseModel):
+class MoveFavoriteItemRequest(CamelModel):
     src_list_id: uuid.UUID
     dst_list_id: uuid.UUID
     target_type: FavoriteTargetType
     target_id: uuid.UUID
 
 
-class FavoriteProductCardResponse(BaseModel):
+class FavoriteProductCardResponse(CamelModel):
     id: uuid.UUID
     slug: str
     title_i18n: dict[str, str]
     main_image_url: str | None = None
 
 
-class FavoriteBrandCardResponse(BaseModel):
+class FavoriteBrandCardResponse(CamelModel):
     id: uuid.UUID
     slug: str
     name: str
     logo_url: str | None = None
 
 
-class FavoriteItemResponse(BaseModel):
+class FavoriteItemResponse(CamelModel):
     id: uuid.UUID
     list_id: uuid.UUID
     target_type: FavoriteTargetType
@@ -87,7 +88,7 @@ class FavoriteItemResponse(BaseModel):
     brand: FavoriteBrandCardResponse | None = None
 
 
-class FavoriteItemsPageResponse(BaseModel):
+class FavoriteItemsPageResponse(CamelModel):
     items: list[FavoriteItemResponse]
     next_cursor: str | None = None
 
@@ -97,12 +98,12 @@ class FavoriteItemsPageResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class CheckFavoritedRequest(BaseModel):
+class CheckFavoritedRequest(CamelModel):
     target_type: FavoriteTargetType
     target_ids: list[uuid.UUID] = Field(min_length=1, max_length=200)
 
 
-class CheckFavoritedResponse(BaseModel):
+class CheckFavoritedResponse(CamelModel):
     """Maps target_id → list_id (str-encoded for JSON object keys)."""
 
     favorited: dict[str, uuid.UUID]

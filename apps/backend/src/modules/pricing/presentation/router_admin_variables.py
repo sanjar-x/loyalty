@@ -6,7 +6,7 @@ import uuid
 from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from src.modules.identity.presentation.dependencies import (
     RequirePermission,
@@ -78,8 +78,8 @@ def _to_response(model: VariableReadModel) -> VariableResponse:
 async def list_variables(
     handler: FromDishka[ListVariablesHandler],
     scope: Annotated[VariableScope | None, Query()] = None,
-    is_system: Annotated[bool | None, Query()] = None,
-    is_fx_rate: Annotated[bool | None, Query()] = None,
+    is_system: Annotated[bool | None, Query(alias="isSystem")] = None,
+    is_fx_rate: Annotated[bool | None, Query(alias="isFxRate")] = None,
     _identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> VariableListResponse:
     items = await handler.handle(
@@ -125,13 +125,13 @@ async def create_variable(
 
 
 @pricing_variable_router.get(
-    "/{variable_id}",
+    "/{variableId}",
     response_model=VariableResponse,
     summary="Get a pricing variable by id",
     dependencies=[Depends(RequirePermission(codename="pricing:read"))],
 )
 async def get_variable(
-    variable_id: uuid.UUID,
+    variable_id: Annotated[uuid.UUID, Path(alias="variableId")],
     handler: FromDishka[GetVariableHandler],
     _identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> VariableResponse:
@@ -140,13 +140,13 @@ async def get_variable(
 
 
 @pricing_variable_router.patch(
-    "/{variable_id}",
+    "/{variableId}",
     response_model=VariableResponse,
     summary="Update the mutable fields of a pricing variable",
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def update_variable(
-    variable_id: uuid.UUID,
+    variable_id: Annotated[uuid.UUID, Path(alias="variableId")],
     body: UpdateVariableRequest,
     update_handler: FromDishka[UpdateVariableHandler],
     get_handler: FromDishka[GetVariableHandler],
@@ -184,13 +184,13 @@ async def update_variable(
 
 
 @pricing_variable_router.delete(
-    "/{variable_id}",
+    "/{variableId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a pricing variable (blocked while in use)",
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def delete_variable(
-    variable_id: uuid.UUID,
+    variable_id: Annotated[uuid.UUID, Path(alias="variableId")],
     handler: FromDishka[DeleteVariableHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> None:

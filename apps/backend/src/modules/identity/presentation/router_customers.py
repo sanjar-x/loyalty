@@ -6,9 +6,10 @@ customer accounts. Requires ``customers:read`` for listing/viewing and
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Path, Query
 
 from src.modules.identity.application.commands.admin_deactivate_identity import (
     AdminDeactivateIdentityCommand,
@@ -59,9 +60,11 @@ async def list_customers(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     search: str | None = Query(None, max_length=200),
-    is_active: bool | None = Query(None),
-    sort_by: str = Query("created_at", pattern=r"^(created_at|email|last_name)$"),
-    sort_order: str = Query("desc", pattern=r"^(asc|desc)$"),
+    is_active: bool | None = Query(None, alias="isActive"),
+    sort_by: str = Query(
+        "created_at", pattern=r"^(created_at|email|last_name)$", alias="sortBy"
+    ),
+    sort_order: str = Query("desc", pattern=r"^(asc|desc)$", alias="sortOrder"),
 ) -> CustomerListResponse:
     """List customers with pagination and filtering.
 
@@ -110,13 +113,13 @@ async def list_customers(
 
 
 @customer_admin_router.get(
-    "/{identity_id}",
+    "/{identityId}",
     response_model=CustomerDetailResponse,
     summary="Get customer detail",
     dependencies=[Depends(RequirePermission("customers:read"))],
 )
 async def get_customer_detail(
-    identity_id: uuid.UUID,
+    identity_id: Annotated[uuid.UUID, Path(alias="identityId")],
     handler: FromDishka[GetCustomerDetailHandler],
 ) -> CustomerDetailResponse:
     """Get full detail for a single customer.
@@ -157,13 +160,13 @@ async def get_customer_detail(
 
 
 @customer_admin_router.post(
-    "/{identity_id}/deactivate",
+    "/{identityId}/deactivate",
     response_model=MessageResponse,
     summary="Deactivate a customer",
     dependencies=[Depends(RequirePermission("customers:manage"))],
 )
 async def deactivate_customer(
-    identity_id: uuid.UUID,
+    identity_id: Annotated[uuid.UUID, Path(alias="identityId")],
     body: AdminDeactivateRequest,
     handler: FromDishka[AdminDeactivateIdentityHandler],
     auth: Auth,
@@ -190,13 +193,13 @@ async def deactivate_customer(
 
 
 @customer_admin_router.post(
-    "/{identity_id}/reactivate",
+    "/{identityId}/reactivate",
     response_model=MessageResponse,
     summary="Reactivate a customer",
     dependencies=[Depends(RequirePermission("customers:manage"))],
 )
 async def reactivate_customer(
-    identity_id: uuid.UUID,
+    identity_id: Annotated[uuid.UUID, Path(alias="identityId")],
     handler: FromDishka[ReactivateIdentityHandler],
     auth: Auth,
 ) -> MessageResponse:

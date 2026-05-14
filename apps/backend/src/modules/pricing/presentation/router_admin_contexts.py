@@ -6,7 +6,7 @@ import uuid
 from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from src.modules.identity.presentation.dependencies import (
     RequirePermission,
@@ -99,8 +99,8 @@ def _to_response(model: PricingContextReadModel) -> PricingContextResponse:
 )
 async def list_contexts(
     handler: FromDishka[ListContextsHandler],
-    is_active: Annotated[bool | None, Query()] = None,
-    is_frozen: Annotated[bool | None, Query()] = None,
+    is_active: Annotated[bool | None, Query(alias="isActive")] = None,
+    is_frozen: Annotated[bool | None, Query(alias="isFrozen")] = None,
     _identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> ContextListResponse:
     items = await handler.handle(
@@ -144,13 +144,13 @@ async def create_context(
 
 
 @pricing_context_router.get(
-    "/{context_id}",
+    "/{contextId}",
     response_model=PricingContextResponse,
     summary="Get a pricing context by id",
     dependencies=[Depends(RequirePermission(codename="pricing:read"))],
 )
 async def get_context(
-    context_id: uuid.UUID,
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
     handler: FromDishka[GetContextHandler],
     _identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> PricingContextResponse:
@@ -159,13 +159,13 @@ async def get_context(
 
 
 @pricing_context_router.patch(
-    "/{context_id}",
+    "/{contextId}",
     response_model=PricingContextResponse,
     summary="Update mutable fields of a pricing context",
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def update_context(
-    context_id: uuid.UUID,
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
     body: UpdateContextRequest,
     update_handler: FromDishka[UpdateContextHandler],
     get_handler: FromDishka[GetContextHandler],
@@ -197,13 +197,13 @@ async def update_context(
 
 
 @pricing_context_router.delete(
-    "/{context_id}",
+    "/{contextId}",
     response_model=MutateContextResponse,
     summary="Soft-deactivate a pricing context",
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def deactivate_context(
-    context_id: uuid.UUID,
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
     handler: FromDishka[DeactivateContextHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> MutateContextResponse:
@@ -216,13 +216,13 @@ async def deactivate_context(
 
 
 @pricing_context_router.post(
-    "/{context_id}/freeze",
+    "/{contextId}/freeze",
     response_model=MutateContextResponse,
     summary="Freeze a pricing context (emergency kill-switch)",
     dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
 )
 async def freeze_context(
-    context_id: uuid.UUID,
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
     body: FreezeContextRequest,
     handler: FromDishka[FreezeContextHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),
@@ -240,13 +240,13 @@ async def freeze_context(
 
 
 @pricing_context_router.post(
-    "/{context_id}/unfreeze",
+    "/{contextId}/unfreeze",
     response_model=MutateContextResponse,
     summary="Unfreeze a pricing context",
     dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
 )
 async def unfreeze_context(
-    context_id: uuid.UUID,
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
     handler: FromDishka[UnfreezeContextHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> MutateContextResponse:
@@ -259,13 +259,13 @@ async def unfreeze_context(
 
 
 @pricing_context_router.get(
-    "/{context_id}/variables/values",
+    "/{contextId}/variables/values",
     response_model=ContextGlobalValuesResponse,
     summary="List global-scope variable values for a context",
     dependencies=[Depends(RequirePermission(codename="pricing:read"))],
 )
 async def get_context_global_values(
-    context_id: uuid.UUID,
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
     handler: FromDishka[GetContextGlobalValuesHandler],
 ) -> ContextGlobalValuesResponse:
     result = await handler.handle(GetContextGlobalValuesQuery(context_id=context_id))
@@ -285,14 +285,14 @@ async def get_context_global_values(
 
 
 @pricing_context_router.put(
-    "/{context_id}/variables/values/{variable_code}",
+    "/{contextId}/variables/values/{variableCode}",
     response_model=SetContextGlobalValueResponse,
     summary="Set a global-scope variable value on a context",
     dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
 )
 async def set_context_global_value(
-    context_id: uuid.UUID,
-    variable_code: str,
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
+    variable_code: Annotated[str, Path(alias="variableCode")],
     body: SetContextGlobalValueRequest,
     handler: FromDishka[SetContextGlobalValueHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),

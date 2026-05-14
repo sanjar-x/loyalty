@@ -7,9 +7,10 @@ Delegates to application-layer command/query handlers via Dishka DI.
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from src.modules.catalog.application.commands.add_product_media import (
     AddProductMediaCommand,
@@ -47,7 +48,7 @@ from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
 
 media_router = APIRouter(
-    prefix="/admin/catalog/products/{product_id}/media",
+    prefix="/admin/catalog/products/{productId}/media",
     tags=["Admin / Catalog / Product Media"],
     route_class=DishkaRoute,
 )
@@ -65,7 +66,7 @@ media_router = APIRouter(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def add_product_media(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     request: MediaAssetCreateRequest,
     handler: FromDishka[AddProductMediaHandler],
 ) -> MediaAssetCreateResponse:
@@ -93,7 +94,7 @@ async def add_product_media(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_product_media(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     response: Response,
     handler: FromDishka[ListProductMediaHandler],
     offset: int = Query(default=0, ge=0),
@@ -128,7 +129,7 @@ async def list_product_media(
 
 
 @media_router.patch(
-    path="/{media_id}",
+    path="/{mediaId}",
     status_code=status.HTTP_200_OK,
     response_model=MediaAssetUpdateResponse,
     summary="Update a media asset",
@@ -136,8 +137,8 @@ async def list_product_media(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_product_media(
-    product_id: uuid.UUID,
-    media_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
+    media_id: Annotated[uuid.UUID, Path(alias="mediaId")],
     request: MediaAssetUpdateRequest,
     handler: FromDishka[UpdateProductMediaHandler],
 ) -> MediaAssetUpdateResponse:
@@ -153,15 +154,15 @@ async def update_product_media(
 
 
 @media_router.delete(
-    path="/{media_id}",
+    path="/{mediaId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a media asset",
     description="Delete a media asset and trigger best-effort ImageBackend cleanup.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_product_media(
-    product_id: uuid.UUID,
-    media_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
+    media_id: Annotated[uuid.UUID, Path(alias="mediaId")],
     handler: FromDishka[DeleteProductMediaHandler],
 ) -> None:
     """Delete a media asset from a product."""
@@ -177,7 +178,7 @@ async def delete_product_media(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def reorder_product_media(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     request: MediaAssetReorderRequest,
     handler: FromDishka[ReorderProductMediaHandler],
 ) -> None:

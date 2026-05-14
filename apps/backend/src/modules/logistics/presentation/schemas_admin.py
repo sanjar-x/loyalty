@@ -16,10 +16,12 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from src.shared.schemas import CamelModel
 
 
-class CredentialFingerprintSchema(BaseModel):
+class CredentialFingerprintSchema(CamelModel):
     """Per-key fingerprint exposed instead of the raw credential value."""
 
     fingerprint: str = Field(
@@ -28,7 +30,7 @@ class CredentialFingerprintSchema(BaseModel):
     length: int = Field(ge=0, description="Length of the original string value.")
 
 
-class ProviderAccountResponse(BaseModel):
+class ProviderAccountResponse(CamelModel):
     """Read model returned by every admin provider-account endpoint."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -43,11 +45,11 @@ class ProviderAccountResponse(BaseModel):
     updated_at: datetime
 
 
-class ProviderAccountListResponse(BaseModel):
+class ProviderAccountListResponse(CamelModel):
     items: list[ProviderAccountResponse]
 
 
-class CreateProviderAccountRequest(BaseModel):
+class CreateProviderAccountRequest(CamelModel):
     """Body for ``POST /admin/logistics/provider-accounts``.
 
     ``credentials`` is opaque (provider-specific) — for CDEK it must
@@ -62,7 +64,7 @@ class CreateProviderAccountRequest(BaseModel):
     is_active: bool = True
 
 
-class UpdateProviderAccountRequest(BaseModel):
+class UpdateProviderAccountRequest(CamelModel):
     """Body for ``PUT /admin/logistics/provider-accounts/{id}``.
 
     Every field is optional; missing fields are left unchanged. Pass
@@ -76,11 +78,11 @@ class UpdateProviderAccountRequest(BaseModel):
     replace_config: bool = False
 
 
-class SetProviderAccountActiveRequest(BaseModel):
+class SetProviderAccountActiveRequest(CamelModel):
     is_active: bool
 
 
-class RefreshRegistryResponse(BaseModel):
+class RefreshRegistryResponse(CamelModel):
     """Returned by ``POST /admin/logistics/provider-accounts/refresh``.
 
     Lists which provider codes ended up in the registry on this worker

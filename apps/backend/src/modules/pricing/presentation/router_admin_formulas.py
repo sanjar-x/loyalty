@@ -6,7 +6,7 @@ import uuid
 from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from src.modules.identity.presentation.dependencies import (
     RequirePermission,
@@ -49,7 +49,7 @@ from src.modules.pricing.presentation.schemas import (
 )
 
 pricing_formula_router = APIRouter(
-    prefix="/admin/pricing/contexts/{context_id}/formula",
+    prefix="/admin/pricing/contexts/{contextId}/formula",
     tags=["Admin / Pricing / Formulas"],
     route_class=DishkaRoute,
 )
@@ -78,7 +78,7 @@ def _to_response(model: FormulaVersionReadModel) -> FormulaVersionResponse:
     dependencies=[Depends(RequirePermission(codename="pricing:read"))],
 )
 async def list_versions(
-    context_id: uuid.UUID,
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
     handler: FromDishka[ListFormulaVersionsHandler],
     status_filter: Annotated[FormulaStatus | None, Query(alias="status")] = None,
     _identity_id: uuid.UUID = Depends(get_current_identity_id),
@@ -91,14 +91,14 @@ async def list_versions(
 
 
 @pricing_formula_router.get(
-    "/versions/{version_id}",
+    "/versions/{versionId}",
     response_model=FormulaVersionResponse,
     summary="Get a formula version by id",
     dependencies=[Depends(RequirePermission(codename="pricing:read"))],
 )
 async def get_version(
-    context_id: uuid.UUID,
-    version_id: uuid.UUID,
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
+    version_id: Annotated[uuid.UUID, Path(alias="versionId")],
     handler: FromDishka[GetFormulaVersionHandler],
     _identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> FormulaVersionResponse:
@@ -113,7 +113,7 @@ async def get_version(
     dependencies=[Depends(RequirePermission(codename="pricing:read"))],
 )
 async def get_draft(
-    context_id: uuid.UUID,
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
     handler: FromDishka[GetFormulaDraftHandler],
     _identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> FormulaVersionResponse:
@@ -128,7 +128,7 @@ async def get_draft(
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def upsert_draft(
-    context_id: uuid.UUID,
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
     body: UpsertFormulaDraftRequest,
     handler: FromDishka[UpsertFormulaDraftHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),
@@ -156,7 +156,7 @@ async def upsert_draft(
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def discard_draft(
-    context_id: uuid.UUID,
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
     handler: FromDishka[DiscardFormulaDraftHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> DiscardFormulaDraftResponse:
@@ -174,7 +174,7 @@ async def discard_draft(
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def publish_draft(
-    context_id: uuid.UUID,
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
     handler: FromDishka[PublishFormulaDraftHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> PublishFormulaResponse:
@@ -189,15 +189,15 @@ async def publish_draft(
 
 
 @pricing_formula_router.post(
-    "/versions/{version_id}/rollback",
+    "/versions/{versionId}/rollback",
     response_model=RollbackFormulaResponse,
     status_code=status.HTTP_200_OK,
     summary="Rollback to a previously-archived version",
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def rollback_version(
-    context_id: uuid.UUID,
-    version_id: uuid.UUID,
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
+    version_id: Annotated[uuid.UUID, Path(alias="versionId")],
     handler: FromDishka[RollbackFormulaHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> RollbackFormulaResponse:

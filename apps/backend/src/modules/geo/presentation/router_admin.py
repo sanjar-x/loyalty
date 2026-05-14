@@ -3,8 +3,10 @@
 All endpoints require ``geo:manage`` permission.
 """
 
+from typing import Annotated
+
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from src.modules.geo.application.commands.manage_countries import (
     CountryCurrencyLinkItem,
@@ -580,12 +582,12 @@ async def create_district(
 
 
 @geo_admin_router.patch(
-    "/districts/{district_id}",
+    "/districts/{districtId}",
     response_model=DistrictReadModel,
     summary="Update a district",
 )
 async def update_district(
-    district_id: str,
+    district_id: Annotated[str, Path(alias="districtId")],
     request: UpdateDistrictRequest,
     handler: FromDishka[UpdateDistrictHandler],
 ) -> DistrictReadModel:
@@ -604,24 +606,24 @@ async def update_district(
 
 
 @geo_admin_router.delete(
-    "/districts/{district_id}",
+    "/districts/{districtId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a district",
 )
 async def delete_district(
-    district_id: str,
+    district_id: Annotated[str, Path(alias="districtId")],
     handler: FromDishka[DeleteDistrictHandler],
 ) -> None:
     await handler.handle(district_id)
 
 
 @geo_admin_router.put(
-    "/districts/{district_id}/translations",
+    "/districts/{districtId}/translations",
     response_model=list[DistrictTranslationReadModel],
     summary="Upsert district translations",
 )
 async def upsert_district_translations(
-    district_id: str,
+    district_id: Annotated[str, Path(alias="districtId")],
     request: UpsertDistrictTranslationsRequest,
     handler: FromDishka[UpsertDistrictTranslationsHandler],
 ) -> list[DistrictTranslationReadModel]:

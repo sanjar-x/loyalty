@@ -7,9 +7,10 @@ Delegates to application-layer command/query handlers via Dishka DI.
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from src.modules.catalog.application.commands.create_attribute_group import (
     CreateAttributeGroupCommand,
@@ -108,7 +109,7 @@ async def list_attribute_groups(
 
 
 @attribute_group_router.get(
-    path="/{group_id}",
+    path="/{groupId}",
     status_code=status.HTTP_200_OK,
     response_model=AttributeGroupResponse,
     summary="Get attribute group by ID",
@@ -116,7 +117,7 @@ async def list_attribute_groups(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_attribute_group(
-    group_id: uuid.UUID,
+    group_id: Annotated[uuid.UUID, Path(alias="groupId")],
     response: Response,
     handler: FromDishka[GetAttributeGroupHandler],
 ) -> AttributeGroupResponse:
@@ -131,7 +132,7 @@ async def get_attribute_group(
 
 
 @attribute_group_router.patch(
-    path="/{group_id}",
+    path="/{groupId}",
     status_code=status.HTTP_200_OK,
     response_model=AttributeGroupResponse,
     summary="Update an attribute group",
@@ -139,7 +140,7 @@ async def get_attribute_group(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_attribute_group(
-    group_id: uuid.UUID,
+    group_id: Annotated[uuid.UUID, Path(alias="groupId")],
     request: AttributeGroupUpdateRequest,
     handler: FromDishka[UpdateAttributeGroupHandler],
 ) -> AttributeGroupResponse:
@@ -158,14 +159,14 @@ async def update_attribute_group(
 
 
 @attribute_group_router.delete(
-    path="/{group_id}",
+    path="/{groupId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete an attribute group",
     description="Permanently delete an attribute group. The 'general' group cannot be deleted.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_attribute_group(
-    group_id: uuid.UUID,
+    group_id: Annotated[uuid.UUID, Path(alias="groupId")],
     handler: FromDishka[DeleteAttributeGroupHandler],
 ) -> None:
     command = DeleteAttributeGroupCommand(group_id=group_id)

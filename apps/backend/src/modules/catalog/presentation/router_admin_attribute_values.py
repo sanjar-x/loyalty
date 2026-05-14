@@ -7,9 +7,10 @@ Read endpoints require the ``catalog:read`` permission (admin use).
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from src.modules.catalog.application.commands.add_attribute_value import (
     AddAttributeValueCommand,
@@ -65,7 +66,7 @@ from src.modules.catalog.presentation.update_helpers import build_update_command
 from src.modules.identity.presentation.dependencies import RequirePermission
 
 attribute_value_router = APIRouter(
-    prefix="/admin/catalog/attributes/{attribute_id}/values",
+    prefix="/admin/catalog/attributes/{attributeId}/values",
     tags=["Admin / Catalog / Attribute Values"],
     route_class=DishkaRoute,
 )
@@ -80,7 +81,7 @@ attribute_value_router = APIRouter(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def add_attribute_value(
-    attribute_id: uuid.UUID,
+    attribute_id: Annotated[uuid.UUID, Path(alias="attributeId")],
     request: AttributeValueCreateRequest,
     handler: FromDishka[AddAttributeValueHandler],
 ) -> AttributeValueCreateResponse:
@@ -107,7 +108,7 @@ async def add_attribute_value(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def bulk_add_attribute_values(
-    attribute_id: uuid.UUID,
+    attribute_id: Annotated[uuid.UUID, Path(alias="attributeId")],
     request: BulkAddAttributeValuesRequest,
     handler: FromDishka[BulkAddAttributeValuesHandler],
 ) -> BulkAddAttributeValuesResponse:
@@ -142,7 +143,7 @@ async def bulk_add_attribute_values(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_attribute_values(
-    attribute_id: uuid.UUID,
+    attribute_id: Annotated[uuid.UUID, Path(alias="attributeId")],
     response: Response,
     handler: FromDishka[ListAttributeValuesHandler],
     offset: int = Query(default=0, ge=0),
@@ -180,7 +181,7 @@ async def list_attribute_values(
 
 
 @attribute_value_router.get(
-    path="/{value_id}",
+    path="/{valueId}",
     status_code=status.HTTP_200_OK,
     response_model=AttributeValueResponse,
     summary="Get a single attribute value",
@@ -188,8 +189,8 @@ async def list_attribute_values(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_attribute_value(
-    attribute_id: uuid.UUID,
-    value_id: uuid.UUID,
+    attribute_id: Annotated[uuid.UUID, Path(alias="attributeId")],
+    value_id: Annotated[uuid.UUID, Path(alias="valueId")],
     response: Response,
     handler: FromDishka[GetAttributeValueHandler],
 ) -> AttributeValueResponse:
@@ -210,7 +211,7 @@ async def get_attribute_value(
 
 
 @attribute_value_router.patch(
-    path="/{value_id}",
+    path="/{valueId}",
     status_code=status.HTTP_200_OK,
     response_model=AttributeValueResponse,
     summary="Update an attribute value",
@@ -218,8 +219,8 @@ async def get_attribute_value(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_attribute_value(
-    attribute_id: uuid.UUID,
-    value_id: uuid.UUID,
+    attribute_id: Annotated[uuid.UUID, Path(alias="attributeId")],
+    value_id: Annotated[uuid.UUID, Path(alias="valueId")],
     request: AttributeValueUpdateRequest,
     handler: FromDishka[UpdateAttributeValueHandler],
 ) -> AttributeValueResponse:
@@ -246,7 +247,7 @@ async def update_attribute_value(
 
 
 @attribute_value_router.patch(
-    path="/{value_id}/deactivate",
+    path="/{valueId}/deactivate",
     status_code=status.HTTP_200_OK,
     response_model=AttributeValueActiveResponse,
     summary="Deactivate an attribute value",
@@ -254,8 +255,8 @@ async def update_attribute_value(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def deactivate_value(
-    attribute_id: uuid.UUID,
-    value_id: uuid.UUID,
+    attribute_id: Annotated[uuid.UUID, Path(alias="attributeId")],
+    value_id: Annotated[uuid.UUID, Path(alias="valueId")],
     handler: FromDishka[SetAttributeValueActiveHandler],
 ) -> AttributeValueActiveResponse:
     command = SetAttributeValueActiveCommand(
@@ -268,7 +269,7 @@ async def deactivate_value(
 
 
 @attribute_value_router.patch(
-    path="/{value_id}/activate",
+    path="/{valueId}/activate",
     status_code=status.HTTP_200_OK,
     response_model=AttributeValueActiveResponse,
     summary="Activate an attribute value",
@@ -276,8 +277,8 @@ async def deactivate_value(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def activate_value(
-    attribute_id: uuid.UUID,
-    value_id: uuid.UUID,
+    attribute_id: Annotated[uuid.UUID, Path(alias="attributeId")],
+    value_id: Annotated[uuid.UUID, Path(alias="valueId")],
     handler: FromDishka[SetAttributeValueActiveHandler],
 ) -> AttributeValueActiveResponse:
     command = SetAttributeValueActiveCommand(
@@ -290,15 +291,15 @@ async def activate_value(
 
 
 @attribute_value_router.delete(
-    path="/{value_id}",
+    path="/{valueId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete an attribute value",
     description="Permanently delete a value from the attribute.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_attribute_value(
-    attribute_id: uuid.UUID,
-    value_id: uuid.UUID,
+    attribute_id: Annotated[uuid.UUID, Path(alias="attributeId")],
+    value_id: Annotated[uuid.UUID, Path(alias="valueId")],
     handler: FromDishka[DeleteAttributeValueHandler],
 ) -> None:
     command = DeleteAttributeValueCommand(
@@ -316,7 +317,7 @@ async def delete_attribute_value(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def reorder_attribute_values(
-    attribute_id: uuid.UUID,
+    attribute_id: Annotated[uuid.UUID, Path(alias="attributeId")],
     request: ReorderAttributeValuesRequest,
     handler: FromDishka[ReorderAttributeValuesHandler],
 ) -> None:

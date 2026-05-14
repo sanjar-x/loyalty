@@ -6,9 +6,10 @@ FRD §Category Pricing Settings API.
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from src.modules.identity.presentation.dependencies import (
     RequirePermission,
@@ -38,7 +39,7 @@ from src.modules.pricing.presentation.schemas import (
 )
 
 pricing_category_settings_router = APIRouter(
-    prefix="/admin/pricing/categories/{category_id}",
+    prefix="/admin/pricing/categories/{categoryId}",
     tags=["Admin / Pricing / Categories"],
     route_class=DishkaRoute,
 )
@@ -78,9 +79,11 @@ def _to_response(settings: CategoryPricingSettings) -> CategoryPricingSettingsRe
     dependencies=[Depends(RequirePermission(codename="pricing:read"))],
 )
 async def get_category_pricing_settings(
-    category_id: uuid.UUID,
+    category_id: Annotated[uuid.UUID, Path(alias="categoryId")],
     handler: FromDishka[GetCategoryPricingSettingsHandler],
-    context_id: uuid.UUID = Query(..., description="Target pricing context id"),
+    context_id: uuid.UUID = Query(
+        ..., description="Target pricing context id", alias="contextId"
+    ),
 ) -> CategoryPricingSettingsResponse:
     settings = await handler.handle(
         GetCategoryPricingSettingsQuery(category_id=category_id, context_id=context_id)
@@ -89,14 +92,14 @@ async def get_category_pricing_settings(
 
 
 @pricing_category_settings_router.put(
-    "/{context_id}",
+    "/{contextId}",
     response_model=UpsertCategoryPricingSettingsResponse,
     summary="Create or fully replace pricing settings for (category, context)",
     dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
 )
 async def upsert_category_pricing_settings(
-    category_id: uuid.UUID,
-    context_id: uuid.UUID,
+    category_id: Annotated[uuid.UUID, Path(alias="categoryId")],
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
     body: UpsertCategoryPricingSettingsRequest,
     handler: FromDishka[UpsertCategoryPricingSettingsHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),
@@ -122,14 +125,14 @@ async def upsert_category_pricing_settings(
 
 
 @pricing_category_settings_router.delete(
-    "/{context_id}",
+    "/{contextId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete pricing settings for (category, context)",
     dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
 )
 async def delete_category_pricing_settings(
-    category_id: uuid.UUID,
-    context_id: uuid.UUID,
+    category_id: Annotated[uuid.UUID, Path(alias="categoryId")],
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
     handler: FromDishka[DeleteCategoryPricingSettingsHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> None:

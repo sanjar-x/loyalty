@@ -12,9 +12,10 @@ namespace convention.
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Path, status
 
 from src.bootstrap.config import settings
 from src.modules.identity.presentation.dependencies import Auth
@@ -40,11 +41,11 @@ payment_router = APIRouter(
 
 
 @payment_router.get(
-    "/intents/{intent_id}",
+    "/intents/{intentId}",
     response_model=PaymentIntentSchema,
 )
 async def get_payment_intent(
-    intent_id: uuid.UUID,
+    intent_id: Annotated[uuid.UUID, Path(alias="intentId")],
     auth: Auth,
     handler: FromDishka[GetPaymentIntentHandler],
 ) -> PaymentIntentSchema:
@@ -65,11 +66,11 @@ async def get_payment_intent(
 
 
 @payment_router.post(
-    "/intents/{intent_id}/_simulate-capture",
+    "/intents/{intentId}/_simulate-capture",
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def simulate_capture(
-    intent_id: uuid.UUID,
+    intent_id: Annotated[uuid.UUID, Path(alias="intentId")],
     body: SimulateCaptureRequest,
     auth: Auth,
     handler: FromDishka[CapturePaymentIntentHandler],

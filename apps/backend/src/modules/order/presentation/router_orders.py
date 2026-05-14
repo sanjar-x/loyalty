@@ -10,9 +10,10 @@ Routes (under ``/orders``):
 
 import uuid
 from datetime import datetime
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Path, Query, status
 
 from src.modules.identity.presentation.dependencies import Auth
 from src.modules.order.application.commands.cancel_order import (
@@ -146,9 +147,9 @@ async def list_my_orders(
     )
 
 
-@order_router.get("/{order_id}", response_model=CustomerOrderSchema)
+@order_router.get("/{orderId}", response_model=CustomerOrderSchema)
 async def get_order(
-    order_id: uuid.UUID,
+    order_id: Annotated[uuid.UUID, Path(alias="orderId")],
     auth: Auth,
     handler: FromDishka[GetOrderHandler],
 ) -> CustomerOrderSchema:
@@ -158,9 +159,9 @@ async def get_order(
     return _serialize(rm)
 
 
-@order_router.get("/{order_id}/tracking", response_model=OrderTrackingResponse)
+@order_router.get("/{orderId}/tracking", response_model=OrderTrackingResponse)
 async def get_order_tracking(
-    order_id: uuid.UUID,
+    order_id: Annotated[uuid.UUID, Path(alias="orderId")],
     auth: Auth,
     handler: FromDishka[GetOrderTrackingHandler],
 ) -> OrderTrackingResponse:
@@ -196,9 +197,9 @@ async def get_order_tracking(
     )
 
 
-@order_router.post("/{order_id}/cancel", status_code=status.HTTP_204_NO_CONTENT)
+@order_router.post("/{orderId}/cancel", status_code=status.HTTP_204_NO_CONTENT)
 async def cancel_order(
-    order_id: uuid.UUID,
+    order_id: Annotated[uuid.UUID, Path(alias="orderId")],
     body: CancelOrderRequest,
     auth: Auth,
     handler: FromDishka[CancelOrderHandler],
@@ -219,10 +220,10 @@ async def cancel_order(
 
 
 @order_router.post(
-    "/{order_id}/refresh-recipient", status_code=status.HTTP_204_NO_CONTENT
+    "/{orderId}/refresh-recipient", status_code=status.HTTP_204_NO_CONTENT
 )
 async def refresh_recipient(
-    order_id: uuid.UUID,
+    order_id: Annotated[uuid.UUID, Path(alias="orderId")],
     auth: Auth,
     handler: FromDishka[RefreshRecipientSnapshotHandler],
 ) -> None:
@@ -235,9 +236,9 @@ async def refresh_recipient(
     )
 
 
-@order_router.patch("/{order_id}/pickup-point", status_code=status.HTTP_204_NO_CONTENT)
+@order_router.patch("/{orderId}/pickup-point", status_code=status.HTTP_204_NO_CONTENT)
 async def change_pickup_point(
-    order_id: uuid.UUID,
+    order_id: Annotated[uuid.UUID, Path(alias="orderId")],
     body: ChangePickupPointRequest,
     auth: Auth,
     handler: FromDishka[ChangePickupPointHandler],

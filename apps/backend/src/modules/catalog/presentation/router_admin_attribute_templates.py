@@ -7,9 +7,10 @@ Delegates to application-layer command/query handlers via Dishka DI.
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from src.modules.catalog.application.commands.bind_attribute_to_template import (
     BindAttributeToTemplateCommand,
@@ -176,7 +177,7 @@ async def list_templates(
 
 
 @attribute_template_router.get(
-    path="/{template_id}",
+    path="/{templateId}",
     status_code=status.HTTP_200_OK,
     response_model=AttributeTemplateResponse,
     summary="Get attribute template by ID",
@@ -184,7 +185,7 @@ async def list_templates(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_template(
-    template_id: uuid.UUID,
+    template_id: Annotated[uuid.UUID, Path(alias="templateId")],
     response: Response,
     handler: FromDishka[GetAttributeTemplateHandler],
 ) -> AttributeTemplateResponse:
@@ -202,7 +203,7 @@ async def get_template(
 
 
 @attribute_template_router.patch(
-    path="/{template_id}",
+    path="/{templateId}",
     status_code=status.HTTP_200_OK,
     response_model=AttributeTemplateResponse,
     summary="Update an attribute template",
@@ -210,7 +211,7 @@ async def get_template(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_template(
-    template_id: uuid.UUID,
+    template_id: Annotated[uuid.UUID, Path(alias="templateId")],
     request: AttributeTemplateUpdateRequest,
     handler: FromDishka[UpdateAttributeTemplateHandler],
 ) -> AttributeTemplateResponse:
@@ -230,14 +231,14 @@ async def update_template(
 
 
 @attribute_template_router.delete(
-    path="/{template_id}",
+    path="/{templateId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete an attribute template",
     description="Permanently delete an attribute template with no category references.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_template(
-    template_id: uuid.UUID,
+    template_id: Annotated[uuid.UUID, Path(alias="templateId")],
     handler: FromDishka[DeleteAttributeTemplateHandler],
 ) -> None:
     command = DeleteAttributeTemplateCommand(template_id=template_id)
@@ -250,7 +251,7 @@ async def delete_template(
 
 
 @attribute_template_router.post(
-    path="/{template_id}/attributes",
+    path="/{templateId}/attributes",
     status_code=status.HTTP_201_CREATED,
     response_model=TemplateAttributeBindingEnrichedResponse,
     summary="Bind an attribute to a template",
@@ -258,7 +259,7 @@ async def delete_template(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def bind_attribute(
-    template_id: uuid.UUID,
+    template_id: Annotated[uuid.UUID, Path(alias="templateId")],
     request: TemplateAttributeBindingRequest,
     handler: FromDishka[BindAttributeToTemplateHandler],
 ) -> TemplateAttributeBindingEnrichedResponse:
@@ -277,7 +278,7 @@ async def bind_attribute(
 
 
 @attribute_template_router.get(
-    path="/{template_id}/attributes",
+    path="/{templateId}/attributes",
     status_code=status.HTTP_200_OK,
     response_model=TemplateAttributeBindingListResponse,
     summary="List own bindings for a template",
@@ -285,7 +286,7 @@ async def bind_attribute(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_bindings(
-    template_id: uuid.UUID,
+    template_id: Annotated[uuid.UUID, Path(alias="templateId")],
     response: Response,
     handler: FromDishka[ListTemplateBindingsHandler],
     offset: int = Query(default=0, ge=0),
@@ -321,7 +322,7 @@ async def list_bindings(
 
 
 @attribute_template_router.patch(
-    path="/{template_id}/attributes/{binding_id}",
+    path="/{templateId}/attributes/{bindingId}",
     status_code=status.HTTP_200_OK,
     response_model=TemplateAttributeBindingDetailResponse,
     summary="Update a binding",
@@ -329,8 +330,8 @@ async def list_bindings(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_binding(
-    template_id: uuid.UUID,
-    binding_id: uuid.UUID,
+    template_id: Annotated[uuid.UUID, Path(alias="templateId")],
+    binding_id: Annotated[uuid.UUID, Path(alias="bindingId")],
     request: TemplateAttributeBindingUpdateRequest,
     handler: FromDishka[UpdateTemplateAttributeBindingHandler],
     list_handler: FromDishka[ListTemplateBindingsHandler],
@@ -378,15 +379,15 @@ async def update_binding(
 
 
 @attribute_template_router.delete(
-    path="/{template_id}/attributes/{binding_id}",
+    path="/{templateId}/attributes/{bindingId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Unbind an attribute from a template",
     description="Remove a template-attribute binding.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def unbind_attribute(
-    template_id: uuid.UUID,
-    binding_id: uuid.UUID,
+    template_id: Annotated[uuid.UUID, Path(alias="templateId")],
+    binding_id: Annotated[uuid.UUID, Path(alias="bindingId")],
     handler: FromDishka[UnbindAttributeFromTemplateHandler],
 ) -> None:
     command = UnbindAttributeFromTemplateCommand(
@@ -397,14 +398,14 @@ async def unbind_attribute(
 
 
 @attribute_template_router.post(
-    path="/{template_id}/attributes/reorder",
+    path="/{templateId}/attributes/reorder",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Reorder bindings",
     description="Bulk-reorder attribute bindings within a template.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def reorder_bindings(
-    template_id: uuid.UUID,
+    template_id: Annotated[uuid.UUID, Path(alias="templateId")],
     request: TemplateBindingReorderRequest,
     handler: FromDishka[ReorderTemplateBindingsHandler],
 ) -> None:

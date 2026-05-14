@@ -10,9 +10,10 @@ treating "invitations" as a UUID path parameter.
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Path, Query
 
 from src.modules.identity.application.commands.admin_deactivate_identity import (
     AdminDeactivateIdentityCommand,
@@ -79,10 +80,12 @@ async def list_staff(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     search: str | None = Query(None, max_length=200),
-    role_id: uuid.UUID | None = None,
-    is_active: bool | None = Query(None),
-    sort_by: str = Query("created_at", pattern=r"^(created_at|email|last_name)$"),
-    sort_order: str = Query("desc", pattern=r"^(asc|desc)$"),
+    role_id: uuid.UUID | None = Query(None, alias="roleId"),
+    is_active: bool | None = Query(None, alias="isActive"),
+    sort_by: str = Query(
+        "created_at", pattern=r"^(created_at|email|last_name)$", alias="sortBy"
+    ),
+    sort_order: str = Query("desc", pattern=r"^(asc|desc)$", alias="sortOrder"),
 ) -> StaffListResponse:
     """List staff members with pagination and filtering.
 
@@ -217,13 +220,13 @@ async def list_invitations(
 
 
 @staff_admin_router.delete(
-    "/invitations/{invitation_id}",
+    "/invitations/{invitationId}",
     response_model=MessageResponse,
     summary="Revoke a staff invitation",
     dependencies=[Depends(RequirePermission("staff:manage"))],
 )
 async def revoke_invitation(
-    invitation_id: uuid.UUID,
+    invitation_id: Annotated[uuid.UUID, Path(alias="invitationId")],
     handler: FromDishka[RevokeStaffInvitationHandler],
     auth: Auth,
 ) -> MessageResponse:
@@ -252,13 +255,13 @@ async def revoke_invitation(
 
 
 @staff_admin_router.get(
-    "/{identity_id}",
+    "/{identityId}",
     response_model=StaffDetailResponse,
     summary="Get staff member detail",
     dependencies=[Depends(RequirePermission("staff:manage"))],
 )
 async def get_staff_detail(
-    identity_id: uuid.UUID,
+    identity_id: Annotated[uuid.UUID, Path(alias="identityId")],
     handler: FromDishka[GetStaffDetailHandler],
 ) -> StaffDetailResponse:
     """Get full detail for a single staff member.
@@ -294,13 +297,13 @@ async def get_staff_detail(
 
 
 @staff_admin_router.post(
-    "/{identity_id}/deactivate",
+    "/{identityId}/deactivate",
     response_model=MessageResponse,
     summary="Deactivate a staff member",
     dependencies=[Depends(RequirePermission("staff:manage"))],
 )
 async def deactivate_staff(
-    identity_id: uuid.UUID,
+    identity_id: Annotated[uuid.UUID, Path(alias="identityId")],
     body: AdminDeactivateRequest,
     handler: FromDishka[AdminDeactivateIdentityHandler],
     auth: Auth,
@@ -327,13 +330,13 @@ async def deactivate_staff(
 
 
 @staff_admin_router.post(
-    "/{identity_id}/reactivate",
+    "/{identityId}/reactivate",
     response_model=MessageResponse,
     summary="Reactivate a staff member",
     dependencies=[Depends(RequirePermission("staff:manage"))],
 )
 async def reactivate_staff(
-    identity_id: uuid.UUID,
+    identity_id: Annotated[uuid.UUID, Path(alias="identityId")],
     handler: FromDishka[ReactivateIdentityHandler],
     auth: Auth,
 ) -> MessageResponse:

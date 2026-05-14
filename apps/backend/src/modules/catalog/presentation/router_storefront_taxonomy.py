@@ -18,9 +18,10 @@ the schema layer where applicable).
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Query, Response, status
+from fastapi import APIRouter, Path, Query, Response, status
 
 from src.modules.catalog.application.queries.get_brand import GetBrandHandler
 from src.modules.catalog.application.queries.get_category import GetCategoryHandler
@@ -71,7 +72,7 @@ storefront_taxonomy_router = APIRouter(
 async def storefront_category_tree(
     response: Response,
     handler: FromDishka[GetCategoryTreeHandler],
-    max_depth: int | None = Query(default=None, ge=1, le=10),
+    max_depth: int | None = Query(default=None, ge=1, le=10, alias="maxDepth"),
 ) -> list[CategoryTreeResponse]:
     response.headers["Cache-Control"] = "public, max-age=300, s-maxage=3600"
     roots: list[CategoryNode] = await handler.handle(max_depth=max_depth)
@@ -106,13 +107,13 @@ async def storefront_list_categories(
 
 
 @storefront_taxonomy_router.get(
-    "/categories/{category_id}",
+    "/categories/{categoryId}",
     status_code=status.HTTP_200_OK,
     response_model=CategoryResponse,
     summary="Public category detail",
 )
 async def storefront_get_category(
-    category_id: uuid.UUID,
+    category_id: Annotated[uuid.UUID, Path(alias="categoryId")],
     response: Response,
     handler: FromDishka[GetCategoryHandler],
 ) -> CategoryResponse:
@@ -159,13 +160,13 @@ async def storefront_list_brands(
 
 
 @storefront_taxonomy_router.get(
-    "/brands/{brand_id}",
+    "/brands/{brandId}",
     status_code=status.HTTP_200_OK,
     response_model=BrandResponse,
     summary="Public brand detail",
 )
 async def storefront_get_brand(
-    brand_id: uuid.UUID,
+    brand_id: Annotated[uuid.UUID, Path(alias="brandId")],
     response: Response,
     handler: FromDishka[GetBrandHandler],
 ) -> BrandResponse:

@@ -7,9 +7,10 @@ Delegates to application-layer command/query handlers via Dishka DI.
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from src.api.dependencies.etag import attach_etag, parse_if_match
 from src.modules.catalog.application.commands.add_sku import (
@@ -59,7 +60,7 @@ def _money_from_schema(schema: MoneySchema | None) -> Money | None:
 
 
 sku_router = APIRouter(
-    prefix="/admin/catalog/products/{product_id}/variants/{variant_id}/skus",
+    prefix="/admin/catalog/products/{productId}/variants/{variantId}/skus",
     tags=["Admin / Catalog / SKUs"],
     route_class=DishkaRoute,
 )
@@ -74,8 +75,8 @@ sku_router = APIRouter(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def add_sku(
-    product_id: uuid.UUID,
-    variant_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
+    variant_id: Annotated[uuid.UUID, Path(alias="variantId")],
     request: SKUCreateRequest,
     handler: FromDishka[AddSKUHandler],
 ) -> SKUCreateResponse:
@@ -106,8 +107,8 @@ async def add_sku(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_skus(
-    product_id: uuid.UUID,
-    variant_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
+    variant_id: Annotated[uuid.UUID, Path(alias="variantId")],
     response: Response,
     handler: FromDishka[ListSKUsHandler],
     limit: int = Query(default=50, ge=1, le=200),
@@ -140,8 +141,8 @@ async def list_skus(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def generate_sku_matrix(
-    product_id: uuid.UUID,
-    variant_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
+    variant_id: Annotated[uuid.UUID, Path(alias="variantId")],
     request: SKUMatrixGenerateRequest,
     handler: FromDishka[GenerateSKUMatrixHandler],
 ) -> SKUMatrixGenerateResponse:
@@ -170,7 +171,7 @@ async def generate_sku_matrix(
 
 
 @sku_router.patch(
-    path="/{sku_id}",
+    path="/{skuId}",
     status_code=status.HTTP_200_OK,
     response_model=SKUResponse,
     summary="Update a SKU",
@@ -178,9 +179,9 @@ async def generate_sku_matrix(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_sku(
-    product_id: uuid.UUID,
-    variant_id: uuid.UUID,
-    sku_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
+    variant_id: Annotated[uuid.UUID, Path(alias="variantId")],
+    sku_id: Annotated[uuid.UUID, Path(alias="skuId")],
     request: SKUUpdateRequest,
     response: Response,
     update_handler: FromDishka[UpdateSKUHandler],
@@ -241,16 +242,16 @@ async def update_sku(
 
 
 @sku_router.delete(
-    path="/{sku_id}",
+    path="/{skuId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Soft-delete a SKU",
     description="Soft-delete a SKU from the product variant.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_sku(
-    product_id: uuid.UUID,
-    variant_id: uuid.UUID,
-    sku_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
+    variant_id: Annotated[uuid.UUID, Path(alias="variantId")],
+    sku_id: Annotated[uuid.UUID, Path(alias="skuId")],
     handler: FromDishka[DeleteSKUHandler],
 ) -> None:
     """Soft-delete a SKU from the product variant.

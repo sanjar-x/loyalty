@@ -9,7 +9,7 @@ import uuid
 from typing import Annotated, Any
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, Path, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.modules.cart.application.commands.add_item import (
@@ -147,12 +147,12 @@ async def add_item(
 
 
 @cart_router.delete(
-    "/items/{sku_id}",
+    "/items/{skuId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove item from cart",
 )
 async def remove_item(
-    sku_id: uuid.UUID,
+    sku_id: Annotated[uuid.UUID, Path(alias="skuId")],
     handler: FromDishka[RemoveItemHandler],
     credentials: BearerCredentials,
     token_provider: FromDishka[ITokenProvider],  # type: ignore[assignment]
@@ -168,12 +168,12 @@ async def remove_item(
 
 
 @cart_router.patch(
-    "/items/{sku_id}",
+    "/items/{skuId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Update item quantity",
 )
 async def update_quantity(
-    sku_id: uuid.UUID,
+    sku_id: Annotated[uuid.UUID, Path(alias="skuId")],
     body: UpdateQuantityRequest,
     handler: FromDishka[UpdateQuantityHandler],
     credentials: BearerCredentials,

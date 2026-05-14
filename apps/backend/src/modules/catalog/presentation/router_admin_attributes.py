@@ -8,9 +8,10 @@ Delegates to application-layer command/query handlers via Dishka DI.
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from src.modules.catalog.application.commands.bulk_create_attributes import (
     BulkAttributeItem,
@@ -161,14 +162,14 @@ async def list_attributes(
     handler: FromDishka[ListAttributesHandler],
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
-    data_type: str | None = Query(default=None),
-    ui_type: str | None = Query(default=None),
-    is_dictionary: bool | None = Query(default=None),
-    group_id: uuid.UUID | None = None,
+    data_type: str | None = Query(default=None, alias="dataType"),
+    ui_type: str | None = Query(default=None, alias="uiType"),
+    is_dictionary: bool | None = Query(default=None, alias="isDictionary"),
+    group_id: uuid.UUID | None = Query(default=None, alias="groupId"),
     level: str | None = Query(default=None),
-    is_filterable: bool | None = Query(default=None),
-    is_searchable: bool | None = Query(default=None),
-    is_comparable: bool | None = Query(default=None),
+    is_filterable: bool | None = Query(default=None, alias="isFilterable"),
+    is_searchable: bool | None = Query(default=None, alias="isSearchable"),
+    is_comparable: bool | None = Query(default=None, alias="isComparable"),
     search: str | None = Query(default=None, min_length=1, max_length=100),
 ) -> AttributeListResponse:
     response.headers["Cache-Control"] = "no-store"
@@ -215,7 +216,7 @@ async def list_attributes(
 
 
 @attribute_router.get(
-    path="/{attribute_id}",
+    path="/{attributeId}",
     status_code=status.HTTP_200_OK,
     response_model=AttributeResponse,
     summary="Get attribute by ID",
@@ -223,7 +224,7 @@ async def list_attributes(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_attribute(
-    attribute_id: uuid.UUID,
+    attribute_id: Annotated[uuid.UUID, Path(alias="attributeId")],
     response: Response,
     handler: FromDishka[GetAttributeHandler],
 ) -> AttributeResponse:
@@ -233,7 +234,7 @@ async def get_attribute(
 
 
 @attribute_router.patch(
-    path="/{attribute_id}",
+    path="/{attributeId}",
     status_code=status.HTTP_200_OK,
     response_model=AttributeResponse,
     summary="Update an attribute",
@@ -241,7 +242,7 @@ async def get_attribute(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_attribute(
-    attribute_id: uuid.UUID,
+    attribute_id: Annotated[uuid.UUID, Path(alias="attributeId")],
     request: AttributeUpdateRequest,
     handler: FromDishka[UpdateAttributeHandler],
     get_handler: FromDishka[GetAttributeHandler],
@@ -263,14 +264,14 @@ async def update_attribute(
 
 
 @attribute_router.delete(
-    path="/{attribute_id}",
+    path="/{attributeId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete an attribute",
     description="Permanently delete an attribute by its ID.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_attribute(
-    attribute_id: uuid.UUID,
+    attribute_id: Annotated[uuid.UUID, Path(alias="attributeId")],
     handler: FromDishka[DeleteAttributeHandler],
 ) -> None:
     command = DeleteAttributeCommand(attribute_id=attribute_id)
@@ -278,7 +279,7 @@ async def delete_attribute(
 
 
 @attribute_router.get(
-    path="/{attribute_id}/usage",
+    path="/{attributeId}/usage",
     status_code=status.HTTP_200_OK,
     response_model=AttributeUsageResponse,
     summary="Get attribute usage analytics",
@@ -286,7 +287,7 @@ async def delete_attribute(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def get_attribute_usage(
-    attribute_id: uuid.UUID,
+    attribute_id: Annotated[uuid.UUID, Path(alias="attributeId")],
     response: Response,
     handler: FromDishka[GetAttributeUsageHandler],
 ) -> AttributeUsageResponse:

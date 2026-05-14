@@ -5,8 +5,10 @@ Unified entry point — the ``{provider_code}`` path parameter
 determines which provider adapter parses the payload.
 """
 
+from typing import Annotated
+
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Path, Request, status
 
 from src.modules.logistics.application.commands.handle_dobropost_passport_validation import (
     HandleDobroPostPassportValidationCommand,
@@ -33,12 +35,12 @@ webhook_router = APIRouter(
 
 
 @webhook_router.post(
-    path="/{provider_code}",
+    path="/{providerCode}",
     status_code=status.HTTP_200_OK,
     summary="Receive provider webhook",
 )
 async def receive_webhook(
-    provider_code: str,
+    provider_code: Annotated[str, Path(alias="providerCode")],
     request: Request,
     registry: FromDishka[IShippingProviderRegistry],
     ingest_handler: FromDishka[IngestTrackingHandler],

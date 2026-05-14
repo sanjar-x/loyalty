@@ -7,9 +7,10 @@ Delegates to application-layer command/query handlers via Dishka DI.
 """
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from src.modules.catalog.application.commands.assign_product_attribute import (
     AssignProductAttributeCommand,
@@ -40,7 +41,7 @@ from src.modules.catalog.presentation.schemas import (
 from src.modules.identity.presentation.dependencies import RequirePermission
 
 product_attribute_router = APIRouter(
-    prefix="/admin/catalog/products/{product_id}/attributes",
+    prefix="/admin/catalog/products/{productId}/attributes",
     tags=["Admin / Catalog / Product Attributes"],
     route_class=DishkaRoute,
 )
@@ -55,7 +56,7 @@ product_attribute_router = APIRouter(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def assign_product_attribute(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     request: ProductAttributeAssignRequest,
     handler: FromDishka[AssignProductAttributeHandler],
 ) -> ProductAttributeAssignResponse:
@@ -89,7 +90,7 @@ async def assign_product_attribute(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_product_attributes(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     response: Response,
     handler: FromDishka[ListProductAttributesHandler],
     limit: int = Query(default=50, ge=1, le=200),
@@ -141,7 +142,7 @@ async def list_product_attributes(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def bulk_assign_product_attributes(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     request: BulkAssignProductAttributesRequest,
     handler: FromDishka[BulkAssignProductAttributesHandler],
 ) -> BulkAssignProductAttributesResponse:
@@ -164,7 +165,7 @@ async def bulk_assign_product_attributes(
 
 
 @product_attribute_router.delete(
-    path="/{attribute_id}",
+    path="/{attributeId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete an attribute assignment from a product",
     description=(
@@ -175,8 +176,8 @@ async def bulk_assign_product_attributes(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_product_attribute(
-    product_id: uuid.UUID,
-    attribute_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
+    attribute_id: Annotated[uuid.UUID, Path(alias="attributeId")],
     handler: FromDishka[DeleteProductAttributeHandler],
 ) -> None:
     """Delete a product's attribute assignment.

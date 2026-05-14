@@ -14,9 +14,10 @@ Routes (under ``/admin/orders``):
 
 import uuid
 from datetime import datetime
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from src.modules.identity.presentation.dependencies import (
     Auth,
@@ -204,12 +205,12 @@ async def admin_list_orders(
 
 
 @admin_order_router.get(
-    "/{order_id}",
+    "/{orderId}",
     response_model=AdminOrderSchema,
     dependencies=[Depends(RequirePermission("orders:read"))],
 )
 async def admin_get_order(
-    order_id: uuid.UUID,
+    order_id: Annotated[uuid.UUID, Path(alias="orderId")],
     handler: FromDishka[AdminGetOrderHandler],
 ) -> AdminOrderSchema:
     rm = await handler.handle(AdminGetOrderQuery(order_id=order_id))
@@ -217,12 +218,12 @@ async def admin_get_order(
 
 
 @admin_order_router.get(
-    "/{order_id}/history",
+    "/{orderId}/history",
     response_model=list[OrderStateHistoryEntrySchema],
     dependencies=[Depends(RequirePermission("orders:read"))],
 )
 async def admin_get_history(
-    order_id: uuid.UUID,
+    order_id: Annotated[uuid.UUID, Path(alias="orderId")],
     handler: FromDishka[GetOrderStateHistoryHandler],
 ) -> list[OrderStateHistoryEntrySchema]:
     entries = await handler.handle(GetOrderStateHistoryQuery(order_id=order_id))
@@ -243,12 +244,12 @@ async def admin_get_history(
 
 
 @admin_order_router.post(
-    "/{order_id}/procure",
+    "/{orderId}/procure",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(RequirePermission("orders:procure"))],
 )
 async def admin_procure_order(
-    order_id: uuid.UUID,
+    order_id: Annotated[uuid.UUID, Path(alias="orderId")],
     body: ProcureOrderRequest,
     auth: Auth,
     handler: FromDishka[ProcureOrderHandler],
@@ -263,12 +264,12 @@ async def admin_procure_order(
 
 
 @admin_order_router.post(
-    "/{order_id}/hold",
+    "/{orderId}/hold",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(RequirePermission("orders:hold_manage"))],
 )
 async def admin_hold_order(
-    order_id: uuid.UUID,
+    order_id: Annotated[uuid.UUID, Path(alias="orderId")],
     body: HoldOrderRequest,
     handler: FromDishka[HoldOrderHandler],
 ) -> None:
@@ -279,24 +280,24 @@ async def admin_hold_order(
 
 
 @admin_order_router.post(
-    "/{order_id}/resume",
+    "/{orderId}/resume",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(RequirePermission("orders:hold_manage"))],
 )
 async def admin_resume_order(
-    order_id: uuid.UUID,
+    order_id: Annotated[uuid.UUID, Path(alias="orderId")],
     handler: FromDishka[ResumeOrderHandler],
 ) -> None:
     await handler.handle(ResumeOrderCommand(order_id=order_id))
 
 
 @admin_order_router.post(
-    "/{order_id}/force-cancel",
+    "/{orderId}/force-cancel",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(RequirePermission("orders:cancel"))],
 )
 async def admin_force_cancel(
-    order_id: uuid.UUID,
+    order_id: Annotated[uuid.UUID, Path(alias="orderId")],
     body: CancelOrderRequest,
     auth: Auth,
     handler: FromDishka[CancelOrderHandler],
@@ -318,12 +319,12 @@ async def admin_force_cancel(
 
 
 @admin_order_router.patch(
-    "/{order_id}/pickup-point",
+    "/{orderId}/pickup-point",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(RequirePermission("orders:read"))],
 )
 async def admin_change_pickup_point(
-    order_id: uuid.UUID,
+    order_id: Annotated[uuid.UUID, Path(alias="orderId")],
     body: ChangePickupPointRequest,
     handler: FromDishka[ChangePickupPointHandler],
 ) -> None:

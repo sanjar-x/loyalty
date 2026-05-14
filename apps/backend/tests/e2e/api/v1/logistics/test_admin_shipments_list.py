@@ -82,7 +82,7 @@ async def test_list_shipments_with_permission_returns_200(
     body = resp.json()
     assert "items" in body
     assert isinstance(body["items"], list)
-    assert "next_cursor" in body
+    assert "nextCursor" in body
 
 
 async def test_invalid_provider_filter_returns_422(
@@ -157,4 +157,4 @@ async def test_pagination_through_next_cursor(
     resp = await logistics_read_client.get("/api/v1/admin/logistics/shipments")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["next_cursor"] is None
+    assert body["nextCursor"] is None

@@ -68,7 +68,7 @@ async def list_trending_products(
         description="Ranking window (ignored when category_id is set)",
     ),
     category_id: uuid.UUID | None = Query(
-        None, description="Optional: scope trending to a category"
+        None, description="Optional: scope trending to a category", alias="categoryId"
     ),
     lang: str | None = Query(
         None, pattern=r"^(ru|en)$", description="Language for title projection"

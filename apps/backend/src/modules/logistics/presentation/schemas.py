@@ -6,17 +6,18 @@ fine; renames, type changes, and removed fields are not.
 
 Conventions:
 
-* JSON keys are ``snake_case`` (matches the rest of the module — cart
-  uses camelCase, but logistics has historically been snake_case and
-  changing it now would break the partial frontend already in flight).
-* Money: integer ``amount`` in the smallest currency unit (kopecks for
-  RUB) plus an ISO 4217 ``currency_code`` — never floats.
+* JSON keys are ``camelCase`` — every schema inherits ``CamelModel``
+  (``src/shared/schemas.py``), the project-wide serialization base.
+  See ADR-009 (API serialization convention).
+* Money: shared ``MoneySchema`` (``src.shared.schemas``) — integer
+  ``amount`` in the smallest currency unit (kopecks for RUB) plus an
+  ISO 4217 ``currency`` — never floats.
 * Dates: ``date`` is ``YYYY-MM-DD`` (string), times are ``HH:MM``,
   full timestamps are RFC 3339 / ISO 8601 ``datetime``.
-* Identifiers from external providers (``cdek_pvz_code``,
-  ``platform_station_id``, ``fias_guid``, ``offer_id``) are *never*
-  exposed; the frontend only ever sees opaque ``external_id`` and the
-  server-side ``quote_id``.
+* Identifiers from external providers (``cdekPvzCode``,
+  ``platformStationId``, ``fiasGuid``, ``offerId``) are *never*
+  exposed; the frontend only ever sees opaque ``externalId`` and the
+  server-side ``quoteId``.
 * Provider / status / type fields are ``Literal[...]`` enums so the
   generated TypeScript client gets a closed union.
 
@@ -28,7 +29,9 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from src.shared.schemas import CamelModel, MoneySchema
 
 # ---------------------------------------------------------------------------
 # Closed enumerations — Literals so the TS client gets a union type
@@ -71,21 +74,20 @@ TrackingStatusLiteral = Literal[
 """Mirrors ``TrackingStatus`` enum in the domain layer."""
 
 CountryCode = str  # ISO 3166-1 alpha-2 — kept as plain str, validated by Field
-CurrencyCode = str  # ISO 4217 — kept as plain str, validated by Field
 
 # ---------------------------------------------------------------------------
 # Common nested schemas
 # ---------------------------------------------------------------------------
 
 
-class GeoPositionSchema(BaseModel):
+class GeoPositionSchema(CamelModel):
     """Latitude / longitude pair surfaced to the frontend map renderer."""
 
     latitude: float = Field(..., ge=-90.0, le=90.0)
     longitude: float = Field(..., ge=-180.0, le=180.0)
 
 
-class AddressSchema(BaseModel):
+class AddressSchema(CamelModel):
     """Public address shape — no provider metadata leaks here.
 
     Used both as request input (recipient address for courier delivery,
@@ -113,7 +115,7 @@ class AddressSchema(BaseModel):
     )
 
 
-class ContactInfoSchema(BaseModel):
+class ContactInfoSchema(CamelModel):
     """Sender / recipient contact details. Phone is normalised to E.164."""
 
     first_name: str = Field(..., min_length=1, max_length=128)
@@ -130,28 +132,17 @@ class ContactInfoSchema(BaseModel):
     company_name: str | None = Field(None, max_length=255)
 
 
-class WeightSchema(BaseModel):
+class WeightSchema(CamelModel):
     grams: int = Field(..., gt=0, description="Weight in grams")
 
 
-class DimensionsSchema(BaseModel):
+class DimensionsSchema(CamelModel):
     length_cm: int = Field(..., gt=0)
     width_cm: int = Field(..., gt=0)
     height_cm: int = Field(..., gt=0)
 
 
-class MoneySchema(BaseModel):
-    amount: int = Field(
-        ...,
-        ge=0,
-        description="Amount in smallest currency unit (kopecks for RUB)",
-    )
-    currency_code: CurrencyCode = Field(
-        ..., min_length=3, max_length=3, description="ISO 4217"
-    )
-
-
-class CashOnDeliverySchema(BaseModel):
+class CashOnDeliverySchema(CamelModel):
     amount: MoneySchema
     payment_method: Literal["cash", "card", "postpay"] | None = None
 
@@ -161,7 +152,7 @@ class CashOnDeliverySchema(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class PickupPointsRequest(BaseModel):
+class PickupPointsRequest(CamelModel):
     """Search criteria for the map / list view.
 
     The frontend sends a geographic bounding box (``latitude`` +
@@ -191,7 +182,7 @@ class PickupPointsRequest(BaseModel):
     )
 
 
-class PickupPointSchema(BaseModel):
+class PickupPointSchema(CamelModel):
     """One marker on the map.
 
     The frontend renders ``position`` and uses ``(provider_code,
@@ -226,7 +217,7 @@ class PickupPointSchema(BaseModel):
     )
 
 
-class PickupPointsResponse(BaseModel):
+class PickupPointsResponse(CamelModel):
     """Aggregated map response.
 
     ``points`` mixes both providers; the frontend differentiates them by
@@ -246,14 +237,14 @@ class PickupPointsResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class QuoteCartItemSchema(BaseModel):
+class QuoteCartItemSchema(CamelModel):
     """One line in the cart at quoting time."""
 
     sku_id: uuid.UUID
     quantity: int = Field(1, ge=1, le=99)
 
 
-class RateQuoteRequest(BaseModel):
+class RateQuoteRequest(CamelModel):
     """Checkout-flow narrow request: SKUs + chosen pickup point.
 
     Backend resolves weight (from pricing category settings), origin
@@ -282,7 +273,7 @@ class RateQuoteRequest(BaseModel):
     )
 
 
-class RateQuoteResponse(BaseModel):
+class RateQuoteResponse(CamelModel):
     """Single delivery quote — one line for the customer.
 
     ``quote_id`` is the only piece the frontend has to keep until order
@@ -322,7 +313,7 @@ class RateQuoteResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class ParcelSchema(BaseModel):
+class ParcelSchema(CamelModel):
     """Used by the admin/pricing /rates endpoint where the caller knows
     real weights (e.g. after warehouse intake). The Checkout flow does
     NOT use this schema — it goes through ``/rates/quote`` instead."""
@@ -333,7 +324,7 @@ class ParcelSchema(BaseModel):
     description: str | None = None
 
 
-class CalculateRatesRequest(BaseModel):
+class CalculateRatesRequest(CamelModel):
     """Admin-side multi-provider rate request.
 
     The Checkout flow uses ``/rates/quote`` instead — this endpoint is
@@ -345,7 +336,7 @@ class CalculateRatesRequest(BaseModel):
     parcels: list[ParcelSchema] = Field(..., min_length=1)
 
 
-class ShippingRateSchema(BaseModel):
+class ShippingRateSchema(CamelModel):
     provider_code: ProviderCodeLiteral
     service_code: str
     service_name: str
@@ -357,7 +348,7 @@ class ShippingRateSchema(BaseModel):
     delivery_days_max: int | None = None
 
 
-class DeliveryQuoteSchema(BaseModel):
+class DeliveryQuoteSchema(CamelModel):
     """Full quote shape used by ``/rates`` (admin endpoint)."""
 
     id: uuid.UUID
@@ -367,7 +358,7 @@ class DeliveryQuoteSchema(BaseModel):
     expires_at: datetime | None = None
 
 
-class CalculateRatesResponse(BaseModel):
+class CalculateRatesResponse(CamelModel):
     quotes: list[DeliveryQuoteSchema]
     errors: dict[ProviderCodeLiteral, str] = Field(default_factory=dict)
 
@@ -377,7 +368,7 @@ class CalculateRatesResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class CreateShipmentRequest(BaseModel):
+class CreateShipmentRequest(CamelModel):
     """Place a shipment from a server-side quote.
 
     The frontend sends only:
@@ -406,7 +397,7 @@ class CreateShipmentRequest(BaseModel):
     cod: CashOnDeliverySchema | None = None
 
 
-class ShipmentResponse(BaseModel):
+class ShipmentResponse(CamelModel):
     """Full shipment view."""
 
     id: uuid.UUID
@@ -425,13 +416,13 @@ class ShipmentResponse(BaseModel):
     cancelled_at: datetime | None = None
 
 
-class BookShipmentResponse(BaseModel):
+class BookShipmentResponse(CamelModel):
     shipment_id: uuid.UUID
     provider_shipment_id: str
     tracking_number: str | None = None
 
 
-class CancelShipmentResponse(BaseModel):
+class CancelShipmentResponse(CamelModel):
     shipment_id: uuid.UUID
 
 
@@ -440,7 +431,7 @@ class CancelShipmentResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class TrackingEventSchema(BaseModel):
+class TrackingEventSchema(CamelModel):
     status: TrackingStatusLiteral
     provider_status_code: str
     provider_status_name: str
@@ -449,7 +440,7 @@ class TrackingEventSchema(BaseModel):
     description: str | None = None
 
 
-class TrackingResponse(BaseModel):
+class TrackingResponse(CamelModel):
     shipment_id: uuid.UUID
     tracking_number: str | None
     latest_status: TrackingStatusLiteral | None
@@ -461,7 +452,7 @@ class TrackingResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class IntakeWindowSchema(BaseModel):
+class IntakeWindowSchema(CamelModel):
     date: str = Field(..., description="ISO date (YYYY-MM-DD)")
     is_workday: bool = True
 
@@ -471,18 +462,18 @@ IntakeStatusLiteral = Literal[
 ]
 
 
-class AvailableIntakeDaysRequest(BaseModel):
+class AvailableIntakeDaysRequest(CamelModel):
     provider_code: ProviderCodeLiteral
     address: AddressSchema
     until: str | None = Field(None, description="Upper bound (YYYY-MM-DD)")
 
 
-class AvailableIntakeDaysResponse(BaseModel):
+class AvailableIntakeDaysResponse(CamelModel):
     provider_code: ProviderCodeLiteral
     windows: list[IntakeWindowSchema]
 
 
-class CreateIntakeRequest(BaseModel):
+class CreateIntakeRequest(CamelModel):
     intake_date: str = Field(..., description="Pickup date (YYYY-MM-DD)")
     intake_time_from: str = Field(..., description="Earliest time (HH:MM)")
     intake_time_to: str = Field(..., description="Latest time (HH:MM)")
@@ -492,18 +483,18 @@ class CreateIntakeRequest(BaseModel):
     need_call: bool = False
 
 
-class CreateIntakeResponse(BaseModel):
+class CreateIntakeResponse(CamelModel):
     shipment_id: uuid.UUID
     provider_intake_id: str
     status: IntakeStatusLiteral
 
 
-class IntakeStatusResponse(BaseModel):
+class IntakeStatusResponse(CamelModel):
     provider_intake_id: str
     status: IntakeStatusLiteral
 
 
-class CancelIntakeResponse(BaseModel):
+class CancelIntakeResponse(CamelModel):
     success: bool
 
 
@@ -512,18 +503,18 @@ class CancelIntakeResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class DeliveryIntervalSchema(BaseModel):
+class DeliveryIntervalSchema(CamelModel):
     start_time: str = Field(..., description="HH:MM")
     end_time: str = Field(..., description="HH:MM")
     date: str | None = Field(None, description="YYYY-MM-DD if known")
 
 
-class DeliveryIntervalsResponse(BaseModel):
+class DeliveryIntervalsResponse(CamelModel):
     provider_code: ProviderCodeLiteral
     intervals: list[DeliveryIntervalSchema]
 
 
-class EstimatedDeliveryIntervalsRequest(BaseModel):
+class EstimatedDeliveryIntervalsRequest(CamelModel):
     provider_code: ProviderCodeLiteral
     origin: AddressSchema
     destination: AddressSchema
@@ -538,27 +529,27 @@ class EstimatedDeliveryIntervalsRequest(BaseModel):
 ContragentTypeLiteral = Literal["LEGAL_ENTITY", "INDIVIDUAL"]
 
 
-class ClientReturnRequest(BaseModel):
+class ClientReturnRequest(CamelModel):
     tariff_code: int = Field(..., ge=1)
     return_address: AddressSchema
     sender: ContactInfoSchema
     recipient: ContactInfoSchema
 
 
-class RefusalRequestSchema(BaseModel):
+class RefusalRequestSchema(CamelModel):
     reason: str | None = Field(
         None, description="Free-form audit note. Not forwarded to the provider."
     )
 
 
-class ReturnResponse(BaseModel):
+class ReturnResponse(CamelModel):
     shipment_id: uuid.UUID
     success: bool
     provider_return_id: str | None = None
     reason: str | None = None
 
 
-class ReverseAvailabilityRequestSchema(BaseModel):
+class ReverseAvailabilityRequestSchema(CamelModel):
     provider_code: ProviderCodeLiteral
     tariff_code: int = Field(..., ge=1)
     sender_phones: list[str] = Field(..., min_length=1, max_length=10)
@@ -571,7 +562,7 @@ class ReverseAvailabilityRequestSchema(BaseModel):
     recipient_contragent_type: ContragentTypeLiteral | None = None
 
 
-class ReverseAvailabilityResponse(BaseModel):
+class ReverseAvailabilityResponse(CamelModel):
     provider_code: ProviderCodeLiteral
     is_available: bool
     reason: str | None = None
@@ -582,14 +573,14 @@ class ReverseAvailabilityResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class ActualDeliveryInfoSchema(BaseModel):
+class ActualDeliveryInfoSchema(CamelModel):
     delivery_date: str = Field(..., description="YYYY-MM-DD")
     interval_start: str = Field(..., description="Local HH:MM")
     interval_end: str = Field(..., description="Local HH:MM")
     timezone_offset: str | None = Field(None, description='e.g. "+03:00"')
 
 
-class ActualDeliveryInfoResponse(BaseModel):
+class ActualDeliveryInfoResponse(CamelModel):
     shipment_id: uuid.UUID
     info: ActualDeliveryInfoSchema | None = None
 
@@ -602,25 +593,25 @@ class ActualDeliveryInfoResponse(BaseModel):
 EditTaskStatusLiteral = Literal["pending", "execution", "success", "failure", "unknown"]
 
 
-class EditTaskResponse(BaseModel):
+class EditTaskResponse(CamelModel):
     shipment_id: uuid.UUID
     task_id: str
     initial_status: EditTaskStatusLiteral
 
 
-class EditTaskStatusResponse(BaseModel):
+class EditTaskStatusResponse(CamelModel):
     provider_code: ProviderCodeLiteral
     task_id: str
     status: EditTaskStatusLiteral
 
 
-class EditPlaceSwapSchema(BaseModel):
+class EditPlaceSwapSchema(CamelModel):
     old_barcode: str = Field(..., min_length=1)
     new_barcode: str = Field(..., min_length=1)
     new_parcel: ParcelSchema
 
 
-class EditOrderRequest(BaseModel):
+class EditOrderRequest(CamelModel):
     """At least one of ``recipient`` / ``destination`` / ``places`` must be set."""
 
     recipient: ContactInfoSchema | None = None
@@ -629,38 +620,38 @@ class EditOrderRequest(BaseModel):
     places: list[EditPlaceSwapSchema] = Field(default_factory=list)
 
 
-class EditPackageItemSchema(BaseModel):
+class EditPackageItemSchema(CamelModel):
     item_barcode: str = Field(..., min_length=1)
     count: int = Field(..., ge=0)
 
 
-class EditPackageSchema(BaseModel):
+class EditPackageSchema(CamelModel):
     barcode: str = Field(..., min_length=1)
     weight: WeightSchema
     dimensions: DimensionsSchema
     items: list[EditPackageItemSchema] = Field(..., min_length=1)
 
 
-class EditPackagesRequest(BaseModel):
+class EditPackagesRequest(CamelModel):
     packages: list[EditPackageSchema] = Field(..., min_length=1)
 
 
-class EditItemMarkingSchema(BaseModel):
+class EditItemMarkingSchema(CamelModel):
     item_barcode: str = Field(..., min_length=1)
     article: str = Field(..., min_length=1)
     marking_code: str | None = None
 
 
-class EditOrderItemsRequest(BaseModel):
+class EditOrderItemsRequest(CamelModel):
     items: list[EditItemMarkingSchema] = Field(..., min_length=1)
 
 
-class EditItemRemovalSchema(BaseModel):
+class EditItemRemovalSchema(CamelModel):
     item_barcode: str = Field(..., min_length=1)
     remaining_count: int = Field(..., ge=0, description="0 removes the item")
 
 
-class RemoveOrderItemsRequest(BaseModel):
+class RemoveOrderItemsRequest(CamelModel):
     removals: list[EditItemRemovalSchema] = Field(..., min_length=1)
 
 
@@ -691,7 +682,7 @@ frontend cannot drop a typo'd filter without seeing it bounce back.
 """
 
 
-class AdminShipmentSummarySchema(BaseModel):
+class AdminShipmentSummarySchema(CamelModel):
     """List-view row for ``GET /admin/logistics/shipments``.
 
     Compact projection — full payload (origin/destination/parcels) is
@@ -722,7 +713,7 @@ class AdminShipmentSummarySchema(BaseModel):
     booked_at: datetime | None = None
 
 
-class AdminShipmentListResponse(BaseModel):
+class AdminShipmentListResponse(CamelModel):
     """Cursor-paginated page of admin shipment summaries."""
 
     items: list[AdminShipmentSummarySchema]

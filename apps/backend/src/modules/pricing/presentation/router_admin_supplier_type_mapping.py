@@ -6,9 +6,10 @@ FRD §SupplierType→Context Mapping.
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Path, status
 
 from src.modules.identity.presentation.dependencies import (
     RequirePermission,
@@ -75,13 +76,13 @@ async def list_supplier_type_context_mappings(
 
 
 @pricing_supplier_type_mapping_router.get(
-    "/{supplier_type}",
+    "/{supplierType}",
     response_model=SupplierTypeContextMappingResponse,
     summary="Get a supplier-type → pricing-context mapping",
     dependencies=[Depends(RequirePermission(codename="pricing:read"))],
 )
 async def get_supplier_type_context_mapping(
-    supplier_type: str,
+    supplier_type: Annotated[str, Path(alias="supplierType")],
     handler: FromDishka[GetSupplierTypeContextMappingHandler],
 ) -> SupplierTypeContextMappingResponse:
     mapping = await handler.handle(
@@ -91,13 +92,13 @@ async def get_supplier_type_context_mapping(
 
 
 @pricing_supplier_type_mapping_router.put(
-    "/{supplier_type}",
+    "/{supplierType}",
     response_model=UpsertSupplierTypeContextMappingResponse,
     summary="Create or retarget a supplier-type → pricing-context mapping",
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def upsert_supplier_type_context_mapping(
-    supplier_type: str,
+    supplier_type: Annotated[str, Path(alias="supplierType")],
     body: UpsertSupplierTypeContextMappingRequest,
     handler: FromDishka[UpsertSupplierTypeContextMappingHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),
@@ -119,13 +120,13 @@ async def upsert_supplier_type_context_mapping(
 
 
 @pricing_supplier_type_mapping_router.delete(
-    "/{supplier_type}",
+    "/{supplierType}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a supplier-type → pricing-context mapping",
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def delete_supplier_type_context_mapping(
-    supplier_type: str,
+    supplier_type: Annotated[str, Path(alias="supplierType")],
     handler: FromDishka[DeleteSupplierTypeContextMappingHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> None:

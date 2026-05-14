@@ -18,15 +18,17 @@ All endpoints require ``pricing:admin``.
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, Path, status
+from pydantic import Field
 
 from src.modules.identity.presentation.dependencies import RequirePermission
 from src.modules.pricing.infrastructure.services.recompute_service import (
     RecomputeSkuPricingService,
 )
+from src.shared.schemas import CamelModel
 
 pricing_recompute_router = APIRouter(
     prefix="/admin/pricing/recompute",
@@ -35,7 +37,7 @@ pricing_recompute_router = APIRouter(
 )
 
 
-class RecomputeSkuResponse(BaseModel):
+class RecomputeSkuResponse(CamelModel):
     """Synchronous per-SKU recompute outcome."""
 
     sku_id: uuid.UUID
@@ -47,7 +49,7 @@ class RecomputeSkuResponse(BaseModel):
     )
 
 
-class RecomputeFanoutResponse(BaseModel):
+class RecomputeFanoutResponse(CamelModel):
     """Fan-out request acknowledgement.
 
     The fan-out task runs asynchronously via TaskIQ; the response only
@@ -61,13 +63,13 @@ class RecomputeFanoutResponse(BaseModel):
 
 
 @pricing_recompute_router.post(
-    "/skus/{sku_id}",
+    "/skus/{skuId}",
     response_model=RecomputeSkuResponse,
     summary="Synchronously recompute a single SKU's selling price",
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def recompute_one_sku(
-    sku_id: uuid.UUID,
+    sku_id: Annotated[uuid.UUID, Path(alias="skuId")],
     service: FromDishka[RecomputeSkuPricingService],
 ) -> RecomputeSkuResponse:
     """Run the recompute pipeline for one SKU and return the result."""
@@ -76,13 +78,15 @@ async def recompute_one_sku(
 
 
 @pricing_recompute_router.post(
-    "/contexts/{context_id}",
+    "/contexts/{contextId}",
     response_model=RecomputeFanoutResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Fan out recompute for every SKU in a pricing context",
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
-async def recompute_context(context_id: uuid.UUID) -> RecomputeFanoutResponse:
+async def recompute_context(
+    context_id: Annotated[uuid.UUID, Path(alias="contextId")],
+) -> RecomputeFanoutResponse:
     """Enqueue per-SKU recompute jobs for the context.
 
     Importing the TaskIQ task lazily keeps this endpoint testable
@@ -100,13 +104,15 @@ async def recompute_context(context_id: uuid.UUID) -> RecomputeFanoutResponse:
 
 
 @pricing_recompute_router.post(
-    "/categories/{category_id}",
+    "/categories/{categoryId}",
     response_model=RecomputeFanoutResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Fan out recompute for every SKU in a category",
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
-async def recompute_category(category_id: uuid.UUID) -> RecomputeFanoutResponse:
+async def recompute_category(
+    category_id: Annotated[uuid.UUID, Path(alias="categoryId")],
+) -> RecomputeFanoutResponse:
     from src.modules.pricing.infrastructure.tasks import (
         recompute_category_pricing_task,
     )
@@ -118,13 +124,15 @@ async def recompute_category(category_id: uuid.UUID) -> RecomputeFanoutResponse:
 
 
 @pricing_recompute_router.post(
-    "/suppliers/{supplier_id}",
+    "/suppliers/{supplierId}",
     response_model=RecomputeFanoutResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Fan out recompute for every SKU owned by a supplier",
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
-async def recompute_supplier(supplier_id: uuid.UUID) -> RecomputeFanoutResponse:
+async def recompute_supplier(
+    supplier_id: Annotated[uuid.UUID, Path(alias="supplierId")],
+) -> RecomputeFanoutResponse:
     from src.modules.pricing.infrastructure.tasks import (
         recompute_supplier_pricing_task,
     )

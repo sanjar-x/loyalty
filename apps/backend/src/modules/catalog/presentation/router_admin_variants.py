@@ -1,9 +1,10 @@
 """FastAPI router for ProductVariant CRUD endpoints."""
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from src.api.dependencies.etag import attach_etag, parse_if_match
 from src.modules.catalog.application.commands.add_variant import (
@@ -36,7 +37,7 @@ from src.modules.identity.presentation.dependencies import RequirePermission
 from src.shared.exceptions import OptimisticLockError, PreconditionFailedError
 
 variant_router = APIRouter(
-    prefix="/admin/catalog/products/{product_id}/variants",
+    prefix="/admin/catalog/products/{productId}/variants",
     tags=["Admin / Catalog / Variants"],
     route_class=DishkaRoute,
 )
@@ -51,7 +52,7 @@ variant_router = APIRouter(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def add_variant(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     request: ProductVariantCreateRequest,
     handler: FromDishka[AddVariantHandler],
 ) -> ProductVariantCreateResponse:
@@ -82,7 +83,7 @@ async def add_variant(
     dependencies=[Depends(RequirePermission(codename="catalog:read"))],
 )
 async def list_variants(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     response: Response,
     handler: FromDishka[ListVariantsHandler],
     limit: int = Query(default=50, ge=1, le=200),
@@ -101,7 +102,7 @@ async def list_variants(
 
 
 @variant_router.patch(
-    path="/{variant_id}",
+    path="/{variantId}",
     status_code=status.HTTP_200_OK,
     response_model=ProductVariantUpdateResponse,
     summary="Update a product variant",
@@ -109,8 +110,8 @@ async def list_variants(
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def update_variant(
-    product_id: uuid.UUID,
-    variant_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
+    variant_id: Annotated[uuid.UUID, Path(alias="variantId")],
     request: ProductVariantUpdateRequest,
     response: Response,
     handler: FromDishka[UpdateVariantHandler],
@@ -153,15 +154,15 @@ async def update_variant(
 
 
 @variant_router.delete(
-    path="/{variant_id}",
+    path="/{variantId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a product variant",
     description="Soft-delete a product variant from the product.",
     dependencies=[Depends(RequirePermission(codename="catalog:manage"))],
 )
 async def delete_variant(
-    product_id: uuid.UUID,
-    variant_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
+    variant_id: Annotated[uuid.UUID, Path(alias="variantId")],
     handler: FromDishka[DeleteVariantHandler],
 ) -> None:
     """Soft-delete a product variant from the product."""

@@ -8,10 +8,10 @@ delivery intervals, edits, returns. All endpoints require
 
 import uuid
 from datetime import datetime
-from typing import cast
+from typing import Annotated, cast
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from src.modules.identity.presentation.dependencies import RequirePermission
 from src.modules.logistics.application.commands.book_shipment import (
@@ -266,7 +266,7 @@ def _schema_to_parcel(s: ParcelSchema) -> Parcel:
         declared_value=(
             Money(
                 amount=s.declared_value.amount,
-                currency_code=s.declared_value.currency_code,
+                currency_code=s.declared_value.currency,
             )
             if s.declared_value
             else None
@@ -279,7 +279,7 @@ def _schema_to_cod(s: CashOnDeliverySchema | None) -> CashOnDelivery | None:
     if s is None:
         return None
     return CashOnDelivery(
-        amount=Money(amount=s.amount.amount, currency_code=s.amount.currency_code),
+        amount=Money(amount=s.amount.amount, currency_code=s.amount.currency),
         payment_method=s.payment_method,
     )
 
@@ -317,16 +317,16 @@ async def calculate_rates(
                     delivery_type=q.rate.delivery_type.value,
                     total_cost=MoneySchema(
                         amount=q.rate.total_cost.amount,
-                        currency_code=q.rate.total_cost.currency_code,
+                        currency=q.rate.total_cost.currency_code.upper(),
                     ),
                     base_cost=MoneySchema(
                         amount=q.rate.base_cost.amount,
-                        currency_code=q.rate.base_cost.currency_code,
+                        currency=q.rate.base_cost.currency_code.upper(),
                     ),
                     insurance_cost=(
                         MoneySchema(
                             amount=q.rate.insurance_cost.amount,
-                            currency_code=q.rate.insurance_cost.currency_code,
+                            currency=q.rate.insurance_cost.currency_code.upper(),
                         )
                         if q.rate.insurance_cost
                         else None
@@ -380,7 +380,7 @@ async def quote_for_pickup_point(
         delivery_type=cast(DeliveryTypeLiteral, result.delivery_type),
         delivery_amount=MoneySchema(
             amount=result.delivery_amount,
-            currency_code=result.currency,
+            currency=result.currency.upper(),
         ),
         delivery_days_min=result.delivery_days_min,
         delivery_days_max=result.delivery_days_max,
@@ -411,20 +411,24 @@ async def list_admin_shipments(
     order_id: uuid.UUID | None = Query(
         default=None,
         description="Restrict to shipments linked to a specific order.",
+        alias="orderId",
     ),
     created_after: datetime | None = Query(
         default=None,
         description="Inclusive lower bound on ``created_at``.",
+        alias="createdAfter",
     ),
     created_before: datetime | None = Query(
         default=None,
         description="Exclusive upper bound on ``created_at``.",
+        alias="createdBefore",
     ),
     tracking_number_contains: str | None = Query(
         default=None,
         min_length=1,
         max_length=64,
         description="Case-insensitive substring match on tracking_number.",
+        alias="trackingNumberContains",
     ),
     limit: int = Query(default=50, ge=1, le=200, description="Page size."),
     cursor: datetime | None = Query(
@@ -466,7 +470,7 @@ async def list_admin_shipments(
                 destination_city=row.destination_city,
                 quoted_cost=MoneySchema(
                     amount=row.quoted_cost_amount,
-                    currency_code=row.quoted_cost_currency,
+                    currency=row.quoted_cost_currency.upper(),
                 ),
                 latest_tracking_status=cast(
                     "TrackingStatusLiteral | None", row.latest_tracking_status
@@ -514,14 +518,14 @@ async def create_shipment(
 
 
 @logistics_router.post(
-    path="/shipments/{shipment_id}/book",
+    path="/shipments/{shipmentId}/book",
     status_code=status.HTTP_200_OK,
     response_model=BookShipmentResponse,
     summary="Book a DRAFT shipment with the provider",
     dependencies=[_LOGISTICS_WRITE],
 )
 async def book_shipment(
-    shipment_id: uuid.UUID,
+    shipment_id: Annotated[uuid.UUID, Path(alias="shipmentId")],
     handler: FromDishka[BookShipmentHandler],
 ) -> BookShipmentResponse:
     result = await handler.handle(BookShipmentCommand(shipment_id=shipment_id))
@@ -533,14 +537,14 @@ async def book_shipment(
 
 
 @logistics_router.post(
-    path="/shipments/{shipment_id}/cancel",
+    path="/shipments/{shipmentId}/cancel",
     status_code=status.HTTP_200_OK,
     response_model=CancelShipmentResponse,
     summary="Cancel a booked shipment",
     dependencies=[_LOGISTICS_WRITE],
 )
 async def cancel_shipment(
-    shipment_id: uuid.UUID,
+    shipment_id: Annotated[uuid.UUID, Path(alias="shipmentId")],
     handler: FromDishka[CancelShipmentHandler],
 ) -> CancelShipmentResponse:
     result = await handler.handle(CancelShipmentCommand(shipment_id=shipment_id))
@@ -548,14 +552,14 @@ async def cancel_shipment(
 
 
 @logistics_router.get(
-    path="/shipments/{shipment_id}",
+    path="/shipments/{shipmentId}",
     status_code=status.HTTP_200_OK,
     response_model=ShipmentResponse,
     summary="Get shipment details",
     dependencies=[_LOGISTICS_READ],
 )
 async def get_shipment(
-    shipment_id: uuid.UUID,
+    shipment_id: Annotated[uuid.UUID, Path(alias="shipmentId")],
     handler: FromDishka[GetShipmentHandler],
 ) -> ShipmentResponse:
     shipment = await handler.handle(GetShipmentQuery(shipment_id=shipment_id))
@@ -563,14 +567,14 @@ async def get_shipment(
 
 
 @logistics_router.get(
-    path="/shipments/{shipment_id}/tracking",
+    path="/shipments/{shipmentId}/tracking",
     status_code=status.HTTP_200_OK,
     response_model=TrackingResponse,
     summary="Get shipment tracking history",
     dependencies=[_LOGISTICS_READ],
 )
 async def get_tracking(
-    shipment_id: uuid.UUID,
+    shipment_id: Annotated[uuid.UUID, Path(alias="shipmentId")],
     handler: FromDishka[GetTrackingHandler],
 ) -> TrackingResponse:
     result = await handler.handle(GetTrackingQuery(shipment_id=shipment_id))
@@ -714,14 +718,14 @@ async def list_available_intake_days(
 
 
 @logistics_router.post(
-    path="/shipments/{shipment_id}/intake",
+    path="/shipments/{shipmentId}/intake",
     status_code=status.HTTP_201_CREATED,
     response_model=CreateIntakeResponse,
     summary="Schedule a courier intake for a booked shipment",
     dependencies=[_LOGISTICS_WRITE],
 )
 async def create_intake(
-    shipment_id: uuid.UUID,
+    shipment_id: Annotated[uuid.UUID, Path(alias="shipmentId")],
     body: CreateIntakeRequest,
     handler: FromDishka[CreateIntakeHandler],
 ) -> CreateIntakeResponse:
@@ -744,15 +748,15 @@ async def create_intake(
 
 
 @logistics_router.get(
-    path="/intakes/{provider_code}/{provider_intake_id}",
+    path="/intakes/{providerCode}/{providerIntakeId}",
     status_code=status.HTTP_200_OK,
     response_model=IntakeStatusResponse,
     summary="Get intake status from the provider",
     dependencies=[_LOGISTICS_READ],
 )
 async def get_intake_status(
-    provider_code: str,
-    provider_intake_id: str,
+    provider_code: Annotated[str, Path(alias="providerCode")],
+    provider_intake_id: Annotated[str, Path(alias="providerIntakeId")],
     handler: FromDishka[GetIntakeHandler],
 ) -> IntakeStatusResponse:
     result = await handler.handle(
@@ -768,17 +772,17 @@ async def get_intake_status(
 
 
 @logistics_router.delete(
-    path="/intakes/{provider_code}/{provider_intake_id}",
+    path="/intakes/{providerCode}/{providerIntakeId}",
     status_code=status.HTTP_200_OK,
     response_model=CancelIntakeResponse,
     summary="Cancel a scheduled intake",
     dependencies=[_LOGISTICS_WRITE],
 )
 async def cancel_intake(
-    provider_code: str,
-    provider_intake_id: str,
+    provider_code: Annotated[str, Path(alias="providerCode")],
+    provider_intake_id: Annotated[str, Path(alias="providerIntakeId")],
     handler: FromDishka[CancelIntakeHandler],
-    shipment_id: uuid.UUID | None = None,
+    shipment_id: uuid.UUID | None = Query(default=None, alias="shipmentId"),
 ) -> CancelIntakeResponse:
     # ``shipment_id`` is optional but strongly recommended: without
     # it the handler cancels with the carrier but cannot clear
@@ -801,14 +805,14 @@ async def cancel_intake(
 
 
 @logistics_router.get(
-    path="/shipments/{shipment_id}/delivery-intervals",
+    path="/shipments/{shipmentId}/delivery-intervals",
     status_code=status.HTTP_200_OK,
     response_model=DeliveryIntervalsResponse,
     summary="List available delivery intervals for a booked shipment",
     dependencies=[_LOGISTICS_READ],
 )
 async def get_delivery_intervals(
-    shipment_id: uuid.UUID,
+    shipment_id: Annotated[uuid.UUID, Path(alias="shipmentId")],
     handler: FromDishka[GetDeliveryIntervalsHandler],
 ) -> DeliveryIntervalsResponse:
     result = await handler.handle(GetDeliveryIntervalsQuery(shipment_id=shipment_id))
@@ -862,14 +866,14 @@ async def estimate_delivery_intervals(
 
 
 @logistics_router.post(
-    path="/shipments/{shipment_id}/return",
+    path="/shipments/{shipmentId}/return",
     status_code=status.HTTP_201_CREATED,
     response_model=ReturnResponse,
     summary="Register a client return shipment",
     dependencies=[_LOGISTICS_WRITE],
 )
 async def register_client_return(
-    shipment_id: uuid.UUID,
+    shipment_id: Annotated[uuid.UUID, Path(alias="shipmentId")],
     body: ClientReturnRequest,
     handler: FromDishka[RegisterClientReturnHandler],
 ) -> ReturnResponse:
@@ -890,14 +894,14 @@ async def register_client_return(
 
 
 @logistics_router.post(
-    path="/shipments/{shipment_id}/refusal",
+    path="/shipments/{shipmentId}/refusal",
     status_code=status.HTTP_201_CREATED,
     response_model=ReturnResponse,
     summary="Register a doorstep refusal",
     dependencies=[_LOGISTICS_WRITE],
 )
 async def register_refusal(
-    shipment_id: uuid.UUID,
+    shipment_id: Annotated[uuid.UUID, Path(alias="shipmentId")],
     body: RefusalRequestSchema,
     handler: FromDishka[RegisterRefusalHandler],
 ) -> ReturnResponse:
@@ -953,14 +957,14 @@ async def check_reverse_availability(
 
 
 @logistics_router.get(
-    path="/shipments/{shipment_id}/actual-delivery-info",
+    path="/shipments/{shipmentId}/actual-delivery-info",
     status_code=status.HTTP_200_OK,
     response_model=ActualDeliveryInfoResponse,
     summary="Get carrier-confirmed delivery date and interval",
     dependencies=[_LOGISTICS_READ],
 )
 async def get_actual_delivery_info(
-    shipment_id: uuid.UUID,
+    shipment_id: Annotated[uuid.UUID, Path(alias="shipmentId")],
     handler: FromDishka[GetActualDeliveryInfoHandler],
 ) -> ActualDeliveryInfoResponse:
     result = await handler.handle(GetActualDeliveryInfoQuery(shipment_id=shipment_id))
@@ -983,14 +987,14 @@ async def get_actual_delivery_info(
 
 
 @logistics_router.post(
-    path="/shipments/{shipment_id}/edit",
+    path="/shipments/{shipmentId}/edit",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=EditTaskResponse,
     summary="Edit recipient / destination / packages on a booked shipment",
     dependencies=[_LOGISTICS_WRITE],
 )
 async def edit_order(
-    shipment_id: uuid.UUID,
+    shipment_id: Annotated[uuid.UUID, Path(alias="shipmentId")],
     body: EditOrderRequest,
     handler: FromDishka[EditOrderHandler],
 ) -> EditTaskResponse:
@@ -1022,14 +1026,14 @@ async def edit_order(
 
 
 @logistics_router.post(
-    path="/shipments/{shipment_id}/edit-packages",
+    path="/shipments/{shipmentId}/edit-packages",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=EditTaskResponse,
     summary="Replace package layout (async edit task)",
     dependencies=[_LOGISTICS_WRITE],
 )
 async def edit_order_packages(
-    shipment_id: uuid.UUID,
+    shipment_id: Annotated[uuid.UUID, Path(alias="shipmentId")],
     body: EditPackagesRequest,
     handler: FromDishka[EditOrderPackagesHandler],
 ) -> EditTaskResponse:
@@ -1046,14 +1050,14 @@ async def edit_order_packages(
 
 
 @logistics_router.post(
-    path="/shipments/{shipment_id}/edit-items",
+    path="/shipments/{shipmentId}/edit-items",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=EditTaskResponse,
     summary="Patch item articles / marking codes (async edit task)",
     dependencies=[_LOGISTICS_WRITE],
 )
 async def edit_order_items(
-    shipment_id: uuid.UUID,
+    shipment_id: Annotated[uuid.UUID, Path(alias="shipmentId")],
     body: EditOrderItemsRequest,
     handler: FromDishka[EditOrderItemsHandler],
 ) -> EditTaskResponse:
@@ -1077,14 +1081,14 @@ async def edit_order_items(
 
 
 @logistics_router.post(
-    path="/shipments/{shipment_id}/remove-items",
+    path="/shipments/{shipmentId}/remove-items",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=EditTaskResponse,
     summary="Reduce or remove items from a booked shipment (async edit task)",
     dependencies=[_LOGISTICS_WRITE],
 )
 async def remove_order_items(
-    shipment_id: uuid.UUID,
+    shipment_id: Annotated[uuid.UUID, Path(alias="shipmentId")],
     body: RemoveOrderItemsRequest,
     handler: FromDishka[RemoveOrderItemsHandler],
 ) -> EditTaskResponse:
@@ -1107,15 +1111,15 @@ async def remove_order_items(
 
 
 @logistics_router.get(
-    path="/edit-tasks/{provider_code}/{task_id}",
+    path="/edit-tasks/{providerCode}/{taskId}",
     status_code=status.HTTP_200_OK,
     response_model=EditTaskStatusResponse,
     summary="Poll an asynchronous edit task",
     dependencies=[_LOGISTICS_READ],
 )
 async def get_edit_task_status(
-    provider_code: str,
-    task_id: str,
+    provider_code: Annotated[str, Path(alias="providerCode")],
+    task_id: Annotated[str, Path(alias="taskId")],
     handler: FromDishka[GetEditTaskStatusHandler],
 ) -> EditTaskStatusResponse:
     result = await handler.handle(
@@ -1164,7 +1168,7 @@ def _shipment_to_response(shipment: Shipment) -> ShipmentResponse:
         tracking_number=shipment.tracking_number,
         quoted_cost=MoneySchema(
             amount=shipment.quoted_cost.amount,
-            currency_code=shipment.quoted_cost.currency_code,
+            currency=shipment.quoted_cost.currency_code.upper(),
         ),
         latest_tracking_status=(
             shipment.latest_tracking_status.value

@@ -6,9 +6,10 @@ FRD §Supplier Pricing Settings API.
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Path
 
 from src.modules.identity.presentation.dependencies import (
     RequirePermission,
@@ -32,7 +33,7 @@ from src.modules.pricing.presentation.schemas import (
 )
 
 pricing_supplier_settings_router = APIRouter(
-    prefix="/admin/pricing/suppliers/{supplier_id}",
+    prefix="/admin/pricing/suppliers/{supplierId}",
     tags=["Admin / Pricing / Suppliers"],
     route_class=DishkaRoute,
 )
@@ -59,7 +60,7 @@ def _to_response(
     dependencies=[Depends(RequirePermission(codename="pricing:read"))],
 )
 async def get_supplier_pricing_settings(
-    supplier_id: uuid.UUID,
+    supplier_id: Annotated[uuid.UUID, Path(alias="supplierId")],
     handler: FromDishka[GetSupplierPricingSettingsHandler],
 ) -> SupplierPricingSettingsResponse:
     settings = await handler.handle(
@@ -75,7 +76,7 @@ async def get_supplier_pricing_settings(
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def upsert_supplier_pricing_settings(
-    supplier_id: uuid.UUID,
+    supplier_id: Annotated[uuid.UUID, Path(alias="supplierId")],
     body: UpsertSupplierPricingSettingsRequest,
     handler: FromDishka[UpsertSupplierPricingSettingsHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),

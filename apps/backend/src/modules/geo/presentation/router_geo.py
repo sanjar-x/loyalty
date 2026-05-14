@@ -4,8 +4,10 @@ Public read-only endpoints for countries, languages, currencies,
 and subdivisions.  No authentication required — reference data is public.
 """
 
+from typing import Annotated
+
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Path, Query, Response
 
 from src.modules.geo.application.queries.get_country import GetCountryHandler
 from src.modules.geo.application.queries.get_currency import GetCurrencyHandler
@@ -84,7 +86,9 @@ async def list_currencies(
     lang: str | None = Query(
         None, description="Filter translations to this language code"
     ),
-    include_inactive: bool = Query(False, description="Include inactive currencies"),
+    include_inactive: bool = Query(
+        False, description="Include inactive currencies", alias="includeInactive"
+    ),
     offset: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(50, ge=1, le=500, description="Pagination limit"),
 ) -> CurrencyListReadModel:
@@ -107,7 +111,9 @@ async def list_currencies(
 async def list_languages(
     response: Response,
     handler: FromDishka[ListLanguagesHandler],
-    include_inactive: bool = Query(False, description="Include inactive languages"),
+    include_inactive: bool = Query(
+        False, description="Include inactive languages", alias="includeInactive"
+    ),
     offset: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(50, ge=1, le=500, description="Pagination limit"),
 ) -> LanguageListReadModel:
@@ -195,12 +201,12 @@ async def get_subdivision(
 
 
 @geo_router.get(
-    "/countries/{country_code}/currencies",
+    "/countries/{countryCode}/currencies",
     response_model=CurrencyListReadModel,
     summary="List currencies for a country",
 )
 async def list_country_currencies(
-    country_code: str,
+    country_code: Annotated[str, Path(alias="countryCode")],
     response: Response,
     handler: FromDishka[ListCurrenciesHandler],
     lang: str | None = Query(
@@ -221,12 +227,12 @@ async def list_country_currencies(
 
 
 @geo_router.get(
-    "/countries/{country_code}/subdivisions",
+    "/countries/{countryCode}/subdivisions",
     response_model=SubdivisionListReadModel,
     summary="List subdivisions for a country",
 )
 async def list_subdivisions(
-    country_code: str,
+    country_code: Annotated[str, Path(alias="countryCode")],
     response: Response,
     handler: FromDishka[ListSubdivisionsHandler],
     lang: str | None = Query(
@@ -254,12 +260,12 @@ async def list_subdivisions(
 
 
 @geo_router.get(
-    "/districts/{district_id}",
+    "/districts/{districtId}",
     response_model=DistrictReadModel,
     summary="Get a district by UUID",
 )
 async def get_district(
-    district_id: str,
+    district_id: Annotated[str, Path(alias="districtId")],
     response: Response,
     handler: FromDishka[GetDistrictHandler],
     lang: str | None = Query(
@@ -273,12 +279,12 @@ async def get_district(
 
 
 @geo_router.get(
-    "/subdivisions/{subdivision_code}/districts",
+    "/subdivisions/{subdivisionCode}/districts",
     response_model=DistrictListReadModel,
     summary="List districts for a subdivision",
 )
 async def list_districts(
-    subdivision_code: str,
+    subdivision_code: Annotated[str, Path(alias="subdivisionCode")],
     response: Response,
     handler: FromDishka[ListDistrictsHandler],
     lang: str | None = Query(

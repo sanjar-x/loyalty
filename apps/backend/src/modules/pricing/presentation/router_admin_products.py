@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Path, status
 
 from src.modules.identity.presentation.dependencies import (
     RequirePermission,
@@ -44,13 +45,13 @@ pricing_profile_router = APIRouter(
 
 
 @pricing_profile_router.get(
-    "/{product_id}/profile",
+    "/{productId}/profile",
     response_model=ProductPricingProfileResponse,
     summary="Get pricing profile for a product",
     dependencies=[Depends(RequirePermission(codename="pricing:read"))],
 )
 async def get_profile(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     handler: FromDishka[GetProductPricingProfileHandler],
     _identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> ProductPricingProfileResponse:
@@ -71,13 +72,13 @@ async def get_profile(
 
 
 @pricing_profile_router.put(
-    "/{product_id}/profile",
+    "/{productId}/profile",
     response_model=UpsertProductPricingProfileResponse,
     summary="Create or update the pricing profile for a product",
     dependencies=[Depends(RequirePermission(codename="pricing:manage"))],
 )
 async def upsert_profile(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     body: UpsertProductPricingProfileRequest,
     handler: FromDishka[UpsertProductPricingProfileHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),
@@ -102,13 +103,13 @@ async def upsert_profile(
 
 
 @pricing_profile_router.delete(
-    "/{product_id}/profile",
+    "/{productId}/profile",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Soft-delete the pricing profile for a product",
     dependencies=[Depends(RequirePermission(codename="pricing:admin"))],
 )
 async def delete_profile(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     handler: FromDishka[DeleteProductPricingProfileHandler],
     identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> None:
@@ -121,13 +122,13 @@ async def delete_profile(
 
 
 @pricing_profile_router.get(
-    "/{product_id}/profile/required-variables",
+    "/{productId}/profile/required-variables",
     response_model=RequiredVariablesResponse,
     summary="List product_input variables required for this product's pricing profile",
     dependencies=[Depends(RequirePermission(codename="pricing:read"))],
 )
 async def get_required_variables(
-    product_id: uuid.UUID,
+    product_id: Annotated[uuid.UUID, Path(alias="productId")],
     handler: FromDishka[GetRequiredVariablesHandler],
     _identity_id: uuid.UUID = Depends(get_current_identity_id),
 ) -> RequiredVariablesResponse:
