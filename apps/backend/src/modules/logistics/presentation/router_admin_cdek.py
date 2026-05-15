@@ -192,6 +192,12 @@ async def list_cdek_order_intakes(
     summary="Download the CDEK barcode label (ШК места) PDF",
     dependencies=[_CDEK_READ],
     response_class=Response,
+    # ``Response`` is not a Pydantic model — explicit ``response_model=None``
+    # prevents FastAPI from building a TypeAdapter from the ``-> Response``
+    # return annotation, which under ``from __future__ import annotations``
+    # becomes ``ForwardRef('Response')`` and crashes OpenAPI schema
+    # generation with ``PydanticUserError: ... is not fully defined``.
+    response_model=None,
 )
 async def download_cdek_barcode(
     shipment_id: Annotated[str, Path(alias="shipmentId")],
