@@ -138,18 +138,74 @@ class CdekBookingProvider:
         )
 
     async def cancel_shipment(self, provider_shipment_id: str) -> CancelResult:
+        """Cancel a CDEK order, picking the right endpoint by lifecycle.
+
+        CDEK splits cancellation across two endpoints:
+
+        * ``DELETE /v2/orders/{uuid}`` («Удаление заказа») — valid only
+          while the order is still in «Создан» (no warehouse movement).
+        * ``POST /v2/orders/{uuid}/refusal`` («Регистрация отказа») —
+          valid in any status up to «Вручен» / «Не вручен», and the
+          operative call once the parcel is already moving.
+
+        We try DELETE first and transparently fall back to refusal when
+        CDEK rejects it, so the caller gets one "cancel" verb regardless
+        of how far the order has progressed. Both failure reasons are
+        surfaced when neither path works.
+        """
+        delete_result = await self._try_delete(provider_shipment_id)
+        if delete_result.success:
+            return delete_result
+
+        # DELETE rejected — the order has likely left «Создан». Fall back
+        # to the refusal endpoint, which covers the rest of the lifecycle.
+        logger.info(
+            "cdek_cancel_delete_rejected_falling_back_to_refusal",
+            provider_shipment_id=provider_shipment_id,
+            delete_reason=delete_result.reason,
+        )
+        refusal_result = await self._try_refusal(provider_shipment_id)
+        if refusal_result.success:
+            return refusal_result
+
+        return CancelResult(
+            success=False,
+            reason=(
+                f"delete: {delete_result.reason or 'failed'}; "
+                f"refusal: {refusal_result.reason or 'failed'}"
+            ),
+        )
+
+    async def _try_delete(self, provider_shipment_id: str) -> CancelResult:
+        """Attempt ``DELETE /v2/orders/{uuid}`` (only valid in «Создан»)."""
         try:
             data = await self._client.delete_order(provider_shipment_id)
         except ProviderHTTPError as exc:
             return CancelResult(success=False, reason=str(exc))
+        return _cancel_result_from_requests(data)
 
-        requests = data.get("requests", [])
-        for req in requests:
-            if req.get("state") == "INVALID":
-                errors = req.get("errors", [])
-                error_msgs = "; ".join(
-                    f"{e.get('code', '')}: {e.get('message', '')}" for e in errors
-                )
-                return CancelResult(success=False, reason=error_msgs)
+    async def _try_refusal(self, provider_shipment_id: str) -> CancelResult:
+        """Attempt ``POST /v2/orders/{uuid}/refusal`` (rest of lifecycle)."""
+        try:
+            data = await self._client.register_refusal(provider_shipment_id, None)
+        except ProviderHTTPError as exc:
+            return CancelResult(success=False, reason=str(exc))
+        return _cancel_result_from_requests(data)
 
-        return CancelResult(success=True)
+
+def _cancel_result_from_requests(data: dict) -> CancelResult:
+    """Translate a CDEK async-envelope into a ``CancelResult``.
+
+    CDEK's DELETE / refusal endpoints return ``202`` with a ``requests``
+    array; an ``INVALID`` request entry means the operation was rejected
+    (e.g. the order is past «Создан» for DELETE). An empty / all-accepted
+    ``requests`` array is treated as success.
+    """
+    for req in data.get("requests", []):
+        if req.get("state") == "INVALID":
+            errors = req.get("errors", [])
+            error_msgs = "; ".join(
+                f"{e.get('code', '')}: {e.get('message', '')}" for e in errors
+            )
+            return CancelResult(success=False, reason=error_msgs or "INVALID")
+    return CancelResult(success=True)

@@ -112,6 +112,7 @@ from src.modules.logistics.domain.interfaces import (
     IShippingProviderRegistry,
     ISkuWeightResolver,
 )
+from src.modules.logistics.domain.value_objects import PROVIDER_CDEK
 from src.modules.logistics.infrastructure.adapters.origin_address_resolver import (
     ProviderAccountOriginResolver,
 )
@@ -122,6 +123,9 @@ from src.modules.logistics.infrastructure.adapters.pricing_weight_adapter import
     PricingWeightAdapter,
 )
 from src.modules.logistics.infrastructure.bootstrap import bootstrap_registry
+from src.modules.logistics.infrastructure.providers.cdek.admin_service import (
+    CdekAdminService,
+)
 from src.modules.logistics.infrastructure.repositories.delivery_quote import (
     DeliveryQuoteRepository,
 )
@@ -302,3 +306,27 @@ class LogisticsQueryProvider(Provider):
     get_provider_account: CompositeDependencySource = provide(
         GetProviderAccountHandler, scope=Scope.REQUEST
     )
+
+
+class LogisticsCdekAdminProvider(Provider):
+    """DI provider for the CDEK-specific admin facade.
+
+    ``CdekAdminService`` is REQUEST-scoped: it loads the active CDEK
+    provider account fresh on every admin request — so credential /
+    config edits take effect immediately, with no registry-refresh
+    dance — and closes its short-lived ``CdekClient`` when the request
+    ends. When no active CDEK account exists the service is built
+    unconfigured and its operations raise ``ProviderUnavailableError``.
+    """
+
+    @provide(scope=Scope.REQUEST)
+    async def cdek_admin_service(
+        self,
+        account_repo: IProviderAccountRepository,
+    ) -> AsyncIterator[CdekAdminService]:
+        account = await account_repo.get_active_by_provider_code(PROVIDER_CDEK)
+        service = CdekAdminService.from_account(account)
+        try:
+            yield service
+        finally:
+            await service.close()

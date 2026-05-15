@@ -42,6 +42,9 @@ from src.modules.logistics.infrastructure.providers.cdek.document_provider impor
 from src.modules.logistics.infrastructure.providers.cdek.intake_provider import (
     CdekIntakeProvider,
 )
+from src.modules.logistics.infrastructure.providers.cdek.order_edit_provider import (
+    CdekOrderEditProvider,
+)
 from src.modules.logistics.infrastructure.providers.cdek.pickup_point_provider import (
     CdekPickupPointProvider,
 )
@@ -169,10 +172,34 @@ class CdekProviderFactory:
     def create_edit_provider(
         self, credentials: dict[str, Any], config: dict[str, Any] | None = None
     ) -> IEditProvider | None:
-        # CDEK has POST /v2/orders/{uuid} (update_order) but its semantics
-        # differ markedly from Yandex's async edit-task pipeline; we keep
-        # the capability Yandex-only for now.
+        # CDEK's PATCH /v2/orders has no async edit-task pipeline, so it
+        # does not fit the ``IEditProvider`` contract (shaped around
+        # Yandex's ``EditTaskResult`` / ``get_edit_status`` poll loop).
+        # CDEK order editing is exposed as a CDEK-local capability via
+        # ``create_order_edit_provider`` instead, reached by the CDEK
+        # admin router rather than the carrier-agnostic registry.
         return None
+
+    def create_order_edit_provider(
+        self, credentials: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> CdekOrderEditProvider:
+        """Create the CDEK-specific order-edit provider (``PATCH /v2/orders``).
+
+        Not part of ``IProviderFactory`` — CDEK order editing is a
+        CDEK-local capability (see :meth:`create_edit_provider`).
+        """
+        return CdekOrderEditProvider(self._get_or_create_client(credentials, config))
+
+    def get_client(
+        self, credentials: dict[str, Any], config: dict[str, Any] | None = None
+    ) -> CdekClient:
+        """Return the cached ``CdekClient`` for these credentials.
+
+        Public accessor over the per-credential client cache — used by
+        registry bootstrap to run the idempotent webhook-subscription
+        sync on the same client the capability adapters share.
+        """
+        return self._get_or_create_client(credentials, config)
 
     async def close(self) -> None:
         """Close all cached HTTP clients.

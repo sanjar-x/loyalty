@@ -249,6 +249,16 @@ class CdekClient:
         )
         return resp.json()
 
+    async def change_intake_status(self, body: dict) -> dict:
+        """PATCH /v2/intakes — move an active intake to "требует обработки".
+
+        Body is an ``IntakeChangeStatusDto``: ``{"uuid", "status":
+        {"code", "add_status"}}``. Used to flag an intake for extra
+        handling (re-call the sender, request documents).
+        """
+        resp = await self._provider_client.request("PATCH", "/v2/intakes", json=body)
+        return resp.json()
+
     # ------------------------------------------------------------------ #
     # Print — waybills + barcodes                                         #
     # ------------------------------------------------------------------ #
@@ -511,5 +521,29 @@ class CdekClient:
         """GET /v2/registries — shipment registries info."""
         resp = await self._provider_client.request(
             "GET", "/v2/registries", params=params
+        )
+        return resp.json()
+
+    async def check_package_restrictions(self, body: dict) -> dict:
+        """POST /v2/international/package/restrictions — international limits.
+
+        Returns per-package / per-item ``FORBIDDEN`` / ``LIMITED`` /
+        ``ALLOWED`` hints for a direction + tariff. Body is a
+        ``RestrictionHintsRequestDto`` (``tariff_code``, ``from_location``,
+        ``to_location``, ``packages``).
+        """
+        resp = await self._provider_client.request(
+            "POST", "/v2/international/package/restrictions", json=body
+        )
+        return resp.json()
+
+    async def get_ready_photos(self, body: dict) -> dict:
+        """POST /v2/photoDocument — orders with ready-to-download photos.
+
+        Body is a ``PhotoRequestDto``: either a ``period_begin`` /
+        ``period_end`` window or an explicit ``orders`` list.
+        """
+        resp = await self._provider_client.request(
+            "POST", "/v2/photoDocument", json=body
         )
         return resp.json()

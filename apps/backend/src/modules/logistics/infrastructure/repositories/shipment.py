@@ -198,23 +198,63 @@ class ShipmentRepository(IShipmentRepository):
         ``COALESCE`` preserves whichever side has non-null text so
         a sparse late event does not overwrite a richer existing
         one — only blanks get filled.
+
+        M-2: pre-M-2 every event on the aggregate was sent on every
+        commit, relying on ``ON CONFLICT DO UPDATE`` to no-op the
+        unchanged ones. That wasted N upserts per webhook ingest and
+        contended row locks on ``uq_tracking_events_shipment_ts_status``
+        under concurrent webhook+poll. We now pre-fetch the current
+        ``(timestamp, status)`` keys plus their text fields and upsert
+        only events that are genuinely new or whose in-memory copy
+        carries richer info than what is persisted.
         """
-        new_rows: list[dict] = [
-            {
-                "shipment_id": entity.id,
-                "status": event.status,
-                "provider_status_code": event.provider_status_code,
-                "provider_status_name": event.provider_status_name,
-                "timestamp": event.timestamp,
-                "location": event.location,
-                "description": event.description,
-            }
-            for event in entity.tracking_events
-        ]
-        if not new_rows:
+        if not entity.tracking_events:
             return
 
-        stmt = pg_insert(ShipmentTrackingEventModel).values(new_rows)
+        existing_stmt = select(
+            ShipmentTrackingEventModel.timestamp,
+            ShipmentTrackingEventModel.status,
+            ShipmentTrackingEventModel.location,
+            ShipmentTrackingEventModel.description,
+            ShipmentTrackingEventModel.provider_status_name,
+        ).where(ShipmentTrackingEventModel.shipment_id == entity.id)
+        existing_rows = (await self._session.execute(existing_stmt)).all()
+        # Normalise the status column (Enum binding may return either
+        # the enum or its string value) so the key compares cleanly to
+        # the entity's ``TrackingStatus``.
+        existing: dict[
+            tuple[object, TrackingStatus],
+            tuple[str | None, str | None, str | None],
+        ] = {}
+        for ts, status, loc, desc, name in existing_rows:
+            key_status = (
+                status if isinstance(status, TrackingStatus) else TrackingStatus(status)
+            )
+            existing[(ts, key_status)] = (loc, desc, name)
+
+        rows_to_upsert: list[dict] = []
+        for event in entity.tracking_events:
+            db_row = existing.get((event.timestamp, event.status))
+            if db_row is None:
+                # New (timestamp, status) — needs INSERT.
+                rows_to_upsert.append(_tracking_event_row(event, entity.id))
+                continue
+            # Already in DB — only upsert if our in-memory event has
+            # richer location / description / provider_status_name
+            # (mirrors the COALESCE-merge below and the in-memory
+            # ``Shipment._has_richer_info`` predicate).
+            db_loc, db_desc, db_name = db_row
+            if (
+                _is_richer(event.location, db_loc)
+                or _is_richer(event.description, db_desc)
+                or _is_richer(event.provider_status_name, db_name)
+            ):
+                rows_to_upsert.append(_tracking_event_row(event, entity.id))
+
+        if not rows_to_upsert:
+            return
+
+        stmt = pg_insert(ShipmentTrackingEventModel).values(rows_to_upsert)
         excluded = stmt.excluded
         stmt = stmt.on_conflict_do_update(
             constraint="uq_tracking_events_shipment_ts_status",
@@ -332,6 +372,15 @@ class ShipmentRepository(IShipmentRepository):
             item_weight = None
             if item_data.get("weight"):
                 item_weight = Weight(grams=item_data["weight"]["grams"])
+            # M-2: round-trip all ParcelItem fields, not just the
+            # basic set. The CDEK booking request requires
+            # marking/brand/material/country/etc. for marked goods
+            # (jewelry → cargo_type=80, tobacco, footwear) and for
+            # international orders — dropping them on reload silently
+            # caused CDEK to reject every retry path that rebuilt
+            # ``BookingRequest`` from the persisted aggregate.
+            # ``cargo_types`` is ``tuple[str, ...]`` on the VO; attrs
+            # serialises it as a list, so we coerce back on load.
             items.append(
                 ParcelItem(
                     name=item_data["name"],
@@ -341,6 +390,12 @@ class ShipmentRepository(IShipmentRepository):
                     weight=item_weight,
                     country_of_origin=item_data.get("country_of_origin"),
                     hs_code=item_data.get("hs_code"),
+                    marking_code=item_data.get("marking_code"),
+                    brand=item_data.get("brand"),
+                    material=item_data.get("material"),
+                    name_i18n=item_data.get("name_i18n"),
+                    product_url=item_data.get("product_url"),
+                    cargo_types=tuple(item_data.get("cargo_types") or ()),
                 )
             )
 
@@ -479,3 +534,35 @@ class ShipmentRepository(IShipmentRepository):
                 else None
             ),
         )
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers — _sync_tracking_events
+# ---------------------------------------------------------------------------
+
+
+def _tracking_event_row(event: TrackingEvent, shipment_id: uuid.UUID) -> dict:
+    """Build a row dict suitable for ``pg_insert(ShipmentTrackingEventModel)``."""
+    return {
+        "shipment_id": shipment_id,
+        "status": event.status,
+        "provider_status_code": event.provider_status_code,
+        "provider_status_name": event.provider_status_name,
+        "timestamp": event.timestamp,
+        "location": event.location,
+        "description": event.description,
+    }
+
+
+def _is_richer(new_val: str | None, existing_val: str | None) -> bool:
+    """``True`` if ``new_val`` should overwrite ``existing_val`` (richer text).
+
+    Mirrors :func:`src.modules.logistics.domain.entities._has_richer_info`
+    — the persistence-side decision must match the in-memory one so the
+    aggregate's ``REPLACED`` outcome lands on disk consistently.
+    """
+    if not new_val:
+        return False
+    if not existing_val:
+        return True
+    return len(new_val) > len(existing_val)

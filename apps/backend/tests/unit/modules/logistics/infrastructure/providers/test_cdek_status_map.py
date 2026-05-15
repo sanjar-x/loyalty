@@ -1,7 +1,19 @@
 """
-Regression tests: CDEK status code map covers the full Приложение 15
-status set, so no real-world status falls through to ``EXCEPTION`` by
-accident.
+Regression tests for the CDEK status map.
+
+Two safety properties this test pins down (M-1, Wave 1):
+
+* Unknown CDEK statuses fall back to **non-terminal** ``IN_TRANSIT`` —
+  not ``EXCEPTION``. CDEK extends Приложение 1 over time; the previous
+  ``EXCEPTION`` fallback combined with the FSM auto-transition hook in
+  ``Shipment.append_tracking_event`` used to auto-FAIL a shipment the
+  first time the carrier reported any new status code.
+
+* ``RETURNED_TO_SENDER_CITY_WAREHOUSE`` and
+  ``RETURNED_TO_TRANSIT_WAREHOUSE`` are **waystations** on the return
+  leg, mapped to ``IN_TRANSIT`` — the parcel is still moving and may
+  later land in the terminal ``RETURNED`` state. They are no longer
+  ``EXCEPTION``.
 """
 
 from __future__ import annotations
@@ -44,7 +56,10 @@ pytestmark = pytest.mark.unit
         ("INVALID", TrackingStatus.EXCEPTION),
         ("DELETED", TrackingStatus.CANCELLED),
         ("RETURNED_TO_SENDER", TrackingStatus.RETURNED),
-        ("RETURNED_TO_SENDER_CITY_WAREHOUSE", TrackingStatus.EXCEPTION),
+        # Return waystations — parcel still in motion, not a terminal
+        # failure (was EXCEPTION pre-M-1; auto-FAIL'd live returns).
+        ("RETURNED_TO_SENDER_CITY_WAREHOUSE", TrackingStatus.IN_TRANSIT),
+        ("RETURNED_TO_TRANSIT_WAREHOUSE", TrackingStatus.IN_TRANSIT),
     ],
 )
 def test_known_codes_map_to_expected_status(
@@ -53,6 +68,24 @@ def test_known_codes_map_to_expected_status(
     assert cdek_status_to_tracking(code) is expected
 
 
-def test_unknown_codes_fall_back_to_exception() -> None:
-    assert cdek_status_to_tracking("MYSTERY_CODE") is TrackingStatus.EXCEPTION
-    assert cdek_status_to_tracking("") is TrackingStatus.EXCEPTION
+def test_unknown_codes_fall_back_to_in_transit() -> None:
+    """Pre-M-1 the fallback was ``EXCEPTION`` — and EXCEPTION is in
+    ``TERMINAL_FAILURE_TRACKING_STATUSES``, so the FSM auto-transition
+    in ``Shipment.append_tracking_event`` would mark the shipment FAILED
+    the first time CDEK extended Приложение 1. We now fall back to
+    non-terminal ``IN_TRANSIT`` and log a warning instead.
+    """
+    assert cdek_status_to_tracking("MYSTERY_CODE") is TrackingStatus.IN_TRANSIT
+    assert cdek_status_to_tracking("") is TrackingStatus.IN_TRANSIT
+
+
+def test_in_transit_is_not_a_terminal_failure_status() -> None:
+    """Guard against accidental re-classification of IN_TRANSIT as terminal
+    (which would re-introduce the M-1 bug by the back door)."""
+    from src.modules.logistics.domain.value_objects import (
+        TERMINAL_CANCEL_TRACKING_STATUSES,
+        TERMINAL_FAILURE_TRACKING_STATUSES,
+    )
+
+    assert TrackingStatus.IN_TRANSIT not in TERMINAL_FAILURE_TRACKING_STATUSES
+    assert TrackingStatus.IN_TRANSIT not in TERMINAL_CANCEL_TRACKING_STATUSES

@@ -32,14 +32,21 @@ from src.modules.logistics.domain.value_objects import (
     PickupPointType,
     ShippingRate,
     TrackingEvent,
+    TrackingStatus,
 )
 from src.modules.logistics.infrastructure.providers.cdek.constants import (
     CDEK_ORDER_TYPE_DELIVERY,
     CDEK_ORDER_TYPE_ONLINE_STORE,
     CDEK_SERVICE_COD,
     CDEK_SERVICE_INSURANCE,
+    CDEK_WEBHOOK_DELIV_PROBLEM,
+    CDEK_WEBHOOK_ORDER_MODIFIED,
+    CDEK_WEBHOOK_ORDER_STATUS,
     cdek_currency_for,
     cdek_delivery_mode_to_type,
+    cdek_delivery_problem_label,
+    cdek_reason_code_label,
+    cdek_status_name,
     cdek_status_to_tracking,
 )
 from src.modules.logistics.infrastructure.providers.errors import (
@@ -176,8 +183,18 @@ def _resolve_order_type(origin: Address) -> int:
     return CDEK_ORDER_TYPE_ONLINE_STORE
 
 
-def parse_tariff_list_response(data: dict) -> list[DeliveryQuote]:
+def parse_tariff_list_response(
+    data: dict,
+    *,
+    requested_currency_iso: str = _RUB,
+) -> list[DeliveryQuote]:
     """Parse CDEK ``/v2/calculator/tarifflist`` response into DeliveryQuote list.
+
+    ``requested_currency_iso`` is the ISO 4217 currency the calculator
+    priced in — CDEK's ``tarifflist`` response does **not** echo the
+    currency back, so the caller (``CdekRateProvider``) threads it from
+    the request body. Every ``Money`` on the resulting quotes is labelled
+    with this currency instead of being hard-coded to RUB.
 
     Raises ``ProviderHTTPError`` if the response contains ``errors``.
     Logs any ``warnings`` from the CDEK response.
@@ -211,10 +228,12 @@ def parse_tariff_list_response(data: dict) -> list[DeliveryQuote]:
             service_name=tariff.get("tariff_name", f"CDEK tariff {tariff_code}"),
             delivery_type=delivery_type,
             total_cost=Money(
-                amount=_rubles_to_kopecks(delivery_sum), currency_code=_RUB
+                amount=_rubles_to_kopecks(delivery_sum),
+                currency_code=requested_currency_iso,
             ),
             base_cost=Money(
-                amount=_rubles_to_kopecks(delivery_sum), currency_code=_RUB
+                amount=_rubles_to_kopecks(delivery_sum),
+                currency_code=requested_currency_iso,
             ),
             delivery_days_min=tariff.get("period_min"),
             delivery_days_max=tariff.get("period_max"),
@@ -249,25 +268,67 @@ def parse_tariff_list_response(data: dict) -> list[DeliveryQuote]:
 # ---------------------------------------------------------------------------
 
 
+# ``provider_payload`` key carrying the CDEK-specific order-creation
+# extras that don't fit the carrier-agnostic ``BookingRequest`` VO
+# (seller, comment, additional services, customs fields, ...). Populated
+# upstream by the CDEK admin shipment-creation flow; absent for plain
+# quote-based bookings, where the order is built from the VO alone.
+_PAYLOAD_ORDER_EXTRAS_KEY = "cdek_order"
+
+# ``cdek_order`` fields safe to pass through verbatim — they already
+# match the CDEK ``OrderCreateRequestDto`` schema.
+_ORDER_EXTRA_PASSTHROUGH = (
+    "comment",
+    "seller",
+    "delivery_recipient_cost",
+    "delivery_recipient_cost_adv",
+    "date_invoice",
+    "shipper_name",
+    "shipper_address",
+    "is_client_return",
+    "has_reverse_order",
+    "print",
+)
+
+
 def build_order_request(request: BookingRequest) -> dict:
-    """Build CDEK ``POST /v2/orders`` request body from a BookingRequest."""
+    """Build a CDEK ``POST /v2/orders`` request body from a BookingRequest.
+
+    The carrier-agnostic ``BookingRequest`` VO covers the common fields
+    (route, contacts, parcels, COD, declared value). CDEK-specific
+    extras — истинный продавец (``seller``), ``comment``,
+    ``additional_order_types`` (incl. code 15 «ТО для последней мили»),
+    the full additional-services catalogue, ``delivery_recipient_cost``,
+    customs fields and per-item ``weight_gross`` / ``jewel_uin`` — are
+    read from an optional ``cdek_order`` block inside
+    ``provider_payload`` so the domain layer stays untouched.
+    """
     payload_data = (
         json.loads(request.provider_payload) if request.provider_payload else {}
     )
+    if not isinstance(payload_data, dict):
+        payload_data = {}
+    extras = payload_data.get(_PAYLOAD_ORDER_EXTRAS_KEY)
+    if not isinstance(extras, dict):
+        extras = {}
+
     tariff_code = payload_data.get("tariff_code")
     if tariff_code is None:
         tariff_code = int(request.service_code)
+
+    item_extras = extras.get("items")
+    item_extras = item_extras if isinstance(item_extras, dict) else {}
 
     body: dict = {
         "type": _resolve_order_type(request.origin),
         "number": str(request.shipment_id),
         "tariff_code": tariff_code,
-        "recipient": _build_contact(request.recipient),
-        "packages": _build_packages(request.parcels),
+        "recipient": _build_contact(request.recipient, extras=extras.get("recipient")),
+        "packages": _build_packages(request.parcels, item_extras=item_extras),
     }
 
     if request.sender:
-        body["sender"] = _build_contact(request.sender)
+        body["sender"] = _build_contact(request.sender, extras=extras.get("sender"))
 
     # Location handling: use delivery_point or to_location based on delivery type
     if request.delivery_type == DeliveryType.PICKUP_POINT:
@@ -286,16 +347,11 @@ def build_order_request(request: BookingRequest) -> dict:
         body["from_location"] = _build_location(request.origin)
 
     # COD (cash on delivery) — naloženyj platëž for the *goods*.
-    # ``services[COD].parameter`` is the cash amount the courier collects
-    # from the recipient (i.e. price of the items). It must NOT be conflated
-    # with ``delivery_recipient_cost`` (which is the delivery fee). Setting
-    # both to the same value used to cause double-charging — they are now
-    # populated independently:
-    #   - ``services[COD].parameter`` ← request.cod.amount (goods cash)
-    #   - ``delivery_recipient_cost``  ← shipping fee, only when explicitly
-    #     attached to the parcel via Money in declared_value.metadata
-    #     (CDEK uses it when the merchant collects the delivery fee from
-    #     the recipient on top of the goods).
+    # ``services[COD].parameter`` is the cash the courier collects from
+    # the recipient (price of the items). It must NOT be conflated with
+    # ``delivery_recipient_cost`` (the delivery fee) — that one is set
+    # explicitly via the ``cdek_order`` extras block when the merchant
+    # charges shipping to the recipient on top of the goods.
     if request.cod:
         body.setdefault("services", []).append(
             {
@@ -314,11 +370,65 @@ def build_order_request(request: BookingRequest) -> dict:
             }
         )
 
+    _apply_order_extras(body, extras)
     return body
 
 
-def _build_contact(contact: ContactInfo) -> dict:
-    """Build a CDEK contact dict from a ContactInfo VO."""
+def _apply_order_extras(body: dict, extras: dict) -> None:
+    """Merge the optional ``cdek_order`` extras block into the order body.
+
+    Verbatim pass-through for fields that already match CDEK's schema;
+    ``additional_order_types`` is normalised to a list of ints;
+    ``services`` is merged with the auto-derived INSURANCE / COD entries
+    so an explicitly-requested SMS / packaging / тепловой-режим service
+    survives alongside them.
+    """
+    for key in _ORDER_EXTRA_PASSTHROUGH:
+        value = extras.get(key)
+        if value is not None:
+            body[key] = value
+
+    raw_types = extras.get("additional_order_types")
+    if isinstance(raw_types, list):
+        order_types: list[int] = []
+        for entry in raw_types:
+            try:
+                order_types.append(int(entry))
+            except TypeError, ValueError:
+                continue
+        if order_types:
+            body["additional_order_types"] = order_types
+
+    extra_services = extras.get("services")
+    if isinstance(extra_services, list):
+        merged = body.setdefault("services", [])
+        for svc in extra_services:
+            if isinstance(svc, dict) and svc.get("code"):
+                merged.append(svc)
+
+
+# CDEK ``ContactDto`` fields with no home on the carrier-agnostic
+# ``ContactInfo`` VO — supplied via the ``cdek_order.{sender,recipient}``
+# payload sub-dict for international orders / ЮЛ-ФЛ distinction.
+_CONTACT_EXTRA_FIELDS = (
+    "contragent_type",
+    "passport_series",
+    "passport_number",
+    "passport_date_of_issue",
+    "passport_organization",
+    "passport_date_of_birth",
+    "tin",
+    "passport_requirements_satisfied",
+)
+
+
+def _build_contact(contact: ContactInfo, *, extras: dict | None = None) -> dict:
+    """Build a CDEK contact dict from a ContactInfo VO.
+
+    ``extras`` (from ``cdek_order.{sender,recipient}``) supplies the CDEK
+    ``ContactDto`` fields the domain VO does not carry — ``contragent_type``
+    (ЮЛ/ФЛ) and the passport block required for international orders.
+    """
     result: dict = {"name": contact.full_name}
     if contact.phone:
         result["phones"] = [{"number": contact.phone}]
@@ -326,6 +436,11 @@ def _build_contact(contact: ContactInfo) -> dict:
         result["email"] = contact.email
     if contact.company_name:
         result["company"] = contact.company_name
+    if isinstance(extras, dict):
+        for field in _CONTACT_EXTRA_FIELDS:
+            value = extras.get(field)
+            if value is not None:
+                result[field] = value
     return result
 
 
@@ -361,8 +476,20 @@ def _build_location(address: Address) -> dict:
     return loc
 
 
-def _build_packages(parcels: list[Parcel]) -> list[dict]:
-    """Build CDEK packages list from domain Parcels."""
+# Per-item CDEK fields with no home on the domain ``ParcelItem`` VO,
+# keyed by ``ware_key`` in the ``cdek_order.items`` payload sub-dict.
+_ITEM_EXTRA_FIELDS = ("weight_gross", "jewel_uin", "excise", "used")
+
+
+def _build_packages(
+    parcels: list[Parcel], *, item_extras: dict | None = None
+) -> list[dict]:
+    """Build CDEK packages list from domain Parcels.
+
+    ``item_extras`` maps a ``ware_key`` to the CDEK item fields the
+    domain VO doesn't carry (``weight_gross``, ``jewel_uin``, ...).
+    """
+    item_extras = item_extras if isinstance(item_extras, dict) else {}
     packages = []
     for i, parcel in enumerate(parcels, start=1):
         pkg: dict = {
@@ -377,12 +504,21 @@ def _build_packages(parcels: list[Parcel]) -> list[dict]:
             pkg["comment"] = parcel.description
         if parcel.items:
             count = len(parcel.items)
-            pkg["items"] = [_build_item(item, parcel, count) for item in parcel.items]
+            pkg["items"] = [
+                _build_item(item, parcel, count, item_extras=item_extras)
+                for item in parcel.items
+            ]
         packages.append(pkg)
     return packages
 
 
-def _build_item(item: ParcelItem, parcel: Parcel, item_count: int) -> dict:
+def _build_item(
+    item: ParcelItem,
+    parcel: Parcel,
+    item_count: int,
+    *,
+    item_extras: dict | None = None,
+) -> dict:
     """Build a CDEK package item dict from a ParcelItem.
 
     ``cost`` is REQUIRED by CDEK — defaults to 0 if ``unit_price`` is absent.
@@ -390,7 +526,9 @@ def _build_item(item: ParcelItem, parcel: Parcel, item_count: int) -> dict:
 
     Marking/brand/material/name_i18n/product_url are forwarded only when
     populated — CDEK requires them for marked-goods categories (jewelry,
-    tobacco, footwear) and for cross-border orders.
+    tobacco, footwear) and for cross-border orders. ``item_extras`` adds
+    the CDEK-only fields (``weight_gross``, ``jewel_uin``, ``excise``,
+    ``used``) keyed by ``ware_key``.
     """
     if item.weight:
         item_weight = item.weight.grams
@@ -424,6 +562,13 @@ def _build_item(item: ParcelItem, parcel: Parcel, item_count: int) -> dict:
         result["name_i18n"] = item.name_i18n
     if item.product_url:
         result["url"] = item.product_url
+
+    extra = item_extras.get(result["ware_key"]) if item_extras else None
+    if isinstance(extra, dict):
+        for field in _ITEM_EXTRA_FIELDS:
+            value = extra.get(field)
+            if value is not None:
+                result[field] = value
     return result
 
 
@@ -489,6 +634,25 @@ def parse_order_info_response(data: dict) -> BookingResult:
             currency_code=_RUB,
         )
 
+    # Observability: surface delivery problems / delay reasons that
+    # ``BookingResult`` has no typed slot for. The full payload is still
+    # carried in ``provider_response_payload`` for the admin layer; this
+    # log makes them visible without anyone decoding the blob.
+    problems = parse_order_delivery_problems(entity)
+    delay_reasons = [
+        r.get("description")
+        for r in (entity.get("delay_reasons") or [])
+        if isinstance(r, dict) and r.get("description")
+    ]
+    if problems or delay_reasons:
+        logger.warning(
+            "cdek_order_info_has_issues",
+            provider_shipment_id=provider_shipment_id,
+            cdek_number=cdek_number,
+            delivery_problems=problems,
+            delay_reasons=delay_reasons,
+        )
+
     return BookingResult(
         provider_shipment_id=provider_shipment_id,
         tracking_number=tracking_number,
@@ -498,29 +662,104 @@ def parse_order_info_response(data: dict) -> BookingResult:
     )
 
 
+def parse_order_related_entities(data: dict) -> list[dict]:
+    """Extract CDEK ``related_entities`` from an order-info / webhook payload.
+
+    CDEK links a forward order to its ``return_order`` / ``reverse_order``
+    / ``client_return_order`` / ``waybill`` / ``barcode`` / ``delivery``
+    siblings here. The carrier-agnostic ``BookingResult`` VO has no slot
+    for them, so this standalone extractor lets the CDEK admin layer
+    resolve those links (e.g. attach a return shipment) without
+    re-parsing the raw blob.
+
+    Each entry is normalised to ``{"type", "cdek_number", "uuid", "url"}``
+    with missing keys dropped.
+    """
+    entity = data.get("entity", data)
+    if not isinstance(entity, dict):
+        return []
+    raw = entity.get("related_entities")
+    if not isinstance(raw, list):
+        return []
+    out: list[dict] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        normalised = {
+            k: entry[k]
+            for k in ("type", "cdek_number", "uuid", "url", "create_time")
+            if entry.get(k)
+        }
+        if normalised:
+            out.append(normalised)
+    return out
+
+
+def parse_order_delivery_problems(entity: dict) -> list[dict]:
+    """Extract CDEK ``delivery_problem`` entries, decoding the problem code.
+
+    Accepts either a full order-info payload or its ``entity`` sub-dict.
+    Each entry is normalised to ``{"code", "label", "create_date"}``.
+    """
+    if not isinstance(entity, dict):
+        return []
+    nested = entity.get("entity")
+    inner = nested if isinstance(nested, dict) else entity
+    raw = inner.get("delivery_problem")
+    if not isinstance(raw, list):
+        return []
+    out: list[dict] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        code = str(entry.get("code", ""))
+        out.append(
+            {
+                "code": code,
+                "label": cdek_delivery_problem_label(code) or code,
+                "create_date": entry.get("create_date"),
+            }
+        )
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Tracking event mapper
 # ---------------------------------------------------------------------------
 
 
 def parse_tracking_events(statuses: list[dict]) -> list[TrackingEvent]:
-    """Parse CDEK order statuses into domain TrackingEvent list."""
+    """Parse CDEK order statuses (Приложение 1) into domain TrackingEvents.
+
+    CDEK statuses carry an optional ``reason_code`` (Приложение 2) that
+    explains *why* a parcel is being returned / was not delivered. The
+    raw integer is decoded via :func:`cdek_reason_code_label` and folded
+    into ``TrackingEvent.description`` so operators see the cause
+    (e.g. "Не вручён — Отказ от получения: передумал") without
+    cross-referencing the appendix. ``provider_status_name`` falls back
+    to the Приложение 1 label when CDEK omits ``name``.
+    """
     events: list[TrackingEvent] = []
     for status in statuses:
+        if not isinstance(status, dict):
+            continue
         code = status.get("code", "")
         if status.get("deleted"):
             continue
         timestamp_str = status.get("date_time")
         if not timestamp_str:
             continue
+        name = status.get("name") or cdek_status_name(code)
+        reason_label = cdek_reason_code_label(status.get("reason_code"))
+        description = f"{name} — {reason_label}" if reason_label else name
         events.append(
             TrackingEvent(
                 status=cdek_status_to_tracking(code),
                 provider_status_code=code,
-                provider_status_name=status.get("name", ""),
+                provider_status_name=name,
                 timestamp=_parse_cdek_datetime(timestamp_str),
                 location=status.get("city"),
-                description=status.get("name"),
+                description=description,
             )
         )
     return events
@@ -684,53 +923,130 @@ def build_delivery_points_params(
 
 
 def parse_webhook_body(body: bytes) -> list[tuple[str, list[TrackingEvent]]]:
-    """Parse CDEK ORDER_STATUS webhook body.
+    """Parse a CDEK webhook body into (provider_shipment_id, events) pairs.
 
-    CDEK sends::
+    Dispatches on the webhook ``type`` (CDEK API v2 webhook structure):
 
-        {
-            "type": "ORDER_STATUS",
-            "date_time": "...",
-            "uuid": "...",
-            "attributes": {
-                "is_return": false,
-                "cdek_number": "...",
-                "number": "...",
-                "status_code": "...",
-                "status_date_time": "...",
-                "city_name": "...",
-                "code": "..."
-            }
-        }
+    * ``ORDER_STATUS`` — a carrier status transition → one TrackingEvent.
+      ``code`` is preferred over the documented-deprecated
+      ``status_code``; ``status_reason_code`` (Приложение 2) is decoded
+      into the event description.
+    * ``DELIV_PROBLEM`` — a courier-side delivery problem (Приложение 3)
+      → one ``ATTEMPT_FAILED`` TrackingEvent carrying the problem label.
+      Non-terminal, so the shipment FSM is not dragged to FAILED.
+    * ``ORDER_MODIFIED`` — price / planned-date / mode drift. There is no
+      tracking-timeline representation for it, so it is logged for
+      observability and produces no event. Fully reacting to it (e.g.
+      syncing ``Shipment.quoted_cost`` on ``DELIVERY_SUM_CHANGED``) needs
+      a domain channel beyond ``IWebhookAdapter`` and is intentionally
+      out of scope here.
+    * Everything else (``PRINT_FORM``, ``DELIV_AGREEMENT``,
+      ``ACCOMPANYING_WAYBILL``, ``OFFICE_AVAILABILITY``, ``COURIER_INFO``,
+      ``PREALERT_CLOSED``, ``RECEIPT``) — logged and skipped.
 
-    Returns list of (provider_shipment_id, [TrackingEvent]). When
-    ``attributes.is_return`` is ``true``, the event belongs to the
-    *return* shipment, not the original order — we currently skip such
-    events to avoid overwriting the forward shipment's tracking. Wiring
-    them into a separate ``return_shipments`` aggregate is left to a
-    dedicated returns flow.
+    Return-flow ``ORDER_STATUS`` events (``attributes.is_return == true``)
+    are skipped: they belong to a separate return order and would
+    otherwise corrupt the forward shipment's tracking history.
     """
     data = json.loads(body)
-    webhook_attrs = data.get("attributes", {})
+    if not isinstance(data, dict):
+        return []
 
-    # Skip return-flow events — they belong to a separate (return) order
-    # and would otherwise corrupt the forward shipment's tracking history.
-    if webhook_attrs.get("is_return") is True:
+    event_type = data.get("type", "")
+    if event_type == CDEK_WEBHOOK_ORDER_STATUS:
+        return _parse_order_status_webhook(data)
+    if event_type == CDEK_WEBHOOK_DELIV_PROBLEM:
+        return _parse_deliv_problem_webhook(data)
+    if event_type == CDEK_WEBHOOK_ORDER_MODIFIED:
+        _log_order_modified(data)
+        return []
+
+    logger.info(
+        "cdek_webhook_type_skipped",
+        event_type=event_type or "<missing>",
+        uuid=data.get("uuid"),
+    )
+    return []
+
+
+def _parse_order_status_webhook(
+    data: dict,
+) -> list[tuple[str, list[TrackingEvent]]]:
+    """Parse an ``ORDER_STATUS`` webhook into a single TrackingEvent."""
+    attrs = data.get("attributes", {})
+    if not isinstance(attrs, dict):
+        return []
+    # Return-flow events belong to a separate return order.
+    if attrs.get("is_return") is True:
         return []
 
     cdek_uuid = data.get("uuid", "")
-    status_code = webhook_attrs.get("status_code", webhook_attrs.get("code", ""))
-    status_datetime = webhook_attrs.get("status_date_time") or data.get("date_time", "")
-
-    if not status_code or not cdek_uuid:
+    # ``code`` is the canonical status code; ``status_code`` is
+    # documented-deprecated — prefer ``code`` and only fall back.
+    status_code = attrs.get("code") or attrs.get("status_code") or ""
+    status_datetime = attrs.get("status_date_time") or data.get("date_time", "")
+    if not status_code or not cdek_uuid or not status_datetime:
         return []
+
+    name = cdek_status_name(status_code)
+    reason_label = cdek_reason_code_label(attrs.get("status_reason_code"))
+    description = f"{name} — {reason_label}" if reason_label else name
 
     event = TrackingEvent(
         status=cdek_status_to_tracking(status_code),
         provider_status_code=status_code,
-        provider_status_name=webhook_attrs.get("status_reason_code", status_code),
+        provider_status_name=name,
         timestamp=_parse_cdek_datetime(status_datetime),
-        location=webhook_attrs.get("city_name"),
-        description=None,
+        location=attrs.get("city_name"),
+        description=description,
     )
     return [(cdek_uuid, [event])]
+
+
+def _parse_deliv_problem_webhook(
+    data: dict,
+) -> list[tuple[str, list[TrackingEvent]]]:
+    """Parse a ``DELIV_PROBLEM`` webhook into one ATTEMPT_FAILED event.
+
+    A delivery problem is a failed delivery attempt that CDEK will
+    retry — it maps cleanly onto the non-terminal ``ATTEMPT_FAILED``
+    tracking status, so it surfaces on the shipment timeline without
+    forcing the FSM into a terminal state.
+    """
+    attrs = data.get("attributes", {})
+    if not isinstance(attrs, dict):
+        return []
+    cdek_uuid = data.get("uuid", "")
+    timestamp_str = attrs.get("create_date") or data.get("date_time", "")
+    if not cdek_uuid or not timestamp_str:
+        return []
+
+    problem_code = str(attrs.get("code", ""))
+    problem_label = cdek_delivery_problem_label(problem_code) or "Проблема доставки"
+    provider_code = f"DELIV_PROBLEM:{problem_code}" if problem_code else "DELIV_PROBLEM"
+    event = TrackingEvent(
+        status=TrackingStatus.ATTEMPT_FAILED,
+        provider_status_code=provider_code,
+        provider_status_name=problem_label,
+        timestamp=_parse_cdek_datetime(timestamp_str),
+        location=None,
+        description=f"Проблема доставки: {problem_label}",
+    )
+    return [(cdek_uuid, [event])]
+
+
+def _log_order_modified(data: dict) -> None:
+    """Log an ``ORDER_MODIFIED`` webhook for observability (no event emitted)."""
+    attrs = data.get("attributes", {})
+    if not isinstance(attrs, dict):
+        attrs = {}
+    new_value = attrs.get("new_value")
+    if not isinstance(new_value, dict):
+        new_value = {}
+    logger.info(
+        "cdek_webhook_order_modified",
+        uuid=data.get("uuid"),
+        modification_type=attrs.get("modification_type"),
+        new_value_type=new_value.get("type"),
+        new_value=new_value.get("value"),
+    )

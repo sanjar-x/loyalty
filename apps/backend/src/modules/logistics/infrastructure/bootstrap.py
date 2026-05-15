@@ -22,6 +22,9 @@ from src.modules.logistics.infrastructure.models import ProviderAccountModel
 from src.modules.logistics.infrastructure.providers.cdek.factory import (
     CdekProviderFactory,
 )
+from src.modules.logistics.infrastructure.providers.cdek.webhook_subscriptions import (
+    ensure_webhook_subscriptions,
+)
 from src.modules.logistics.infrastructure.providers.dobropost.factory import (
     DobroPostProviderFactory,
 )
@@ -127,6 +130,9 @@ async def bootstrap_registry(
             account.id,
         )
 
+        if code == PROVIDER_CDEK and isinstance(factory, CdekProviderFactory):
+            await _ensure_cdek_webhooks(factory, credentials, config)
+
     # Hold factory references on the registry's lifecycle so cached
     # ``httpx.AsyncClient`` instances are closed at app shutdown rather
     # than leaking until process exit.
@@ -186,3 +192,37 @@ def _register_capabilities(
     edit = factory.create_edit_provider(credentials, config)
     if edit is not None:
         registry.register_edit_provider(edit)
+
+
+async def _ensure_cdek_webhooks(
+    factory: CdekProviderFactory,
+    credentials: dict[str, Any],
+    config: dict[str, Any],
+) -> None:
+    """Best-effort idempotent CDEK webhook-subscription sync at bootstrap.
+
+    Opt-in — only runs when the CDEK account ``config`` carries a
+    ``webhook_url``. A CDEK outage here must never block app startup, so
+    every failure is logged and swallowed; the operator can always
+    re-sync via ``POST /admin/logistics/cdek/webhooks/sync``. The sync
+    itself is idempotent (see :func:`ensure_webhook_subscriptions`), so
+    running it on every worker boot is safe.
+    """
+    webhook_url = config.get("webhook_url")
+    if not webhook_url:
+        return
+    try:
+        client = factory.get_client(credentials, config)
+        result = await ensure_webhook_subscriptions(client, webhook_url)
+        logger.info(
+            "CDEK webhook subscriptions synced at bootstrap "
+            "(created=%s, already_present=%s, not_created=%s)",
+            result.created,
+            result.already_present,
+            result.not_created,
+        )
+    except Exception:
+        logger.exception(
+            "CDEK webhook auto-subscribe failed — continuing startup; "
+            "re-sync via POST /admin/logistics/cdek/webhooks/sync"
+        )

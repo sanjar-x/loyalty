@@ -2,11 +2,13 @@
 
 from src.bootstrap.module_registry import ModuleManifest
 from src.modules.logistics.infrastructure.provider import (
+    LogisticsCdekAdminProvider,
     LogisticsCommandProvider,
     LogisticsInfraProvider,
     LogisticsQueryProvider,
 )
 from src.modules.logistics.presentation.router_admin import logistics_admin_router
+from src.modules.logistics.presentation.router_admin_cdek import cdek_admin_router
 from src.modules.logistics.presentation.router_admin_shipments import (
     logistics_router as logistics_admin_shipments_router,
 )
@@ -21,11 +23,13 @@ LOGISTICS_MODULE = ModuleManifest(
         LogisticsInfraProvider(),
         LogisticsCommandProvider(),
         LogisticsQueryProvider(),
+        LogisticsCdekAdminProvider(),
     ),
     customer_routers=(logistics_storefront_router,),
     admin_routers=(
         logistics_admin_router,
         logistics_admin_shipments_router,
+        cdek_admin_router,
     ),
     webhook_routers=(webhook_router,),
     task_modules=("src.modules.logistics.infrastructure.tasks",),

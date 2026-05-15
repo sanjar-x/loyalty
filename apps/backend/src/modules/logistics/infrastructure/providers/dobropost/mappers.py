@@ -28,6 +28,7 @@ from src.modules.logistics.domain.value_objects import (
 )
 from src.modules.logistics.infrastructure.providers.dobropost.constants import (
     DOBROPOST_INFO_ONLY_STATUS_IDS,
+    DOBROPOST_STATUS_MAP,
     dobropost_name_to_status_id,
     dobropost_status_to_tracking,
 )
@@ -192,6 +193,21 @@ def parse_list_shipment_response(
         if not status_id:
             continue
         if status_id in DOBROPOST_INFO_ONLY_STATUS_IDS:
+            continue
+        # Symmetric with parse_status_update_event: an unknown ``status_id``
+        # means DobroPost extended their catalogue. The webhook path drops
+        # such events (``dobropost_name_to_status_id`` returns ``None``);
+        # the poll path must do the same instead of letting
+        # ``dobropost_status_to_tracking`` fall back to ``EXCEPTION``,
+        # which would auto-FAIL a live shipment via the FSM hook in
+        # ``Shipment.append_tracking_event``.
+        if status_id not in DOBROPOST_STATUS_MAP:
+            logger.warning(
+                "dobropost_unknown_status_id_poll",
+                status_id=status_id,
+                status_name=status_name,
+                dp_id=dp_id,
+            )
             continue
         # Skip rows where DobroPost omits/garbles statusDate — same
         # rationale as parse_status_update_event: a fake timestamp
