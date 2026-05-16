@@ -117,12 +117,14 @@ class AcceptStaffInvitationHandler:
             if invitation is None:
                 raise InvitationNotFoundError()
 
-            # Validate invitation FIRST (status + expiry) — fail fast before side effects
+            # Build the new staff identity. ``invitation.accept`` is a pure
+            # domain mutation (status + accepted_identity_id), so it's safe
+            # to call before persistence. The accompanying SQL UPDATE on
+            # ``staff_invitations.accepted_identity_id`` is a FK reference to
+            # ``identities(id)`` — it MUST happen *after* the identity row
+            # is flushed, otherwise asyncpg raises ForeignKeyViolationError
+            # at the first repo.update() flush (production bug 2026-05-16).
             identity = Identity.register_staff()
-            invitation.accept(identity.id)
-            await self._invitation_repo.update(invitation)
-
-            # Persist identity and credentials (only after invitation is validated)
             now = datetime.now(UTC)
             credentials = LocalCredentials(
                 identity_id=identity.id,
@@ -133,6 +135,11 @@ class AcceptStaffInvitationHandler:
             )
             await self._identity_repo.add(identity)
             await self._identity_repo.add_credentials(credentials)
+
+            # Now the identity row exists in the session — safe to set the
+            # FK on the invitation row and flush its update.
+            invitation.accept(identity.id)
+            await self._invitation_repo.update(invitation)
 
             # Assign pre-defined roles (validate each still exists)
             for role_id in invitation.role_ids:
