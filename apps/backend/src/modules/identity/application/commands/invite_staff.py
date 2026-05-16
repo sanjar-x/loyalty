@@ -4,16 +4,19 @@ import secrets
 import uuid
 from dataclasses import dataclass
 
+from src.bootstrap.config import settings
 from src.modules.identity.domain.entities import StaffInvitation
 from src.modules.identity.domain.exceptions import (
     ActiveInvitationExistsError,
     IdentityAlreadyExistsError,
+    InvitationRoleAccountTypeMismatchError,
 )
 from src.modules.identity.domain.interfaces import (
     IIdentityRepository,
     IRoleRepository,
     IStaffInvitationRepository,
 )
+from src.modules.identity.domain.value_objects import AccountType
 from src.shared.exceptions import NotFoundError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -88,7 +91,10 @@ class InviteStaffHandler:
             if existing:
                 raise ActiveInvitationExistsError()
 
-            # Validate all roles exist
+            # Validate all roles exist AND target STAFF accounts (CR fix).
+            # A customer-only role would later be rejected by
+            # ``Identity.assign_role`` at accept-time, leaving a useless
+            # pending invitation on the dashboard. Fail fast at invite.
             for role_id in command.role_ids:
                 role = await self._role_repo.get(role_id)
                 if role is None:
@@ -96,14 +102,22 @@ class InviteStaffHandler:
                         message=f"Role {role_id} not found",
                         error_code="ROLE_NOT_FOUND",
                     )
+                if (
+                    role.target_account_type is not None
+                    and role.target_account_type != AccountType.STAFF
+                ):
+                    raise InvitationRoleAccountTypeMismatchError(role_id=role_id)
 
-            # Create invitation
+            # Create invitation. TTL is driven by settings so ops can
+            # tighten or extend the window without a deploy of the
+            # domain layer.
             raw_token = secrets.token_urlsafe(32)
             invitation = StaffInvitation.create(
                 email=command.email,
                 invited_by=command.invited_by,
                 role_ids=command.role_ids,
                 raw_token=raw_token,
+                ttl_hours=settings.STAFF_INVITATION_TTL_HOURS,
             )
             await self._invitation_repo.add(invitation)
             self._uow.register_aggregate(invitation)

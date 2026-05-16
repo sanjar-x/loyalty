@@ -69,6 +69,18 @@ class Settings(BaseSettings):
     # Restore when an absolute-cap policy lands in identity.
     TELEGRAM_SESSION_IDLE_TIMEOUT_MINUTES: int = Field(default=1440, gt=0)
 
+    # Staff invitation flow ------------------------------------------------
+    # Base URL of the admin panel UI — used to build the full /invite/<token>
+    # link returned by the staff invitation endpoints (createInvite / resend).
+    # Empty default for local dev where invitee opens the link manually on
+    # localhost; prod sets this to https://admin.host so the URL is
+    # copy-pasteable straight into Slack / email by the inviting admin.
+    ADMIN_PANEL_BASE_URL: str = ""
+    # Time-to-live for staff invitations. Default 72h mirrors the prior
+    # hard-coded value in ``StaffInvitation.create()``; ops can shorten
+    # it for tighter security or extend it during onboarding waves.
+    STAFF_INVITATION_TTL_HOURS: int = Field(default=72, gt=0)
+
     CORS_ORIGINS: Annotated[list[str] | str, BeforeValidator(parse_cors)] = []
 
     SYSTEM_USER_ID: uuid.UUID = uuid.UUID(int=0)
@@ -230,6 +242,16 @@ class Settings(BaseSettings):
     PAYMENT_PROVIDER: Literal["fake", "yookassa", "sbp", "tinkoff"] = "fake"
     PAYMENT_SIMULATION_ENABLED: bool = True
     PAYMENT_AUTH_TTL_DAYS: int = Field(default=7, gt=0)  # Visa-стандарт hold
+    # Skip-payment short-circuit (REC-XYZ — temporary until real PSP lands).
+    # When True, ``CreateOrderFromCartHandler`` captures the PaymentIntent
+    # immediately after authorize and transitions the Order PENDING→PAID
+    # inside the same UoW. The customer flow appears as "оформлено без
+    # оплаты" — no PSP redirect, no client_secret round-trip. Flip this
+    # to ``False`` once a real PSP (YooKassa/SBP/Tinkoff) is wired and
+    # PaymentCapturedEvent must come from a webhook instead.
+    # Hard-coupled to ``PAYMENT_PROVIDER="fake"`` for safety: a real
+    # provider call cannot be auto-captured without a successful charge.
+    PAYMENT_AUTO_CAPTURE_ON_AUTHORIZE: bool = True
 
     # -- DobroPost (cross-border) ------------------------------------------
     DOBROPOST_BASE_URL: str = "https://api.dobropost.com"

@@ -3879,6 +3879,55 @@
         }
       }
     },
+    "/api/v1/admin/staff/invitations/{invitationId}/resend": {
+      "post": {
+        "tags": [
+          "Admin / Staff"
+        ],
+        "summary": "Re-send a staff invitation (revoke existing, mint a new token)",
+        "description": "Re-send a staff invitation.\n\nRevokes the existing (PENDING) invitation if any, then mints a\nnew one with the same email + role assignments, a fresh CSPRNG\ntoken, and a refreshed TTL pulled from ``STAFF_INVITATION_TTL_HOURS``.\nThe old token stops working as soon as the source flips to REVOKED;\nthe new invitation appears on the dashboard as a separate row\n(different ``id``) so the audit trail keeps both events.\n\nFails 409 when the source is already ACCEPTED (cannot re-send to\nan active account) and 400 when any source role has since been\nre-targeted away from ``STAFF`` (CR — fail fast instead of\nleaving an unusable invitation on the dashboard).",
+        "operationId": "resend_invitation_api_v1_admin_staff_invitations__invitationId__resend_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invitationid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteStaffResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/staff/{identityId}": {
       "get": {
         "tags": [
@@ -23707,6 +23756,12 @@
           "currency": {
             "type": "string",
             "title": "Currency"
+          },
+          "autoCaptured": {
+            "type": "boolean",
+            "title": "Autocaptured",
+            "description": "When true, the PaymentIntent was already captured server-side and the Order is already in PAID state. Frontend should skip the PSP redirect / confirmation widget and navigate straight to the order detail page. Driven by ``Settings.PAYMENT_AUTO_CAPTURE_ON_AUTHORIZE`` — true while no real PSP is wired.",
+            "default": false
           }
         },
         "type": "object",

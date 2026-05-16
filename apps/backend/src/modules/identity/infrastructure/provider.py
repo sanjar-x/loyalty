@@ -34,6 +34,9 @@ from src.modules.identity.application.commands.reactivate_identity import (
 )
 from src.modules.identity.application.commands.refresh_token import RefreshTokenHandler
 from src.modules.identity.application.commands.register import RegisterHandler
+from src.modules.identity.application.commands.resend_staff_invitation import (
+    ResendStaffInvitationHandler,
+)
 from src.modules.identity.application.commands.revoke_role import RevokeRoleHandler
 from src.modules.identity.application.commands.revoke_staff_invitation import (
     RevokeStaffInvitationHandler,
@@ -312,6 +315,9 @@ class IdentityProvider(Provider):
     )
     accept_staff_invitation_handler: CompositeDependencySource = provide(
         AcceptStaffInvitationHandler, scope=Scope.REQUEST
+    )
+    resend_staff_invitation_handler: CompositeDependencySource = provide(
+        ResendStaffInvitationHandler, scope=Scope.REQUEST
     )
     revoke_staff_invitation_handler: CompositeDependencySource = provide(
         RevokeStaffInvitationHandler, scope=Scope.REQUEST

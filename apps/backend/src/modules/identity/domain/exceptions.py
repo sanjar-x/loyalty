@@ -4,12 +4,15 @@ Each exception maps to a specific HTTP status code and machine-readable error
 code, enabling consistent API error responses across the identity bounded context.
 """
 
+import uuid
+
 from src.shared.exceptions import (
     AppException,
     ConflictError,
     ForbiddenError,
     NotFoundError,
     UnauthorizedError,
+    ValidationError,
 )
 
 
@@ -244,6 +247,29 @@ class ActiveInvitationExistsError(ConflictError):
         super().__init__(
             message="Active invitation for this email already exists",
             error_code="ACTIVE_INVITATION_EXISTS",
+        )
+
+
+class InvitationRoleAccountTypeMismatchError(ValidationError):
+    """Raised when invite-staff is given a role that targets a different account type.
+
+    Customer-only roles (``target_account_type=CUSTOMER``) cannot be
+    pre-assigned through the staff invitation flow — the invitee will
+    be provisioned as ``STAFF`` and the role check at
+    ``Identity.assign_role`` would later reject it. We fail fast at
+    invite time with a 400 instead of surfacing the conflict only when
+    the invitee tries to accept (which would leave a useless pending
+    invitation on the dashboard).
+    """
+
+    def __init__(self, *, role_id: uuid.UUID) -> None:
+        super().__init__(
+            message=(
+                f"Role {role_id} cannot be assigned through the staff "
+                "invitation flow — its target_account_type is not STAFF"
+            ),
+            error_code="INVITATION_ROLE_ACCOUNT_TYPE_MISMATCH",
+            details={"role_id": str(role_id)},
         )
 
 

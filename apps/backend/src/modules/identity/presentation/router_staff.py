@@ -15,6 +15,7 @@ from typing import Annotated
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Path, Query
 
+from src.bootstrap.config import settings
 from src.modules.identity.application.commands.admin_deactivate_identity import (
     AdminDeactivateIdentityCommand,
     AdminDeactivateIdentityHandler,
@@ -26,6 +27,10 @@ from src.modules.identity.application.commands.invite_staff import (
 from src.modules.identity.application.commands.reactivate_identity import (
     ReactivateIdentityCommand,
     ReactivateIdentityHandler,
+)
+from src.modules.identity.application.commands.resend_staff_invitation import (
+    ResendStaffInvitationCommand,
+    ResendStaffInvitationHandler,
 )
 from src.modules.identity.application.commands.revoke_staff_invitation import (
     RevokeStaffInvitationCommand,
@@ -67,6 +72,23 @@ staff_admin_router = APIRouter(
     route_class=DishkaRoute,
     dependencies=[Depends(RequireStaffRole)],
 )
+
+
+def _invite_url(raw_token: str) -> str:
+    """Build the full /invite/<token> URL for the admin to forward.
+
+    Falls back to a relative ``/invite/<token>`` when
+    ``ADMIN_PANEL_BASE_URL`` is not configured — keeps local-dev
+    setups (no public hostname) working without forcing every
+    developer to set the env var. Trailing slash on the base URL is
+    stripped so ``/invite/...`` always renders cleanly.
+    """
+    base = (
+        settings.ADMIN_PANEL_BASE_URL.rstrip("/")
+        if settings.ADMIN_PANEL_BASE_URL
+        else ""
+    )
+    return f"{base}/invite/{raw_token}"
 
 
 # ---------------------------------------------------------------------------
@@ -175,7 +197,7 @@ async def invite_staff(
     )
     return InviteStaffResponse(
         invitation_id=result.invitation_id,
-        invite_url=f"/invite/{result.raw_token}",
+        invite_url=_invite_url(result.raw_token),
     )
 
 
@@ -252,6 +274,43 @@ async def revoke_invitation(
         )
     )
     return MessageResponse(message="Invitation revoked")
+
+
+@staff_admin_router.post(
+    "/invitations/{invitationId}/resend",
+    response_model=InviteStaffResponse,
+    summary="Re-send a staff invitation (revoke existing, mint a new token)",
+    dependencies=[Depends(RequirePermission("staff:invite"))],
+)
+async def resend_invitation(
+    invitation_id: Annotated[uuid.UUID, Path(alias="invitationId")],
+    handler: FromDishka[ResendStaffInvitationHandler],
+    auth: Auth,
+) -> InviteStaffResponse:
+    """Re-send a staff invitation.
+
+    Revokes the existing (PENDING) invitation if any, then mints a
+    new one with the same email + role assignments, a fresh CSPRNG
+    token, and a refreshed TTL pulled from ``STAFF_INVITATION_TTL_HOURS``.
+    The old token stops working as soon as the source flips to REVOKED;
+    the new invitation appears on the dashboard as a separate row
+    (different ``id``) so the audit trail keeps both events.
+
+    Fails 409 when the source is already ACCEPTED (cannot re-send to
+    an active account) and 400 when any source role has since been
+    re-targeted away from ``STAFF`` (CR — fail fast instead of
+    leaving an unusable invitation on the dashboard).
+    """
+    result = await handler.handle(
+        ResendStaffInvitationCommand(
+            invitation_id=invitation_id,
+            requested_by=auth.identity_id,
+        )
+    )
+    return InviteStaffResponse(
+        invitation_id=result.invitation_id,
+        invite_url=_invite_url(result.raw_token),
+    )
 
 
 # ---------------------------------------------------------------------------
