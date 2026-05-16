@@ -9958,6 +9958,37 @@
         }
       }
     },
+    "/api/v1/storefront/logistics/rates/quote": {
+      "post": {
+        "tags": ["Storefront / Logistics"],
+        "summary": "Quote delivery for a chosen pickup point (Mini App checkout)",
+        "description": "Customer-facing single-quote endpoint for the checkout flow.\n\nFrontend (Mini App) supplies cart SKUs and the marker the user\nclicked (``provider_code`` + ``pickup_point_external_id``). The\nhandler reconstructs weight / origin / destination server-side and\nreturns a price-and-ETA line plus a ``quote_id`` the upcoming\nplace-order call will exchange for a booked shipment.\n\nMirrors the admin endpoint at ``/api/v1/admin/logistics/rates/quote``\non the same handler — the URL split keeps the staff back office and\nthe customer checkout on different namespaces, with the admin side\nadditionally gated by ``RequireStaffRole``.",
+        "operationId": "quote_for_pickup_point_api_v1_storefront_logistics_rates_quote_post",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RateQuoteRequest" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/RateQuoteResponse" } }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
     "/api/v1/admin/logistics/provider-accounts": {
       "get": {
         "tags": ["Admin / Logistics / Provider Accounts"],
@@ -15486,7 +15517,12 @@
             "minLength": 8,
             "title": "Idempotencykey"
           },
-          "paymentProvider": { "type": "string", "title": "Paymentprovider", "default": "fake" }
+          "paymentProvider": { "type": "string", "title": "Paymentprovider", "default": "fake" },
+          "deliveryQuoteId": {
+            "anyOf": [{ "type": "string", "format": "uuid" }, { "type": "null" }],
+            "title": "Deliveryquoteid",
+            "description": "Server-trusted id of the quote returned by /storefront/logistics/rates/quote. When present the priced shipping amount is included in the payment authorization. Omit for orders without a priced shipping line (legacy clients)."
+          }
         },
         "type": "object",
         "required": ["cartId", "snapshotId", "idempotencyKey"],

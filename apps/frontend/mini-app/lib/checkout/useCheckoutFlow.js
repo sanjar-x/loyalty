@@ -7,21 +7,31 @@ import {
   useGetMyCartQuery,
   useGetRateQuoteMutation,
   useInitiateCheckoutMutation,
-  useConfirmCheckoutMutation,
+  useCreateOrderMutation,
   useCancelCheckoutMutation,
   useRemoveCartItemMutation,
   useAddCartItemMutation,
   useCreateRecipientMutation,
 } from '@/lib/store/api';
 import { toast } from '@/lib/ui/toast';
-import { normalizeApiError, isQuoteExpiredError, isProviderRetryableError } from '@/lib/api/errors';
+import {
+  normalizeApiError,
+  isQuoteExpiredError,
+  isProviderRetryableError,
+  isCurrencyMismatchError,
+} from '@/lib/api/errors';
 import { useCheckoutStore, CheckoutStatus } from './store';
 import { parseRuDate } from './dateFormat';
 import { PHONE_FORMATS } from './validators';
 import { restoreCartItems } from './cartRollback';
 import { pickProviderErrorMessage } from './quoteErrorMessage';
+import { mapRateQuoteResponseToQuote } from './quoteMapper';
 import { acquireInflight, releaseInflight, ensureKey, resetKey } from './idempotency';
-import { clearPendingIdempotencyKey, INITIATE_CHECKOUT_URL } from '@/lib/store/api';
+import {
+  clearPendingIdempotencyKey,
+  INITIATE_CHECKOUT_URL,
+  CREATE_ORDER_URL,
+} from '@/lib/store/api';
 
 // Cyrillic → Latin minimal transliteratsiya (GOST 7.79 system B sodda variant).
 // Backend `fullNameLat` shipper hujjatlariga yozadi (e.g. CDEK customs declaration).
@@ -119,6 +129,7 @@ export function useCheckoutFlow() {
   const setAttempt = useCheckoutStore((s) => s.setAttempt);
   const beginConfirm = useCheckoutStore((s) => s.beginConfirm);
   const setOrder = useCheckoutStore((s) => s.setOrder);
+  const setPayment = useCheckoutStore((s) => s.setPayment);
   const markCancelled = useCheckoutStore((s) => s.markCancelled);
   const setError = useCheckoutStore((s) => s.setError);
   const setSelectedRecipientId = useCheckoutStore((s) => s.setSelectedRecipientId);
@@ -128,7 +139,7 @@ export function useCheckoutFlow() {
 
   const [getRateQuote] = useGetRateQuoteMutation();
   const [initiateCheckout] = useInitiateCheckoutMutation();
-  const [confirmCheckout] = useConfirmCheckoutMutation();
+  const [createOrder] = useCreateOrderMutation();
   const [cancelCheckout] = useCancelCheckoutMutation();
   const [removeCartItem] = useRemoveCartItemMutation();
   const [addCartItem] = useAddCartItemMutation();
@@ -195,75 +206,118 @@ export function useCheckoutFlow() {
 
   /* ── Quote pipeline ── */
 
+  // CHK-024 latest-wins: oldingi inflight quote so'rovini bekor qiladi
+  // (foydalanuvchi PVZ'ni tezda almashtirsa, faqat oxirgi javob saqlanadi).
+  // RTKQ mutation trigger qaytargan object'da `.abort()` mavjud.
+  const inflightQuoteRef = useRef(null);
+
   /**
    * Pickup-point tanlangandan keyin avtomatik chaqiriladi (yoki manual).
-   * Spec §8.2: snake_case body, weight/origin/destination — server-trusted.
+   * Spec §8.2: weight/origin/destination — server-trusted.
+   *
+   * `overrides.serviceCode` — fallbackAlternatives tarif tanlash uchun
+   * (toggle); null/undefined bo'lsa provider eng arzon tarifni qaytaradi.
    */
-  const refreshQuote = useCallback(async () => {
-    if (!pickup?.externalId || !pickup?.providerCode) {
-      setError({ code: 'PICKUP_REQUIRED', message: 'Выберите пункт выдачи' });
-      return null;
-    }
-    // CHK-018 Layer A: cart RTKQ hali javob bermagan bo'lsa skip qilamiz
-    // — selectedItems bo'sh ko'rinishi mumkin, "Корзина пуста" false-positive
-    // toast'iga olib keladi. Cart yuklangach `useCallback` deps yangilanadi
-    // (`cart` ref o'zgaradi) → QUOTING effect refreshQuote'ni qayta chaqiradi.
-    if (cart === undefined) return null;
-    const itemsForQuote = selectedItems
-      .map((it) => ({
-        skuId: String(it.skuId),
-        quantity: Math.max(1, Math.floor(Number(it.quantity || 1))),
-      }))
-      .filter((x) => x.skuId);
-    if (itemsForQuote.length === 0) {
-      setError({ code: 'EMPTY_CART', message: 'Корзина пуста' });
-      return null;
-    }
-    try {
-      const resp = await getRateQuote({
+  const refreshQuote = useCallback(
+    async (overrides = {}) => {
+      if (!pickup?.externalId || !pickup?.providerCode) {
+        setError({ code: 'PICKUP_REQUIRED', message: 'Выберите пункт выдачи' });
+        return null;
+      }
+      // CHK-018 Layer A: cart RTKQ hali javob bermagan bo'lsa skip qilamiz
+      // — selectedItems bo'sh ko'rinishi mumkin, "Корзина пуста" false-positive
+      // toast'iga olib keladi. Cart yuklangach `useCallback` deps yangilanadi
+      // (`cart` ref o'zgaradi) → QUOTING effect refreshQuote'ni qayta chaqiradi.
+      if (cart === undefined) return null;
+      const itemsForQuote = selectedItems
+        .map((it) => ({
+          skuId: String(it.skuId),
+          quantity: Math.max(1, Math.floor(Number(it.quantity || 1))),
+        }))
+        .filter((x) => x.skuId);
+      if (itemsForQuote.length === 0) {
+        setError({ code: 'EMPTY_CART', message: 'Корзина пуста' });
+        return null;
+      }
+      // Tarif tanlovi (fallbackAlternatives): explicit `overrides.serviceCode`
+      // ustun; aks holda auto-refresh joriy `quote.serviceCode`'ni saqlaydi.
+      const serviceCode =
+        typeof overrides?.serviceCode === 'string' && overrides.serviceCode
+          ? overrides.serviceCode
+          : (quote?.serviceCode ?? null);
+      // Oldingi inflight'ni bekor qilamiz — RTKQ `AbortError` qaytaradi,
+      // pastdagi catch uni `name === 'AbortError'` orqali ignore qiladi
+      // (`clearQuote` chaqirilmaydi, status QUOTING saqlanadi keyingi
+      // refreshQuote tezda kelishini kutib).
+      if (inflightQuoteRef.current?.abort) {
+        try {
+          inflightQuoteRef.current.abort();
+        } catch {
+          // ignore
+        }
+      }
+      const pendingPromise = getRateQuote({
         items: itemsForQuote,
         providerCode: pickup.providerCode,
         pickupPointExternalId: pickup.externalId,
-      }).unwrap();
-      const next = {
-        quoteId: resp.quote_id,
-        providerCode: resp.provider_code,
-        serviceCode: resp.service_code,
-        serviceName: resp.service_name,
-        deliveryType: resp.delivery_type,
-        deliveryAmount: resp.delivery_amount?.amount ?? 0, // kopecks
-        currency: resp.delivery_amount?.currency || 'RUB',
-        deliveryDaysMin: resp.delivery_days_min ?? null,
-        deliveryDaysMax: resp.delivery_days_max ?? null,
-        expiresAt: resp.expires_at, // ISO, 30 min TTL
-      };
-      setQuote(next);
-      return next;
-    } catch (err) {
-      const norm = normalizeApiError(err);
-      // CHK-017: har quote error'da clearQuote chaqirish — status
-      // SELECTING_PICKUP'ga qaytadi, UI "Рассчитывается…" qotib qolmaydi.
-      // Foydalanuvchi pickup tile'ni qayta bosib boshqa PVZ tanlay oladi.
-      clearQuote();
-      if (isQuoteExpiredError(err)) {
-        setError({ code: 'QUOTE_EXPIRED', message: 'Срок котировки истёк' });
-      } else if (isProviderRetryableError(err)) {
-        // Backend ba'zan "Provider 'X' has no default_origin configured"
-        // technical detail qaytaradi — pickProviderErrorMessage user-friendly
-        // matnga aylantiradi (to'liq i18n alohida ticketda).
-        setError({
-          code: norm.code || 'PROVIDER_ERROR',
-          message: pickProviderErrorMessage(norm.message),
-        });
-      } else {
-        setError({
-          code: norm.code,
-          message: norm.message || 'Не удалось рассчитать доставку',
-        });
+        serviceCode: serviceCode ?? null,
+      });
+      inflightQuoteRef.current = pendingPromise;
+      try {
+        const resp = await pendingPromise.unwrap();
+        // REFACT-001: wire shape camelCase. Mapping qatlami `quoteMapper`'da —
+        // pure helper, alohida unit-test bilan qoplangan.
+        const next = mapRateQuoteResponseToQuote(resp);
+        if (!next) {
+          setError({ code: 'INVALID_QUOTE_RESPONSE', message: 'Не удалось рассчитать доставку' });
+          clearQuote();
+          return null;
+        }
+        setQuote(next);
+        return next;
+      } catch (err) {
+        // Latest-wins abort: keyingi refreshQuote allaqachon yo'lda — UI
+        // QUOTING'da qoladi, hech qanday error/clearQuote chaqirilmaydi.
+        if (err?.name === 'AbortError' || err?.error?.name === 'AbortError') {
+          return null;
+        }
+        const norm = normalizeApiError(err);
+        // CHK-017: har quote error'da clearQuote chaqirish — status
+        // SELECTING_PICKUP'ga qaytadi, UI "Рассчитывается…" qotib qolmaydi.
+        // Foydalanuvchi pickup tile'ni qayta bosib boshqa PVZ tanlay oladi.
+        clearQuote();
+        if (isQuoteExpiredError(err)) {
+          setError({ code: 'QUOTE_EXPIRED', message: 'Срок котировки истёк' });
+        } else if (isProviderRetryableError(err)) {
+          // Backend ba'zan "Provider 'X' has no default_origin configured"
+          // technical detail qaytaradi — pickProviderErrorMessage user-friendly
+          // matnga aylantiradi (to'liq i18n alohida ticketda).
+          setError({
+            code: norm.code || 'PROVIDER_ERROR',
+            message: pickProviderErrorMessage(norm.message),
+          });
+        } else {
+          setError({
+            code: norm.code,
+            message: norm.message || 'Не удалось рассчитать доставку',
+          });
+        }
+        return null;
+      } finally {
+        if (inflightQuoteRef.current === pendingPromise) {
+          inflightQuoteRef.current = null;
+        }
       }
-      return null;
-    }
-  }, [pickup, selectedItems, cart, getRateQuote, setQuote, clearQuote, setError]);
+    },
+    [pickup, selectedItems, cart, quote, getRateQuote, setQuote, clearQuote, setError]
+  );
+
+  // LATEST callback in ref — placeOrder retry va auto-refresh timer
+  // stale closure'siz chaqirish uchun.
+  const refreshQuoteRef = useRef(refreshQuote);
+  useEffect(() => {
+    refreshQuoteRef.current = refreshQuote;
+  }, [refreshQuote]);
 
   // Pickup yangilansa avtomatik quote (idempotent — cache hit'da qayta
   // jo'natmaydi, lekin RTKQ mutation har safar yangi quote ID beradi). Bu
@@ -273,6 +327,26 @@ export function useCheckoutFlow() {
     refreshQuote();
     // refreshQuote o'zi `setQuote → READY` yoki error qaytaradi
   }, [status, refreshQuote]);
+
+  // Cart tarkibi/miqdori o'zgarsa — quote stale (backend SKU vazni
+  // bo'yicha hisoblaydi). READY holatda turgan pickup uchun avto re-quote.
+  // Boshlang'ich render'da skip — `lastCartHashRef` birinchi qiymatni
+  // saqlaydi va keyingi haqiqiy o'zgarishlarga reaksiya bildiradi.
+  const cartHash = useMemo(
+    () =>
+      selectedItems
+        .map((it) => `${it?.skuId ?? ''}:${Math.max(1, Math.floor(Number(it?.quantity || 1)))}`)
+        .join(','),
+    [selectedItems]
+  );
+  const lastCartHashRef = useRef(cartHash);
+  useEffect(() => {
+    if (lastCartHashRef.current === cartHash) return;
+    lastCartHashRef.current = cartHash;
+    if (status === CheckoutStatus.READY && pickup?.externalId) {
+      refreshQuoteRef.current?.();
+    }
+  }, [cartHash, status, pickup?.externalId]);
 
   /* ── Recipient resource resolution ── */
 
@@ -370,16 +444,20 @@ export function useCheckoutFlow() {
   /* ── Place order (initiate → confirm pipeline) ── */
 
   /**
-   * Atomik buyurtma berish:
+   * Atomik buyurtma berish (CHK-024 — POST /orders bilan):
    *  1. prepareCart (partial selection bo'lsa unselect'larni o'chirish)
    *  2. ensureRecipient — yo'q bo'lsa POST /recipients
-   *  3. /cart/checkout {pickupPointId, pickupCarrier, recipientId} → attemptId
-   *  4. /cart/checkout/confirm {attemptId} → orderId (yangi schema'da nullable)
-   *  5. (P1: agar orderId yo'q bo'lsa — POST /orders {cartId, snapshotId, idempotencyKey})
-   *  6. router.push success
+   *  3. /cart/checkout {pickupPointId, pickupCarrier, recipientId} → attempt + snapshot
+   *  4. /orders {cartId, snapshotId, idempotencyKey, deliveryQuoteId, paymentProvider}
+   *     → orderId + paymentIntentId + clientSecret + totalAmount
+   *  5. router.push success (`onConfirmed` orqali profile/orders)
    *
    * Xato yo'lda /cart/checkout/cancel chaqirilmaydi — backend snapshot
    * 15 min TTL bilan o'z-o'zidan tugaydi va cart unfreeze bo'ladi.
+   *
+   * `ORDER_DELIVERY_QUOTE_EXPIRED` (422) — quote 30 min TTL tugagan, lekin
+   * snapshot hali tirik (15 min): bir martalik avto-refresh va createOrder
+   * qayta urinish. Pickup tanlovi o'zgarmaydi.
    */
   // CHK-006: Pay double-tap'ga qarshi himoya. `inflightRef` parallel
   // chaqiruvni silent rad qiladi; `idempotencyKeyRef` retry'da bir xil
@@ -390,6 +468,15 @@ export function useCheckoutFlow() {
   const placeOrder = useCallback(async () => {
     if (!pickup?.externalId || !pickup?.providerCode) {
       setError({ code: 'PICKUP_REQUIRED', message: 'Выберите пункт выдачи' });
+      return null;
+    }
+    if (!quote?.quoteId) {
+      setError({ code: 'QUOTE_REQUIRED', message: 'Рассчитайте стоимость доставки' });
+      return null;
+    }
+    const cartId = cart?.id;
+    if (!cartId) {
+      setError({ code: 'EMPTY_CART', message: 'Корзина пуста' });
       return null;
     }
 
@@ -441,47 +528,110 @@ export function useCheckoutFlow() {
         expiresAt: attemptResp.expiresAt,
       });
 
-      beginConfirm();
-      try {
-        const confirmResp = await confirmCheckout({
-          attemptId: attemptResp.attemptId,
+      // CHK-024: createOrder ichida quote ID retry uchun qayta o'qiymiz
+      // (auto-refresh state yangilashi mumkin).
+      const tryCreate = async (deliveryQuoteId) =>
+        createOrder({
+          cartId,
+          snapshotId: attemptResp.snapshotId,
+          idempotencyKey,
+          paymentProvider: 'fake',
+          deliveryQuoteId,
+          __idempotencyKey: idempotencyKey,
         }).unwrap();
-        const newOrderId = confirmResp?.orderId ?? null;
-        setOrder(newOrderId);
-        // CHK-004: muvaffaqiyatli buyurtma — snapshot endi kerak emas
-        // (tanlanmagan tovarlar orderga tushmadi, lekin foydalanuvchining
-        // o'zi tashlab ketdi).
-        clearRemovedSnapshot();
-        // CHK-006: yangi attempt yangi key olishi uchun reset.
-        resetKey(idempotencyKeyRef);
-        clearPendingIdempotencyKey(INITIATE_CHECKOUT_URL);
-        return newOrderId;
+
+      beginConfirm();
+      let orderResp;
+      try {
+        orderResp = await tryCreate(quote.quoteId);
       } catch (err) {
         const norm = normalizeApiError(err);
-        setError({
-          code: norm.code,
-          message: norm.message || 'Не удалось подтвердить заказ',
-        });
-        const snapBefore = useCheckoutStore.getState().removedItemsSnapshot?.length || 0;
-        await restoreRemoved();
-        if (snapBefore > 0) {
-          toast.info('Не удалось оформить заказ. Товары возвращены в корзину.');
+        // ORDER_DELIVERY_QUOTE_EXPIRED — quote TTL tugagan. Pickup tirik,
+        // bir martalik avto-refresh va qayta urinish.
+        if (norm.code === 'ORDER_DELIVERY_QUOTE_EXPIRED') {
+          const refreshed = await refreshQuoteRef.current?.();
+          if (refreshed?.quoteId) {
+            try {
+              orderResp = await tryCreate(refreshed.quoteId);
+            } catch (retryErr) {
+              const r = normalizeApiError(retryErr);
+              setError({
+                code: r.code,
+                message: r.message || 'Не удалось оформить заказ',
+              });
+              const snap = useCheckoutStore.getState().removedItemsSnapshot?.length || 0;
+              await restoreRemoved();
+              if (snap > 0) {
+                toast.info('Не удалось оформить заказ. Товары возвращены в корзину.');
+              }
+              return null;
+            }
+          } else {
+            setError({
+              code: 'QUOTE_EXPIRED',
+              message: 'Срок котировки истёк, рассчитайте заново',
+            });
+            const snap = useCheckoutStore.getState().removedItemsSnapshot?.length || 0;
+            await restoreRemoved();
+            if (snap > 0) {
+              toast.info('Не удалось оформить заказ. Товары возвращены в корзину.');
+            }
+            return null;
+          }
+        } else {
+          // ORDER_DELIVERY_QUOTE_CURRENCY_MISMATCH — backend bug: cart va
+          // quote valyutasi farq qiladi. Same-provider holatida bo'lmasligi
+          // kerak. UI uchun oddiy toast, console'ga warn (kelajakda Sentry).
+          if (isCurrencyMismatchError(err)) {
+            console.warn('[CHK-024] currency mismatch between cart and quote', {
+              code: norm.code,
+              requestId: norm.requestId,
+            });
+          }
+          setError({
+            code: norm.code,
+            message: norm.message || 'Не удалось оформить заказ',
+          });
+          const snap = useCheckoutStore.getState().removedItemsSnapshot?.length || 0;
+          await restoreRemoved();
+          if (snap > 0) {
+            toast.info('Не удалось оформить заказ. Товары возвращены в корзину.');
+          }
+          return null;
         }
-        return null;
       }
+
+      const newOrderId = orderResp?.orderId ?? null;
+      setPayment({
+        paymentIntentId: orderResp?.paymentIntentId ?? null,
+        clientSecret: orderResp?.clientSecret ?? null,
+        totalAmount: orderResp?.totalAmount ?? null,
+        currency: orderResp?.currency || quote.currency || 'RUB',
+      });
+      setOrder(newOrderId);
+      // CHK-004: muvaffaqiyatli buyurtma — snapshot endi kerak emas.
+      clearRemovedSnapshot();
+      // CHK-006: yangi attempt yangi key olishi uchun reset.
+      resetKey(idempotencyKeyRef);
+      clearPendingIdempotencyKey(INITIATE_CHECKOUT_URL);
+      clearPendingIdempotencyKey(CREATE_ORDER_URL);
+      return newOrderId;
     } finally {
       releaseInflight(inflightRef);
     }
   }, [
     pickup,
+    quote,
+    cart,
     prepareCart,
     ensureRecipient,
     initiateCheckout,
-    confirmCheckout,
+    createOrder,
     beginInitiate,
     setAttempt,
     beginConfirm,
     setOrder,
+    setPayment,
     setError,
     restoreRemoved,
     clearRemovedSnapshot,
@@ -538,6 +688,32 @@ export function useCheckoutFlow() {
     }, delay);
     return () => clearTimeout(attemptExpireTimerRef.current);
   }, [attempt?.expiresAt, status, markCancelled, setError]);
+
+  /* ── Tariff alternatives ── */
+
+  /**
+   * Fallback tarif tanlovi (`quote.fallbackAlternatives`'dan biri).
+   * Status'ni QUOTING'ga qaytaradi (`refreshQuote` `setQuote → READY`
+   * qiladi yoki error qaytaradi). Joriy tanlovga teng bo'lsa — no-op.
+   */
+  const selectServiceCode = useCallback(
+    async (nextCode) => {
+      if (!nextCode || typeof nextCode !== 'string') return null;
+      if (quote?.serviceCode === nextCode) return quote;
+      return (await refreshQuoteRef.current?.({ serviceCode: nextCode })) ?? null;
+    },
+    [quote]
+  );
+
+  /* ── Cross-border detection ── */
+
+  // Spec §8.4: cross-border tovarlar (DobroPost CN→RU) uchun /rates/quote
+  // faqat oxirgi mil narxini qaytaradi — yetkazib berishning xalqaro
+  // ulushini menejer order'dan keyin qo'lda hisoblaydi.
+  const hasCrossBorderItems = useMemo(
+    () => selectedItems.some((it) => it?.supplierType === 'cross_border'),
+    [selectedItems]
+  );
 
   /* ── Navigatsiya yordamchilari ── */
 
@@ -600,10 +776,12 @@ export function useCheckoutFlow() {
       canPlaceOrder,
       isPickupSelected,
       isQuoteValid,
+      hasCrossBorderItems,
       // actions
       setSelection,
       setPickup,
       refreshQuote,
+      selectServiceCode,
       placeOrder,
       abandon,
       goToCheckout,
@@ -622,9 +800,11 @@ export function useCheckoutFlow() {
       canPlaceOrder,
       isPickupSelected,
       isQuoteValid,
+      hasCrossBorderItems,
       setSelection,
       setPickup,
       refreshQuote,
+      selectServiceCode,
       placeOrder,
       abandon,
       goToCheckout,

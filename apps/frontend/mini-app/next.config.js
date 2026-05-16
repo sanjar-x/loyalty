@@ -17,7 +17,6 @@ const allowedDevOrigins = [
 ];
 
 if (process.env.NODE_ENV !== 'production' && detectedLanIPs.length > 0) {
-  // eslint-disable-next-line no-console
   console.log(`[next.config] allowedDevOrigins → LAN auto: ${detectedLanIPs.join(', ')}`);
 }
 

@@ -237,23 +237,25 @@ const customApi = baseApi.injectEndpoints({
       },
     }),
 
-    // Rate quote — yangi OpenAPI'da admin-only path. Customer auth bilan
-    // chaqiradi (HTTPBearer); backend permissioni yetishi kerak.
+    // Rate quote — customer-facing storefront endpoint (CHK-024).
+    // Wire shape camelCase (REFACT-001). `serviceCode` ixtiyoriy:
+    // null bo'lsa provider eng arzon tarifni qaytaradi; aniq qiymat
+    // berilsa fallbackAlternatives toggle uchun aynan o'sha tarif.
     getRateQuote: build.mutation({
       query: ({ items, providerCode, pickupPointExternalId, serviceCode }) => ({
-        url: '/api/v1/admin/logistics/rates/quote',
+        url: '/api/v1/storefront/logistics/rates/quote',
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: {
           items: Array.isArray(items)
             ? items.map((it) => ({
-                sku_id: it?.skuId ?? it?.sku_id,
+                skuId: it?.skuId ?? it?.sku_id,
                 quantity: Math.max(1, Math.floor(Number(it?.quantity || 1))),
               }))
             : [],
-          provider_code: providerCode,
-          pickup_point_external_id: pickupPointExternalId,
-          service_code: serviceCode ?? null,
+          providerCode,
+          pickupPointExternalId,
+          serviceCode: serviceCode ?? null,
         },
       }),
     }),

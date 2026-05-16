@@ -270,8 +270,9 @@ export const useRemoveCartItemMutation = () => {
 
 /* Checkout — yangi schema {pickupPointId, pickupCarrier, recipientId} */
 const INITIATE_CHECKOUT_URL = '/api/v1/cart/checkout';
+const CREATE_ORDER_URL = '/api/v1/orders';
 
-export { clearPendingIdempotencyKey, INITIATE_CHECKOUT_URL };
+export { clearPendingIdempotencyKey, INITIATE_CHECKOUT_URL, CREATE_ORDER_URL };
 
 export const useInitiateCheckoutMutation = () => {
   const [trigger, state] = enhancedApi.useInitiateCheckoutApiV1CartCheckoutPostMutation();
@@ -329,15 +330,25 @@ export const useGetOrderTrackingQuery = (orderId, opts) =>
 
 export const useCreateOrderMutation = () => {
   const [trigger, state] = enhancedApi.useCreateOrderApiV1OrdersPostMutation();
-  const wrapped = ({ cartId, snapshotId, idempotencyKey, paymentProvider }) =>
-    trigger({
+  // CHK-024: deliveryQuoteId — `RateQuoteResponse.quoteId`. Backend
+  // quote'dan deliveryAmount'ni totalAmount va payment authorize'ga
+  // qo'shadi. CHK-006: Idempotency-Key codegen mapping topmaydi —
+  // yon-kanal orqali baseQuery registry'siga yozamiz (xuddi
+  // useInitiateCheckoutMutation'dagi pattern).
+  const wrapped = (body) => {
+    if (body?.__idempotencyKey) {
+      setPendingIdempotencyKey(CREATE_ORDER_URL, body.__idempotencyKey);
+    }
+    return trigger({
       createOrderRequest: {
-        cartId,
-        snapshotId,
-        idempotencyKey,
-        paymentProvider: paymentProvider || 'fake',
+        cartId: body?.cartId,
+        snapshotId: body?.snapshotId,
+        idempotencyKey: body?.idempotencyKey,
+        paymentProvider: body?.paymentProvider || 'fake',
+        deliveryQuoteId: body?.deliveryQuoteId ?? null,
       },
     });
+  };
   return [wrapped, state];
 };
 

@@ -18,14 +18,31 @@ const TOKEN_EXPIRY_CODES = new Set([
   'IDENTITY_INVALID',
 ]);
 
-const QUOTE_EXPIRY_CODES = new Set(['QUOTE_EXPIRED', 'QUOTE_NOT_FOUND']);
+// CHK-024: `ORDER_DELIVERY_QUOTE_EXPIRED` — backend tomonidan `/orders`
+// chaqirilganda quote 30 daqiqalik TTL'dan o'tib ketgan bo'lsa qaytariladi.
+// `placeOrder` uni alohida ushlab, bir martalik avto-refresh + retry qiladi.
+const QUOTE_EXPIRY_CODES = new Set([
+  'QUOTE_EXPIRED',
+  'QUOTE_NOT_FOUND',
+  'ORDER_DELIVERY_QUOTE_EXPIRED',
+]);
 
+// CHK-024: `NO_ELIGIBLE_PROVIDERS` — provayder ro'yxati bo'sh (kesh tushib
+// qolgan PVZ yoki provayder o'chirilgan). `RATE_CALCULATION_FAILED` —
+// provayder API'si HTTP/timeout xatosi.
 const PROVIDER_RETRY_CODES = new Set([
   'RATE_CALCULATION_ERROR',
+  'RATE_CALCULATION_FAILED',
+  'NO_ELIGIBLE_PROVIDERS',
   'BOOKING_ERROR',
   'PROVIDER_UNAVAILABLE',
   'BOOKING_PENDING',
 ]);
+
+// CHK-024: backend valyuta nomuvofiqligi (cart va quote valyutasi farq
+// qilsa) — same-provider holatida bo'lmasligi kerak (back-end bug).
+// Frontend Sentry'ga loglaydi, foydalanuvchiga oddiy toast.
+const CURRENCY_MISMATCH_CODES = new Set(['ORDER_DELIVERY_QUOTE_CURRENCY_MISMATCH']);
 
 export function normalizeApiError(rtkError) {
   if (!rtkError || typeof rtkError !== 'object') {
@@ -99,6 +116,11 @@ export function isProviderRetryableError(rtkError) {
   const e = normalizeApiError(rtkError);
   if (PROVIDER_RETRY_CODES.has(e.code)) return true;
   return e.status === 502 || e.status === 503;
+}
+
+export function isCurrencyMismatchError(rtkError) {
+  const e = normalizeApiError(rtkError);
+  return CURRENCY_MISMATCH_CODES.has(e.code);
 }
 
 /**

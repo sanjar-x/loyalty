@@ -16,7 +16,9 @@ import { devtools, persist, createJSONStorage } from 'zustand/middleware';
  *  • READY            — quote olingan, foydalanuvchi pay-button bosishi mumkin
  *  • INITIATING       — `/cart/checkout` chaqirilmoqda
  *  • FROZEN           — backend `attemptId` qaytardi, payment kutilmoqda
- *  • CONFIRMING       — `/cart/checkout/confirm` chaqirilmoqda
+ *  • CONFIRMING       — `/orders` chaqirilmoqda (CHK-024 — eski
+ *                       `/cart/checkout/confirm` o'rniga, deliveryQuoteId
+ *                       bilan birga)
  *  • CONFIRMED        — `orderId` qaytdi (sahifa nav qiladi)
  *  • CANCELLED        — `/cart/checkout/cancel` muvaffaqiyatli (yoki TTL tugadi)
  *
@@ -68,6 +70,9 @@ const initialState = {
   paymentMethod: 'sbp',
   // Yakuniy buyurtma
   orderId: null,
+  // CHK-024: POST /orders javobidan payment metadata. `clientSecret` —
+  // provider widget'iga uzatiladigan opaque (Stripe-like).
+  payment: null, // { paymentIntentId, clientSecret, totalAmount, currency }
   // Xato (envelope code yoki message)
   error: null,
   // CHK-004: prepareCart tanlanmagan SKU'larni cart'dan o'chirgan paytdagi
@@ -85,7 +90,7 @@ const initialState = {
 export const useCheckoutStore = create(
   devtools(
     persist(
-      (set, get) => ({
+      (set) => ({
         ...initialState,
 
         /* ── Selection (cart → checkout transition) ── */
@@ -132,8 +137,16 @@ export const useCheckoutStore = create(
                 prev.lon === pickup?.lon &&
                 stableStatus;
               if (isSame) return state;
+              // CHK-024: turli ПВЗ → turli tariflar. Eski quote (va undagi
+              // serviceCode/fallbackAlternatives) yaroqsiz — sbroс qilamiz,
+              // refreshQuote toza holatdan eng arzon tarifni so'raydi.
+              const isDifferentPickup =
+                !prev ||
+                prev.externalId !== pickup?.externalId ||
+                prev.providerCode !== pickup?.providerCode;
               return {
                 pickup,
+                quote: isDifferentPickup ? null : state.quote,
                 status: CheckoutStatus.QUOTING,
                 error: null,
               };
@@ -215,6 +228,8 @@ export const useCheckoutStore = create(
             false,
             'setOrder'
           ),
+
+        setPayment: (payment) => set({ payment }, false, 'setPayment'),
 
         markCancelled: () =>
           set(

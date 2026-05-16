@@ -61,7 +61,6 @@ export default function ProductInfo({
                   aria-pressed={isActive}
                 >
                   {thumb ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={thumb}
                       alt={label}

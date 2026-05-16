@@ -1,57 +1,57 @@
-import { baseApi as api } from "../baseApi";
+import { baseApi as api } from '../baseApi';
 export const addTagTypes = [
-  "Geo",
-  "Admin / Geo",
-  "Authentication",
-  "Invitations",
-  "Profile",
-  "Profile / Account",
-  "Admin / IAM",
-  "Admin / Staff",
-  "Admin / Customers",
-  "Admin / Suppliers",
-  "Storefront / Categories",
-  "Storefront / Taxonomy",
-  "Storefront / Products",
-  "Storefront / Search",
-  "Storefront / Trending",
-  "Storefront / For You",
-  "Admin / Catalog / Brands",
-  "Admin / Catalog / Categories",
-  "Admin / Catalog / Attributes",
-  "Admin / Catalog / Attribute Groups",
-  "Admin / Catalog / Attribute Values",
-  "Admin / Catalog / Attribute Templates",
-  "Admin / Catalog / Products",
-  "Admin / Catalog / Variants",
-  "Admin / Catalog / SKUs",
-  "Admin / Catalog / Product Attributes",
-  "Admin / Catalog / Product Media",
-  "Admin / Pricing / Variables",
-  "Admin / Pricing / Contexts",
-  "Admin / Pricing / Formulas",
-  "Admin / Pricing / Preview",
-  "Admin / Pricing / Products",
-  "Admin / Pricing / Suppliers",
-  "Admin / Pricing / Supplier-Type Mapping",
-  "Admin / Pricing / Categories",
-  "Admin / Pricing / Recompute",
-  "Admin / Analytics",
-  "Cart",
-  "Favorites",
-  "Admin / Media",
-  "Storefront / Logistics",
-  "Admin / Logistics / Provider Accounts",
-  "Admin / Logistics / Shipments",
-  "Admin / Logistics / CDEK",
-  "Webhooks / Logistics",
-  "Payments",
-  "Webhooks / Payments",
-  "Recipients",
-  "Orders",
-  "Admin / Orders",
-  "Webhooks / DobroPost",
-  "System",
+  'Geo',
+  'Admin / Geo',
+  'Authentication',
+  'Invitations',
+  'Profile',
+  'Profile / Account',
+  'Admin / IAM',
+  'Admin / Staff',
+  'Admin / Customers',
+  'Admin / Suppliers',
+  'Storefront / Categories',
+  'Storefront / Taxonomy',
+  'Storefront / Products',
+  'Storefront / Search',
+  'Storefront / Trending',
+  'Storefront / For You',
+  'Admin / Catalog / Brands',
+  'Admin / Catalog / Categories',
+  'Admin / Catalog / Attributes',
+  'Admin / Catalog / Attribute Groups',
+  'Admin / Catalog / Attribute Values',
+  'Admin / Catalog / Attribute Templates',
+  'Admin / Catalog / Products',
+  'Admin / Catalog / Variants',
+  'Admin / Catalog / SKUs',
+  'Admin / Catalog / Product Attributes',
+  'Admin / Catalog / Product Media',
+  'Admin / Pricing / Variables',
+  'Admin / Pricing / Contexts',
+  'Admin / Pricing / Formulas',
+  'Admin / Pricing / Preview',
+  'Admin / Pricing / Products',
+  'Admin / Pricing / Suppliers',
+  'Admin / Pricing / Supplier-Type Mapping',
+  'Admin / Pricing / Categories',
+  'Admin / Pricing / Recompute',
+  'Admin / Analytics',
+  'Cart',
+  'Favorites',
+  'Admin / Media',
+  'Storefront / Logistics',
+  'Admin / Logistics / Provider Accounts',
+  'Admin / Logistics / Shipments',
+  'Admin / Logistics / CDEK',
+  'Webhooks / Logistics',
+  'Payments',
+  'Webhooks / Payments',
+  'Recipients',
+  'Orders',
+  'Admin / Orders',
+  'Webhooks / DobroPost',
+  'System',
 ] as const;
 const injectedRtkApi = api
   .enhanceEndpoints({
@@ -71,7 +71,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Geo"],
+        providesTags: ['Geo'],
       }),
       listCurrenciesApiV1GeoCurrenciesGet: build.query<
         ListCurrenciesApiV1GeoCurrenciesGetApiResponse,
@@ -86,7 +86,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Geo"],
+        providesTags: ['Geo'],
       }),
       listLanguagesApiV1GeoLanguagesGet: build.query<
         ListLanguagesApiV1GeoLanguagesGetApiResponse,
@@ -100,7 +100,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Geo"],
+        providesTags: ['Geo'],
       }),
       getCountryApiV1GeoCountriesAlpha2Get: build.query<
         GetCountryApiV1GeoCountriesAlpha2GetApiResponse,
@@ -112,7 +112,7 @@ const injectedRtkApi = api
             lang: queryArg.lang,
           },
         }),
-        providesTags: ["Geo"],
+        providesTags: ['Geo'],
       }),
       getCurrencyApiV1GeoCurrenciesCodeGet: build.query<
         GetCurrencyApiV1GeoCurrenciesCodeGetApiResponse,
@@ -124,7 +124,7 @@ const injectedRtkApi = api
             lang: queryArg.lang,
           },
         }),
-        providesTags: ["Geo"],
+        providesTags: ['Geo'],
       }),
       getLanguageApiV1GeoLanguagesCodeGet: build.query<
         GetLanguageApiV1GeoLanguagesCodeGetApiResponse,
@@ -133,7 +133,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/geo/languages/${queryArg.code}`,
         }),
-        providesTags: ["Geo"],
+        providesTags: ['Geo'],
       }),
       getSubdivisionApiV1GeoSubdivisionsCodeGet: build.query<
         GetSubdivisionApiV1GeoSubdivisionsCodeGetApiResponse,
@@ -145,23 +145,22 @@ const injectedRtkApi = api
             lang: queryArg.lang,
           },
         }),
-        providesTags: ["Geo"],
+        providesTags: ['Geo'],
       }),
-      listCountryCurrenciesApiV1GeoCountriesCountryCodeCurrenciesGet:
-        build.query<
-          ListCountryCurrenciesApiV1GeoCountriesCountryCodeCurrenciesGetApiResponse,
-          ListCountryCurrenciesApiV1GeoCountriesCountryCodeCurrenciesGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/geo/countries/${queryArg.countryCode}/currencies`,
-            params: {
-              lang: queryArg.lang,
-              offset: queryArg.offset,
-              limit: queryArg.limit,
-            },
-          }),
-          providesTags: ["Geo"],
+      listCountryCurrenciesApiV1GeoCountriesCountryCodeCurrenciesGet: build.query<
+        ListCountryCurrenciesApiV1GeoCountriesCountryCodeCurrenciesGetApiResponse,
+        ListCountryCurrenciesApiV1GeoCountriesCountryCodeCurrenciesGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/geo/countries/${queryArg.countryCode}/currencies`,
+          params: {
+            lang: queryArg.lang,
+            offset: queryArg.offset,
+            limit: queryArg.limit,
+          },
         }),
+        providesTags: ['Geo'],
+      }),
       listSubdivisionsApiV1GeoCountriesCountryCodeSubdivisionsGet: build.query<
         ListSubdivisionsApiV1GeoCountriesCountryCodeSubdivisionsGetApiResponse,
         ListSubdivisionsApiV1GeoCountriesCountryCodeSubdivisionsGetApiArg
@@ -175,7 +174,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Geo"],
+        providesTags: ['Geo'],
       }),
       getDistrictApiV1GeoDistrictsDistrictIdGet: build.query<
         GetDistrictApiV1GeoDistrictsDistrictIdGetApiResponse,
@@ -187,7 +186,7 @@ const injectedRtkApi = api
             lang: queryArg.lang,
           },
         }),
-        providesTags: ["Geo"],
+        providesTags: ['Geo'],
       }),
       listDistrictsApiV1GeoSubdivisionsSubdivisionCodeDistrictsGet: build.query<
         ListDistrictsApiV1GeoSubdivisionsSubdivisionCodeDistrictsGetApiResponse,
@@ -202,7 +201,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Geo"],
+        providesTags: ['Geo'],
       }),
       createCountryApiV1AdminGeoCountriesPost: build.mutation<
         CreateCountryApiV1AdminGeoCountriesPostApiResponse,
@@ -210,10 +209,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/countries`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.createCountryRequest,
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
       updateCountryApiV1AdminGeoCountriesAlpha2Patch: build.mutation<
         UpdateCountryApiV1AdminGeoCountriesAlpha2PatchApiResponse,
@@ -221,10 +220,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/countries/${queryArg.alpha2}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.updateCountryRequest,
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
       deleteCountryApiV1AdminGeoCountriesAlpha2Delete: build.mutation<
         DeleteCountryApiV1AdminGeoCountriesAlpha2DeleteApiResponse,
@@ -232,44 +231,42 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/countries/${queryArg.alpha2}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
-      upsertCountryTranslationsApiV1AdminGeoCountriesAlpha2TranslationsPut:
-        build.mutation<
-          UpsertCountryTranslationsApiV1AdminGeoCountriesAlpha2TranslationsPutApiResponse,
-          UpsertCountryTranslationsApiV1AdminGeoCountriesAlpha2TranslationsPutApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/geo/countries/${queryArg.alpha2}/translations`,
-            method: "PUT",
-            body: queryArg.upsertCountryTranslationsRequest,
-          }),
-          invalidatesTags: ["Admin / Geo"],
+      upsertCountryTranslationsApiV1AdminGeoCountriesAlpha2TranslationsPut: build.mutation<
+        UpsertCountryTranslationsApiV1AdminGeoCountriesAlpha2TranslationsPutApiResponse,
+        UpsertCountryTranslationsApiV1AdminGeoCountriesAlpha2TranslationsPutApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/geo/countries/${queryArg.alpha2}/translations`,
+          method: 'PUT',
+          body: queryArg.upsertCountryTranslationsRequest,
         }),
-      setCountryCurrenciesApiV1AdminGeoCountriesAlpha2CurrenciesPut:
-        build.mutation<
-          SetCountryCurrenciesApiV1AdminGeoCountriesAlpha2CurrenciesPutApiResponse,
-          SetCountryCurrenciesApiV1AdminGeoCountriesAlpha2CurrenciesPutApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/geo/countries/${queryArg.alpha2}/currencies`,
-            method: "PUT",
-            body: queryArg.setCountryCurrenciesRequest,
-          }),
-          invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
+      }),
+      setCountryCurrenciesApiV1AdminGeoCountriesAlpha2CurrenciesPut: build.mutation<
+        SetCountryCurrenciesApiV1AdminGeoCountriesAlpha2CurrenciesPutApiResponse,
+        SetCountryCurrenciesApiV1AdminGeoCountriesAlpha2CurrenciesPutApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/geo/countries/${queryArg.alpha2}/currencies`,
+          method: 'PUT',
+          body: queryArg.setCountryCurrenciesRequest,
         }),
+        invalidatesTags: ['Admin / Geo'],
+      }),
       createCurrencyApiV1AdminGeoCurrenciesPost: build.mutation<
         CreateCurrencyApiV1AdminGeoCurrenciesPostApiResponse,
         CreateCurrencyApiV1AdminGeoCurrenciesPostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/currencies`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.createCurrencyRequest,
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
       updateCurrencyApiV1AdminGeoCurrenciesCodePatch: build.mutation<
         UpdateCurrencyApiV1AdminGeoCurrenciesCodePatchApiResponse,
@@ -277,10 +274,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/currencies/${queryArg.code}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.updateCurrencyRequest,
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
       deleteCurrencyApiV1AdminGeoCurrenciesCodeDelete: build.mutation<
         DeleteCurrencyApiV1AdminGeoCurrenciesCodeDeleteApiResponse,
@@ -288,32 +285,31 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/currencies/${queryArg.code}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
-      upsertCurrencyTranslationsApiV1AdminGeoCurrenciesCodeTranslationsPut:
-        build.mutation<
-          UpsertCurrencyTranslationsApiV1AdminGeoCurrenciesCodeTranslationsPutApiResponse,
-          UpsertCurrencyTranslationsApiV1AdminGeoCurrenciesCodeTranslationsPutApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/geo/currencies/${queryArg.code}/translations`,
-            method: "PUT",
-            body: queryArg.upsertCurrencyTranslationsRequest,
-          }),
-          invalidatesTags: ["Admin / Geo"],
+      upsertCurrencyTranslationsApiV1AdminGeoCurrenciesCodeTranslationsPut: build.mutation<
+        UpsertCurrencyTranslationsApiV1AdminGeoCurrenciesCodeTranslationsPutApiResponse,
+        UpsertCurrencyTranslationsApiV1AdminGeoCurrenciesCodeTranslationsPutApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/geo/currencies/${queryArg.code}/translations`,
+          method: 'PUT',
+          body: queryArg.upsertCurrencyTranslationsRequest,
         }),
+        invalidatesTags: ['Admin / Geo'],
+      }),
       createLanguageApiV1AdminGeoLanguagesPost: build.mutation<
         CreateLanguageApiV1AdminGeoLanguagesPostApiResponse,
         CreateLanguageApiV1AdminGeoLanguagesPostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/languages`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.createLanguageRequest,
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
       updateLanguageApiV1AdminGeoLanguagesCodePatch: build.mutation<
         UpdateLanguageApiV1AdminGeoLanguagesCodePatchApiResponse,
@@ -321,10 +317,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/languages/${queryArg.code}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.updateLanguageRequest,
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
       deleteLanguageApiV1AdminGeoLanguagesCodeDelete: build.mutation<
         DeleteLanguageApiV1AdminGeoLanguagesCodeDeleteApiResponse,
@@ -332,9 +328,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/languages/${queryArg.code}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
       createSubdivisionApiV1AdminGeoSubdivisionsPost: build.mutation<
         CreateSubdivisionApiV1AdminGeoSubdivisionsPostApiResponse,
@@ -342,10 +338,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/subdivisions`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.createSubdivisionRequest,
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
       updateSubdivisionApiV1AdminGeoSubdivisionsCodePatch: build.mutation<
         UpdateSubdivisionApiV1AdminGeoSubdivisionsCodePatchApiResponse,
@@ -353,10 +349,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/subdivisions/${queryArg.code}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.updateSubdivisionRequest,
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
       deleteSubdivisionApiV1AdminGeoSubdivisionsCodeDelete: build.mutation<
         DeleteSubdivisionApiV1AdminGeoSubdivisionsCodeDeleteApiResponse,
@@ -364,22 +360,21 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/subdivisions/${queryArg.code}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
-      upsertSubdivisionTranslationsApiV1AdminGeoSubdivisionsCodeTranslationsPut:
-        build.mutation<
-          UpsertSubdivisionTranslationsApiV1AdminGeoSubdivisionsCodeTranslationsPutApiResponse,
-          UpsertSubdivisionTranslationsApiV1AdminGeoSubdivisionsCodeTranslationsPutApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/geo/subdivisions/${queryArg.code}/translations`,
-            method: "PUT",
-            body: queryArg.upsertSubdivisionTranslationsRequest,
-          }),
-          invalidatesTags: ["Admin / Geo"],
+      upsertSubdivisionTranslationsApiV1AdminGeoSubdivisionsCodeTranslationsPut: build.mutation<
+        UpsertSubdivisionTranslationsApiV1AdminGeoSubdivisionsCodeTranslationsPutApiResponse,
+        UpsertSubdivisionTranslationsApiV1AdminGeoSubdivisionsCodeTranslationsPutApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/geo/subdivisions/${queryArg.code}/translations`,
+          method: 'PUT',
+          body: queryArg.upsertSubdivisionTranslationsRequest,
         }),
+        invalidatesTags: ['Admin / Geo'],
+      }),
       listSubdivisionTypesApiV1AdminGeoSubdivisionTypesGet: build.query<
         ListSubdivisionTypesApiV1AdminGeoSubdivisionTypesGetApiResponse,
         ListSubdivisionTypesApiV1AdminGeoSubdivisionTypesGetApiArg
@@ -391,7 +386,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Admin / Geo"],
+        providesTags: ['Admin / Geo'],
       }),
       createSubdivisionTypeApiV1AdminGeoSubdivisionTypesPost: build.mutation<
         CreateSubdivisionTypeApiV1AdminGeoSubdivisionTypesPostApiResponse,
@@ -399,34 +394,32 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/subdivision-types`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.createSubdivisionTypeRequest,
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
-      updateSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodePatch:
-        build.mutation<
-          UpdateSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodePatchApiResponse,
-          UpdateSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodePatchApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/geo/subdivision-types/${queryArg.code}`,
-            method: "PATCH",
-            body: queryArg.updateSubdivisionTypeRequest,
-          }),
-          invalidatesTags: ["Admin / Geo"],
+      updateSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodePatch: build.mutation<
+        UpdateSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodePatchApiResponse,
+        UpdateSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodePatchApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/geo/subdivision-types/${queryArg.code}`,
+          method: 'PATCH',
+          body: queryArg.updateSubdivisionTypeRequest,
         }),
-      deleteSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodeDelete:
-        build.mutation<
-          DeleteSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodeDeleteApiResponse,
-          DeleteSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodeDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/geo/subdivision-types/${queryArg.code}`,
-            method: "DELETE",
-          }),
-          invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
+      }),
+      deleteSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodeDelete: build.mutation<
+        DeleteSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodeDeleteApiResponse,
+        DeleteSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodeDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/geo/subdivision-types/${queryArg.code}`,
+          method: 'DELETE',
         }),
+        invalidatesTags: ['Admin / Geo'],
+      }),
       upsertSubdivisionTypeTranslationsApiV1AdminGeoSubdivisionTypesCodeTranslationsPut:
         build.mutation<
           UpsertSubdivisionTypeTranslationsApiV1AdminGeoSubdivisionTypesCodeTranslationsPutApiResponse,
@@ -434,10 +427,10 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/geo/subdivision-types/${queryArg.code}/translations`,
-            method: "PUT",
+            method: 'PUT',
             body: queryArg.upsertSubdivisionTypeTranslationsRequest,
           }),
-          invalidatesTags: ["Admin / Geo"],
+          invalidatesTags: ['Admin / Geo'],
         }),
       createDistrictApiV1AdminGeoDistrictsPost: build.mutation<
         CreateDistrictApiV1AdminGeoDistrictsPostApiResponse,
@@ -445,10 +438,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/districts`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.createDistrictRequest,
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
       updateDistrictApiV1AdminGeoDistrictsDistrictIdPatch: build.mutation<
         UpdateDistrictApiV1AdminGeoDistrictsDistrictIdPatchApiResponse,
@@ -456,10 +449,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/districts/${queryArg.districtId}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.updateDistrictRequest,
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
       deleteDistrictApiV1AdminGeoDistrictsDistrictIdDelete: build.mutation<
         DeleteDistrictApiV1AdminGeoDistrictsDistrictIdDeleteApiResponse,
@@ -467,22 +460,21 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/districts/${queryArg.districtId}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
-      upsertDistrictTranslationsApiV1AdminGeoDistrictsDistrictIdTranslationsPut:
-        build.mutation<
-          UpsertDistrictTranslationsApiV1AdminGeoDistrictsDistrictIdTranslationsPutApiResponse,
-          UpsertDistrictTranslationsApiV1AdminGeoDistrictsDistrictIdTranslationsPutApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/geo/districts/${queryArg.districtId}/translations`,
-            method: "PUT",
-            body: queryArg.upsertDistrictTranslationsRequest,
-          }),
-          invalidatesTags: ["Admin / Geo"],
+      upsertDistrictTranslationsApiV1AdminGeoDistrictsDistrictIdTranslationsPut: build.mutation<
+        UpsertDistrictTranslationsApiV1AdminGeoDistrictsDistrictIdTranslationsPutApiResponse,
+        UpsertDistrictTranslationsApiV1AdminGeoDistrictsDistrictIdTranslationsPutApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/geo/districts/${queryArg.districtId}/translations`,
+          method: 'PUT',
+          body: queryArg.upsertDistrictTranslationsRequest,
         }),
+        invalidatesTags: ['Admin / Geo'],
+      }),
       listDistrictTypesApiV1AdminGeoDistrictTypesGet: build.query<
         ListDistrictTypesApiV1AdminGeoDistrictTypesGetApiResponse,
         ListDistrictTypesApiV1AdminGeoDistrictTypesGetApiArg
@@ -494,7 +486,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Admin / Geo"],
+        providesTags: ['Admin / Geo'],
       }),
       createDistrictTypeApiV1AdminGeoDistrictTypesPost: build.mutation<
         CreateDistrictTypeApiV1AdminGeoDistrictTypesPostApiResponse,
@@ -502,10 +494,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/district-types`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.createDistrictTypeRequest,
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
       updateDistrictTypeApiV1AdminGeoDistrictTypesCodePatch: build.mutation<
         UpdateDistrictTypeApiV1AdminGeoDistrictTypesCodePatchApiResponse,
@@ -513,10 +505,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/district-types/${queryArg.code}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.updateDistrictTypeRequest,
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
       deleteDistrictTypeApiV1AdminGeoDistrictTypesCodeDelete: build.mutation<
         DeleteDistrictTypeApiV1AdminGeoDistrictTypesCodeDeleteApiResponse,
@@ -524,32 +516,31 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/geo/district-types/${queryArg.code}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Admin / Geo"],
+        invalidatesTags: ['Admin / Geo'],
       }),
-      upsertDistrictTypeTranslationsApiV1AdminGeoDistrictTypesCodeTranslationsPut:
-        build.mutation<
-          UpsertDistrictTypeTranslationsApiV1AdminGeoDistrictTypesCodeTranslationsPutApiResponse,
-          UpsertDistrictTypeTranslationsApiV1AdminGeoDistrictTypesCodeTranslationsPutApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/geo/district-types/${queryArg.code}/translations`,
-            method: "PUT",
-            body: queryArg.upsertDistrictTypeTranslationsRequest,
-          }),
-          invalidatesTags: ["Admin / Geo"],
+      upsertDistrictTypeTranslationsApiV1AdminGeoDistrictTypesCodeTranslationsPut: build.mutation<
+        UpsertDistrictTypeTranslationsApiV1AdminGeoDistrictTypesCodeTranslationsPutApiResponse,
+        UpsertDistrictTypeTranslationsApiV1AdminGeoDistrictTypesCodeTranslationsPutApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/geo/district-types/${queryArg.code}/translations`,
+          method: 'PUT',
+          body: queryArg.upsertDistrictTypeTranslationsRequest,
         }),
+        invalidatesTags: ['Admin / Geo'],
+      }),
       registerApiV1AuthRegisterPost: build.mutation<
         RegisterApiV1AuthRegisterPostApiResponse,
         RegisterApiV1AuthRegisterPostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/auth/register`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.registerRequest,
         }),
-        invalidatesTags: ["Authentication"],
+        invalidatesTags: ['Authentication'],
       }),
       loginApiV1AuthLoginPost: build.mutation<
         LoginApiV1AuthLoginPostApiResponse,
@@ -557,17 +548,17 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/auth/login`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.loginRequest,
         }),
-        invalidatesTags: ["Authentication"],
+        invalidatesTags: ['Authentication'],
       }),
       loginTelegramApiV1AuthTelegramPost: build.mutation<
         LoginTelegramApiV1AuthTelegramPostApiResponse,
         LoginTelegramApiV1AuthTelegramPostApiArg
       >({
-        query: () => ({ url: `/api/v1/auth/telegram`, method: "POST" }),
-        invalidatesTags: ["Authentication"],
+        query: () => ({ url: `/api/v1/auth/telegram`, method: 'POST' }),
+        invalidatesTags: ['Authentication'],
       }),
       refreshTokenApiV1AuthRefreshPost: build.mutation<
         RefreshTokenApiV1AuthRefreshPostApiResponse,
@@ -575,24 +566,24 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/auth/refresh`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.refreshTokenRequest,
         }),
-        invalidatesTags: ["Authentication"],
+        invalidatesTags: ['Authentication'],
       }),
       logoutApiV1AuthLogoutPost: build.mutation<
         LogoutApiV1AuthLogoutPostApiResponse,
         LogoutApiV1AuthLogoutPostApiArg
       >({
-        query: () => ({ url: `/api/v1/auth/logout`, method: "POST" }),
-        invalidatesTags: ["Authentication"],
+        query: () => ({ url: `/api/v1/auth/logout`, method: 'POST' }),
+        invalidatesTags: ['Authentication'],
       }),
       logoutAllApiV1AuthLogoutAllPost: build.mutation<
         LogoutAllApiV1AuthLogoutAllPostApiResponse,
         LogoutAllApiV1AuthLogoutAllPostApiArg
       >({
-        query: () => ({ url: `/api/v1/auth/logout/all`, method: "POST" }),
-        invalidatesTags: ["Authentication"],
+        query: () => ({ url: `/api/v1/auth/logout/all`, method: 'POST' }),
+        invalidatesTags: ['Authentication'],
       }),
       validateInvitationApiV1InvitationsTokenValidateGet: build.query<
         ValidateInvitationApiV1InvitationsTokenValidateGetApiResponse,
@@ -601,7 +592,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/invitations/${queryArg.token}/validate`,
         }),
-        providesTags: ["Invitations"],
+        providesTags: ['Invitations'],
       }),
       acceptInvitationApiV1InvitationsTokenAcceptPost: build.mutation<
         AcceptInvitationApiV1InvitationsTokenAcceptPostApiResponse,
@@ -609,24 +600,24 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/invitations/${queryArg.token}/accept`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.acceptInvitationRequest,
         }),
-        invalidatesTags: ["Invitations"],
+        invalidatesTags: ['Invitations'],
       }),
       getMyProfileApiV1ProfileMeGet: build.query<
         GetMyProfileApiV1ProfileMeGetApiResponse,
         GetMyProfileApiV1ProfileMeGetApiArg
       >({
         query: () => ({ url: `/api/v1/profile/me` }),
-        providesTags: ["Profile"],
+        providesTags: ['Profile'],
       }),
       deleteMyAccountApiV1ProfileMeDelete: build.mutation<
         DeleteMyAccountApiV1ProfileMeDeleteApiResponse,
         DeleteMyAccountApiV1ProfileMeDeleteApiArg
       >({
-        query: () => ({ url: `/api/v1/profile/me`, method: "DELETE" }),
-        invalidatesTags: ["Profile / Account"],
+        query: () => ({ url: `/api/v1/profile/me`, method: 'DELETE' }),
+        invalidatesTags: ['Profile / Account'],
       }),
       updateProfileApiV1ProfileMePatch: build.mutation<
         UpdateProfileApiV1ProfileMePatchApiResponse,
@@ -634,10 +625,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/profile/me`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.updateProfileRequest,
         }),
-        invalidatesTags: ["Profile"],
+        invalidatesTags: ['Profile'],
       }),
       changePasswordApiV1ProfilePasswordPut: build.mutation<
         ChangePasswordApiV1ProfilePasswordPutApiResponse,
@@ -645,17 +636,17 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/profile/password`,
-          method: "PUT",
+          method: 'PUT',
           body: queryArg.changePasswordRequest,
         }),
-        invalidatesTags: ["Profile / Account"],
+        invalidatesTags: ['Profile / Account'],
       }),
       getMySessionsApiV1ProfileSessionsGet: build.query<
         GetMySessionsApiV1ProfileSessionsGetApiResponse,
         GetMySessionsApiV1ProfileSessionsGetApiArg
       >({
         query: () => ({ url: `/api/v1/profile/sessions` }),
-        providesTags: ["Profile / Account"],
+        providesTags: ['Profile / Account'],
       }),
       listIdentitiesApiV1AdminIdentitiesGet: build.query<
         ListIdentitiesApiV1AdminIdentitiesGetApiResponse,
@@ -673,7 +664,7 @@ const injectedRtkApi = api
             sortOrder: queryArg.sortOrder,
           },
         }),
-        providesTags: ["Admin / IAM"],
+        providesTags: ['Admin / IAM'],
       }),
       getIdentityDetailApiV1AdminIdentitiesIdentityIdGet: build.query<
         GetIdentityDetailApiV1AdminIdentitiesIdentityIdGetApiResponse,
@@ -682,37 +673,35 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/identities/${queryArg.identityId}`,
         }),
-        providesTags: ["Admin / IAM"],
+        providesTags: ['Admin / IAM'],
       }),
-      adminDeactivateIdentityApiV1AdminIdentitiesIdentityIdDeactivatePost:
-        build.mutation<
-          AdminDeactivateIdentityApiV1AdminIdentitiesIdentityIdDeactivatePostApiResponse,
-          AdminDeactivateIdentityApiV1AdminIdentitiesIdentityIdDeactivatePostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/identities/${queryArg.identityId}/deactivate`,
-            method: "POST",
-            body: queryArg.adminDeactivateRequest,
-          }),
-          invalidatesTags: ["Admin / IAM"],
+      adminDeactivateIdentityApiV1AdminIdentitiesIdentityIdDeactivatePost: build.mutation<
+        AdminDeactivateIdentityApiV1AdminIdentitiesIdentityIdDeactivatePostApiResponse,
+        AdminDeactivateIdentityApiV1AdminIdentitiesIdentityIdDeactivatePostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/identities/${queryArg.identityId}/deactivate`,
+          method: 'POST',
+          body: queryArg.adminDeactivateRequest,
         }),
-      adminReactivateIdentityApiV1AdminIdentitiesIdentityIdReactivatePost:
-        build.mutation<
-          AdminReactivateIdentityApiV1AdminIdentitiesIdentityIdReactivatePostApiResponse,
-          AdminReactivateIdentityApiV1AdminIdentitiesIdentityIdReactivatePostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/identities/${queryArg.identityId}/reactivate`,
-            method: "POST",
-          }),
-          invalidatesTags: ["Admin / IAM"],
+        invalidatesTags: ['Admin / IAM'],
+      }),
+      adminReactivateIdentityApiV1AdminIdentitiesIdentityIdReactivatePost: build.mutation<
+        AdminReactivateIdentityApiV1AdminIdentitiesIdentityIdReactivatePostApiResponse,
+        AdminReactivateIdentityApiV1AdminIdentitiesIdentityIdReactivatePostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/identities/${queryArg.identityId}/reactivate`,
+          method: 'POST',
         }),
+        invalidatesTags: ['Admin / IAM'],
+      }),
       listRolesApiV1AdminRolesGet: build.query<
         ListRolesApiV1AdminRolesGetApiResponse,
         ListRolesApiV1AdminRolesGetApiArg
       >({
         query: () => ({ url: `/api/v1/admin/roles` }),
-        providesTags: ["Admin / IAM"],
+        providesTags: ['Admin / IAM'],
       }),
       createRoleApiV1AdminRolesPost: build.mutation<
         CreateRoleApiV1AdminRolesPostApiResponse,
@@ -720,10 +709,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/roles`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.createRoleRequest,
         }),
-        invalidatesTags: ["Admin / IAM"],
+        invalidatesTags: ['Admin / IAM'],
       }),
       getRoleDetailApiV1AdminRolesRoleIdGet: build.query<
         GetRoleDetailApiV1AdminRolesRoleIdGetApiResponse,
@@ -732,7 +721,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/roles/${queryArg.roleId}`,
         }),
-        providesTags: ["Admin / IAM"],
+        providesTags: ['Admin / IAM'],
       }),
       updateRoleApiV1AdminRolesRoleIdPatch: build.mutation<
         UpdateRoleApiV1AdminRolesRoleIdPatchApiResponse,
@@ -740,10 +729,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/roles/${queryArg.roleId}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.updateRoleRequest,
         }),
-        invalidatesTags: ["Admin / IAM"],
+        invalidatesTags: ['Admin / IAM'],
       }),
       deleteRoleApiV1AdminRolesRoleIdDelete: build.mutation<
         DeleteRoleApiV1AdminRolesRoleIdDeleteApiResponse,
@@ -751,9 +740,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/roles/${queryArg.roleId}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Admin / IAM"],
+        invalidatesTags: ['Admin / IAM'],
       }),
       setRolePermissionsApiV1AdminRolesRoleIdPermissionsPut: build.mutation<
         SetRolePermissionsApiV1AdminRolesRoleIdPermissionsPutApiResponse,
@@ -761,17 +750,17 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/roles/${queryArg.roleId}/permissions`,
-          method: "PUT",
+          method: 'PUT',
           body: queryArg.setRolePermissionsRequest,
         }),
-        invalidatesTags: ["Admin / IAM"],
+        invalidatesTags: ['Admin / IAM'],
       }),
       listPermissionsApiV1AdminPermissionsGet: build.query<
         ListPermissionsApiV1AdminPermissionsGetApiResponse,
         ListPermissionsApiV1AdminPermissionsGetApiArg
       >({
         query: () => ({ url: `/api/v1/admin/permissions` }),
-        providesTags: ["Admin / IAM"],
+        providesTags: ['Admin / IAM'],
       }),
       assignRoleApiV1AdminIdentitiesIdentityIdRolesPost: build.mutation<
         AssignRoleApiV1AdminIdentitiesIdentityIdRolesPostApiResponse,
@@ -779,10 +768,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/identities/${queryArg.identityId}/roles`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.assignRoleRequest,
         }),
-        invalidatesTags: ["Admin / IAM"],
+        invalidatesTags: ['Admin / IAM'],
       }),
       revokeRoleApiV1AdminIdentitiesIdentityIdRolesRoleIdDelete: build.mutation<
         RevokeRoleApiV1AdminIdentitiesIdentityIdRolesRoleIdDeleteApiResponse,
@@ -790,9 +779,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/identities/${queryArg.identityId}/roles/${queryArg.roleId}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Admin / IAM"],
+        invalidatesTags: ['Admin / IAM'],
       }),
       listStaffApiV1AdminStaffGet: build.query<
         ListStaffApiV1AdminStaffGetApiResponse,
@@ -810,7 +799,7 @@ const injectedRtkApi = api
             sortOrder: queryArg.sortOrder,
           },
         }),
-        providesTags: ["Admin / Staff"],
+        providesTags: ['Admin / Staff'],
       }),
       inviteStaffApiV1AdminStaffInvitationsPost: build.mutation<
         InviteStaffApiV1AdminStaffInvitationsPostApiResponse,
@@ -818,10 +807,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/staff/invitations`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.inviteStaffRequest,
         }),
-        invalidatesTags: ["Admin / Staff"],
+        invalidatesTags: ['Admin / Staff'],
       }),
       listInvitationsApiV1AdminStaffInvitationsGet: build.query<
         ListInvitationsApiV1AdminStaffInvitationsGetApiResponse,
@@ -835,19 +824,18 @@ const injectedRtkApi = api
             status: queryArg.status,
           },
         }),
-        providesTags: ["Admin / Staff"],
+        providesTags: ['Admin / Staff'],
       }),
-      revokeInvitationApiV1AdminStaffInvitationsInvitationIdDelete:
-        build.mutation<
-          RevokeInvitationApiV1AdminStaffInvitationsInvitationIdDeleteApiResponse,
-          RevokeInvitationApiV1AdminStaffInvitationsInvitationIdDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/staff/invitations/${queryArg.invitationId}`,
-            method: "DELETE",
-          }),
-          invalidatesTags: ["Admin / Staff"],
+      revokeInvitationApiV1AdminStaffInvitationsInvitationIdDelete: build.mutation<
+        RevokeInvitationApiV1AdminStaffInvitationsInvitationIdDeleteApiResponse,
+        RevokeInvitationApiV1AdminStaffInvitationsInvitationIdDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/staff/invitations/${queryArg.invitationId}`,
+          method: 'DELETE',
         }),
+        invalidatesTags: ['Admin / Staff'],
+      }),
       getStaffDetailApiV1AdminStaffIdentityIdGet: build.query<
         GetStaffDetailApiV1AdminStaffIdentityIdGetApiResponse,
         GetStaffDetailApiV1AdminStaffIdentityIdGetApiArg
@@ -855,7 +843,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/staff/${queryArg.identityId}`,
         }),
-        providesTags: ["Admin / Staff"],
+        providesTags: ['Admin / Staff'],
       }),
       deactivateStaffApiV1AdminStaffIdentityIdDeactivatePost: build.mutation<
         DeactivateStaffApiV1AdminStaffIdentityIdDeactivatePostApiResponse,
@@ -863,10 +851,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/staff/${queryArg.identityId}/deactivate`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.adminDeactivateRequest,
         }),
-        invalidatesTags: ["Admin / Staff"],
+        invalidatesTags: ['Admin / Staff'],
       }),
       reactivateStaffApiV1AdminStaffIdentityIdReactivatePost: build.mutation<
         ReactivateStaffApiV1AdminStaffIdentityIdReactivatePostApiResponse,
@@ -874,9 +862,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/staff/${queryArg.identityId}/reactivate`,
-          method: "POST",
+          method: 'POST',
         }),
-        invalidatesTags: ["Admin / Staff"],
+        invalidatesTags: ['Admin / Staff'],
       }),
       listCustomersApiV1AdminCustomersGet: build.query<
         ListCustomersApiV1AdminCustomersGetApiResponse,
@@ -893,7 +881,7 @@ const injectedRtkApi = api
             sortOrder: queryArg.sortOrder,
           },
         }),
-        providesTags: ["Admin / Customers"],
+        providesTags: ['Admin / Customers'],
       }),
       getCustomerDetailApiV1AdminCustomersIdentityIdGet: build.query<
         GetCustomerDetailApiV1AdminCustomersIdentityIdGetApiResponse,
@@ -902,41 +890,39 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/customers/${queryArg.identityId}`,
         }),
-        providesTags: ["Admin / Customers"],
+        providesTags: ['Admin / Customers'],
       }),
-      deactivateCustomerApiV1AdminCustomersIdentityIdDeactivatePost:
-        build.mutation<
-          DeactivateCustomerApiV1AdminCustomersIdentityIdDeactivatePostApiResponse,
-          DeactivateCustomerApiV1AdminCustomersIdentityIdDeactivatePostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/customers/${queryArg.identityId}/deactivate`,
-            method: "POST",
-            body: queryArg.adminDeactivateRequest,
-          }),
-          invalidatesTags: ["Admin / Customers"],
+      deactivateCustomerApiV1AdminCustomersIdentityIdDeactivatePost: build.mutation<
+        DeactivateCustomerApiV1AdminCustomersIdentityIdDeactivatePostApiResponse,
+        DeactivateCustomerApiV1AdminCustomersIdentityIdDeactivatePostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/customers/${queryArg.identityId}/deactivate`,
+          method: 'POST',
+          body: queryArg.adminDeactivateRequest,
         }),
-      reactivateCustomerApiV1AdminCustomersIdentityIdReactivatePost:
-        build.mutation<
-          ReactivateCustomerApiV1AdminCustomersIdentityIdReactivatePostApiResponse,
-          ReactivateCustomerApiV1AdminCustomersIdentityIdReactivatePostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/customers/${queryArg.identityId}/reactivate`,
-            method: "POST",
-          }),
-          invalidatesTags: ["Admin / Customers"],
+        invalidatesTags: ['Admin / Customers'],
+      }),
+      reactivateCustomerApiV1AdminCustomersIdentityIdReactivatePost: build.mutation<
+        ReactivateCustomerApiV1AdminCustomersIdentityIdReactivatePostApiResponse,
+        ReactivateCustomerApiV1AdminCustomersIdentityIdReactivatePostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/customers/${queryArg.identityId}/reactivate`,
+          method: 'POST',
         }),
+        invalidatesTags: ['Admin / Customers'],
+      }),
       createSupplierApiV1AdminSuppliersPost: build.mutation<
         CreateSupplierApiV1AdminSuppliersPostApiResponse,
         CreateSupplierApiV1AdminSuppliersPostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/suppliers`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.supplierCreateRequest,
         }),
-        invalidatesTags: ["Admin / Suppliers"],
+        invalidatesTags: ['Admin / Suppliers'],
       }),
       listSuppliersApiV1AdminSuppliersGet: build.query<
         ListSuppliersApiV1AdminSuppliersGetApiResponse,
@@ -949,7 +935,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Admin / Suppliers"],
+        providesTags: ['Admin / Suppliers'],
       }),
       getSupplierApiV1AdminSuppliersSupplierIdGet: build.query<
         GetSupplierApiV1AdminSuppliersSupplierIdGetApiResponse,
@@ -958,7 +944,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/suppliers/${queryArg.supplierId}`,
         }),
-        providesTags: ["Admin / Suppliers"],
+        providesTags: ['Admin / Suppliers'],
       }),
       updateSupplierApiV1AdminSuppliersSupplierIdPut: build.mutation<
         UpdateSupplierApiV1AdminSuppliersSupplierIdPutApiResponse,
@@ -966,59 +952,55 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/suppliers/${queryArg.supplierId}`,
-          method: "PUT",
+          method: 'PUT',
           body: queryArg.supplierUpdateRequest,
         }),
-        invalidatesTags: ["Admin / Suppliers"],
+        invalidatesTags: ['Admin / Suppliers'],
       }),
-      deactivateSupplierApiV1AdminSuppliersSupplierIdDeactivatePatch:
-        build.mutation<
-          DeactivateSupplierApiV1AdminSuppliersSupplierIdDeactivatePatchApiResponse,
-          DeactivateSupplierApiV1AdminSuppliersSupplierIdDeactivatePatchApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/suppliers/${queryArg.supplierId}/deactivate`,
-            method: "PATCH",
-          }),
-          invalidatesTags: ["Admin / Suppliers"],
+      deactivateSupplierApiV1AdminSuppliersSupplierIdDeactivatePatch: build.mutation<
+        DeactivateSupplierApiV1AdminSuppliersSupplierIdDeactivatePatchApiResponse,
+        DeactivateSupplierApiV1AdminSuppliersSupplierIdDeactivatePatchApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/suppliers/${queryArg.supplierId}/deactivate`,
+          method: 'PATCH',
         }),
-      activateSupplierApiV1AdminSuppliersSupplierIdActivatePatch:
-        build.mutation<
-          ActivateSupplierApiV1AdminSuppliersSupplierIdActivatePatchApiResponse,
-          ActivateSupplierApiV1AdminSuppliersSupplierIdActivatePatchApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/suppliers/${queryArg.supplierId}/activate`,
-            method: "PATCH",
-          }),
-          invalidatesTags: ["Admin / Suppliers"],
+        invalidatesTags: ['Admin / Suppliers'],
+      }),
+      activateSupplierApiV1AdminSuppliersSupplierIdActivatePatch: build.mutation<
+        ActivateSupplierApiV1AdminSuppliersSupplierIdActivatePatchApiResponse,
+        ActivateSupplierApiV1AdminSuppliersSupplierIdActivatePatchApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/suppliers/${queryArg.supplierId}/activate`,
+          method: 'PATCH',
         }),
-      getFilterableAttributesApiV1StorefrontCategoriesCategoryIdFiltersGet:
-        build.query<
-          GetFilterableAttributesApiV1StorefrontCategoriesCategoryIdFiltersGetApiResponse,
-          GetFilterableAttributesApiV1StorefrontCategoriesCategoryIdFiltersGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/storefront/categories/${queryArg.categoryId}/filters`,
-            params: {
-              lang: queryArg.lang,
-            },
-          }),
-          providesTags: ["Storefront / Categories"],
+        invalidatesTags: ['Admin / Suppliers'],
+      }),
+      getFilterableAttributesApiV1StorefrontCategoriesCategoryIdFiltersGet: build.query<
+        GetFilterableAttributesApiV1StorefrontCategoriesCategoryIdFiltersGetApiResponse,
+        GetFilterableAttributesApiV1StorefrontCategoriesCategoryIdFiltersGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/storefront/categories/${queryArg.categoryId}/filters`,
+          params: {
+            lang: queryArg.lang,
+          },
         }),
-      getCardAttributesApiV1StorefrontCategoriesCategoryIdCardAttributesGet:
-        build.query<
-          GetCardAttributesApiV1StorefrontCategoriesCategoryIdCardAttributesGetApiResponse,
-          GetCardAttributesApiV1StorefrontCategoriesCategoryIdCardAttributesGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/storefront/categories/${queryArg.categoryId}/card-attributes`,
-            params: {
-              lang: queryArg.lang,
-            },
-          }),
-          providesTags: ["Storefront / Categories"],
+        providesTags: ['Storefront / Categories'],
+      }),
+      getCardAttributesApiV1StorefrontCategoriesCategoryIdCardAttributesGet: build.query<
+        GetCardAttributesApiV1StorefrontCategoriesCategoryIdCardAttributesGetApiResponse,
+        GetCardAttributesApiV1StorefrontCategoriesCategoryIdCardAttributesGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/storefront/categories/${queryArg.categoryId}/card-attributes`,
+          params: {
+            lang: queryArg.lang,
+          },
         }),
+        providesTags: ['Storefront / Categories'],
+      }),
       getComparisonAttributesApiV1StorefrontCategoriesCategoryIdComparisonAttributesGet:
         build.query<
           GetComparisonAttributesApiV1StorefrontCategoriesCategoryIdComparisonAttributesGetApiResponse,
@@ -1030,21 +1012,20 @@ const injectedRtkApi = api
               lang: queryArg.lang,
             },
           }),
-          providesTags: ["Storefront / Categories"],
+          providesTags: ['Storefront / Categories'],
         }),
-      getFormAttributesApiV1StorefrontCategoriesCategoryIdFormAttributesGet:
-        build.query<
-          GetFormAttributesApiV1StorefrontCategoriesCategoryIdFormAttributesGetApiResponse,
-          GetFormAttributesApiV1StorefrontCategoriesCategoryIdFormAttributesGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/storefront/categories/${queryArg.categoryId}/form-attributes`,
-            params: {
-              lang: queryArg.lang,
-            },
-          }),
-          providesTags: ["Storefront / Categories"],
+      getFormAttributesApiV1StorefrontCategoriesCategoryIdFormAttributesGet: build.query<
+        GetFormAttributesApiV1StorefrontCategoriesCategoryIdFormAttributesGetApiResponse,
+        GetFormAttributesApiV1StorefrontCategoriesCategoryIdFormAttributesGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/storefront/categories/${queryArg.categoryId}/form-attributes`,
+          params: {
+            lang: queryArg.lang,
+          },
         }),
+        providesTags: ['Storefront / Categories'],
+      }),
       storefrontCategoryTreeApiV1StorefrontCategoriesTreeGet: build.query<
         StorefrontCategoryTreeApiV1StorefrontCategoriesTreeGetApiResponse,
         StorefrontCategoryTreeApiV1StorefrontCategoriesTreeGetApiArg
@@ -1055,7 +1036,7 @@ const injectedRtkApi = api
             maxDepth: queryArg.maxDepth,
           },
         }),
-        providesTags: ["Storefront / Taxonomy"],
+        providesTags: ['Storefront / Taxonomy'],
       }),
       storefrontListCategoriesApiV1StorefrontCategoriesGet: build.query<
         StorefrontListCategoriesApiV1StorefrontCategoriesGetApiResponse,
@@ -1068,7 +1049,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Storefront / Taxonomy"],
+        providesTags: ['Storefront / Taxonomy'],
       }),
       storefrontGetCategoryApiV1StorefrontCategoriesCategoryIdGet: build.query<
         StorefrontGetCategoryApiV1StorefrontCategoriesCategoryIdGetApiResponse,
@@ -1077,7 +1058,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/storefront/categories/${queryArg.categoryId}`,
         }),
-        providesTags: ["Storefront / Taxonomy"],
+        providesTags: ['Storefront / Taxonomy'],
       }),
       storefrontListBrandsApiV1StorefrontBrandsGet: build.query<
         StorefrontListBrandsApiV1StorefrontBrandsGetApiResponse,
@@ -1090,7 +1071,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Storefront / Taxonomy"],
+        providesTags: ['Storefront / Taxonomy'],
       }),
       storefrontGetBrandApiV1StorefrontBrandsBrandIdGet: build.query<
         StorefrontGetBrandApiV1StorefrontBrandsBrandIdGetApiResponse,
@@ -1099,7 +1080,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/storefront/brands/${queryArg.brandId}`,
         }),
-        providesTags: ["Storefront / Taxonomy"],
+        providesTags: ['Storefront / Taxonomy'],
       }),
       listStorefrontProductsApiV1StorefrontProductsGet: build.query<
         ListStorefrontProductsApiV1StorefrontProductsGetApiResponse,
@@ -1121,7 +1102,7 @@ const injectedRtkApi = api
             lang: queryArg.lang,
           },
         }),
-        providesTags: ["Storefront / Products"],
+        providesTags: ['Storefront / Products'],
       }),
       getStorefrontProductApiV1StorefrontProductsSlugGet: build.query<
         GetStorefrontProductApiV1StorefrontProductsSlugGetApiResponse,
@@ -1133,7 +1114,7 @@ const injectedRtkApi = api
             lang: queryArg.lang,
           },
         }),
-        providesTags: ["Storefront / Products"],
+        providesTags: ['Storefront / Products'],
       }),
       getSimilarProductsApiV1StorefrontProductsSlugSimilarGet: build.query<
         GetSimilarProductsApiV1StorefrontProductsSlugSimilarGetApiResponse,
@@ -1146,22 +1127,21 @@ const injectedRtkApi = api
             lang: queryArg.lang,
           },
         }),
-        providesTags: ["Storefront / Products"],
+        providesTags: ['Storefront / Products'],
       }),
-      getAlsoViewedProductsApiV1StorefrontProductsSlugAlsoViewedGet:
-        build.query<
-          GetAlsoViewedProductsApiV1StorefrontProductsSlugAlsoViewedGetApiResponse,
-          GetAlsoViewedProductsApiV1StorefrontProductsSlugAlsoViewedGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/storefront/products/${queryArg.slug}/also-viewed`,
-            params: {
-              limit: queryArg.limit,
-              lang: queryArg.lang,
-            },
-          }),
-          providesTags: ["Storefront / Products"],
+      getAlsoViewedProductsApiV1StorefrontProductsSlugAlsoViewedGet: build.query<
+        GetAlsoViewedProductsApiV1StorefrontProductsSlugAlsoViewedGetApiResponse,
+        GetAlsoViewedProductsApiV1StorefrontProductsSlugAlsoViewedGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/storefront/products/${queryArg.slug}/also-viewed`,
+          params: {
+            limit: queryArg.limit,
+            lang: queryArg.lang,
+          },
         }),
+        providesTags: ['Storefront / Products'],
+      }),
       searchProductsApiV1StorefrontSearchGet: build.query<
         SearchProductsApiV1StorefrontSearchGetApiResponse,
         SearchProductsApiV1StorefrontSearchGetApiArg
@@ -1183,7 +1163,7 @@ const injectedRtkApi = api
             lang: queryArg.lang,
           },
         }),
-        providesTags: ["Storefront / Search"],
+        providesTags: ['Storefront / Search'],
       }),
       searchSuggestApiV1StorefrontSearchSuggestGet: build.query<
         SearchSuggestApiV1StorefrontSearchSuggestGetApiResponse,
@@ -1197,7 +1177,7 @@ const injectedRtkApi = api
             lang: queryArg.lang,
           },
         }),
-        providesTags: ["Storefront / Search"],
+        providesTags: ['Storefront / Search'],
       }),
       listTrendingProductsApiV1StorefrontTrendingGet: build.query<
         ListTrendingProductsApiV1StorefrontTrendingGetApiResponse,
@@ -1212,7 +1192,7 @@ const injectedRtkApi = api
             lang: queryArg.lang,
           },
         }),
-        providesTags: ["Storefront / Trending"],
+        providesTags: ['Storefront / Trending'],
       }),
       getForYouFeedApiV1StorefrontForYouGet: build.query<
         GetForYouFeedApiV1StorefrontForYouGetApiResponse,
@@ -1226,7 +1206,7 @@ const injectedRtkApi = api
             lang: queryArg.lang,
           },
         }),
-        providesTags: ["Storefront / For You"],
+        providesTags: ['Storefront / For You'],
       }),
       createBrandApiV1AdminCatalogBrandsPost: build.mutation<
         CreateBrandApiV1AdminCatalogBrandsPostApiResponse,
@@ -1234,10 +1214,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/brands`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.brandCreateRequest,
         }),
-        invalidatesTags: ["Admin / Catalog / Brands"],
+        invalidatesTags: ['Admin / Catalog / Brands'],
       }),
       listBrandsApiV1AdminCatalogBrandsGet: build.query<
         ListBrandsApiV1AdminCatalogBrandsGetApiResponse,
@@ -1250,7 +1230,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Admin / Catalog / Brands"],
+        providesTags: ['Admin / Catalog / Brands'],
       }),
       bulkCreateBrandsApiV1AdminCatalogBrandsBulkPost: build.mutation<
         BulkCreateBrandsApiV1AdminCatalogBrandsBulkPostApiResponse,
@@ -1258,10 +1238,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/brands/bulk`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.bulkCreateBrandsRequest,
         }),
-        invalidatesTags: ["Admin / Catalog / Brands"],
+        invalidatesTags: ['Admin / Catalog / Brands'],
       }),
       getBrandApiV1AdminCatalogBrandsBrandIdGet: build.query<
         GetBrandApiV1AdminCatalogBrandsBrandIdGetApiResponse,
@@ -1270,7 +1250,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/brands/${queryArg.brandId}`,
         }),
-        providesTags: ["Admin / Catalog / Brands"],
+        providesTags: ['Admin / Catalog / Brands'],
       }),
       updateBrandApiV1AdminCatalogBrandsBrandIdPatch: build.mutation<
         UpdateBrandApiV1AdminCatalogBrandsBrandIdPatchApiResponse,
@@ -1278,13 +1258,13 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/brands/${queryArg.brandId}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.brandUpdateRequest,
           headers: {
-            "If-Match": queryArg["If-Match"],
+            'If-Match': queryArg['If-Match'],
           },
         }),
-        invalidatesTags: ["Admin / Catalog / Brands"],
+        invalidatesTags: ['Admin / Catalog / Brands'],
       }),
       deleteBrandApiV1AdminCatalogBrandsBrandIdDelete: build.mutation<
         DeleteBrandApiV1AdminCatalogBrandsBrandIdDeleteApiResponse,
@@ -1292,9 +1272,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/brands/${queryArg.brandId}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Admin / Catalog / Brands"],
+        invalidatesTags: ['Admin / Catalog / Brands'],
       }),
       createCategoryApiV1AdminCatalogCategoriesPost: build.mutation<
         CreateCategoryApiV1AdminCatalogCategoriesPostApiResponse,
@@ -1302,10 +1282,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/categories`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.categoryCreateRequest,
         }),
-        invalidatesTags: ["Admin / Catalog / Categories"],
+        invalidatesTags: ['Admin / Catalog / Categories'],
       }),
       listCategoriesApiV1AdminCatalogCategoriesGet: build.query<
         ListCategoriesApiV1AdminCatalogCategoriesGetApiResponse,
@@ -1318,7 +1298,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Admin / Catalog / Categories"],
+        providesTags: ['Admin / Catalog / Categories'],
       }),
       bulkCreateCategoriesApiV1AdminCatalogCategoriesBulkPost: build.mutation<
         BulkCreateCategoriesApiV1AdminCatalogCategoriesBulkPostApiResponse,
@@ -1326,10 +1306,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/categories/bulk`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.bulkCreateCategoriesRequest,
         }),
-        invalidatesTags: ["Admin / Catalog / Categories"],
+        invalidatesTags: ['Admin / Catalog / Categories'],
       }),
       getCategoryTreeApiV1AdminCatalogCategoriesTreeGet: build.query<
         GetCategoryTreeApiV1AdminCatalogCategoriesTreeGetApiResponse,
@@ -1341,7 +1321,7 @@ const injectedRtkApi = api
             maxDepth: queryArg.maxDepth,
           },
         }),
-        providesTags: ["Admin / Catalog / Categories"],
+        providesTags: ['Admin / Catalog / Categories'],
       }),
       getCategoryApiV1AdminCatalogCategoriesCategoryIdGet: build.query<
         GetCategoryApiV1AdminCatalogCategoriesCategoryIdGetApiResponse,
@@ -1350,7 +1330,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/categories/${queryArg.categoryId}`,
         }),
-        providesTags: ["Admin / Catalog / Categories"],
+        providesTags: ['Admin / Catalog / Categories'],
       }),
       updateCategoryApiV1AdminCatalogCategoriesCategoryIdPatch: build.mutation<
         UpdateCategoryApiV1AdminCatalogCategoriesCategoryIdPatchApiResponse,
@@ -1358,13 +1338,13 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/categories/${queryArg.categoryId}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.categoryUpdateRequest,
           headers: {
-            "If-Match": queryArg["If-Match"],
+            'If-Match': queryArg['If-Match'],
           },
         }),
-        invalidatesTags: ["Admin / Catalog / Categories"],
+        invalidatesTags: ['Admin / Catalog / Categories'],
       }),
       deleteCategoryApiV1AdminCatalogCategoriesCategoryIdDelete: build.mutation<
         DeleteCategoryApiV1AdminCatalogCategoriesCategoryIdDeleteApiResponse,
@@ -1372,9 +1352,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/categories/${queryArg.categoryId}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Admin / Catalog / Categories"],
+        invalidatesTags: ['Admin / Catalog / Categories'],
       }),
       createAttributeApiV1AdminCatalogAttributesPost: build.mutation<
         CreateAttributeApiV1AdminCatalogAttributesPostApiResponse,
@@ -1382,10 +1362,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/attributes`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.attributeCreateRequest,
         }),
-        invalidatesTags: ["Admin / Catalog / Attributes"],
+        invalidatesTags: ['Admin / Catalog / Attributes'],
       }),
       listAttributesApiV1AdminCatalogAttributesGet: build.query<
         ListAttributesApiV1AdminCatalogAttributesGetApiResponse,
@@ -1407,7 +1387,7 @@ const injectedRtkApi = api
             search: queryArg.search,
           },
         }),
-        providesTags: ["Admin / Catalog / Attributes"],
+        providesTags: ['Admin / Catalog / Attributes'],
       }),
       bulkCreateAttributesApiV1AdminCatalogAttributesBulkPost: build.mutation<
         BulkCreateAttributesApiV1AdminCatalogAttributesBulkPostApiResponse,
@@ -1415,10 +1395,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/attributes/bulk`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.bulkCreateAttributesRequest,
         }),
-        invalidatesTags: ["Admin / Catalog / Attributes"],
+        invalidatesTags: ['Admin / Catalog / Attributes'],
       }),
       getAttributeApiV1AdminCatalogAttributesAttributeIdGet: build.query<
         GetAttributeApiV1AdminCatalogAttributesAttributeIdGetApiResponse,
@@ -1427,51 +1407,48 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}`,
         }),
-        providesTags: ["Admin / Catalog / Attributes"],
+        providesTags: ['Admin / Catalog / Attributes'],
       }),
-      updateAttributeApiV1AdminCatalogAttributesAttributeIdPatch:
-        build.mutation<
-          UpdateAttributeApiV1AdminCatalogAttributesAttributeIdPatchApiResponse,
-          UpdateAttributeApiV1AdminCatalogAttributesAttributeIdPatchApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}`,
-            method: "PATCH",
-            body: queryArg.attributeUpdateRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / Attributes"],
+      updateAttributeApiV1AdminCatalogAttributesAttributeIdPatch: build.mutation<
+        UpdateAttributeApiV1AdminCatalogAttributesAttributeIdPatchApiResponse,
+        UpdateAttributeApiV1AdminCatalogAttributesAttributeIdPatchApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}`,
+          method: 'PATCH',
+          body: queryArg.attributeUpdateRequest,
         }),
-      deleteAttributeApiV1AdminCatalogAttributesAttributeIdDelete:
-        build.mutation<
-          DeleteAttributeApiV1AdminCatalogAttributesAttributeIdDeleteApiResponse,
-          DeleteAttributeApiV1AdminCatalogAttributesAttributeIdDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}`,
-            method: "DELETE",
-          }),
-          invalidatesTags: ["Admin / Catalog / Attributes"],
+        invalidatesTags: ['Admin / Catalog / Attributes'],
+      }),
+      deleteAttributeApiV1AdminCatalogAttributesAttributeIdDelete: build.mutation<
+        DeleteAttributeApiV1AdminCatalogAttributesAttributeIdDeleteApiResponse,
+        DeleteAttributeApiV1AdminCatalogAttributesAttributeIdDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}`,
+          method: 'DELETE',
         }),
-      getAttributeUsageApiV1AdminCatalogAttributesAttributeIdUsageGet:
-        build.query<
-          GetAttributeUsageApiV1AdminCatalogAttributesAttributeIdUsageGetApiResponse,
-          GetAttributeUsageApiV1AdminCatalogAttributesAttributeIdUsageGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/usage`,
-          }),
-          providesTags: ["Admin / Catalog / Attributes"],
+        invalidatesTags: ['Admin / Catalog / Attributes'],
+      }),
+      getAttributeUsageApiV1AdminCatalogAttributesAttributeIdUsageGet: build.query<
+        GetAttributeUsageApiV1AdminCatalogAttributesAttributeIdUsageGetApiResponse,
+        GetAttributeUsageApiV1AdminCatalogAttributesAttributeIdUsageGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/usage`,
         }),
+        providesTags: ['Admin / Catalog / Attributes'],
+      }),
       createAttributeGroupApiV1AdminCatalogAttributeGroupsPost: build.mutation<
         CreateAttributeGroupApiV1AdminCatalogAttributeGroupsPostApiResponse,
         CreateAttributeGroupApiV1AdminCatalogAttributeGroupsPostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/attribute-groups`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.attributeGroupCreateRequest,
         }),
-        invalidatesTags: ["Admin / Catalog / Attribute Groups"],
+        invalidatesTags: ['Admin / Catalog / Attribute Groups'],
       }),
       listAttributeGroupsApiV1AdminCatalogAttributeGroupsGet: build.query<
         ListAttributeGroupsApiV1AdminCatalogAttributeGroupsGetApiResponse,
@@ -1484,7 +1461,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Admin / Catalog / Attribute Groups"],
+        providesTags: ['Admin / Catalog / Attribute Groups'],
       }),
       getAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdGet: build.query<
         GetAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdGetApiResponse,
@@ -1493,103 +1470,95 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/attribute-groups/${queryArg.groupId}`,
         }),
-        providesTags: ["Admin / Catalog / Attribute Groups"],
+        providesTags: ['Admin / Catalog / Attribute Groups'],
       }),
-      updateAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdPatch:
-        build.mutation<
-          UpdateAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdPatchApiResponse,
-          UpdateAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdPatchApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attribute-groups/${queryArg.groupId}`,
-            method: "PATCH",
-            body: queryArg.attributeGroupUpdateRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / Attribute Groups"],
+      updateAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdPatch: build.mutation<
+        UpdateAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdPatchApiResponse,
+        UpdateAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdPatchApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attribute-groups/${queryArg.groupId}`,
+          method: 'PATCH',
+          body: queryArg.attributeGroupUpdateRequest,
         }),
-      deleteAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdDelete:
-        build.mutation<
-          DeleteAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdDeleteApiResponse,
-          DeleteAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attribute-groups/${queryArg.groupId}`,
-            method: "DELETE",
-          }),
-          invalidatesTags: ["Admin / Catalog / Attribute Groups"],
+        invalidatesTags: ['Admin / Catalog / Attribute Groups'],
+      }),
+      deleteAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdDelete: build.mutation<
+        DeleteAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdDeleteApiResponse,
+        DeleteAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attribute-groups/${queryArg.groupId}`,
+          method: 'DELETE',
         }),
-      addAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesPost:
-        build.mutation<
-          AddAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesPostApiResponse,
-          AddAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values`,
-            method: "POST",
-            body: queryArg.attributeValueCreateRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / Attribute Values"],
+        invalidatesTags: ['Admin / Catalog / Attribute Groups'],
+      }),
+      addAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesPost: build.mutation<
+        AddAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesPostApiResponse,
+        AddAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values`,
+          method: 'POST',
+          body: queryArg.attributeValueCreateRequest,
         }),
-      listAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesGet:
-        build.query<
-          ListAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesGetApiResponse,
-          ListAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values`,
-            params: {
-              offset: queryArg.offset,
-              limit: queryArg.limit,
-              search: queryArg.search,
-            },
-          }),
-          providesTags: ["Admin / Catalog / Attribute Values"],
+        invalidatesTags: ['Admin / Catalog / Attribute Values'],
+      }),
+      listAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesGet: build.query<
+        ListAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesGetApiResponse,
+        ListAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values`,
+          params: {
+            offset: queryArg.offset,
+            limit: queryArg.limit,
+            search: queryArg.search,
+          },
         }),
-      bulkAddAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesBulkPost:
-        build.mutation<
-          BulkAddAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesBulkPostApiResponse,
-          BulkAddAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesBulkPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values/bulk`,
-            method: "POST",
-            body: queryArg.bulkAddAttributeValuesRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / Attribute Values"],
+        providesTags: ['Admin / Catalog / Attribute Values'],
+      }),
+      bulkAddAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesBulkPost: build.mutation<
+        BulkAddAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesBulkPostApiResponse,
+        BulkAddAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesBulkPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values/bulk`,
+          method: 'POST',
+          body: queryArg.bulkAddAttributeValuesRequest,
         }),
-      getAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdGet:
-        build.query<
-          GetAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdGetApiResponse,
-          GetAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values/${queryArg.valueId}`,
-          }),
-          providesTags: ["Admin / Catalog / Attribute Values"],
+        invalidatesTags: ['Admin / Catalog / Attribute Values'],
+      }),
+      getAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdGet: build.query<
+        GetAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdGetApiResponse,
+        GetAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values/${queryArg.valueId}`,
         }),
-      updateAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdPatch:
-        build.mutation<
-          UpdateAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdPatchApiResponse,
-          UpdateAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdPatchApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values/${queryArg.valueId}`,
-            method: "PATCH",
-            body: queryArg.attributeValueUpdateRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / Attribute Values"],
+        providesTags: ['Admin / Catalog / Attribute Values'],
+      }),
+      updateAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdPatch: build.mutation<
+        UpdateAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdPatchApiResponse,
+        UpdateAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdPatchApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values/${queryArg.valueId}`,
+          method: 'PATCH',
+          body: queryArg.attributeValueUpdateRequest,
         }),
-      deleteAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdDelete:
-        build.mutation<
-          DeleteAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdDeleteApiResponse,
-          DeleteAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values/${queryArg.valueId}`,
-            method: "DELETE",
-          }),
-          invalidatesTags: ["Admin / Catalog / Attribute Values"],
+        invalidatesTags: ['Admin / Catalog / Attribute Values'],
+      }),
+      deleteAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdDelete: build.mutation<
+        DeleteAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdDeleteApiResponse,
+        DeleteAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values/${queryArg.valueId}`,
+          method: 'DELETE',
         }),
+        invalidatesTags: ['Admin / Catalog / Attribute Values'],
+      }),
       deactivateValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdDeactivatePatch:
         build.mutation<
           DeactivateValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdDeactivatePatchApiResponse,
@@ -1597,43 +1566,41 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values/${queryArg.valueId}/deactivate`,
-            method: "PATCH",
+            method: 'PATCH',
           }),
-          invalidatesTags: ["Admin / Catalog / Attribute Values"],
+          invalidatesTags: ['Admin / Catalog / Attribute Values'],
         }),
-      activateValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdActivatePatch:
-        build.mutation<
-          ActivateValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdActivatePatchApiResponse,
-          ActivateValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdActivatePatchApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values/${queryArg.valueId}/activate`,
-            method: "PATCH",
-          }),
-          invalidatesTags: ["Admin / Catalog / Attribute Values"],
+      activateValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdActivatePatch: build.mutation<
+        ActivateValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdActivatePatchApiResponse,
+        ActivateValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdActivatePatchApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values/${queryArg.valueId}/activate`,
+          method: 'PATCH',
         }),
-      reorderAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesReorderPost:
-        build.mutation<
-          ReorderAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesReorderPostApiResponse,
-          ReorderAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesReorderPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values/reorder`,
-            method: "POST",
-            body: queryArg.reorderAttributeValuesRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / Attribute Values"],
+        invalidatesTags: ['Admin / Catalog / Attribute Values'],
+      }),
+      reorderAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesReorderPost: build.mutation<
+        ReorderAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesReorderPostApiResponse,
+        ReorderAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesReorderPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attributes/${queryArg.attributeId}/values/reorder`,
+          method: 'POST',
+          body: queryArg.reorderAttributeValuesRequest,
         }),
+        invalidatesTags: ['Admin / Catalog / Attribute Values'],
+      }),
       createTemplateApiV1AdminCatalogAttributeTemplatesPost: build.mutation<
         CreateTemplateApiV1AdminCatalogAttributeTemplatesPostApiResponse,
         CreateTemplateApiV1AdminCatalogAttributeTemplatesPostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/attribute-templates`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.attributeTemplateCreateRequest,
         }),
-        invalidatesTags: ["Admin / Catalog / Attribute Templates"],
+        invalidatesTags: ['Admin / Catalog / Attribute Templates'],
       }),
       listTemplatesApiV1AdminCatalogAttributeTemplatesGet: build.query<
         ListTemplatesApiV1AdminCatalogAttributeTemplatesGetApiResponse,
@@ -1646,7 +1613,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Admin / Catalog / Attribute Templates"],
+        providesTags: ['Admin / Catalog / Attribute Templates'],
       }),
       cloneTemplateApiV1AdminCatalogAttributeTemplatesClonePost: build.mutation<
         CloneTemplateApiV1AdminCatalogAttributeTemplatesClonePostApiResponse,
@@ -1654,10 +1621,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/attribute-templates/clone`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.cloneAttributeTemplateRequest,
         }),
-        invalidatesTags: ["Admin / Catalog / Attribute Templates"],
+        invalidatesTags: ['Admin / Catalog / Attribute Templates'],
       }),
       getTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdGet: build.query<
         GetTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdGetApiResponse,
@@ -1666,57 +1633,53 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/attribute-templates/${queryArg.templateId}`,
         }),
-        providesTags: ["Admin / Catalog / Attribute Templates"],
+        providesTags: ['Admin / Catalog / Attribute Templates'],
       }),
-      updateTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdPatch:
-        build.mutation<
-          UpdateTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdPatchApiResponse,
-          UpdateTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdPatchApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attribute-templates/${queryArg.templateId}`,
-            method: "PATCH",
-            body: queryArg.attributeTemplateUpdateRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / Attribute Templates"],
+      updateTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdPatch: build.mutation<
+        UpdateTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdPatchApiResponse,
+        UpdateTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdPatchApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attribute-templates/${queryArg.templateId}`,
+          method: 'PATCH',
+          body: queryArg.attributeTemplateUpdateRequest,
         }),
-      deleteTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdDelete:
-        build.mutation<
-          DeleteTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdDeleteApiResponse,
-          DeleteTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attribute-templates/${queryArg.templateId}`,
-            method: "DELETE",
-          }),
-          invalidatesTags: ["Admin / Catalog / Attribute Templates"],
+        invalidatesTags: ['Admin / Catalog / Attribute Templates'],
+      }),
+      deleteTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdDelete: build.mutation<
+        DeleteTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdDeleteApiResponse,
+        DeleteTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attribute-templates/${queryArg.templateId}`,
+          method: 'DELETE',
         }),
-      bindAttributeApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesPost:
-        build.mutation<
-          BindAttributeApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesPostApiResponse,
-          BindAttributeApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attribute-templates/${queryArg.templateId}/attributes`,
-            method: "POST",
-            body: queryArg.templateAttributeBindingRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / Attribute Templates"],
+        invalidatesTags: ['Admin / Catalog / Attribute Templates'],
+      }),
+      bindAttributeApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesPost: build.mutation<
+        BindAttributeApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesPostApiResponse,
+        BindAttributeApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attribute-templates/${queryArg.templateId}/attributes`,
+          method: 'POST',
+          body: queryArg.templateAttributeBindingRequest,
         }),
-      listBindingsApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesGet:
-        build.query<
-          ListBindingsApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesGetApiResponse,
-          ListBindingsApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/attribute-templates/${queryArg.templateId}/attributes`,
-            params: {
-              offset: queryArg.offset,
-              limit: queryArg.limit,
-            },
-          }),
-          providesTags: ["Admin / Catalog / Attribute Templates"],
+        invalidatesTags: ['Admin / Catalog / Attribute Templates'],
+      }),
+      listBindingsApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesGet: build.query<
+        ListBindingsApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesGetApiResponse,
+        ListBindingsApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/attribute-templates/${queryArg.templateId}/attributes`,
+          params: {
+            offset: queryArg.offset,
+            limit: queryArg.limit,
+          },
         }),
+        providesTags: ['Admin / Catalog / Attribute Templates'],
+      }),
       updateBindingApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesBindingIdPatch:
         build.mutation<
           UpdateBindingApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesBindingIdPatchApiResponse,
@@ -1724,10 +1687,10 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/catalog/attribute-templates/${queryArg.templateId}/attributes/${queryArg.bindingId}`,
-            method: "PATCH",
+            method: 'PATCH',
             body: queryArg.templateAttributeBindingUpdateRequest,
           }),
-          invalidatesTags: ["Admin / Catalog / Attribute Templates"],
+          invalidatesTags: ['Admin / Catalog / Attribute Templates'],
         }),
       unbindAttributeApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesBindingIdDelete:
         build.mutation<
@@ -1736,9 +1699,9 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/catalog/attribute-templates/${queryArg.templateId}/attributes/${queryArg.bindingId}`,
-            method: "DELETE",
+            method: 'DELETE',
           }),
-          invalidatesTags: ["Admin / Catalog / Attribute Templates"],
+          invalidatesTags: ['Admin / Catalog / Attribute Templates'],
         }),
       reorderBindingsApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesReorderPost:
         build.mutation<
@@ -1747,10 +1710,10 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/catalog/attribute-templates/${queryArg.templateId}/attributes/reorder`,
-            method: "POST",
+            method: 'POST',
             body: queryArg.templateBindingReorderRequest,
           }),
-          invalidatesTags: ["Admin / Catalog / Attribute Templates"],
+          invalidatesTags: ['Admin / Catalog / Attribute Templates'],
         }),
       createProductApiV1AdminCatalogProductsPost: build.mutation<
         CreateProductApiV1AdminCatalogProductsPostApiResponse,
@@ -1758,10 +1721,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/products`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.productCreateRequest,
         }),
-        invalidatesTags: ["Admin / Catalog / Products"],
+        invalidatesTags: ['Admin / Catalog / Products'],
       }),
       listProductsApiV1AdminCatalogProductsGet: build.query<
         ListProductsApiV1AdminCatalogProductsGetApiResponse,
@@ -1778,18 +1741,17 @@ const injectedRtkApi = api
             publishedAfter: queryArg.publishedAfter,
           },
         }),
-        providesTags: ["Admin / Catalog / Products"],
+        providesTags: ['Admin / Catalog / Products'],
       }),
-      getProductCompletenessApiV1AdminCatalogProductsProductIdCompletenessGet:
-        build.query<
-          GetProductCompletenessApiV1AdminCatalogProductsProductIdCompletenessGetApiResponse,
-          GetProductCompletenessApiV1AdminCatalogProductsProductIdCompletenessGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/completeness`,
-          }),
-          providesTags: ["Admin / Catalog / Products"],
+      getProductCompletenessApiV1AdminCatalogProductsProductIdCompletenessGet: build.query<
+        GetProductCompletenessApiV1AdminCatalogProductsProductIdCompletenessGetApiResponse,
+        GetProductCompletenessApiV1AdminCatalogProductsProductIdCompletenessGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/completeness`,
         }),
+        providesTags: ['Admin / Catalog / Products'],
+      }),
       getProductApiV1AdminCatalogProductsProductIdGet: build.query<
         GetProductApiV1AdminCatalogProductsProductIdGetApiResponse,
         GetProductApiV1AdminCatalogProductsProductIdGetApiArg
@@ -1797,7 +1759,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/products/${queryArg.productId}`,
         }),
-        providesTags: ["Admin / Catalog / Products"],
+        providesTags: ['Admin / Catalog / Products'],
       }),
       updateProductApiV1AdminCatalogProductsProductIdPatch: build.mutation<
         UpdateProductApiV1AdminCatalogProductsProductIdPatchApiResponse,
@@ -1805,13 +1767,13 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/products/${queryArg.productId}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.productUpdateRequest,
           headers: {
-            "If-Match": queryArg["If-Match"],
+            'If-Match': queryArg['If-Match'],
           },
         }),
-        invalidatesTags: ["Admin / Catalog / Products"],
+        invalidatesTags: ['Admin / Catalog / Products'],
       }),
       deleteProductApiV1AdminCatalogProductsProductIdDelete: build.mutation<
         DeleteProductApiV1AdminCatalogProductsProductIdDeleteApiResponse,
@@ -1819,20 +1781,19 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/products/${queryArg.productId}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Admin / Catalog / Products"],
+        invalidatesTags: ['Admin / Catalog / Products'],
       }),
-      streamSkuPricingEventsApiV1AdminCatalogProductsProductIdSkusPricingEventsGet:
-        build.query<
-          StreamSkuPricingEventsApiV1AdminCatalogProductsProductIdSkusPricingEventsGetApiResponse,
-          StreamSkuPricingEventsApiV1AdminCatalogProductsProductIdSkusPricingEventsGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/skus/pricing-events`,
-          }),
-          providesTags: ["Admin / Catalog / Products"],
+      streamSkuPricingEventsApiV1AdminCatalogProductsProductIdSkusPricingEventsGet: build.query<
+        StreamSkuPricingEventsApiV1AdminCatalogProductsProductIdSkusPricingEventsGetApiResponse,
+        StreamSkuPricingEventsApiV1AdminCatalogProductsProductIdSkusPricingEventsGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/skus/pricing-events`,
         }),
+        providesTags: ['Admin / Catalog / Products'],
+      }),
       bulkSetPurchasePriceApiV1AdminCatalogProductsProductIdSkusBulkPurchasePricePost:
         build.mutation<
           BulkSetPurchasePriceApiV1AdminCatalogProductsProductIdSkusBulkPurchasePricePostApiResponse,
@@ -1840,56 +1801,53 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/catalog/products/${queryArg.productId}/skus/bulk-purchase-price`,
-            method: "POST",
+            method: 'POST',
             body: queryArg.bulkPurchasePriceRequest,
           }),
-          invalidatesTags: ["Admin / Catalog / Products"],
+          invalidatesTags: ['Admin / Catalog / Products'],
         }),
-      changeProductStatusApiV1AdminCatalogProductsProductIdStatusPatch:
-        build.mutation<
-          ChangeProductStatusApiV1AdminCatalogProductsProductIdStatusPatchApiResponse,
-          ChangeProductStatusApiV1AdminCatalogProductsProductIdStatusPatchApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/status`,
-            method: "PATCH",
-            body: queryArg.productStatusChangeRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / Products"],
+      changeProductStatusApiV1AdminCatalogProductsProductIdStatusPatch: build.mutation<
+        ChangeProductStatusApiV1AdminCatalogProductsProductIdStatusPatchApiResponse,
+        ChangeProductStatusApiV1AdminCatalogProductsProductIdStatusPatchApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/status`,
+          method: 'PATCH',
+          body: queryArg.productStatusChangeRequest,
         }),
-      validateProductUpdateApiV1AdminCatalogProductsProductIdValidateUpdatePost:
-        build.mutation<
-          ValidateProductUpdateApiV1AdminCatalogProductsProductIdValidateUpdatePostApiResponse,
-          ValidateProductUpdateApiV1AdminCatalogProductsProductIdValidateUpdatePostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/_validate-update`,
-            method: "POST",
-            body: queryArg.productUpdateRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / Products"],
+        invalidatesTags: ['Admin / Catalog / Products'],
+      }),
+      validateProductUpdateApiV1AdminCatalogProductsProductIdValidateUpdatePost: build.mutation<
+        ValidateProductUpdateApiV1AdminCatalogProductsProductIdValidateUpdatePostApiResponse,
+        ValidateProductUpdateApiV1AdminCatalogProductsProductIdValidateUpdatePostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/_validate-update`,
+          method: 'POST',
+          body: queryArg.productUpdateRequest,
         }),
-      validateProductPublishApiV1AdminCatalogProductsProductIdValidatePublishPost:
-        build.mutation<
-          ValidateProductPublishApiV1AdminCatalogProductsProductIdValidatePublishPostApiResponse,
-          ValidateProductPublishApiV1AdminCatalogProductsProductIdValidatePublishPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/_validate-publish`,
-            method: "POST",
-          }),
-          invalidatesTags: ["Admin / Catalog / Products"],
+        invalidatesTags: ['Admin / Catalog / Products'],
+      }),
+      validateProductPublishApiV1AdminCatalogProductsProductIdValidatePublishPost: build.mutation<
+        ValidateProductPublishApiV1AdminCatalogProductsProductIdValidatePublishPostApiResponse,
+        ValidateProductPublishApiV1AdminCatalogProductsProductIdValidatePublishPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/_validate-publish`,
+          method: 'POST',
         }),
+        invalidatesTags: ['Admin / Catalog / Products'],
+      }),
       addVariantApiV1AdminCatalogProductsProductIdVariantsPost: build.mutation<
         AddVariantApiV1AdminCatalogProductsProductIdVariantsPostApiResponse,
         AddVariantApiV1AdminCatalogProductsProductIdVariantsPostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/catalog/products/${queryArg.productId}/variants`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.productVariantCreateRequest,
         }),
-        invalidatesTags: ["Admin / Catalog / Variants"],
+        invalidatesTags: ['Admin / Catalog / Variants'],
       }),
       listVariantsApiV1AdminCatalogProductsProductIdVariantsGet: build.query<
         ListVariantsApiV1AdminCatalogProductsProductIdVariantsGetApiResponse,
@@ -1902,60 +1860,56 @@ const injectedRtkApi = api
             offset: queryArg.offset,
           },
         }),
-        providesTags: ["Admin / Catalog / Variants"],
+        providesTags: ['Admin / Catalog / Variants'],
       }),
-      updateVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdPatch:
-        build.mutation<
-          UpdateVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdPatchApiResponse,
-          UpdateVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdPatchApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/variants/${queryArg.variantId}`,
-            method: "PATCH",
-            body: queryArg.productVariantUpdateRequest,
-            headers: {
-              "If-Match": queryArg["If-Match"],
-            },
-          }),
-          invalidatesTags: ["Admin / Catalog / Variants"],
+      updateVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdPatch: build.mutation<
+        UpdateVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdPatchApiResponse,
+        UpdateVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdPatchApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/variants/${queryArg.variantId}`,
+          method: 'PATCH',
+          body: queryArg.productVariantUpdateRequest,
+          headers: {
+            'If-Match': queryArg['If-Match'],
+          },
         }),
-      deleteVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdDelete:
-        build.mutation<
-          DeleteVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdDeleteApiResponse,
-          DeleteVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/variants/${queryArg.variantId}`,
-            method: "DELETE",
-          }),
-          invalidatesTags: ["Admin / Catalog / Variants"],
+        invalidatesTags: ['Admin / Catalog / Variants'],
+      }),
+      deleteVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdDelete: build.mutation<
+        DeleteVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdDeleteApiResponse,
+        DeleteVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/variants/${queryArg.variantId}`,
+          method: 'DELETE',
         }),
-      addSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusPost:
-        build.mutation<
-          AddSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusPostApiResponse,
-          AddSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/variants/${queryArg.variantId}/skus`,
-            method: "POST",
-            body: queryArg.skuCreateRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / SKUs"],
+        invalidatesTags: ['Admin / Catalog / Variants'],
+      }),
+      addSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusPost: build.mutation<
+        AddSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusPostApiResponse,
+        AddSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/variants/${queryArg.variantId}/skus`,
+          method: 'POST',
+          body: queryArg.skuCreateRequest,
         }),
-      listSkusApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusGet:
-        build.query<
-          ListSkusApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusGetApiResponse,
-          ListSkusApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/variants/${queryArg.variantId}/skus`,
-            params: {
-              limit: queryArg.limit,
-              offset: queryArg.offset,
-            },
-          }),
-          providesTags: ["Admin / Catalog / SKUs"],
+        invalidatesTags: ['Admin / Catalog / SKUs'],
+      }),
+      listSkusApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusGet: build.query<
+        ListSkusApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusGetApiResponse,
+        ListSkusApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/variants/${queryArg.variantId}/skus`,
+          params: {
+            limit: queryArg.limit,
+            offset: queryArg.offset,
+          },
         }),
+        providesTags: ['Admin / Catalog / SKUs'],
+      }),
       generateSkuMatrixApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusGeneratePost:
         build.mutation<
           GenerateSkuMatrixApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusGeneratePostApiResponse,
@@ -1963,63 +1917,59 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/catalog/products/${queryArg.productId}/variants/${queryArg.variantId}/skus/generate`,
-            method: "POST",
+            method: 'POST',
             body: queryArg.skuMatrixGenerateRequest,
           }),
-          invalidatesTags: ["Admin / Catalog / SKUs"],
+          invalidatesTags: ['Admin / Catalog / SKUs'],
         }),
-      updateSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdPatch:
-        build.mutation<
-          UpdateSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdPatchApiResponse,
-          UpdateSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdPatchApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/variants/${queryArg.variantId}/skus/${queryArg.skuId}`,
-            method: "PATCH",
-            body: queryArg.skuUpdateRequest,
-            headers: {
-              "If-Match": queryArg["If-Match"],
-            },
-          }),
-          invalidatesTags: ["Admin / Catalog / SKUs"],
+      updateSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdPatch: build.mutation<
+        UpdateSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdPatchApiResponse,
+        UpdateSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdPatchApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/variants/${queryArg.variantId}/skus/${queryArg.skuId}`,
+          method: 'PATCH',
+          body: queryArg.skuUpdateRequest,
+          headers: {
+            'If-Match': queryArg['If-Match'],
+          },
         }),
-      deleteSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdDelete:
-        build.mutation<
-          DeleteSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdDeleteApiResponse,
-          DeleteSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/variants/${queryArg.variantId}/skus/${queryArg.skuId}`,
-            method: "DELETE",
-          }),
-          invalidatesTags: ["Admin / Catalog / SKUs"],
+        invalidatesTags: ['Admin / Catalog / SKUs'],
+      }),
+      deleteSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdDelete: build.mutation<
+        DeleteSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdDeleteApiResponse,
+        DeleteSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/variants/${queryArg.variantId}/skus/${queryArg.skuId}`,
+          method: 'DELETE',
         }),
-      assignProductAttributeApiV1AdminCatalogProductsProductIdAttributesPost:
-        build.mutation<
-          AssignProductAttributeApiV1AdminCatalogProductsProductIdAttributesPostApiResponse,
-          AssignProductAttributeApiV1AdminCatalogProductsProductIdAttributesPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/attributes`,
-            method: "POST",
-            body: queryArg.productAttributeAssignRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / Product Attributes"],
+        invalidatesTags: ['Admin / Catalog / SKUs'],
+      }),
+      assignProductAttributeApiV1AdminCatalogProductsProductIdAttributesPost: build.mutation<
+        AssignProductAttributeApiV1AdminCatalogProductsProductIdAttributesPostApiResponse,
+        AssignProductAttributeApiV1AdminCatalogProductsProductIdAttributesPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/attributes`,
+          method: 'POST',
+          body: queryArg.productAttributeAssignRequest,
         }),
-      listProductAttributesApiV1AdminCatalogProductsProductIdAttributesGet:
-        build.query<
-          ListProductAttributesApiV1AdminCatalogProductsProductIdAttributesGetApiResponse,
-          ListProductAttributesApiV1AdminCatalogProductsProductIdAttributesGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/attributes`,
-            params: {
-              limit: queryArg.limit,
-              offset: queryArg.offset,
-            },
-          }),
-          providesTags: ["Admin / Catalog / Product Attributes"],
+        invalidatesTags: ['Admin / Catalog / Product Attributes'],
+      }),
+      listProductAttributesApiV1AdminCatalogProductsProductIdAttributesGet: build.query<
+        ListProductAttributesApiV1AdminCatalogProductsProductIdAttributesGetApiResponse,
+        ListProductAttributesApiV1AdminCatalogProductsProductIdAttributesGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/attributes`,
+          params: {
+            limit: queryArg.limit,
+            offset: queryArg.offset,
+          },
         }),
+        providesTags: ['Admin / Catalog / Product Attributes'],
+      }),
       bulkAssignProductAttributesApiV1AdminCatalogProductsProductIdAttributesBulkPost:
         build.mutation<
           BulkAssignProductAttributesApiV1AdminCatalogProductsProductIdAttributesBulkPostApiResponse,
@@ -2027,10 +1977,10 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/catalog/products/${queryArg.productId}/attributes/bulk`,
-            method: "POST",
+            method: 'POST',
             body: queryArg.bulkAssignProductAttributesRequest,
           }),
-          invalidatesTags: ["Admin / Catalog / Product Attributes"],
+          invalidatesTags: ['Admin / Catalog / Product Attributes'],
         }),
       deleteProductAttributeApiV1AdminCatalogProductsProductIdAttributesAttributeIdDelete:
         build.mutation<
@@ -2039,22 +1989,21 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/catalog/products/${queryArg.productId}/attributes/${queryArg.attributeId}`,
-            method: "DELETE",
+            method: 'DELETE',
           }),
-          invalidatesTags: ["Admin / Catalog / Product Attributes"],
+          invalidatesTags: ['Admin / Catalog / Product Attributes'],
         }),
-      addProductMediaApiV1AdminCatalogProductsProductIdMediaPost:
-        build.mutation<
-          AddProductMediaApiV1AdminCatalogProductsProductIdMediaPostApiResponse,
-          AddProductMediaApiV1AdminCatalogProductsProductIdMediaPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/media`,
-            method: "POST",
-            body: queryArg.mediaAssetCreateRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / Product Media"],
+      addProductMediaApiV1AdminCatalogProductsProductIdMediaPost: build.mutation<
+        AddProductMediaApiV1AdminCatalogProductsProductIdMediaPostApiResponse,
+        AddProductMediaApiV1AdminCatalogProductsProductIdMediaPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/media`,
+          method: 'POST',
+          body: queryArg.mediaAssetCreateRequest,
         }),
+        invalidatesTags: ['Admin / Catalog / Product Media'],
+      }),
       listProductMediaApiV1AdminCatalogProductsProductIdMediaGet: build.query<
         ListProductMediaApiV1AdminCatalogProductsProductIdMediaGetApiResponse,
         ListProductMediaApiV1AdminCatalogProductsProductIdMediaGetApiArg
@@ -2066,43 +2015,40 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Admin / Catalog / Product Media"],
+        providesTags: ['Admin / Catalog / Product Media'],
       }),
-      updateProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdPatch:
-        build.mutation<
-          UpdateProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdPatchApiResponse,
-          UpdateProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdPatchApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/media/${queryArg.mediaId}`,
-            method: "PATCH",
-            body: queryArg.mediaAssetUpdateRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / Product Media"],
+      updateProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdPatch: build.mutation<
+        UpdateProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdPatchApiResponse,
+        UpdateProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdPatchApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/media/${queryArg.mediaId}`,
+          method: 'PATCH',
+          body: queryArg.mediaAssetUpdateRequest,
         }),
-      deleteProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdDelete:
-        build.mutation<
-          DeleteProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdDeleteApiResponse,
-          DeleteProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/media/${queryArg.mediaId}`,
-            method: "DELETE",
-          }),
-          invalidatesTags: ["Admin / Catalog / Product Media"],
+        invalidatesTags: ['Admin / Catalog / Product Media'],
+      }),
+      deleteProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdDelete: build.mutation<
+        DeleteProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdDeleteApiResponse,
+        DeleteProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/media/${queryArg.mediaId}`,
+          method: 'DELETE',
         }),
-      reorderProductMediaApiV1AdminCatalogProductsProductIdMediaReorderPost:
-        build.mutation<
-          ReorderProductMediaApiV1AdminCatalogProductsProductIdMediaReorderPostApiResponse,
-          ReorderProductMediaApiV1AdminCatalogProductsProductIdMediaReorderPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/catalog/products/${queryArg.productId}/media/reorder`,
-            method: "POST",
-            body: queryArg.mediaAssetReorderRequest,
-          }),
-          invalidatesTags: ["Admin / Catalog / Product Media"],
+        invalidatesTags: ['Admin / Catalog / Product Media'],
+      }),
+      reorderProductMediaApiV1AdminCatalogProductsProductIdMediaReorderPost: build.mutation<
+        ReorderProductMediaApiV1AdminCatalogProductsProductIdMediaReorderPostApiResponse,
+        ReorderProductMediaApiV1AdminCatalogProductsProductIdMediaReorderPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/catalog/products/${queryArg.productId}/media/reorder`,
+          method: 'POST',
+          body: queryArg.mediaAssetReorderRequest,
         }),
+        invalidatesTags: ['Admin / Catalog / Product Media'],
+      }),
       listVariablesApiV1AdminPricingVariablesGet: build.query<
         ListVariablesApiV1AdminPricingVariablesGetApiResponse,
         ListVariablesApiV1AdminPricingVariablesGetApiArg
@@ -2115,7 +2061,7 @@ const injectedRtkApi = api
             isFxRate: queryArg.isFxRate,
           },
         }),
-        providesTags: ["Admin / Pricing / Variables"],
+        providesTags: ['Admin / Pricing / Variables'],
       }),
       createVariableApiV1AdminPricingVariablesPost: build.mutation<
         CreateVariableApiV1AdminPricingVariablesPostApiResponse,
@@ -2123,10 +2069,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/variables`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.createVariableRequest,
         }),
-        invalidatesTags: ["Admin / Pricing / Variables"],
+        invalidatesTags: ['Admin / Pricing / Variables'],
       }),
       getVariableApiV1AdminPricingVariablesVariableIdGet: build.query<
         GetVariableApiV1AdminPricingVariablesVariableIdGetApiResponse,
@@ -2135,7 +2081,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/variables/${queryArg.variableId}`,
         }),
-        providesTags: ["Admin / Pricing / Variables"],
+        providesTags: ['Admin / Pricing / Variables'],
       }),
       updateVariableApiV1AdminPricingVariablesVariableIdPatch: build.mutation<
         UpdateVariableApiV1AdminPricingVariablesVariableIdPatchApiResponse,
@@ -2143,10 +2089,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/variables/${queryArg.variableId}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.updateVariableRequest,
         }),
-        invalidatesTags: ["Admin / Pricing / Variables"],
+        invalidatesTags: ['Admin / Pricing / Variables'],
       }),
       deleteVariableApiV1AdminPricingVariablesVariableIdDelete: build.mutation<
         DeleteVariableApiV1AdminPricingVariablesVariableIdDeleteApiResponse,
@@ -2154,9 +2100,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/variables/${queryArg.variableId}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Admin / Pricing / Variables"],
+        invalidatesTags: ['Admin / Pricing / Variables'],
       }),
       listContextsApiV1AdminPricingContextsGet: build.query<
         ListContextsApiV1AdminPricingContextsGetApiResponse,
@@ -2169,7 +2115,7 @@ const injectedRtkApi = api
             isFrozen: queryArg.isFrozen,
           },
         }),
-        providesTags: ["Admin / Pricing / Contexts"],
+        providesTags: ['Admin / Pricing / Contexts'],
       }),
       createContextApiV1AdminPricingContextsPost: build.mutation<
         CreateContextApiV1AdminPricingContextsPostApiResponse,
@@ -2177,10 +2123,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/contexts`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.createContextRequest,
         }),
-        invalidatesTags: ["Admin / Pricing / Contexts"],
+        invalidatesTags: ['Admin / Pricing / Contexts'],
       }),
       getContextApiV1AdminPricingContextsContextIdGet: build.query<
         GetContextApiV1AdminPricingContextsContextIdGetApiResponse,
@@ -2189,7 +2135,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}`,
         }),
-        providesTags: ["Admin / Pricing / Contexts"],
+        providesTags: ['Admin / Pricing / Contexts'],
       }),
       updateContextApiV1AdminPricingContextsContextIdPatch: build.mutation<
         UpdateContextApiV1AdminPricingContextsContextIdPatchApiResponse,
@@ -2197,10 +2143,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.updateContextRequest,
         }),
-        invalidatesTags: ["Admin / Pricing / Contexts"],
+        invalidatesTags: ['Admin / Pricing / Contexts'],
       }),
       deactivateContextApiV1AdminPricingContextsContextIdDelete: build.mutation<
         DeactivateContextApiV1AdminPricingContextsContextIdDeleteApiResponse,
@@ -2208,9 +2154,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Admin / Pricing / Contexts"],
+        invalidatesTags: ['Admin / Pricing / Contexts'],
       }),
       freezeContextApiV1AdminPricingContextsContextIdFreezePost: build.mutation<
         FreezeContextApiV1AdminPricingContextsContextIdFreezePostApiResponse,
@@ -2218,32 +2164,30 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/freeze`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.freezeContextRequest,
         }),
-        invalidatesTags: ["Admin / Pricing / Contexts"],
+        invalidatesTags: ['Admin / Pricing / Contexts'],
       }),
-      unfreezeContextApiV1AdminPricingContextsContextIdUnfreezePost:
-        build.mutation<
-          UnfreezeContextApiV1AdminPricingContextsContextIdUnfreezePostApiResponse,
-          UnfreezeContextApiV1AdminPricingContextsContextIdUnfreezePostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/unfreeze`,
-            method: "POST",
-          }),
-          invalidatesTags: ["Admin / Pricing / Contexts"],
+      unfreezeContextApiV1AdminPricingContextsContextIdUnfreezePost: build.mutation<
+        UnfreezeContextApiV1AdminPricingContextsContextIdUnfreezePostApiResponse,
+        UnfreezeContextApiV1AdminPricingContextsContextIdUnfreezePostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/unfreeze`,
+          method: 'POST',
         }),
-      getContextGlobalValuesApiV1AdminPricingContextsContextIdVariablesValuesGet:
-        build.query<
-          GetContextGlobalValuesApiV1AdminPricingContextsContextIdVariablesValuesGetApiResponse,
-          GetContextGlobalValuesApiV1AdminPricingContextsContextIdVariablesValuesGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/variables/values`,
-          }),
-          providesTags: ["Admin / Pricing / Contexts"],
+        invalidatesTags: ['Admin / Pricing / Contexts'],
+      }),
+      getContextGlobalValuesApiV1AdminPricingContextsContextIdVariablesValuesGet: build.query<
+        GetContextGlobalValuesApiV1AdminPricingContextsContextIdVariablesValuesGetApiResponse,
+        GetContextGlobalValuesApiV1AdminPricingContextsContextIdVariablesValuesGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/variables/values`,
         }),
+        providesTags: ['Admin / Pricing / Contexts'],
+      }),
       setContextGlobalValueApiV1AdminPricingContextsContextIdVariablesValuesVariableCodePut:
         build.mutation<
           SetContextGlobalValueApiV1AdminPricingContextsContextIdVariablesValuesVariableCodePutApiResponse,
@@ -2251,34 +2195,32 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/variables/values/${queryArg.variableCode}`,
-            method: "PUT",
+            method: 'PUT',
             body: queryArg.setContextGlobalValueRequest,
           }),
-          invalidatesTags: ["Admin / Pricing / Contexts"],
+          invalidatesTags: ['Admin / Pricing / Contexts'],
         }),
-      listVersionsApiV1AdminPricingContextsContextIdFormulaVersionsGet:
-        build.query<
-          ListVersionsApiV1AdminPricingContextsContextIdFormulaVersionsGetApiResponse,
-          ListVersionsApiV1AdminPricingContextsContextIdFormulaVersionsGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/formula/versions`,
-            params: {
-              status: queryArg.status,
-            },
-          }),
-          providesTags: ["Admin / Pricing / Formulas"],
+      listVersionsApiV1AdminPricingContextsContextIdFormulaVersionsGet: build.query<
+        ListVersionsApiV1AdminPricingContextsContextIdFormulaVersionsGetApiResponse,
+        ListVersionsApiV1AdminPricingContextsContextIdFormulaVersionsGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/formula/versions`,
+          params: {
+            status: queryArg.status,
+          },
         }),
-      getVersionApiV1AdminPricingContextsContextIdFormulaVersionsVersionIdGet:
-        build.query<
-          GetVersionApiV1AdminPricingContextsContextIdFormulaVersionsVersionIdGetApiResponse,
-          GetVersionApiV1AdminPricingContextsContextIdFormulaVersionsVersionIdGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/formula/versions/${queryArg.versionId}`,
-          }),
-          providesTags: ["Admin / Pricing / Formulas"],
+        providesTags: ['Admin / Pricing / Formulas'],
+      }),
+      getVersionApiV1AdminPricingContextsContextIdFormulaVersionsVersionIdGet: build.query<
+        GetVersionApiV1AdminPricingContextsContextIdFormulaVersionsVersionIdGetApiResponse,
+        GetVersionApiV1AdminPricingContextsContextIdFormulaVersionsVersionIdGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/formula/versions/${queryArg.versionId}`,
         }),
+        providesTags: ['Admin / Pricing / Formulas'],
+      }),
       getDraftApiV1AdminPricingContextsContextIdFormulaDraftGet: build.query<
         GetDraftApiV1AdminPricingContextsContextIdFormulaDraftGetApiResponse,
         GetDraftApiV1AdminPricingContextsContextIdFormulaDraftGetApiArg
@@ -2286,42 +2228,39 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/formula/draft`,
         }),
-        providesTags: ["Admin / Pricing / Formulas"],
+        providesTags: ['Admin / Pricing / Formulas'],
       }),
-      upsertDraftApiV1AdminPricingContextsContextIdFormulaDraftPut:
-        build.mutation<
-          UpsertDraftApiV1AdminPricingContextsContextIdFormulaDraftPutApiResponse,
-          UpsertDraftApiV1AdminPricingContextsContextIdFormulaDraftPutApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/formula/draft`,
-            method: "PUT",
-            body: queryArg.upsertFormulaDraftRequest,
-          }),
-          invalidatesTags: ["Admin / Pricing / Formulas"],
+      upsertDraftApiV1AdminPricingContextsContextIdFormulaDraftPut: build.mutation<
+        UpsertDraftApiV1AdminPricingContextsContextIdFormulaDraftPutApiResponse,
+        UpsertDraftApiV1AdminPricingContextsContextIdFormulaDraftPutApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/formula/draft`,
+          method: 'PUT',
+          body: queryArg.upsertFormulaDraftRequest,
         }),
-      discardDraftApiV1AdminPricingContextsContextIdFormulaDraftDelete:
-        build.mutation<
-          DiscardDraftApiV1AdminPricingContextsContextIdFormulaDraftDeleteApiResponse,
-          DiscardDraftApiV1AdminPricingContextsContextIdFormulaDraftDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/formula/draft`,
-            method: "DELETE",
-          }),
-          invalidatesTags: ["Admin / Pricing / Formulas"],
+        invalidatesTags: ['Admin / Pricing / Formulas'],
+      }),
+      discardDraftApiV1AdminPricingContextsContextIdFormulaDraftDelete: build.mutation<
+        DiscardDraftApiV1AdminPricingContextsContextIdFormulaDraftDeleteApiResponse,
+        DiscardDraftApiV1AdminPricingContextsContextIdFormulaDraftDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/formula/draft`,
+          method: 'DELETE',
         }),
-      publishDraftApiV1AdminPricingContextsContextIdFormulaDraftPublishPost:
-        build.mutation<
-          PublishDraftApiV1AdminPricingContextsContextIdFormulaDraftPublishPostApiResponse,
-          PublishDraftApiV1AdminPricingContextsContextIdFormulaDraftPublishPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/formula/draft/publish`,
-            method: "POST",
-          }),
-          invalidatesTags: ["Admin / Pricing / Formulas"],
+        invalidatesTags: ['Admin / Pricing / Formulas'],
+      }),
+      publishDraftApiV1AdminPricingContextsContextIdFormulaDraftPublishPost: build.mutation<
+        PublishDraftApiV1AdminPricingContextsContextIdFormulaDraftPublishPostApiResponse,
+        PublishDraftApiV1AdminPricingContextsContextIdFormulaDraftPublishPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/formula/draft/publish`,
+          method: 'POST',
         }),
+        invalidatesTags: ['Admin / Pricing / Formulas'],
+      }),
       rollbackVersionApiV1AdminPricingContextsContextIdFormulaVersionsVersionIdRollbackPost:
         build.mutation<
           RollbackVersionApiV1AdminPricingContextsContextIdFormulaVersionsVersionIdRollbackPostApiResponse,
@@ -2329,9 +2268,9 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/pricing/contexts/${queryArg.contextId}/formula/versions/${queryArg.versionId}/rollback`,
-            method: "POST",
+            method: 'POST',
           }),
-          invalidatesTags: ["Admin / Pricing / Formulas"],
+          invalidatesTags: ['Admin / Pricing / Formulas'],
         }),
       previewPriceApiV1AdminPricingPreviewPost: build.mutation<
         PreviewPriceApiV1AdminPricingPreviewPostApiResponse,
@@ -2339,10 +2278,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/preview`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.previewPriceRequest,
         }),
-        invalidatesTags: ["Admin / Pricing / Preview"],
+        invalidatesTags: ['Admin / Pricing / Preview'],
       }),
       previewSkuPricingApiV1AdminPricingPreviewSkuPost: build.mutation<
         PreviewSkuPricingApiV1AdminPricingPreviewSkuPostApiResponse,
@@ -2350,10 +2289,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/preview-sku`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.previewSkuPricingRequest,
         }),
-        invalidatesTags: ["Admin / Pricing / Preview"],
+        invalidatesTags: ['Admin / Pricing / Preview'],
       }),
       getProfileApiV1AdminPricingProductsProductIdProfileGet: build.query<
         GetProfileApiV1AdminPricingProductsProductIdProfileGetApiResponse,
@@ -2362,7 +2301,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/products/${queryArg.productId}/profile`,
         }),
-        providesTags: ["Admin / Pricing / Products"],
+        providesTags: ['Admin / Pricing / Products'],
       }),
       upsertProfileApiV1AdminPricingProductsProductIdProfilePut: build.mutation<
         UpsertProfileApiV1AdminPricingProductsProductIdProfilePutApiResponse,
@@ -2370,22 +2309,21 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/products/${queryArg.productId}/profile`,
-          method: "PUT",
+          method: 'PUT',
           body: queryArg.upsertProductPricingProfileRequest,
         }),
-        invalidatesTags: ["Admin / Pricing / Products"],
+        invalidatesTags: ['Admin / Pricing / Products'],
       }),
-      deleteProfileApiV1AdminPricingProductsProductIdProfileDelete:
-        build.mutation<
-          DeleteProfileApiV1AdminPricingProductsProductIdProfileDeleteApiResponse,
-          DeleteProfileApiV1AdminPricingProductsProductIdProfileDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/products/${queryArg.productId}/profile`,
-            method: "DELETE",
-          }),
-          invalidatesTags: ["Admin / Pricing / Products"],
+      deleteProfileApiV1AdminPricingProductsProductIdProfileDelete: build.mutation<
+        DeleteProfileApiV1AdminPricingProductsProductIdProfileDeleteApiResponse,
+        DeleteProfileApiV1AdminPricingProductsProductIdProfileDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/products/${queryArg.productId}/profile`,
+          method: 'DELETE',
         }),
+        invalidatesTags: ['Admin / Pricing / Products'],
+      }),
       getRequiredVariablesApiV1AdminPricingProductsProductIdProfileRequiredVariablesGet:
         build.query<
           GetRequiredVariablesApiV1AdminPricingProductsProductIdProfileRequiredVariablesGetApiResponse,
@@ -2394,48 +2332,44 @@ const injectedRtkApi = api
           query: (queryArg) => ({
             url: `/api/v1/admin/pricing/products/${queryArg.productId}/profile/required-variables`,
           }),
-          providesTags: ["Admin / Pricing / Products"],
+          providesTags: ['Admin / Pricing / Products'],
         }),
-      getSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdGet:
-        build.query<
-          GetSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdGetApiResponse,
-          GetSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/suppliers/${queryArg.supplierId}`,
-          }),
-          providesTags: ["Admin / Pricing / Suppliers"],
+      getSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdGet: build.query<
+        GetSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdGetApiResponse,
+        GetSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/suppliers/${queryArg.supplierId}`,
         }),
-      upsertSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdPut:
-        build.mutation<
-          UpsertSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdPutApiResponse,
-          UpsertSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdPutApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/suppliers/${queryArg.supplierId}`,
-            method: "PUT",
-            body: queryArg.upsertSupplierPricingSettingsRequest,
-          }),
-          invalidatesTags: ["Admin / Pricing / Suppliers"],
+        providesTags: ['Admin / Pricing / Suppliers'],
+      }),
+      upsertSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdPut: build.mutation<
+        UpsertSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdPutApiResponse,
+        UpsertSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdPutApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/suppliers/${queryArg.supplierId}`,
+          method: 'PUT',
+          body: queryArg.upsertSupplierPricingSettingsRequest,
         }),
-      listSupplierTypeContextMappingsApiV1AdminPricingSupplierTypeMappingGet:
-        build.query<
-          ListSupplierTypeContextMappingsApiV1AdminPricingSupplierTypeMappingGetApiResponse,
-          ListSupplierTypeContextMappingsApiV1AdminPricingSupplierTypeMappingGetApiArg
-        >({
-          query: () => ({ url: `/api/v1/admin/pricing/supplier-type-mapping` }),
-          providesTags: ["Admin / Pricing / Supplier-Type Mapping"],
+        invalidatesTags: ['Admin / Pricing / Suppliers'],
+      }),
+      listSupplierTypeContextMappingsApiV1AdminPricingSupplierTypeMappingGet: build.query<
+        ListSupplierTypeContextMappingsApiV1AdminPricingSupplierTypeMappingGetApiResponse,
+        ListSupplierTypeContextMappingsApiV1AdminPricingSupplierTypeMappingGetApiArg
+      >({
+        query: () => ({ url: `/api/v1/admin/pricing/supplier-type-mapping` }),
+        providesTags: ['Admin / Pricing / Supplier-Type Mapping'],
+      }),
+      getSupplierTypeContextMappingApiV1AdminPricingSupplierTypeMappingSupplierTypeGet: build.query<
+        GetSupplierTypeContextMappingApiV1AdminPricingSupplierTypeMappingSupplierTypeGetApiResponse,
+        GetSupplierTypeContextMappingApiV1AdminPricingSupplierTypeMappingSupplierTypeGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/supplier-type-mapping/${queryArg.supplierType}`,
         }),
-      getSupplierTypeContextMappingApiV1AdminPricingSupplierTypeMappingSupplierTypeGet:
-        build.query<
-          GetSupplierTypeContextMappingApiV1AdminPricingSupplierTypeMappingSupplierTypeGetApiResponse,
-          GetSupplierTypeContextMappingApiV1AdminPricingSupplierTypeMappingSupplierTypeGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/supplier-type-mapping/${queryArg.supplierType}`,
-          }),
-          providesTags: ["Admin / Pricing / Supplier-Type Mapping"],
-        }),
+        providesTags: ['Admin / Pricing / Supplier-Type Mapping'],
+      }),
       upsertSupplierTypeContextMappingApiV1AdminPricingSupplierTypeMappingSupplierTypePut:
         build.mutation<
           UpsertSupplierTypeContextMappingApiV1AdminPricingSupplierTypeMappingSupplierTypePutApiResponse,
@@ -2443,10 +2377,10 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/pricing/supplier-type-mapping/${queryArg.supplierType}`,
-            method: "PUT",
+            method: 'PUT',
             body: queryArg.upsertSupplierTypeContextMappingRequest,
           }),
-          invalidatesTags: ["Admin / Pricing / Supplier-Type Mapping"],
+          invalidatesTags: ['Admin / Pricing / Supplier-Type Mapping'],
         }),
       deleteSupplierTypeContextMappingApiV1AdminPricingSupplierTypeMappingSupplierTypeDelete:
         build.mutation<
@@ -2455,23 +2389,22 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/pricing/supplier-type-mapping/${queryArg.supplierType}`,
-            method: "DELETE",
+            method: 'DELETE',
           }),
-          invalidatesTags: ["Admin / Pricing / Supplier-Type Mapping"],
+          invalidatesTags: ['Admin / Pricing / Supplier-Type Mapping'],
         }),
-      getCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdGet:
-        build.query<
-          GetCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdGetApiResponse,
-          GetCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/categories/${queryArg.categoryId}`,
-            params: {
-              contextId: queryArg.contextId,
-            },
-          }),
-          providesTags: ["Admin / Pricing / Categories"],
+      getCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdGet: build.query<
+        GetCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdGetApiResponse,
+        GetCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/categories/${queryArg.categoryId}`,
+          params: {
+            contextId: queryArg.contextId,
+          },
         }),
+        providesTags: ['Admin / Pricing / Categories'],
+      }),
       upsertCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdContextIdPut:
         build.mutation<
           UpsertCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdContextIdPutApiResponse,
@@ -2479,10 +2412,10 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/pricing/categories/${queryArg.categoryId}/${queryArg.contextId}`,
-            method: "PUT",
+            method: 'PUT',
             body: queryArg.upsertCategoryPricingSettingsRequest,
           }),
-          invalidatesTags: ["Admin / Pricing / Categories"],
+          invalidatesTags: ['Admin / Pricing / Categories'],
         }),
       deleteCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdContextIdDelete:
         build.mutation<
@@ -2491,9 +2424,9 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/pricing/categories/${queryArg.categoryId}/${queryArg.contextId}`,
-            method: "DELETE",
+            method: 'DELETE',
           }),
-          invalidatesTags: ["Admin / Pricing / Categories"],
+          invalidatesTags: ['Admin / Pricing / Categories'],
         }),
       recomputeOneSkuApiV1AdminPricingRecomputeSkusSkuIdPost: build.mutation<
         RecomputeOneSkuApiV1AdminPricingRecomputeSkusSkuIdPostApiResponse,
@@ -2501,43 +2434,40 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/pricing/recompute/skus/${queryArg.skuId}`,
-          method: "POST",
+          method: 'POST',
         }),
-        invalidatesTags: ["Admin / Pricing / Recompute"],
+        invalidatesTags: ['Admin / Pricing / Recompute'],
       }),
-      recomputeContextApiV1AdminPricingRecomputeContextsContextIdPost:
-        build.mutation<
-          RecomputeContextApiV1AdminPricingRecomputeContextsContextIdPostApiResponse,
-          RecomputeContextApiV1AdminPricingRecomputeContextsContextIdPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/recompute/contexts/${queryArg.contextId}`,
-            method: "POST",
-          }),
-          invalidatesTags: ["Admin / Pricing / Recompute"],
+      recomputeContextApiV1AdminPricingRecomputeContextsContextIdPost: build.mutation<
+        RecomputeContextApiV1AdminPricingRecomputeContextsContextIdPostApiResponse,
+        RecomputeContextApiV1AdminPricingRecomputeContextsContextIdPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/recompute/contexts/${queryArg.contextId}`,
+          method: 'POST',
         }),
-      recomputeCategoryApiV1AdminPricingRecomputeCategoriesCategoryIdPost:
-        build.mutation<
-          RecomputeCategoryApiV1AdminPricingRecomputeCategoriesCategoryIdPostApiResponse,
-          RecomputeCategoryApiV1AdminPricingRecomputeCategoriesCategoryIdPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/recompute/categories/${queryArg.categoryId}`,
-            method: "POST",
-          }),
-          invalidatesTags: ["Admin / Pricing / Recompute"],
+        invalidatesTags: ['Admin / Pricing / Recompute'],
+      }),
+      recomputeCategoryApiV1AdminPricingRecomputeCategoriesCategoryIdPost: build.mutation<
+        RecomputeCategoryApiV1AdminPricingRecomputeCategoriesCategoryIdPostApiResponse,
+        RecomputeCategoryApiV1AdminPricingRecomputeCategoriesCategoryIdPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/recompute/categories/${queryArg.categoryId}`,
+          method: 'POST',
         }),
-      recomputeSupplierApiV1AdminPricingRecomputeSuppliersSupplierIdPost:
-        build.mutation<
-          RecomputeSupplierApiV1AdminPricingRecomputeSuppliersSupplierIdPostApiResponse,
-          RecomputeSupplierApiV1AdminPricingRecomputeSuppliersSupplierIdPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/pricing/recompute/suppliers/${queryArg.supplierId}`,
-            method: "POST",
-          }),
-          invalidatesTags: ["Admin / Pricing / Recompute"],
+        invalidatesTags: ['Admin / Pricing / Recompute'],
+      }),
+      recomputeSupplierApiV1AdminPricingRecomputeSuppliersSupplierIdPost: build.mutation<
+        RecomputeSupplierApiV1AdminPricingRecomputeSuppliersSupplierIdPostApiResponse,
+        RecomputeSupplierApiV1AdminPricingRecomputeSuppliersSupplierIdPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/pricing/recompute/suppliers/${queryArg.supplierId}`,
+          method: 'POST',
         }),
+        invalidatesTags: ['Admin / Pricing / Recompute'],
+      }),
       getTrendingProductsApiV1AdminAnalyticsTrendingGet: build.query<
         GetTrendingProductsApiV1AdminAnalyticsTrendingGetApiResponse,
         GetTrendingProductsApiV1AdminAnalyticsTrendingGetApiArg
@@ -2550,7 +2480,7 @@ const injectedRtkApi = api
             categoryId: queryArg.categoryId,
           },
         }),
-        providesTags: ["Admin / Analytics"],
+        providesTags: ['Admin / Analytics'],
       }),
       getSearchAnalyticsApiV1AdminAnalyticsSearchGet: build.query<
         GetSearchAnalyticsApiV1AdminAnalyticsSearchGetApiResponse,
@@ -2562,7 +2492,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Admin / Analytics"],
+        providesTags: ['Admin / Analytics'],
       }),
       addItemApiV1CartItemsPost: build.mutation<
         AddItemApiV1CartItemsPostApiResponse,
@@ -2570,13 +2500,13 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/cart/items`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.addItemRequest,
           headers: {
-            "x-anonymous-token": queryArg["x-anonymous-token"],
+            'x-anonymous-token': queryArg['x-anonymous-token'],
           },
         }),
-        invalidatesTags: ["Cart"],
+        invalidatesTags: ['Cart'],
       }),
       removeItemApiV1CartItemsSkuIdDelete: build.mutation<
         RemoveItemApiV1CartItemsSkuIdDeleteApiResponse,
@@ -2584,12 +2514,12 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/cart/items/${queryArg.skuId}`,
-          method: "DELETE",
+          method: 'DELETE',
           headers: {
-            "x-anonymous-token": queryArg["x-anonymous-token"],
+            'x-anonymous-token': queryArg['x-anonymous-token'],
           },
         }),
-        invalidatesTags: ["Cart"],
+        invalidatesTags: ['Cart'],
       }),
       updateQuantityApiV1CartItemsSkuIdPatch: build.mutation<
         UpdateQuantityApiV1CartItemsSkuIdPatchApiResponse,
@@ -2597,13 +2527,13 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/cart/items/${queryArg.skuId}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.updateQuantityRequest,
           headers: {
-            "x-anonymous-token": queryArg["x-anonymous-token"],
+            'x-anonymous-token': queryArg['x-anonymous-token'],
           },
         }),
-        invalidatesTags: ["Cart"],
+        invalidatesTags: ['Cart'],
       }),
       clearCartApiV1CartDelete: build.mutation<
         ClearCartApiV1CartDeleteApiResponse,
@@ -2611,24 +2541,21 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/cart`,
-          method: "DELETE",
+          method: 'DELETE',
           headers: {
-            "x-anonymous-token": queryArg["x-anonymous-token"],
+            'x-anonymous-token': queryArg['x-anonymous-token'],
           },
         }),
-        invalidatesTags: ["Cart"],
+        invalidatesTags: ['Cart'],
       }),
-      getCartApiV1CartGet: build.query<
-        GetCartApiV1CartGetApiResponse,
-        GetCartApiV1CartGetApiArg
-      >({
+      getCartApiV1CartGet: build.query<GetCartApiV1CartGetApiResponse, GetCartApiV1CartGetApiArg>({
         query: (queryArg) => ({
           url: `/api/v1/cart`,
           headers: {
-            "x-anonymous-token": queryArg["x-anonymous-token"],
+            'x-anonymous-token': queryArg['x-anonymous-token'],
           },
         }),
-        providesTags: ["Cart"],
+        providesTags: ['Cart'],
       }),
       getCartSummaryApiV1CartSummaryGet: build.query<
         GetCartSummaryApiV1CartSummaryGetApiResponse,
@@ -2637,10 +2564,10 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/cart/summary`,
           headers: {
-            "x-anonymous-token": queryArg["x-anonymous-token"],
+            'x-anonymous-token': queryArg['x-anonymous-token'],
           },
         }),
-        providesTags: ["Cart"],
+        providesTags: ['Cart'],
       }),
       initiateCheckoutApiV1CartCheckoutPost: build.mutation<
         InitiateCheckoutApiV1CartCheckoutPostApiResponse,
@@ -2648,10 +2575,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/cart/checkout`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.initiateCheckoutRequest,
         }),
-        invalidatesTags: ["Cart"],
+        invalidatesTags: ['Cart'],
       }),
       confirmCheckoutApiV1CartCheckoutConfirmPost: build.mutation<
         ConfirmCheckoutApiV1CartCheckoutConfirmPostApiResponse,
@@ -2659,17 +2586,17 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/cart/checkout/confirm`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.confirmCheckoutRequest,
         }),
-        invalidatesTags: ["Cart"],
+        invalidatesTags: ['Cart'],
       }),
       cancelCheckoutApiV1CartCheckoutCancelPost: build.mutation<
         CancelCheckoutApiV1CartCheckoutCancelPostApiResponse,
         CancelCheckoutApiV1CartCheckoutCancelPostApiArg
       >({
-        query: () => ({ url: `/api/v1/cart/checkout/cancel`, method: "POST" }),
-        invalidatesTags: ["Cart"],
+        query: () => ({ url: `/api/v1/cart/checkout/cancel`, method: 'POST' }),
+        invalidatesTags: ['Cart'],
       }),
       mergeCartsApiV1CartMergePost: build.mutation<
         MergeCartsApiV1CartMergePostApiResponse,
@@ -2677,24 +2604,24 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/cart/merge`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.mergeCartRequest,
         }),
-        invalidatesTags: ["Cart"],
+        invalidatesTags: ['Cart'],
       }),
       createAnonymousTokenApiV1CartAnonymousTokenPost: build.mutation<
         CreateAnonymousTokenApiV1CartAnonymousTokenPostApiResponse,
         CreateAnonymousTokenApiV1CartAnonymousTokenPostApiArg
       >({
-        query: () => ({ url: `/api/v1/cart/anonymous-token`, method: "POST" }),
-        invalidatesTags: ["Cart"],
+        query: () => ({ url: `/api/v1/cart/anonymous-token`, method: 'POST' }),
+        invalidatesTags: ['Cart'],
       }),
       listFavoriteListsApiV1FavoritesListsGet: build.query<
         ListFavoriteListsApiV1FavoritesListsGetApiResponse,
         ListFavoriteListsApiV1FavoritesListsGetApiArg
       >({
         query: () => ({ url: `/api/v1/favorites/lists` }),
-        providesTags: ["Favorites"],
+        providesTags: ['Favorites'],
       }),
       createFavoriteListApiV1FavoritesListsPost: build.mutation<
         CreateFavoriteListApiV1FavoritesListsPostApiResponse,
@@ -2702,10 +2629,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/favorites/lists`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.createFavoriteListRequest,
         }),
-        invalidatesTags: ["Favorites"],
+        invalidatesTags: ['Favorites'],
       }),
       renameFavoriteListApiV1FavoritesListsListIdPatch: build.mutation<
         RenameFavoriteListApiV1FavoritesListsListIdPatchApiResponse,
@@ -2713,10 +2640,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/favorites/lists/${queryArg.listId}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.renameFavoriteListRequest,
         }),
-        invalidatesTags: ["Favorites"],
+        invalidatesTags: ['Favorites'],
       }),
       deleteFavoriteListApiV1FavoritesListsListIdDelete: build.mutation<
         DeleteFavoriteListApiV1FavoritesListsListIdDeleteApiResponse,
@@ -2724,9 +2651,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/favorites/lists/${queryArg.listId}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Favorites"],
+        invalidatesTags: ['Favorites'],
       }),
       listFavoriteItemsApiV1FavoritesListsListIdItemsGet: build.query<
         ListFavoriteItemsApiV1FavoritesListsListIdItemsGetApiResponse,
@@ -2740,7 +2667,7 @@ const injectedRtkApi = api
             limit: queryArg.limit,
           },
         }),
-        providesTags: ["Favorites"],
+        providesTags: ['Favorites'],
       }),
       addFavoriteItemApiV1FavoritesItemsPost: build.mutation<
         AddFavoriteItemApiV1FavoritesItemsPostApiResponse,
@@ -2748,32 +2675,31 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/favorites/items`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.addFavoriteItemRequest,
         }),
-        invalidatesTags: ["Favorites"],
+        invalidatesTags: ['Favorites'],
       }),
-      removeFavoriteItemApiV1FavoritesListsListIdItemsTargetTypeTargetIdDelete:
-        build.mutation<
-          RemoveFavoriteItemApiV1FavoritesListsListIdItemsTargetTypeTargetIdDeleteApiResponse,
-          RemoveFavoriteItemApiV1FavoritesListsListIdItemsTargetTypeTargetIdDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/favorites/lists/${queryArg.listId}/items/${queryArg.targetType}/${queryArg.targetId}`,
-            method: "DELETE",
-          }),
-          invalidatesTags: ["Favorites"],
+      removeFavoriteItemApiV1FavoritesListsListIdItemsTargetTypeTargetIdDelete: build.mutation<
+        RemoveFavoriteItemApiV1FavoritesListsListIdItemsTargetTypeTargetIdDeleteApiResponse,
+        RemoveFavoriteItemApiV1FavoritesListsListIdItemsTargetTypeTargetIdDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/favorites/lists/${queryArg.listId}/items/${queryArg.targetType}/${queryArg.targetId}`,
+          method: 'DELETE',
         }),
+        invalidatesTags: ['Favorites'],
+      }),
       moveFavoriteItemApiV1FavoritesItemsMovePost: build.mutation<
         MoveFavoriteItemApiV1FavoritesItemsMovePostApiResponse,
         MoveFavoriteItemApiV1FavoritesItemsMovePostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/favorites/items/move`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.moveFavoriteItemRequest,
         }),
-        invalidatesTags: ["Favorites"],
+        invalidatesTags: ['Favorites'],
       }),
       checkFavoritedApiV1FavoritesCheckPost: build.mutation<
         CheckFavoritedApiV1FavoritesCheckPostApiResponse,
@@ -2781,10 +2707,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/favorites/check`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.checkFavoritedRequest,
         }),
-        invalidatesTags: ["Favorites"],
+        invalidatesTags: ['Favorites'],
       }),
       requestUploadApiV1AdminMediaUploadPost: build.mutation<
         RequestUploadApiV1AdminMediaUploadPostApiResponse,
@@ -2792,10 +2718,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/media/upload`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.uploadRequest,
         }),
-        invalidatesTags: ["Admin / Media"],
+        invalidatesTags: ['Admin / Media'],
       }),
       reuploadApiV1AdminMediaStorageObjectIdReuploadPost: build.mutation<
         ReuploadApiV1AdminMediaStorageObjectIdReuploadPostApiResponse,
@@ -2803,10 +2729,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/media/${queryArg.storageObjectId}/reupload`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.reuploadRequest,
         }),
-        invalidatesTags: ["Admin / Media"],
+        invalidatesTags: ['Admin / Media'],
       }),
       confirmUploadApiV1AdminMediaStorageObjectIdConfirmPost: build.mutation<
         ConfirmUploadApiV1AdminMediaStorageObjectIdConfirmPostApiResponse,
@@ -2814,9 +2740,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/media/${queryArg.storageObjectId}/confirm`,
-          method: "POST",
+          method: 'POST',
         }),
-        invalidatesTags: ["Admin / Media"],
+        invalidatesTags: ['Admin / Media'],
       }),
       streamStatusApiV1AdminMediaStorageObjectIdStatusGet: build.query<
         StreamStatusApiV1AdminMediaStorageObjectIdStatusGetApiResponse,
@@ -2825,7 +2751,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/media/${queryArg.storageObjectId}/status`,
         }),
-        providesTags: ["Admin / Media"],
+        providesTags: ['Admin / Media'],
       }),
       getMetadataApiV1AdminMediaStorageObjectIdGet: build.query<
         GetMetadataApiV1AdminMediaStorageObjectIdGetApiResponse,
@@ -2834,7 +2760,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/media/${queryArg.storageObjectId}`,
         }),
-        providesTags: ["Admin / Media"],
+        providesTags: ['Admin / Media'],
       }),
       deleteMediaApiV1AdminMediaStorageObjectIdDelete: build.mutation<
         DeleteMediaApiV1AdminMediaStorageObjectIdDeleteApiResponse,
@@ -2842,9 +2768,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/media/${queryArg.storageObjectId}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Admin / Media"],
+        invalidatesTags: ['Admin / Media'],
       }),
       importExternalApiV1AdminMediaExternalPost: build.mutation<
         ImportExternalApiV1AdminMediaExternalPostApiResponse,
@@ -2852,32 +2778,31 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/media/external`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.externalImportRequest,
         }),
-        invalidatesTags: ["Admin / Media"],
+        invalidatesTags: ['Admin / Media'],
       }),
-      requestBackgroundRemovalApiV1AdminMediaStorageObjectIdRemoveBackgroundPost:
-        build.mutation<
-          RequestBackgroundRemovalApiV1AdminMediaStorageObjectIdRemoveBackgroundPostApiResponse,
-          RequestBackgroundRemovalApiV1AdminMediaStorageObjectIdRemoveBackgroundPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/media/${queryArg.storageObjectId}/remove-background`,
-            method: "POST",
-          }),
-          invalidatesTags: ["Admin / Media"],
+      requestBackgroundRemovalApiV1AdminMediaStorageObjectIdRemoveBackgroundPost: build.mutation<
+        RequestBackgroundRemovalApiV1AdminMediaStorageObjectIdRemoveBackgroundPostApiResponse,
+        RequestBackgroundRemovalApiV1AdminMediaStorageObjectIdRemoveBackgroundPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/media/${queryArg.storageObjectId}/remove-background`,
+          method: 'POST',
         }),
+        invalidatesTags: ['Admin / Media'],
+      }),
       listPickupPointsApiV1StorefrontLogisticsPickupPointsPost: build.mutation<
         ListPickupPointsApiV1StorefrontLogisticsPickupPointsPostApiResponse,
         ListPickupPointsApiV1StorefrontLogisticsPickupPointsPostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/storefront/logistics/pickup-points`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.pickupPointsRequest,
         }),
-        invalidatesTags: ["Storefront / Logistics"],
+        invalidatesTags: ['Storefront / Logistics'],
       }),
       listProviderAccountsApiV1AdminLogisticsProviderAccountsGet: build.query<
         ListProviderAccountsApiV1AdminLogisticsProviderAccountsGetApiResponse,
@@ -2890,53 +2815,49 @@ const injectedRtkApi = api
             onlyActive: queryArg.onlyActive,
           },
         }),
-        providesTags: ["Admin / Logistics / Provider Accounts"],
+        providesTags: ['Admin / Logistics / Provider Accounts'],
       }),
-      createProviderAccountApiV1AdminLogisticsProviderAccountsPost:
-        build.mutation<
-          CreateProviderAccountApiV1AdminLogisticsProviderAccountsPostApiResponse,
-          CreateProviderAccountApiV1AdminLogisticsProviderAccountsPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/provider-accounts`,
-            method: "POST",
-            body: queryArg.createProviderAccountRequest,
-          }),
-          invalidatesTags: ["Admin / Logistics / Provider Accounts"],
+      createProviderAccountApiV1AdminLogisticsProviderAccountsPost: build.mutation<
+        CreateProviderAccountApiV1AdminLogisticsProviderAccountsPostApiResponse,
+        CreateProviderAccountApiV1AdminLogisticsProviderAccountsPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/provider-accounts`,
+          method: 'POST',
+          body: queryArg.createProviderAccountRequest,
         }),
-      getProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdGet:
-        build.query<
-          GetProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdGetApiResponse,
-          GetProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/provider-accounts/${queryArg.accountId}`,
-          }),
-          providesTags: ["Admin / Logistics / Provider Accounts"],
+        invalidatesTags: ['Admin / Logistics / Provider Accounts'],
+      }),
+      getProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdGet: build.query<
+        GetProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdGetApiResponse,
+        GetProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/provider-accounts/${queryArg.accountId}`,
         }),
-      updateProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdPut:
-        build.mutation<
-          UpdateProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdPutApiResponse,
-          UpdateProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdPutApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/provider-accounts/${queryArg.accountId}`,
-            method: "PUT",
-            body: queryArg.updateProviderAccountRequest,
-          }),
-          invalidatesTags: ["Admin / Logistics / Provider Accounts"],
+        providesTags: ['Admin / Logistics / Provider Accounts'],
+      }),
+      updateProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdPut: build.mutation<
+        UpdateProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdPutApiResponse,
+        UpdateProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdPutApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/provider-accounts/${queryArg.accountId}`,
+          method: 'PUT',
+          body: queryArg.updateProviderAccountRequest,
         }),
-      deleteProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdDelete:
-        build.mutation<
-          DeleteProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdDeleteApiResponse,
-          DeleteProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/provider-accounts/${queryArg.accountId}`,
-            method: "DELETE",
-          }),
-          invalidatesTags: ["Admin / Logistics / Provider Accounts"],
+        invalidatesTags: ['Admin / Logistics / Provider Accounts'],
+      }),
+      deleteProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdDelete: build.mutation<
+        DeleteProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdDeleteApiResponse,
+        DeleteProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/provider-accounts/${queryArg.accountId}`,
+          method: 'DELETE',
         }),
+        invalidatesTags: ['Admin / Logistics / Provider Accounts'],
+      }),
       setProviderAccountActiveApiV1AdminLogisticsProviderAccountsAccountIdActivePost:
         build.mutation<
           SetProviderAccountActiveApiV1AdminLogisticsProviderAccountsAccountIdActivePostApiResponse,
@@ -2944,32 +2865,31 @@ const injectedRtkApi = api
         >({
           query: (queryArg) => ({
             url: `/api/v1/admin/logistics/provider-accounts/${queryArg.accountId}/active`,
-            method: "POST",
+            method: 'POST',
             body: queryArg.setProviderAccountActiveRequest,
           }),
-          invalidatesTags: ["Admin / Logistics / Provider Accounts"],
+          invalidatesTags: ['Admin / Logistics / Provider Accounts'],
         }),
-      refreshProviderRegistryApiV1AdminLogisticsProviderAccountsRefreshPost:
-        build.mutation<
-          RefreshProviderRegistryApiV1AdminLogisticsProviderAccountsRefreshPostApiResponse,
-          RefreshProviderRegistryApiV1AdminLogisticsProviderAccountsRefreshPostApiArg
-        >({
-          query: () => ({
-            url: `/api/v1/admin/logistics/provider-accounts/refresh`,
-            method: "POST",
-          }),
-          invalidatesTags: ["Admin / Logistics / Provider Accounts"],
+      refreshProviderRegistryApiV1AdminLogisticsProviderAccountsRefreshPost: build.mutation<
+        RefreshProviderRegistryApiV1AdminLogisticsProviderAccountsRefreshPostApiResponse,
+        RefreshProviderRegistryApiV1AdminLogisticsProviderAccountsRefreshPostApiArg
+      >({
+        query: () => ({
+          url: `/api/v1/admin/logistics/provider-accounts/refresh`,
+          method: 'POST',
         }),
+        invalidatesTags: ['Admin / Logistics / Provider Accounts'],
+      }),
       calculateRatesApiV1AdminLogisticsRatesPost: build.mutation<
         CalculateRatesApiV1AdminLogisticsRatesPostApiResponse,
         CalculateRatesApiV1AdminLogisticsRatesPostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/logistics/rates`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.calculateRatesRequest,
         }),
-        invalidatesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
       }),
       quoteForPickupPointApiV1AdminLogisticsRatesQuotePost: build.mutation<
         QuoteForPickupPointApiV1AdminLogisticsRatesQuotePostApiResponse,
@@ -2977,10 +2897,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/logistics/rates/quote`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.rateQuoteRequest,
         }),
-        invalidatesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
       }),
       listAdminShipmentsApiV1AdminLogisticsShipmentsGet: build.query<
         ListAdminShipmentsApiV1AdminLogisticsShipmentsGetApiResponse,
@@ -2999,7 +2919,7 @@ const injectedRtkApi = api
             cursor: queryArg.cursor,
           },
         }),
-        providesTags: ["Admin / Logistics / Shipments"],
+        providesTags: ['Admin / Logistics / Shipments'],
       }),
       createShipmentApiV1AdminLogisticsShipmentsPost: build.mutation<
         CreateShipmentApiV1AdminLogisticsShipmentsPostApiResponse,
@@ -3007,33 +2927,31 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/logistics/shipments`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.createShipmentRequest,
         }),
-        invalidatesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
       }),
-      bookShipmentApiV1AdminLogisticsShipmentsShipmentIdBookPost:
-        build.mutation<
-          BookShipmentApiV1AdminLogisticsShipmentsShipmentIdBookPostApiResponse,
-          BookShipmentApiV1AdminLogisticsShipmentsShipmentIdBookPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/book`,
-            method: "POST",
-          }),
-          invalidatesTags: ["Admin / Logistics / Shipments"],
+      bookShipmentApiV1AdminLogisticsShipmentsShipmentIdBookPost: build.mutation<
+        BookShipmentApiV1AdminLogisticsShipmentsShipmentIdBookPostApiResponse,
+        BookShipmentApiV1AdminLogisticsShipmentsShipmentIdBookPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/book`,
+          method: 'POST',
         }),
-      cancelShipmentApiV1AdminLogisticsShipmentsShipmentIdCancelPost:
-        build.mutation<
-          CancelShipmentApiV1AdminLogisticsShipmentsShipmentIdCancelPostApiResponse,
-          CancelShipmentApiV1AdminLogisticsShipmentsShipmentIdCancelPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/cancel`,
-            method: "POST",
-          }),
-          invalidatesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
+      }),
+      cancelShipmentApiV1AdminLogisticsShipmentsShipmentIdCancelPost: build.mutation<
+        CancelShipmentApiV1AdminLogisticsShipmentsShipmentIdCancelPostApiResponse,
+        CancelShipmentApiV1AdminLogisticsShipmentsShipmentIdCancelPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/cancel`,
+          method: 'POST',
         }),
+        invalidatesTags: ['Admin / Logistics / Shipments'],
+      }),
       getShipmentApiV1AdminLogisticsShipmentsShipmentIdGet: build.query<
         GetShipmentApiV1AdminLogisticsShipmentsShipmentIdGetApiResponse,
         GetShipmentApiV1AdminLogisticsShipmentsShipmentIdGetApiArg
@@ -3041,7 +2959,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}`,
         }),
-        providesTags: ["Admin / Logistics / Shipments"],
+        providesTags: ['Admin / Logistics / Shipments'],
       }),
       getTrackingApiV1AdminLogisticsShipmentsShipmentIdTrackingGet: build.query<
         GetTrackingApiV1AdminLogisticsShipmentsShipmentIdTrackingGetApiResponse,
@@ -3050,7 +2968,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/tracking`,
         }),
-        providesTags: ["Admin / Logistics / Shipments"],
+        providesTags: ['Admin / Logistics / Shipments'],
       }),
       listPickupPointsApiV1AdminLogisticsPickupPointsPost: build.mutation<
         ListPickupPointsApiV1AdminLogisticsPickupPointsPostApiResponse,
@@ -3058,194 +2976,180 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/logistics/pickup-points`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.pickupPointsRequest,
         }),
-        invalidatesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
       }),
-      listAvailableIntakeDaysApiV1AdminLogisticsIntakesAvailableDaysPost:
-        build.mutation<
-          ListAvailableIntakeDaysApiV1AdminLogisticsIntakesAvailableDaysPostApiResponse,
-          ListAvailableIntakeDaysApiV1AdminLogisticsIntakesAvailableDaysPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/intakes/available-days`,
-            method: "POST",
-            body: queryArg.availableIntakeDaysRequest,
-          }),
-          invalidatesTags: ["Admin / Logistics / Shipments"],
+      listAvailableIntakeDaysApiV1AdminLogisticsIntakesAvailableDaysPost: build.mutation<
+        ListAvailableIntakeDaysApiV1AdminLogisticsIntakesAvailableDaysPostApiResponse,
+        ListAvailableIntakeDaysApiV1AdminLogisticsIntakesAvailableDaysPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/intakes/available-days`,
+          method: 'POST',
+          body: queryArg.availableIntakeDaysRequest,
         }),
-      createIntakeApiV1AdminLogisticsShipmentsShipmentIdIntakePost:
-        build.mutation<
-          CreateIntakeApiV1AdminLogisticsShipmentsShipmentIdIntakePostApiResponse,
-          CreateIntakeApiV1AdminLogisticsShipmentsShipmentIdIntakePostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/intake`,
-            method: "POST",
-            body: queryArg.createIntakeRequest,
-          }),
-          invalidatesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
+      }),
+      createIntakeApiV1AdminLogisticsShipmentsShipmentIdIntakePost: build.mutation<
+        CreateIntakeApiV1AdminLogisticsShipmentsShipmentIdIntakePostApiResponse,
+        CreateIntakeApiV1AdminLogisticsShipmentsShipmentIdIntakePostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/intake`,
+          method: 'POST',
+          body: queryArg.createIntakeRequest,
         }),
-      getIntakeStatusApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdGet:
-        build.query<
-          GetIntakeStatusApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdGetApiResponse,
-          GetIntakeStatusApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/intakes/${queryArg.providerCode}/${queryArg.providerIntakeId}`,
-          }),
-          providesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
+      }),
+      getIntakeStatusApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdGet: build.query<
+        GetIntakeStatusApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdGetApiResponse,
+        GetIntakeStatusApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/intakes/${queryArg.providerCode}/${queryArg.providerIntakeId}`,
         }),
-      cancelIntakeApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdDelete:
-        build.mutation<
-          CancelIntakeApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdDeleteApiResponse,
-          CancelIntakeApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/intakes/${queryArg.providerCode}/${queryArg.providerIntakeId}`,
-            method: "DELETE",
-            params: {
-              shipmentId: queryArg.shipmentId,
-            },
-          }),
-          invalidatesTags: ["Admin / Logistics / Shipments"],
+        providesTags: ['Admin / Logistics / Shipments'],
+      }),
+      cancelIntakeApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdDelete: build.mutation<
+        CancelIntakeApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdDeleteApiResponse,
+        CancelIntakeApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/intakes/${queryArg.providerCode}/${queryArg.providerIntakeId}`,
+          method: 'DELETE',
+          params: {
+            shipmentId: queryArg.shipmentId,
+          },
         }),
-      getDeliveryIntervalsApiV1AdminLogisticsShipmentsShipmentIdDeliveryIntervalsGet:
-        build.query<
-          GetDeliveryIntervalsApiV1AdminLogisticsShipmentsShipmentIdDeliveryIntervalsGetApiResponse,
-          GetDeliveryIntervalsApiV1AdminLogisticsShipmentsShipmentIdDeliveryIntervalsGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/delivery-intervals`,
-          }),
-          providesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
+      }),
+      getDeliveryIntervalsApiV1AdminLogisticsShipmentsShipmentIdDeliveryIntervalsGet: build.query<
+        GetDeliveryIntervalsApiV1AdminLogisticsShipmentsShipmentIdDeliveryIntervalsGetApiResponse,
+        GetDeliveryIntervalsApiV1AdminLogisticsShipmentsShipmentIdDeliveryIntervalsGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/delivery-intervals`,
         }),
-      estimateDeliveryIntervalsApiV1AdminLogisticsDeliveryIntervalsEstimatePost:
-        build.mutation<
-          EstimateDeliveryIntervalsApiV1AdminLogisticsDeliveryIntervalsEstimatePostApiResponse,
-          EstimateDeliveryIntervalsApiV1AdminLogisticsDeliveryIntervalsEstimatePostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/delivery-intervals/estimate`,
-            method: "POST",
-            body: queryArg.estimatedDeliveryIntervalsRequest,
-          }),
-          invalidatesTags: ["Admin / Logistics / Shipments"],
+        providesTags: ['Admin / Logistics / Shipments'],
+      }),
+      estimateDeliveryIntervalsApiV1AdminLogisticsDeliveryIntervalsEstimatePost: build.mutation<
+        EstimateDeliveryIntervalsApiV1AdminLogisticsDeliveryIntervalsEstimatePostApiResponse,
+        EstimateDeliveryIntervalsApiV1AdminLogisticsDeliveryIntervalsEstimatePostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/delivery-intervals/estimate`,
+          method: 'POST',
+          body: queryArg.estimatedDeliveryIntervalsRequest,
         }),
-      registerClientReturnApiV1AdminLogisticsShipmentsShipmentIdReturnPost:
-        build.mutation<
-          RegisterClientReturnApiV1AdminLogisticsShipmentsShipmentIdReturnPostApiResponse,
-          RegisterClientReturnApiV1AdminLogisticsShipmentsShipmentIdReturnPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/return`,
-            method: "POST",
-            body: queryArg.clientReturnRequest,
-          }),
-          invalidatesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
+      }),
+      registerClientReturnApiV1AdminLogisticsShipmentsShipmentIdReturnPost: build.mutation<
+        RegisterClientReturnApiV1AdminLogisticsShipmentsShipmentIdReturnPostApiResponse,
+        RegisterClientReturnApiV1AdminLogisticsShipmentsShipmentIdReturnPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/return`,
+          method: 'POST',
+          body: queryArg.clientReturnRequest,
         }),
-      registerRefusalApiV1AdminLogisticsShipmentsShipmentIdRefusalPost:
-        build.mutation<
-          RegisterRefusalApiV1AdminLogisticsShipmentsShipmentIdRefusalPostApiResponse,
-          RegisterRefusalApiV1AdminLogisticsShipmentsShipmentIdRefusalPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/refusal`,
-            method: "POST",
-            body: queryArg.refusalRequestSchema,
-          }),
-          invalidatesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
+      }),
+      registerRefusalApiV1AdminLogisticsShipmentsShipmentIdRefusalPost: build.mutation<
+        RegisterRefusalApiV1AdminLogisticsShipmentsShipmentIdRefusalPostApiResponse,
+        RegisterRefusalApiV1AdminLogisticsShipmentsShipmentIdRefusalPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/refusal`,
+          method: 'POST',
+          body: queryArg.refusalRequestSchema,
         }),
-      checkReverseAvailabilityApiV1AdminLogisticsReverseAvailabilityPost:
-        build.mutation<
-          CheckReverseAvailabilityApiV1AdminLogisticsReverseAvailabilityPostApiResponse,
-          CheckReverseAvailabilityApiV1AdminLogisticsReverseAvailabilityPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/reverse-availability`,
-            method: "POST",
-            body: queryArg.reverseAvailabilityRequestSchema,
-          }),
-          invalidatesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
+      }),
+      checkReverseAvailabilityApiV1AdminLogisticsReverseAvailabilityPost: build.mutation<
+        CheckReverseAvailabilityApiV1AdminLogisticsReverseAvailabilityPostApiResponse,
+        CheckReverseAvailabilityApiV1AdminLogisticsReverseAvailabilityPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/reverse-availability`,
+          method: 'POST',
+          body: queryArg.reverseAvailabilityRequestSchema,
         }),
-      getActualDeliveryInfoApiV1AdminLogisticsShipmentsShipmentIdActualDeliveryInfoGet:
-        build.query<
-          GetActualDeliveryInfoApiV1AdminLogisticsShipmentsShipmentIdActualDeliveryInfoGetApiResponse,
-          GetActualDeliveryInfoApiV1AdminLogisticsShipmentsShipmentIdActualDeliveryInfoGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/actual-delivery-info`,
-          }),
-          providesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
+      }),
+      getActualDeliveryInfoApiV1AdminLogisticsShipmentsShipmentIdActualDeliveryInfoGet: build.query<
+        GetActualDeliveryInfoApiV1AdminLogisticsShipmentsShipmentIdActualDeliveryInfoGetApiResponse,
+        GetActualDeliveryInfoApiV1AdminLogisticsShipmentsShipmentIdActualDeliveryInfoGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/actual-delivery-info`,
         }),
+        providesTags: ['Admin / Logistics / Shipments'],
+      }),
       editOrderApiV1AdminLogisticsShipmentsShipmentIdEditPost: build.mutation<
         EditOrderApiV1AdminLogisticsShipmentsShipmentIdEditPostApiResponse,
         EditOrderApiV1AdminLogisticsShipmentsShipmentIdEditPostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/edit`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.editOrderRequest,
         }),
-        invalidatesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
       }),
-      editOrderPackagesApiV1AdminLogisticsShipmentsShipmentIdEditPackagesPost:
-        build.mutation<
-          EditOrderPackagesApiV1AdminLogisticsShipmentsShipmentIdEditPackagesPostApiResponse,
-          EditOrderPackagesApiV1AdminLogisticsShipmentsShipmentIdEditPackagesPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/edit-packages`,
-            method: "POST",
-            body: queryArg.editPackagesRequest,
-          }),
-          invalidatesTags: ["Admin / Logistics / Shipments"],
+      editOrderPackagesApiV1AdminLogisticsShipmentsShipmentIdEditPackagesPost: build.mutation<
+        EditOrderPackagesApiV1AdminLogisticsShipmentsShipmentIdEditPackagesPostApiResponse,
+        EditOrderPackagesApiV1AdminLogisticsShipmentsShipmentIdEditPackagesPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/edit-packages`,
+          method: 'POST',
+          body: queryArg.editPackagesRequest,
         }),
-      editOrderItemsApiV1AdminLogisticsShipmentsShipmentIdEditItemsPost:
-        build.mutation<
-          EditOrderItemsApiV1AdminLogisticsShipmentsShipmentIdEditItemsPostApiResponse,
-          EditOrderItemsApiV1AdminLogisticsShipmentsShipmentIdEditItemsPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/edit-items`,
-            method: "POST",
-            body: queryArg.editOrderItemsRequest,
-          }),
-          invalidatesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
+      }),
+      editOrderItemsApiV1AdminLogisticsShipmentsShipmentIdEditItemsPost: build.mutation<
+        EditOrderItemsApiV1AdminLogisticsShipmentsShipmentIdEditItemsPostApiResponse,
+        EditOrderItemsApiV1AdminLogisticsShipmentsShipmentIdEditItemsPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/edit-items`,
+          method: 'POST',
+          body: queryArg.editOrderItemsRequest,
         }),
-      removeOrderItemsApiV1AdminLogisticsShipmentsShipmentIdRemoveItemsPost:
-        build.mutation<
-          RemoveOrderItemsApiV1AdminLogisticsShipmentsShipmentIdRemoveItemsPostApiResponse,
-          RemoveOrderItemsApiV1AdminLogisticsShipmentsShipmentIdRemoveItemsPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/remove-items`,
-            method: "POST",
-            body: queryArg.removeOrderItemsRequest,
-          }),
-          invalidatesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
+      }),
+      removeOrderItemsApiV1AdminLogisticsShipmentsShipmentIdRemoveItemsPost: build.mutation<
+        RemoveOrderItemsApiV1AdminLogisticsShipmentsShipmentIdRemoveItemsPostApiResponse,
+        RemoveOrderItemsApiV1AdminLogisticsShipmentsShipmentIdRemoveItemsPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/shipments/${queryArg.shipmentId}/remove-items`,
+          method: 'POST',
+          body: queryArg.removeOrderItemsRequest,
         }),
-      getEditTaskStatusApiV1AdminLogisticsEditTasksProviderCodeTaskIdGet:
-        build.query<
-          GetEditTaskStatusApiV1AdminLogisticsEditTasksProviderCodeTaskIdGetApiResponse,
-          GetEditTaskStatusApiV1AdminLogisticsEditTasksProviderCodeTaskIdGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/edit-tasks/${queryArg.providerCode}/${queryArg.taskId}`,
-          }),
-          providesTags: ["Admin / Logistics / Shipments"],
+        invalidatesTags: ['Admin / Logistics / Shipments'],
+      }),
+      getEditTaskStatusApiV1AdminLogisticsEditTasksProviderCodeTaskIdGet: build.query<
+        GetEditTaskStatusApiV1AdminLogisticsEditTasksProviderCodeTaskIdGetApiResponse,
+        GetEditTaskStatusApiV1AdminLogisticsEditTasksProviderCodeTaskIdGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/edit-tasks/${queryArg.providerCode}/${queryArg.taskId}`,
         }),
+        providesTags: ['Admin / Logistics / Shipments'],
+      }),
       editCdekOrderApiV1AdminLogisticsCdekOrdersEditPost: build.mutation<
         EditCdekOrderApiV1AdminLogisticsCdekOrdersEditPostApiResponse,
         EditCdekOrderApiV1AdminLogisticsCdekOrdersEditPostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/logistics/cdek/orders/edit`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.cdekRawPayloadRequest,
         }),
-        invalidatesTags: ["Admin / Logistics / CDEK"],
+        invalidatesTags: ['Admin / Logistics / CDEK'],
       }),
       lookupCdekOrderApiV1AdminLogisticsCdekOrdersLookupGet: build.query<
         LookupCdekOrderApiV1AdminLogisticsCdekOrdersLookupGetApiResponse,
@@ -3258,40 +3162,37 @@ const injectedRtkApi = api
             imNumber: queryArg.imNumber,
           },
         }),
-        providesTags: ["Admin / Logistics / CDEK"],
+        providesTags: ['Admin / Logistics / CDEK'],
       }),
-      listCdekOrderIntakesApiV1AdminLogisticsCdekOrdersOrderUuidIntakesGet:
-        build.query<
-          ListCdekOrderIntakesApiV1AdminLogisticsCdekOrdersOrderUuidIntakesGetApiResponse,
-          ListCdekOrderIntakesApiV1AdminLogisticsCdekOrdersOrderUuidIntakesGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/cdek/orders/${queryArg.orderUuid}/intakes`,
-          }),
-          providesTags: ["Admin / Logistics / CDEK"],
+      listCdekOrderIntakesApiV1AdminLogisticsCdekOrdersOrderUuidIntakesGet: build.query<
+        ListCdekOrderIntakesApiV1AdminLogisticsCdekOrdersOrderUuidIntakesGetApiResponse,
+        ListCdekOrderIntakesApiV1AdminLogisticsCdekOrdersOrderUuidIntakesGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/cdek/orders/${queryArg.orderUuid}/intakes`,
         }),
-      downloadCdekBarcodeApiV1AdminLogisticsCdekShipmentsShipmentIdBarcodeGet:
-        build.query<
-          DownloadCdekBarcodeApiV1AdminLogisticsCdekShipmentsShipmentIdBarcodeGetApiResponse,
-          DownloadCdekBarcodeApiV1AdminLogisticsCdekShipmentsShipmentIdBarcodeGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/cdek/shipments/${queryArg.shipmentId}/barcode`,
-          }),
-          providesTags: ["Admin / Logistics / CDEK"],
+        providesTags: ['Admin / Logistics / CDEK'],
+      }),
+      downloadCdekBarcodeApiV1AdminLogisticsCdekShipmentsShipmentIdBarcodeGet: build.query<
+        DownloadCdekBarcodeApiV1AdminLogisticsCdekShipmentsShipmentIdBarcodeGetApiResponse,
+        DownloadCdekBarcodeApiV1AdminLogisticsCdekShipmentsShipmentIdBarcodeGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/cdek/shipments/${queryArg.shipmentId}/barcode`,
         }),
-      registerCdekDeliveryAgreementApiV1AdminLogisticsCdekDeliveryAgreementsPost:
-        build.mutation<
-          RegisterCdekDeliveryAgreementApiV1AdminLogisticsCdekDeliveryAgreementsPostApiResponse,
-          RegisterCdekDeliveryAgreementApiV1AdminLogisticsCdekDeliveryAgreementsPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/cdek/delivery-agreements`,
-            method: "POST",
-            body: queryArg.cdekRawPayloadRequest,
-          }),
-          invalidatesTags: ["Admin / Logistics / CDEK"],
+        providesTags: ['Admin / Logistics / CDEK'],
+      }),
+      registerCdekDeliveryAgreementApiV1AdminLogisticsCdekDeliveryAgreementsPost: build.mutation<
+        RegisterCdekDeliveryAgreementApiV1AdminLogisticsCdekDeliveryAgreementsPostApiResponse,
+        RegisterCdekDeliveryAgreementApiV1AdminLogisticsCdekDeliveryAgreementsPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/cdek/delivery-agreements`,
+          method: 'POST',
+          body: queryArg.cdekRawPayloadRequest,
         }),
+        invalidatesTags: ['Admin / Logistics / CDEK'],
+      }),
       getCdekDeliveryAgreementApiV1AdminLogisticsCdekDeliveryAgreementsAgreementUuidGet:
         build.query<
           GetCdekDeliveryAgreementApiV1AdminLogisticsCdekDeliveryAgreementsAgreementUuidGetApiResponse,
@@ -3300,7 +3201,7 @@ const injectedRtkApi = api
           query: (queryArg) => ({
             url: `/api/v1/admin/logistics/cdek/delivery-agreements/${queryArg.agreementUuid}`,
           }),
-          providesTags: ["Admin / Logistics / CDEK"],
+          providesTags: ['Admin / Logistics / CDEK'],
         }),
       createCdekPrealertApiV1AdminLogisticsCdekPrealertsPost: build.mutation<
         CreateCdekPrealertApiV1AdminLogisticsCdekPrealertsPostApiResponse,
@@ -3308,21 +3209,20 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/logistics/cdek/prealerts`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.cdekRawPayloadRequest,
         }),
-        invalidatesTags: ["Admin / Logistics / CDEK"],
+        invalidatesTags: ['Admin / Logistics / CDEK'],
       }),
-      getCdekPrealertApiV1AdminLogisticsCdekPrealertsPrealertUuidGet:
-        build.query<
-          GetCdekPrealertApiV1AdminLogisticsCdekPrealertsPrealertUuidGetApiResponse,
-          GetCdekPrealertApiV1AdminLogisticsCdekPrealertsPrealertUuidGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/cdek/prealerts/${queryArg.prealertUuid}`,
-          }),
-          providesTags: ["Admin / Logistics / CDEK"],
+      getCdekPrealertApiV1AdminLogisticsCdekPrealertsPrealertUuidGet: build.query<
+        GetCdekPrealertApiV1AdminLogisticsCdekPrealertsPrealertUuidGetApiResponse,
+        GetCdekPrealertApiV1AdminLogisticsCdekPrealertsPrealertUuidGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/cdek/prealerts/${queryArg.prealertUuid}`,
         }),
+        providesTags: ['Admin / Logistics / CDEK'],
+      }),
       getCdekChecksApiV1AdminLogisticsCdekChecksGet: build.query<
         GetCdekChecksApiV1AdminLogisticsCdekChecksGetApiResponse,
         GetCdekChecksApiV1AdminLogisticsCdekChecksGetApiArg
@@ -3335,7 +3235,7 @@ const injectedRtkApi = api
             date: queryArg.date,
           },
         }),
-        providesTags: ["Admin / Logistics / CDEK"],
+        providesTags: ['Admin / Logistics / CDEK'],
       }),
       getCdekRegistriesApiV1AdminLogisticsCdekRegistriesGet: build.query<
         GetCdekRegistriesApiV1AdminLogisticsCdekRegistriesGetApiResponse,
@@ -3347,49 +3247,47 @@ const injectedRtkApi = api
             date: queryArg.date,
           },
         }),
-        providesTags: ["Admin / Logistics / CDEK"],
+        providesTags: ['Admin / Logistics / CDEK'],
       }),
-      checkCdekRestrictionsApiV1AdminLogisticsCdekRestrictionsPost:
-        build.mutation<
-          CheckCdekRestrictionsApiV1AdminLogisticsCdekRestrictionsPostApiResponse,
-          CheckCdekRestrictionsApiV1AdminLogisticsCdekRestrictionsPostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/cdek/restrictions`,
-            method: "POST",
-            body: queryArg.cdekRawPayloadRequest,
-          }),
-          invalidatesTags: ["Admin / Logistics / CDEK"],
+      checkCdekRestrictionsApiV1AdminLogisticsCdekRestrictionsPost: build.mutation<
+        CheckCdekRestrictionsApiV1AdminLogisticsCdekRestrictionsPostApiResponse,
+        CheckCdekRestrictionsApiV1AdminLogisticsCdekRestrictionsPostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/cdek/restrictions`,
+          method: 'POST',
+          body: queryArg.cdekRawPayloadRequest,
         }),
+        invalidatesTags: ['Admin / Logistics / CDEK'],
+      }),
       getCdekReadyPhotosApiV1AdminLogisticsCdekPhotosPost: build.mutation<
         GetCdekReadyPhotosApiV1AdminLogisticsCdekPhotosPostApiResponse,
         GetCdekReadyPhotosApiV1AdminLogisticsCdekPhotosPostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/logistics/cdek/photos`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.cdekRawPayloadRequest,
         }),
-        invalidatesTags: ["Admin / Logistics / CDEK"],
+        invalidatesTags: ['Admin / Logistics / CDEK'],
       }),
-      changeCdekIntakeStatusApiV1AdminLogisticsCdekIntakesStatusPatch:
-        build.mutation<
-          ChangeCdekIntakeStatusApiV1AdminLogisticsCdekIntakesStatusPatchApiResponse,
-          ChangeCdekIntakeStatusApiV1AdminLogisticsCdekIntakesStatusPatchApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/cdek/intakes/status`,
-            method: "PATCH",
-            body: queryArg.cdekRawPayloadRequest,
-          }),
-          invalidatesTags: ["Admin / Logistics / CDEK"],
+      changeCdekIntakeStatusApiV1AdminLogisticsCdekIntakesStatusPatch: build.mutation<
+        ChangeCdekIntakeStatusApiV1AdminLogisticsCdekIntakesStatusPatchApiResponse,
+        ChangeCdekIntakeStatusApiV1AdminLogisticsCdekIntakesStatusPatchApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/cdek/intakes/status`,
+          method: 'PATCH',
+          body: queryArg.cdekRawPayloadRequest,
         }),
+        invalidatesTags: ['Admin / Logistics / CDEK'],
+      }),
       listCdekTariffsApiV1AdminLogisticsCdekTariffsGet: build.query<
         ListCdekTariffsApiV1AdminLogisticsCdekTariffsGetApiResponse,
         ListCdekTariffsApiV1AdminLogisticsCdekTariffsGetApiArg
       >({
         query: () => ({ url: `/api/v1/admin/logistics/cdek/tariffs` }),
-        providesTags: ["Admin / Logistics / CDEK"],
+        providesTags: ['Admin / Logistics / CDEK'],
       }),
       suggestCdekCitiesApiV1AdminLogisticsCdekLocationsSuggestGet: build.query<
         SuggestCdekCitiesApiV1AdminLogisticsCdekLocationsSuggestGetApiResponse,
@@ -3402,7 +3300,7 @@ const injectedRtkApi = api
             countryCode: queryArg.countryCode,
           },
         }),
-        providesTags: ["Admin / Logistics / CDEK"],
+        providesTags: ['Admin / Logistics / CDEK'],
       }),
       listCdekCitiesApiV1AdminLogisticsCdekLocationsCitiesGet: build.query<
         ListCdekCitiesApiV1AdminLogisticsCdekLocationsCitiesGetApiResponse,
@@ -3417,7 +3315,7 @@ const injectedRtkApi = api
             code: queryArg.code,
           },
         }),
-        providesTags: ["Admin / Logistics / CDEK"],
+        providesTags: ['Admin / Logistics / CDEK'],
       }),
       listCdekRegionsApiV1AdminLogisticsCdekLocationsRegionsGet: build.query<
         ListCdekRegionsApiV1AdminLogisticsCdekLocationsRegionsGetApiResponse,
@@ -3429,41 +3327,39 @@ const injectedRtkApi = api
             countryCodes: queryArg.countryCodes,
           },
         }),
-        providesTags: ["Admin / Logistics / CDEK"],
+        providesTags: ['Admin / Logistics / CDEK'],
       }),
-      listCdekPostalCodesApiV1AdminLogisticsCdekLocationsPostalCodesGet:
-        build.query<
-          ListCdekPostalCodesApiV1AdminLogisticsCdekLocationsPostalCodesGetApiResponse,
-          ListCdekPostalCodesApiV1AdminLogisticsCdekLocationsPostalCodesGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/cdek/locations/postal-codes`,
-            params: {
-              cityCode: queryArg.cityCode,
-            },
-          }),
-          providesTags: ["Admin / Logistics / CDEK"],
+      listCdekPostalCodesApiV1AdminLogisticsCdekLocationsPostalCodesGet: build.query<
+        ListCdekPostalCodesApiV1AdminLogisticsCdekLocationsPostalCodesGetApiResponse,
+        ListCdekPostalCodesApiV1AdminLogisticsCdekLocationsPostalCodesGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/cdek/locations/postal-codes`,
+          params: {
+            cityCode: queryArg.cityCode,
+          },
         }),
-      resolveCdekLocationByCoordinatesApiV1AdminLogisticsCdekLocationsByCoordinatesGet:
-        build.query<
-          ResolveCdekLocationByCoordinatesApiV1AdminLogisticsCdekLocationsByCoordinatesGetApiResponse,
-          ResolveCdekLocationByCoordinatesApiV1AdminLogisticsCdekLocationsByCoordinatesGetApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/cdek/locations/by-coordinates`,
-            params: {
-              latitude: queryArg.latitude,
-              longitude: queryArg.longitude,
-            },
-          }),
-          providesTags: ["Admin / Logistics / CDEK"],
+        providesTags: ['Admin / Logistics / CDEK'],
+      }),
+      resolveCdekLocationByCoordinatesApiV1AdminLogisticsCdekLocationsByCoordinatesGet: build.query<
+        ResolveCdekLocationByCoordinatesApiV1AdminLogisticsCdekLocationsByCoordinatesGetApiResponse,
+        ResolveCdekLocationByCoordinatesApiV1AdminLogisticsCdekLocationsByCoordinatesGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/cdek/locations/by-coordinates`,
+          params: {
+            latitude: queryArg.latitude,
+            longitude: queryArg.longitude,
+          },
         }),
+        providesTags: ['Admin / Logistics / CDEK'],
+      }),
       listCdekWebhooksApiV1AdminLogisticsCdekWebhooksGet: build.query<
         ListCdekWebhooksApiV1AdminLogisticsCdekWebhooksGetApiResponse,
         ListCdekWebhooksApiV1AdminLogisticsCdekWebhooksGetApiArg
       >({
         query: () => ({ url: `/api/v1/admin/logistics/cdek/webhooks` }),
-        providesTags: ["Admin / Logistics / CDEK"],
+        providesTags: ['Admin / Logistics / CDEK'],
       }),
       createCdekWebhookApiV1AdminLogisticsCdekWebhooksPost: build.mutation<
         CreateCdekWebhookApiV1AdminLogisticsCdekWebhooksPostApiResponse,
@@ -3471,10 +3367,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/logistics/cdek/webhooks`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.cdekWebhookSubscriptionRequest,
         }),
-        invalidatesTags: ["Admin / Logistics / CDEK"],
+        invalidatesTags: ['Admin / Logistics / CDEK'],
       }),
       syncCdekWebhooksApiV1AdminLogisticsCdekWebhooksSyncPost: build.mutation<
         SyncCdekWebhooksApiV1AdminLogisticsCdekWebhooksSyncPostApiResponse,
@@ -3482,31 +3378,30 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/logistics/cdek/webhooks/sync`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.cdekWebhookSyncRequest,
         }),
-        invalidatesTags: ["Admin / Logistics / CDEK"],
+        invalidatesTags: ['Admin / Logistics / CDEK'],
       }),
-      deleteCdekWebhookApiV1AdminLogisticsCdekWebhooksSubscriptionUuidDelete:
-        build.mutation<
-          DeleteCdekWebhookApiV1AdminLogisticsCdekWebhooksSubscriptionUuidDeleteApiResponse,
-          DeleteCdekWebhookApiV1AdminLogisticsCdekWebhooksSubscriptionUuidDeleteApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/logistics/cdek/webhooks/${queryArg.subscriptionUuid}`,
-            method: "DELETE",
-          }),
-          invalidatesTags: ["Admin / Logistics / CDEK"],
+      deleteCdekWebhookApiV1AdminLogisticsCdekWebhooksSubscriptionUuidDelete: build.mutation<
+        DeleteCdekWebhookApiV1AdminLogisticsCdekWebhooksSubscriptionUuidDeleteApiResponse,
+        DeleteCdekWebhookApiV1AdminLogisticsCdekWebhooksSubscriptionUuidDeleteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/logistics/cdek/webhooks/${queryArg.subscriptionUuid}`,
+          method: 'DELETE',
         }),
+        invalidatesTags: ['Admin / Logistics / CDEK'],
+      }),
       receiveWebhookApiV1WebhooksLogisticsProviderCodePost: build.mutation<
         ReceiveWebhookApiV1WebhooksLogisticsProviderCodePostApiResponse,
         ReceiveWebhookApiV1WebhooksLogisticsProviderCodePostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/webhooks/logistics/${queryArg.providerCode}`,
-          method: "POST",
+          method: 'POST',
         }),
-        invalidatesTags: ["Webhooks / Logistics"],
+        invalidatesTags: ['Webhooks / Logistics'],
       }),
       getPaymentIntentApiV1PaymentsIntentsIntentIdGet: build.query<
         GetPaymentIntentApiV1PaymentsIntentsIntentIdGetApiResponse,
@@ -3515,30 +3410,29 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/payments/intents/${queryArg.intentId}`,
         }),
-        providesTags: ["Payments"],
+        providesTags: ['Payments'],
       }),
-      simulateCaptureApiV1PaymentsIntentsIntentIdSimulateCapturePost:
-        build.mutation<
-          SimulateCaptureApiV1PaymentsIntentsIntentIdSimulateCapturePostApiResponse,
-          SimulateCaptureApiV1PaymentsIntentsIntentIdSimulateCapturePostApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/payments/intents/${queryArg.intentId}/_simulate-capture`,
-            method: "POST",
-            body: queryArg.simulateCaptureRequest,
-          }),
-          invalidatesTags: ["Payments"],
+      simulateCaptureApiV1PaymentsIntentsIntentIdSimulateCapturePost: build.mutation<
+        SimulateCaptureApiV1PaymentsIntentsIntentIdSimulateCapturePostApiResponse,
+        SimulateCaptureApiV1PaymentsIntentsIntentIdSimulateCapturePostApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/payments/intents/${queryArg.intentId}/_simulate-capture`,
+          method: 'POST',
+          body: queryArg.simulateCaptureRequest,
         }),
+        invalidatesTags: ['Payments'],
+      }),
       providerWebhookApiV1WebhooksPaymentsProviderPost: build.mutation<
         ProviderWebhookApiV1WebhooksPaymentsProviderPostApiResponse,
         ProviderWebhookApiV1WebhooksPaymentsProviderPostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/webhooks/payments/${queryArg.provider}`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.payload,
         }),
-        invalidatesTags: ["Webhooks / Payments"],
+        invalidatesTags: ['Webhooks / Payments'],
       }),
       createRecipientApiV1RecipientsPost: build.mutation<
         CreateRecipientApiV1RecipientsPostApiResponse,
@@ -3546,10 +3440,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/recipients`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.createRecipientRequest,
         }),
-        invalidatesTags: ["Recipients"],
+        invalidatesTags: ['Recipients'],
       }),
       listMyRecipientsApiV1RecipientsGet: build.query<
         ListMyRecipientsApiV1RecipientsGetApiResponse,
@@ -3561,7 +3455,7 @@ const injectedRtkApi = api
             includeArchived: queryArg.includeArchived,
           },
         }),
-        providesTags: ["Recipients"],
+        providesTags: ['Recipients'],
       }),
       getRecipientApiV1RecipientsRecipientIdGet: build.query<
         GetRecipientApiV1RecipientsRecipientIdGetApiResponse,
@@ -3570,7 +3464,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/recipients/${queryArg.recipientId}`,
         }),
-        providesTags: ["Recipients"],
+        providesTags: ['Recipients'],
       }),
       updateRecipientApiV1RecipientsRecipientIdPatch: build.mutation<
         UpdateRecipientApiV1RecipientsRecipientIdPatchApiResponse,
@@ -3578,13 +3472,13 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/recipients/${queryArg.recipientId}`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.updateRecipientRequest,
           headers: {
-            "If-Match": queryArg["If-Match"],
+            'If-Match': queryArg['If-Match'],
           },
         }),
-        invalidatesTags: ["Recipients"],
+        invalidatesTags: ['Recipients'],
       }),
       archiveRecipientApiV1RecipientsRecipientIdDelete: build.mutation<
         ArchiveRecipientApiV1RecipientsRecipientIdDeleteApiResponse,
@@ -3592,9 +3486,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/recipients/${queryArg.recipientId}`,
-          method: "DELETE",
+          method: 'DELETE',
         }),
-        invalidatesTags: ["Recipients"],
+        invalidatesTags: ['Recipients'],
       }),
       createOrderApiV1OrdersPost: build.mutation<
         CreateOrderApiV1OrdersPostApiResponse,
@@ -3602,10 +3496,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/orders`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.createOrderRequest,
         }),
-        invalidatesTags: ["Orders"],
+        invalidatesTags: ['Orders'],
       }),
       listMyOrdersApiV1OrdersGet: build.query<
         ListMyOrdersApiV1OrdersGetApiResponse,
@@ -3618,14 +3512,14 @@ const injectedRtkApi = api
             cursor: queryArg.cursor,
           },
         }),
-        providesTags: ["Orders"],
+        providesTags: ['Orders'],
       }),
       getOrderApiV1OrdersOrderIdGet: build.query<
         GetOrderApiV1OrdersOrderIdGetApiResponse,
         GetOrderApiV1OrdersOrderIdGetApiArg
       >({
         query: (queryArg) => ({ url: `/api/v1/orders/${queryArg.orderId}` }),
-        providesTags: ["Orders"],
+        providesTags: ['Orders'],
       }),
       getOrderTrackingApiV1OrdersOrderIdTrackingGet: build.query<
         GetOrderTrackingApiV1OrdersOrderIdTrackingGetApiResponse,
@@ -3634,7 +3528,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/orders/${queryArg.orderId}/tracking`,
         }),
-        providesTags: ["Orders"],
+        providesTags: ['Orders'],
       }),
       cancelOrderApiV1OrdersOrderIdCancelPost: build.mutation<
         CancelOrderApiV1OrdersOrderIdCancelPostApiResponse,
@@ -3642,10 +3536,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/orders/${queryArg.orderId}/cancel`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.cancelOrderRequest,
         }),
-        invalidatesTags: ["Orders"],
+        invalidatesTags: ['Orders'],
       }),
       refreshRecipientApiV1OrdersOrderIdRefreshRecipientPost: build.mutation<
         RefreshRecipientApiV1OrdersOrderIdRefreshRecipientPostApiResponse,
@@ -3653,9 +3547,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/orders/${queryArg.orderId}/refresh-recipient`,
-          method: "POST",
+          method: 'POST',
         }),
-        invalidatesTags: ["Orders"],
+        invalidatesTags: ['Orders'],
       }),
       changePickupPointApiV1OrdersOrderIdPickupPointPatch: build.mutation<
         ChangePickupPointApiV1OrdersOrderIdPickupPointPatchApiResponse,
@@ -3663,21 +3557,20 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/orders/${queryArg.orderId}/pickup-point`,
-          method: "PATCH",
+          method: 'PATCH',
           body: queryArg.changePickupPointRequest,
         }),
-        invalidatesTags: ["Orders"],
+        invalidatesTags: ['Orders'],
       }),
-      adminGetCancellationReasonsMetaApiV1AdminOrdersMetaCancellationReasonsGet:
-        build.query<
-          AdminGetCancellationReasonsMetaApiV1AdminOrdersMetaCancellationReasonsGetApiResponse,
-          AdminGetCancellationReasonsMetaApiV1AdminOrdersMetaCancellationReasonsGetApiArg
-        >({
-          query: () => ({
-            url: `/api/v1/admin/orders/_meta/cancellation-reasons`,
-          }),
-          providesTags: ["Admin / Orders"],
+      adminGetCancellationReasonsMetaApiV1AdminOrdersMetaCancellationReasonsGet: build.query<
+        AdminGetCancellationReasonsMetaApiV1AdminOrdersMetaCancellationReasonsGetApiResponse,
+        AdminGetCancellationReasonsMetaApiV1AdminOrdersMetaCancellationReasonsGetApiArg
+      >({
+        query: () => ({
+          url: `/api/v1/admin/orders/_meta/cancellation-reasons`,
         }),
+        providesTags: ['Admin / Orders'],
+      }),
       adminListOrdersApiV1AdminOrdersGet: build.query<
         AdminListOrdersApiV1AdminOrdersGetApiResponse,
         AdminListOrdersApiV1AdminOrdersGetApiArg
@@ -3690,7 +3583,7 @@ const injectedRtkApi = api
             cursor: queryArg.cursor,
           },
         }),
-        providesTags: ["Admin / Orders"],
+        providesTags: ['Admin / Orders'],
       }),
       adminGetOrderApiV1AdminOrdersOrderIdGet: build.query<
         AdminGetOrderApiV1AdminOrdersOrderIdGetApiResponse,
@@ -3699,7 +3592,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/orders/${queryArg.orderId}`,
         }),
-        providesTags: ["Admin / Orders"],
+        providesTags: ['Admin / Orders'],
       }),
       adminGetHistoryApiV1AdminOrdersOrderIdHistoryGet: build.query<
         AdminGetHistoryApiV1AdminOrdersOrderIdHistoryGetApiResponse,
@@ -3708,7 +3601,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/api/v1/admin/orders/${queryArg.orderId}/history`,
         }),
-        providesTags: ["Admin / Orders"],
+        providesTags: ['Admin / Orders'],
       }),
       adminProcureOrderApiV1AdminOrdersOrderIdProcurePost: build.mutation<
         AdminProcureOrderApiV1AdminOrdersOrderIdProcurePostApiResponse,
@@ -3716,10 +3609,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/orders/${queryArg.orderId}/procure`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.procureOrderRequest,
         }),
-        invalidatesTags: ["Admin / Orders"],
+        invalidatesTags: ['Admin / Orders'],
       }),
       adminHoldOrderApiV1AdminOrdersOrderIdHoldPost: build.mutation<
         AdminHoldOrderApiV1AdminOrdersOrderIdHoldPostApiResponse,
@@ -3727,10 +3620,10 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/orders/${queryArg.orderId}/hold`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.holdOrderRequest,
         }),
-        invalidatesTags: ["Admin / Orders"],
+        invalidatesTags: ['Admin / Orders'],
       }),
       adminResumeOrderApiV1AdminOrdersOrderIdResumePost: build.mutation<
         AdminResumeOrderApiV1AdminOrdersOrderIdResumePostApiResponse,
@@ -3738,9 +3631,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/orders/${queryArg.orderId}/resume`,
-          method: "POST",
+          method: 'POST',
         }),
-        invalidatesTags: ["Admin / Orders"],
+        invalidatesTags: ['Admin / Orders'],
       }),
       adminForceCancelApiV1AdminOrdersOrderIdForceCancelPost: build.mutation<
         AdminForceCancelApiV1AdminOrdersOrderIdForceCancelPostApiResponse,
@@ -3748,40 +3641,39 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/api/v1/admin/orders/${queryArg.orderId}/force-cancel`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.cancelOrderRequest,
         }),
-        invalidatesTags: ["Admin / Orders"],
+        invalidatesTags: ['Admin / Orders'],
       }),
-      adminChangePickupPointApiV1AdminOrdersOrderIdPickupPointPatch:
-        build.mutation<
-          AdminChangePickupPointApiV1AdminOrdersOrderIdPickupPointPatchApiResponse,
-          AdminChangePickupPointApiV1AdminOrdersOrderIdPickupPointPatchApiArg
-        >({
-          query: (queryArg) => ({
-            url: `/api/v1/admin/orders/${queryArg.orderId}/pickup-point`,
-            method: "PATCH",
-            body: queryArg.changePickupPointRequest,
-          }),
-          invalidatesTags: ["Admin / Orders"],
+      adminChangePickupPointApiV1AdminOrdersOrderIdPickupPointPatch: build.mutation<
+        AdminChangePickupPointApiV1AdminOrdersOrderIdPickupPointPatchApiResponse,
+        AdminChangePickupPointApiV1AdminOrdersOrderIdPickupPointPatchApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/orders/${queryArg.orderId}/pickup-point`,
+          method: 'PATCH',
+          body: queryArg.changePickupPointRequest,
         }),
+        invalidatesTags: ['Admin / Orders'],
+      }),
       dobropostWebhookApiV1WebhooksDobropostTokenPost: build.mutation<
         DobropostWebhookApiV1WebhooksDobropostTokenPostApiResponse,
         DobropostWebhookApiV1WebhooksDobropostTokenPostApiArg
       >({
         query: (queryArg) => ({
           url: `/api/v1/webhooks/dobropost/${queryArg.token}`,
-          method: "POST",
+          method: 'POST',
           body: queryArg.payload,
         }),
-        invalidatesTags: ["Webhooks / DobroPost"],
+        invalidatesTags: ['Webhooks / DobroPost'],
       }),
       healthCheckHealthGet: build.query<
         HealthCheckHealthGetApiResponse,
         HealthCheckHealthGetApiArg
       >({
         query: () => ({ url: `/health` }),
-        providesTags: ["System"],
+        providesTags: ['System'],
       }),
     }),
     overrideExisting: false,
@@ -3847,30 +3739,28 @@ export type GetSubdivisionApiV1GeoSubdivisionsCodeGetApiArg = {
 };
 export type ListCountryCurrenciesApiV1GeoCountriesCountryCodeCurrenciesGetApiResponse =
   /** status 200 Successful Response */ CurrencyListReadModel;
-export type ListCountryCurrenciesApiV1GeoCountriesCountryCodeCurrenciesGetApiArg =
-  {
-    countryCode: string;
-    /** Filter translations to this language code */
-    lang?: string | null;
-    /** Pagination offset */
-    offset?: number;
-    /** Pagination limit */
-    limit?: number;
-  };
+export type ListCountryCurrenciesApiV1GeoCountriesCountryCodeCurrenciesGetApiArg = {
+  countryCode: string;
+  /** Filter translations to this language code */
+  lang?: string | null;
+  /** Pagination offset */
+  offset?: number;
+  /** Pagination limit */
+  limit?: number;
+};
 export type ListSubdivisionsApiV1GeoCountriesCountryCodeSubdivisionsGetApiResponse =
   /** status 200 Successful Response */ SubdivisionListReadModel;
-export type ListSubdivisionsApiV1GeoCountriesCountryCodeSubdivisionsGetApiArg =
-  {
-    countryCode: string;
-    /** Filter translations to this language code */
-    lang?: string | null;
-    /** Search subdivisions by translated name (requires lang) */
-    search?: string | null;
-    /** Pagination offset */
-    offset?: number;
-    /** Pagination limit */
-    limit?: number;
-  };
+export type ListSubdivisionsApiV1GeoCountriesCountryCodeSubdivisionsGetApiArg = {
+  countryCode: string;
+  /** Filter translations to this language code */
+  lang?: string | null;
+  /** Search subdivisions by translated name (requires lang) */
+  search?: string | null;
+  /** Pagination offset */
+  offset?: number;
+  /** Pagination limit */
+  limit?: number;
+};
 export type GetDistrictApiV1GeoDistrictsDistrictIdGetApiResponse =
   /** status 200 Successful Response */ DistrictReadModel;
 export type GetDistrictApiV1GeoDistrictsDistrictIdGetApiArg = {
@@ -3880,18 +3770,17 @@ export type GetDistrictApiV1GeoDistrictsDistrictIdGetApiArg = {
 };
 export type ListDistrictsApiV1GeoSubdivisionsSubdivisionCodeDistrictsGetApiResponse =
   /** status 200 Successful Response */ DistrictListReadModel;
-export type ListDistrictsApiV1GeoSubdivisionsSubdivisionCodeDistrictsGetApiArg =
-  {
-    subdivisionCode: string;
-    /** Filter translations to this language code */
-    lang?: string | null;
-    /** Search districts by translated name */
-    search?: string | null;
-    /** Pagination offset */
-    offset?: number;
-    /** Pagination limit */
-    limit?: number;
-  };
+export type ListDistrictsApiV1GeoSubdivisionsSubdivisionCodeDistrictsGetApiArg = {
+  subdivisionCode: string;
+  /** Filter translations to this language code */
+  lang?: string | null;
+  /** Search districts by translated name */
+  search?: string | null;
+  /** Pagination offset */
+  offset?: number;
+  /** Pagination limit */
+  limit?: number;
+};
 export type CreateCountryApiV1AdminGeoCountriesPostApiResponse =
   /** status 201 Successful Response */ CountryReadModel;
 export type CreateCountryApiV1AdminGeoCountriesPostApiArg = {
@@ -3903,25 +3792,22 @@ export type UpdateCountryApiV1AdminGeoCountriesAlpha2PatchApiArg = {
   alpha2: string;
   updateCountryRequest: UpdateCountryRequest;
 };
-export type DeleteCountryApiV1AdminGeoCountriesAlpha2DeleteApiResponse =
-  unknown;
+export type DeleteCountryApiV1AdminGeoCountriesAlpha2DeleteApiResponse = unknown;
 export type DeleteCountryApiV1AdminGeoCountriesAlpha2DeleteApiArg = {
   alpha2: string;
 };
 export type UpsertCountryTranslationsApiV1AdminGeoCountriesAlpha2TranslationsPutApiResponse =
   /** status 200 Successful Response */ CountryTranslationReadModel[];
-export type UpsertCountryTranslationsApiV1AdminGeoCountriesAlpha2TranslationsPutApiArg =
-  {
-    alpha2: string;
-    upsertCountryTranslationsRequest: UpsertCountryTranslationsRequest;
-  };
+export type UpsertCountryTranslationsApiV1AdminGeoCountriesAlpha2TranslationsPutApiArg = {
+  alpha2: string;
+  upsertCountryTranslationsRequest: UpsertCountryTranslationsRequest;
+};
 export type SetCountryCurrenciesApiV1AdminGeoCountriesAlpha2CurrenciesPutApiResponse =
   /** status 200 Successful Response */ CountryCurrencyLinkReadModel[];
-export type SetCountryCurrenciesApiV1AdminGeoCountriesAlpha2CurrenciesPutApiArg =
-  {
-    alpha2: string;
-    setCountryCurrenciesRequest: SetCountryCurrenciesRequest;
-  };
+export type SetCountryCurrenciesApiV1AdminGeoCountriesAlpha2CurrenciesPutApiArg = {
+  alpha2: string;
+  setCountryCurrenciesRequest: SetCountryCurrenciesRequest;
+};
 export type CreateCurrencyApiV1AdminGeoCurrenciesPostApiResponse =
   /** status 201 Successful Response */ CurrencyReadModel;
 export type CreateCurrencyApiV1AdminGeoCurrenciesPostApiArg = {
@@ -3933,18 +3819,16 @@ export type UpdateCurrencyApiV1AdminGeoCurrenciesCodePatchApiArg = {
   code: string;
   updateCurrencyRequest: UpdateCurrencyRequest;
 };
-export type DeleteCurrencyApiV1AdminGeoCurrenciesCodeDeleteApiResponse =
-  unknown;
+export type DeleteCurrencyApiV1AdminGeoCurrenciesCodeDeleteApiResponse = unknown;
 export type DeleteCurrencyApiV1AdminGeoCurrenciesCodeDeleteApiArg = {
   code: string;
 };
 export type UpsertCurrencyTranslationsApiV1AdminGeoCurrenciesCodeTranslationsPutApiResponse =
   /** status 200 Successful Response */ CurrencyTranslationReadModel[];
-export type UpsertCurrencyTranslationsApiV1AdminGeoCurrenciesCodeTranslationsPutApiArg =
-  {
-    code: string;
-    upsertCurrencyTranslationsRequest: UpsertCurrencyTranslationsRequest;
-  };
+export type UpsertCurrencyTranslationsApiV1AdminGeoCurrenciesCodeTranslationsPutApiArg = {
+  code: string;
+  upsertCurrencyTranslationsRequest: UpsertCurrencyTranslationsRequest;
+};
 export type CreateLanguageApiV1AdminGeoLanguagesPostApiResponse =
   /** status 201 Successful Response */ LanguageReadModel;
 export type CreateLanguageApiV1AdminGeoLanguagesPostApiArg = {
@@ -3971,18 +3855,16 @@ export type UpdateSubdivisionApiV1AdminGeoSubdivisionsCodePatchApiArg = {
   code: string;
   updateSubdivisionRequest: UpdateSubdivisionRequest;
 };
-export type DeleteSubdivisionApiV1AdminGeoSubdivisionsCodeDeleteApiResponse =
-  unknown;
+export type DeleteSubdivisionApiV1AdminGeoSubdivisionsCodeDeleteApiResponse = unknown;
 export type DeleteSubdivisionApiV1AdminGeoSubdivisionsCodeDeleteApiArg = {
   code: string;
 };
 export type UpsertSubdivisionTranslationsApiV1AdminGeoSubdivisionsCodeTranslationsPutApiResponse =
   /** status 200 Successful Response */ SubdivisionTranslationReadModel[];
-export type UpsertSubdivisionTranslationsApiV1AdminGeoSubdivisionsCodeTranslationsPutApiArg =
-  {
-    code: string;
-    upsertSubdivisionTranslationsRequest: UpsertSubdivisionTranslationsRequest;
-  };
+export type UpsertSubdivisionTranslationsApiV1AdminGeoSubdivisionsCodeTranslationsPutApiArg = {
+  code: string;
+  upsertSubdivisionTranslationsRequest: UpsertSubdivisionTranslationsRequest;
+};
 export type ListSubdivisionTypesApiV1AdminGeoSubdivisionTypesGetApiResponse =
   /** status 200 Successful Response */ SubdivisionTypeListReadModel;
 export type ListSubdivisionTypesApiV1AdminGeoSubdivisionTypesGetApiArg = {
@@ -3996,17 +3878,14 @@ export type CreateSubdivisionTypeApiV1AdminGeoSubdivisionTypesPostApiArg = {
 };
 export type UpdateSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodePatchApiResponse =
   /** status 200 Successful Response */ SubdivisionTypeReadModel;
-export type UpdateSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodePatchApiArg =
-  {
-    code: string;
-    updateSubdivisionTypeRequest: UpdateSubdivisionTypeRequest;
-  };
-export type DeleteSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodeDeleteApiResponse =
-  unknown;
-export type DeleteSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodeDeleteApiArg =
-  {
-    code: string;
-  };
+export type UpdateSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodePatchApiArg = {
+  code: string;
+  updateSubdivisionTypeRequest: UpdateSubdivisionTypeRequest;
+};
+export type DeleteSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodeDeleteApiResponse = unknown;
+export type DeleteSubdivisionTypeApiV1AdminGeoSubdivisionTypesCodeDeleteApiArg = {
+  code: string;
+};
 export type UpsertSubdivisionTypeTranslationsApiV1AdminGeoSubdivisionTypesCodeTranslationsPutApiResponse =
   /** status 200 Successful Response */ SubdivisionTypeTranslationReadModel[];
 export type UpsertSubdivisionTypeTranslationsApiV1AdminGeoSubdivisionTypesCodeTranslationsPutApiArg =
@@ -4025,18 +3904,16 @@ export type UpdateDistrictApiV1AdminGeoDistrictsDistrictIdPatchApiArg = {
   districtId: string;
   updateDistrictRequest: UpdateDistrictRequest;
 };
-export type DeleteDistrictApiV1AdminGeoDistrictsDistrictIdDeleteApiResponse =
-  unknown;
+export type DeleteDistrictApiV1AdminGeoDistrictsDistrictIdDeleteApiResponse = unknown;
 export type DeleteDistrictApiV1AdminGeoDistrictsDistrictIdDeleteApiArg = {
   districtId: string;
 };
 export type UpsertDistrictTranslationsApiV1AdminGeoDistrictsDistrictIdTranslationsPutApiResponse =
   /** status 200 Successful Response */ DistrictTranslationReadModel[];
-export type UpsertDistrictTranslationsApiV1AdminGeoDistrictsDistrictIdTranslationsPutApiArg =
-  {
-    districtId: string;
-    upsertDistrictTranslationsRequest: UpsertDistrictTranslationsRequest;
-  };
+export type UpsertDistrictTranslationsApiV1AdminGeoDistrictsDistrictIdTranslationsPutApiArg = {
+  districtId: string;
+  upsertDistrictTranslationsRequest: UpsertDistrictTranslationsRequest;
+};
 export type ListDistrictTypesApiV1AdminGeoDistrictTypesGetApiResponse =
   /** status 200 Successful Response */ DistrictTypeListReadModel;
 export type ListDistrictTypesApiV1AdminGeoDistrictTypesGetApiArg = {
@@ -4054,18 +3931,16 @@ export type UpdateDistrictTypeApiV1AdminGeoDistrictTypesCodePatchApiArg = {
   code: string;
   updateDistrictTypeRequest: UpdateDistrictTypeRequest;
 };
-export type DeleteDistrictTypeApiV1AdminGeoDistrictTypesCodeDeleteApiResponse =
-  unknown;
+export type DeleteDistrictTypeApiV1AdminGeoDistrictTypesCodeDeleteApiResponse = unknown;
 export type DeleteDistrictTypeApiV1AdminGeoDistrictTypesCodeDeleteApiArg = {
   code: string;
 };
 export type UpsertDistrictTypeTranslationsApiV1AdminGeoDistrictTypesCodeTranslationsPutApiResponse =
   /** status 200 Successful Response */ DistrictTypeTranslationReadModel[];
-export type UpsertDistrictTypeTranslationsApiV1AdminGeoDistrictTypesCodeTranslationsPutApiArg =
-  {
-    code: string;
-    upsertDistrictTypeTranslationsRequest: UpsertDistrictTypeTranslationsRequest;
-  };
+export type UpsertDistrictTypeTranslationsApiV1AdminGeoDistrictTypesCodeTranslationsPutApiArg = {
+  code: string;
+  upsertDistrictTypeTranslationsRequest: UpsertDistrictTypeTranslationsRequest;
+};
 export type RegisterApiV1AuthRegisterPostApiResponse =
   /** status 201 Successful Response */ RegisterResponse;
 export type RegisterApiV1AuthRegisterPostApiArg = {
@@ -4138,17 +4013,15 @@ export type GetIdentityDetailApiV1AdminIdentitiesIdentityIdGetApiArg = {
 };
 export type AdminDeactivateIdentityApiV1AdminIdentitiesIdentityIdDeactivatePostApiResponse =
   /** status 200 Successful Response */ MessageResponse;
-export type AdminDeactivateIdentityApiV1AdminIdentitiesIdentityIdDeactivatePostApiArg =
-  {
-    identityId: string;
-    adminDeactivateRequest: AdminDeactivateRequest;
-  };
+export type AdminDeactivateIdentityApiV1AdminIdentitiesIdentityIdDeactivatePostApiArg = {
+  identityId: string;
+  adminDeactivateRequest: AdminDeactivateRequest;
+};
 export type AdminReactivateIdentityApiV1AdminIdentitiesIdentityIdReactivatePostApiResponse =
   /** status 200 Successful Response */ MessageResponse;
-export type AdminReactivateIdentityApiV1AdminIdentitiesIdentityIdReactivatePostApiArg =
-  {
-    identityId: string;
-  };
+export type AdminReactivateIdentityApiV1AdminIdentitiesIdentityIdReactivatePostApiArg = {
+  identityId: string;
+};
 export type ListRolesApiV1AdminRolesGetApiResponse =
   /** status 200 Successful Response */ RoleWithPermissions[];
 export type ListRolesApiV1AdminRolesGetApiArg = void;
@@ -4219,10 +4092,9 @@ export type ListInvitationsApiV1AdminStaffInvitationsGetApiArg = {
 };
 export type RevokeInvitationApiV1AdminStaffInvitationsInvitationIdDeleteApiResponse =
   /** status 200 Successful Response */ MessageResponse;
-export type RevokeInvitationApiV1AdminStaffInvitationsInvitationIdDeleteApiArg =
-  {
-    invitationId: string;
-  };
+export type RevokeInvitationApiV1AdminStaffInvitationsInvitationIdDeleteApiArg = {
+  invitationId: string;
+};
 export type GetStaffDetailApiV1AdminStaffIdentityIdGetApiResponse =
   /** status 200 Successful Response */ StaffDetailResponse;
 export type GetStaffDetailApiV1AdminStaffIdentityIdGetApiArg = {
@@ -4256,17 +4128,15 @@ export type GetCustomerDetailApiV1AdminCustomersIdentityIdGetApiArg = {
 };
 export type DeactivateCustomerApiV1AdminCustomersIdentityIdDeactivatePostApiResponse =
   /** status 200 Successful Response */ MessageResponse;
-export type DeactivateCustomerApiV1AdminCustomersIdentityIdDeactivatePostApiArg =
-  {
-    identityId: string;
-    adminDeactivateRequest: AdminDeactivateRequest;
-  };
+export type DeactivateCustomerApiV1AdminCustomersIdentityIdDeactivatePostApiArg = {
+  identityId: string;
+  adminDeactivateRequest: AdminDeactivateRequest;
+};
 export type ReactivateCustomerApiV1AdminCustomersIdentityIdReactivatePostApiResponse =
   /** status 200 Successful Response */ MessageResponse;
-export type ReactivateCustomerApiV1AdminCustomersIdentityIdReactivatePostApiArg =
-  {
-    identityId: string;
-  };
+export type ReactivateCustomerApiV1AdminCustomersIdentityIdReactivatePostApiArg = {
+  identityId: string;
+};
 export type CreateSupplierApiV1AdminSuppliersPostApiResponse =
   /** status 201 Successful Response */ SupplierCreateResponse;
 export type CreateSupplierApiV1AdminSuppliersPostApiArg = {
@@ -4288,33 +4158,28 @@ export type UpdateSupplierApiV1AdminSuppliersSupplierIdPutApiArg = {
   supplierId: string;
   supplierUpdateRequest: SupplierUpdateRequest;
 };
-export type DeactivateSupplierApiV1AdminSuppliersSupplierIdDeactivatePatchApiResponse =
-  unknown;
-export type DeactivateSupplierApiV1AdminSuppliersSupplierIdDeactivatePatchApiArg =
-  {
-    supplierId: string;
-  };
-export type ActivateSupplierApiV1AdminSuppliersSupplierIdActivatePatchApiResponse =
-  unknown;
+export type DeactivateSupplierApiV1AdminSuppliersSupplierIdDeactivatePatchApiResponse = unknown;
+export type DeactivateSupplierApiV1AdminSuppliersSupplierIdDeactivatePatchApiArg = {
+  supplierId: string;
+};
+export type ActivateSupplierApiV1AdminSuppliersSupplierIdActivatePatchApiResponse = unknown;
 export type ActivateSupplierApiV1AdminSuppliersSupplierIdActivatePatchApiArg = {
   supplierId: string;
 };
 export type GetFilterableAttributesApiV1StorefrontCategoriesCategoryIdFiltersGetApiResponse =
   /** status 200 Successful Response */ StorefrontFilterListResponse;
-export type GetFilterableAttributesApiV1StorefrontCategoriesCategoryIdFiltersGetApiArg =
-  {
-    categoryId: string;
-    /** Locale code for i18n projection (e.g. 'ru', 'en') */
-    lang?: string | null;
-  };
+export type GetFilterableAttributesApiV1StorefrontCategoriesCategoryIdFiltersGetApiArg = {
+  categoryId: string;
+  /** Locale code for i18n projection (e.g. 'ru', 'en') */
+  lang?: string | null;
+};
 export type GetCardAttributesApiV1StorefrontCategoriesCategoryIdCardAttributesGetApiResponse =
   /** status 200 Successful Response */ StorefrontCardResponse;
-export type GetCardAttributesApiV1StorefrontCategoriesCategoryIdCardAttributesGetApiArg =
-  {
-    categoryId: string;
-    /** Locale code for i18n projection (e.g. 'ru', 'en') */
-    lang?: string | null;
-  };
+export type GetCardAttributesApiV1StorefrontCategoriesCategoryIdCardAttributesGetApiArg = {
+  categoryId: string;
+  /** Locale code for i18n projection (e.g. 'ru', 'en') */
+  lang?: string | null;
+};
 export type GetComparisonAttributesApiV1StorefrontCategoriesCategoryIdComparisonAttributesGetApiResponse =
   /** status 200 Successful Response */ StorefrontComparisonResponse;
 export type GetComparisonAttributesApiV1StorefrontCategoriesCategoryIdComparisonAttributesGetApiArg =
@@ -4325,12 +4190,11 @@ export type GetComparisonAttributesApiV1StorefrontCategoriesCategoryIdComparison
   };
 export type GetFormAttributesApiV1StorefrontCategoriesCategoryIdFormAttributesGetApiResponse =
   /** status 200 Successful Response */ StorefrontFormResponse;
-export type GetFormAttributesApiV1StorefrontCategoriesCategoryIdFormAttributesGetApiArg =
-  {
-    categoryId: string;
-    /** Locale code for i18n projection (e.g. 'ru', 'en') */
-    lang?: string | null;
-  };
+export type GetFormAttributesApiV1StorefrontCategoriesCategoryIdFormAttributesGetApiArg = {
+  categoryId: string;
+  /** Locale code for i18n projection (e.g. 'ru', 'en') */
+  lang?: string | null;
+};
 export type StorefrontCategoryTreeApiV1StorefrontCategoriesTreeGetApiResponse =
   /** status 200 Successful Response */ CategoryTreeResponse[];
 export type StorefrontCategoryTreeApiV1StorefrontCategoriesTreeGetApiArg = {
@@ -4344,10 +4208,9 @@ export type StorefrontListCategoriesApiV1StorefrontCategoriesGetApiArg = {
 };
 export type StorefrontGetCategoryApiV1StorefrontCategoriesCategoryIdGetApiResponse =
   /** status 200 Successful Response */ CategoryResponse;
-export type StorefrontGetCategoryApiV1StorefrontCategoriesCategoryIdGetApiArg =
-  {
-    categoryId: string;
-  };
+export type StorefrontGetCategoryApiV1StorefrontCategoriesCategoryIdGetApiArg = {
+  categoryId: string;
+};
 export type StorefrontListBrandsApiV1StorefrontBrandsGetApiResponse =
   /** status 200 Successful Response */ PaginatedResponseBrandResponseRead;
 export type StorefrontListBrandsApiV1StorefrontBrandsGetApiArg = {
@@ -4403,14 +4266,13 @@ export type GetSimilarProductsApiV1StorefrontProductsSlugSimilarGetApiArg = {
 };
 export type GetAlsoViewedProductsApiV1StorefrontProductsSlugAlsoViewedGetApiResponse =
   /** status 200 Successful Response */ StorefrontProductCardResponse[];
-export type GetAlsoViewedProductsApiV1StorefrontProductsSlugAlsoViewedGetApiArg =
-  {
-    slug: string;
-    /** Max number of cards */
-    limit?: number;
-    /** Locale code for i18n projection (e.g. 'ru', 'en') */
-    lang?: string | null;
-  };
+export type GetAlsoViewedProductsApiV1StorefrontProductsSlugAlsoViewedGetApiArg = {
+  slug: string;
+  /** Max number of cards */
+  limit?: number;
+  /** Locale code for i18n projection (e.g. 'ru', 'en') */
+  lang?: string | null;
+};
 export type SearchProductsApiV1StorefrontSearchGetApiResponse =
   /** status 200 Successful Response */ StorefrontPlpResponse;
 export type SearchProductsApiV1StorefrontSearchGetApiArg = {
@@ -4496,11 +4358,10 @@ export type UpdateBrandApiV1AdminCatalogBrandsBrandIdPatchApiResponse =
   /** status 200 Successful Response */ BrandResponse;
 export type UpdateBrandApiV1AdminCatalogBrandsBrandIdPatchApiArg = {
   brandId: string;
-  "If-Match"?: string | null;
+  'If-Match'?: string | null;
   brandUpdateRequest: BrandUpdateRequest;
 };
-export type DeleteBrandApiV1AdminCatalogBrandsBrandIdDeleteApiResponse =
-  unknown;
+export type DeleteBrandApiV1AdminCatalogBrandsBrandIdDeleteApiResponse = unknown;
 export type DeleteBrandApiV1AdminCatalogBrandsBrandIdDeleteApiArg = {
   brandId: string;
 };
@@ -4535,11 +4396,10 @@ export type UpdateCategoryApiV1AdminCatalogCategoriesCategoryIdPatchApiResponse 
   /** status 200 Successful Response */ CategoryResponse;
 export type UpdateCategoryApiV1AdminCatalogCategoriesCategoryIdPatchApiArg = {
   categoryId: string;
-  "If-Match"?: string | null;
+  'If-Match'?: string | null;
   categoryUpdateRequest: CategoryUpdateRequest;
 };
-export type DeleteCategoryApiV1AdminCatalogCategoriesCategoryIdDeleteApiResponse =
-  unknown;
+export type DeleteCategoryApiV1AdminCatalogCategoriesCategoryIdDeleteApiResponse = unknown;
 export type DeleteCategoryApiV1AdminCatalogCategoriesCategoryIdDeleteApiArg = {
   categoryId: string;
 };
@@ -4579,18 +4439,15 @@ export type UpdateAttributeApiV1AdminCatalogAttributesAttributeIdPatchApiArg = {
   attributeId: string;
   attributeUpdateRequest: AttributeUpdateRequest;
 };
-export type DeleteAttributeApiV1AdminCatalogAttributesAttributeIdDeleteApiResponse =
-  unknown;
-export type DeleteAttributeApiV1AdminCatalogAttributesAttributeIdDeleteApiArg =
-  {
-    attributeId: string;
-  };
+export type DeleteAttributeApiV1AdminCatalogAttributesAttributeIdDeleteApiResponse = unknown;
+export type DeleteAttributeApiV1AdminCatalogAttributesAttributeIdDeleteApiArg = {
+  attributeId: string;
+};
 export type GetAttributeUsageApiV1AdminCatalogAttributesAttributeIdUsageGetApiResponse =
   /** status 200 Successful Response */ AttributeUsageResponse;
-export type GetAttributeUsageApiV1AdminCatalogAttributesAttributeIdUsageGetApiArg =
-  {
-    attributeId: string;
-  };
+export type GetAttributeUsageApiV1AdminCatalogAttributesAttributeIdUsageGetApiArg = {
+  attributeId: string;
+};
 export type CreateAttributeGroupApiV1AdminCatalogAttributeGroupsPostApiResponse =
   /** status 201 Successful Response */ AttributeGroupCreateResponse;
 export type CreateAttributeGroupApiV1AdminCatalogAttributeGroupsPostApiArg = {
@@ -4604,68 +4461,58 @@ export type ListAttributeGroupsApiV1AdminCatalogAttributeGroupsGetApiArg = {
 };
 export type GetAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdGetApiResponse =
   /** status 200 Successful Response */ AttributeGroupResponse;
-export type GetAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdGetApiArg =
-  {
-    groupId: string;
-  };
+export type GetAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdGetApiArg = {
+  groupId: string;
+};
 export type UpdateAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdPatchApiResponse =
   /** status 200 Successful Response */ AttributeGroupResponse;
-export type UpdateAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdPatchApiArg =
-  {
-    groupId: string;
-    attributeGroupUpdateRequest: AttributeGroupUpdateRequest;
-  };
-export type DeleteAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdDeleteApiResponse =
-  unknown;
-export type DeleteAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdDeleteApiArg =
-  {
-    groupId: string;
-  };
+export type UpdateAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdPatchApiArg = {
+  groupId: string;
+  attributeGroupUpdateRequest: AttributeGroupUpdateRequest;
+};
+export type DeleteAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdDeleteApiResponse = unknown;
+export type DeleteAttributeGroupApiV1AdminCatalogAttributeGroupsGroupIdDeleteApiArg = {
+  groupId: string;
+};
 export type AddAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesPostApiResponse =
   /** status 201 Successful Response */ AttributeValueCreateResponse;
-export type AddAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesPostApiArg =
-  {
-    attributeId: string;
-    attributeValueCreateRequest: AttributeValueCreateRequest;
-  };
+export type AddAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesPostApiArg = {
+  attributeId: string;
+  attributeValueCreateRequest: AttributeValueCreateRequest;
+};
 export type ListAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesGetApiResponse =
   /** status 200 Successful Response */ PaginatedResponseAttributeValueResponseRead;
-export type ListAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesGetApiArg =
-  {
-    attributeId: string;
-    offset?: number;
-    limit?: number;
-    search?: string | null;
-  };
+export type ListAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesGetApiArg = {
+  attributeId: string;
+  offset?: number;
+  limit?: number;
+  search?: string | null;
+};
 export type BulkAddAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesBulkPostApiResponse =
   /** status 201 Successful Response */ BulkAddAttributeValuesResponse;
-export type BulkAddAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesBulkPostApiArg =
-  {
-    attributeId: string;
-    bulkAddAttributeValuesRequest: BulkAddAttributeValuesRequest;
-  };
+export type BulkAddAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesBulkPostApiArg = {
+  attributeId: string;
+  bulkAddAttributeValuesRequest: BulkAddAttributeValuesRequest;
+};
 export type GetAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdGetApiResponse =
   /** status 200 Successful Response */ AttributeValueResponseRead;
-export type GetAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdGetApiArg =
-  {
-    attributeId: string;
-    valueId: string;
-  };
+export type GetAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdGetApiArg = {
+  attributeId: string;
+  valueId: string;
+};
 export type UpdateAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdPatchApiResponse =
   /** status 200 Successful Response */ AttributeValueResponseRead;
-export type UpdateAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdPatchApiArg =
-  {
-    attributeId: string;
-    valueId: string;
-    attributeValueUpdateRequest: AttributeValueUpdateRequest;
-  };
+export type UpdateAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdPatchApiArg = {
+  attributeId: string;
+  valueId: string;
+  attributeValueUpdateRequest: AttributeValueUpdateRequest;
+};
 export type DeleteAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdDeleteApiResponse =
   unknown;
-export type DeleteAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdDeleteApiArg =
-  {
-    attributeId: string;
-    valueId: string;
-  };
+export type DeleteAttributeValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdDeleteApiArg = {
+  attributeId: string;
+  valueId: string;
+};
 export type DeactivateValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdDeactivatePatchApiResponse =
   /** status 200 Successful Response */ AttributeValueActiveResponse;
 export type DeactivateValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdDeactivatePatchApiArg =
@@ -4675,18 +4522,16 @@ export type DeactivateValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdDe
   };
 export type ActivateValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdActivatePatchApiResponse =
   /** status 200 Successful Response */ AttributeValueActiveResponse;
-export type ActivateValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdActivatePatchApiArg =
-  {
-    attributeId: string;
-    valueId: string;
-  };
+export type ActivateValueApiV1AdminCatalogAttributesAttributeIdValuesValueIdActivatePatchApiArg = {
+  attributeId: string;
+  valueId: string;
+};
 export type ReorderAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesReorderPostApiResponse =
   unknown;
-export type ReorderAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesReorderPostApiArg =
-  {
-    attributeId: string;
-    reorderAttributeValuesRequest: ReorderAttributeValuesRequest;
-  };
+export type ReorderAttributeValuesApiV1AdminCatalogAttributesAttributeIdValuesReorderPostApiArg = {
+  attributeId: string;
+  reorderAttributeValuesRequest: ReorderAttributeValuesRequest;
+};
 export type CreateTemplateApiV1AdminCatalogAttributeTemplatesPostApiResponse =
   /** status 201 Successful Response */ AttributeTemplateCreateResponse;
 export type CreateTemplateApiV1AdminCatalogAttributeTemplatesPostApiArg = {
@@ -4705,38 +4550,32 @@ export type CloneTemplateApiV1AdminCatalogAttributeTemplatesClonePostApiArg = {
 };
 export type GetTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdGetApiResponse =
   /** status 200 Successful Response */ AttributeTemplateResponseRead;
-export type GetTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdGetApiArg =
-  {
-    templateId: string;
-  };
+export type GetTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdGetApiArg = {
+  templateId: string;
+};
 export type UpdateTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdPatchApiResponse =
   /** status 200 Successful Response */ AttributeTemplateResponseRead;
-export type UpdateTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdPatchApiArg =
-  {
-    templateId: string;
-    attributeTemplateUpdateRequest: AttributeTemplateUpdateRequest;
-  };
-export type DeleteTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdDeleteApiResponse =
-  unknown;
-export type DeleteTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdDeleteApiArg =
-  {
-    templateId: string;
-  };
+export type UpdateTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdPatchApiArg = {
+  templateId: string;
+  attributeTemplateUpdateRequest: AttributeTemplateUpdateRequest;
+};
+export type DeleteTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdDeleteApiResponse = unknown;
+export type DeleteTemplateApiV1AdminCatalogAttributeTemplatesTemplateIdDeleteApiArg = {
+  templateId: string;
+};
 export type BindAttributeApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesPostApiResponse =
   /** status 201 Successful Response */ TemplateAttributeBindingEnrichedResponse;
-export type BindAttributeApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesPostApiArg =
-  {
-    templateId: string;
-    templateAttributeBindingRequest: TemplateAttributeBindingRequest;
-  };
+export type BindAttributeApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesPostApiArg = {
+  templateId: string;
+  templateAttributeBindingRequest: TemplateAttributeBindingRequest;
+};
 export type ListBindingsApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesGetApiResponse =
   /** status 200 Successful Response */ PaginatedResponseTemplateAttributeBindingDetailResponseRead;
-export type ListBindingsApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesGetApiArg =
-  {
-    templateId: string;
-    offset?: number;
-    limit?: number;
-  };
+export type ListBindingsApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesGetApiArg = {
+  templateId: string;
+  offset?: number;
+  limit?: number;
+};
 export type UpdateBindingApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesBindingIdPatchApiResponse =
   /** status 200 Successful Response */ TemplateAttributeBindingDetailResponse;
 export type UpdateBindingApiV1AdminCatalogAttributeTemplatesTemplateIdAttributesBindingIdPatchApiArg =
@@ -4778,10 +4617,9 @@ export type ListProductsApiV1AdminCatalogProductsGetApiArg = {
 };
 export type GetProductCompletenessApiV1AdminCatalogProductsProductIdCompletenessGetApiResponse =
   /** status 200 Successful Response */ ProductCompletenessResponse;
-export type GetProductCompletenessApiV1AdminCatalogProductsProductIdCompletenessGetApiArg =
-  {
-    productId: string;
-  };
+export type GetProductCompletenessApiV1AdminCatalogProductsProductIdCompletenessGetApiArg = {
+  productId: string;
+};
 export type GetProductApiV1AdminCatalogProductsProductIdGetApiResponse =
   /** status 200 Successful Response */ ProductResponse;
 export type GetProductApiV1AdminCatalogProductsProductIdGetApiArg = {
@@ -4791,20 +4629,18 @@ export type UpdateProductApiV1AdminCatalogProductsProductIdPatchApiResponse =
   /** status 200 Successful Response */ ProductResponse;
 export type UpdateProductApiV1AdminCatalogProductsProductIdPatchApiArg = {
   productId: string;
-  "If-Match"?: string | null;
+  'If-Match'?: string | null;
   productUpdateRequest: ProductUpdateRequest;
 };
-export type DeleteProductApiV1AdminCatalogProductsProductIdDeleteApiResponse =
-  unknown;
+export type DeleteProductApiV1AdminCatalogProductsProductIdDeleteApiResponse = unknown;
 export type DeleteProductApiV1AdminCatalogProductsProductIdDeleteApiArg = {
   productId: string;
 };
 export type StreamSkuPricingEventsApiV1AdminCatalogProductsProductIdSkusPricingEventsGetApiResponse =
   /** status 200 Successful Response */ string;
-export type StreamSkuPricingEventsApiV1AdminCatalogProductsProductIdSkusPricingEventsGetApiArg =
-  {
-    productId: string;
-  };
+export type StreamSkuPricingEventsApiV1AdminCatalogProductsProductIdSkusPricingEventsGetApiArg = {
+  productId: string;
+};
 export type BulkSetPurchasePriceApiV1AdminCatalogProductsProductIdSkusBulkPurchasePricePostApiResponse =
   /** status 200 Successful Response */ BulkPurchasePriceResponse;
 export type BulkSetPurchasePriceApiV1AdminCatalogProductsProductIdSkusBulkPurchasePricePostApiArg =
@@ -4814,24 +4650,21 @@ export type BulkSetPurchasePriceApiV1AdminCatalogProductsProductIdSkusBulkPurcha
   };
 export type ChangeProductStatusApiV1AdminCatalogProductsProductIdStatusPatchApiResponse =
   /** status 200 Successful Response */ ProductResponse;
-export type ChangeProductStatusApiV1AdminCatalogProductsProductIdStatusPatchApiArg =
-  {
-    productId: string;
-    productStatusChangeRequest: ProductStatusChangeRequest;
-  };
+export type ChangeProductStatusApiV1AdminCatalogProductsProductIdStatusPatchApiArg = {
+  productId: string;
+  productStatusChangeRequest: ProductStatusChangeRequest;
+};
 export type ValidateProductUpdateApiV1AdminCatalogProductsProductIdValidateUpdatePostApiResponse =
   /** status 200 Successful Response */ ValidateUpdateResponse;
-export type ValidateProductUpdateApiV1AdminCatalogProductsProductIdValidateUpdatePostApiArg =
-  {
-    productId: string;
-    productUpdateRequest: ProductUpdateRequest;
-  };
+export type ValidateProductUpdateApiV1AdminCatalogProductsProductIdValidateUpdatePostApiArg = {
+  productId: string;
+  productUpdateRequest: ProductUpdateRequest;
+};
 export type ValidateProductPublishApiV1AdminCatalogProductsProductIdValidatePublishPostApiResponse =
   /** status 200 Successful Response */ ValidatePublishResponse;
-export type ValidateProductPublishApiV1AdminCatalogProductsProductIdValidatePublishPostApiArg =
-  {
-    productId: string;
-  };
+export type ValidateProductPublishApiV1AdminCatalogProductsProductIdValidatePublishPostApiArg = {
+  productId: string;
+};
 export type AddVariantApiV1AdminCatalogProductsProductIdVariantsPostApiResponse =
   /** status 201 Successful Response */ ProductVariantCreateResponse;
 export type AddVariantApiV1AdminCatalogProductsProductIdVariantsPostApiArg = {
@@ -4847,37 +4680,33 @@ export type ListVariantsApiV1AdminCatalogProductsProductIdVariantsGetApiArg = {
 };
 export type UpdateVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdPatchApiResponse =
   /** status 200 Successful Response */ ProductVariantUpdateResponse;
-export type UpdateVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdPatchApiArg =
-  {
-    productId: string;
-    variantId: string;
-    "If-Match"?: string | null;
-    productVariantUpdateRequest: ProductVariantUpdateRequest;
-  };
+export type UpdateVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdPatchApiArg = {
+  productId: string;
+  variantId: string;
+  'If-Match'?: string | null;
+  productVariantUpdateRequest: ProductVariantUpdateRequest;
+};
 export type DeleteVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdDeleteApiResponse =
   unknown;
-export type DeleteVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdDeleteApiArg =
-  {
-    productId: string;
-    variantId: string;
-  };
+export type DeleteVariantApiV1AdminCatalogProductsProductIdVariantsVariantIdDeleteApiArg = {
+  productId: string;
+  variantId: string;
+};
 export type AddSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusPostApiResponse =
   /** status 201 Successful Response */ SkuCreateResponse;
-export type AddSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusPostApiArg =
-  {
-    productId: string;
-    variantId: string;
-    skuCreateRequest: SkuCreateRequest;
-  };
+export type AddSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusPostApiArg = {
+  productId: string;
+  variantId: string;
+  skuCreateRequest: SkuCreateRequest;
+};
 export type ListSkusApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusGetApiResponse =
   /** status 200 Successful Response */ PaginatedResponseSkuResponseRead;
-export type ListSkusApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusGetApiArg =
-  {
-    productId: string;
-    variantId: string;
-    limit?: number;
-    offset?: number;
-  };
+export type ListSkusApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusGetApiArg = {
+  productId: string;
+  variantId: string;
+  limit?: number;
+  offset?: number;
+};
 export type GenerateSkuMatrixApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusGeneratePostApiResponse =
   /** status 201 Successful Response */ SkuMatrixGenerateResponse;
 export type GenerateSkuMatrixApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusGeneratePostApiArg =
@@ -4888,37 +4717,33 @@ export type GenerateSkuMatrixApiV1AdminCatalogProductsProductIdVariantsVariantId
   };
 export type UpdateSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdPatchApiResponse =
   /** status 200 Successful Response */ SkuResponse;
-export type UpdateSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdPatchApiArg =
-  {
-    productId: string;
-    variantId: string;
-    skuId: string;
-    "If-Match"?: string | null;
-    skuUpdateRequest: SkuUpdateRequest;
-  };
+export type UpdateSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdPatchApiArg = {
+  productId: string;
+  variantId: string;
+  skuId: string;
+  'If-Match'?: string | null;
+  skuUpdateRequest: SkuUpdateRequest;
+};
 export type DeleteSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdDeleteApiResponse =
   unknown;
-export type DeleteSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdDeleteApiArg =
-  {
-    productId: string;
-    variantId: string;
-    skuId: string;
-  };
+export type DeleteSkuApiV1AdminCatalogProductsProductIdVariantsVariantIdSkusSkuIdDeleteApiArg = {
+  productId: string;
+  variantId: string;
+  skuId: string;
+};
 export type AssignProductAttributeApiV1AdminCatalogProductsProductIdAttributesPostApiResponse =
   /** status 201 Successful Response */ ProductAttributeAssignResponse;
-export type AssignProductAttributeApiV1AdminCatalogProductsProductIdAttributesPostApiArg =
-  {
-    productId: string;
-    productAttributeAssignRequest: ProductAttributeAssignRequest;
-  };
+export type AssignProductAttributeApiV1AdminCatalogProductsProductIdAttributesPostApiArg = {
+  productId: string;
+  productAttributeAssignRequest: ProductAttributeAssignRequest;
+};
 export type ListProductAttributesApiV1AdminCatalogProductsProductIdAttributesGetApiResponse =
   /** status 200 Successful Response */ PaginatedResponseProductAttributeResponseRead;
-export type ListProductAttributesApiV1AdminCatalogProductsProductIdAttributesGetApiArg =
-  {
-    productId: string;
-    limit?: number;
-    offset?: number;
-  };
+export type ListProductAttributesApiV1AdminCatalogProductsProductIdAttributesGetApiArg = {
+  productId: string;
+  limit?: number;
+  offset?: number;
+};
 export type BulkAssignProductAttributesApiV1AdminCatalogProductsProductIdAttributesBulkPostApiResponse =
   /** status 201 Successful Response */ BulkAssignProductAttributesResponse;
 export type BulkAssignProductAttributesApiV1AdminCatalogProductsProductIdAttributesBulkPostApiArg =
@@ -4948,26 +4773,23 @@ export type ListProductMediaApiV1AdminCatalogProductsProductIdMediaGetApiArg = {
 };
 export type UpdateProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdPatchApiResponse =
   /** status 200 Successful Response */ MediaAssetUpdateResponse;
-export type UpdateProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdPatchApiArg =
-  {
-    productId: string;
-    mediaId: string;
-    mediaAssetUpdateRequest: MediaAssetUpdateRequest;
-  };
+export type UpdateProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdPatchApiArg = {
+  productId: string;
+  mediaId: string;
+  mediaAssetUpdateRequest: MediaAssetUpdateRequest;
+};
 export type DeleteProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdDeleteApiResponse =
   unknown;
-export type DeleteProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdDeleteApiArg =
-  {
-    productId: string;
-    mediaId: string;
-  };
+export type DeleteProductMediaApiV1AdminCatalogProductsProductIdMediaMediaIdDeleteApiArg = {
+  productId: string;
+  mediaId: string;
+};
 export type ReorderProductMediaApiV1AdminCatalogProductsProductIdMediaReorderPostApiResponse =
   unknown;
-export type ReorderProductMediaApiV1AdminCatalogProductsProductIdMediaReorderPostApiArg =
-  {
-    productId: string;
-    mediaAssetReorderRequest: MediaAssetReorderRequest;
-  };
+export type ReorderProductMediaApiV1AdminCatalogProductsProductIdMediaReorderPostApiArg = {
+  productId: string;
+  mediaAssetReorderRequest: MediaAssetReorderRequest;
+};
 export type ListVariablesApiV1AdminPricingVariablesGetApiResponse =
   /** status 200 Successful Response */ VariableListResponse;
 export type ListVariablesApiV1AdminPricingVariablesGetApiArg = {
@@ -4991,8 +4813,7 @@ export type UpdateVariableApiV1AdminPricingVariablesVariableIdPatchApiArg = {
   variableId: string;
   updateVariableRequest: UpdateVariableRequest;
 };
-export type DeleteVariableApiV1AdminPricingVariablesVariableIdDeleteApiResponse =
-  unknown;
+export type DeleteVariableApiV1AdminPricingVariablesVariableIdDeleteApiResponse = unknown;
 export type DeleteVariableApiV1AdminPricingVariablesVariableIdDeleteApiArg = {
   variableId: string;
 };
@@ -5031,16 +4852,14 @@ export type FreezeContextApiV1AdminPricingContextsContextIdFreezePostApiArg = {
 };
 export type UnfreezeContextApiV1AdminPricingContextsContextIdUnfreezePostApiResponse =
   /** status 200 Successful Response */ MutateContextResponse;
-export type UnfreezeContextApiV1AdminPricingContextsContextIdUnfreezePostApiArg =
-  {
-    contextId: string;
-  };
+export type UnfreezeContextApiV1AdminPricingContextsContextIdUnfreezePostApiArg = {
+  contextId: string;
+};
 export type GetContextGlobalValuesApiV1AdminPricingContextsContextIdVariablesValuesGetApiResponse =
   /** status 200 Successful Response */ ContextGlobalValuesResponse;
-export type GetContextGlobalValuesApiV1AdminPricingContextsContextIdVariablesValuesGetApiArg =
-  {
-    contextId: string;
-  };
+export type GetContextGlobalValuesApiV1AdminPricingContextsContextIdVariablesValuesGetApiArg = {
+  contextId: string;
+};
 export type SetContextGlobalValueApiV1AdminPricingContextsContextIdVariablesValuesVariableCodePutApiResponse =
   /** status 200 Successful Response */ SetContextGlobalValueResponse;
 export type SetContextGlobalValueApiV1AdminPricingContextsContextIdVariablesValuesVariableCodePutApiArg =
@@ -5051,18 +4870,16 @@ export type SetContextGlobalValueApiV1AdminPricingContextsContextIdVariablesValu
   };
 export type ListVersionsApiV1AdminPricingContextsContextIdFormulaVersionsGetApiResponse =
   /** status 200 Successful Response */ FormulaVersionListResponse;
-export type ListVersionsApiV1AdminPricingContextsContextIdFormulaVersionsGetApiArg =
-  {
-    contextId: string;
-    status?: FormulaStatus | null;
-  };
+export type ListVersionsApiV1AdminPricingContextsContextIdFormulaVersionsGetApiArg = {
+  contextId: string;
+  status?: FormulaStatus | null;
+};
 export type GetVersionApiV1AdminPricingContextsContextIdFormulaVersionsVersionIdGetApiResponse =
   /** status 200 Successful Response */ FormulaVersionResponse;
-export type GetVersionApiV1AdminPricingContextsContextIdFormulaVersionsVersionIdGetApiArg =
-  {
-    contextId: string;
-    versionId: string;
-  };
+export type GetVersionApiV1AdminPricingContextsContextIdFormulaVersionsVersionIdGetApiArg = {
+  contextId: string;
+  versionId: string;
+};
 export type GetDraftApiV1AdminPricingContextsContextIdFormulaDraftGetApiResponse =
   /** status 200 Successful Response */ FormulaVersionResponse;
 export type GetDraftApiV1AdminPricingContextsContextIdFormulaDraftGetApiArg = {
@@ -5070,23 +4887,20 @@ export type GetDraftApiV1AdminPricingContextsContextIdFormulaDraftGetApiArg = {
 };
 export type UpsertDraftApiV1AdminPricingContextsContextIdFormulaDraftPutApiResponse =
   /** status 200 Successful Response */ UpsertFormulaDraftResponse;
-export type UpsertDraftApiV1AdminPricingContextsContextIdFormulaDraftPutApiArg =
-  {
-    contextId: string;
-    upsertFormulaDraftRequest: UpsertFormulaDraftRequest;
-  };
+export type UpsertDraftApiV1AdminPricingContextsContextIdFormulaDraftPutApiArg = {
+  contextId: string;
+  upsertFormulaDraftRequest: UpsertFormulaDraftRequest;
+};
 export type DiscardDraftApiV1AdminPricingContextsContextIdFormulaDraftDeleteApiResponse =
   /** status 200 Successful Response */ DiscardFormulaDraftResponse;
-export type DiscardDraftApiV1AdminPricingContextsContextIdFormulaDraftDeleteApiArg =
-  {
-    contextId: string;
-  };
+export type DiscardDraftApiV1AdminPricingContextsContextIdFormulaDraftDeleteApiArg = {
+  contextId: string;
+};
 export type PublishDraftApiV1AdminPricingContextsContextIdFormulaDraftPublishPostApiResponse =
   /** status 200 Successful Response */ PublishFormulaResponse;
-export type PublishDraftApiV1AdminPricingContextsContextIdFormulaDraftPublishPostApiArg =
-  {
-    contextId: string;
-  };
+export type PublishDraftApiV1AdminPricingContextsContextIdFormulaDraftPublishPostApiArg = {
+  contextId: string;
+};
 export type RollbackVersionApiV1AdminPricingContextsContextIdFormulaVersionsVersionIdRollbackPostApiResponse =
   /** status 200 Successful Response */ RollbackFormulaResponse;
 export type RollbackVersionApiV1AdminPricingContextsContextIdFormulaVersionsVersionIdRollbackPostApiArg =
@@ -5115,12 +4929,10 @@ export type UpsertProfileApiV1AdminPricingProductsProductIdProfilePutApiArg = {
   productId: string;
   upsertProductPricingProfileRequest: UpsertProductPricingProfileRequest;
 };
-export type DeleteProfileApiV1AdminPricingProductsProductIdProfileDeleteApiResponse =
-  unknown;
-export type DeleteProfileApiV1AdminPricingProductsProductIdProfileDeleteApiArg =
-  {
-    productId: string;
-  };
+export type DeleteProfileApiV1AdminPricingProductsProductIdProfileDeleteApiResponse = unknown;
+export type DeleteProfileApiV1AdminPricingProductsProductIdProfileDeleteApiArg = {
+  productId: string;
+};
 export type GetRequiredVariablesApiV1AdminPricingProductsProductIdProfileRequiredVariablesGetApiResponse =
   /** status 200 Successful Response */ RequiredVariablesResponse;
 export type GetRequiredVariablesApiV1AdminPricingProductsProductIdProfileRequiredVariablesGetApiArg =
@@ -5129,21 +4941,18 @@ export type GetRequiredVariablesApiV1AdminPricingProductsProductIdProfileRequire
   };
 export type GetSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdGetApiResponse =
   /** status 200 Successful Response */ SupplierPricingSettingsResponse;
-export type GetSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdGetApiArg =
-  {
-    supplierId: string;
-  };
+export type GetSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdGetApiArg = {
+  supplierId: string;
+};
 export type UpsertSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdPutApiResponse =
   /** status 200 Successful Response */ UpsertSupplierPricingSettingsResponse;
-export type UpsertSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdPutApiArg =
-  {
-    supplierId: string;
-    upsertSupplierPricingSettingsRequest: UpsertSupplierPricingSettingsRequest;
-  };
+export type UpsertSupplierPricingSettingsApiV1AdminPricingSuppliersSupplierIdPutApiArg = {
+  supplierId: string;
+  upsertSupplierPricingSettingsRequest: UpsertSupplierPricingSettingsRequest;
+};
 export type ListSupplierTypeContextMappingsApiV1AdminPricingSupplierTypeMappingGetApiResponse =
   /** status 200 Successful Response */ SupplierTypeContextMappingListResponse;
-export type ListSupplierTypeContextMappingsApiV1AdminPricingSupplierTypeMappingGetApiArg =
-  void;
+export type ListSupplierTypeContextMappingsApiV1AdminPricingSupplierTypeMappingGetApiArg = void;
 export type GetSupplierTypeContextMappingApiV1AdminPricingSupplierTypeMappingSupplierTypeGetApiResponse =
   /** status 200 Successful Response */ SupplierTypeContextMappingResponse;
 export type GetSupplierTypeContextMappingApiV1AdminPricingSupplierTypeMappingSupplierTypeGetApiArg =
@@ -5165,20 +4974,18 @@ export type DeleteSupplierTypeContextMappingApiV1AdminPricingSupplierTypeMapping
   };
 export type GetCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdGetApiResponse =
   /** status 200 Successful Response */ CategoryPricingSettingsResponse;
-export type GetCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdGetApiArg =
-  {
-    categoryId: string;
-    /** Target pricing context id */
-    contextId: string;
-  };
+export type GetCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdGetApiArg = {
+  categoryId: string;
+  /** Target pricing context id */
+  contextId: string;
+};
 export type UpsertCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdContextIdPutApiResponse =
   /** status 200 Successful Response */ UpsertCategoryPricingSettingsResponse;
-export type UpsertCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdContextIdPutApiArg =
-  {
-    categoryId: string;
-    contextId: string;
-    upsertCategoryPricingSettingsRequest: UpsertCategoryPricingSettingsRequest;
-  };
+export type UpsertCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdContextIdPutApiArg = {
+  categoryId: string;
+  contextId: string;
+  upsertCategoryPricingSettingsRequest: UpsertCategoryPricingSettingsRequest;
+};
 export type DeleteCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdContextIdDeleteApiResponse =
   unknown;
 export type DeleteCategoryPricingSettingsApiV1AdminPricingCategoriesCategoryIdContextIdDeleteApiArg =
@@ -5193,22 +5000,19 @@ export type RecomputeOneSkuApiV1AdminPricingRecomputeSkusSkuIdPostApiArg = {
 };
 export type RecomputeContextApiV1AdminPricingRecomputeContextsContextIdPostApiResponse =
   /** status 202 Successful Response */ RecomputeFanoutResponse;
-export type RecomputeContextApiV1AdminPricingRecomputeContextsContextIdPostApiArg =
-  {
-    contextId: string;
-  };
+export type RecomputeContextApiV1AdminPricingRecomputeContextsContextIdPostApiArg = {
+  contextId: string;
+};
 export type RecomputeCategoryApiV1AdminPricingRecomputeCategoriesCategoryIdPostApiResponse =
   /** status 202 Successful Response */ RecomputeFanoutResponse;
-export type RecomputeCategoryApiV1AdminPricingRecomputeCategoriesCategoryIdPostApiArg =
-  {
-    categoryId: string;
-  };
+export type RecomputeCategoryApiV1AdminPricingRecomputeCategoriesCategoryIdPostApiArg = {
+  categoryId: string;
+};
 export type RecomputeSupplierApiV1AdminPricingRecomputeSuppliersSupplierIdPostApiResponse =
   /** status 202 Successful Response */ RecomputeFanoutResponse;
-export type RecomputeSupplierApiV1AdminPricingRecomputeSuppliersSupplierIdPostApiArg =
-  {
-    supplierId: string;
-  };
+export type RecomputeSupplierApiV1AdminPricingRecomputeSuppliersSupplierIdPostApiArg = {
+  supplierId: string;
+};
 export type GetTrendingProductsApiV1AdminAnalyticsTrendingGetApiResponse =
   /** status 200 Successful Response */ TrendingProductsResponse;
 export type GetTrendingProductsApiV1AdminAnalyticsTrendingGetApiArg = {
@@ -5224,33 +5028,32 @@ export type GetSearchAnalyticsApiV1AdminAnalyticsSearchGetApiArg = {
 export type AddItemApiV1CartItemsPostApiResponse =
   /** status 201 Successful Response */ AddItemResponse;
 export type AddItemApiV1CartItemsPostApiArg = {
-  "x-anonymous-token"?: string | null;
+  'x-anonymous-token'?: string | null;
   addItemRequest: AddItemRequest;
 };
 export type RemoveItemApiV1CartItemsSkuIdDeleteApiResponse = unknown;
 export type RemoveItemApiV1CartItemsSkuIdDeleteApiArg = {
   skuId: string;
-  "x-anonymous-token"?: string | null;
+  'x-anonymous-token'?: string | null;
 };
 export type UpdateQuantityApiV1CartItemsSkuIdPatchApiResponse = unknown;
 export type UpdateQuantityApiV1CartItemsSkuIdPatchApiArg = {
   skuId: string;
-  "x-anonymous-token"?: string | null;
+  'x-anonymous-token'?: string | null;
   updateQuantityRequest: UpdateQuantityRequest;
 };
 export type ClearCartApiV1CartDeleteApiResponse = unknown;
 export type ClearCartApiV1CartDeleteApiArg = {
-  "x-anonymous-token"?: string | null;
+  'x-anonymous-token'?: string | null;
 };
-export type GetCartApiV1CartGetApiResponse =
-  /** status 200 Successful Response */ CartResponse;
+export type GetCartApiV1CartGetApiResponse = /** status 200 Successful Response */ CartResponse;
 export type GetCartApiV1CartGetApiArg = {
-  "x-anonymous-token"?: string | null;
+  'x-anonymous-token'?: string | null;
 };
 export type GetCartSummaryApiV1CartSummaryGetApiResponse =
   /** status 200 Successful Response */ CartSummaryResponse;
 export type GetCartSummaryApiV1CartSummaryGetApiArg = {
-  "x-anonymous-token"?: string | null;
+  'x-anonymous-token'?: string | null;
 };
 export type InitiateCheckoutApiV1CartCheckoutPostApiResponse =
   /** status 200 Successful Response */ CheckoutInitiatedResponse;
@@ -5279,14 +5082,12 @@ export type CreateFavoriteListApiV1FavoritesListsPostApiResponse =
 export type CreateFavoriteListApiV1FavoritesListsPostApiArg = {
   createFavoriteListRequest: CreateFavoriteListRequest;
 };
-export type RenameFavoriteListApiV1FavoritesListsListIdPatchApiResponse =
-  unknown;
+export type RenameFavoriteListApiV1FavoritesListsListIdPatchApiResponse = unknown;
 export type RenameFavoriteListApiV1FavoritesListsListIdPatchApiArg = {
   listId: string;
   renameFavoriteListRequest: RenameFavoriteListRequest;
 };
-export type DeleteFavoriteListApiV1FavoritesListsListIdDeleteApiResponse =
-  unknown;
+export type DeleteFavoriteListApiV1FavoritesListsListIdDeleteApiResponse = unknown;
 export type DeleteFavoriteListApiV1FavoritesListsListIdDeleteApiArg = {
   listId: string;
 };
@@ -5305,12 +5106,11 @@ export type AddFavoriteItemApiV1FavoritesItemsPostApiArg = {
 };
 export type RemoveFavoriteItemApiV1FavoritesListsListIdItemsTargetTypeTargetIdDeleteApiResponse =
   unknown;
-export type RemoveFavoriteItemApiV1FavoritesListsListIdItemsTargetTypeTargetIdDeleteApiArg =
-  {
-    listId: string;
-    targetType: FavoriteTargetType;
-    targetId: string;
-  };
+export type RemoveFavoriteItemApiV1FavoritesListsListIdItemsTargetTypeTargetIdDeleteApiArg = {
+  listId: string;
+  targetType: FavoriteTargetType;
+  targetId: string;
+};
 export type MoveFavoriteItemApiV1FavoritesItemsMovePostApiResponse = unknown;
 export type MoveFavoriteItemApiV1FavoritesItemsMovePostApiArg = {
   moveFavoriteItemRequest: MoveFavoriteItemRequest;
@@ -5358,10 +5158,9 @@ export type ImportExternalApiV1AdminMediaExternalPostApiArg = {
 };
 export type RequestBackgroundRemovalApiV1AdminMediaStorageObjectIdRemoveBackgroundPostApiResponse =
   /** status 202 Successful Response */ RemoveBackgroundResponse;
-export type RequestBackgroundRemovalApiV1AdminMediaStorageObjectIdRemoveBackgroundPostApiArg =
-  {
-    storageObjectId: string;
-  };
+export type RequestBackgroundRemovalApiV1AdminMediaStorageObjectIdRemoveBackgroundPostApiArg = {
+  storageObjectId: string;
+};
 export type ListPickupPointsApiV1StorefrontLogisticsPickupPointsPostApiResponse =
   /** status 200 Successful Response */ PickupPointsResponse;
 export type ListPickupPointsApiV1StorefrontLogisticsPickupPointsPostApiArg = {
@@ -5375,40 +5174,34 @@ export type ListProviderAccountsApiV1AdminLogisticsProviderAccountsGetApiArg = {
 };
 export type CreateProviderAccountApiV1AdminLogisticsProviderAccountsPostApiResponse =
   /** status 201 Successful Response */ ProviderAccountResponse;
-export type CreateProviderAccountApiV1AdminLogisticsProviderAccountsPostApiArg =
-  {
-    createProviderAccountRequest: CreateProviderAccountRequest;
-  };
+export type CreateProviderAccountApiV1AdminLogisticsProviderAccountsPostApiArg = {
+  createProviderAccountRequest: CreateProviderAccountRequest;
+};
 export type GetProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdGetApiResponse =
   /** status 200 Successful Response */ ProviderAccountResponse;
-export type GetProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdGetApiArg =
-  {
-    accountId: string;
-  };
+export type GetProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdGetApiArg = {
+  accountId: string;
+};
 export type UpdateProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdPutApiResponse =
   /** status 200 Successful Response */ ProviderAccountResponse;
-export type UpdateProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdPutApiArg =
-  {
-    accountId: string;
-    updateProviderAccountRequest: UpdateProviderAccountRequest;
-  };
+export type UpdateProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdPutApiArg = {
+  accountId: string;
+  updateProviderAccountRequest: UpdateProviderAccountRequest;
+};
 export type DeleteProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdDeleteApiResponse =
   unknown;
-export type DeleteProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdDeleteApiArg =
-  {
-    accountId: string;
-  };
+export type DeleteProviderAccountApiV1AdminLogisticsProviderAccountsAccountIdDeleteApiArg = {
+  accountId: string;
+};
 export type SetProviderAccountActiveApiV1AdminLogisticsProviderAccountsAccountIdActivePostApiResponse =
   /** status 200 Successful Response */ ProviderAccountResponse;
-export type SetProviderAccountActiveApiV1AdminLogisticsProviderAccountsAccountIdActivePostApiArg =
-  {
-    accountId: string;
-    setProviderAccountActiveRequest: SetProviderAccountActiveRequest;
-  };
+export type SetProviderAccountActiveApiV1AdminLogisticsProviderAccountsAccountIdActivePostApiArg = {
+  accountId: string;
+  setProviderAccountActiveRequest: SetProviderAccountActiveRequest;
+};
 export type RefreshProviderRegistryApiV1AdminLogisticsProviderAccountsRefreshPostApiResponse =
   /** status 200 Successful Response */ RefreshRegistryResponse;
-export type RefreshProviderRegistryApiV1AdminLogisticsProviderAccountsRefreshPostApiArg =
-  void;
+export type RefreshProviderRegistryApiV1AdminLogisticsProviderAccountsRefreshPostApiArg = void;
 export type CalculateRatesApiV1AdminLogisticsRatesPostApiResponse =
   /** status 200 Successful Response */ CalculateRatesResponse;
 export type CalculateRatesApiV1AdminLogisticsRatesPostApiArg = {
@@ -5424,25 +5217,11 @@ export type ListAdminShipmentsApiV1AdminLogisticsShipmentsGetApiResponse =
 export type ListAdminShipmentsApiV1AdminLogisticsShipmentsGetApiArg = {
   /** Restrict to a single provider code. */
   provider?:
-    | (
-        | "cdek"
-        | "yandex_delivery"
-        | "dobropost"
-        | "russian_post"
-        | "boxberry"
-        | "pochta"
-      )
+    | ('cdek' | 'yandex_delivery' | 'dobropost' | 'russian_post' | 'boxberry' | 'pochta')
     | null;
   /** Restrict to a single FSM state. */
   status?:
-    | (
-        | "draft"
-        | "booking_pending"
-        | "booked"
-        | "cancel_pending"
-        | "cancelled"
-        | "failed"
-      )
+    | ('draft' | 'booking_pending' | 'booked' | 'cancel_pending' | 'cancelled' | 'failed')
     | null;
   /** Restrict to shipments linked to a specific order. */
   orderId?: string | null;
@@ -5469,10 +5248,9 @@ export type BookShipmentApiV1AdminLogisticsShipmentsShipmentIdBookPostApiArg = {
 };
 export type CancelShipmentApiV1AdminLogisticsShipmentsShipmentIdCancelPostApiResponse =
   /** status 200 Successful Response */ CancelShipmentResponse;
-export type CancelShipmentApiV1AdminLogisticsShipmentsShipmentIdCancelPostApiArg =
-  {
-    shipmentId: string;
-  };
+export type CancelShipmentApiV1AdminLogisticsShipmentsShipmentIdCancelPostApiArg = {
+  shipmentId: string;
+};
 export type GetShipmentApiV1AdminLogisticsShipmentsShipmentIdGetApiResponse =
   /** status 200 Successful Response */ ShipmentResponse;
 export type GetShipmentApiV1AdminLogisticsShipmentsShipmentIdGetApiArg = {
@@ -5480,10 +5258,9 @@ export type GetShipmentApiV1AdminLogisticsShipmentsShipmentIdGetApiArg = {
 };
 export type GetTrackingApiV1AdminLogisticsShipmentsShipmentIdTrackingGetApiResponse =
   /** status 200 Successful Response */ TrackingResponse;
-export type GetTrackingApiV1AdminLogisticsShipmentsShipmentIdTrackingGetApiArg =
-  {
-    shipmentId: string;
-  };
+export type GetTrackingApiV1AdminLogisticsShipmentsShipmentIdTrackingGetApiArg = {
+  shipmentId: string;
+};
 export type ListPickupPointsApiV1AdminLogisticsPickupPointsPostApiResponse =
   /** status 200 Successful Response */ PickupPointsResponse;
 export type ListPickupPointsApiV1AdminLogisticsPickupPointsPostApiArg = {
@@ -5491,64 +5268,55 @@ export type ListPickupPointsApiV1AdminLogisticsPickupPointsPostApiArg = {
 };
 export type ListAvailableIntakeDaysApiV1AdminLogisticsIntakesAvailableDaysPostApiResponse =
   /** status 200 Successful Response */ AvailableIntakeDaysResponse;
-export type ListAvailableIntakeDaysApiV1AdminLogisticsIntakesAvailableDaysPostApiArg =
-  {
-    availableIntakeDaysRequest: AvailableIntakeDaysRequest;
-  };
+export type ListAvailableIntakeDaysApiV1AdminLogisticsIntakesAvailableDaysPostApiArg = {
+  availableIntakeDaysRequest: AvailableIntakeDaysRequest;
+};
 export type CreateIntakeApiV1AdminLogisticsShipmentsShipmentIdIntakePostApiResponse =
   /** status 201 Successful Response */ CreateIntakeResponse;
-export type CreateIntakeApiV1AdminLogisticsShipmentsShipmentIdIntakePostApiArg =
-  {
-    shipmentId: string;
-    createIntakeRequest: CreateIntakeRequest;
-  };
+export type CreateIntakeApiV1AdminLogisticsShipmentsShipmentIdIntakePostApiArg = {
+  shipmentId: string;
+  createIntakeRequest: CreateIntakeRequest;
+};
 export type GetIntakeStatusApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdGetApiResponse =
   /** status 200 Successful Response */ IntakeStatusResponse;
-export type GetIntakeStatusApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdGetApiArg =
-  {
-    providerCode: string;
-    providerIntakeId: string;
-  };
+export type GetIntakeStatusApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdGetApiArg = {
+  providerCode: string;
+  providerIntakeId: string;
+};
 export type CancelIntakeApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdDeleteApiResponse =
   /** status 200 Successful Response */ CancelIntakeResponse;
-export type CancelIntakeApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdDeleteApiArg =
-  {
-    providerCode: string;
-    providerIntakeId: string;
-    shipmentId?: string | null;
-  };
+export type CancelIntakeApiV1AdminLogisticsIntakesProviderCodeProviderIntakeIdDeleteApiArg = {
+  providerCode: string;
+  providerIntakeId: string;
+  shipmentId?: string | null;
+};
 export type GetDeliveryIntervalsApiV1AdminLogisticsShipmentsShipmentIdDeliveryIntervalsGetApiResponse =
   /** status 200 Successful Response */ DeliveryIntervalsResponse;
-export type GetDeliveryIntervalsApiV1AdminLogisticsShipmentsShipmentIdDeliveryIntervalsGetApiArg =
-  {
-    shipmentId: string;
-  };
+export type GetDeliveryIntervalsApiV1AdminLogisticsShipmentsShipmentIdDeliveryIntervalsGetApiArg = {
+  shipmentId: string;
+};
 export type EstimateDeliveryIntervalsApiV1AdminLogisticsDeliveryIntervalsEstimatePostApiResponse =
   /** status 200 Successful Response */ DeliveryIntervalsResponse;
-export type EstimateDeliveryIntervalsApiV1AdminLogisticsDeliveryIntervalsEstimatePostApiArg =
-  {
-    estimatedDeliveryIntervalsRequest: EstimatedDeliveryIntervalsRequest;
-  };
+export type EstimateDeliveryIntervalsApiV1AdminLogisticsDeliveryIntervalsEstimatePostApiArg = {
+  estimatedDeliveryIntervalsRequest: EstimatedDeliveryIntervalsRequest;
+};
 export type RegisterClientReturnApiV1AdminLogisticsShipmentsShipmentIdReturnPostApiResponse =
   /** status 201 Successful Response */ ReturnResponse;
-export type RegisterClientReturnApiV1AdminLogisticsShipmentsShipmentIdReturnPostApiArg =
-  {
-    shipmentId: string;
-    clientReturnRequest: ClientReturnRequest;
-  };
+export type RegisterClientReturnApiV1AdminLogisticsShipmentsShipmentIdReturnPostApiArg = {
+  shipmentId: string;
+  clientReturnRequest: ClientReturnRequest;
+};
 export type RegisterRefusalApiV1AdminLogisticsShipmentsShipmentIdRefusalPostApiResponse =
   /** status 201 Successful Response */ ReturnResponse;
-export type RegisterRefusalApiV1AdminLogisticsShipmentsShipmentIdRefusalPostApiArg =
-  {
-    shipmentId: string;
-    refusalRequestSchema: RefusalRequestSchema;
-  };
+export type RegisterRefusalApiV1AdminLogisticsShipmentsShipmentIdRefusalPostApiArg = {
+  shipmentId: string;
+  refusalRequestSchema: RefusalRequestSchema;
+};
 export type CheckReverseAvailabilityApiV1AdminLogisticsReverseAvailabilityPostApiResponse =
   /** status 200 Successful Response */ ReverseAvailabilityResponse;
-export type CheckReverseAvailabilityApiV1AdminLogisticsReverseAvailabilityPostApiArg =
-  {
-    reverseAvailabilityRequestSchema: ReverseAvailabilityRequestSchema;
-  };
+export type CheckReverseAvailabilityApiV1AdminLogisticsReverseAvailabilityPostApiArg = {
+  reverseAvailabilityRequestSchema: ReverseAvailabilityRequestSchema;
+};
 export type GetActualDeliveryInfoApiV1AdminLogisticsShipmentsShipmentIdActualDeliveryInfoGetApiResponse =
   /** status 200 Successful Response */ ActualDeliveryInfoResponse;
 export type GetActualDeliveryInfoApiV1AdminLogisticsShipmentsShipmentIdActualDeliveryInfoGetApiArg =
@@ -5563,32 +5331,28 @@ export type EditOrderApiV1AdminLogisticsShipmentsShipmentIdEditPostApiArg = {
 };
 export type EditOrderPackagesApiV1AdminLogisticsShipmentsShipmentIdEditPackagesPostApiResponse =
   /** status 202 Successful Response */ EditTaskResponse;
-export type EditOrderPackagesApiV1AdminLogisticsShipmentsShipmentIdEditPackagesPostApiArg =
-  {
-    shipmentId: string;
-    editPackagesRequest: EditPackagesRequest;
-  };
+export type EditOrderPackagesApiV1AdminLogisticsShipmentsShipmentIdEditPackagesPostApiArg = {
+  shipmentId: string;
+  editPackagesRequest: EditPackagesRequest;
+};
 export type EditOrderItemsApiV1AdminLogisticsShipmentsShipmentIdEditItemsPostApiResponse =
   /** status 202 Successful Response */ EditTaskResponse;
-export type EditOrderItemsApiV1AdminLogisticsShipmentsShipmentIdEditItemsPostApiArg =
-  {
-    shipmentId: string;
-    editOrderItemsRequest: EditOrderItemsRequest;
-  };
+export type EditOrderItemsApiV1AdminLogisticsShipmentsShipmentIdEditItemsPostApiArg = {
+  shipmentId: string;
+  editOrderItemsRequest: EditOrderItemsRequest;
+};
 export type RemoveOrderItemsApiV1AdminLogisticsShipmentsShipmentIdRemoveItemsPostApiResponse =
   /** status 202 Successful Response */ EditTaskResponse;
-export type RemoveOrderItemsApiV1AdminLogisticsShipmentsShipmentIdRemoveItemsPostApiArg =
-  {
-    shipmentId: string;
-    removeOrderItemsRequest: RemoveOrderItemsRequest;
-  };
+export type RemoveOrderItemsApiV1AdminLogisticsShipmentsShipmentIdRemoveItemsPostApiArg = {
+  shipmentId: string;
+  removeOrderItemsRequest: RemoveOrderItemsRequest;
+};
 export type GetEditTaskStatusApiV1AdminLogisticsEditTasksProviderCodeTaskIdGetApiResponse =
   /** status 200 Successful Response */ EditTaskStatusResponse;
-export type GetEditTaskStatusApiV1AdminLogisticsEditTasksProviderCodeTaskIdGetApiArg =
-  {
-    providerCode: string;
-    taskId: string;
-  };
+export type GetEditTaskStatusApiV1AdminLogisticsEditTasksProviderCodeTaskIdGetApiArg = {
+  providerCode: string;
+  taskId: string;
+};
 export type EditCdekOrderApiV1AdminLogisticsCdekOrdersEditPostApiResponse =
   /** status 200 Successful Response */ CdekEditOrderResponse;
 export type EditCdekOrderApiV1AdminLogisticsCdekOrdersEditPostApiArg = {
@@ -5602,22 +5366,19 @@ export type LookupCdekOrderApiV1AdminLogisticsCdekOrdersLookupGetApiArg = {
 };
 export type ListCdekOrderIntakesApiV1AdminLogisticsCdekOrdersOrderUuidIntakesGetApiResponse =
   /** status 200 Successful Response */ CdekJsonResponse;
-export type ListCdekOrderIntakesApiV1AdminLogisticsCdekOrdersOrderUuidIntakesGetApiArg =
-  {
-    orderUuid: string;
-  };
+export type ListCdekOrderIntakesApiV1AdminLogisticsCdekOrdersOrderUuidIntakesGetApiArg = {
+  orderUuid: string;
+};
 export type DownloadCdekBarcodeApiV1AdminLogisticsCdekShipmentsShipmentIdBarcodeGetApiResponse =
   unknown;
-export type DownloadCdekBarcodeApiV1AdminLogisticsCdekShipmentsShipmentIdBarcodeGetApiArg =
-  {
-    shipmentId: string;
-  };
+export type DownloadCdekBarcodeApiV1AdminLogisticsCdekShipmentsShipmentIdBarcodeGetApiArg = {
+  shipmentId: string;
+};
 export type RegisterCdekDeliveryAgreementApiV1AdminLogisticsCdekDeliveryAgreementsPostApiResponse =
   /** status 202 Successful Response */ CdekJsonResponse;
-export type RegisterCdekDeliveryAgreementApiV1AdminLogisticsCdekDeliveryAgreementsPostApiArg =
-  {
-    cdekRawPayloadRequest: CdekRawPayloadRequest;
-  };
+export type RegisterCdekDeliveryAgreementApiV1AdminLogisticsCdekDeliveryAgreementsPostApiArg = {
+  cdekRawPayloadRequest: CdekRawPayloadRequest;
+};
 export type GetCdekDeliveryAgreementApiV1AdminLogisticsCdekDeliveryAgreementsAgreementUuidGetApiResponse =
   /** status 200 Successful Response */ CdekJsonResponse;
 export type GetCdekDeliveryAgreementApiV1AdminLogisticsCdekDeliveryAgreementsAgreementUuidGetApiArg =
@@ -5631,10 +5392,9 @@ export type CreateCdekPrealertApiV1AdminLogisticsCdekPrealertsPostApiArg = {
 };
 export type GetCdekPrealertApiV1AdminLogisticsCdekPrealertsPrealertUuidGetApiResponse =
   /** status 200 Successful Response */ CdekJsonResponse;
-export type GetCdekPrealertApiV1AdminLogisticsCdekPrealertsPrealertUuidGetApiArg =
-  {
-    prealertUuid: string;
-  };
+export type GetCdekPrealertApiV1AdminLogisticsCdekPrealertsPrealertUuidGetApiArg = {
+  prealertUuid: string;
+};
 export type GetCdekChecksApiV1AdminLogisticsCdekChecksGetApiResponse =
   /** status 200 Successful Response */ CdekJsonResponse;
 export type GetCdekChecksApiV1AdminLogisticsCdekChecksGetApiArg = {
@@ -5650,10 +5410,9 @@ export type GetCdekRegistriesApiV1AdminLogisticsCdekRegistriesGetApiArg = {
 };
 export type CheckCdekRestrictionsApiV1AdminLogisticsCdekRestrictionsPostApiResponse =
   /** status 200 Successful Response */ CdekJsonResponse;
-export type CheckCdekRestrictionsApiV1AdminLogisticsCdekRestrictionsPostApiArg =
-  {
-    cdekRawPayloadRequest: CdekRawPayloadRequest;
-  };
+export type CheckCdekRestrictionsApiV1AdminLogisticsCdekRestrictionsPostApiArg = {
+  cdekRawPayloadRequest: CdekRawPayloadRequest;
+};
 export type GetCdekReadyPhotosApiV1AdminLogisticsCdekPhotosPostApiResponse =
   /** status 200 Successful Response */ CdekJsonResponse;
 export type GetCdekReadyPhotosApiV1AdminLogisticsCdekPhotosPostApiArg = {
@@ -5661,21 +5420,19 @@ export type GetCdekReadyPhotosApiV1AdminLogisticsCdekPhotosPostApiArg = {
 };
 export type ChangeCdekIntakeStatusApiV1AdminLogisticsCdekIntakesStatusPatchApiResponse =
   /** status 200 Successful Response */ CdekJsonResponse;
-export type ChangeCdekIntakeStatusApiV1AdminLogisticsCdekIntakesStatusPatchApiArg =
-  {
-    cdekRawPayloadRequest: CdekRawPayloadRequest;
-  };
+export type ChangeCdekIntakeStatusApiV1AdminLogisticsCdekIntakesStatusPatchApiArg = {
+  cdekRawPayloadRequest: CdekRawPayloadRequest;
+};
 export type ListCdekTariffsApiV1AdminLogisticsCdekTariffsGetApiResponse =
   /** status 200 Successful Response */ CdekJsonResponse;
 export type ListCdekTariffsApiV1AdminLogisticsCdekTariffsGetApiArg = void;
 export type SuggestCdekCitiesApiV1AdminLogisticsCdekLocationsSuggestGetApiResponse =
   /** status 200 Successful Response */ CdekJsonResponse;
-export type SuggestCdekCitiesApiV1AdminLogisticsCdekLocationsSuggestGetApiArg =
-  {
-    /** City name fragment. */
-    name: string;
-    countryCode?: string | null;
-  };
+export type SuggestCdekCitiesApiV1AdminLogisticsCdekLocationsSuggestGetApiArg = {
+  /** City name fragment. */
+  name: string;
+  countryCode?: string | null;
+};
 export type ListCdekCitiesApiV1AdminLogisticsCdekLocationsCitiesGetApiResponse =
   /** status 200 Successful Response */ CdekJsonResponse;
 export type ListCdekCitiesApiV1AdminLogisticsCdekLocationsCitiesGetApiArg = {
@@ -5691,11 +5448,10 @@ export type ListCdekRegionsApiV1AdminLogisticsCdekLocationsRegionsGetApiArg = {
 };
 export type ListCdekPostalCodesApiV1AdminLogisticsCdekLocationsPostalCodesGetApiResponse =
   /** status 200 Successful Response */ CdekJsonResponse;
-export type ListCdekPostalCodesApiV1AdminLogisticsCdekLocationsPostalCodesGetApiArg =
-  {
-    /** CDEK city code. */
-    cityCode: number;
-  };
+export type ListCdekPostalCodesApiV1AdminLogisticsCdekLocationsPostalCodesGetApiArg = {
+  /** CDEK city code. */
+  cityCode: number;
+};
 export type ResolveCdekLocationByCoordinatesApiV1AdminLogisticsCdekLocationsByCoordinatesGetApiResponse =
   /** status 200 Successful Response */ CdekJsonResponse;
 export type ResolveCdekLocationByCoordinatesApiV1AdminLogisticsCdekLocationsByCoordinatesGetApiArg =
@@ -5718,10 +5474,9 @@ export type SyncCdekWebhooksApiV1AdminLogisticsCdekWebhooksSyncPostApiArg = {
 };
 export type DeleteCdekWebhookApiV1AdminLogisticsCdekWebhooksSubscriptionUuidDeleteApiResponse =
   unknown;
-export type DeleteCdekWebhookApiV1AdminLogisticsCdekWebhooksSubscriptionUuidDeleteApiArg =
-  {
-    subscriptionUuid: string;
-  };
+export type DeleteCdekWebhookApiV1AdminLogisticsCdekWebhooksSubscriptionUuidDeleteApiArg = {
+  subscriptionUuid: string;
+};
 export type ReceiveWebhookApiV1WebhooksLogisticsProviderCodePostApiResponse =
   /** status 200 Successful Response */ {
     [key: string]: any;
@@ -5734,15 +5489,12 @@ export type GetPaymentIntentApiV1PaymentsIntentsIntentIdGetApiResponse =
 export type GetPaymentIntentApiV1PaymentsIntentsIntentIdGetApiArg = {
   intentId: string;
 };
-export type SimulateCaptureApiV1PaymentsIntentsIntentIdSimulateCapturePostApiResponse =
-  unknown;
-export type SimulateCaptureApiV1PaymentsIntentsIntentIdSimulateCapturePostApiArg =
-  {
-    intentId: string;
-    simulateCaptureRequest: SimulateCaptureRequest;
-  };
-export type ProviderWebhookApiV1WebhooksPaymentsProviderPostApiResponse =
-  unknown;
+export type SimulateCaptureApiV1PaymentsIntentsIntentIdSimulateCapturePostApiResponse = unknown;
+export type SimulateCaptureApiV1PaymentsIntentsIntentIdSimulateCapturePostApiArg = {
+  intentId: string;
+  simulateCaptureRequest: SimulateCaptureRequest;
+};
+export type ProviderWebhookApiV1WebhooksPaymentsProviderPostApiResponse = unknown;
 export type ProviderWebhookApiV1WebhooksPaymentsProviderPostApiArg = {
   provider: string;
   payload: {
@@ -5767,11 +5519,10 @@ export type GetRecipientApiV1RecipientsRecipientIdGetApiArg = {
 export type UpdateRecipientApiV1RecipientsRecipientIdPatchApiResponse = unknown;
 export type UpdateRecipientApiV1RecipientsRecipientIdPatchApiArg = {
   recipientId: string;
-  "If-Match"?: string | null;
+  'If-Match'?: string | null;
   updateRecipientRequest: UpdateRecipientRequest;
 };
-export type ArchiveRecipientApiV1RecipientsRecipientIdDeleteApiResponse =
-  unknown;
+export type ArchiveRecipientApiV1RecipientsRecipientIdDeleteApiResponse = unknown;
 export type ArchiveRecipientApiV1RecipientsRecipientIdDeleteApiArg = {
   recipientId: string;
 };
@@ -5801,21 +5552,18 @@ export type CancelOrderApiV1OrdersOrderIdCancelPostApiArg = {
   orderId: string;
   cancelOrderRequest: CancelOrderRequest;
 };
-export type RefreshRecipientApiV1OrdersOrderIdRefreshRecipientPostApiResponse =
-  unknown;
+export type RefreshRecipientApiV1OrdersOrderIdRefreshRecipientPostApiResponse = unknown;
 export type RefreshRecipientApiV1OrdersOrderIdRefreshRecipientPostApiArg = {
   orderId: string;
 };
-export type ChangePickupPointApiV1OrdersOrderIdPickupPointPatchApiResponse =
-  unknown;
+export type ChangePickupPointApiV1OrdersOrderIdPickupPointPatchApiResponse = unknown;
 export type ChangePickupPointApiV1OrdersOrderIdPickupPointPatchApiArg = {
   orderId: string;
   changePickupPointRequest: ChangePickupPointRequest;
 };
 export type AdminGetCancellationReasonsMetaApiV1AdminOrdersMetaCancellationReasonsGetApiResponse =
   /** status 200 Successful Response */ CancellationReasonsMetaResponse;
-export type AdminGetCancellationReasonsMetaApiV1AdminOrdersMetaCancellationReasonsGetApiArg =
-  void;
+export type AdminGetCancellationReasonsMetaApiV1AdminOrdersMetaCancellationReasonsGetApiArg = void;
 export type AdminListOrdersApiV1AdminOrdersGetApiResponse =
   /** status 200 Successful Response */ AdminOrderListResponse;
 export type AdminListOrdersApiV1AdminOrdersGetApiArg = {
@@ -5833,8 +5581,7 @@ export type AdminGetHistoryApiV1AdminOrdersOrderIdHistoryGetApiResponse =
 export type AdminGetHistoryApiV1AdminOrdersOrderIdHistoryGetApiArg = {
   orderId: string;
 };
-export type AdminProcureOrderApiV1AdminOrdersOrderIdProcurePostApiResponse =
-  unknown;
+export type AdminProcureOrderApiV1AdminOrdersOrderIdProcurePostApiResponse = unknown;
 export type AdminProcureOrderApiV1AdminOrdersOrderIdProcurePostApiArg = {
   orderId: string;
   procureOrderRequest: ProcureOrderRequest;
@@ -5844,36 +5591,30 @@ export type AdminHoldOrderApiV1AdminOrdersOrderIdHoldPostApiArg = {
   orderId: string;
   holdOrderRequest: HoldOrderRequest;
 };
-export type AdminResumeOrderApiV1AdminOrdersOrderIdResumePostApiResponse =
-  unknown;
+export type AdminResumeOrderApiV1AdminOrdersOrderIdResumePostApiResponse = unknown;
 export type AdminResumeOrderApiV1AdminOrdersOrderIdResumePostApiArg = {
   orderId: string;
 };
-export type AdminForceCancelApiV1AdminOrdersOrderIdForceCancelPostApiResponse =
-  unknown;
+export type AdminForceCancelApiV1AdminOrdersOrderIdForceCancelPostApiResponse = unknown;
 export type AdminForceCancelApiV1AdminOrdersOrderIdForceCancelPostApiArg = {
   orderId: string;
   cancelOrderRequest: CancelOrderRequest;
 };
-export type AdminChangePickupPointApiV1AdminOrdersOrderIdPickupPointPatchApiResponse =
-  unknown;
-export type AdminChangePickupPointApiV1AdminOrdersOrderIdPickupPointPatchApiArg =
-  {
-    orderId: string;
-    changePickupPointRequest: ChangePickupPointRequest;
-  };
-export type DobropostWebhookApiV1WebhooksDobropostTokenPostApiResponse =
-  unknown;
+export type AdminChangePickupPointApiV1AdminOrdersOrderIdPickupPointPatchApiResponse = unknown;
+export type AdminChangePickupPointApiV1AdminOrdersOrderIdPickupPointPatchApiArg = {
+  orderId: string;
+  changePickupPointRequest: ChangePickupPointRequest;
+};
+export type DobropostWebhookApiV1WebhooksDobropostTokenPostApiResponse = unknown;
 export type DobropostWebhookApiV1WebhooksDobropostTokenPostApiArg = {
   token: string;
   payload: {
     [key: string]: any;
   };
 };
-export type HealthCheckHealthGetApiResponse =
-  /** status 200 Successful Response */ {
-    [key: string]: string;
-  };
+export type HealthCheckHealthGetApiResponse = /** status 200 Successful Response */ {
+  [key: string]: string;
+};
 export type HealthCheckHealthGetApiArg = void;
 export type CountryTranslationReadModel = {
   langCode: string;
@@ -6938,16 +6679,11 @@ export type AttributeCreateRequest = {
   descriptionI18N?: {
     [key: string]: string;
   } | null;
-  dataType: "string" | "integer" | "float" | "boolean";
-  uiType:
-    | "text_button"
-    | "color_swatch"
-    | "dropdown"
-    | "checkbox"
-    | "range_slider";
+  dataType: 'string' | 'integer' | 'float' | 'boolean';
+  uiType: 'text_button' | 'color_swatch' | 'dropdown' | 'checkbox' | 'range_slider';
   isDictionary?: boolean;
   groupId?: string | null;
-  level?: "product" | "variant";
+  level?: 'product' | 'variant';
   isFilterable?: boolean;
   isSearchable?: boolean;
   searchWeight?: number;
@@ -7034,17 +6770,9 @@ export type AttributeUpdateRequest = {
   descriptionI18N?: {
     [key: string]: string;
   } | null;
-  uiType?:
-    | (
-        | "text_button"
-        | "color_swatch"
-        | "dropdown"
-        | "checkbox"
-        | "range_slider"
-      )
-    | null;
+  uiType?: ('text_button' | 'color_swatch' | 'dropdown' | 'checkbox' | 'range_slider') | null;
   groupId?: string | null;
-  level?: ("product" | "variant") | null;
+  level?: ('product' | 'variant') | null;
   isFilterable?: boolean | null;
   isSearchable?: boolean | null;
   searchWeight?: number | null;
@@ -7531,7 +7259,7 @@ export type BulkPurchasePriceRequest = {
   items: BulkPurchasePriceItemRequest[];
 };
 export type ProductStatusChangeRequest = {
-  status: "draft" | "enriching" | "ready_for_review" | "published" | "archived";
+  status: 'draft' | 'enriching' | 'ready_for_review' | 'published' | 'archived';
 };
 export type FieldDiffSchema = {
   field: string;
@@ -7567,7 +7295,7 @@ export type SkuPublishDiagnosticSchema = {
   nextStep: string;
 };
 export type ValidatePublishGateFailureSchema = {
-  code: "NO_ACTIVE_SKU" | "ALL_SKUS_UNPRICED" | "STATUS_NOT_TRANSITIONABLE";
+  code: 'NO_ACTIVE_SKU' | 'ALL_SKUS_UNPRICED' | 'STATUS_NOT_TRANSITIONABLE';
   message: string;
 };
 export type ValidatePublishResponse = {
@@ -7708,14 +7436,8 @@ export type MediaAssetCreateResponse = {
 export type MediaAssetCreateRequest = {
   storageObjectId?: string | null;
   variantId?: string | null;
-  mediaType?: "image" | "video" | "model_3d" | "document";
-  role?:
-    | "main"
-    | "hover"
-    | "gallery"
-    | "hero_video"
-    | "size_guide"
-    | "packaging";
+  mediaType?: 'image' | 'video' | 'model_3d' | 'document';
+  role?: 'main' | 'hover' | 'gallery' | 'hero_video' | 'size_guide' | 'packaging';
   sortOrder?: number;
   isExternal?: boolean;
   url?: string | null;
@@ -7758,9 +7480,7 @@ export type MediaAssetUpdateResponse = {
 };
 export type MediaAssetUpdateRequest = {
   variantId?: string | null;
-  role?:
-    | ("main" | "hover" | "gallery" | "hero_video" | "size_guide" | "packaging")
-    | null;
+  role?: ('main' | 'hover' | 'gallery' | 'hero_video' | 'size_guide' | 'packaging') | null;
   sortOrder?: number | null;
 };
 export type ReorderMediaItemSchema = {
@@ -7798,18 +7518,18 @@ export type VariableListResponse = {
   total: number;
 };
 export type VariableScope =
-  | "global"
-  | "supplier"
-  | "category"
-  | "range"
-  | "product_input"
-  | "sku_input";
+  | 'global'
+  | 'supplier'
+  | 'category'
+  | 'range'
+  | 'product_input'
+  | 'sku_input';
 export type CreateVariableResponse = {
   variableId: string;
   code: string;
   versionLock: number;
 };
-export type VariableDataType = "decimal" | "integer" | "percent";
+export type VariableDataType = 'decimal' | 'integer' | 'percent';
 export type I18NText = {
   ru: string;
   en: string;
@@ -7878,7 +7598,7 @@ export type CreateContextResponse = {
   code: string;
   versionLock: number;
 };
-export type RoundingMode = "HALF_UP" | "HALF_EVEN" | "CEILING" | "FLOOR";
+export type RoundingMode = 'HALF_UP' | 'HALF_EVEN' | 'CEILING' | 'FLOOR';
 export type CreateContextRequest = {
   code: string;
   name: I18NText;
@@ -7954,7 +7674,7 @@ export type FormulaVersionListResponse = {
   items: FormulaVersionResponse[];
   total: number;
 };
-export type FormulaStatus = "draft" | "published" | "archived";
+export type FormulaStatus = 'draft' | 'published' | 'archived';
 export type UpsertFormulaDraftResponse = {
   versionId: string;
   versionNumber: number;
@@ -8059,7 +7779,7 @@ export type UpsertProductPricingProfileResponse = {
   status: string;
   created: boolean;
 };
-export type ProfileStatus = "draft" | "ready" | "stale";
+export type ProfileStatus = 'draft' | 'ready' | 'stale';
 export type UpsertProductPricingProfileRequest = {
   /** Map of variable_code -> decimal value (e.g. {'purchase_price_cny': '199.50'}). */
   values?: {
@@ -8321,7 +8041,7 @@ export type CreateFavoriteListRequest = {
 export type RenameFavoriteListRequest = {
   name: string;
 };
-export type FavoriteTargetType = "product" | "brand";
+export type FavoriteTargetType = 'product' | 'brand';
 export type FavoriteProductCardResponse = {
   id: string;
   slug: string;
@@ -8424,7 +8144,7 @@ export type ExternalImportRequest = {
 };
 export type RemoveBackgroundResponse = {
   derivedStorageObjectId: string;
-  status: "processing" | "completed" | "failed";
+  status: 'processing' | 'completed' | 'failed';
   url?: string | null;
   alreadyExisted: boolean;
 };
@@ -8452,11 +8172,11 @@ export type DimensionsSchema = {
   heightCm: number;
 };
 export type PickupPointSchema = {
-  providerCode: "cdek" | "yandex_delivery";
+  providerCode: 'cdek' | 'yandex_delivery';
   /** Opaque per-provider id; pass back to /rates/quote unchanged. */
   externalId: string;
   name: string;
-  pickupPointType: "pvz" | "postamat" | "post_office" | "terminal";
+  pickupPointType: 'pvz' | 'postamat' | 'post_office' | 'terminal';
   /** Marker coordinates — always present for map rendering */
   position: GeoPositionSchema;
   address: AddressSchema;
@@ -8486,9 +8206,9 @@ export type PickupPointsRequest = {
   /** ISO 3166-1 alpha-2 */
   countryCode?: string | null;
   postalCode?: string | null;
-  providerCode?: ("cdek" | "yandex_delivery") | null;
+  providerCode?: ('cdek' | 'yandex_delivery') | null;
   /** Filter by point capability (e.g. only PVZ for pickup_point) */
-  deliveryType?: ("courier" | "pickup_point" | "post_office") | null;
+  deliveryType?: ('courier' | 'pickup_point' | 'post_office') | null;
 };
 export type CredentialFingerprintSchema = {
   /** First 8 hex chars of SHA-256(value). Stable per value. */
@@ -8542,10 +8262,10 @@ export type RefreshRegistryResponse = {
   note?: string;
 };
 export type ShippingRateSchema = {
-  providerCode: "cdek" | "yandex_delivery";
+  providerCode: 'cdek' | 'yandex_delivery';
   serviceCode: string;
   serviceName: string;
-  deliveryType: "courier" | "pickup_point" | "post_office";
+  deliveryType: 'courier' | 'pickup_point' | 'post_office';
   totalCost: MoneySchema;
   baseCost: MoneySchema;
   insuranceCost?: MoneySchema | null;
@@ -8582,10 +8302,10 @@ export type CalculateRatesRequest = {
 };
 export type RateQuoteResponse = {
   quoteId: string;
-  providerCode: "cdek" | "yandex_delivery";
+  providerCode: 'cdek' | 'yandex_delivery';
   serviceCode: string;
   serviceName: string;
-  deliveryType: "courier" | "pickup_point" | "post_office";
+  deliveryType: 'courier' | 'pickup_point' | 'post_office';
   /** Customer-visible delivery cost (kopecks + currency) */
   deliveryAmount: MoneySchema;
   deliveryDaysMin?: number | null;
@@ -8602,7 +8322,7 @@ export type QuoteCartItemSchema = {
 };
 export type RateQuoteRequest = {
   items: QuoteCartItemSchema[];
-  providerCode: "cdek" | "yandex_delivery";
+  providerCode: 'cdek' | 'yandex_delivery';
   /** ``PickupPointSchema.external_id`` from a previous /pickup-points response. Stale ids return 422. */
   pickupPointExternalId: string;
   /** Optional explicit tariff override (e.g. 'express'). Omitting it picks the cheapest tariff returned by the provider. */
@@ -8612,33 +8332,27 @@ export type AdminShipmentSummarySchema = {
   id: string;
   /** Open provider identifier. Wider than ``ProviderCodeLiteral`` so legacy rows (e.g. dobropost) and rolled-back integrations still serialise. */
   providerCode: string;
-  status:
-    | "draft"
-    | "booking_pending"
-    | "booked"
-    | "cancel_pending"
-    | "cancelled"
-    | "failed";
+  status: 'draft' | 'booking_pending' | 'booked' | 'cancel_pending' | 'cancelled' | 'failed';
   trackingNumber?: string | null;
   orderId?: string | null;
-  deliveryType: "courier" | "pickup_point" | "post_office";
+  deliveryType: 'courier' | 'pickup_point' | 'post_office';
   /** City of the recipient (extracted from destination payload). */
   destinationCity: string;
   quotedCost: MoneySchema;
   latestTrackingStatus?:
     | (
-        | "created"
-        | "accepted"
-        | "in_transit"
-        | "out_for_delivery"
-        | "ready_for_pickup"
-        | "delivered"
-        | "returned"
-        | "lost"
-        | "exception"
-        | "attempt_failed"
-        | "customs"
-        | "cancelled"
+        | 'created'
+        | 'accepted'
+        | 'in_transit'
+        | 'out_for_delivery'
+        | 'ready_for_pickup'
+        | 'delivered'
+        | 'returned'
+        | 'lost'
+        | 'exception'
+        | 'attempt_failed'
+        | 'customs'
+        | 'cancelled'
       )
     | null;
   createdAt: string;
@@ -8653,33 +8367,27 @@ export type AdminShipmentListResponse = {
 export type ShipmentResponse = {
   id: string;
   orderId: string | null;
-  providerCode: "cdek" | "yandex_delivery";
+  providerCode: 'cdek' | 'yandex_delivery';
   serviceCode: string;
-  deliveryType: "courier" | "pickup_point" | "post_office";
-  status:
-    | "draft"
-    | "booking_pending"
-    | "booked"
-    | "cancel_pending"
-    | "cancelled"
-    | "failed";
+  deliveryType: 'courier' | 'pickup_point' | 'post_office';
+  status: 'draft' | 'booking_pending' | 'booked' | 'cancel_pending' | 'cancelled' | 'failed';
   providerShipmentId?: string | null;
   trackingNumber?: string | null;
   quotedCost: MoneySchema;
   latestTrackingStatus?:
     | (
-        | "created"
-        | "accepted"
-        | "in_transit"
-        | "out_for_delivery"
-        | "ready_for_pickup"
-        | "delivered"
-        | "returned"
-        | "lost"
-        | "exception"
-        | "attempt_failed"
-        | "customs"
-        | "cancelled"
+        | 'created'
+        | 'accepted'
+        | 'in_transit'
+        | 'out_for_delivery'
+        | 'ready_for_pickup'
+        | 'delivered'
+        | 'returned'
+        | 'lost'
+        | 'exception'
+        | 'attempt_failed'
+        | 'customs'
+        | 'cancelled'
       )
     | null;
   createdAt: string;
@@ -8698,7 +8406,7 @@ export type ContactInfoSchema = {
 };
 export type CashOnDeliverySchema = {
   amount: MoneySchema;
-  paymentMethod?: ("cash" | "card" | "postpay") | null;
+  paymentMethod?: ('cash' | 'card' | 'postpay') | null;
 };
 export type CreateShipmentRequest = {
   /** Result of /rates/quote within the last 30 minutes */
@@ -8718,18 +8426,18 @@ export type CancelShipmentResponse = {
 };
 export type TrackingEventSchema = {
   status:
-    | "created"
-    | "accepted"
-    | "in_transit"
-    | "out_for_delivery"
-    | "ready_for_pickup"
-    | "delivered"
-    | "returned"
-    | "lost"
-    | "exception"
-    | "attempt_failed"
-    | "customs"
-    | "cancelled";
+    | 'created'
+    | 'accepted'
+    | 'in_transit'
+    | 'out_for_delivery'
+    | 'ready_for_pickup'
+    | 'delivered'
+    | 'returned'
+    | 'lost'
+    | 'exception'
+    | 'attempt_failed'
+    | 'customs'
+    | 'cancelled';
   providerStatusCode: string;
   providerStatusName: string;
   timestamp: string;
@@ -8741,18 +8449,18 @@ export type TrackingResponse = {
   trackingNumber: string | null;
   latestStatus:
     | (
-        | "created"
-        | "accepted"
-        | "in_transit"
-        | "out_for_delivery"
-        | "ready_for_pickup"
-        | "delivered"
-        | "returned"
-        | "lost"
-        | "exception"
-        | "attempt_failed"
-        | "customs"
-        | "cancelled"
+        | 'created'
+        | 'accepted'
+        | 'in_transit'
+        | 'out_for_delivery'
+        | 'ready_for_pickup'
+        | 'delivered'
+        | 'returned'
+        | 'lost'
+        | 'exception'
+        | 'attempt_failed'
+        | 'customs'
+        | 'cancelled'
       )
     | null;
   events: TrackingEventSchema[];
@@ -8763,11 +8471,11 @@ export type IntakeWindowSchema = {
   isWorkday?: boolean;
 };
 export type AvailableIntakeDaysResponse = {
-  providerCode: "cdek" | "yandex_delivery";
+  providerCode: 'cdek' | 'yandex_delivery';
   windows: IntakeWindowSchema[];
 };
 export type AvailableIntakeDaysRequest = {
-  providerCode: "cdek" | "yandex_delivery";
+  providerCode: 'cdek' | 'yandex_delivery';
   address: AddressSchema;
   /** Upper bound (YYYY-MM-DD) */
   until?: string | null;
@@ -8775,13 +8483,7 @@ export type AvailableIntakeDaysRequest = {
 export type CreateIntakeResponse = {
   shipmentId: string;
   providerIntakeId: string;
-  status:
-    | "accepted"
-    | "waiting"
-    | "delayed"
-    | "completed"
-    | "cancelled"
-    | "unknown";
+  status: 'accepted' | 'waiting' | 'delayed' | 'completed' | 'cancelled' | 'unknown';
 };
 export type CreateIntakeRequest = {
   /** Pickup date (YYYY-MM-DD) */
@@ -8797,13 +8499,7 @@ export type CreateIntakeRequest = {
 };
 export type IntakeStatusResponse = {
   providerIntakeId: string;
-  status:
-    | "accepted"
-    | "waiting"
-    | "delayed"
-    | "completed"
-    | "cancelled"
-    | "unknown";
+  status: 'accepted' | 'waiting' | 'delayed' | 'completed' | 'cancelled' | 'unknown';
 };
 export type CancelIntakeResponse = {
   success: boolean;
@@ -8817,11 +8513,11 @@ export type DeliveryIntervalSchema = {
   date?: string | null;
 };
 export type DeliveryIntervalsResponse = {
-  providerCode: "cdek" | "yandex_delivery";
+  providerCode: 'cdek' | 'yandex_delivery';
   intervals: DeliveryIntervalSchema[];
 };
 export type EstimatedDeliveryIntervalsRequest = {
-  providerCode: "cdek" | "yandex_delivery";
+  providerCode: 'cdek' | 'yandex_delivery';
   origin: AddressSchema;
   destination: AddressSchema;
   tariffCode: number;
@@ -8843,12 +8539,12 @@ export type RefusalRequestSchema = {
   reason?: string | null;
 };
 export type ReverseAvailabilityResponse = {
-  providerCode: "cdek" | "yandex_delivery";
+  providerCode: 'cdek' | 'yandex_delivery';
   isAvailable: boolean;
   reason?: string | null;
 };
 export type ReverseAvailabilityRequestSchema = {
-  providerCode: "cdek" | "yandex_delivery";
+  providerCode: 'cdek' | 'yandex_delivery';
   tariffCode: number;
   senderPhones: string[];
   recipientPhones: string[];
@@ -8856,8 +8552,8 @@ export type ReverseAvailabilityRequestSchema = {
   toLocation?: AddressSchema | null;
   shipmentPoint?: string | null;
   deliveryPoint?: string | null;
-  senderContragentType?: ("LEGAL_ENTITY" | "INDIVIDUAL") | null;
-  recipientContragentType?: ("LEGAL_ENTITY" | "INDIVIDUAL") | null;
+  senderContragentType?: ('LEGAL_ENTITY' | 'INDIVIDUAL') | null;
+  recipientContragentType?: ('LEGAL_ENTITY' | 'INDIVIDUAL') | null;
 };
 export type ActualDeliveryInfoSchema = {
   /** YYYY-MM-DD */
@@ -8876,7 +8572,7 @@ export type ActualDeliveryInfoResponse = {
 export type EditTaskResponse = {
   shipmentId: string;
   taskId: string;
-  initialStatus: "pending" | "execution" | "success" | "failure" | "unknown";
+  initialStatus: 'pending' | 'execution' | 'success' | 'failure' | 'unknown';
 };
 export type EditPlaceSwapSchema = {
   oldBarcode: string;
@@ -8886,7 +8582,7 @@ export type EditPlaceSwapSchema = {
 export type EditOrderRequest = {
   recipient?: ContactInfoSchema | null;
   destination?: AddressSchema | null;
-  deliveryType?: ("courier" | "pickup_point" | "post_office") | null;
+  deliveryType?: ('courier' | 'pickup_point' | 'post_office') | null;
   places?: EditPlaceSwapSchema[];
 };
 export type EditPackageItemSchema = {
@@ -8919,9 +8615,9 @@ export type RemoveOrderItemsRequest = {
   removals: EditItemRemovalSchema[];
 };
 export type EditTaskStatusResponse = {
-  providerCode: "cdek" | "yandex_delivery";
+  providerCode: 'cdek' | 'yandex_delivery';
   taskId: string;
-  status: "pending" | "execution" | "success" | "failure" | "unknown";
+  status: 'pending' | 'execution' | 'success' | 'failure' | 'unknown';
 };
 export type CdekEditOrderResponse = {
   success: boolean;
@@ -9102,25 +8798,25 @@ export type OrderTrackingResponse = {
   steps: TrackingStepSchema[];
 };
 export type CancellationReason =
-  | "customer_changed_mind"
-  | "customer_found_better_price"
-  | "customer_wrong_item"
-  | "customer_delivery_too_slow"
-  | "customer_duplicate_order"
-  | "merchant_out_of_stock"
-  | "merchant_price_error"
-  | "merchant_fraud_suspected"
-  | "merchant_region_not_served"
-  | "merchant_item_discontinued"
-  | "merchant_force_cancel"
-  | "system_payment_failed"
-  | "system_payment_timeout"
-  | "system_auth_expired"
-  | "system_hold_ttl_expired"
-  | "logistics_customs_rejected"
-  | "logistics_lost_in_transit"
-  | "logistics_undeliverable_address"
-  | "logistics_passport_invalid";
+  | 'customer_changed_mind'
+  | 'customer_found_better_price'
+  | 'customer_wrong_item'
+  | 'customer_delivery_too_slow'
+  | 'customer_duplicate_order'
+  | 'merchant_out_of_stock'
+  | 'merchant_price_error'
+  | 'merchant_fraud_suspected'
+  | 'merchant_region_not_served'
+  | 'merchant_item_discontinued'
+  | 'merchant_force_cancel'
+  | 'system_payment_failed'
+  | 'system_payment_timeout'
+  | 'system_auth_expired'
+  | 'system_hold_ttl_expired'
+  | 'logistics_customs_rejected'
+  | 'logistics_lost_in_transit'
+  | 'logistics_undeliverable_address'
+  | 'logistics_passport_invalid';
 export type CancelOrderRequest = {
   reason?: CancellationReason;
   idempotencyKey: string;
@@ -9137,11 +8833,11 @@ export type CancellationReasonsMetaResponse = {
   categories: CancellationReasonGroupSchema[];
 };
 export type HoldReason =
-  | "passport_invalid"
-  | "customs_rejected"
-  | "stuck_in_cn"
-  | "manual_review"
-  | "booking_failed";
+  | 'passport_invalid'
+  | 'customs_rejected'
+  | 'stuck_in_cn'
+  | 'manual_review'
+  | 'booking_failed';
 export type RecipientSnapshotSchema = {
   recipientId: string;
   fullNameRu: string;

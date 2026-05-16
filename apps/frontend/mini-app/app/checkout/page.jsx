@@ -316,6 +316,9 @@ function CheckoutPageInner() {
               pointsEnabled={pointsEnabled}
               onTogglePoints={() => setPointsEnabled((v) => !v)}
               totalMoney={totalMoney}
+              quote={flow.quote}
+              onSelectServiceCode={flow.selectServiceCode}
+              hasCrossBorderItems={flow.hasCrossBorderItems}
             />
           </div>
 

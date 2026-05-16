@@ -10,10 +10,26 @@ import styles from './page.module.css';
  * Audit #1: `checkout/page.jsx` god-komponentidan ajratilgan presentation
  * komponent — barcha Money qiymatlari va toggle handler prop'lar orqali.
  *
+ * CHK-024 qo'shimchalari (prop'lar orqali, optional):
+ *  • `quote` — joriy RateQuote (serviceName, deliveryDaysMin/Max,
+ *    fallbackAlternatives, serviceCode). ETA va tarif switcher uchun.
+ *  • `onSelectServiceCode(code)` — alternativ tarifga o'tish.
+ *  • `hasCrossBorderItems` — DobroPost ogohlantirish ko'rsatiladimi.
+ *
  * Списать баллы — backend Loyalty Points moduli (Spec §11) yoqilgandan keyin
  * `pointsEnabled` totals'dagi `pointsMoney`'ni hisoblanishiga ulanadi. Hozircha
  * toggle visual'gina ishlaydi, chegirma 0 ₽.
  */
+function formatEta(quote) {
+  const min = Number(quote?.deliveryDaysMin);
+  const max = Number(quote?.deliveryDaysMax);
+  const hasMin = Number.isFinite(min);
+  const hasMax = Number.isFinite(max);
+  if (!hasMin && !hasMax) return '';
+  if (hasMin && hasMax && min !== max) return `${min}–${max} дн.`;
+  return `${hasMin ? min : max} дн.`;
+}
+
 export default function CheckoutSummary({
   selectedQuantity,
   subtotalMoney,
@@ -25,7 +41,17 @@ export default function CheckoutSummary({
   pointsEnabled,
   onTogglePoints,
   totalMoney,
+  quote = null,
+  onSelectServiceCode = null,
+  hasCrossBorderItems = false,
 }) {
+  const eta = formatEta(quote);
+  const deliveryWithEta = eta ? `${deliveryPriceText} · ${eta}` : deliveryPriceText;
+  const alternatives = Array.isArray(quote?.fallbackAlternatives)
+    ? quote.fallbackAlternatives.filter((c) => typeof c === 'string' && c)
+    : [];
+  const hasAlternatives = alternatives.length > 0 && typeof onSelectServiceCode === 'function';
+
   return (
     <div className={cn(styles.c60, styles.spaceY2)}>
       <div className={styles.c61}>
@@ -54,12 +80,49 @@ export default function CheckoutSummary({
           <span>Доставка</span>
           <img src="/icons/global/small-arrow.svg" alt="" className={cn(styles.c70, styles.tw23)} />
         </span>
-        <span>{deliveryPriceText}</span>
+        <span>{deliveryWithEta}</span>
       </div>
       <div className={styles.c71}>
-        <span className={styles.c72}>• {deliveryBulletText}</span>
-        <span>{deliveryPriceText}</span>
+        <span className={styles.c72}>
+          • {quote?.serviceName ? quote.serviceName : deliveryBulletText}
+        </span>
+        <span>{deliveryWithEta}</span>
       </div>
+
+      {hasAlternatives ? (
+        <div className={styles.c71} role="group" aria-label="Альтернативные тарифы">
+          <span className={styles.c72}>Другие тарифы:</span>
+          <span className={styles.tw20}>
+            {alternatives.map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => onSelectServiceCode(code)}
+                aria-label={`Выбрать тариф ${code}`}
+                className={cn(styles.c72)}
+                style={{
+                  marginLeft: 8,
+                  textDecoration: 'underline',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                {code}
+              </button>
+            ))}
+          </span>
+        </div>
+      ) : null}
+
+      {hasCrossBorderItems ? (
+        <div className={styles.c71} role="note">
+          <span className={styles.c72}>
+            ⚠ Стоимость международной доставки рассчитает менеджер после оформления заказа. Сейчас
+            отображается только последняя миля по России.
+          </span>
+        </div>
+      ) : null}
 
       <div className={styles.c73}>
         <span className={styles.c74}>Списать баллы</span>

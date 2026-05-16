@@ -135,6 +135,68 @@ describe('checkout store — idempotent action guards (CHK-015)', () => {
   });
 });
 
+describe('checkout store — setPickup quote invalidation (CHK-024)', () => {
+  const PICKUP_A = { externalId: 'pvz-A', providerCode: 'cdek', address: 'A' };
+  const PICKUP_B = { externalId: 'pvz-B', providerCode: 'cdek', address: 'B' };
+
+  it('setPickup на другой externalId — quote сбрасывается', () => {
+    const s = useCheckoutStore.getState();
+    s.setPickup(PICKUP_A);
+    s.setQuote({
+      quoteId: 'q1',
+      serviceCode: 'EC',
+      deliveryAmount: 32000,
+      currency: 'RUB',
+      expiresAt: '2026-05-16T17:30:00Z',
+    });
+    expect(useCheckoutStore.getState().quote?.quoteId).toBe('q1');
+    s.setPickup(PICKUP_B);
+    expect(useCheckoutStore.getState().quote).toBeNull();
+    expect(useCheckoutStore.getState().pickup.externalId).toBe('pvz-B');
+    expect(useCheckoutStore.getState().status).toBe(CheckoutStatus.QUOTING);
+  });
+
+  it('setPickup на другой providerCode — quote сбрасывается', () => {
+    const s = useCheckoutStore.getState();
+    s.setPickup({ ...PICKUP_A, providerCode: 'cdek' });
+    s.setQuote({ quoteId: 'q1', deliveryAmount: 100, currency: 'RUB' });
+    s.setPickup({ ...PICKUP_A, providerCode: 'yandex_delivery' });
+    expect(useCheckoutStore.getState().quote).toBeNull();
+  });
+
+  it('setPickup на тот же externalId — quote сохраняется', () => {
+    const s = useCheckoutStore.getState();
+    s.setPickup(PICKUP_A);
+    s.setQuote({ quoteId: 'q1', deliveryAmount: 100, currency: 'RUB' });
+    // Тот же externalId+providerCode, но другая lat → новый стейт, но quote не должен сбрасываться
+    s.setPickup({ ...PICKUP_A, lat: 55, lon: 37 });
+    expect(useCheckoutStore.getState().quote?.quoteId).toBe('q1');
+  });
+});
+
+describe('checkout store — payment (CHK-024)', () => {
+  it('начальное состояние — null', () => {
+    expect(useCheckoutStore.getState().payment).toBeNull();
+  });
+
+  it('setPayment сохраняет metadata', () => {
+    const payload = {
+      paymentIntentId: 'pi-1',
+      clientSecret: 'secret_x',
+      totalAmount: 99500,
+      currency: 'RUB',
+    };
+    useCheckoutStore.getState().setPayment(payload);
+    expect(useCheckoutStore.getState().payment).toEqual(payload);
+  });
+
+  it('reset() очищает payment', () => {
+    useCheckoutStore.getState().setPayment({ paymentIntentId: 'x' });
+    useCheckoutStore.getState().reset();
+    expect(useCheckoutStore.getState().payment).toBeNull();
+  });
+});
+
 describe('checkout store — pvzAccumCache (CHK-016 Bug #3)', () => {
   it('initial state — null', () => {
     expect(useCheckoutStore.getState().pvzAccumCache).toBeNull();
