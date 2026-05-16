@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Path, Query, status
 
 from src.modules.identity.presentation.dependencies import (
     RequirePermission,
+    RequireStaffRole,
     get_current_identity_id,
 )
 from src.modules.pricing.application.commands.create_context import (
@@ -65,6 +66,7 @@ pricing_context_router = APIRouter(
     prefix="/admin/pricing/contexts",
     tags=["Admin / Pricing / Contexts"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

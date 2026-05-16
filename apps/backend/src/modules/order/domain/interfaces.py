@@ -79,6 +79,42 @@ class IRecipientLookup(ABC):
 
 
 # ---------------------------------------------------------------------------
+# Delivery quote ACL (order → logistics)
+# ---------------------------------------------------------------------------
+
+
+@frozen
+class DeliveryQuoteLookupResult:
+    """Read-only projection of a logistics ``DeliveryQuote``.
+
+    Order needs only the priced amount + currency to populate
+    ``Order.delivery_amount`` / ``Order.delivery_quote_id``. Provider-
+    specific payload (offer_id, tariff_code, weight, …) stays inside
+    the logistics module — the booking handler will pull it back
+    through its own lookup at procurement time.
+    """
+
+    quote_id: uuid.UUID
+    amount: int  # smallest currency unit (kopecks)
+    currency: str  # ISO 4217
+    expires_at: datetime | None
+
+
+class IDeliveryQuoteLookup(ABC):
+    """ACL port: order reads a delivery quote through this single bridge.
+
+    Implementation lives in
+    ``order.infrastructure.adapters.delivery_quote_adapter`` and reads
+    ``logistics.delivery_quotes`` directly — same anti-corruption
+    pattern as ``cart→catalog`` ``CatalogSkuAdapter``. Whitelisted in
+    ``tests/architecture/test_boundaries.py``.
+    """
+
+    @abstractmethod
+    async def get(self, quote_id: uuid.UUID) -> DeliveryQuoteLookupResult | None: ...
+
+
+# ---------------------------------------------------------------------------
 # Order repository
 # ---------------------------------------------------------------------------
 

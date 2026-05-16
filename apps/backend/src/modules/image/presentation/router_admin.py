@@ -33,7 +33,10 @@ from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bootstrap.config import Settings
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 from src.modules.image.application.commands.confirm_upload import (
     ConfirmUploadCommand,
     ConfirmUploadHandler,
@@ -87,6 +90,7 @@ media_admin_router = APIRouter(
     prefix="/admin/media",
     tags=["Admin / Media"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 _MEDIA_PERMISSION = "media:manage"

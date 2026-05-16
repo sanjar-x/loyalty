@@ -13,7 +13,10 @@ from typing import Annotated, cast
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Path, Query, status
 
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 from src.modules.logistics.application.commands.book_shipment import (
     BookShipmentCommand,
     BookShipmentHandler,
@@ -200,6 +203,7 @@ logistics_router = APIRouter(
     prefix="/admin/logistics",
     tags=["Admin / Logistics / Shipments"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

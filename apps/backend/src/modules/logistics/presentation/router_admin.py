@@ -20,7 +20,10 @@ from typing import Annotated
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Path, Query, status
 
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 from src.modules.logistics.application.commands.manage_provider_accounts import (
     CreateProviderAccountCommand,
     CreateProviderAccountHandler,
@@ -52,7 +55,10 @@ from src.modules.logistics.presentation.schemas_admin import (
 )
 from src.shared.exceptions import NotFoundError
 
-_LOGISTICS_ADMIN = [Depends(RequirePermission(codename="logistics:admin"))]
+_LOGISTICS_ADMIN = [
+    Depends(RequireStaffRole),
+    Depends(RequirePermission(codename="logistics:admin")),
+]
 
 logistics_admin_router = APIRouter(
     prefix="/admin/logistics/provider-accounts",

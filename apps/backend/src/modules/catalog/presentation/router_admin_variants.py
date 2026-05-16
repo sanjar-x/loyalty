@@ -33,13 +33,17 @@ from src.modules.catalog.presentation.schemas import (
     ProductVariantUpdateResponse,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 from src.shared.exceptions import OptimisticLockError, PreconditionFailedError
 
 variant_router = APIRouter(
     prefix="/admin/catalog/products/{productId}/variants",
     tags=["Admin / Catalog / Variants"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

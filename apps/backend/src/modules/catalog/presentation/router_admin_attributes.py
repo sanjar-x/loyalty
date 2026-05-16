@@ -63,12 +63,16 @@ from src.modules.catalog.presentation.schemas import (
     BulkCreateAttributesResponse,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 
 attribute_router = APIRouter(
     prefix="/admin/catalog/attributes",
     tags=["Admin / Catalog / Attributes"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

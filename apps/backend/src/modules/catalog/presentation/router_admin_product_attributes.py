@@ -38,12 +38,16 @@ from src.modules.catalog.presentation.schemas import (
     ProductAttributeListResponse,
     ProductAttributeResponse,
 )
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 
 product_attribute_router = APIRouter(
     prefix="/admin/catalog/products/{productId}/attributes",
     tags=["Admin / Catalog / Product Attributes"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

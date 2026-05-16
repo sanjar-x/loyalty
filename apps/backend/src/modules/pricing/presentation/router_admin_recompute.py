@@ -24,7 +24,10 @@ from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Path, status
 from pydantic import Field
 
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 from src.modules.pricing.infrastructure.services.recompute_service import (
     RecomputeSkuPricingService,
 )
@@ -34,6 +37,7 @@ pricing_recompute_router = APIRouter(
     prefix="/admin/pricing/recompute",
     tags=["Admin / Pricing / Recompute"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

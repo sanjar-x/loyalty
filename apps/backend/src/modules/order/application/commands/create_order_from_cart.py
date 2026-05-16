@@ -25,12 +25,13 @@ from src.modules.order.domain.exceptions import (
 from src.modules.order.domain.interfaces import (
     HistoryActor,
     ICartSnapshotReader,
+    IDeliveryQuoteLookup,
     IOrderRepository,
     IOrderStateHistoryWriter,
     IRecipientLookup,
 )
 from src.modules.order.domain.recipient_snapshot import RecipientSnapshot
-from src.shared.exceptions import UnprocessableEntityError
+from src.shared.exceptions import UnprocessableEntityError, ValidationError
 from src.shared.interfaces.idempotency import IIdempotencyStore
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -46,6 +47,14 @@ class CreateOrderFromCartCommand:
     snapshot_id: uuid.UUID
     idempotency_key: str
     payment_provider: str = "fake"
+    # Server-trusted quote id returned by
+    # ``/storefront/logistics/rates/quote``. When supplied, the handler
+    # resolves the priced amount through ``IDeliveryQuoteLookup`` and
+    # bakes it into ``Order.delivery_amount`` so the payment hold covers
+    # goods + shipping. Optional so legacy clients that pre-date the
+    # checkout-quote step keep working — they ship an order without a
+    # priced shipping line.
+    delivery_quote_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -63,6 +72,7 @@ class CreateOrderFromCartHandler:
         order_repo: IOrderRepository,
         snapshot_reader: ICartSnapshotReader,
         recipient_lookup: IRecipientLookup,
+        delivery_quote_lookup: IDeliveryQuoteLookup,
         idempotency_store: IIdempotencyStore,
         payment_gateway: IPaymentGateway,
         history_writer: IOrderStateHistoryWriter,
@@ -72,6 +82,7 @@ class CreateOrderFromCartHandler:
         self._order_repo = order_repo
         self._snapshots = snapshot_reader
         self._recipient_lookup = recipient_lookup
+        self._delivery_quote_lookup = delivery_quote_lookup
         self._idem = idempotency_store
         self._gateway = payment_gateway
         self._history = history_writer
@@ -156,6 +167,10 @@ class CreateOrderFromCartHandler:
                 )
                 for s in snapshot.items
             ]
+            delivery_amount, delivery_quote_id = await self._resolve_delivery(
+                command=command,
+                cart_currency=snapshot.currency,
+            )
             order = Order.create(
                 identity_id=command.identity_id,
                 cart_id=command.cart_id,
@@ -164,6 +179,8 @@ class CreateOrderFromCartHandler:
                 pickup_point=snapshot.pickup_point,
                 recipient_snapshot=recipient_snapshot,
                 cny_rate_at_checkout=snapshot.cny_rate_at_checkout,
+                delivery_quote_id=delivery_quote_id,
+                delivery_amount=delivery_amount,
             )
             # Brand-new aggregate: history pre-commit status is None — the
             # OrderCreatedEvent is the first transition.
@@ -221,3 +238,46 @@ class CreateOrderFromCartHandler:
                 total_amount=order.total_amount,
                 currency=order.currency,
             )
+
+    async def _resolve_delivery(
+        self,
+        *,
+        command: CreateOrderFromCartCommand,
+        cart_currency: str,
+    ) -> tuple[int, uuid.UUID | None]:
+        """Return ``(delivery_amount, delivery_quote_id)`` for the order.
+
+        Missing quote id → ``(0, None)`` so legacy clients keep working.
+        Mismatched currency or expired quote → 422, because charging
+        the customer a different amount than what they confirmed at
+        checkout is the exact bug ``delivery_quote_id`` exists to
+        prevent.
+        """
+        if command.delivery_quote_id is None:
+            return 0, None
+        quote = await self._delivery_quote_lookup.get(command.delivery_quote_id)
+        if quote is None:
+            raise UnprocessableEntityError(
+                message="Delivery quote not found",
+                error_code="ORDER_DELIVERY_QUOTE_NOT_FOUND",
+                details={"delivery_quote_id": str(command.delivery_quote_id)},
+            )
+        if quote.currency.upper() != cart_currency.upper():
+            raise ValidationError(
+                message="Delivery quote currency does not match cart currency",
+                error_code="ORDER_DELIVERY_QUOTE_CURRENCY_MISMATCH",
+                details={
+                    "quote_currency": quote.currency,
+                    "cart_currency": cart_currency,
+                },
+            )
+        if quote.expires_at is not None and quote.expires_at <= datetime.now(UTC):
+            raise UnprocessableEntityError(
+                message="Delivery quote expired — request a new quote",
+                error_code="ORDER_DELIVERY_QUOTE_EXPIRED",
+                details={
+                    "delivery_quote_id": str(command.delivery_quote_id),
+                    "expired_at": quote.expires_at.isoformat(),
+                },
+            )
+        return quote.amount, quote.quote_id

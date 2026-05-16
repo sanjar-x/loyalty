@@ -29,7 +29,10 @@ from typing import Annotated
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Path, Query, Response, status
 
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 from src.modules.logistics.domain.exceptions import ProviderUnavailableError
 from src.modules.logistics.infrastructure.providers.cdek.admin_service import (
     CdekAdminService,
@@ -63,6 +66,7 @@ cdek_admin_router = APIRouter(
     prefix="/admin/logistics/cdek",
     tags=["Admin / Logistics / CDEK"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

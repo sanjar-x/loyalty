@@ -43,7 +43,11 @@ from src.modules.identity.application.queries.list_staff_invitations import (
     ListStaffInvitationsHandler,
     ListStaffInvitationsQuery,
 )
-from src.modules.identity.presentation.dependencies import Auth, RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    Auth,
+    RequirePermission,
+    RequireStaffRole,
+)
 from src.modules.identity.presentation.schemas import (
     AdminDeactivateRequest,
     InvitationListItemResponse,
@@ -61,6 +65,7 @@ staff_admin_router = APIRouter(
     prefix="/admin/staff",
     tags=["Admin / Staff"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

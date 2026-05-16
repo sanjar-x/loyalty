@@ -81,12 +81,16 @@ from src.modules.catalog.presentation.schemas import (
     TemplateBindingReorderRequest,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 
 attribute_template_router = APIRouter(
     prefix="/admin/catalog/attribute-templates",
     tags=["Admin / Catalog / Attribute Templates"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, Path, status
 
 from src.modules.identity.presentation.dependencies import (
     RequirePermission,
+    RequireStaffRole,
     get_current_identity_id,
 )
 from src.modules.pricing.application.commands.delete_supplier_type_context_mapping import (
@@ -43,6 +44,7 @@ pricing_supplier_type_mapping_router = APIRouter(
     prefix="/admin/pricing/supplier-type-mapping",
     tags=["Admin / Pricing / Supplier-Type Mapping"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

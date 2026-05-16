@@ -4,6 +4,8 @@ Customer-facing read-only operations needed during checkout:
 
 * ``POST /storefront/logistics/pickup-points`` — list pickup-point
   markers for the carrier-selection map (CDEK / Yandex / Boxberry / …).
+* ``POST /storefront/logistics/rates/quote`` — single delivery quote
+  for a chosen pickup point (Mini App checkout flow).
 
 Mutations and provider-management endpoints stay under
 ``/admin/logistics/*`` (see ``router_admin_shipments.py`` and
@@ -15,22 +17,32 @@ from __future__ import annotations
 from typing import cast
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 
+from src.modules.identity.presentation.dependencies import get_auth_context
 from src.modules.logistics.application.queries.list_pickup_points import (
     ListPickupPointsHandler,
     ListPickupPointsQuery,
 )
+from src.modules.logistics.application.queries.quote_for_pickup_point import (
+    CartItemRef,
+    QuoteForPickupPointHandler,
+    QuoteForPickupPointQuery,
+)
 from src.modules.logistics.domain.value_objects import DeliveryType, PickupPointQuery
 from src.modules.logistics.presentation.schemas import (
+    DeliveryTypeLiteral,
     DimensionsSchema,
     GeoPositionSchema,
     PickupPointSchema,
     PickupPointsRequest,
     PickupPointsResponse,
     ProviderCodeLiteral,
+    RateQuoteRequest,
+    RateQuoteResponse,
 )
 from src.shared.exceptions import ValidationError as AppValidationError
+from src.shared.schemas import MoneySchema
 
 logistics_storefront_router = APIRouter(
     prefix="/storefront/logistics",
@@ -117,6 +129,58 @@ async def list_pickup_points(
     return PickupPointsResponse(
         points=points,
         errors=cast("dict[ProviderCodeLiteral, str]", result.errors),
+    )
+
+
+@logistics_storefront_router.post(
+    path="/rates/quote",
+    status_code=status.HTTP_200_OK,
+    response_model=RateQuoteResponse,
+    summary="Quote delivery for a chosen pickup point (Mini App checkout)",
+    dependencies=[Depends(get_auth_context)],
+)
+async def quote_for_pickup_point(
+    body: RateQuoteRequest,
+    handler: FromDishka[QuoteForPickupPointHandler],
+) -> RateQuoteResponse:
+    """Customer-facing single-quote endpoint for the checkout flow.
+
+    Frontend (Mini App) supplies cart SKUs and the marker the user
+    clicked (``provider_code`` + ``pickup_point_external_id``). The
+    handler reconstructs weight / origin / destination server-side and
+    returns a price-and-ETA line plus a ``quote_id`` the upcoming
+    place-order call will exchange for a booked shipment.
+
+    Mirrors the admin endpoint at ``/api/v1/admin/logistics/rates/quote``
+    on the same handler — the URL split keeps the staff back office and
+    the customer checkout on different namespaces, with the admin side
+    additionally gated by ``RequireStaffRole``.
+    """
+    query = QuoteForPickupPointQuery(
+        items=[
+            CartItemRef(sku_id=item.sku_id, quantity=item.quantity)
+            for item in body.items
+        ],
+        provider_code=body.provider_code,
+        pickup_point_external_id=body.pickup_point_external_id,
+        service_code=body.service_code,
+    )
+    result = await handler.handle(query)
+    return RateQuoteResponse(
+        quote_id=result.quote_id,
+        provider_code=cast(ProviderCodeLiteral, result.provider_code),
+        service_code=result.service_code,
+        service_name=result.service_name,
+        delivery_type=cast(DeliveryTypeLiteral, result.delivery_type),
+        delivery_amount=MoneySchema(
+            amount=result.delivery_amount,
+            currency=result.currency.upper(),
+        ),
+        delivery_days_min=result.delivery_days_min,
+        delivery_days_max=result.delivery_days_max,
+        quoted_at=result.quoted_at,
+        expires_at=result.expires_at,
+        fallback_alternatives=list(result.fallback_alternatives),
     )
 
 

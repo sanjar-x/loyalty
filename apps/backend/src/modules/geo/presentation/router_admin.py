@@ -117,9 +117,12 @@ from src.modules.geo.presentation.schemas import (
     UpsertSubdivisionTranslationsRequest,
     UpsertSubdivisionTypeTranslationsRequest,
 )
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 
-_GEO_MANAGE = [Depends(RequirePermission("geo:manage"))]
+_GEO_MANAGE = [Depends(RequireStaffRole), Depends(RequirePermission("geo:manage"))]
 
 geo_admin_router = APIRouter(
     prefix="/admin/geo",

@@ -82,6 +82,8 @@ class OrderRepository(IOrderRepository):
                 order.cancellation_reason.value if order.cancellation_reason else None
             ),
             version=order.version,
+            delivery_quote_id=order.delivery_quote_id,
+            delivery_amount=order.delivery_amount,
             created_at=order.created_at,
             updated_at=order.updated_at,
         )
@@ -154,6 +156,14 @@ class OrderRepository(IOrderRepository):
             order.cancellation_reason.value if order.cancellation_reason else None
         )
         row.version = order.version + 1
+        # Shipping fields are set once at order creation and are
+        # immutable for the lifetime of the order — even on
+        # re-routing (change_pickup_point) the customer is not
+        # re-priced. Still re-assign defensively so the
+        # row stays in lock-step with whatever the repository was
+        # handed; a future re-pricing flow can mutate them safely.
+        row.delivery_quote_id = order.delivery_quote_id
+        row.delivery_amount = order.delivery_amount
         row.updated_at = order.updated_at
 
         existing_by_id = {it.id: it for it in row.items}
@@ -342,6 +352,8 @@ def _to_domain(row: OrderModel) -> Order:
         created_at=row.created_at,
         updated_at=row.updated_at,
         version=row.version,
+        delivery_quote_id=row.delivery_quote_id,
+        delivery_amount=row.delivery_amount,
         items=items,
     )
 

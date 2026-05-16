@@ -9,7 +9,11 @@ from __future__ import annotations
 from dishka.integrations.fastapi import DishkaRoute, FromDishka, inject
 from fastapi import APIRouter, Depends, status
 
-from src.modules.identity.presentation.dependencies import Auth, RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    Auth,
+    RequirePermission,
+    RequireStaffRole,
+)
 from src.modules.pricing.application.queries.preview_price import (
     PreviewPriceHandler,
     PreviewPriceQuery,
@@ -33,6 +37,7 @@ pricing_preview_router = APIRouter(
     prefix="/admin/pricing",
     tags=["Admin / Pricing / Preview"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

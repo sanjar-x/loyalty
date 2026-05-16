@@ -120,6 +120,7 @@ async def create_order(
             snapshot_id=body.snapshot_id,
             idempotency_key=body.idempotency_key,
             payment_provider=body.payment_provider,
+            delivery_quote_id=body.delivery_quote_id,
         )
     )
     return CreateOrderResponse(

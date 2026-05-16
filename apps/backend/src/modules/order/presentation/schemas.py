@@ -30,6 +30,16 @@ class CreateOrderRequest(CamelModel):
     snapshot_id: uuid.UUID
     idempotency_key: str = Field(min_length=8, max_length=128)
     payment_provider: str = "fake"
+    delivery_quote_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "Server-trusted id of the quote returned by "
+            "/storefront/logistics/rates/quote. When present the "
+            "priced shipping amount is included in the payment "
+            "authorization. Omit for orders without a priced shipping "
+            "line (legacy clients)."
+        ),
+    )
 
 
 class CreateOrderResponse(CamelModel):

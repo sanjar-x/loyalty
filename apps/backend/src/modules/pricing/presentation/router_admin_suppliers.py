@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, Path
 
 from src.modules.identity.presentation.dependencies import (
     RequirePermission,
+    RequireStaffRole,
     get_current_identity_id,
 )
 from src.modules.pricing.application.commands.upsert_supplier_pricing_settings import (
@@ -36,6 +37,7 @@ pricing_supplier_settings_router = APIRouter(
     prefix="/admin/pricing/suppliers/{supplierId}",
     tags=["Admin / Pricing / Suppliers"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

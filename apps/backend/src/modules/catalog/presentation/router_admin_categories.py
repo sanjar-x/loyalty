@@ -58,13 +58,17 @@ from src.modules.catalog.presentation.schemas import (
     CategoryUpdateRequest,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 from src.shared.exceptions import OptimisticLockError, PreconditionFailedError
 
 category_router = APIRouter(
     prefix="/admin/catalog/categories",
     tags=["Admin / Catalog / Categories"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

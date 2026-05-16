@@ -17,7 +17,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.modules.identity.domain.exceptions import InsufficientPermissionsError
 from src.modules.identity.domain.interfaces import IIdentityRepository
-from src.shared.exceptions import UnauthorizedError
+from src.modules.identity.domain.value_objects import AccountType
+from src.shared.exceptions import ForbiddenError, UnauthorizedError
 from src.shared.interfaces.auth import AuthContext
 from src.shared.interfaces.security import IPermissionResolver, ITokenProvider
 
@@ -103,6 +104,7 @@ async def get_auth_context(
     return AuthContext(
         identity_id=identity_id,
         session_id=session_id,
+        is_staff=identity.account_type == AccountType.STAFF,
     )
 
 
@@ -159,3 +161,30 @@ async def get_current_identity_id(
         The identity's UUID.
     """
     return auth.identity_id
+
+
+async def RequireStaffRole(auth: Auth) -> AuthContext:
+    """FastAPI dependency: enforce ``Identity.account_type == STAFF``.
+
+    Baseline guard for every ``/api/v1/admin/*`` router (documented in
+    ``CLAUDE.md`` → "Router naming convention"). Per-endpoint permission
+    checks (``RequirePermission("catalog:manage")`` etc.) layer on top.
+
+    Customers carry their own ``logistics:read`` / ``logistics:write``
+    permissions for self-service endpoints (own shipment tracking,
+    self-return), so the URL prefix — not just the permission codename —
+    is what separates the staff back-office surface from customer flows.
+    Without this guard a customer with ``logistics:read`` would reach
+    ``/admin/logistics/rates/quote`` (it pre-dated the customer
+    storefront mirror at ``/storefront/logistics/rates/quote``); this
+    closes that gap.
+
+    The capital-letter name mirrors :class:`RequirePermission` so
+    ``Depends(RequireStaffRole)`` reads identically in route signatures.
+    """
+    if not auth.is_staff:
+        raise ForbiddenError(
+            message="Endpoint restricted to staff accounts",
+            error_code="STAFF_ROLE_REQUIRED",
+        )
+    return auth

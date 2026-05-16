@@ -23,13 +23,17 @@ from src.modules.activity.presentation.schemas import (
     TrendingProductEntry,
     TrendingProductsResponse,
 )
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 from src.shared.interfaces.activity import IActivityQueryService
 
 activity_admin_router = APIRouter(
     prefix="/admin/analytics",
     tags=["Admin / Analytics"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

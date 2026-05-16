@@ -205,3 +205,60 @@ def test_aggregate_router_imports_every_module_router() -> None:
         "Every router must be wired into a ModuleManifest. Missing:\n"
         + "\n".join(missing)
     )
+
+
+# ---------------------------------------------------------------------------
+# Rule 6: every router with prefix `/admin/...` must carry RequireStaffRole
+# as a router-level Depends, so customer accounts holding a permission
+# codename that happens to be granted to staff (e.g. `logistics:read`)
+# cannot reach `/api/v1/admin/...` URLs through the URL bypass.
+# ---------------------------------------------------------------------------
+
+
+def test_admin_routers_carry_require_staff_role_baseline() -> None:
+    """Every `/admin/...` router needs ``RequireStaffRole`` at router level.
+
+    Router-level — not per-endpoint — because the convention is set by
+    URL prefix: a customer who somehow arrives at ``/admin/...`` should
+    be rejected before per-endpoint permission checks fire, regardless
+    of which permission codename they hold. Catches the regression where
+    the documented baseline existed only in CLAUDE.md while the symbol
+    itself did not.
+    """
+    import importlib
+
+    from fastapi.params import Depends
+
+    from src.modules.identity.presentation.dependencies import RequireStaffRole
+
+    missing: list[str] = []
+    for path, prefix in _collect_routers():
+        if not prefix.startswith("/admin"):
+            continue
+        text = path.read_text(encoding="utf-8")
+        var_match = re.search(r"^(\w+)\s*=\s*APIRouter\(", text, flags=re.M)
+        if var_match is None:
+            continue
+        rel = path.relative_to(path.parents[4])
+        dotted = ".".join(rel.with_suffix("").parts)
+        try:
+            module = importlib.import_module(dotted)
+        except Exception:  # pragma: no cover -- import-time errors
+            missing.append(f"{rel}: failed to import module")
+            continue
+        router = getattr(module, var_match.group(1), None)
+        if router is None:
+            continue
+        guard_present = any(
+            isinstance(dep, Depends) and dep.dependency is RequireStaffRole
+            for dep in (router.dependencies or [])
+        )
+        if not guard_present:
+            missing.append(
+                f"{rel}: APIRouter(prefix={prefix!r}) missing "
+                "router-level Depends(RequireStaffRole)"
+            )
+    assert not missing, (
+        "Admin routers must include Depends(RequireStaffRole) at the "
+        "router-level dependencies= argument. Missing:\n" + "\n".join(missing)
+    )

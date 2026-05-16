@@ -25,7 +25,12 @@ class AuthContext:
     Attributes:
         identity_id: UUID of the authenticated identity aggregate.
         session_id: UUID of the current active session.
+        is_staff: True iff ``Identity.account_type == STAFF``. Sourced
+            from the same DB lookup ``get_auth_context`` already does
+            for token-version validation, so admin-role checks
+            (``RequireStaffRole``) don't add a second roundtrip.
     """
 
     identity_id: uuid.UUID
     session_id: uuid.UUID
+    is_staff: bool = False

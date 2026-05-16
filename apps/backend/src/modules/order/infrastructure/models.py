@@ -35,6 +35,9 @@ class OrderModel(Base):
     __table_args__ = (
         CheckConstraint(f"status IN ({VALID_STATUSES})", name="ck_orders_valid_status"),
         CheckConstraint("total_amount >= 0", name="ck_orders_total_nonnegative"),
+        CheckConstraint(
+            "delivery_amount >= 0", name="ck_orders_delivery_amount_nonnegative"
+        ),
         Index("ix_orders_identity_created", "identity_id", "created_at"),
         Index("ix_orders_status_created", "status", "created_at"),
         Index(
@@ -123,6 +126,19 @@ class OrderModel(Base):
         TIMESTAMP(timezone=True), nullable=True
     )
     cancellation_reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Shipping (REC-040). ``delivery_quote_id`` is a soft reference to
+    # ``logistics.delivery_quotes`` — no FK constraint because quote
+    # rows are pruned on TTL while orders are retained for years.
+    # ``delivery_amount`` (kopecks, in ``currency``) is included in
+    # ``total_amount`` so the payment authorization covers goods +
+    # shipping in one operation. ``server_default="0"`` lets the
+    # migration backfill existing rows without scanning the table.
+    delivery_quote_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    delivery_amount: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default="0", default=0
+    )
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()

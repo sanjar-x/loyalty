@@ -176,6 +176,17 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
     created_at: datetime
     updated_at: datetime
     version: int
+    # Shipping totals (kopecks, in ``self.currency``). ``delivery_quote_id``
+    # references the ``logistics.delivery_quotes`` row the customer was
+    # priced against; we keep the id (not the full quote) so the order
+    # aggregate stays self-contained while the logistics module owns
+    # quote lifecycle / TTL / re-quote. Persisted to make the customer's
+    # final invoice reconstructable months later, even after the quote
+    # row has been pruned. ``delivery_amount`` is included in
+    # ``total_amount`` so ``PaymentIntent.authorize(amount=total_amount)``
+    # holds funds for goods + shipping in one operation.
+    delivery_quote_id: uuid.UUID | None = None
+    delivery_amount: int = 0
     _items: list[OrderItem] = field(factory=list, alias="items")
 
     # ---------------------------------------------------------------------------
@@ -228,13 +239,18 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
         pickup_point: PickupPointPreference,
         recipient_snapshot: RecipientSnapshot,
         cny_rate_at_checkout: Decimal | None = None,
+        delivery_quote_id: uuid.UUID | None = None,
+        delivery_amount: int = 0,
     ) -> Order:
         if not items:
             raise OrderEmptyError()
         for itm in items:
             if itm.quantity < 1 or itm.quantity > MAX_ITEM_QUANTITY:
                 raise OrderItemQuantityError(quantity=itm.quantity)
-        total = sum(itm.line_total for itm in items)
+        if delivery_amount < 0:
+            raise OrderItemQuantityError(quantity=delivery_amount)
+        items_total = sum(itm.line_total for itm in items)
+        total = items_total + delivery_amount
         now = datetime.now(UTC)
         order = cls(
             id=uuid.uuid4(),
@@ -260,6 +276,8 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
             created_at=now,
             updated_at=now,
             version=0,
+            delivery_quote_id=delivery_quote_id,
+            delivery_amount=delivery_amount,
             items=list(items),
         )
         order.add_domain_event(
@@ -273,6 +291,11 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
             )
         )
         return order
+
+    @property
+    def items_total(self) -> int:
+        """Sum of line totals — ``total_amount`` minus shipping."""
+        return self.total_amount - self.delivery_amount
 
     # ---------------------------------------------------------------------------
     # Helpers / projections

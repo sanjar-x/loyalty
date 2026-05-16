@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, Path, Query, status
 from src.modules.identity.presentation.dependencies import (
     Auth,
     RequirePermission,
+    RequireStaffRole,
 )
 from src.modules.order.application.commands.cancel_order import (
     CancelOrderCommand,
@@ -79,6 +80,7 @@ admin_order_router = APIRouter(
     prefix="/admin/orders",
     tags=["Admin / Orders"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

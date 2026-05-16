@@ -27,7 +27,11 @@ from src.modules.identity.application.queries.list_customers import (
     ListCustomersHandler,
     ListCustomersQuery,
 )
-from src.modules.identity.presentation.dependencies import Auth, RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    Auth,
+    RequirePermission,
+    RequireStaffRole,
+)
 from src.modules.identity.presentation.schemas import (
     AdminDeactivateRequest,
     CustomerDetailResponse,
@@ -41,6 +45,7 @@ customer_admin_router = APIRouter(
     prefix="/admin/customers",
     tags=["Admin / Customers"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

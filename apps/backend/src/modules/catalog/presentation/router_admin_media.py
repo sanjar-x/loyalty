@@ -45,12 +45,16 @@ from src.modules.catalog.presentation.schemas import (
     MediaAssetUpdateResponse,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 
 media_router = APIRouter(
     prefix="/admin/catalog/products/{productId}/media",
     tags=["Admin / Catalog / Product Media"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

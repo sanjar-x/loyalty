@@ -187,6 +187,14 @@ ALLOWED_CROSS_MODULE = {
     ("logistics", "supplier"): {
         "src.modules.logistics.infrastructure.adapters.pricing_weight_adapter",
     },
+    # Order's checkout reads the priced ``DeliveryQuote`` (amount +
+    # currency only) to populate ``Order.delivery_amount`` / shipping
+    # fields so the payment authorization covers goods + shipping in a
+    # single hold. Single anti-corruption adapter — same pattern as
+    # cart→catalog above.
+    ("order", "logistics"): {
+        "src.modules.order.infrastructure.adapters.delivery_quote_adapter",
+    },
     # Identity management CLI scripts (``create_admin``, ``sync_system_roles``)
     # reach into the full DI container for standalone bootstrap; they are
     # admin tooling, not production request paths.
@@ -224,11 +232,13 @@ ALLOWED_CROSS_MODULE = {
     ("order", "cart"): {
         "src.modules.order.infrastructure.adapters.cart_snapshot_reader",
     },
-    # Order ↔ Logistics: cross-border + last-mile shipments are created
-    # through ACL gateway adapters that today are stubs (no logistics
-    # imports). When the real integration lands, this whitelist becomes
-    # the single allowed touch point for those two adapter files.
-    ("order", "logistics"): set(),
+    # (Order ↔ Logistics is whitelisted further up — checkout reads the
+    # priced ``DeliveryQuote`` through the single adapter at
+    # ``order.infrastructure.adapters.delivery_quote_adapter`` so the
+    # payment authorization covers goods + shipping in one hold.
+    # Cross-border + last-mile shipments are still created through
+    # gateway adapters that are stubs today; extend the same whitelist
+    # entry when the real integration lands.)
     # Payment never imports Order: payment publishes domain events to
     # the outbox, and Order's consumers (PaymentCapturedConsumer /
     # PaymentFailedConsumer) reach back into the Order FSM.

@@ -83,12 +83,16 @@ from src.modules.order.application.queries.get_order_tracking import (
 from src.modules.order.application.queries.list_my_orders import ListMyOrdersHandler
 from src.modules.order.domain.interfaces import (
     ICartSnapshotReader,
+    IDeliveryQuoteLookup,
     IOrderRepository,
     IOrderStateHistoryWriter,
     IRecipientLookup,
 )
 from src.modules.order.infrastructure.adapters.cart_snapshot_reader import (
     CartSnapshotReader,
+)
+from src.modules.order.infrastructure.adapters.delivery_quote_adapter import (
+    DeliveryQuoteAdapter,
 )
 from src.modules.order.infrastructure.adapters.dobropost_client import (
     DobroPostHttpClient,
@@ -192,6 +196,11 @@ class OrderProvider(Provider):
         RecipientLookupAdapter,
         scope=Scope.REQUEST,
         provides=IRecipientLookup,
+    )
+    delivery_quote_lookup: CompositeDependencySource = provide(
+        DeliveryQuoteAdapter,
+        scope=Scope.REQUEST,
+        provides=IDeliveryQuoteLookup,
     )
 
     # --- Command handlers ---

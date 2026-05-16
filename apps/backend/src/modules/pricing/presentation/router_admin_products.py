@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Path, status
 
 from src.modules.identity.presentation.dependencies import (
     RequirePermission,
+    RequireStaffRole,
     get_current_identity_id,
 )
 from src.modules.pricing.application.commands.delete_product_pricing_profile import (
@@ -41,6 +42,7 @@ pricing_profile_router = APIRouter(
     prefix="/admin/pricing/products",
     tags=["Admin / Pricing / Products"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

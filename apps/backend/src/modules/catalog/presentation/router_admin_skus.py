@@ -48,7 +48,10 @@ from src.modules.catalog.presentation.schemas import (
     SKUUpdateRequest,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 from src.shared.exceptions import OptimisticLockError, PreconditionFailedError
 
 
@@ -63,6 +66,7 @@ sku_router = APIRouter(
     prefix="/admin/catalog/products/{productId}/variants/{variantId}/skus",
     tags=["Admin / Catalog / SKUs"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

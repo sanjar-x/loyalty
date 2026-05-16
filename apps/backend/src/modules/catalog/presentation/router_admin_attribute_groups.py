@@ -45,12 +45,16 @@ from src.modules.catalog.presentation.schemas import (
     AttributeGroupUpdateRequest,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 
 attribute_group_router = APIRouter(
     prefix="/admin/catalog/attribute-groups",
     tags=["Admin / Catalog / Attribute Groups"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

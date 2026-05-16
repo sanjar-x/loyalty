@@ -63,7 +63,11 @@ from src.modules.identity.application.queries.list_roles import (
     ListRolesHandler,
     RoleWithPermissions,
 )
-from src.modules.identity.presentation.dependencies import Auth, RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    Auth,
+    RequirePermission,
+    RequireStaffRole,
+)
 from src.modules.identity.presentation.schemas import (
     AdminDeactivateRequest,
     AdminIdentityDetailResponse,
@@ -85,6 +89,7 @@ admin_router = APIRouter(
     prefix="/admin",
     tags=["Admin / IAM"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

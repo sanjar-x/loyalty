@@ -91,7 +91,10 @@ from src.modules.catalog.presentation.schemas import (
     ValidationWarningSchema,
 )
 from src.modules.catalog.presentation.update_helpers import build_update_command
-from src.modules.identity.presentation.dependencies import RequirePermission
+from src.modules.identity.presentation.dependencies import (
+    RequirePermission,
+    RequireStaffRole,
+)
 from src.shared.exceptions import PreconditionFailedError
 
 # CAT-006 — SSE comment-frame interval (seconds). Must be shorter than
@@ -107,6 +110,7 @@ product_router = APIRouter(
     prefix="/admin/catalog/products",
     tags=["Admin / Catalog / Products"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 

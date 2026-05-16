@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Path, Query, status
 
 from src.modules.identity.presentation.dependencies import (
     RequirePermission,
+    RequireStaffRole,
     get_current_identity_id,
 )
 from src.modules.pricing.application.commands.discard_formula_draft import (
@@ -52,6 +53,7 @@ pricing_formula_router = APIRouter(
     prefix="/admin/pricing/contexts/{contextId}/formula",
     tags=["Admin / Pricing / Formulas"],
     route_class=DishkaRoute,
+    dependencies=[Depends(RequireStaffRole)],
 )
 
 
