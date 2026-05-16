@@ -15,6 +15,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from src.bootstrap.config import settings
 from src.modules.order.application._history import record_history
 from src.modules.order.application.ports import IPaymentGateway
 from src.modules.order.domain.entities import Order, OrderItem
@@ -64,6 +65,13 @@ class CreateOrderFromCartResult:
     client_secret: str | None
     total_amount: int
     currency: str
+    # True when ``settings.PAYMENT_AUTO_CAPTURE_ON_AUTHORIZE`` short-
+    # circuited the PSP roundtrip and the Order is already PAID at
+    # response time. Frontend uses this to skip the payment widget /
+    # redirect and navigate straight to "оформлено" instead of polling
+    # PaymentIntent status. When False — fall back to the normal
+    # client_secret + PSP-confirmation flow.
+    auto_captured: bool = False
 
 
 class CreateOrderFromCartHandler:
@@ -117,6 +125,7 @@ class CreateOrderFromCartHandler:
                     client_secret=ticket.client_secret,
                     total_amount=order.total_amount,
                     currency=order.currency,
+                    auto_captured=order.was_paid,
                 )
 
             snapshot = await self._snapshots.get(
@@ -205,6 +214,24 @@ class CreateOrderFromCartHandler:
             order.attach_payment_intent(ticket.intent_id)
             await self._order_repo.update(order)
 
+            # Skip-payment short-circuit (settings.PAYMENT_AUTO_CAPTURE_ON_AUTHORIZE).
+            # Capture the just-created PaymentIntent inside the same UoW
+            # and walk Order PENDING → PAID right here, so customer flow
+            # works without a PSP integration. Gateway.capture is
+            # idempotent via ``order:<id>:capture-on-create`` key; the
+            # downstream PaymentCapturedEvent → ``MarkOrderPaidConsumer``
+            # path stays valid but becomes a no-op (mark_paid on an
+            # already-PAID order returns early via FSM guard).
+            paid_via_skip = False
+            if settings.PAYMENT_AUTO_CAPTURE_ON_AUTHORIZE:
+                await self._gateway.capture(
+                    intent_id=ticket.intent_id,
+                    idempotency_key=f"order:{order.id}:capture-on-create",
+                )
+                order.mark_paid(payment_intent_id=ticket.intent_id)
+                await self._order_repo.update(order)
+                paid_via_skip = True
+
             now = datetime.now(UTC)
             reserved = await self._idem.reserve(
                 key=command.idempotency_key,
@@ -230,6 +257,7 @@ class CreateOrderFromCartHandler:
                 total_amount=order.total_amount,
                 currency=order.currency,
                 payment_intent_id=str(ticket.intent_id),
+                paid_via_skip_payment=paid_via_skip,
             )
             return CreateOrderFromCartResult(
                 order_id=order.id,
@@ -237,6 +265,7 @@ class CreateOrderFromCartHandler:
                 client_secret=ticket.client_secret,
                 total_amount=order.total_amount,
                 currency=order.currency,
+                auto_captured=paid_via_skip,
             )
 
     async def _resolve_delivery(

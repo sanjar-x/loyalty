@@ -131,6 +131,7 @@ async def create_order(
         client_secret=result.client_secret,
         total_amount=result.total_amount,
         currency=result.currency,
+        auto_captured=result.auto_captured,
     )
 
 

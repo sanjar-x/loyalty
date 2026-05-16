@@ -53,6 +53,17 @@ class CreateOrderResponse(CamelModel):
     client_secret: str | None
     total_amount: int
     currency: str
+    auto_captured: bool = Field(
+        default=False,
+        description=(
+            "When true, the PaymentIntent was already captured server-"
+            "side and the Order is already in PAID state. Frontend "
+            "should skip the PSP redirect / confirmation widget and "
+            "navigate straight to the order detail page. Driven by "
+            "``Settings.PAYMENT_AUTO_CAPTURE_ON_AUTHORIZE`` — true while "
+            "no real PSP is wired."
+        ),
+    )
 
 
 class CancelOrderRequest(CamelModel):
