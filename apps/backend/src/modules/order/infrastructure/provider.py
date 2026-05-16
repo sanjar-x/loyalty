@@ -16,6 +16,9 @@ from src.modules.order.application.commands.change_pickup_point import (
     ChangePickupPointHandler,
 )
 from src.modules.order.application.commands.close_order import CloseOrderHandler
+from src.modules.order.application.commands.create_buy_now_order import (
+    CreateBuyNowOrderHandler,
+)
 from src.modules.order.application.commands.create_order_from_cart import (
     CreateOrderFromCartHandler,
 )
@@ -238,6 +241,9 @@ class OrderProvider(Provider):
     # --- Command handlers ---
     create_order_handler: CompositeDependencySource = provide(
         CreateOrderFromCartHandler, scope=Scope.REQUEST
+    )
+    create_buy_now_order_handler: CompositeDependencySource = provide(
+        CreateBuyNowOrderHandler, scope=Scope.REQUEST
     )
     admin_create_walk_in_order_handler: CompositeDependencySource = provide(
         AdminCreateWalkInOrderHandler, scope=Scope.REQUEST

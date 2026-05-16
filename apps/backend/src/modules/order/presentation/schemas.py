@@ -66,6 +66,32 @@ class CreateOrderResponse(CamelModel):
     )
 
 
+class BuyNowOrderRequest(CamelModel):
+    """Express-checkout payload: a single SKU goes straight to Order.
+
+    No backing cart row — front-end collects sku/quantity/recipient/
+    pickup/delivery_quote in a one-shot mini-checkout sheet on the
+    product page. Response shape matches :class:`CreateOrderResponse`
+    so the front-end branches once on ``auto_captured``.
+    """
+
+    sku_id: uuid.UUID
+    quantity: int = Field(ge=1, le=99)
+    recipient_id: uuid.UUID
+    pickup_carrier: str = Field(max_length=16)
+    pickup_point_id: str = Field(max_length=128)
+    delivery_quote_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "Server-trusted id of the quote returned by "
+            "/storefront/logistics/rates/quote. When present the priced "
+            "shipping amount is included in the payment authorization."
+        ),
+    )
+    idempotency_key: str = Field(min_length=8, max_length=128)
+    payment_provider: str = "fake"
+
+
 class CancelOrderRequest(CamelModel):
     reason: CancellationReason = CancellationReason.CUSTOMER_CHANGED_MIND
     idempotency_key: str = Field(min_length=8, max_length=128)

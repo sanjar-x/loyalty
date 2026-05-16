@@ -33,6 +33,59 @@ async def test_get_order_requires_auth(async_client: AsyncClient) -> None:
     assert resp.status_code == 401
 
 
+async def test_buy_now_requires_auth(async_client: AsyncClient) -> None:
+    resp = await async_client.post(
+        "/api/v1/orders/buy-now",
+        json={
+            "skuId": str(uuid.uuid4()),
+            "quantity": 1,
+            "recipientId": str(uuid.uuid4()),
+            "pickupCarrier": "cdek",
+            "pickupPointId": "MSK-1",
+            "idempotencyKey": "buy-now-e2e-12345",
+        },
+    )
+    assert resp.status_code == 401
+
+
+async def test_buy_now_with_missing_sku_returns_4xx(
+    authenticated_client: AsyncClient,
+) -> None:
+    """Authenticated request reaches the handler; unknown SKU → 422."""
+    resp = await authenticated_client.post(
+        "/api/v1/orders/buy-now",
+        json={
+            "skuId": str(uuid.uuid4()),
+            "quantity": 1,
+            "recipientId": str(uuid.uuid4()),
+            "pickupCarrier": "cdek",
+            "pickupPointId": "MSK-1",
+            "idempotencyKey": "buy-now-e2e-missing-sku",
+        },
+    )
+    # BUY_NOW_SKU_NOT_FOUND → 422; recipient lookup also returns 422
+    # for an unknown id. Either order of validation is acceptable.
+    assert resp.status_code == 422
+
+
+async def test_buy_now_rejects_invalid_quantity(
+    authenticated_client: AsyncClient,
+) -> None:
+    """Pydantic ge=1 le=99 — quantity=0 is rejected before the handler."""
+    resp = await authenticated_client.post(
+        "/api/v1/orders/buy-now",
+        json={
+            "skuId": str(uuid.uuid4()),
+            "quantity": 0,
+            "recipientId": str(uuid.uuid4()),
+            "pickupCarrier": "cdek",
+            "pickupPointId": "MSK-1",
+            "idempotencyKey": "buy-now-e2e-bad-qty",
+        },
+    )
+    assert resp.status_code == 422
+
+
 async def test_initiate_payment_requires_auth(
     async_client: AsyncClient,
 ) -> None:

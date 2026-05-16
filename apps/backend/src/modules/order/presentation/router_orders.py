@@ -24,6 +24,10 @@ from src.modules.order.application.commands.change_pickup_point import (
     ChangePickupPointCommand,
     ChangePickupPointHandler,
 )
+from src.modules.order.application.commands.create_buy_now_order import (
+    CreateBuyNowOrderCommand,
+    CreateBuyNowOrderHandler,
+)
 from src.modules.order.application.commands.create_order_from_cart import (
     CreateOrderFromCartCommand,
     CreateOrderFromCartHandler,
@@ -47,8 +51,13 @@ from src.modules.order.application.queries.list_my_orders import (
 from src.modules.order.application.queries.read_models import (
     CustomerOrderReadModel,
 )
-from src.modules.order.domain.value_objects import CancellationReason
+from src.modules.order.domain.value_objects import (
+    CancellationReason,
+    PickupCarrier,
+    PickupPointPreference,
+)
 from src.modules.order.presentation.schemas import (
+    BuyNowOrderRequest,
     CancelOrderRequest,
     ChangePickupPointRequest,
     CreateOrderRequest,
@@ -123,6 +132,49 @@ async def create_order(
             idempotency_key=body.idempotency_key,
             payment_provider=body.payment_provider,
             delivery_quote_id=body.delivery_quote_id,
+        )
+    )
+    return CreateOrderResponse(
+        order_id=result.order_id,
+        payment_intent_id=result.payment_intent_id,
+        client_secret=result.client_secret,
+        total_amount=result.total_amount,
+        currency=result.currency,
+        auto_captured=result.auto_captured,
+    )
+
+
+@order_router.post(
+    "/buy-now",
+    response_model=CreateOrderResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def buy_now_order(
+    body: BuyNowOrderRequest,
+    auth: Auth,
+    handler: FromDishka[CreateBuyNowOrderHandler],
+) -> CreateOrderResponse:
+    """Create an order directly from a single SKU (no cart).
+
+    Express checkout: front-end collects sku + quantity + recipient +
+    pickup + delivery quote in one mini-checkout sheet on the product
+    page, and this endpoint provisions the Order in PENDING (or PAID,
+    when ``PAYMENT_AUTO_CAPTURE_ON_AUTHORIZE`` is on) in one round-trip.
+    Same FSM, payment, outbox and Telegram fan-out as a cart-flow order.
+    """
+    result = await handler.handle(
+        CreateBuyNowOrderCommand(
+            identity_id=auth.identity_id,
+            sku_id=body.sku_id,
+            quantity=body.quantity,
+            recipient_id=body.recipient_id,
+            pickup_point=PickupPointPreference(
+                carrier=PickupCarrier(body.pickup_carrier),
+                point_id=body.pickup_point_id,
+            ),
+            delivery_quote_id=body.delivery_quote_id,
+            idempotency_key=body.idempotency_key,
+            payment_provider=body.payment_provider,
         )
     )
     return CreateOrderResponse(
