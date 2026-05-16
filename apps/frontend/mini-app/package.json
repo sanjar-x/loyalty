@@ -1,68 +1,56 @@
 {
-  "name": "new",
+  "name": "loyaltymarket",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --experimental-https",
+    "dev:http": "next dev",
+    "dev:webpack": "next dev --experimental-https --no-turbopack",
+    "dev:clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && next dev --experimental-https",
+    "dev:lan": "next dev --experimental-https --experimental-https-key certificates/lan-key.pem --experimental-https-cert certificates/lan.pem",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint --max-warnings=0",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky",
-    "plop": "plop"
+    "validate": "npm run typecheck && npm run lint && npm run format:check",
+    "api:gen": "rtk-query-codegen-openapi openapi.config.cjs",
+    "api:types": "openapi-typescript openapi.json -o lib/store/__generated__/schema.d.ts",
+    "api:check": "npm run api:gen && npm run api:types && git diff --exit-code lib/store/__generated__"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=10.0.0"
   },
   "dependencies": {
-    "@t3-oss/env-nextjs": "^0.12",
-    "@tanstack/react-query": "^5",
-    "@tanstack/react-query-devtools": "^5",
-    "class-variance-authority": "^0.7",
-    "clsx": "^2",
-    "ky": "^1",
-    "lucide-react": "^0.511",
-    "next": "16.2.2",
-    "next-themes": "^0.4.6",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "sonner": "^2",
-    "tailwind-merge": "^3",
-    "zod": "^3",
-    "zustand": "^5"
+    "@reduxjs/toolkit": "^2.11.2",
+    "clsx": "^2.1.1",
+    "leaflet": "^1.9.4",
+    "leaflet.markercluster": "^1.5.3",
+    "lucide-react": "0.555.0",
+    "next": "^16.1.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-redux": "^9.2.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19",
-    "@commitlint/config-conventional": "^19",
-    "@playwright/test": "^1",
-    "@tailwindcss/postcss": "^4",
-    "@testing-library/react": "^16",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@vitejs/plugin-react": "^4",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.2",
-    "eslint-plugin-boundaries": "^5",
-    "husky": "^9",
-    "lint-staged": "^16",
-    "msw": "^2",
-    "plop": "^4",
-    "prettier": "^3",
-    "tailwindcss": "^4",
-    "typescript": "^5",
-    "vite-tsconfig-paths": "^5",
-    "vitest": "^3"
-  },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix --max-warnings=0",
-      "prettier --write"
-    ],
-    "*.{json,md,yml,yaml}": [
-      "prettier --write"
-    ],
-    "*.css": [
-      "prettier --write"
-    ]
+    "@rtk-query/codegen-openapi": "^2.2.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "25.0.9",
+    "@types/react": "19.2.8",
+    "@vitejs/plugin-react": "^6.0.1",
+    "baseline-browser-mapping": "^2.10.0",
+    "eslint": "9",
+    "eslint-config-next": "16.0.5",
+    "jsdom": "^29.0.1",
+    "openapi-typescript": "^7.13.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   }
 }

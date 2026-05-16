@@ -187,4 +187,4 @@ src/
 - Both apps use BFF (Backend-for-Frontend) — the browser never calls the backend directly.
 - Auth tokens stored in httpOnly cookies, managed by API routes.
 - Both connect to the same backend API at `/api/v1/*`.
-- Backend error envelope: `{"error": {"code", "message", "details", "request_id"}}`.
+- Backend error envelope: `{"error": {"code", "message", "details", "requestId"}}` (camelCase wire format).

@@ -82,7 +82,7 @@ Image lifecycle (S3 + Pillow processing) lives inside the backend as the
 microservice, consolidated in PR #31 / REC-026 (2026-05-08).
 
 Auth: JWT (HS256) + RBAC (admin → manager → customer). Telegram Mini App: HMAC-SHA256.
-Error envelope: `{"error": {"code", "message", "details", "request_id"}}`.
+Error envelope: `{"error": {"code", "message", "details", "requestId"}}` (camelCase wire format — REFACT-001 PR `refactor(api)!: unify wire serialization to camelCase`).
 
 ## Knowledge Base (Obsidian Vault) — ALWAYS FOLLOW
 

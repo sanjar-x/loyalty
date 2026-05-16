@@ -1,6 +1,11 @@
 .next
 node_modules
-pnpm-lock.yaml
 dist
+build
 coverage
-templates
+certificates
+tmp
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+public

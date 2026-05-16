@@ -1,0 +1,88 @@
+/* CHK-022 Layer 2: floating-label form field for checkout sheets.
+   Semantic naming, CHK-014 reform-ready. */
+
+.fieldContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldShell {
+  position: relative;
+  height: 60px;
+  border-radius: 16px;
+  background: #f4f3f1;
+  border: 2px solid transparent;
+  padding: 0 16px;
+  display: flex;
+  align-items: stretch;
+  transition: border-color 120ms ease;
+}
+
+.fieldShellFocused {
+  border-color: #000000;
+}
+
+.fieldShellError {
+  border-color: transparent;
+  /* Error color flows to label/input/message; border'da accent yo'q
+     (dizayn maketda border emas, value red). */
+}
+
+.label {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 15px;
+  color: #b0afad;
+  transition: all 150ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.labelFloating {
+  top: 10px;
+  transform: translateY(0);
+  font-size: 11px;
+  color: #7e7e7e;
+}
+
+.labelError {
+  color: #aa2d2d;
+}
+
+.input {
+  flex: 1 1 auto;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding-top: 22px;
+  padding-bottom: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #000000;
+  width: 100%;
+  min-width: 0;
+}
+
+.input::placeholder {
+  color: transparent;
+}
+
+.inputError {
+  color: #aa2d2d;
+}
+
+.rightSlot {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+  flex: 0 0 auto;
+}
+
+.fieldError {
+  color: #aa2d2d;
+  font-size: 13px;
+  font-weight: 500;
+  padding-left: 6px;
+}

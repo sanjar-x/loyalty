@@ -79,7 +79,7 @@ make production-smoke                                                     # stan
 | --- | --- |
 | `backend-production-smoke` | Undeclared runtime dependencies (via `uv sync --no-dev --frozen`) and DI / import errors (via `create_app()` and `broker` smoke imports). ~10s locally. **Closes the PR-6b nanoid gap.** A `trap` restores the dev venv on exit so a failed gate never leaves the local environment in `--no-dev` state. |
 | `backend-tests-unit` | Domain regressions before they ever reach the remote. Full unit suite — PC-201c resolved in Sprint 3 (D0.2), no `--ignore` flag any more. |
-| `backend-tests-architecture` | Architecture fitness rules (Rule 6 / 6b / 8 / 9 / 10 / 11 + CC-001) parametrized over the 14 modules. Catches structural regressions (cross-module imports, missing manifests, FSM mixin bypass, ...). |
+| `backend-tests-architecture` | Architecture fitness rules (Rule 6 / 6b / 8 / 9 / 10 / 11 + CC-001) parametrized over the 15 modules. Catches structural regressions (cross-module imports, missing manifests, FSM mixin bypass, ...). |
 
 ### Escape hatch
 
@@ -90,7 +90,7 @@ the PR description.
 
 ## Architecture — Clean Architecture + Modular Monolith
 
-### Modules (bounded contexts) — 13 total
+### Modules (bounded contexts) — 15 total
 
 | Module | Purpose |
 |---|---|
@@ -104,13 +104,15 @@ the PR description.
 | `supplier` | Supplier accounts (cross-border / local) and onboarding |
 | `user` | Customer and StaffMember profiles (PII storage) |
 | `activity` | User activity tracking (Redis hot path → partitioned PG), trending, co-view recommendations |
+| `image` | S3 storage objects + Pillow processing + optional RMBG-2.0 background removal. Bounded context (not a separate microservice anymore) — consolidated from standalone `image_backend` via REC-026 / PR #31 (2026-05-08). Backend hosts admin router + DI providers; task bodies execute in the standalone `apps/workers/image/{storage,rmbg}/` workers via `.kicker().kiq()` publisher stubs in `src/modules/image/infrastructure/tasks/` (package, not file). |
 | `order` | 14-state Loyality FSM, recipient snapshot, dual-leg tracking (DobroPost cross-border + russian carrier last-mile), DobroPost int-id ↔ UUID side mapping with retry + circuit-breaker, webhook → outbox dispatch |
 | `payment` | Two-step authorize-only at create + capture deferred to procure, payment intents FSM, refund, Visa-standard auth TTL, fake/yookassa/sbp/tinkoff providers behind `IPaymentProvider` |
 | `recipient` | Customer-owned customs recipients with passport (4+6) / INN (12, Минфин checksum) / birth_date validation, ownership boundary check at checkout, validation status FSM |
+| `referral` | Loyalty wallet (first concrete `ILedger` consumer via `SqlLoyaltyLedger` — pattern reference for future ledger consumers: cashback, supplier payouts, refund pool). Consumes `identity_registered` / `linked_account_created` from outbox. Phase-1 skeleton — `ReferralProvider` + `task_modules` wired, no public routers yet. |
 
 Some modules have an extra `management/` layer (identity, supplier) for admin/back-office use cases.
 
-Image lifecycle (S3 + Pillow processing) lives in the ``image`` module — formerly the standalone ``image_backend`` microservice, consolidated in PR #31. Catalog cleans orphan media via ``src/modules/catalog/infrastructure/adapters/media_cleanup_adapter.py`` which delegates in-process to the image module's ``DeleteStorageObjectHandler`` (REC-026; whitelisted in ``ALLOWED_CROSS_MODULE``).
+Catalog cleans orphan media via `src/modules/catalog/infrastructure/adapters/media_cleanup_adapter.py` which delegates in-process to the image module's `DeleteStorageObjectHandler` (REC-026; whitelisted in `ALLOWED_CROSS_MODULE` as `("catalog", "image")`).
 
 ### Module structure
 
@@ -188,7 +190,7 @@ Dishka providers always live in `infrastructure/provider.py` — providers wire 
 - Application commands MUST NOT import infrastructure. Exempt by rule: `*.application.queries.*` (CQRS read-side reads ORM directly), `*.application.consumers.*` (event consumers wire infrastructure), `geo.application.commands.*` (reference-data module without domain entities/UoW/events). Commands may compose queries (read-your-writes)
 - Modules MUST NOT import each other's domain/application/infrastructure. Whitelisted exceptions in `ALLOWED_CROSS_MODULE`: presentation→identity for auth/permission deps (user, catalog, pricing, activity); `cart.infrastructure.adapters.catalog_adapter` (anti-corruption adapter reading catalog/supplier ORM to validate SKUs); `identity.management.*` (admin CLI bootstrap reaching into the full DI container)
 - `src/shared/` is the shared kernel — MUST NOT import any module
-- Architecture tests parametrize `MODULES = ["catalog", "identity", "user", "cart", "logistics", "pricing", "activity", "geo", "supplier", "favorites", "order", "payment", "recipient"]` — all 13 modules are enforced
+- Architecture tests parametrize `MODULES = ["catalog", "identity", "user", "cart", "logistics", "pricing", "activity", "geo", "supplier", "favorites", "image", "order", "payment", "recipient", "referral"]` — all 15 modules are enforced
 
 ### Command/Handler pattern
 
@@ -244,7 +246,7 @@ class CreateFooHandler:
 
 ### Error handling
 
-Uniform JSON envelope: `{"error": {"code", "message", "details", "request_id"}}`.
+Uniform JSON envelope: `{"error": {"code", "message", "details", "requestId"}}` (camelCase wire format — REFACT-001 PR `refactor(api)!: unify wire serialization to camelCase`, commit `67c8f702`). The `requestId` field is sourced from `src.shared.context.get_request_id()` (ContextVar default `"UNKNOWN"`); there is no separate `correlation_id` ContextVar — `AccessLoggerMiddleware` binds it to the same value as `request_id` in structlog contextvars.
 Exception hierarchy in `src/shared/exceptions.py`:
 
 | Exception                  | HTTP | When to use                                 |

@@ -1,0 +1,114 @@
+.page {
+  min-height: var(--tg-viewport-stable-height, 100vh);
+  background: #f4f3f1;
+  padding-top: calc(var(--tg-safe-area-top, 0px) + 60px);
+  display: flex;
+  flex-direction: column;
+  max-width: 402px;
+  margin: 0 auto;
+}
+
+.main {
+  padding: 16px 0;
+  max-width: 448px;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0 18px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.logo {
+  width: 92px;
+  height: 92px;
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.logo img {
+  object-fit: contain;
+  width: 100%;
+  height: 100%;
+}
+
+.copy {
+  margin-top: 20px;
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.cardWrapper {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 25px 25px 0 0;
+  padding: 16px;
+  margin-top: 35px;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.card {
+  background: #f4f3f1;
+  border-radius: 25px;
+  overflow: hidden;
+}
+
+.row {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 20px 14px 20px 17px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.row:active {
+  filter: brightness(0.99);
+  transform: scale(0.999);
+}
+
+.rowText {
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 106%;
+  letter-spacing: 0%;
+  color: #000000;
+}
+
+.rowTextFade {
+  composes: rowText;
+  white-space: nowrap;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, #000 85%, transparent 100%);
+  mask-image: linear-gradient(to right, #000 85%, transparent 100%);
+}
+
+.rowArrow {
+  width: 6px;
+  height: 11px;
+  flex: 0 0 auto;
+}
+
+.divider {
+  height: 1px;
+  background: white;
+  margin: 0 0;
+}

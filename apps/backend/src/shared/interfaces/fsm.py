@@ -109,8 +109,8 @@ class StateMachineMixin(Generic[StateT]):
     # generic class parameters). The intent is conveyed at the docstring
     # level: each subclass declares the concrete enum's mapping shape;
     # at runtime these are plain class attributes.
-    _ALLOWED_TRANSITIONS: ClassVar[Mapping[StateT, frozenset[StateT]]]  # ty: ignore[invalid-type-form]
-    _TERMINAL_STATES: ClassVar[frozenset[StateT]]  # ty: ignore[invalid-type-form]
+    _ALLOWED_TRANSITIONS: ClassVar[Mapping[StateT, frozenset[StateT]]]  # ty:ignore[invalid-type-form]
+    _TERMINAL_STATES: ClassVar[frozenset[StateT]]  # ty:ignore[invalid-type-form]
     # Typed as ``Callable[..., Exception]`` rather than ``type[Exception]``
     # because subclasses MUST conform to the ``_InvalidTransitionExc`` /
     # ``_AlreadyTerminalExc`` Protocols (kwargs-only ``current=``/``target=``

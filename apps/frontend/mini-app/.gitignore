@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+.mcp.json
 
 # debug
 npm-debug.log*
@@ -41,3 +42,10 @@ yarn-error.log*
 next-env.d.ts
 
 certificates
+
+# Cloudflared binary downloaded for tunnel testing
+/cloudflared.exe
+
+# Debug screenshots
+/*.png
+!/public/**/*.png

@@ -109,7 +109,7 @@ class Brand(Base):
         onupdate=func.now(),
     )
 
-    __mapper_args__: ClassVar[dict[str, Any]] = {  # ty: ignore[invalid-attribute-override]
+    __mapper_args__: ClassVar[dict[str, Any]] = {  # ty:ignore[invalid-attribute-override]
         "version_id_col": version,
     }
 
@@ -181,7 +181,7 @@ class Category(Base):
         ),
     )
 
-    __mapper_args__: ClassVar[dict[str, Any]] = {  # ty: ignore[invalid-attribute-override]
+    __mapper_args__: ClassVar[dict[str, Any]] = {  # ty:ignore[invalid-attribute-override]
         "version_id_col": version,
     }
 
@@ -596,7 +596,7 @@ class Product(Base):
         cascade="all, delete-orphan",
     )
 
-    __mapper_args__: ClassVar[dict[str, Any]] = {  # ty: ignore[invalid-attribute-override]
+    __mapper_args__: ClassVar[dict[str, Any]] = {  # ty:ignore[invalid-attribute-override]
         "version_id_col": version,
     }
 
@@ -696,7 +696,7 @@ class ProductVariant(Base):
         ),
     )
 
-    __mapper_args__: ClassVar[dict[str, Any]] = {  # ty: ignore[invalid-attribute-override]
+    __mapper_args__: ClassVar[dict[str, Any]] = {  # ty:ignore[invalid-attribute-override]
         "version_id_col": version,
     }
 
@@ -923,7 +923,7 @@ class SKU(Base):
         "SKUAttributeValueLink", back_populates="sku", cascade="all, delete-orphan"
     )
 
-    __mapper_args__: ClassVar[dict[str, Any]] = {  # ty: ignore[invalid-attribute-override]
+    __mapper_args__: ClassVar[dict[str, Any]] = {  # ty:ignore[invalid-attribute-override]
         "version_id_col": version,
     }
 

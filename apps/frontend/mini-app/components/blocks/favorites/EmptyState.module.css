@@ -1,0 +1,47 @@
+/*
+ * EmptyState — kontaynersiz, tarkib markazlashgan blok.
+ * Tashqi card-rounded ramka parent (`favorites/page.module.css#emptyCard`)
+ * tomonidan beriladi, shu sababli bu yerda `background`/`border-radius`
+ * yo'q. Bu komponent boshqa sahifada qayta ishlatilsa ham parent o'z
+ * konteynerini bersa kifoya.
+ */
+.c1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px 8px;
+}
+
+.c2 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.c3 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.06em;
+  letter-spacing: -0.01em;
+  color: #000000;
+}
+
+.c4 {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35em;
+  color: #6b6b6b;
+  max-width: 273px;
+}
+
+.heart {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+}
+
+.tw1 {
+  gap: 12px;
+  max-width: 273px;
+}

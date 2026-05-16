@@ -1,0 +1,104 @@
+.c1 {
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  padding-right: 12px;
+  background: #f4f3f1;
+  border-radius: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+}
+
+.c2 {
+  /* Logo konteyner — oq dumaloq fonda + flex center */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.c3 {
+  /* Logo image — proportional fit (logos ko'pi rectangular yoki square) */
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 4px;
+}
+
+.fallbackInitial {
+  /* Logo URL ishlamasa — brand nomining birinchi harfi circle ichida */
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1d1d1f;
+  background: #ffffff;
+  letter-spacing: 0;
+}
+
+.c4 {
+  /* Brand text wrapper — name (top) + "Бренд" subtitle */
+  display: flex;
+  flex-direction: column;
+  margin-right: 6px;
+  min-width: 0;
+}
+
+.c5 {
+  /* Brand name — `font-size` (avvalgisi `color: 13px` typo edi) */
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.15em;
+  letter-spacing: -0.01em;
+  color: #000000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.c6 {
+  /* Subtitle "Бренд" — gray, ilgari `color: #f4f3f1` (page bg) sababli ko'rinmas edi */
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.21em;
+  letter-spacing: -0.01em;
+  color: #8e8e93;
+}
+
+.c7 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  padding: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.c8 {
+  width: 22px;
+  height: 22px;
+}
+
+.tw1 {
+  gap: 10px;
+  height: 56px;
+  min-width: 158px;
+}
+
+.tw2 {
+  width: 40px;
+  height: 40px;
+}
+
+.tw3 {
+  gap: 0;
+}

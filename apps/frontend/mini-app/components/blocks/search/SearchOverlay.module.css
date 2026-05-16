@@ -1,0 +1,243 @@
+/* Backdrop covers everything behind the overlay content */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: #ffffff;
+  z-index: 14;
+}
+
+/* Content sits in normal flow, below SearchBar + CategoryTabs */
+.content {
+  position: relative;
+  z-index: 15;
+  background: #ffffff;
+  padding-top: 8px;
+  padding-bottom: 24px;
+  border-radius: 0 0 16px 16px;
+}
+
+/* ── Suggestions ── */
+
+.suggestList {
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.suggestItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: none;
+  background-color: inherit;
+  width: 100%;
+  padding-bottom: 6px;
+  padding-right: 17px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.suggestItem:active {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.suggestIconWrap {
+  border-radius: 50%;
+  background-color: #f4f3f1;
+  border: none;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 0 0 42px;
+}
+
+.suggestItemIcon {
+  color: rgba(17, 17, 17, 0.45);
+  flex: 0 0 auto;
+}
+
+.suggestText {
+  font-size: 16px;
+  line-height: 20px;
+  color: rgba(17, 17, 17, 0.65);
+  text-align: left;
+  border-bottom: 1px solid #f4f3f1;
+  width: calc(100% - 55px);
+  height: 48px;
+  display: flex;
+  align-items: center;
+  margin-bottom: -6px;
+  padding-bottom: 6px;
+}
+
+.suggestList > .suggestItem:last-child .suggestText {
+  border-bottom: none;
+}
+
+.suggestStrong {
+  color: rgba(17, 17, 17, 0.95);
+  font-weight: 700;
+}
+
+.suggestRest {
+  color: rgba(17, 17, 17, 0.55);
+  font-weight: 500;
+}
+
+/* ── Recent history ── */
+
+.recent {
+  padding: 0 16px 0;
+}
+
+.recentHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.recentTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111111;
+}
+
+.trashBtn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 0;
+  background: transparent;
+  color: rgba(17, 17, 17, 0.35);
+  cursor: pointer;
+  touch-action: manipulation;
+  display: flex;
+  justify-content: end;
+  align-items: center;
+}
+
+.trashBtn:active {
+  transform: scale(0.98);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.chip {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 50px;
+  border: 1px solid #f4f3f1;
+  background: #f4f3f1;
+  color: rgba(17, 17, 17, 0.85);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.chip:active {
+  transform: scale(0.99);
+  filter: brightness(0.98);
+}
+
+/* Per-item delete: chip + close-button kombinatsiyasi */
+.chipWrap {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  border-radius: 50px;
+  background: #f4f3f1;
+  border: 1px solid #f4f3f1;
+  overflow: hidden;
+}
+
+.chipWrap .chip {
+  background: transparent;
+  border: none;
+  height: 100%;
+  padding: 0 6px 0 12px;
+}
+
+.chipRemoveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 26px;
+  padding: 0 8px 0 2px;
+  border: none;
+  background: transparent;
+  color: rgba(17, 17, 17, 0.45);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.chipRemoveBtn:active {
+  color: rgba(17, 17, 17, 0.85);
+}
+
+/* ── Skeletons ── */
+
+@keyframes lmPulse {
+  0% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.55;
+  }
+}
+
+.skelSuggestList {
+  width: 100%;
+}
+
+.skelSuggestItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px;
+}
+
+.skelSuggestItem:not(:last-child) {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.skelSuggestIcon {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: #f4f3f1;
+  flex: 0 0 auto;
+  animation: lmPulse 1.2s ease-in-out infinite;
+}
+
+.skelSuggestLine {
+  height: 14px;
+  border-radius: 999px;
+  background: #f4f3f1;
+  animation: lmPulse 1.2s ease-in-out infinite;
+}
+
+.skelChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.skelChip {
+  height: 30px;
+  border-radius: 999px;
+  background: #f4f3f1;
+  animation: lmPulse 1.2s ease-in-out infinite;
+}

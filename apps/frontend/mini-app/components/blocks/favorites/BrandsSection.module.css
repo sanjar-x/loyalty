@@ -1,0 +1,59 @@
+.c1 {
+  background: #ffffff;
+  border-radius: 25px;
+  padding-top: 22px;
+  padding-bottom: 18px;
+}
+
+.c2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  margin-bottom: 12px;
+}
+
+.c3 {
+  /* "Бренды" sarlavhasi — `font-size` (avvalgisi `color: 20px` typo edi) */
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.06em;
+  letter-spacing: -0.01em;
+  color: #000000;
+}
+
+.c4 {
+  /* "все" tugmasi — gray subtitle, dizayn screenshotidagi style */
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.06em;
+  letter-spacing: -0.01em;
+  color: #8e8e93;
+}
+
+.c6 {
+  display: flex;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  scroll-snap-type: x proximity;
+}
+
+.tw1 {
+  gap: 4px;
+}
+
+.tw2 {
+  width: 10px;
+  height: 12px;
+  /* Arrow ikonkasi gray subtitle bilan tone-mos qilish */
+  opacity: 0.6;
+}
+
+.tw3 {
+  gap: 8px;
+}

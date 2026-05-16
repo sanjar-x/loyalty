@@ -33,9 +33,7 @@ class SSEManager:
 
     async def publish(self, storage_object_id: uuid.UUID, data: dict) -> str:
         """Append a status payload and return its event ID."""
-        return await self._stream.publish(
-            self.channel_name(storage_object_id), data
-        )
+        return await self._stream.publish(self.channel_name(storage_object_id), data)
 
     async def subscribe(
         self,

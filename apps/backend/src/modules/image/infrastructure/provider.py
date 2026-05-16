@@ -16,9 +16,9 @@ from aiobotocore.client import AioBaseClient
 from aiobotocore.session import get_session
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
-from redis.asyncio.client import Redis  # noqa: F401  # kept for legacy references; new bindings use IChannelStream
-
-from src.shared.interfaces.channel_stream import IChannelStream
+from redis.asyncio.client import (
+    Redis,  # noqa: F401  # kept for legacy references; new bindings use IChannelStream
+)
 
 from src.bootstrap.config import Settings
 from src.modules.image.application.commands.confirm_upload import ConfirmUploadHandler
@@ -34,18 +34,15 @@ from src.modules.image.application.commands.request_background_removal import (
 from src.modules.image.application.commands.request_upload import RequestUploadHandler
 from src.modules.image.application.commands.reupload import ReuploadHandler
 from src.modules.image.domain.interfaces import (
-    IBackgroundRemover,
     IBlobStorage,
     IStorageRepository,
 )
 from src.modules.image.infrastructure.repositories.storage_object_repository import (
     StorageObjectRepository,
 )
-from src.modules.image.infrastructure.services.noop_background_remover import (
-    NoopBackgroundRemover,
-)
 from src.modules.image.infrastructure.services.s3_client import S3StorageService
 from src.modules.image.infrastructure.services.sse_manager import SSEManager
+from src.shared.interfaces.channel_stream import IChannelStream
 
 
 class ImageProvider(Provider):
@@ -112,26 +109,3 @@ class ImageProvider(Provider):
         :class:`src.infrastructure.streams.provider.StreamsProvider`.
         """
         return SSEManager(stream=stream)
-
-    @provide(scope=Scope.APP)
-    def background_remover(self, settings: Settings) -> IBackgroundRemover:
-        """Pick the bg-removal adapter based on the deployment flag.
-
-        - ``BG_REMOVAL_ENABLED=True`` (image_ml worker, ``[bg-removal]``
-          extras installed) → :class:`BriaRMBGAdapter`. Imported lazily
-          to keep ``torch`` out of the web-process import graph.
-        - Otherwise → :class:`NoopBackgroundRemover`. The admin
-          endpoint short-circuits with 400 before reaching the adapter
-          anyway, but binding a no-op keeps the container resolvable
-          on the lean web service.
-
-        APP-scope: the adapter holds the ML model in memory across
-        requests; we want exactly one copy per worker process.
-        """
-        if settings.BG_REMOVAL_ENABLED:
-            from src.modules.image.infrastructure.services.bria_rmbg_adapter import (
-                BriaRMBGAdapter,
-            )
-
-            return BriaRMBGAdapter(settings=settings)
-        return NoopBackgroundRemover()
