@@ -4,17 +4,19 @@ Uses aiogram's safe_parse_webapp_init_data for cryptographic verification,
 then applies additional business rules (freshness, user presence).
 """
 
-from datetime import UTC, datetime
-
-from aiogram.utils.web_app import safe_parse_webapp_init_data
+# TEMP-VALIDATION-DISABLED — ``datetime`` / ``InitDataExpiredError`` imports
+# removed alongside the freshness check; restore them when re-enabling.
+import structlog
+from aiogram.utils.web_app import parse_webapp_init_data
 
 from src.modules.identity.domain.exceptions import (
-    InitDataExpiredError,
     InitDataMissingUserError,
     InvalidInitDataError,
 )
 from src.modules.identity.domain.interfaces import ITelegramInitDataValidator
 from src.modules.identity.domain.value_objects import TelegramUserData
+
+logger = structlog.get_logger(__name__)
 
 
 class TelegramInitDataValidator(ITelegramInitDataValidator):
@@ -25,23 +27,34 @@ class TelegramInitDataValidator(ITelegramInitDataValidator):
         self._max_age = max_age
 
     def validate_and_parse(self, init_data_raw: str) -> TelegramUserData:
-        # 1. HMAC-SHA256 validation via aiogram
+        # TEMP-VALIDATION-DISABLED — both HMAC-SHA256 verification and the
+        # freshness (max_age) check are temporarily bypassed. Any client
+        # can forge the user= payload, and stale init_data is accepted.
+        # To restore production behaviour:
+        #   1. Swap ``parse_webapp_init_data(init_data_raw)`` back to
+        #      ``safe_parse_webapp_init_data(token=self._bot_token,
+        #      init_data=init_data_raw)`` and re-import ``safe_parse_*``.
+        #   2. Re-enable the freshness block below.
+        #   3. Drop this warning log.
         try:
-            parsed = safe_parse_webapp_init_data(
-                token=self._bot_token,
-                init_data=init_data_raw,
-            )
+            parsed = parse_webapp_init_data(init_data_raw)
         except ValueError:
             raise InvalidInitDataError() from None
+        logger.warning(
+            "telegram.init_data.validation_disabled",
+            reason=(
+                "TEMP-VALIDATION-DISABLED: HMAC-SHA256 verification AND "
+                "freshness check bypassed"
+            ),
+        )
 
-        # 2. Freshness check (aiogram does NOT do this)
-        age = int((datetime.now(UTC) - parsed.auth_date).total_seconds())
-        if age < 0:
-            raise InitDataExpiredError(age_seconds=age, max_seconds=self._max_age)
-        if age > self._max_age:
-            raise InitDataExpiredError(age_seconds=age, max_seconds=self._max_age)
+        # TEMP-VALIDATION-DISABLED — freshness check turned off.
+        # _ = self._max_age  # kept on the instance for the restore step
+        # age = int((datetime.now(UTC) - parsed.auth_date).total_seconds())
+        # if age < 0 or age > self._max_age:
+        #     raise InitDataExpiredError(age_seconds=age, max_seconds=self._max_age)
 
-        # 3. User must exist
+        # User must exist (kept on — without it there is nothing to log in).
         if parsed.user is None:
             raise InitDataMissingUserError()
 
