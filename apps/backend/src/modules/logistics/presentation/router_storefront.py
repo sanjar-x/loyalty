@@ -17,9 +17,9 @@ from __future__ import annotations
 from typing import cast
 
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, status
 
-from src.modules.identity.presentation.dependencies import get_auth_context
+from src.modules.identity.presentation.dependencies import Auth
 from src.modules.logistics.application.queries.list_pickup_points import (
     ListPickupPointsHandler,
     ListPickupPointsQuery,
@@ -137,10 +137,10 @@ async def list_pickup_points(
     status_code=status.HTTP_200_OK,
     response_model=RateQuoteResponse,
     summary="Quote delivery for a chosen pickup point (Mini App checkout)",
-    dependencies=[Depends(get_auth_context)],
 )
 async def quote_for_pickup_point(
     body: RateQuoteRequest,
+    auth: Auth,
     handler: FromDishka[QuoteForPickupPointHandler],
 ) -> RateQuoteResponse:
     """Customer-facing single-quote endpoint for the checkout flow.
@@ -154,7 +154,10 @@ async def quote_for_pickup_point(
     Mirrors the admin endpoint at ``/api/v1/admin/logistics/rates/quote``
     on the same handler — the URL split keeps the staff back office and
     the customer checkout on different namespaces, with the admin side
-    additionally gated by ``RequireStaffRole``.
+    additionally gated by ``RequireStaffRole``. The customer's
+    ``identity_id`` is threaded into the persisted quote row so
+    ``CreateOrderFromCartHandler`` can refuse a quote belonging to a
+    different customer (CR-2).
     """
     query = QuoteForPickupPointQuery(
         items=[
@@ -164,6 +167,7 @@ async def quote_for_pickup_point(
         provider_code=body.provider_code,
         pickup_point_external_id=body.pickup_point_external_id,
         service_code=body.service_code,
+        identity_id=auth.identity_id,
     )
     result = await handler.handle(query)
     return RateQuoteResponse(

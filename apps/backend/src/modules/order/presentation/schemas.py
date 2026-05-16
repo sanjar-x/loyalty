@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 
 from pydantic import Field
 
@@ -11,6 +12,9 @@ from src.modules.order.domain.value_objects import (
 from src.modules.order.domain.value_objects import (
     HoldReason as DomainHoldReason,
 )
+from src.modules.order.domain.value_objects import (
+    OfflinePaymentMethod as DomainOfflinePaymentMethod,
+)
 from src.shared.schemas import CamelModel
 
 # C5.2 — re-export domain enums to the presentation layer so FastAPI
@@ -19,6 +23,7 @@ from src.shared.schemas import CamelModel
 # fields and gives the front-end a typed dropdown source.
 HoldReason = DomainHoldReason
 CancellationReason = DomainCancellationReason
+OfflinePaymentMethod = DomainOfflinePaymentMethod
 
 # ---------------------------------------------------------------------------
 # Customer-facing
@@ -82,6 +87,20 @@ class CustomerOrderSchema(CamelModel):
     status: str
     raw_status: str
     total_amount: int
+    delivery_amount: int = Field(
+        default=0,
+        description=(
+            "Shipping line in kopecks, already included in totalAmount. "
+            "0 for legacy / walk-in orders without a priced quote."
+        ),
+    )
+    delivery_quote_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "Reference to the logistics quote the customer was priced "
+            "against. NULL for orders without a priced shipping line."
+        ),
+    )
     currency: str
     pickup_carrier: str
     pickup_point_id: str
@@ -159,6 +178,8 @@ class AdminOrderSchema(CamelModel):
     status: str
     customer_facing_status: str
     total_amount: int
+    delivery_amount: int = 0
+    delivery_quote_id: uuid.UUID | None = None
     currency: str
     cny_rate_at_checkout: str | None
     pickup_carrier: str
@@ -220,3 +241,80 @@ class CancellationReasonsMetaResponse(CamelModel):
     """Response for ``GET /admin/orders/_meta/cancellation-reasons``."""
 
     categories: list[CancellationReasonGroupSchema]
+
+
+# ---------------------------------------------------------------------------
+# Walk-in admin-create-order
+# ---------------------------------------------------------------------------
+
+
+class WalkInCustomerProfileSchema(CamelModel):
+    """Minimal profile captured by admin for a walk-in customer."""
+
+    full_name: str = Field(min_length=1, max_length=200)
+    phone: str = Field(min_length=8, max_length=16)
+    email: str | None = Field(default=None, max_length=255)
+
+
+class InlineRecipientSchema(CamelModel):
+    """Customs PII captured inline by admin (no backing Recipient row).
+
+    Field-level format checks live in the domain ``RecipientSnapshot``
+    (passport 4+6, INN 12-digit, E.164 phone, email regex) and surface
+    here as a 422 if violated.
+    """
+
+    full_name_ru: str = Field(min_length=1, max_length=255)
+    full_name_lat: str = Field(min_length=1, max_length=255)
+    phone: str = Field(min_length=8, max_length=16)
+    email: str = Field(min_length=3, max_length=255)
+    passport_serial: str = Field(min_length=4, max_length=4)
+    passport_number: str = Field(min_length=6, max_length=6)
+    passport_issue_date: date
+    birth_date: date
+    inn: str = Field(min_length=12, max_length=12)
+
+
+class WalkInItemSchema(CamelModel):
+    """One line item of an admin-created walk-in order.
+
+    ``unitPriceOverrideAmount`` is optional — when present and within
+    the configured ratio (Settings.WALK_IN_MAX_PRICE_OVERRIDE_RATIO),
+    replaces the catalog's selling_price for this line. The base price
+    + delta are audited in ``order_line_price_overrides``.
+    """
+
+    sku_id: uuid.UUID
+    quantity: int = Field(ge=1, le=99)
+    unit_price_override_amount: int | None = Field(default=None, ge=0)
+    override_reason: str | None = Field(default=None, max_length=512)
+
+
+class OfflinePaymentSchema(CamelModel):
+    """Anchor of an offline-captured payment (cash / bank transfer / POS)."""
+
+    method: OfflinePaymentMethod
+    reference: str = Field(min_length=1, max_length=128)
+    paid_at: datetime | None = None
+
+
+class AdminCreateWalkInOrderRequest(CamelModel):
+    """Payload for ``POST /admin/orders`` (walk-in create)."""
+
+    profile: WalkInCustomerProfileSchema
+    recipient: InlineRecipientSchema
+    items: list[WalkInItemSchema] = Field(min_length=1, max_length=50)
+    pickup_carrier: str = Field(max_length=16)
+    pickup_point_id: str = Field(max_length=128)
+    currency: str = Field(min_length=3, max_length=3)
+    payment: OfflinePaymentSchema
+    idempotency_key: str = Field(min_length=8, max_length=128)
+    cny_rate_at_checkout: Decimal | None = None
+    delivery_amount: int = Field(default=0, ge=0)
+
+
+class AdminCreateWalkInOrderResponse(CamelModel):
+    order_id: uuid.UUID
+    identity_id: uuid.UUID
+    total_amount: int
+    currency: str

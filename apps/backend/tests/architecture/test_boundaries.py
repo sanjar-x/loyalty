@@ -224,10 +224,16 @@ ALLOWED_CROSS_MODULE = {
     ("order", "catalog"): {
         "src.modules.order.application.queries.list_my_orders",
         "src.modules.order.application.queries.get_order",
+        # Walk-in admin-create: single ACL adapter snapshots SKU price +
+        # parent product/variant metadata in one round-trip. Same
+        # anti-corruption pattern as cart→catalog above.
+        "src.modules.order.infrastructure.adapters.catalog_sku_reader",
     },
     ("order", "supplier"): {
         "src.modules.order.application.queries.list_my_orders",
         "src.modules.order.application.queries.get_order",
+        # Same walk-in reader JOINs suppliers for supplier_type.
+        "src.modules.order.infrastructure.adapters.catalog_sku_reader",
     },
     ("order", "cart"): {
         "src.modules.order.infrastructure.adapters.cart_snapshot_reader",
@@ -257,6 +263,16 @@ ALLOWED_CROSS_MODULE = {
     ("order", "identity"): {
         "src.modules.order.presentation.*",
         "src.modules.order.infrastructure.adapters.telegram_chat_lookup",
+        # Walk-in admin-create provisions a fresh Identity row directly
+        # (no LinkedAccount, no LocalCredentials). Single adapter,
+        # whitelisted narrowly so future code can't quietly grow into
+        # broader identity ORM access.
+        "src.modules.order.infrastructure.adapters.walk_in_identity_provisioner",
+    },
+    # Walk-in provisioner also creates the paired Customer row sharing
+    # the Identity's primary key (1:1 invariant). Single adapter file.
+    ("order", "user"): {
+        "src.modules.order.infrastructure.adapters.walk_in_identity_provisioner",
     },
     # Payment routers use identity's Auth/RequirePermission deps.
     ("payment", "identity"): {"src.modules.payment.presentation.*"},

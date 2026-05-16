@@ -8,6 +8,9 @@ from dishka.dependency_source.composite import CompositeDependencySource
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.bootstrap.config import settings
+from src.modules.order.application.commands.admin_create_walk_in_order import (
+    AdminCreateWalkInOrderHandler,
+)
 from src.modules.order.application.commands.cancel_order import CancelOrderHandler
 from src.modules.order.application.commands.change_pickup_point import (
     ChangePickupPointHandler,
@@ -62,12 +65,15 @@ from src.modules.order.application.consumers.telegram_notifications import (
     TelegramOrderNotifier,
 )
 from src.modules.order.application.ports import (
+    ICatalogSkuPriceReader,
     IDobroPostGateway,
     IDobroPostShipmentMappingRepository,
     IPaymentGateway,
+    IPriceOverrideAuditWriter,
     IRussianCarrierGateway,
     ITelegramChatLookup,
     ITelegramNotifier,
+    IWalkInIdentityProvisioner,
 )
 from src.modules.order.application.queries.admin_list_orders import (
     AdminGetOrderHandler,
@@ -90,6 +96,9 @@ from src.modules.order.domain.interfaces import (
 )
 from src.modules.order.infrastructure.adapters.cart_snapshot_reader import (
     CartSnapshotReader,
+)
+from src.modules.order.infrastructure.adapters.catalog_sku_reader import (
+    CatalogSkuPriceReader,
 )
 from src.modules.order.infrastructure.adapters.delivery_quote_adapter import (
     DeliveryQuoteAdapter,
@@ -114,11 +123,17 @@ from src.modules.order.infrastructure.adapters.telegram_chat_lookup import (
 from src.modules.order.infrastructure.adapters.telegram_notifier import (
     AiogramTelegramNotifier,
 )
+from src.modules.order.infrastructure.adapters.walk_in_identity_provisioner import (
+    WalkInIdentityProvisioner,
+)
 from src.modules.order.infrastructure.repositories.dobropost_shipment_mapping_repository import (
     DobroPostShipmentMappingRepository,
 )
 from src.modules.order.infrastructure.repositories.order_repository import (
     OrderRepository,
+)
+from src.modules.order.infrastructure.repositories.price_override_audit_repository import (
+    PriceOverrideAuditRepository,
 )
 from src.modules.order.infrastructure.repositories.state_history_writer import (
     OrderStateHistoryWriter,
@@ -202,10 +217,30 @@ class OrderProvider(Provider):
         scope=Scope.REQUEST,
         provides=IDeliveryQuoteLookup,
     )
+    # Walk-in admin-create-order ACLs (whitelisted in tests/architecture
+    # as ``("order","catalog")``, ``("order","identity")``, ``("order","user")``).
+    catalog_sku_reader: CompositeDependencySource = provide(
+        CatalogSkuPriceReader,
+        scope=Scope.REQUEST,
+        provides=ICatalogSkuPriceReader,
+    )
+    walk_in_identity_provisioner: CompositeDependencySource = provide(
+        WalkInIdentityProvisioner,
+        scope=Scope.REQUEST,
+        provides=IWalkInIdentityProvisioner,
+    )
+    price_override_audit_writer: CompositeDependencySource = provide(
+        PriceOverrideAuditRepository,
+        scope=Scope.REQUEST,
+        provides=IPriceOverrideAuditWriter,
+    )
 
     # --- Command handlers ---
     create_order_handler: CompositeDependencySource = provide(
         CreateOrderFromCartHandler, scope=Scope.REQUEST
+    )
+    admin_create_walk_in_order_handler: CompositeDependencySource = provide(
+        AdminCreateWalkInOrderHandler, scope=Scope.REQUEST
     )
     mark_paid_handler: CompositeDependencySource = provide(
         MarkOrderPaidHandler, scope=Scope.REQUEST

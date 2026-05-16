@@ -92,12 +92,19 @@ class DeliveryQuoteLookupResult:
     specific payload (offer_id, tariff_code, weight, …) stays inside
     the logistics module — the booking handler will pull it back
     through its own lookup at procurement time.
+
+    ``identity_id`` (CR-2) lets the order command refuse a quote
+    that belongs to a different customer. ``None`` for admin-side
+    or legacy quotes that pre-date the ownership column — the
+    command treats ``None`` as opt-out (no ownership check, same as
+    before) so old quotes don't suddenly fail.
     """
 
     quote_id: uuid.UUID
     amount: int  # smallest currency unit (kopecks)
     currency: str  # ISO 4217
     expires_at: datetime | None
+    identity_id: uuid.UUID | None
 
 
 class IDeliveryQuoteLookup(ABC):

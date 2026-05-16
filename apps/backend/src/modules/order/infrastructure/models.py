@@ -9,6 +9,7 @@ from decimal import Decimal
 from sqlalchemy import (
     TIMESTAMP,
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     ForeignKey,
@@ -18,6 +19,7 @@ from sqlalchemy import (
     String,
     func,
 )
+from sqlalchemy import text as sa_text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -140,6 +142,14 @@ class OrderModel(Base):
         BigInteger, nullable=False, server_default="0", default=0
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Walk-in discriminator (admin-created offline order). When ``True``,
+    # ``cart_id`` is a phantom UUID (no backing cart row), ``payment_intent_id``
+    # may be NULL even in PAID/PROCURED states, and ``recipient_id`` does
+    # not necessarily reference a Recipient row. Analytics / reconciliation
+    # queries branch on this column rather than re-deriving from heuristics.
+    is_walk_in: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=sa_text("false"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()
     )
@@ -148,6 +158,11 @@ class OrderModel(Base):
     )
 
     items: Mapped[list[OrderItemModel]] = relationship(
+        back_populates="order",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    price_overrides: Mapped[list[OrderLinePriceOverrideModel]] = relationship(
         back_populates="order",
         cascade="all, delete-orphan",
         lazy="selectin",
@@ -196,6 +211,52 @@ class OrderItemModel(Base):
     )
 
     order: Mapped[OrderModel] = relationship(back_populates="items")
+
+
+class OrderLinePriceOverrideModel(Base):
+    """Audit row recording an admin-supplied unit-price override on a walk-in line item.
+
+    The override itself lives in ``order_items.unit_price_amount`` (single
+    source of truth for invoicing). This table preserves the base price
+    captured from the catalog at order-creation time + the delta + the
+    admin who applied it, so reconciliation can answer "why did we charge
+    X for SKU Y" months later. Rows are write-once (no UPDATE), CASCADE
+    deleted when the parent order is deleted.
+    """
+
+    __tablename__ = "order_line_price_overrides"
+    __table_args__ = (
+        Index("ix_olpo_order", "order_id"),
+        Index("ix_olpo_item", "order_item_id", unique=True),
+        Index("ix_olpo_admin", "admin_id"),
+        {"comment": "Walk-in unit_price override audit (one row per overridden line)"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    order_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("orders.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    order_item_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("order_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    sku_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    base_price_amount: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    override_price_amount: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    delta_amount: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    admin_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    order: Mapped[OrderModel] = relationship(back_populates="price_overrides")
 
 
 # OrderIdempotencyKeyModel + OrderInboxEventModel relocated to the

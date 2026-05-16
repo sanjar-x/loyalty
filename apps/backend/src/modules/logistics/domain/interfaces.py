@@ -489,7 +489,20 @@ class IDeliveryQuoteRepository(Protocol):
     creating a shipment to ensure price/payload integrity.
     """
 
-    async def add(self, quote: DeliveryQuote) -> DeliveryQuote: ...
+    async def add(
+        self,
+        quote: DeliveryQuote,
+        *,
+        identity_id: uuid.UUID | None = None,
+    ) -> DeliveryQuote:
+        """Persist a quote.
+
+        ``identity_id`` is the owner of the quote (the customer who
+        asked the storefront for it). Stored alongside the quote so
+        ``Order``-side ownership checks can refuse a quote belonging
+        to a different customer (CR-2). Optional so admin-side quoting
+        (no buyer context yet) and legacy callers keep working.
+        """
 
     async def get_by_id(self, quote_id: uuid.UUID) -> DeliveryQuote | None: ...
 

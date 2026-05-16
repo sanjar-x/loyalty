@@ -54,6 +54,8 @@ def _to_admin_read_model(row: OrderModel) -> AdminOrderReadModel:
         status=raw_status.value,
         customer_facing_status=to_customer_facing(raw_status).value,
         total_amount=row.total_amount,
+        delivery_amount=row.delivery_amount,
+        delivery_quote_id=row.delivery_quote_id,
         currency=row.currency,
         cny_rate_at_checkout=(
             str(row.cny_rate_at_checkout)

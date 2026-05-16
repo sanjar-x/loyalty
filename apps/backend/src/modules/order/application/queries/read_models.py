@@ -31,6 +31,8 @@ class CustomerOrderReadModel:
     status: str  # CustomerFacingStatus
     raw_status: str  # OrderStatus (для админских запросов из customer view опционально)
     total_amount: int
+    delivery_amount: int  # kopecks; 0 для legacy/walk-in без quote
+    delivery_quote_id: uuid.UUID | None
     currency: str
     pickup_carrier: str
     pickup_point_id: str
@@ -80,6 +82,8 @@ class AdminOrderReadModel:
     status: str  # raw OrderStatus
     customer_facing_status: str
     total_amount: int
+    delivery_amount: int  # kopecks; 0 для legacy/walk-in без quote
+    delivery_quote_id: uuid.UUID | None
     currency: str
     cny_rate_at_checkout: str | None
     pickup_carrier: str

@@ -279,3 +279,45 @@ class PickupCarrier(enum.StrEnum):
 class PickupPointPreference:
     carrier: PickupCarrier
     point_id: str
+
+
+# ---------------------------------------------------------------------------
+# Offline payment receipt (walk-in admin-created orders)
+# ---------------------------------------------------------------------------
+
+
+class OfflinePaymentMethod(enum.StrEnum):
+    """How a walk-in customer paid the admin offline.
+
+    The provider-side PaymentIntent is intentionally NOT created — the
+    admin asserts payment was received out-of-band. ``reference`` carries
+    whatever external document anchors the fact (receipt number, bank
+    transfer id, internal POS ticket).
+    """
+
+    CASH = "cash"
+    BANK_TRANSFER = "bank_transfer"
+    CARD_TERMINAL = "card_terminal"
+    OTHER = "other"
+
+
+@frozen
+class OfflinePaymentReceipt:
+    """Frozen marker of an offline payment captured by admin.
+
+    ``reference`` is required so the audit trail can be reconciled
+    against external documents. ``paid_at`` defaults to creation time
+    only when not supplied by the admin (e.g. POS scenario where the
+    money changed hands seconds ago).
+    """
+
+    method: OfflinePaymentMethod
+    reference: str
+    paid_at: datetime
+
+    def __attrs_post_init__(self) -> None:
+        if not self.reference.strip():
+            raise ValueError(
+                "OfflinePaymentReceipt.reference must be non-empty — "
+                "admin must anchor the payment to an external document."
+            )

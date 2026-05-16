@@ -90,6 +90,12 @@ class QuoteForPickupPointQuery:
     provider_code: ProviderCode
     pickup_point_external_id: str
     service_code: str | None = None
+    # Owner of the quote — stamped onto ``delivery_quotes.identity_id``
+    # so the order-creation ownership check (CR-2) can refuse a quote
+    # belonging to a different customer. Optional so admin-side quoting
+    # ("quote on behalf of an unknown buyer") and unit-tests stay
+    # working without forging an identity.
+    identity_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -189,7 +195,9 @@ class QuoteForPickupPointHandler:
         )
 
         async with self._uow:
-            persisted = await self._quote_repo.add(chosen)
+            persisted = await self._quote_repo.add(
+                chosen, identity_id=query.identity_id
+            )
             await self._uow.commit()
 
         return _build_result(persisted, alternatives)

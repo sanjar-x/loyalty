@@ -38,6 +38,7 @@ class DeliveryQuoteAdapter(IDeliveryQuoteLookup):
             DeliveryQuoteModel.total_cost_amount,
             DeliveryQuoteModel.total_cost_currency,
             DeliveryQuoteModel.expires_at,
+            DeliveryQuoteModel.identity_id,
         ).where(DeliveryQuoteModel.id == quote_id)
         row = (await self._session.execute(stmt)).one_or_none()
         if row is None:
@@ -47,4 +48,5 @@ class DeliveryQuoteAdapter(IDeliveryQuoteLookup):
             amount=int(row.total_cost_amount),
             currency=row.total_cost_currency,
             expires_at=row.expires_at,
+            identity_id=row.identity_id,
         )

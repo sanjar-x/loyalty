@@ -8,6 +8,7 @@ only place allowed to import Logistics / Payment internals — see
 
 import uuid
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from datetime import datetime
 
 from attrs import frozen
@@ -167,3 +168,104 @@ class ITelegramNotifier(ABC):
 
     @abstractmethod
     async def send_html(self, *, chat_id: int, html: str) -> None: ...
+
+
+# ---------------------------------------------------------------------------
+# Walk-in admin-create-order ports
+# ---------------------------------------------------------------------------
+
+
+@frozen
+class CatalogSkuSnapshot:
+    """Read-only projection of a SKU + parent metadata at order-creation time.
+
+    ``selling_price`` is the ADR-005 autonomous-recompute output (already
+    in customer currency). When ``None``, the SKU has not yet completed
+    pricing recompute and is not orderable — the handler raises a 422.
+    ``supplier_type`` comes from the parent ``Supplier`` row; ``LOCAL``
+    is the safe fallback when the product has no supplier link
+    (legacy / draft data).
+    """
+
+    sku_id: uuid.UUID
+    product_id: uuid.UUID
+    variant_id: uuid.UUID
+    product_name: str
+    variant_label: str | None
+    supplier_type: str  # value of shared.domain.SupplierType
+    selling_price_amount: int | None
+    currency: str
+    is_active: bool
+
+
+class ICatalogSkuPriceReader(ABC):
+    """ACL port: walk-in handler reads SKU + price + parent metadata.
+
+    Implementations join skus + products + product_variants +
+    suppliers in a single query. Returning ``None`` for an unknown SKU
+    lets the handler differentiate "user typo" (422) from a server
+    error.
+    """
+
+    @abstractmethod
+    async def get_many(
+        self, sku_ids: Sequence[uuid.UUID], *, locale: str = "ru"
+    ) -> dict[uuid.UUID, CatalogSkuSnapshot]:
+        """Return a mapping from sku_id → snapshot for every found SKU."""
+
+
+@frozen
+class WalkInCustomerProfileInput:
+    """Minimal customer data required to provision a walk-in identity.
+
+    The provisioner writes both the Identity row (with
+    ``primary_auth_method=WALK_IN``, ``is_active=True``) and the
+    Customer row sharing the same primary key.
+    """
+
+    full_name: str
+    phone: str
+    email: str | None = None
+
+
+@frozen
+class WalkInIdentityProvisioned:
+    identity_id: uuid.UUID
+
+
+class IWalkInIdentityProvisioner(ABC):
+    """ACL port: provision a fresh Identity + Customer for a walk-in order.
+
+    Single shot: the provisioner does not deduplicate by phone/email
+    (a walk-in is by definition a stranger; if the same person comes
+    back tomorrow they'll get a second identity unless someone manually
+    merges them — that's the deliberate, MVP-simple semantic).
+    """
+
+    @abstractmethod
+    async def provision(
+        self, profile: WalkInCustomerProfileInput
+    ) -> WalkInIdentityProvisioned: ...
+
+
+@frozen
+class PriceOverrideAuditEntry:
+    order_id: uuid.UUID
+    order_item_id: uuid.UUID
+    sku_id: uuid.UUID
+    base_price_amount: int
+    override_price_amount: int
+    currency: str
+    admin_id: uuid.UUID
+    reason: str | None
+
+
+class IPriceOverrideAuditWriter(ABC):
+    """ACL port: persist one audit row per overridden walk-in line item.
+
+    Writes happen in the same UoW commit as the Order rows, so the
+    audit log can never disagree with what's in ``order_items``.
+    """
+
+    @abstractmethod
+    async def write_many(self, entries: Sequence[PriceOverrideAuditEntry]) -> None: ...

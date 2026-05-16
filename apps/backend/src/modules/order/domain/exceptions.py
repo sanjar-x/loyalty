@@ -50,6 +50,15 @@ class OrderItemQuantityError(ValidationError):
         )
 
 
+class OrderDeliveryAmountInvalidError(ValidationError):
+    def __init__(self, *, delivery_amount: int) -> None:
+        super().__init__(
+            message=f"Invalid order delivery amount: {delivery_amount}",
+            error_code="ORDER_DELIVERY_AMOUNT_INVALID",
+            details={"delivery_amount": delivery_amount},
+        )
+
+
 class OrderHoldStateError(ConflictError):
     def __init__(self, *, status: str) -> None:
         super().__init__(
@@ -104,4 +113,53 @@ class CrossBorderProviderError(ConflictError):
             message=f"Cross-border provider {provider} rejected request: {reason}",
             error_code="CROSS_BORDER_PROVIDER_ERROR",
             details={"provider": provider, "reason": reason},
+        )
+
+
+class PriceOverrideValidationError(ValidationError):
+    """Admin-supplied unit_price override violates configured bounds.
+
+    Bounds: ``0 <= override <= base_price * WALK_IN_MAX_PRICE_OVERRIDE_RATIO``.
+    A bound failure is a 400, not 422 — the input is well-formed but
+    business-rule rejected.
+    """
+
+    def __init__(
+        self,
+        *,
+        sku_id: str,
+        base_price: int,
+        override_price: int,
+        max_ratio: float,
+    ) -> None:
+        super().__init__(
+            message=(
+                f"Override price {override_price} for SKU {sku_id} is outside "
+                f"the allowed range [0, {int(base_price * max_ratio)}] "
+                f"(base={base_price}, max_ratio={max_ratio})"
+            ),
+            error_code="PRICE_OVERRIDE_OUT_OF_RANGE",
+            details={
+                "sku_id": sku_id,
+                "base_price": base_price,
+                "override_price": override_price,
+                "max_ratio": max_ratio,
+            },
+        )
+
+
+class WalkInRefreshRecipientForbiddenError(ConflictError):
+    """Walk-in orders carry an inline RecipientSnapshot without a backing
+    Recipient row, so the customer-side refresh-recipient flow does not
+    apply. Admins update walk-in recipient data through a separate
+    admin-only path (out of MVP scope)."""
+
+    def __init__(self, *, order_id: str) -> None:
+        super().__init__(
+            message=(
+                f"Walk-in order {order_id} cannot refresh recipient via the "
+                "self-service flow — admins must update inline data directly."
+            ),
+            error_code="WALK_IN_REFRESH_FORBIDDEN",
+            details={"order_id": order_id},
         )

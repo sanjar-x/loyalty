@@ -43,7 +43,7 @@ class IdentityModel(Base):
     primary_auth_method: Mapped[str] = mapped_column(
         Enum(PrimaryAuthMethod, native_enum=False, length=10),
         nullable=False,
-        comment="Authentication method: LOCAL, OIDC, or TELEGRAM",
+        comment="Authentication method: LOCAL, OIDC, TELEGRAM, or WALK_IN",
     )
     account_type: Mapped[str] = mapped_column(
         String(10),

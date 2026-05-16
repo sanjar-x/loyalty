@@ -362,6 +362,7 @@ class DeliveryQuoteModel(Base):
     __tablename__ = "delivery_quotes"
     __table_args__ = (
         Index("ix_delivery_quotes_expires_at", "expires_at"),
+        Index("ix_delivery_quotes_identity", "identity_id"),
         {"comment": "Server-side delivery quotes for price integrity"},
     )
 
@@ -370,6 +371,17 @@ class DeliveryQuoteModel(Base):
         primary_key=True,
         default=uuid.uuid4,
         comment="Quote identifier (returned to client)",
+    )
+    # Owner of the quote — populated by the customer-facing checkout
+    # endpoint so order creation can refuse a quote that belongs to a
+    # different customer (CR-2). Nullable for backward compat with
+    # legacy quotes (rows pre-dating REC-041) and for the admin
+    # ``/admin/logistics/rates/quote`` flow where the operator quotes
+    # on behalf of a not-yet-known buyer.
+    identity_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        comment="Customer identity that requested the quote; NULL for admin or legacy",
     )
 
     provider_code: Mapped[str] = mapped_column(

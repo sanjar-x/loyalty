@@ -262,6 +262,18 @@ class CreateOrderFromCartHandler:
                 error_code="ORDER_DELIVERY_QUOTE_NOT_FOUND",
                 details={"delivery_quote_id": str(command.delivery_quote_id)},
             )
+        # CR-2: ownership check. Quotes stamped with ``identity_id``
+        # (every customer storefront quote since REC-041) must match
+        # the placing identity. ``None`` is the opt-out for admin /
+        # legacy quotes; we keep the existing trust model for them so
+        # the upgrade does not break workflows that haven't been
+        # re-quoted under the new endpoint yet.
+        if quote.identity_id is not None and quote.identity_id != command.identity_id:
+            raise UnprocessableEntityError(
+                message="Delivery quote belongs to a different customer",
+                error_code="ORDER_DELIVERY_QUOTE_OWNERSHIP_MISMATCH",
+                details={"delivery_quote_id": str(command.delivery_quote_id)},
+            )
         if quote.currency.upper() != cart_currency.upper():
             raise ValidationError(
                 message="Delivery quote currency does not match cart currency",

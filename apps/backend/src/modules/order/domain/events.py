@@ -31,14 +31,47 @@ class OrderCreatedEvent(
 @dataclass(frozen=True)
 class OrderPaidEvent(
     OrderEvent,
-    required_fields=("order_id", "payment_intent_id"),
+    required_fields=("order_id",),
     aggregate_id_field="order_id",
 ):
+    """Order moved PENDING → PAID.
+
+    ``payment_intent_id`` is Optional since the walk-in flow
+    (``Order.mark_paid_offline``) records the transition without a
+    PaymentIntent row. Consumers that need the intent id (e.g. payment
+    reconciliation) must defensively handle ``None`` and key on
+    ``order_id`` instead.
+    """
+
     order_id: uuid.UUID | None = None
     payment_intent_id: uuid.UUID | None = None
     paid_amount: int = 0
     currency: str = ""
     event_type: str = "OrderPaidEvent"
+
+
+@dataclass(frozen=True)
+class OrderPaidOfflineEvent(
+    OrderEvent,
+    required_fields=("order_id", "admin_id"),
+    aggregate_id_field="order_id",
+):
+    """Order moved PENDING → PAID via admin-recorded offline payment.
+
+    Separate from ``OrderPaidEvent`` so analytics, reconciliation, and
+    reporting can isolate offline-captured revenue from PSP-captured
+    revenue. The Telegram fan-out for OrderPaidEvent is intentionally
+    not triggered (walk-in customer typically has no linked Telegram
+    chat at creation time anyway).
+    """
+
+    order_id: uuid.UUID | None = None
+    admin_id: uuid.UUID | None = None
+    method: str = ""
+    reference: str = ""
+    paid_amount: int = 0
+    currency: str = ""
+    event_type: str = "OrderPaidOfflineEvent"
 
 
 @dataclass(frozen=True)

@@ -97,6 +97,11 @@ PERMISSIONS: list[SeedPermission] = [
     SeedPermission(
         "orders:manage", "Управление заказами (создание, смена статуса, отмена)"
     ),
+    SeedPermission(
+        "orders:create_offline",
+        "Создание walk-in заказов offline (admin/POS-стиль, mark-as-paid, "
+        "inline RecipientSnapshot, опциональный price-override)",
+    ),
     # ── Reviews ──────────────────────────────────────────────────────────
     SeedPermission("reviews:read", "Просмотр отзывов"),
     SeedPermission(
@@ -181,6 +186,7 @@ ROLES: list[SeedRole] = [
             "media:manage",
             "orders:read",
             "orders:manage",
+            "orders:create_offline",
             "reviews:read",
             "reviews:moderate",
             "returns:read",

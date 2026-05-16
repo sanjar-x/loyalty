@@ -29,6 +29,7 @@ from src.modules.order.domain.events import (
     OrderEnteredLastMileEvent,
     OrderNotDeliveredEvent,
     OrderPaidEvent,
+    OrderPaidOfflineEvent,
     OrderPickupPointChangedEvent,
     OrderProcuredEvent,
     OrderRefundedEvent,
@@ -40,11 +41,13 @@ from src.modules.order.domain.events import (
 from src.modules.order.domain.exceptions import (
     CancellationForbiddenError,
     OrderAlreadyTerminalError,
+    OrderDeliveryAmountInvalidError,
     OrderEmptyError,
     OrderHoldStateError,
     OrderInvalidTransitionError,
     OrderItemQuantityError,
     PickupPointChangeForbiddenError,
+    WalkInRefreshRecipientForbiddenError,
 )
 from src.modules.order.domain.recipient_snapshot import RecipientSnapshot
 from src.modules.order.domain.value_objects import (
@@ -53,6 +56,7 @@ from src.modules.order.domain.value_objects import (
     CancellationReason,
     HoldReason,
     IncomingDeclaration,
+    OfflinePaymentReceipt,
     OrderNumber,
     OrderStatus,
     PickupPointPreference,
@@ -187,6 +191,13 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
     # holds funds for goods + shipping in one operation.
     delivery_quote_id: uuid.UUID | None = None
     delivery_amount: int = 0
+    # Walk-in orders: provisioned by admin in :class:`AdminCreateWalkInOrderHandler`,
+    # carry an inline RecipientSnapshot without a backing Recipient row, and
+    # transition PENDING → PAID via :meth:`mark_paid_offline` instead of the
+    # PaymentIntent capture pipeline. The flag is the single discriminator
+    # consumers and queries use to branch on walk-in vs PSP-paid orders
+    # (e.g. forbidding ``refresh_recipient_snapshot`` for walk-in).
+    is_walk_in: bool = False
     _items: list[OrderItem] = field(factory=list, alias="items")
 
     # ---------------------------------------------------------------------------
@@ -248,7 +259,7 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
             if itm.quantity < 1 or itm.quantity > MAX_ITEM_QUANTITY:
                 raise OrderItemQuantityError(quantity=itm.quantity)
         if delivery_amount < 0:
-            raise OrderItemQuantityError(quantity=delivery_amount)
+            raise OrderDeliveryAmountInvalidError(delivery_amount=delivery_amount)
         items_total = sum(itm.line_total for itm in items)
         total = items_total + delivery_amount
         now = datetime.now(UTC)
@@ -285,6 +296,90 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
                 order_id=order.id,
                 identity_id=identity_id,
                 cart_id=cart_id,
+                total_amount=total,
+                currency=currency,
+                item_count=len(items),
+            )
+        )
+        return order
+
+    @classmethod
+    def create_walk_in(
+        cls,
+        *,
+        identity_id: uuid.UUID,
+        items: list[OrderItem],
+        currency: str,
+        pickup_point: PickupPointPreference,
+        recipient_snapshot: RecipientSnapshot,
+        cny_rate_at_checkout: Decimal | None = None,
+        delivery_amount: int = 0,
+    ) -> Order:
+        """Factory for admin-created walk-in orders.
+
+        Differs from :meth:`create`:
+
+        * No ``cart_id`` argument — a phantom UUID is generated (the
+          underlying column is a soft link, not a FK; see
+          ``OrderModel.cart_id``). The discriminator is :attr:`is_walk_in`,
+          not the cart_id value, so analytics never confuses the two.
+        * No ``delivery_quote_id`` — walk-in pickup is admin-chosen and
+          not anchored to a logistics quote row.
+        * ``is_walk_in=True`` — propagates through the persistence layer
+          so consumers (e.g. ``refresh_recipient_snapshot`` guard) can
+          branch on it without re-querying.
+        * Emits the same ``OrderCreatedEvent`` so the rest of the
+          fan-out (state-history, audit log) treats it uniformly.
+
+        Caller must follow with :meth:`mark_paid_offline` to transition
+        PENDING → PAID. The two operations happen in the same UoW
+        commit, so an Order in walk-in PENDING never reaches the DB.
+        """
+        if not items:
+            raise OrderEmptyError()
+        for itm in items:
+            if itm.quantity < 1 or itm.quantity > MAX_ITEM_QUANTITY:
+                raise OrderItemQuantityError(quantity=itm.quantity)
+        if delivery_amount < 0:
+            raise OrderDeliveryAmountInvalidError(delivery_amount=delivery_amount)
+        items_total = sum(itm.line_total for itm in items)
+        total = items_total + delivery_amount
+        now = datetime.now(UTC)
+        phantom_cart_id = uuid.uuid4()
+        order = cls(
+            id=uuid.uuid4(),
+            identity_id=identity_id,
+            cart_id=phantom_cart_id,
+            status=OrderStatus.PENDING,
+            total_amount=total,
+            currency=currency,
+            cny_rate_at_checkout=cny_rate_at_checkout,
+            pickup_point=pickup_point,
+            recipient_snapshot=recipient_snapshot,
+            payment_intent_id=None,
+            incoming_declaration=None,
+            procured_by_admin_id=None,
+            procured_at=None,
+            cross_border_shipment_id=None,
+            last_mile_shipment_id=None,
+            pre_hold_status=None,
+            hold_reason=None,
+            hold_started_at=None,
+            hold_until=None,
+            cancellation_reason=None,
+            created_at=now,
+            updated_at=now,
+            version=0,
+            delivery_quote_id=None,
+            delivery_amount=delivery_amount,
+            is_walk_in=True,
+            items=list(items),
+        )
+        order.add_domain_event(
+            OrderCreatedEvent(
+                order_id=order.id,
+                identity_id=identity_id,
+                cart_id=phantom_cart_id,
                 total_amount=total,
                 currency=currency,
                 item_count=len(items),
@@ -349,6 +444,45 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
             OrderPaidEvent(
                 order_id=self.id,
                 payment_intent_id=payment_intent_id,
+                paid_amount=self.total_amount,
+                currency=self.currency,
+            )
+        )
+
+    def mark_paid_offline(
+        self, *, receipt: OfflinePaymentReceipt, admin_id: uuid.UUID
+    ) -> None:
+        """Walk-in transition PENDING → PAID without a PaymentIntent.
+
+        Distinct from :meth:`mark_paid` in three ways:
+
+        1. No ``payment_intent_id`` — Order.payment_intent_id stays ``None``.
+        2. Only legal for walk-in orders (``is_walk_in=True``) — guards
+           against accidental use on customer-cart orders, where the
+           PSP flow is the source of truth.
+        3. Emits :class:`OrderPaidOfflineEvent` instead of
+           :class:`OrderPaidEvent` so analytics, reconciliation, and the
+           Telegram fan-out can isolate offline-captured revenue.
+
+        Raises:
+            OrderInvalidTransitionError: if status is not PENDING or
+                if called on a non-walk-in order.
+        """
+        if not self.is_walk_in:
+            raise OrderInvalidTransitionError(
+                current=self.status.value, target="mark_paid_offline (non-walk-in)"
+            )
+        if self.status != OrderStatus.PENDING:
+            raise OrderInvalidTransitionError(
+                current=self.status.value, target=OrderStatus.PAID.value
+            )
+        self._transition(OrderStatus.PAID)
+        self.add_domain_event(
+            OrderPaidOfflineEvent(
+                order_id=self.id,
+                admin_id=admin_id,
+                method=receipt.method.value,
+                reference=receipt.reference,
                 paid_amount=self.total_amount,
                 currency=self.currency,
             )
@@ -584,7 +718,14 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
         Refresh is allowed only when the order is in ON_HOLD with
         reason=PASSPORT_INVALID (the only state where stale customs data
         is the actual blocker).
+
+        Walk-in orders carry an inline RecipientSnapshot with no backing
+        Recipient row — the self-service refresh flow has nothing to
+        re-snapshot from. Admin tooling updates walk-in recipient data
+        through a separate admin-only path.
         """
+        if self.is_walk_in:
+            raise WalkInRefreshRecipientForbiddenError(order_id=str(self.id))
         if (
             self.status != OrderStatus.ON_HOLD
             or self.hold_reason is not HoldReason.PASSPORT_INVALID

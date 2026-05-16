@@ -74,6 +74,8 @@ def _serialize(model: CustomerOrderReadModel) -> CustomerOrderSchema:
         status=model.status,
         raw_status=model.raw_status,
         total_amount=model.total_amount,
+        delivery_amount=model.delivery_amount,
+        delivery_quote_id=model.delivery_quote_id,
         currency=model.currency,
         pickup_carrier=model.pickup_carrier,
         pickup_point_id=model.pickup_point_id,

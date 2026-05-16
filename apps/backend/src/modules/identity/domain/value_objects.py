@@ -15,11 +15,18 @@ class PrimaryAuthMethod(enum.StrEnum):
         LOCAL: Email and password authentication.
         OIDC: External OpenID Connect provider authentication.
         TELEGRAM: Telegram Mini App authentication.
+        WALK_IN: Offline walk-in customer provisioned by admin — no
+            credentials at creation time. The identity is created so the
+            order has a real ``identity_id`` (preserving
+            ``list_by_identity`` semantics and analytics), but login is
+            impossible until a later self-service activation flow
+            attaches LOCAL or TELEGRAM credentials to the same identity.
     """
 
     LOCAL = "LOCAL"
     OIDC = "OIDC"
     TELEGRAM = "TELEGRAM"
+    WALK_IN = "WALK_IN"
 
 
 # Backward-compat alias — existing code imports IdentityType.

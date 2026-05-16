@@ -24,6 +24,13 @@ from src.modules.identity.presentation.dependencies import (
     RequirePermission,
     RequireStaffRole,
 )
+from src.modules.order.application.commands.admin_create_walk_in_order import (
+    AdminCreateWalkInOrderCommand,
+    AdminCreateWalkInOrderHandler,
+    InlineRecipientInput,
+    OfflinePaymentInput,
+    WalkInItemInput,
+)
 from src.modules.order.application.commands.cancel_order import (
     CancelOrderCommand,
     CancelOrderHandler,
@@ -44,6 +51,7 @@ from src.modules.order.application.commands.resume_order import (
     ResumeOrderCommand,
     ResumeOrderHandler,
 )
+from src.modules.order.application.ports import WalkInCustomerProfileInput
 from src.modules.order.application.queries.admin_list_orders import (
     AdminGetOrderHandler,
     AdminGetOrderQuery,
@@ -60,9 +68,13 @@ from src.modules.order.domain.value_objects import (
     CancellationReason,
     HoldReason,
     OrderStatus,
+    PickupCarrier,
+    PickupPointPreference,
     category_of,
 )
 from src.modules.order.presentation.schemas import (
+    AdminCreateWalkInOrderRequest,
+    AdminCreateWalkInOrderResponse,
     AdminOrderListResponse,
     AdminOrderSchema,
     CancellationReasonGroupSchema,
@@ -108,6 +120,8 @@ def _serialize_admin(model: AdminOrderReadModel) -> AdminOrderSchema:
         status=model.status,
         customer_facing_status=model.customer_facing_status,
         total_amount=model.total_amount,
+        delivery_amount=model.delivery_amount,
+        delivery_quote_id=model.delivery_quote_id,
         currency=model.currency,
         cny_rate_at_checkout=model.cny_rate_at_checkout,
         pickup_carrier=model.pickup_carrier,
@@ -175,6 +189,81 @@ async def admin_get_cancellation_reasons_meta() -> CancellationReasonsMetaRespon
             CancellationReasonGroupSchema(code=cat.value, reasons=reasons)
             for cat, reasons in grouped.items()
         ]
+    )
+
+
+@admin_order_router.post(
+    "",
+    response_model=AdminCreateWalkInOrderResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(RequirePermission("orders:create_offline"))],
+)
+async def admin_create_walk_in_order(
+    body: AdminCreateWalkInOrderRequest,
+    auth: Auth,
+    handler: FromDishka[AdminCreateWalkInOrderHandler],
+) -> AdminCreateWalkInOrderResponse:
+    """Create an offline walk-in order from scratch.
+
+    Bypasses the cart pipeline: admin captures customer profile +
+    customs recipient + line items + offline payment receipt in one
+    request, and the handler provisions a fresh Identity + Customer,
+    snapshots SKU prices (with optional per-line override audited in
+    ``order_line_price_overrides``), and creates the order in PAID
+    state with no PaymentIntent.
+
+    The customer subsequently progresses through the same FSM as any
+    other order (``POST /admin/orders/{id}/procure``,
+    DobroPost / russian-carrier webhooks, etc.).
+    """
+    result = await handler.handle(
+        AdminCreateWalkInOrderCommand(
+            admin_id=auth.identity_id,
+            profile=WalkInCustomerProfileInput(
+                full_name=body.profile.full_name,
+                phone=body.profile.phone,
+                email=body.profile.email,
+            ),
+            recipient=InlineRecipientInput(
+                full_name_ru=body.recipient.full_name_ru,
+                full_name_lat=body.recipient.full_name_lat,
+                phone=body.recipient.phone,
+                email=body.recipient.email,
+                passport_serial=body.recipient.passport_serial,
+                passport_number=body.recipient.passport_number,
+                passport_issue_date=body.recipient.passport_issue_date,
+                birth_date=body.recipient.birth_date,
+                inn=body.recipient.inn,
+            ),
+            items=tuple(
+                WalkInItemInput(
+                    sku_id=item.sku_id,
+                    quantity=item.quantity,
+                    unit_price_override_amount=item.unit_price_override_amount,
+                    override_reason=item.override_reason,
+                )
+                for item in body.items
+            ),
+            pickup_point=PickupPointPreference(
+                carrier=PickupCarrier(body.pickup_carrier),
+                point_id=body.pickup_point_id,
+            ),
+            payment=OfflinePaymentInput(
+                method=body.payment.method,
+                reference=body.payment.reference,
+                paid_at=body.payment.paid_at,
+            ),
+            currency=body.currency,
+            idempotency_key=body.idempotency_key,
+            cny_rate_at_checkout=body.cny_rate_at_checkout,
+            delivery_amount=body.delivery_amount,
+        )
+    )
+    return AdminCreateWalkInOrderResponse(
+        order_id=result.order_id,
+        identity_id=result.identity_id,
+        total_amount=result.total_amount,
+        currency=result.currency,
     )
 
 

@@ -28,12 +28,18 @@ class DeliveryQuoteRepository(IDeliveryQuoteRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def add(self, quote: DeliveryQuote) -> DeliveryQuote:
+    async def add(
+        self,
+        quote: DeliveryQuote,
+        *,
+        identity_id: uuid.UUID | None = None,
+    ) -> DeliveryQuote:
         # TODO: origin_json, destination_json, parcels_json are stored empty because
         # the DeliveryQuote VO doesn't carry route context. Consider extending the
         # interface to accept these for audit purposes.
         model = DeliveryQuoteModel(
             id=quote.id,
+            identity_id=identity_id,
             provider_code=quote.rate.provider_code,
             service_code=quote.rate.service_code,
             service_name=quote.rate.service_name,

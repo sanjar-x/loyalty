@@ -213,6 +213,16 @@ class Settings(BaseSettings):
     YANDEX_DELIVERY_TEST_OAUTH_TOKEN: SecretStr = SecretStr("")
     YANDEX_DELIVERY_TEST_PLATFORM_STATION_ID: str = ""
 
+    # -- Walk-in admin orders ----------------------------------------------
+    # Upper bound on admin-supplied unit_price override expressed as a
+    # multiple of the catalog's ``selling_price``. ``10.0`` means an
+    # admin can charge between 0 and 10× the listed price. Tighter
+    # bounds (e.g. 2.0) reduce blast radius if an admin account is
+    # compromised; looser bounds support legitimate scenarios like
+    # bundling rare items or absorbing currency fluctuation. Reviewed
+    # in :class:`PriceOverrideValidationError` at order-create time.
+    WALK_IN_MAX_PRICE_OVERRIDE_RATIO: float = Field(default=10.0, gt=0)
+
     # -- Payment ------------------------------------------------------------
     # ``fake`` is a deterministic in-process stub used outside ``prod``.
     # Real PSP adapters (yookassa/sbp/tinkoff) are added behind the same

@@ -53,6 +53,8 @@ def _to_customer_read_model(row: OrderModel) -> CustomerOrderReadModel:
         status=to_customer_facing(raw_status).value,
         raw_status=raw_status.value,
         total_amount=row.total_amount,
+        delivery_amount=row.delivery_amount,
+        delivery_quote_id=row.delivery_quote_id,
         currency=row.currency,
         pickup_carrier=row.pickup_carrier,
         pickup_point_id=row.pickup_point_id,

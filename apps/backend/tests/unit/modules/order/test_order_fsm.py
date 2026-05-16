@@ -16,6 +16,7 @@ from src.modules.order.domain.entities import (
 from src.modules.order.domain.exceptions import (
     CancellationForbiddenError,
     OrderAlreadyTerminalError,
+    OrderDeliveryAmountInvalidError,
     OrderEmptyError,
     OrderHoldStateError,
     OrderInvalidTransitionError,
@@ -145,6 +146,44 @@ class TestCreate:
         order = _order()
         assert any(ev.event_type == "OrderCreatedEvent" for ev in order.domain_events)
         assert order.status == OrderStatus.PENDING
+
+    def test_default_no_delivery(self) -> None:
+        """Without quote: total = items, delivery fields zero/None."""
+        order = _order([_item(quantity=2, price=15000)])  # 2 × 150 ₽ = 30 000
+        assert order.delivery_amount == 0
+        assert order.delivery_quote_id is None
+        assert order.total_amount == 30000
+        assert order.items_total == 30000
+
+    def test_with_delivery_amount_included_in_total(self) -> None:
+        """Quote priced: total = items_total + delivery_amount; items_total mirrors items only."""
+        quote_id = uuid.uuid4()
+        order = Order.create(
+            identity_id=uuid.uuid4(),
+            cart_id=uuid.uuid4(),
+            items=[_item(quantity=1, price=20000)],  # 200 ₽
+            currency="RUB",
+            pickup_point=_pickup(),
+            recipient_snapshot=_recipient_snapshot(),
+            delivery_quote_id=quote_id,
+            delivery_amount=32000,  # 320 ₽ shipping
+        )
+        assert order.delivery_amount == 32000
+        assert order.delivery_quote_id == quote_id
+        assert order.total_amount == 52000  # 200 + 320 ₽
+        assert order.items_total == 20000
+
+    def test_negative_delivery_amount_rejected(self) -> None:
+        with pytest.raises(OrderDeliveryAmountInvalidError):
+            Order.create(
+                identity_id=uuid.uuid4(),
+                cart_id=uuid.uuid4(),
+                items=[_item()],
+                currency="RUB",
+                pickup_point=_pickup(),
+                recipient_snapshot=_recipient_snapshot(),
+                delivery_amount=-1,
+            )
 
 
 # ---------------------------------------------------------------------------

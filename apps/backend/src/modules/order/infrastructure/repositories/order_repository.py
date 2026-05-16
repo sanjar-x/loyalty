@@ -84,6 +84,7 @@ class OrderRepository(IOrderRepository):
             version=order.version,
             delivery_quote_id=order.delivery_quote_id,
             delivery_amount=order.delivery_amount,
+            is_walk_in=order.is_walk_in,
             created_at=order.created_at,
             updated_at=order.updated_at,
         )
@@ -354,6 +355,7 @@ def _to_domain(row: OrderModel) -> Order:
         version=row.version,
         delivery_quote_id=row.delivery_quote_id,
         delivery_amount=row.delivery_amount,
+        is_walk_in=row.is_walk_in,
         items=items,
     )
 

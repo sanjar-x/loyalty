@@ -38,6 +38,7 @@ class TestPrimaryAuthMethod:
             PrimaryAuthMethod.LOCAL,
             PrimaryAuthMethod.OIDC,
             PrimaryAuthMethod.TELEGRAM,
+            PrimaryAuthMethod.WALK_IN,
         }
 
 
