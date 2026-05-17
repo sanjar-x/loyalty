@@ -23,6 +23,7 @@ from src.modules.catalog.domain.exceptions import (
     AttributeNotDictionaryError,
     AttributeNotFoundError,
     AttributeNotInTemplateError,
+    AttributeValueInactiveError,
     AttributeValueNotFoundError,
     DuplicateProductAttributeError,
     ProductNotFoundError,
@@ -147,7 +148,9 @@ class AssignProductAttributeHandler:
             if not attribute.is_dictionary:
                 raise AttributeNotDictionaryError(attribute_id=command.attribute_id)
 
-            # --- Validate attribute value exists and belongs to the attribute ---
+            # --- Validate attribute value exists, belongs to the attribute,
+            #     and is still active. Deactivated values are kept for
+            #     historical reads but must not be picked for new assignments.
             attr_value = await self._attribute_value_repo.get(
                 command.attribute_value_id
             )
@@ -155,6 +158,8 @@ class AssignProductAttributeHandler:
                 raise AttributeValueNotFoundError(value_id=command.attribute_value_id)
             if attr_value.attribute_id != command.attribute_id:
                 raise AttributeValueNotFoundError(value_id=command.attribute_value_id)
+            if not attr_value.is_active:
+                raise AttributeValueInactiveError(value_id=command.attribute_value_id)
 
             if await self._pav_repo.check_assignment_exists(
                 command.product_id, command.attribute_id

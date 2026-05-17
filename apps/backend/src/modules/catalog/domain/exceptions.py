@@ -471,6 +471,23 @@ class AttributeValueInUseError(ConflictError):
         )
 
 
+class AttributeValueInactiveError(UnprocessableEntityError):
+    """Raised when an inactive attribute value is being assigned to a product.
+
+    Deactivation is the "soft remove" lever for dictionary values — the
+    row stays for historical reads but cannot be picked for new
+    assignments. Bypassing this guard would let an admin re-attach a
+    value they had just retired from circulation.
+    """
+
+    def __init__(self, value_id: uuid.UUID):
+        super().__init__(
+            message="Attribute value is inactive and cannot be assigned.",
+            error_code="ATTRIBUTE_VALUE_INACTIVE",
+            details={"value_id": str(value_id)},
+        )
+
+
 class AttributeNotDictionaryError(UnprocessableEntityError):
     """Raised when trying to add values to a non-dictionary attribute."""
 

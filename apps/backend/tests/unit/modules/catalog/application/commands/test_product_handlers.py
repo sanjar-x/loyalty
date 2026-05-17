@@ -59,6 +59,7 @@ from src.modules.catalog.domain.exceptions import (
     AttributeNotDictionaryError,
     AttributeNotFoundError,
     AttributeNotInTemplateError,
+    AttributeValueInactiveError,
     AttributeValueNotFoundError,
     BrandNotFoundError,
     CategoryNotFoundError,
@@ -1174,6 +1175,37 @@ class TestAssignProductAttribute:
 
         assert uow.committed is False
 
+    async def test_inactive_attribute_value_rejected(self):
+        """PR G — assigning a deactivated value must raise
+        AttributeValueInactiveError (422) so an admin can't re-attach
+        a value they just retired from circulation. Previously the
+        handler ignored ``is_active`` and silently created the link.
+        """
+        uow = FakeUnitOfWork()
+        cat = _seed_category(uow)
+        brand = _seed_brand(uow)
+        product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
+        group = _seed_attribute_group(uow)
+        attr = _seed_attribute(uow, group_id=group.id)
+        val = _seed_attribute_value(uow, attribute_id=attr.id)
+        # Domain-level deactivation: AttributeValue.deactivate() is the
+        # public mutator (kept here as raw flag for fixture simplicity).
+        val.is_active = False
+        uow.attribute_values._store[val.id] = val
+
+        handler = self._make_handler(uow)
+
+        with pytest.raises(AttributeValueInactiveError):
+            await handler.handle(
+                AssignProductAttributeCommand(
+                    product_id=product.id,
+                    attribute_id=attr.id,
+                    attribute_value_id=val.id,
+                )
+            )
+
+        assert uow.committed is False
+
     async def test_duplicate_assignment(self):
         uow = FakeUnitOfWork()
         cat = _seed_category(uow)
@@ -1426,41 +1458,76 @@ class TestDeleteProductAttribute:
 
     async def test_happy_path(self):
         uow = FakeUnitOfWork()
-        product_id = uuid.uuid4()
+        brand = _seed_brand(uow)
+        cat = _seed_category(uow)
+        product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
         attr_id = uuid.uuid4()
         pav = ProductAttributeValue.create(
-            product_id=product_id,
+            product_id=product.id,
             attribute_id=attr_id,
             attribute_value_id=uuid.uuid4(),
         )
         uow.product_attribute_values._store[pav.id] = pav
 
+        cache = AsyncMock()
         handler = DeleteProductAttributeHandler(
+            product_repo=uow.products,
             pav_repo=uow.product_attribute_values,
             uow=uow,
+            cache=cache,
             logger=_make_logger(),
         )
 
         await handler.handle(
             DeleteProductAttributeCommand(
-                product_id=product_id,
+                product_id=product.id,
                 attribute_id=attr_id,
             )
         )
 
         assert uow.committed is True
         assert pav.id not in uow.product_attribute_values._store
+        # PR G — symmetric cache invalidation with assign.
+        cache.delete.assert_awaited_once()
+        cache.increment.assert_awaited_once()
 
     async def test_assignment_not_found(self):
+        # Product must exist; the assignment is what's missing.
         uow = FakeUnitOfWork()
+        brand = _seed_brand(uow)
+        cat = _seed_category(uow)
+        product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
 
         handler = DeleteProductAttributeHandler(
+            product_repo=uow.products,
             pav_repo=uow.product_attribute_values,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
 
         with pytest.raises(ProductAttributeValueNotFoundError):
+            await handler.handle(
+                DeleteProductAttributeCommand(
+                    product_id=product.id,
+                    attribute_id=uuid.uuid4(),
+                )
+            )
+
+        assert uow.committed is False
+
+    async def test_product_not_found(self):
+        uow = FakeUnitOfWork()
+
+        handler = DeleteProductAttributeHandler(
+            product_repo=uow.products,
+            pav_repo=uow.product_attribute_values,
+            uow=uow,
+            cache=AsyncMock(),
+            logger=_make_logger(),
+        )
+
+        with pytest.raises(ProductNotFoundError):
             await handler.handle(
                 DeleteProductAttributeCommand(
                     product_id=uuid.uuid4(),

@@ -16,6 +16,7 @@ from src.modules.catalog.domain.exceptions import (
     AttributeNotDictionaryError,
     AttributeNotFoundError,
     AttributeNotInTemplateError,
+    AttributeValueInactiveError,
     AttributeValueNotFoundError,
     DuplicateProductAttributeError,
     ProductNotFoundError,
@@ -148,12 +149,15 @@ class BulkAssignProductAttributesHandler:
                 if not attribute.is_dictionary:
                     raise AttributeNotDictionaryError(attribute_id=item.attribute_id)
 
-                # Validate value exists and belongs to attribute
+                # Validate value exists, belongs to attribute, and is active.
+                # Deactivated values stay for historical reads only.
                 attr_value = vals_by_id.get(item.attribute_value_id)
                 if attr_value is None:
                     raise AttributeValueNotFoundError(value_id=item.attribute_value_id)
                 if attr_value.attribute_id != item.attribute_id:
                     raise AttributeValueNotFoundError(value_id=item.attribute_value_id)
+                if not attr_value.is_active:
+                    raise AttributeValueInactiveError(value_id=item.attribute_value_id)
 
                 # Check no duplicate
                 if item.attribute_id in existing_assignments:
