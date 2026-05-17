@@ -5,18 +5,19 @@ Validates the optional optimistic-lock version, checks slug uniqueness when
 the slug is being changed, builds a kwargs dict for only the fields the caller
 explicitly provided, and delegates the actual mutation to ``Product.update()``.
 Part of the application layer (CQRS write side).
+
+Media editing flows through the dedicated ``/products/{id}/media/*``
+endpoints (``UpdateProductMediaHandler`` / ``AddProductMediaHandler`` /
+``DeleteProductMediaHandler``) — not this handler. A previous attempt to
+fold a full-replace media diff into this command was never wired into
+the request schema and has been removed (2026-05).
 """
 
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.modules.catalog.application.commands.sync_media import compute_media_diff
-from src.modules.catalog.domain.entities import MediaAsset, Product
-from src.modules.catalog.domain.events import (
-    MediaAssetAttachedEvent,
-    MediaAssetDetachedEvent,
-)
+from src.modules.catalog.domain.entities import Product
 from src.modules.catalog.domain.exceptions import (
     BrandNotFoundError,
     CategoryNotFoundError,
@@ -27,7 +28,6 @@ from src.modules.catalog.domain.exceptions import (
 from src.modules.catalog.domain.interfaces import (
     IBrandRepository,
     ICategoryRepository,
-    IMediaAssetRepository,
     IProductRepository,
 )
 from src.shared.cache_keys import bump_storefront_product_generation
@@ -69,7 +69,6 @@ class UpdateProductCommand:
     country_of_origin: str | None = None
     tags: list[str] | None = None
     version: int | None = None
-    media: list[dict] | None = None
     _provided_fields: frozenset[str] = field(default_factory=frozenset)
 
 
@@ -79,9 +78,16 @@ class UpdateProductResult:
 
     Attributes:
         id: UUID of the updated product.
+        version: Post-mutation optimistic-lock counter. The router uses
+            this value (not a re-fetched ``ProductReadModel.version``) to
+            stamp the response ``ETag`` so a concurrent edit landing
+            between commit and re-fetch cannot hand the client an
+            ``If-Match`` token that silently overwrites someone else's
+            change.
     """
 
     id: uuid.UUID
+    version: int = 0
 
 
 class UpdateProductHandler:
@@ -98,7 +104,6 @@ class UpdateProductHandler:
         product_repo: IProductRepository,
         brand_repo: IBrandRepository,
         category_repo: ICategoryRepository,
-        media_repo: IMediaAssetRepository,
         uow: IUnitOfWork,
         cache: ICacheService,
         logger: ILogger,
@@ -106,10 +111,6 @@ class UpdateProductHandler:
         self._product_repo = product_repo
         self._brand_repo = brand_repo
         self._category_repo = category_repo
-        self._media_repo = media_repo
-        # IMG-005 — ``media_cleanup`` removed; storage cleanup now flows
-        # through ``MediaAssetDetachedEvent`` → outbox → TaskIQ
-        # consumer (``catalog.application.consumers.media_asset_detached``).
         self._uow = uow
         self._cache = cache
         self._logger = logger.bind(handler="UpdateProductHandler")
@@ -121,7 +122,8 @@ class UpdateProductHandler:
             command: Product update parameters.
 
         Returns:
-            Result containing the updated product ID.
+            Result containing the updated product ID and post-mutation
+            version (used by the router to stamp ``ETag``).
 
         Raises:
             ProductNotFoundError: If no product exists with the given ID.
@@ -200,99 +202,9 @@ class UpdateProductHandler:
 
             product.update(**update_kwargs)
 
-            if command.media is not None:
-                existing = await self._media_repo.list_by_product(command.product_id)
-                # PERF-002 — index existing media by id once, look up
-                # in the update loop below. Was N separate
-                # ``await self._media_repo.get(id)`` calls; for a 30-item
-                # gallery being reordered that's 30 round-trips per
-                # request.
-                existing_by_id = {m.id: m for m in existing}
-                current_dicts = [
-                    {
-                        "id": str(m.id),
-                        "storage_object_id": str(m.storage_object_id)
-                        if m.storage_object_id
-                        else None,
-                        "url": m.url,
-                        "role": m.role,
-                        "sort_order": m.sort_order,
-                        "variant_id": str(m.variant_id) if m.variant_id else None,
-                        "is_external": m.is_external,
-                    }
-                    for m in existing
-                ]
-                to_add, to_update, to_delete = compute_media_diff(
-                    current_dicts, command.media
-                )
-
-                for item in to_delete:
-                    mid = uuid.UUID(item["id"])
-                    await self._media_repo.delete(mid)
-                    sid = item.get("storage_object_id")
-                    if sid:
-                        # IMG-005 — emit event so cleanup runs via the
-                        # outbox/TaskIQ retry pipeline instead of the
-                        # prior best-effort post-commit loop. Failure
-                        # surfaces in failed_tasks instead of an
-                        # unrecoverable S3 orphan.
-                        product.add_domain_event(
-                            MediaAssetDetachedEvent(
-                                product_id=product.id,
-                                storage_object_id=uuid.UUID(sid),
-                            )
-                        )
-
-                for item in to_update:
-                    media = existing_by_id.get(uuid.UUID(item["id"]))
-                    if media is None:
-                        continue
-                    media.role = item["role"]
-                    media.sort_order = item["sort_order"]
-                    media.variant_id = (
-                        uuid.UUID(item["variant_id"])
-                        if item.get("variant_id")
-                        else None
-                    )
-                    await self._media_repo.update(media)
-
-                for item in to_add:
-                    media_asset = MediaAsset.create(
-                        product_id=command.product_id,
-                        variant_id=uuid.UUID(item["variant_id"])
-                        if item.get("variant_id")
-                        else None,
-                        media_type=item.get("media_type", "IMAGE"),
-                        role=item.get("role", "GALLERY"),
-                        sort_order=item.get("sort_order", 0),
-                        is_external=item.get("is_external", False),
-                        storage_object_id=uuid.UUID(item["storage_object_id"])
-                        if item.get("storage_object_id")
-                        else None,
-                        url=item.get("url"),
-                        image_variants=item.get("image_variants"),
-                    )
-                    await self._media_repo.add(media_asset)
-                    product.add_domain_event(
-                        MediaAssetAttachedEvent(
-                            product_id=product.id,
-                            media_asset_id=media_asset.id,
-                            storage_object_id=media_asset.storage_object_id,
-                            variant_id=media_asset.variant_id,
-                            role=media_asset.role,
-                            is_external=media_asset.is_external,
-                        )
-                    )
-
             await self._product_repo.update(product)
             self._uow.register_aggregate(product)
             await self._uow.commit()
-
-        # IMG-005 — storage cleanup is now atomic with the catalog
-        # commit (event landed in the outbox under the same
-        # transaction; TaskIQ consumer drives the actual S3 + DB
-        # delete with retry). The pre-IMG-005 best-effort
-        # ``media_cleanup.delete`` loop here is gone.
 
         # Bump the storefront product generation — invalidates PLP,
         # search and PDP caches in one INCR (the counter participates
@@ -311,4 +223,4 @@ class UpdateProductHandler:
             product_id=str(product.id),
             provided_fields=sorted(command._provided_fields),
         )
-        return UpdateProductResult(id=product.id)
+        return UpdateProductResult(id=product.id, version=product.version)

@@ -321,9 +321,14 @@ async def update_product(
             ) from exc
         raise
 
-    # Fetch the full product for response
+    # ETag MUST come from the freshly-committed ``result.version`` —
+    # NOT from the re-fetched ``read_model.version``. A concurrent edit
+    # landing between commit and re-fetch would otherwise hand the
+    # client an ``If-Match`` token for someone else's version and the
+    # next PATCH would silently overwrite their change. Mirrors the
+    # pattern already used by ``update_sku`` / ``update_variant``.
     read_model: ProductReadModel = await get_handler.handle(result.id)
-    attach_etag(response, read_model.version)
+    attach_etag(response, result.version)
     return _to_product_response(read_model)
 
 
