@@ -97,10 +97,18 @@ async def bulk_index(
             raise_on_error=raise_on_error,
             refresh=refresh,
         )
+    except ValueError, TypeError:
+        # H2 (Deep Review fix): programmer errors (e.g. ``_wrap`` raising
+        # ``ValueError`` on a doc with no ``_id``) must NOT be masked as
+        # transient backend failures. Translating them as
+        # ``SearchBackendError`` makes operators retry forever while
+        # the real bug — a bad caller — stays hidden. Re-raise as-is so
+        # the trace points at the wrap site.
+        raise
     except Exception as exc:
-        # Transport-level failure (ES down, auth refused, malformed
-        # request). Translate once so callers handle a single typed
-        # exception instead of mixing transport-specific classes.
+        # Transport-level failure (ES down, auth refused, network).
+        # Translate once so callers handle a single typed exception
+        # instead of mixing transport-specific classes.
         raise translate(exc, index=index) from exc
 
     # ``async_bulk`` returns ``(int, list)`` when ``raise_on_error=False``

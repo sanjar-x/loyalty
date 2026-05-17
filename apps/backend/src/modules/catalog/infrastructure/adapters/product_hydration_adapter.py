@@ -134,7 +134,15 @@ class ProductHydrationAdapter(IProductHydrationReader):
     async def _fetch_batch(
         self, *, after_id: uuid.UUID | None, limit: int
     ) -> list[Any]:
-        stmt = self._basics_stmt().where(OrmProduct.deleted_at.is_(None))
+        # H1 (Deep Review fix): include soft-deleted rows so the initial
+        # bulk reindex stamps them into ES with ``deleted=true`` (the
+        # ``_build_doc`` derivation handles the flag). Storefront filters
+        # out ``deleted=true`` at query time, but admin search keeps
+        # finding them — the contract documented in SPEC §5.1
+        # ("admin keeps finding them"). Pre-fix this method filtered
+        # ``deleted_at IS NULL``, so after an alias swap soft-deleted
+        # products silently disappeared from admin too.
+        stmt = self._basics_stmt()
         if after_id is not None:
             stmt = stmt.where(OrmProduct.id > after_id)
         stmt = stmt.order_by(OrmProduct.id.asc()).limit(limit)

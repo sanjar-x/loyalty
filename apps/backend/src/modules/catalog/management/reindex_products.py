@@ -197,6 +197,32 @@ async def _run(args: argparse.Namespace) -> int:
                     "--swap-alias requires --target-index (you have to "
                     "name the index you want to swap to)."
                 )
+            # H4 (Deep Review fix #1): refuse to swap a partially-failed
+            # reindex live — storefront search would silently lose
+            # whichever products bounced off ``bulk_index``. Operator
+            # must fix the underlying error and re-run.
+            if total_errors > 0:
+                raise SystemExit(
+                    f"--swap-alias refused: reindex finished with "
+                    f"{total_errors} per-item failures (success={total_success}). "
+                    f"Fix the source data / mapping and re-run before swapping."
+                )
+            # H4 (Deep Review fix #2): refuse to swap onto an empty
+            # index (--limit 0, upstream filter bug, schema drift that
+            # made every product skip indexing). An empty alias means
+            # zero search results live-on-prod. Pull the actual
+            # post-flush count from ES so we don't rely on local
+            # counters that may not have observed every batch.
+            await es.indices.refresh(index=target)
+            count_resp = await es.count(index=target)
+            doc_count = int(count_resp.get("count", 0))
+            if doc_count == 0:
+                raise SystemExit(
+                    f"--swap-alias refused: target index {target!r} contains "
+                    f"0 documents. Refusing to swap onto an empty index — "
+                    f"storefront search would go dark immediately."
+                )
+
             current = await current_alias_target(
                 es, alias=settings.ELASTICSEARCH_INDEX_ALIAS
             )
@@ -211,6 +237,7 @@ async def _run(args: argparse.Namespace) -> int:
                 alias=settings.ELASTICSEARCH_INDEX_ALIAS,
                 from_index=current,
                 to_index=target,
+                target_doc_count=doc_count,
             )
 
         return 0 if total_errors == 0 else 2
