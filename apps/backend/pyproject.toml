@@ -39,6 +39,7 @@ dependencies = [
     # --- Image module (S3 + Pillow processing) ---
     "aiobotocore>=3.3.0",
     "pillow>=11.0.0",
+    "elasticsearch[async]>=8.19,<9",
 ]
 
 [dependency-groups]
@@ -61,7 +62,7 @@ dev = [
     "respx>=0.22.0",
     "ruff>=0.15.9",
     "schemathesis>=4.14.1",
-    "testcontainers[minio,postgres,rabbitmq,redis]>=4.14.1",
+    "testcontainers[elasticsearch,minio,postgres,rabbitmq,redis]>=4.14.1",
     "ty>=0.0.32",
 ]
 

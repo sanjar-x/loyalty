@@ -19,6 +19,7 @@ from src.bootstrap.config import Settings, settings
 from src.bootstrap.modules import MODULES
 from src.infrastructure.cache.provider import CacheProvider
 from src.infrastructure.database.provider import DatabaseProvider
+from src.infrastructure.elasticsearch.provider import ElasticsearchProvider
 from src.infrastructure.idempotency.provider import IdempotencyProvider
 from src.infrastructure.logging.provider import LoggingProvider
 from src.infrastructure.security.provider import SecurityProvider
@@ -56,6 +57,7 @@ def _framework_providers() -> tuple[Provider, ...]:
         IdempotencyProvider(),
         TrackingProvider(),
         SecurityProvider(),
+        ElasticsearchProvider(),
     )
 
 

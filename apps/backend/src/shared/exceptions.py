@@ -232,3 +232,66 @@ class ServiceUnavailableError(AppException):
         details: dict[str, Any] | None = None,
     ):
         super().__init__(message, 503, error_code, details)
+
+
+class SearchBackendError(ServiceUnavailableError):
+    """Raised when the Elasticsearch backend is unreachable or returns 5xx (HTTP 503).
+
+    Subclasses ``ServiceUnavailableError`` so the global error handler
+    maps it to 503 with the standard envelope. Use for transient
+    failures (connection refused, 502/503/504, cluster red, timeout) —
+    the customer-facing search endpoint should retry or degrade
+    gracefully (empty results + warning) rather than 500.
+    """
+
+    def __init__(
+        self,
+        message: str = "Search backend is temporarily unavailable",
+        error_code: str = "SEARCH_BACKEND_UNAVAILABLE",
+        details: dict[str, Any] | None = None,
+    ):
+        super().__init__(message=message, error_code=error_code, details=details)
+
+
+class SearchIndexNotFoundError(NotFoundError):
+    """Raised when a referenced Elasticsearch index does not exist (HTTP 404).
+
+    Distinct from :class:`SearchBackendError` because the cluster is
+    reachable — the index name is wrong (typo, missing alias, dropped
+    by mistake). Surfaces to admin tooling so the operator can rebuild
+    or re-attach the alias rather than treating it as a generic outage.
+    """
+
+    def __init__(
+        self,
+        *,
+        index: str,
+        message: str | None = None,
+    ):
+        super().__init__(
+            message=message or f"Search index '{index}' not found",
+            error_code="SEARCH_INDEX_NOT_FOUND",
+            details={"index": index},
+        )
+
+
+class SearchConflictError(ConflictError):
+    """Raised on Elasticsearch version conflict (409).
+
+    Surfaces optimistic-concurrency failures from ES (``_version`` /
+    ``if_seq_no`` mismatches) during single-doc updates. Typically the
+    indexer should retry the operation by re-hydrating the source doc.
+    """
+
+    def __init__(
+        self,
+        *,
+        index: str,
+        doc_id: str,
+        message: str | None = None,
+    ):
+        super().__init__(
+            message=message or f"Search doc {doc_id!r} version conflict in {index!r}",
+            error_code="SEARCH_DOC_CONFLICT",
+            details={"index": index, "doc_id": doc_id},
+        )

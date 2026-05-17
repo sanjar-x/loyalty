@@ -284,6 +284,42 @@ class Settings(BaseSettings):
 
         return f"redis://{credentials}{self.REDISHOST}:{self.REDISPORT}/{self.REDISDATABASE}"
 
+    # -- Elasticsearch (product search) -------------------------------------
+    # Self-hosted ES 8.x on Railway. URL can be either a full URL with
+    # scheme (``https://...up.railway.app`` for local dev — TLS terminated
+    # at Railway edge on :443) or a bare hostname (Railway private domain
+    # like ``elasticsearch.railway.internal`` — plain HTTP on the internal
+    # network). ``elasticsearch_resolved_url`` normalises both shapes.
+    # Empty defaults so local boot without ES doesn't fail Settings
+    # validation — the provider will fail loudly when actually invoked.
+    ELASTICSEARCH_URL: str = ""
+    ELASTICSEARCH_PORT: int = Field(default=9200, ge=1, le=65535)
+    ELASTICSEARCH_USERNAME: str = "elastic"
+    ELASTICSEARCH_PASSWORD: SecretStr = SecretStr("")
+    ELASTICSEARCH_INDEX_ALIAS: str = "products"
+    # Request-level resiliency. Conservative for single-node MVP; revisit
+    # when scaling to a 3-node cluster (replicas=1 absorbs node loss
+    # without surfacing failures to callers).
+    ELASTICSEARCH_REQUEST_TIMEOUT_SECONDS: float = Field(default=30.0, gt=0)
+    ELASTICSEARCH_MAX_RETRIES: int = Field(default=3, ge=0)
+
+    @computed_field
+    @property
+    def elasticsearch_resolved_url(self) -> str:
+        """Return a fully-qualified ES URL combining URL + PORT.
+
+        Detection rule: if ``ELASTICSEARCH_URL`` already contains a
+        scheme (``://``) it is used verbatim and ``ELASTICSEARCH_PORT``
+        is ignored. Otherwise a plain ``http://{URL}:{PORT}`` is built
+        (Railway internal network — no TLS).
+        """
+        raw = self.ELASTICSEARCH_URL.strip()
+        if not raw:
+            return ""
+        if "://" in raw:
+            return raw
+        return f"http://{raw}:{self.ELASTICSEARCH_PORT}"
+
     # ------------------------------------------------------------------ #
     # Cross-field invariants (CFG-001)
     # ------------------------------------------------------------------ #
