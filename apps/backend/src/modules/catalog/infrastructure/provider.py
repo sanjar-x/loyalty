@@ -250,6 +250,9 @@ from src.modules.catalog.infrastructure.adapters.elasticsearch_search_service im
 from src.modules.catalog.infrastructure.adapters.media_cleanup_adapter import (
     MediaCleanupAdapter,
 )
+from src.modules.catalog.infrastructure.adapters.postgres_product_search_service import (
+    PostgresProductSearchService,
+)
 from src.modules.catalog.infrastructure.repositories import (
     AttributeGroupRepository,
     AttributeRepository,
@@ -522,20 +525,30 @@ class StorefrontCatalogProvider(Provider):
         SearchSuggestHandler, scope=Scope.REQUEST
     )
 
-    # Phase 2 SPEC — ``IProductSearchService`` port bound to the ES adapter.
-    # Currently inert on the request path: existing
-    # ``SearchProductsHandler`` / ``SearchSuggestHandler`` keep their
-    # direct ORM access until Phase 2.5 refactor swaps them onto the
-    # port. Bound now so integration tests and the upcoming
-    # ``ProductIndexer`` consumer can resolve it from DI without
-    # touching this provider again.
+    # Phase 2.5 — IProductSearchService dispatched at request time by
+    # ``settings.SEARCH_PROVIDER``. PG path delegates to the existing
+    # SearchProductsHandler / SearchSuggestHandler via
+    # ``PostgresProductSearchService`` so behaviour is unchanged from
+    # the pre-flag baseline. ES path uses
+    # ``ElasticsearchProductSearchService`` once Phase 2.6 indexer
+    # populates the index. Switching providers requires only the
+    # Railway env-var — no deploy.
     @provide(scope=Scope.REQUEST)
     def product_search_service(
-        self, es: AsyncElasticsearch, settings: Settings
+        self,
+        settings: Settings,
+        es: AsyncElasticsearch,
+        pg_search: SearchProductsHandler,
+        pg_suggest: SearchSuggestHandler,
     ) -> IProductSearchService:
-        return ElasticsearchProductSearchService(
-            es=es,
-            index_alias=settings.ELASTICSEARCH_INDEX_ALIAS,
+        if settings.SEARCH_PROVIDER == "elasticsearch":
+            return ElasticsearchProductSearchService(
+                es=es,
+                index_alias=settings.ELASTICSEARCH_INDEX_ALIAS,
+            )
+        return PostgresProductSearchService(
+            search_handler=pg_search,
+            suggest_handler=pg_suggest,
         )
 
 

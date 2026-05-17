@@ -14,17 +14,14 @@ import uuid
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Query, Request, Response, status
 
+from src.modules.catalog.application.ports import (
+    IProductSearchService,
+    SearchProductsCriteria,
+    SearchSuggestCriteria,
+)
 from src.modules.catalog.application.queries.compute_facets import (
     ComputeFacetsHandler,
     ComputeFacetsQuery,
-)
-from src.modules.catalog.application.queries.search_products import (
-    SearchProductsHandler,
-    SearchProductsQuery,
-)
-from src.modules.catalog.application.queries.search_suggest import (
-    SearchSuggestHandler,
-    SearchSuggestQuery,
 )
 from src.modules.catalog.presentation.router_storefront_products import (
     _extract_identity_id,
@@ -102,7 +99,7 @@ def _parse_attribute_filters(request: Request) -> dict[str, list[str]] | None:
 )
 async def search_products(
     request: Request,
-    handler: FromDishka[SearchProductsHandler],
+    search_service: FromDishka[IProductSearchService],
     facets_handler: FromDishka[ComputeFacetsHandler],
     tracker: FromDishka[IActivityTracker],
     token_provider: FromDishka[ITokenProvider],
@@ -147,20 +144,24 @@ async def search_products(
 ) -> StorefrontPLPResponse:
     attribute_filters = _parse_attribute_filters(request)
 
-    query = SearchProductsQuery(
+    criteria = SearchProductsCriteria(
         q=q,
-        category_id=category_id,
-        brand_ids=brand_id,
-        price_min=price_min,
-        price_max=price_max,
-        in_stock=in_stock,
-        attribute_filters=attribute_filters,
         sort=sort,
         limit=limit,
         cursor=cursor,
+        category_id=category_id,
+        brand_ids=tuple(brand_id) if brand_id else (),
+        price_min=price_min,
+        price_max=price_max,
+        in_stock=in_stock,
+        attribute_filters=(
+            {code: tuple(values) for code, values in attribute_filters.items()}
+            if attribute_filters
+            else {}
+        ),
         include_total=include_total,
     )
-    result = await handler.handle(query)
+    result = await search_service.search(criteria)
 
     response.headers["Cache-Control"] = _search_cache_control(lang)
 
@@ -249,7 +250,7 @@ async def _track_search(
     ),
 )
 async def search_suggest(
-    handler: FromDishka[SearchSuggestHandler],
+    search_service: FromDishka[IProductSearchService],
     response: Response,
     q: str = Query(
         ..., min_length=2, max_length=100, description="Search prefix (min 2 chars)"
@@ -262,8 +263,9 @@ async def search_suggest(
         description="Preferred locale for suggestion text",
     ),
 ) -> list[SearchSuggestionResponse]:
-    query = SearchSuggestQuery(q=q, limit=limit, lang=lang)
-    results = await handler.handle(query)
+    results = await search_service.suggest(
+        SearchSuggestCriteria(q=q, limit=limit, lang=lang)
+    )
 
     response.headers["Cache-Control"] = "public, max-age=120, s-maxage=120"
 
