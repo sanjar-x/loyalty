@@ -686,7 +686,15 @@ class TestReorderProductMedia:
         assert m3.sort_order == 1
         assert uow.committed is True
 
-    async def test_partial_match_raises_error(self):
+    async def test_partial_match_raises_validation_error(self):
+        """PR I — unknown ``media_id`` now surfaces as a
+        ``ValidationError`` (400) with the offending counts in
+        ``details``. Pre-fix the handler raised
+        ``MediaAssetNotFoundError(media_id="(bulk reorder)")`` which
+        violated its own ``uuid.UUID`` field contract.
+        """
+        from src.shared.exceptions import ValidationError
+
         uow = FakeUnitOfWork()
         product = _seed_product(uow)
 
@@ -700,8 +708,7 @@ class TestReorderProductMedia:
             cache=AsyncMock(),
             logger=_make_logger(),
         )
-        # Third item has a non-existent media_id
-        with pytest.raises(MediaAssetNotFoundError):
+        with pytest.raises(ValidationError) as exc_info:
             await handler.handle(
                 ReorderProductMediaCommand(
                     product_id=product.id,
@@ -712,6 +719,41 @@ class TestReorderProductMedia:
                     ],
                 )
             )
+        assert exc_info.value.error_code == "REORDER_UNKNOWN_MEDIA_IDS"
+        assert exc_info.value.details["requested_count"] == 3
+        assert exc_info.value.details["matched_count"] == 2
+        assert uow.committed is False
+
+    async def test_duplicate_media_id_rejected(self):
+        """PR I — a payload with the same ``media_id`` twice must fail
+        before touching the DB. ``bulk_update_sort_order`` collapses
+        duplicates to whichever ``CASE/WHEN`` branch the engine
+        evaluates last, silently dropping the caller's other intent."""
+        from src.shared.exceptions import ValidationError
+
+        uow = FakeUnitOfWork()
+        product = _seed_product(uow)
+        m1 = _seed_media(uow, product_id=product.id, sort_order=0)
+
+        handler = ReorderProductMediaHandler(
+            media_repo=uow.media_assets,
+            product_repo=uow.products,
+            uow=uow,
+            cache=AsyncMock(),
+            logger=_make_logger(),
+        )
+        with pytest.raises(ValidationError) as exc_info:
+            await handler.handle(
+                ReorderProductMediaCommand(
+                    product_id=product.id,
+                    items=[
+                        ReorderItem(media_id=m1.id, sort_order=0),
+                        ReorderItem(media_id=m1.id, sort_order=1),
+                    ],
+                )
+            )
+        assert exc_info.value.error_code == "REORDER_DUPLICATE_MEDIA_ID"
+        assert str(m1.id) in exc_info.value.details["duplicate_media_ids"]
         assert uow.committed is False
 
     async def test_empty_items(self):
