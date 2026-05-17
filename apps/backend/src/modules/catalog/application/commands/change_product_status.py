@@ -78,16 +78,28 @@ class ChangeProductStatusHandler:
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
-            # SEC-09: Pre-publication readiness check — ensure the product
-            # has at least one media asset before allowing PUBLISHED status.
-            if command.new_status == ProductStatus.PUBLISHED:
+            # SEC-09 — pre-publication readiness: a reviewer-ready or
+            # published product must carry at least one media asset.
+            # ``Product.transition_status`` enforces SKU pricing for the
+            # same two states, but media live in a sibling aggregate
+            # (loaded via ``IMediaAssetRepository``) so the check has to
+            # sit at the application layer. The earlier version only
+            # gated PUBLISHED, which let reviewers open the workflow on
+            # a media-less product just to hit the wall at publish time.
+            if command.new_status in (
+                ProductStatus.READY_FOR_REVIEW,
+                ProductStatus.PUBLISHED,
+            ):
                 media_assets = await self._media_repo.list_by_product(
                     command.product_id
                 )
                 if not media_assets:
                     raise ProductNotReadyError(
                         product_id=command.product_id,
-                        reason="Cannot publish product without at least one media asset (image)",
+                        reason=(
+                            f"Cannot transition to {command.new_status.value} "
+                            "without at least one media asset (image)"
+                        ),
                     )
 
             product.transition_status(command.new_status)

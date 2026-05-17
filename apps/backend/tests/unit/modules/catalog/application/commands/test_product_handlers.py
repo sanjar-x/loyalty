@@ -951,6 +951,37 @@ class TestChangeProductStatus:
 
         assert uow.committed is False
 
+    async def test_ready_for_review_without_media(self):
+        """PR H — READY_FOR_REVIEW now enforces the media gate too.
+
+        Reviewers don't open empty workflows: a product with no media
+        cannot move to READY_FOR_REVIEW. Pre-fix the handler only
+        blocked PUBLISHED, so the wall was discovered hours later when
+        the reviewer tried to publish.
+        """
+        uow = FakeUnitOfWork()
+        brand = _seed_brand(uow)
+        cat = _seed_category(uow)
+        product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
+
+        handler = ChangeProductStatusHandler(
+            product_repo=uow.products,
+            media_repo=uow.media_assets,
+            uow=uow,
+            cache=AsyncMock(),
+            logger=_make_logger(),
+        )
+
+        with pytest.raises(ProductNotReadyError):
+            await handler.handle(
+                ChangeProductStatusCommand(
+                    product_id=product.id,
+                    new_status=ProductStatus.READY_FOR_REVIEW,
+                )
+            )
+
+        assert uow.committed is False
+
     async def test_invalid_transition(self):
         """DRAFT -> ARCHIVED is not a valid FSM transition."""
         uow = FakeUnitOfWork()
