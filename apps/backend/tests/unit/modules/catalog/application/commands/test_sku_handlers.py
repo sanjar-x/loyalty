@@ -605,6 +605,36 @@ class TestGenerateSKUMatrix:
         assert len(result.sku_ids) == 2
         assert uow.committed is True
 
+    async def test_expected_version_mismatch_raises_optimistic_lock(self):
+        """PR K — bulk SKU generation honours ``expected_version``.
+
+        Without this guard a bulk matrix landing on a product that was
+        edited in parallel would land silently — the caller has no
+        signal that their input is against a stale aggregate.
+        """
+        from src.shared.exceptions import OptimisticLockError
+
+        uow = FakeUnitOfWork()
+        product, _template, attr, values = _seed_product_with_template(uow)
+        variant_id = product.variants[0].id
+
+        handler = self._make_handler(uow)
+        with pytest.raises(OptimisticLockError):
+            await handler.handle(
+                GenerateSKUMatrixCommand(
+                    product_id=product.id,
+                    variant_id=variant_id,
+                    attribute_selections=[
+                        AttributeSelection(
+                            attribute_id=attr.id,
+                            value_ids=[values[0].id],
+                        )
+                    ],
+                    expected_version=product.version + 1,
+                )
+            )
+        assert uow.committed is False
+
     async def test_happy_path_two_attributes_cartesian(self):
         uow = FakeUnitOfWork()
         product, template, attr1, values1 = _seed_product_with_template(uow)

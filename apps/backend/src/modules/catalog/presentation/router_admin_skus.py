@@ -149,8 +149,16 @@ async def generate_sku_matrix(
     variant_id: Annotated[uuid.UUID, Path(alias="variantId")],
     request: SKUMatrixGenerateRequest,
     handler: FromDishka[GenerateSKUMatrixHandler],
+    if_match_version: int | None = Depends(parse_if_match),
 ) -> SKUMatrixGenerateResponse:
-    """Generate SKU combinations from attribute selections."""
+    """Generate SKU combinations from attribute selections.
+
+    Accepts ``If-Match: "v{N}"`` so a bulk generation against a stale
+    product version surfaces as 412 ``PRECONDITION_FAILED`` instead of
+    landing silently on top of a concurrent edit. Omitting the header
+    keeps the previous behaviour (no version guard) for callers that
+    haven't migrated yet.
+    """
     command = GenerateSKUMatrixCommand(
         product_id=product_id,
         variant_id=variant_id,
@@ -164,8 +172,19 @@ async def generate_sku_matrix(
         price=_money_from_schema(request.price),
         compare_at_price=_money_from_schema(request.compare_at_price),
         is_active=request.is_active,
+        expected_version=if_match_version,
     )
-    result = await handler.handle(command)
+    try:
+        result = await handler.handle(command)
+    except OptimisticLockError as exc:
+        if if_match_version is None:
+            raise
+        raise PreconditionFailedError(
+            entity_type="Product",
+            entity_id=product_id,
+            expected_version=if_match_version,
+            current_version=exc.details.get("actual_version"),
+        ) from exc
     return SKUMatrixGenerateResponse(
         created_count=result.created_count,
         skipped_count=result.skipped_count,

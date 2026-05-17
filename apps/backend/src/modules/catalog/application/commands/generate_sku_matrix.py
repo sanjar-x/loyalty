@@ -33,7 +33,11 @@ from src.modules.catalog.domain.interfaces import (
     ITemplateAttributeBindingRepository,
 )
 from src.modules.catalog.domain.value_objects import AttributeLevel, Money
-from src.shared.exceptions import UnprocessableEntityError, ValidationError
+from src.shared.exceptions import (
+    OptimisticLockError,
+    UnprocessableEntityError,
+    ValidationError,
+)
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -68,6 +72,14 @@ class GenerateSKUMatrixCommand:
     price: Money | None = None
     compare_at_price: Money | None = None
     is_active: bool = True
+    expected_version: int | None = None
+    """T-1.4 — header-level optimistic-lock counter, sourced from
+    ``If-Match: "v{N}"`` on the route. When set and different from the
+    product's current version, raises :class:`OptimisticLockError` so
+    the router upgrades it to 412 ``PRECONDITION_FAILED``. Without it,
+    a bulk SKU generation against a product that another writer just
+    edited would land silently — the caller has no signal that the
+    matrix they generated is against a stale aggregate snapshot."""
 
 
 @dataclass(frozen=True)
@@ -128,6 +140,21 @@ class GenerateSKUMatrixHandler:
             )
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
+
+            # T-1.4 — fail fast against the header-level optimistic-lock
+            # counter so a bulk matrix generation cannot land silently on
+            # top of a concurrent edit. Mirrors the per-SKU ``update_sku``
+            # flow; router upgrades to 412 ``PRECONDITION_FAILED``.
+            if (
+                command.expected_version is not None
+                and command.expected_version != product.version
+            ):
+                raise OptimisticLockError(
+                    entity_type="Product",
+                    entity_id=product.id,
+                    expected_version=command.expected_version,
+                    actual_version=product.version,
+                )
 
             # --- Validate attributes: level, values, template membership ---
             await self._validate_selections(product, command.attribute_selections)
