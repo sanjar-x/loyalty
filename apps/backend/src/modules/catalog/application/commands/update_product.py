@@ -24,6 +24,7 @@ from src.modules.catalog.domain.exceptions import (
     ConcurrencyError,
     ProductNotFoundError,
     ProductSlugConflictError,
+    SourceUrlRequiredError,
 )
 from src.modules.catalog.domain.interfaces import (
     IBrandRepository,
@@ -34,7 +35,14 @@ from src.shared.cache_keys import bump_storefront_product_generation
 from src.shared.exceptions import UnprocessableEntityError
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
+from src.shared.interfaces.supplier_directory import ISupplierDirectory
 from src.shared.interfaces.uow import IUnitOfWork
+
+# Supplier type code signalling a cross-border supplier. String literal
+# (rather than an imported enum) keeps catalog decoupled from the supplier
+# bounded context — the value is part of the published ISupplierDirectory
+# contract. Mirrored verbatim from ``create_product.py``.
+_SUPPLIER_TYPE_CROSS_BORDER = "cross_border"
 
 
 @dataclass(frozen=True)
@@ -104,6 +112,7 @@ class UpdateProductHandler:
         product_repo: IProductRepository,
         brand_repo: IBrandRepository,
         category_repo: ICategoryRepository,
+        supplier_directory: ISupplierDirectory,
         uow: IUnitOfWork,
         cache: ICacheService,
         logger: ILogger,
@@ -111,6 +120,7 @@ class UpdateProductHandler:
         self._product_repo = product_repo
         self._brand_repo = brand_repo
         self._category_repo = category_repo
+        self._supplier_directory = supplier_directory
         self._uow = uow
         self._cache = cache
         self._logger = logger.bind(handler="UpdateProductHandler")
@@ -177,6 +187,26 @@ class UpdateProductHandler:
                 category = await self._category_repo.get(command.primary_category_id)
                 if category is None:
                     raise CategoryNotFoundError(category_id=command.primary_category_id)
+
+            # --- Supplier validation (when supplier_id is being set/changed) ---
+            # ``supplier_id`` is FK-nullable, so ``None`` is a valid value
+            # meaning "clear the link" — only validate when a non-null UUID
+            # is provided. Mirrors the ``CreateProductHandler`` rule so an
+            # active cross-border supplier cannot be attached to a product
+            # without a ``source_url`` (re-checks the invariant against the
+            # row's *current* ``source_url`` since update has no field for it).
+            if (
+                "supplier_id" in command._provided_fields
+                and command.supplier_id is not None
+            ):
+                supplier_snapshot = await self._supplier_directory.assert_active(
+                    command.supplier_id
+                )
+                if (
+                    supplier_snapshot.type_code == _SUPPLIER_TYPE_CROSS_BORDER
+                    and not product.source_url
+                ):
+                    raise SourceUrlRequiredError()
 
             # --- Slug uniqueness check (only when slug is actually changing) ---
             if (

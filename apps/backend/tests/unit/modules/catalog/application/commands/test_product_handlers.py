@@ -498,6 +498,7 @@ class TestUpdateProduct:
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
+            supplier_directory=_make_supplier_service(),
             uow=uow,
             cache=AsyncMock(),
             logger=_make_logger(),
@@ -527,6 +528,7 @@ class TestUpdateProduct:
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
+            supplier_directory=_make_supplier_service(),
             uow=uow,
             cache=AsyncMock(),
             logger=_make_logger(),
@@ -550,6 +552,7 @@ class TestUpdateProduct:
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
+            supplier_directory=_make_supplier_service(),
             uow=uow,
             cache=AsyncMock(),
             logger=_make_logger(),
@@ -576,6 +579,7 @@ class TestUpdateProduct:
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
+            supplier_directory=_make_supplier_service(),
             uow=uow,
             cache=AsyncMock(),
             logger=_make_logger(),
@@ -604,6 +608,7 @@ class TestUpdateProduct:
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
+            supplier_directory=_make_supplier_service(),
             uow=uow,
             cache=AsyncMock(),
             logger=_make_logger(),
@@ -630,6 +635,7 @@ class TestUpdateProduct:
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
+            supplier_directory=_make_supplier_service(),
             uow=uow,
             cache=AsyncMock(),
             logger=_make_logger(),
@@ -656,6 +662,7 @@ class TestUpdateProduct:
             product_repo=uow.products,
             brand_repo=uow.brands,
             category_repo=uow.categories,
+            supplier_directory=_make_supplier_service(),
             uow=uow,
             cache=AsyncMock(),
             logger=_make_logger(),
@@ -671,6 +678,115 @@ class TestUpdateProduct:
             )
 
         assert uow.committed is False
+
+    async def test_update_supplier_inactive_raises(self):
+        """Updating ``supplier_id`` to an inactive supplier must surface
+        the published ``SupplierDirectoryInactiveError`` (422), mirroring
+        the create path. Prior to PR D this skipped validation and
+        ended up as a FK 500 only when the row was deactivated by the
+        supplier module mid-transaction."""
+        uow = FakeUnitOfWork()
+        brand = _seed_brand(uow)
+        cat = _seed_category(uow)
+        product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
+        supplier_id = uuid.uuid4()
+        svc = _make_supplier_service(
+            raises=SupplierDirectoryInactiveError(supplier_id=supplier_id)
+        )
+
+        handler = UpdateProductHandler(
+            product_repo=uow.products,
+            brand_repo=uow.brands,
+            category_repo=uow.categories,
+            supplier_directory=svc,
+            uow=uow,
+            cache=AsyncMock(),
+            logger=_make_logger(),
+        )
+
+        with pytest.raises(SupplierDirectoryInactiveError):
+            await handler.handle(
+                UpdateProductCommand(
+                    product_id=product.id,
+                    supplier_id=supplier_id,
+                    _provided_fields=frozenset({"supplier_id"}),
+                )
+            )
+
+        assert uow.committed is False
+
+    async def test_update_supplier_cross_border_requires_source_url(self):
+        """Switching a product (whose ``source_url`` is unset) to a
+        cross-border supplier must fail the same way ``create_product``
+        fails. Without PR D the row would land in a state the create
+        path explicitly forbids."""
+        uow = FakeUnitOfWork()
+        brand = _seed_brand(uow)
+        cat = _seed_category(uow)
+        product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
+        # ``_seed_product`` produces a product without source_url.
+        assert product.source_url is None
+
+        supplier_id = uuid.uuid4()
+        info = SupplierSnapshot(
+            id=supplier_id,
+            name="Poizon",
+            type_code="cross_border",
+            is_active=True,
+        )
+        svc = _make_supplier_service(supplier_info=info)
+
+        handler = UpdateProductHandler(
+            product_repo=uow.products,
+            brand_repo=uow.brands,
+            category_repo=uow.categories,
+            supplier_directory=svc,
+            uow=uow,
+            cache=AsyncMock(),
+            logger=_make_logger(),
+        )
+
+        with pytest.raises(SourceUrlRequiredError):
+            await handler.handle(
+                UpdateProductCommand(
+                    product_id=product.id,
+                    supplier_id=supplier_id,
+                    _provided_fields=frozenset({"supplier_id"}),
+                )
+            )
+
+        assert uow.committed is False
+
+    async def test_update_supplier_clear_skips_directory_call(self):
+        """``supplier_id=None`` means "clear the link". The directory
+        port is not consulted (no row to assert against). FK is
+        nullable in the schema, so this is a legitimate state."""
+        uow = FakeUnitOfWork()
+        brand = _seed_brand(uow)
+        cat = _seed_category(uow)
+        product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
+        svc = _make_supplier_service()
+
+        handler = UpdateProductHandler(
+            product_repo=uow.products,
+            brand_repo=uow.brands,
+            category_repo=uow.categories,
+            supplier_directory=svc,
+            uow=uow,
+            cache=AsyncMock(),
+            logger=_make_logger(),
+        )
+
+        await handler.handle(
+            UpdateProductCommand(
+                product_id=product.id,
+                supplier_id=None,
+                _provided_fields=frozenset({"supplier_id"}),
+            )
+        )
+
+        svc.assert_active.assert_not_awaited()
+        assert uow.committed is True
 
 
 # ============================================================================
