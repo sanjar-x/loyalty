@@ -6,6 +6,7 @@ import warnings
 from asyncio.events import AbstractEventLoop
 from collections.abc import AsyncIterable
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 from dotenv import load_dotenv
 
@@ -14,6 +15,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 import pytest
 import redis.asyncio as redis
 from dishka import AsyncContainer, Provider, Scope, make_async_container, provide
+from elasticsearch import AsyncElasticsearch
 from pydantic import SecretStr
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -162,6 +164,14 @@ class TestOverridesProvider(Provider):
     async def oidc_provider(self) -> IOIDCProvider:
         return StubOIDCProvider()
 
+    @provide(scope=Scope.APP, override=True)
+    async def es_client(self) -> AsyncIterable[AsyncElasticsearch]:
+        # No-network stub — every catalog test that touches search would
+        # otherwise either hang on the real client or need to spin up a
+        # testcontainers ES node. Suite-level isolation per REC-020.
+        client = AsyncMock(spec=AsyncElasticsearch)
+        yield client
+
 
 # ==========================================
 # 3. IoC Container & DB Initialization (Session Scope)
@@ -184,12 +194,18 @@ async def app_container(
     from src.bootstrap.modules import MODULES
     from src.infrastructure.cache.provider import CacheProvider
     from src.infrastructure.database.provider import DatabaseProvider
+    from src.infrastructure.elasticsearch.provider import ElasticsearchProvider
     from src.infrastructure.idempotency.provider import IdempotencyProvider
     from src.infrastructure.logging.provider import LoggingProvider
     from src.infrastructure.security.provider import SecurityProvider
     from src.infrastructure.streams.provider import StreamsProvider
     from src.infrastructure.tracking.provider import TrackingProvider
 
+    # ElasticsearchProvider has to live alongside the other framework
+    # providers so the DI graph for catalog's IProductSearchService can
+    # resolve. TestOverridesProvider replaces the real AsyncElasticsearch
+    # with a no-network stub below — but the binding key has to exist
+    # somewhere first or dishka rejects the graph at startup.
     framework_providers = (
         DatabaseProvider(),
         LoggingProvider(),
@@ -198,6 +214,7 @@ async def app_container(
         IdempotencyProvider(),
         TrackingProvider(),
         SecurityProvider(),
+        ElasticsearchProvider(),
     )
     module_providers = tuple(p for m in MODULES for p in m.providers)
     container = make_async_container(
