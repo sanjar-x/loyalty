@@ -15,6 +15,12 @@ test-e2e:
 test-architecture:
 	uv run pytest tests/architecture/ -v
 
+# Opt-in: spins a real Elasticsearch container per session via testcontainers.
+# Slow (≈30s ES startup); excluded from the default suite by the ``es``
+# marker. Run before flipping SEARCH_PROVIDER=elasticsearch in any env.
+test-es:
+	uv run pytest -m es -v
+
 coverage:
 	uv run pytest tests/ --cov=project --cov-report=term-missing --cov-report=html
 

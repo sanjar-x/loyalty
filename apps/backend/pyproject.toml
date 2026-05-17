@@ -80,6 +80,7 @@ markers = [
     "integration: Application + Infrastructure with real database",
     "e2e: Presentation-layer HTTP round-trips",
     "load: Resilience and threshold testing (Locust)",
+    "es: Tests that spin a real Elasticsearch container (testcontainers); slow, opt-in",
 ]
 filterwarnings = ["ignore::DeprecationWarning:dishka.*"]
 testpaths = ["tests"]
