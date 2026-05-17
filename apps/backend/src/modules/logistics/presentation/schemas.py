@@ -182,6 +182,19 @@ class PickupPointsRequest(CamelModel):
     )
 
 
+class PickupPointServicesSchema(CamelModel):
+    """Extra capabilities a pickup point exposes.
+
+    Currently populated by Yandex (``pickup_services`` in 2.02). Other
+    providers omit the field entirely (parent ``services`` is ``None``).
+    """
+
+    is_fitting_allowed: bool = False
+    is_partial_refuse_allowed: bool = False
+    is_paperless_pickup_allowed: bool = False
+    is_unboxing_allowed: bool = False
+
+
 class PickupPointSchema(CamelModel):
     """One marker on the map.
 
@@ -214,6 +227,14 @@ class PickupPointSchema(CamelModel):
     )
     dimensions_limit: DimensionsSchema | None = Field(
         None, description="Provider-declared max parcel dimensions"
+    )
+    services: PickupPointServicesSchema | None = Field(
+        None,
+        description=(
+            "Optional extra capabilities (fitting / partial refuse / "
+            "paperless / unboxing). ``None`` when the provider does not "
+            "report this data."
+        ),
     )
 
 

@@ -137,25 +137,23 @@ class TestBuildOffersCreateRequest:
 
 
 class TestParsePickupPoints:
-    def _raw_point(self, payment_methods: list[str]) -> dict:
-        return {
-            "points": [
-                {
-                    "id": "pvz-1",
-                    "name": "ПВЗ на Пролетарском",
-                    "type": "pickup_point",
-                    "position": {"latitude": 55.66, "longitude": 37.51},
-                    "address": {
-                        "country": "Россия",
-                        "locality": "Москва",
-                        "street": "Пролетарский проспект",
-                        "house": "19",
-                        "full_address": "Москва, Пролетарский проспект, 19",
-                    },
-                    "payment_methods": payment_methods,
-                }
-            ]
+    def _raw_point(self, payment_methods: list[str], **overrides) -> dict:
+        point = {
+            "id": "pvz-1",
+            "name": "ПВЗ на Пролетарском",
+            "type": "pickup_point",
+            "position": {"latitude": 55.66, "longitude": 37.51},
+            "address": {
+                "country": "Россия",
+                "locality": "Москва",
+                "street": "Пролетарский проспект",
+                "house": "19",
+                "full_address": "Москва, Пролетарский проспект, 19",
+            },
+            "payment_methods": payment_methods,
         }
+        point.update(overrides)
+        return {"points": [point]}
 
     def test_country_decoded_to_iso_code(self) -> None:
         [point] = parse_pickup_points(self._raw_point(["already_paid"]))
@@ -176,6 +174,75 @@ class TestParsePickupPoints:
         assert with_card.is_card_allowed is True
         assert with_postpay.is_card_allowed is True
         assert prepaid_only.is_card_allowed is False
+
+    def test_dark_store_excluded(self) -> None:
+        # Closed B2B warehouses must not reach the public storefront map.
+        assert (
+            parse_pickup_points(self._raw_point(["already_paid"], is_dark_store=True))
+            == []
+        )
+
+    def test_deactivated_by_date_excluded(self) -> None:
+        # A scheduled-for-shutdown point would strand customer orders.
+        assert (
+            parse_pickup_points(
+                self._raw_point(
+                    ["already_paid"], deactivation_date="2026-06-01T00:00:00+0000"
+                )
+            )
+            == []
+        )
+
+    def test_deactivated_by_predicted_debt_excluded(self) -> None:
+        # The second deactivation field (unpaid-debt closure) is honoured too.
+        assert (
+            parse_pickup_points(
+                self._raw_point(
+                    ["already_paid"],
+                    deactivation_date_predicted_debt="2026-06-01T00:00:00+0000",
+                )
+            )
+            == []
+        )
+
+    def test_literal_null_string_treated_as_no_deactivation(self) -> None:
+        # The Yandex doc example serialises ``"null"`` as a string;
+        # treat that the same as JSON ``null`` to avoid dropping every point.
+        [point] = parse_pickup_points(
+            self._raw_point(["already_paid"], deactivation_date="null")
+        )
+        assert point.external_id == "pvz-1"
+
+    def test_pickup_services_parsed(self) -> None:
+        [point] = parse_pickup_points(
+            self._raw_point(
+                ["already_paid"],
+                pickup_services={
+                    "is_fitting_allowed": True,
+                    "is_partial_refuse_allowed": True,
+                    "is_paperless_pickup_allowed": False,
+                    "is_unboxing_allowed": True,
+                },
+            )
+        )
+        assert point.services is not None
+        assert point.services.is_fitting_allowed is True
+        assert point.services.is_partial_refuse_allowed is True
+        assert point.services.is_paperless_pickup_allowed is False
+        assert point.services.is_unboxing_allowed is True
+
+    def test_pickup_services_omitted_stays_none(self) -> None:
+        # Distinguish "not reported" (None) from "explicitly all-false".
+        [point] = parse_pickup_points(self._raw_point(["already_paid"]))
+        assert point.services is None
+
+    def test_operator_station_id_kept_in_metadata(self) -> None:
+        [point] = parse_pickup_points(
+            self._raw_point(["already_paid"], operator_station_id="10035218565")
+        )
+        assert point.address.metadata["operator_station_id"] == "10035218565"
+        # Pre-existing platform_station_id keeps its slot.
+        assert point.address.metadata["platform_station_id"] == "pvz-1"
 
 
 class TestBuildPickupPointsRequest:

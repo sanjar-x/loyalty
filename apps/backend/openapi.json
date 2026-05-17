@@ -17641,6 +17641,53 @@
         }
       }
     },
+    "/api/v1/orders/buy-now": {
+      "post": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Buy Now Order",
+        "description": "Create an order directly from a single SKU (no cart).\n\nExpress checkout: front-end collects sku + quantity + recipient +\npickup + delivery quote in one mini-checkout sheet on the product\npage, and this endpoint provisions the Order in PENDING (or PAID,\nwhen ``PAYMENT_AUTO_CAPTURE_ON_AUTHORIZE`` is on) in one round-trip.\nSame FSM, payment, outbox and Telegram fan-out as a cart-flow order.",
+        "operationId": "buy_now_order_api_v1_orders_buy_now_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuyNowOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateOrderResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/orders/{orderId}": {
       "get": {
         "tags": [
@@ -21645,6 +21692,71 @@
         ],
         "title": "BulkPurchasePriceResponse",
         "description": "Outcome of a bulk purchase-price update."
+      },
+      "BuyNowOrderRequest": {
+        "properties": {
+          "skuId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Skuid"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity"
+          },
+          "recipientId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Recipientid"
+          },
+          "pickupCarrier": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Pickupcarrier"
+          },
+          "pickupPointId": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Pickuppointid"
+          },
+          "deliveryQuoteId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deliveryquoteid",
+            "description": "Server-trusted id of the quote returned by /storefront/logistics/rates/quote. When present the priced shipping amount is included in the payment authorization."
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Idempotencykey"
+          },
+          "paymentProvider": {
+            "type": "string",
+            "title": "Paymentprovider",
+            "default": "fake"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skuId",
+          "quantity",
+          "recipientId",
+          "pickupCarrier",
+          "pickupPointId",
+          "idempotencyKey"
+        ],
+        "title": "BuyNowOrderRequest",
+        "description": "Express-checkout payload: a single SKU goes straight to Order.\n\nNo backing cart row — front-end collects sku/quantity/recipient/\npickup/delivery_quote in a one-shot mini-checkout sheet on the\nproduct page. Response shape matches :class:`CreateOrderResponse`\nso the front-end branches once on ``auto_captured``."
       },
       "CalculateRatesRequest": {
         "properties": {
@@ -28319,6 +28431,17 @@
               }
             ],
             "description": "Provider-declared max parcel dimensions"
+          },
+          "services": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PickupPointServicesSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional extra capabilities (fitting / partial refuse / paperless / unboxing). ``None`` when the provider does not report this data."
           }
         },
         "type": "object",
@@ -28334,6 +28457,33 @@
         ],
         "title": "PickupPointSchema",
         "description": "One marker on the map.\n\nThe frontend renders ``position`` and uses ``(provider_code,\nexternal_id)`` as the opaque handle to pass back into\n``/rates/quote``. Provider-internal identifiers stay on the server."
+      },
+      "PickupPointServicesSchema": {
+        "properties": {
+          "isFittingAllowed": {
+            "type": "boolean",
+            "title": "Isfittingallowed",
+            "default": false
+          },
+          "isPartialRefuseAllowed": {
+            "type": "boolean",
+            "title": "Ispartialrefuseallowed",
+            "default": false
+          },
+          "isPaperlessPickupAllowed": {
+            "type": "boolean",
+            "title": "Ispaperlesspickupallowed",
+            "default": false
+          },
+          "isUnboxingAllowed": {
+            "type": "boolean",
+            "title": "Isunboxingallowed",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "PickupPointServicesSchema",
+        "description": "Extra capabilities a pickup point exposes.\n\nCurrently populated by Yandex (``pickup_services`` in 2.02). Other\nproviders omit the field entirely (parent ``services`` is ``None``)."
       },
       "PickupPointsRequest": {
         "properties": {

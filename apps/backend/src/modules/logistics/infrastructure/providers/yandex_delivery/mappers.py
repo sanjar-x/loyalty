@@ -26,6 +26,7 @@ from src.modules.logistics.domain.value_objects import (
     Parcel,
     PickupPoint,
     PickupPointQuery,
+    PickupPointServices,
     PickupPointType,
     ShippingRate,
     TrackingEvent,
@@ -572,17 +573,55 @@ def build_pickup_points_request(
 
 
 def parse_pickup_points(data: dict[str, Any]) -> list[PickupPoint]:
-    """Parse pickup-points/list response into PickupPoint list."""
+    """Parse pickup-points/list response into PickupPoint list.
+
+    Filters out points that must not reach the storefront map:
+
+    * ``is_dark_store=true`` — closed B2B warehouses that can show up in
+      the response but are not public PVZ.
+    * non-null ``deactivation_date`` / ``deactivation_date_predicted_debt``
+      — a point scheduled for shutdown; a customer order on it would
+      end up un-picked-up.
+
+    Each filter logs a structured warning with ``external_id`` so support
+    can correlate complaints ("my favourite PVZ disappeared") against
+    Yandex-side state.
+    """
     points = data.get("points", [])
     result: list[PickupPoint] = []
 
     for pt in points:
+        external_id = pt.get("id", "")
+
+        if pt.get("is_dark_store") is True:
+            logger.warning(
+                "yandex.pickup_point_filtered",
+                reason="dark_store",
+                external_id=external_id,
+            )
+            continue
+        deactivation_reason = _deactivation_reason(pt)
+        if deactivation_reason is not None:
+            logger.warning(
+                "yandex.pickup_point_filtered",
+                reason=deactivation_reason,
+                external_id=external_id,
+            )
+            continue
+
         pt_type_str = pt.get("type", "pickup_point")
         mapped_type = YANDEX_PICKUP_TYPE_MAP.get(pt_type_str, "pvz")
         pickup_type = PickupPointType(mapped_type)
 
         address_data = pt.get("address", {})
         position = pt.get("position", {})
+
+        metadata: dict[str, Any] = {"platform_station_id": external_id}
+        # Operator-side id (e.g. 5post warehouse code) — kept server-side
+        # for support / audit, never serialised onto AddressSchema.
+        operator_station_id = pt.get("operator_station_id")
+        if operator_station_id:
+            metadata["operator_station_id"] = operator_station_id
 
         address = Address(
             # Yandex returns the country as a Russian display name
@@ -598,7 +637,7 @@ def parse_pickup_points(data: dict[str, Any]) -> list[PickupPoint]:
             latitude=position.get("latitude"),
             longitude=position.get("longitude"),
             raw_address=address_data.get("full_address"),
-            metadata={"platform_station_id": pt.get("id", "")},
+            metadata=metadata,
         )
 
         payment_methods = pt.get("payment_methods", [])
@@ -612,7 +651,7 @@ def parse_pickup_points(data: dict[str, Any]) -> list[PickupPoint]:
         result.append(
             PickupPoint(
                 provider_code=PROVIDER_YANDEX_DELIVERY,
-                external_id=pt.get("id", ""),
+                external_id=external_id,
                 name=pt.get("name", ""),
                 pickup_point_type=pickup_type,
                 address=address,
@@ -629,10 +668,43 @@ def parse_pickup_points(data: dict[str, Any]) -> list[PickupPoint]:
                 is_card_allowed=(
                     "card_on_receipt" in payment_methods or "postpay" in payment_methods
                 ),
+                services=_parse_pickup_services(pt.get("pickup_services")),
             )
         )
 
     return result
+
+
+def _deactivation_reason(pt: dict[str, Any]) -> str | None:
+    """Return the field that marks ``pt`` as scheduled for deactivation.
+
+    Yandex docs declare the fields as nullable strings; the published
+    example also serialises a literal ``"null"`` string, so both shapes
+    are treated as "no deactivation set".
+    """
+    for field in ("deactivation_date", "deactivation_date_predicted_debt"):
+        value = pt.get(field)
+        if value in (None, "", "null"):
+            continue
+        return field
+    return None
+
+
+def _parse_pickup_services(raw: Any) -> PickupPointServices | None:
+    """Parse the ``pickup_services`` sub-object into a typed VO.
+
+    Returns ``None`` when the provider omits the field entirely so the
+    caller can distinguish "unknown" from "explicitly all-false".
+    Missing flags inside the object default to ``False``.
+    """
+    if not isinstance(raw, dict):
+        return None
+    return PickupPointServices(
+        is_fitting_allowed=bool(raw.get("is_fitting_allowed", False)),
+        is_partial_refuse_allowed=bool(raw.get("is_partial_refuse_allowed", False)),
+        is_paperless_pickup_allowed=bool(raw.get("is_paperless_pickup_allowed", False)),
+        is_unboxing_allowed=bool(raw.get("is_unboxing_allowed", False)),
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -418,6 +418,21 @@ class PickupPointType(StrEnum):
 
 
 @attrs.define(frozen=True)
+class PickupPointServices:
+    """Extra services available at a pickup point.
+
+    Provider-agnostic shape — currently populated by Yandex (`pickup_services`
+    in `pickup-points/list` 2.02). Other providers leave it `None` until they
+    surface analogous capability data.
+    """
+
+    is_fitting_allowed: bool = False
+    is_partial_refuse_allowed: bool = False
+    is_paperless_pickup_allowed: bool = False
+    is_unboxing_allowed: bool = False
+
+
+@attrs.define(frozen=True)
 class PickupPoint:
     """A pickup / delivery point from a logistics provider."""
 
@@ -432,6 +447,7 @@ class PickupPoint:
     is_card_allowed: bool = False
     weight_limit_grams: int | None = None
     dimensions_limit: Dimensions | None = None
+    services: PickupPointServices | None = None
 
 
 @attrs.define(frozen=True)

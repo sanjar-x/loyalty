@@ -35,6 +35,7 @@ from src.modules.logistics.presentation.schemas import (
     DimensionsSchema,
     GeoPositionSchema,
     PickupPointSchema,
+    PickupPointServicesSchema,
     PickupPointsRequest,
     PickupPointsResponse,
     ProviderCodeLiteral,
@@ -122,6 +123,16 @@ async def list_pickup_points(
                         height_cm=p.dimensions_limit.height_cm,
                     )
                     if p.dimensions_limit
+                    else None
+                ),
+                services=(
+                    PickupPointServicesSchema(
+                        is_fitting_allowed=p.services.is_fitting_allowed,
+                        is_partial_refuse_allowed=p.services.is_partial_refuse_allowed,
+                        is_paperless_pickup_allowed=p.services.is_paperless_pickup_allowed,
+                        is_unboxing_allowed=p.services.is_unboxing_allowed,
+                    )
+                    if p.services is not None
                     else None
                 ),
             )

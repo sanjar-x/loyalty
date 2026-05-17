@@ -31,6 +31,7 @@ from src.modules.logistics.domain.value_objects import (
     Address,
     Dimensions,
     PickupPoint,
+    PickupPointServices,
     PickupPointType,
     ProviderCode,
 )
@@ -125,6 +126,16 @@ def _pickup_point_to_payload(point: PickupPoint) -> dict[str, Any]:
             if point.dimensions_limit
             else None
         ),
+        "services": (
+            {
+                "is_fitting_allowed": point.services.is_fitting_allowed,
+                "is_partial_refuse_allowed": point.services.is_partial_refuse_allowed,
+                "is_paperless_pickup_allowed": point.services.is_paperless_pickup_allowed,
+                "is_unboxing_allowed": point.services.is_unboxing_allowed,
+            }
+            if point.services is not None
+            else None
+        ),
     }
 
 
@@ -149,6 +160,7 @@ def _payload_to_pickup_point(data: dict[str, Any]) -> PickupPoint | None:
     try:
         address_data = data["address"]
         dims_data = data.get("dimensions_limit")
+        services_data = data.get("services")
         return PickupPoint(
             provider_code=data["provider_code"],
             external_id=data["external_id"],
@@ -180,6 +192,24 @@ def _payload_to_pickup_point(data: dict[str, Any]) -> PickupPoint | None:
                     height_cm=int(dims_data["height_cm"]),
                 )
                 if dims_data
+                else None
+            ),
+            services=(
+                PickupPointServices(
+                    is_fitting_allowed=bool(
+                        services_data.get("is_fitting_allowed", False)
+                    ),
+                    is_partial_refuse_allowed=bool(
+                        services_data.get("is_partial_refuse_allowed", False)
+                    ),
+                    is_paperless_pickup_allowed=bool(
+                        services_data.get("is_paperless_pickup_allowed", False)
+                    ),
+                    is_unboxing_allowed=bool(
+                        services_data.get("is_unboxing_allowed", False)
+                    ),
+                )
+                if services_data
                 else None
             ),
         )
