@@ -388,17 +388,27 @@ class PermissionGroupResponse(CamelModel):
 
 
 class StaffListItemResponse(CamelModel):
-    """Response for a staff member in a paginated list."""
+    """Response for a staff member in a paginated list.
+
+    ``firstName`` / ``lastName`` may be ``null`` when the identity is
+    visible as staff (account_type=STAFF or carries a staff-targeted
+    role) but no ``staff_members`` profile row exists — the admin
+    panel can flag such rows via ``hasStaffMemberProfile=false`` and
+    ``accountTypeMismatch`` so legacy / partially-provisioned accounts
+    surface instead of being silently invisible.
+    """
 
     identity_id: uuid.UUID
     email: str | None
-    first_name: str
-    last_name: str
+    first_name: str | None
+    last_name: str | None
     position: str | None
     department: str | None
     roles: list[str]
     is_active: bool
     created_at: datetime
+    account_type_mismatch: bool = False
+    has_staff_member_profile: bool = True
 
 
 class StaffListResponse(CamelModel):

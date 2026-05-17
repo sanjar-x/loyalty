@@ -32448,11 +32448,25 @@
             "title": "Email"
           },
           "firstName": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Firstname"
           },
           "lastName": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Lastname"
           },
           "position": {
@@ -32492,6 +32506,16 @@
             "type": "string",
             "format": "date-time",
             "title": "Createdat"
+          },
+          "accountTypeMismatch": {
+            "type": "boolean",
+            "title": "Accounttypemismatch",
+            "default": false
+          },
+          "hasStaffMemberProfile": {
+            "type": "boolean",
+            "title": "Hasstaffmemberprofile",
+            "default": true
           }
         },
         "type": "object",
@@ -32507,7 +32531,7 @@
           "createdAt"
         ],
         "title": "StaffListItemResponse",
-        "description": "Response for a staff member in a paginated list."
+        "description": "Response for a staff member in a paginated list.\n\n``firstName`` / ``lastName`` may be ``null`` when the identity is\nvisible as staff (account_type=STAFF or carries a staff-targeted\nrole) but no ``staff_members`` profile row exists — the admin\npanel can flag such rows via ``hasStaffMemberProfile=false`` and\n``accountTypeMismatch`` so legacy / partially-provisioned accounts\nsurface instead of being silently invisible."
       },
       "StaffListResponse": {
         "properties": {

@@ -152,6 +152,8 @@ async def list_staff(
                 roles=item.roles,
                 is_active=item.is_active,
                 created_at=item.created_at,
+                account_type_mismatch=item.account_type_mismatch,
+                has_staff_member_profile=item.has_staff_member_profile,
             )
             for item in result.items
         ],
