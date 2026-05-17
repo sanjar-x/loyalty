@@ -316,3 +316,37 @@ class TestApplyFailure:
             await handler.apply_failure(
                 _make_failure_request(pricing_status="not_a_real_status")
             )
+
+    @pytest.mark.asyncio
+    async def test_idempotent_failure_resubmit_returns_hash_noop(self):
+        """At-least-once redelivery of an identical failure must short-circuit.
+
+        Regression for the ADR-005 idempotency hole: ``mark_pricing_failed``
+        returns ``False`` for an identical (status, reason) pair, but the
+        old handler ignored the return value and went on to insert a
+        duplicate ``PricingHistoryEntry`` and re-emit
+        ``SKUPricingFailedEvent`` to subscribers — once per redelivery,
+        for the lifetime of the row.
+        """
+        sku = SKU(
+            id=_SKU_ID,
+            product_id=_PRODUCT_ID,
+            variant_id=_VARIANT_ID,
+            sku_code="TEST-SKU-001",
+            variant_hash="dummyhash",
+            version=1,
+            pricing_status=SkuPricingStatus.STALE_FX,
+            priced_failure_reason="Division by zero in formula AST",
+        )
+        product = _make_product_with_sku(sku)
+        handler, product_repo, history_repo, uow = _make_handler(product=product)
+
+        outcome = await handler.apply_failure(
+            _make_failure_request(pricing_status="stale_fx")
+        )
+
+        assert outcome is WriteOutcome.HASH_NOOP
+        product_repo.update.assert_not_awaited()
+        history_repo.add.assert_not_awaited()
+        product.add_domain_event.assert_not_called()
+        assert not uow.committed

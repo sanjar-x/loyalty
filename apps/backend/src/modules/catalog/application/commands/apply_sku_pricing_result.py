@@ -166,7 +166,18 @@ class ApplySkuPricingResultHandler(IInternalSkuPricingApplyPort):
             # is one of {STALE_FX, MISSING_PURCHASE_PRICE, FORMULA_ERROR}.
             status = SkuPricingStatus(request.pricing_status)
 
-            sku.mark_pricing_failed(status=status, reason=request.failure_reason)
+            # Mirror the apply_success idempotency contract. The recompute
+            # service is at-least-once, so the same failure can be
+            # redelivered. ``mark_pricing_failed`` already returns
+            # ``False`` on identical status+reason — without honouring it,
+            # every redelivery duplicated the audit row and re-fanned-out
+            # ``SKUPricingFailedEvent`` to subscribers.
+            changed = sku.mark_pricing_failed(
+                status=status, reason=request.failure_reason
+            )
+            if not changed:
+                log.info("hash_noop", pricing_status=status.value)
+                return WriteOutcome.HASH_NOOP
 
             await self._product_repo.update(product)
             await self._history_repo.add(
