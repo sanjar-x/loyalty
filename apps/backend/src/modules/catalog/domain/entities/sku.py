@@ -180,6 +180,8 @@ class SKU:
             "price",
             "compare_at_price",
             "is_active",
+            "variant_attributes",
+            "variant_hash",
         }
     )
 
@@ -196,13 +198,26 @@ class SKU:
         :meth:`set_purchase_price` instead so the pricing recompute event
         is emitted atomically.
 
+        ``variant_attributes`` / ``variant_hash`` MUST be passed together
+        (the hash is derived from the attributes and the owning Product's
+        variant). Passing one without the other is a programming bug —
+        the caller is :class:`UpdateSKUHandler`, which computes the hash
+        via :meth:`Product.compute_variant_hash` and checks cross-SKU
+        uniqueness before getting here.
+
         Raises:
-            TypeError: If an unknown field name is passed.
+            TypeError: If an unknown field name is passed, or if exactly
+                one of ``variant_attributes`` / ``variant_hash`` is given.
             ValueError: If the resulting compare_at_price <= price.
         """
         unknown = set(kwargs) - self._UPDATABLE_FIELDS
         if unknown:
             raise TypeError(f"Cannot update immutable/unknown fields: {unknown}")
+
+        if ("variant_attributes" in kwargs) != ("variant_hash" in kwargs):
+            raise TypeError(
+                "variant_attributes and variant_hash must be updated together"
+            )
 
         # Validate-then-mutate: compute new state before touching self
         new_price = kwargs.get("price", self.price)
@@ -235,6 +250,10 @@ class SKU:
             changed = True
         if "is_active" in kwargs:
             self.is_active = kwargs["is_active"]
+            changed = True
+        if "variant_attributes" in kwargs:
+            self.variant_attributes = list(kwargs["variant_attributes"])
+            self.variant_hash = kwargs["variant_hash"]
             changed = True
 
         if changed:

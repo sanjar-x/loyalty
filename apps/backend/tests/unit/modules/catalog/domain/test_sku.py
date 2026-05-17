@@ -141,6 +141,33 @@ class TestSKUUpdate:
         ):
             sku.update(price=Money(3000, "RUB"))
 
+    def test_update_variant_attributes_with_hash(self):
+        """variant_attributes + variant_hash flow through ``update()``.
+
+        Regression for the prod PATCH /sku/{id} crash: the handler
+        forwards ``variant_attributes`` and ``variant_hash`` together;
+        previously ``SKU.update()`` rejected both as unknown fields and
+        raised ``TypeError``.
+        """
+        import uuid
+
+        sku = SKUBuilder().build()
+        new_attrs = [(uuid.uuid4(), uuid.uuid4())]
+        new_hash = "deadbeef" * 8
+        sku.update(variant_attributes=new_attrs, variant_hash=new_hash)
+        assert sku.variant_attributes == new_attrs
+        assert sku.variant_hash == new_hash
+
+    def test_update_variant_attributes_without_hash_rejected(self):
+        sku = SKUBuilder().build()
+        with pytest.raises(TypeError, match="must be updated together"):
+            sku.update(variant_attributes=[])
+
+    def test_update_variant_hash_without_attributes_rejected(self):
+        sku = SKUBuilder().build()
+        with pytest.raises(TypeError, match="must be updated together"):
+            sku.update(variant_hash="abc")
+
 
 # ---------------------------------------------------------------------------
 # TestSKUSoftDelete
