@@ -11,23 +11,31 @@ every Product / SKU / Variant / Media / Brand / Category event went
 into the outbox, the relay marked them ``unknown event_type``, and ES
 silently fell behind PG with no alarm.
 
-This test calls the real bootstrap helper and then asserts the relay's
-event-handler registry actually carries the keys the indexer claims to
-subscribe to. If someone removes the entry from ``task_modules`` (or
-renames the bridge function without updating the registration list),
-this test fails loudly.
+Two checks:
+
+1. ``test_product_indexer_listed_in_catalog_task_modules`` — pure
+   manifest assertion; does not trigger any registrations, so it
+   cannot perturb the shared ``_EVENT_HANDLERS`` state that the
+   identity / supplier dual-registration tests pin separately.
+2. ``test_product_indexer_event_handlers_registered`` — imports the
+   indexer module directly (not via ``import_task_modules`` on the
+   full MODULES tuple) and asserts every expected event_type is
+   bound. Isolated to the catalog file so the test cannot collide
+   with other modules' registrations.
 """
 
 from __future__ import annotations
 
+import importlib
+
 import pytest
 
-from src.bootstrap.module_registry import import_task_modules
 from src.bootstrap.modules import MODULES
 from src.infrastructure.outbox.relay import _EVENT_HANDLERS
 
 pytestmark = pytest.mark.unit
 
+_INDEXER_MODULE = "src.modules.catalog.application.consumers.product_indexer"
 
 _EXPECTED_EVENT_TYPES: tuple[str, ...] = (
     # Product lifecycle
@@ -51,9 +59,30 @@ _EXPECTED_EVENT_TYPES: tuple[str, ...] = (
 )
 
 
+def test_product_indexer_listed_in_catalog_task_modules() -> None:
+    """``CATALOG_MODULE.task_modules`` must reference the indexer module.
+
+    Pure manifest check — does not import the module, so cannot
+    pollute the global ``_EVENT_HANDLERS`` dict.
+    """
+    catalog_manifest = next(m for m in MODULES if m.name == "catalog")
+    assert _INDEXER_MODULE in catalog_manifest.task_modules, (
+        f"{_INDEXER_MODULE!r} missing from CATALOG_MODULE.task_modules — "
+        "runtime bootstrap will skip the file, no @broker.task / "
+        "register_event_handler() side-effects will fire, and the ES "
+        "indexer pipeline silently dies."
+    )
+
+
 def test_product_indexer_event_handlers_registered() -> None:
-    """All 14 indexer events present in the outbox relay registry."""
-    import_task_modules(MODULES)
+    """All expected event_types resolved in the outbox relay registry.
+
+    Imports ONLY the indexer module (not the full MODULES manifest)
+    to avoid perturbing the dual-registration state of other modules
+    (identity / supplier) — those have their own pinned tests in
+    ``tests/unit/infrastructure/outbox/test_dual_registration.py``.
+    """
+    importlib.import_module(_INDEXER_MODULE)
 
     missing = [
         event_type
@@ -62,7 +91,6 @@ def test_product_indexer_event_handlers_registered() -> None:
     ]
     assert not missing, (
         f"ProductIndexer outbox bridges missing for: {missing}. "
-        "Likely cause: ``src.modules.catalog.application.consumers.product_indexer`` "
-        "is not listed in CATALOG_MODULE.task_modules, or the bridge "
-        "functions were removed without updating the registration list."
+        "Likely cause: the bridge functions were removed without "
+        f"updating the registration list at the bottom of {_INDEXER_MODULE}."
     )
